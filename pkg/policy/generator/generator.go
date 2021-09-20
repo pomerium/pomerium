@@ -8,6 +8,7 @@ import (
 	"github.com/open-policy-agent/opa/ast"
 
 	"github.com/pomerium/pomerium/pkg/policy/parser"
+	"github.com/pomerium/pomerium/pkg/policy/rules"
 )
 
 // A Generator generates a rego script from a policy.
@@ -47,9 +48,13 @@ func (g *Generator) GetCriterion(name string) (Criterion, bool) {
 
 // Generate generates the rego module from a policy.
 func (g *Generator) Generate(policy *parser.Policy) (*ast.Module, error) {
-	rules := ast.NewRuleSet()
-	rules.Add(ast.MustParseRule(`default allow = false`))
-	rules.Add(ast.MustParseRule(`default deny = false`))
+	rs := ast.NewRuleSet()
+	rs.Add(ast.MustParseRule(`default allow = [false, set()]`))
+	rs.Add(ast.MustParseRule(`default deny = [false, set()]`))
+	rs.Add(rules.InvertCriterionResult())
+	rs.Add(rules.NormalizeCriterionResult())
+	rs.Add(rules.MergeWithAnd())
+	rs.Add(rules.MergeWithOr())
 
 	for _, action := range []parser.Action{parser.ActionAllow, parser.ActionDeny} {
 		var terms []*ast.Term
@@ -59,28 +64,28 @@ func (g *Generator) Generate(policy *parser.Policy) (*ast.Module, error) {
 			}
 
 			if len(policyRule.And) > 0 {
-				subRule, err := g.generateAndRule(&rules, policyRule.And)
+				subRule, err := g.generateAndRule(&rs, policyRule.And)
 				if err != nil {
 					return nil, err
 				}
 				terms = append(terms, ast.VarTerm(string(subRule.Head.Name)))
 			}
 			if len(policyRule.Or) > 0 {
-				subRule, err := g.generateOrRule(&rules, policyRule.Or)
+				subRule, err := g.generateOrRule(&rs, policyRule.Or)
 				if err != nil {
 					return nil, err
 				}
 				terms = append(terms, ast.VarTerm(string(subRule.Head.Name)))
 			}
 			if len(policyRule.Not) > 0 {
-				subRule, err := g.generateNotRule(&rules, policyRule.Not)
+				subRule, err := g.generateNotRule(&rs, policyRule.Not)
 				if err != nil {
 					return nil, err
 				}
 				terms = append(terms, ast.VarTerm(string(subRule.Head.Name)))
 			}
 			if len(policyRule.Nor) > 0 {
-				subRule, err := g.generateNorRule(&rules, policyRule.Nor)
+				subRule, err := g.generateNorRule(&rs, policyRule.Nor)
 				if err != nil {
 					return nil, err
 				}
@@ -91,11 +96,13 @@ func (g *Generator) Generate(policy *parser.Policy) (*ast.Module, error) {
 			rule := &ast.Rule{
 				Head: &ast.Head{
 					Name:  ast.Var(action),
-					Value: ast.VarTerm("v1"),
+					Value: ast.VarTerm("v"),
 				},
+				Body: append(ast.Body{
+					ast.Assign.Expr(ast.VarTerm("results"), ast.ArrayTerm(terms...)),
+				}, orBody...),
 			}
-			g.fillViaOr(rule, terms)
-			rules.Add(rule)
+			rs.Add(rule)
 		}
 	}
 
@@ -107,7 +114,7 @@ func (g *Generator) Generate(policy *parser.Policy) (*ast.Module, error) {
 				ast.StringTerm("policy"),
 			},
 		},
-		Rules: rules,
+		Rules: rs,
 	}
 
 	// move functions to the end
@@ -123,6 +130,16 @@ func (g *Generator) Generate(policy *parser.Policy) (*ast.Module, error) {
 	})
 
 	return mod, nil
+}
+
+// NewRuleFromTemplate creates a new rule from a template rule.
+func (g *Generator) NewRuleFromTemplate(name string, template *ast.Rule) *ast.Rule {
+	id := g.ids[name]
+	g.ids[name]++
+
+	newRule := template.Copy()
+	newRule.Head.Name = ast.Var(fmt.Sprintf("%s_%d", name, id))
+	return newRule
 }
 
 // NewRule creates a new rule with a dynamically generated name.

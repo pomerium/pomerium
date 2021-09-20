@@ -56,66 +56,126 @@ func TestPolicy_ToPPL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `package pomerium.policy
 
-default allow = false
+default allow = [false, set()]
 
-default deny = false
+default deny = [false, set()]
 
-pomerium_routes_0 {
+pomerium_routes_0 = [true, {"pomerium-route"}] {
 	contains(input.http.url, "/.pomerium/")
 }
 
-accept_0 = v {
-	v := true
+else = [false, {"non-pomerium-route"}] {
+	true
 }
 
-cors_preflight_0 {
+accept_0 = [true, {"accept"}]
+
+cors_preflight_0 = [true, {"cors-request"}] {
 	input.http.method == "OPTIONS"
 	count(object.get(input.http.headers, "Access-Control-Request-Method", [])) > 0
 	count(object.get(input.http.headers, "Origin", [])) > 0
 }
 
-authenticated_user_0 {
+else = [false, {"non-cors-request"}] {
+	true
+}
+
+authenticated_user_0 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
 	session.user_id != null
 	session.user_id != ""
 }
 
-domains_0 {
+else = [false, {"user-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+domain_0 = [true, {"domain-ok"}] {
 	session := get_session(input.session.id)
 	user := get_user(session)
 	domain := split(get_user_email(session, user), "@")[1]
 	domain == "a.example.com"
 }
 
-domains_1 {
+else = [false, {"domain-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+domain_1 = [true, {"domain-ok"}] {
 	session := get_session(input.session.id)
 	user := get_user(session)
 	domain := split(get_user_email(session, user), "@")[1]
 	domain == "b.example.com"
 }
 
-domains_2 {
+else = [false, {"domain-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+domain_2 = [true, {"domain-ok"}] {
 	session := get_session(input.session.id)
 	user := get_user(session)
 	domain := split(get_user_email(session, user), "@")[1]
 	domain == "c.example.com"
 }
 
-domains_3 {
+else = [false, {"domain-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+domain_3 = [true, {"domain-ok"}] {
 	session := get_session(input.session.id)
 	user := get_user(session)
 	domain := split(get_user_email(session, user), "@")[1]
 	domain == "d.example.com"
 }
 
-domains_4 {
+else = [false, {"domain-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+domain_4 = [true, {"domain-ok"}] {
 	session := get_session(input.session.id)
 	user := get_user(session)
 	domain := split(get_user_email(session, user), "@")[1]
 	domain == "e.example.com"
 }
 
-groups_0 {
+else = [false, {"domain-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+groups_0 = [true, {"groups-ok"}] {
 	session := get_session(input.session.id)
 	directory_user := get_directory_user(session)
 	group_ids := get_group_ids(session, directory_user)
@@ -137,7 +197,16 @@ groups_0 {
 	count([true | some v; v = groups[_0]; v == "group1"]) > 0
 }
 
-groups_1 {
+else = [false, {"groups-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+groups_1 = [true, {"groups-ok"}] {
 	session := get_session(input.session.id)
 	directory_user := get_directory_user(session)
 	group_ids := get_group_ids(session, directory_user)
@@ -159,7 +228,16 @@ groups_1 {
 	count([true | some v; v = groups[_0]; v == "group2"]) > 0
 }
 
-groups_2 {
+else = [false, {"groups-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+groups_2 = [true, {"groups-ok"}] {
 	session := get_session(input.session.id)
 	directory_user := get_directory_user(session)
 	group_ids := get_group_ids(session, directory_user)
@@ -181,7 +259,16 @@ groups_2 {
 	count([true | some v; v = groups[_0]; v == "group3"]) > 0
 }
 
-groups_3 {
+else = [false, {"groups-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+groups_3 = [true, {"groups-ok"}] {
 	session := get_session(input.session.id)
 	directory_user := get_directory_user(session)
 	group_ids := get_group_ids(session, directory_user)
@@ -203,7 +290,16 @@ groups_3 {
 	count([true | some v; v = groups[_0]; v == "group4"]) > 0
 }
 
-groups_4 {
+else = [false, {"groups-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+groups_4 = [true, {"groups-ok"}] {
 	session := get_session(input.session.id)
 	directory_user := get_directory_user(session)
 	group_ids := get_group_ids(session, directory_user)
@@ -225,7 +321,16 @@ groups_4 {
 	count([true | some v; v = groups[_0]; v == "group5"]) > 0
 }
 
-claims_0 {
+else = [false, {"groups-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+claim_0 = [true, {"claim-ok"}] {
 	rule_data := "Smith"
 	rule_path := "family_name"
 	session := get_session(input.session.id)
@@ -237,7 +342,16 @@ claims_0 {
 	rule_data == values[_0]
 }
 
-claims_1 {
+else = [false, {"claim-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+claim_1 = [true, {"claim-ok"}] {
 	rule_data := "Jones"
 	rule_path := "family_name"
 	session := get_session(input.session.id)
@@ -249,7 +363,16 @@ claims_1 {
 	rule_data == values[_0]
 }
 
-claims_2 {
+else = [false, {"claim-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+claim_2 = [true, {"claim-ok"}] {
 	rule_data := "John"
 	rule_path := "given_name"
 	session := get_session(input.session.id)
@@ -261,7 +384,16 @@ claims_2 {
 	rule_data == values[_0]
 }
 
-claims_3 {
+else = [false, {"claim-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+claim_3 = [true, {"claim-ok"}] {
 	rule_data := "EST"
 	rule_path := "timezone"
 	session := get_session(input.session.id)
@@ -273,246 +405,266 @@ claims_3 {
 	rule_data == values[_0]
 }
 
-users_0 {
+else = [false, {"claim-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+user_0 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
 	user_id := session.user_id
 	user_id == "user1"
 }
 
-emails_0 {
+else = [false, {"user-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+email_0 = [true, {"email-ok"}] {
 	session := get_session(input.session.id)
 	user := get_user(session)
 	email := get_user_email(session, user)
 	email == "user1"
 }
 
-users_1 {
+else = [false, {"email-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+user_1 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
 	user_id := session.user_id
 	user_id == "user2"
 }
 
-emails_1 {
+else = [false, {"user-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+email_1 = [true, {"email-ok"}] {
 	session := get_session(input.session.id)
 	user := get_user(session)
 	email := get_user_email(session, user)
 	email == "user2"
 }
 
-users_2 {
+else = [false, {"email-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+user_2 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
 	user_id := session.user_id
 	user_id == "user3"
 }
 
-emails_2 {
+else = [false, {"user-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+email_2 = [true, {"email-ok"}] {
 	session := get_session(input.session.id)
 	user := get_user(session)
 	email := get_user_email(session, user)
 	email == "user3"
 }
 
-users_3 {
+else = [false, {"email-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+user_3 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
 	user_id := session.user_id
 	user_id == "user4"
 }
 
-emails_3 {
+else = [false, {"user-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+email_3 = [true, {"email-ok"}] {
 	session := get_session(input.session.id)
 	user := get_user(session)
 	email := get_user_email(session, user)
 	email == "user4"
 }
 
-users_4 {
+else = [false, {"email-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+user_4 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
 	user_id := session.user_id
 	user_id == "user5"
 }
 
-emails_4 {
+else = [false, {"user-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+}
+
+else = [false, {"user-unauthenticated"}] {
+	true
+}
+
+email_4 = [true, {"email-ok"}] {
 	session := get_session(input.session.id)
 	user := get_user(session)
 	email := get_user_email(session, user)
 	email == "user5"
 }
 
-or_0 = v1 {
-	v1 := pomerium_routes_0
-	v1
+else = [false, {"email-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
 }
 
-else = v2 {
-	v2 := accept_0
-	v2
+else = [false, {"user-unauthenticated"}] {
+	true
 }
 
-else = v3 {
-	v3 := cors_preflight_0
-	v3
+or_0 = v {
+	results := [pomerium_routes_0, accept_0, cors_preflight_0, authenticated_user_0, domain_0, domain_1, domain_2, domain_3, domain_4, groups_0, groups_1, groups_2, groups_3, groups_4, claim_0, claim_1, claim_2, claim_3, user_0, email_0, user_1, email_1, user_2, email_2, user_3, email_3, user_4, email_4]
+	normalized := [normalize_criterion_result(x) | x := results[i]]
+	v := merge_with_or(normalized)
 }
 
-else = v4 {
-	v4 := authenticated_user_0
-	v4
-}
-
-else = v5 {
-	v5 := domains_0
-	v5
-}
-
-else = v6 {
-	v6 := domains_1
-	v6
-}
-
-else = v7 {
-	v7 := domains_2
-	v7
-}
-
-else = v8 {
-	v8 := domains_3
-	v8
-}
-
-else = v9 {
-	v9 := domains_4
-	v9
-}
-
-else = v10 {
-	v10 := groups_0
-	v10
-}
-
-else = v11 {
-	v11 := groups_1
-	v11
-}
-
-else = v12 {
-	v12 := groups_2
-	v12
-}
-
-else = v13 {
-	v13 := groups_3
-	v13
-}
-
-else = v14 {
-	v14 := groups_4
-	v14
-}
-
-else = v15 {
-	v15 := claims_0
-	v15
-}
-
-else = v16 {
-	v16 := claims_1
-	v16
-}
-
-else = v17 {
-	v17 := claims_2
-	v17
-}
-
-else = v18 {
-	v18 := claims_3
-	v18
-}
-
-else = v19 {
-	v19 := users_0
-	v19
-}
-
-else = v20 {
-	v20 := emails_0
-	v20
-}
-
-else = v21 {
-	v21 := users_1
-	v21
-}
-
-else = v22 {
-	v22 := emails_1
-	v22
-}
-
-else = v23 {
-	v23 := users_2
-	v23
-}
-
-else = v24 {
-	v24 := emails_2
-	v24
-}
-
-else = v25 {
-	v25 := users_3
-	v25
-}
-
-else = v26 {
-	v26 := emails_3
-	v26
-}
-
-else = v27 {
-	v27 := users_4
-	v27
-}
-
-else = v28 {
-	v28 := emails_4
-	v28
-}
-
-users_5 {
+user_5 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
 	user_id := session.user_id
 	user_id == "user6"
 }
 
-or_1 = v1 {
-	v1 := users_5
-	v1
+else = [false, {"user-unauthorized"}] {
+	session := get_session(input.session.id)
+	session.id != ""
 }
 
-allow = v1 {
-	v1 := or_0
-	v1
+else = [false, {"user-unauthenticated"}] {
+	true
 }
 
-else = v2 {
-	v2 := or_1
-	v2
+or_1 = v {
+	results := [user_5]
+	normalized := [normalize_criterion_result(x) | x := results[i]]
+	v := merge_with_or(normalized)
 }
 
-invalid_client_certificate_0 = reason {
-	reason = [495, "invalid client certificate"]
+allow = v {
+	results := [or_0, or_1]
+	normalized := [normalize_criterion_result(x) | x := results[i]]
+	v := merge_with_or(normalized)
+}
+
+invalid_client_certificate_0 = [true, {"invalid-client-certificate"}] {
 	is_boolean(input.is_valid_client_certificate)
 	not input.is_valid_client_certificate
 }
 
-or_2 = v1 {
-	v1 := invalid_client_certificate_0
-	v1
+else = [false, {"valid-client-certificate-or-none-required"}] {
+	true
 }
 
-deny = v1 {
-	v1 := or_2
-	v1
+or_2 = v {
+	results := [invalid_client_certificate_0]
+	normalized := [normalize_criterion_result(x) | x := results[i]]
+	v := merge_with_or(normalized)
+}
+
+deny = v {
+	results := [or_2]
+	normalized := [normalize_criterion_result(x) | x := results[i]]
+	v := merge_with_or(normalized)
+}
+
+invert_criterion_result(result) = [false, result[1]] {
+	result[0]
+}
+
+else = [true, result[1]] {
+	not result[0]
+}
+
+normalize_criterion_result(result) = v {
+	is_boolean(result)
+	v = [result, set()]
+}
+
+else = v {
+	is_array(result)
+	v = result
+}
+
+else = v {
+	v = [false, set()]
+}
+
+merge_with_and(results) = [true, reasons] {
+	true_results := [x | x := results[i]; x[0]]
+	count(true_results) == count(results)
+	reasons := union({x | x := true_results[i][1]})
+}
+
+else = [false, reasons] {
+	false_results := [x | x := results[i]; not x[0]]
+	reasons := union({x | x := false_results[i][1]})
+}
+
+merge_with_or(results) = [true, reasons] {
+	true_results := [x | x := results[i]; x[0]]
+	count(true_results) > 0
+	reasons := union({x | x := true_results[i][1]})
+}
+
+else = [false, reasons] {
+	false_results := [x | x := results[i]; not x[0]]
+	reasons := union({x | x := false_results[i][1]})
 }
 
 get_session(id) = v {

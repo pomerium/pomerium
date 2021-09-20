@@ -8,7 +8,6 @@ import (
 )
 
 var invalidClientCertificateBody = ast.Body{
-	ast.MustParseExpr(`reason = [495, "invalid client certificate"]`),
 	ast.MustParseExpr(`is_boolean(input.is_valid_client_certificate)`),
 	ast.MustParseExpr(`not input.is_valid_client_certificate`),
 }
@@ -26,9 +25,9 @@ func (invalidClientCertificateCriterion) Name() string {
 }
 
 func (c invalidClientCertificateCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {
-	rule := c.g.NewRule("invalid_client_certificate")
-	rule.Head.Value = ast.VarTerm("reason")
-	rule.Body = invalidClientCertificateBody
+	rule := NewCriterionRule(c.g, c.Name(),
+		ReasonInvalidClientCertificate, ReasonValidClientCertificateOrNoneRequired,
+		invalidClientCertificateBody)
 	return rule, nil, nil
 }
 

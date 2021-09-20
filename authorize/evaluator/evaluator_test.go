@@ -21,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -98,7 +99,7 @@ func TestEvaluator(t *testing.T) {
 				Policy: &policies[0],
 			})
 			require.NoError(t, err)
-			assert.Equal(t, &Denial{Status: 495, Message: "invalid client certificate"}, res.Deny)
+			assert.Equal(t, NewRuleResult(true, criteria.ReasonInvalidClientCertificate), res.Deny)
 		})
 		t.Run("valid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
@@ -108,7 +109,7 @@ func TestEvaluator(t *testing.T) {
 				},
 			})
 			require.NoError(t, err)
-			assert.Nil(t, res.Deny)
+			assert.False(t, res.Deny.Value)
 		})
 	})
 	t.Run("identity_headers", func(t *testing.T) {
@@ -186,7 +187,7 @@ func TestEvaluator(t *testing.T) {
 				},
 			})
 			require.NoError(t, err)
-			assert.True(t, res.Allow)
+			assert.True(t, res.Allow.Value)
 		})
 		t.Run("allowed sub", func(t *testing.T) {
 			res, err := eval(t, options, []proto.Message{
@@ -210,7 +211,7 @@ func TestEvaluator(t *testing.T) {
 				},
 			})
 			require.NoError(t, err)
-			assert.True(t, res.Allow)
+			assert.True(t, res.Allow.Value)
 		})
 		t.Run("denied", func(t *testing.T) {
 			res, err := eval(t, options, []proto.Message{
@@ -234,7 +235,7 @@ func TestEvaluator(t *testing.T) {
 				},
 			})
 			require.NoError(t, err)
-			assert.False(t, res.Allow)
+			assert.False(t, res.Allow.Value)
 		})
 	})
 	t.Run("impersonate email", func(t *testing.T) {
@@ -265,7 +266,7 @@ func TestEvaluator(t *testing.T) {
 				},
 			})
 			require.NoError(t, err)
-			assert.True(t, res.Allow)
+			assert.True(t, res.Allow.Value)
 		})
 	})
 	t.Run("user_id", func(t *testing.T) {
@@ -290,7 +291,7 @@ func TestEvaluator(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
-		assert.True(t, res.Allow)
+		assert.True(t, res.Allow.Value)
 	})
 	t.Run("domain", func(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{
@@ -314,7 +315,7 @@ func TestEvaluator(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
-		assert.True(t, res.Allow)
+		assert.True(t, res.Allow.Value)
 	})
 	t.Run("impersonate domain", func(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{
@@ -343,7 +344,7 @@ func TestEvaluator(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
-		assert.True(t, res.Allow)
+		assert.True(t, res.Allow.Value)
 	})
 	t.Run("groups", func(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{
@@ -376,7 +377,7 @@ func TestEvaluator(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
-		assert.True(t, res.Allow)
+		assert.True(t, res.Allow.Value)
 	})
 	t.Run("any authenticated user", func(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{
@@ -399,7 +400,7 @@ func TestEvaluator(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
-		assert.True(t, res.Allow)
+		assert.True(t, res.Allow.Value)
 	})
 	t.Run("carry over assertion header", func(t *testing.T) {
 		tcs := []struct {

@@ -16,8 +16,8 @@ allow:
     - authenticated_user: 1
 `, []dataBrokerRecord{}, Input{Session: InputSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
-		require.Equal(t, false, res["allow"])
-		require.Equal(t, false, res["deny"])
+		require.Equal(t, A{false, A{ReasonUserUnauthenticated}}, res["allow"])
+		require.Equal(t, A{false, A{}}, res["deny"])
 	})
 	t.Run("by domain", func(t *testing.T) {
 		res, err := evaluate(t, `
@@ -33,7 +33,7 @@ allow:
 			},
 			Input{Session: InputSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
-		require.Equal(t, true, res["allow"])
-		require.Equal(t, false, res["deny"])
+		require.Equal(t, A{true, A{ReasonUserOK}}, res["allow"])
+		require.Equal(t, A{false, A{}}, res["deny"])
 	})
 }

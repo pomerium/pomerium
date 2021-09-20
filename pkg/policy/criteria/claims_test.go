@@ -18,8 +18,25 @@ allow:
     - claim/family_name: Smith
 `, []dataBrokerRecord{}, Input{Session: InputSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
-		require.Equal(t, false, res["allow"])
-		require.Equal(t, false, res["deny"])
+		require.Equal(t, A{false, A{ReasonUserUnauthenticated}}, res["allow"])
+		require.Equal(t, A{false, A{}}, res["deny"])
+	})
+	t.Run("no claim", func(t *testing.T) {
+		res, err := evaluate(t, `
+allow:
+  and:
+    - claim/family_name: Smith
+`,
+			[]dataBrokerRecord{
+				&session.Session{
+					Id:     "SESSION_ID",
+					UserId: "USER_ID",
+				},
+			},
+			Input{Session: InputSession{ID: "SESSION_ID"}})
+		require.NoError(t, err)
+		require.Equal(t, A{false, A{ReasonClaimUnauthorized}}, res["allow"])
+		require.Equal(t, A{false, A{}}, res["deny"])
 	})
 	t.Run("by session claim", func(t *testing.T) {
 		res, err := evaluate(t, `
@@ -42,8 +59,8 @@ allow:
 			},
 			Input{Session: InputSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
-		require.Equal(t, true, res["allow"])
-		require.Equal(t, false, res["deny"])
+		require.Equal(t, A{true, A{ReasonClaimOK}}, res["allow"])
+		require.Equal(t, A{false, A{}}, res["deny"])
 	})
 	t.Run("by user claim", func(t *testing.T) {
 		res, err := evaluate(t, `
@@ -66,7 +83,7 @@ allow:
 			},
 			Input{Session: InputSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
-		require.Equal(t, true, res["allow"])
-		require.Equal(t, false, res["deny"])
+		require.Equal(t, A{true, A{ReasonClaimOK}}, res["allow"])
+		require.Equal(t, A{false, A{}}, res["deny"])
 	})
 }

@@ -52,15 +52,19 @@ func (groupsCriterion) Name() string {
 }
 
 func (c groupsCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, []*ast.Rule, error) {
-	r := c.g.NewRule("groups")
-	r.Body = append(r.Body, groupsBody...)
+	var body ast.Body
+	body = append(body, groupsBody...)
 
-	err := matchStringList(&r.Body, ast.VarTerm("groups"), data)
+	err := matchStringList(&body, ast.VarTerm("groups"), data)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return r, []*ast.Rule{
+	rule := NewCriterionSessionRule(c.g, c.Name(),
+		ReasonGroupsOK, ReasonGroupsUnauthorized,
+		body)
+
+	return rule, []*ast.Rule{
 		rules.GetSession(),
 		rules.GetDirectoryUser(),
 		rules.GetDirectoryGroup(),

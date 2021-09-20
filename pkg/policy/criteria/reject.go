@@ -7,10 +7,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
-var rejectBody = ast.Body{
-	ast.MustParseExpr(`v := false`),
-}
-
 type rejectMatcher struct {
 	g *Generator
 }
@@ -25,8 +21,8 @@ func (rejectMatcher) Name() string {
 
 func (m rejectMatcher) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {
 	rule := m.g.NewRule("reject")
-	rule.Head.Value = ast.VarTerm("v")
-	rule.Body = rejectBody
+	rule.Head.Value = NewCriterionTerm(false, ReasonReject)
+	rule.Body = ast.Body{ast.NewExpr(ast.BooleanTerm(true))}
 	return rule, nil, nil
 }
 

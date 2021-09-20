@@ -45,14 +45,13 @@ func (claimsCriterion) Name() string {
 }
 
 func (c claimsCriterion) GenerateRule(subPath string, data parser.Value) (*ast.Rule, []*ast.Rule, error) {
-	r := c.g.NewRule("claims")
-	r.Body = append(r.Body,
-		ast.Assign.Expr(ast.VarTerm("rule_data"), ast.NewTerm(data.RegoValue())),
-		ast.Assign.Expr(ast.VarTerm("rule_path"), ast.NewTerm(ast.MustInterfaceToValue(subPath))),
-	)
-	r.Body = append(r.Body, claimsBody...)
-
-	return r, []*ast.Rule{
+	rule := NewCriterionSessionRule(c.g, c.Name(),
+		ReasonClaimOK, ReasonClaimUnauthorized,
+		append(ast.Body{
+			ast.Assign.Expr(ast.VarTerm("rule_data"), ast.NewTerm(data.RegoValue())),
+			ast.Assign.Expr(ast.VarTerm("rule_path"), ast.NewTerm(ast.MustInterfaceToValue(subPath))),
+		}, claimsBody...))
+	return rule, []*ast.Rule{
 		rules.GetSession(),
 		rules.GetUser(),
 		rules.ObjectGet(),

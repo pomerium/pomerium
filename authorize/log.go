@@ -46,8 +46,18 @@ func (a *Authorize) logAuthorizeCheck(
 
 	// result
 	if res != nil {
-		evt = evt.Bool("allow", res.Allow)
-		evt = evt.Interface("deny", res.Deny)
+		evt = evt.Bool("allow", res.Allow.Value)
+		if res.Allow.Value {
+			evt = evt.Strs("allow-why-true", res.Allow.Reasons.Strings())
+		} else {
+			evt = evt.Strs("allow-why-false", res.Allow.Reasons.Strings())
+		}
+		evt = evt.Bool("deny", res.Deny.Value)
+		if res.Deny.Value {
+			evt = evt.Strs("deny-why-true", res.Deny.Reasons.Strings())
+		} else {
+			evt = evt.Strs("deny-why-false", res.Deny.Reasons.Strings())
+		}
 		evt = evt.Str("user", u.GetId())
 		evt = evt.Str("email", u.GetEmail())
 		evt = evt.Uint64("databroker_server_version", res.DataBrokerServerVersion)

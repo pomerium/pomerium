@@ -26,10 +26,11 @@ func (pomeriumRoutesCriterion) Name() string {
 }
 
 func (c pomeriumRoutesCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {
-	r := c.g.NewRule("pomerium_routes")
-	r.Body = append(r.Body, pomeriumRoutesBody...)
+	rule := NewCriterionRule(c.g, c.Name(),
+		ReasonPomeriumRoute, ReasonNonPomeriumRoute,
+		pomeriumRoutesBody)
 
-	return r, nil, nil
+	return rule, nil, nil
 }
 
 // PomeriumRoutes returns a Criterion on that allows access to pomerium routes.

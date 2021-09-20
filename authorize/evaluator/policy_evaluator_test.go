@@ -3,7 +3,6 @@ package evaluator
 import (
 	"context"
 	"math"
-	"net/http"
 	"strings"
 	"testing"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/policy"
+	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
 
 func TestPolicyEvaluator(t *testing.T) {
@@ -70,7 +70,8 @@ func TestPolicyEvaluator(t *testing.T) {
 			})
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
-			Allow: true,
+			Allow: NewRuleResult(true, criteria.ReasonEmailOK),
+			Deny:  NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
 		}, output)
 	})
 	t.Run("invalid cert", func(t *testing.T) {
@@ -85,11 +86,8 @@ func TestPolicyEvaluator(t *testing.T) {
 			})
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
-			Allow: true,
-			Deny: &Denial{
-				Status:  495,
-				Message: "invalid client certificate",
-			},
+			Allow: NewRuleResult(true, criteria.ReasonEmailOK),
+			Deny:  NewRuleResult(true, criteria.ReasonInvalidClientCertificate),
 		}, output)
 	})
 	t.Run("forbidden", func(t *testing.T) {
@@ -104,7 +102,8 @@ func TestPolicyEvaluator(t *testing.T) {
 			})
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
-			Allow: false,
+			Allow: NewRuleResult(false, criteria.ReasonEmailUnauthorized, criteria.ReasonNonPomeriumRoute, criteria.ReasonUserUnauthorized),
+			Deny:  NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
 		}, output)
 	})
 	t.Run("ppl", func(t *testing.T) {
@@ -133,7 +132,8 @@ func TestPolicyEvaluator(t *testing.T) {
 				})
 			require.NoError(t, err)
 			assert.Equal(t, &PolicyResponse{
-				Allow: true,
+				Allow: NewRuleResult(true, criteria.ReasonAccept),
+				Deny:  NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
 			}, output)
 		})
 		t.Run("deny", func(t *testing.T) {
@@ -161,9 +161,8 @@ func TestPolicyEvaluator(t *testing.T) {
 				})
 			require.NoError(t, err)
 			assert.Equal(t, &PolicyResponse{
-				Deny: &Denial{
-					Status: http.StatusForbidden,
-				},
+				Allow: NewRuleResult(false, criteria.ReasonNonPomeriumRoute),
+				Deny:  NewRuleResult(true, criteria.ReasonAccept),
 			}, output)
 		})
 		t.Run("client certificate", func(t *testing.T) {
@@ -192,10 +191,8 @@ func TestPolicyEvaluator(t *testing.T) {
 				})
 			require.NoError(t, err)
 			assert.Equal(t, &PolicyResponse{
-				Deny: &Denial{
-					Status:  495,
-					Message: "invalid client certificate",
-				},
+				Allow: NewRuleResult(false, criteria.ReasonNonPomeriumRoute),
+				Deny:  NewRuleResult(true, criteria.ReasonAccept, criteria.ReasonInvalidClientCertificate),
 			}, output)
 		})
 	})

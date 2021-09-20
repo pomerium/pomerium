@@ -3,8 +3,6 @@ package evaluator
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/open-policy-agent/opa/rego"
@@ -15,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/policy"
+	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
 
 // PolicyRequest is the input to policy evaluation.
@@ -26,27 +25,47 @@ type PolicyRequest struct {
 
 // PolicyResponse is the result of evaluating a policy.
 type PolicyResponse struct {
-	Allow bool
-	Deny  *Denial
+	Allow, Deny RuleResult
 }
 
-// Merge merges another PolicyResponse into this PolicyResponse. Access is allowed if either is allowed. Access is denied if
-// either is denied. (and denials take precedence)
-func (res *PolicyResponse) Merge(other *PolicyResponse) *PolicyResponse {
-	merged := &PolicyResponse{
-		Allow: res.Allow || other.Allow,
-		Deny:  res.Deny,
+// A RuleResult is the result of evaluating a rule.
+type RuleResult struct {
+	Value   bool
+	Reasons criteria.Reasons
+}
+
+// NewRuleResult creates a new RuleResult.
+func NewRuleResult(value bool, reasons ...criteria.Reason) RuleResult {
+	return RuleResult{
+		Value:   value,
+		Reasons: criteria.NewReasons(reasons...),
 	}
-	if other.Deny != nil {
-		merged.Deny = other.Deny
+}
+
+// MergeRuleResultsWithOr merges all the results using `or`.
+func MergeRuleResultsWithOr(results ...RuleResult) (merged RuleResult) {
+	var trueResults, falseResults []RuleResult
+	for _, result := range results {
+		if result.Value {
+			trueResults = append(trueResults, result)
+		} else {
+			falseResults = append(falseResults, result)
+		}
 	}
+
+	if len(trueResults) > 0 {
+		merged.Value = true
+		for _, result := range trueResults {
+			merged.Reasons = merged.Reasons.Union(result.Reasons)
+		}
+	} else {
+		merged.Value = false
+		for _, result := range falseResults {
+			merged.Reasons = merged.Reasons.Union(result.Reasons)
+		}
+	}
+
 	return merged
-}
-
-// A Denial indicates the request should be denied (even if otherwise allowed).
-type Denial struct {
-	Status  int
-	Message string
 }
 
 type policyQuery struct {
@@ -133,7 +152,8 @@ func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *PolicyRequest) (*Po
 		if err != nil {
 			return nil, err
 		}
-		res = res.Merge(o)
+		res.Allow = MergeRuleResultsWithOr(res.Allow, o.Allow)
+		res.Deny = MergeRuleResultsWithOr(res.Deny, o.Deny)
 	}
 	return res, nil
 }
@@ -153,67 +173,45 @@ func (e *PolicyEvaluator) evaluateQuery(ctx context.Context, req *PolicyRequest,
 	}
 
 	res := &PolicyResponse{
-		Allow: e.getAllow(rs[0].Bindings),
-		Deny:  e.getDeny(ctx, rs[0].Bindings),
+		Allow: e.getRuleResult("allow", rs[0].Bindings),
+		Deny:  e.getRuleResult("deny", rs[0].Bindings),
 	}
 	return res, nil
 }
 
-// getAllow gets the allow var. It expects a boolean.
-func (e *PolicyEvaluator) getAllow(vars rego.Vars) bool {
+// getRuleResult gets the rule result var. It expects a boolean or [boolean, []string].
+func (e *PolicyEvaluator) getRuleResult(name string, vars rego.Vars) (result RuleResult) {
+	result = NewRuleResult(false)
+
 	m, ok := vars["result"].(map[string]interface{})
 	if !ok {
-		return false
+		return result
 	}
 
-	allow, ok := m["allow"].(bool)
-	if !ok {
-		return false
-	}
-
-	return allow
-}
-
-// getDeny gets the deny var. It expects an (http status code, message) pair.
-func (e *PolicyEvaluator) getDeny(ctx context.Context, vars rego.Vars) *Denial {
-	m, ok := vars["result"].(map[string]interface{})
-	if !ok {
-		return nil
-	}
-
-	var status int
-	var reason string
-	switch t := m["deny"].(type) {
+	switch t := m[name].(type) {
 	case bool:
-		if t {
-			status = http.StatusForbidden
-			reason = ""
-		} else {
-			return nil
-		}
+		result.Value = t
 	case []interface{}:
 		switch len(t) {
-		case 0:
-			return nil
 		case 2:
-			var err error
-			status, err = strconv.Atoi(fmt.Sprint(t[0]))
-			if err != nil {
-				log.Error(ctx).Err(err).Msg("invalid type in deny")
-				return nil
+			// fill in the reasons
+			v, ok := t[1].([]interface{})
+			if !ok {
+				return result
 			}
-			reason = fmt.Sprint(t[1])
-		default:
-			log.Error(ctx).Interface("deny", t).Msg("invalid size in deny")
-			return nil
-
+			for _, vv := range v {
+				result.Reasons.Add(criteria.Reason(fmt.Sprint(vv)))
+			}
+			fallthrough
+		case 1:
+			// fill in the value
+			v, ok := t[0].(bool)
+			if !ok {
+				return result
+			}
+			result.Value = v
 		}
-	default:
-		return nil
 	}
 
-	return &Denial{
-		Status:  status,
-		Message: reason,
-	}
+	return result
 }

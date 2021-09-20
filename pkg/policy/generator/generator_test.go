@@ -63,9 +63,9 @@ func Test(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `package pomerium.policy
 
-default allow = false
+default allow = [false, set()]
 
-default deny = false
+default deny = [false, set()]
 
 accept_0 {
 	1 == 1
@@ -79,13 +79,10 @@ accept_2 {
 	1 == 1
 }
 
-and_0 = v1 {
-	v1 := accept_0
-	v1
-	v2 := accept_1
-	v2
-	v3 := accept_2
-	v3
+and_0 = v {
+	results := [accept_0, accept_1, accept_2]
+	normalized := [normalize_criterion_result(x) | x := results[i]]
+	v := merge_with_and(normalized)
 }
 
 accept_3 {
@@ -100,19 +97,10 @@ accept_5 {
 	1 == 1
 }
 
-or_0 = v1 {
-	v1 := accept_3
-	v1
-}
-
-else = v2 {
-	v2 := accept_4
-	v2
-}
-
-else = v3 {
-	v3 := accept_5
-	v3
+or_0 = v {
+	results := [accept_3, accept_4, accept_5]
+	normalized := [normalize_criterion_result(x) | x := results[i]]
+	v := merge_with_or(normalized)
 }
 
 accept_6 {
@@ -128,7 +116,10 @@ accept_8 {
 }
 
 not_0 = v {
-	v := count({1 | not accept_6} & ({1 | not accept_7} & {1 | not accept_8})) == 1
+	results := [accept_6, accept_7, accept_8]
+	normalized := [normalize_criterion_result(x) | x := results[i]]
+	inverted := [invert_criterion_result(x) | x := results[i]]
+	v := merge_with_and(inverted)
 }
 
 accept_9 {
@@ -144,41 +135,26 @@ accept_11 {
 }
 
 nor_0 = v {
-	v := count({1 | not accept_9} | ({1 | not accept_10} | {1 | not accept_11})) == 1
+	results := [accept_9, accept_10, accept_11]
+	normalized := [normalize_criterion_result(x) | x := results[i]]
+	inverted := [invert_criterion_result(x) | x := results[i]]
+	v := merge_with_or(inverted)
 }
 
 accept_12 {
 	1 == 1
 }
 
-and_1 = v1 {
-	v1 := accept_12
-	v1
+and_1 = v {
+	results := [accept_12]
+	normalized := [normalize_criterion_result(x) | x := results[i]]
+	v := merge_with_and(normalized)
 }
 
-allow = v1 {
-	v1 := and_0
-	v1
-}
-
-else = v2 {
-	v2 := or_0
-	v2
-}
-
-else = v3 {
-	v3 := not_0
-	v3
-}
-
-else = v4 {
-	v4 := nor_0
-	v4
-}
-
-else = v5 {
-	v5 := and_1
-	v5
+allow = v {
+	results := [and_0, or_0, not_0, nor_0, and_1]
+	normalized := [normalize_criterion_result(x) | x := results[i]]
+	v := merge_with_or(normalized)
 }
 
 accept_13 {
@@ -190,12 +166,60 @@ accept_14 {
 }
 
 nor_1 = v {
-	v := count({1 | not accept_13} | {1 | not accept_14}) == 1
+	results := [accept_13, accept_14]
+	normalized := [normalize_criterion_result(x) | x := results[i]]
+	inverted := [invert_criterion_result(x) | x := results[i]]
+	v := merge_with_or(inverted)
 }
 
-deny = v1 {
-	v1 := nor_1
-	v1
+deny = v {
+	results := [nor_1]
+	normalized := [normalize_criterion_result(x) | x := results[i]]
+	v := merge_with_or(normalized)
+}
+
+invert_criterion_result(result) = [false, result[1]] {
+	result[0]
+}
+
+else = [true, result[1]] {
+	not result[0]
+}
+
+normalize_criterion_result(result) = v {
+	is_boolean(result)
+	v = [result, set()]
+}
+
+else = v {
+	is_array(result)
+	v = result
+}
+
+else = v {
+	v = [false, set()]
+}
+
+merge_with_and(results) = [true, reasons] {
+	true_results := [x | x := results[i]; x[0]]
+	count(true_results) == count(results)
+	reasons := union({x | x := true_results[i][1]})
+}
+
+else = [false, reasons] {
+	false_results := [x | x := results[i]; not x[0]]
+	reasons := union({x | x := false_results[i][1]})
+}
+
+merge_with_or(results) = [true, reasons] {
+	true_results := [x | x := results[i]; x[0]]
+	count(true_results) > 0
+	reasons := union({x | x := true_results[i][1]})
+}
+
+else = [false, reasons] {
+	false_results := [x | x := results[i]; not x[0]]
+	reasons := union({x | x := false_results[i][1]})
 }
 `, string(format.MustAst(mod)))
 }
