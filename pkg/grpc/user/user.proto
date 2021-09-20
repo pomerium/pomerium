@@ -22,6 +22,7 @@ message User {
 message ServiceAccount {
   string id = 1;
   optional string namespace_id = 8;
+  optional string description = 9;
   string user_id = 2;
   google.protobuf.Timestamp expires_at = 3;
   google.protobuf.Timestamp issued_at = 4;
