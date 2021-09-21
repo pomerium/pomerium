@@ -43,7 +43,7 @@ This doc assumes:
 
 1. The Enterprise Console will display the service account token. Be sure to store it securely now, as you cannot view it again after this point.
 
-1. Add the service account to the Namespaces you want it to access, with the correct role based on the actions it will perform.
+1. Grant the service account the appropriate [role](/enterprise/concepts.md#rbac-for-enterprise-console-users) on the Namespace(s) it will operate against.
 
 ::: tip
 Service accounts created in any Namespace other than **Global** will include a reference to that Namespace ID. You must specify the entire user ID (i.e. `design-api@bff1bea6-a3d6-232d-812c-b4fd8e26d72e.pomerium`) when using the service account.
