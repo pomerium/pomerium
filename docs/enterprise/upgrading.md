@@ -17,7 +17,7 @@ When new version of Pomerium Enterprise are released, check back to this page be
 - `signing-key` is now a required option to improve request security from Pomerium Core. The value should match the one set in Pomerium Core. See the [signing key] reference page for more information on generating a key.
 - `audience` is now a required option to improve request security from Pomerium Core. The value should match the Enterprise Console's external URL hostname, as defined in the [`from`](/reference/readme.md#routes) field in the Routes entry (not including the protocol).
 
-[signing key]: /reference/readme.md/#signing-key
+[signing key]: /reference/readme.md#signing-key
 
 ### Helm Installations
 

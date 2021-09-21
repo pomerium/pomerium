@@ -45,7 +45,7 @@ sidebarDepth: 0
 - Impersonation: Impersonation is now done on an individual session basis.
 - Various other bug fixes and improvements.
 
-[`signing key`]: /reference/readme.md/#signing-key
+[`signing key`]: /reference/readme.md#signing-key
 [Telemetry]: /enterprise/reference/reports.md#traffic
 [policy language]: /enterprise/reference/manage.md#pomerium-policy-language
 [Google Cloud Serverless]: /reference/readme.md#enable-google-cloud-serverless-authentication

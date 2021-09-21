@@ -63,4 +63,4 @@ If you followed all the steps in this doc your Pomerium environment is not using
 [tls certificates]: ../topics/certificates.md
 [fqdn]: https://en.wikipedia.org/wiki/Fully_qualified_domain_name
 [mkcert]: https://github.com/FiloSottile/mkcert
-[Self-signed wildcard certificate]: /docs/topics/certificates.md##self-signed-wildcard-certificate
+[Self-signed wildcard certificate]: /docs/topics/certificates.md#self-signed-wildcard-certificate
