@@ -1590,7 +1590,7 @@ When [`lb_policy`](#load-balancing-policy) is configured, you may further custom
 - [`ring_hash_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#config-cluster-v3-cluster-ringhashlbconfig)
 - [`maglev_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-msg-config-cluster-v3-cluster-maglevlbconfig)
 
-See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.html#load-balancing-method)
+See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.md#load-balancing-method)
 
 
 ### Health Checks
@@ -1610,7 +1610,7 @@ Only one of `http_health_check`, `tcp_health_check`, or `grpc_health_check` may 
 - [HTTP](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto#envoy-v3-api-msg-config-core-v3-healthcheck-httphealthcheck)
 - [GRPC](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto#envoy-v3-api-msg-config-core-v3-healthcheck-grpchealthcheck)
 
-See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.html#active-health-checks).
+See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.md#active-health-checks).
 
 
 ### Websocket Connections

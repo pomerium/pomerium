@@ -54,7 +54,7 @@ routes:
 - **API** is also accessed through it's Pomerium Route, but is only accessible by the **App**, using a [service account](/enterprise/service-accounts.md) to authenticate.
 - The **API** service needs to know the user making the request to **App** in order to formulate the correct response.
 
-Both Routes include [`pass_identity_headers`](/reference.md#pass-identity-headers), which provides (at minimum) the `X-Pomerium-Jwt-Assertion` header to the downstream application.
+Both Routes include [`pass_identity_headers`](/reference/readme.md#pass-identity-headers), which provides (at minimum) the `X-Pomerium-Jwt-Assertion` header to the downstream application.
 
 When a user makes a request that requires data from the API service, the following happens:
 
