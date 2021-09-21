@@ -87,6 +87,7 @@ var tcpCmd = &cobra.Command{
 		}()
 
 		tun := tcptunnel.New(
+			tcptunnel.WithBrowserCommand(browserOptions.command),
 			tcptunnel.WithDestinationHost(dstHost),
 			tcptunnel.WithProxyHost(pomeriumURL.Host),
 			tcptunnel.WithTLSConfig(tlsConfig),

@@ -9,13 +9,11 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
-	"github.com/skratchdot/open-golang/open"
 	"golang.org/x/sync/errgroup"
 )
-
-var openBrowser = open.Run
 
 // An AuthClient retrieves an authentication JWT via the Pomerium login API.
 type AuthClient struct {
@@ -141,5 +139,11 @@ func (client *AuthClient) runOpenBrowser(ctx context.Context, li net.Listener, s
 		return fmt.Errorf("failed to read login url: %w", err)
 	}
 
-	return openBrowser(string(bs))
+	err = client.cfg.open(string(bs))
+	if err != nil {
+		return fmt.Errorf("failed to open browser url: %w", err)
+	}
+
+	_, _ = fmt.Fprintf(os.Stderr, "Your browser has been opened to visit:\n\n%s\n\n", string(bs))
+	return nil
 }
