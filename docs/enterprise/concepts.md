@@ -86,7 +86,7 @@ Pomerium populates users and groups from your IdP. This data is cached to preven
 You may encounter a situation where you may want to add users that are not directly associated with your corporate identity provider service. For example, if you have a corporate GSuite account and want to add a contractor with a gmail account. In this case, there are two workarounds:
 
 - Create a group within your identity provider directly with the non-domain users in it. This group can be found and added to Namespaces and Policies.
-- Manually add the user's unique ID. Identify the ID from a user's Session Details page, or the [Sessions](/enterprise/reference/reports.html#sessions) page in Pomerium Enterprise.
+- Manually add the user's unique ID. Identify the ID from a user's Session Details page, or the [Sessions](/enterprise/reference/reports.md#sessions) page in Pomerium Enterprise.
 
    A user can see their session ID by navigating to the special `/.pomerium` URL endpoint from any Pomerium managed route. The unique ID is listed as "sub" under User Claims:
 
@@ -108,7 +108,7 @@ This term refers to the system or service the route provides or restricts access
 
 ### Moving Routes
 
-When moving a Route from one [Namespace](#namespace) to another, enforced policies will automatically be removed or applied. Optional policies available in the source Namespace but not the target will prevent the move. This is intentional to prevent unassociated policies.
+When moving a Route from one [Namespace](#namespaces) to another, enforced policies will automatically be removed or applied. Optional policies available in the source Namespace but not the target will prevent the move. This is intentional to prevent unassociated policies.
 
 ## Policies
 
@@ -130,11 +130,11 @@ Pomerium provides a standardized interface to add access control, regardless if 
 
 ### Authentication
 
-Pomerium provides authentication via your existing identity provider (Pomerium supports all major [single sign-on](/docs/identity-providers/) providers (Okta, G Suite, Azure, AD, Ping, Github and so on).
+Pomerium provides authentication via your existing identity provider (Pomerium supports all major [single sign-on](/docs/identity-providers/readme.md) providers (Okta, G Suite, Azure, AD, Ping, Github and so on).
 
 ### Authorization
 
-Authorization policy can be expressed in a high-level, [declarative language](/enterprise/reference/manage.html#pomerium-policy-language) or [as code](/enterprise/reference/manage.html#rego) that can be used to enforce ABAC, RBAC, or any other governance policy controls. Pomerium can make holistic policy and authorization decisions using external data and request context factors such as user groups, roles, time, day, location and vulnerability status.
+Authorization policy can be expressed in a high-level, [declarative language](/enterprise/reference/manage.md#pomerium-policy-language) or [as code](/enterprise/reference/manage.md#rego) that can be used to enforce ABAC, RBAC, or any other governance policy controls. Pomerium can make holistic policy and authorization decisions using external data and request context factors such as user groups, roles, time, day, location and vulnerability status.
 
 Pomerium enables zero-trust based access in which trust flows from identity, device-state, and context, not network location. Every device, user, and application's communication should be authenticated, authorized, and encrypted.
 

@@ -187,7 +187,7 @@ Once you have set permissions in the console UI, you should remove this configur
    audience: console.localhost.pomerium.com
    ```
 
-   This sets the expected "audience" key in the [JWT header](/reference/#jwt-claim-headers) to match what's provided by open-source Pomerium as it proxies traffic to the Enterprise Console UI.
+   This sets the expected "audience" key in the [JWT header](/reference/readme.md#jwt-claim-headers) to match what's provided by open-source Pomerium as it proxies traffic to the Enterprise Console UI.
 
 Once complete, your `/etc/pomerium-console/config.yaml` file should look something like this:
 
