@@ -38,6 +38,8 @@ The example below demonstrates a route to the SSH service on the host running th
 ::::
 :::::
 
+See the "Configure Routes" section of [TCP Support](/docs/topics/tcp-support.md#configure-routes) for more detailed information on TCP routes.
+
 ## TCP Client Software
 
 You can connect to this route with either the Pomerium CLI or Pomerium Desktop client.

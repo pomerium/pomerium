@@ -40,6 +40,7 @@ module.exports = {
   },
   themeConfig: {
     home: false,
+    activeHeaderLinks: false,
     logo: "/img/logo_white.svg",
     repo: "pomerium/pomerium",
     editLinks: true,
@@ -117,6 +118,7 @@ module.exports = {
           path: "/docs/identity-providers/",
           type: "group",
           sidebarDepth: 0,
+          initialOpenGroupIndex: 0,
           children: [
             "identity-providers/",
             "identity-providers/auth0",
@@ -130,13 +132,34 @@ module.exports = {
             "identity-providers/ping",
           ],
         },
-        "client",
+        {
+          title: "TCP Connections",
+          collapsable: false,
+          path: "/docs/tcp/",
+          type: "group",
+          sidebarDepth: 1,
+          children: [
+            "tcp/",
+            "tcp/client",
+            {
+              title: "Examples",
+              collapsable: true,
+              type: "group",
+              sidebarDepth: 0,
+              children: [
+                "tcp/ssh",
+                "tcp/redis",
+                "tcp/mysql",
+                "tcp/rdp",
+              ],
+            },
+          ]
+        },
         {
           title: "Topics",
-          collapsable: true,
+          collapsable: false,
           path: "/docs/topics/",
           type: "group",
-          collapsable: false,
           sidebarDepth: 1,
           children: [
             "topics/certificates",
@@ -146,7 +169,6 @@ module.exports = {
             "topics/kubernetes-integration",
             "topics/production-deployment",
             "topics/programmatic-access",
-            "topics/tcp-support",
             "topics/single-sign-out",
             "topics/load-balancing",
           ],
