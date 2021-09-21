@@ -55,6 +55,7 @@
 /enterprise/								/
 
 /docs/installation.html                     /
+/docs/installation                          /docs/install
 /docs/quick-start                           /docs/install
 /docs/quick-start/binary.html               /docs/install/binary.html
 /docs/quick-start/helm.html                 /docs/install/helm.html
