@@ -220,6 +220,11 @@ Set Request Headers allows you to set static values for given request headers. T
     Authorization: Basic cm9vdDpodW50ZXI0Mg==
     X-Your-favorite-authenticating-Proxy: "Pomerium"
 ```
+:::warning
+
+Neither `:-prefixed` pseudo-headers nor the `Host:` header may be modified via this mechanism. Those headers may instead be modified via mechanisms such as `prefix_rewrite`, `regex_rewrite`, and `host_rewrite`.
+
+:::
 
 #### Remove Request Headers
 
