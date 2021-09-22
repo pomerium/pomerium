@@ -11,9 +11,9 @@ Pomerium is capable of creating secure connections to services like SSH, Redis, 
 
 1. Specify this new Route as a TCP Route by prefixing `tcp+` in the **From** field, along with a port suffix.
 
-   ::: tip
    The port is not used to connect to the Pomerium proxy service from the internet; this will always be port 443 (unless otherwise defined in `config.yaml`). Rather, the port defined in **From** is part of the mapping to the individual route. In this way, you can create multiple routes that share a DNS entry, differentiated by the port to determine which route they use.
-   :::
+
+   For example, suppose we have a server called `augur` running behind Pomerium that has a MySQL server and also listens for SSH connections. We can create routes for `tcp+https://augur.example.com:22` and `tcp+https://augur.example.com:3306`.
 
 1. The **To** field uses `tcp://` as a protocol, and specifies the address and port the service listens on.
 
@@ -40,7 +40,7 @@ The example below demonstrates a route to the SSH service on the host running th
 
 ## TCP Client Software
 
-You can connect to this route with either the Pomerium CLI or Pomerium Desktop cient.
+You can connect to this route with either the Pomerium CLI or Pomerium Desktop client.
 
 ::::: tabs
 
