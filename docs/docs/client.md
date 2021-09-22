@@ -59,7 +59,7 @@ Download the latest release from [GitHub](https://github.com/pomerium/desktop-cl
 
 #### Destination Url
 
-Matches the [From](/enterprise/reference/manage.md#from) value of the route. <!-- Protocols never, ports always -->
+Matches the [From](/enterprise/reference/manage.md#from) value of the route. Always include the port specified in the route, and do not include the `https://` protocol.
 
 #### Disable TLS Verification
 
@@ -69,7 +69,7 @@ Allows untrusted certificates from the Pomerium gateway
 
 (optional)
 
-The local address and port number from which to access the service locally. If left blank, the client will choose a random port to listen to on the loopback address. <!-- Only ever port? -->
+The local address and port number from which to access the service locally. If left blank, the client will choose a random port to listen to on the loopback address.
 
 In most cases, you only need to specify the port (ex: `:2222`), and the client will listen on all available local addresses.
 
