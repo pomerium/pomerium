@@ -57,17 +57,33 @@ Download the latest release from [GitHub](https://github.com/pomerium/desktop-cl
 
 ![A new connection to an SSH gateway](./img/desktop/new-ssh-connection.png)
 
-- **Destination Url**: Matches the [From](/enterprise/reference/manage.md#from) value of the route. <!-- Protocols never, ports always -->
+#### Destination Url
 
-- **Disable TLS Verification**: Allows untrusted certificates from the Pomerium gateway
+Matches the [From](/enterprise/reference/manage.md#from) value of the route. <!-- Protocols never, ports always -->
 
-- **Local Address** (optional): The local address and port number from which to access the service locally. If left blank, the client will choose a random port to listen to on the loopback address. <!-- Only ever port? -->
+#### Disable TLS Verification
 
-   In most cases, you only need to specify the port (ex: `:2222`), and the client will listen on all available local addresses.
+Allows untrusted certificates from the Pomerium gateway
 
-- **Alternate Pomerium Url** (optional): The proxy address, needed if the Destination URL isn't publicly resolvable, either from DNS or a local `hosts` entry.
+#### Local Address
 
-- **CA File Path** or **CA File Text** (optional): If your Pomerium proxy is using a certificate signed by a Certificate Authority (**CA**) in your system's trusted key store, provide the CA certificate here. Alternately, you can toggle **Disable TLS Verification**.
+(optional)
+
+The local address and port number from which to access the service locally. If left blank, the client will choose a random port to listen to on the loopback address. <!-- Only ever port? -->
+
+In most cases, you only need to specify the port (ex: `:2222`), and the client will listen on all available local addresses.
+
+#### Alternate Pomerium Url
+
+(optional)
+
+The Pomerium proxy service address. This is required if the **Destination URL** can't be resolved from DNS or a local `hosts` entry, or if the proxy service uses a non-standard port.
+
+#### CA File Path or CA File Text
+
+(optional)
+
+If your Pomerium proxy is using a certificate signed by a Certificate Authority (**CA**) that's not in your system's trusted key store, provide the CA certificate here. Alternately, you can toggle **Disable TLS Verification**.
 
 ::::
 :::: tab Pomerium CLI
