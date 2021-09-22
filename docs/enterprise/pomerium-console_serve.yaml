@@ -4,6 +4,9 @@ options:
 - name: administrators
   usage: |
     a list of user ids, names or emails to make administrators, useful for bootstrapping
+- name: audience
+  default_value: '[]'
+  usage: A list of audiences for verifying signing key
 - name: bind-addr
   default_value: :8701
   usage: the address to listen on
