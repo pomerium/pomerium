@@ -19,7 +19,7 @@ a list of user ids, names or emails to make administrators, useful for bootstrap
 
 ## audience
 
-audience for verifying signing key
+A list of audiences for verifying signing key
 
 **Default value:** `[]`
 
