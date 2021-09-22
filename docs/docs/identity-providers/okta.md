@@ -17,7 +17,7 @@ While we do our best to keep our documentation up to date, changes to third-part
 
 ## Create OpenID Connect Application
 
-1. [Log in to your Okta account](https://login.okta.com) From the left-hand menu,  Select **Applications → Applications** on the top menu.
+1. [Log in to your Okta account](https://login.okta.com) From the left-hand menu, Select **Applications → Applications** on the top menu.
 
    ![Okta Applications Dashboard](./img/okta/okta-app-dashboard.png)
 
@@ -57,7 +57,7 @@ Next, we'll create API token so that Pomerium can retrieve and establish group m
 
    ```json
    {
-   "api_key": "XXXXXXXXXX"
+     "api_key": "XXXXXXXXXX"
    }
    ```
 
@@ -75,7 +75,7 @@ Finally, configure Pomerium with the identity provider settings retrieved in the
 ::: tab config.yaml
 ```yaml
 idp_provider: "okta"
-idp_provider-url: "https://awesomecompany.okta.com"
+idp_provider_url: "https://awesomecompany.okta.com"
 idp_client_id: "REPLACE ME"
 idp_client_secret: "REPLACE ME"
 ipd_service_account: "REPLACE ME" # base64 encoded JSON object
@@ -97,5 +97,5 @@ IDP_SERVICE_ACCOUNT="REPLACE_ME" # base64 encoded JSON object
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
 [oauth2]: https://oauth.net/2/
 [openid connect]: https://en.wikipedia.org/wiki/OpenID_Connect
-[pomerium-install]: /docs/install/readme.md
+[pomerium-install]: /docs/install/
 [Group ID]: https://developer.okta.com/docs/reference/api/groups/
