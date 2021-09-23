@@ -247,8 +247,6 @@ Set Response Headers allows you to set static values for the given response head
 
 Service accounts offer a protected and standardized method of authenticating machine-to-machine communication between services protected by Pomerium.
 
-### Create a Service Account
-
 ::: tip
 Before you begin, confirm you are in the correct Namespace. A service account can only be used in the Namespace it was created in, including its children Namespaces.
 :::
