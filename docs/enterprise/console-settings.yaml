@@ -181,7 +181,6 @@ settings:
               - name: "DNS Lookup Family"
               - name: "Log Level"
               - name: "Proxy Log Level"
-              - name: "Enable User Impersonation"
           - name: "Cookies"
             settings:
               - name: "HTTPS Only"
