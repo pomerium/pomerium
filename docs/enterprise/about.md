@@ -34,7 +34,7 @@ Easily define who can control access to what areas of your infrastructure. Our [
 
 [User roles](/enterprise/concepts.md#rbac-for-enterprise-console-users) are granted along Namespace hierarchy, with in inheritance from parents.
 
-Pomerium Enterprise uses teams and groups defined by your IdP, so you can build stable policies that don't need to be adjusted as your company changes.
+Pomerium Enterprise uses teams and groups defined by your identity provider (**IdP**), so you can build stable policies that don't need to be adjusted as your company changes.
 
 See [Concepts: Self-Service Capabilities](./concepts.md#self-service-capabilities) for more information.
 
