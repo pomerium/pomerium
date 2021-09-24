@@ -29,11 +29,11 @@ Replace the paragraph above with a brief description of the service, and/or why 
     ::::
     :::: tab Pomerium Desktop
     ![An example connection to a $SERVICE service from Pomerium Desktop](./img/desktop/example-$SERVICE-connection.png)
-    
+
     :::tip Local Address
     The **Local Address** field is optional. Using it defines what port the tunnel listens on locally. If not specified, Pomerium Desktop will choose a random available port.
     :::
-    
+
     ::::
     :::::
 

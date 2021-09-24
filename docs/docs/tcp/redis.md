@@ -22,7 +22,7 @@ Redis is a popular in-memory data structure store. It can be run locally or conf
     :::
 
     ::::
-    
+
     :::: tab Pomerium Desktop
     ![An example connection to a MySQL service from Pomerium Desktop](./img/desktop/example-redis-connection.png)
     :::tip Local Address
