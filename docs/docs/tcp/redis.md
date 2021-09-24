@@ -24,11 +24,11 @@ Redis is a popular in-memory data structure store. It can be run locally or conf
     ::::
 
     :::: tab Pomerium Desktop
-    ![An example connection to a MySQL service from Pomerium Desktop](./img/desktop/example-redis-connection.png)
+    ![An example connection to a Redis service from Pomerium Desktop](./img/desktop/example-redis-connection.png)
     :::tip Local Address
     The **Local Address** field is optional. Using it defines what port the tunnel listens on locally. If not specified, Pomerium Desktop will choose a random available port.
     :::
-    
+
     ::::
     :::::
 

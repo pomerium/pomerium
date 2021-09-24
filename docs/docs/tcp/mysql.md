@@ -26,11 +26,11 @@ This document explains how to connect to a MySQL or MariaDB database through an 
     ::::
     :::: tab Pomerium Desktop
     ![An example connection to a MySQL service from Pomerium Desktop](./img/desktop/example-mysql-connection.png)
-    
+
     :::tip Local Address
     The **Local Address** field is optional. Using it defines what port the tunnel listens on locally. If not specified, Pomerium Desktop will choose a random available port.
     :::
-    
+
     ::::
     :::::
 

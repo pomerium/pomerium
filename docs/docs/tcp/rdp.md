@@ -24,11 +24,11 @@ Remote Desktop Protocol (**RDP**) is a standard for using a desktop computer rem
     ::::
     :::: tab Pomerium Desktop
     ![An example connection to a RDP service from Pomerium Desktop](./img/desktop/example-rdp-connection.png)
-    
+
     :::tip Local Address
     The **Local Address** field is optional. Using it defines what port the tunnel listens on locally. If not specified, Pomerium Desktop will choose a random available port.
     :::
-    
+
     ::::
     :::::
 
@@ -37,7 +37,7 @@ Remote Desktop Protocol (**RDP**) is a standard for using a desktop computer rem
     ![A new connection profile in Remmina](./img/remmina-connection-profile.png)
 
     ::: warning
-    The first connection attempt will initiate a redirect to authenticate you in the browser. Once youa re signed in, subsequent connections will succeed. If your client isn't configured to retry the connection, you may have to reconnect manually.
+    The first connection attempt will initiate a redirect to authenticate you in the browser. Once you're signed in, subsequent connections will succeed. If your client isn't configured to retry the connection, you may have to reconnect manually.
     :::
 
 
