@@ -27,7 +27,7 @@ This value is only visible in the Console UI.
 
 `From` is the externally accessible URL for the proxied request.
 
-Specifying `tcp+https` for the scheme enables [TCP proxying](/docs/topics/tcp-support.md) support for the route. You may map more than one port through the same hostname by specifying a different `:port` in the URL.
+Specifying `tcp+https` for the scheme enables [TCP proxying](/docs/tcp/readme.md) support for the route. You may map more than one port through the same hostname by specifying a different `:port` in the URL.
 
 :::warning
 
