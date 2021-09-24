@@ -5,7 +5,7 @@ description: Tunnel MySQL connections through Pomerium
 
 # Tunneled MySQL Connections
 
-This document explains how to connect to a MySQL or MariaDB database through an encrypted TCP tunnel. We use the `mysql` command line utility, but the same tunnel can be used by GUI tols
+This document explains how to connect to a MySQL or MariaDB database through an encrypted TCP tunnel. We use the `mysql` command line utility, but the same tunnel can be used by GUI tools.
 
 
 

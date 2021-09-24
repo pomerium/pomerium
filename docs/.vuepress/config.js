@@ -147,10 +147,10 @@ module.exports = {
               type: "group",
               sidebarDepth: 0,
               children: [
-                "tcp/ssh",
-                "tcp/redis",
                 "tcp/mysql",
                 "tcp/rdp",
+                "tcp/redis",
+                "tcp/ssh",
               ],
             },
           ]
