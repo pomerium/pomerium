@@ -40,7 +40,7 @@ require (
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
 	github.com/open-policy-agent/opa v0.32.0
 	github.com/openzipkin/zipkin-go v0.2.5
-	github.com/ory/dockertest/v3 v3.7.0
+	github.com/ory/dockertest/v3 v3.8.0
 	github.com/peterbourgon/ff/v3 v3.1.0
 	github.com/pomerium/csrf v1.7.0
 	github.com/prometheus/client_golang v1.11.0
@@ -84,7 +84,7 @@ require (
 	github.com/DataDog/datadog-go v3.5.0+incompatible // indirect
 	github.com/Djarvur/go-err113 v0.0.0-20210108212216-aea10b59be24 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
-	github.com/Microsoft/go-winio v0.4.17 // indirect
+	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
 	github.com/OpenPeeDeeP/depguard v1.0.1 // indirect
@@ -106,7 +106,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/denis-tingajkin/go-header v0.4.2 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
-	github.com/docker/cli v20.10.7+incompatible // indirect
+	github.com/docker/cli v20.10.8+incompatible // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
@@ -190,7 +190,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
-	github.com/opencontainers/runc v1.0.1 // indirect
+	github.com/opencontainers/runc v1.0.2 // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
 	github.com/phayes/checkstyle v0.0.0-20170904204023-bfd46e6a821d // indirect
 	github.com/philhofer/fwd v1.0.0 // indirect
