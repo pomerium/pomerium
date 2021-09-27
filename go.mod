@@ -14,7 +14,7 @@ require (
 	github.com/client9/misspell v0.3.4
 	github.com/coreos/go-oidc/v3 v3.1.0
 	github.com/docker/docker v20.10.8+incompatible
-	github.com/envoyproxy/go-control-plane v0.9.9-0.20210512163311-63b5d3c536b0
+	github.com/envoyproxy/go-control-plane v0.9.10-0.20210907150352-cf90f659a021
 	github.com/envoyproxy/protoc-gen-validate v0.6.1
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/go-chi/chi v1.5.4
@@ -68,7 +68,7 @@ require (
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
 	google.golang.org/api v0.57.0
 	google.golang.org/genproto v0.0.0-20210903162649-d08c68adba83
-	google.golang.org/grpc v1.40.0
+	google.golang.org/grpc v1.41.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/auth0.v5 v5.19.2
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
@@ -99,7 +99,7 @@ require (
 	github.com/census-instrumentation/opencensus-proto v0.2.1 // indirect
 	github.com/charithe/durationcheck v0.0.8 // indirect
 	github.com/chavacava/garif v0.0.0-20210405164556-e8a0a408d6af // indirect
-	github.com/cncf/xds/go v0.0.0-20210312221358-fbca930ec8ed // indirect
+	github.com/cncf/xds/go v0.0.0-20210805033703-aa0b78936158 // indirect
 	github.com/containerd/containerd v1.5.5 // indirect
 	github.com/containerd/continuity v0.1.0 // indirect
 	github.com/daixiang0/gci v0.2.9 // indirect
