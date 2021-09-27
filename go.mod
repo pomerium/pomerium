@@ -72,7 +72,7 @@ require (
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/auth0.v5 v5.19.2
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
-	sigs.k8s.io/yaml v1.2.0
+	sigs.k8s.io/yaml v1.3.0
 )
 
 require (
