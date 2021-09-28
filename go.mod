@@ -38,7 +38,7 @@ require (
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.4.2
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
-	github.com/open-policy-agent/opa v0.32.0
+	github.com/open-policy-agent/opa v0.32.1
 	github.com/openzipkin/zipkin-go v0.2.5
 	github.com/ory/dockertest/v3 v3.7.0
 	github.com/peterbourgon/ff/v3 v3.1.0
@@ -142,7 +142,6 @@ require (
 	github.com/golangci/misspell v0.3.5 // indirect
 	github.com/golangci/revgrep v0.0.0-20210208091834-cd28932614b5 // indirect
 	github.com/golangci/unconvert v0.0.0-20180507085042-28b1c447d1f4 // indirect
-	github.com/google/flatbuffers v1.12.1 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/googleapis/gax-go/v2 v2.1.0 // indirect
 	github.com/gordonklaus/ineffassign v0.0.0-20210225214923-2e10b2664254 // indirect
