@@ -20,7 +20,7 @@ Pomerium can be used to:
 
 For comprehensive docs, and tutorials see our [documentation].
 
-[documentation]: https://www.pomerium.io/
+[documentation]: https://pomerium.com/docs/
 [go environment]: https://golang.org/doc/install
 [godocs]: https://godoc.org/github.com/pomerium/pomerium
 [quick start guide]: https://www.pomerium.io/guide/
