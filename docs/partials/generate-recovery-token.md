@@ -1,8 +1,8 @@
-There could arise several situations that prevent Pomerium from authenticating users to Pomerium Enterprise. In these situations, you may be presented with the recovery sign in page:
+In the event that you lose access to the console via delegated access (the policy defined in Pomerium), there exists a fallback procedure to gain regain access ot the console via a generated recovery token.
 
 ![Pomerium Enterprise Recovery Sign In](./img/recovery-token.png)
 
-This page requires a recovery token. To generate a token, run the `pomerium-console generate-recovery token` with the following flags:
+To generate a token, run the `pomerium-console generate-recovery token` command with the following flags:
 
 | Flag                        | Description |
 | --------------------------- | ----------- |

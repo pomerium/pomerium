@@ -222,8 +222,7 @@ module.exports = {
                 "/enterprise/install/helm",
               ],
             },
-            "prometheus",
-            "service-accounts",
+            "metrics",
             {
               title: "Reference",
               type: "group",

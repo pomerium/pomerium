@@ -211,7 +211,7 @@ audience: console.localhost.pomerium.com
 
 ## Next Steps
 
-Pomerium Enterprise assumes access to a [Prometheus](https://prometheus.io/) data store for metrics. See [Prometheus Metrics](/enterprise/prometheus.md) to learn how to configure access.
+Pomerium Enterprise assumes access to a [Prometheus](https://prometheus.io/) data store for metrics. See [Configure Metrics](/enterprise/metrics.md) to learn how to configure access.
 
 ## Troubleshooting
 
