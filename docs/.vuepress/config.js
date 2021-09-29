@@ -113,7 +113,7 @@ module.exports = {
         },
         {
           title: "Identity Providers",
-          collapsable: false,
+          collapsable: true,
           path: "/docs/identity-providers/",
           type: "group",
           sidebarDepth: 0,
