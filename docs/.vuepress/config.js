@@ -132,6 +132,18 @@ module.exports = {
         },
         "client",
         {
+          title: "Security",
+          collapsable: true,
+          path: "/docs/security/",
+          sidebarDepth: 1,
+          children: [
+            "security/readme",
+            "security/upstream-tls",
+            "security/sidecar",
+            "security/upstream-jwt",
+          ],
+        },
+        {
           title: "Topics",
           collapsable: true,
           path: "/docs/topics/",
