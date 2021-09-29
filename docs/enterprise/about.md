@@ -1,6 +1,6 @@
 ---
 title: About
-sidebarDepth: 2
+sidebarDepth: 1
 description: What does the Pomerium Enterpise Console offer?
 ---
 

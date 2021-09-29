@@ -1,6 +1,6 @@
 ---
 title: Data Storage
-sidebarDepth: 3
+sidebarDepth: 1
 description: >-
   This article describes Pomerium's data storage requirements
   and backends
