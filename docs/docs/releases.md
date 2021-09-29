@@ -1,6 +1,6 @@
 ---
 title: Download
-sidebarDepth: 2
+sidebarDepth: 1
 description: This article describes various ways to install pomerium
 ---
 
@@ -172,6 +172,10 @@ cd pomerium
 make build NAME=pomerium-cli
 ./bin/pomerium-cli --help
 ```
+
+## Pomerium Desktop
+
+The Desktop Client is available from [GitHub](https://github.com/pomerium/desktop-client/releases) as an `exe`, `dmg`, and `AppImage`.
 
 ## Release cycle
 

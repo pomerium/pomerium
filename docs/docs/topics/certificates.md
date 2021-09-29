@@ -1,5 +1,6 @@
 ---
 title: Certificates
+sidebarDepth: 1
 lang: en-US
 meta:
   - name: keywords
