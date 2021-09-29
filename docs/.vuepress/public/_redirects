@@ -53,6 +53,8 @@
 /jobs/Backend-Engineer.html					/careers/backend-engineer/
 
 /enterprise/								/
+/enterprise/service-accounts.html           /enterprise/reference/configure.html#service-accounts
+/enterprise/prometheus.html                 /enterprise/metrics.html
 
 /docs/installation.html                     /
 /docs/installation                          /docs/install
