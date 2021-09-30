@@ -21,6 +21,8 @@ Namespaces enable:
 
 Each of these sub-concepts are related and build on each other to form a unified security model.
 
+See [Reference: Namespace] for more information.
+
 ### Self-Service Capabilities
 
 One of the benefits of an identity-aware access proxy is that, once in place, developers and owners of enterprise applications have an incentive to configure their services to be accessible via the proxy.
@@ -102,6 +104,8 @@ A service account identity can either be based on a user entry in your IdP Direc
 
 Routes define the connection pathway and configuration from the internet to your internal service. As a very basic level, a route sends traffic from `external-address.company.com` to `internalService-address.localdomain`, restricted by the policies associated with it, and encrypted by your TLS certificates. But more advanced configurations allow identity header pass-through, path and prefix rewrites, request and response header modification, load balancer services, and other full featured ingress capabilities.
 
+For more information, see [Reference: Routes]
+
 ### Protected Endpoints
 
 This term refers to the system or service the route provides or restricts access to.
@@ -146,3 +150,5 @@ With Pomerium:
 - Pomerium provides detailed audit logs for all activity in your environment. Quickly detect anomalies to mitigate bad actors and revoke access with a click of a button. Simplify life-cycle management and access reviews.
 
 [Reference: Policies]: /enterprise/reference/manage.md#policies-2
+[Reference: Namespace]: /enterprise/reference/configure.md#namespaces
+[Reference: Routes]: /enterprise/reference/manage.md#routes

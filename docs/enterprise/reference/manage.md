@@ -11,7 +11,7 @@ meta:
 
 ## Routes
 
-A Route defines how to access a service running behind Pomerium. This includes authentication (both for Pomerium and passed through to the service), rewrites, header management, load balancing, etc.
+A [Route](/enterprise/concepts.md#routes) defines how to access a service running behind Pomerium. This includes authentication (both for Pomerium and passed through to the service), rewrites, header management, load balancing, etc.
 
 
 ### General
@@ -281,7 +281,7 @@ Some policy types support additional [configuration](/reference/readme.md#load-b
 
 ## Policies
 
-A Policy defines what permissions a set of users or groups has. Policies are applied to Namespaces or Routes to associate the set of permissions with a service or set of service, completing the authentication model.
+A [Policy](/enterprise/concepts.md#policies) defines what permissions a set of users or groups has. Policies are applied to Namespaces or Routes to associate the set of permissions with a service or set of service, completing the authentication model.
 
 Policies can be constructed three ways:
 
