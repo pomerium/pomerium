@@ -308,7 +308,7 @@ settings:
 
           #### Request flow
 
-          ![pomerium forward auth request flow](./img/auth-flow-diagram.svg)
+          ![pomerium forward auth request flow](/reference/img/auth-flow-diagram.svg)
 
           #### Examples
 
@@ -685,7 +685,7 @@ settings:
 
           #### Example
 
-          ![jaeger example trace](./img/jaeger.png)
+          ![jaeger example trace](/reference/img/jaeger.png)
       - name: "Use Proxy Protocol"
         keys: ["use_proxy_protocol"]
         attributes: |
@@ -947,7 +947,7 @@ settings:
 
           By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/OWASP_Secure_Headers_Project) are set.
 
-          ![pomerium security headers](./img/security-headers.png)
+          ![pomerium security headers](/reference/img/security-headers.png)
 
           :::tip
 
@@ -1667,7 +1667,7 @@ settings:
           - Type: [base64 encoded] `string` or relative file location
           - Optional
         doc: |
-          Pomerium supports client certificates which can be used to enforce [mutually authenticated and encrypted TLS connections](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS). For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/master/examples/mutual-tls) and the [certificate docs](../docs/topics/certificates.md).
+          Pomerium supports client certificates which can be used to enforce [mutually authenticated and encrypted TLS connections](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS). For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/master/examples/mutual-tls) and the [certificate docs](/docs/topics/certificates.md).
       - name: "Pass Identity Headers"
         keys: ["pass_identity_headers"]
         attributes: |
@@ -1728,7 +1728,7 @@ settings:
           - [`ring_hash_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#config-cluster-v3-cluster-ringhashlbconfig)
           - [`maglev_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-msg-config-cluster-v3-cluster-maglevlbconfig)
 
-          See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.html#load-balancing-method)
+          See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.md#load-balancing-method)
       - name: "Health Checks"
         keys: ["health_checks"]
         attributes: |
@@ -1748,7 +1748,7 @@ settings:
           - [HTTP](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto#envoy-v3-api-msg-config-core-v3-healthcheck-httphealthcheck)
           - [GRPC](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto#envoy-v3-api-msg-config-core-v3-healthcheck-grpchealthcheck)
 
-          See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.html#active-health-checks).
+          See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.md#active-health-checks).
 
       - name: "Websocket Connections"
         keys: ["allow_websockets"]

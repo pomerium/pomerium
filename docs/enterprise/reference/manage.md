@@ -289,13 +289,13 @@ Policies can be constructed three ways:
 
 From the **BUILDER** tab, users can add allow or deny blocks to a policy, containing and/or/not/nor logic to allow or deny sets of users and groups.
 
-![A policy being constructed in Pomerium Enterprise allowing a single user access](../img/example-policy-single-user.png)
+![A policy being constructed in Pomerium Enterprise allowing a single user access](/enterprise/img/example-policy-single-user.png)
 
 ### Pomerium Policy Language
 
 From the **EDITOR** tab users can write policies in Pomerium Policy Language (**PPL**), a YAML-based notation.
 
-![A policy as viewed from the editor tab](../img/example-policy-editor.png)
+![A policy as viewed from the editor tab](/enterprise/img/example-policy-editor.png)
 
 PPL documents contain one or more rules. Each rule has a corresponding action and one or more logical operators.
 Each logical operator contains criteria and each criterion has a name and corresponding data.

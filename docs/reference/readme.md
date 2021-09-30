@@ -262,7 +262,7 @@ Forward authentication creates an endpoint that can be used with third-party pro
 
 #### Request flow
 
-![pomerium forward auth request flow](./img/auth-flow-diagram.svg)
+![pomerium forward auth request flow](/reference/img/auth-flow-diagram.svg)
 
 #### Examples
 
@@ -601,7 +601,7 @@ tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅
 
 #### Example
 
-![jaeger example trace](./img/jaeger.png)
+![jaeger example trace](/reference/img/jaeger.png)
 
 
 ### Use Proxy Protocol
@@ -839,7 +839,7 @@ Set Response Headers specifies a mapping of [HTTP Header](https://developer.mozi
 
 By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/OWASP_Secure_Headers_Project) are set.
 
-![pomerium security headers](./img/security-headers.png)
+![pomerium security headers](/reference/img/security-headers.png)
 
 :::tip
 
@@ -1530,7 +1530,7 @@ certificate. This overrides the global `client_ca` option for this route.
 - Type: [base64 encoded] `string` or relative file location
 - Optional
 
-Pomerium supports client certificates which can be used to enforce [mutually authenticated and encrypted TLS connections](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS). For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/master/examples/mutual-tls) and the [certificate docs](../docs/topics/certificates.md).
+Pomerium supports client certificates which can be used to enforce [mutually authenticated and encrypted TLS connections](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS). For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/master/examples/mutual-tls) and the [certificate docs](/docs/topics/certificates.md).
 
 
 ### Pass Identity Headers
