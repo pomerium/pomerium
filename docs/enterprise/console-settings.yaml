@@ -36,7 +36,7 @@ settings:
     settings:
       - name: "Routes"
         doc: |
-          A Route defines how to access a service running behind Pomerium. This includes authentication (both for Pomerium and passed through to the service), rewrites, header management, load balancing, etc.
+          A [Route](/enterprise/concepts.md#routes) defines how to access a service running behind Pomerium. This includes authentication (both for Pomerium and passed through to the service), rewrites, header management, load balancing, etc.
         settings:
           - name: "General"
             doc: |
@@ -90,7 +90,7 @@ settings:
       - name: "Policies"
         keys: ["Policy"]
         doc: |
-          A Policy defines what permissions a set of users or groups has. Policies are applied to Namespaces or Routes to associate the set of permissions with a service or set of service, completing the authentication model.
+          A [Policy](/enterprise/concepts.md#policies) defines what permissions a set of users or groups has. Policies are applied to Namespaces or Routes to associate the set of permissions with a service or set of service, completing the authentication model.
 
           Policies can be constructed three ways:
 
@@ -226,7 +226,7 @@ settings:
                 keys: ["set_response_headers"]
       - name: "Service Accounts"
         doc: |
-          Service accounts offer a protected and standardized method of authenticating machine-to-machine communication between services protected by Pomerium.
+          [Service accounts](/enterprise/concepts.md#service-accounts) offer a protected and standardized method of authenticating machine-to-machine communication between services protected by Pomerium.
 
           ::: tip
           Before you begin, confirm you are in the correct Namespace. A service account can only be used in the Namespace it was created in, including its children Namespaces.
