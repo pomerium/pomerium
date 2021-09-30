@@ -1,6 +1,6 @@
 ---
 title: Download
-sidebarDepth: 2
+sidebarDepth: 1
 description: This article describes various ways to install pomerium
 ---
 
@@ -101,7 +101,7 @@ See the [README](https://github.com/pomerium/pomerium-helm/blob/master/charts/po
 
 ::: tip
 
-Officially supported build platforms are limited by [envoy proxy](https://www.envoyproxy.io/). 
+Officially supported build platforms are limited by [envoy proxy](https://www.envoyproxy.io/).
 
 :::
 
@@ -172,6 +172,10 @@ cd pomerium
 make build NAME=pomerium-cli
 ./bin/pomerium-cli --help
 ```
+
+## Pomerium Desktop
+
+The Desktop Client is available from [GitHub](https://github.com/pomerium/desktop-client/releases) as an `exe`, `dmg`, and `AppImage`.
 
 ## Release cycle
 
