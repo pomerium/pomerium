@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hello
+  annotations:
+    cert-manager.io/issuer: pomerium-issuer
+    ingress.pomerium.io/policy: '[{"allow":{"and":[{"domain":{"is":"example.com"}}]}}]'
+spec:
+  ingressClassName: pomerium
+  rules:
+  - host: hello.localhost.pomerium.io
+    http:
+      paths:
+      - backend:
+          service:
+            name: nginx
+            port:
+              name: http
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - hello.localhost.pomerium.io
+    secretName: hello.localhost.pomerium.io-tls
