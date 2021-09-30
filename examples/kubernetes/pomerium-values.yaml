@@ -36,6 +36,9 @@ redis:
 ingress:
   enabled: false
 
+ingressController:
+  enabled: true
+
 config:
   sharedSecret: YOURSHAREDSECRET # You can use "head -c32 /dev/urandom | base64" to generate.
   cookieSecret: YOURCOOKIESECRET # You can use "head -c32 /dev/urandom | base64" to generate.
@@ -44,10 +47,6 @@ config:
   generateTLS: false # On by default, disabled when cert-manager or another solution is in place.
   policy:
       # This will be our testing app, to confirm that Pomerium is authenticating and routing traffic.
-    - from: https://hello.localhost.pomerium.io
-      to: http://nginx.pomerium.svc.cluster.local:80
-      allowed_domains:
-        - companydomain.com # Use the domain your company email address uses.
     - from: https://authenticate.localhost.pomerium.io
       to: https://pomerium-authenticate.pomerium.svc.cluster.local
       preserve_host_header: true

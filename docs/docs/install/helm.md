@@ -116,7 +116,7 @@ If you haven't already, install cert-manager and create a CA issuer. You can fol
    <<< @/examples/kubernetes/pomerium-certificates.yaml
 
    ::: tip
-   If you already have a domain space for Pomerium with a certificate solution, use it in place of `*.localhost.pomerium.io`.
+   If you already have a domain space for Pomerium with a certificate solution, use it in place of `.localhost.pomerium.io`.
    :::
 
 1. Apply the certificate configuration, and confirm:
@@ -148,6 +148,14 @@ If you haven't already, install cert-manager and create a CA issuer. You can fol
    helm repo add pomerium https://helm.pomerium.io
    ```
 
+1. Install Pomerium to the cluster:
+
+   ```bash
+   helm upgrade --install pomerium pomerium/pomerium --values ./pomerium-values.yaml
+   ```
+
+## Define a Test Service
+
 1. So that we can create a valid test route, add Bitnami's Helm repo to pull nginx from:
 
    ```bash
@@ -166,10 +174,14 @@ If you haven't already, install cert-manager and create a CA issuer. You can fol
    helm upgrade --install nginx bitnami/nginx --set service.type=ClusterIP
    ```
 
-1. Install Pomerium to the cluster:
+1. Create a new ingress manifest (`example-ingress.yaml`) for our test service:
+
+   <<< @/examples/kubernetes/example-ingress.yaml
+
+1. Apply the nginx ingress manifest to the cluster:
 
    ```bash
-   helm upgrade --install pomerium pomerium/pomerium --values ./pomerium-values.yaml
+   kubectl apply -f ingress.yaml
    ```
 
 ## Navigate

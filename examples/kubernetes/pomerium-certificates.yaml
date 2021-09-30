@@ -16,8 +16,9 @@ spec:
     - pomerium-authorize.pomerium.svc.cluster.local
     - pomerium-databroker.pomerium.svc.cluster.local
     - pomerium-authenticate.pomerium.svc.cluster.local
-    # TODO - Replace the following entry with your domain space.
-    - "*.localhost.pomerium.io" # Quotes are required to escape the wildcard
+    - authenticate.localhost.pomerium.io
+    # TODO - If you're noy using the Pomerium Ingress controller, you may want a wildcard entry as well.
+    #- "*.localhost.pomerium.io" # Quotes are required to escape the wildcard
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
