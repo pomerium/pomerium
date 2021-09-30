@@ -1,4 +1,4 @@
-In the event that you lose access to the console via delegated access (the policy defined in Pomerium), there exists a fallback procedure to gain regain access ot the console via a generated recovery token.
+In the event that you lose access to the console via delegated access (the policy defined in Pomerium), there exists a fallback procedure to regain access to the console via a generated recovery token.
 
 ![Pomerium Enterprise Recovery Sign In](./img/recovery-token.png)
 
