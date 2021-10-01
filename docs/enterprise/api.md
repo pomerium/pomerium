@@ -198,6 +198,6 @@ func run() error {
 
 Modify the example script to match your console API path, Namespace(s) and Policy names.
 
-[tls-*]: /enterprise/reference/config.html#tls-ca
+[tls-*]: /enterprise/reference/config.md#tls-ca
 [client-py]: https://github.com/pomerium/enterprise-client-python
 [client-go]: https://github.com/pomerium/enterprise-client-go
