@@ -5,22 +5,22 @@ settings:
         doc: |
           View the traffic running through Pomerium. Filter by [Route][route-concept] name, or date range.
 
-          ![The Traffic page in Pomerium Enterprise](/enterprise/img/traffic-fullpage.png)
+          ![The Traffic page in Pomerium Enterprise](../img/traffic-fullpage.png)
       - name: "Runtime"
         doc: |
           Monitor how many system resources Pomerium is consuming. Filter by date range, service, and instance.
 
-          ![The Runtime Info page in Pomerium Enterprise](/enterprise/img/runtime-fullpage.png)
+          ![The Runtime Info page in Pomerium Enterprise](../img/runtime-fullpage.png)
       - name: "Sessions"
         doc: |
           View active Sessions. From here you can revoke sessions, filter by session or user information, or revoke one or multiple sessions. You can also export the data.
 
-          ![The Sessions page in Pomerium Enterprise](/enterprise/img/sessions-fullpage.png)
+          ![The Sessions page in Pomerium Enterprise](../img/sessions-fullpage.png)
       - name: "Events"
         doc: |
           The events page displays the log output of Envoy as it process changes from Pomerium and applies updates to the underlying services.
 
-          ![The Events page in Pomerium Enterprise](/enterprise/img/events-fullpage.png)
+          ![The Events page in Pomerium Enterprise](../img/events-fullpage.png)
 
           The most common updates are to Pomerium Proxy services, which are updated every time a Route or Policy is created or updated.
 
@@ -31,7 +31,7 @@ settings:
 
           The default view shows all changes made through Pomerium Enterprise. Use the **COMPARE** button next to an entry to filter to only changes that affected that resource. Select two versions of that resource, then **DIFF** to see what changed:
 
-          ![A screenshot showing the diff of a change to a route, adding a policy](/enterprise/img/deployment-diff.png)
+          ![A screenshot showing the diff of a change to a route, adding a policy](../img/deployment-diff.png)
   - name: "Manage"
     settings:
       - name: "Routes"
@@ -98,13 +98,13 @@ settings:
 
           From the **BUILDER** tab, users can add allow or deny blocks to a policy, containing and/or/not/nor logic to allow or deny sets of users and groups.
 
-          ![A policy being constructed in Pomerium Enterprise allowing a single user access](/enterprise/img/example-policy-single-user.png)
+          ![A policy being constructed in Pomerium Enterprise allowing a single user access](../img/example-policy-single-user.png)
 
           ### Pomerium Policy Language
 
           From the **EDITOR** tab users can write policies in Pomerium Policy Language (**PPL**), a YAML-based notation.
 
-          ![A policy as viewed from the editor tab](/enterprise/img/example-policy-editor.png)
+          ![A policy as viewed from the editor tab](../img/example-policy-editor.png)
 
           PPL documents contain one or more rules. Each rule has a corresponding action and one or more logical operators.
           Each logical operator contains criteria and each criterion has a name and corresponding data.
@@ -234,7 +234,7 @@ settings:
 
           1. From the main menu, select **Service Accounts** under **CONFIGURE**. Click the **+ ADD SERVICE ACCOUNT** button:
 
-             ![An empty Service Accounts page](/enterprise/img/add-service-account.png)
+             ![An empty Service Accounts page](../img/add-service-account.png)
 
           1. Service accounts can be unique and exist only for Pomerium, or impersonate directory users from your IdP.
 
@@ -242,30 +242,30 @@ settings:
              :::: tab Unique
              Give the user a unique ID. Consider referencing the Namespace you're creating it under, for easier reference later. Optionally set an expiration date:
 
-             ![Adding a unique service account](/enterprise/img/create-service-account.png)
+             ![Adding a unique service account](../img/create-service-account.png)
 
              The user ID set here corresponds to the `User` criteria when editing a policy.
              ::::
              :::: tab Impersonated
              You can find your User ID by going to the special endpoint `/.pomerium`, or selecting **Logout** under your user in the upper right hand corner (this will not immediately log you out):
 
-             ![Session Details](/enterprise/img/user-id.png)
+             ![Session Details](../img/user-id.png)
 
              Copy the User ID and paste it into the **User ID** field in the **Add Service Account** modal. The lookahead search should show you the user name You can also optionally set an expiration date:
 
-             ![Adding an impersonated service account](/enterprise/img/create-impersonated-service-account.png)
+             ![Adding an impersonated service account](../img/create-impersonated-service-account.png)
              ::::
              :::::
 
           1. After you click **Submit**, the modal presents the Java Web Token (**JWT**) for the service account. Temporarily save it somewhere secure, as you will not be able to view it again:
 
-             ![Service Account Added](/enterprise/img/service-account-jwt.png)
+             ![Service Account Added](../img/service-account-jwt.png)
 
              This JWT must be added to your application configuration to enable direct communication.
 
           1. Edit or create policies to give the service account access to the internal service:
 
-             ![An example policy for a service account](/enterprise/img/service-account-policy.png)
+             ![An example policy for a service account](../img/service-account-policy.png)
       - name: "Namespaces"
         keys: ["namespace"]
         doc: |

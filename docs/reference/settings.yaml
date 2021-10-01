@@ -308,7 +308,7 @@ settings:
 
           #### Request flow
 
-          ![pomerium forward auth request flow](/reference/img/auth-flow-diagram.svg)
+          ![pomerium forward auth request flow](./img/auth-flow-diagram.svg)
 
           #### Examples
 
@@ -685,7 +685,7 @@ settings:
 
           #### Example
 
-          ![jaeger example trace](/reference/img/jaeger.png)
+          ![jaeger example trace](./img/jaeger.png)
       - name: "Use Proxy Protocol"
         keys: ["use_proxy_protocol"]
         attributes: |
@@ -947,7 +947,7 @@ settings:
 
           By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/OWASP_Secure_Headers_Project) are set.
 
-          ![pomerium security headers](/reference/img/security-headers.png)
+          ![pomerium security headers](./img/security-headers.png)
 
           :::tip
 
