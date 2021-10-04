@@ -482,7 +482,7 @@ func validateClusterNamesUnique(clusters []*envoy_config_cluster_v3.Cluster) err
 
 	for _, c := range clusters {
 		if _, there := names[c.Name]; there {
-			return fmt.Errorf("cluster name %s is not unique", c.Name)
+			return fmt.Errorf("route %s is not unique", c.Name)
 		}
 		names[c.Name] = true
 	}
