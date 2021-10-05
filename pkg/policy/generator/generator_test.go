@@ -61,7 +61,7 @@ func Test(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	assert.Equal(t, `package pomerium.policy
+	assert.Equal(t, `package pomerium.policy #version=1
 
 default allow = [false, set()]
 

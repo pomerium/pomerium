@@ -196,4 +196,15 @@ func TestPolicyEvaluator(t *testing.T) {
 			}, output)
 		})
 	})
+	t.Run("incompatible version", func(t *testing.T) {
+		ctx := context.Background()
+		_, err := NewPolicyEvaluator(ctx, NewStoreFromProtos(math.MaxUint64), &config.Policy{
+			SubPolicies: []config.SubPolicy{{
+				Rego: []string{
+					`package pomerium.policy #version=9999999`,
+				},
+			}},
+		})
+		assert.ErrorIs(t, err, ErrIncompatibleRegoScript)
+	})
 }

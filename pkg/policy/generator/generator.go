@@ -114,6 +114,9 @@ func (g *Generator) Generate(policy *parser.Policy) (*ast.Module, error) {
 				ast.StringTerm("policy"),
 			},
 		},
+		Comments: []*ast.Comment{
+			ast.NewComment([]byte(fmt.Sprintf("version=%d", Version))),
+		},
 		Rules: rs,
 	}
 

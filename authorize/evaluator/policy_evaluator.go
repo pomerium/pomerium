@@ -2,11 +2,14 @@ package evaluator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/open-policy-agent/opa/rego"
 	octrace "go.opencensus.io/trace"
+
+	"github.com/pomerium/pomerium/pkg/policy/generator"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -15,6 +18,10 @@ import (
 	"github.com/pomerium/pomerium/pkg/policy"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
+
+// ErrIncompatibleRegoScript is used to signal that an invalid version of a rego script was given to Pomerium.
+var ErrIncompatibleRegoScript = errors.New("rego script is incompatible with this version of pomerium, either " +
+	"upgrade pomerium or downgrade your rego generator")
 
 // PolicyRequest is the input to policy evaluation.
 type PolicyRequest struct {
@@ -109,6 +116,10 @@ func NewPolicyEvaluator(ctx context.Context, store *Store, configPolicy *config.
 			Str("from", configPolicy.From).
 			Interface("to", configPolicy.To).
 			Msg("authorize: rego script for policy evaluation")
+
+		if generator.GetVersionFromRego(script) > generator.Version {
+			return nil, ErrIncompatibleRegoScript
+		}
 
 		r := rego.New(
 			rego.Store(store),
