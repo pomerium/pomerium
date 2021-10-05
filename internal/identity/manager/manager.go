@@ -13,7 +13,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/directory"
@@ -25,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 const (
@@ -246,18 +246,14 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 		curDG, ok := mgr.directoryGroups[groupID]
 		if !ok || !proto.Equal(newDG, curDG) {
 			id := newDG.GetId()
-			any, err := anypb.New(newDG)
-			if err != nil {
-				log.Warn(ctx).Err(err).Msg("failed to marshal directory group")
-				return
-			}
+			any := protoutil.NewAny(newDG)
 			eg.Go(func() error {
 				if err := mgr.dataBrokerSemaphore.Acquire(ctx, 1); err != nil {
 					return err
 				}
 				defer mgr.dataBrokerSemaphore.Release(1)
 
-				_, err = mgr.cfg.Load().dataBrokerClient.Put(ctx, &databroker.PutRequest{
+				_, err := mgr.cfg.Load().dataBrokerClient.Put(ctx, &databroker.PutRequest{
 					Record: &databroker.Record{
 						Type: any.GetTypeUrl(),
 						Id:   id,
@@ -276,18 +272,14 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 		_, ok := lookup[groupID]
 		if !ok {
 			id := curDG.GetId()
-			any, err := anypb.New(curDG)
-			if err != nil {
-				log.Warn(ctx).Err(err).Msg("failed to marshal directory group")
-				return
-			}
+			any := protoutil.NewAny(curDG)
 			eg.Go(func() error {
 				if err := mgr.dataBrokerSemaphore.Acquire(ctx, 1); err != nil {
 					return err
 				}
 				defer mgr.dataBrokerSemaphore.Release(1)
 
-				_, err = mgr.cfg.Load().dataBrokerClient.Put(ctx, &databroker.PutRequest{
+				_, err := mgr.cfg.Load().dataBrokerClient.Put(ctx, &databroker.PutRequest{
 					Record: &databroker.Record{
 						Type:      any.GetTypeUrl(),
 						Id:        id,
@@ -319,11 +311,7 @@ func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.
 		curDU, ok := mgr.directoryUsers[userID]
 		if !ok || !proto.Equal(newDU, curDU) {
 			id := newDU.GetId()
-			any, err := anypb.New(newDU)
-			if err != nil {
-				log.Warn(ctx).Err(err).Msg("failed to marshal directory user")
-				return
-			}
+			any := protoutil.NewAny(newDU)
 			eg.Go(func() error {
 				if err := mgr.dataBrokerSemaphore.Acquire(ctx, 1); err != nil {
 					return err
@@ -349,11 +337,7 @@ func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.
 		_, ok := lookup[userID]
 		if !ok {
 			id := curDU.GetId()
-			any, err := anypb.New(curDU)
-			if err != nil {
-				log.Warn(ctx).Err(err).Msg("failed to marshal directory user")
-				return
-			}
+			any := protoutil.NewAny(curDU)
 			eg.Go(func() error {
 				if err := mgr.dataBrokerSemaphore.Acquire(ctx, 1); err != nil {
 					return err

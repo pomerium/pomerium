@@ -5,16 +5,16 @@ import (
 	context "context"
 	"fmt"
 
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 // Get gets a user from the databroker.
 func Get(ctx context.Context, client databroker.DataBrokerServiceClient, userID string) (*User, error) {
-	any, _ := anypb.New(new(User))
+	any := protoutil.NewAny(new(User))
 
 	res, err := client.Get(ctx, &databroker.GetRequest{
 		Type: any.GetTypeUrl(),
@@ -34,7 +34,7 @@ func Get(ctx context.Context, client databroker.DataBrokerServiceClient, userID 
 
 // Put sets a user in the databroker.
 func Put(ctx context.Context, client databroker.DataBrokerServiceClient, u *User) (*databroker.Record, error) {
-	any, _ := anypb.New(u)
+	any := protoutil.NewAny(u)
 	res, err := client.Put(ctx, &databroker.PutRequest{
 		Record: &databroker.Record{
 			Type: any.GetTypeUrl(),
@@ -50,7 +50,7 @@ func Put(ctx context.Context, client databroker.DataBrokerServiceClient, u *User
 
 // PutServiceAccount sets a service account in the databroker.
 func PutServiceAccount(ctx context.Context, client databroker.DataBrokerServiceClient, sa *ServiceAccount) (*databroker.Record, error) {
-	any, _ := anypb.New(sa)
+	any := protoutil.NewAny(sa)
 	res, err := client.Put(ctx, &databroker.PutRequest{
 		Record: &databroker.Record{
 			Type: any.GetTypeUrl(),

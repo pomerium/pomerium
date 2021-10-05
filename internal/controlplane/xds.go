@@ -5,9 +5,9 @@ import (
 	"encoding/hex"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
-	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 const (
@@ -24,7 +24,7 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		return nil, err
 	}
 	for _, cluster := range clusters {
-		any, _ := anypb.New(cluster)
+		any := protoutil.NewAny(cluster)
 		resources[clusterTypeURL] = append(resources[clusterTypeURL], &envoy_service_discovery_v3.Resource{
 			Name:     cluster.Name,
 			Version:  hex.EncodeToString(cryptutil.HashProto(cluster)),
@@ -37,7 +37,7 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		return nil, err
 	}
 	for _, listener := range listeners {
-		any, _ := anypb.New(listener)
+		any := protoutil.NewAny(listener)
 		resources[listenerTypeURL] = append(resources[listenerTypeURL], &envoy_service_discovery_v3.Resource{
 			Name:     listener.Name,
 			Version:  hex.EncodeToString(cryptutil.HashProto(listener)),

@@ -11,12 +11,12 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 func TestAuthorize_waitForRecordSync(t *testing.T) {
@@ -103,10 +103,7 @@ type storableMessage interface {
 }
 
 func newRecord(msg storableMessage) *databroker.Record {
-	any, err := anypb.New(msg)
-	if err != nil {
-		panic(err)
-	}
+	any := protoutil.NewAny(msg)
 	return &databroker.Record{
 		Version: 1,
 		Type:    any.GetTypeUrl(),

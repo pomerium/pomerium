@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
@@ -23,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 func TestEvaluator(t *testing.T) {
@@ -480,7 +480,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 		sessionID := uuid.New().String()
 		lastSessionID = sessionID
 		userID := uuid.New().String()
-		data, _ := anypb.New(&session.Session{
+		data := protoutil.NewAny(&session.Session{
 			Version: fmt.Sprint(i),
 			Id:      sessionID,
 			UserId:  userID,
@@ -501,7 +501,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 			Id:      sessionID,
 			Data:    data,
 		})
-		data, _ = anypb.New(&user.User{
+		data = protoutil.NewAny(&user.User{
 			Version: fmt.Sprint(i),
 			Id:      userID,
 		})
@@ -512,7 +512,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 			Data:    data,
 		})
 
-		data, _ = anypb.New(&directory.User{
+		data = protoutil.NewAny(&directory.User{
 			Version:  fmt.Sprint(i),
 			Id:       userID,
 			GroupIds: []string{"1", "2", "3", "4"},
@@ -524,7 +524,7 @@ func BenchmarkEvaluator_Evaluate(b *testing.B) {
 			Data:    data,
 		})
 
-		data, _ = anypb.New(&directory.Group{
+		data = protoutil.NewAny(&directory.Group{
 			Version: fmt.Sprint(i),
 			Id:      fmt.Sprint(i),
 		})
