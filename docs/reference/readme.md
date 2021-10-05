@@ -1530,7 +1530,7 @@ certificate. This overrides the global `client_ca` option for this route.
 - Type: [base64 encoded] `string` or relative file location
 - Optional
 
-Pomerium supports client certificates which can be used to enforce [mutually authenticated and encrypted TLS connections](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS). For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/master/examples/mutual-tls) and the [certificate docs](../docs/topics/certificates.md).
+Pomerium supports client certificates which can be used to enforce [mutually authenticated and encrypted TLS connections](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS). For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/master/examples/mutual-tls) and the [certificate docs](/docs/topics/certificates.md).
 
 
 ### Pass Identity Headers
