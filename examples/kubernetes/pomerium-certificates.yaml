@@ -17,7 +17,7 @@ spec:
     - pomerium-databroker.pomerium.svc.cluster.local
     - pomerium-authenticate.pomerium.svc.cluster.local
     - authenticate.localhost.pomerium.io
-    # TODO - If you're noy using the Pomerium Ingress controller, you may want a wildcard entry as well.
+    # TODO - If you're not using the Pomerium Ingress controller, you may want a wildcard entry as well.
     #- "*.localhost.pomerium.io" # Quotes are required to escape the wildcard
 ---
 apiVersion: cert-manager.io/v1
