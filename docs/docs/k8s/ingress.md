@@ -271,6 +271,14 @@ If your domain has HSTS enabled, and you visit i.e. _authenticate_ endpoint whil
 
 https://www.ssl2buy.com/wiki/how-to-clear-hsts-settings-on-chrome-firefox-and-ie-browsers
 
+## More Information
+
+For more information on the Pomerium Ingress Controller or the Kubernetes concepts discussed, see:
+
+- [Ingress (Kubernetes Docs)](https://kubernetes.io/docs/concepts/services-networking/ingress/)
+- [Pomerium Helm Chart README: Pomerium Ingress Controller](https://github.com/travisgroth/pomerium-helm/tree/master/charts/pomerium#pomerium-ingress-controller)
+- [Pomerium Kubernetes Ingress Controller (code repository)](https://github.com/pomerium/ingress-controller)
+
 [HSTS]: https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security
 [`cors_allow_preflight`]: /reference/#cors-allow-preflight
 [`allow_public_unauthenticated_access`]: /reference/#allow-public-unauthenticated-access
