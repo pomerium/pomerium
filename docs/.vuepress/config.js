@@ -155,7 +155,8 @@ module.exports = {
           sidebarDepth: 0,
           children: [
             "k8s/",
-            "k8s/helm"
+            "k8s/helm",
+            "k8s/ingress",
           ]
         },
         {
