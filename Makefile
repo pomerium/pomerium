@@ -121,8 +121,8 @@ clean: ## Cleanup any build binaries or packages.
 	$(RM) -r $(BUILDDIR)
 	$(RM) internal/envoy/files/envoy-*
 	$(RM) $GOPATH/bin/protoc-gen-validate
-	$(RM) /tmp/pomerium-protoc
-	$(RM) /tmp/pomerium-protoc-3pp
+	$(RM) -r /tmp/pomerium-protoc
+	$(RM) -r /tmp/pomerium-protoc-3pp
 
 .PHONY: snapshot
 snapshot: build-deps ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)

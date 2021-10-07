@@ -58,6 +58,7 @@ _protos=(
   "xds/core/v3/collection_entry.proto"
   "xds/core/v3/context_params.proto"
   "xds/core/v3/resource_locator.proto"
+  "xds/annotations/v3/status.proto"
 )
 _imports=()
 for _proto in "${_protos[@]}"; do

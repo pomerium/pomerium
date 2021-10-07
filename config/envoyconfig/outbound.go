@@ -16,7 +16,7 @@ import (
 func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
 	outboundPort, err := strconv.Atoi(cfg.OutboundPort)
 	if err != nil {
-		return nil, fmt.Errorf("invalid outbound port: %w", err)
+		return nil, fmt.Errorf("invalid outbound port %v: %w", cfg.OutboundPort, err)
 	}
 
 	filter, err := b.buildOutboundHTTPConnectionManager()
