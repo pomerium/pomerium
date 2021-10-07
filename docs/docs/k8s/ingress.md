@@ -120,34 +120,39 @@ routes:
 
 ### Supported Annotations
 
+The following annotations behave the same as described in our reference documentation (each one is linked to the appropriate section):
+
+- [`cors_allow_preflight`]
+- [`allow_public_unauthenticated_access`]
+- [`allow_any_authenticated_user`]
+- [`timeout`]
+- [`idle_timeout`]
+- [`allow_websockets`]
+- [`set_request_headers`]
+- [`remove_request_headers`]
+- [`set_response_headers`]
+- [`rewrite_response_headers`]
+- [`preserve_host_header`]
+- [`pass_identity_headers`]
+- [`tls_skip_verify`]
+- [`tls_server_name`]
+- [`allowed_users`]
+- [`allowed_groups`]
+- [`allowed_domains`]
+- [`allowed_idp_claims`]
+- [`policy`]
+- [`health_checks`]
+- [`outlier_detection`]
+- [`lb_config`]
+
+The remaining annotations are specific to or behave differently in this context:
+
 | Annotation              | Description |
 | ----------------------- | ------------------------------------------------------------------------------------------- |
-| [`cors_allow_preflight`]                    | [See Reference for details.][`cors_allow_preflight`]
-| [`allow_public_unauthenticated_access`]     | [See Reference for details.][`allow_public_unauthenticated_access`]
-| [`allow_any_authenticated_user`]            | [See Reference for details.][`allow_any_authenticated_user`]
-| [`timeout`]                                 | [See Reference for details.][`timeout`]
-| [`idle_timeout`]                            | [See Reference for details.][`idle_timeout`]
-| [`allow_websockets`]                        | [See Reference for details.][`allow_websockets`]
-| [`set_request_headers`]                     | [See Reference for details.][`set_request_headers`]
-| [`remove_request_headers`]                  | [See Reference for details.][`remove_request_headers`]
-| [`set_response_headers`]                    | [See Reference for details.][`set_response_headers`]
-| [`rewrite_response_headers`]                | [See Reference for details.][`rewrite_response_headers`]
-| [`preserve_host_header`]                    | [See Reference for details.][`preserve_host_header`]
-| [`pass_identity_headers`]                   | [See Reference for details.][`pass_identity_headers`]
-| [`tls_skip_verify`]                         | [See Reference for details.][`tls_skip_verify`]
-| [`tls_server_name`]                         | [See Reference for details.][`tls_server_name`]
-| [`allowed_users`]                           | [See Reference for details.][`allowed_users`]
-| [`allowed_groups`]                          | [See Reference for details.][`allowed_groups`]
-| [`allowed_domains`]                         | [See Reference for details.][`allowed_domains`]
-| [`allowed_idp_claims`]                      | [See Reference for details.][`allowed_idp_claims`]
-| [`policy`]                                  | [See Reference for details.][`policy`]
-| [`health_checks`]                           | [See Reference for details.][`health_checks`]
-| [`outlier_detection`]                       | [See Reference for details.][`outlier_detection`]
-| [`lb_config`]                               | [See Reference for details.][`lb_config`]
-| [`tls_custom_ca_secret`]                    | Name of Kubernetes `tls` Secret containing a custom [CA certificate](https://www.pomerium.com/reference/#tls-custom-certificate-authority) for the upstream
-| [`tls_client_secret`]                       | Name of Kubernetes `tls` Secret containing a [client certificate](https://www.pomerium.com/reference/#tls-client-certificate) for connecting to the upstream
-| [`tls_downstream_client_ca_secret`]         | Name of Kubernetes `tls` Secret containing a [Client CA](https://www.pomerium.com/reference/#tls-downstream-client-certificate-authority) for validating downstream clients
-| [`secure_upstream`]                         | When set to true, use `https` when connecting to the upstream endpoint.
+| `tls_custom_ca_secret`                    | Name of Kubernetes `tls` Secret containing a custom [CA certificate][`tls_custom_ca_secret`] for the upstream
+| `tls_client_secret`                       | Name of Kubernetes `tls` Secret containing a [client certificate][`tls_client_secret`] for connecting to the upstream
+| `tls_downstream_client_ca_secret`         | Name of Kubernetes `tls` Secret containing a [Client CA][`tls_downstream_client_ca_secret`] for validating downstream clients
+| `secure_upstream`                         | When set to true, use `https` when connecting to the upstream endpoint.
 	
 ::: tip
 Every value for the annotations above must be in `string` format.
