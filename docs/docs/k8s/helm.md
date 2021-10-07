@@ -1,12 +1,12 @@
 ---
-title: Kubernetes / Helm
+title: Helm
 lang: en-US
 meta:
   - name: keywords
     content: pomerium identity-access-proxy oidc kubernetes Helm reverse-proxy
 ---
 
-# Pomerium using Helm
+# Install Pomerium using Helm
 
 This quick-start will show you how to deploy Pomerium with [Helm] on [Kubernetes].
 
