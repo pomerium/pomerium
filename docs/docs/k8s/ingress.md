@@ -1,6 +1,7 @@
 ---
 title: Ingress Controller
 lang: en-US
+sidebarDepth: 1
 meta:
   - name: keywords
     content: pomerium identity-access-proxy oidc kubernetes Ingress reverse-proxy
@@ -12,26 +13,14 @@ Use Pomerium as a first class secure-by-default Ingress Controller. Dynamically 
 
 TODO: Funfact: you can dynamically create and remove routes with OSS Pomerium using the Ingress Controller, which you can't do otherwise.
 
-## Installation
-
 ## Prerequisites
 
-TODO: Cert manager. This is covered by the [helm] instructions, but to do make one independently...
+- A certificate management solution. If you do not already have one in place, this article covers using Cert Manager.
+- A Redis backend with high-persistence is highly recommended.
 
-TODO: REDIS Backend with persistence is highly recommended. 
-
+::: tip
 TODO: CloudRun endpoints can be easily supported using "internal traffic policy", if they are deployed to the same cloud project as Pomerium. 
-
-### Helm
-Our instructions for [Installing Pomering Using Helm](/docs/k8s/helm.md) includes the Ingress Controller as part of the documented configuration. The values to adjust based on your configuration usually include:
-
-```yaml
-ingressController:
-  enabled: true
-```
-### Docker Image
-
-You may deploy your own manifests by using the `pomerium/ingress-controller` docker image.
+:::
 
 ### System Requirements
 
@@ -44,7 +33,26 @@ You may deploy your own manifests by using the `pomerium/ingress-controller` doc
 Only one Ingress Controller instance/replica is supported per Pomerium cluster.
 :::
 
+## Installation
+
+### Helm
+
+Our instructions for [Installing Pomering Using Helm](/docs/k8s/helm.md) includes the Ingress Controller as part of the documented configuration.
+
+TODO: @travisgroth what else do we need to say about this?
+
+```yaml
+ingressController:
+  enabled: true
+```
+
+### Docker Image
+
+You may deploy your own manifests by using the `pomerium/ingress-controller` docker image.
+
 ## Configuration
+
+TODO: Describe where and how these flags are used.
 
 
 |  Flag                          | Description                                                          |
@@ -62,11 +70,15 @@ Only one Ingress Controller instance/replica is supported per Pomerium cluster.
 
 The helm chart exposes a subset of these flags for appropriate customization.
 
+TODO: Extrapolate on ^
+
 ## Usage
 
 ### Defining Routes
 
 If you've tested Pomerium using the all-in-one service, you're probably familiar with configuring routes in Pomerium's `config.yaml`. In this environmenzt, each route is defined as a.... what @travis?
+
+TODO: Finish ^
 
 The Ingress Controller will monitor Ingress resources in the cluster, creating a Pomerium route definition for each one.  Policy and other configuration options for the route are set by using annotations starting with `ingress.pomerium.io/`.
 
@@ -91,6 +103,7 @@ spec:
         path: /
         pathType: Prefix
 ```
+
 Becomes:
 
 ```yaml
@@ -144,44 +157,11 @@ Every value for the annotations above must be in `string` format.
 
 TODO: @travisgroth
 
-## Troubleshooting
-
-
-### View Event History
-
-Pomerium Ingress Controller will add **events** to the ingress objects as it processes them. 
-
-```
-kubectl describe ingress/my-ingress
-```
-
-```log
-Events:
-  Type    Reason   Age   From              Message
-  ----    ------   ----  ----              -------
-  Normal  Updated  18s   pomerium-ingress  updated pomerium configuration
-```
-
-If an error occurs, it may be reflected in the events: 
-
-```log
-Events:
-  Type     Reason       Age                 From              Message
-  ----     ------       ----                ----              -------
-  Normal   Updated      5m53s               pomerium-ingress  updated pomerium configuration
-  Warning  UpdateError  3s                  pomerium-ingress  upsert routes: parsing ingress: annotations: applying policy annotations: parsing policy: invalid rules in policy: unsupported conditional "maybe", only and, or, not, nor and action are allowed
-```
-
-### HSTS 
-
-If your domain has HSTS enabled, and you visit i.e. _authenticate_ endpoint while Pomerium is using self-signed bootstrap certificate, 
-or i.e. LetsEncrypt staging certificate, before cert-manager provisioned a production certificate, it may get pinned in your browser and need be reset. 
-
-https://www.ssl2buy.com/wiki/how-to-clear-hsts-settings-on-chrome-firefox-and-ie-browsers
-
 ## HTTPS endpoints
 
-`Ingress` spec defines that all communications to the service should happen in cleartext. Pomerium supports HTTPS endpoints, including mTLS.
+The `Ingress` spec defines that all communications to the service should happen in cleartext. Pomerium supports HTTPS endpoints, including mTLS.
+
+TODO: Link to Ingress spec ref doc.
 
 Annotate your `Ingress` with
 
@@ -249,7 +229,44 @@ spec:
                   name: https
 ```
 
+## Troubleshooting
 
+### View Event History
+
+Pomerium Ingress Controller will add **events** to the ingress objects as it processes them.
+
+```
+kubectl describe ingress/my-ingress
+```
+
+```log
+Events:
+  Type    Reason   Age   From              Message
+  ----    ------   ----  ----              -------
+  Normal  Updated  18s   pomerium-ingress  updated pomerium configuration
+```
+
+If an error occurs, it may be reflected in the events:
+
+```log
+Events:
+  Type     Reason       Age                 From              Message
+  ----     ------       ----                ----              -------
+  Normal   Updated      5m53s               pomerium-ingress  updated pomerium configuration
+  Warning  UpdateError  3s                  pomerium-ingress  upsert routes: parsing ingress: annotations: applying policy annotations: parsing policy: invalid rules in policy: unsupported conditional "maybe", only and, or, not, nor and action are allowed
+```
+
+### HSTS
+
+If your domain has [HSTS] enabled and you visit an endpoint while Pomerium is using the self-signed bootstrap certificate or a LetsEncrypt staging certificate (before cert-manager has provisioned a production certificate), the untrusted certificate may be pinned in your browser and need to be reset. See [this article](https://www.ssl2buy.com/wiki/how-to-clear-hsts-settings-on-chrome-firefox-and-ie-browsers) (external link) for more information.
+
+TODO: ^ replaces the sentence below. Confirm it has all needed info.
+
+If your domain has HSTS enabled, and you visit i.e. _authenticate_ endpoint while Pomerium is using self-signed bootstrap certificate, or i.e. LetsEncrypt staging certificate, before cert-manager provisioned a production certificate, it may get pinned in your browser and need be reset.
+
+https://www.ssl2buy.com/wiki/how-to-clear-hsts-settings-on-chrome-firefox-and-ie-browsers
+
+[HSTS]: https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security
 [`cors_allow_preflight`]: /reference/#cors-allow-preflight
 [`allow_public_unauthenticated_access`]: /reference/#allow-public-unauthenticated-access
 [`allow_any_authenticated_user`]: /reference/#allow_any_authenticated_user
