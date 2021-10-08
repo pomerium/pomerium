@@ -97,6 +97,11 @@ message Route {
 
   repeated Policy policies = 27;
   string id = 28;
+
+  optional string host_rewrite = 50;
+  optional string host_rewrite_header = 51;
+  optional string host_path_regex_rewrite_pattern = 52;
+  optional string host_path_regex_rewrite_substitution = 53;
 }
 
 message Policy {
