@@ -79,7 +79,7 @@ frontend: ## Runs go generate on the static assets package.
 .PHONY: proto
 proto:
 	@echo "==> $@"
-	cd pkg/pb && ./protoc.bash
+	cd pkg/grpc && ./protoc.bash
 
 .PHONY: build
 build: build-deps ## Builds dynamic executables and/or packages.
@@ -120,6 +120,9 @@ clean: ## Cleanup any build binaries or packages.
 	$(RM) -r $(BINDIR)
 	$(RM) -r $(BUILDDIR)
 	$(RM) internal/envoy/files/envoy-*
+	$(RM) $GOPATH/bin/protoc-gen-validate
+	$(RM) -r /tmp/pomerium-protoc
+	$(RM) -r /tmp/pomerium-protoc-3pp
 
 .PHONY: snapshot
 snapshot: build-deps ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
