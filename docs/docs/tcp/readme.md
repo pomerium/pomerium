@@ -44,7 +44,7 @@ routes:
 
 When creating TCP routes, note the following:
 
-- When configuring a TCP route, any HTTP specific settings such as `regex_rewrite_pattern`, or `set_request_headers` have no effect.
+- When configuring a TCP route, any HTTP specific settings such as `regex_rewrite_pattern` or `set_request_headers` have no effect.
 - While data is encrypted from a user system to Pomerium's proxy, the underlying application protocol must also support encryption for data to be fully encrypted end-to-end. Otherwise, traffic from the Pomerium proxy service to the upstream service will be unencrypted.
 - The ports in `from` and `to` are independent.  Users only need to know the `from` URL to connect.  The `to` can be changed without end user participation.
 - The port defined in `from` does not dictate what port the tunneled traffic uses. This will always be the port defined by [`address`](/reference/readme.md#address) in your Pomerium configuration (`443` by default). The port instead differentiates multiple routes to the same hostname for different services.
