@@ -13,7 +13,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/client9/misspell v0.3.4
 	github.com/coreos/go-oidc/v3 v3.1.0
-	github.com/docker/docker v20.10.8+incompatible
+	github.com/docker/docker v20.10.9+incompatible
 	github.com/envoyproxy/go-control-plane v0.9.10-0.20210907150352-cf90f659a021
 	github.com/envoyproxy/protoc-gen-validate v0.6.1
 	github.com/fsnotify/fsnotify v1.5.1
