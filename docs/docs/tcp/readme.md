@@ -9,8 +9,6 @@ meta:
 
 # TCP Support
 
-## About
-
 Operations and engineering teams frequently require access to lower level administrative and data protocols such as SSH, RDP, Postgres, MySQL, Redis, etc.
 
 In addition to managing HTTP based applications, Pomerium can be used to protect non-HTTP systems with the same consistent authorization policy. This is achieved by tunneling TCP over HTTP with the help of a client side command built into [`pomerium-cli`](/docs/releases.md#pomerium-cli).
@@ -49,7 +47,7 @@ When creating TCP routes, note the following:
 - The ports in `from` and `to` are independent.  Users only need to know the `from` URL to connect.  The `to` can be changed without end user participation.
 - The port defined in `from` does not dictate what port the tunneled traffic uses. This will always be the port defined by [`address`](/reference/readme.md#address) in your Pomerium configuration (`443` by default). The port instead differentiates multiple routes to the same hostname for different services.
 
-## Using
+## Connect to TCP Routes
 
 While HTTP routes can be consumed with just a normal browser, `pomerium-cli` must serve as a proxy for TCP routes.  It is [available](/docs/releases.md#pomerium-cli) for a variety of platforms in various formats.
 
@@ -93,5 +91,7 @@ The command above connects to `https://pomerium.corp.example.com:8443` and then 
 
 We've outlined how to use a TCP tunnel through Pomerium for several popular services that use TCP connections:
 
-- [SSH](./ssh.md)
+- [MySQL and MariaDB](./mysql.md)
+- [RDP](./rdp.md)
 - [Redis](./redis.md)
+- [SSH](./ssh.md)
