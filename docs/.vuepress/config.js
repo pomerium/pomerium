@@ -5,11 +5,8 @@ module.exports = {
     "Pomerium is a beyond-corp inspired, zero trust, open source identity-aware access proxy.",
   plugins: [
     "vuepress-plugin-element-tabs",
-    'vuepress-plugin-mermaidjs',
-    [
-      'vuepress-plugin-code-copy',
-      true
-    ],
+    "vuepress-plugin-mermaidjs",
+    ["vuepress-plugin-code-copy", true],
     [
       "check-md",
       {
@@ -32,10 +29,10 @@ module.exports = {
   ],
   markdown: {
     externalLinkSymbol: false,
-    extendMarkdown:(md) => {
-      md.use(require('markdown-it-include'), {
-        root: './docs/partials/'
-      })
+    extendMarkdown: (md) => {
+      md.use(require("markdown-it-include"), {
+        root: "./docs/partials/",
+      });
     },
   },
   themeConfig: {
@@ -146,14 +143,9 @@ module.exports = {
               collapsable: true,
               type: "group",
               sidebarDepth: 0,
-              children: [
-                "tcp/mysql",
-                "tcp/rdp",
-                "tcp/redis",
-                "tcp/ssh",
-              ],
+              children: ["tcp/mysql", "tcp/rdp", "tcp/redis", "tcp/ssh"],
             },
-          ]
+          ],
         },
         {
           title: "Topics",
@@ -261,7 +253,7 @@ module.exports = {
             },
             "api",
             "upgrading",
-            "changelog"
+            "changelog",
           ],
         },
       ],
@@ -269,7 +261,8 @@ module.exports = {
   },
   head: [
     //Hack: Make clicking on the logo go to home url
-    ["script",
+    [
+      "script",
       {},
       `
       const logoUrlChanger = setInterval(function() {
@@ -291,7 +284,7 @@ module.exports = {
       }
       }, 1000)
 
-      `
-    ]
+      `,
+    ],
   ],
 };

@@ -3,12 +3,12 @@
 </template>
 
 <script>
-import ParentLayout from '@parent-theme/layouts/404.vue'
+import ParentLayout from "@parent-theme/layouts/404.vue";
 
 export default {
-  name: 'Draft',
+  name: "Draft",
   components: {
     ParentLayout,
-  }
-}
+  },
+};
 </script>
