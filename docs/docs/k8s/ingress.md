@@ -75,10 +75,7 @@ TODO: Extrapolate on ^
 
 ### Defining Routes
 
-If you've tested Pomerium using the all-in-one service, you're probably familiar with configuring routes in Pomerium's `config.yaml`. In this environmenzt, each route is defined as a.... what @travis?
-
-TODO: Finish ^
-
+If you've tested Pomerium using the all-in-one service, you're probably familiar with configuring routes in Pomerium's `config.yaml`. In this environment, each route is defined as an Ingress resource in the Kubernetes API.
 The Ingress Controller will monitor Ingress resources in the cluster, creating a Pomerium route definition for each one.  Policy and other configuration options for the route are set by using annotations starting with `ingress.pomerium.io/`.
 
 Example:
