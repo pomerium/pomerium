@@ -101,6 +101,16 @@ func GenerateSecureToken(key []byte, expiry time.Time, token Token) SecureToken 
 	return secureToken
 }
 
+// SecureTokenFromString parses a base58-encoded string into a SecureToken.
+func SecureTokenFromString(rawstr string) (secureToken SecureToken, ok bool) {
+	result := base58.Decode(rawstr)
+	if len(result) != SecureTokenLength {
+		return secureToken, false
+	}
+	copy(secureToken[:], result[:SecureTokenLength])
+	return secureToken, true
+}
+
 // Bytes returns the secret token as bytes.
 func (secureToken SecureToken) Bytes() []byte {
 	return secureToken[:]

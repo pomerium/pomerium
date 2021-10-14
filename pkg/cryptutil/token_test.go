@@ -91,6 +91,12 @@ func TestSecureToken(t *testing.T) {
 	}, secureToken.Token())
 	assert.Equal(t, expiry, secureToken.Expiry().UTC())
 
+	t.Run("parse", func(t *testing.T) {
+		parsed, ok := SecureTokenFromString("2Y2GNugUpcunes9epx9ehkdHwJvejtnBzNJ5iniiRYv3rMoE7LMN3tZmf7ZGNidJKMSvTtCYEqtE5")
+		assert.True(t, ok)
+		assert.Equal(t, secureToken, parsed)
+	})
+
 	t.Run("valid", func(t *testing.T) {
 		err := secureToken.Verify(key, expiry.Add(-time.Second))
 		assert.NoError(t, err)
