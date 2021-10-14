@@ -39,7 +39,6 @@ Only one Ingress Controller instance/replica is supported per Pomerium cluster.
 
 Our instructions for [Installing Pomering Using Helm](/docs/k8s/helm.md) includes the Ingress Controller as part of the documented configuration.
 
-TODO: @travisgroth what else do we need to say about this?
 
 ```yaml
 ingressController:
