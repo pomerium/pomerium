@@ -10,7 +10,7 @@ description: >-
 
 # Securing TCP based services
 
-The following guide demonstrates how to use Pomerium's [TCP Proxying](/docs/topics/tcp-support.md) support with various TCP services such as databases and other non-HTTP protocols.  It also covers integration points with them when possible.
+The following guide demonstrates how to use Pomerium's [TCP Proxying](/docs/tcp/readme.md) support with various TCP services such as databases and other non-HTTP protocols.  It also covers integration points with them when possible.
 
 The source files from this guide can be found on [GitHub](https://github.com/pomerium/pomerium/tree/master/examples/tcp/).
 
