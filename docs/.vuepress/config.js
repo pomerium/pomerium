@@ -5,11 +5,8 @@ module.exports = {
     "Pomerium is a beyond-corp inspired, zero trust, open source identity-aware access proxy.",
   plugins: [
     "vuepress-plugin-element-tabs",
-    'vuepress-plugin-mermaidjs',
-    [
-      'vuepress-plugin-code-copy',
-      true
-    ],
+    "vuepress-plugin-mermaidjs",
+    ["vuepress-plugin-code-copy", true],
     [
       "check-md",
       {
@@ -32,14 +29,15 @@ module.exports = {
   ],
   markdown: {
     externalLinkSymbol: false,
-    extendMarkdown:(md) => {
-      md.use(require('markdown-it-include'), {
-        root: './docs/partials/'
-      })
+    extendMarkdown: (md) => {
+      md.use(require("markdown-it-include"), {
+        root: "./docs/partials/",
+      });
     },
   },
   themeConfig: {
     home: false,
+    activeHeaderLinks: false,
     logo: "/img/logo_white.svg",
     repo: "pomerium/pomerium",
     editLinks: true,
@@ -117,6 +115,7 @@ module.exports = {
           path: "/docs/identity-providers/",
           type: "group",
           sidebarDepth: 0,
+          initialOpenGroupIndex: 0,
           children: [
             "identity-providers/",
             "identity-providers/auth0",
@@ -130,13 +129,29 @@ module.exports = {
             "identity-providers/ping",
           ],
         },
-        "client",
+        {
+          title: "TCP Connections",
+          collapsable: false,
+          path: "/docs/tcp/",
+          type: "group",
+          sidebarDepth: 1,
+          children: [
+            "tcp/",
+            "tcp/client",
+            {
+              title: "Examples",
+              collapsable: true,
+              type: "group",
+              sidebarDepth: 0,
+              children: ["tcp/mysql", "tcp/rdp", "tcp/redis", "tcp/ssh"],
+            },
+          ],
+        },
         {
           title: "Topics",
-          collapsable: true,
+          collapsable: false,
           path: "/docs/topics/",
           type: "group",
-          collapsable: false,
           sidebarDepth: 1,
           children: [
             "topics/certificates",
@@ -146,7 +161,6 @@ module.exports = {
             "topics/kubernetes-integration",
             "topics/production-deployment",
             "topics/programmatic-access",
-            "topics/tcp-support",
             "topics/single-sign-out",
             "topics/load-balancing",
           ],
@@ -238,7 +252,7 @@ module.exports = {
             },
             "api",
             "upgrading",
-            "changelog"
+            "changelog",
           ],
         },
       ],
@@ -246,7 +260,8 @@ module.exports = {
   },
   head: [
     //Hack: Make clicking on the logo go to home url
-    ["script",
+    [
+      "script",
       {},
       `
       const logoUrlChanger = setInterval(function() {
@@ -268,7 +283,7 @@ module.exports = {
       }
       }, 1000)
 
-      `
-    ]
+      `,
+    ],
   ],
 };
