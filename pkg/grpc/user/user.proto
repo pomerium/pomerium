@@ -17,6 +17,7 @@ message User {
   string name = 3;
   string email = 4;
   map<string, google.protobuf.ListValue> claims = 9;
+  repeated string device_credential_ids = 10;
 }
 
 message ServiceAccount {

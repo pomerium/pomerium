@@ -29,6 +29,7 @@ func Get(ctx context.Context, client databroker.DataBrokerServiceClient, userID 
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling user from databroker: %w", err)
 	}
+
 	return &u, nil
 }
 

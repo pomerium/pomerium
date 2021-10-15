@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package pomerium.device;
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/device";
+
+import "google/protobuf/timestamp.proto";
+
+message WebAuthnOptions {
+  enum AttestationConveyancePreference {
+    NONE = 0;
+    INDIRECT = 1;
+    DIRECT = 2;
+    ENTERPRISE = 3;
+  }
+  enum AuthenticatorAttachment {
+    PLATFORM = 0;
+    CROSS_PLATFORM = 2;
+  }
+  enum PublicKeyCredentialType { PUBLIC_KEY = 0; }
+  enum ResidentKeyRequirement {
+    RESIDENT_KEY_DISCOURAGED = 0;
+    RESIDENT_KEY_PREFERRED = 1;
+    RESIDENT_KEY_REQUIRED = 2;
+  }
+  enum UserVerificationRequirement {
+    USER_VERIFICATION_DISCOURAGED = 0;
+    USER_VERIFICATION_PREFERRED = 1;
+    USER_VERIFICATION_REQUIRED = 2;
+  }
+
+  message AuthenticatorSelectionCriteria {
+    optional AuthenticatorAttachment authenticator_attachment = 1;
+    optional bool require_resident_key = 2;
+    optional ResidentKeyRequirement resident_key_requirement = 3;
+    optional UserVerificationRequirement user_verification = 4;
+  }
+  message PublicKeyCredentialParameters {
+    int64 alg = 1;
+    PublicKeyCredentialType type = 2;
+  }
+
+  optional AttestationConveyancePreference attestation = 1;
+  optional AuthenticatorSelectionCriteria authenticator_selection = 2;
+  repeated PublicKeyCredentialParameters pub_key_cred_params = 3;
+}
+
+// A Type constrains which kinds of devices are allowed to be registered.
+message Type {
+  message WebAuthn { WebAuthnOptions options = 1; }
+
+  string id = 1;
+  string name = 2;
+  oneof specifier { WebAuthn webauthn = 3; }
+}
+
+// An Enrollment is used to approve a user's device.
+message Enrollment {
+  string id = 1;
+  string user_id = 2;
+  string approved_by = 3;
+  google.protobuf.Timestamp enrolled_at = 4;
+  string user_agent = 5;
+  string ip_address = 6;
+}
+
+// A Credential is a user's device-specific credential.
+message Credential {
+  message WebAuthn {
+    bytes id = 1;
+    bytes public_key = 2;
+
+    // the options that were used to do initial registration
+    bytes register_options = 3;
+    // the response returned from initial registration
+    bytes register_response = 4;
+    // subsequent authenticate responses
+    repeated bytes authenticate_response = 5;
+  }
+
+  string id = 1;
+  string type_id = 2;
+  string enrollment_id = 3;
+  string user_id = 4;
+  oneof specifier { WebAuthn webauthn = 5; }
+}
+
+// An OwnerCredentialRecord is used to track credential owners to prevent credential re-use.
+message OwnerCredentialRecord {
+  bytes id = 1;
+  bytes owner_id = 2;
+  bytes public_key = 3;
+}

@@ -83,6 +83,10 @@ _import_paths=$(join_by , "${_imports[@]}")
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./databroker/." \
   ./databroker/databroker.proto
 
+../../scripts/protoc -I ./device/ \
+  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./device/." \
+  ./device/device.proto
+
 ../../scripts/protoc -I ./directory/ \
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./directory/." \
   ./directory/directory.proto
