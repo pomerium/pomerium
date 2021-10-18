@@ -156,7 +156,55 @@ Every value for the annotations above must be in `string` format.
 
 ### Cert Manager Integration
 
-TODO: @travisgroth
+Pomerium Ingress Controller supports utilizing [cert-manager](https://cert-manager.io/) for provisioning certificates.  These may come from the [`Ingress` shim](https://cert-manager.io/docs/usage/ingress/) or explicitly configured [`Certificate` resources](https://cert-manager.io/docs/usage/certificate/).
+
+To use [HTTP01 Challenges](https://cert-manager.io/docs/configuration/acme/http01/) with your Issuer, configure the solver class to match the Ingress Controller.  The Ingress Controller will automatically configure policy to facilitate the HTTP01 challenge:
+
+```yaml
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: example-issuer
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: example-issuer-account-key
+    solvers:
+    - http01:
+       ingress:
+         class: pomerium
+```
+
+An example of using the Ingress Shim with an Ingress resource managed by Pomerium:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/issuer: example-issuer
+    ingress.pomerium.io/policy: '[{"allow":{"and":[{"email":{"is":"user@exampledomain.com"}}]}}]'
+  name: example
+spec:
+  ingressClassName: pomerium
+  rules:
+  - host: example.localhost.pomerium.io
+    http:
+      paths:
+      - backend:
+          service:
+            name: example
+            port:
+              name: http
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - example.localhost.pomerium.io
+    secretName: example-tls
+```
+
 
 ## HTTPS endpoints
 
