@@ -116,30 +116,34 @@ routes:
 
 ### Supported Annotations
 
-The following annotations behave the same as described in our reference documentation (each one is linked to the appropriate section):
+Many annotations behave the same as described in our reference documentation. Expand the section below for a complete list, with links to the appropriate reference documentation.
 
-- [`cors_allow_preflight`]
-- [`allow_public_unauthenticated_access`]
+::: details Pomerium-Standard Annotations
+
 - [`allow_any_authenticated_user`]
-- [`timeout`]
-- [`idle_timeout`]
+- [`allow_public_unauthenticated_access`]
 - [`allow_websockets`]
-- [`set_request_headers`]
-- [`remove_request_headers`]
-- [`set_response_headers`]
-- [`rewrite_response_headers`]
-- [`preserve_host_header`]
-- [`pass_identity_headers`]
-- [`tls_skip_verify`]
-- [`tls_server_name`]
-- [`allowed_users`]
-- [`allowed_groups`]
 - [`allowed_domains`]
+- [`allowed_groups`]
 - [`allowed_idp_claims`]
-- [`policy`]
+- [`allowed_users`]
+- [`cors_allow_preflight`]
 - [`health_checks`]
-- [`outlier_detection`]
+- [`idle_timeout`]
 - [`lb_config`]
+- [`outlier_detection`]
+- [`pass_identity_headers`]
+- [`policy`]
+- [`preserve_host_header`]
+- [`remove_request_headers`]
+- [`rewrite_response_headers`]
+- [`set_request_headers`]
+- [`set_response_headers`]
+- [`timeout`]
+- [`tls_server_name`]
+- [`tls_skip_verify`]
+
+:::
 
 The remaining annotations are specific to or behave differently in this context:
 
