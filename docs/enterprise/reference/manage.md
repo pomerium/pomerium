@@ -357,7 +357,7 @@ A policy can only support PPL or Rego. Once one is set, the other tab is disable
 ### Overrides
 
 - **Any Authenticated User**: This setting will allow access to a route with this policy attached to any user who can authenticate to your Identity Provider (**IdP**).
-- **CORS Preflight**: Allow unauthenticated HTTP OPTIONS requests as per the CORS spec (opens new window).
+- **CORS Preflight**: Allow unauthenticated HTTP OPTIONS requests as per the CORS spec.
 - **Public Access**: This setting allows complete, unrestricted access to an associated route. Use this setting with caution.
 
 
