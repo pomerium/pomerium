@@ -205,6 +205,24 @@ spec:
     secretName: example-tls
 ```
 
+::: details Write Policies in YAML
+
+You can also define a route's policies using YAML:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: name
+  annotations:
+    ingress.pomerium.io/policy: |
+      - allow:
+          or:
+            - domain:
+                is: pomerium.com
+```
+
+:::
 
 ## HTTPS endpoints
 
