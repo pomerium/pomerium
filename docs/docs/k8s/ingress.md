@@ -9,7 +9,7 @@ meta:
 
 # Kubernetes Ingress Controller
 
-Use Pomerium as a first class secure-by-default Ingress Controller. Dynamically provision routes from Ingress resources and set policy based on annotations. With routes defined as Ingress resources you can independently create and remove them from Pomerium's configuration. This enables workflows more native to Kubernetes environments, like actions based on pull requests.
+Use Pomerium as a first-class secure-by-default Ingress Controller. Dynamically provision routes from Ingress resources and set policy based on annotations. By defining routes as Ingress resources you can independently create and remove them from Pomerium's configuration. This enables workflows more native to Kubernetes environments such as actions based on pull requests.
 
 ## Prerequisites
 
@@ -43,7 +43,7 @@ ingressController:
 
 ### Docker Image
 
-You may deploy your own manifests by using the `pomerium/ingress-controller` docker image.
+You may deploy your own manifestations by using the `pomerium/ingress-controller` docker image.
 
 ## Configuration
 
@@ -125,7 +125,7 @@ metadata:
 
 ### Supported Annotations
 
-Most configuration keys in non-kubernetes deployments can be specified as annotation in a Ingress Resource definition. The format is `ingress.pomerium.io/${OPTION_NAME}`. The expandable list below contains the annotations available, which behave as described in our reference documentation (with links to the appropriate reference documentation).
+Most configuration keys in non-Kubernetes deployments can be specified as annotation in a Ingress Resource definition. The format is `ingress.pomerium.io/${OPTION_NAME}`. The expandable list below contains the annotations available, which behave as described in our reference documentation (with links to the appropriate reference documentation).
 
 ::: details Pomerium-Standard Annotations
 
@@ -222,7 +222,7 @@ spec:
 
 ## HTTPS endpoints
 
-The `Ingress` spec assume that all communications to the service happens in plaintext. For more information, see the [TLS](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls) section of the Ingress API documentation. Pomerium supports HTTPS communication with upstream endpoints, including mTLS. 
+The `Ingress` spec assumes that all communications to the service is sent in plaintext. For more information, see the [TLS](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls) section of the Ingress API documentation. Pomerium supports HTTPS communication with upstream endpoints, including mTLS. 
 
 Annotate your `Ingress` with
 
@@ -230,13 +230,13 @@ Annotate your `Ingress` with
 ingress.pomerium.io/secure_upstream: true
 ```
 
-Additional TLS may be supplied by creating a Kubernetes secret(s) in the same namespaces as `Ingress` resource. Note we do not support file paths or embedded secret references.
+Additional TLS may be supplied by creating a Kubernetes secret(s) in the same namespaces as `Ingress` resource. Please note that we do not support file paths or embedded secret references.
 
 - [`ingress.pomerium.io/tls_client_secret`](https://pomerium.io/reference/readme.md#tls-client-certificate)
 - [`ingress.pomerium.io/tls_custom_ca_secret`](https://pomerium.io/reference/readme.md#tls-custom-certificate-authority)
 - [`ingress.pomerium.io/tls_downstream_client_ca_secret`](#supported-annotations)
 
-Note the referenced `tls_client_secret` must be a [TLS Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets). `tls_custom_ca_secret` and `tls_downstream_client_ca_secret` must contain `ca.crt` containing a .PEM encoded (Base64-encoded DER format) public certificate.
+Please note that the referenced `tls_client_secret` must be a [TLS Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets). `tls_custom_ca_secret` and `tls_downstream_client_ca_secret` must contain `ca.crt` containing a .PEM encoded (Base64-encoded DER format) public certificate.
 
 
 ### External services
