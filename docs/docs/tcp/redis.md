@@ -38,7 +38,7 @@ Redis is a popular in-memory data structure store. It can be run locally or conf
     redis-cli -h localhost -p 6379
     ```
 
-This demonstrates access to a Redis server through Pomerium from the `redis-cli` tool. Pomerium Enterprise users can utilize [Service Accounts](/enterprise/service-accounts.md) to enable secure machine-to-machine communication of Redis services.
+This demonstrates access to a Redis server through Pomerium from the `redis-cli` tool. Pomerium Enterprise users can utilize [Service Accounts](/enterprise/reference/configure.md#service-accounts) to enable secure machine-to-machine communication of Redis services.
 
 ## More Resources
 
