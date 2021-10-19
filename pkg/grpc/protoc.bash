@@ -49,6 +49,12 @@ _protos=(
   "envoy/type/v3/percent.proto"
   "envoy/type/v3/range.proto"
   "envoy/type/v3/semantic_version.proto"
+)
+_imports=()
+for _proto in "${_protos[@]}"; do
+  _imports+=("M${_proto}=github.com/envoyproxy/go-control-plane/$(dirname "$_proto")")
+done
+_xds_protos=(
   "udpa/annotations/migrate.proto"
   "udpa/annotations/security.proto"
   "udpa/annotations/sensitive.proto"
@@ -60,9 +66,8 @@ _protos=(
   "xds/core/v3/resource_locator.proto"
   "xds/annotations/v3/status.proto"
 )
-_imports=()
-for _proto in "${_protos[@]}"; do
-  _imports+=("M${_proto}=github.com/envoyproxy/go-control-plane/$(dirname "$_proto")")
+for _proto in "${_xds_protos[@]}"; do
+  _imports+=("M${_proto}=github.com/cncf/xds/go/$(dirname "$_proto")")
 done
 
 _import_paths=$(join_by , "${_imports[@]}")
