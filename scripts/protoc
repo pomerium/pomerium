@@ -51,4 +51,5 @@ exec "$_protoc_path/bin/protoc" \
   --experimental_allow_proto3_optional \
   --plugin="protoc-gen-go=$_dir/protoc-gen-go" \
   --plugin="protoc-gen-grpc-web=$_dir/protoc-gen-grpc-web" \
+  --plugin="protoc-gen-validate=$_dir/protoc-gen-validate" \
   "$@"
