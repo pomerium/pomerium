@@ -9,18 +9,12 @@ meta:
 
 # Kubernetes Ingress Controller
 
-Use Pomerium as a first class secure-by-default Ingress Controller. Dynamically provision routes from Ingress resources and set policy based on annotations.
-
-TODO: Funfact: you can dynamically create and remove routes with OSS Pomerium using the Ingress Controller, which you can't do otherwise.
+Use Pomerium as a first class secure-by-default Ingress Controller. Dynamically provision routes from Ingress resources and set policy based on annotations. With routes defined as Ingress resources you can independently create and remove them from Pomerium's configuration. This enables workflows more native to Kubernetes environments, like actions based on pull requests.
 
 ## Prerequisites
 
 - A certificate management solution. If you do not already have one in place, this article covers using Cert Manager.
 - A Redis backend with high-persistence is highly recommended.
-
-::: tip
-TODO: CloudRun endpoints can be easily supported using "internal traffic policy", if they are deployed to the same cloud project as Pomerium. 
-:::
 
 ### System Requirements
 
@@ -30,14 +24,16 @@ TODO: CloudRun endpoints can be easily supported using "internal traffic policy"
 ### Limitations
 
 ::: warning
+
 Only one Ingress Controller instance/replica is supported per Pomerium cluster.
+
 :::
 
 ## Installation
 
 ### Helm
 
-Our instructions for [Installing Pomering Using Helm](/docs/k8s/helm.md) includes the Ingress Controller as part of the documented configuration.
+Our instructions for [Installing Pomerium Using Helm](/docs/k8s/helm.md) includes the Ingress Controller as part of the documented configuration.
 
 
 ```yaml
@@ -50,9 +46,6 @@ ingressController:
 You may deploy your own manifests by using the `pomerium/ingress-controller` docker image.
 
 ## Configuration
-
-TODO: Describe where and how these flags are used.
-
 
 |  Flag                          | Description                                                          |
 | ------------------------------ | -------------------------------------------------------------------- |
@@ -68,8 +61,6 @@ TODO: Describe where and how these flags are used.
 | `--update-status-from-service` | update ingress status from given service status (pomerium-proxy)|
 
 The helm chart exposes a subset of these flags for appropriate customization.
-
-TODO: Extrapolate on ^
 
 ## Usage
 
@@ -113,49 +104,69 @@ routes:
               is: user@yourdomain.com
 ```
 
+::: details Write Policies in YAML
+
+You can also define a route's policies using YAML:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: name
+  annotations:
+    ingress.pomerium.io/policy: |
+      - allow:
+          or:
+            - domain:
+                is: pomerium.com
+```
+
+:::
 
 ### Supported Annotations
 
-Many annotations behave the same as described in our reference documentation. Expand the section below for a complete list, with links to the appropriate reference documentation.
+Most configuration keys in non-kubernetes deployments can be specified as annotation in a Ingress Resource definition. The format is `ingress.pomerium.io/${OPTION_NAME}`. The expandable list below contains the annotations available, which behave as described in our reference documentation (with links to the appropriate reference documentation).
 
 ::: details Pomerium-Standard Annotations
 
-- [`allow_any_authenticated_user`]
-- [`allow_public_unauthenticated_access`]
-- [`allow_websockets`]
-- [`allowed_domains`]
-- [`allowed_groups`]
-- [`allowed_idp_claims`]
-- [`allowed_users`]
-- [`cors_allow_preflight`]
-- [`health_checks`]
-- [`idle_timeout`]
-- [`lb_config`]
-- [`outlier_detection`]
-- [`pass_identity_headers`]
-- [`policy`]
-- [`preserve_host_header`]
-- [`remove_request_headers`]
-- [`rewrite_response_headers`]
-- [`set_request_headers`]
-- [`set_response_headers`]
-- [`timeout`]
-- [`tls_server_name`]
-- [`tls_skip_verify`]
+- [`ingress.pomerium.io/allow_any_authenticated_user`]
+- [`ingress.pomerium.io/allow_public_unauthenticated_access`]
+- [`ingress.pomerium.io/allow_websockets`]
+- [`ingress.pomerium.io/allowed_domains`]
+- [`ingress.pomerium.io/allowed_groups`]
+- [`ingress.pomerium.io/allowed_idp_claims`]
+- [`ingress.pomerium.io/allowed_users`]
+- [`ingress.pomerium.io/cors_allow_preflight`]
+- [`ingress.pomerium.io/health_checks`]
+- [`ingress.pomerium.io/idle_timeout`]
+- [`ingress.pomerium.io/lb_config`]
+- [`ingress.pomerium.io/outlier_detection`]
+- [`ingress.pomerium.io/pass_identity_headers`]
+- [`ingress.pomerium.io/policy`]
+- [`ingress.pomerium.io/preserve_host_header`]
+- [`ingress.pomerium.io/remove_request_headers`]
+- [`ingress.pomerium.io/rewrite_response_headers`]
+- [`ingress.pomerium.io/set_request_headers`]
+- [`ingress.pomerium.io/set_response_headers`]
+- [`ingress.pomerium.io/timeout`]
+- [`ingress.pomerium.io/tls_server_name`]
+- [`ingress.pomerium.io/tls_skip_verify`]
 
 :::
 
 The remaining annotations are specific to or behave differently in this context:
 
-| Annotation              | Description |
-| ----------------------- | ------------------------------------------------------------------------------------------- |
-| `tls_custom_ca_secret`                    | Name of Kubernetes `tls` Secret containing a custom [CA certificate][`tls_custom_ca_secret`] for the upstream
-| `tls_client_secret`                       | Name of Kubernetes `tls` Secret containing a [client certificate][`tls_client_secret`] for connecting to the upstream
-| `tls_downstream_client_ca_secret`         | Name of Kubernetes `tls` Secret containing a [Client CA][`tls_downstream_client_ca_secret`] for validating downstream clients
-| `secure_upstream`                         | When set to true, use `https` when connecting to the upstream endpoint.
+| Annotation                        | Description |
+| --------------------------------- | ------------------------------------------------------------------------------------------- |
+| `ingress.pomerium.io/tls_custom_ca_secret`            | Name of Kubernetes `tls` Secret containing a custom [CA certificate][`tls_custom_ca_secret`] for the upstream. |
+| `ingress.pomerium.io/tls_client_secret`               | Name of Kubernetes `tls` Secret containing a [client certificate][`tls_client_secret`] for connecting to the upstream. |
+| `ingress.pomerium.io/tls_downstream_client_ca_secret` | Name of Kubernetes `tls` Secret containing a [Client CA][client-certificate-authority] for validating downstream clients. |
+| `ingress.pomerium.io/secure_upstream`                 | When set to true, use `https` when connecting to the upstream endpoint. |
 	
 ::: tip
+
 Every value for the annotations above must be in `string` format.
+
 :::
 
 ### Cert Manager Integration
@@ -209,30 +220,9 @@ spec:
     secretName: example-tls
 ```
 
-::: details Write Policies in YAML
-
-You can also define a route's policies using YAML:
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: name
-  annotations:
-    ingress.pomerium.io/policy: |
-      - allow:
-          or:
-            - domain:
-                is: pomerium.com
-```
-
-:::
-
 ## HTTPS endpoints
 
-The `Ingress` spec defines that all communications to the service should happen in cleartext. Pomerium supports HTTPS endpoints, including mTLS.
-
-TODO: Link to Ingress spec ref doc.
+The `Ingress` spec assume that all communications to the service happens in plaintext. For more information, see the [TLS](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls) section of the Ingress API documentation. Pomerium supports HTTPS communication with upstream endpoints, including mTLS. 
 
 Annotate your `Ingress` with
 
@@ -242,9 +232,9 @@ ingress.pomerium.io/secure_upstream: true
 
 Additional TLS may be supplied by creating a Kubernetes secret(s) in the same namespaces as `Ingress` resource. Note we do not support file paths or embedded secret references.
 
-- [`tls_client_secret`](https://pomerium.io/reference/#tls-client-certificate)
-- [`tls_custom_ca_secret`](https://pomerium.io/reference/#tls-custom-certificate-authority)
-- [`tls_downstream_client_ca_secret`](https://pomerium.io/reference/#tls-downstream-client-certificate-authority)
+- [`ingress.pomerium.io/tls_client_secret`](https://pomerium.io/reference/readme.md#tls-client-certificate)
+- [`ingress.pomerium.io/tls_custom_ca_secret`](https://pomerium.io/reference/readme.md#tls-custom-certificate-authority)
+- [`ingress.pomerium.io/tls_downstream_client_ca_secret`](#supported-annotations)
 
 Note the referenced `tls_client_secret` must be a [TLS Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets). `tls_custom_ca_secret` and `tls_downstream_client_ca_secret` must contain `ca.crt` containing a .PEM encoded (Base64-encoded DER format) public certificate.
 
@@ -329,13 +319,7 @@ Events:
 
 ### HSTS
 
-If your domain has [HSTS] enabled and you visit an endpoint while Pomerium is using the self-signed bootstrap certificate or a LetsEncrypt staging certificate (before cert-manager has provisioned a production certificate), the untrusted certificate may be pinned in your browser and need to be reset. See [this article](https://www.ssl2buy.com/wiki/how-to-clear-hsts-settings-on-chrome-firefox-and-ie-browsers) (external link) for more information.
-
-TODO: ^ replaces the sentence below. Confirm it has all needed info.
-
-If your domain has HSTS enabled, and you visit i.e. _authenticate_ endpoint while Pomerium is using self-signed bootstrap certificate, or i.e. LetsEncrypt staging certificate, before cert-manager provisioned a production certificate, it may get pinned in your browser and need be reset.
-
-https://www.ssl2buy.com/wiki/how-to-clear-hsts-settings-on-chrome-firefox-and-ie-browsers
+If your domain has [HSTS] enabled and you visit an endpoint while Pomerium is using the self-signed bootstrap certificate or a LetsEncrypt staging certificate (before cert-manager has provisioned a production certificate), the untrusted certificate may be pinned in your browser and need to be reset. See [this article](https://www.ssl2buy.com/wiki/how-to-clear-hsts-settings-on-chrome-firefox-and-ie-browsers) for more information.
 
 ## More Information
 
@@ -345,32 +329,29 @@ For more information on the Pomerium Ingress Controller or the Kubernetes concep
 - [Pomerium Helm Chart README: Pomerium Ingress Controller](https://github.com/travisgroth/pomerium-helm/tree/master/charts/pomerium#pomerium-ingress-controller)
 - [Pomerium Kubernetes Ingress Controller (code repository)](https://github.com/pomerium/ingress-controller)
 
+[`ingress.pomerium.io/allow_any_authenticated_user`]: /reference/readme.md#allow-any-authenticated-user
+[`ingress.pomerium.io/allow_public_unauthenticated_access`]: /reference/readme.md#public-access
+[`ingress.pomerium.io/allow_websockets`]: /reference/readme.md#websocket-connections
+[`ingress.pomerium.io/allowed_domains`]: /reference/readme.md#allowed-domains
+[`ingress.pomerium.io/allowed_groups`]: /reference/readme.md#allowed-groups
+[`ingress.pomerium.io/allowed_idp_claims`]: /reference/readme.md#allowed-idp-claims
+[`ingress.pomerium.io/allowed_users`]: /reference/readme.md#allowed-users
+[`ingress.pomerium.io/cors_allow_preflight`]: /reference/readme.md#cors-preflight
+[`ingress.pomerium.io/health_checks`]: /reference/readme.md#health-checks
+[`ingress.pomerium.io/idle_timeout`]: /reference/readme.md#idle-timeout
+[`ingress.pomerium.io/lb_config`]: /reference/readme.md#load-balancing-policy-config
+[`ingress.pomerium.io/outlier_detection`]: /reference/readme.md#outlier-detection
+[`ingress.pomerium.io/pass_identity_headers`]: /reference/readme.md#pass-identity-headers
+[`ingress.pomerium.io/policy`]: /reference/readme.md#policy
+[`ingress.pomerium.io/preserve_host_header`]: /reference/readme.md#host-rewrite
+[`ingress.pomerium.io/remove_request_headers`]: /reference/readme.md#remove-request-headers
+[`ingress.pomerium.io/rewrite_response_headers`]: /reference/readme.md#rewrite-response-headers
+[`ingress.pomerium.io/set_request_headers`]: /reference/readme.md#set-request-headers
+[`ingress.pomerium.io/set_response_headers`]: /reference/readme.md#set-response-headers
+[`ingress.pomerium.io/timeout`]: /reference/readme.md#route-timeout
+[`tls_client_certificate`]: /reference/readme.md#tls-client-certificate
+[`tls_custom_ca_secret`]: /reference/readme.md#tls-custom-certificate-authority
+[client-certificate-authority]: /reference/readme.md#client-certificate-authority
+[`ingress.pomerium.io/tls_server_name`]: /reference/readme.md#tls-server-name
+[`ingress.pomerium.io/tls_skip_verify`]: /reference/readme.md#tls-skip-verification
 [HSTS]: https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security
-[`cors_allow_preflight`]: /reference/#cors-allow-preflight
-[`allow_public_unauthenticated_access`]: /reference/#allow-public-unauthenticated-access
-[`allow_any_authenticated_user`]: /reference/#allow_any_authenticated_user
-[`timeout`]: /reference/#timeout
-[`idle_timeout`]: /reference/#idle-timeout
-[`allow_websockets`]: /reference/#allow-websockets
-[`set_request_headers`]: /reference/#set-request-headers
-[`remove_request_headers`]: /reference/#remove-request-headers
-[`set_response_headers`]: /reference/#set-response-headers
-[`rewrite_response_headers`]: /reference/#rewrite-response-headers
-[`preserve_host_header`]: /reference/#preserve-host-header
-[`pass_identity_headers`]: /reference/#pass-identity-headers
-[`tls_skip_verify`]: /reference/#tls-skip-verify
-[`tls_server_name`]: /reference/#tls-server-name
-[`allowed_users`]: /reference/#allowed-users
-[`allowed_groups`]: /reference/#allowed-groups
-[`allowed_domains`]: /reference/#allowed-domains
-[`allowed_idp_claims`]: /reference/#allowed-idp-claims
-[`policy`]: /reference/#policy
-[`health_checks`]: /reference/#health-checks
-[`outlier_detection`]: /reference/#outlier-detection
-[`lb_config`]: /reference/#lb-config
-[`tls_custom_ca_secret`]: /reference/#tls-custom-ca-secret
-[`tls_client_secret`]: /reference/#tls-client-secret
-[`tls_downstream_client_ca_secret`]: /reference/#tls-downstream-client-ca-secret
-[`secure_upstream`]: /reference/#secure-upstream
-[`tls_custom_ca_secret`]: /reference/#tls-custom-certificate-authority
-[`tls_client_secret`]: /reference/#tls-client-certificate
