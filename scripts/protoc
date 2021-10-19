@@ -27,9 +27,10 @@ download() {
 }
 
 download $_protoc_3pp_path protoc-gen-validate https://github.com/envoyproxy/protoc-gen-validate/tarball/v0.6.1
-download $_protoc_3pp_path data-plane-api https://github.com/envoyproxy/data-plane-api/tarball/805eb4057c2d3c053a019172e7e431519d42efc8
+download $_protoc_3pp_path data-plane-api https://github.com/envoyproxy/data-plane-api/tarball/main
 download $_protoc_3pp_path udpa https://github.com/cncf/udpa/tarball/main
-download $_protoc_3pp_path googleapis https://github.com/googleapis/googleapis/tarball/82944da21578a53b74e547774cf62ed31a05b841
+download $_protoc_3pp_path xds https://github.com/cncf/xds/tarball/main
+download $_protoc_3pp_path googleapis https://github.com/googleapis/googleapis/tarball/master
 
 mkdir -p "$_protoc_path" "$_protoc_3pp_path"
 if [ ! -f "$_protoc_path/bin/protoc" ]; then
@@ -44,6 +45,7 @@ fi
 exec "$_protoc_path/bin/protoc" \
   -I "$_protoc_3pp_path/data-plane-api" \
   -I "$_protoc_3pp_path/udpa" \
+  -I "$_protoc_3pp_path/xds" \
   -I "$_protoc_3pp_path/protoc-gen-validate" \
   -I "$_protoc_3pp_path/googleapis" \
   --experimental_allow_proto3_optional \
