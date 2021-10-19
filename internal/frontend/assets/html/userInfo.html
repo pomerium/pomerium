@@ -177,6 +177,39 @@
           </div>
         </div>
       </div>
+
+      <div class="category white box">
+        <div class="messages">
+          <div class="box-inner">
+            <div class="category-header clearfix">
+              <span class="category-title">Device Credentials</span>
+            </div>
+            </ul>
+            {{if .DeviceCredentials}}
+            <table>
+              <thead>
+              <tr>
+                <th>ID</th>
+              </tr>
+              </thead>
+              <tbody>
+              {{range .DeviceCredentials}}
+              <tr>
+                <td>{{.Id}}</td>
+              </tr>
+              {{end}}
+              </tbody>
+            </table>
+            {{else}}
+            No device credentials found!
+            {{end}}
+          </div>
+          <div class="category-link">
+            Register device with <a href="{{.WebAuthnURL}}">WebAuthn</a>.
+          </div>
+        </div>
+      </div>
+
       <div id="footer">
         <ul>
           <li><a href="https://pomerium.com/">Home</a></li>
