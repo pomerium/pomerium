@@ -18,7 +18,7 @@ Use Pomerium as a first-class secure-by-default Ingress Controller. Dynamically 
 
 ### System Requirements
 
-- Kubernetes v0.19.0+
+- Kubernetes v1.19.0+
 - Pomerium [Helm Chart](https://github.com/pomerium/pomerium-helm/tree/master/charts/pomerium) v25.0.0+
 
 ### Limitations
