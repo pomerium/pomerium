@@ -1,11 +1,14 @@
-import { base64url } from "./rfc4648.mjs";
+import {
+  encodeUrl as base64encode,
+  decode as base64decode,
+} from "./base64.mjs";
 
 function decode(raw) {
-  return base64url.parse(raw, { loose: true });
+  return base64decode(raw);
 }
 
 function encode(raw) {
-  return base64url.stringify(new Uint8Array(raw), { pad: false });
+  return base64encode(raw);
 }
 
 async function authenticate(requestOptions) {
