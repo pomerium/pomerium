@@ -95,21 +95,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
 	sr.Path("/sign_in").Handler(a.requireValidSignature(a.SignIn))
 	sr.Path("/sign_out").Handler(a.requireValidSignature(a.SignOut))
-	sr.Path("/webauthn").Handler(webauthn.New(func(ctx context.Context) (*webauthn.State, error) {
-		state := a.state.Load()
-
-		s, _, err := a.getCurrentSession(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		return &webauthn.State{
-			SharedKey:    state.sharedKey,
-			Client:       state.dataBrokerClient,
-			Session:      s,
-			RelyingParty: state.webauthnRelyingParty,
-		}, nil
-	}))
+	sr.Path("/webauthn").Handler(webauthn.New(a.getWebauthnState))
 }
 
 func (a *Authenticate) mountWellKnown(r *mux.Router) {
@@ -669,4 +655,20 @@ func (a *Authenticate) getDirectoryUser(ctx context.Context, userID string) (*di
 	client := a.state.Load().dataBrokerClient
 
 	return directory.GetUser(ctx, client, userID)
+}
+
+func (a *Authenticate) getWebauthnState(ctx context.Context) (*webauthn.State, error) {
+	state := a.state.Load()
+
+	s, _, err := a.getCurrentSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &webauthn.State{
+		SharedKey:    state.sharedKey,
+		Client:       state.dataBrokerClient,
+		Session:      s,
+		RelyingParty: state.webauthnRelyingParty,
+	}, nil
 }
