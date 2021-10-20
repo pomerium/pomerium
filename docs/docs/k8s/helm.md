@@ -174,11 +174,11 @@ If you haven't already, install cert-manager and create a CA issuer. You can fol
    helm upgrade --install nginx bitnami/nginx --set service.type=ClusterIP
    ```
 
-1. Create a new ingress manifest (`example-ingress.yaml`) for our test service:
+1. Create a new Ingress manifest (`example-ingress.yaml`) for our test service:
 
    <<< @/examples/kubernetes/example-ingress.yaml
 
-1. Apply the nginx ingress manifest to the cluster:
+1. Apply the nginx Ingress manifest to the cluster:
 
    ```bash
    kubectl apply -f ingress.yaml
