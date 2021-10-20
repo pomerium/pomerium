@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 
 	"github.com/go-jose/go-jose/v3"
+	"github.com/pomerium/webauthn"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -23,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
+	"github.com/pomerium/pomerium/pkg/webauthnutil"
 )
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
@@ -52,6 +54,8 @@ type authenticateState struct {
 
 	dataBrokerClient databroker.DataBrokerServiceClient
 	directoryClient  directory.DirectoryServiceClient
+
+	webauthnRelyingParty *webauthn.RelyingParty
 }
 
 func newAuthenticateState() *authenticateState {
@@ -157,6 +161,11 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 
 	state.dataBrokerClient = databroker.NewDataBrokerServiceClient(dataBrokerConn)
 	state.directoryClient = directory.NewDirectoryServiceClient(dataBrokerConn)
+
+	state.webauthnRelyingParty = webauthn.NewRelyingParty(
+		authenticateURL.String(),
+		webauthnutil.NewCredentialStorage(state.dataBrokerClient),
+	)
 
 	return state, nil
 }

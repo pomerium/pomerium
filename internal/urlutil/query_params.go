@@ -5,6 +5,8 @@ package urlutil
 // conjunction with a HMAC to ensure authenticity.
 const (
 	QueryCallbackURI      = "pomerium_callback_uri"
+	QueryDeviceType       = "pomerium_device_type"
+	QueryEnrollmentToken  = "pomerium_enrollment_token" //nolint
 	QueryIsProgrammatic   = "pomerium_programmatic"
 	QueryForwardAuth      = "pomerium_forward_auth"
 	QueryPomeriumJWT      = "pomerium_jwt"

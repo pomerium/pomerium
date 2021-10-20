@@ -476,3 +476,17 @@ a.button {
   text-transform: none;
   transition: box-shadow 150ms ease-in-out;
 }
+
+button:disabled, input:disabled {
+  cursor: default;
+  background:#cccccc;
+  color: #838383;
+}
+
+.webauthn .box-inner {
+  text-align: center;
+}
+
+.webauthn form {
+  display: inline-block;
+}
