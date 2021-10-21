@@ -15,7 +15,8 @@ import (
 )
 
 type syncerConfig struct {
-	typeURL string
+	typeURL         string
+	withFastForward bool
 }
 
 // A SyncerOption customizes the syncer configuration.
@@ -33,6 +34,15 @@ func getSyncerConfig(options ...SyncerOption) *syncerConfig {
 func WithTypeURL(typeURL string) SyncerOption {
 	return func(cfg *syncerConfig) {
 		cfg.typeURL = typeURL
+	}
+}
+
+// WithFastForward in case updates are coming faster then Update can process them,
+// will skip older records to maintain an update rate.
+// Use for entries that represent a full state snapshot i.e. Config
+func WithFastForward() SyncerOption {
+	return func(cfg *syncerConfig) {
+		cfg.withFastForward = true
 	}
 }
 
@@ -67,7 +77,7 @@ func NewSyncer(id string, handler SyncerHandler, options ...SyncerOption) *Synce
 
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0
-	return &Syncer{
+	s := &Syncer{
 		cfg:     getSyncerConfig(options...),
 		handler: handler,
 		backoff: bo,
@@ -77,6 +87,10 @@ func NewSyncer(id string, handler SyncerHandler, options ...SyncerOption) *Synce
 
 		id: id,
 	}
+	if s.cfg.withFastForward {
+		s.handler = newFastForwardHandler(s.logCtx(closeCtx), handler)
+	}
+	return s
 }
 
 // Close closes the Syncer.
@@ -169,7 +183,6 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 		syncer.recordVersion = res.GetRecord().GetVersion()
 		if syncer.cfg.typeURL == "" || syncer.cfg.typeURL == res.GetRecord().GetType() {
 			ctx := logCtxRec(ctx, rec)
-			log.Debug(ctx).Msg("update records")
 			syncer.handler.UpdateRecords(
 				context.WithValue(ctx, contextkeys.UpdateRecordsVersion, rec.GetVersion()),
 				syncer.serverVersion, []*Record{rec})
