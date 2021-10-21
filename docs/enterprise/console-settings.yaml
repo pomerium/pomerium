@@ -151,8 +151,7 @@ settings:
           ```yaml
           - allow:
               or:
-                - claim/family_name:
-                    is: Smith
+                - claim/family_name: Smith
           ```
 
           ### Rego
