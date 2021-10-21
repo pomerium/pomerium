@@ -342,8 +342,7 @@ Some criteria also support a sub-path as part of the criterion name:
 ```yaml
 - allow:
     or:
-      - claim/family_name:
-          is: Smith
+      - claim/family_name: Smith
 ```
 
 ### Rego
