@@ -12,7 +12,6 @@ type fastForwardHandler struct {
 	handler SyncerHandler
 	in      chan *ffCmd
 	exec    chan *ffCmd
-	ready   chan bool
 }
 
 type ffCmd struct {
@@ -26,7 +25,6 @@ func newFastForwardHandler(ctx context.Context, handler SyncerHandler) SyncerHan
 		handler: handler,
 		in:      make(chan *ffCmd, 20),
 		exec:    make(chan *ffCmd),
-		ready:   make(chan bool),
 	}
 	go ff.runSelect(ctx)
 	go ff.runExec(ctx)
