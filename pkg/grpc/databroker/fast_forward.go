@@ -94,7 +94,7 @@ func (ff *fastForwardHandler) ClearRecords(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 		log.Error(ctx).
-			Msg("ff_handler: ClearRecords: context cancelled")
+			Msg("ff_handler: ClearRecords: context canceled")
 	case ff.exec <- &ffCmd{clearRecords: true}:
 	}
 }
@@ -103,7 +103,7 @@ func (ff *fastForwardHandler) UpdateRecords(ctx context.Context, serverVersion u
 	select {
 	case <-ctx.Done():
 		log.Error(ctx).
-			Msg("ff_handler: UpdateRecords: context cancelled")
+			Msg("ff_handler: UpdateRecords: context canceled")
 	case ff.in <- &ffCmd{serverVersion: serverVersion, records: records}:
 	}
 }

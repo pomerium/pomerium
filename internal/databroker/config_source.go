@@ -195,7 +195,8 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 	syncer := databroker.NewSyncer("databroker", &syncerHandler{
 		client: client,
 		src:    src,
-	}, databroker.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Config))))
+	}, databroker.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Config))),
+		databroker.WithFastForward())
 	go func() { _ = syncer.Run(ctx) }()
 }
 

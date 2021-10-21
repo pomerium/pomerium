@@ -54,7 +54,7 @@ func TestFastForward(t *testing.T) {
 			f.UpdateRecords(ctx, uint64(i), nil)
 		}
 
-		var prev uint64 = 0
+		var prev uint64
 		assert.Eventually(t, func() bool {
 			sv, err := m.getUpdate(ctx)
 			require.NoError(t, err)

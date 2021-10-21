@@ -17,7 +17,7 @@ import (
 )
 
 func TestConfigSource(t *testing.T) {
-	ctx, clearTimeout := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, clearTimeout := context.WithTimeout(context.Background(), 50*time.Second)
 	defer clearTimeout()
 
 	li, err := net.Listen("tcp", "127.0.0.1:0")
