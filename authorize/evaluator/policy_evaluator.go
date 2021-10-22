@@ -28,22 +28,34 @@ type PolicyResponse struct {
 	Allow, Deny RuleResult
 }
 
+// NewPolicyResponse creates a new PolicyResponse.
+func NewPolicyResponse() *PolicyResponse {
+	return &PolicyResponse{
+		Allow: NewRuleResult(false),
+		Deny:  NewRuleResult(false),
+	}
+}
+
 // A RuleResult is the result of evaluating a rule.
 type RuleResult struct {
-	Value   bool
-	Reasons criteria.Reasons
+	Value          bool
+	Reasons        criteria.Reasons
+	AdditionalData map[string]interface{}
 }
 
 // NewRuleResult creates a new RuleResult.
 func NewRuleResult(value bool, reasons ...criteria.Reason) RuleResult {
 	return RuleResult{
-		Value:   value,
-		Reasons: criteria.NewReasons(reasons...),
+		Value:          value,
+		Reasons:        criteria.NewReasons(reasons...),
+		AdditionalData: map[string]interface{}{},
 	}
 }
 
 // MergeRuleResultsWithOr merges all the results using `or`.
-func MergeRuleResultsWithOr(results ...RuleResult) (merged RuleResult) {
+func MergeRuleResultsWithOr(results ...RuleResult) RuleResult {
+	merged := NewRuleResult(false)
+
 	var trueResults, falseResults []RuleResult
 	for _, result := range results {
 		if result.Value {
@@ -57,11 +69,17 @@ func MergeRuleResultsWithOr(results ...RuleResult) (merged RuleResult) {
 		merged.Value = true
 		for _, result := range trueResults {
 			merged.Reasons = merged.Reasons.Union(result.Reasons)
+			for k, v := range result.AdditionalData {
+				merged.AdditionalData[k] = v
+			}
 		}
 	} else {
 		merged.Value = false
 		for _, result := range falseResults {
 			merged.Reasons = merged.Reasons.Union(result.Reasons)
+			for k, v := range result.AdditionalData {
+				merged.AdditionalData[k] = v
+			}
 		}
 	}
 
@@ -145,7 +163,7 @@ func NewPolicyEvaluator(ctx context.Context, store *Store, configPolicy *config.
 
 // Evaluate evaluates the policy rego scripts.
 func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *PolicyRequest) (*PolicyResponse, error) {
-	res := new(PolicyResponse)
+	res := NewPolicyResponse()
 	// run each query and merge the results
 	for _, query := range e.queries {
 		o, err := e.evaluateQuery(ctx, req, query)
@@ -179,7 +197,7 @@ func (e *PolicyEvaluator) evaluateQuery(ctx context.Context, req *PolicyRequest,
 	return res, nil
 }
 
-// getRuleResult gets the rule result var. It expects a boolean or [boolean, []string].
+// getRuleResult gets the rule result var. It expects a boolean, [boolean, []string] or [boolean, []string, object].
 func (e *PolicyEvaluator) getRuleResult(name string, vars rego.Vars) (result RuleResult) {
 	result = NewRuleResult(false)
 
@@ -193,14 +211,21 @@ func (e *PolicyEvaluator) getRuleResult(name string, vars rego.Vars) (result Rul
 		result.Value = t
 	case []interface{}:
 		switch len(t) {
+		case 3:
+			v, ok := t[2].(map[string]interface{})
+			if ok {
+				for k, vv := range v {
+					result.AdditionalData[k] = vv
+				}
+			}
+			fallthrough
 		case 2:
 			// fill in the reasons
 			v, ok := t[1].([]interface{})
-			if !ok {
-				return result
-			}
-			for _, vv := range v {
-				result.Reasons.Add(criteria.Reason(fmt.Sprint(vv)))
+			if ok {
+				for _, vv := range v {
+					result.Reasons.Add(criteria.Reason(fmt.Sprint(vv)))
+				}
 			}
 			fallthrough
 		case 1:

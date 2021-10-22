@@ -20,7 +20,7 @@ allow:
 			},
 		}})
 		require.NoError(t, err)
-		require.Equal(t, A{true, A{"cors-request"}}, res["allow"])
+		require.Equal(t, A{true, A{"cors-request"}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
 	})
 	t.Run("false", func(t *testing.T) {
@@ -32,7 +32,7 @@ allow:
 			Method: "OPTIONS",
 		}})
 		require.NoError(t, err)
-		require.Equal(t, A{false, A{"non-cors-request"}}, res["allow"])
+		require.Equal(t, A{false, A{"non-cors-request"}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
 	})
 }

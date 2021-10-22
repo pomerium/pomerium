@@ -88,13 +88,15 @@ get_group_ids(session, directory_user) = v {
 // MergeWithAnd merges criterion results using `and`.
 func MergeWithAnd() *ast.Rule {
 	return ast.MustParseRule(`
-merge_with_and(results) = [true, reasons] {
+merge_with_and(results) = [true, reasons, additional_data] {
 	true_results := [x|x:=results[i];x[0]]
 	count(true_results) == count(results)
 	reasons := union({x|x:=true_results[i][1]})
-} else = [false, reasons] {
+	additional_data := object_union({x|x:=true_results[i][2]})
+} else = [false, reasons, additional_data] {
 	false_results := [x|x:=results[i];not x[0]]
 	reasons := union({x|x:=false_results[i][1]})
+	additional_data := object_union({x|x:=false_results[i][2]})
 }
 `)
 }
@@ -102,13 +104,15 @@ merge_with_and(results) = [true, reasons] {
 // MergeWithOr merges criterion results using `or`.
 func MergeWithOr() *ast.Rule {
 	return ast.MustParseRule(`
-merge_with_or(results) = [true, reasons] {
+merge_with_or(results) = [true, reasons, additional_data] {
 	true_results := [x|x:=results[i];x[0]]
 	count(true_results) > 0
 	reasons := union({x|x:=true_results[i][1]})
-} else = [false, reasons] {
+	additional_data := object_union({x|x:=true_results[i][2]})
+} else = [false, reasons, additional_data] {
 	false_results := [x|x:=results[i];not x[0]]
 	reasons := union({x|x:=false_results[i][1]})
+	additional_data := object_union({x|x:=false_results[i][2]})
 }
 `)
 }
@@ -117,10 +121,12 @@ merge_with_or(results) = [true, reasons] {
 // true, or vice-versa.
 func InvertCriterionResult() *ast.Rule {
 	return ast.MustParseRule(`
-invert_criterion_result(result) = [false, result[1]] {
-	result[0]
-} else = [true, result[1]] {
-	not result[0]
+invert_criterion_result(in) = out {
+	in[0]
+	out = array.concat([false], array.slice(in, 1, count(in)))
+} else = out {
+	not in[0]
+	out = array.concat([true], array.slice(in, 1, count(in)))
 }
 `)
 }
@@ -173,6 +179,20 @@ object_get(obj, key, def) = value {
 	value = object.get(o4, segments[4], def)
 } else = value {
 	value = object.get(obj, key, def)
+}
+`)
+}
+
+// ObjectUnion merges objects together. It expects a set of objects.
+func ObjectUnion() *ast.Rule {
+	return ast.MustParseRule(`
+object_union(xs) = merged {
+	merged = { k: v |
+		some k
+		xs[_][k]
+		vs := [ xv | xv := xs[_][k] ]
+		v := vs[count(vs)-1]
+	}
 }
 `)
 }

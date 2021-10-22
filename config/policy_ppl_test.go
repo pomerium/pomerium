@@ -623,12 +623,14 @@ deny = v {
 	v := merge_with_or(normalized)
 }
 
-invert_criterion_result(result) = [false, result[1]] {
-	result[0]
+invert_criterion_result(in) = out {
+	in[0]
+	out = array.concat([false], array.slice(in, 1, count(in)))
 }
 
-else = [true, result[1]] {
-	not result[0]
+else = out {
+	not in[0]
+	out = array.concat([true], array.slice(in, 1, count(in)))
 }
 
 normalize_criterion_result(result) = v {
@@ -645,26 +647,39 @@ else = v {
 	v = [false, set()]
 }
 
-merge_with_and(results) = [true, reasons] {
+object_union(xs) = merged {
+	merged = {k: v |
+		some k
+		xs[_0][k]
+		vs := [xv | xv := xs[_][k]]
+		v := vs[minus(count(vs), 1)]
+	}
+}
+
+merge_with_and(results) = [true, reasons, additional_data] {
 	true_results := [x | x := results[i]; x[0]]
 	count(true_results) == count(results)
 	reasons := union({x | x := true_results[i][1]})
+	additional_data := object_union({x | x := true_results[i][2]})
 }
 
-else = [false, reasons] {
+else = [false, reasons, additional_data] {
 	false_results := [x | x := results[i]; not x[0]]
 	reasons := union({x | x := false_results[i][1]})
+	additional_data := object_union({x | x := false_results[i][2]})
 }
 
-merge_with_or(results) = [true, reasons] {
+merge_with_or(results) = [true, reasons, additional_data] {
 	true_results := [x | x := results[i]; x[0]]
 	count(true_results) > 0
 	reasons := union({x | x := true_results[i][1]})
+	additional_data := object_union({x | x := true_results[i][2]})
 }
 
-else = [false, reasons] {
+else = [false, reasons, additional_data] {
 	false_results := [x | x := results[i]; not x[0]]
 	reasons := union({x | x := false_results[i][1]})
+	additional_data := object_union({x | x := false_results[i][2]})
 }
 
 get_session(id) = v {
