@@ -113,23 +113,25 @@ func (h *Handler) handleAuthenticate(w http.ResponseWriter, r *http.Request, sta
 	if err != nil {
 		return err
 	}
+	// Set the UserHandle which won't typically be filled in by the client
+	credential.Response.UserHandle = webauthnutil.GetUserEntityID(state.Session.GetUserId())
 
 	// get the user information
 	u, err := user.Get(ctx, state.Client, state.Session.GetUserId())
 	if err != nil {
-		return err
+		return fmt.Errorf("error retrieving user record: %w", err)
 	}
 
 	// get the stored device type
-	deviceType, err := device.GetType(ctx, state.Client, deviceTypeParam)
+	deviceType, err := webauthnutil.GetDeviceType(ctx, state.Client, deviceTypeParam)
 	if err != nil {
-		return err
+		return fmt.Errorf("error retrieving webauthn device type: %w", err)
 	}
 
 	// get the device credentials
 	knownDeviceCredentials, err := getKnownDeviceCredentials(ctx, state.Client, u.GetDeviceCredentialIds()...)
 	if err != nil {
-		return err
+		return fmt.Errorf("error retrieving webauthn known device credentials: %w", err)
 	}
 
 	requestOptions, err := webauthnutil.GetRequestOptionsForCredential(
@@ -176,7 +178,12 @@ func (h *Handler) handleAuthenticate(w http.ResponseWriter, r *http.Request, sta
 	}
 
 	// save the session
-	state.Session.DeviceCredentialId = webauthnutil.GetDeviceCredentialID(serverCredential.ID)
+	state.Session.DeviceCredentials = append(state.Session.DeviceCredentials, &session.Session_DeviceCredential{
+		TypeId: deviceType.GetId(),
+		Credential: &session.Session_DeviceCredential_Id{
+			Id: webauthnutil.GetDeviceCredentialID(serverCredential.ID),
+		},
+	})
 	_, err = session.Put(ctx, state.Client, state.Session)
 	if err != nil {
 		return err
@@ -214,13 +221,13 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request, state *
 	// get the user information
 	u, err := user.Get(ctx, state.Client, state.Session.GetUserId())
 	if err != nil {
-		return err
+		return fmt.Errorf("error retrieving user record: %w", err)
 	}
 
 	// get the stored device type
 	deviceType, err := webauthnutil.GetDeviceType(ctx, state.Client, deviceTypeParam)
 	if err != nil {
-		return err
+		return fmt.Errorf("error retrieving webauthn device type: %w", err)
 	}
 
 	creationOptions, err := webauthnutil.GetCreationOptionsForCredential(
@@ -280,7 +287,12 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request, state *
 	}
 
 	// save the session
-	state.Session.DeviceCredentialId = deviceCredential.GetId()
+	state.Session.DeviceCredentials = append(state.Session.DeviceCredentials, &session.Session_DeviceCredential{
+		TypeId: deviceType.GetId(),
+		Credential: &session.Session_DeviceCredential_Id{
+			Id: webauthnutil.GetDeviceCredentialID(serverCredential.ID),
+		},
+	})
 	_, err = session.Put(ctx, state.Client, state.Session)
 	if err != nil {
 		return err
