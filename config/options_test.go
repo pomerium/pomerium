@@ -403,30 +403,118 @@ func Test_NewOptionsFromConfigEnvVar(t *testing.T) {
 }
 
 func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
-	envs := map[string]string{
-		"AUTOCERT":             "true",
-		"AUTOCERT_DIR":         "/test",
-		"AUTOCERT_MUST_STAPLE": "true",
-
-		"INSECURE_SERVER": "true",
-	}
-	for k, v := range envs {
-		os.Setenv(k, v)
-		defer os.Unsetenv(k)
+	type test struct {
+		envs     map[string]string
+		expected AutocertOptions
+		wantErr  bool
+		cleanup  func()
 	}
 
-	o, err := newOptionsFromConfig("")
-	if err != nil {
-		t.Fatal(err)
+	var tests = map[string]func(t *testing.T) test{
+		"ok/simple": func(t *testing.T) test {
+			envs := map[string]string{
+				"AUTOCERT":             "true",
+				"AUTOCERT_DIR":         "/test",
+				"AUTOCERT_MUST_STAPLE": "true",
+
+				"INSECURE_SERVER": "true",
+			}
+			return test{
+				envs: envs,
+				expected: AutocertOptions{
+					Enable:     true,
+					Folder:     "/test",
+					MustStaple: true,
+				},
+				wantErr: false,
+			}
+		},
+		"ok/custom-ca": func(t *testing.T) test {
+			certPEM, err := newCACertPEM()
+			require.NoError(t, err)
+			envs := map[string]string{
+				"AUTOCERT":             "true",
+				"AUTOCERT_CA":          "test-ca.example.com/directory",
+				"AUTOCERT_EMAIL":       "test@example.com",
+				"AUTOCERT_EAB_KEY_ID":  "keyID",
+				"AUTOCERT_EAB_MAC_KEY": "fake-key",
+				"AUTOCERT_TRUSTED_CA":  base64.StdEncoding.EncodeToString(certPEM),
+				"AUTOCERT_DIR":         "/test",
+				"AUTOCERT_MUST_STAPLE": "true",
+
+				"INSECURE_SERVER": "true",
+			}
+			return test{
+				envs:    envs,
+				wantErr: false,
+				expected: AutocertOptions{
+					Enable:     true,
+					CA:         "test-ca.example.com/directory",
+					Email:      "test@example.com",
+					EABKeyID:   "keyID",
+					EABMACKey:  "fake-key",
+					TrustedCA:  base64.StdEncoding.EncodeToString(certPEM),
+					Folder:     "/test",
+					MustStaple: true,
+				},
+			}
+		},
+		"ok/custom-ca-file": func(t *testing.T) test {
+			certPEM, err := newCACertPEM()
+			require.NoError(t, err)
+			f, err := ioutil.TempFile("", "pomerium-test-ca")
+			require.NoError(t, err)
+			n, err := f.Write(certPEM)
+			require.NoError(t, err)
+			require.Equal(t, len(certPEM), n)
+			envs := map[string]string{
+				"AUTOCERT":                 "true",
+				"AUTOCERT_CA":              "test-ca.example.com/directory",
+				"AUTOCERT_EMAIL":           "test@example.com",
+				"AUTOCERT_EAB_KEY_ID":      "keyID",
+				"AUTOCERT_EAB_MAC_KEY":     "fake-key",
+				"AUTOCERT_TRUSTED_CA_FILE": f.Name(),
+				"AUTOCERT_DIR":             "/test",
+				"AUTOCERT_MUST_STAPLE":     "true",
+
+				"INSECURE_SERVER": "true",
+			}
+			return test{
+				envs:    envs,
+				wantErr: false,
+				expected: AutocertOptions{
+					Enable:        true,
+					CA:            "test-ca.example.com/directory",
+					Email:         "test@example.com",
+					EABKeyID:      "keyID",
+					EABMACKey:     "fake-key",
+					TrustedCAFile: f.Name(),
+					Folder:        "/test",
+					MustStaple:    true,
+				},
+				cleanup: func() { os.Remove(f.Name()) },
+			}
+		},
 	}
-	if !o.AutocertOptions.Enable {
-		t.Error("o.AutocertOptions.Enable: want true, got false")
-	}
-	if !o.AutocertOptions.MustStaple {
-		t.Error("o.AutocertOptions.MustStaple: want true, got false")
-	}
-	if o.AutocertOptions.Folder != "/test" {
-		t.Errorf("o.AutocertOptions.Folder: want /test, got %s", o.AutocertOptions.Folder)
+
+	for name, run := range tests {
+		tc := run(t)
+		t.Run(name, func(t *testing.T) {
+			for k, v := range tc.envs {
+				os.Setenv(k, v)
+				defer os.Unsetenv(k)
+			}
+			o, err := newOptionsFromConfig("")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !cmp.Equal(tc.expected, o.AutocertOptions) {
+				t.Errorf("AutoCertOptionsFromEnvVar() diff = %s", cmp.Diff(tc.expected, o.AutocertOptions))
+			}
+			if tc.cleanup != nil {
+				tc.cleanup()
+			}
+		})
 	}
 }
 

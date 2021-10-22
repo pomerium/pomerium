@@ -728,6 +728,12 @@ func (o *Options) Validate() error {
 		}
 	}
 
+	// validate the Autocert options
+	err = o.AutocertOptions.Validate()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -1228,6 +1234,18 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	if settings.Autocert != nil {
 		o.AutocertOptions.Enable = settings.GetAutocert()
 	}
+	if settings.AutocertCa != nil {
+		o.AutocertOptions.CA = settings.GetAutocertCa()
+	}
+	if settings.AutocertEmail != nil {
+		o.AutocertOptions.Email = settings.GetAutocertEmail()
+	}
+	if settings.AutocertEabKeyId != nil {
+		o.AutocertOptions.EABKeyID = settings.GetAutocertEabKeyId()
+	}
+	if settings.AutocertEabMacKey != nil {
+		o.AutocertOptions.EABMACKey = settings.GetAutocertEabMacKey()
+	}
 	if settings.AutocertUseStaging != nil {
 		o.AutocertOptions.UseStaging = settings.GetAutocertUseStaging()
 	}
@@ -1236,6 +1254,12 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	}
 	if settings.AutocertDir != nil {
 		o.AutocertOptions.Folder = settings.GetAutocertDir()
+	}
+	if settings.AutocertTrustedCa != nil {
+		o.AutocertOptions.TrustedCA = settings.GetAutocertTrustedCa()
+	}
+	if settings.AutocertTrustedCaFile != nil {
+		o.AutocertOptions.TrustedCAFile = settings.GetAutocertTrustedCaFile()
 	}
 	if settings.SkipXffAppend != nil {
 		o.SkipXffAppend = settings.GetSkipXffAppend()
