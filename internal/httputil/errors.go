@@ -30,7 +30,7 @@ func NewError(status int, err error) error {
 
 // Error implements the `error` interface.
 func (e *HTTPError) Error() string {
-	return http.StatusText(e.Status) + ": " + e.Err.Error()
+	return StatusText(e.Status) + ": " + e.Err.Error()
 }
 
 // Unwrap implements the `error` Unwrap interface.
@@ -55,7 +55,7 @@ func (e *HTTPError) ErrorResponse(w http.ResponseWriter, r *http.Request) {
 		DebugURL   *url.URL `json:",omitempty"`
 	}{
 		Status:     e.Status,
-		StatusText: http.StatusText(e.Status),
+		StatusText: StatusText(e.Status),
 		Error:      e.Error(),
 		RequestID:  reqID,
 		CanDebug:   e.Status/100 == 4 && (e.DebugURL != nil || reqID != ""),

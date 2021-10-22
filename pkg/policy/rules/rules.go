@@ -49,6 +49,31 @@ get_user_email(session, user) = v {
 `)
 }
 
+// GetDeviceCredential gets the device credential for the given session.
+func GetDeviceCredential() *ast.Rule {
+	return ast.MustParseRule(`
+get_device_credential(session, device_type_id) = v {
+	device_credential_id := [x.Credential.Id|x:=session.device_credentials[_];x.type_id==device_type_id][0]
+	v = get_databroker_record("type.googleapis.com/pomerium.device.Credential", device_credential_id)
+	v != null
+} else = {} {
+	true
+}
+`)
+}
+
+// GetDeviceEnrollment gets the device enrollment for the given device credential.
+func GetDeviceEnrollment() *ast.Rule {
+	return ast.MustParseRule(`
+get_device_enrollment(device_credential) = v {
+	v = get_databroker_record("type.googleapis.com/pomerium.device.Enrollment", device_credential.enrollment_id)
+	v != null
+} else = {} {
+	true
+}
+`)
+}
+
 // GetDirectoryUser returns the directory user for the given session.
 func GetDirectoryUser() *ast.Rule {
 	return ast.MustParseRule(`
