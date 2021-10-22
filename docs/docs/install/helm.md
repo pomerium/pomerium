@@ -76,7 +76,7 @@ If you haven't already, install cert-manager and create a CA issuer. You can fol
 
    ```bash
    kubectl create secret tls pomerium-tls-ca --namespace=pomerium \
-   --cert=$(mkcert -CAROOT)/rootCA.pem --key=$(mkcert -CAROOT)/rootCA-key.pem
+   --cert="$(mkcert -CAROOT)/rootCA.pem" --key="$(mkcert -CAROOT)/rootCA-key.pem"
    ```
 
 1. Define an Issuer configuration in `issuer.yaml`:
