@@ -53,6 +53,7 @@ func (g *Generator) Generate(policy *parser.Policy) (*ast.Module, error) {
 	rs.Add(ast.MustParseRule(`default deny = [false, set()]`))
 	rs.Add(rules.InvertCriterionResult())
 	rs.Add(rules.NormalizeCriterionResult())
+	rs.Add(rules.ObjectUnion())
 	rs.Add(rules.MergeWithAnd())
 	rs.Add(rules.MergeWithOr())
 

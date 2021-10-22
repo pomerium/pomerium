@@ -126,3 +126,24 @@ func NewCriterionTerm(value bool, reasons ...Reason) *ast.Term {
 		ast.SetTerm(terms...),
 	)
 }
+
+// NewCriterionTermWithAdditionalData creates a new rego term for a criterion with additional data:
+//
+//    [true, {"reason"}, {"key": "value"}]
+//
+func NewCriterionTermWithAdditionalData(value bool, reason Reason, additionalData map[string]interface{}) *ast.Term {
+	var kvs [][2]*ast.Term
+	for k, v := range additionalData {
+		kvs = append(kvs, [2]*ast.Term{
+			ast.StringTerm(k),
+			ast.NewTerm(ast.MustInterfaceToValue(v)),
+		})
+	}
+	var terms []*ast.Term
+	terms = append(terms, ast.StringTerm(string(reason)))
+	return ast.ArrayTerm(
+		ast.BooleanTerm(value),
+		ast.SetTerm(terms...),
+		ast.ObjectTerm(kvs...),
+	)
+}

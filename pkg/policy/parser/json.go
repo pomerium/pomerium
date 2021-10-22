@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/open-policy-agent/opa/ast"
 )
@@ -137,6 +138,29 @@ func (o Object) Clone() Value {
 	return no
 }
 
+// Falsy returns true if the value is considered Javascript falsy:
+//   https://developer.mozilla.org/en-US/docs/Glossary/Falsy.
+// If the field is not found in the object it is *not* falsy.
+func (o Object) Falsy(field string) bool {
+	v, ok := o[field]
+	if !ok {
+		return false
+	}
+
+	switch v := v.(type) {
+	case Boolean:
+		return !bool(v)
+	case Number:
+		return v.Float64() == 0 || math.IsNaN(v.Float64())
+	case String:
+		return v == ""
+	case Null:
+		return true
+	default:
+		return false
+	}
+}
+
 // RegoValue returns the Object as a rego Value.
 func (o Object) RegoValue() ast.Value {
 	kvps := make([][2]*ast.Term, 0, len(o))
@@ -156,6 +180,16 @@ func (o Object) RegoValue() ast.Value {
 func (o Object) String() string {
 	bs, _ := json.Marshal(o)
 	return string(bs)
+}
+
+// Truthy returns the opposite of Falsy, however if the field is not found in the object it is neither truthy nor falsy.
+func (o Object) Truthy(field string) bool {
+	_, ok := o[field]
+	if !ok {
+		return false
+	}
+
+	return !o.Falsy(field)
 }
 
 // An Array is a slice of values.
@@ -214,6 +248,18 @@ func (Number) isValue() {}
 // Clone clones the number.
 func (n Number) Clone() Value {
 	return n
+}
+
+// Float64 returns the number as a float64.
+func (n Number) Float64() float64 {
+	v, _ := json.Number(n).Float64()
+	return v
+}
+
+// Int64 returns the number as an int64.
+func (n Number) Int64() int64 {
+	v, _ := json.Number(n).Int64()
+	return v
 }
 
 // RegoValue returns the Number as a rego Value.

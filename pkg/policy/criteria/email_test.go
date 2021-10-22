@@ -19,7 +19,7 @@ allow:
         is: test@example.com
 `, []dataBrokerRecord{}, Input{Session: InputSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
-		require.Equal(t, A{false, A{ReasonUserUnauthenticated}}, res["allow"])
+		require.Equal(t, A{false, A{ReasonUserUnauthenticated}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
 	})
 	t.Run("by email", func(t *testing.T) {
@@ -41,7 +41,7 @@ allow:
 			},
 			Input{Session: InputSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
-		require.Equal(t, A{true, A{ReasonEmailOK}}, res["allow"])
+		require.Equal(t, A{true, A{ReasonEmailOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
 	})
 	t.Run("by impersonate session id", func(t *testing.T) {
@@ -72,7 +72,7 @@ allow:
 			},
 			Input{Session: InputSession{ID: "SESSION1"}})
 		require.NoError(t, err)
-		require.Equal(t, A{true, A{ReasonEmailOK}}, res["allow"])
+		require.Equal(t, A{true, A{ReasonEmailOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
 	})
 }
