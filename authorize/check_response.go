@@ -45,10 +45,10 @@ func (a *Authorize) handleResultDenied(
 	switch {
 	case result.Deny.Reasons.Has(criteria.ReasonRouteNotFound):
 		denyStatusCode = http.StatusNotFound
-		denyStatusText = http.StatusText(http.StatusNotFound)
+		denyStatusText = httputil.DetailsText(http.StatusNotFound)
 	case result.Deny.Reasons.Has(criteria.ReasonInvalidClientCertificate):
 		denyStatusCode = httputil.StatusInvalidClientCertificate
-		denyStatusText = httputil.StatusText(httputil.StatusInvalidClientCertificate)
+		denyStatusText = httputil.DetailsText(httputil.StatusInvalidClientCertificate)
 	}
 
 	return a.deniedResponse(ctx, in, denyStatusCode, denyStatusText, nil)
@@ -65,9 +65,18 @@ func (a *Authorize) handleResultNotAllowed(
 		// when the user is unauthenticated it means they haven't
 		// logged in yet, so redirect to authenticate
 		return a.requireLoginResponse(ctx, in, isForwardAuthVerify)
+	case result.Allow.Reasons.Has(criteria.ReasonDeviceUnauthenticated):
+		// when the user's device is unauthenticated it means they haven't
+		// registered a webauthn device yet, so redirect to the webauthn flow
+		return a.requireWebAuthnResponse(ctx, in, result, isForwardAuthVerify)
+	case result.Allow.Reasons.Has(criteria.ReasonDeviceUnauthorized):
+		return a.deniedResponse(ctx, in,
+			httputil.StatusDeviceUnauthorized,
+			httputil.DetailsText(httputil.StatusDeviceUnauthorized),
+			nil)
 	}
 
-	return a.deniedResponse(ctx, in, http.StatusForbidden, http.StatusText(http.StatusForbidden), nil)
+	return a.deniedResponse(ctx, in, http.StatusForbidden, httputil.DetailsText(http.StatusForbidden), nil)
 }
 
 func (a *Authorize) okResponse(headers http.Header) *envoy_service_auth_v3.CheckResponse {
@@ -94,16 +103,6 @@ func (a *Authorize) deniedResponse(
 	in *envoy_service_auth_v3.CheckRequest,
 	code int32, reason string, headers map[string]string,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
-	var details string
-	switch code {
-	case httputil.StatusInvalidClientCertificate:
-		details = httputil.StatusText(httputil.StatusInvalidClientCertificate)
-	case http.StatusForbidden:
-		details = http.StatusText(http.StatusForbidden)
-	default:
-		details = reason
-	}
-
 	// create a http response writer recorder
 	w := httptest.NewRecorder()
 	r := getHTTPRequestFromCheckRequest(in)
@@ -114,7 +113,7 @@ func (a *Authorize) deniedResponse(
 	// run the request through our go error handler
 	httpErr := httputil.HTTPError{
 		Status:    int(code),
-		Err:       errors.New(details),
+		Err:       errors.New(reason),
 		DebugURL:  debugEndpoint,
 		RequestID: requestid.FromContext(ctx),
 	}
@@ -172,10 +171,50 @@ func (a *Authorize) requireLoginResponse(
 	q := signinURL.Query()
 
 	// always assume https scheme
-	url := getCheckRequestURL(in)
-	url.Scheme = "https"
+	checkRequestURL := getCheckRequestURL(in)
+	checkRequestURL.Scheme = "https"
 
-	q.Set(urlutil.QueryRedirectURI, url.String())
+	q.Set(urlutil.QueryRedirectURI, checkRequestURL.String())
+	signinURL.RawQuery = q.Encode()
+	redirectTo := urlutil.NewSignedURL(state.sharedKey, signinURL).String()
+
+	return a.deniedResponse(ctx, in, http.StatusFound, "Login", map[string]string{
+		"Location": redirectTo,
+	})
+}
+
+func (a *Authorize) requireWebAuthnResponse(
+	ctx context.Context,
+	in *envoy_service_auth_v3.CheckRequest,
+	result *evaluator.Result,
+	isForwardAuthVerify bool,
+) (*envoy_service_auth_v3.CheckResponse, error) {
+	opts := a.currentOptions.Load()
+	state := a.state.Load()
+	authenticateURL, err := opts.GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
+
+	if !a.shouldRedirect(in) || isForwardAuthVerify {
+		return a.deniedResponse(ctx, in, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), nil)
+	}
+
+	signinURL := authenticateURL.ResolveReference(&url.URL{
+		Path: "/.pomerium/webauthn",
+	})
+	q := signinURL.Query()
+
+	// always assume https scheme
+	checkRequestURL := getCheckRequestURL(in)
+	checkRequestURL.Scheme = "https"
+
+	if deviceType, ok := result.Allow.AdditionalData["device_type"].(string); ok {
+		q.Set(urlutil.QueryDeviceType, deviceType)
+	} else {
+		q.Set(urlutil.QueryDeviceType, "default")
+	}
+	q.Set(urlutil.QueryRedirectURI, checkRequestURL.String())
 	signinURL.RawQuery = q.Encode()
 	redirectTo := urlutil.NewSignedURL(state.sharedKey, signinURL).String()
 

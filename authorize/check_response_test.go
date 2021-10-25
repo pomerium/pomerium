@@ -175,7 +175,8 @@ func TestRequireLogin(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("accept empty", func(t *testing.T) {
-		res, err := a.requireLoginResponse(context.Background(), &envoy_service_auth_v3.CheckRequest{}, false)
+		res, err := a.requireLoginResponse(context.Background(), &envoy_service_auth_v3.CheckRequest{},
+			false)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
