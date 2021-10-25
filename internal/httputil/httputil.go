@@ -15,7 +15,7 @@ var detailsText = map[int]string{
 	StatusDeviceUnauthorized: "your device fails to meet the requirements necessary to access this page, please contact your administrator for assistance",
 }
 
-// DetailsText returns extra details for an HTTP status code..
+// DetailsText returns extra details for an HTTP status code. It returns StatusText if not found.
 func DetailsText(code int) string {
 	txt, ok := detailsText[code]
 	if ok {
@@ -30,8 +30,7 @@ var statusText = map[int]string{
 	StatusInvalidClientCertificate: "a valid client certificate is required to access this page",
 }
 
-// StatusText returns a text for the HTTP status code. It returns the empty
-// string if the code is unknown.
+// StatusText returns a text for the HTTP status code. It returns http.StatusText if not found.
 func StatusText(code int) string {
 	txt, ok := statusText[code]
 	if ok {
