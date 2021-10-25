@@ -2,14 +2,15 @@ package httputil
 
 import "net/http"
 
-// StatusDeviceUnauthorized is the status code returned when a client's
-// device credential is not authorized to access a page.
-const StatusDeviceUnauthorized = 450
-
-// StatusInvalidClientCertificate is the status code returned when a
-// client's certificate is invalid. This is the same status code used
-// by nginx for this purpose.
-const StatusInvalidClientCertificate = 495
+const (
+	// StatusDeviceUnauthorized is the status code returned when a client's
+	// device credential is not authorized to access a page.
+	StatusDeviceUnauthorized = 450
+	// StatusInvalidClientCertificate is the status code returned when a
+	// client's certificate is invalid. This is the same status code used
+	// by nginx for this purpose.
+	StatusInvalidClientCertificate = 495
+)
 
 var detailsText = map[int]string{
 	StatusDeviceUnauthorized: "your device fails to meet the requirements necessary to access this page, please contact your administrator for assistance",
