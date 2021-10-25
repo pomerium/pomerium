@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	runtime "runtime/debug"
 	"sync"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
@@ -18,7 +19,6 @@ import (
 
 	"github.com/pomerium/pomerium/internal/contextkeys"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/pkg/grpc/events"
 )
 
@@ -36,7 +36,7 @@ var onHandleDeltaRequest = func(state *streamState) {}
 
 // A Manager manages xDS resources.
 type Manager struct {
-	signal       *signal.Signal
+	update       chan struct{}
 	eventHandler func(*events.EnvoyConfigurationEvent)
 
 	mu        sync.Mutex
@@ -52,8 +52,10 @@ type Manager struct {
 func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource, eventHandler func(*events.EnvoyConfigurationEvent)) *Manager {
 	nonceToConfig, _ := lru.New(maxNonceCacheSize) // the only error they return is when size is negative, which never happens
 
+	runtime.PrintStack()
+
 	return &Manager{
-		signal:       signal.New(),
+		update:       make(chan struct{}),
 		eventHandler: eventHandler,
 
 		nonceToConfig: nonceToConfig,
@@ -68,10 +70,9 @@ func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource, eve
 func (mgr *Manager) DeltaAggregatedResources(
 	stream envoy_service_discovery_v3.AggregatedDiscoveryService_DeltaAggregatedResourcesServer,
 ) error {
-	ch := mgr.signal.Bind()
-	defer mgr.signal.Unbind(ch)
-
 	stateByTypeURL := map[string]*streamState{}
+
+	log.Info(context.Background()).Msg("*** XDS LOOP")
 
 	getDeltaResponse := func(ctx context.Context, typeURL string) *envoy_service_discovery_v3.DeltaDiscoveryResponse {
 		mgr.mu.Lock()
@@ -190,16 +191,15 @@ func (mgr *Manager) DeltaAggregatedResources(
 	})
 	// 2. handle incoming requests or resource changes
 	eg.Go(func() error {
-		changeCtx := ctx
 		for {
 			var typeURLs []string
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			case req := <-incoming:
-				handleDeltaRequest(changeCtx, req)
+				handleDeltaRequest(ctx, req)
 				typeURLs = []string{req.GetTypeUrl()}
-			case changeCtx = <-ch:
+			case <-mgr.update:
 				mgr.mu.Lock()
 				for typeURL := range mgr.resources {
 					typeURLs = append(typeURLs, typeURL)
@@ -208,7 +208,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 			}
 
 			for _, typeURL := range typeURLs {
-				res := getDeltaResponse(changeCtx, typeURL)
+				res := getDeltaResponse(ctx, typeURL)
 				if res == nil {
 					continue
 				}
@@ -236,6 +236,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 			}
 		}
 	})
+	log.Error(ctx).Stack().Err(errors.New("trace")).Msg("*** XDS-MANAGER START")
 	return eg.Wait()
 }
 
@@ -257,7 +258,12 @@ func (mgr *Manager) Update(ctx context.Context, resources map[string][]*envoy_se
 	mgr.nonceToConfig.Add(nonce, ctx.Value(contextkeys.UpdateRecordsVersion))
 	mgr.mu.Unlock()
 
-	mgr.signal.Broadcast(ctx)
+	select {
+	case <-ctx.Done():
+		log.Error(ctx).Msg("timed out sending configuration update to xds manager")
+		return
+	case mgr.update <- struct{}{}:
+	}
 }
 
 func (mgr *Manager) nonceToConfigVersion(nonce string) (ver uint64) {

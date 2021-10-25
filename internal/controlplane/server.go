@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	runtime "runtime/debug"
 	"sync/atomic"
 	"time"
 
@@ -202,6 +203,8 @@ func (srv *Server) Run(ctx context.Context) error {
 
 // OnConfigChange updates the pomerium config options.
 func (srv *Server) OnConfigChange(ctx context.Context, cfg *config.Config) error {
+	runtime.PrintStack()
+
 	srv.reproxy.Update(ctx, cfg)
 	prev := srv.currentConfig.Load()
 	srv.currentConfig.Store(versionedConfig{
