@@ -19,6 +19,43 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
+func TestAuthorize_forceSyncToVersion(t *testing.T) {
+	o := &config.Options{
+		AuthenticateURLString: "https://authN.example.com",
+		DataBrokerURLString:   "https://databroker.example.com",
+		SharedKey:             "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=",
+		Policies:              testPolicies(t),
+	}
+	a, err := New(&config.Config{Options: o})
+	require.NoError(t, err)
+
+	a.store.UpdateRecord(1, &databroker.Record{
+		Version: 1,
+	})
+	t.Run("ready", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		assert.True(t, a.forceSyncToVersion(ctx, 1, 1))
+	})
+	t.Run("not ready", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		assert.False(t, a.forceSyncToVersion(ctx, 1, 2))
+	})
+	t.Run("becomes ready", func(t *testing.T) {
+		ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+		defer clearTimeout()
+
+		go func() {
+			<-time.After(time.Millisecond * 100)
+			a.store.UpdateRecord(1, &databroker.Record{
+				Version: 2,
+			})
+		}()
+		assert.True(t, a.forceSyncToVersion(ctx, 1, 2))
+	})
+}
+
 func TestAuthorize_waitForRecordSync(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
 	defer clearTimeout()

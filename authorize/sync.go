@@ -72,12 +72,41 @@ func (a *Authorize) forceSync(ctx context.Context, ss *sessions.State) (sessionO
 	if ss == nil {
 		return nil, nil, nil
 	}
+
+	// if the session state has databroker versions, wait for those to finish syncing
+	if ss.DatabrokerServerVersion != 0 && ss.DatabrokerRecordVersion != 0 {
+		a.forceSyncToVersion(ctx, ss.DatabrokerServerVersion, ss.DatabrokerRecordVersion)
+	}
+
 	s := a.forceSyncSession(ctx, ss.ID)
 	if s == nil {
 		return nil, nil, errors.New("session not found")
 	}
 	u := a.forceSyncUser(ctx, s.GetUserId())
 	return s, u, nil
+}
+
+func (a *Authorize) forceSyncToVersion(ctx context.Context, serverVersion, recordVersion uint64) (ready bool) {
+	ctx, span := trace.StartSpan(ctx, "authorize.forceSyncToVersion")
+	defer span.End()
+
+	ctx, clearTimeout := context.WithTimeout(ctx, forceSyncRecordMaxWait)
+	defer clearTimeout()
+
+	ticker := time.NewTicker(time.Millisecond * 50)
+	for {
+		currentServerVersion, currentRecordVersion := a.store.GetDataBrokerVersions()
+		// check if the local record version is up to date with the expected record version
+		if currentServerVersion == serverVersion && currentRecordVersion >= recordVersion {
+			return true
+		}
+
+		select {
+		case <-ctx.Done():
+			return false
+		case <-ticker.C:
+		}
+	}
 }
 
 func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) sessionOrServiceAccount {
