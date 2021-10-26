@@ -141,7 +141,7 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 				case "org1":
 					teams.PageInfo = qlPageInfo{HasNextPage: true, EndCursor: "TOKEN1"}
 					teams.Edges = []qlTeamEdge{
-						{Node: qlTeam{ID: "1", Slug: "team1", Name: "Team 1", Members: &qlTeamMemberConnection{
+						{Node: qlTeam{ID: "MDQ6VGVhbTE=", Slug: "team1", Name: "Team 1", Members: &qlTeamMemberConnection{
 							PageInfo: qlPageInfo{HasNextPage: false},
 							Edges: []qlTeamMemberEdge{
 								{Node: qlUser{ID: "user1"}},
@@ -152,7 +152,7 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 				case "org2":
 					teams.PageInfo = qlPageInfo{HasNextPage: false}
 					teams.Edges = []qlTeamEdge{
-						{Node: qlTeam{ID: "3", Slug: "team3", Name: "Team 3", Members: &qlTeamMemberConnection{
+						{Node: qlTeam{ID: "MDQ6VGVhbTM=", Slug: "team3", Name: "Team 3", Members: &qlTeamMemberConnection{
 							PageInfo: qlPageInfo{HasNextPage: true, EndCursor: "TOKEN1"},
 							Edges: []qlTeamMemberEdge{
 								{Node: qlUser{ID: "user1"}},
@@ -162,7 +162,7 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 					}
 					if userLogin == "" || userLogin == "user4" {
 						teams.Edges = append(teams.Edges, qlTeamEdge{
-							Node: qlTeam{ID: "4", Slug: "team4", Name: "Team 4", Members: &qlTeamMemberConnection{
+							Node: qlTeam{ID: "MDQ6VGVhbTQ=", Slug: "team4", Name: "Team 4", Members: &qlTeamMemberConnection{
 								PageInfo: qlPageInfo{HasNextPage: false},
 								Edges: []qlTeamMemberEdge{
 									{Node: qlUser{ID: "user4"}},
@@ -176,7 +176,7 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 			case "TOKEN1":
 				teams.PageInfo = qlPageInfo{HasNextPage: false}
 				teams.Edges = []qlTeamEdge{
-					{Node: qlTeam{ID: "2", Slug: "team2", Name: "Team 2", Members: &qlTeamMemberConnection{
+					{Node: qlTeam{ID: "MDQ6VGVhbTI=", Slug: "team2", Name: "Team 2", Members: &qlTeamMemberConnection{
 						PageInfo: qlPageInfo{HasNextPage: false},
 						Edges: []qlTeamMemberEdge{
 							{Node: qlUser{ID: "user1"}},

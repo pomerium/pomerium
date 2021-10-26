@@ -134,12 +134,17 @@ func (p *Provider) listOrganizationTeamsWithMemberIDs(ctx context.Context, orgSl
 		}
 
 		for _, teamEdge := range res.Data.Organization.Teams.Edges {
+			teamID, err := decodeTeamID(teamEdge.Node.ID)
+			if err != nil {
+				return nil, err
+			}
+
 			var memberIDs []string
 			for _, memberEdge := range teamEdge.Node.Members.Edges {
 				memberIDs = append(memberIDs, memberEdge.Node.ID)
 			}
 			results = append(results, teamWithMemberIDs{
-				ID:        teamEdge.Node.ID,
+				ID:        teamID,
 				Slug:      teamEdge.Node.Slug,
 				Name:      teamEdge.Node.Name,
 				MemberIDs: memberIDs,
@@ -227,7 +232,11 @@ func (p *Provider) listUserOrganizationTeams(ctx context.Context, userSlug strin
 		}
 
 		for _, edge := range res.Data.Organization.Teams.Edges {
-			teamIDs = append(teamIDs, edge.Node.ID)
+			teamID, err := decodeTeamID(edge.Node.ID)
+			if err != nil {
+				return nil, err
+			}
+			teamIDs = append(teamIDs, teamID)
 		}
 
 		if !res.Data.Organization.Teams.PageInfo.HasNextPage {
