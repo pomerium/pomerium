@@ -24,8 +24,11 @@ func (provider *zipkinProvider) Register(opts *TracingOptions) error {
 		return fmt.Errorf("telemetry/trace: could not create local endpoint: %w", err)
 	}
 
-	provider.reporter = zipkinHTTP.NewReporter(opts.ZipkinEndpoint.String(),
-		zipkinHTTP.Logger(stdlog.New(log.Logger(), "", 0)))
+	logger := log.With().Str("service", "zipkin").Logger()
+	logWriter := &log.StdLogWrapper{Logger: &logger}
+	stdLogger := stdlog.New(logWriter, "", 0)
+
+	provider.reporter = zipkinHTTP.NewReporter(opts.ZipkinEndpoint.String(), zipkinHTTP.Logger(stdLogger))
 	provider.exporter = oczipkin.NewExporter(provider.reporter, localEndpoint)
 	octrace.RegisterExporter(provider.exporter)
 	return nil
