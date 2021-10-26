@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package client;
+
+service Config {
+  rpc List(ListConnectionsRequest) returns (ListConnectionsResponse);
+  rpc Delete(DeleteConnectionsRequest) returns (DeleteConnectionsResponse);
+  rpc UpsertConnection(ConnectionRecord) returns (ConnectionRecord);
+  rpc Export(ExportRequest) returns (ConfigData);
+  rpc Import(ConfigData) returns (ImportResponse);
+}
+
+message ConnectionRecord {
+  optional string id = 1;
+  repeated tags = 2;
+  // connection data may be omitted if i.e. just manipulating the tags data
+  optional Connection conn = 3;
+}
+
+message ListConnectionsRequest {
+  // optionally restrict connections by specific tag(s)
+  optional string tag = 1;
+}
+message ListConnectionsResponse { repeated ConnectionRecords records = 1; }
+
+message DeleteConnectionsRequest { repeated string connection_ids = 1; }
+message DeleteConnectionsResponse {}
+
+message ConfigData { bytes data = 1; }
+message ExportRequest {
+  // connection_ids to export, or empty for all
+  repeated string connection_ids = 1;
+}
+message ImportResponse {}
+
+message service Connectivity {
+  // Connect requests certain connections
+  rpc Connect(ConnectRequest) returns (ConnectResponse);
+  // request current connection status
+  rpc Status(StatusRequest) returns (StatusResponse);
+  // StatusUpdates opens a stream to listen to connection status updates
+  rpc StatusUpdates(EventsRequest) returns (stream ConnectionStatusUpdates);
+}
+
+message ConnectRequest {
+  oneof action {
+    bool connect = 1;
+    bool disconnect = 2;
+  }
+  // omit connection ids to connect all connections
+  repeated string connection_ids = 3;
+}
+message ConnectResponse {}
+
+message ConnectionStatusUpdates {
+  // connection this event relates to
+  string connection_id = 1;
+  enum ConnectionStatus {
+    CONNECTION_STATUS_UNDEFINED = 0;
+    CONNECTION_STATUS_CONNECTED = 1;
+    CONNECTION_STATUS_CONNECTING = 2;
+    CONNECTION_STATUS_DISCONNECTED = 3;
+  }
+  ConnectionStatus status = 2;
+  // in case the connection failed or terminated, last error may be available
+  optional string last_error = 3;
+}
+
+// ConnectionInfo represents a stored connection
+message Connection {
+  // name is a user friendly connection name that a user may define
+  optional string name = 1;
+  // address is a remote pomerium host:port
+  string address = 2;
+  // listen_address, if not provided, will assign a random port each time
+  optional listen_address = 3;
+  oneof tls_options {
+    bool disable_tls_verification = 4;
+    bytes ca_cert = 5;
+  }
+}
