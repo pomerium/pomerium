@@ -18,8 +18,12 @@ message ConnectionRecord {
 }
 
 message ListConnectionsRequest {
-  // optionally restrict connections by specific tag(s)
-  optional string tag = 1;
+  oneof {
+    // only return connections matching a particular tag
+    string tag = 1;
+    // only return specific connection(s)
+    repeated connection_ids = 2;
+  }
 }
 message ListConnectionsResponse { repeated ConnectionRecords records = 1; }
 
