@@ -21,7 +21,6 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
 	"github.com/pomerium/pomerium/pkg/storage/redis"
@@ -79,7 +78,6 @@ func (srv *Server) AcquireLease(ctx context.Context, req *databroker.AcquireLeas
 	_, span := trace.StartSpan(ctx, "databroker.grpc.AcquireLease")
 	defer span.End()
 	log.Info(ctx).
-		Str("peer", grpcutil.GetPeerAddr(ctx)).
 		Str("name", req.GetName()).
 		Dur("duration", req.GetDuration().AsDuration()).
 		Msg("acquire lease")
@@ -107,7 +105,6 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 	_, span := trace.StartSpan(ctx, "databroker.grpc.Get")
 	defer span.End()
 	log.Info(ctx).
-		Str("peer", grpcutil.GetPeerAddr(ctx)).
 		Str("type", req.GetType()).
 		Str("id", req.GetId()).
 		Msg("get")
@@ -135,7 +132,6 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 	_, span := trace.StartSpan(ctx, "databroker.grpc.Query")
 	defer span.End()
 	log.Info(ctx).
-		Str("peer", grpcutil.GetPeerAddr(ctx)).
 		Str("type", req.GetType()).
 		Str("query", req.GetQuery()).
 		Int64("offset", req.GetOffset()).
@@ -179,7 +175,6 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 	record := req.GetRecord()
 
 	log.Info(ctx).
-		Str("peer", grpcutil.GetPeerAddr(ctx)).
 		Str("type", record.GetType()).
 		Str("id", record.GetId()).
 		Msg("put")
@@ -204,7 +199,6 @@ func (srv *Server) ReleaseLease(ctx context.Context, req *databroker.ReleaseLeas
 	_, span := trace.StartSpan(ctx, "databroker.grpc.ReleaseLease")
 	defer span.End()
 	log.Info(ctx).
-		Str("peer", grpcutil.GetPeerAddr(ctx)).
 		Str("name", req.GetName()).
 		Str("id", req.GetId()).
 		Msg("release lease")
@@ -227,7 +221,6 @@ func (srv *Server) RenewLease(ctx context.Context, req *databroker.RenewLeaseReq
 	_, span := trace.StartSpan(ctx, "databroker.grpc.RenewLease")
 	defer span.End()
 	log.Debug(ctx).
-		Str("peer", grpcutil.GetPeerAddr(ctx)).
 		Str("name", req.GetName()).
 		Str("id", req.GetId()).
 		Dur("duration", req.GetDuration().AsDuration()).
@@ -280,7 +273,6 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 	defer cancel()
 
 	log.Info(ctx).
-		Str("peer", grpcutil.GetPeerAddr(stream.Context())).
 		Uint64("server_version", req.GetServerVersion()).
 		Uint64("record_version", req.GetRecordVersion()).
 		Msg("sync")
@@ -318,7 +310,6 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 	defer cancel()
 
 	log.Info(ctx).
-		Str("peer", grpcutil.GetPeerAddr(stream.Context())).
 		Str("type", req.GetType()).
 		Msg("sync latest")
 

@@ -5,7 +5,6 @@ import (
 	"context"
 
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -53,15 +52,6 @@ func JWTFromGRPCRequest(ctx context.Context) (rawjwt string, ok bool) {
 	}
 
 	return rawjwts[0], true
-}
-
-// GetPeerAddr returns the peer address.
-func GetPeerAddr(ctx context.Context) string {
-	p, ok := peer.FromContext(ctx)
-	if ok {
-		return p.Addr.String()
-	}
-	return ""
 }
 
 // GetTypeURL gets the TypeURL for a protobuf message.
