@@ -66,10 +66,10 @@ type State struct {
 
 	// DatabrokerServerVersion tracks the last referenced databroker server version
 	// for the saved session.
-	DatabrokerServerVersion uint64 `json:"databroker_server_version"`
+	DatabrokerServerVersion uint64 `json:"databroker_server_version,omitempty"`
 	// DatabrokerRecordVersion tracks the last referenced databroker record version
 	// for the saved session.
-	DatabrokerRecordVersion uint64 `json:"databroker_record_version"`
+	DatabrokerRecordVersion uint64 `json:"databroker_record_version,omitempty"`
 }
 
 // NewSession updates issuer, audience, and issuance timestamps but keeps
