@@ -186,19 +186,13 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	jwtAudience := []string{state.redirectURL.Host, redirectURL.Host}
 
-	var callbackURL *url.URL
 	// if the callback is explicitly set, set it and add an additional audience
 	if callbackStr := r.FormValue(urlutil.QueryCallbackURI); callbackStr != "" {
-		callbackURL, err = urlutil.ParseAndValidateURL(callbackStr)
+		callbackURL, err := urlutil.ParseAndValidateURL(callbackStr)
 		if err != nil {
 			return httputil.NewError(http.StatusBadRequest, err)
 		}
 		jwtAudience = append(jwtAudience, callbackURL.Host)
-	} else {
-		// otherwise, assume callback is the same host as redirect
-		callbackURL, _ = urlutil.DeepCopy(redirectURL)
-		callbackURL.Path = "/.pomerium/callback/"
-		callbackURL.RawQuery = ""
 	}
 
 	// add an additional claim for the forward-auth host, if set
@@ -219,11 +213,8 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	callbackParams := callbackURL.Query()
-
 	if r.FormValue(urlutil.QueryIsProgrammatic) == "true" {
 		newSession.Programmatic = true
-		callbackParams.Set(urlutil.QueryIsProgrammatic, "true")
 	}
 
 	// sign the route session, as a JWT
@@ -237,10 +228,10 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	// base64 our encrypted payload for URL-friendlyness
 	encodedJWT := base64.URLEncoding.EncodeToString(encryptedJWT)
 
-	// add our encoded and encrypted route-session JWT to a query param
-	callbackParams.Set(urlutil.QuerySessionEncrypted, encodedJWT)
-	callbackParams.Set(urlutil.QueryRedirectURI, redirectURL.String())
-	callbackURL.RawQuery = callbackParams.Encode()
+	callbackURL, err := urlutil.GetCallbackURL(r, encodedJWT)
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
 
 	// build our hmac-d redirect URL with our session, pointing back to the
 	// proxy's callback URL which is responsible for setting our new route-session
@@ -665,10 +656,17 @@ func (a *Authenticate) getWebauthnState(ctx context.Context) (*webauthn.State, e
 		return nil, err
 	}
 
+	ss, err := a.getSessionFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	return &webauthn.State{
 		SharedKey:    state.sharedKey,
 		Client:       state.dataBrokerClient,
 		Session:      s,
+		SessionState: ss,
+		SessionStore: state.sessionStore,
 		RelyingParty: state.webauthnRelyingParty,
 	}, nil
 }

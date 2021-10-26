@@ -4,6 +4,7 @@ package webauthn
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,10 +20,13 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
+	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/device"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -42,6 +46,8 @@ type State struct {
 	SharedKey    []byte
 	Client       databroker.DataBrokerServiceClient
 	Session      *session.Session
+	SessionState *sessions.State
+	SessionStore sessions.SessionStore
 	RelyingParty *webauthn.RelyingParty
 }
 
@@ -177,21 +183,14 @@ func (h *Handler) handleAuthenticate(w http.ResponseWriter, r *http.Request, sta
 		}
 	}
 
-	// save the session
+	// update the session
 	state.Session.DeviceCredentials = append(state.Session.DeviceCredentials, &session.Session_DeviceCredential{
 		TypeId: deviceType.GetId(),
 		Credential: &session.Session_DeviceCredential_Id{
 			Id: webauthnutil.GetDeviceCredentialID(serverCredential.ID),
 		},
 	})
-	_, err = session.Put(ctx, state.Client, state.Session)
-	if err != nil {
-		return err
-	}
-
-	// redirect
-	httputil.Redirect(w, r, redirectURIParam, http.StatusFound)
-	return nil
+	return h.saveSessionAndRedirect(w, r, state, redirectURIParam)
 }
 
 func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request, state *State) error {
@@ -286,21 +285,14 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request, state *
 		return err
 	}
 
-	// save the session
+	// update the session
 	state.Session.DeviceCredentials = append(state.Session.DeviceCredentials, &session.Session_DeviceCredential{
 		TypeId: deviceType.GetId(),
 		Credential: &session.Session_DeviceCredential_Id{
 			Id: webauthnutil.GetDeviceCredentialID(serverCredential.ID),
 		},
 	})
-	_, err = session.Put(ctx, state.Client, state.Session)
-	if err != nil {
-		return err
-	}
-
-	// redirect
-	httputil.Redirect(w, r, redirectURIParam, http.StatusFound)
-	return nil
+	return h.saveSessionAndRedirect(w, r, state, redirectURIParam)
 }
 
 func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *State) error {
@@ -349,6 +341,52 @@ func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *Stat
 	w.WriteHeader(http.StatusOK)
 	_, err = io.Copy(w, &buf)
 	return err
+}
+
+func (h *Handler) saveSessionAndRedirect(w http.ResponseWriter, r *http.Request, state *State, rawRedirectURI string) error {
+	// save the session to the databroker
+	res, err := session.Put(r.Context(), state.Client, state.Session)
+	if err != nil {
+		return err
+	}
+
+	// add databroker versions to the session cookie and save
+	state.SessionState.Version = sessions.Version(fmt.Sprint(res.GetServerVersion()))
+	state.SessionState.DatabrokerServerVersion = res.GetServerVersion()
+	state.SessionState.DatabrokerRecordVersion = res.GetRecord().GetVersion()
+	err = state.SessionStore.SaveSession(w, r, state.SessionState)
+	if err != nil {
+		return err
+	}
+
+	// sign+encrypt the session JWT
+	encoder, err := jws.NewHS256Signer(state.SharedKey)
+	if err != nil {
+		return err
+	}
+
+	signedJWT, err := encoder.Marshal(state.SessionState)
+	if err != nil {
+		return err
+	}
+
+	cipher, err := cryptutil.NewAEADCipher(state.SharedKey)
+	if err != nil {
+		return err
+	}
+
+	encryptedJWT := cryptutil.Encrypt(cipher, signedJWT, nil)
+	encodedJWT := base64.URLEncoding.EncodeToString(encryptedJWT)
+
+	// redirect to the proxy callback URL with the session
+	callbackURL, err := urlutil.GetCallbackURL(r, encodedJWT)
+	if err != nil {
+		return err
+	}
+
+	signedCallbackURL := urlutil.NewSignedURL(state.SharedKey, callbackURL)
+	httputil.Redirect(w, r, signedCallbackURL.String(), http.StatusFound)
+	return nil
 }
 
 func getKnownDeviceCredentials(
