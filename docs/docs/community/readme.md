@@ -23,7 +23,7 @@ description: >-
 
 - Want updates delivered directly to your inbox? Sign up for our newsletter here:
 
-<SimpleNewsletter />
+<Newsletter />
 
 ## Get help
 
