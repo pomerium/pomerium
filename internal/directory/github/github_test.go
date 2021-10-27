@@ -310,7 +310,7 @@ func TestProvider_User(t *testing.T) {
 	}
 	testutil.AssertProtoJSONEqual(t, `{
 		"id": "user1",
-		"groupIds": ["1", "2", "3"],
+		"groupIds": ["team1", "team2", "team3"],
 		"displayName": "User 1",
 		"email": "user1@example.com"
 	}`, du)
@@ -334,16 +334,16 @@ func TestProvider_UserGroups(t *testing.T) {
 	groups, users, err := p.UserGroups(context.Background())
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `[
-		{ "id": "user1", "groupIds": ["1", "2", "3"], "displayName": "User 1", "email": "user1@example.com" },
-		{ "id": "user2", "groupIds": ["1", "3"], "displayName": "User 2", "email": "user2@example.com" },
-		{ "id": "user3", "groupIds": ["3"], "displayName": "User 3", "email": "user3@example.com" },
-		{ "id": "user4", "groupIds": ["4"], "displayName": "User 4", "email": "user4@example.com" }
+		{ "id": "user1", "groupIds": ["team1", "team2", "team3"], "displayName": "User 1", "email": "user1@example.com" },
+		{ "id": "user2", "groupIds": ["team1", "team3"], "displayName": "User 2", "email": "user2@example.com" },
+		{ "id": "user3", "groupIds": ["team3"], "displayName": "User 3", "email": "user3@example.com" },
+		{ "id": "user4", "groupIds": ["team4"], "displayName": "User 4", "email": "user4@example.com" }
 	]`, users)
 	testutil.AssertProtoJSONEqual(t, `[
-		{ "id": "1", "name": "team1" },
-		{ "id": "2", "name": "team2" },
-		{ "id": "3", "name": "team3" },
-		{ "id": "4", "name": "team4" }
+		{ "id": "team1", "name": "team1" },
+		{ "id": "team2", "name": "team2" },
+		{ "id": "team3", "name": "team3" },
+		{ "id": "team4", "name": "team4" }
 	]`, groups)
 }
 

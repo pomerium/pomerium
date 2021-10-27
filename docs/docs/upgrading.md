@@ -12,6 +12,9 @@ The deprecated `headers` option has been removed. Use [`set_response_headers`](/
 
 The `signing_key_algorithm` option has been removed and will now be inferred from `signing_key`.
 
+### Changed Github Team IDs
+To improve performance, IdP directory synchronization for Github now uses the GraphQL API. This API returns the same information as the REST API except that the GraphQL node IDs are different. Previously we used the team integer ID from the REST API, we will now use the team slug instead. Most policies will have already uses the team slug for policy, which should continue to work, however if the integer ID was used it will no longer work. Use the team slug instead.
+
 # Since 0.14.0
 
 ## Breaking

@@ -134,17 +134,12 @@ func (p *Provider) listOrganizationTeamsWithMemberIDs(ctx context.Context, orgSl
 		}
 
 		for _, teamEdge := range res.Data.Organization.Teams.Edges {
-			teamID, err := decodeTeamID(teamEdge.Node.ID)
-			if err != nil {
-				return nil, err
-			}
-
 			var memberIDs []string
 			for _, memberEdge := range teamEdge.Node.Members.Edges {
 				memberIDs = append(memberIDs, memberEdge.Node.ID)
 			}
 			results = append(results, teamWithMemberIDs{
-				ID:        teamID,
+				ID:        teamEdge.Node.ID,
 				Slug:      teamEdge.Node.Slug,
 				Name:      teamEdge.Node.Name,
 				MemberIDs: memberIDs,
@@ -207,7 +202,7 @@ func (p *Provider) listOrganizationTeamsWithMemberIDs(ctx context.Context, orgSl
 func (p *Provider) listUserOrganizationTeams(ctx context.Context, userSlug string, orgSlug string) ([]string, error) {
 	// GitHub's Rest API doesn't have an easy way of querying this data, so we use the GraphQL API.
 
-	var teamIDs []string
+	var teamSlugs []string
 	var cursor *string
 	for {
 		var res qlResult
@@ -232,11 +227,7 @@ func (p *Provider) listUserOrganizationTeams(ctx context.Context, userSlug strin
 		}
 
 		for _, edge := range res.Data.Organization.Teams.Edges {
-			teamID, err := decodeTeamID(edge.Node.ID)
-			if err != nil {
-				return nil, err
-			}
-			teamIDs = append(teamIDs, teamID)
+			teamSlugs = append(teamSlugs, edge.Node.Slug)
 		}
 
 		if !res.Data.Organization.Teams.PageInfo.HasNextPage {
@@ -245,7 +236,7 @@ func (p *Provider) listUserOrganizationTeams(ctx context.Context, userSlug strin
 		cursor = &res.Data.Organization.Teams.PageInfo.EndCursor
 	}
 
-	return teamIDs, nil
+	return teamSlugs, nil
 }
 
 func encode(obj interface{}) string {

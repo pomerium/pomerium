@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
-	"strings"
 
 	"github.com/rs/zerolog"
 	"github.com/tomnomnom/linkheader"
@@ -147,11 +146,11 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 
 		for _, team := range teams {
 			allGroups = append(allGroups, &directory.Group{
-				Id:   team.ID,
+				Id:   team.Slug,
 				Name: team.Slug,
 			})
 			for _, memberID := range team.MemberIDs {
-				userLoginToGroups[memberID] = append(userLoginToGroups[memberID], team.ID)
+				userLoginToGroups[memberID] = append(userLoginToGroups[memberID], team.Slug)
 			}
 		}
 	}
@@ -282,21 +281,6 @@ func (p *Provider) graphql(ctx context.Context, query string, out interface{}) (
 	}
 
 	return res.Header, nil
-}
-
-func decodeTeamID(src string) (string, error) {
-	// Github graphql API returns base64 encoded string.
-	// See https://developer.github.com/v4/scalar/id/
-	s, err := base64.StdEncoding.DecodeString(src)
-	if err != nil {
-		return "", fmt.Errorf("github: failed to decode base64 team id: %w", err)
-	}
-	// Team ID is formed like as "04:Team12345"
-	sep := strings.SplitN(string(s), ":", 2)
-	if len(sep) != 2 {
-		return "", fmt.Errorf("github: invalid team id: %s", s)
-	}
-	return strings.TrimPrefix(sep[1], "Team"), nil
 }
 
 func getNextLink(hdrs http.Header) string {
