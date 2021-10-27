@@ -197,7 +197,19 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 		src:    src,
 	}, databroker.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Config))),
 		databroker.WithFastForward())
-	go func() { _ = syncer.Run(ctx) }()
+	go func() {
+		var databrokerURLs []string
+		urls, _ := cfg.Options.GetDataBrokerURLs()
+		for _, url := range urls {
+			databrokerURLs = append(databrokerURLs, url.String())
+		}
+
+		log.Info(ctx).
+			Str("outbound_port", cfg.OutboundPort).
+			Strs("databroker_urls", databrokerURLs).
+			Msg("config: starting databroker config source syncer")
+		_ = syncer.Run(ctx)
+	}()
 }
 
 type syncerHandler struct {
