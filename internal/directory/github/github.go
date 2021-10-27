@@ -10,8 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
-	"strconv"
-	"strings"
 
 	"github.com/rs/zerolog"
 	"github.com/tomnomnom/linkheader"
@@ -141,45 +139,48 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 
 	var allGroups []*directory.Group
 	for _, orgSlug := range orgSlugs {
-		groups, err := p.listGroups(ctx, orgSlug)
+		teams, err := p.listOrganizationTeamsWithMemberIDs(ctx, orgSlug)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		for _, group := range groups {
-			userLogins, err := p.listTeamMembers(ctx, orgSlug, group.Name)
-			if err != nil {
-				return nil, nil, err
+		for _, team := range teams {
+			allGroups = append(allGroups, &directory.Group{
+				Id:   team.Slug,
+				Name: team.Slug,
+			})
+			for _, memberID := range team.MemberIDs {
+				userLoginToGroups[memberID] = append(userLoginToGroups[memberID], team.Slug)
 			}
-
-			for _, userLogin := range userLogins {
-				userLoginToGroups[userLogin] = append(userLoginToGroups[userLogin], group.Id)
-			}
 		}
-
-		allGroups = append(allGroups, groups...)
 	}
-
-	var users []*directory.User
-	for userLogin, groups := range userLoginToGroups {
-		u, err := p.getUser(ctx, userLogin)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		user := &directory.User{
-			Id:          userLogin,
-			GroupIds:    groups,
-			DisplayName: u.Name,
-			Email:       u.Email,
-		}
-		sort.Strings(user.GroupIds)
-		users = append(users, user)
-	}
-	sort.Slice(users, func(i, j int) bool {
-		return users[i].GetId() < users[j].GetId()
+	sort.Slice(allGroups, func(i, j int) bool {
+		return allGroups[i].Id < allGroups[j].Id
 	})
-	return allGroups, users, nil
+
+	var allUsers []*directory.User
+	for _, orgSlug := range orgSlugs {
+		members, err := p.listOrganizationMembers(ctx, orgSlug)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		for _, member := range members {
+			du := &directory.User{
+				Id:          member.Login,
+				GroupIds:    userLoginToGroups[member.ID],
+				DisplayName: member.Name,
+				Email:       member.Email,
+			}
+			sort.Strings(du.GroupIds)
+			allUsers = append(allUsers, du)
+		}
+	}
+	sort.Slice(allUsers, func(i, j int) bool {
+		return allUsers[i].Id < allUsers[j].Id
+	})
+
+	return allGroups, allUsers, nil
 }
 
 func (p *Provider) listOrgs(ctx context.Context) (orgSlugs []string, err error) {
@@ -206,59 +207,6 @@ func (p *Provider) listOrgs(ctx context.Context) (orgSlugs []string, err error) 
 	return orgSlugs, nil
 }
 
-func (p *Provider) listGroups(ctx context.Context, orgSlug string) ([]*directory.Group, error) {
-	nextURL := p.cfg.url.ResolveReference(&url.URL{
-		Path: fmt.Sprintf("/orgs/%s/teams", orgSlug),
-	}).String()
-
-	var groups []*directory.Group
-	for nextURL != "" {
-		var results []struct {
-			ID   int    `json:"id"`
-			Slug string `json:"slug"`
-		}
-		hdrs, err := p.api(ctx, nextURL, &results)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, result := range results {
-			groups = append(groups, &directory.Group{
-				Id:   strconv.Itoa(result.ID),
-				Name: result.Slug,
-			})
-		}
-
-		nextURL = getNextLink(hdrs)
-	}
-
-	return groups, nil
-}
-
-func (p *Provider) listTeamMembers(ctx context.Context, orgSlug, teamSlug string) (userLogins []string, err error) {
-	nextURL := p.cfg.url.ResolveReference(&url.URL{
-		Path: fmt.Sprintf("/orgs/%s/teams/%s/members", orgSlug, teamSlug),
-	}).String()
-
-	for nextURL != "" {
-		var results []struct {
-			Login string `json:"login"`
-		}
-		hdrs, err := p.api(ctx, nextURL, &results)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, result := range results {
-			userLogins = append(userLogins, result.Login)
-		}
-
-		nextURL = getNextLink(hdrs)
-	}
-
-	return userLogins, err
-}
-
 func (p *Provider) getUser(ctx context.Context, userLogin string) (*apiUserObject, error) {
 	apiURL := p.cfg.url.ResolveReference(&url.URL{
 		Path: fmt.Sprintf("/users/%s", userLogin),
@@ -271,81 +219,6 @@ func (p *Provider) getUser(ctx context.Context, userLogin string) (*apiUserObjec
 	}
 
 	return &res, nil
-}
-
-func (p *Provider) listUserOrganizationTeams(ctx context.Context, userSlug string, orgSlug string) ([]string, error) {
-	// GitHub's Rest API doesn't have an easy way of querying this data, so we use the GraphQL API.
-
-	enc := func(obj interface{}) string {
-		bs, _ := json.Marshal(obj)
-		return string(bs)
-	}
-	const pageCount = 100
-
-	var teamIDs []string
-	var cursor *string
-	for {
-		var res struct {
-			Data struct {
-				Organization struct {
-					Teams struct {
-						TotalCount int `json:"totalCount"`
-						PageInfo   struct {
-							EndCursor string `json:"endCursor"`
-						} `json:"pageInfo"`
-						Edges []struct {
-							Node struct {
-								ID string `json:"id"`
-							} `json:"node"`
-						} `json:"edges"`
-					} `json:"teams"`
-				} `json:"organization"`
-			} `json:"data"`
-		}
-		cursorStr := ""
-		if cursor != nil {
-			cursorStr = fmt.Sprintf(",%s", enc(*cursor))
-		}
-		q := fmt.Sprintf(`query {
-			organization(login:%s) {
-				teams(first:%s, userLogins:[%s] %s) {
-					totalCount
-					pageInfo {
-						endCursor
-					}
-					edges {
-						node {
-							id
-						}
-					}
-				}
-			}
-		}`, enc(orgSlug), enc(pageCount), enc(userSlug), cursorStr)
-		_, err := p.graphql(ctx, q, &res)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(res.Data.Organization.Teams.Edges) == 0 {
-			break
-		}
-
-		for _, edge := range res.Data.Organization.Teams.Edges {
-			teamID, err := decodeTeamID(edge.Node.ID)
-			if err != nil {
-				return nil, err
-			}
-			teamIDs = append(teamIDs, teamID)
-		}
-
-		if len(teamIDs) >= res.Data.Organization.Teams.TotalCount {
-			break
-		}
-
-		cursor = &res.Data.Organization.Teams.PageInfo.EndCursor
-	}
-
-	return teamIDs, nil
 }
 
 func (p *Provider) api(ctx context.Context, apiURL string, out interface{}) (http.Header, error) {
@@ -410,21 +283,6 @@ func (p *Provider) graphql(ctx context.Context, query string, out interface{}) (
 	return res.Header, nil
 }
 
-func decodeTeamID(src string) (string, error) {
-	// Github graphql API returns base64 encoded string.
-	// See https://developer.github.com/v4/scalar/id/
-	s, err := base64.StdEncoding.DecodeString(src)
-	if err != nil {
-		return "", fmt.Errorf("github: failed to decode base64 team id: %w", err)
-	}
-	// Team ID is formed like as "04:Team12345"
-	sep := strings.SplitN(string(s), ":", 2)
-	if len(sep) != 2 {
-		return "", fmt.Errorf("github: invalid team id: %s", s)
-	}
-	return strings.TrimPrefix(sep[1], "Team"), nil
-}
-
 func getNextLink(hdrs http.Header) string {
 	for _, link := range linkheader.ParseMultiple(hdrs.Values("Link")) {
 		if link.Rel == "next" {
@@ -468,4 +326,11 @@ type apiUserObject struct {
 	Login string `json:"login"`
 	Name  string `json:"name"`
 	Email string `json:"email"`
+}
+
+type teamWithMemberIDs struct {
+	ID        string
+	Slug      string
+	Name      string
+	MemberIDs []string
 }
