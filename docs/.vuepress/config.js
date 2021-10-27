@@ -8,6 +8,15 @@ module.exports = {
     "vuepress-plugin-mermaidjs",
     ["vuepress-plugin-code-copy", true],
     [
+      "vuepress-plugin-mailchimp",
+      {
+        endpoint: "https://pomerium.us19.list-manage.com/subscribe/post?u=76f0996a737c138396687fd6b&amp;id=2f4f70cf07",
+        title: "Pomerium Newsletter",
+        content: "Updates on Pomerium and related security news",
+        submitText: "Subscribe"
+      }
+    ],
+    [
       "check-md",
       {
         pattern: "**/*.md",

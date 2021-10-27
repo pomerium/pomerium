@@ -21,7 +21,9 @@ description: >-
 
 - Check out our [Discourse](https://discuss.pomerium.com/) where the community explores Pomerium's uses and shares their best practices.
 
-- Want updates delivered directly to your inbox? Sign up for our newsletter here <!--- I don't know how to embed the newsletter sign up form here-->.
+- Want updates delivered directly to your inbox? Sign up for our newsletter here:
+
+<SimpleNewsletter />
 
 ## Get help
 
