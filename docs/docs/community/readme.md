@@ -15,7 +15,7 @@ description: >-
 
 ## Get updates
 
-- [Pomerium-announce](https://groups.google.com/forum/#!forum/pomerium-announce) is a low traffic mailing list for important releases and security announcements. We encourage all Pomerium users to subscribe to Pomerium-announce.
+- [Pomerium-announce](https://groups.google.com/forum/#!forum/pomerium-announce) is a low traffic mailing list for important releases and security announcements.
 
 - Follow us on Twitter [@pomerium_io](https://twitter.com/pomerium_io) or [LinkedIn](https://www.linkedin.com/company/pomerium-inc) for the latest updates and industry news.
 
