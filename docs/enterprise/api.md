@@ -201,3 +201,7 @@ Modify the example script to match your console API path, Namespace(s) and Polic
 [tls-*]: /enterprise/reference/config.md#tls-ca
 [client-py]: https://github.com/pomerium/enterprise-client-python
 [client-go]: https://github.com/pomerium/enterprise-client-go
+
+## More Information
+
+To see all endpoints available for both the Python and Go libraries, see the [gRPC API Reference](https://github.com/pomerium/enterprise-client/blob/update_docs_template/API.md).
