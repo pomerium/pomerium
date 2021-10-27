@@ -15,13 +15,13 @@ description: >-
 
 ## Get updates
 
-[Pomerium-announce](https://groups.google.com/forum/#!forum/pomerium-announce) is a low traffic mailing list for important releases and security announcements. We encourage all Pomerium users to subscribe to pomerium-announce.
+- [Pomerium-announce](https://groups.google.com/forum/#!forum/pomerium-announce) is a low traffic mailing list for important releases and security announcements. We encourage all Pomerium users to subscribe to pomerium-announce.
 
-Follow us on Twitter [@pomerium_io](https://twitter.com/pomerium_io) or [LinkedIn](https://www.linkedin.com/company/pomerium-inc) for latest updates and industry news.
+- Follow us on Twitter [@pomerium_io](https://twitter.com/pomerium_io) or [LinkedIn](https://www.linkedin.com/company/pomerium-inc) for latest updates and industry news.
 
-Check out our [Pomerium's Discourse](https://discuss.pomerium.com/) where the community explores Pomerium's uses and shares their best practices.
+- Check out our [Pomerium's Discourse](https://discuss.pomerium.com/) where the community explores Pomerium's uses and shares their best practices.
 
-Want updates delivered directly to your inbox? Sign up for our newsletter here <!--- I don't know how to embed the newsletter sign up form here-->.
+- Want updates delivered directly to your inbox? Sign up for our newsletter here <!--- I don't know how to embed the newsletter sign up form here-->.
 
 
 
