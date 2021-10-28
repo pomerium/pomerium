@@ -181,7 +181,7 @@ If you haven't already, install cert-manager and create a CA issuer. You can fol
 1. Apply the nginx Ingress manifest to the cluster:
 
    ```bash
-   kubectl apply -f ingress.yaml
+   kubectl apply -f example-ingress.yaml
    ```
 
 ## Navigate
