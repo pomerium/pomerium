@@ -1133,9 +1133,9 @@ Allowed users is a collection of whitelisted users to authorize for a given rout
 
 
 ## Routes
-- Environment Variable: `ROUTE`
-- Config File Key: `route`
-- Type: `string`
+- Environment Variable: `ROUTES`
+- Config File Key: `routes`
+- Type: [base64 encoded] `string` or inline policy structure in config file
 - **Required** - While Pomerium will start without a route configured, it will not authorize or proxy any traffic until a route is defined. If configuring Pomerium for the Enterprise Console, define a route for the Console itself in Pomerium.
 
 A route contains specific access and control definitions for a back-end service. Each route is a list item under the `routes` key.
