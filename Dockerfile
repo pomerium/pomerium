@@ -1,8 +1,6 @@
-# hadolint ignore=DL3007
 FROM golang:latest as build
 WORKDIR /go/src/github.com/pomerium/pomerium
 
-# hadolint ignore=DL3008
 RUN apt-get update \
     && apt-get -y --no-install-recommends install zip
 

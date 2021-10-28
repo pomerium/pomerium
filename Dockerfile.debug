@@ -1,8 +1,6 @@
-# hadolint ignore=DL3007
 FROM golang:latest as build
 WORKDIR /go/src/github.com/pomerium/pomerium
 
-# hadolint ignore=DL3008
 RUN apt-get update \
     && apt-get -y --no-install-recommends install zip
 
@@ -18,11 +16,9 @@ RUN make build-debug NAME=pomerium-cli
 RUN touch /config.yaml
 RUN go get github.com/go-delve/delve/cmd/dlv
 
-# hadolint ignore=DL3007
 FROM alpine:latest
 ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
-# hadolint ignore=DL3018
 RUN apk add --no-cache ca-certificates libc6-compat gcompat
 # Remove expired root (https://github.com/pomerium/pomerium/issues/2653)
 RUN rm /usr/share/ca-certificates/mozilla/DST_Root_CA_X3.crt && update-ca-certificates
