@@ -529,6 +529,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 				log.Warn(ctx).Msgf("error unmarshaling user: %s", err)
 				continue
 			}
+			mgr.onUpdateUser(ctx, record, &pbUser)
 		}
 	}
 }
