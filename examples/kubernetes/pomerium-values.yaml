@@ -9,8 +9,6 @@ authenticate:
 
 proxy:
   existingTLSSecret: pomerium-tls
-  service:
-    type: LoadBalancer
 
 databroker:
   existingTLSSecret: pomerium-tls
@@ -33,21 +31,19 @@ redis:
   tls:
     certificateSecret: pomerium-redis-tls
 
-ingress:
-  enabled: false
-
 ingressController:
   enabled: true
 
 config:
-  sharedSecret: YOURSHAREDSECRET # You can use "head -c32 /dev/urandom | base64" to generate.
-  cookieSecret: YOURCOOKIESECRET # You can use "head -c32 /dev/urandom | base64" to generate.
   rootDomain: localhost.pomerium.io
   existingCASecret: pomerium-tls
   generateTLS: false # On by default, disabled when cert-manager or another solution is in place.
-  policy:
-      # This will be our testing app, to confirm that Pomerium is authenticating and routing traffic.
-    - from: https://authenticate.localhost.pomerium.io
-      to: https://pomerium-authenticate.pomerium.svc.cluster.local
-      preserve_host_header: true
-      allow_public_unauthenticated_access: true
+# The policy block isn't required when using the Pomerium Ingress Controller, as routes are defined
+# by the addition of Ingress Resources.
+#  routes:
+#      # This will be our testing app, to confirm that Pomerium is authenticating and routing traffic.
+#    - from: https://authenticate.localhost.pomerium.io
+#      to: https://pomerium-authenticate.pomerium.svc.cluster.local
+#      preserve_host_header: true
+#      allow_public_unauthenticated_access: true
+#      policy:
