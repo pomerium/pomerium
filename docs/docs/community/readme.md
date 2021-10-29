@@ -27,7 +27,9 @@ description: >-
 
 ## Get help
 
-If you have a question about using Pomerium, [join our slack channel](https://slack.pomerium.io)! There will be more people there who can help you than just the Pomerium developers who follow our issue tracker. Issues are not the place for usage questions.
+If you have a quick question about using Pomerium, [join our slack channel](https://slack.pomerium.io)! There will be more people there who can help you than just the Pomerium developers who follow our issue tracker. Issues are not the place for usage questions.
+
+For deeper help and configuration troubleshooting, head to our [Discourse](https://discuss.pomerium.com/), where you can search for open threads or start a new one.
 
 ## Report bugs
 
