@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package pomerium.cli;
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/cli";
+
+service Config {
+  rpc List(Selector) returns (ListRecordsResponse);
+  rpc Delete(Selector) returns (DeleteRecordsResponse);
+  rpc Upsert(Record) returns (Record);
+  rpc Export(ExportRequest) returns (ConfigData);
+  rpc Import(ImportRequest) returns (ImportResponse);
+}
+
+message Record {
+  // if omitted, a new record would be created
+  optional string id = 1;
+  repeated string tags = 2;
+  // connection data may be omitted if i.e. just manipulating the tags data
+  optional Connection conn = 3;
+}
+
+message Selector {
+  message IdFilter { repeated string ids = 1; }
+  message TagFilter { repeated string tags = 2; }
+
+  oneof filter {
+    // all records
+    bool all = 1;
+    // only return connections matching tag(s)
+    TagFilter tag = 2;
+    // only return specific connection(s)
+    IdFilter id_filter = 3;
+  }
+}
+message ListRecordsResponse { repeated Record records = 1; }
+message DeleteRecordsResponse {}
+
+// Export dumps configuration (or subset of, based on provided tag filter)
+// in the JSON format
+message ExportRequest {
+  Selector selector = 1;
+  // remove_tags to strip tags from output
+  bool remove_tags = 2;
+  enum Format {
+    EXPORT_FORMAT_UNDEFINED = 0;
+    EXPORT_FORMAT_JSON_COMPACT = 1;
+    EXPORT_FORMAT_JSON_PRETTY = 2;
+  }
+  Format format = 3;
+}
+
+message ConfigData { bytes data = 1; }
+
+// ImportRequest would consume the previously exported data back,
+// merging it with existing configuration,
+// and performing de-duplication of the records so that multiple imports would
+// yield the same result
+message ImportRequest {
+  // if set, all connections would receive that tag instead
+  optional string override_tag = 1;
+  bytes data = 2;
+}
+
+message ImportResponse {}
+
+// Listener service controls listeners
+service Listener {
+  // Listen starts connection listener
+  rpc Update(ListenerUpdateRequest) returns (ListenerStatus);
+  // StatusUpdates opens a stream to listen to connection status updates
+  // a client has to subscribe and continuously
+  // listen to the broadcasted updates
+  rpc StatusUpdates(Selector) returns (stream ConnectionStatusUpdates);
+}
+
+message ListenerUpdateRequest {
+  // omit connection ids to connect all connections
+  repeated string connection_ids = 1;
+  bool connected = 2;
+}
+
+message ListenerStatus {
+  // active listeners with their current ports
+  map<string, uint32> active = 1;
+  // if some listeners were unable to start up
+  map<string, string> errors = 2;
+}
+
+message StatusUpdatesRequest {}
+
+// ConnectionStatusUpdates represent connection state changes
+message ConnectionStatusUpdates {
+  // record this event relates to
+  string id = 1;
+  // peer_addr represents connecting party remote address and may be used to
+  // distinguish between individual TCP connections
+  string peer_addr = 2;
+  enum ConnectionStatus {
+    CONNECTION_STATUS_UNDEFINED = 0;
+    CONNECTION_STATUS_CONNECTING = 1;
+    CONNECTION_STATUS_AUTH_REQUIRED = 2;
+    CONNECTION_STATUS_CONNECTED = 3;
+    CONNECTION_STATUS_DISCONNECTED = 4;
+  }
+  ConnectionStatus status = 3;
+  // in case the connection failed or terminated, last error may be available
+  optional string last_error = 4;
+}
+
+// Connection
+message Connection {
+  // name is a user friendly connection name that a user may define
+  optional string name = 1;
+  // remote_addr is a remote pomerium host:port
+  string remote_addr = 2;
+  // listen_address, if not provided, will assign a random port each time
+  optional string listen_addr = 3;
+  // the URL of the pomerium server to connect to
+  optional string pomerium_url = 4;
+  oneof tls_options {
+    bool disable_tls_verification = 5;
+    bytes ca_cert = 6;
+  }
+}
