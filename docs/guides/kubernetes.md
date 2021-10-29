@@ -12,30 +12,19 @@ description: >-
 
 The following guide covers how to secure [Kubernetes] using Pomerium.
 
-## Kubernetes
+## Before You Begin
 
-This tutorial uses an example Kubernetes cluster created with [`kind`](https://kind.sigs.k8s.io/docs/user/quick-start/). First create a config file (`kind-config.yaml`):
-
-```yaml
-# kind-config.yaml
-kind: Cluster
-apiVersion: kind.x-k8s.io/v1alpha4
-nodes:
-  - role: control-plane
-    extraPortMappings:
-      - containerPort: 30443
-        hostPort: 30443
-```
-
-Next create the cluster:
-
-```bash
-kind create cluster --config=./kind-config.yaml
-```
+- This guide assumes you've already installed Pomerium in a Kubernetes cluster using our Helm charts. Follow [Pomerium using Helm](/docs/install/helm.md) before proceeding.
+- This guide assumes you have a certificate solution in place, such as Cert-Manager.
+- As with our Helm-based install instructions, this guide assumes you're using the Pomerium Ingress Controller to handle traffic in and out of the cluster. Routes will be defined as Ingresses.
 
 ### Pomerium Service Account
 
-Pomerium uses a single service account and user impersonation headers to authenticate and authorize users in Kubernetes. To create the Pomerium service account use the following config: (`pomerium-k8s.yaml`)
+Pomerium uses a single service account and user impersonation headers to authenticate and authorize users in Kubernetes. This service account is automatically created by our Helm chart. If you've installed Pomerium without our charts, expand below to manually create the service account.
+
+::: details Manually create service account
+
+To create the Pomerium service account use the following configuration file: (`pomerium-k8s.yaml`)
 
 ```yaml
 # pomerium-k8s.yaml
@@ -80,11 +69,13 @@ subjects:
     namespace: default
 ```
 
-Apply it with:
+Apply the configuration with:
 
 ```bash
 kubectl apply -f ./pomerium-k8s.yaml
 ```
+
+:::
 
 ### User Permissions
 
@@ -107,87 +98,41 @@ subjects:
 
 Permissions can also be granted to groups the Pomerium user is a member of.
 
-## Certificates
+## Create an Ingress for the API Server
 
-For this tutorial we will generate wildcard certificates for the `*.localhost.pomerium.io` domain using [`mkcert`](https://github.com/FiloSottile/mkcert):
-
-```bash
-mkcert '*.localhost.pomerium.io'
-```
-
-This creates two files:
-
-- `_wildcard.localhost.pomerium.io-key.pem`
-- `_wildcard.localhost.pomerium.io.pem`
-
-## Pomerium
-
-### Configuration
-
-Our Pomerium configuration will route requests from `k8s.localhost.pomerium.io:30443` to the kube-apiserver. Create a Kubernetes YAML configuration file (`pomerium.yaml`):
+Create an Ingress for the route to the Kubernetes API server:
 
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: networking.k8s.io/v1
+kind: Ingress
 metadata:
-  namespace: default
-  name: pomerium
-  labels:
-    app: pomerium
+  name: k8s
+  annotations:
+    cert-manager.io/issuer: pomerium-issuer
+    ingress.pomerium.io/policy: '[{"allow":{"and":[{"domain":{"is":"pomerium.com"}}]}}]'
+    ingress.pomerium.io/secure_upstream: true
+    ingress.pomerium.io/allow_spdy: true
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: pomerium
-  template:
-    metadata:
-      labels:
-        app: pomerium
-    spec:
-      containers:
-        - name: pomerium
-          image: pomerium/pomerium:master
-          ports:
-            - containerPort: 30443
-          env:
-            - name: ADDRESS
-              value: "0.0.0.0:30443"
-            - name: AUTHENTICATE_SERVICE_URL
-              value: "https://authenticate.localhost.pomerium.io:30443"
-            - name: CERTIFICATE
-              value: "..." # $(base64 -w 0 <./_wildcard.localhost.pomerium.io.pem)
-            - name: CERTIFICATE_KEY
-              value: "..." # $(base64 -w 0 <./_wildcard.localhost.pomerium.io-key.pem)
-            - name: COOKIE_SECRET
-              value: "..." # $(head -c32 /dev/urandom | base64 -w 0)
-            - name: IDP_PROVIDER
-              value: google
-            - name: IDP_CLIENT_ID
-              value: "..."
-            - name: IDP_CLIENT_SECRET
-              value: "..."
-            - name: POLICY
-              value: "..." #$(echo "$_policy" | base64 -w 0)
+  ingressClassName: pomerium
+  rules:
+  - host: k8s.localhost.pomerium.io
+    http:
+      paths:
+      - backend:
+          service:
+            name: kubernetes.default.svc
+            port:
+              number: 30443
+  tls:
+  - hosts:
+    - k8s.localhost.pomerium.io
+    secretName: k8s.localhost.pomerium.io-tls
 
----
-apiVersion: v1
-kind: Service
-metadata:
-  namespace: default
-  name: pomerium
-spec:
-  type: NodePort
-  selector:
-    app: pomerium
-  ports:
-    - port: 30443
-      targetPort: 30443
-      nodePort: 30443
 ```
 
-Make sure to fill in the appropriate values as indicated.
+::: details Non-Ingress Route
 
-The policy should be a base64-encoded block of yaml:
+If you're not using the Pomerium Ingress Controller, you will need to define a standard route. The route should be a base64-encoded block of yaml:
 
 ```yaml
 - from: https://k8s.localhost.pomerium.io:30443
@@ -202,7 +147,9 @@ The policy should be a base64-encoded block of yaml:
   kubernetes_service_account_token: "..." #$(kubectl get secret/"$(kubectl get serviceaccount/pomerium -o json | jq -r '.secrets[0].name')" -o json | jq -r .data.token | base64 -d)
 ```
 
-Applying this configuration will create a Pomerium deployment and service within kubernetes that is accessible from `*.localhost.pomerium.io:30443`.
+:::
+
+Applying this configuration change will create a Pomerium route within kubernetes that is accessible from `*.localhost.pomerium.io:30443`.
 
 ## Kubectl
 
