@@ -276,7 +276,7 @@ nfpms:
       - deb
       - rpm
 
-    bindir: /usr/sbin
+    bindir: /usr/bin
 
     overrides:
       deb:
