@@ -5,8 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/btcsuite/btcutil/base58"
-
+	"github.com/pomerium/pomerium/pkg/encoding/base58"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )

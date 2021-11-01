@@ -3,11 +3,11 @@ package webauthnutil
 import (
 	"context"
 
-	"github.com/btcsuite/btcutil/base58"
 	"github.com/pomerium/webauthn"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/pomerium/pomerium/pkg/encoding/base58"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/device"
 )
