@@ -39,7 +39,7 @@ require (
 	github.com/mitchellh/mapstructure v1.4.2
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
 	github.com/open-policy-agent/opa v0.33.1
-	github.com/openzipkin/zipkin-go v0.2.5
+	github.com/openzipkin/zipkin-go v0.3.0
 	github.com/ory/dockertest/v3 v3.8.0
 	github.com/peterbourgon/ff/v3 v3.1.2
 	github.com/pomerium/csrf v1.7.0
@@ -63,8 +63,8 @@ require (
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da
 	go.opencensus.io v0.23.0
 	go.uber.org/zap v1.19.1
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
-	golang.org/x/net v0.0.0-20210825183410-e898025ed96a
+	golang.org/x/crypto v0.0.0-20210920023735-84f357641f63
+	golang.org/x/net v0.0.0-20210917221730-978cfadd31cf
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
@@ -205,7 +205,7 @@ require (
 	github.com/prometheus/statsd_exporter v0.21.0 // indirect
 	github.com/quasilyte/go-ruleguard v0.3.4 // indirect
 	github.com/quasilyte/regex/syntax v0.0.0-20200407221936-30656e2c4a95 // indirect
-	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
+	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/ryancurrah/gomodguard v1.2.3 // indirect
 	github.com/ryanrolds/sqlclosecheck v0.3.0 // indirect
 	github.com/sanposhiho/wastedassign/v2 v2.0.6 // indirect
