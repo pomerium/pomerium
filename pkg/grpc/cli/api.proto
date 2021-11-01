@@ -4,7 +4,7 @@ package pomerium.cli;
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/cli";
 
 service Config {
-  rpc List(Selector) returns (ListRecordsResponse);
+  rpc List(Selector) returns (Records);
   rpc Delete(Selector) returns (DeleteRecordsResponse);
   rpc Upsert(Record) returns (Record);
   rpc Export(ExportRequest) returns (ConfigData);
@@ -19,6 +19,8 @@ message Record {
   optional Connection conn = 3;
 }
 
+message Records { repeated Record records = 1; }
+
 message Selector {
   message IdFilter { repeated string ids = 1; }
   message TagFilter { repeated string tags = 2; }
@@ -27,12 +29,11 @@ message Selector {
     // all records
     bool all = 1;
     // only return connections matching tag(s)
-    TagFilter tag = 2;
+    TagFilter tags = 2;
     // only return specific connection(s)
-    IdFilter id_filter = 3;
+    IdFilter ids = 3;
   }
 }
-message ListRecordsResponse { repeated Record records = 1; }
 message DeleteRecordsResponse {}
 
 // Export dumps configuration (or subset of, based on provided tag filter)
@@ -81,7 +82,7 @@ message ListenerUpdateRequest {
 
 message ListenerStatus {
   // active listeners with their current ports
-  map<string, uint32> active = 1;
+  map<string, string> active = 1;
   // if some listeners were unable to start up
   map<string, string> errors = 2;
 }
