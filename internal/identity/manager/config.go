@@ -23,6 +23,7 @@ type config struct {
 	groupRefreshTimeout           time.Duration
 	sessionRefreshGracePeriod     time.Duration
 	sessionRefreshCoolOffDuration time.Duration
+	now                           func() time.Time
 }
 
 func newConfig(options ...Option) *config {
@@ -31,6 +32,7 @@ func newConfig(options ...Option) *config {
 	WithGroupRefreshTimeout(defaultGroupRefreshTimeout)(cfg)
 	WithSessionRefreshGracePeriod(defaultSessionRefreshGracePeriod)(cfg)
 	WithSessionRefreshCoolOffDuration(defaultSessionRefreshCoolOffDuration)(cfg)
+	WithNow(time.Now)
 	for _, option := range options {
 		option(cfg)
 	}
@@ -86,6 +88,13 @@ func WithSessionRefreshGracePeriod(dur time.Duration) Option {
 func WithSessionRefreshCoolOffDuration(dur time.Duration) Option {
 	return func(cfg *config) {
 		cfg.sessionRefreshCoolOffDuration = dur
+	}
+}
+
+// WithNow customizes the time.Now function used by the manager.
+func WithNow(now func() time.Time) Option {
+	return func(cfg *config) {
+		cfg.now = now
 	}
 }
 
