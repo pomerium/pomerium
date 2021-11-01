@@ -137,9 +137,11 @@ Most configuration keys in non-Kubernetes deployments can be specified as annota
 - [`ingress.pomerium.io/allowed_idp_claims`]
 - [`ingress.pomerium.io/allowed_users`]
 - [`ingress.pomerium.io/cors_allow_preflight`]
-- [`ingress.pomerium.io/health_checks`]
+- [`ingress.pomerium.io/host_path_regex_rewrite_pattern]
+- [`ingress.pomerium.io/host_path_regex_rewrite_substitution]
+- [`ingress.pomerium.io/host_rewrite]
+- [`ingress.pomerium.io/host_rewrite_header]
 - [`ingress.pomerium.io/idle_timeout`]
-- [`ingress.pomerium.io/lb_config`]
 - [`ingress.pomerium.io/outlier_detection`]
 - [`ingress.pomerium.io/pass_identity_headers`]
 - [`ingress.pomerium.io/policy`]
@@ -338,6 +340,10 @@ For more information on the Pomerium Ingress Controller or the Kubernetes concep
 [`ingress.pomerium.io/allowed_users`]: /reference/readme.md#allowed-users
 [`ingress.pomerium.io/cors_allow_preflight`]: /reference/readme.md#cors-preflight
 [`ingress.pomerium.io/health_checks`]: /reference/readme.md#health-checks
+[`ingress.pomerium.io/host_path_regex_rewrite_pattern]: /reference/readme.md#host-rewrite
+[`ingress.pomerium.io/host_path_regex_rewrite_substitution]: /reference/readme.md#host-rewrite
+[`ingress.pomerium.io/host_rewrite]: /reference/readme.md#host-rewrite
+[`ingress.pomerium.io/host_rewrite_header]: /reference/readme.md#host-rewrite
 [`ingress.pomerium.io/idle_timeout`]: /reference/readme.md#idle-timeout
 [`ingress.pomerium.io/lb_config`]: /reference/readme.md#load-balancing-policy-config
 [`ingress.pomerium.io/outlier_detection`]: /reference/readme.md#outlier-detection
