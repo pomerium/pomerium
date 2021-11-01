@@ -53,7 +53,7 @@ You may deploy your own manifestations by using the `pomerium/ingress-controller
 | `--databroker-tls-ca`          | base64 encoded tls CA
 | `--databroker-tls-ca-file`     | tls CA file path for the databroker connection connection
 | `--health-probe-bind-address`  | The address the probe endpoint binds to. (default ":8081")
-| `--metrics-bind-address`       | The address the metric endpoint binds to. (default ":8080") 
+| `--metrics-bind-address`       | The address the metric endpoint binds to. (default ":8080")
 | `--name`                       | IngressClass controller name (default "pomerium.io/ingress-controller")
 | `--namespaces`                 | namespaces to watch, or none to watch all namespaces
 | `--prefix`                     | Ingress annotation prefix (default "ingress.pomerium.io")
@@ -95,7 +95,7 @@ Becomes:
 
 ```yaml
 routes:
-  - from: https://hello.localhost.pomerium.io 
+  - from: https://hello.localhost.pomerium.io
     to: http://nginx-hello.default.svc.cluster.local
     policy:
     - allow:
@@ -164,7 +164,7 @@ The remaining annotations are specific to or behave differently in this context:
 | `ingress.pomerium.io/tls_client_secret`               | Name of Kubernetes `tls` Secret containing a [client certificate][`tls_client_secret`] for connecting to the upstream. |
 | `ingress.pomerium.io/tls_downstream_client_ca_secret` | Name of Kubernetes `tls` Secret containing a [Client CA][client-certificate-authority] for validating downstream clients. |
 | `ingress.pomerium.io/secure_upstream`                 | When set to true, use `https` when connecting to the upstream endpoint. |
-	
+
 ::: tip
 
 Every value for the annotations above must be in `string` format.
@@ -224,7 +224,7 @@ spec:
 
 ## HTTPS endpoints
 
-The `Ingress` spec assumes that all communications to the service is sent in plaintext. For more information, see the [TLS](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls) section of the Ingress API documentation. Pomerium supports HTTPS communication with upstream endpoints, including mTLS. 
+The `Ingress` spec assumes that all communications to the service is sent in plaintext. For more information, see the [TLS](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls) section of the Ingress API documentation. Pomerium supports HTTPS communication with upstream endpoints, including mTLS.
 
 Annotate your `Ingress` with
 
@@ -243,7 +243,7 @@ Please note that the referenced `tls_client_secret` must be a [TLS Kubernetes se
 
 ### External services
 
-You may refer to external services by defining a `Service` with `externalName`. 
+You may refer to external services by defining a `Service` with `externalName`.
 
 I.e. if you have `https://my-existing-service.corp.com`:
 
