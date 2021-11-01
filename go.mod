@@ -72,7 +72,7 @@ require (
 	google.golang.org/genproto v0.0.0-20210917145530-b395a37504d4
 	google.golang.org/grpc v1.41.0
 	google.golang.org/protobuf v1.27.1
-	gopkg.in/auth0.v5 v5.19.2
+	gopkg.in/auth0.v5 v5.20.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	sigs.k8s.io/yaml v1.3.0
 )

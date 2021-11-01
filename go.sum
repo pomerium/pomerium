@@ -1918,8 +1918,8 @@ gopkg.in/DataDog/dd-trace-go.v1 v1.22.0 h1:gpWsqqkwUldNZXGJqT69NU9MdEDhLboK1C4nM
 gopkg.in/DataDog/dd-trace-go.v1 v1.22.0/go.mod h1:DVp8HmDh8PuTu2Z0fVVlBsyWaC++fzwVCaGWylTe3tg=
 gopkg.in/airbrake/gobrake.v2 v2.0.9/go.mod h1:/h5ZAUhDkGaJfjzjKLSjv6zCL6O0LLBxU4K+aSYdM/U=
 gopkg.in/alecthomas/kingpin.v2 v2.2.6/go.mod h1:FMv+mEhP44yOT+4EoQTLFTRgOQ1FBLkstjWtayDeSgw=
-gopkg.in/auth0.v5 v5.19.2 h1:GE7Xr+qcLO2ZkuGbaJfMv3VfWxhKoAQDD9P6q8ChMGM=
-gopkg.in/auth0.v5 v5.19.2/go.mod h1:ZUc29HB1p9iYkA1ti2uz/kVL3I9vg+Hs+qFjHKub9SM=
+gopkg.in/auth0.v5 v5.20.0 h1:KytQF0ysIMrjK/AzlA2AYH44Zfv89qSrb2R7YzwQ/bM=
+gopkg.in/auth0.v5 v5.20.0/go.mod h1:k1eJq1+II4rwUlecBabE7u4igEuzKUCEZAMa11PUfQk=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20141024133853-64131543e789/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
