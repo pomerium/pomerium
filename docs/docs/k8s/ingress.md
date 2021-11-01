@@ -125,7 +125,7 @@ metadata:
 
 ### Supported Annotations
 
-Most configuration keys in non-Kubernetes deployments can be specified as annotation in a Ingress Resource definition. The format is `ingress.pomerium.io/${OPTION_NAME}`. The expandable list below contains the annotations available, which behave as described in our reference documentation (with links to the appropriate reference documentation).
+Most configuration keys in non-Kubernetes deployments can be specified as annotation in an Ingress Resource definition. The format is `ingress.pomerium.io/${OPTION_NAME}`. The expandable list below contains the annotations available, which behave as described in our reference documentation (with links to the appropriate reference documentation).
 
 ::: details Pomerium-Standard Annotations
 
@@ -296,7 +296,7 @@ spec:
 
 ### View Event History
 
-Pomerium Ingress Controller will add **events** to the ingress objects as it processes them.
+Pomerium Ingress Controller will add **events** to the Ingress objects as it processes them.
 
 ```
 kubectl describe ingress/my-ingress
@@ -321,7 +321,7 @@ Events:
 
 ### HSTS
 
-If your domain has [HSTS] enabled and you visit an endpoint while Pomerium is using the self-signed bootstrap certificate or a LetsEncrypt staging certificate (before cert-manager has provisioned a production certificate), the untrusted certificate may be pinned in your browser and need to be reset. See [this article](https://www.ssl2buy.com/wiki/how-to-clear-hsts-settings-on-chrome-firefox-and-ie-browsers) for more information.
+If your domain has [HSTS] enabled and you visit an endpoint while Pomerium is using the self-signed bootstrap certificate or a LetsEncrypt staging certificate (before cert-manager has provisioned a production certificate), the untrusted certificate may be pinned in your browser and needs to be reset. See [this article](https://www.ssl2buy.com/wiki/how-to-clear-hsts-settings-on-chrome-firefox-and-ie-browsers) for more information.
 
 ## More Information
 
