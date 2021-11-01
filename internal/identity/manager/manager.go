@@ -77,6 +77,7 @@ func New(
 	}
 	mgr.directoryBackoff = backoff.NewExponentialBackOff()
 	mgr.directoryBackoff.MaxElapsedTime = 0
+	mgr.reset()
 	mgr.UpdateConfig(options...)
 	return mgr
 }
@@ -128,10 +129,7 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-clear:
-		mgr.directoryGroups = make(map[string]*directory.Group)
-		mgr.directoryUsers = make(map[string]*directory.User)
-		mgr.sessions = sessionCollection{BTree: btree.New(8)}
-		mgr.users = userCollection{BTree: btree.New(8)}
+		mgr.reset()
 	}
 	select {
 	case <-ctx.Done():
@@ -161,10 +159,7 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-clear:
-			mgr.directoryGroups = make(map[string]*directory.Group)
-			mgr.directoryUsers = make(map[string]*directory.User)
-			mgr.sessions = sessionCollection{BTree: btree.New(8)}
-			mgr.users = userCollection{BTree: btree.New(8)}
+			mgr.reset()
 		case msg := <-update:
 			mgr.onUpdateRecords(ctx, msg)
 		case <-timer.C:
@@ -571,7 +566,7 @@ func (mgr *Manager) onUpdateUser(_ context.Context, record *databroker.Record, u
 	}
 
 	u, _ := mgr.users.Get(user.GetId())
-	u.lastRefresh = time.Now()
+	u.lastRefresh = mgr.cfg.Load().now()
 	u.refreshInterval = mgr.cfg.Load().groupRefreshInterval
 	u.User = user
 	mgr.users.ReplaceOrInsert(u)
@@ -593,6 +588,14 @@ func (mgr *Manager) deleteSession(ctx context.Context, pbSession *session.Sessio
 			Str("session_id", pbSession.GetId()).
 			Msg("failed to delete session")
 	}
+}
+
+// reset resets all the manager datastructures to their initial state
+func (mgr *Manager) reset() {
+	mgr.directoryGroups = make(map[string]*directory.Group)
+	mgr.directoryUsers = make(map[string]*directory.User)
+	mgr.sessions = sessionCollection{BTree: btree.New(8)}
+	mgr.users = userCollection{BTree: btree.New(8)}
 }
 
 func isTemporaryError(err error) bool {

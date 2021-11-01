@@ -539,22 +539,21 @@ func (a *Authenticate) saveSessionToDataBroker(
 	s.SetRawIDToken(claims.RawIDToken)
 	s.AddClaims(claims.Flatten())
 
-	// if no user exists yet, create a new one
-	currentUser, _ := user.Get(ctx, state.dataBrokerClient, s.GetUserId())
-	if currentUser == nil {
-		mu := manager.User{
-			User: &user.User{
-				Id: s.GetUserId(),
-			},
+	var managerUser manager.User
+	managerUser.User, _ = user.Get(ctx, state.dataBrokerClient, s.GetUserId())
+	if managerUser.User == nil {
+		// if no user exists yet, create a new one
+		managerUser.User = &user.User{
+			Id: s.GetUserId(),
 		}
-		err := a.provider.Load().UpdateUserInfo(ctx, accessToken, &mu)
-		if err != nil {
-			return fmt.Errorf("authenticate: error retrieving user info: %w", err)
-		}
-		_, err = user.Put(ctx, state.dataBrokerClient, mu.User)
-		if err != nil {
-			return fmt.Errorf("authenticate: error saving user: %w", err)
-		}
+	}
+	err := a.provider.Load().UpdateUserInfo(ctx, accessToken, &managerUser)
+	if err != nil {
+		return fmt.Errorf("authenticate: error retrieving user info: %w", err)
+	}
+	_, err = user.Put(ctx, state.dataBrokerClient, managerUser.User)
+	if err != nil {
+		return fmt.Errorf("authenticate: error saving user: %w", err)
 	}
 
 	res, err := session.Put(ctx, state.dataBrokerClient, s)
