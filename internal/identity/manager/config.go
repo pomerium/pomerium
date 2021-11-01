@@ -32,7 +32,7 @@ func newConfig(options ...Option) *config {
 	WithGroupRefreshTimeout(defaultGroupRefreshTimeout)(cfg)
 	WithSessionRefreshGracePeriod(defaultSessionRefreshGracePeriod)(cfg)
 	WithSessionRefreshCoolOffDuration(defaultSessionRefreshCoolOffDuration)(cfg)
-	WithNow(time.Now)
+	WithNow(time.Now)(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
