@@ -100,35 +100,41 @@ Permissions can also be granted to groups the Pomerium user is a member of.
 
 ## Create an Ingress for the API Server
 
-Create an Ingress for the route to the Kubernetes API server:
+1. Enable API proxying using the Helm chart:
 
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: k8s
-  annotations:
-    cert-manager.io/issuer: pomerium-issuer
-    ingress.pomerium.io/policy: '[{"allow":{"and":[{"domain":{"is":"pomerium.com"}}]}}]'
-    ingress.pomerium.io/secure_upstream: true
-    ingress.pomerium.io/allow_spdy: true
-spec:
-  ingressClassName: pomerium
-  rules:
-  - host: k8s.localhost.pomerium.io
-    http:
-      paths:
-      - backend:
-          service:
-            name: kubernetes.default.svc
-            port:
-              number: 30443
-  tls:
-  - hosts:
-    - k8s.localhost.pomerium.io
-    secretName: k8s.localhost.pomerium.io-tls
+   ```bash
+   helm upgrade --install pomerium/pomerium --set apiProxy.enabled=true
+   ```
 
-```
+1. Create an Ingress for the route to the Kubernetes API server:
+
+   ```yaml
+   apiVersion: networking.k8s.io/v1
+   kind: Ingress
+   metadata:
+     name: k8s
+     annotations:
+       cert-manager.io/issuer: pomerium-issuer
+       ingress.pomerium.io/policy: '[{"allow":{"and":[{"domain":{"is":"pomerium.com"}}]}}]'
+       ingress.pomerium.io/secure_upstream: true
+       ingress.pomerium.io/allow_spdy: true
+   spec:
+     ingressClassName: pomerium
+     rules:
+     - host: k8s.localhost.pomerium.io
+       http:
+         paths:
+         - backend:
+             service:
+               name: kubernetes.default.svc
+               port:
+                 number: 30443
+     tls:
+     - hosts:
+       - k8s.localhost.pomerium.io
+       secretName: k8s.localhost.pomerium.io-tls
+ 
+   ```
 
 ::: details Non-Ingress Route
 
