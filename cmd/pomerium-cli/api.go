@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path"
 
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -70,8 +72,12 @@ func (cmd *apiCmd) exec(*cobra.Command, []string) error {
 
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
+	grpcWebServer := grpcweb.WrapServer(grpcServer, grpcweb.WithOriginFunc(func(origin string) bool {
+		return true
+	}))
 	pb.RegisterConfigServer(grpcServer, cfgSrv)
 	pb.RegisterListenerServer(grpcServer, cli.NewListener(cfgSrv))
 	reflection.Register(grpcServer)
-	return grpcServer.Serve(lis)
+
+	return http.Serve(lis, grpcWebServer)
 }
