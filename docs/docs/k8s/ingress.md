@@ -13,7 +13,7 @@ Use Pomerium as a first-class secure-by-default Ingress Controller. Dynamically 
 
 ## Prerequisites
 
-- A certificate management solution. If you do not already have one in place, this article covers using Cert Manager.
+- A certificate management solution. If you do not already have one in place, this article covers using [cert-manager](https://cert-manager.io/).
 - A Redis backend with high-persistence is highly recommended.
 
 ### System Requirements
