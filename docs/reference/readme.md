@@ -326,7 +326,7 @@ services:
     labels:
       - "traefik.http.routers.verify.rule=Host(`verify.corp.example.com`)"
       # Create a middleware named `foo-add-prefix`
-      - "traefik.http.middlewares.test-auth.forwardauth.authResponseHeaders=X-Pomerium-Authenticated-User-Email,x-pomerium-authenticated-user-id,x-pomerium-authenticated-user-groups,x-pomerium-jwt-assertion"
+      - "traefik.http.middlewares.test-auth.forwardauth.authResponseHeaders=x-pomerium-claim-email,x-pomerium-claim-id,x-pomerium-claim-groups,x-pomerium-jwt-assertion"
       - "traefik.http.middlewares.test-auth.forwardauth.address=http://forwardauth.corp.example.com/?uri=https://verify.corp.example.com"
       - "traefik.http.routers.verify.middlewares=test-auth@docker"
 ```
