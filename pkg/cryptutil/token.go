@@ -7,8 +7,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/btcsuite/btcutil/base58"
 	"github.com/google/uuid"
+
+	"github.com/pomerium/pomerium/pkg/encoding/base58"
 )
 
 // TokenLength is the length of a token.
