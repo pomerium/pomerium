@@ -3,6 +3,7 @@ package autocert
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/caddyserver/certmagic"
+	"github.com/mholt/acmez/acme"
 	"github.com/rs/zerolog"
 	"go.uber.org/zap"
 
@@ -19,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 var (
@@ -136,9 +139,17 @@ func (mgr *Manager) getCertMagicConfig(cfg *config.Config) (*certmagic.Config, e
 		}
 	}
 	acmeMgr := certmagic.NewACMEManager(mgr.certmagic, mgr.acmeTemplate)
-	acmeMgr.Agreed = true
-	if cfg.Options.AutocertOptions.UseStaging {
-		acmeMgr.CA = acmeMgr.TestCA
+	err = configureCertificateAuthority(acmeMgr, cfg.Options.AutocertOptions)
+	if err != nil {
+		return nil, err
+	}
+	err = configureExternalAccountBinding(acmeMgr, cfg.Options.AutocertOptions)
+	if err != nil {
+		return nil, err
+	}
+	err = configureTrustedRoots(acmeMgr, cfg.Options.AutocertOptions)
+	if err != nil {
+		return nil, err
 	}
 	acmeMgr.DisableTLSALPNChallenge = true
 	mgr.certmagic.Issuers = []certmagic.Issuer{acmeMgr}
@@ -333,6 +344,60 @@ func (mgr *Manager) GetConfig() *config.Config {
 	defer mgr.mu.RUnlock()
 
 	return mgr.config
+}
+
+// configureCertificateAuthority configures the acmeMgr ACME Certificate Authority settings.
+func configureCertificateAuthority(acmeMgr *certmagic.ACMEManager, opts config.AutocertOptions) error {
+	acmeMgr.Agreed = true
+	if opts.UseStaging {
+		acmeMgr.CA = acmeMgr.TestCA
+	}
+	if opts.CA != "" {
+		acmeMgr.CA = opts.CA // when a CA is specified, it overrides the staging setting
+	}
+	if opts.Email != "" {
+		acmeMgr.Email = opts.Email
+	}
+	return nil
+}
+
+// configureExternalAccountBinding configures the acmeMgr ACME External Account Binding settings.
+func configureExternalAccountBinding(acmeMgr *certmagic.ACMEManager, opts config.AutocertOptions) error {
+	if opts.EABKeyID != "" || opts.EABMACKey != "" {
+		acmeMgr.ExternalAccount = &acme.EAB{}
+	}
+	if opts.EABKeyID != "" {
+		acmeMgr.ExternalAccount.KeyID = opts.EABKeyID
+	}
+	if opts.EABMACKey != "" {
+		_, err := base64.RawURLEncoding.DecodeString(opts.EABMACKey)
+		if err != nil {
+			return fmt.Errorf("config: decoding base64-urlencoded MAC Key: %w", err)
+		}
+		acmeMgr.ExternalAccount.MACKey = opts.EABMACKey
+	}
+	return nil
+}
+
+// configureTrustedRoots configures the acmeMgr x509 roots to trust when communicating with an ACME CA.
+func configureTrustedRoots(acmeMgr *certmagic.ACMEManager, opts config.AutocertOptions) error {
+	if opts.TrustedCA != "" {
+		// pool effectively contains the certificate(s) in the TrustedCA base64 PEM appended to the system roots
+		pool, err := cryptutil.GetCertPool(opts.TrustedCA, "")
+		if err != nil {
+			return fmt.Errorf("config: creating trusted certificate pool: %w", err)
+		}
+		acmeMgr.TrustedRoots = pool
+	}
+	if opts.TrustedCAFile != "" {
+		// pool effectively contains the certificate(s) in TrustedCAFile appended to the system roots
+		pool, err := cryptutil.GetCertPool("", opts.TrustedCAFile)
+		if err != nil {
+			return fmt.Errorf("config: creating trusted certificate pool: %w", err)
+		}
+		acmeMgr.TrustedRoots = pool
+	}
+	return nil
 }
 
 func sourceHostnames(cfg *config.Config) []string {

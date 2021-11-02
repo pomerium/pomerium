@@ -33,6 +33,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/martinlindhe/base36 v1.1.0
+	github.com/mholt/acmez v1.0.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.4.2
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
@@ -181,7 +182,6 @@ require (
 	github.com/mbilski/exhaustivestruct v1.2.0 // indirect
 	github.com/mgechev/dots v0.0.0-20190921121421-c36f7dcfbb81 // indirect
 	github.com/mgechev/revive v1.1.1 // indirect
-	github.com/mholt/acmez v1.0.0 // indirect
 	github.com/miekg/dns v1.1.42 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect

@@ -182,6 +182,12 @@ message Settings {
   optional string client_crl_file = 75;
   optional string google_cloud_serverless_authentication_service_account = 55;
   optional bool autocert = 56;
+  optional string autocert_ca = 76;
+  optional string autocert_email = 77;
+  optional string autocert_eab_key_id = 78;
+  optional string autocert_eab_mac_key = 79;
+  optional string autocert_trusted_ca = 80;
+  optional string autocert_trusted_ca_file = 81;
   optional bool autocert_use_staging = 57;
   optional bool autocert_must_staple = 58;
   optional string autocert_dir = 59;

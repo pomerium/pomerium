@@ -63,6 +63,36 @@ Autocert requires that ports `80`/`443` be accessible from the internet in order
 :::
 
 
+### Autocert CA
+- Environmental Variable: `AUTOCERT_CA`
+- Config File Key: `autocert_ca`
+- Type: `string` containing the directory URL of an ACME CA (e.g. `https://acme.zerossl.com/v2/DV90` for ZeroSSL)
+- Optional
+
+Autocert CA is the directory URL of the ACME CA to use when requesting certificates.
+
+:::tip
+
+This will overrule the "Autocert Use Staging" setting if set.
+
+:::
+
+
+### Autocert Email
+- Environmental Variable: `AUTOCERT_EMAIL`
+- Config File Key: `autocert_email`
+- Type: `string` containing the email address to use when registering an account
+- Optional
+
+Autocert Email is the email address to use when requesting certificates from an ACME CA.
+
+:::tip
+
+The CA may contact you at this address, for example when a certificate expires.
+
+:::
+
+
 ### Autocert Must-Staple
 - Environmental Variable: `AUTOCERT_MUST_STAPLE`
 - Config File Key: `autocert_must_staple`
@@ -101,6 +131,37 @@ Autocert directory is the path which autocert will store x509 certificate data.
 - Optional
 
 Let's Encrypt has strict [usage limits](https://letsencrypt.org/docs/rate-limits/). Enabling this setting allows you to use Let's Encrypt's [staging environment](https://letsencrypt.org/docs/staging-environment/) which has much more lax usage limits.
+
+
+### Autocert EAB Key ID
+- Environmental Variable: `AUTOCERT_EAB_KEY_ID`
+- Config File Key: `autocert_eab_key_id`
+- Type: `string` containing the identifier for an ACME EAB key to use
+- Optional
+
+Autocert EAB Key ID is the key identifier when requesting a certificate from a CA with External Account Binding enabled.
+
+For more information, please see [RFC8555-#7.3.4](https://datatracker.ietf.org/doc/html/rfc8555#section-7.3.4).
+
+
+### Autocert EAB MAC Key
+- Environmental Variable: `AUTOCERT_EAB_MAC_KEY`
+- Config File Key: `autocert_eab_mac_key`
+- Type: `string` containing a base64url-encoded secret key
+- Optional
+
+Autocert EAB MAC Key is the base64url-encoded secret key corresponding to the Autocert EAB Key ID.
+
+This setting is required when Autocert EAB Key ID is set.
+
+
+### Autocert Trusted Certificate Authority
+- Environment Variable: `AUTOCERT_TRUSTED_CA` / `AUTOCERT_TRUSTED_CA_FILE`
+- Config File Key: `autocert_trusted_ca` / `autocert_trusted_ca_file`
+- Type: [base64 encoded] `string` or relative file location
+- Optional
+
+The Autocert Trusted Certificate Authority is the x509 CA (bundle) used when communicating with a CA supporting the ACME protocol. If not set, the system trusted roots will be used to verify TLS connections to the ACME CA.
 
 
 ### Certificates
