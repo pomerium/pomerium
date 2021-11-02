@@ -137,10 +137,10 @@ Most configuration keys in non-Kubernetes deployments can be specified as annota
 - [`ingress.pomerium.io/allowed_idp_claims`]
 - [`ingress.pomerium.io/allowed_users`]
 - [`ingress.pomerium.io/cors_allow_preflight`]
-- [`ingress.pomerium.io/host_path_regex_rewrite_pattern]
-- [`ingress.pomerium.io/host_path_regex_rewrite_substitution]
-- [`ingress.pomerium.io/host_rewrite]
-- [`ingress.pomerium.io/host_rewrite_header]
+- [`ingress.pomerium.io/host_path_regex_rewrite_pattern`]
+- [`ingress.pomerium.io/host_path_regex_rewrite_substitution`]
+- [`ingress.pomerium.io/host_rewrite`]
+- [`ingress.pomerium.io/host_rewrite_header`]
 - [`ingress.pomerium.io/idle_timeout`]
 - [`ingress.pomerium.io/outlier_detection`]
 - [`ingress.pomerium.io/pass_identity_headers`]
@@ -161,7 +161,7 @@ The remaining annotations are specific to or behave differently in this context:
 | Annotation                        | Description |
 | --------------------------------- | ------------------------------------------------------------------------------------------- |
 | `ingress.pomerium.io/tls_custom_ca_secret`            | Name of Kubernetes `tls` Secret containing a custom [CA certificate][`tls_custom_ca_secret`] for the upstream. |
-| `ingress.pomerium.io/tls_client_secret`               | Name of Kubernetes `tls` Secret containing a [client certificate][`tls_client_secret`] for connecting to the upstream. |
+| `ingress.pomerium.io/tls_client_secret`               | Name of Kubernetes `tls` Secret containing a [client certificate][tls_client_certificate] for connecting to the upstream. |
 | `ingress.pomerium.io/tls_downstream_client_ca_secret` | Name of Kubernetes `tls` Secret containing a [Client CA][client-certificate-authority] for validating downstream clients. |
 | `ingress.pomerium.io/secure_upstream`                 | When set to true, use `https` when connecting to the upstream endpoint. |
 
@@ -340,10 +340,10 @@ For more information on the Pomerium Ingress Controller or the Kubernetes concep
 [`ingress.pomerium.io/allowed_users`]: /reference/readme.md#allowed-users
 [`ingress.pomerium.io/cors_allow_preflight`]: /reference/readme.md#cors-preflight
 [`ingress.pomerium.io/health_checks`]: /reference/readme.md#health-checks
-[`ingress.pomerium.io/host_path_regex_rewrite_pattern]: /reference/readme.md#host-rewrite
-[`ingress.pomerium.io/host_path_regex_rewrite_substitution]: /reference/readme.md#host-rewrite
-[`ingress.pomerium.io/host_rewrite]: /reference/readme.md#host-rewrite
-[`ingress.pomerium.io/host_rewrite_header]: /reference/readme.md#host-rewrite
+[`ingress.pomerium.io/host_path_regex_rewrite_pattern`]: /reference/readme.md#host-rewrite
+[`ingress.pomerium.io/host_path_regex_rewrite_substitution`]: /reference/readme.md#host-rewrite
+[`ingress.pomerium.io/host_rewrite`]: /reference/readme.md#host-rewrite
+[`ingress.pomerium.io/host_rewrite_header`]: /reference/readme.md#host-rewrite
 [`ingress.pomerium.io/idle_timeout`]: /reference/readme.md#idle-timeout
 [`ingress.pomerium.io/lb_config`]: /reference/readme.md#load-balancing-policy-config
 [`ingress.pomerium.io/outlier_detection`]: /reference/readme.md#outlier-detection
@@ -355,7 +355,7 @@ For more information on the Pomerium Ingress Controller or the Kubernetes concep
 [`ingress.pomerium.io/set_request_headers`]: /reference/readme.md#set-request-headers
 [`ingress.pomerium.io/set_response_headers`]: /reference/readme.md#set-response-headers
 [`ingress.pomerium.io/timeout`]: /reference/readme.md#route-timeout
-[`tls_client_certificate`]: /reference/readme.md#tls-client-certificate
+[tls_client_certificate]: /reference/readme.md#tls-client-certificate
 [`tls_custom_ca_secret`]: /reference/readme.md#tls-custom-certificate-authority
 [client-certificate-authority]: /reference/readme.md#client-certificate-authority
 [`ingress.pomerium.io/tls_server_name`]: /reference/readme.md#tls-server-name
