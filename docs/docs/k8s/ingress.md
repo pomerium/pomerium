@@ -9,12 +9,12 @@ meta:
 
 # Kubernetes Ingress Controller
 
-Use Pomerium as a first-class secure-by-default Ingress Controller. Dynamically provision routes from Ingress resources and set policy based on annotations. By defining routes as Ingress resources you can independently create and remove them from Pomerium's configuration. This enables workflows more native to Kubernetes environments such as actions based on pull requests.
+Use Pomerium as a first-class secure-by-default Ingress Controller. The Pomerium Ingress Controller enables workflows more native to Kubernetes environments, such as Git-Ops style actions based on pull requests. Dynamically provision routes from Ingress resources and set policy based on annotations. By defining routes as Ingress resources you can independently create and remove them from Pomerium's configuration.
 
 ## Prerequisites
 
 - A certificate management solution. If you do not already have one in place, this article covers using [cert-manager](https://cert-manager.io/).
-- A Redis backend with high-persistence is highly recommended.
+- A [Redis](https://redis.io/) backend with high [persistence](https://redis.io/topics/persistence) is highly recommended.
 
 ### System Requirements
 
@@ -33,7 +33,7 @@ Only one Ingress Controller instance/replica is supported per Pomerium cluster.
 
 ### Helm
 
-Our instructions for [Installing Pomerium Using Helm](/docs/k8s/helm.md) includes the Ingress Controller as part of the documented configuration.
+Our instructions for [Installing Pomerium Using Helm](/docs/k8s/helm.md) includes the Ingress Controller as part of the documented configuration. You can confirm by looking for this line in `pomerium-values.yaml`:
 
 
 ```yaml
@@ -49,16 +49,16 @@ You may deploy your own manifestations by using the `pomerium/ingress-controller
 
 |  Flag                          | Description                                                          |
 | ------------------------------ | -------------------------------------------------------------------- |
-| `--databroker-service-url`     | the databroker service url
-| `--databroker-tls-ca`          | base64 encoded tls CA
-| `--databroker-tls-ca-file`     | tls CA file path for the databroker connection connection
+| `--databroker-service-url`     | The databroker service url
+| `--databroker-tls-ca`          | `base64` encoded tls CA
+| `--databroker-tls-ca-file`     | TLS CA file path for the databroker connection connection
 | `--health-probe-bind-address`  | The address the probe endpoint binds to. (default ":8081")
 | `--metrics-bind-address`       | The address the metric endpoint binds to. (default ":8080")
 | `--name`                       | IngressClass controller name (default "pomerium.io/ingress-controller")
-| `--namespaces`                 | namespaces to watch, or none to watch all namespaces
+| `--namespaces`                 | Namespaces to watch, or `none` to watch all namespaces
 | `--prefix`                     | Ingress annotation prefix (default "ingress.pomerium.io")
-| `--shared-secret`              | base64-encoded shared secret for communicating with databroker
-| `--update-status-from-service` | update ingress status from given service status (pomerium-proxy)|
+| `--shared-secret`              | `base64` encoded shared secret for communicating with databroker
+| `--update-status-from-service` | Update ingress status from given service status (pomerium-proxy)|
 
 The helm chart exposes a subset of these flags for appropriate customization.
 
@@ -66,8 +66,9 @@ The helm chart exposes a subset of these flags for appropriate customization.
 
 ### Defining Routes
 
-If you've tested Pomerium using the all-in-one service, you're probably familiar with configuring routes in Pomerium's `config.yaml`. In this environment, each route is defined as an Ingress resource in the Kubernetes API.
-The Ingress Controller will monitor Ingress resources in the cluster, creating a Pomerium route definition for each one.  Policy and other configuration options for the route are set by using annotations starting with `ingress.pomerium.io/`.
+If you've tested Pomerium using the [all-in-one binary](/docs/install/binary.md), you're probably familiar with configuring routes in Pomerium's [`config.yaml`](/docs/install/binary.md#configuration-file). When using the Pomerium Ingress Controller, each route is defined as an Ingress resource in the Kubernetes API.
+
+The Ingress Controller will monitor Ingress resources in the cluster, creating a Pomerium route definition for each one. Policy and other configuration options for the route are set by using annotations starting with `ingress.pomerium.io/`.
 
 Example:
 
@@ -156,7 +157,7 @@ Most configuration keys in non-Kubernetes deployments can be specified as annota
 
 :::
 
-The remaining annotations are specific to or behave differently in this context:
+The remaining annotations are specific to or behave differently than they do when using Pomerium without the Ingress Controller:
 
 | Annotation                        | Description |
 | --------------------------------- | ------------------------------------------------------------------------------------------- |
@@ -171,11 +172,11 @@ Every value for the annotations above must be in `string` format.
 
 :::
 
-### Cert Manager Integration
+### cert-manager Integration
 
-Pomerium Ingress Controller supports utilizing [cert-manager](https://cert-manager.io/) for provisioning certificates.  These may come from the [`Ingress` shim](https://cert-manager.io/docs/usage/ingress/) or explicitly configured [`Certificate` resources](https://cert-manager.io/docs/usage/certificate/).
+Pomerium Ingress Controller can use [cert-manager](https://cert-manager.io/) to automatically provision certificates. These may come from the [ingress-shim](https://cert-manager.io/docs/usage/ingress/) or explicitly configured [`Certificate` resources](https://cert-manager.io/docs/usage/certificate/).
 
-To use [HTTP01 Challenges](https://cert-manager.io/docs/configuration/acme/http01/) with your Issuer, configure the solver class to match the Ingress Controller.  The Ingress Controller will automatically configure policy to facilitate the HTTP01 challenge:
+To use [HTTP01 Challenges](https://cert-manager.io/docs/configuration/acme/http01/) with your [Issuer](https://cert-manager.io/docs/concepts/issuer/), configure the solver class to match the Ingress Controller. The Ingress Controller will automatically configure policy to facilitate the HTTP01 challenge:
 
 ```yaml
 apiVersion: cert-manager.io/v1
@@ -193,7 +194,7 @@ spec:
          class: pomerium
 ```
 
-An example of using the Ingress Shim with an Ingress resource managed by Pomerium:
+An example of using the [ingress-shim](https://cert-manager.io/docs/usage/ingress/) with an Ingress resource managed by Pomerium:
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -224,7 +225,7 @@ spec:
 
 ## HTTPS endpoints
 
-The `Ingress` spec assumes that all communications to the service is sent in plaintext. For more information, see the [TLS](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls) section of the Ingress API documentation. Pomerium supports HTTPS communication with upstream endpoints, including mTLS.
+The `Ingress` spec assumes that all communications to the upstream service is sent in plaintext. For more information, see the [TLS](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls) section of the Ingress API documentation. Pomerium supports HTTPS communication with upstream endpoints, including mTLS.
 
 Annotate your `Ingress` with
 
@@ -232,18 +233,18 @@ Annotate your `Ingress` with
 ingress.pomerium.io/secure_upstream: true
 ```
 
-Additional TLS may be supplied by creating a Kubernetes secret(s) in the same namespaces as `Ingress` resource. Please note that we do not support file paths or embedded secret references.
+Additional TLS certificates may be supplied by creating a Kubernetes secret(s) in the same namespaces as the `Ingress` resource. Please note that we do not support file paths or embedded secret references.
 
 - [`ingress.pomerium.io/tls_client_secret`](https://pomerium.io/reference/readme.md#tls-client-certificate)
 - [`ingress.pomerium.io/tls_custom_ca_secret`](https://pomerium.io/reference/readme.md#tls-custom-certificate-authority)
 - [`ingress.pomerium.io/tls_downstream_client_ca_secret`](#supported-annotations)
 
-Please note that the referenced `tls_client_secret` must be a [TLS Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets). `tls_custom_ca_secret` and `tls_downstream_client_ca_secret` must contain `ca.crt` containing a .PEM encoded (Base64-encoded DER format) public certificate.
+Please note that the referenced `tls_client_secret` must be a [TLS Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets). `tls_custom_ca_secret` and `tls_downstream_client_ca_secret` must contain `ca.crt` containing a .PEM encoded (base64-encoded DER format) public certificate.
 
 
 ### External services
 
-You may refer to external services by defining a `Service` with `externalName`.
+You may refer to external services by defining a [Service](https://kubernetes.io/docs/concepts/services-networking/service/) with `externalName`.
 
 I.e. if you have `https://my-existing-service.corp.com`:
 
