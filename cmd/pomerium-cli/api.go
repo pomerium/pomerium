@@ -10,8 +10,12 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/hashicorp/go-multierror"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 
 	"github.com/pomerium/pomerium/internal/cli"
+	"github.com/pomerium/pomerium/internal/log"
 	pb "github.com/pomerium/pomerium/pkg/grpc/cli"
 )
 
@@ -20,8 +24,9 @@ func init() {
 }
 
 type apiCmd struct {
-	listenAddr string
-	configPath string
+	jsonRPCAddr string
+	grpcAddr    string
+	configPath  string
 
 	cobra.Command
 }
@@ -41,7 +46,8 @@ func apiCommand() *cobra.Command {
 		cfgDir = path.Join(cfgDir, "PomeriumDesktop", "config.json")
 	}
 	flags := cmd.Flags()
-	flags.StringVar(&cmd.listenAddr, "listen-addr", "127.0.0.1:5627", "address api server should listen to")
+	flags.StringVar(&cmd.jsonRPCAddr, "json-addr", "127.0.0.1:8900", "address json api server should listen to")
+	flags.StringVar(&cmd.grpcAddr, "grpc-addr", "127.0.0.1:8800", "address json api server should listen to")
 	flags.StringVar(&cmd.configPath, "config-path", cfgDir, "path to config file")
 
 	return &cmd.Command
@@ -60,26 +66,45 @@ func (cmd *apiCmd) exec(c *cobra.Command, args []string) error {
 		return fmt.Errorf("config %s: %w", cmd.configPath, err)
 	}
 
-	lis, err := net.Listen("tcp", cmd.listenAddr)
-	if err != nil {
-		return err
-	}
-
 	srv, err := cli.NewServer(cli.FileConfigProvider(cmd.configPath))
 	if err != nil {
 		return err
 	}
 
 	ctx := c.Context()
+	eg, ctx := errgroup.WithContext(ctx)
 
-	mux := runtime.NewServeMux()
-	if err := multierror.Append(
-		pb.RegisterConfigHandlerServer(ctx, mux, srv),
-		pb.RegisterListenerHandlerServer(ctx, mux, srv),
-		mux.HandlePath(http.MethodGet, "/updates", cli.ListenerUpdateStream(srv)),
-	).ErrorOrNil(); err != nil {
-		return err
-	}
+	eg.Go(func() error {
+		lis, err := net.Listen("tcp", cmd.jsonRPCAddr)
+		if err != nil {
+			return err
+		}
+		log.Info(ctx).Str("address", lis.Addr().String()).Msg("json-rpc")
 
-	return http.Serve(lis, mux)
+		mux := runtime.NewServeMux()
+		if err := multierror.Append(
+			pb.RegisterConfigHandlerServer(ctx, mux, srv),
+			pb.RegisterListenerHandlerServer(ctx, mux, srv),
+			mux.HandlePath(http.MethodGet, "/updates", cli.ListenerUpdateStream(srv)),
+		).ErrorOrNil(); err != nil {
+			return err
+		}
+		return http.Serve(lis, mux)
+	})
+	eg.Go(func() error {
+		lis, err := net.Listen("tcp", cmd.grpcAddr)
+		if err != nil {
+			return err
+		}
+		log.Info(ctx).Str("address", lis.Addr().String()).Msg("grpc")
+
+		var opts []grpc.ServerOption
+		grpcSrv := grpc.NewServer(opts...)
+		pb.RegisterConfigServer(grpcSrv, srv)
+		pb.RegisterListenerServer(grpcSrv, srv)
+		reflection.Register(grpcSrv)
+		return grpcSrv.Serve(lis)
+	})
+
+	return eg.Wait()
 }
