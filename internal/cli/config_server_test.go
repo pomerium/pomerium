@@ -28,7 +28,7 @@ func TestLoadSave(t *testing.T) {
 	ctx := context.Background()
 	ls := new(memLS)
 
-	cfg, err := cli.NewConfigServer(ls)
+	cfg, err := cli.NewServer(ls)
 	require.NoError(t, err, "load empty config")
 
 	var ids []string
@@ -57,7 +57,7 @@ func TestLoadSave(t *testing.T) {
 		}
 	}
 
-	cfg, err = cli.NewConfigServer(ls)
+	cfg, err = cli.NewServer(ls)
 	require.NoError(t, err, "load config")
 
 	selectors := map[string]*pb.Selector{

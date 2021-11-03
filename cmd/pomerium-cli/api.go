@@ -63,15 +63,15 @@ func (cmd *apiCmd) exec(*cobra.Command, []string) error {
 		return err
 	}
 
-	cfgSrv, err := cli.NewConfigServer(cli.FileLoadSaver(cmd.configPath))
+	srv, err := cli.NewServer(cli.FileConfigProvider(cmd.configPath))
 	if err != nil {
 		return err
 	}
 
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
-	pb.RegisterConfigServer(grpcServer, cfgSrv)
-	pb.RegisterListenerServer(grpcServer, cli.NewListener(cfgSrv))
+	pb.RegisterConfigServer(grpcServer, srv)
+	pb.RegisterListenerServer(grpcServer, srv)
 	reflection.Register(grpcServer)
 
 	return grpcServer.Serve(lis)

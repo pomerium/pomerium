@@ -2,6 +2,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -15,12 +16,17 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
+var (
+	errTagIndexInconsistent = errors.New("tag index inconsistent. this is a bug")
+	errIDRequired           = errors.New("id must be set")
+)
+
 type config struct {
 	byID  map[string]*pb.Record
 	byTag map[string]map[string]*pb.Record
 }
 
-func loadConfig(ls LoadSaver) (*config, error) {
+func loadConfig(ls ConfigProvider) (*config, error) {
 	data, err := ls.Load()
 	if err != nil {
 		return nil, fmt.Errorf("load: %w", err)
@@ -52,7 +58,7 @@ func loadConfig(ls LoadSaver) (*config, error) {
 	return cfg, nil
 }
 
-func (cfg *config) save(ls LoadSaver) error {
+func (cfg *config) save(ls ConfigProvider) error {
 	records := make([]*pb.Record, 0, len(cfg.byID))
 	for _, rec := range cfg.byID {
 		records = append(records, rec)
@@ -97,31 +103,53 @@ func (cfg *config) clearTags(r *pb.Record) error {
 }
 
 func (cfg *config) upsert(r *pb.Record) {
+	var id = r.GetId()
 	if r.Id == nil {
-		id := uuid.NewString()
+		id = uuid.NewString()
 		r.Id = &id
 	}
 
-	cfg.byID[*r.Id] = r
+	current := cfg.byID[id]
+	if current != nil && r.Conn == nil {
+		r.Conn = current.Conn
+	}
+	cfg.byID[id] = r
 	for _, t := range r.Tags {
 		m := cfg.byTag[t]
 		if m == nil {
 			m = make(map[string]*pb.Record)
 			cfg.byTag[t] = m
 		}
-		m[*r.Id] = r
+		m[id] = r
 	}
 }
 
-func (cfg *config) listAll() *pb.Records {
+func (cfg *config) delete(r *pb.Record) error {
+	if r.Id == nil {
+		return errIDRequired
+	}
+
+	delete(cfg.byID, r.GetId())
+	for _, t := range r.GetTags() {
+		m := cfg.byTag[t]
+		if m == nil {
+			return errTagIndexInconsistent
+		}
+		delete(m, r.GetId())
+	}
+
+	return nil
+}
+
+func (cfg *config) listAll() []*pb.Record {
 	records := make([]*pb.Record, 0, len(cfg.byID))
 	for _, r := range cfg.byID {
 		records = append(records, r)
 	}
-	return &pb.Records{Records: records}
+	return records
 }
 
-func (cfg *config) listByIDs(ids []string) (*pb.Records, error) {
+func (cfg *config) listByIDs(ids []string) ([]*pb.Record, error) {
 	var records []*pb.Record
 	for _, id := range ids {
 		r, ok := cfg.byID[id]
@@ -130,10 +158,10 @@ func (cfg *config) listByIDs(ids []string) (*pb.Records, error) {
 		}
 		records = append(records, r)
 	}
-	return &pb.Records{Records: records}, nil
+	return records, nil
 }
 
-func (cfg *config) listByTags(tags []string) (*pb.Records, error) {
+func (cfg *config) listByTags(tags []string) ([]*pb.Record, error) {
 	var records []*pb.Record
 	for _, tag := range tags {
 		m, ok := cfg.byTag[tag]
@@ -144,5 +172,5 @@ func (cfg *config) listByTags(tags []string) (*pb.Records, error) {
 			records = append(records, r)
 		}
 	}
-	return &pb.Records{Records: records}, nil
+	return records, nil
 }
