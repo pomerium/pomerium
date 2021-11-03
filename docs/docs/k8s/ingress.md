@@ -55,7 +55,7 @@ You may deploy the Ingress controller from your own manifests by using the `pome
 | `--health-probe-bind-address`  | The address the probe endpoint binds to. (default ":8081")
 | `--metrics-bind-address`       | The address the metric endpoint binds to. (default ":8080")
 | `--name`                       | IngressClass controller name (default "pomerium.io/ingress-controller")
-| `--namespaces`                 | Namespaces to watch, or `none` to watch all namespaces
+| `--namespaces`                 | Namespaces to watch, omit to watch all namespaces
 | `--prefix`                     | Ingress annotation prefix (default "ingress.pomerium.io")
 | `--shared-secret`              | `base64` encoded shared secret for communicating with databroker
 | `--update-status-from-service` | Update ingress status from given service status (pomerium-proxy)|
