@@ -2,11 +2,25 @@ syntax = "proto3";
 
 package pomerium.cli;
 option go_package = "github.com/pomerium/pomerium/pkg/grpc/cli";
+import "google/api/annotations.proto";
 
 service Config {
-  rpc List(Selector) returns (Records);
-  rpc Delete(Selector) returns (DeleteRecordsResponse);
-  rpc Upsert(Record) returns (Record);
+  rpc List(Selector) returns (Records) {
+    option (google.api.http) = {
+      get : "/config"
+    };
+  };
+  rpc Delete(Selector) returns (DeleteRecordsResponse) {
+    option (google.api.http) = {
+      delete : "/config"
+    };
+  };
+  rpc Upsert(Record) returns (Record) {
+    option (google.api.http) = {
+      put : "/config"
+      body : "*"
+    };
+  };
   rpc Export(ExportRequest) returns (ConfigData);
   rpc Import(ImportRequest) returns (ImportResponse);
 }
@@ -67,7 +81,12 @@ message ImportResponse {}
 // Listener service controls listeners
 service Listener {
   // Listen starts connection listener
-  rpc Update(ListenerUpdateRequest) returns (ListenerStatus);
+  rpc Update(ListenerUpdateRequest) returns (ListenerStatus) {
+    option (google.api.http) = {
+      post : "/listener"
+      body : "*"
+    };
+  }
   // StatusUpdates opens a stream to listen to connection status updates
   // a client has to subscribe and continuously
   // listen to the broadcasted updates

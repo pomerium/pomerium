@@ -115,4 +115,7 @@ _import_paths=$(join_by , "${_imports[@]}")
 
 ../../scripts/protoc -I ./cli/ -I ./ \
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./cli/." \
+  --grpc-gateway_out="./cli/." \
+  --grpc-gateway_opt logtostderr=true \
+  --grpc-gateway_opt "paths=source_relative" \
   ./cli/api.proto

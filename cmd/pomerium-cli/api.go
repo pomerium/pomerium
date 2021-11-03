@@ -3,12 +3,13 @@ package main
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path"
 
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/hashicorp/go-multierror"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 
 	"github.com/pomerium/pomerium/internal/cli"
 	pb "github.com/pomerium/pomerium/pkg/grpc/cli"
@@ -28,8 +29,9 @@ type apiCmd struct {
 func apiCommand() *cobra.Command {
 	cmd := &apiCmd{
 		Command: cobra.Command{
-			Use:   "api",
-			Short: "run api server",
+			Use:    "api",
+			Short:  "run api server",
+			Hidden: true,
 		},
 	}
 	cmd.RunE = cmd.exec
@@ -53,7 +55,7 @@ func (cmd *apiCmd) makeConfigPath() error {
 	return os.MkdirAll(path.Dir(cmd.configPath), 0700)
 }
 
-func (cmd *apiCmd) exec(*cobra.Command, []string) error {
+func (cmd *apiCmd) exec(c *cobra.Command, args []string) error {
 	if err := cmd.makeConfigPath(); err != nil {
 		return fmt.Errorf("config %s: %w", cmd.configPath, err)
 	}
@@ -68,11 +70,16 @@ func (cmd *apiCmd) exec(*cobra.Command, []string) error {
 		return err
 	}
 
-	var opts []grpc.ServerOption
-	grpcServer := grpc.NewServer(opts...)
-	pb.RegisterConfigServer(grpcServer, srv)
-	pb.RegisterListenerServer(grpcServer, srv)
-	reflection.Register(grpcServer)
+	ctx := c.Context()
 
-	return grpcServer.Serve(lis)
+	mux := runtime.NewServeMux()
+	if err := multierror.Append(
+		pb.RegisterConfigHandlerServer(ctx, mux, srv),
+		pb.RegisterListenerHandlerServer(ctx, mux, srv),
+		mux.HandlePath(http.MethodGet, "/updates", cli.ListenerUpdateStream(srv)),
+	).ErrorOrNil(); err != nil {
+		return err
+	}
+
+	return http.Serve(lis, mux)
 }

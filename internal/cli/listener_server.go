@@ -5,9 +5,6 @@ import (
 	"net"
 	"sync"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	pb "github.com/pomerium/pomerium/pkg/grpc/cli"
 )
 
@@ -75,6 +72,16 @@ func (s *listenerServer) disconnectLocked(ids []string) (*pb.ListenerStatus, err
 	}, nil
 }
 
-func (s *listenerServer) StatusUpdates(*pb.Selector, pb.Listener_StatusUpdatesServer) error {
-	return status.Errorf(codes.Unimplemented, "method StatusUpdates not implemented")
+func (s *listenerServer) StatusUpdates(sel *pb.Selector, upd pb.Listener_StatusUpdatesServer) error {
+	_ = upd.Send(&pb.ConnectionStatusUpdates{
+		Id:       "aaa",
+		PeerAddr: "aaadr",
+		Status:   pb.ConnectionStatusUpdates_CONNECTION_STATUS_CONNECTED,
+	})
+	_ = upd.Send(&pb.ConnectionStatusUpdates{
+		Id:       "bbb",
+		PeerAddr: "bbababa",
+		Status:   pb.ConnectionStatusUpdates_CONNECTION_STATUS_CONNECTED,
+	})
+	return nil
 }
