@@ -50,7 +50,7 @@ You may deploy your own manifestations by using the `pomerium/ingress-controller
 |  Flag                          | Description                                                          |
 | ------------------------------ | -------------------------------------------------------------------- |
 | `--databroker-service-url`     | The databroker service url
-| `--databroker-tls-ca`          | `base64` encoded tls CA
+| `--databroker-tls-ca`          | `base64` encoded TLS CA
 | `--databroker-tls-ca-file`     | TLS CA file path for the databroker connection connection
 | `--health-probe-bind-address`  | The address the probe endpoint binds to. (default ":8081")
 | `--metrics-bind-address`       | The address the metric endpoint binds to. (default ":8080")
