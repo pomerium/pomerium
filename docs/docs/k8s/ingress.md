@@ -43,7 +43,7 @@ ingressController:
 
 ### Docker Image
 
-You may deploy your own manifestations by using the `pomerium/ingress-controller` docker image.
+You may deploy the Ingress controller from your own manifests by using the `pomerium/ingress-controller` docker image.
 
 ## Configuration
 
