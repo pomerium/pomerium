@@ -25,7 +25,7 @@ Use Pomerium as a first-class secure-by-default Ingress Controller. The Pomerium
 
 ::: warning
 
-Only one Ingress Controller instance/replica is supported per Pomerium cluster.
+Only one Ingress Controller instance is supported per Pomerium cluster.
 
 :::
 
