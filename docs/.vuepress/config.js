@@ -201,6 +201,7 @@ module.exports = {
             "argo",
             "cloud-run",
             "code-server",
+            "grafana",
             "istio",
             "jwt-verification",
             "kubernetes",
