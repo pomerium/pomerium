@@ -75,7 +75,7 @@ localhost:52046>
 
 You may specify an optional address and port for the `tcp` command to listen on.
 
-`-` specifies that STDIN and STDOUT should be directly attached to the remote TCP connection.  This is useful for [SSH](#ssh-helper-configuration) or for sending data through a shell pipe.
+`-` specifies that STDIN and STDOUT should be directly attached to the remote TCP connection.  This is useful for [SSH](/docs/tcp/ssh.md#tunnel-and-connect-simultaneously) or for sending data through a shell pipe.
 
 ### Custom URL
 

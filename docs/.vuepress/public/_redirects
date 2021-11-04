@@ -68,3 +68,5 @@
 
 /docs/client.html                           /docs/tcp/client.html
 /docs/topics/tcp-support.html               /docs/tcp/
+/docs/install/helm.html                     /docs/k8s/helm.html
+/docs/topics/kubernetes-integration.html    /docs/k8s/

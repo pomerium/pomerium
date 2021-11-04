@@ -9,7 +9,7 @@ description: This article describes various ways to install pomerium
 Pomerium is shipped in multiple formats and architectures to suit a variety of deployment patterns. There are two binaries:
 
 - `pomerium` is the primary server component. It is a monolithic binary that can perform the function of any [services mode](/reference/readme.md#service-mode).
-- `pomerium-cli` (optional) is a command-line client for working with Pomerium.  Functions include acting as an authentication helper for tools like [kubectl](topics/kubernetes-integration.md).
+- `pomerium-cli` (optional) is a command-line client for working with Pomerium.  Functions include acting as an authentication helper for tools like [kubectl](/docs/k8s/readme.md).
 
 
 [[toc]]
@@ -101,7 +101,7 @@ See the [README](https://github.com/pomerium/pomerium-helm/blob/master/charts/po
 
 ::: tip
 
-Officially supported build platforms are limited by [envoy proxy](https://www.envoyproxy.io/). 
+Officially supported build platforms are limited by [envoy proxy](https://www.envoyproxy.io/).
 
 :::
 
