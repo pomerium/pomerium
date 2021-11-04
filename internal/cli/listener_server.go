@@ -5,11 +5,15 @@ import (
 	"net"
 	"sync"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	pb "github.com/pomerium/pomerium/pkg/grpc/cli"
 )
 
 type listenerServer struct {
 	sync.Locker
+	EventBroadcaster
 	RecordLocker
 	TunnelProvider
 }
@@ -52,7 +56,7 @@ func (s *listenerServer) connectLocked(ids []string) (*pb.ListenerStatus, error)
 			status.Errors[id] = err.Error()
 			continue
 		}
-		go tunnelAcceptLoop(ctx, li, tun)
+		go tunnelAcceptLoop(ctx, id, li, tun, s.EventBroadcaster)
 		status.Active[id] = li.Addr().String()
 	}
 
@@ -72,16 +76,20 @@ func (s *listenerServer) disconnectLocked(ids []string) (*pb.ListenerStatus, err
 	}, nil
 }
 
-func (s *listenerServer) StatusUpdates(sel *pb.Selector, upd pb.Listener_StatusUpdatesServer) error {
-	_ = upd.Send(&pb.ConnectionStatusUpdates{
-		Id:       "aaa",
-		PeerAddr: "aaadr",
-		Status:   pb.ConnectionStatusUpdates_CONNECTION_STATUS_CONNECTED,
-	})
-	_ = upd.Send(&pb.ConnectionStatusUpdates{
-		Id:       "bbb",
-		PeerAddr: "bbababa",
-		Status:   pb.ConnectionStatusUpdates_CONNECTION_STATUS_CONNECTED,
-	})
+func (s *listenerServer) StatusUpdates(req *pb.StatusUpdatesRequest, upd pb.Listener_StatusUpdatesServer) error {
+	ch, err := s.Subscribe(upd.Context(), req.ConnectionId)
+	if err != nil {
+		return err
+	}
+
+	for u := range ch {
+		if err := upd.Send(u); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func (s *listenerServer) GetStatus(ctx context.Context, req *pb.Selector) (*pb.ListenerStatus, error) {
+	return nil, status.Error(codes.Internal, "TODO: implement")
 }

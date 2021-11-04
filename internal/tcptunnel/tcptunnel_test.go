@@ -80,7 +80,7 @@ func TestTunnel(t *testing.T) {
 	tun := New(
 		WithDestinationHost("example.com:9999"),
 		WithProxyHost(srv.Listener.Addr().String()))
-	err = tun.Run(ctx, readWriter{strings.NewReader("HELLO WORLD\n"), &buf})
+	err = tun.Run(ctx, readWriter{strings.NewReader("HELLO WORLD\n"), &buf}, DiscardEvents())
 	if !assert.NoError(t, err) {
 		return
 	}

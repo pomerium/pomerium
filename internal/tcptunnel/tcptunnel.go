@@ -56,7 +56,7 @@ func (tun *Tunnel) RunListener(ctx context.Context, listenerAddress string) erro
 	bo.MaxElapsedTime = 0
 
 	for {
-		conn, err := li.Accept()
+		c, err := li.Accept()
 		if err != nil {
 			// canceled, so ignore the error and return
 			if ctx.Err() != nil {
@@ -76,19 +76,19 @@ func (tun *Tunnel) RunListener(ctx context.Context, listenerAddress string) erro
 		}
 		bo.Reset()
 
-		go func() {
-			defer func() { _ = conn.Close() }()
+		go func(conn net.Conn) {
+			defer func() { _ = c.Close() }()
 
-			err := tun.Run(ctx, conn)
+			err := tun.Run(ctx, c, DiscardEvents())
 			if err != nil {
 				log.Error(ctx).Err(err).Msg("tcptunnel: error serving local connection")
 			}
-		}()
+		}(c)
 	}
 }
 
 // Run establishes a TCP tunnel via HTTP Connect and forwards all traffic from/to local.
-func (tun *Tunnel) Run(ctx context.Context, local io.ReadWriter) error {
+func (tun *Tunnel) Run(ctx context.Context, local io.ReadWriter, evt TunnelEvents) error {
 	rawJWT, err := tun.cfg.jwtCache.LoadJWT(tun.jwtCacheKey())
 	switch {
 	// if there is no error, or it is one of the pre-defined cliutil errors,
@@ -100,15 +100,16 @@ func (tun *Tunnel) Run(ctx context.Context, local io.ReadWriter) error {
 	default:
 		return fmt.Errorf("tcptunnel: failed to load JWT: %w", err)
 	}
-	return tun.run(ctx, local, rawJWT, 0)
+	return tun.run(ctx, evt, local, rawJWT, 0)
 }
 
-func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string, retryCount int) error {
+func (tun *Tunnel) run(ctx context.Context, evt TunnelEvents, local io.ReadWriter, rawJWT string, retryCount int) error {
 	log.Info(ctx).
 		Str("dst", tun.cfg.dstHost).
 		Str("proxy", tun.cfg.proxyHost).
 		Bool("secure", tun.cfg.tlsConfig != nil).
 		Msg("tcptunnel: opening connection")
+	evt.OnConnecting(ctx)
 
 	hdr := http.Header{}
 	if rawJWT != "" {
@@ -173,7 +174,7 @@ func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string, 
 				serverURL.Scheme = "https"
 			}
 
-			rawJWT, err = tun.auth.GetJWT(ctx, serverURL)
+			rawJWT, err = tun.auth.GetJWT(ctx, serverURL, func(authURL string) { evt.OnAuthRequired(ctx, authURL) })
 			if err != nil {
 				return fmt.Errorf("tcptunnel: failed to get authentication JWT: %w", err)
 			}
@@ -183,7 +184,7 @@ func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string, 
 				return fmt.Errorf("tcptunnel: failed to store JWT: %w", err)
 			}
 
-			return tun.run(ctx, local, rawJWT, retryCount+1)
+			return tun.run(ctx, evt, local, rawJWT, retryCount+1)
 		}
 		fallthrough
 	default:
@@ -192,6 +193,7 @@ func (tun *Tunnel) run(ctx context.Context, local io.ReadWriter, rawJWT string, 
 	}
 
 	log.Info(ctx).Msg("tcptunnel: connection established")
+	evt.OnConnected(ctx)
 
 	errc := make(chan error, 2)
 	go func() {

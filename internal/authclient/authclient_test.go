@@ -64,7 +64,7 @@ func TestAuthClient(t *testing.T) {
 	rawJWT, err := ac.GetJWT(ctx, &url.URL{
 		Scheme: "http",
 		Host:   li.Addr().String(),
-	})
+	}, func(_ string) {})
 	assert.NoError(t, err)
 	assert.Equal(t, "TEST", rawJWT)
 }

@@ -114,7 +114,6 @@ _import_paths=$(join_by , "${_imports[@]}")
   ./events/xds.proto
 
 ../../scripts/protoc -I ./cli/ -I ./ \
-  -I$(GOPATH)/pkg/mod/github.com/grpc-ecosystem/grpc-gateway@$(GRPC_GATEWAY_VER)/third_party/googleapis \
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./cli/." \
   --grpc-gateway_out="./cli/." \
   --grpc-gateway_opt logtostderr=true \

@@ -49,7 +49,7 @@ func (tp *tunnelProvider) NewTunnel(id string) (*tcptunnel.Tunnel, string, error
 }
 
 // NewServer creates new configuration management server
-func NewServer(cp ConfigProvider) (Server, error) {
+func NewServer(ctx context.Context, cp ConfigProvider) (Server, error) {
 	locker := new(sync.Mutex)
 	cfg, err := loadConfig(cp)
 	if err != nil {
@@ -63,9 +63,10 @@ func NewServer(cp ConfigProvider) (Server, error) {
 	}
 
 	ls := &listenerServer{
-		Locker:         locker,
-		RecordLocker:   newRecordLocker(),
-		TunnelProvider: &tunnelProvider{cfg},
+		Locker:           locker,
+		RecordLocker:     newRecordLocker(),
+		TunnelProvider:   &tunnelProvider{cfg},
+		EventBroadcaster: NewEventsBroadcaster(ctx),
 	}
 
 	return struct {

@@ -90,14 +90,14 @@ func getTLSConfig(conn *pb.Connection) (*tls.Config, error) {
 	return cfg, nil
 }
 
-func tunnelAcceptLoop(ctx context.Context, li net.Listener, tun *tcptunnel.Tunnel) {
+func tunnelAcceptLoop(ctx context.Context, id string, li net.Listener, tun *tcptunnel.Tunnel, b EventBroadcaster) {
 	defer li.Close()
 
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0
 
 	for {
-		conn, err := li.Accept()
+		c, err := li.Accept()
 		if err != nil {
 			// canceled, so ignore the error and return
 			if ctx.Err() != nil {
@@ -117,13 +117,68 @@ func tunnelAcceptLoop(ctx context.Context, li net.Listener, tun *tcptunnel.Tunne
 		}
 		bo.Reset()
 
-		go func() {
+		go func(conn net.Conn) {
 			defer func() { _ = conn.Close() }()
 
-			err := tun.Run(ctx, conn)
+			evt := &tunnelEvents{
+				EventBroadcaster: b,
+				id:               id,
+				peer:             conn.LocalAddr().String(),
+			}
+			err := tun.Run(ctx, conn, evt)
 			if err != nil {
 				log.Error(ctx).Err(err).Msg("error serving local connection")
 			}
-		}()
+		}(c)
 	}
+}
+
+type tunnelEvents struct {
+	context.Context
+	EventBroadcaster
+	id, peer string
+}
+
+// OnConnecting is called when listener is accepting a new connection from client
+func (evt *tunnelEvents) OnConnecting(ctx context.Context) {
+	_ = evt.Update(ctx, &pb.ConnectionStatusUpdate{
+		Id:       evt.id,
+		PeerAddr: evt.peer,
+		Status:   pb.ConnectionStatusUpdate_CONNECTION_STATUS_CONNECTING,
+	})
+}
+
+// OnConnected is called when a connection is successfully
+// established to the remote destination via pomerium proxy
+func (evt *tunnelEvents) OnConnected(ctx context.Context) {
+	_ = evt.Update(ctx, &pb.ConnectionStatusUpdate{
+		Id:       evt.id,
+		PeerAddr: evt.peer,
+		Status:   pb.ConnectionStatusUpdate_CONNECTION_STATUS_CONNECTED,
+	})
+}
+
+// OnAuthRequired is called after listener accepted a new connection from client,
+// but has to perform user authentication first
+func (evt *tunnelEvents) OnAuthRequired(ctx context.Context, u string) {
+	_ = evt.Update(ctx, &pb.ConnectionStatusUpdate{
+		Id:       evt.id,
+		PeerAddr: evt.peer,
+		Status:   pb.ConnectionStatusUpdate_CONNECTION_STATUS_AUTH_REQUIRED,
+		AuthUrl:  &u,
+	})
+}
+
+// OnDisconnected is called when connection to client was closed
+func (evt *tunnelEvents) OnDisconnected(ctx context.Context, err error) {
+	e := &pb.ConnectionStatusUpdate{
+		Id:       evt.id,
+		PeerAddr: evt.peer,
+		Status:   pb.ConnectionStatusUpdate_CONNECTION_STATUS_DISCONNECTED,
+	}
+	if err != nil {
+		txt := err.Error()
+		e.LastError = &txt
+	}
+	_ = evt.Update(ctx, e)
 }

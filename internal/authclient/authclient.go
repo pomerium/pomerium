@@ -28,7 +28,7 @@ func New(options ...Option) *AuthClient {
 }
 
 // GetJWT retrieves a JWT from Pomerium.
-func (client *AuthClient) GetJWT(ctx context.Context, serverURL *url.URL) (rawJWT string, err error) {
+func (client *AuthClient) GetJWT(ctx context.Context, serverURL *url.URL, onOpenBrowser func(string)) (rawJWT string, err error) {
 	li, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return "", fmt.Errorf("failed to start listener: %w", err)
@@ -41,7 +41,7 @@ func (client *AuthClient) GetJWT(ctx context.Context, serverURL *url.URL) (rawJW
 		return client.runHTTPServer(ctx, li, incomingJWT)
 	})
 	eg.Go(func() error {
-		return client.runOpenBrowser(ctx, li, serverURL)
+		return client.runOpenBrowser(ctx, li, serverURL, onOpenBrowser)
 	})
 	eg.Go(func() error {
 		select {
@@ -91,7 +91,7 @@ func (client *AuthClient) runHTTPServer(ctx context.Context, li net.Listener, in
 	return err
 }
 
-func (client *AuthClient) runOpenBrowser(ctx context.Context, li net.Listener, serverURL *url.URL) error {
+func (client *AuthClient) runOpenBrowser(ctx context.Context, li net.Listener, serverURL *url.URL, onOpenBrowser func(string)) error {
 	browserURL := new(url.URL)
 	*browserURL = *serverURL
 
@@ -139,6 +139,7 @@ func (client *AuthClient) runOpenBrowser(ctx context.Context, li net.Listener, s
 		return fmt.Errorf("failed to read login url: %w", err)
 	}
 
+	onOpenBrowser(string(bs))
 	err = client.cfg.open(string(bs))
 	if err != nil {
 		return fmt.Errorf("failed to open browser url: %w", err)

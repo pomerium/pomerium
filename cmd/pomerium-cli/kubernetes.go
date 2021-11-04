@@ -65,7 +65,7 @@ var kubernetesExecCredentialCmd = &cobra.Command{
 		ac := authclient.New(
 			authclient.WithBrowserCommand(browserOptions.command),
 			authclient.WithTLSConfig(tlsConfig))
-		rawJWT, err := ac.GetJWT(context.Background(), serverURL)
+		rawJWT, err := ac.GetJWT(context.Background(), serverURL, func(s string) {})
 		if err != nil {
 			fatalf("%s", err)
 		}

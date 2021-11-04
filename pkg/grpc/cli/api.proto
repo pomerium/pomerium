@@ -87,10 +87,21 @@ service Listener {
       body : "*"
     };
   }
+  // GetStatus returns current listener status for active tunnels
+  rpc GetStatus(Selector) returns (ListenerStatus) {
+    option (google.api.http) = {
+      get : "/listener/status"
+    };
+  }
   // StatusUpdates opens a stream to listen to connection status updates
   // a client has to subscribe and continuously
   // listen to the broadcasted updates
-  rpc StatusUpdates(Selector) returns (stream ConnectionStatusUpdates);
+  rpc StatusUpdates(StatusUpdatesRequest)
+      returns (stream ConnectionStatusUpdate) {
+    option (google.api.http) = {
+      get : "/listener/events"
+    };
+  }
 }
 
 message ListenerUpdateRequest {
@@ -106,10 +117,10 @@ message ListenerStatus {
   map<string, string> errors = 2;
 }
 
-message StatusUpdatesRequest {}
+message StatusUpdatesRequest { string connection_id = 1; }
 
 // ConnectionStatusUpdates represent connection state changes
-message ConnectionStatusUpdates {
+message ConnectionStatusUpdate {
   // record this event relates to
   string id = 1;
   // peer_addr represents connecting party remote address and may be used to
@@ -125,6 +136,8 @@ message ConnectionStatusUpdates {
   ConnectionStatus status = 3;
   // in case the connection failed or terminated, last error may be available
   optional string last_error = 4;
+  // provides an authentication URL when AUTH_REQUIRED status is set
+  optional string auth_url = 5;
 }
 
 // Connection

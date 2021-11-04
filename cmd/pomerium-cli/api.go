@@ -66,7 +66,7 @@ func (cmd *apiCmd) exec(c *cobra.Command, args []string) error {
 		return fmt.Errorf("config %s: %w", cmd.configPath, err)
 	}
 
-	srv, err := cli.NewServer(cli.FileConfigProvider(cmd.configPath))
+	srv, err := cli.NewServer(c.Context(), cli.FileConfigProvider(cmd.configPath))
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func (cmd *apiCmd) exec(c *cobra.Command, args []string) error {
 		if err := multierror.Append(
 			pb.RegisterConfigHandlerServer(ctx, mux, srv),
 			pb.RegisterListenerHandlerServer(ctx, mux, srv),
-			mux.HandlePath(http.MethodGet, "/updates", cli.ListenerUpdateStream(srv)),
+			mux.HandlePath(http.MethodGet, "/listener/events", cli.ListenerUpdateStream(srv)),
 		).ErrorOrNil(); err != nil {
 			return err
 		}

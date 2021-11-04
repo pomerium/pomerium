@@ -24,7 +24,7 @@ type jsonStream struct {
 
 // ListenerUpdateStream creates http handler
 func ListenerUpdateStream(srv pb.ListenerServer) runtime.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request, _ map[string]string) {
+	return func(w http.ResponseWriter, r *http.Request, param map[string]string) {
 		sel, err := parseRequest(r)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -45,7 +45,7 @@ func ListenerUpdateStream(srv pb.ListenerServer) runtime.HandlerFunc {
 	}
 }
 
-func parseRequest(r *http.Request) (*pb.Selector, error) {
+func parseRequest(r *http.Request) (*pb.StatusUpdatesRequest, error) {
 	defer func() {
 		_, _ = io.Copy(io.Discard, r.Body)
 		_ = r.Body.Close()
@@ -56,7 +56,7 @@ func parseRequest(r *http.Request) (*pb.Selector, error) {
 		return nil, err
 	}
 
-	sel := new(pb.Selector)
+	sel := new(pb.StatusUpdatesRequest)
 	if err = protojson.Unmarshal(data, sel); err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func parseRequest(r *http.Request) (*pb.Selector, error) {
 
 // Send sends a message as text event stream
 // see https://html.spec.whatwg.org/multipage/server-sent-events.html#server-sent-events
-func (s *jsonStream) Send(m *pb.ConnectionStatusUpdates) error {
+func (s *jsonStream) Send(m *pb.ConnectionStatusUpdate) error {
 	if err := s.ctx.Err(); err != nil {
 		return err
 	}
