@@ -132,6 +132,7 @@ Most configuration keys in non-Kubernetes deployments can be specified as annota
 
 - [`ingress.pomerium.io/allow_any_authenticated_user`]
 - [`ingress.pomerium.io/allow_public_unauthenticated_access`]
+- [`ingress.pomerium.io/allow_spdy`]
 - [`ingress.pomerium.io/allow_websockets`]
 - [`ingress.pomerium.io/allowed_domains`]
 - [`ingress.pomerium.io/allowed_groups`]
@@ -334,6 +335,7 @@ For more information on the Pomerium Ingress Controller or the Kubernetes concep
 
 [`ingress.pomerium.io/allow_any_authenticated_user`]: /reference/readme.md#allow-any-authenticated-user
 [`ingress.pomerium.io/allow_public_unauthenticated_access`]: /reference/readme.md#public-access
+[`ingress.pomerium.io/allow_spdy`]: /reference/readme.md#spdy
 [`ingress.pomerium.io/allow_websockets`]: /reference/readme.md#websocket-connections
 [`ingress.pomerium.io/allowed_domains`]: /reference/readme.md#allowed-domains
 [`ingress.pomerium.io/allowed_groups`]: /reference/readme.md#allowed-groups
