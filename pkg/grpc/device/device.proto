@@ -56,6 +56,8 @@ message Type {
 // An Enrollment is used to approve a user's device.
 message Enrollment {
   string id = 1;
+  string type_id = 7;
+  string credential_id = 8;
   string user_id = 2;
   string approved_by = 3;
   google.protobuf.Timestamp enrolled_at = 4;
