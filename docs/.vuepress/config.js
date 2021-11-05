@@ -179,6 +179,7 @@ module.exports = {
             "topics/data-storage",
             "topics/getting-users-identity",
             "topics/original-request-context",
+            "topics/mutual-auth",
             "topics/production-deployment",
             "topics/programmatic-access",
             "topics/single-sign-out",
