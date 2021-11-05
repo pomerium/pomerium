@@ -207,6 +207,34 @@ func local_request_Listener_GetStatus_0(ctx context.Context, marshaler runtime.M
 
 }
 
+var (
+	filter_Listener_StatusUpdates_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+)
+
+func request_Listener_StatusUpdates_0(ctx context.Context, marshaler runtime.Marshaler, client ListenerClient, req *http.Request, pathParams map[string]string) (Listener_StatusUpdatesClient, runtime.ServerMetadata, error) {
+	var protoReq StatusUpdatesRequest
+	var metadata runtime.ServerMetadata
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_Listener_StatusUpdates_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	stream, err := client.StatusUpdates(ctx, &protoReq)
+	if err != nil {
+		return nil, metadata, err
+	}
+	header, err := stream.Header()
+	if err != nil {
+		return nil, metadata, err
+	}
+	metadata.HeaderMD = header
+	return stream, metadata, nil
+
+}
+
 // RegisterConfigHandlerServer registers the http handlers for service Config to "mux".
 // UnaryRPC     :call ConfigServer directly.
 // StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
@@ -335,6 +363,13 @@ func RegisterListenerHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 
 		forward_Listener_GetStatus_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
+	})
+
+	mux.Handle("GET", pattern_Listener_StatusUpdates_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		err := status.Error(codes.Unimplemented, "streaming calls are not yet supported in the in-process transport")
+		_, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+		return
 	})
 
 	return nil
@@ -535,6 +570,26 @@ func RegisterListenerHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 
 	})
 
+	mux.Handle("GET", pattern_Listener_StatusUpdates_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/pomerium.cli.Listener/StatusUpdates", runtime.WithHTTPPathPattern("/listener/events"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_Listener_StatusUpdates_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_Listener_StatusUpdates_0(ctx, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
+
+	})
+
 	return nil
 }
 
@@ -542,10 +597,14 @@ var (
 	pattern_Listener_Update_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"listener"}, ""))
 
 	pattern_Listener_GetStatus_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"listener", "status"}, ""))
+
+	pattern_Listener_StatusUpdates_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"listener", "events"}, ""))
 )
 
 var (
 	forward_Listener_Update_0 = runtime.ForwardResponseMessage
 
 	forward_Listener_GetStatus_0 = runtime.ForwardResponseMessage
+
+	forward_Listener_StatusUpdates_0 = runtime.ForwardResponseStream
 )

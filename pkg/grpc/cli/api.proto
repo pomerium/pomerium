@@ -35,18 +35,16 @@ message Record {
 
 message Records { repeated Record records = 1; }
 
+// Selector defines record filter
+// one of the options must be set
+// we do not use oneof as it results in inconveniences on the JS client side
 message Selector {
-  message IdFilter { repeated string ids = 1; }
-  message TagFilter { repeated string tags = 2; }
-
-  oneof filter {
-    // all records
-    bool all = 1;
-    // only return connections matching tag(s)
-    TagFilter tags = 2;
-    // only return specific connection(s)
-    IdFilter ids = 3;
-  }
+  // all records
+  bool all = 1;
+  // only return connections matching tag(s)
+  repeated string ids = 2;
+  // only return specific connection(s)
+  repeated string tags = 3;
 }
 message DeleteRecordsResponse {}
 

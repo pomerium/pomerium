@@ -36,10 +36,10 @@ func (s *configServer) List(_ context.Context, sel *pb.Selector) (*pb.Records, e
 func (s *configServer) listLocked(sel *pb.Selector) ([]*pb.Record, error) {
 	if sel.GetAll() {
 		return s.config.listAll(), nil
-	} else if sel.GetIds() != nil {
-		return s.config.listByIDs(sel.GetIds().GetIds())
-	} else if sel.GetTags() != nil {
-		return s.config.listByTags(sel.GetTags().GetTags())
+	} else if len(sel.GetIds()) > 0 {
+		return s.config.listByIDs(sel.GetIds())
+	} else if len(sel.GetTags()) > 0 {
+		return s.config.listByTags(sel.GetTags())
 	}
 	return nil, status.Error(codes.InvalidArgument, "either all, ids or tags filter must be specified")
 }

@@ -62,21 +62,11 @@ func TestLoadSave(t *testing.T) {
 
 	selectors := map[string]*pb.Selector{
 		"all": {
-			Filter: &pb.Selector_All{
-				All: true,
-			},
+			All: true,
 		}, "ids": {
-			Filter: &pb.Selector_Ids{
-				Ids: &pb.Selector_IdFilter{
-					Ids: ids,
-				},
-			},
+			Ids: ids,
 		}, "tags": {
-			Filter: &pb.Selector_Tags{
-				Tags: &pb.Selector_TagFilter{
-					Tags: []string{"one"},
-				},
-			},
+			Tags: []string{"one"},
 		}}
 	for label, s := range selectors {
 		recs, err := cfg.List(ctx, s)
