@@ -67,3 +67,8 @@ func ModRoot() string {
 func TestDataRoot() string {
 	return filepath.Join(ModRoot(), "internal", "testutil", "testdata")
 }
+
+// StrP returns pointer to string, useful for grpc optional string fields
+func StrP(txt string) *string {
+	return &txt
+}

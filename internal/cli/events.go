@@ -68,7 +68,6 @@ func (e *events) Reset(ctx context.Context, id string) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	case e.reset <- id:
-		delete(e.history, id)
 		return nil
 	}
 }
@@ -117,6 +116,8 @@ func (e *events) run(ctx context.Context) {
 			if err := e.update(ctx, evt); err != nil {
 				log.Error(ctx).Err(err).Msg("event broadcast: update")
 			}
+		case id := <-e.reset:
+			delete(e.history, id)
 		case sub := <-e.subs:
 			e.subscribe(sub)
 		send_history:

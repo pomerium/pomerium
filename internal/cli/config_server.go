@@ -54,7 +54,7 @@ func (s *server) Delete(_ context.Context, sel *pb.Selector) (*pb.DeleteRecordsR
 	}
 
 	for _, r := range recs {
-		if err = s.config.delete(r); err != nil {
+		if err = s.config.delete(r.GetId()); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -112,10 +112,5 @@ func (s *server) GetTags(_ context.Context, req *pb.GetTagsRequest) (*pb.GetTags
 	s.RLock()
 	defer s.RUnlock()
 
-	tags := make([]string, 0, len(s.byTag))
-	for tag := range s.byTag {
-		tags = append(tags, tag)
-	}
-
-	return &pb.GetTagsResponse{Tags: tags}, nil
+	return &pb.GetTagsResponse{Tags: s.config.getTags()}, nil
 }

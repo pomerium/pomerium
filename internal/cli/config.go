@@ -18,12 +18,18 @@ import (
 
 var (
 	errTagIndexInconsistent = errors.New("tag index inconsistent. this is a bug")
-	errIDRequired           = errors.New("id must be set")
 )
 
 type config struct {
 	byID  map[string]*pb.Record
 	byTag map[string]map[string]*pb.Record
+}
+
+func newConfig() *config {
+	return &config{
+		byID:  make(map[string]*pb.Record),
+		byTag: make(map[string]map[string]*pb.Record),
+	}
 }
 
 func loadConfig(ls ConfigProvider) (*config, error) {
@@ -32,10 +38,7 @@ func loadConfig(ls ConfigProvider) (*config, error) {
 		return nil, fmt.Errorf("load: %w", err)
 	}
 
-	cfg := &config{
-		byID:  make(map[string]*pb.Record),
-		byTag: make(map[string]map[string]*pb.Record),
-	}
+	cfg := newConfig()
 
 	if len(data) == 0 {
 		return cfg, nil
@@ -124,18 +127,22 @@ func (cfg *config) upsert(r *pb.Record) {
 	}
 }
 
-func (cfg *config) delete(r *pb.Record) error {
-	if r.Id == nil {
-		return errIDRequired
+func (cfg *config) delete(id string) error {
+	rec, ok := cfg.byID[id]
+	if !ok {
+		return errNotFound
 	}
 
-	delete(cfg.byID, r.GetId())
-	for _, t := range r.GetTags() {
-		m := cfg.byTag[t]
+	delete(cfg.byID, id)
+	for _, tag := range rec.GetTags() {
+		m := cfg.byTag[tag]
 		if m == nil {
 			return errTagIndexInconsistent
 		}
-		delete(m, r.GetId())
+		delete(m, id)
+		if len(m) == 0 {
+			delete(cfg.byTag, tag)
+		}
 	}
 
 	return nil
@@ -173,4 +180,12 @@ func (cfg *config) listByTags(tags []string) ([]*pb.Record, error) {
 		}
 	}
 	return records, nil
+}
+
+func (cfg *config) getTags() []string {
+	tags := make([]string, 0, len(cfg.byTag))
+	for tag := range cfg.byTag {
+		tags = append(tags, tag)
+	}
+	return tags
 }
