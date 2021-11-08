@@ -43,6 +43,7 @@ func (s *subscriber) close() {
 
 type events struct {
 	byID    map[string]map[uuid.UUID]*subscriber
+	history map[string][]*pb.ConnectionStatusUpdate
 	updates chan *pb.ConnectionStatusUpdate
 	subs    chan *subscriber
 	reset   chan string
@@ -52,6 +53,7 @@ type events struct {
 func NewEventsBroadcaster(ctx context.Context) EventBroadcaster {
 	e := &events{
 		byID:    make(map[string]map[uuid.UUID]*subscriber),
+		history: make(map[string][]*pb.ConnectionStatusUpdate),
 		updates: make(chan *pb.ConnectionStatusUpdate),
 		subs:    make(chan *subscriber),
 		reset:   make(chan string),
@@ -66,11 +68,14 @@ func (e *events) Reset(ctx context.Context, id string) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	case e.reset <- id:
+		delete(e.history, id)
 		return nil
 	}
 }
 
 func (e *events) Update(ctx context.Context, evt *pb.ConnectionStatusUpdate) error {
+	e.history[evt.Id] = append(e.history[evt.Id], evt)
+
 	data, _ := protojson.Marshal(evt)
 	log.Info(ctx).RawJSON("event", data).Msg("event broadcast")
 
@@ -107,12 +112,25 @@ func (e *events) run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			e.shutdown()
+			return
 		case evt := <-e.updates:
 			if err := e.update(ctx, evt); err != nil {
 				log.Error(ctx).Err(err).Msg("event broadcast: update")
 			}
 		case sub := <-e.subs:
 			e.subscribe(sub)
+		send_history:
+			for _, evt := range e.history[sub.connID] {
+				select {
+				case <-ctx.Done():
+					e.shutdown()
+					return
+				case <-sub.Done():
+					e.unsubscribe(sub)
+					break send_history
+				case sub.ch <- evt:
+				}
+			}
 		}
 	}
 }
@@ -124,6 +142,11 @@ func (e *events) subscribe(sub *subscriber) {
 		e.byID[sub.connID] = m
 	}
 	m[sub.UUID] = sub
+}
+
+func (e *events) unsubscribe(sub *subscriber) {
+	sub.close()
+	delete(e.byID[sub.connID], sub.UUID)
 }
 
 func (e *events) shutdown() {
@@ -163,8 +186,7 @@ func (e *events) update(ctx context.Context, evt *pb.ConnectionStatusUpdate) err
 	}
 
 	for _, sub := range cleanup {
-		sub.close()
-		delete(e.byID[sub.connID], sub.UUID)
+		e.unsubscribe(sub)
 	}
 
 	return nil
