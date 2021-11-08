@@ -2,9 +2,7 @@ package cli
 
 import (
 	"context"
-	"sync"
 
-	"github.com/pomerium/pomerium/internal/tcptunnel"
 	pb "github.com/pomerium/pomerium/pkg/grpc/cli"
 )
 
@@ -17,19 +15,14 @@ type ConfigProvider interface {
 	Save([]byte) error
 }
 
-// RecordLocker marks individual records as locked
-type RecordLocker interface {
+// ListenerStatus marks individual records as locked
+type ListenerStatus interface {
 	// Lock marks a particular ID locked and provides a function to be called on unlock
-	LockRecord(id string, onUnlock context.CancelFunc) error
-	// IsLocked checks whether particular ID is currently locked
-	IsLocked(id string) bool
+	SetListening(id string, onUnlock context.CancelFunc, addr string) error
+	// IsListening checks whether particular ID is currently locked
+	IsListening(id string) (listenAddr string, listening bool)
 	// Unlock unlocks the ID and calls onUnlock function
-	UnlockRecord(id string) error
-}
-
-// TunnelProvider is abstraction over tunnel creation by ID
-type TunnelProvider interface {
-	NewTunnel(id string) (*tcptunnel.Tunnel, string, error)
+	SetNotListening(id string) error
 }
 
 // Server implements both config and listener interfaces
@@ -38,39 +31,17 @@ type Server interface {
 	pb.ListenerServer
 }
 
-type tunnelProvider struct{ *config }
-
-func (tp *tunnelProvider) NewTunnel(id string) (*tcptunnel.Tunnel, string, error) {
-	rec, there := tp.byID[id]
-	if !there {
-		return nil, "", errNotFound
-	}
-	return newTunnel(rec.GetConn())
-}
-
 // NewServer creates new configuration management server
 func NewServer(ctx context.Context, cp ConfigProvider) (Server, error) {
-	locker := new(sync.Mutex)
 	cfg, err := loadConfig(cp)
 	if err != nil {
 		return nil, err
 	}
 
-	cs := &configServer{
-		ConfigProvider: cp,
-		Locker:         locker,
-		config:         cfg,
-	}
-
-	ls := &listenerServer{
-		Locker:           locker,
-		RecordLocker:     newRecordLocker(),
-		TunnelProvider:   &tunnelProvider{cfg},
+	return &server{
+		ConfigProvider:   cp,
+		config:           cfg,
+		ListenerStatus:   newListenerStatus(),
 		EventBroadcaster: NewEventsBroadcaster(ctx),
-	}
-
-	return struct {
-		*configServer
-		*listenerServer
-	}{cs, ls}, nil
+	}, nil
 }

@@ -21,6 +21,7 @@ service Config {
       body : "*"
     };
   };
+  rpc GetTags(GetTagsRequest) returns (GetTagsResponse);
   rpc Export(ExportRequest) returns (ConfigData);
   rpc Import(ImportRequest) returns (ImportResponse);
 }
@@ -61,6 +62,9 @@ message ExportRequest {
   }
   Format format = 3;
 }
+
+message GetTagsRequest {};
+message GetTagsResponse { repeated string tags = 1; }
 
 message ConfigData { bytes data = 1; }
 

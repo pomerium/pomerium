@@ -12,17 +12,17 @@ import (
 	pb "github.com/pomerium/pomerium/pkg/grpc/cli"
 )
 
-type configServer struct {
-	sync.Locker
+type server struct {
+	sync.RWMutex
 	ConfigProvider
+	EventBroadcaster
+	ListenerStatus
 	*config
 }
 
-var _ pb.ConfigServer = &configServer{}
-
 var errNotFound = errors.New("not found")
 
-func (s *configServer) List(_ context.Context, sel *pb.Selector) (*pb.Records, error) {
+func (s *server) List(_ context.Context, sel *pb.Selector) (*pb.Records, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -33,7 +33,7 @@ func (s *configServer) List(_ context.Context, sel *pb.Selector) (*pb.Records, e
 	return &pb.Records{Records: records}, nil
 }
 
-func (s *configServer) listLocked(sel *pb.Selector) ([]*pb.Record, error) {
+func (s *server) listLocked(sel *pb.Selector) ([]*pb.Record, error) {
 	if sel.GetAll() {
 		return s.config.listAll(), nil
 	} else if len(sel.GetIds()) > 0 {
@@ -44,7 +44,7 @@ func (s *configServer) listLocked(sel *pb.Selector) ([]*pb.Record, error) {
 	return nil, status.Error(codes.InvalidArgument, "either all, ids or tags filter must be specified")
 }
 
-func (s *configServer) Delete(_ context.Context, sel *pb.Selector) (*pb.DeleteRecordsResponse, error) {
+func (s *server) Delete(_ context.Context, sel *pb.Selector) (*pb.DeleteRecordsResponse, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -62,7 +62,7 @@ func (s *configServer) Delete(_ context.Context, sel *pb.Selector) (*pb.DeleteRe
 	return &pb.DeleteRecordsResponse{}, nil
 }
 
-func (s *configServer) Upsert(_ context.Context, r *pb.Record) (*pb.Record, error) {
+func (s *server) Upsert(_ context.Context, r *pb.Record) (*pb.Record, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -77,9 +77,9 @@ func (s *configServer) Upsert(_ context.Context, r *pb.Record) (*pb.Record, erro
 	return r, nil
 }
 
-func (s *configServer) Export(ctx context.Context, req *pb.ExportRequest) (*pb.ConfigData, error) {
-	s.Lock()
-	defer s.Unlock()
+func (s *server) Export(ctx context.Context, req *pb.ExportRequest) (*pb.ConfigData, error) {
+	s.RLock()
+	defer s.RUnlock()
 
 	recs, err := s.listLocked(req.Selector)
 	if err != nil {
@@ -98,7 +98,7 @@ func (s *configServer) Export(ctx context.Context, req *pb.ExportRequest) (*pb.C
 	return &pb.ConfigData{Data: data}, nil
 }
 
-func (s *configServer) Import(_ context.Context, req *pb.ImportRequest) (*pb.ImportResponse, error) {
+func (s *server) Import(_ context.Context, req *pb.ImportRequest) (*pb.ImportResponse, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -106,4 +106,16 @@ func (s *configServer) Import(_ context.Context, req *pb.ImportRequest) (*pb.Imp
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	return &pb.ImportResponse{}, nil
+}
+
+func (s *server) GetTags(_ context.Context, req *pb.GetTagsRequest) (*pb.GetTagsResponse, error) {
+	s.RLock()
+	defer s.RUnlock()
+
+	tags := make([]string, 0, len(s.byTag))
+	for tag := range s.byTag {
+		tags = append(tags, tag)
+	}
+
+	return &pb.GetTagsResponse{Tags: tags}, nil
 }

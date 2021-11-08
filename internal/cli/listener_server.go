@@ -3,24 +3,12 @@ package cli
 import (
 	"context"
 	"net"
-	"sync"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
+	"github.com/pomerium/pomerium/internal/tcptunnel"
 	pb "github.com/pomerium/pomerium/pkg/grpc/cli"
 )
 
-type listenerServer struct {
-	sync.Locker
-	EventBroadcaster
-	RecordLocker
-	TunnelProvider
-}
-
-var _ pb.ListenerServer = &listenerServer{}
-
-func (s *listenerServer) Update(ctx context.Context, req *pb.ListenerUpdateRequest) (*pb.ListenerStatus, error) {
+func (s *server) Update(ctx context.Context, req *pb.ListenerUpdateRequest) (*pb.ListenerStatus, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -30,18 +18,26 @@ func (s *listenerServer) Update(ctx context.Context, req *pb.ListenerUpdateReque
 	return s.disconnectLocked(req.ConnectionIds)
 }
 
-func (s *listenerServer) connectLocked(ids []string) (*pb.ListenerStatus, error) {
+func (s *server) newTunnelLocked(id string) (*tcptunnel.Tunnel, string, error) {
+	rec, there := s.byID[id]
+	if !there {
+		return nil, "", errNotFound
+	}
+	return newTunnel(rec.GetConn())
+}
+
+func (s *server) connectLocked(ids []string) (*pb.ListenerStatus, error) {
 	status := &pb.ListenerStatus{
 		Active: make(map[string]string, len(ids)),
 		Errors: make(map[string]string, len(ids)),
 	}
 
 	for _, id := range ids {
-		if s.IsLocked(id) {
+		if _, active := s.IsListening(id); active {
 			status.Errors[id] = "already connected"
 			continue
 		}
-		tun, listenAddr, err := s.NewTunnel(id)
+		tun, listenAddr, err := s.newTunnelLocked(id)
 		if err != nil {
 			status.Errors[id] = err.Error()
 			continue
@@ -52,7 +48,7 @@ func (s *listenerServer) connectLocked(ids []string) (*pb.ListenerStatus, error)
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
-		if err = s.LockRecord(id, cancel); err != nil {
+		if err = s.SetListening(id, cancel, listenAddr); err != nil {
 			status.Errors[id] = err.Error()
 			continue
 		}
@@ -63,10 +59,10 @@ func (s *listenerServer) connectLocked(ids []string) (*pb.ListenerStatus, error)
 	return status, nil
 }
 
-func (s *listenerServer) disconnectLocked(ids []string) (*pb.ListenerStatus, error) {
+func (s *server) disconnectLocked(ids []string) (*pb.ListenerStatus, error) {
 	errs := make(map[string]string, len(ids))
 	for _, id := range ids {
-		if err := s.UnlockRecord(id); err != nil {
+		if err := s.SetNotListening(id); err != nil {
 			errs[id] = "was not active"
 		}
 	}
@@ -76,7 +72,7 @@ func (s *listenerServer) disconnectLocked(ids []string) (*pb.ListenerStatus, err
 	}, nil
 }
 
-func (s *listenerServer) StatusUpdates(req *pb.StatusUpdatesRequest, upd pb.Listener_StatusUpdatesServer) error {
+func (s *server) StatusUpdates(req *pb.StatusUpdatesRequest, upd pb.Listener_StatusUpdatesServer) error {
 	ch, err := s.Subscribe(upd.Context(), req.ConnectionId)
 	if err != nil {
 		return err
@@ -90,6 +86,23 @@ func (s *listenerServer) StatusUpdates(req *pb.StatusUpdatesRequest, upd pb.List
 	return nil
 }
 
-func (s *listenerServer) GetStatus(ctx context.Context, req *pb.Selector) (*pb.ListenerStatus, error) {
-	return nil, status.Error(codes.Internal, "TODO: implement")
+func (s *server) GetStatus(ctx context.Context, sel *pb.Selector) (*pb.ListenerStatus, error) {
+	s.RLock()
+	defer s.RUnlock()
+
+	recs, err := s.listLocked(sel)
+	if err != nil {
+		return nil, err
+	}
+
+	active := make(map[string]string)
+	for _, r := range recs {
+		addr, listening := s.IsListening(r.GetId())
+		if !listening {
+			continue
+		}
+		active[r.GetId()] = addr
+	}
+
+	return &pb.ListenerStatus{Active: active}, nil
 }
