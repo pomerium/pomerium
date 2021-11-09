@@ -141,13 +141,6 @@ This new route requires a kubernetes service account token. Our Helm chart creat
 
 The [pomerium-cli] tool can be used by kubectl as an auth helper. Once configured, connections to the cluster will open a browser window to the Pomerium authenticate service and generate an authorization token that will be used for Kubernetes API calls.
 
-In addition to the methods listed in the page linked above, `pomerium-cli` can be installed via go-get:
-
-```bash
-env GO111MODULE=on GOBIN=$HOME/bin go get github.com/pomerium/pomerium/cmd/pomerium-cli@master
-```
-
-Make sure `$HOME/bin` is on your path.
 
 To use `pomerium-cli` as an exec-credential provider, update your kubectl config:
 
