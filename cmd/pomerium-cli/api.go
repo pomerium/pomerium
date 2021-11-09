@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -9,10 +10,15 @@ import (
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/hashicorp/go-multierror"
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/pomerium/pomerium/internal/cli"
 	"github.com/pomerium/pomerium/internal/log"
@@ -98,7 +104,9 @@ func (cmd *apiCmd) exec(c *cobra.Command, args []string) error {
 		}
 		log.Info(ctx).Str("address", lis.Addr().String()).Msg("grpc")
 
-		var opts []grpc.ServerOption
+		opts := []grpc.ServerOption{
+			grpc.UnaryInterceptor(unaryLog),
+		}
 		grpcSrv := grpc.NewServer(opts...)
 		pb.RegisterConfigServer(grpcSrv, srv)
 		pb.RegisterListenerServer(grpcSrv, srv)
@@ -107,4 +115,38 @@ func (cmd *apiCmd) exec(c *cobra.Command, args []string) error {
 	})
 
 	return eg.Wait()
+}
+
+func appendProto(evt *zerolog.Event, key string, obj interface{}) *zerolog.Event {
+	if obj == nil {
+		return evt.Str(key, "nil")
+	}
+	m, ok := obj.(protoreflect.ProtoMessage)
+	if !ok {
+		return evt.Str("key", "not a proto")
+	}
+
+	data, err := protojson.Marshal(m)
+	if err != nil {
+		return evt.AnErr(fmt.Sprintf("%s_json", key), err)
+	}
+	return evt.RawJSON(key, data)
+}
+
+func unaryLog(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	var logger *zerolog.Event
+
+	res, err := handler(ctx, req)
+	if status.Code(err) != codes.OK {
+		logger = log.Error(ctx).Err(err)
+	} else {
+		logger = log.Info(ctx)
+	}
+
+	appendProto(
+		appendProto(logger, "req", req),
+		"res", res,
+	).Msg(info.FullMethod)
+
+	return res, err
 }
