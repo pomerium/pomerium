@@ -10,13 +10,16 @@ description: >-
 
 # Securing Kubernetes
 
-The following guide covers how to secure [Kubernetes] using Pomerium.
+The following guide covers how to secure [Kubernetes] using Pomerium. This is achieved by:
+
+- creating a ClusterRoleBinding for a user,
+- setting a route through Pomerium to the Kubernetes API server,
+- configuring a kubectl context to connect and authorize to the API server through Pomerium.
 
 ## Before You Begin
 
-- This guide assumes you've already installed Pomerium in a Kubernetes cluster using our Helm charts. Follow [Pomerium using Helm](/docs/install/helm.md) before proceeding.
+- This guide assumes you've already installed Pomerium in a Kubernetes cluster using our Helm charts. Follow [Pomerium using Helm] before proceeding.
 - This guide assumes you have a certificate solution in place, such as Cert-Manager.
-- As with our Helm-based install instructions, this guide assumes you're using the Pomerium Ingress Controller to handle traffic in and out of the cluster. Routes will be defined as Ingresses.
 
 ### Pomerium Service Account
 
@@ -79,89 +82,66 @@ kubectl apply -f ./pomerium-k8s.yaml
 
 ### User Permissions
 
-To grant access to users within Kubernetes, you will need to configure RBAC permissions. For example:
+1. To grant access to users within Kubernetes, you will need to configure role-based access control (**RBAC**) permissions. For example, consider the example below, `rbac-someuser.yaml`:
 
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: cluster-admin-crb
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
-subjects:
-  - apiGroup: rbac.authorization.k8s.io
-    kind: User
-    name: someuser@example.com
-```
+    ```yaml
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: cluster-admin-crb
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: cluster-admin
+    subjects:
+      - apiGroup: rbac.authorization.k8s.io
+        kind: User
+        name: someuser@example.com
+    ```
+
+1. Apply the RBAC ClusterRoleBinding:
+
+    ```bash
+    kubectl apply -f rbac-someuser.yaml
+    ```
 
 Permissions can also be granted to groups the Pomerium user is a member of.
 
-## Create an Ingress for the API Server
+## Create a Route for the API server
 
-1. Enable API proxying using the Helm chart:
+This new route requires a kubernetes service account token. Our Helm chart creates one and makes it available at `/var/run/secrets/kubernetes.io/serviceaccount/token`.
 
-   ```bash
-   helm upgrade --install pomerium/pomerium --set apiProxy.enabled=true
-   ```
+1. Update your `pomerium-values.yaml` file with the following route:
 
-1. Create an Ingress for the route to the Kubernetes API server:
+    ```yaml
+      routes:
+        - from: https://k8s.localhost.pomerium.io
+          to: https://kubernetes
+          allow_spdy: true
+          tls_skip_verify: true
+          kubernetes_service_account_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+          policy:
+            - allow:
+                or:
+                  - domain:
+                      is: pomerium.com
+    ```
 
-   ```yaml
-   apiVersion: networking.k8s.io/v1
-   kind: Ingress
-   metadata:
-     name: k8s
-     annotations:
-       cert-manager.io/issuer: pomerium-issuer
-       ingress.pomerium.io/policy: '[{"allow":{"and":[{"domain":{"is":"pomerium.com"}}]}}]'
-       ingress.pomerium.io/secure_upstream: true
-       ingress.pomerium.io/allow_spdy: true
-   spec:
-     ingressClassName: pomerium
-     rules:
-     - host: k8s.localhost.pomerium.io
-       http:
-         paths:
-         - backend:
-             service:
-               name: kubernetes.default.svc
-               port:
-                 number: 30443
-     tls:
-     - hosts:
-       - k8s.localhost.pomerium.io
-       secretName: k8s.localhost.pomerium.io-tls
- 
-   ```
+    Change the policy to match your configuration.
 
-::: details Non-Ingress Route
+1. Apply the updated values with Helm:
 
-If you're not using the Pomerium Ingress Controller, you will need to define a standard route. The route should be a base64-encoded block of yaml:
+    ```bash
+    helm upgrade --install pomerium pomerium/pomerium --values pomerium-values.yaml
+    ```
 
-```yaml
-- from: https://k8s.localhost.pomerium.io:30443
-  to: https://kubernetes.default.svc
-  tls_skip_verify: true
-  allow_spdy: true
-  policy:
-    - allow:
-        or:
-          - domain:
-              is: pomerium.com
-  kubernetes_service_account_token: "..." #$(kubectl get secret/"$(kubectl get serviceaccount/pomerium -o json | jq -r '.secrets[0].name')" -o json | jq -r .data.token | base64 -d)
-```
+    This will create a Pomerium route within kubernetes that is accessible from `*.localhost.pomerium.io`.
 
-:::
+## Configure Kubectl
 
-Applying this configuration change will create a Pomerium route within kubernetes that is accessible from `*.localhost.pomerium.io:30443`.
+The [pomerium-cli] tool can be used by kubectl as an auth helper. Once configured, connections to the cluster will open a browser window to the Pomerium authenticate service and generate an authorization token that will be used for Kubernetes API calls.
 
-## Kubectl
-
-Pomerium uses a custom Kubernetes exec-credential provider for kubectl access. This provider will open up a browser window to the Pomerium authenticate service and generate an authorization token that will be used for Kubernetes API calls.
-
-The Pomerium Kubernetes exec-credential provider can be installed via go-get:
+In addition to the methods listed in the page linked above, `pomerium-cli` can be installed via go-get:
 
 ```bash
 env GO111MODULE=on GOBIN=$HOME/bin go get github.com/pomerium/pomerium/cmd/pomerium-cli@master
@@ -169,15 +149,15 @@ env GO111MODULE=on GOBIN=$HOME/bin go get github.com/pomerium/pomerium/cmd/pomer
 
 Make sure `$HOME/bin` is on your path.
 
-To use the Pomerium Kubernetes exec-credential provider, update your kubectl config:
+To use `pomerium-cli` as an exec-credential provider, update your kubectl config:
 
    ```shell
    # Add Cluster
-   kubectl config set-cluster via-pomerium --server=https://k8s.localhost.pomerium.io:30443
+   kubectl config set-cluster via-pomerium --server=https://k8s.localhost.pomerium.io
    # Add Context
    kubectl config set-context via-pomerium --user=via-pomerium --cluster=via-pomerium
    # Add credentials command
-   kubectl config set-credentials via-pomerium --exec-command=pomerium-cli --exec-arg=k8s,exec-credential,https://k8s.localhost.pomerium.io:30443
+   kubectl config set-credentials via-pomerium --exec-command=pomerium-cli --exec-arg=k8s,exec-credential,https://k8s.localhost.pomerium.io
   ```
 
 Here's the resulting configuration:
@@ -186,7 +166,7 @@ Here's the resulting configuration:
     ```yaml
     clusters:
     - cluster:
-        server: https://k8s.localhost.pomerium.io:30443
+        server: https://k8s.localhost.pomerium.io
       name: via-pomerium
     ```
 
@@ -210,7 +190,7 @@ Here's the resulting configuration:
          args:
            - k8s
            - exec-credential
-           - https://k8s.localhost.pomerium.io:30443
+           - https://k8s.localhost.pomerium.io
          command: pomerium-cli
          env: null
    ```
@@ -225,3 +205,5 @@ You should be prompted to login and see the resulting cluster info.
 
 
 [kubernetes]: https://kubernetes.io
+[pomerium-cli]: /docs/releases.md#pomerium-cli
+[Pomerium using Helm]: /docs/install/helm.md
