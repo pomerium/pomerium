@@ -24,9 +24,9 @@ Two services are configured in a `docker-compose.yaml` file:
 - `pomerium` running an all-in-one deployment of Pomerium on `*.localhost.pomerium.io`
 - `envoy-jwt-checker` running envoy with a JWT Authn filter
 
-Once running, the user visits [verify.localhost.pomerium.io](https://verify.localhost.pomerium.io), is authenticated through [authenticate.localhost.pomerium.io](https://authenticate.localhost.pomerium.io), and then the HTTP request is sent to envoy which proxies it to [`verify.pomerium.com`](https://verify.pomerium.com).
+Once running, the user visits [verify.localhost.pomerium.io], is authenticated through [authenticate.localhost.pomerium.io], and then the HTTP request is sent to envoy which proxies it to [`verify.pomerium.com`](https://verify.pomerium.com).
 
-Before allowing the request Envoy will verify the signed JWT assertion header using the public key defined by [authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json](https://authenticate.int.example.com/.well-known/pomerium/jwks.json).
+Before allowing the request Envoy will verify the signed JWT assertion header using the public key defined by [authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json].
 
 ## Setup
 
@@ -206,3 +206,8 @@ You should now be able to run the example with:
     ```
 
 1. Visit [verify.localhost.pomerium.io](https://verify.localhost.pomerium.io), login and you see the Pomerium verify page. However, visiting Envoy directly via [localhost:10000](http://localhost:10000) should return a `Jwt is missing` error, thus requiring Pomerium to access Envoy.
+
+[authenticate.localhost.pomerium.io]: https://authenticate.localhost.pomerium.io
+[authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json]: https://authenticate.int.example.com/.well-known/pomerium/jwks.json
+[httpbin.localhost.pomerium.io]: https://verify.localhost.pomerium.io
+[verify.localhost.pomerium.io]: https://verify.localhost.pomerium.io
