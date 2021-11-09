@@ -26,9 +26,7 @@ This guide begins with the following steps assumed complete:
 This guide uses the following temporary values in steps and configuration examples, which will need to be adjusted for your setup:
 
 - `http://grafana:3000` - The path Pomerium will use to access Grafana. This example emulates a common Docker-based setup.
-
 - `http://grafana.local:3000` - The path to access the Grafana interface from your local computer. We will need direct access to add at least one user before Pomerium is configured.
-
 - `https://grafana.localhost.pomerium.io` - The path to access Grafana through Pomerium. Change this to match the domain space Pomerium is configured in.
 
 ## Enable JWT Authentication in Grafana
