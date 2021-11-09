@@ -23,6 +23,63 @@ This guide begins with the following steps assumed complete:
 - A running instance of Pomerium. If you haven't already installed Pomerium, see our articles for installation on [Docker](/docs/install/readme.md), [Kubernetes](/docs/install/helm.md), or as an all-in-one [binary](/docs/install/binary.html).
 - Administrator access to a working Grafana instance, including write access to the config file `grafani.ini`, usually found in `/etc/grafana`.
 
+This guide uses the following temporary values in steps and configuration examples, which will need to be adjusted for your setup:
+
+- `http://grafana:3000` - The path Pomerium will use to access Grafana. This example emulates a common Docker-based setup.
+
+- `http://grafana.local:3000` - The path to access the Grafana interface from your local computer. We will need direct access to add at least one user before Pomerium is configured.
+
+- `https://grafana.localhost.pomerium.io` - The path to access Grafana through Pomerium. Change this to match the domain space Pomerium is configured in.
+
+## Enable JWT Authentication in Grafana
+
+Edit `grafana.ini` to configure [JWT authentication]. Replace `auth.localhost.pomerium.io` with the value of [`authenticate_service_url`] in your Pomerium configuration:
+
+```ini
+[auth.jwt]
+enabled = true
+header_name = X-Pomerium-Jwt-Assertion
+email_claim = email
+jwk_set_url = https://auth.localhost.pomerium.io/.well-known/pomerium/jwks.json
+cache_ttl = 60m
+```
+
+This configuration:
+
+- enables authentication by java web token (**JWT**),
+- defines the header to look at to provide the JWT,
+- associates the email_claim in the JWT with the email of the Grafana user
+- specifies the location of the signing key for the JWT to validate it,
+- sets a 60 minute cache time for the token.
+
+Once you've saved an exited the file, restart Grafana.
+
+## Add Users to Grafana
+
+At this stage Pomerium is configured to route traffic to Grafana and include identity information via the JWT, and Grafana is configured to use the `email` claim in the JWT to associate an incoming connection with a user. But the user must still exist in Grafana to be associated. Otherwise, you will see this error in the browser after authenticating:
+
+```json
+{"message":"Invalid JWT"}
+```
+
+1. To add users without requiring them to accept an invitation, log in to Grafana directly as an admin user at `http://grafana.local:3000`.
+
+1. Under the shield icon in the main menu (**Server Admin**), select **Users**.
+
+    ![The users option under the server admin menu](./img/grafana-server-admin-users.png)
+
+    ::: warning
+    This is distinct from the **Users** option under the cog wheel (**Configuration**), which will only finalize a new user when they accept an invite via email or link.
+    :::
+
+1. Click the **New user** button to create a new user. Make sure that the email address matches the one provided by Pomerium via your IdP.
+
+    ::: tip
+    You can access the special endpoint `/.pomerium` from any Pomerium route to view the data provided by Pomerium in the JWT.
+    :::
+
+After creating a new user in Grafana, that user should be logged in automatically when they access Grafana from the Pomerium route (after first authenticating with your IdP, of course).
+
 ## Configure the Pomerium Route
 
 Add a route for Grafana to your Pomerium config. Change the following variables in the example below to match your setup:
@@ -86,54 +143,7 @@ spec:
 ::::
 :::::
 
-## Enable JWT Authentication in Grafana
-
-Edit `grafana.ini` to configure [JWT authentication]. Replace `auth.localhost.pomerium.io` with the value of [`authenticate_service_url`] in your Pomerium configuration:
-
-```ini
-[auth.jwt]
-enabled = true
-header_name = X-Pomerium-Jwt-Assertion
-email_claim = email
-jwk_set_url = https://auth.localhost.pomerium.io/.well-known/pomerium/jwks.json
-cache_ttl = 60m
-```
-
-This configuration:
-
-- enables authentication by java web token (**JWT**),
-- defines the header to look at to provide the JWT,
-- associates the email_claim in the JWT with the email of the Grafana user
-- specifies the location of the signing key for the JWT to validate it,
-- sets a 60 minute cache time for the token.
-
-Once you've saved an exited the file, restart Grafana.
-
-## Add Users to Grafana
-
-At this stage Pomerium is configured to route traffic to Grafana and include identity information via the JWT, and Grafana is configured to use the `email` claim in the JWT to associate an incoming connection with a user. But the user must still exist in Grafana to be associated. Otherwise, you will see this error in the browser after authenticating:
-
-```json
-{"message":"Invalid JWT"}
-```
-
-1. To add users without requiring them to accept an invitation, log in to Grafana directly as an admin user.
-
-1. Under the shield icon in the main menu (**Server Admin**), select **Users**.
-
-    ![The users option under the server admin menu](./img/grafana-server-admin-users.png)
-
-    ::: warning
-    This is distinct from the **Users** option under the cog wheel (**Configuration**), which will only finalize a new user when they accept an invite via email or link.
-    :::
-
-1. Click the **New user** button to create a new user. Make sure that the email address matches the one provided by Pomerium via your IdP.
-
-    ::: tip
-    You can access the special endpoint `/.pomerium` from any Pomerium route to view the data provided by Pomerium in the JWT.
-    :::
-
-After creating a new user in Grafana, that user should be logged in automatically when they access Grafana from the Pomerium route (after first authenticating with your IdP, of course).
+Once the new route is applied, users can access Grafana from [https://grafana.localhost.pomerium.io]
 
 ### Manage Access at Scale
 
