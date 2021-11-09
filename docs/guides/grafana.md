@@ -54,7 +54,7 @@ Once you've saved an exited the file, restart Grafana.
 
 ## Add Users to Grafana
 
-At this stage Pomerium is configured to route traffic to Grafana and include identity information via the JWT, and Grafana is configured to use the `email` claim in the JWT to associate an incoming connection with a user. But the user must still exist in Grafana to be associated. Otherwise, you will see this error in the browser after authenticating:
+At this stage Grafana is configured to use the `email` claim in the JWT to associate an incoming connection with a user. Pomerium will be configured to include identity information via the JWT in the next section. But the user must still exist in Grafana to be associated. Otherwise, you will see this error in the browser after authenticating:
 
 ```json
 {"message":"Invalid JWT"}
