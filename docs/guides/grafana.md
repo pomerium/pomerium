@@ -161,7 +161,27 @@ For example, wildcard certificates signed by LetsEncrypt may still be cross-sign
 logger=context error=Get "https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json": x509: certificate signed by unknown authority
 ```
 
-To circumvent this issue, you can use `curl` or `wget` to download the signing key locally, and the `jkw_set_file` key to provide it to Grafana:
+To circumvent this issue, you can use `curl` or `wget` to download the signing key locally:
+
+::::: tabs
+:::: tab curl
+
+From the Grafana host:
+
+```bash
+curl https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json > /etc/grafana/jwks.json
+```
+::::
+:::: tab wget
+From the Grafana host:
+```bash
+cd /etc/grafana/
+wget https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json
+```
+::::
+:::::
+
+Edit `grafana.ini` and add the `jwk_set_file` key to provide it to Grafana:
 
 ```ini
 [auth.jwt]
