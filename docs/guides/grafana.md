@@ -123,14 +123,16 @@ metadata:
     cert-manager.io/issuer: pomerium-issuer
     ingress.pomerium.io/policy: '[{"allow":{"and":[{"domain":{"is":"example.com"}}]}}]'
     #ingress.pomerium.io/secure_upstream: true # Uncomment if Grafana is serving content over HTTPS
-    ingress.pomerium.io/pass_identity_headers: true
+    ingress.pomerium.io/pass_identity_headers: "true"
 spec:
   ingressClassName: pomerium
   rules:
   - host: grafana.localhost.pomerium.io
     http:
       paths:
-      - backend:
+      - path: /
+        pathType: Prefix
+        backend:
           service:
             name: grafana
             port:
