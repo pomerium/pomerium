@@ -143,7 +143,7 @@ spec:
 ::::
 :::::
 
-Once the new route is applied, users can access Grafana from [https://grafana.localhost.pomerium.io]
+Once the new route is applied, users can access Grafana from `https://grafana.localhost.pomerium.io`
 
 ### Manage Access at Scale
 
@@ -175,8 +175,7 @@ curl https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json >
 :::: tab wget
 From the Grafana host:
 ```bash
-cd /etc/grafana/
-wget https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json
+wget -O /etc/grafana/jwks.json https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json
 ```
 ::::
 :::::
