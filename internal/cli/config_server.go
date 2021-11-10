@@ -2,8 +2,6 @@ package cli
 
 import (
 	"context"
-	"errors"
-	"sync"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -11,16 +9,6 @@ import (
 
 	pb "github.com/pomerium/pomerium/pkg/grpc/cli"
 )
-
-type server struct {
-	sync.RWMutex
-	ConfigProvider
-	EventBroadcaster
-	ListenerStatus
-	*config
-}
-
-var errNotFound = errors.New("not found")
 
 func (s *server) List(_ context.Context, sel *pb.Selector) (*pb.Records, error) {
 	s.Lock()

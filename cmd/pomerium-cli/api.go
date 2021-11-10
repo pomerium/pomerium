@@ -72,7 +72,9 @@ func (cmd *apiCmd) exec(c *cobra.Command, args []string) error {
 		return fmt.Errorf("config %s: %w", cmd.configPath, err)
 	}
 
-	srv, err := cli.NewServer(c.Context(), cli.FileConfigProvider(cmd.configPath))
+	srv, err := cli.NewServer(c.Context(),
+		cli.WithConfigProvider(cli.FileConfigProvider(cmd.configPath)),
+	)
 	if err != nil {
 		return err
 	}

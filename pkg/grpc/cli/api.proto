@@ -82,7 +82,9 @@ message ImportResponse {}
 
 // Listener service controls listeners
 service Listener {
-  // Listen starts connection listener
+  // Update alters connection status.
+  // NB: ListenerStatus returns information for ALL listeners as it simplifies
+  // state management for the UI
   rpc Update(ListenerUpdateRequest) returns (ListenerStatus) {
     option (google.api.http) = {
       post : "/listener"

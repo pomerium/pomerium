@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"errors"
 )
 
 type listenerEntry struct {
@@ -12,18 +11,13 @@ type listenerEntry struct {
 
 type listenerStatus map[string]listenerEntry
 
-var (
-	errAlreadyLocked = errors.New("already locked")
-	errNotLocked     = errors.New("not locked")
-)
-
 func newListenerStatus() ListenerStatus {
 	return listenerStatus(make(map[string]listenerEntry))
 }
 
 func (l listenerStatus) SetListening(id string, cancel context.CancelFunc, addr string) error {
 	if _, there := l[id]; there {
-		return errAlreadyLocked
+		return errAlreadyListening
 	}
 
 	l[id] = listenerEntry{cancel, addr}
@@ -38,7 +32,7 @@ func (l listenerStatus) IsListening(id string) (string, bool) {
 func (l listenerStatus) SetNotListening(id string) error {
 	rec, there := l[id]
 	if !there {
-		return errNotLocked
+		return errNotListening
 	}
 	rec.CancelFunc()
 	delete(l, id)

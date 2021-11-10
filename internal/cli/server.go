@@ -2,7 +2,11 @@ package cli
 
 import (
 	"context"
+	"errors"
+	"io"
+	"sync"
 
+	"github.com/pomerium/pomerium/internal/tcptunnel"
 	pb "github.com/pomerium/pomerium/pkg/grpc/cli"
 )
 
@@ -25,23 +29,89 @@ type ListenerStatus interface {
 	SetNotListening(id string) error
 }
 
+// Tunnel is abstraction over tcptunnel.Tunnel to allow mocking
+type Tunnel interface {
+	Run(context.Context, io.ReadWriter, tcptunnel.TunnelEvents) error
+}
+
+// NewTunnel abstracts tunnel creation for easy mocking
+type NewTunnel func(id string) (Tunnel, string, error)
+
 // Server implements both config and listener interfaces
 type Server interface {
 	pb.ConfigServer
 	pb.ListenerServer
 }
 
-// NewServer creates new configuration management server
-func NewServer(ctx context.Context, cp ConfigProvider) (Server, error) {
-	cfg, err := loadConfig(cp)
-	if err != nil {
-		return nil, err
-	}
+type server struct {
+	sync.RWMutex
+	ConfigProvider
+	EventBroadcaster
+	ListenerStatus
+	*config
+}
 
-	return &server{
-		ConfigProvider:   cp,
-		config:           cfg,
+var (
+	errNotFound         = errors.New("not found")
+	errAlreadyListening = errors.New("already listening")
+	errNotListening     = errors.New("not listening")
+)
+
+// NewServer creates new configuration management server
+func NewServer(ctx context.Context, opts ...ServerOption) (Server, error) {
+	srv := &server{
 		ListenerStatus:   newListenerStatus(),
 		EventBroadcaster: NewEventsBroadcaster(ctx),
-	}, nil
+	}
+
+	for _, opt := range append(opts,
+		withDefaultConfigProvider(),
+	) {
+		if err := opt(srv); err != nil {
+			return nil, err
+		}
+	}
+
+	return srv, nil
+}
+
+// ServerOption allows to customize certain behavior
+type ServerOption func(*server) error
+
+// WithConfigProvider customizes configuration persistence
+func WithConfigProvider(cp ConfigProvider) ServerOption {
+	return func(s *server) error {
+		cfg, err := loadConfig(cp)
+		if err != nil {
+			return err
+		}
+		s.config = cfg
+		s.ConfigProvider = cp
+		return nil
+	}
+}
+
+func withDefaultConfigProvider() ServerOption {
+	return func(s *server) error {
+		if s.ConfigProvider == nil {
+			return WithConfigProvider(new(MemCP))(s)
+		}
+		return nil
+	}
+}
+
+// MemCP is in-memory config provider
+type MemCP struct {
+	data []byte
+}
+
+// Load loads the configuration data
+func (s *MemCP) Load() ([]byte, error) {
+	return s.data, nil
+}
+
+// Save saves configuration data
+func (s *MemCP) Save(data []byte) error {
+	s.data = data
+	return nil
 }

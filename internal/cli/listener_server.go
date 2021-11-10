@@ -2,9 +2,9 @@ package cli
 
 import (
 	"context"
+	"io"
 	"net"
 
-	"github.com/pomerium/pomerium/internal/tcptunnel"
 	pb "github.com/pomerium/pomerium/pkg/grpc/cli"
 )
 
@@ -18,7 +18,10 @@ func (s *server) Update(ctx context.Context, req *pb.ListenerUpdateRequest) (*pb
 	return s.disconnectLocked(req.ConnectionIds)
 }
 
-func (s *server) newTunnelLocked(id string) (*tcptunnel.Tunnel, string, error) {
+func (s *server) newTunnelLocked(id string) (Tunnel, string, error) {
+	if _, active := s.IsListening(id); active {
+		return nil, "", errAlreadyListening
+	}
 	rec, there := s.byID[id]
 	if !there {
 		return nil, "", errNotFound
@@ -33,30 +36,35 @@ func (s *server) connectLocked(ids []string) (*pb.ListenerStatus, error) {
 	}
 
 	for _, id := range ids {
-		if _, active := s.IsListening(id); active {
-			status.Errors[id] = "already connected"
-			continue
-		}
 		tun, listenAddr, err := s.newTunnelLocked(id)
 		if err != nil {
 			status.Errors[id] = err.Error()
 			continue
 		}
-		li, err := net.Listen("tcp", listenAddr)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		lc := new(net.ListenConfig)
+		li, err := lc.Listen(ctx, "tcp", listenAddr)
 		if err != nil {
+			cancel()
 			return nil, err
 		}
 
-		ctx, cancel := context.WithCancel(context.Background())
-		if err = s.SetListening(id, cancel, listenAddr); err != nil {
+		if err = s.SetListening(id, cancel, li.Addr().String()); err != nil {
 			status.Errors[id] = err.Error()
 			continue
 		}
 		go tunnelAcceptLoop(ctx, id, li, tun, s.EventBroadcaster)
+		go onContextCancel(ctx, li)
 		status.Active[id] = li.Addr().String()
 	}
 
 	return status, nil
+}
+
+func onContextCancel(ctx context.Context, cl io.Closer) {
+	<-ctx.Done()
+	_ = cl.Close()
 }
 
 func (s *server) disconnectLocked(ids []string) (*pb.ListenerStatus, error) {

@@ -16,7 +16,7 @@ import (
 	pb "github.com/pomerium/pomerium/pkg/grpc/cli"
 )
 
-func newTunnel(conn *pb.Connection) (*tcptunnel.Tunnel, string, error) {
+func newTunnel(conn *pb.Connection) (Tunnel, string, error) {
 	listenAddr := "127.0.0.1:0"
 	if conn.ListenAddr != nil {
 		listenAddr = *conn.ListenAddr
@@ -90,9 +90,7 @@ func getTLSConfig(conn *pb.Connection) (*tls.Config, error) {
 	return cfg, nil
 }
 
-func tunnelAcceptLoop(ctx context.Context, id string, li net.Listener, tun *tcptunnel.Tunnel, b EventBroadcaster) {
-	defer li.Close()
-
+func tunnelAcceptLoop(ctx context.Context, id string, li net.Listener, tun Tunnel, b EventBroadcaster) {
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0
 
@@ -113,7 +111,6 @@ func tunnelAcceptLoop(ctx context.Context, id string, li net.Listener, tun *tcpt
 				}
 				continue
 			}
-			return
 		}
 		bo.Reset()
 
@@ -127,7 +124,7 @@ func tunnelAcceptLoop(ctx context.Context, id string, li net.Listener, tun *tcpt
 			}
 			err := tun.Run(ctx, conn, evt)
 			if err != nil {
-				log.Error(ctx).Err(err).Msg("error serving local connection")
+				log.Error(ctx).Err(err).Str("connection_id", id).Msg("error serving local connection")
 			}
 		}(c)
 	}

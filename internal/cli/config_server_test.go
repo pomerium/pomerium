@@ -11,24 +11,11 @@ import (
 	pb "github.com/pomerium/pomerium/pkg/grpc/cli"
 )
 
-type memLS struct {
-	data []byte
-}
-
-func (s *memLS) Load() ([]byte, error) {
-	return s.data, nil
-}
-
-func (s *memLS) Save(data []byte) error {
-	s.data = data
-	return nil
-}
-
 func TestLoadSave(t *testing.T) {
 	ctx := context.Background()
-	ls := new(memLS)
 
-	cfg, err := cli.NewServer(ctx, ls)
+	opt := cli.WithConfigProvider(new(cli.MemCP))
+	cfg, err := cli.NewServer(ctx, opt)
 	require.NoError(t, err, "load empty config")
 
 	var ids []string
@@ -57,7 +44,7 @@ func TestLoadSave(t *testing.T) {
 		}
 	}
 
-	cfg, err = cli.NewServer(ctx, ls)
+	cfg, err = cli.NewServer(ctx, opt)
 	require.NoError(t, err, "load config")
 
 	selectors := map[string]*pb.Selector{
