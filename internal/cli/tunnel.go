@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -24,8 +25,9 @@ func newTunnel(conn *pb.Connection) (Tunnel, string, error) {
 
 	pxy, err := getProxy(conn)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("cannot determine proxy host: %w", err)
 	}
+	fmt.Println("NEW TUNNEL", pxy, conn.ListenAddr)
 
 	var tlsCfg *tls.Config
 	if pxy.Scheme == "https" {
@@ -47,6 +49,9 @@ func getProxy(conn *pb.Connection) (*url.URL, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", conn.GetRemoteAddr(), err)
 	}
+	if host == "" {
+		return nil, errors.New("remote host is required")
+	}
 
 	if conn.PomeriumUrl == nil {
 		return &url.URL{
@@ -58,6 +63,9 @@ func getProxy(conn *pb.Connection) (*url.URL, error) {
 	u, err := url.Parse(conn.GetPomeriumUrl())
 	if err != nil {
 		return nil, fmt.Errorf("invalid pomerium url: %w", err)
+	}
+	if u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return nil, fmt.Errorf("invalid pomerium url: %q", conn.GetPomeriumUrl())
 	}
 	if u.Host == u.Hostname() {
 		if u.Scheme == "https" {
