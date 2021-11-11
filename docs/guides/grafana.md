@@ -12,7 +12,7 @@ description: >-
 
 # Securing Grafana with Pomerium
 
-[Grafana](https://grafana.com/) is an open-source analytics and monitoring solution. The many user-contributed [Dashboards](https://grafana.com/grafana/dashboards/) make it popular for enthusiasts as well as professionals.
+[Grafana](https://grafana.com/) is an open-source analytics and interactive visualization web application monitoring solution. It provides many user-contributed [Dashboards](https://grafana.com/grafana/dashboards/) that make it popular for enthusiasts as well as professionals.
 
 This guide will demonstrate how to secure an instance of Grafana behind Pomerium, and provide users with a seamless login to Grafana using your Identity Provider (**IdP**).
 
@@ -46,11 +46,11 @@ This configuration:
 
 - enables authentication by java web token (**JWT**),
 - defines the header to look at to provide the JWT,
-- associates the email_claim in the JWT with the email of the Grafana user
+- associates the email_claim in the JWT with the email of the Grafana user,
 - specifies the location of the signing key for the JWT to validate it,
 - sets a 60 minute cache time for the token.
 
-Once you've saved an exited the file, restart Grafana.
+Once you've saved and exited the file, restart Grafana.
 
 ## Add Users to Grafana
 
@@ -86,7 +86,7 @@ Add a route for Grafana to your Pomerium config. Change the following variables 
 |:----- | ---- |
 | `localhost.pomerium.io` | The domain space where Pomerium is configured to set up routes. You can also change `grafana` to a custom subdomain. |
 | `http://grafana:3000` | The hostname or IP address and port from which Grafana is accessible within your local network or container environment. |
-| `example.com` | Your company domain. The example policy allows access to Grafana for anyone with an email address at your company domain. Adjust the policy to match your organization's needs. |
+| `example.com` | Your company domain. The example policy allows access to Grafana for anyone with an email address from your company domain. Adjust the policy to match your organization's needs. |
 
 ::::: tabs
 :::: tab config.yaml
@@ -147,7 +147,7 @@ Once the new route is applied, users can access Grafana from `https://grafana.lo
 
 ### Manage Access at Scale
 
-The steps outlined above work to confirm the configuration and for small teams, but adding users individually and manually does not scale. To add users to Grafana at scale, consider using Grafana's Admin API and the [Global Users] endpoint to automate the creation of Grafana users with data from your IdP.
+The steps outlined above work to confirm the configuration for small teams, but adding users individually and manually does not scale for larger organizations. To add users to Grafana at scale, consider using Grafana's Admin API and the [Global Users] endpoint to automate the creation of Grafana users with data from your IdP.
 
 ## Troubleshooting
 
