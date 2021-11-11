@@ -11,6 +11,8 @@ description: >-
 # JWT Verification
 This example demonstrates how to verify the [Pomerium JWT assertion header](https://www.pomerium.io/reference/#pass-identity-headers) using [Envoy](https://www.envoyproxy.io/). This is useful for legacy or 3rd party applications which can't be modified to perform verification themselves.
 
+This guide is a practical demonstration of some of the topics discussed in [Mutual Authentication: A Component of Zero-Trust].
+
 ## Requirements
 - [Docker](https://www.docker.com/)
 - [Docker Compose](https://docs.docker.com/compose/)
@@ -19,23 +21,40 @@ This example demonstrates how to verify the [Pomerium JWT assertion header](http
 This guide assumes you already have a working IdP connection to provide user data. See our [Identity Provider](/docs/identity-providers/readme.md) docs for more information.
 
 ## Overview
-Two services are configured in a `docker-compose.yaml` file:
+Three services are configured in a `docker-compose.yaml` file:
 
 - `pomerium` running an all-in-one deployment of Pomerium on `*.localhost.pomerium.io`
 - `envoy-jwt-checker` running envoy with a JWT Authn filter
+- `httpbin` as our example legacy application without JWT verifivation.
 
-Once running, the user visits [verify.localhost.pomerium.io], is authenticated through [authenticate.localhost.pomerium.io], and then the HTTP request is sent to envoy which proxies it to [`verify.pomerium.com`](https://verify.pomerium.com).
+In our Docker Compose configuration we'll define two networks. `pomerium` and `envoy-jwt-checker` will be on the `frontend` network, simulating your local area network (**LAN**). `envoy-jwt-checker` will also be on the `backend` network, along with `httpbin`. This means that `envoy-jwt-checker` is the only other service that can communicate with `httpbin`.
 
-Before allowing the request Envoy will verify the signed JWT assertion header using the public key defined by [authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json].
+For a detailed explanation of this security model, see [Mutual Authentication With a Sidecar]
+
+Once running, the user visits [verify.localhost.pomerium.io], is authenticated through [authenticate.localhost.pomerium.io], and then the HTTP request is sent to envoy which proxies it to the httpbin app.
+
+Before allowing the request Envoy will verify the signed JWT assertion header using the public key defined by `authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json`.
 
 ## Setup
 
-The configuration presented here assumes a working route to the domain space `*.localhost.pomerium.io`. You can make an entries in your `hosts` file for the domains used, or change this value to match your local environment.
+The configuration presented here assumes a working route to the domain space `*.localhost.pomerium.io`. You can make entries in your `hosts` file for the domains used, or change this value to match your local environment.
+
+::: tip
+Mac and Linux users can use DNSMasq to map the `*.localhost.pomerium.io` domain (including all subdomains) to a specfied test address:
+
+- [Local Development with Wildcard DNS] (macOS)
+- [Local Development with Wildcard DNS on Linux]
+:::
 
 1. Create a `docker-compose.yaml` file containing:
 
     ```yaml
-    version: "3.3"
+    version: "3.9"
+    networks:
+      frontend:
+        driver: "bridge"
+      backend:
+        driver: "bridge"
     services:
       pomerium:
         image: pomerium/pomerium:latest
@@ -51,6 +70,8 @@ The configuration presented here assumes a working route to the domain space `*.
           - type: bind
             source: ./certs/_wildcard.localhost.pomerium.io-key.pem
             target: /pomerium/_wildcard.localhost.pomerium.io-key.pem
+        networks:
+          - frontend
 
       envoy-jwt-checker:
         image: envoyproxy/envoy:v1.17.1
@@ -60,6 +81,18 @@ The configuration presented here assumes a working route to the domain space `*.
           - type: bind
             source: ./cfg/envoy.yaml
             target: /etc/envoy/envoy.yaml
+        networks:
+          frontend:
+            aliases:
+              - "httpbin-sidecar"
+          backend:
+
+      httpbin:
+        image: kennethreitz/httpbin
+        ports:
+          - "80:80"
+        networks:
+          - backend
     ```
 
 1. Using [`mkcert`](https://github.com/FiloSottile/mkcert), generate a certificate for `*.localhost.pomerium.io` in a `certs` directory:
@@ -93,13 +126,13 @@ The configuration presented here assumes a working route to the domain space `*.
                     route_config:
                       name: verify
                       virtual_hosts:
-                        - name: verify
-                          domains: ["*"]
+                        - name: httpbin
+                          domains: ["httpbin-sidecar"]
                           routes:
                             - match:
                                 prefix: "/"
                               route:
-                                cluster: egress-verify
+                                cluster: egress-httpbin
                                 auto_host_rewrite: true
                     http_filters:
                       - name: envoy.filters.http.jwt_authn
@@ -109,7 +142,7 @@ The configuration presented here assumes a working route to the domain space `*.
                             pomerium:
                               issuer: authenticate.localhost.pomerium.io
                               audiences:
-                                - verify.localhost.pomerium.io
+                                - httpbin.localhost.pomerium.io
                               from_headers:
                                 - name: X-Pomerium-Jwt-Assertion
                               remote_jwks:
@@ -124,24 +157,19 @@ The configuration presented here assumes a working route to the domain space `*.
                                 provider_name: pomerium
                       - name: envoy.filters.http.router
       clusters:
-        - name: egress-verify
+        - name: egress-httpbin
           connect_timeout: 0.25s
           type: STRICT_DNS
           lb_policy: ROUND_ROBIN
           load_assignment:
-            cluster_name: verify
+            cluster_name: httpbin
             endpoints:
               - lb_endpoints:
                   - endpoint:
                       address:
                         socket_address:
-                          address: verify.pomerium.com
-                          port_value: 443
-          transport_socket:
-            name: tls
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
-              sni: verify.pomerium.com
+                          address: httpbin
+                          port_value: 80
         - name: egress-authenticate
           connect_timeout: '0.25s'
           type: STRICT_DNS
@@ -160,7 +188,6 @@ The configuration presented here assumes a working route to the domain space `*.
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext
               sni: authenticate.localhost.pomerium.io
-
     ```
 
     This configuration pulls the JWT out of the `X-Pomerium-Jwt-Assertion` header, verifies the `iss` and `aud` claims and checks the signature via the public key defined at the `jwks.json` endpoint. Documentation for additional configuration options is available here: [Envoy JWT Authentication](https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/jwt_authn_filter#config-http-filters-jwt-authn).
@@ -182,15 +209,14 @@ The configuration presented here assumes a working route to the domain space `*.
     signing_key: REPLACE_ME
 
     routes:
-      - from: https://verify.localhost.pomerium.io
-        to: http://envoy-jwt-checker:10000
+      - from: https://httpbin.localhost.pomerium.io
+        to: http://httpbin-sidecar:10000
+        pass_identity_headers: true
         policy:
           - allow:
               or:
                 - domain:
-                    is: pomerium.com
-        pass_identity_headers: true
-
+                    is: example.com
     ```
 
 Replace the identity provider credentials, secrets, and signing key. Adjust the policy to match your configuration.
@@ -205,9 +231,14 @@ You should now be able to run the example with:
     docker-compose up
     ```
 
-1. Visit [verify.localhost.pomerium.io](https://verify.localhost.pomerium.io), login and you see the Pomerium verify page. However, visiting Envoy directly via [localhost:10000](http://localhost:10000) should return a `Jwt is missing` error, thus requiring Pomerium to access Envoy.
+1. Visit [httpbin.localhost.pomerium.io](https://httpbin.localhost.pomerium.io). Login and you will be redirected to the httpbin page.
+
+1. In this network configuration you cannot access `httpbin` directly. However, visiting Envoy directly via [localhost.pomerium.io:10000/](http://localhost.pomerium.io:10000/) will return a `Jwt is missing` error, confirming that you must authenticate with Pomerium to access Envoy, and any services accessible through it.
 
 [authenticate.localhost.pomerium.io]: https://authenticate.localhost.pomerium.io
-[authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json]: https://authenticate.int.example.com/.well-known/pomerium/jwks.json
 [httpbin.localhost.pomerium.io]: https://verify.localhost.pomerium.io
+[Local Development with Wildcard DNS on Linux]: https://sixfeetup.com/blog/local-development-with-wildcard-dns-on-linux
+[Local Development with Wildcard DNS]: https://blog.thesparktree.com/local-development-with-wildcard-dns
+[Mutual Authentication: A Component of Zero-Trust]: /docs/topics/mutual-auth.md
+[Mutual Authentication With a Sidecar]: /docs/topics/mutual-auth.md#mutual-authentication-with-a-sidecar
 [verify.localhost.pomerium.io]: https://verify.localhost.pomerium.io
