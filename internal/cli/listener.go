@@ -2,17 +2,20 @@ package cli
 
 import (
 	"context"
+	"errors"
+
+	pb "github.com/pomerium/pomerium/pkg/grpc/cli"
 )
 
-type listenerEntry struct {
+type listenerStatusEntry struct {
 	context.CancelFunc
-	addr string
+	pb.ListenerStatus
 }
 
-type listenerStatus map[string]listenerEntry
+type listenerStatus map[string]listenerStatusEntry
 
 func newListenerStatus() ListenerStatus {
-	return listenerStatus(make(map[string]listenerEntry))
+	return listenerStatus(make(map[string]listenerStatusEntry))
 }
 
 func (l listenerStatus) SetListening(id string, cancel context.CancelFunc, addr string) error {
@@ -20,21 +23,38 @@ func (l listenerStatus) SetListening(id string, cancel context.CancelFunc, addr 
 		return errAlreadyListening
 	}
 
-	l[id] = listenerEntry{cancel, addr}
+	l[id] = listenerStatusEntry{cancel, pb.ListenerStatus{
+		Listening:  true,
+		ListenAddr: &addr,
+	}}
 	return nil
 }
 
-func (l listenerStatus) IsListening(id string) (string, bool) {
+func (l listenerStatus) GetListenerStatus(id string) *pb.ListenerStatus {
 	rec, there := l[id]
-	return rec.addr, there
+	if !there {
+		return &pb.ListenerStatus{}
+	}
+	return &rec.ListenerStatus
 }
 
 func (l listenerStatus) SetNotListening(id string) error {
 	rec, there := l[id]
-	if !there {
+	if !there || !rec.Listening || rec.CancelFunc == nil {
 		return errNotListening
 	}
 	rec.CancelFunc()
 	delete(l, id)
+	return nil
+}
+
+func (l listenerStatus) SetListenerError(id string, err error) error {
+	if _, there := l[id]; there {
+		return errors.New("invalid state")
+	}
+	txt := err.Error()
+	l[id] = listenerStatusEntry{
+		ListenerStatus: pb.ListenerStatus{LastError: &txt},
+	}
 	return nil
 }

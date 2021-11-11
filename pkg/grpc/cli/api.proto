@@ -83,16 +83,14 @@ message ImportResponse {}
 // Listener service controls listeners
 service Listener {
   // Update alters connection status.
-  // NB: ListenerStatus returns information for ALL listeners as it simplifies
-  // state management for the UI
-  rpc Update(ListenerUpdateRequest) returns (ListenerStatus) {
+  rpc Update(ListenerUpdateRequest) returns (ListenerStatusResponse) {
     option (google.api.http) = {
       post : "/listener"
       body : "*"
     };
   }
   // GetStatus returns current listener status for active tunnels
-  rpc GetStatus(Selector) returns (ListenerStatus) {
+  rpc GetStatus(Selector) returns (ListenerStatusResponse) {
     option (google.api.http) = {
       get : "/listener/status"
     };
@@ -115,11 +113,12 @@ message ListenerUpdateRequest {
 }
 
 message ListenerStatus {
-  // active listeners with their current ports
-  map<string, string> active = 1;
-  // if some listeners were unable to start up
-  map<string, string> errors = 2;
+  bool listening = 1;
+  optional string listen_addr = 2;
+  optional string last_error = 3;
 }
+
+message ListenerStatusResponse { map<string, ListenerStatus> listeners = 1; }
 
 message StatusUpdatesRequest { string connection_id = 1; }
 

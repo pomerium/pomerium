@@ -24,9 +24,11 @@ type ListenerStatus interface {
 	// Lock marks a particular ID locked and provides a function to be called on unlock
 	SetListening(id string, onUnlock context.CancelFunc, addr string) error
 	// IsListening checks whether particular ID is currently locked
-	IsListening(id string) (listenAddr string, listening bool)
-	// Unlock unlocks the ID and calls onUnlock function
+	GetListenerStatus(id string) *pb.ListenerStatus
+	// Unlock unlocks the ID and calls onUnlock function and clears listener status
 	SetNotListening(id string) error
+	// SetListenError sets listener status to an error
+	SetListenerError(id string, err error) error
 }
 
 // Tunnel is abstraction over tcptunnel.Tunnel to allow mocking
