@@ -12,7 +12,7 @@ description: >-
 
 # Securing Grafana with Pomerium
 
-[Grafana](https://grafana.com/) is an open-source analytics and interactive visualization web application monitoring solution. It provides many user-contributed [Dashboards](https://grafana.com/grafana/dashboards/) that make it popular for enthusiasts as well as professionals.
+[Grafana](https://grafana.com/) is an open-source analytics visualization and monitoring tool. It provides many user-contributed [Dashboards](https://grafana.com/grafana/dashboards/) that make it popular for enthusiasts as well as professionals.
 
 This guide will demonstrate how to secure an instance of Grafana behind Pomerium, and provide users with a seamless login to Grafana using your Identity Provider (**IdP**).
 
