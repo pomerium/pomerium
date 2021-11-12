@@ -23,7 +23,7 @@ This guide begins with the following steps assumed complete:
 - A running instance of Pomerium. If you haven't already installed Pomerium, see our articles for installation on [Docker](/docs/install/readme.md), [Kubernetes](/docs/install/helm.md), or as an all-in-one [binary](/docs/install/binary.html).
 - Administrator access to a working Grafana instance, including write access to the config file `grafani.ini`, usually found in `/etc/grafana`.
 
-This guide uses the following temporary values in steps and configuration examples, which will need to be adjusted for your setup:
+This guide uses the following temporary values in commands and configuration examples, which will need to be adjusted for your setup:
 
 - `http://grafana:3000` - The path Pomerium will use to access Grafana. This example emulates a common Docker-based setup.
 - `http://grafana.local:3000` - The path to access the Grafana interface from your local computer. We will need direct access to add at least one user before Pomerium is configured.
