@@ -532,7 +532,7 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 		return li, nil
 	}
 
-	chains, err := b.buildFilterChains(cfg.Options, cfg.Options.Addr,
+	chains, err := b.buildFilterChains(cfg.Options, cfg.Options.GRPCAddr,
 		func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error) {
 			filterChain := &envoy_config_listener_v3.FilterChain{
 				Filters: []*envoy_config_listener_v3.Filter{filter},

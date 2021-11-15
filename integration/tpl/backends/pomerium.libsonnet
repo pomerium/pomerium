@@ -102,7 +102,6 @@ local Environment(mode, idp, dns_suffix) =
     DATABROKER_SERVICE_URL: 'https://pomerium-databroker:5443',
     GRPC_ADDRESS: ':5443',
     GRPC_INSECURE: 'false',
-    OVERRIDE_CERTIFICATE_NAME: '*.localhost.pomerium.io',
   } else if mode == 'traefik' then {
     FORWARD_AUTH_URL: 'https://forward-authenticate.localhost.pomerium.io',
   } else if mode == 'nginx' then {
@@ -141,6 +140,8 @@ function(mode, idp, dns_suffix='') {
         image: image,
         environment: environment {
           SERVICES: 'authorize',
+          CERTIFICATE: std.base64(importstr '../files/pomerium-authorize.pem'),
+          CERTIFICATE_KEY: std.base64(importstr '../files/pomerium-authorize-key.pem'),
         },
         ports: [
           '9904:9901/tcp',
@@ -161,6 +162,8 @@ function(mode, idp, dns_suffix='') {
         image: image,
         environment: environment {
           SERVICES: 'databroker',
+          CERTIFICATE: std.base64(importstr '../files/pomerium-databroker.pem'),
+          CERTIFICATE_KEY: std.base64(importstr '../files/pomerium-databroker-key.pem'),
         },
         ports: [
           '9902:9901/tcp',
