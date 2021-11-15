@@ -75,7 +75,6 @@ func TestHealth(t *testing.T) {
 		"https://authenticate.localhost.pomerium.io",
 		"https://httpdetails.localhost.pomerium.io",
 		"https://restricted-httpdetails.localhost.pomerium.io",
-		"https://unknown.localhost.pomerium.io",
 	}
 	endpoints := []string{"healthz", "ping"}
 

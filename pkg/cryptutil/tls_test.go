@@ -49,7 +49,8 @@ func TestGetCertificateForDomain(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return
 		}
-		assert.Equal(t, &certs[0], found)
+		assert.NotNil(t, found)
+		assert.NotEqual(t, &certs[0], found)
 	})
 	t.Run("generate", func(t *testing.T) {
 		certs := []tls.Certificate{}
