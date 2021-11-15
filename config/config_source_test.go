@@ -27,9 +27,17 @@ func TestFileWatcherSource(t *testing.T) {
 		return
 	}
 
+	err = ioutil.WriteFile(filepath.Join(tmpdir, "kubernetes-example.txt"), []byte{1, 2, 3, 4}, 0o600)
+	if !assert.NoError(t, err) {
+		return
+	}
+
 	ssrc := NewStaticSource(&Config{
 		Options: &Options{
 			CAFile: filepath.Join(tmpdir, "example.txt"),
+			Policies: []Policy{{
+				KubernetesServiceAccountTokenFile: filepath.Join(tmpdir, "kubernetes-example.txt"),
+			}},
 		},
 	})
 
@@ -51,6 +59,17 @@ func TestFileWatcherSource(t *testing.T) {
 	case <-ch:
 	case <-time.After(time.Second):
 		t.Error("expected OnConfigChange to be fired after modifying a file")
+	}
+
+	err = ioutil.WriteFile(filepath.Join(tmpdir, "kubernetes-example.txt"), []byte{5, 6, 7, 8}, 0o600)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.Error("expected OnConfigChange to be fired after modifying a policy file")
 	}
 
 	ssrc.SetConfig(ctx, &Config{
