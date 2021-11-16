@@ -117,6 +117,8 @@ issues:
     - Subprocess launch(ed with variable|ing should be audited)
     # gosec: Duplicated errcheck checks
     - G104
+    # gosec: unsafe close on file errors
+    - G307
     # gosec: Too many issues in popular repos
     - (Expect directory permissions to be 0750 or less|Expect file permissions to be 0600 or less)
     # gosec: False positive is triggered by 'src, err := ioutil.ReadFile(filename)'
