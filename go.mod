@@ -33,7 +33,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/martinlindhe/base36 v1.1.0
-	github.com/mholt/acmez v1.0.0
+	github.com/mholt/acmez v1.0.1
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.4.2
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
