@@ -7,7 +7,7 @@ require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.0
 	contrib.go.opencensus.io/exporter/zipkin v0.1.2
 	github.com/DataDog/opencensus-go-exporter-datadog v0.0.0-20200406135749-5c268882acf0
-	github.com/caddyserver/certmagic v0.15.1
+	github.com/caddyserver/certmagic v0.15.2
 	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/client9/misspell v0.3.4
@@ -62,7 +62,7 @@ require (
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da
 	go.opencensus.io v0.23.0
 	go.uber.org/zap v1.19.1
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+	golang.org/x/crypto v0.0.0-20211115234514-b4de73f9ece8
 	golang.org/x/net v0.0.0-20210917221730-978cfadd31cf
 	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
@@ -167,7 +167,7 @@ require (
 	github.com/julz/importas v0.0.0-20210419104244-841f0c0fe66d // indirect
 	github.com/kisielk/errcheck v1.6.0 // indirect
 	github.com/kisielk/gotool v1.0.0 // indirect
-	github.com/klauspost/cpuid/v2 v2.0.6 // indirect
+	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/kulti/thelper v0.4.0 // indirect
 	github.com/kunwardeep/paralleltest v1.0.3 // indirect
 	github.com/kyoh86/exportloopref v0.1.8 // indirect
@@ -181,12 +181,12 @@ require (
 	github.com/matoous/godox v0.0.0-20210227103229-6504466cf951 // indirect
 	github.com/mattn/go-colorable v0.1.11 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
-	github.com/mattn/go-runewidth v0.0.9 // indirect
+	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/mbilski/exhaustivestruct v1.2.0 // indirect
 	github.com/mgechev/dots v0.0.0-20210922191527-e955255bf517 // indirect
 	github.com/mgechev/revive v1.1.2 // indirect
-	github.com/miekg/dns v1.1.42 // indirect
+	github.com/miekg/dns v1.1.43 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
 	github.com/moricho/tparallel v0.2.1 // indirect
@@ -209,6 +209,7 @@ require (
 	github.com/quasilyte/go-ruleguard v0.3.13 // indirect
 	github.com/quasilyte/regex/syntax v0.0.0-20200407221936-30656e2c4a95 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
+	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/ryancurrah/gomodguard v1.2.3 // indirect
 	github.com/ryanrolds/sqlclosecheck v0.3.0 // indirect
 	github.com/sanposhiho/wastedassign/v2 v2.0.6 // indirect
@@ -248,7 +249,7 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.5.0 // indirect
-	golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359 // indirect
+	golang.org/x/sys v0.0.0-20211116061358-0a5406a5449c // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.7 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
