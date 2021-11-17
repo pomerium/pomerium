@@ -238,6 +238,16 @@ func (src *FileWatcherSource) check(ctx context.Context, cfg *Config) {
 		fs = append(fs, pair.CertFile, pair.KeyFile)
 	}
 
+	for _, policy := range cfg.Options.Policies {
+		fs = append(fs,
+			policy.KubernetesServiceAccountTokenFile,
+			policy.TLSClientCertFile,
+			policy.TLSClientKeyFile,
+			policy.TLSCustomCAFile,
+			policy.TLSDownstreamClientCAFile,
+		)
+	}
+
 	for _, f := range fs {
 		_, _ = h.Write([]byte{0})
 		bs, err := ioutil.ReadFile(f)
