@@ -44,49 +44,11 @@ builds:
           env:
             - TARGET={{ .Os }}-{{ .Arch }}
 
-  - id: pomerium-cli
-    main: ./cmd/pomerium-cli
-    binary: pomerium-cli
-    goarch:
-      - amd64
-      - arm
-      - arm64
-    goos:
-      - linux
-      - darwin
-      - windows
-      - freebsd
-    goarm:
-      - 6
-      - 7
-    ignore:
-      - goos: freebsd
-        goarch: arm64
-      - goos: freebsd
-        goarch: arm
-
-    ldflags:
-      - -s -w
-      - -X github.com/pomerium/pomerium/internal/version.Version={{.Version}}
-      - -X github.com/pomerium/pomerium/internal/version.GitCommit={{.ShortCommit}}
-      - -X github.com/pomerium/pomerium/internal/version.BuildMeta={{.Timestamp}}
-      - -X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium
-      - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://wwww.pomerium.io
-
 archives:
   - name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     id: pomerium
     builds:
       - pomerium
-    files:
-      - none*
-    format_overrides:
-      - goos: windows
-        format: zip
-  - name_template: "{{ .ProjectName }}-cli-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
-    id: pomerium-cli
-    builds:
-      - pomerium-cli
     files:
       - none*
     format_overrides:
@@ -103,9 +65,6 @@ dockers:
   - image_templates:
       - "pomerium/pomerium:amd64-{{ .Tag }}"
     dockerfile: .github/Dockerfile-release
-    binaries:
-      - pomerium
-      - pomerium-cli
     build_flag_templates:
       - "--pull"
       - "--build-arg=ARCH=amd64"
@@ -120,8 +79,6 @@ dockers:
   - image_templates:
       - "gcr.io/pomerium-io/pomerium:{{ .Tag }}-cloudrun"
     dockerfile: .github/Dockerfile-cloudrun
-    binaries:
-      - pomerium
     build_flag_templates:
       - "--pull"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -136,9 +93,6 @@ dockers:
     image_templates:
       - "pomerium/pomerium:arm64v8-{{ .Tag }}"
     dockerfile: .github/Dockerfile-release
-    binaries:
-      - pomerium
-      - pomerium-cli
     build_flag_templates:
       - "--pull"
       - "--build-arg=ARCH=arm64"
@@ -157,34 +111,6 @@ docker_manifests:
       - pomerium/pomerium:amd64-{{ .Tag }}
 
 brews:
-  - # Name template of the recipe
-    name: pomerium-cli
-
-    # IDs of the archives to use.
-    ids:
-      - pomerium-cli
-
-    # GOARM to specify which 32-bit arm version to use if there are multiple versions
-    # from the build section. Brew formulas support atm only one 32-bit version.
-    # Default is 6 for all artifacts or each id if there a multiple versions.
-    goarm: 6
-
-    tap:
-      owner: pomerium
-      name: homebrew-tap
-      # Optionally a token can be provided, if it differs from the token provided to GoReleaser
-      token: "{{ .Env.APPARITOR_GITHUB_TOKEN }}"
-
-    # Git author used to commit to the repository.
-    # Defaults are shown.
-    commit_author:
-      name: apparitor
-      email: apparitor@users.noreply.github.com
-
-    folder: Formula
-    install: |
-      bin.install "pomerium-cli"
-
   - # Name template of the recipe
     name: pomerium
     # IDs of the archives to use.
@@ -257,34 +183,3 @@ nfpms:
           arm64: aarch64
           amd64: x86_64
         file_name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Release }}.{{ .Arch }}"
-  - id: pomerium-cli
-
-    builds:
-      - pomerium-cli
-
-    package_name: pomerium-cli
-    vendor: Pomerium, Inc.
-    homepage: https://www.pomerium.com
-    description: Identity Aware Proxy
-    maintainer: Pomerium <info@pomerium.com>
-    license: Apache 2.0
-    epoch: 1
-    release: 1
-    meta: false
-
-    formats:
-      - deb
-      - rpm
-
-    bindir: /usr/bin
-
-    overrides:
-      deb:
-        replacements:
-          arm64: arm64
-        file_name_template: '{{ .ProjectName }}-cli_{{ .Version }}-{{ .Release }}_{{ .Arch }}{{ if .Arm }}{{if eq .Arm "7"}}hf{{ end }}{{ end }}'
-      rpm:
-        replacements:
-          arm64: aarch64
-          amd64: x86_64
-        file_name_template: '{{ .ProjectName }}-cli-{{ .Version }}-{{ .Release }}.{{ .Arch }}{{ if .Arm }}{{if eq .Arm "7"}}hf{{ end }}{{ end }}'
