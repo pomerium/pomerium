@@ -12,7 +12,6 @@ COPY . .
 # build
 RUN make build-deps
 RUN make build NAME=pomerium
-RUN make build NAME=pomerium-cli
 RUN touch /config.yaml
 
 # build our own root trust store from current stable

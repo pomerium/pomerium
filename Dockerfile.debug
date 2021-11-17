@@ -12,7 +12,6 @@ COPY . .
 # build
 RUN make build-deps
 RUN make build-debug NAME=pomerium
-RUN make build-debug NAME=pomerium-cli
 RUN touch /config.yaml
 RUN go get github.com/go-delve/delve/cmd/dlv
 
