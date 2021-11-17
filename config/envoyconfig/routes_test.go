@@ -96,7 +96,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			`+routeString("path", "/.well-known/pomerium", false)+`,
 			`+routeString("prefix", "/.well-known/pomerium/", false)+`,
 			`+routeString("path", "/robots.txt", false)+`,
-			`+routeString("path", "/oauth2/callback", false)+`
+			`+routeString("prefix", "/", false)+`
 		]`, routes)
 	})
 	t.Run("proxy fronting authenticate", func(t *testing.T) {
