@@ -71,11 +71,6 @@ jobs:
             cloudsmith push rpm pomerium/pomerium/el/any-version $pkg
           done
 
-          DEBS="pomerium-cli_${VERSION}-1_amd64.deb pomerium-cli_${VERSION}-1_arm64.deb pomerium-cli_${VERSION}-1_armhf.deb pomerium_${VERSION}-1_amd64.deb pomerium_${VERSION}-1_arm64.deb"
-          for pkg in $(echo $DEBS); do
-            cloudsmith push deb pomerium/pomerium/debian/any-version $pkg
-          done
-
       - name: Find latest tag
         id: latestTag
         run: |
