@@ -674,9 +674,9 @@ tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅
 Setting `use_proxy_protocol` will configure Pomerium to require the [HAProxy proxy protocol](https://www.haproxy.org/download/1.9/doc/proxy-protocol.txt) on incoming connections. Versions 1 and 2 of the protocol are supported.
 
 
-### Envoy Admin Options
+### Envoy Bootstrap Options
 - Environment Variable: `ENVOY_ADMIN_ADDRESS`, `ENVOY_ADMIN_ACCESS_LOG_PATH`, `ENVOY_ADMIN_PROFILE_PATH`
-- Config File Keys: `envoy_admin_address`, `envoy_admin_access_log_path`, `envoy_admin_profile_path`
+- Config File Keys: `envoy_admin_address`, `envoy_admin_access_log_path`, `envoy_admin_profile_path`, `envoy_bind_config_freebind`, `envoy_bind_config_source_address`
 - Type: `string`
 - Optional
 

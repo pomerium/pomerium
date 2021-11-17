@@ -275,6 +275,11 @@ func (srv *Server) buildBootstrapConfig(cfg *config.Config) ([]byte, error) {
 		return nil, err
 	}
 
+	clusterManagerCfg, err := srv.builder.BuildBootstrapClusterManager(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	bootstrapCfg := &envoy_config_bootstrap_v3.Bootstrap{
 		Node:             nodeCfg,
 		Admin:            adminCfg,
@@ -282,6 +287,7 @@ func (srv *Server) buildBootstrapConfig(cfg *config.Config) ([]byte, error) {
 		StaticResources:  staticCfg,
 		StatsConfig:      statsCfg,
 		LayeredRuntime:   layeredRuntimeCfg,
+		ClusterManager:   clusterManagerCfg,
 	}
 
 	jsonBytes, err := protojson.Marshal(proto.MessageV2(bootstrapCfg))

@@ -13,6 +13,7 @@ import (
 	envoy_extensions_access_loggers_file_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/file/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -40,6 +41,33 @@ func (b *Builder) BuildBootstrapAdmin(cfg *config.Config) (admin *envoy_config_b
 	}
 
 	return admin, nil
+}
+
+// BuildBootstrapClusterManager builds the bootstrap cluster manager.
+func (b *Builder) BuildBootstrapClusterManager(cfg *config.Config) (*envoy_config_bootstrap_v3.ClusterManager, error) {
+	mgr := &envoy_config_bootstrap_v3.ClusterManager{
+		UpstreamBindConfig: &envoy_config_core_v3.BindConfig{
+			SourceAddress: &envoy_config_core_v3.SocketAddress{
+				Address: "0.0.0.0",
+				PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
+					PortValue: 0,
+				},
+			},
+		},
+	}
+
+	if cfg.Options.EnvoyBindConfigFreebind.IsSet() {
+		if mgr.UpstreamBindConfig == nil {
+			mgr.UpstreamBindConfig = new(envoy_config_core_v3.BindConfig)
+		}
+		mgr.UpstreamBindConfig.Freebind = wrapperspb.Bool(cfg.Options.EnvoyBindConfigFreebind.Bool)
+	}
+
+	if cfg.Options.EnvoyBindConfigSourceAddress != "" {
+		mgr.UpstreamBindConfig.SourceAddress.Address = cfg.Options.EnvoyBindConfigSourceAddress
+	}
+
+	return mgr, nil
 }
 
 // BuildBootstrapLayeredRuntime builds the layered runtime for the envoy bootstrap.

@@ -18,6 +18,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
+	"github.com/volatiletech/null/v9"
 
 	"github.com/pomerium/pomerium/internal/directory/azure"
 	"github.com/pomerium/pomerium/internal/directory/github"
@@ -279,10 +280,12 @@ type Options struct {
 	// see https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html?highlight=xff_num_trusted_hops#x-forwarded-for
 	XffNumTrustedHops uint32 `mapstructure:"xff_num_trusted_hops" yaml:"xff_num_trusted_hops,omitempty" json:"xff_num_trusted_hops,omitempty"`
 
-	// Envoy bootstrap admin options. These do not support dynamic updates.
-	EnvoyAdminAccessLogPath string `mapstructure:"envoy_admin_access_log_path" yaml:"envoy_admin_access_log_path"`
-	EnvoyAdminProfilePath   string `mapstructure:"envoy_admin_profile_path" yaml:"envoy_admin_profile_path"`
-	EnvoyAdminAddress       string `mapstructure:"envoy_admin_address" yaml:"envoy_admin_address"`
+	// Envoy bootstrap options. These do not support dynamic updates.
+	EnvoyAdminAccessLogPath      string    `mapstructure:"envoy_admin_access_log_path" yaml:"envoy_admin_access_log_path"`
+	EnvoyAdminProfilePath        string    `mapstructure:"envoy_admin_profile_path" yaml:"envoy_admin_profile_path"`
+	EnvoyAdminAddress            string    `mapstructure:"envoy_admin_address" yaml:"envoy_admin_address"`
+	EnvoyBindConfigSourceAddress string    `mapstructure:"envoy_bind_config_source_address" yaml:"envoy_bind_config_source_address,omitempty"`
+	EnvoyBindConfigFreebind      null.Bool `mapstructure:"envoy_bind_config_freebind" yaml:"envoy_bind_config_freebind,omitempty"`
 
 	// ProgrammaticRedirectDomainWhitelist restricts the allowed redirect URLs when using programmatic login.
 	ProgrammaticRedirectDomainWhitelist []string `mapstructure:"programmatic_redirect_domain_whitelist" yaml:"programmatic_redirect_domain_whitelist,omitempty" json:"programmatic_redirect_domain_whitelist,omitempty"` //nolint

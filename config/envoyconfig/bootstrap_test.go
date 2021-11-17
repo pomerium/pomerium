@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/volatiletech/null/v9"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
@@ -37,6 +38,46 @@ func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 			},
 		})
 		assert.Error(t, err)
+	})
+}
+
+func TestBuilder_BuildBootstrapClusterManager(t *testing.T) {
+	b := New("localhost:1111", "localhost:2222", filemgr.NewManager(), nil)
+	t.Run("no options", func(t *testing.T) {
+		clusterManagerCfg, err := b.BuildBootstrapClusterManager(&config.Config{
+			Options: &config.Options{},
+		})
+		assert.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `
+			{
+				"upstreamBindConfig": {
+					"sourceAddress": {
+						"address": "0.0.0.0",
+						"portValue": 0
+					}
+				}
+			}
+		`, clusterManagerCfg)
+	})
+	t.Run("with options", func(t *testing.T) {
+		clusterManagerCfg, err := b.BuildBootstrapClusterManager(&config.Config{
+			Options: &config.Options{
+				EnvoyBindConfigSourceAddress: "127.0.0.1",
+				EnvoyBindConfigFreebind:      null.BoolFrom(true),
+			},
+		})
+		assert.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `
+			{
+				"upstreamBindConfig": {
+					"freebind": true,
+					"sourceAddress": {
+						"address": "127.0.0.1",
+						"portValue": 0
+					}
+				}
+			}
+		`, clusterManagerCfg)
 	})
 }
 
