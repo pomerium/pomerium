@@ -6,10 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
@@ -826,6 +828,56 @@ func Test_validateClusters(t *testing.T) {
 			assert.NoError(t, err, "%#v", tc.clusters)
 		}
 	}
+}
+
+func Test_bindConfig(t *testing.T) {
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	defer clearTimeout()
+
+	b := New("local-grpc", "local-http", filemgr.NewManager(), nil)
+	t.Run("no bind config", func(t *testing.T) {
+		cluster, err := b.buildPolicyCluster(ctx, &config.Options{}, &config.Policy{
+			From: "https://from.example.com",
+			To:   mustParseWeightedURLs(t, "https://to.example.com"),
+		})
+		assert.NoError(t, err)
+		assert.Nil(t, cluster.UpstreamBindConfig)
+	})
+	t.Run("freebind", func(t *testing.T) {
+		cluster, err := b.buildPolicyCluster(ctx, &config.Options{
+			EnvoyBindConfigFreebind: null.BoolFrom(true),
+		}, &config.Policy{
+			From: "https://from.example.com",
+			To:   mustParseWeightedURLs(t, "https://to.example.com"),
+		})
+		assert.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `
+			{
+				"freebind": true,
+				"sourceAddress": {
+					"address": "0.0.0.0",
+					"portValue": 0
+				}
+			}
+		`, cluster.UpstreamBindConfig)
+	})
+	t.Run("source address", func(t *testing.T) {
+		cluster, err := b.buildPolicyCluster(ctx, &config.Options{
+			EnvoyBindConfigSourceAddress: "192.168.0.1",
+		}, &config.Policy{
+			From: "https://from.example.com",
+			To:   mustParseWeightedURLs(t, "https://to.example.com"),
+		})
+		assert.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `
+			{
+				"sourceAddress": {
+					"address": "192.168.0.1",
+					"portValue": 0
+				}
+			}
+		`, cluster.UpstreamBindConfig)
+	})
 }
 
 func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
