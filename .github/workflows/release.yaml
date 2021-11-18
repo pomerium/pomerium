@@ -66,9 +66,14 @@ jobs:
         working-directory: dist/
         run: |
           VERSION=${{ steps.tagName.outputs.version }}
-          RPMS="pomerium-${VERSION}-1.x86_64.rpm pomerium-${VERSION}-1.aarch64.rpm pomerium-cli-${VERSION}-1.aarch64.rpm pomerium-cli-${VERSION}-1.x86_64.rpm pomerium-cli-${VERSION}-1.armhf.rpm"
+          RPMS="pomerium-${VERSION}-1.x86_64.rpm pomerium-${VERSION}-1.aarch64.rpm"
           for pkg in $(echo $RPMS); do
             cloudsmith push rpm pomerium/pomerium/el/any-version $pkg
+          done
+
+          DEBS="pomerium_${VERSION}-1_amd64.deb pomerium_${VERSION}-1_arm64.deb"
+          for pkg in $(echo $DEBS); do
+            cloudsmith push deb pomerium/pomerium/debian/any-version $pkg
           done
 
       - name: Find latest tag
