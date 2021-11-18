@@ -110,7 +110,7 @@ func (b *Builder) buildPomeriumHTTPRoutes(options *config.Options, domain string
 		return nil, err
 	}
 	if config.IsAuthenticate(options.Services) && hostMatchesDomain(authenticateURL, domain) {
-		r, err := b.buildControlPlanePathRoute(options.AuthenticateCallbackPath, false)
+		r, err := b.buildControlPlanePrefixRoute("/", false)
 		if err != nil {
 			return nil, err
 		}
