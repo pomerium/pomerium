@@ -58,7 +58,7 @@ While your network *should* be secured to only allow traffic at specified ports 
 
 ## JWT Verification: Internal Mutual Auth
 
-Many, but not all, modern web applications support java web tokens (**JWTs**). These tokens are provided by Pomerium (with the [`pass_identity_headers`] key) to the downstream service so that it can independently verify that the traffic it receives is authorized.
+Many, but not all, modern web applications support json web tokens (**JWTs**). These tokens are provided by Pomerium (with the [`pass_identity_headers`] key) to the downstream service so that it can independently verify that the traffic it receives is authorized.
 
 Let's look at an example, modeled from our [Grafana] integration guide:
 
