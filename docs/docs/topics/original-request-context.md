@@ -14,7 +14,7 @@ In enterprise environments where multiple services protected by Pomerium communi
 
 ## Abstract
 
-When a User communicates with a service downstream of Pomerium, the service can identify that user by the `X-Pomerium-JWT-Assertion` header, added by Pomerium, which provides as a value a Java Web Token (**JWT**) identifying the user.
+When a User communicates with a service downstream of Pomerium, the service can identify that user by the `X-Pomerium-JWT-Assertion` header, added by Pomerium, which provides as a value a Json Web Token (**JWT**) identifying the user.
 
 Should that service need to communicate with another Pomerium-protected service to construct the response, that connection should be authorized through Pomerium with a [Service Account](/enterprise/concepts.md#service-accounts). Service accounts should be provided to Pomerium from the first service as a bearer token header, i.e. `Authorization: Bearer Pomerium-${service_acount_jwt}`. This header is how the secondary service authenticates the machine-to-machine interaction.
 
