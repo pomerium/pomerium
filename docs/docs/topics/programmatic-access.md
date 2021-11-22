@@ -99,7 +99,7 @@ The application interacting with Pomerium must manage the following workflow. Co
 1. The script or application can now make any requests as normal to the upstream application by setting the `Authorization: Pomerium ${pomerium_jwt}` header.
 
 :::tip
-Pomerium supports `Authorization: Bearer Pomerium-${pomerium_jwt}` in addition to `Authorization: Pomerium ${pomerium_jwt}` format.
+Pomerium supports `Authorization: Bearer Pomerium-${pomerium_jwt}` or `X-Pomerium-Authorization: ${pomerium_jwt}` in addition to `Authorization: Pomerium ${pomerium_jwt}` format.
 :::
 
 ## Example Code

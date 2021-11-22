@@ -6,7 +6,6 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
-	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/sessions/header"
@@ -22,7 +21,7 @@ func loadRawSession(req *http.Request, options *config.Options, encoder encoding
 	}
 	loaders = append(loaders,
 		cookieStore,
-		header.NewStore(encoder, httputil.AuthorizationTypePomerium),
+		header.NewStore(encoder),
 		queryparam.NewStore(encoder, urlutil.QuerySession),
 	)
 

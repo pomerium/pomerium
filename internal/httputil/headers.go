@@ -5,6 +5,7 @@ const AuthorizationTypePomerium = "Pomerium"
 
 // Standard headers
 const (
+	HeaderAuthorization    = "Authorization"
 	HeaderReferrer         = "Referer"
 	HeaderImpersonateGroup = "Impersonate-Group"
 	HeaderUpgrade          = "Upgrade"
@@ -12,6 +13,10 @@ const (
 
 // Pomerium headers contain information added to a request.
 const (
+	// HeaderPomeriumAuthorization is the header key for a pomerium authorization JWT. It
+	// can be used in place of the standard authorization header if that header is being
+	// used by upstream applications.
+	HeaderPomeriumAuthorization = "x-pomerium-authorization"
 	// HeaderPomeriumResponse is set when pomerium itself creates a response,
 	// as opposed to the upstream application and can be used to distinguish
 	// between an application error, and a pomerium related error when debugging.
