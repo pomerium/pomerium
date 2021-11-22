@@ -175,7 +175,6 @@ settings:
           - name: "Global"
             settings:
               - name: "Debug"
-              - name: "Forward Auth"
               - name: "HTTP Redirect Address"
               - name: "DNS Lookup Family"
               - name: "Log Level"
