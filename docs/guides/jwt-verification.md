@@ -11,7 +11,7 @@ description: >-
 # JWT Verification
 This example demonstrates how to verify the [Pomerium JWT assertion header](https://www.pomerium.io/reference/#pass-identity-headers) using [Envoy](https://www.envoyproxy.io/). This is useful for legacy or 3rd party applications which can't be modified to perform verification themselves.
 
-This guide is a practical demonstration of some of the topics discussed in [Mutual Authentication: A Component of Zero-Trust].
+This guide is a practical demonstration of some of the concept of mutual authentication, using json web tokens (**JWTs**).
 
 ## Requirements
 - [Docker](https://www.docker.com/)
@@ -28,8 +28,6 @@ Three services are configured in a `docker-compose.yaml` file:
 - `httpbin` as our example legacy application without JWT verifivation.
 
 In our Docker Compose configuration we'll define two networks. `pomerium` and `envoy-jwt-checker` will be on the `frontend` network, simulating your local area network (**LAN**). `envoy-jwt-checker` will also be on the `backend` network, along with `httpbin`. This means that `envoy-jwt-checker` is the only other service that can communicate with `httpbin`.
-
-For a detailed explanation of this security model, see [Mutual Authentication With a Sidecar]
 
 Once running, the user visits [verify.localhost.pomerium.io], is authenticated through [authenticate.localhost.pomerium.io], and then the HTTP request is sent to envoy which proxies it to the httpbin app.
 
@@ -239,6 +237,4 @@ You should now be able to run the example with:
 [httpbin.localhost.pomerium.io]: https://verify.localhost.pomerium.io
 [Local Development with Wildcard DNS on Linux]: https://sixfeetup.com/blog/local-development-with-wildcard-dns-on-linux
 [Local Development with Wildcard DNS]: https://blog.thesparktree.com/local-development-with-wildcard-dns
-[Mutual Authentication: A Component of Zero-Trust]: /docs/topics/mutual-auth.md
-[Mutual Authentication With a Sidecar]: /docs/topics/mutual-auth.md#mutual-authentication-with-a-sidecar
 [verify.localhost.pomerium.io]: https://verify.localhost.pomerium.io
