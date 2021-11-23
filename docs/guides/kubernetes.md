@@ -116,7 +116,7 @@ This new route requires a kubernetes service account token. Our Helm chart creat
     ```yaml
       routes:
         - from: https://k8s.localhost.pomerium.io
-          to: https://kubernetes
+          to: https://kubernetes.default.svc.cluster.local
           allow_spdy: true
           tls_skip_verify: true
           kubernetes_service_account_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
@@ -150,7 +150,7 @@ To use `pomerium-cli` as an exec-credential provider, update your kubectl config
    # Add Context
    kubectl config set-context via-pomerium --user=via-pomerium --cluster=via-pomerium
    # Add credentials command
-   kubectl config set-credentials via-pomerium --exec-command=pomerium-cli --exec-arg=k8s,exec-credential,https://k8s.localhost.pomerium.io
+   kubectl config set-credentials via-pomerium --exec-command=pomerium-cli --exec-arg=k8s,exec-credential,https://k8s.localhost.pomerium.io --exec-api-version=client.authentication.k8s.io/v1beta1
   ```
 
 Here's the resulting configuration:
