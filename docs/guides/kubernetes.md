@@ -144,14 +144,28 @@ The [pomerium-cli] tool can be used by kubectl as an auth helper. Once configure
 
 To use `pomerium-cli` as an exec-credential provider, update your kubectl config:
 
-   ```shell
-   # Add Cluster
-   kubectl config set-cluster via-pomerium --server=https://k8s.localhost.pomerium.io
-   # Add Context
-   kubectl config set-context via-pomerium --user=via-pomerium --cluster=via-pomerium
-   # Add credentials command
-   kubectl config set-credentials via-pomerium --exec-command=pomerium-cli --exec-arg=k8s,exec-credential,https://k8s.localhost.pomerium.io --exec-api-version=client.authentication.k8s.io/v1beta1
-  ```
+```shell
+# Add Cluster
+kubectl config set-cluster via-pomerium --server=https://k8s.localhost.pomerium.io
+# Add Context
+kubectl config set-context via-pomerium --user=via-pomerium --cluster=via-pomerium
+# Add credentials command
+kubectl config set-credentials via-pomerium --exec-command=pomerium-cli \
+  --exec-arg=k8s,exec-credential,https://k8s.localhost.pomerium.io \
+  --exec-api-version=client.authentication.k8s.io/v1beta1
+```
+
+::: details Skip TLS Verification
+If you're using untrusted certificates or need to debug a certificate issue, configure the credential provider without TLS verification:
+
+```shell
+kubectl config set-cluster via-pomerium --server=https://k8s.localhost.pomerium.io \
+  --insecure-skip-tls-verify=true
+kubectl config set-credentials via-pomerium --exec-command=pomerium-cli \
+  --exec-arg=k8s,exec-credential,https://k8s.localhost.pomerium.io,--disable-tls-verification \
+  --exec-api-version=client.authentication.k8s.io/v1beta1
+```
+:::
 
 Here's the resulting configuration:
 
