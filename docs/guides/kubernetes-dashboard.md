@@ -10,7 +10,7 @@ description: >-
 
 # Securing Kubernetes Dashboard
 
-The following guide covers how to secure [Kubernetes Dashboard] using Pomerium. Kubernetes Dashboard is a powerful, web-based UI for managing Kubernetes clusters. Pomerium can act as a **forward-auth provider** _and_ as an independent **identity-aware access proxy** improving and adding single-sign-on to Kubernetes Dashboard's default access control. This guide aims to demonstrate a concrete example of those two methods of access control.
+The following guide covers how to secure [Kubernetes Dashboard] using Pomerium. Kubernetes Dashboard is a powerful, web-based UI for managing Kubernetes clusters. Pomerium can act as an independent **identity-aware access proxy** improving and adding single-sign-on to Kubernetes Dashboard's default access control. This is in contrast to most deployments, which use static tokens for access.
 
 ![fresh kubernetes dashboard install](./img/k8s-fresh-dashboard.png)
 
