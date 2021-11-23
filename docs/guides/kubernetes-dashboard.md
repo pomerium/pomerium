@@ -55,7 +55,7 @@ Following the configuration defined in [Install Pomerium using Helm], add a rout
 
     ```yaml
         - from: https://dashboard.localhost.pomerium.io
-          to: https://kubernetes-dashboard.default.svc
+          to: https://kubernetes-dashboard.default.svc.cluster.local
           tls_skip_verify: true
           allow_spdy: true
           tls_skip_verify: true
