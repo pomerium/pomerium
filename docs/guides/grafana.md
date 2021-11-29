@@ -44,7 +44,7 @@ cache_ttl = 60m
 
 This configuration:
 
-- enables authentication by java web token (**JWT**),
+- enables authentication by JSON web token (**JWT**),
 - defines the header to look at to provide the JWT,
 - associates the email_claim in the JWT with the email of the Grafana user,
 - specifies the location of the signing key for the JWT to validate it,
