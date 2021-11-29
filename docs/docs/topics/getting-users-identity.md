@@ -5,7 +5,7 @@ description: This article describes how to to get a user's identity with Pomeriu
 
 # Getting the user's identity
 
-This article describes how to retrieve a user's identity from a pomerium managed application. Pomerium uses JSON Web Tokens (JWT) to attest that a given request was handled by Pomerium's authorizer service.
+This article describes how to retrieve a user's identity from a pomerium managed application. Pomerium uses JSON web tokens (JWT) to attest that a given request was handled by Pomerium's authorizer service.
 
 ## Prerequisites
 
