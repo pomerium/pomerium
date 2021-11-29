@@ -27,7 +27,7 @@ const Name = "oidc"
 
 var defaultScopes = []string{go_oidc.ScopeOpenID, "profile", "email", "offline_access"}
 
-var defaultAuthCodeOptions = []oauth2.AuthCodeOption{oauth2.AccessTypeOffline}
+var defaultAuthCodeOptions = []oauth2.AuthCodeOption{}
 
 // Provider provides a standard, OpenID Connect implementation
 // of an authorization identity provider.

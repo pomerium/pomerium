@@ -23,8 +23,15 @@ const (
 
 var defaultScopes = []string{oidc.ScopeOpenID, "profile", "email"}
 
-// https://developers.google.com/identity/protocols/oauth2/openid-connect#authenticationuriparameters
-var defaultAuthCodeOptions = map[string]string{"prompt": "select_account consent"}
+// unlike other identity providers, google does not support the `offline_access` scope and instead
+// requires we set this on a custom uri param. Also, ` prompt` must be set to `consent`to ensure
+// that our application always receives a refresh token (ask google). And finally, we default to
+// having the user select which Google account they'd like to use.
+//
+// For more details, please see google's documentation:
+// 	https://developers.google.com/identity/protocols/oauth2/web-server#offline
+// 	https://developers.google.com/identity/protocols/oauth2/openid-connect#authenticationuriparameters
+var defaultAuthCodeOptions = map[string]string{"prompt": "select_account consent", "access_type": "offline"}
 
 // Provider is a Google implementation of the Authenticator interface.
 type Provider struct {

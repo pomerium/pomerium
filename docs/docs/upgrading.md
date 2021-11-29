@@ -7,6 +7,10 @@ description: >-
 
 # Since 0.15.0
 
+### OIDC flow no longer sets default uri params
+
+Previously, Pomerium would default to setting the uri param `access_type` to `offline` for all OpenID Connect based identity providers. However, using uri params to get ensure offline access (e.g. `refresh_tokens` used to keep user's sessions alive) [is unique to Google](https://developers.google.com/identity/protocols/oauth2/web-server#offline). Those query params will now only be set for Google. Other OIDC based IdP's should continue to work using [OIDC's](https://openid.net/specs/openid-connect-core-1_0.html#OfflineAccess) `offline_access` scope.
+
 ### Removed options
 The deprecated `headers` option has been removed. Use [`set_response_headers`](/reference/readme.md#set-response-headers) instead.
 
