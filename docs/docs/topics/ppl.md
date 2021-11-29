@@ -15,15 +15,15 @@ Each PPL policy has at the top level a set of `allow` or `deny` actions, with a 
 ```yaml
 allow:
   and:
-  - domain: 
+  - domain:
       is: example.com
-  - groups: 
+  - groups:
       has: admin
 deny:
   or:
-  - user: 
+  - user:
       is: user1@example.com
-  - user: 
+  - user:
       is: user2@example.com
 ```
 
@@ -35,7 +35,7 @@ A PPL document is either an object or an array of objects. The object represents
 
 ## Actions
 
-Only two actions are supported: `allow` and `deny`. `deny` takes precedence over `allow`. More precisely: a user will have access to a route if **at least one** `allow` rule matches and **no** `deny` rules match. 
+Only two actions are supported: `allow` and `deny`. `deny` takes precedence over `allow`. More precisely: a user will have access to a route if **at least one** `allow` rule matches and **no** `deny` rules match.
 
 ## Logical Operators
 
@@ -151,7 +151,7 @@ The day of week matcher is a **string**. The string can either be `*`, a comma-s
 The time of day matcher is an object with operators as keys. It supports the following operators: `timezone`, `after`, and `before`.
 
 `timezone` is required and specifies the timezone to use when interpreting the supplied times. It is recommended to use city names (like `America/Phoenix`) instead of standard timezone abbreviations because standard timezones change throughout the year (i.e. EST becomes EDT and back again).
- 
+
 `after` means the time of the request must be after the supplied time and `before` means that the time of the request must be before the supplied time. For example:
 
 ```yaml
