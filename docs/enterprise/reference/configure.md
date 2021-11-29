@@ -276,7 +276,7 @@ Before you begin, confirm you are in the correct Namespace. A service account ca
    ::::
    :::::
 
-1. After you click **Submit**, the modal presents the Java Web Token (**JWT**) for the service account. Temporarily save it somewhere secure, as you will not be able to view it again:
+1. After you click **Submit**, the modal presents the JSON web token (**JWT**) for the service account. Temporarily save it somewhere secure, as you will not be able to view it again:
 
    ![Service Account Added](../img/service-account-jwt.png)
 
