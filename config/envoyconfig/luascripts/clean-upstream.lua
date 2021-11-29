@@ -30,9 +30,9 @@ function envoy_on_request(request_handle)
         if has_prefix(authorization, authorization_prefix) then
             headers:remove("authorization")
         end
+
+        headers:remove('x-pomerium-authorization')
     end
 end
 
-function envoy_on_response(response_handle)
-
-end
+function envoy_on_response(response_handle) end

@@ -15,7 +15,6 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/ecjson"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
-	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/sessions/header"
@@ -114,7 +113,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 
 	state.encryptedEncoder = ecjson.New(state.cookieCipher)
 
-	headerStore := header.NewStore(state.encryptedEncoder, httputil.AuthorizationTypePomerium)
+	headerStore := header.NewStore(state.encryptedEncoder)
 
 	cookieStore, err := cookie.NewStore(func() cookie.Options {
 		return cookie.Options{

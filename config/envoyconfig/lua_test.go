@@ -10,6 +10,39 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
+func TestLuaCleanUpstream(t *testing.T) {
+	L := lua.NewState()
+	defer L.Close()
+
+	bs, err := luaFS.ReadFile("luascripts/clean-upstream.lua")
+	require.NoError(t, err)
+
+	err = L.DoString(string(bs))
+	require.NoError(t, err)
+
+	headers := map[string]string{
+		"context-type":             "text/plain",
+		"authorization":            "Pomerium JWT",
+		"x-pomerium-authorization": "JWT",
+	}
+	metadata := map[string]interface{}{
+		"remove_pomerium_authorization": true,
+	}
+	dynamicMetadata := map[string]map[string]interface{}{}
+	handle := newLuaResponseHandle(L, headers, metadata, dynamicMetadata)
+
+	err = L.CallByParam(lua.P{
+		Fn:      L.GetGlobal("envoy_on_request"),
+		NRet:    0,
+		Protect: true,
+	}, handle)
+	require.NoError(t, err)
+
+	assert.Equal(t, map[string]string{
+		"context-type": "text/plain",
+	}, headers)
+}
+
 func TestLuaFixMisdirected(t *testing.T) {
 	t.Run("request", func(t *testing.T) {
 		L := lua.NewState()
@@ -140,6 +173,12 @@ func newLuaHeaders(L *lua.LState, headers map[string]string) lua.LValue {
 
 			L.Push(lua.LString(str))
 			return 1
+		},
+		"remove": func(L *lua.LState) int {
+			_ = L.CheckTable(1)
+			key := L.CheckString(2)
+			delete(headers, key)
+			return 0
 		},
 		"replace": func(L *lua.LState) int {
 			_ = L.CheckTable(1)

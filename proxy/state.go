@@ -9,7 +9,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
-	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/sessions/header"
@@ -89,7 +88,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	}
 	state.sessionLoaders = []sessions.SessionLoader{
 		state.sessionStore,
-		header.NewStore(state.encoder, httputil.AuthorizationTypePomerium),
+		header.NewStore(state.encoder),
 		queryparam.NewStore(state.encoder, "pomerium_session"),
 	}
 	state.programmaticRedirectDomainWhitelist = cfg.Options.ProgrammaticRedirectDomainWhitelist

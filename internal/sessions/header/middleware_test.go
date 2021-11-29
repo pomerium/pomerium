@@ -41,9 +41,27 @@ func TestVerifier(t *testing.T) {
 		wantBody   string
 		wantStatus int
 	}{
-		{"good auth header session", "Bearer ", sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}, http.StatusText(http.StatusOK), http.StatusOK},
-		{"empty auth header", "Bearer ", sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}, "internal/sessions: session is not found\n", http.StatusUnauthorized},
-		{"bad auth type", "bees ", sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}, "internal/sessions: session is not found\n", http.StatusUnauthorized},
+		{
+			"good auth header session",
+			"Pomerium ",
+			sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))},
+			http.StatusText(http.StatusOK),
+			http.StatusOK,
+		},
+		{
+			"empty auth header",
+			"Pomerium ",
+			sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))},
+			"internal/sessions: session is not found\n",
+			http.StatusUnauthorized,
+		},
+		{
+			"bad auth type",
+			"bees ",
+			sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))},
+			"internal/sessions: session is not found\n",
+			http.StatusUnauthorized,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -60,7 +78,7 @@ func TestVerifier(t *testing.T) {
 				// add some garbage to the end of the string
 				encSession = append(encSession, cryptutil.NewKey()...)
 			}
-			s := NewStore(encoder, "")
+			s := NewStore(encoder)
 
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			r.Header.Set("Accept", "application/json")
@@ -77,10 +95,10 @@ func TestVerifier(t *testing.T) {
 			gotBody := w.Body.String()
 			gotStatus := w.Result().StatusCode
 
-			if diff := cmp.Diff(gotBody, tt.wantBody); diff != "" {
+			if diff := cmp.Diff(tt.wantBody, gotBody); diff != "" {
 				t.Errorf("RetrieveSession() = %v", diff)
 			}
-			if diff := cmp.Diff(gotStatus, tt.wantStatus); diff != "" {
+			if diff := cmp.Diff(tt.wantStatus, gotStatus); diff != "" {
 				t.Errorf("RetrieveSession() = %v", diff)
 			}
 		})
