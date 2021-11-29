@@ -168,3 +168,4 @@ allow:
 [CORS pre-flight requests]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#preflighted_requests
 [client certificate authority]: /reference/readme.md#client-certificate-authority
 [Pomerium Enterprise]: /enterprise/about.md
+[yaml]: https://en.wikipedia.org/wiki/YAML
