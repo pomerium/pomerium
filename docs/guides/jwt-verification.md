@@ -11,7 +11,7 @@ description: >-
 # JWT Verification
 This example demonstrates how to verify the [Pomerium JWT assertion header](https://www.pomerium.io/reference/#pass-identity-headers) using [Envoy](https://www.envoyproxy.io/). This is useful for legacy or 3rd party applications which can't be modified to perform verification themselves.
 
-This guide is a practical demonstration of some of the concept of mutual authentication, using json web tokens (**JWTs**).
+This guide is a practical demonstration of some of the concept of mutual authentication, using JSON web tokens (**JWTs**).
 
 ## Requirements
 - [Docker](https://www.docker.com/)
