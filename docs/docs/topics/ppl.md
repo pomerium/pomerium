@@ -10,7 +10,7 @@ Pomerium Policy Language (**PPL**) is a yaml-based notation for creating easy an
 
 ## At a Glance
 
-Each PPL policy has at the top level a set of `allow` or `deny` actions, with a list of logitical operators, criteria, matchers, and values underdeath. For example:
+Each PPL policy has at the top level a set of `allow` or `deny` actions, with a list of logical operators, criteria, matchers, and values underneath. For example:
 
 ```yaml
 allow:
@@ -122,7 +122,7 @@ allow:
 
 ## Date Matcher
 
-The date matcher is an object with operators as keys. It supports the following operators: `after` and `before`. The values are ISO-8601 date strings. `after` means that the time of the request must be after the supplied date and `before` means that the time of the request must be before the supplied date. For example:
+The date matcher is an object with operators as keys. It supports the following operators: `after` and `before`. The values are [ISO-8601](https://en.wikipedia.org/wiki/ISO_8601) date strings. `after` means that the time of the request must be after the supplied date and `before` means that the time of the request must be before the supplied date. For example:
 
 ```yaml
 allow:
