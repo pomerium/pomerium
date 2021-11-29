@@ -6,7 +6,7 @@ description: >-
 
 # Pomerium Policy Language
 
-Pomerium Policy Language (**PPL**) is a yaml-based notation for creating easy and flexible authorization policies. This document covers the usage of PPL and provides several example policies.
+Pomerium Policy Language (**PPL**) is a [yaml]-based notation for creating easy and flexible authorization policies. This document covers the usage of PPL and provides several example policies.
 
 ## At a Glance
 
@@ -27,7 +27,7 @@ deny:
       is: user2@example.com
 ```
 
-This policy will allow a user with an email address at `example.com` who **is also** a member of the `admin` group. It will deny `user1` or `user2`, regardless of their domain and group membership.
+This policy will allow a user with an email address at `example.com` who **is also** a member of the `admin` group. It will deny `user1` **or** `user2`, regardless of their domain and group membership.
 
 ## Rules
 
@@ -78,7 +78,7 @@ PPL supports many different criteria:
 | ---------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `accept`                     | Anything. Typically `true`.   | Always returns true, thus always allowing access. Equivalent to the [`allow_public_unauthenticated_access`] option.                                                                                      |
 | `authenticated_user`         | Anything. Typically `true`.   | Always returns true for logged-in users. Equivalent to the [`allow_any_authenticated_user`] option.                                                                                                      |
-| `claim`                      | Anything. Typically a string. | Returns true if a token claim matches the supplied value **exactly**. The claim to check is determined via the sub-path. <br/> For exampe, `claim/family_name: Smith` matches if the user's `family_name` claim is `Smith`. |
+| `claim`                      | Anything. Typically a string. | Returns true if a token claim matches the supplied value **exactly**. The claim to check is determined via the sub-path. <br/> For example, `claim/family_name: Smith` matches if the user's `family_name` claim is `Smith`. |
 | `cors_preflight`             | Anything. Typically `true`.   | Returns true if the incoming request uses the `OPTIONS` method and has both the `Access-Control-Request-Method` and `Origin` headers. Used to allow [CORS pre-flight requests].                          |
 | `domain`                     | String Matcher                | Returns true if the logged-in user's email address domain (the part after `@`) matches the given value.                                                                                                  |
 | `email`                      | String Matcher                | Returns true if the logged-in user's email address matches the given value.                                                                                                                              |
