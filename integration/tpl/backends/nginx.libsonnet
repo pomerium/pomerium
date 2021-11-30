@@ -88,6 +88,9 @@ local RouteLocationConfig(route) =
     if std.objectHas(route, 'prefix') then '^~ ' + route.prefix
     else if std.objectHas(route, 'path') then '= ' + route.path
     else '/';
+  local to =
+    if std.isArray(route.to) then route.to[0]
+    else route.to;
   |||
     location %s {
       proxy_pass %s;
@@ -100,7 +103,7 @@ local RouteLocationConfig(route) =
       auth_request_set $auth_cookie $upstream_http_set_cookie;
       add_header Set-Cookie $auth_cookie;
     }
-  ||| % [rule, route.to];
+  ||| % [rule, to];
 
 local DomainServerConfig(domain, routes) =
   local locations = std.join('\n', std.map(function(route) RouteLocationConfig(route), routes));

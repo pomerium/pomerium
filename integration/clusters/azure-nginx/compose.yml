@@ -255,18 +255,16 @@ services:
       we get a 401, respond with a named location\n  error_page 401 = @authredirect;\n
       \ # this location requires authentication\n  auth_request /ext_authz;\n  auth_request_set
       $$auth_cookie $$upstream_http_set_cookie;\n  add_header Set-Cookie $$auth_cookie;\n}\n\nlocation
-      ^~ /round-robin {\n  proxy_pass [\"http://trusted-1-httpdetails:8080\", \"http://trusted-2-httpdetails:8080\",
-      \"http://trusted-3-httpdetails:8080\"];\n\n  include /etc/nginx/proxy.conf;\n
-      \ # If we get a 401, respond with a named location\n  error_page 401 = @authredirect;\n
+      ^~ /round-robin {\n  proxy_pass http://trusted-1-httpdetails:8080;\n\n  include
+      /etc/nginx/proxy.conf;\n  # If we get a 401, respond with a named location\n
+      \ error_page 401 = @authredirect;\n  # this location requires authentication\n
+      \ auth_request /ext_authz;\n  auth_request_set $$auth_cookie $$upstream_http_set_cookie;\n
+      \ add_header Set-Cookie $$auth_cookie;\n}\n\nlocation ^~ /ring-hash {\n  proxy_pass
+      http://trusted-1-httpdetails:8080;\n\n  include /etc/nginx/proxy.conf;\n  #
+      If we get a 401, respond with a named location\n  error_page 401 = @authredirect;\n
       \ # this location requires authentication\n  auth_request /ext_authz;\n  auth_request_set
       $$auth_cookie $$upstream_http_set_cookie;\n  add_header Set-Cookie $$auth_cookie;\n}\n\nlocation
-      ^~ /ring-hash {\n  proxy_pass [\"http://trusted-1-httpdetails:8080\", \"http://trusted-2-httpdetails:8080\",
-      \"http://trusted-3-httpdetails:8080\"];\n\n  include /etc/nginx/proxy.conf;\n
-      \ # If we get a 401, respond with a named location\n  error_page 401 = @authredirect;\n
-      \ # this location requires authentication\n  auth_request /ext_authz;\n  auth_request_set
-      $$auth_cookie $$upstream_http_set_cookie;\n  add_header Set-Cookie $$auth_cookie;\n}\n\nlocation
-      ^~ /maglev {\n  proxy_pass [\"http://trusted-1-httpdetails:8080\", \"http://trusted-2-httpdetails:8080\",
-      \"http://trusted-3-httpdetails:8080\"];\n\n  include /etc/nginx/proxy.conf;\n
+      ^~ /maglev {\n  proxy_pass http://trusted-1-httpdetails:8080;\n\n  include /etc/nginx/proxy.conf;\n
       \ # If we get a 401, respond with a named location\n  error_page 401 = @authredirect;\n
       \ # this location requires authentication\n  auth_request /ext_authz;\n  auth_request_set
       $$auth_cookie $$upstream_http_set_cookie;\n  add_header Set-Cookie $$auth_cookie;\n}\n\nlocation
