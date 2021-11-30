@@ -19,6 +19,11 @@ The `signing_key_algorithm` option has been removed and will now be inferred fro
 ### Changed GitHub Team IDs
 To improve performance, IdP directory synchronization for GitHub now uses the GraphQL API. This API returns the same information as the REST API, except that the GraphQL node IDs are different. Where we previously used the team integer ID from the REST API, we now use the team slug instead. Most policies should already use the team slug for group based rules, which should continue to work. However, if the integer ID is used it will no longer work. Update those policies to use the team slug instead.
 
+### CLI Source and Packaging Update
+`pomerium-cli` has been factored out of the core repository and now resides at https://github.com/pomerium/cli. If you currently install from [Cloudsmith](docs/releases.html#packages) or [Homebrew](/docs/releases.html#homebrew), no changes should be required to your process. However, users of docker images or direct github release downloads will need to update their references.
+
+Please see [updated install instructions](/docs/releases.html#pomerium-cli) for additional details.  
+
 # Since 0.14.0
 
 ## Breaking

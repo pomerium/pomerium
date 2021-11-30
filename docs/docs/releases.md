@@ -83,7 +83,7 @@ Pomerium utilizes a [minimal](https://github.com/GoogleContainerTools/distroless
 - `:master` : which will pull an image in sync with git's [master](https://github.com/pomerium/pomerium/tree/master) branch.
 
   ```bash
-  docker pull pomerium/pomerium:latest
+  docker pull pomerium/pomerium:master
   ```
 
 ### Helm
@@ -119,13 +119,13 @@ make
 
 ### Binaries
 
-Official binaries can be found on our [GitHub Releases](https://github.com/pomerium/pomerium/releases) page.
+Official binaries can be found on our [GitHub Releases](https://github.com/pomerium/cli/releases) page.
 
 ```shell
 ARCH=[your arch]
 OS=[your os]
 VERSION=[desired version]
-curl -L https://github.com/pomerium/pomerium/releases/download/${VERSION}/pomerium-cli-${OS}-${ARCH}.tar.gz \
+curl -L https://github.com/pomerium/cli/releases/download/${VERSION}/pomerium-cli-${OS}-${ARCH}.tar.gz \
     | tar -z -x
 ```
 
@@ -133,7 +133,7 @@ curl -L https://github.com/pomerium/pomerium/releases/download/${VERSION}/pomeri
 
 - Supported formats: `rpm`, `deb`
 
-Official packages can be found on our [GitHub Releases](https://github.com/pomerium/pomerium/releases) page or from [Cloudsmith](https://cloudsmith.io/~pomerium/repos/pomerium/packages/).
+Official packages can be found on our [GitHub Releases](https://github.com/pomerium/cli/releases) page or from [Cloudsmith](https://cloudsmith.io/~pomerium/repos/pomerium/packages/).
 
 - [RPM Instructions](https://cloudsmith.io/~pomerium/repos/pomerium/setup/#formats-rpm)
 - [Deb Instructions](https://cloudsmith.io/~pomerium/repos/pomerium/setup/#formats-deb)
@@ -163,13 +163,35 @@ echo "deb https://dl.cloudsmith.io/public/pomerium/pomerium/deb/debian buster ma
 brew tap pomerium/tap
 brew install pomerium-cli
 ```
+### Docker Image
 
+The CLI utilizes a [minimal](https://github.com/GoogleContainerTools/distroless) [docker container](https://www.docker.com/resources/what-container). You can find the Pomerium CLI image on [dockerhub](https://hub.docker.com/r/pomerium/cli). It can be pulled in several flavors and architectures.
+
+- `:vX.Y.Z`: which will pull the a [specific tagged release](https://github.com/pomerium/cli/tags).
+
+  ```bash
+  $ docker run pomerium/cli:v0.1.0 --version
+  v0.1.0+53bfa4e
+  ```
+
+- `:latest`: which will pull the [most recent tagged release](https://github.com/pomerium/cli/releases).
+
+  ```bash
+  $ docker run pomerium/cli:latest --version
+  v0.2.0+87e214b
+  ```
+
+- `:main` : which will pull an image in sync with git's [main](https://github.com/pomerium/pomerium/tree/main) branch.
+
+  ```bash
+  docker pull pomerium/cli:main
+  ```
 ### Source
 
 ```shell
-git clone git@github.com:pomerium/pomerium.git
+git clone git@github.com:pomerium/cli.git
 cd pomerium
-make build NAME=pomerium-cli
+make build
 ./bin/pomerium-cli --help
 ```
 
