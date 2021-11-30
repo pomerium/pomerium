@@ -22,7 +22,7 @@ To improve performance, IdP directory synchronization for GitHub now uses the Gr
 ### CLI Source and Packaging Update
 `pomerium-cli` has been factored out of the core repository and now resides at https://github.com/pomerium/cli. If you currently install from [Cloudsmith](docs/releases.html#packages) or [Homebrew](/docs/releases.html#homebrew), no changes should be required to your process. However, users of docker images or direct github release downloads will need to update their references.
 
-Please see [updated install instructions](/docs/releases.html#pomerium-cli) for additional details.  
+Please see [updated install instructions](/docs/releases.html#pomerium-cli) for additional details.
 
 # Since 0.14.0
 
