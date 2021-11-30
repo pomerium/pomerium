@@ -69,7 +69,7 @@ Following the configuration defined in [Install Pomerium using Helm], add a rout
 
     The service account token used for `kubernetes_service_account_token_file` is defined by our [helm chart]. Modify the policy to match your configuration.
 
-1. Access to the dashbaord for a user is authorized by the cluster role binding defined in role-based access control (**RBAC**) permissions. Following the [User Permissions] section of [Securing Kubernetes], you should already have permissions for your user, or you can create a new RBAC definition following this example (`rbac-someuser.yaml`):
+1. Access to the dashboard for a user is authorized by the cluster role binding defined in role-based access control (**RBAC**) permissions. Following the [User Permissions] section of [Securing Kubernetes], you should already have permissions for your user, or you can create a new RBAC definition following this example (`rbac-someuser.yaml`):
 
     ```yaml
     apiVersion: rbac.authorization.k8s.io/v1
