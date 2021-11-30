@@ -18,7 +18,7 @@ The following guide covers how to secure [Kubernetes Dashboard] using Pomerium. 
 This tutorial covers:
 
 - Deploying [Kubernetes Dashboard] using [Helm]
-- Secure Kubernetes Dashboard access through Pomerium
+- Establishing secure Kubernetes Dashboard access through Pomerium
 
 ## Before You Begin
 
