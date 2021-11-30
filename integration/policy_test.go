@@ -263,11 +263,7 @@ func TestLoadBalancer(t *testing.T) {
 
 	getDistribution := func(t *testing.T, path string) map[string]float64 {
 		client := getClient()
-		distribution := map[string]float64{
-			"trusted-1-httpdetails": 0.0,
-			"trusted-2-httpdetails": 0.0,
-			"trusted-3-httpdetails": 0.0,
-		}
+		distribution := map[string]float64{}
 
 		res, err := flows.Authenticate(ctx, client,
 			mustParseURL("https://httpdetails.localhost.pomerium.io/"+path),
@@ -308,27 +304,19 @@ func TestLoadBalancer(t *testing.T) {
 		for _, x := range distribution {
 			xs = append(xs, x)
 		}
-		assert.Less(t, standardDeviation(xs), 10.0, "should distribute requests evenly, got: %v",
+		assert.Lessf(t, standardDeviation(xs), 10.0, "should distribute requests evenly, got: %v",
 			distribution)
 	})
 
 	t.Run("ring hash", func(t *testing.T) {
 		distribution := getDistribution(t, "ring-hash")
-		var xs []float64
-		for _, x := range distribution {
-			xs = append(xs, x)
-		}
-		assert.Greater(t, standardDeviation(xs), 10.0, "should distribute requests to a single backend, got: %v",
+		assert.Lenf(t, distribution, 1, "should distribute requests to a single backend, got: %v",
 			distribution)
 	})
 
 	t.Run("maglev", func(t *testing.T) {
 		distribution := getDistribution(t, "maglev")
-		var xs []float64
-		for _, x := range distribution {
-			xs = append(xs, x)
-		}
-		assert.Greater(t, standardDeviation(xs), 10.0, "should distribute requests to a single backend, got: %v",
+		assert.Lenf(t, distribution, 1, "should distribute requests to a single backend, got: %v",
 			distribution)
 	})
 }
