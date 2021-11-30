@@ -4,12 +4,15 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"io"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/pomerium/pomerium/integration/flows"
 )
 
 func TestCORS(t *testing.T) {
@@ -247,4 +250,85 @@ func TestGoogleCloudRun(t *testing.T) {
 	if result.Headers["x-idp"] == "google" {
 		assert.NotEmpty(t, result.Headers["authorization"], "expected authorization header when cloudrun is enabled")
 	}
+}
+
+func TestLoadBalancer(t *testing.T) {
+	if ClusterType == "traefik" || ClusterType == "nginx" {
+		t.Skip()
+		return
+	}
+
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Minute*10)
+	defer clearTimeout()
+
+	getDistribution := func(t *testing.T, path string) map[string]float64 {
+		client := getClient()
+		distribution := map[string]float64{
+			"trusted-1-httpdetails": 0.0,
+			"trusted-2-httpdetails": 0.0,
+			"trusted-3-httpdetails": 0.0,
+		}
+
+		res, err := flows.Authenticate(ctx, client,
+			mustParseURL("https://httpdetails.localhost.pomerium.io/"+path),
+			flows.WithEmail("user1@dogs.test"))
+		if !assert.NoError(t, err) {
+			return distribution
+		}
+		_, _ = io.ReadAll(res.Body)
+		_ = res.Body.Close()
+
+		for i := 0; i < 100; i++ {
+			req, err := http.NewRequestWithContext(ctx, "GET",
+				"https://httpdetails.localhost.pomerium.io/"+path, nil)
+			if !assert.NoError(t, err) {
+				return distribution
+			}
+
+			res, err = client.Do(req)
+			if !assert.NoError(t, err) {
+				return distribution
+			}
+
+			var result struct {
+				Hostname string `json:"hostname"`
+			}
+			err = json.NewDecoder(res.Body).Decode(&result)
+			_ = res.Body.Close()
+			assert.NoError(t, err)
+			distribution[result.Hostname]++
+		}
+
+		return distribution
+	}
+
+	t.Run("round robin", func(t *testing.T) {
+		distribution := getDistribution(t, "round-robin")
+		var xs []float64
+		for _, x := range distribution {
+			xs = append(xs, x)
+		}
+		assert.Less(t, standardDeviation(xs), 10.0, "should distribute requests evenly, got: %v",
+			distribution)
+	})
+
+	t.Run("ring hash", func(t *testing.T) {
+		distribution := getDistribution(t, "ring-hash")
+		var xs []float64
+		for _, x := range distribution {
+			xs = append(xs, x)
+		}
+		assert.Greater(t, standardDeviation(xs), 10.0, "should distribute requests to a single backend, got: %v",
+			distribution)
+	})
+
+	t.Run("maglev", func(t *testing.T) {
+		distribution := getDistribution(t, "maglev")
+		var xs []float64
+		for _, x := range distribution {
+			xs = append(xs, x)
+		}
+		assert.Greater(t, standardDeviation(xs), 10.0, "should distribute requests to a single backend, got: %v",
+			distribution)
+	})
 }

@@ -2,6 +2,7 @@ package pomerium.headers
 
 # input:
 #   enable_google_cloud_serverless_authentication: boolean
+#   enable_routing_key: boolean
 #   from_audience: string
 #   kubernetes_service_account_token: string
 #   session:
@@ -206,6 +207,15 @@ google_cloud_serverless_headers = h {
 	true
 }
 
+routing_key_headers = h {
+    input.enable_routing_key
+    h := [
+        ["x-pomerium-routing-key", crypto.sha256(input.session.id)]
+    ]
+} else = [] {
+    true
+}
+
 identity_headers := {key: values |
 	h1 := [["x-pomerium-jwt-assertion", signed_jwt]]
 	h2 := [[header_name, header_value] |
@@ -223,8 +233,9 @@ identity_headers := {key: values |
 
 	h3 := kubernetes_headers
 	h4 := [[k, v] | v := google_cloud_serverless_headers[k]]
+	h5 := routing_key_headers
 
-	h := array.concat(array.concat(array.concat(h1, h2), h3), h4)
+	h := array.concat(array.concat(array.concat(array.concat(h1, h2), h3), h4), h5)
 
 	some i
 	[key, v1] := h[i]
