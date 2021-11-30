@@ -139,7 +139,7 @@ This new route requires a kubernetes service account token. Our Helm chart creat
 
 ## Configure Kubectl
 
-The [pomerium-cli] tool can be used by kubectl as an auth helper. Once configured, connections to the cluster will open a browser window to the Pomerium authenticate service and generate an authorization token that will be used for Kubernetes API calls.
+The [pomerium-cli] tool can be used by kubectl as a credential plugin. Once configured, connections to the cluster will open a browser window to the Pomerium authenticate service and generate an authentication token that will be used for Kubernetes API calls.
 
 
 To use `pomerium-cli` as an exec-credential provider, update your kubectl config:
