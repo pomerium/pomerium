@@ -37,13 +37,13 @@ Though securing [Kubernetes Dashboard] as an example may seem contrived, the dam
 
 [Kubernetes Dashboard] is a general purpose, web-based UI for Kubernetes clusters. It allows users to manage applications running in the cluster and troubleshoot them, as well as manage the cluster itself.
 
-1. Use [Helm] to install a new instance of [Kubernetes Dashboard].
+Use [Helm] to install a new instance of [Kubernetes Dashboard]:
 
-  ```bash
-  helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
-  helm install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard\
-    --set ingress.enabled="false"
-  ```
+```bash
+helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
+helm install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard\
+  --set ingress.enabled="false"
+```
 
 That's it. We've now configured the Kubernetes Dashboard in our cluster. We've also explicitly told Helm that we are going to deploy our own custom access to the service through Pomerium instead of a standard ingress.
 
