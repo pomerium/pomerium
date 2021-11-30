@@ -29,7 +29,7 @@ This guide builds off of existing articles and guides. It assumes you have deplo
 
 ## Background
 
-Though securing [kubernetes dashboard] as an example may seem contrived, the damages caused by an unsecured dashboard is a real threat vector. In late 2018, Telsa [determined](https://redlock.io/blog/cryptojacking-tesla) that the hackers who were running [crypto-mining malware](https://arstechnica.com/information-technology/2018/02/tesla-cloud-resources-are-hacked-to-run-cryptocurrency-mining-malware/) on their cloud accounts came in through an unsecured [Kubernetes Dashboard] instance.
+Though securing [Kubernetes Dashboard] as an example may seem contrived, the damages caused by an unsecured dashboard is a real threat vector. In late 2018, Tesla [determined](https://redlock.io/blog/cryptojacking-tesla) that the hackers who were running [crypto-mining malware](https://arstechnica.com/information-technology/2018/02/tesla-cloud-resources-are-hacked-to-run-cryptocurrency-mining-malware/) on their cloud accounts came in through an unsecured [Kubernetes Dashboard] instance.
 
 ![tesla hacked from kubernetes dashboard](./img/k8s-tesla-hacked.png)
 
@@ -45,9 +45,9 @@ Though securing [kubernetes dashboard] as an example may seem contrived, the dam
     --set ingress.enabled="false"
   ```
 
-That's it. We've now configured kubernetes dashboard in our cluster. We've also explicitly told Helm that we are going to deploy our own custom access to the service through Pomerium, instead of a standard ingress.
+That's it. We've now configured the Kubernetes Dashboard in our cluster. We've also explicitly told Helm that we are going to deploy our own custom access to the service through Pomerium instead of a standard ingress.
 
-## Add an Route
+## Add a Route
 
 Following the configuration defined in [Install Pomerium using Helm], add a route for the Kubernetes Dashboard.
 
@@ -86,7 +86,7 @@ Following the configuration defined in [Install Pomerium using Helm], add a rout
         name: someuser@example.com
     ```
 
-    Apply the permissions with `kubectl apply -f rbac-someuser.yaml`
+    Apply the permissions with `kubectl apply -f rbac-someuser.yaml`.
 
 1. Apply the new route to Pomerium with Helm:
 
@@ -102,7 +102,7 @@ Because we've defined RBAC for our users, they can authenticate with Pomerium an
 Your browser does not support the video tag.
 </video>
 
-🎉🍾🎊 **Congratulations** 🎉🍾🎊! You now have a single-sign-on enabled [Kubernetes Dashboard] protected by Pomerium.
+🎉🍾🎊 **Congratulations!** 🎉🍾🎊 You now have a single-sign-on enabled [Kubernetes Dashboard] protected by Pomerium.
 
 [cert-manager]: https://cert-manager.io/docs/
 [helm chart]: https://github.com/pomerium/pomerium-helm
