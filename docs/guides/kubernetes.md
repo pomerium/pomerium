@@ -105,7 +105,7 @@ kubectl apply -f ./pomerium-k8s.yaml
     kubectl apply -f rbac-someuser.yaml
     ```
 
-Permissions can also be granted to groups the Pomerium user is a member of.
+Permissions can also be granted to groups the Pomerium user is a member of. This allows you to set a single ClusterRoleBinding in Kubernetes and modify access from your IdP.
 
 ## Create a Route for the API server
 
