@@ -31,7 +31,7 @@ Pomerium supports requiring signed client certificates with the `client_ca`/`cli
 
 ## Create Certificates
 
-1. Create a trusted root certificate authority:
+1. Create a trusted root certificate authority (**CA**):
 
     ```bash
     mkcert -install
@@ -57,14 +57,18 @@ Pomerium supports requiring signed client certificates with the `client_ca`/`cli
 1. Create a client TLS certificate:
 
     ```bash
-    mkcert -client -pkcs12 '*.localhost.pomerium.io'
+    mkcert -client -pkcs12 'yourUsername@localhost.pomerium.io'
     ```
 
-    This creates a third file in the current working directory:
+    This creates a new file in the current working directory:
 
-    - `_wildcard.localhost.pomerium.io-client.p12`
+    - `yourUsername@localhost.pomerium.io-client.p12`
 
 ## Configure Pomerium
+
+Pomerium can be configured to require a client certificate for all routes signed by a single CA, or on a per-route basis with the CA set individually.
+
+### Require mTLS for All Routes
 
 Update the `config.yaml` file or environment variables with the following aditions. Replace `/YOUR/MKCERT/CAROOT` in this example with the value of `mkcert -CAROOT`:
 
@@ -80,6 +84,8 @@ certificate_key_file: "_wildcard.localhost.pomerium.io-key.pem"
 client_ca_file: "/YOUR/MKCERT/CAROOT/rootCA.pem"
 ```
 
+Alternately, you can encode the client certificate authority as a base64-encoded string (`cat $(mkcert -CAROOT)/rootCA.pem | base64 -w 0`) and provide the value to `client_ca`.
+
 ::::
 :::: tab Environment Variables
 ```bash
@@ -90,10 +96,32 @@ CERTIFICATE_KEY_FILE="_wildcard.localhost.pomerium.io-key.pem"
 # "$(mkcert -CAROOT)/rootCA.pem"
 CLIENT_CA_FILE="/YOUR/MKCERT/CAROOT/rootCA.pem"
 ```
+
+Alternately, you can encode the client certificate authority as a base64-encoded string (`cat $(mkcert -CAROOT)/rootCA.pem | base64 -w 0`) and provide the value as `CLIENT_CA`.
+
 ::::
 :::::
 
 Start or restart Pomerium to load the new settings.
+
+### Require mTLS per Route
+
+You can define a client certificate authority for an individual route. Use this option to only require mTLS for specific routes, or to require certificates singed by a different CA than the one required by default with `client_ca` or `client_ca_file`:
+
+```yaml{3-4}
+  - from: https://verify.localhost.pomerium.io
+    to: http://verify:8000
+    # "$(mkcert -CAROOT)/rootCA.pem"
+    tls_downstream_client_ca_file: "/YOUR/MKCERT/CAROOT/rootCA.pem"
+    pass_identity_headers: true
+    policy:
+      - allow:
+          or:
+            - domain:
+                is: example.com
+```
+
+Alternately, you can encode the client certificate authority as a base64-encoded string (`cat $(mkcert -CAROOT)/rootCA.pem | base64 -w 0`) and provide the value to `tls_downstream_client_ca`.
 
 ## Install Client Certificate
 
