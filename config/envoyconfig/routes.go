@@ -420,8 +420,29 @@ func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *c
 		IdleTimeout:   idleTimeout,
 		PrefixRewrite: prefixRewrite,
 		RegexRewrite:  regexRewrite,
+		HashPolicy: []*envoy_config_route_v3.RouteAction_HashPolicy{
+			// hash by the routing key, which is added by authorize.
+			{
+				PolicySpecifier: &envoy_config_route_v3.RouteAction_HashPolicy_Header_{
+					Header: &envoy_config_route_v3.RouteAction_HashPolicy_Header{
+						HeaderName: httputil.HeaderPomeriumRoutingKey,
+					},
+				},
+				Terminal: true,
+			},
+			// if the routing key is missing, hash by the ip.
+			{
+				PolicySpecifier: &envoy_config_route_v3.RouteAction_HashPolicy_ConnectionProperties_{
+					ConnectionProperties: &envoy_config_route_v3.RouteAction_HashPolicy_ConnectionProperties{
+						SourceIp: true,
+					},
+				},
+				Terminal: true,
+			},
+		},
 	}
 	setHostRewriteOptions(policy, action)
+
 	return action, nil
 }
 

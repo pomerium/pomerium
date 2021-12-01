@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/open-policy-agent/opa/rego"
 
 	"github.com/pomerium/pomerium/authorize/evaluator/opa"
@@ -16,6 +17,7 @@ import (
 // HeadersRequest is the input to the headers.rego script.
 type HeadersRequest struct {
 	EnableGoogleCloudServerlessAuthentication bool           `json:"enable_google_cloud_serverless_authentication"`
+	EnableRoutingKey                          bool           `json:"enable_routing_key"`
 	FromAudience                              string         `json:"from_audience"`
 	KubernetesServiceAccountToken             string         `json:"kubernetes_service_account_token"`
 	ToAudience                                string         `json:"to_audience"`
@@ -26,6 +28,8 @@ type HeadersRequest struct {
 func NewHeadersRequestFromPolicy(policy *config.Policy) *HeadersRequest {
 	input := new(HeadersRequest)
 	input.EnableGoogleCloudServerlessAuthentication = policy.EnableGoogleCloudServerlessAuthentication
+	input.EnableRoutingKey = policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
+		policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_MAGLEV
 	if u, err := urlutil.ParseAndValidateURL(policy.From); err == nil {
 		input.FromAudience = u.Hostname()
 	}

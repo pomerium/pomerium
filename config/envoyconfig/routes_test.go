@@ -263,6 +263,20 @@ func TestTimeouts(t *testing.T) {
 			%s,
 			"autoHostRewrite": true,
 			"cluster": "policy",
+			"hashPolicy": [
+				{
+					"header": {
+						"headerName": "x-pomerium-routing-key"
+					},
+					"terminal": true
+				},
+				{
+					"connectionProperties": {
+						"sourceIp": true
+					},
+					"terminal": true
+				}
+			],
 			"upgradeConfigs": [
 				{ "enabled": %v, "upgradeType": "websocket"},
 				{ "enabled": false, "upgradeType": "spdy/3.1"}
@@ -367,6 +381,20 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"route": {
 					"autoHostRewrite": true,
 					"cluster": "policy-1",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
 					"timeout": "3s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -396,6 +424,20 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"route": {
 					"autoHostRewrite": false,
 					"cluster": "policy-2",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
 					"idleTimeout": "0s",
 					"timeout": "0s",
 					"upgradeConfigs": [
@@ -426,6 +468,20 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"route": {
 					"autoHostRewrite": true,
 					"cluster": "policy-3",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
 					"timeout": "60s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -465,6 +521,20 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"route": {
 					"autoHostRewrite": true,
 					"cluster": "policy-4",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
 					"timeout": "3s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -494,6 +564,20 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"route": {
 					"autoHostRewrite": true,
 					"cluster": "policy-5",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
 					"timeout": "60s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -524,6 +608,20 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"route": {
 					"autoHostRewrite": false,
 					"cluster": "policy-6",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
 					"timeout": "3s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -553,6 +651,20 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"route": {
 					"autoHostRewrite": false,
 					"cluster": "policy-7",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
 					"idleTimeout": "0s",
 					"timeout": "0s",
 					"upgradeConfigs": [
@@ -583,6 +695,20 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"route": {
 					"autoHostRewrite": false,
 					"cluster": "policy-8",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
 					"idleTimeout": "0s",
 					"timeout": "10s",
 					"upgradeConfigs": [
@@ -630,6 +756,20 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"route": {
 						"autoHostRewrite": true,
 						"cluster": "policy-9",
+						"hashPolicy": [
+							{
+								"header": {
+									"headerName": "x-pomerium-routing-key"
+								},
+								"terminal": true
+							},
+							{
+								"connectionProperties": {
+									"sourceIp": true
+								},
+								"terminal": true
+							}
+						],
 						"timeout": "3s",
 						"upgradeConfigs": [
 							{ "enabled": false, "upgradeType": "websocket"},
@@ -689,6 +829,20 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"route": {
 					"autoHostRewrite": true,
 					"cluster": "policy-10",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
 					"idleTimeout": "0s",
 					"timeout": "0s",
 					"upgradeConfigs": [
@@ -720,6 +874,20 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"route": {
 					"autoHostRewrite": true,
 					"cluster": "policy-11",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
 					"idleTimeout": "0s",
 					"timeout": "10s",
 					"upgradeConfigs": [
@@ -774,6 +942,20 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"route": {
 						"autoHostRewrite": true,
 						"cluster": "policy-12",
+						"hashPolicy": [
+							{
+								"header": {
+									"headerName": "x-pomerium-routing-key"
+								},
+								"terminal": true
+							},
+							{
+								"connectionProperties": {
+									"sourceIp": true
+								},
+								"terminal": true
+							}
+						],
 						"timeout": "3s",
 						"upgradeConfigs": [
 							{ "enabled": false, "upgradeType": "websocket"},
@@ -865,6 +1047,20 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"autoHostRewrite": true,
 					"prefixRewrite": "/bar",
 					"cluster": "policy-1",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
 					"timeout": "3s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -895,6 +1091,20 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"autoHostRewrite": true,
 					"prefixRewrite": "/foo",
 					"cluster": "policy-2",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
 					"timeout": "3s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -931,6 +1141,20 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"substitution": "\\2/instance/\\1"
 					},
 					"cluster": "policy-3",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
 					"timeout": "3s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -961,6 +1185,20 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"hostRewriteLiteral": "literal.example.com",
 					"prefixRewrite": "/bar",
 					"cluster": "policy-4",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
 					"timeout": "3s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -991,6 +1229,20 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"hostRewriteHeader": "HOST_HEADER",
 					"prefixRewrite": "/bar",
 					"cluster": "policy-5",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
 					"timeout": "3s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
@@ -1027,6 +1279,20 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					},
 					"prefixRewrite": "/bar",
 					"cluster": "policy-6",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
 					"timeout": "3s",
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},

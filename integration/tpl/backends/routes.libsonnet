@@ -149,6 +149,42 @@ local Routes(mode, idp, dns_suffix) =
       allowed_users: ['user1@dogs.test'],
       pass_identity_headers: true,
     },
+    // round robin load balancer
+    {
+      from: 'https://httpdetails.localhost.pomerium.io',
+      to: [
+        'http://trusted-1-httpdetails' + dns_suffix + ':8080',
+        'http://trusted-2-httpdetails' + dns_suffix + ':8080',
+        'http://trusted-3-httpdetails' + dns_suffix + ':8080',
+      ],
+      prefix: '/round-robin',
+      allow_any_authenticated_user: true,
+      lb_policy: 'ROUND_ROBIN',
+    },
+    // ring hash load balancer
+    {
+      from: 'https://httpdetails.localhost.pomerium.io',
+      to: [
+        'http://trusted-1-httpdetails' + dns_suffix + ':8080',
+        'http://trusted-2-httpdetails' + dns_suffix + ':8080',
+        'http://trusted-3-httpdetails' + dns_suffix + ':8080',
+      ],
+      prefix: '/ring-hash',
+      allow_any_authenticated_user: true,
+      lb_policy: 'RING_HASH',
+    },
+    // maglev load balancer
+    {
+      from: 'https://httpdetails.localhost.pomerium.io',
+      to: [
+        'http://trusted-1-httpdetails' + dns_suffix + ':8080',
+        'http://trusted-2-httpdetails' + dns_suffix + ':8080',
+        'http://trusted-3-httpdetails' + dns_suffix + ':8080',
+      ],
+      prefix: '/maglev',
+      allow_any_authenticated_user: true,
+      lb_policy: 'MAGLEV',
+    },
     // catch-all
     {
       from: 'https://httpdetails.localhost.pomerium.io',

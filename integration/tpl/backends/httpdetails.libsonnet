@@ -8,6 +8,21 @@ local Variations() =
       key: importstr '../files/trusted-key.pem',
     },
     {
+      name: 'trusted-1',
+      cert: importstr '../files/trusted.pem',
+      key: importstr '../files/trusted-key.pem',
+    },
+    {
+      name: 'trusted-2',
+      cert: importstr '../files/trusted.pem',
+      key: importstr '../files/trusted-key.pem',
+    },
+    {
+      name: 'trusted-3',
+      cert: importstr '../files/trusted.pem',
+      key: importstr '../files/trusted-key.pem',
+    },
+    {
       name: 'untrusted',
       cert: importstr '../files/untrusted.pem',
       key: importstr '../files/untrusted-key.pem',

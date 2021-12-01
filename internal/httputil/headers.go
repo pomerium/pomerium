@@ -30,6 +30,8 @@ const (
 	HeaderPomeriumReproxyPolicy = "x-pomerium-reproxy-policy"
 	// HeaderPomeriumReproxyPolicyHMAC is an HMAC of the HeaderPomeriumReproxyPolicy header.
 	HeaderPomeriumReproxyPolicyHMAC = "x-pomerium-reproxy-policy-hmac"
+	// HeaderPomeriumRoutingKey is a string used for routing user requests to a consistent upstream server.
+	HeaderPomeriumRoutingKey = "x-pomerium-routing-key"
 )
 
 // HeadersContentSecurityPolicy are the content security headers added to the service's handlers
