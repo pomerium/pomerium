@@ -19,14 +19,17 @@ Pomerium supports requiring signed client certificates with the `client_ca`/`cli
 
 ## Before You Begin
 
-This guide assumes you already have a working Pomerium instance. See our [Quick-Start] doc for installation through Docker, and one of the [Identity Provider] docs to connect it to your IdP. You should also have a working route to test against.
+- This guide assumes you already have a working Pomerium instance. See our [Quick-Start] doc for installation through Docker, and one of the [Identity Provider] docs to connect it to your IdP. You should also have a working route to test against.
+
+- We will use the `mkcert` application to create the certificates. To install `mkcert` follow the instructions on [Github](https://github.com/FiloSottile/mkcert#installation).
+
+    ::: warning
+    The `mkcert` tool is designed for testing. It creates a locally-trusted root certificate for development purposes. We're using mkcert for this proof-of-concept example, but consider using a different certificate solution for production environments.
+    :::
+
+- For this guide the `localhost.pomerium.io` domain will be our root domain (all subdomains on `localhost.pomerium.io` point to `localhost`).
 
 ## Create Certificates
-
-We will use the `mkcert` application to create the certificates. To install `mkcert` follow the instructions on [Github](https://github.com/FiloSottile/mkcert#installation).
-
-For this guide the `localhost.pomerium.io` domain will be our root domain (all subdomains on `localhost.pomerium.io` point to `localhost`).
-
 
 1. Create a trusted root certificate authority:
 
