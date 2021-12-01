@@ -13,15 +13,34 @@ import (
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/mitchellh/mapstructure"
+	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v3"
 
-	"github.com/pomerium/pomerium/pkg/policy/parser"
-
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
+
+func decodeNullBoolHookFunc() mapstructure.DecodeHookFunc {
+	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
+		if t != reflect.TypeOf(null.Bool{}) {
+			return data, nil
+		}
+
+		bs, err := json.Marshal(data)
+		if err != nil {
+			return nil, err
+		}
+		var value null.Bool
+		err = json.Unmarshal(bs, &value)
+		if err != nil {
+			return nil, err
+		}
+		return value, nil
+	}
+}
 
 // JWTClaimHeaders are headers to add to a request based on IDP claims.
 type JWTClaimHeaders map[string]string

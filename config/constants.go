@@ -34,6 +34,7 @@ var ViperPolicyHooks = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 	DecodePolicyHookFunc(),
 	// parse base-64 encoded POLICY that is bound to environment variable
 	DecodePolicyBase64Hook(),
+	decodeNullBoolHookFunc(),
 	decodeJWTClaimHeadersHookFunc(),
 	decodeCodecTypeHookFunc(),
 	decodePPLPolicyHookFunc(),

@@ -137,6 +137,28 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, options *config.Option
 	cluster := new(envoy_config_cluster_v3.Cluster)
 	proto.Merge(cluster, policy.EnvoyOpts)
 
+	if options.EnvoyBindConfigFreebind.IsSet() || options.EnvoyBindConfigSourceAddress != "" {
+		cluster.UpstreamBindConfig = new(envoy_config_core_v3.BindConfig)
+		if options.EnvoyBindConfigFreebind.IsSet() {
+			cluster.UpstreamBindConfig.Freebind = wrapperspb.Bool(options.EnvoyBindConfigFreebind.Bool)
+		}
+		if options.EnvoyBindConfigSourceAddress != "" {
+			cluster.UpstreamBindConfig.SourceAddress = &envoy_config_core_v3.SocketAddress{
+				Address: options.EnvoyBindConfigSourceAddress,
+				PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
+					PortValue: 0,
+				},
+			}
+		} else {
+			cluster.UpstreamBindConfig.SourceAddress = &envoy_config_core_v3.SocketAddress{
+				Address: "0.0.0.0",
+				PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
+					PortValue: 0,
+				},
+			}
+		}
+	}
+
 	cluster.AltStatName = getClusterStatsName(policy)
 	upstreamProtocol := getUpstreamProtocolForPolicy(ctx, policy)
 
