@@ -100,7 +100,7 @@ module.exports = {
             "releases",
             "architecture",
             "background",
-            "FAQ",
+            "troubleshooting",
             "upgrading",
             "CHANGELOG",
           ],
