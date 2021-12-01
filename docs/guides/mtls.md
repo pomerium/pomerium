@@ -149,5 +149,9 @@ You can now visit **<https://verify.localhost.pomerium.io>** (or another route y
 
 ![choose client certificate](./img/mtls/05-select-client-certificate.png)
 
+## Troubleshooting
+
+!!!include(client-cert-alt-port.md)!!!
+
 [Quick-Start]: /docs/install/readme.md
 [Identity Provider]: /docs/identity-providers/readme.md
