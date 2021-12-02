@@ -20,13 +20,13 @@ This doc assumes:
 
 1. We suggest configuring the route for API access in the open-source Pomerium. That way changes made through the API that might break access to the console GUI will not break access to the API route.
 
-	```yaml
-	- from: https://console-api.pomerium.localhost.io
-		to: https://pomerium-console-domain-name:8702
-		pass_identity_headers: true
-		allow_any_authenticated_user: true
-		tls_custom_ca_file: /path/to/rootCA.pem # See https://www.pomerium.com/reference/#tls-custom-certificate-authority
-	```
+    ```yaml
+    - from: https://console-api.pomerium.localhost.io
+      to: https://pomerium-console-domain-name:8702
+      pass_identity_headers: true
+      allow_any_authenticated_user: true
+      tls_custom_ca_file: /path/to/rootCA.pem # See https://www.pomerium.com/reference/#tls-custom-certificate-authority
+    ```
 
 1. You must also update the `audience` key to include the new route's `from` value:
 
