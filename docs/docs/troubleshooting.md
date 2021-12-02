@@ -17,32 +17,47 @@ This article provides troubleshooting information for various tools and features
 
 ## Pomerium Core
 
-### JWT Authentication with Let's Encrypt
+### JWT Authentication
 
-Wildcard certificates signed by LetsEncrypt may still be cross-signed by the [expired DST R3 root](https://letsencrypt.org/docs/dst-root-ca-x3-expiration-september-2021/). While many browsers still trust these certificates (as long as they are also signed by a valid root), some upstream applications reject them, including Grafana as an example:
+When securing the Pomerium Authenticate service with a certificate signed by Let's Encrypt, your upstream applications may reject the certificate when attempting to access the JWT signing key. Here's an example log line from [Grafana](/guides/grafana.md):
 
 ```log
 logger=context error=Get "https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json": x509: certificate signed by unknown authority
 ```
 
-For upstream applications that can use a local signing key file, you can circumvent this issue using `curl` or `wget` to download the signing key locally (relative to the upstream service):
+This is often due to the recent expiration of the [DST Root CA X3](https://letsencrypt.org/docs/dst-root-ca-x3-expiration-september-2021/) certificate. Many default keystores used by docker images and less-frequently updated distributions still carry this expired certificate. Even though LE certs are cross-signed with the [ISRG Root X1](https://letsencrypt.org/certificates/) CA certificate, some applications will still reject them.
 
-::::: tabs
-:::: tab curl
+To clarify; this does not mean that the upstream service is rejecting the JWT singing key. Rather, it doesn't trust the Let's Encrypt certificate used by the Authorize service for TLS, and so it will not read the JWKS file.
 
-```bash
-curl https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json > /etc/grafana/jwks.json
-```
-::::
-:::: tab wget
+For upstream applications that can use a local signing key file, you can circumvent this issue using `curl` or `wget` to download the signing key locally (relative to the upstream service). Using Grafana again as an example:
 
-```bash
-wget -O /etc/upstream-service/jwks.json https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json
-```
-::::
-:::::
+1. Download the `jwks.json` file from the authenticate server:
 
-Edit the upstream service configuration to use the local key to verify tokens.
+    ::::: tabs
+    :::: tab curl
+
+    ```bash
+    curl https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json > /etc/grafana/jwks.json
+    ```
+    ::::
+    :::: tab wget
+
+    ```bash
+    wget -O /etc/grafana/jwks.json https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json
+    ```
+    ::::
+    :::::
+
+1. Edit the upstream service configuration to use the local key to verify tokens:
+
+    ```ini
+    [auth.jwt]
+    enabled = true
+    header_name = X-Pomerium-Jwt-Assertion
+    email_claim = email
+    jwk_set_file = /etc/grafana/jwks.json
+    cache_ttl = 60m
+    ```
 
 ### Kubernetes Ingress Controller
 
