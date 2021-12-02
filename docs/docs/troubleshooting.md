@@ -17,6 +17,16 @@ This article provides troubleshooting information for various tools and features
 
 ## Pomerium Core
 
+### HSTS
+
+By default, Pomerium sends the [`Strict-Transport-Security`](https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security) response header to the browser, which pins the certificate to our browser for one year. This is common best practice to help prevent man-in-the-middle attacks, but can create issues while a new Pomerium configuration is in development.
+
+When you visit an endpoint while Pomerium is using the self-signed bootstrap certificate or a Let's Encrypt staging certificate (before switching to a production certificate), the untrusted certificate may be pinned in your browser. It then must be reset once Pomerium is switched to production certificates.
+
+While developing your Pomerium environment, consider adjusting the [`SET_RESPONSE_HEADERS`](/reference/readme.md#set-response-headers) key to remove `Strict-Transport-Security` or reduce the `max-age` value until your production certificates are in place.
+
+See [this article](https://www.ssl2buy.com/wiki/how-to-clear-hsts-settings-on-chrome-firefox-and-ie-browsers) for more information on clearing HSTS for specific endpoints across common browsers.
+
 ### JWT Authentication
 
 When securing the Pomerium Authenticate service with a certificate signed by Let's Encrypt, your upstream applications may reject the certificate when attempting to access the JWT signing key. Here's an example log line from [Grafana](/guides/grafana.md):
@@ -85,10 +95,6 @@ Events:
   Normal   Updated      5m53s               pomerium-ingress  updated pomerium configuration
   Warning  UpdateError  3s                  pomerium-ingress  upsert routes: parsing ingress: annotations: applying policy annotations: parsing policy: invalid rules in policy: unsupported conditional "maybe", only and, or, not, nor and action are allowed
 ```
-
-#### HSTS
-
-If your domain has [HSTS](https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security) enabled and you visit an endpoint while Pomerium is using the self-signed bootstrap certificate or a LetsEncrypt staging certificate (before cert-manager has provisioned a production certificate), the untrusted certificate may be pinned in your browser and would need to be reset. See [this article](https://www.ssl2buy.com/wiki/how-to-clear-hsts-settings-on-chrome-firefox-and-ie-browsers) for more information.
 
 ### Redirect Loop with Redis Databroker
 
