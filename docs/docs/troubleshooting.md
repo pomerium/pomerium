@@ -6,12 +6,12 @@ sidebarDepth: 0
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium troubleshooting
+    content: pomerium troubleshooting faq frequently asked questions
 ---
 
 # Troubleshooting
 
-This article provides troubleshooting information for various tools and features from Pomerium.
+This article provides troubleshooting information for various tools and features in Pomerium.
 
 [[toc]]
 
@@ -42,7 +42,7 @@ wget -O /etc/upstream-service/jwks.json https://authenticate.localhost.pomerium.
 ::::
 :::::
 
-Edit the upstream service configuration to use the local key to to verify tokens.
+Edit the upstream service configuration to use the local key to verify tokens.
 
 ### Kubernetes Ingress Controller
 
