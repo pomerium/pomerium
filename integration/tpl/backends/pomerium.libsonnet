@@ -77,7 +77,6 @@ local KubernetesService(name) =
 local Environment(mode, idp, dns_suffix) =
   {
     AUTHENTICATE_SERVICE_URL: 'https://authenticate.localhost.pomerium.io',
-    AUTHENTICATE_INTERNAL_SERVICE_URL: 'https://pomerium-authenticate',
     CERTIFICATE: std.base64(importstr '../files/trusted.pem'),
     CERTIFICATE_KEY: std.base64(importstr '../files/trusted-key.pem'),
     CERTIFICATE_AUTHORITY: std.base64(importstr '../files/ca.pem'),
@@ -99,6 +98,7 @@ local Environment(mode, idp, dns_suffix) =
     SIGNING_KEY: std.base64(importstr '../files/signing-key.pem'),
     SIGNING_KEY_ALGORITHM: 'ES256',
   } + if mode == 'multi' then {
+    AUTHENTICATE_INTERNAL_SERVICE_URL: 'https://pomerium-authenticate',
     AUTHORIZE_SERVICE_URL: 'https://pomerium-authorize:5443',
     DATABROKER_SERVICE_URL: 'https://pomerium-databroker:5443',
     GRPC_ADDRESS: ':5443',
