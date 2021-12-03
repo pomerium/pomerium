@@ -604,7 +604,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 			Key:  aExampleComKey,
 			Policies: []config.Policy{
 				{
-					Source:                &config.StringURL{URL: mustParseURL(t, "https://a.example.com")},
+					Source:                &config.StringURL{URL: mustParseURL(t, "https://a.example.com:1234")},
 					TLSDownstreamClientCA: "TEST",
 				},
 			},
