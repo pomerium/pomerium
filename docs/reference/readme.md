@@ -713,6 +713,16 @@ See also:
 Authenticate Service URL is the externally accessible URL for the authenticate service.
 
 
+### Authenticate Internal Service URL
+- Environmental Variable: `AUTHENTICATE_INTERNAL_SERVICE_URL`
+- Config File Key: `authenticate_internal_service_url`
+- Type: `URL`
+- Required
+- Example: `https://authenticate.internal`
+
+Authenticate Service URL is the internally accessible URL for the authenticate service.
+
+
 ### Identity Provider Client ID
 - Environmental Variable: `IDP_CLIENT_ID`
 - Config File Key: `idp_client_id`
@@ -843,6 +853,16 @@ Authenticate Service URL is the externally accessible URL for the authenticate s
 Authorize Service URL is the location of the internally accessible authorize service. NOTE: Unlike authenticate, authorize has no publicly accessible http handlers so this setting is purely for gRPC communication.
 
 If your load balancer does not support gRPC pass-through you'll need to set this value to an internally routable location (`https://pomerium-authorize-service.default.svc.cluster.local`) instead of an externally routable one (`https://authorize.corp.example.com`).
+
+
+### Authorize Internal Service URL
+- Environmental Variable: `AUTHORIZE_INTERNAL_SERVICE_URL`
+- Config File Key: `authorize_internal_service_url`
+- Type: `URL`
+- Required; inferred in all-in-one mode to be localhost.
+- Example: `https://pomerium-authorize-service.default.svc.cluster.local` or `https://localhost:5443`
+
+Authorize Service URL is the location of the internally accessible authorize service.
 
 
 ### Certificate Authority
@@ -1029,6 +1049,16 @@ To create your own data broker, implement the following gRPC interface:
 For an example implementation, the in-memory database used by the databroker service can be found here:
 
 - [pkg/databroker/memory](https://github.com/pomerium/pomerium/tree/master/pkg/databroker/memory)
+
+
+### Data Broker Internal Service URL
+- Environmental Variable: `DATABROKER_INTERNAL_SERVICE_URL` or `DATABROKER_INTERNAL_SERVICE_URLS`
+- Config File Key: `databroker_internal_service_url` or `databroker_internal_service_urls`
+- Type: `URL`
+- Example: `https://databroker.corp.example.com`
+- Default: in all-in-one mode, `http://localhost:5443`
+
+Data Broker Internal Service URL is the location of the internally accessible databroker service.
 
 
 ### Data Broker Storage Type
