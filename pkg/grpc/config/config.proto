@@ -137,6 +137,7 @@ message Settings {
   optional google.protobuf.Duration timeout_write = 12;
   optional google.protobuf.Duration timeout_idle = 13;
   optional string authenticate_service_url = 14;
+  optional string authenticate_internal_service_url = 82;
   optional string authenticate_callback_path = 15;
   optional string cookie_name = 16;
   optional string cookie_secret = 17;
@@ -154,6 +155,7 @@ message Settings {
   optional google.protobuf.Duration idp_refresh_directory_interval = 29;
   map<string, string> request_params = 30;
   repeated string authorize_service_urls = 32;
+  optional string authorize_internal_service_url = 83;
   optional string override_certificate_name = 33;
   optional string certificate_authority = 34;
   optional string certificate_authority_file = 35;
@@ -176,6 +178,7 @@ message Settings {
   optional bool grpc_insecure = 47;
   optional string forward_auth_url = 50;
   repeated string databroker_service_urls = 52;
+  optional string databroker_internal_service_url = 84;
   optional string client_ca = 53;
   optional string client_ca_file = 54;
   optional string client_crl = 74;

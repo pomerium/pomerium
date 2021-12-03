@@ -62,8 +62,6 @@ func TestOptions_Validate(t *testing.T) {
 	}{
 		{"good - minimum options", good, false},
 		{"nil options", &config.Options{}, true},
-		{"authenticate service url", badAuthURL, true},
-		{"authenticate service url no scheme", authenticateBadScheme, true},
 		{"no cookie secret", emptyCookieSecret, true},
 		{"invalid cookie secret", invalidCookieSecret, true},
 		{"short cookie secret", shortCookieLength, true},

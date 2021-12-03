@@ -199,7 +199,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 		databroker.WithFastForward())
 	go func() {
 		var databrokerURLs []string
-		urls, _ := cfg.Options.GetDataBrokerURLs()
+		urls, _ := cfg.Options.GetInternalDataBrokerURLs()
 		for _, url := range urls {
 			databrokerURLs = append(databrokerURLs, url.String())
 		}

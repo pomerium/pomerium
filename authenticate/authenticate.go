@@ -31,9 +31,6 @@ func ValidateOptions(o *config.Options) error {
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.CookieSecret); err != nil {
 		return fmt.Errorf("authenticate: 'COOKIE_SECRET' invalid %w", err)
 	}
-	if _, err := o.GetAuthenticateURL(); err != nil {
-		return fmt.Errorf("authenticate: 'AUTHENTICATE_SERVICE_URL' invalid: %w", err)
-	}
 	if o.Provider == "" {
 		return errors.New("authenticate: 'IDP_PROVIDER' is required")
 	}

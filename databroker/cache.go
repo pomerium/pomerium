@@ -84,7 +84,7 @@ func New(cfg *config.Config) (*DataBroker, error) {
 	}
 
 	dataBrokerServer := newDataBrokerServer(cfg)
-	dataBrokerURLs, err := cfg.Options.GetDataBrokerURLs()
+	dataBrokerURLs, err := cfg.Options.GetInternalDataBrokerURLs()
 	if err != nil {
 		return nil, err
 	}

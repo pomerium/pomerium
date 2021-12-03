@@ -44,10 +44,6 @@ func ValidateOptions(o *config.Options) error {
 		return fmt.Errorf("proxy: invalid 'COOKIE_SECRET': %w", err)
 	}
 
-	if _, err := o.GetAuthenticateURL(); err != nil {
-		return fmt.Errorf("proxy: invalid 'AUTHENTICATE_SERVICE_URL': %w", err)
-	}
-
 	return nil
 }
 

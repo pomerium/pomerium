@@ -77,6 +77,7 @@ local KubernetesService(name) =
 local Environment(mode, idp, dns_suffix) =
   {
     AUTHENTICATE_SERVICE_URL: 'https://authenticate.localhost.pomerium.io',
+    AUTHENTICATE_INTERNAL_SERVICE_URL: 'https://pomerium-authenticate',
     CERTIFICATE: std.base64(importstr '../files/trusted.pem'),
     CERTIFICATE_KEY: std.base64(importstr '../files/trusted-key.pem'),
     CERTIFICATE_AUTHORITY: std.base64(importstr '../files/ca.pem'),

@@ -124,6 +124,10 @@ services:
                 {
                   "env": [
                     {
+                      "name": "AUTHENTICATE_INTERNAL_SERVICE_URL",
+                      "value": "https://pomerium-authenticate"
+                    },
+                    {
                       "name": "AUTHENTICATE_SERVICE_URL",
                       "value": "https://authenticate.localhost.pomerium.io"
                     },
