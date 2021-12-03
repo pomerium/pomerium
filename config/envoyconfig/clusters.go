@@ -39,7 +39,7 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 	if err != nil {
 		return nil, err
 	}
-	databrokerURLs, err := cfg.Options.GetInternalDataBrokerURLs()
+	databrokerURLs, err := cfg.Options.GetDataBrokerURLs()
 	if err != nil {
 		return nil, err
 	}
