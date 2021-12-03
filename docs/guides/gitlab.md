@@ -23,7 +23,7 @@ This guide is written for a docker-based containerized installation of both Pome
 - This guide assumes a running instance of Pomerium, already configured with an identity Provider (**IdP**) and running as a docker container on the same host/swarm.
 
     ::: warning
-    While Pomerium can be configured to use [GitLab as an IdP], we do not reccommend doing so while also running it behind Pomerium. In addition to the potential to lock out access to the IdP (breaking access to all routes), we consider it best practice to keep a separation of services between your identity provider protected services, especially those housing sensitive data like source code.
+    While Pomerium can be configured to use [GitLab as an IdP], we do not recommend doing so while also running it behind Pomerium. In addition to the potential to lock out access to the IdP (breaking access to all routes), we consider it best practice to keep a separation of services between your identity provider protected services, especially those housing sensitive data like source code.
     :::
 
 - This configuration includes secure communication between Pomerium and GitLab as an upstream service. GitLab's Omnibus configuration uses Nginx to serve the Ruby-based application, which is configured to serve it at the domain name users will access it from. This guide uses [mkcert] to generate a certificate for the upstream service, but this can be adjusted for your in-house certificate solution.
@@ -55,12 +55,10 @@ While we do our best to keep our documentation up to date, changes to third-part
     export GITLAB_HOME=/srv/gitlab #Adjust the path based on your common Docker volume location.
     ```
 
-1. In the `$GITLAB_HOME` directory, create three sub-directorys: `config`, `data`, and `logs`.
+1. In the `$GITLAB_HOME` directory, create three sub-directories: `config`, `data`, and `logs`.
 
     ```bash
-    mkdir $GITLAB_HOME/config
-    mkdir $GITLAB_HOME/data
-    mkdir $GITLAB_HOME/logs
+    mkdir $GITLAB_HOME/{config,data,logs}
     ```
 
 1. In `$GITLAB_HOME/config` create the directory `ssl`. Move the internal certificate and key, created by mkcert in this example, to the new path:
@@ -76,22 +74,30 @@ While we do our best to keep our documentation up to date, changes to third-part
 1. Create the docker container. The example command below includes custom configuration options in the `GITLAB_OMNIBUS_CONFIG` variable:
 
     ```bash
-    sudo docker run --detach \
-    --hostname gitlab-ee \
-    --name gitlab \
-    --restart always \
-    --volume $GITLAB_HOME/config:/etc/gitlab \
-    --volume $GITLAB_HOME/logs:/var/log/gitlab \
-    --volume $GITLAB_HOME/data:/var/opt/gitlab \
-    gitlab/gitlab-ee:latest
-    #--publish 8443:443 --publish 8080:80 --publish 2022:22 \
+    docker run --detach \
+      --hostname gitlab-ee \
+      --name gitlab \
+      --restart always \
+      --publish 8443:443 --publish 8080:80 --publish 2022:22 \
+      --volume $GITLAB_HOME/config:/etc/gitlab \
+      --volume $GITLAB_HOME/logs:/var/log/gitlab \
+      --volume $GITLAB_HOME/data:/var/opt/gitlab \
+      gitlab/gitlab-ee:latest
     ```
+
+    :::tip
+    This example configuration assumes that ports `80`, `443`, and `22` are already in use by Pomerium and/or other services on the host, and defines alternate port mappings. Adjust to fit your environment.
+
+    If your Pomerium container can connect to the GitLab container over the internal docker network, the port mapping may not be required.
+    :::
 
     The container may take several minutes to initialize. You can monitor the progress by following the log output of the container:
 
     ```bash
     docker logs -f gitlab
     ```
+
+    Note that even after the process is complete, the log file will continue to output.
 
 1. Once the container is initialized, navigate to `$GITLAB_HOME\config` and edit `gitlab.rb` to use the correct external URL and certificate files:
 
@@ -137,7 +143,7 @@ sudo docker exec -it gitlab grep 'Password:' /etc/gitlab/initial_root_password
 
 ### Configure TCP Connections
 
-1. An additional route will provide an encrypted TCP tunnel through which users can securly access code using Git:
+1. An additional route will provide an encrypted TCP tunnel through which users can securely access code using Git:
 
   ```yaml
     - from: tcp+https://gitlab.localhost.pomerium.io
@@ -158,13 +164,23 @@ sudo docker exec -it gitlab grep 'Password:' /etc/gitlab/initial_root_password
     ::::: tabs
     :::: tab Pomerium-CLI
     ```bash
-    pomerium-cli tcp ...
+    pomerium-cli tcp gitlab.pomerium.localhost.io:22 --listen :2202
     ```
+
+    The `--listen` key defines what port the tunnel listens at locally.
     ::::
     :::: tab Pomerium Desktop
     An Image
     ::::
     :::::
+
+1. Add the tunneled connection as a remote:
+
+    ```bash
+    git remote add gitlab-tunneled ssh://git@127.0.0.1:2202/username/project-name
+    ```
+
+Now when you first initiate a `pull`, `push`, or `fetch` command your web browser will open to authenticate and authorize the connection.
 
 [GitLab]: https://gitlab.com/
 [GitLab as an IdP]: /docs/identity-providers/gitlab
