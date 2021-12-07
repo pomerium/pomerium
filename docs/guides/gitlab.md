@@ -170,7 +170,7 @@ sudo docker exec -it gitlab grep 'Password:' /etc/gitlab/initial_root_password
     The `--listen` key defines what port the tunnel listens at locally.
     ::::
     :::: tab Pomerium Desktop
-    An Image
+    ![An encrypted tunnel for git connections using Pomerium Desktop](./img/gitlab/gitlab-desktop-connection.png)
     ::::
     :::::
 
@@ -182,9 +182,19 @@ sudo docker exec -it gitlab grep 'Password:' /etc/gitlab/initial_root_password
 
 Now when you first initiate a `pull`, `push`, or `fetch` command your web browser will open to authenticate and authorize the connection.
 
+## Identity Management
+
+While GitLab has a [JWT OmniAuth provider], it only accepts a json web token (**JWT**) as a callback url parameter and not as an HTTP header as [provided by pomerium](/reference/readme.md#pass-identity-headers). If your IdP is a [supported Omniauth provider](https://docs.gitlab.com/ee/integration/omniauth.html#supported-providers), you can integrate it directly to GitLab to re-use your current session, but it will require signing in twice, once with Pomerium and again with GitLab:
+
+<video controls  muted="true" playsinline="" width="100%" control=""><source src="./img/gitlab/gitlab-login.webm" type="video/webm">
+Your browser does not support the video tag.
+</video>
+
+
 [GitLab]: https://gitlab.com/
 [GitLab as an IdP]: /docs/identity-providers/gitlab
 [GitLab Docker Images]: https://docs.gitlab.com/ee/install/docker.html
+[JWT OmniAuth provider]: https://docs.gitlab.com/ee/administration/auth/jwt.html
 [mkcert]: https://github.com/FiloSottile/mkcert
 [pomerium-cli]: /docs/releases.md#pomerium-cli
 [Pomerium Desktop]: https://github.com/pomerium/desktop-client/releases
