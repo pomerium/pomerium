@@ -6,6 +6,7 @@ This section contains applications, and scenario specific guides for Pomerium.
 - The [argo](./argo.md) guide demonstrates how Pomerium can be used to add access control to [Argo](https://argoproj.github.io/projects/argo).
 - The [Cloud Run](./cloud-run.md) recipe demonstrates deploying Pomerium to Google Cloud Run as well as using it to Authorize users to protected Cloud Run endpoints.
 - The [code-server](./code-server.md) guide demonstrates how Pomerium can be used to add access control to third-party applications that don't ship with [fine-grained access control](https://github.com/cdr/code-server/issues/905). code-server is a tool to run Visual Studio code as a web application.
+- Our [Grafana](./grafana.md) guide explains how to secure Grafana with Pomerium and integrate user sign-in using our JWT.
 - The [JWT Verification](./jwt-verification.md) guide demonstrates how to verify the Pomerium JWT assertion header using Envoy.
 - The [Kubernetes Dashboard](./kubernetes-dashboard.md) guide covers how to secure Kubernetes dashboard using Pomerium.
 - The [kubernetes](./kubernetes.md) guide covers how to add authentication and authorization to kubernetes dashboard using helm, and letsencrypt certificates. This guide also shows how third party reverse-proxies like nginx/traefik can be used in conjunction with Pomerium using forward-auth.
