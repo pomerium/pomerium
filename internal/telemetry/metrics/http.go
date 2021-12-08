@@ -74,7 +74,7 @@ var (
 		Name:        "http/client/requests_total",
 		Measure:     ochttp.ClientRoundtripLatency,
 		Description: "Total HTTP Client Requests",
-		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, ochttp.StatusCode, TagKeyDestination},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, ochttp.StatusCode},
 		Aggregation: view.Count(),
 	}
 
@@ -84,7 +84,7 @@ var (
 		Name:        "http/client/request_duration_ms",
 		Measure:     ochttp.ClientRoundtripLatency,
 		Description: "HTTP Client Request duration in ms",
-		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, ochttp.StatusCode, TagKeyDestination},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, ochttp.StatusCode},
 		Aggregation: DefaultHTTPLatencyDistrubtion,
 	}
 
@@ -94,7 +94,7 @@ var (
 		Name:        "http/client/response_size_bytes",
 		Measure:     ochttp.ClientReceivedBytes,
 		Description: "HTTP Client Response Size in bytes",
-		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, ochttp.StatusCode, TagKeyDestination},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, ochttp.StatusCode},
 		Aggregation: DefaulHTTPSizeDistribution,
 	}
 
@@ -104,7 +104,7 @@ var (
 		Name:        "http/client/response_size_bytes",
 		Measure:     ochttp.ClientSentBytes,
 		Description: "HTTP Client Response Size in bytes",
-		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, TagKeyDestination},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod},
 		Aggregation: DefaulHTTPSizeDistribution,
 	}
 )
@@ -137,7 +137,7 @@ func HTTPMetricsHandler(getInstallationID func() string, service string) func(ne
 }
 
 // HTTPMetricsRoundTripper creates a metrics tracking tripper for outbound HTTP Requests
-func HTTPMetricsRoundTripper(getInstallationID func() string, service string, destination string) func(next http.RoundTripper) http.RoundTripper {
+func HTTPMetricsRoundTripper(getInstallationID func() string, service string) func(next http.RoundTripper) http.RoundTripper {
 	return func(next http.RoundTripper) http.RoundTripper {
 		return tripper.RoundTripperFunc(func(r *http.Request) (*http.Response, error) {
 			ctx, tagErr := tag.New(
@@ -145,7 +145,6 @@ func HTTPMetricsRoundTripper(getInstallationID func() string, service string, de
 				tag.Upsert(TagKeyService, service),
 				tag.Upsert(TagKeyHost, r.Host),
 				tag.Upsert(TagKeyHTTPMethod, r.Method),
-				tag.Upsert(TagKeyDestination, destination),
 			)
 			if tagErr != nil {
 				log.Warn(ctx).Err(tagErr).Str("context", "HTTPMetricsRoundTripper").Msg("telemetry/metrics: failed to create metrics tag")

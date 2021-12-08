@@ -62,7 +62,7 @@ func WithBatchSize(batchSize int) Option {
 // WithHTTPClient sets the http client option.
 func WithHTTPClient(httpClient *http.Client) Option {
 	return func(cfg *config) {
-		cfg.httpClient = httputil.NewLoggingClient(httpClient,
+		cfg.httpClient = httputil.NewLoggingClient(httpClient, "okta_idp_client",
 			func(evt *zerolog.Event) *zerolog.Event {
 				return evt.Str("provider", "okta")
 			})

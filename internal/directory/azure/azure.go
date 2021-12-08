@@ -57,7 +57,7 @@ func WithLoginURL(loginURL *url.URL) Option {
 // WithHTTPClient sets the http client to use for requests to the Azure APIs.
 func WithHTTPClient(httpClient *http.Client) Option {
 	return func(cfg *config) {
-		cfg.httpClient = httputil.NewLoggingClient(httpClient,
+		cfg.httpClient = httputil.NewLoggingClient(httpClient, "azure_idp_client",
 			func(evt *zerolog.Event) *zerolog.Event {
 				return evt.Str("provider", "azure")
 			})
