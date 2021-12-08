@@ -74,7 +74,7 @@ var (
 		Name:        "http/client/requests_total",
 		Measure:     ochttp.ClientRoundtripLatency,
 		Description: "Total HTTP Client Requests",
-		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, ochttp.StatusCode, TagKeyDestination},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, ochttp.StatusCode},
 		Aggregation: view.Count(),
 	}
 
@@ -84,7 +84,7 @@ var (
 		Name:        "http/client/request_duration_ms",
 		Measure:     ochttp.ClientRoundtripLatency,
 		Description: "HTTP Client Request duration in ms",
-		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, ochttp.StatusCode, TagKeyDestination},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, ochttp.StatusCode},
 		Aggregation: DefaultHTTPLatencyDistrubtion,
 	}
 
@@ -94,7 +94,7 @@ var (
 		Name:        "http/client/response_size_bytes",
 		Measure:     ochttp.ClientReceivedBytes,
 		Description: "HTTP Client Response Size in bytes",
-		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, ochttp.StatusCode, TagKeyDestination},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, ochttp.StatusCode},
 		Aggregation: DefaulHTTPSizeDistribution,
 	}
 
@@ -104,7 +104,7 @@ var (
 		Name:        "http/client/response_size_bytes",
 		Measure:     ochttp.ClientSentBytes,
 		Description: "HTTP Client Response Size in bytes",
-		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod, TagKeyDestination},
+		TagKeys:     []tag.Key{TagKeyService, TagKeyHost, TagKeyHTTPMethod},
 		Aggregation: DefaulHTTPSizeDistribution,
 	}
 )

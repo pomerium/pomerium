@@ -14,7 +14,6 @@ var (
 	TagKeyGRPCService = tag.MustNewKey("grpc_service")
 	TagKeyGRPCMethod  = tag.MustNewKey("grpc_method")
 	TagKeyHost        = tag.MustNewKey("host")
-	TagKeyDestination = tag.MustNewKey("destination")
 
 	TagKeyStorageOperation = tag.MustNewKey("operation")
 	TagKeyStorageResult    = tag.MustNewKey("result")
