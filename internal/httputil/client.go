@@ -57,13 +57,16 @@ func NewLoggingRoundTripper(base http.RoundTripper, customize ...func(event *zer
 }
 
 // NewLoggingClient creates a new http.Client that will log requests.
-func NewLoggingClient(base *http.Client, customize ...func(event *zerolog.Event) *zerolog.Event) *http.Client {
+func NewLoggingClient(base *http.Client, name string, customize ...func(event *zerolog.Event) *zerolog.Event) *http.Client {
 	if base == nil {
 		base = http.DefaultClient
 	}
 	newClient := new(http.Client)
 	*newClient = *base
-	newClient.Transport = NewLoggingRoundTripper(newClient.Transport, customize...)
+	newClient.Transport = tripper.NewChain(metrics.HTTPMetricsRoundTripper(func() string {
+		return ""
+	}, name)).Then(NewLoggingRoundTripper(newClient.Transport, customize...))
+
 	return newClient
 }
 
@@ -75,7 +78,7 @@ type httpClient struct {
 func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 	tripperChain := tripper.NewChain(metrics.HTTPMetricsRoundTripper(func() string {
 		return ""
-	}, "idp_http_client", req.Host))
+	}, "idp_http_client"))
 	c.Client.Transport = tripperChain.Then(c.requestIDTripper)
 	return c.Client.Do(req)
 }
