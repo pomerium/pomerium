@@ -285,7 +285,7 @@ func (mgr *Manager) nackEvent(ctx context.Context, req *envoy_service_discovery_
 	})
 
 	bs, _ := json.Marshal(req.ErrorDetail.Details)
-	log.Error(ctx).
+	log.Fatal().
 		Err(errors.New(req.ErrorDetail.Message)).
 		Str("resource_type", req.TypeUrl).
 		Strs("resources_unsubscribe", req.ResourceNamesUnsubscribe).
