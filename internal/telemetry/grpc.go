@@ -67,7 +67,9 @@ func (h *GRPCServerStatsHandler) TagRPC(ctx context.Context, tagInfo *grpcstats.
 			trace.WithSpanKind(trace.SpanKindServer))
 	}
 
-	metricCtx := h.metricsHandler.TagRPC(ctx, tagInfo)
+	// ocgrpc's TagRPC must be called to attach the context rpcDataKey correctly
+	// https://github.com/census-instrumentation/opencensus-go/blob/bf52d9df8bb2d44cad934587ab946794456cf3c8/plugin/ocgrpc/server_stats_handler.go#L45
+	metricCtx := h.metricsHandler.TagRPC(h.Handler.TagRPC(ctx, tagInfo), tagInfo)
 	return metricCtx
 }
 
