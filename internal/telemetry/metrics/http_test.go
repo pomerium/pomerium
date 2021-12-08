@@ -129,7 +129,7 @@ func newFailingTestTransport() http.RoundTripper {
 }
 
 func Test_HTTPMetricsRoundTripper(t *testing.T) {
-	chain := tripper.NewChain(HTTPMetricsRoundTripper(func() string { return "test_installation_id" }, "test_service", "test_destination"))
+	chain := tripper.NewChain(HTTPMetricsRoundTripper(func() string { return "test_installation_id" }, "test_service"))
 	rt := chain.Then(newTestTransport())
 	client := http.Client{Transport: rt}
 
@@ -146,28 +146,28 @@ func Test_HTTPMetricsRoundTripper(t *testing.T) {
 			name:                          "good get",
 			url:                           "http://test.local/good",
 			verb:                          "GET",
-			wanthttpClientRequestSize:     "{ { {destination test_destination}{host test.local}{http.status 200}{http_method GET}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpClientResponseSize:    "{ { {destination test_destination}{host test.local}{http.status 200}{http_method GET}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpClientRequestDuration: "{ { {destination test_destination}{host test.local}{http.status 200}{http_method GET}{service test_service} }",
-			wanthttpClientRequestCount:    "{ { {destination test_destination}{host test.local}{http.status 200}{http_method GET}{service test_service} }",
+			wanthttpClientRequestSize:     "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wanthttpClientResponseSize:    "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wanthttpClientRequestDuration: "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }",
+			wanthttpClientRequestCount:    "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }",
 		},
 		{
 			name:                          "good post",
 			url:                           "http://test.local/good",
 			verb:                          "POST",
-			wanthttpClientRequestSize:     "{ { {destination test_destination}{host test.local}{http.status 200}{http_method POST}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpClientResponseSize:    "{ { {destination test_destination}{host test.local}{http.status 200}{http_method POST}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpClientRequestDuration: "{ { {destination test_destination}{host test.local}{http.status 200}{http_method POST}{service test_service} }",
-			wanthttpClientRequestCount:    "{ { {destination test_destination}{host test.local}{http.status 200}{http_method POST}{service test_service} }",
+			wanthttpClientRequestSize:     "{ { {host test.local}{http.status 200}{http_method POST}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wanthttpClientResponseSize:    "{ { {host test.local}{http.status 200}{http_method POST}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wanthttpClientRequestDuration: "{ { {host test.local}{http.status 200}{http_method POST}{service test_service} }",
+			wanthttpClientRequestCount:    "{ { {host test.local}{http.status 200}{http_method POST}{service test_service} }",
 		},
 		{
 			name:                          "bad post",
 			url:                           "http://test.local/bad",
 			verb:                          "POST",
-			wanthttpClientRequestSize:     "{ { {destination test_destination}{host test.local}{http.status 404}{http_method POST}{service test_service} }&{1 19 19 19 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpClientResponseSize:    "{ { {destination test_destination}{host test.local}{http.status 404}{http_method POST}{service test_service} }&{1 19 19 19 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
-			wanthttpClientRequestDuration: "{ { {destination test_destination}{host test.local}{http.status 404}{http_method POST}{service test_service} }",
-			wanthttpClientRequestCount:    "{ { {destination test_destination}{host test.local}{http.status 404}{http_method POST}{service test_service} }",
+			wanthttpClientRequestSize:     "{ { {host test.local}{http.status 404}{http_method POST}{service test_service} }&{1 19 19 19 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wanthttpClientResponseSize:    "{ { {host test.local}{http.status 404}{http_method POST}{service test_service} }&{1 19 19 19 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
+			wanthttpClientRequestDuration: "{ { {host test.local}{http.status 404}{http_method POST}{service test_service} }",
+			wanthttpClientRequestCount:    "{ { {host test.local}{http.status 404}{http_method POST}{service test_service} }",
 		},
 	}
 	for _, tt := range tests {

@@ -137,7 +137,7 @@ func HTTPMetricsHandler(getInstallationID func() string, service string) func(ne
 }
 
 // HTTPMetricsRoundTripper creates a metrics tracking tripper for outbound HTTP Requests
-func HTTPMetricsRoundTripper(getInstallationID func() string, service string, destination string) func(next http.RoundTripper) http.RoundTripper {
+func HTTPMetricsRoundTripper(getInstallationID func() string, service string) func(next http.RoundTripper) http.RoundTripper {
 	return func(next http.RoundTripper) http.RoundTripper {
 		return tripper.RoundTripperFunc(func(r *http.Request) (*http.Response, error) {
 			ctx, tagErr := tag.New(
@@ -145,7 +145,6 @@ func HTTPMetricsRoundTripper(getInstallationID func() string, service string, de
 				tag.Upsert(TagKeyService, service),
 				tag.Upsert(TagKeyHost, r.Host),
 				tag.Upsert(TagKeyHTTPMethod, r.Method),
-				tag.Upsert(TagKeyDestination, destination),
 			)
 			if tagErr != nil {
 				log.Warn(ctx).Err(tagErr).Str("context", "HTTPMetricsRoundTripper").Msg("telemetry/metrics: failed to create metrics tag")
