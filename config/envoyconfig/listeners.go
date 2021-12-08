@@ -853,7 +853,7 @@ func hostMatchesDomain(u *url.URL, host string) bool {
 func getPoliciesForDomain(options *config.Options, domain string) []config.Policy {
 	var policies []config.Policy
 	for _, p := range options.GetAllPolicies() {
-		if p.Source != nil && hostMatchesDomain(p.Source.URL, domain) {
+		if p.Source != nil && p.Source.URL.Hostname() == domain {
 			policies = append(policies, p)
 		}
 	}
