@@ -142,6 +142,8 @@ settings:
           - `domain`
           - `email`
           - `groups`
+          - `http_method`
+          - `http_path`
           - `reject`
           - `time_of_day`
           - `user`

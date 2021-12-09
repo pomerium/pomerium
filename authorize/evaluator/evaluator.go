@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/go-jose/go-jose/v3"
 	"github.com/open-policy-agent/opa/rego"
@@ -35,9 +36,21 @@ type Request struct {
 // RequestHTTP is the HTTP field in the request.
 type RequestHTTP struct {
 	Method            string            `json:"method"`
+	Path              string            `json:"path"`
 	URL               string            `json:"url"`
 	Headers           map[string]string `json:"headers"`
 	ClientCertificate string            `json:"client_certificate"`
+}
+
+// NewRequestHTTP creates a new RequestHTTP.
+func NewRequestHTTP(method string, requestURL url.URL, headers map[string]string, rawClientCertificate string) RequestHTTP {
+	return RequestHTTP{
+		Method:            method,
+		Path:              requestURL.Path,
+		URL:               requestURL.String(),
+		Headers:           headers,
+		ClientCertificate: rawClientCertificate,
+	}
 }
 
 // RequestSession is the session field in the request.

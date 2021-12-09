@@ -124,12 +124,12 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 ) (*evaluator.Request, error) {
 	requestURL := getCheckRequestURL(in)
 	req := &evaluator.Request{
-		HTTP: evaluator.RequestHTTP{
-			Method:            in.GetAttributes().GetRequest().GetHttp().GetMethod(),
-			URL:               requestURL.String(),
-			Headers:           getCheckRequestHeaders(in),
-			ClientCertificate: getPeerCertificate(in),
-		},
+		HTTP: evaluator.NewRequestHTTP(
+			in.GetAttributes().GetRequest().GetHttp().GetMethod(),
+			requestURL,
+			getCheckRequestHeaders(in),
+			getPeerCertificate(in),
+		),
 	}
 	if sessionState != nil {
 		req.Session = evaluator.RequestSession{

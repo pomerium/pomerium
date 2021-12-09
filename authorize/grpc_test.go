@@ -90,15 +90,15 @@ func Test_getEvaluatorRequest(t *testing.T) {
 		Session: evaluator.RequestSession{
 			ID: "SESSION_ID",
 		},
-		HTTP: evaluator.RequestHTTP{
-			Method: "GET",
-			URL:    "http://example.com/some/path?qs=1",
-			Headers: map[string]string{
+		HTTP: evaluator.NewRequestHTTP(
+			"GET",
+			mustParseURL("http://example.com/some/path?qs=1"),
+			map[string]string{
 				"Accept":            "text/html",
 				"X-Forwarded-Proto": "https",
 			},
-			ClientCertificate: certPEM,
-		},
+			certPEM,
+		),
 	}
 	assert.Equal(t, expect, actual)
 }
@@ -296,15 +296,15 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 	expect := &evaluator.Request{
 		Policy:  &a.currentOptions.Load().Policies[0],
 		Session: evaluator.RequestSession{},
-		HTTP: evaluator.RequestHTTP{
-			Method: "GET",
-			URL:    "http://example.com/some/path?qs=1",
-			Headers: map[string]string{
+		HTTP: evaluator.NewRequestHTTP(
+			"GET",
+			mustParseURL("http://example.com/some/path?qs=1"),
+			map[string]string{
 				"Accept":            "text/html",
 				"X-Forwarded-Proto": "https",
 			},
-			ClientCertificate: certPEM,
-		},
+			certPEM,
+		),
 	}
 	assert.Equal(t, expect, actual)
 }
@@ -413,4 +413,12 @@ func TestAuthorize_Check(t *testing.T) {
 			}
 		})
 	}
+}
+
+func mustParseURL(rawURL string) url.URL {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		panic(err)
+	}
+	return *u
 }
