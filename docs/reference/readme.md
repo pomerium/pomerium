@@ -862,7 +862,7 @@ If your load balancer does not support gRPC pass-through you'll need to set this
 - Required; inferred in all-in-one mode to be localhost.
 - Example: `https://pomerium-authorize-service.default.svc.cluster.local` or `https://localhost:5443`
 
-Authorize Service URL is the location of the internally accessible authorize service.
+Authorize Internal Service URL overrides `authorize_service_url` when determining the TLS certificate for the authorize service to listen with.
 
 
 ### Certificate Authority
