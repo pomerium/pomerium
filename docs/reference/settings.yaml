@@ -983,7 +983,7 @@ settings:
           - Required; inferred in all-in-one mode to be localhost.
           - Example: `https://pomerium-authorize-service.default.svc.cluster.local` or `https://localhost:5443`
         doc: |
-          Authorize Service URL is the location of the internally accessible authorize service.
+          Authorize Internal Service URL overrides `authorize_service_url` when determining the TLS certificate for the authorize service to listen with.
       - name: "Certificate Authority"
         keys: ["certificate_authority", "certificate_authority_file"]
         attributes: |
