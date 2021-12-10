@@ -1038,7 +1038,7 @@ The databroker service is used for storing user session data.
 - Example: `https://databroker.corp.example.com`
 - Default: in all-in-one mode, `http://localhost:5443`
 
-The data broker service URL points to a data broker which is responsible for storing associated authorization context (e.g. sessions, users and user groups). Multiple URLs can be specified with `databroker_service_url`.
+The data broker service URL points to a data broker which is responsible for storing associated authorization context (e.g. sessions, users and user groups). Multiple URLs can be specified with `databroker_service_urls`.
 
 By default, the `databroker` service uses an in-memory databroker.
 
