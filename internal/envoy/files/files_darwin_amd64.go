@@ -1,5 +1,5 @@
-//go:build darwin
-// +build darwin
+//go:build darwin && amd64
+// +build darwin,amd64
 
 package files
 
