@@ -1,15 +1,15 @@
 ---
-title: mTLS
+title: Client-Side mTLS
 lang: en-US
 meta:
   - name: keywords
     content: pomerium identity-access-proxy mtls client-certificate
 description: >-
   This guide covers how to use Pomerium to implement mutual authentication
-  (mTLS) using client certificates with a custom certificate authority.
+  (mTLS) for end-users, using client certificates with a custom certificate authority.
 ---
 
-# Implementing mTLS With Pomerium
+# Client-Side mTLS With Pomerium
 
 Secure communication on the web typically refers to using signed server certificates with the TLS protocol. TLS connections are both private and authenticated, preventing eavesdropping and impersonation of the server.
 
