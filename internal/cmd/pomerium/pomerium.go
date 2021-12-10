@@ -164,7 +164,7 @@ func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *con
 		return fmt.Errorf("error creating authenticate service: %w", err)
 	}
 
-	authenticateURL, err := src.GetConfig().Options.GetAuthenticateURL()
+	authenticateURL, err := src.GetConfig().Options.GetInternalAuthenticateURL()
 	if err != nil {
 		return fmt.Errorf("error getting authenticate URL: %w", err)
 	}

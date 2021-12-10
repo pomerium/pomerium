@@ -35,7 +35,7 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		Scheme: "http",
 		Host:   b.localHTTPAddress,
 	}
-	authorizeURLs, err := cfg.Options.GetAuthorizeURLs()
+	authorizeURLs, err := cfg.Options.GetInternalAuthorizeURLs()
 	if err != nil {
 		return nil, err
 	}

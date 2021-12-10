@@ -122,7 +122,8 @@ type Options struct {
 
 	// AuthenticateURL represents the externally accessible http endpoints
 	// used for authentication requests and callbacks
-	AuthenticateURLString string `mapstructure:"authenticate_service_url" yaml:"authenticate_service_url,omitempty"`
+	AuthenticateURLString         string `mapstructure:"authenticate_service_url" yaml:"authenticate_service_url,omitempty"`
+	AuthenticateInternalURLString string `mapstructure:"authenticate_internal_service_url" yaml:"authenticate_internal_service_url,omitempty"`
 	// SignOutRedirectURL represents the url that  user will be redirected to after signing out.
 	SignOutRedirectURLString string `mapstructure:"signout_redirect_url" yaml:"signout_redirect_url,omitempty"`
 
@@ -164,8 +165,9 @@ type Options struct {
 	// AuthorizeURLString is the routable destination of the authorize service's
 	// gRPC endpoint. NOTE: As many load balancers do not support
 	// externally routed gRPC so this may be an internal location.
-	AuthorizeURLString  string   `mapstructure:"authorize_service_url" yaml:"authorize_service_url,omitempty"`
-	AuthorizeURLStrings []string `mapstructure:"authorize_service_urls" yaml:"authorize_service_urls,omitempty"`
+	AuthorizeURLString         string   `mapstructure:"authorize_service_url" yaml:"authorize_service_url,omitempty"`
+	AuthorizeURLStrings        []string `mapstructure:"authorize_service_urls" yaml:"authorize_service_urls,omitempty"`
+	AuthorizeInternalURLString string   `mapstructure:"authorize_internal_service_url" yaml:"authorize_internal_service_url,omitempty"`
 
 	// Settings to enable custom behind-the-ingress service communication
 	OverrideCertificateName string `mapstructure:"override_certificate_name" yaml:"override_certificate_name,omitempty"`
@@ -241,8 +243,9 @@ type Options struct {
 	ForwardAuthURLString string `mapstructure:"forward_auth_url" yaml:"forward_auth_url,omitempty"`
 
 	// DataBrokerURLString is the routable destination of the databroker service's gRPC endpiont.
-	DataBrokerURLString  string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
-	DataBrokerURLStrings []string `mapstructure:"databroker_service_urls" yaml:"databroker_service_urls,omitempty"`
+	DataBrokerURLString         string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
+	DataBrokerURLStrings        []string `mapstructure:"databroker_service_urls" yaml:"databroker_service_urls,omitempty"`
+	DataBrokerInternalURLString string   `mapstructure:"databroker_internal_service_url" yaml:"databroker_internal_service_url,omitempty"`
 	// DataBrokerStorageType is the storage backend type that databroker will use.
 	// Supported type: memory, redis
 	DataBrokerStorageType string `mapstructure:"databroker_storage_type" yaml:"databroker_storage_type,omitempty"`
@@ -559,6 +562,12 @@ func (o *Options) Validate() error {
 			return fmt.Errorf("config: bad authenticate-url %s : %w", o.AuthenticateURLString, err)
 		}
 	}
+	if o.AuthenticateInternalURLString != "" {
+		_, err := urlutil.ParseAndValidateURL(o.AuthenticateInternalURLString)
+		if err != nil {
+			return fmt.Errorf("config: bad authenticate-internal-url %s : %w", o.AuthenticateInternalURLString, err)
+		}
+	}
 
 	if o.SignOutRedirectURLString != "" {
 		_, err := urlutil.ParseAndValidateURL(o.SignOutRedirectURLString)
@@ -573,11 +582,23 @@ func (o *Options) Validate() error {
 			return fmt.Errorf("config: bad authorize-url %s : %w", o.AuthorizeURLString, err)
 		}
 	}
+	if o.AuthorizeInternalURLString != "" {
+		_, err := urlutil.ParseAndValidateURL(o.AuthorizeInternalURLString)
+		if err != nil {
+			return fmt.Errorf("config: bad authorize-internal-url %s : %w", o.AuthorizeInternalURLString, err)
+		}
+	}
 
 	if o.DataBrokerURLString != "" {
 		_, err := urlutil.ParseAndValidateURL(o.DataBrokerURLString)
 		if err != nil {
 			return fmt.Errorf("config: bad databroker service url %s : %w", o.DataBrokerURLString, err)
+		}
+	}
+	if o.DataBrokerInternalURLString != "" {
+		_, err := urlutil.ParseAndValidateURL(o.DataBrokerInternalURLString)
+		if err != nil {
+			return fmt.Errorf("config: bad databroker internal service url %s : %w", o.DataBrokerInternalURLString, err)
 		}
 	}
 
@@ -749,6 +770,15 @@ func (o *Options) GetAuthenticateURL() (*url.URL, error) {
 	return urlutil.ParseAndValidateURL(rawurl)
 }
 
+// GetInternalAuthenticateURL returns the internal AuthenticateURL in the options or the AuthenticateURL.
+func (o *Options) GetInternalAuthenticateURL() (*url.URL, error) {
+	rawurl := o.AuthenticateInternalURLString
+	if rawurl == "" {
+		return o.GetAuthenticateURL()
+	}
+	return urlutil.ParseAndValidateURL(o.AuthenticateInternalURLString)
+}
+
 // GetAuthorizeURLs returns the AuthorizeURLs in the options or 127.0.0.1:5443.
 func (o *Options) GetAuthorizeURLs() ([]*url.URL, error) {
 	if IsAll(o.Services) && o.AuthorizeURLString == "" && len(o.AuthorizeURLStrings) == 0 {
@@ -761,6 +791,15 @@ func (o *Options) GetAuthorizeURLs() ([]*url.URL, error) {
 	return o.getURLs(append([]string{o.AuthorizeURLString}, o.AuthorizeURLStrings...)...)
 }
 
+// GetInternalAuthorizeURLs returns the internal AuthorizeURLs in the options or the AuthorizeURLs.
+func (o *Options) GetInternalAuthorizeURLs() ([]*url.URL, error) {
+	rawurl := o.AuthorizeInternalURLString
+	if rawurl == "" {
+		return o.GetAuthorizeURLs()
+	}
+	return o.getURLs(rawurl)
+}
+
 // GetDataBrokerURLs returns the DataBrokerURLs in the options or 127.0.0.1:5443.
 func (o *Options) GetDataBrokerURLs() ([]*url.URL, error) {
 	if IsAll(o.Services) && o.DataBrokerURLString == "" && len(o.DataBrokerURLStrings) == 0 {
@@ -771,6 +810,15 @@ func (o *Options) GetDataBrokerURLs() ([]*url.URL, error) {
 		return []*url.URL{u}, nil
 	}
 	return o.getURLs(append([]string{o.DataBrokerURLString}, o.DataBrokerURLStrings...)...)
+}
+
+// GetInternalDataBrokerURLs returns the internal DataBrokerURLs in the options or the DataBrokerURLs.
+func (o *Options) GetInternalDataBrokerURLs() ([]*url.URL, error) {
+	rawurl := o.DataBrokerInternalURLString
+	if rawurl == "" {
+		return o.GetDataBrokerURLs()
+	}
+	return o.getURLs(rawurl)
 }
 
 func (o *Options) getURLs(strs ...string) ([]*url.URL, error) {
@@ -1102,6 +1150,9 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	if settings.AuthenticateServiceUrl != nil {
 		o.AuthenticateURLString = settings.GetAuthenticateServiceUrl()
 	}
+	if settings.AuthenticateInternalServiceUrl != nil {
+		o.AuthenticateInternalURLString = settings.GetAuthenticateInternalServiceUrl()
+	}
 	if settings.AuthenticateCallbackPath != nil {
 		o.AuthenticateCallbackPath = settings.GetAuthenticateCallbackPath()
 	}
@@ -1152,6 +1203,9 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	}
 	if len(settings.AuthorizeServiceUrls) > 0 {
 		o.AuthorizeURLStrings = settings.GetAuthorizeServiceUrls()
+	}
+	if settings.AuthorizeInternalServiceUrl != nil {
+		o.AuthorizeInternalURLString = settings.GetAuthorizeInternalServiceUrl()
 	}
 	if settings.OverrideCertificateName != nil {
 		o.OverrideCertificateName = settings.GetOverrideCertificateName()
@@ -1224,6 +1278,9 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	}
 	if len(settings.DatabrokerServiceUrls) > 0 {
 		o.DataBrokerURLStrings = settings.GetDatabrokerServiceUrls()
+	}
+	if settings.DatabrokerInternalServiceUrl != nil {
+		o.DataBrokerInternalURLString = settings.GetDatabrokerInternalServiceUrl()
 	}
 	if settings.ClientCa != nil {
 		o.ClientCA = settings.GetClientCa()

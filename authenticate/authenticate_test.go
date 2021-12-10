@@ -53,14 +53,12 @@ func TestOptions_Validate(t *testing.T) {
 	}{
 		{"minimum options", good, false},
 		{"nil options", &config.Options{}, true},
-		{"bad scheme", badScheme, true},
 		{"no cookie secret", emptyCookieSecret, true},
 		{"invalid cookie secret", invalidCookieSecret, true},
 		{"short cookie secret", shortCookieLength, true},
 		{"no shared secret", badSharedKey, true},
 		{"no client id", emptyClientID, true},
 		{"no client secret", emptyClientSecret, true},
-		{"empty authenticate url", badAuthenticateURL, true},
 		{"empty callback path", badCallbackPath, true},
 	}
 	for _, tt := range tests {

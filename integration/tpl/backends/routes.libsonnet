@@ -223,7 +223,6 @@ local Routes(mode, idp, dns_suffix) =
       from: 'https://authenticate.localhost.pomerium.io',
       to: 'https://pomerium-authenticate',
       allow_public_unauthenticated_access: true,
-      host_rewrite: 'authenticate.localhost.pomerium.io',
       tls_skip_verify: true,
     },
   ] else [];

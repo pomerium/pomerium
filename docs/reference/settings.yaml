@@ -765,7 +765,14 @@ settings:
         doc: |
           Setting `use_proxy_protocol` will configure Pomerium to require the [HAProxy proxy protocol](https://www.haproxy.org/download/1.9/doc/proxy-protocol.txt) on incoming connections. Versions 1 and 2 of the protocol are supported.
       - name: "Envoy Bootstrap Options"
-        keys: ["envoy_admin_address","envoy_admin_access_log_path","envoy_admin_profile_path","envoy_bind_config_freebind","envoy_bind_config_source_address"]
+        keys:
+          [
+            "envoy_admin_address",
+            "envoy_admin_access_log_path",
+            "envoy_admin_profile_path",
+            "envoy_bind_config_freebind",
+            "envoy_bind_config_source_address",
+          ]
         attributes: |
           - Environment Variable: `ENVOY_ADMIN_ADDRESS`, `ENVOY_ADMIN_ACCESS_LOG_PATH`, `ENVOY_ADMIN_PROFILE_PATH`, `ENVOY_BIND_CONFIG_FREEBIND`, `ENVOY_BIND_CONFIG_SOURCE_ADDRESS`
           - Config File Keys: `envoy_admin_address`, `envoy_admin_access_log_path`, `envoy_admin_profile_path`, `envoy_bind_config_freebind`, `envoy_bind_config_source_address`
@@ -807,6 +814,18 @@ settings:
           Authenticate Service URL is the externally accessible URL for the authenticate service.
         shortdoc: |
           Authenticate Service URL is the externally accessible URL for the authenticate service.
+      - name: "Authenticate Internal Service URL"
+        keys: ["authenticate_internal_service_url"]
+        attributes: |
+          - Environmental Variable: `AUTHENTICATE_INTERNAL_SERVICE_URL`
+          - Config File Key: `authenticate_internal_service_url`
+          - Type: `URL`
+          - Required
+          - Example: `https://authenticate.internal`
+        short: |
+          Authenticate Service URL is the internally accessible URL for the authenticate service.
+        doc: |
+          Authenticate Internal Service URL overrides `authenticate_service_url` when determining the TLS certificate and hostname for the authenticate service to listen with.
       - name: "Identity Provider Client ID"
         keys: ["idp_client_id"]
         attributes: |
@@ -955,6 +974,16 @@ settings:
           Authorize Service URL is the location of the internally accessible authorize service. NOTE: Unlike authenticate, authorize has no publicly accessible http handlers so this setting is purely for gRPC communication.
 
           If your load balancer does not support gRPC pass-through you'll need to set this value to an internally routable location (`https://pomerium-authorize-service.default.svc.cluster.local`) instead of an externally routable one (`https://authorize.corp.example.com`).
+      - name: "Authorize Internal Service URL"
+        keys: ["authorize_internal_service_url"]
+        attributes: |
+          - Environmental Variable: `AUTHORIZE_INTERNAL_SERVICE_URL`
+          - Config File Key: `authorize_internal_service_url`
+          - Type: `URL`
+          - Required; inferred in all-in-one mode to be localhost.
+          - Example: `https://pomerium-authorize-service.default.svc.cluster.local` or `https://localhost:5443`
+        doc: |
+          Authorize Internal Service URL overrides `authorize_service_url` when determining the TLS certificate for the authorize service to listen with.
       - name: "Certificate Authority"
         keys: ["certificate_authority", "certificate_authority_file"]
         attributes: |
@@ -1142,7 +1171,7 @@ settings:
           - Example: `https://databroker.corp.example.com`
           - Default: in all-in-one mode, `http://localhost:5443`
         doc: |
-          The data broker service URL points to a data broker which is responsible for storing associated authorization context (e.g. sessions, users and user groups). Multiple URLs can be specified with `databroker_service_url`.
+          The data broker service URL points to a data broker which is responsible for storing associated authorization context (e.g. sessions, users and user groups). Multiple URLs can be specified with `databroker_service_urls`.
 
           By default, the `databroker` service uses an in-memory databroker.
 
@@ -1153,6 +1182,16 @@ settings:
           For an example implementation, the in-memory database used by the databroker service can be found here:
 
           - [pkg/databroker/memory](https://github.com/pomerium/pomerium/tree/master/pkg/databroker/memory)
+      - name: "Data Broker Internal Service URL"
+        keys: ["databroker_internal_service_url"]
+        attributes: |
+          - Environmental Variable: `DATABROKER_INTERNAL_SERVICE_URL` or `DATABROKER_INTERNAL_SERVICE_URLS`
+          - Config File Key: `databroker_internal_service_url` or `databroker_internal_service_urls`
+          - Type: `URL`
+          - Example: `https://databroker.corp.example.com`
+          - Default: in all-in-one mode, `http://localhost:5443`
+        doc: |
+          Data Broker Internal URL overrides `databroker_service_url` when determining the TLS certificate for the databroker service to listen with.
       - name: "Data Broker Storage Type"
         keys: ["databroker_storage_type"]
         attributes: |

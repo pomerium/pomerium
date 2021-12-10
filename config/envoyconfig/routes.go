@@ -105,7 +105,7 @@ func (b *Builder) buildPomeriumHTTPRoutes(options *config.Options, domain string
 		}
 	}
 	// if we're handling authentication, add the oauth2 callback url
-	authenticateURL, err := options.GetAuthenticateURL()
+	authenticateURL, err := options.GetInternalAuthenticateURL()
 	if err != nil {
 		return nil, err
 	}

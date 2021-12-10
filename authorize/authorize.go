@@ -73,9 +73,6 @@ func validateOptions(o *config.Options) error {
 	if _, err := cryptutil.NewAEADCipher(sharedKey); err != nil {
 		return fmt.Errorf("authorize: bad 'SHARED_SECRET': %w", err)
 	}
-	if _, err := o.GetAuthenticateURL(); err != nil {
-		return fmt.Errorf("authorize: invalid 'AUTHENTICATE_SERVICE_URL': %w", err)
-	}
 	return nil
 }
 
@@ -93,7 +90,7 @@ func newPolicyEvaluator(opts *config.Options, store *evaluator.Store) (*evaluato
 		return nil, fmt.Errorf("authorize: invalid client CA: %w", err)
 	}
 
-	authenticateURL, err := opts.GetAuthenticateURL()
+	authenticateURL, err := opts.GetInternalAuthenticateURL()
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid authenticate url: %w", err)
 	}
