@@ -15,3 +15,4 @@ This section contains applications, and scenario specific guides for Pomerium.
 - Our [Synology](./synology.md) guide demonstrates how lightweight Pomerium is by installing it on a Synology NAS or similar low-resource product.
 - The [TiddlyWiki](./tiddlywiki.md) guide demonstrates how Pomerium can be used to add authentication and authorization to web application using authenticated header.
 - The [Transmission](./transmission.md) guide demonstrates how Pomerium can act as an authentication and authorization proxy for your Transmission daemon's RPC interface, which only provides unencrypted HTTP auth out of the box.
+- [Upstream mTLS With Pomerium](./upstream-mtls.md) explains how to provide a client certificate (mTLS) from Pomerium to an upstream service.

@@ -226,6 +226,7 @@ module.exports = {
             "tiddlywiki",
             "traefik-ingress",
             "transmission",
+            "upstream-mtls",
           ],
         },
       ],
