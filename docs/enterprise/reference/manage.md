@@ -333,6 +333,8 @@ The available criteria types are:
 - `domain`
 - `email`
 - `groups`
+- `http_method`
+- `http_path`
 - `reject`
 - `time_of_day`
 - `user`

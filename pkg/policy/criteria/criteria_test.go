@@ -32,6 +32,7 @@ type (
 	}
 	InputHTTP struct {
 		Method  string              `json:"method"`
+		Path    string              `json:"path"`
 		Headers map[string][]string `json:"headers"`
 	}
 	InputSession struct {

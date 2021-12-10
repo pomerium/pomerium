@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -85,6 +86,36 @@ func TestEvaluator(t *testing.T) {
 		{
 			To:                        config.WeightedURLs{{URL: *mustParseURL("https://to9.example.com")}},
 			AllowAnyAuthenticatedUser: true,
+		},
+		{
+			To: config.WeightedURLs{{URL: *mustParseURL("https://to10.example.com")}},
+			Policy: &config.PPLPolicy{
+				Policy: &parser.Policy{
+					Rules: []parser.Rule{{
+						Action: parser.ActionAllow,
+						Or: []parser.Criterion{{
+							Name: "http_method", Data: parser.Object{
+								"is": parser.String("GET"),
+							},
+						}},
+					}},
+				},
+			},
+		},
+		{
+			To: config.WeightedURLs{{URL: *mustParseURL("https://to11.example.com")}},
+			Policy: &config.PPLPolicy{
+				Policy: &parser.Policy{
+					Rules: []parser.Rule{{
+						Action: parser.ActionAllow,
+						Or: []parser.Criterion{{
+							Name: "http_path", Data: parser.Object{
+								"is": parser.String("/test"),
+							},
+						}},
+					}},
+				},
+			},
 		},
 	}
 	options := []Option{
@@ -441,6 +472,32 @@ func TestEvaluator(t *testing.T) {
 				assert.Equal(t, tc.jwtAssertionFor, res.Headers.Get(httputil.HeaderPomeriumJWTAssertionFor))
 			}
 		}
+	})
+	t.Run("http method", func(t *testing.T) {
+		res, err := eval(t, options, []proto.Message{}, &Request{
+			Policy: &policies[9],
+			HTTP: NewRequestHTTP(
+				"GET",
+				*mustParseURL("https://from.example.com/"),
+				nil,
+				testValidCert,
+			),
+		})
+		require.NoError(t, err)
+		assert.True(t, res.Allow.Value)
+	})
+	t.Run("http path", func(t *testing.T) {
+		res, err := eval(t, options, []proto.Message{}, &Request{
+			Policy: &policies[10],
+			HTTP: NewRequestHTTP(
+				"POST",
+				*mustParseURL("https://from.example.com/test"),
+				nil,
+				testValidCert,
+			),
+		})
+		require.NoError(t, err)
+		assert.True(t, res.Allow.Value)
 	})
 }
 
