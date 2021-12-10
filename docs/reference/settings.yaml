@@ -1191,7 +1191,7 @@ settings:
           - Example: `https://databroker.corp.example.com`
           - Default: in all-in-one mode, `http://localhost:5443`
         doc: |
-          Data Broker Internal Service URL is the location of the internally accessible databroker service.
+          Data Broker Internal URL overrides `databroker_service_url` when determining the TLS certificate for the databroker service to listen with.
       - name: "Data Broker Storage Type"
         keys: ["databroker_storage_type"]
         attributes: |
