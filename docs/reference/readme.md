@@ -1058,7 +1058,7 @@ For an example implementation, the in-memory database used by the databroker ser
 - Example: `https://databroker.corp.example.com`
 - Default: in all-in-one mode, `http://localhost:5443`
 
-Data Broker Internal Service URL is the location of the internally accessible databroker service.
+Data Broker Internal URL overrides `databroker_service_url` when determining the TLS certificate for the databroker service to listen with.
 
 
 ### Data Broker Storage Type
