@@ -720,7 +720,7 @@ Authenticate Service URL is the externally accessible URL for the authenticate s
 - Required
 - Example: `https://authenticate.internal`
 
-Authenticate Service URL is the internally accessible URL for the authenticate service.
+Authenticate Internal Service URL overrides `authenticate_service_url` when determining the TLS certificate and hostname for the authenticate service to listen with.
 
 
 ### Identity Provider Client ID
