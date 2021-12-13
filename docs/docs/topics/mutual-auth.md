@@ -1,6 +1,7 @@
 ---
 title: Mutual Authentication
 lang: en-US
+sidebarDepth: 1
 meta:
   - name: keywords
     content: pomerium identity-access-proxy mutual authentication jwt jwks mtls
@@ -25,6 +26,7 @@ flowchart TD
     D[End User]
         D <--> A
     subgraph LAN
+    style LAN stroke-dasharray: 5 5
     A(Pomerium Proxy Service)
     B(Pomerium Authenticate Service)
     A <-.-> B
@@ -44,8 +46,9 @@ flowchart TD
     D[End User]
     D <--> A
     E[/Hacker/]
-    E<-->C
+    E<--->C
     subgraph LAN
+    style LAN stroke-dasharray: 5 5
     A(Pomerium Proxy Service)
     B(Pomerium Authenticate Service)
     A <-.-> B
@@ -67,13 +70,13 @@ flowchart TD
     D[End User]
     D<-->A
     subgraph LAN
-        subgraph &nbsp;
+    style LAN stroke-dasharray: 5 5
+        subgraph Pomerium [ ];
+        style Pomerium stroke-width: 0
             A(Pomerium Proxy Service)
             B(Pomerium Authenticate Service)
         end
-        subgraph &nbsp;
             C(Grafana)
-        end
     end
     A <-.-> B
     A <--> C
@@ -82,34 +85,89 @@ flowchart TD
 
 1. When the user connects to the route `grafana.example.com` the traffic is received by the Pomerium Proxy service.
 1. The proxy redirects to the Authenticate service to validate the user by having them sign in with the identity provider (**IdP**).
-1. After authentication succeeds, the proxy verifies that the authenticated (**authn**) user is authorized (**authz**) to access the service, and send the connection to Grafana, including the `X-Pomerium-JWT-Assertion` header containing the JWT signed by the key set in the Pomerium Authenticate service.
+1. After authentication succeeds, the proxy verifies that the authenticated user is authorized to access the service, and sends the connection to Grafana, including the `X-Pomerium-JWT-Assertion` header containing the JWT signed by the key set in the Pomerium Authenticate service.
 1. The service (Grafana) reads the signing key from the Authenticate service, and uses it to validate the JWT. Finding it to match, the traffic is allowed.
 
 Our hacker may be able to forge a basic JWT, but they can't sign it with the key secured in the Pomerium configuration, so Grafana rejects their connections:
 
 ```mermaid
-flowchart LR
+flowchart TD
     D[End User]
     E[/Hacker/]
-    E--xC
+    E---xC
     D<-->A
     subgraph LAN
-        subgraph &nbsp;
+        subgraph Pomerium[ ];
             A(Pomerium Proxy Service)
             B(Pomerium Authenticate Service)
         end
-        subgraph &nbsp;
             C(Grafana)
-        end
     end
     A <-.-> B
     A <--> C
     C -.-> B
 ```
 
-## mTLS: External Mutual Auth
+In this way, we've applied a zero-trust security model to the authZ aspect of our infrastructure security.
 
-A bit here about how mTLS works in a similar fashion as above.
+## mTLS
+
+Most tech professionals are familiar with [Transport Layer Security] (**TLS**). The majority of traffic on the web today is sent using TLS. In addition to encrypting data using the server's TLS certificate, the server identity is validated by the certificate and the Certificate Authority (**CA**) that signed it.
+
+```mermaid
+flowchart RL
+    subgraph pc [PC]
+    D(Browser) -.-> B(Trusted Keystore)
+    end
+    subgraph Server
+    D-. http .-> A[Service]
+    A-. Certificate .->D
+    end
+    D<-- https -->A
+```
+
+1. The browser initiates a connection to `example.com` over the `http` protocol.
+1. The server sends its public certificate to the browser.
+1. The browser reads the certificate chain to find the CA, and checks against the computers keystore to see if the CA is one that it trusts.
+1. After confirming the CA is trusted the browser reconnects to the server, this time using the `https` protocol and encrypting the traffic using the public certificate.
+
+The process above confirms the identity of the *server*, protecting the client. Mutual TLS (**mTLS**) allows the server to confirm the identity of the *client* using a client certificate.
+
+```mermaid
+flowchart RL
+    subgraph Server
+    A[Service]<-.->C[Trusted Keystore]
+    end
+    D(Browser)-- Client Certificate -->A
+    A-- Client Certificate Request --->D
+```
+
+::: tip
+The exchange diagrammed here occurs *after* the initial connection and confirmation of the server-side certificate shown above.
+:::
+
+1. After the server certificate is trusted and an `HTTPS` connection is established, the server requests a client certificate.
+1. The user is prompted to use one of the certificates previously imported into thr browser. This certificate is send to the server
+1. The server validates the client certificate signing authority against its trusted keystore or authorized client CA. Once authorized, the server resumes normal encrypted communication with the client.
+
+mTLS can also be configured between Pomerium and an upstream service. This secures the service itself from bad actors in your network by only allowing communication with the Pomerium proxy.
+
+```mermaid
+flowchart TD
+    A[End User]
+    B[/Hacker/]
+    subgraph LAN
+    C(Pomerium Proxy Service)
+    D(Pomerium Authenticate Service)
+    E(Service)
+    end
+    A<--mTLS-->C
+    C<-.HTTPS.->D
+    C<--mTLS-->E
+    B---xE
+```
+
+In this way, we've now applied a zero-trust security model to the authN aspect of our infrastructure security.
 
 ## Mutual Authentication With a Sidecar
 
@@ -169,7 +227,8 @@ flowchart BT
     C -.-> B
 ```
 
-[zero trust]: https://link-to-something.com
 [`pass_identity_headers`]: /reference/readme.md#pass-identity-headers
 [Grafana]: /guides/grafana.md
 [JWT Verification]: /guides/jwt-verification.md
+[Transport Layer Security]: https://en.wikipedia.org/wiki/Transport_Layer_Security
+[zero trust]: https://link-to-something.com
