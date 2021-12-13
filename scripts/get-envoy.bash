@@ -9,9 +9,12 @@ _envoy_version=1.19.1
 _dir="$_project_root/internal/envoy/files"
 _target="${TARGET:-"$(go env GOOS)-$(go env GOARCH)"}"
 
-# until m1 macs are supported, fallback to x86 and use rosetta
 if [ "$_target" == "darwin-arm64" ]; then
-  _target="darwin-amd64"
+  echo "Using local envoy distribution for Apple M1"
+  cp `which envoy` "$_dir/envoy-$_target"
+  (cd internal/envoy/files && sha256sum "$_dir/envoy-$_target" > "$_dir/envoy-$_target.sha256")
+  echo "1.21.0-dev" >"$_dir/envoy-$_target.version"
+  exit 0
 fi
 
 _url="https://github.com/pomerium/envoy-binaries/releases/download/v${_envoy_version}/envoy-${_target}"
