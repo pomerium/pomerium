@@ -5,7 +5,6 @@ package envoy
 
 import (
 	"context"
-	"runtime"
 	"syscall"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -25,11 +24,6 @@ func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []stri
 
 	args = make([]string, len(sharedArgs))
 	copy(args, sharedArgs)
-
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
-		// until m1 macs are supported by envoy, fallback to x86 and use rosetta
-		return "arch", append([]string{"-x86_64", srv.envoyPath}, args...)
-	}
 
 	return srv.envoyPath, args
 }

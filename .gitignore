@@ -89,4 +89,6 @@ docs/.vuepress/dist/
 .service-accounts
 
 /bazel-*
-internal/envoy/files/
+internal/envoy/files/envoy-*-?????
+internal/envoy/files/envoy-*-?????.sha256
+internal/envoy/files/envoy-*-?????.version
