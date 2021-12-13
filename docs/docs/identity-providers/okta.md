@@ -78,7 +78,7 @@ idp_provider: "okta"
 idp_provider_url: "https://awesomecompany.okta.com"
 idp_client_id: "REPLACE ME"
 idp_client_secret: "REPLACE ME"
-ipd_service_account: "REPLACE ME" # base64 encoded JSON object
+idp_service_account: "REPLACE ME" # base64 encoded JSON object
 ```
 :::
 ::: tab Environment Variables
