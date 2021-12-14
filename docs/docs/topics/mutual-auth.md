@@ -11,9 +11,22 @@ description: >-
 
 # Mutual Authentication: A Component of Zero-Trust
 
-Pomerium provides a good layer of security out of the box, but it's not (and can't be) configured for complete [zero trust] right out of the box. This page explains the concepts of zero trust with practical examples.
+Pomerium provides a good layer of security out of the box, but it's not (and can't be) configured for complete [zero trust] right out of the box. This page explains several methods of achieving mutual authentication, a big part of the zero-trust model, with practical examples.
 
-## Pomerium Default
+This is a long page that dives into several specific security practices that provide mutual authentication. You can use the table of contents below to narrow down to the specific tools you're interested in, or read the entire doc for a deeper understanding of how these tools work together to support strong infrastructure security.
+
+[[toc]]
+
+## What Is Mutual Authentication?
+
+The concept of mutual authentication is deceptively simple. It means that both sides of a connection can validate the identity of the other. The application of this concept however, can be varied and complex. Pomerium provides the features and capability to provide mutual authentication between itself and end users, as well, as between itself and upstream services, but configuring those external endpoints can vary depending on each service's features.
+
+## Pomerium Defaults
+
+> - **Security**: Moderate
+> - **Difficulty**: Easy
+> - **Encrypted**: Yes (from the end user to Pomerium. It's up to the service to provide a TLS endpoint for Pomerium to use.)
+> - **Mutual Authentication**: None
 
 Let's look at a basic installation of Pomerium on a local network, with a single downstream service. This service contains sensitive data that we only want the right people to access.
 
@@ -39,7 +52,7 @@ flowchart TD
 1. The proxy redirects to the Authenticate service to validate the user by having them sign in with the identity provider (**IdP**).
 1. After authentication succeeds, the proxy verifies that the authenticated (**authn**) user is authorized (**authz**) to access the service, and begins communication with it.
 
-This is great, only the users that are supposed to have access to the service get through. But this model is dependent on the security of your network perimeter. If a bad actor gains access to your local area network (**LAN**), they can now communicate with the service directly:
+This is a good start, only the users that are supposed to have access to the service get through. But this model is dependent on the security of your network perimeter. If a bad actor gains access to your local area network (**LAN**), they can now communicate with the service directly:
 
 ```mermaid
 flowchart TD
@@ -60,6 +73,11 @@ flowchart TD
 While your network *should* be secured to only allow traffic at specified ports and directed to specified services, this creates a single point of failure. A hacker need only bypass your firewall to get direct access to your service.
 
 ## JWT Verification: Internal Mutual Auth
+
+> - **Security**: Strong
+> - **Difficulty**: Moderate
+> - **Encrypted**: Yes (from the end user to Pomerium. It's up to the service to provide a TLS endpoint for Pomerium to use.)
+> - **Mutual Authentication**: Application Layer
 
 Many, but not all, modern web applications support json web tokens (**JWTs**). These tokens are provided by Pomerium (with the [`pass_identity_headers`] key) to the downstream service so that it can independently verify that the traffic it receives is authorized.
 
@@ -97,7 +115,9 @@ flowchart TD
     E---xC
     D<-->A
     subgraph LAN
+    style LAN stroke-dasharray: 5 5
         subgraph Pomerium[ ];
+        style Pomerium stroke-width: 0
             A(Pomerium Proxy Service)
             B(Pomerium Authenticate Service)
         end
@@ -111,6 +131,11 @@ flowchart TD
 In this way, we've applied a zero-trust security model to the application layer of our infrastructure's network model'.
 
 ## mTLS
+
+> - **Security**: Excellent
+> - **Difficulty**: Hard
+> - **Encrypted**: Yes
+> - **Mutual Authentication**: Protocol Layer
 
 Most tech professionals are familiar with [Transport Layer Security] (**TLS**). The majority of traffic on the web today is sent using TLS. In addition to encrypting data using the server's TLS certificate, the server identity is validated by the certificate and the Certificate Authority (**CA**) that signed it.
 
