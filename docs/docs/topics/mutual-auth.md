@@ -72,7 +72,7 @@ flowchart TD
 
 While your network *should* be secured to only allow traffic at specified ports and directed to specified services, this creates a single point of failure. A hacker need only bypass your firewall to get direct access to your service.
 
-## JWT Verification: Internal Mutual Auth
+## JWT Verification: Application-based Mutual Authentication
 
 > - **Security**: Strong
 > - **Difficulty**: Moderate
@@ -130,7 +130,7 @@ flowchart TD
 
 In this way, we've applied a zero-trust security model to the application layer of our infrastructure's network model'.
 
-## mTLS
+## mTLS: Protocol-based Mutual Authentication
 
 > - **Security**: Excellent
 > - **Difficulty**: Hard
