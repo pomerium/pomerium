@@ -108,7 +108,7 @@ flowchart TD
     C -.-> B
 ```
 
-In this way, we've applied a zero-trust security model to the authZ aspect of our infrastructure security.
+In this way, we've applied a zero-trust security model to the application layer of our infrastructure's network model'.
 
 ## mTLS
 
@@ -167,7 +167,7 @@ flowchart TD
     B---xE
 ```
 
-In this way, we've now applied a zero-trust security model to the authN aspect of our infrastructure security.
+In this way, we've applied a zero-trust security model to the protocol layer of our infrastructure's network model'.
 
 ## Mutual Authentication With a Sidecar
 
