@@ -128,7 +128,7 @@ flowchart TD
     C -.-> B
 ```
 
-In this way, we've applied a zero-trust security model to the application layer of our infrastructure's network model'.
+In this way, we've applied a zero-trust security model to the application layer of our infrastructure's network model.
 
 ## mTLS: Protocol-based Mutual Authentication
 
@@ -192,7 +192,7 @@ flowchart TD
     B---xE
 ```
 
-In this way, we've applied a zero-trust security model to the protocol layer of our infrastructure's network model'.
+In this way, we've applied a zero-trust security model to the protocol layer of our infrastructure's network model.
 
 ## Mutual Authentication With a Sidecar
 
@@ -251,6 +251,53 @@ flowchart BT
     C --> A
     C -.-> B
 ```
+
+## Putting It All Together
+
+Each of the techniques described above provides an additional form of security. Which you choose to apply to your infrastructure depends on your needs, end users, and what your services and/or infrastructure can support.
+
+Security practices can often seem like a scale with best practices at one end and ease of use at the other. Pomerium is designed to make it reasonably easy to enable the best security model that fits each service. For example, it's usually not reasonable to expect a service with many unique end users to require client certificates for downstream mTLS, but communication between Pomerium and the upstream application or service mesh can use it without any additional overhead for the client.
+
+At this point, the security model becomes difficult to accurately describe with a simple graph... but we'll try anyway.
+
+```mermaid
+flowchart TD
+    A[End User]
+    G[Admin]
+    subgraph LAN
+    style LAN stroke-dasharray: 5 5
+    direction LR
+        subgraph Pomerium [ ];
+        style Pomerium stroke-width: 0
+        B(Pomerium Proxy Service)
+        C(Pomerium Authenticate Service)
+        end
+        subgraph Services [ ];
+        direction TB
+        style Services stroke-width: 0
+        D(User App)
+        E(Admin App)
+        end
+        F[Sidecar]
+        subgraph Sidecar [ ];
+        style Sidecar stroke-dasharray: 5 5
+        H(API)
+        F<-->H
+        end
+    end
+    A <-- TLS --> B
+    A <--JWT--> C
+    B -.-> C
+    B<--mTLS & JWT-->D
+    B<--mTLS-->E
+    B<--mTLS--->F
+    G<==mTLS==>B
+    G<--->C
+```
+
+- In this example, End users authenticate with Pomerium to access the user app. Their connection to the proxy service is authenticated after signing in to their IdP and encrypted with TLS. The communication between the proxy service and the user app is mutually authenticated with mTLS, and the user's JWT is passed from the proxy to the app to confirm the user identity to the service.
+- The Admin's connection is authenticated and encrypted the same was as the user's, but the route to the admin app also requires a client certificate. The connection from the admin to the admin app is now mutually authenticated both upstream and downstream from the proxy service.
+- The API server is required by both the user and admin apps. Rather than build authentication into the API service, it is accessible only through a sidecar. The sidecar only accepts mTLS-authenticated connections from the proxy, so both apps connect to the API through Pomerium.
 
 [`pass_identity_headers`]: /reference/readme.md#pass-identity-headers
 [Grafana]: /guides/grafana.md
