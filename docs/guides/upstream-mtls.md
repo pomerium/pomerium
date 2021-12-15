@@ -96,7 +96,7 @@ OpenSSL is installed or easily available for most 'nix-based operating systems l
 1. Update the `config.yaml` file in `/etc/pomerium` with a new route for this upstream service:
 
     ```yaml
-    - from: https://openssl.pomerium.localhost.io
+    - from: https://openssl.localhost.pomerium.io
       to: https://localhost:44330
       tls_server_name: openssl.localhost
       policy:
@@ -108,7 +108,7 @@ OpenSSL is installed or easily available for most 'nix-based operating systems l
 
     Pomerium should automatically process changes when the configuration file is updated.
 
-1. Visit <https://openssl.localhost.pomium.io> in your browser to confirm the route:
+1. Visit <https://openssl.localhost.pomerium.io> in your browser to confirm the route:
 
     ![OpenSSL Upstream without client certificate verification](./img/mtls/openssl-test1.png)
 
