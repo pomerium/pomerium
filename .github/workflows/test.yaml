@@ -164,7 +164,6 @@ jobs:
         run: |
           make build-deps
           make build
-          make build NAME=pomerium-cli
 
       - name: save binary
         uses: actions/upload-artifact@v2
