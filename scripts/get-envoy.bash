@@ -11,7 +11,7 @@ _target="${TARGET:-"$(go env GOOS)-$(go env GOARCH)"}"
 
 if [ "$_target" == "darwin-arm64" ]; then
   echo "Using local envoy distribution for Apple M1"
-  cp `which envoy` "$_dir/envoy-$_target"
+  cp -f `which envoy` "$_dir/envoy-$_target"
   (cd internal/envoy/files && sha256sum "$_dir/envoy-$_target" > "$_dir/envoy-$_target.sha256")
   echo "1.21.0-dev" >"$_dir/envoy-$_target.version"
   exit 0
