@@ -300,7 +300,7 @@ spec:
 1. Set `path_regex` annotation to `true`
 2. Set `pathType` to `ImplementationSpecific`
 
-Note that full path (with query string removed) should match the [re2 regular expression](https://github.com/google/re2/wiki/Syntax), not just a substring.
+Note that the full path (with query string removed) should match the [re2 regular expression](https://github.com/google/re2/wiki/Syntax), not just a substring.
 
 ```yaml
 apiVersion: networking.k8s.io/v1
