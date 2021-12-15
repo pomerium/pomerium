@@ -118,7 +118,7 @@ This error means that the proxy is rejecting the Authorize service's supplied ce
 
 **Solution**
 
-Ensure that the proxy service knows about and trusts the certificate authority that signed the authorize service's certificate.
+Ensure that the Proxy service knows about and trusts the certificate authority that signed the Authorize service's certificate.
 
 - Add the certificate authority directly into Pomerium using the [certificate authority](/reference/readme.md#certificate-authority) config setting.
 - Add the certificate authority to the system's underlying trust store.
@@ -129,7 +129,7 @@ Ensure that the proxy service knows about and trusts the certificate authority t
     ```docker
     COPY --from=builder /etc/ssl/certs/your-cert-bundle.crt /etc/ssl/certs/ca-certificates.crt
     ```
-- Finally, ensure that you aren't being man-in-the-middle'd or that some eager router isn't injecting its own certificate along the way. Use openssl to verify that your proxy service is getting the certificate you think its getting.
+- Finally, ensure that you aren't being man-in-the-middle'd or that some eager router isn't injecting its own certificate along the way. Use openssl to verify that your Proxy service is getting the certificate you think its getting.
 
     ```bash
     openssl s_client -servername pomerium.io -connect pomerium.io:443 </dev/null \
@@ -146,7 +146,7 @@ When authenticating and authorizing a user for the first time, you may get the f
 
 **Why**
 
-The proxy service is not able to create a connection with the authorization service to validate a user.
+The Proxy service is not able to create a connection with the authorization service to validate a user.
 
 **Solution**
 

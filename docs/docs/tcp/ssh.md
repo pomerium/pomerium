@@ -10,7 +10,7 @@ Bad actors are constantly scanning the internet for exposed SSH services. Changi
 By tunneling SSH connections through your Pomerium service:
 
  - All traffic is encrypted twice (once by the Pomerium TCP connection, once by SSH itself),
- - The SSH service can remain closed to the internet, or even restricted to only accept connections from the Pomerium proxy service
+ - The SSH service can remain closed to the internet, or even restricted to only accept connections from the Pomerium Proxy service
  - Authentication and authorization is managed by Pomerium, using your IdP for identity, and can be easily managed at scale.
 
  ## Basic Connection
