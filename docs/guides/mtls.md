@@ -102,7 +102,7 @@ Alternately, you can encode the client certificate authority as a base64-encoded
 ::::
 :::::
 
-Start or restart Pomerium to load the new settings.
+Start Pomerium.
 
 ### Require mTLS per Route
 
@@ -110,7 +110,7 @@ You can define a client certificate authority for an individual route. Use this 
 
 ```yaml{3-4}
   - from: https://verify.localhost.pomerium.io
-    to: http://verify:8000
+    to: https://verify.pomerium.com
     # "$(mkcert -CAROOT)/rootCA.pem"
     tls_downstream_client_ca_file: "/YOUR/MKCERT/CAROOT/rootCA.pem"
     pass_identity_headers: true
