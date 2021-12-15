@@ -12,8 +12,3 @@ analyze:
       type: go
       target: github.com/pomerium/pomerium/cmd/pomerium
       path: cmd/pomerium
-
-    - name: github.com/pomerium/pomerium/cmd/pomerium-cli
-      type: go
-      target: github.com/pomerium/pomerium/cmd/pomerium-cli
-      path: cmd/pomerium-cli
