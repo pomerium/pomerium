@@ -72,6 +72,10 @@ Pomerium can be configured to require a client certificate for all routes signed
 
 Update the `config.yaml` file or environment variables with the following aditions. Replace `/YOUR/MKCERT/CAROOT` in this example with the value of `mkcert -CAROOT`:
 
+::: tip
+This configuration will require client certificates for _all_ routes. See [rquire mTLS per Route](#require-mtls-per-route) to enable mTLS on for specific routes.
+:::
+
 ::::: tabs
 :::: tab config.yaml
 
