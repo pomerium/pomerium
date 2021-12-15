@@ -17,11 +17,11 @@ This article provides troubleshooting information for various tools and features
 
 ## Pomerium Core
 
-### HSTS
+### HTTP Strict Transport Security (HSTS)
 
-By default, Pomerium sends the [`Strict-Transport-Security`](https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security) response header to the browser, which pins the certificate to our browser for one year. This is common best practice to help prevent man-in-the-middle attacks, but can create issues while a new Pomerium configuration is in development.
+By default, Pomerium sends the [`Strict-Transport-Security`](https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security) response header to the browser, which pins the certificate to our browser for one year. This is common best practice to help prevent man-in-the-middle attacks but can create issues while a new Pomerium configuration is in development.
 
-When you visit an endpoint while Pomerium is using the self-signed bootstrap certificate or a Let's Encrypt staging certificate (before switching to a production certificate), the untrusted certificate may be pinned in your browser. It then must be reset once Pomerium is switched to production certificates.
+When you visit an endpoint while Pomerium is using an untrusted certificate (like the self-signed bootstrap certificate or a Let's Encrypt staging certificate), that certificate may be pinned in your browser. Once Pomerium is switched to a trusted production certificate, the untrusted cert must reset in the browser.
 
 While developing your Pomerium environment, consider adjusting the [`SET_RESPONSE_HEADERS`](/reference/readme.md#set-response-headers) key to remove `Strict-Transport-Security` or reduce the `max-age` value until your production certificates are in place.
 
@@ -35,9 +35,9 @@ When securing the Pomerium Authenticate service with a certificate signed by Let
 logger=context error=Get "https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json": x509: certificate signed by unknown authority
 ```
 
-This is often due to the recent expiration of the [DST Root CA X3](https://letsencrypt.org/docs/dst-root-ca-x3-expiration-september-2021/) certificate. Many default keystores used by docker images and less-frequently updated distributions still carry this expired certificate. Even though LE certs are cross-signed with the [ISRG Root X1](https://letsencrypt.org/certificates/) CA certificate, some applications will still reject them.
+This is often due to the recent expiration of the [DST Root CA X3](https://letsencrypt.org/docs/dst-root-ca-x3-expiration-september-2021/) certificate. Many default keystores used by docker images and less-frequently updated distributions still carry this expired certificate. Even though Let's Encrypt certs are cross-signed with the [ISRG Root X1](https://letsencrypt.org/certificates/) CA certificate, some applications will still reject them.
 
-To clarify; this does not mean that the upstream service is rejecting the JWT singing key. Rather, it doesn't trust the Let's Encrypt certificate used by the Authorize service for TLS, and so it will not read the JWKS file.
+To clarify; this does not mean that the upstream service is rejecting the JWT signing key. Rather, it doesn't trust the Let's Encrypt certificate used by the Authorize service for TLS, and so it will not read the JWKS file.
 
 For upstream applications that can use a local signing key file, you can circumvent this issue using `curl` or `wget` to download the signing key locally (relative to the upstream service). Using Grafana again as an example:
 
@@ -98,7 +98,7 @@ Events:
 
 ### Redirect Loop with Redis Databroker
 
-When using Redis, the [shared secret](/reference/readme.md#shared-secret) is used to encrypt data in Redis itself. if you change the configured shared secret, data from Redis can no longer be decrypted. This results in errant behavior, including redirect loops when a user session cannot be retrieved from the databroker.
+When using Redis, the [shared secret](/reference/readme.md#shared-secret) is used to encrypt data in Redis itself. If you change the configured shared secret, data from Redis can no longer be decrypted. This results in errant behavior, including redirect loops when a user session cannot be retrieved from the databroker.
 
 The resolution is to flush the Redis database with [`FLUSHDB`](https://redis.io/commands/flushdb) or [`FLUSHALL`](https://redis.io/commands/FLUSHALL).
 
@@ -114,7 +114,7 @@ ERR http-error error="401 Unauthorized: ..... rpc error: code = DeadlineExceeded
 
 **Why**
 
-This error means that the proxy is rejecting the authorize service's supplied certificate (used to establish a secure connection) because it doesn't know or trust the certificate authority that is associated with the supplied certificate. This can happen for a few reasons.
+This error means that the proxy is rejecting the Authorize service's supplied certificate (used to establish a secure connection) because it doesn't know or trust the certificate authority that signed it.
 
 **Solution**
 
@@ -150,7 +150,7 @@ The proxy service is not able to create a connection with the authorization serv
 
 **Solution**
 
-Usually, this is the result of either a routing issue or a configuration error. Make sure that you are using the _internally_ routable URL for authorize service. Many cloud loud balancers _do not_ yet support gRPC transposing the ingress. So while your authenticate service url will probably look like `https://authenticate.corp.example.com`, your authorizer service url will likely be more like `https://pomerium-authorize-service.default.svc.cluster.local` or `https://localhost:5443`.
+Usually, this is the result of either a routing issue or a configuration error. Make sure that you are using the _internally_ routable URL for the Authorize service. Many cloud loud balancers _do not_ yet support gRPC transposing the ingress. So while your authenticate service url will probably look like `https://authenticate.corp.example.com`, your authorizer service url will likely be more like `https://pomerium-authorize-service.default.svc.cluster.local` or `https://localhost:5443`.
 
 ## Pomerium Enterprise
 
@@ -162,4 +162,4 @@ Usually, this is the result of either a routing issue or a configuration error. 
 
 ### Invalid Certificates from Command Line Tools
 
-When using Let's Encrypt certificates, you must use the `fullchain.pem` file, not `cert.pem` in order to include intermediate certs. Browsers like Chrome store intermediate certs for LE but other tools (like `curl`) don't, which is why your route might look fine in a web browser, but not when curl'd or used for TCP tunneling.
+When using Let's Encrypt certificates, you must use the `fullchain.pem` file, not `cert.pem` in order to include intermediate certs. Browsers like Chrome will store intermediate certs for LE but other tools (like `curl`) don't, which is why your route might look fine in a web browser, but not when curl'd or used for TCP tunneling.
