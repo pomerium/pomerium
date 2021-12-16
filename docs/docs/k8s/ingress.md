@@ -165,8 +165,8 @@ The remaining annotations are specific to or behave differently than they do whe
 | `ingress.pomerium.io/tls_custom_ca_secret`            | Name of Kubernetes `tls` Secret containing a custom [CA certificate][`tls_custom_ca_secret`] for the upstream. |
 | `ingress.pomerium.io/tls_client_secret`               | Name of Kubernetes `tls` Secret containing a [client certificate][tls_client_certificate] for connecting to the upstream. |
 | `ingress.pomerium.io/tls_downstream_client_ca_secret` | Name of Kubernetes `tls` Secret containing a [Client CA][client-certificate-authority] for validating downstream clients. |
-| `ingress.pomerium.io/secure_upstream`                 | When set to true, use `https` when connecting to the upstream endpoint. |
-| `ingress.pomerium.io/path_regex`                      | When set to true, and `pathType: ImplementationSpecific`, the path (with query string removed) should match the [re2 regular expression](https://github.com/google/re2/wiki/Syntax). |
+| `ingress.pomerium.io/secure_upstream`                 | When set to `"true"`, use `https` when connecting to the upstream endpoint. |
+| `ingress.pomerium.io/path_regex`                      | When set to `"true"` enables path regex matching. See the [Regular Expressions Path Matching](#regular-expressions-path-matching) section for more information. |
 
 ::: tip
 
@@ -297,10 +297,15 @@ spec:
 
 ### Regular Expressions Path Matching
 
-1. Set `path_regex` annotation to `true`
-2. Set `pathType` to `ImplementationSpecific`
+You can use a [re2 regular expression] To create an Ingress that matches multiple paths.
 
-Note that the full path (with query string removed) should match the [re2 regular expression](https://github.com/google/re2/wiki/Syntax), not just a substring.
+1. Set the `path_regex` annotation to `"true"`
+1. Set `pathType` to `ImplementationSpecific`
+1. Set `path` to an re2 expression matching the full path. It must include the `^/` prefix and `$` suffix.
+
+::: tip
+Check out [this example expression](https://regex101.com/r/IBVUKT/1/) at [regex101.com] for a more detailed explanation and example paths, both matching and not.
+:::
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -309,6 +314,7 @@ metadata:
   annotations:
     cert-manager.io/issuer: example-issuer
     ingress.pomerium.io/allowed_domains: '["exampledomain.com"]'
+    ingress.pomerium.io/path_regex: "true"
   name: example
 spec:
   ingressClassName: pomerium
@@ -399,3 +405,5 @@ For more information on the Pomerium Ingress Controller or the Kubernetes concep
 [`ingress.pomerium.io/tls_server_name`]: /reference/readme.md#tls-server-name
 [`ingress.pomerium.io/tls_skip_verify`]: /reference/readme.md#tls-skip-verification
 [HSTS]: https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security
+[re2 regular expression]: https://github.com/google/re2/wiki/Syntax
+[regex101.com]: https://regex101.com
