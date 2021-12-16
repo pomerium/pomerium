@@ -301,7 +301,7 @@ You can use a [re2 regular expression] To create an Ingress that matches multipl
 
 1. Set the `path_regex` annotation to `"true"`
 1. Set `pathType` to `ImplementationSpecific`
-1. Set `path` to an re2 expression matching the full path. It must include the `^/` prefix and `$` suffix.
+1. Set `path` to an re2 expression matching the full path. It must include the `^/` prefix and `$` suffix. Any query strings should be removed.
 
 ::: tip
 Check out [this example expression](https://regex101.com/r/IBVUKT/1/) at [regex101.com] for a more detailed explanation and example paths, both matching and not.
