@@ -189,7 +189,7 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("error creating stderr pipe for envoy: %w", err)
+		return fmt.Errorf("error creating stdout pipe for envoy: %w", err)
 	}
 	go srv.handleLogs(ctx, stdout)
 
