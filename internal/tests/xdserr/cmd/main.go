@@ -25,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/tests/xdserr"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -136,7 +137,7 @@ func grpcConn(ctx context.Context, addr, keyTxt string) (*grpc.ClientConn, error
 		return nil, err
 	}
 	fmt.Println(keyTxt)
-	return xdserr.NewGRPCClientConn(ctx, &xdserr.Options{
+	return grpcutil.NewGRPCClientConn(ctx, &grpcutil.Options{
 		Address:            u,
 		WithInsecure:       u.Scheme == "http",
 		InsecureSkipVerify: true,

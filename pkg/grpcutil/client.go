@@ -1,4 +1,4 @@
-package xdserr
+package grpcutil
 
 import (
 	"context"
@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
 const (
@@ -68,8 +67,8 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 	}
 	streamClientInterceptors := []grpc.StreamClientInterceptor{}
 	if opts.SignedJWTKey != nil {
-		unaryClientInterceptors = append(unaryClientInterceptors, grpcutil.WithUnarySignedJWT(opts.SignedJWTKey))
-		streamClientInterceptors = append(streamClientInterceptors, grpcutil.WithStreamSignedJWT(opts.SignedJWTKey))
+		unaryClientInterceptors = append(unaryClientInterceptors, WithUnarySignedJWT(opts.SignedJWTKey))
+		streamClientInterceptors = append(streamClientInterceptors, WithStreamSignedJWT(opts.SignedJWTKey))
 	}
 
 	dialOptions := []grpc.DialOption{
@@ -90,7 +89,6 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 		}
 
 		cert := credentials.NewTLS(&tls.Config{
-			// nolint: gosec
 			InsecureSkipVerify: opts.InsecureSkipVerify,
 			RootCAs:            rootCAs,
 			MinVersion:         tls.VersionTLS12,
