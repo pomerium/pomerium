@@ -74,21 +74,22 @@ allow:
 
 PPL supports many different criteria:
 
-| Criterion Name               | Data Format                   | Description                                                                                                                                                                                              |
-| ---------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `accept`                     | Anything. Typically `true`.   | Always returns true, thus always allowing access. Equivalent to the [`allow_public_unauthenticated_access`] option.                                                                                      |
-| `authenticated_user`         | Anything. Typically `true`.   | Always returns true for logged-in users. Equivalent to the [`allow_any_authenticated_user`] option.                                                                                                      |
+| Criterion Name               | Data Format                   | Description                                                                                                                                                                                                                  |
+| ---------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `accept`                     | Anything. Typically `true`.   | Always returns true, thus always allowing access. Equivalent to the [`allow_public_unauthenticated_access`] option.                                                                                                          |
+| `authenticated_user`         | Anything. Typically `true`.   | Always returns true for logged-in users. Equivalent to the [`allow_any_authenticated_user`] option.                                                                                                                          |
 | `claim`                      | Anything. Typically a string. | Returns true if a token claim matches the supplied value **exactly**. The claim to check is determined via the sub-path. <br/> For example, `claim/family_name: Smith` matches if the user's `family_name` claim is `Smith`. |
-| `cors_preflight`             | Anything. Typically `true`.   | Returns true if the incoming request uses the `OPTIONS` method and has both the `Access-Control-Request-Method` and `Origin` headers. Used to allow [CORS pre-flight requests].                          |
-| `domain`                     | String Matcher                | Returns true if the logged-in user's email address domain (the part after `@`) matches the given value.                                                                                                  |
-| `email`                      | String Matcher                | Returns true if the logged-in user's email address matches the given value.                                                                                                                              |
-| `groups`                     | List Matcher                  | Returns true if the logged-in user is a member of the given group.                                                                                                                                       |
-| `http_method`                | String Matcher                | Returns true if the HTTP method matches the given value.                                                                                                                                                 |
-| `http_path`                  | String Matcher                | Returns true if the HTTP path matches the given value.                                                                                                                                                   |
-| `invalid_client_certificate` | Anything. Typically `true`.   | Returns true if the incoming request has an invalid client certificate. A default `deny` rule using this criterion is added to all Pomerium policies when an mTLS [client certificate authority] is set. |
-| `pomerium_routes`            | Anything. Typically `true`.   | Returns true if the incoming request is for the special `.pomerium` routes. A default `allow` rule using this criterion is added to all Pomerium policies.                                               |
-| `reject`                     | Anything. Typically `true`.   | Always returns false. The opposite of `accept`.                                                                                                                                                          |
-| `user`                       | String Matcher                | Returns true if the logged-in user's id matches the given value.                                                                                                                                         |
+| `cors_preflight`             | Anything. Typically `true`.   | Returns true if the incoming request uses the `OPTIONS` method and has both the `Access-Control-Request-Method` and `Origin` headers. Used to allow [CORS pre-flight requests].                                              |
+| `device`                     | Device matcher                | Returns true if the incoming request includes a valid device ID.                                                                                                                                                             |
+| `domain`                     | String Matcher                | Returns true if the logged-in user's email address domain (the part after `@`) matches the given value.                                                                                                                      |
+| `email`                      | String Matcher                | Returns true if the logged-in user's email address matches the given value.                                                                                                                                                  |
+| `groups`                     | List Matcher                  | Returns true if the logged-in user is a member of the given group.                                                                                                                                                           |
+| `http_method`                | String Matcher                | Returns true if the HTTP method matches the given value.                                                                                                                                                                     |
+| `http_path`                  | String Matcher                | Returns true if the HTTP path matches the given value.                                                                                                                                                                       |
+| `invalid_client_certificate` | Anything. Typically `true`.   | Returns true if the incoming request has an invalid client certificate. A default `deny` rule using this criterion is added to all Pomerium policies when an mTLS [client certificate authority] is set.                     |
+| `pomerium_routes`            | Anything. Typically `true`.   | Returns true if the incoming request is for the special `.pomerium` routes. A default `allow` rule using this criterion is added to all Pomerium policies.                                                                   |
+| `reject`                     | Anything. Typically `true`.   | Always returns false. The opposite of `accept`.                                                                                                                                                                              |
+| `user`                       | String Matcher                | Returns true if the logged-in user's id matches the given value.                                                                                                                                                             |
 
 [Pomerium Enterprise] supports all the open source criteria, but also supports these additional criteria:
 
@@ -163,6 +164,35 @@ allow:
         timezone: UTC
         after: 2:20:00
         before: 4:30PM
+```
+
+## Device Matcher
+
+A device matcher is an object with operators as keys. It supports the following operators:
+
+- `is` - an exact match of the device ID.
+- `approved` - true if the device has been approved. This is an enterprise-only feature.
+- `type` - Specifies the type of device to match on. Currently the only available type is `default`.
+
+For example, a policy to allow any user with a registered device:
+
+```yaml
+- allow:
+    or:
+      - device:
+          type: default
+```
+
+Compare to a policy that only allows a set of specific devices:
+
+```yaml
+- allow:
+    or:
+      - device:
+          is: "5Vn3...C1RS"
+    or:
+      - device:
+          is: "GAtL...doqu"
 ```
 
 [`allow_public_unauthenticated_access`]: /reference/readme.md#public-access
