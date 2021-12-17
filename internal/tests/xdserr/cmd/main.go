@@ -139,7 +139,6 @@ func grpcConn(ctx context.Context, addr, keyTxt string) (*grpc.ClientConn, error
 	fmt.Println(keyTxt)
 	return grpcutil.NewGRPCClientConn(ctx, &grpcutil.Options{
 		Address:            u,
-		WithInsecure:       u.Scheme == "http",
 		InsecureSkipVerify: true,
 		SignedJWTKey:       key,
 	})

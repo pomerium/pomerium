@@ -36,10 +36,6 @@ type Options struct {
 	// ClientDNSRoundRobin enables or disables DNS resolver based load balancing
 	ClientDNSRoundRobin bool
 
-	// WithInsecure disables transport security for this ClientConn.
-	// Note that transport security is required unless WithInsecure is set.
-	WithInsecure bool
-
 	// InsecureSkipVerify skips destination hostname and ca check
 	InsecureSkipVerify bool
 
@@ -80,7 +76,7 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 
 	dialOptions = append(dialOptions, other...)
 
-	if opts.WithInsecure {
+	if opts.Address.Scheme == "http" {
 		dialOptions = append(dialOptions, grpc.WithInsecure())
 	} else {
 		rootCAs, err := cryptutil.GetCertPool(opts.CA, opts.CAFile)
