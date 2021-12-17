@@ -213,13 +213,13 @@ type Options struct {
 	TracingJaegerCollectorEndpoint string `mapstructure:"tracing_jaeger_collector_endpoint" yaml:"tracing_jaeger_collector_endpoint,omitempty"`
 	// AgentEndpoint instructs exporter to send spans to jaeger-agent at this address.
 	// For example, localhost:6831.
+	TracingJaegerAgentEndpoint string `mapstructure:"tracing_jaeger_agent_endpoint" yaml:"tracing_jaeger_agent_endpoint,omitempty"`
 
 	// Zipkin
 	//
 	// ZipkinEndpoint configures the zipkin collector URI
 	// Example: http://zipkin:9411/api/v2/spans
-	TracingJaegerAgentEndpoint string `mapstructure:"tracing_jaeger_agent_endpoint" yaml:"tracing_jaeger_agent_endpoint,omitempty"`
-	ZipkinEndpoint             string `mapstructure:"tracing_zipkin_endpoint" yaml:"tracing_zipkin_endpoint"`
+	ZipkinEndpoint string `mapstructure:"tracing_zipkin_endpoint" yaml:"tracing_zipkin_endpoint"`
 
 	// GRPC Service Settings
 
