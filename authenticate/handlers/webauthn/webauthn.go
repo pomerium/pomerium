@@ -37,8 +37,14 @@ import (
 const maxAuthenticateResponses = 5
 
 var (
-	errMissingDeviceType  = httputil.NewError(http.StatusBadRequest, errors.New("device_type is a required parameter"))
-	errMissingRedirectURI = httputil.NewError(http.StatusBadRequest, errors.New("pomerium_redirect_uri is a required parameter"))
+	errMissingDeviceCredentialID = httputil.NewError(http.StatusBadRequest, errors.New(
+		urlutil.QueryDeviceCredentialID+" is a required parameter"))
+	errMissingDeviceType = httputil.NewError(http.StatusBadRequest, errors.New(
+		urlutil.QueryDeviceType+" is a required parameter"))
+	errMissingRedirectURI = httputil.NewError(http.StatusBadRequest, errors.New(
+		urlutil.QueryRedirectURI+" is a required parameter"))
+	errInvalidDeviceCredential = httputil.NewError(http.StatusBadRequest, errors.New(
+		"invalid device credential"))
 )
 
 // State is the state needed by the Handler to handle requests.
@@ -91,6 +97,8 @@ func (h *Handler) handle(w http.ResponseWriter, r *http.Request) error {
 		return h.handleAuthenticate(w, r, s)
 	case r.FormValue("action") == "register":
 		return h.handleRegister(w, r, s)
+	case r.FormValue("action") == "unregister":
+		return h.handleUnregister(w, r, s)
 	}
 
 	return httputil.NewError(http.StatusNotFound, errors.New(http.StatusText(http.StatusNotFound)))
@@ -295,6 +303,49 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request, state *
 		},
 	})
 	return h.saveSessionAndRedirect(w, r, state, redirectURIParam)
+}
+
+func (h *Handler) handleUnregister(w http.ResponseWriter, r *http.Request, state *State) error {
+	ctx := r.Context()
+
+	// get the user information
+	u, err := user.Get(ctx, state.Client, state.Session.GetUserId())
+	if err != nil {
+		return err
+	}
+
+	deviceCredentialID := r.FormValue(urlutil.QueryDeviceCredentialID)
+	if deviceCredentialID == "" {
+		return errMissingDeviceCredentialID
+	}
+
+	// ensure we only allow removing a device credential the user owns
+	if !containsString(u.GetDeviceCredentialIds(), deviceCredentialID) {
+		return errInvalidDeviceCredential
+	}
+
+	// delete the credential
+	deviceCredential, err := device.DeleteCredential(ctx, state.Client, deviceCredentialID)
+	if err != nil {
+		return err
+	}
+
+	// delete the corresponding enrollment
+	_, err = device.DeleteEnrollment(ctx, state.Client, deviceCredential.GetEnrollmentId())
+	if err != nil {
+		return err
+	}
+
+	// remove the credential from the user
+	u.DeviceCredentialIds = removeString(u.DeviceCredentialIds, deviceCredentialID)
+	_, err = user.Put(ctx, state.Client, u)
+	if err != nil {
+		return err
+	}
+
+	// remove the credential from the session
+	state.Session.DeviceCredentials = removeSessionDeviceCredential(state.Session.DeviceCredentials, deviceCredentialID)
+	return h.saveSessionAndRedirect(w, r, state, "/.pomerium")
 }
 
 func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *State) error {

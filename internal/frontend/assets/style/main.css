@@ -147,6 +147,9 @@ body {
 .box-inner {
   padding: 35px;
 }
+.box-inner ~ .box-inner {
+  padding-top: 0;
+}
 
 .white {
   background: white;

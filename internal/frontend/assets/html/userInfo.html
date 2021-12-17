@@ -182,10 +182,10 @@
         <div class="messages">
           <div class="box-inner">
             <div class="category-header clearfix">
-              <span class="category-title">Device Credentials</span>
+              <span class="category-title">Current Session Device Credentials</span>
             </div>
             </ul>
-            {{if .DeviceCredentials}}
+            {{if .CurrentDeviceCredentials}}
             <table>
               <thead>
               <tr>
@@ -193,9 +193,17 @@
               </tr>
               </thead>
               <tbody>
-              {{range .DeviceCredentials}}
+              {{range .CurrentDeviceCredentials}}
               <tr>
-                <td>{{.Id}}</td>
+                <td>{{.ID}}</td>
+                <td>
+                  <form action="{{$.WebAuthnURL}}" method="POST">
+                    {{$.csrfField}}
+                    <input type="hidden" name="action" value="unregister">
+                    <input type="hidden" name="pomerium_device_credential_id" value="{{.ID}}">
+                    <button type="submit">Delete</button>
+                  </form>
+                </td>
               </tr>
               {{end}}
               </tbody>
@@ -204,6 +212,35 @@
             No device credentials found!
             {{end}}
           </div>
+          {{if .OtherDeviceCredentials}}
+          <div class="box-inner">
+            <div class="category-header clearfix">
+              <span class="category-title">Other Device Credentials</span>
+            </div>
+            <table>
+              <thead>
+              <tr>
+                <th>ID</th>
+              </tr>
+              </thead>
+              <tbody>
+              {{range .OtherDeviceCredentials}}
+              <tr>
+                <td>{{.ID}}</td>
+                <td>
+                  <form action="{{$.WebAuthnURL}}" method="POST">
+                    {{$.csrfField}}
+                    <input type="hidden" name="action" value="unregister">
+                    <input type="hidden" name="pomerium_device_credential_id" value="{{.ID}}">
+                    <button type="submit">Delete</button>
+                  </form>
+                </td>
+              </tr>
+              {{end}}
+              </tbody>
+            </table>
+          </div>
+          {{end}}
           <div class="category-link">
             Register device with <a href="{{.WebAuthnURL}}">WebAuthn</a>.
           </div>
