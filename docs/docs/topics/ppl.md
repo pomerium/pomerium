@@ -195,6 +195,10 @@ Compare to a policy that only allows a set of specific devices:
           is: "GAtL...doqu"
 ```
 
+::: tip
+Users can [find their device IDs](/guides/enroll-device.md#find-device-id) at the `/.pomerium` endpoint from any route.
+:::
+
 [`allow_public_unauthenticated_access`]: /reference/readme.md#public-access
 [`allow_any_authenticated_user`]: /reference/readme.md#allow-any-authenticated-user
 [CORS pre-flight requests]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#preflighted_requests
