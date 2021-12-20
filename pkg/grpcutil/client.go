@@ -1,4 +1,4 @@
-package xdserr
+package grpcutil
 
 import (
 	"context"
@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
 const (
@@ -36,10 +35,6 @@ type Options struct {
 	RequestTimeout time.Duration
 	// ClientDNSRoundRobin enables or disables DNS resolver based load balancing
 	ClientDNSRoundRobin bool
-
-	// WithInsecure disables transport security for this ClientConn.
-	// Note that transport security is required unless WithInsecure is set.
-	WithInsecure bool
 
 	// InsecureSkipVerify skips destination hostname and ca check
 	InsecureSkipVerify bool
@@ -68,8 +63,8 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 	}
 	streamClientInterceptors := []grpc.StreamClientInterceptor{}
 	if opts.SignedJWTKey != nil {
-		unaryClientInterceptors = append(unaryClientInterceptors, grpcutil.WithUnarySignedJWT(opts.SignedJWTKey))
-		streamClientInterceptors = append(streamClientInterceptors, grpcutil.WithStreamSignedJWT(opts.SignedJWTKey))
+		unaryClientInterceptors = append(unaryClientInterceptors, WithUnarySignedJWT(opts.SignedJWTKey))
+		streamClientInterceptors = append(streamClientInterceptors, WithStreamSignedJWT(opts.SignedJWTKey))
 	}
 
 	dialOptions := []grpc.DialOption{
@@ -81,7 +76,7 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 
 	dialOptions = append(dialOptions, other...)
 
-	if opts.WithInsecure {
+	if opts.Address.Scheme == "http" {
 		dialOptions = append(dialOptions, grpc.WithInsecure())
 	} else {
 		rootCAs, err := cryptutil.GetCertPool(opts.CA, opts.CAFile)
