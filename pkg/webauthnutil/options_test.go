@@ -14,21 +14,21 @@ import (
 func TestGenerateCreationOptions(t *testing.T) {
 	t.Run("random challenge", func(t *testing.T) {
 		key := []byte{1, 2, 3}
-		options1 := GenerateCreationOptions(key, predefinedDeviceTypes["default"], &user.User{
+		options1 := GenerateCreationOptions(key, predefinedDeviceTypes[DefaultDeviceType], &user.User{
 			Id:    "example",
 			Email: "test@example.com",
 			Name:  "Test User",
 		})
-		options2 := GenerateCreationOptions(key, predefinedDeviceTypes["default"], &user.User{
+		options2 := GenerateCreationOptions(key, predefinedDeviceTypes[DefaultDeviceType], &user.User{
 			Id:    "example",
 			Email: "test@example.com",
 			Name:  "Test User",
 		})
 		assert.NotEqual(t, options1.Challenge, options2.Challenge)
 	})
-	t.Run("default", func(t *testing.T) {
+	t.Run(DefaultDeviceType, func(t *testing.T) {
 		key := []byte{1, 2, 3}
-		options := GenerateCreationOptions(key, predefinedDeviceTypes["default"], &user.User{
+		options := GenerateCreationOptions(key, predefinedDeviceTypes[DefaultDeviceType], &user.User{
 			Id:    "example",
 			Email: "test@example.com",
 			Name:  "Test User",
@@ -65,13 +65,13 @@ func TestGenerateCreationOptions(t *testing.T) {
 func TestGenerateRequestOptions(t *testing.T) {
 	t.Run("random challenge", func(t *testing.T) {
 		key := []byte{1, 2, 3}
-		options1 := GenerateRequestOptions(key, predefinedDeviceTypes["default"], nil)
-		options2 := GenerateRequestOptions(key, predefinedDeviceTypes["default"], nil)
+		options1 := GenerateRequestOptions(key, predefinedDeviceTypes[DefaultDeviceType], nil)
+		options2 := GenerateRequestOptions(key, predefinedDeviceTypes[DefaultDeviceType], nil)
 		assert.NotEqual(t, options1.Challenge, options2.Challenge)
 	})
-	t.Run("default", func(t *testing.T) {
+	t.Run(DefaultDeviceType, func(t *testing.T) {
 		key := []byte{1, 2, 3}
-		options := GenerateRequestOptions(key, predefinedDeviceTypes["default"], []*device.Credential{
+		options := GenerateRequestOptions(key, predefinedDeviceTypes[DefaultDeviceType], []*device.Credential{
 			{Id: "device1", Specifier: &device.Credential_Webauthn{Webauthn: &device.Credential_WebAuthn{
 				Id: []byte{4, 5, 6},
 			}}},

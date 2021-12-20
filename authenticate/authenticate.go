@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/webauthnutil"
 )
 
 // ValidateOptions checks that configuration are complete and valid.
@@ -133,7 +134,7 @@ func (a *Authenticate) getWebAuthnURL(values url.Values) (*url.URL, error) {
 	uri = uri.ResolveReference(&url.URL{
 		Path: "/.pomerium/webauthn",
 		RawQuery: buildURLValues(values, url.Values{
-			urlutil.QueryDeviceType:      {"default"},
+			urlutil.QueryDeviceType:      {webauthnutil.DefaultDeviceType},
 			urlutil.QueryEnrollmentToken: nil,
 			urlutil.QueryRedirectURI: {uri.ResolveReference(&url.URL{
 				Path: "/.pomerium/",
