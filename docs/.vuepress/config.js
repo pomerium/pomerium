@@ -214,6 +214,7 @@ module.exports = {
             "argo",
             "cloud-run",
             "code-server",
+            "enroll-device",
             "grafana",
             "istio",
             "jwt-verification",
