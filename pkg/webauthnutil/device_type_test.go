@@ -21,9 +21,9 @@ func TestGetDeviceType(t *testing.T) {
 		client := &mockDataBrokerServiceClient{
 			get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 				assert.Equal(t, "type.googleapis.com/pomerium.device.Type", in.GetType())
-				assert.Equal(t, "default", in.GetId())
+				assert.Equal(t, "any", in.GetId())
 				any, _ := anypb.New(&device.Type{
-					Id:   "default",
+					Id:   "any",
 					Name: "Example",
 				})
 				return &databroker.GetResponse{
@@ -35,7 +35,7 @@ func TestGetDeviceType(t *testing.T) {
 				}, nil
 			},
 		}
-		deviceType, err := GetDeviceType(ctx, client, "default")
+		deviceType, err := GetDeviceType(ctx, client, "any")
 		assert.NoError(t, err)
 		assert.Equal(t, "Example", deviceType.GetName())
 	})
@@ -45,9 +45,9 @@ func TestGetDeviceType(t *testing.T) {
 				return nil, status.Error(codes.NotFound, "not found")
 			},
 		}
-		deviceType, err := GetDeviceType(ctx, client, "default")
+		deviceType, err := GetDeviceType(ctx, client, "any")
 		assert.NoError(t, err)
-		assert.Equal(t, "default", deviceType.GetName())
+		assert.Equal(t, "Any", deviceType.GetName())
 	})
 	t.Run("not found", func(t *testing.T) {
 		client := &mockDataBrokerServiceClient{
