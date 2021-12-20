@@ -33,6 +33,11 @@ The state is more complex, with more information about the device and software b
 
 Pomerium uses the [Web Authentication][webauthn-api] (**WebAuthN**) API to bring device authentication into your security framework. It enables users to register their device ID, and admins to require a trusted device before accessing one, several, or all services.
 
+To get started, review the following pages:
+
+- [Pomerium Policy Language](/docs/topcics/ppl.md) to learn how to build policies that use device ID.
+- [Enroll a Device](/guides/enroll-device.md) to teach end users how to enroll devices on Pomerium.
+
 [toms-hardware-tpm]: https://www.tomshardware.com/reviews/tpm-trusted-platform-module-header,5766.html
 [fido-spec]: https://fidoalliance.org/specifications/
 [yubikey-products]: https://www.yubico.com/products/

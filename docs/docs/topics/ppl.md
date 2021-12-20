@@ -80,7 +80,7 @@ PPL supports many different criteria:
 | `authenticated_user`         | Anything. Typically `true`.   | Always returns true for logged-in users. Equivalent to the [`allow_any_authenticated_user`] option.                                                                                                                          |
 | `claim`                      | Anything. Typically a string. | Returns true if a token claim matches the supplied value **exactly**. The claim to check is determined via the sub-path. <br/> For example, `claim/family_name: Smith` matches if the user's `family_name` claim is `Smith`. |
 | `cors_preflight`             | Anything. Typically `true`.   | Returns true if the incoming request uses the `OPTIONS` method and has both the `Access-Control-Request-Method` and `Origin` headers. Used to allow [CORS pre-flight requests].                                              |
-| `device`                     | Device matcher                | Returns true if the incoming request includes a valid device ID.                                                                                                                                                             |
+| `device`                     | Device matcher                | Returns true if the incoming request includes a valid device ID or type.                                                                                                                                                     |
 | `domain`                     | String Matcher                | Returns true if the logged-in user's email address domain (the part after `@`) matches the given value.                                                                                                                      |
 | `email`                      | String Matcher                | Returns true if the logged-in user's email address matches the given value.                                                                                                                                                  |
 | `groups`                     | List Matcher                  | Returns true if the logged-in user is a member of the given group.                                                                                                                                                           |
@@ -172,7 +172,7 @@ A device matcher is an object with operators as keys. It supports the following 
 
 - `is` - an exact match of the device ID.
 - `approved` - true if the device has been approved. This is an enterprise-only feature.
-- `type` - Specifies the type of device to match on. Currently the only available type is `default`.
+- `type` - Specifies the type of device to match on. The available types are `enclave_only` and `any`.
 
 For example, a policy to allow any user with a registered device:
 
@@ -180,7 +180,7 @@ For example, a policy to allow any user with a registered device:
 - allow:
     or:
       - device:
-          type: default
+          type: any
 ```
 
 Compare to a policy that only allows a set of specific devices:
