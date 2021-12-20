@@ -85,6 +85,7 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 		}
 
 		cert := credentials.NewTLS(&tls.Config{
+			// nolint: gosec
 			InsecureSkipVerify: opts.InsecureSkipVerify,
 			RootCAs:            rootCAs,
 			MinVersion:         tls.VersionTLS12,
