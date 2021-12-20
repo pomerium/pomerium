@@ -29,7 +29,6 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc/device"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -490,24 +489,40 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		return fmt.Errorf("invalid webauthn url: %w", err)
 	}
 
-	var deviceCredentials []*device.Credential
+	type DeviceCredentialInfo struct {
+		ID string
+	}
+	var currentDeviceCredentials, otherDeviceCredentials []DeviceCredentialInfo
 	for _, id := range pbUser.GetDeviceCredentialIds() {
-		deviceCredentials = append(deviceCredentials, &device.Credential{
-			Id: id,
-		})
+		selected := false
+		for _, c := range pbSession.GetDeviceCredentials() {
+			if c.GetId() == id {
+				selected = true
+			}
+		}
+		if selected {
+			currentDeviceCredentials = append(currentDeviceCredentials, DeviceCredentialInfo{
+				ID: id,
+			})
+		} else {
+			otherDeviceCredentials = append(otherDeviceCredentials, DeviceCredentialInfo{
+				ID: id,
+			})
+		}
 	}
 
 	input := map[string]interface{}{
-		"IsImpersonated":    isImpersonated,
-		"State":             s,         // local session state (cookie, header, etc)
-		"Session":           pbSession, // current access, refresh, id token
-		"User":              pbUser,    // user details inferred from oidc id_token
-		"DeviceCredentials": deviceCredentials,
-		"DirectoryUser":     pbDirectoryUser, // user details inferred from idp directory
-		"DirectoryGroups":   groups,          // user's groups inferred from idp directory
-		"csrfField":         csrf.TemplateField(r),
-		"SignOutURL":        signoutURL,
-		"WebAuthnURL":       webAuthnURL,
+		"IsImpersonated":           isImpersonated,
+		"State":                    s,         // local session state (cookie, header, etc)
+		"Session":                  pbSession, // current access, refresh, id token
+		"User":                     pbUser,    // user details inferred from oidc id_token
+		"CurrentDeviceCredentials": currentDeviceCredentials,
+		"OtherDeviceCredentials":   otherDeviceCredentials,
+		"DirectoryUser":            pbDirectoryUser, // user details inferred from idp directory
+		"DirectoryGroups":          groups,          // user's groups inferred from idp directory
+		"csrfField":                csrf.TemplateField(r),
+		"SignOutURL":               signoutURL,
+		"WebAuthnURL":              webAuthnURL,
 	}
 	return a.templates.ExecuteTemplate(w, "userInfo.html", input)
 }
