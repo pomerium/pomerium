@@ -198,7 +198,7 @@
               <tr>
                 <td>{{.ID}}</td>
                 <td>
-                  <form action="{{$.WebAuthnURL}}" method="POST">
+                  <form action="{{$.WebAuthnURL}}" method="POST" class="delete-credential-form">
                     {{$.csrfField}}
                     <input type="hidden" name="action" value="unregister">
                     <input type="hidden" name="pomerium_device_credential_id" value="{{.ID}}">
@@ -229,7 +229,7 @@
               <tr>
                 <td>{{.ID}}</td>
                 <td>
-                  <form action="{{$.WebAuthnURL}}" method="POST">
+                  <form action="{{$.WebAuthnURL}}" method="POST" class="delete-credential-form">
                     {{$.csrfField}}
                     <input type="hidden" name="action" value="unregister">
                     <input type="hidden" name="pomerium_device_credential_id" value="{{.ID}}">
@@ -261,6 +261,19 @@
         <p>© Pomerium, Inc.</p>
       </div>
 </body>
+
+
+<script>
+  function onDeleteDeviceCredential(evt) {
+    if (!confirm("Are you sure you want to delete this device credential? If a policy requires an approved device you may need to request a new approval from your administrator.")) {
+      evt.preventDefault();
+    }
+  }
+
+  Array.from(document.getElementsByClassName("delete-credential-form")).forEach(function(el) {
+    el.addEventListener("submit", onDeleteDeviceCredential);
+  });
+</script>
 
 </html>
 {{end}}
