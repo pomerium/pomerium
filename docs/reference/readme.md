@@ -587,7 +587,7 @@ The Client Certificate Authority is the x509 _public-key_ used to validate [mTLS
 - Options: `debug` `info` `warn` `error`
 - Default: value of `log_level` or `debug` if both are unset
 
-Proxy log level sets the logging level for the pomerium Proxy service access logs. Only logs of the desired level and above will be logged.
+Proxy log level sets the logging level for the Pomerium Proxy service access logs. Only logs of the desired level and above will be logged.
 
 
 ### Service Mode
