@@ -691,3 +691,8 @@ func mustParseWeightedURLs(t *testing.T, urls ...string) []WeightedURL {
 	require.NoError(t, err)
 	return wu
 }
+
+func TestDefaults(t *testing.T) {
+	o := NewDefaultOptions()
+	assert.Equal(t, CodecTypeAuto, o.CodecType)
+}
