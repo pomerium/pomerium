@@ -224,7 +224,7 @@ The name of the session cookie sent to clients.
 - Environmental Variable: `COOKIE_SECRET`
 - Config File Key: `cookie_secret`
 - Type: [base64 encoded] `string`
-- Required for proxy service
+- Required for Proxy service
 
 Secret used to encrypt and sign session cookies. You can generate a random key with `head -c32 /dev/urandom | base64`.
 
@@ -587,7 +587,7 @@ The Client Certificate Authority is the x509 _public-key_ used to validate [mTLS
 - Options: `debug` `info` `warn` `error`
 - Default: value of `log_level` or `debug` if both are unset
 
-Proxy log level sets the logging level for the pomerium proxy service access logs. Only logs of the desired level and above will be logged.
+Proxy log level sets the logging level for the Pomerium Proxy service access logs. Only logs of the desired level and above will be logged.
 
 
 ### Service Mode
@@ -635,7 +635,7 @@ tracing_datadog_address | `host:port` address of the Datadog Trace Agent. Defaul
 
 #### Jaeger (partial)
 
-**Warning** At this time, Jaeger protocol does not capture spans inside the proxy service. Please use Zipkin protocol with Jaeger for full support.
+**Warning** At this time, Jaeger protocol does not capture spans inside the Proxy service. Please use Zipkin protocol with Jaeger for full support.
 
 [Jaeger](https://www.jaegertracing.io/) is a distributed tracing system released as open source by Uber Technologies. It is used for monitoring and troubleshooting microservices-based distributed systems, including:
 
@@ -850,7 +850,7 @@ Authenticate Service URL is the externally accessible URL for the authenticate s
 - Required; inferred in all-in-one mode to be localhost.
 - Example: `https://pomerium-authorize-service.default.svc.cluster.local` or `https://localhost:5443`
 
-Authorize Service URL is the location of the internally accessible authorize service. NOTE: Unlike authenticate, authorize has no publicly accessible http handlers so this setting is purely for gRPC communication.
+Authorize Service URL is the location of the internally accessible Authorize service. NOTE: Unlike authenticate, authorize has no publicly accessible http handlers so this setting is purely for gRPC communication.
 
 If your load balancer does not support gRPC pass-through you'll need to set this value to an internally routable location (`https://pomerium-authorize-service.default.svc.cluster.local`) instead of an externally routable one (`https://authorize.corp.example.com`).
 
@@ -918,9 +918,15 @@ Default Upstream Timeout is the default timeout applied to a proxied route when 
 
 Set Response Headers specifies a mapping of [HTTP Header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers) to be added globally to all managed routes and pomerium's authenticate service.
 
-By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/OWASP_Secure_Headers_Project) are set.
+By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/OWASP_Secure_Headers_Project) are set:
+
+  - `max-age=31536000` instructs the browser to pin the certificate for a domain for a year. This helps prevent man-in-the-middle attacks, but can create issues when developing new environments with temporary certificates. See [Troubleshooting - HSTS](/docs/troubleshooting.md#hsts) for more information.
+  - `includeSubDomains` applies these rules to subdomains, which is how individual routes are defined.
+  - `preload` instructs the browser to preload the certificate from an HSTS preload service if available. This means that the certificate can be loaded from an already-trusted secure connection, and the user never needs to connect to your domain without TLS.
 
 ![pomerium security headers](./img/security-headers.png)
+
+See [MDN Web Docs - Strict-Transport-Security](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security) for more information.
 
 :::tip
 
@@ -1727,7 +1733,7 @@ If set, enables proxying of websocket connections.
 - Required
 - Example: `https://authorize.corp.example.com`
 
-Authorize Service URL is the location of the internally accessible authorize service. Multiple URLs can be specified with `authorize_service_urls`.
+Authorize Service URL is the location of the internally accessible Authorize service. Multiple URLs can be specified with `authorize_service_urls`.
 
 
 ### Google Cloud Serverless Authentication Service Account
