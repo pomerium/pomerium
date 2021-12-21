@@ -312,6 +312,7 @@ var defaultOptions = Options{
 	Services:               "all",
 	CookieHTTPOnly:         true,
 	CookieSecure:           true,
+	CodecType:              CodecTypeAuto,
 	CookieExpire:           14 * time.Hour,
 	CookieName:             "_pomerium",
 	DefaultUpstreamTimeout: 30 * time.Second,
