@@ -218,7 +218,7 @@ To preserve 0.8.x behavior, you can use the `set_request_headers` option to expl
 
 #### Tracing
 
-- Jaeger tracing support is no longer end-to-end in the proxy service. We recommend updating to the Zipkin provider for proper tracing support. Jaeger will continue to work but will not have coverage in the data plane.
+- Jaeger tracing support is no longer end-to-end in the Proxy service. We recommend updating to the Zipkin provider for proper tracing support. Jaeger will continue to work but will not have coverage in the data plane.
 - Option `tracing_debug` is no longer supported. Use `tracing_sampling_rate` instead. [Details](https://www.pomerium.io/configuration/#shared-tracing-settings).
 
 #### Metrics
@@ -408,7 +408,7 @@ livenessProbe:
 
 ### All-in-one
 
-If service mode (`SERVICES`/`services`) is set to `all`, gRPC communication with the authorize service will by default occur over localhost, on port `:5443`.
+If service mode (`SERVICES`/`services`) is set to `all`, gRPC communication with the Authorize service will by default occur over localhost, on port `:5443`.
 
 # Since 0.2.0
 
