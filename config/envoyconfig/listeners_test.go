@@ -134,6 +134,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 					}
 				}
 			}],
+			"codecType": "HTTP1",
 			"commonHttpProtocolOptions": {
 				"idleTimeout": "300s"
 			},
