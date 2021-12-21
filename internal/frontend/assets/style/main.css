@@ -488,6 +488,7 @@ a.button {
   display: inline-block;
   text-decoration: none;
   text-transform: none;
+  white-space: nowrap;
   transition: box-shadow 150ms ease-in-out;
 }
 
