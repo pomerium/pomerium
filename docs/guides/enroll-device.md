@@ -7,12 +7,12 @@ meta:
       pomerium identity-access-proxy webauthn device id enroll
       authentication authorization
 description: >-
-  This guide covers how to enroll a secure enclave device as a Pomerium end user.
+  This guide covers how to enroll a trusted execution environment device as a Pomerium end user.
 ---
 
 # Enroll a Device
 
-If a Pomerium route is configured to [require device authentication](/docs/topics/ppl.md#device-matcher), then the user must register a [secure enclave device](/docs/topics/device-identity.md#authenticated-device-types) before accessing the route. Registration is easy, but different depending on the device being used to provide ID.
+If a Pomerium route is configured to [require device authentication](/docs/topics/ppl.md#device-matcher), then the user must register a [trusted execution environment](/docs/topics/device-identity.md#authenticated-device-types) (**TEE**) device before accessing the route. Registration is easy, but different depending on the device being used to provide ID.
 
 1. Users are prompted to register a new device when accessing a route that requires device authentication:
 

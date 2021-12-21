@@ -12,14 +12,21 @@ Device authentication is becoming more widely discussed as more products begin t
 
 ## Authenticated Device Types
 
-Device authentication is made possible through devices that provide a hardware-attested identity and state. The specific implementation of this general concept is different across the devices that provide device authentication. Here are several common examples of technologies that support device authentication.
+Device authentication is made possible through trusted execution environment (**TEE**) devices that provide a hardware-attested identity and state. The specific implementation of this general concept is different across the devices that provide device authentication, but they generally fall into two categories: secure enclaves and cross-platform security keys.
+
+### Secure Enclaves
+
+Also called platform or internal authenticators, a secure enclave is physically bound to a specific computing device.
 
 - TPM (Trusted Platform Module): These devices are usually built in to a product's mainboard, or can be installed in devices with a TPM header, as shown [here][toms-hardware-tpm]. They include a small processor to carry out cryptographic functions on the device, instead of on the system's processor where it could be interfered with. Trust is usually derived from a private key or certificate signed by a trusted manufacture's certificate authority.
 
-- FIDO U2F: This [open standard][fido-spec] is used by many products like Yubico's [Yubikey][yubikey-products] and Google's [Titan Security Key](https://support.google.com/titansecuritykey/answer/9115487?hl=en). They usually secure a private key used to decrypt information signed by an accessible public key.
-
 - Mobile devices: Most newer Apple and Android devices include a [Secure Enclave][apple-enclave] or [Hardware-backed Keystore][android-keystore]
 
+### Hardware Security Keys
+
+Also known as cross-platform or roaming authenticators, these are authentication devices which can move with the user across different computers.
+
+- FIDO U2F: This [open standard][fido-spec] is used by many products like Yubico's [Yubikey][yubikey-products] and Google's [Titan Security Key](https://support.google.com/titansecuritykey/answer/9115487?hl=en). They usually secure a private key used to decrypt information signed by an accessible public key.
 
 ## Device ID and State
 

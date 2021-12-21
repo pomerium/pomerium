@@ -134,6 +134,8 @@ A device matcher is an object with operators as keys. It supports the following 
 - `is` - an exact match of the device ID.
 - `approved` - true if the device has been approved. This is an enterprise-only feature.
 - `type` - Specifies the type of device to match on. The available types are `enclave_only` and `any`.
+    - `enclave_only` will only match [platform authenticators](/docs/topics/device-identity.md#secure-enclaves). These include TPM modules and hardware-backed keystores built into mobile devices.
+    - `any` will also match [hardware security keys](/docs/topics/device-identity.md#hardware-security-keys).
 
 For example, a policy to allow any user with a registered device:
 
