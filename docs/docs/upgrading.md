@@ -7,6 +7,28 @@ description: >-
 
 # Since 0.15.0
 
+## New
+
+### Policy for Device Identity
+
+This release of Pomerium adds the ability to set policy based on system registration via [WebAuthN](https://www.w3.org/TR/webauthn-2/#registration-extension).
+
+See [device identity](/docs/topics/device-identity.md) for more details.
+
+### HTTP PPL Criteria
+
+`http_path` and `http_method` are now supported for matching HTTP requests in policies. See [PPL](/docs/topics/ppl.md#criteria) for more details.
+
+## Breaking
+
+### Self Signed fallback certificates
+
+When selecting a TLS certificate for a listener, Pomerium attempts to locate one by iterating through the provide certs and searching for a SAN match against a service URL such as `databroker_service_url`.
+
+Previously, when no match was found, Pomerium would select the "first" certificate in the list. However, the definition of "first" might change based on runtime configuration, so the certificate selection was non-deterministic.
+
+Starting in v0.16, Pomerium will instead generate a self signed certificate if it cannot locate an appropriate certificate from the provided configuration.  If you discover that you are receiving a self signed certificate rather than a certificate from `certificate`/`certificate_file`/`certs`, you have a mismatch between your service URL and the names covered in your certificates.
+
 ### OIDC flow no longer sets default uri params
 
 Previously, Pomerium would default to setting the uri param `access_type` to `offline` for all OpenID Connect based identity providers. However, using uri params to ensure offline access (e.g. `refresh_tokens` used to keep user's sessions alive) [is unique to Google](https://developers.google.com/identity/protocols/oauth2/web-server#offline). Those query params will now only be set for Google. Other OIDC based IdP's should continue to work using [OIDC's](https://openid.net/specs/openid-connect-core-1_0.html#OfflineAccess) `offline_access` scope.
