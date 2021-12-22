@@ -9,11 +9,15 @@ description: >-
 
 ## New
 
-### Device Identity
+### Policy for Device Identity
 
-### New PPL criteria
+This release of Pomerium adds the ability to set policy based on system registration via [WebAuthN](https://www.w3.org/TR/webauthn-2/#registration-extension).
 
-`http_path` and `http_method` are now supported for matching HTTP requests in policies. See [PPL](/docs/topics/ppl.md#criteria) for more details
+See [device identity](/docs/topics/device-identity.md) for more details.
+
+### HTTP PPL Criteria
+
+`http_path` and `http_method` are now supported for matching HTTP requests in policies. See [PPL](/docs/topics/ppl.md#criteria) for more details.
 
 ###
 
