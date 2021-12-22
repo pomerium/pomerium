@@ -62,10 +62,11 @@ module.exports = {
         link: "/enterprise/about/",
       },
       {
-        text: "v0.15.x", // current tagged version
+        text: "v0.16.x", // current tagged version
         ariaLabel: "Version menu",
         items: [
           { text: "🚧Dev", link: "https://master.docs.pomerium.io/docs" },
+          { text: "v0.16.x", link: "https://0-16-0.docs.pomerium.io/docs" },
           { text: "v0.15.x", link: "https://0-15-0.docs.pomerium.io/docs" },
           { text: "v0.14.x", link: "https://0-14-0.docs.pomerium.io/docs" },
           { text: "v0.13.x", link: "https://0-13-0.docs.pomerium.io/docs" },
