@@ -13,6 +13,8 @@ description: >-
 
 ### New PPL criteria
 
+`http_path` and `http_method` are now supported for matching HTTP requests in policies. See [PPL](/topics/ppl.md) for more details
+
 ###
 
 ## Breaking
