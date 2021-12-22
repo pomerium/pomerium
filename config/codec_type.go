@@ -15,6 +15,7 @@ type CodecType string
 
 // CodecTypes
 const (
+	CodecTypeUnset CodecType = ""
 	CodecTypeAuto  CodecType = "auto"
 	CodecTypeHTTP1 CodecType = "http1"
 	CodecTypeHTTP2 CodecType = "http2"
