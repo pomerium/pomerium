@@ -268,6 +268,7 @@ func RecordIdentityManagerLastRefresh(ctx context.Context) {
 	stats.Record(ctx, identityManagerLastRefresh.M(time.Now().Unix()))
 }
 
+// RecordIdentityManagerUserRefresh updates timestamp and counter for user refresh
 func RecordIdentityManagerUserRefresh(ctx context.Context, err error) {
 	counter := identityManagerLastUserRefreshSuccess
 	ts := identityManagerLastUserRefreshSuccessTimestamp
@@ -281,6 +282,7 @@ func RecordIdentityManagerUserRefresh(ctx context.Context, err error) {
 	)
 }
 
+// RecordIdentityManagerUserGroupRefresh updates timestamp and counter for user group update
 func RecordIdentityManagerUserGroupRefresh(ctx context.Context, err error) {
 	counter := identityManagerLastUserGroupRefreshSuccess
 	ts := identityManagerLastUserGroupRefreshSuccessTimestamp
@@ -294,6 +296,7 @@ func RecordIdentityManagerUserGroupRefresh(ctx context.Context, err error) {
 	)
 }
 
+// RecordIdentityManagerSessionRefresh updates timestamp and counter for session refresh
 func RecordIdentityManagerSessionRefresh(ctx context.Context, err error) {
 	counter := identityManagerLastSessionRefreshSuccess
 	ts := identityManagerLastSessionRefreshSuccessTimestamp
