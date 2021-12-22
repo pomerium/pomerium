@@ -1,5 +1,4 @@
 # Changelog
-# Changelog
 
 ## [v0.16.8](https://github.com/pomerium/pomerium/tree/v0.16.8) (2021-12-22)
 
