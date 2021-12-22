@@ -19,9 +19,8 @@ See [device identity](/docs/topics/device-identity.md) for more details.
 
 `http_path` and `http_method` are now supported for matching HTTP requests in policies. See [PPL](/docs/topics/ppl.md#criteria) for more details.
 
-###
-
 ## Breaking
+
 ### Self Signed fallback certificates
 
 When selecting a TLS certificate for a listener, Pomerium attempts to locate one by iterating through the provide certs and searching for a SAN match against a service URL such as `databroker_service_url`.
