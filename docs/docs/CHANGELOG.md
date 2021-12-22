@@ -777,6 +777,7 @@
 
 - deployment: update goreleaser syntax [\#2525](https://github.com/pomerium/pomerium/pull/2525) (@backport-actions-token[bot])
 - ci: support darwn/arm64 aka m1 for cli [\#2521](https://github.com/pomerium/pomerium/pull/2521) (@travisgroth)
+
 ## [v0.15.0](https://github.com/pomerium/pomerium/tree/v0.15.0) (2021-08-05)
 
 [Full Changelog](https://github.com/pomerium/pomerium/compare/v0.14.7...v0.15.0)
