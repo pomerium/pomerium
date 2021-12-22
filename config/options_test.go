@@ -313,7 +313,6 @@ func TestOptionsFromViper(t *testing.T) {
 				EnvoyAdminAccessLogPath:  os.DevNull,
 				EnvoyAdminProfilePath:    os.DevNull,
 				EnvoyAdminAddress:        "127.0.0.1:9901",
-				CodecType:                CodecTypeAuto,
 			},
 			false,
 		},
@@ -335,7 +334,6 @@ func TestOptionsFromViper(t *testing.T) {
 				EnvoyAdminAccessLogPath:  os.DevNull,
 				EnvoyAdminProfilePath:    os.DevNull,
 				EnvoyAdminAddress:        "127.0.0.1:9901",
-				CodecType:                CodecTypeAuto,
 			},
 			false,
 		},
@@ -692,9 +690,4 @@ func mustParseWeightedURLs(t *testing.T, urls ...string) []WeightedURL {
 	wu, err := ParseWeightedUrls(urls...)
 	require.NoError(t, err)
 	return wu
-}
-
-func TestDefaults(t *testing.T) {
-	o := NewDefaultOptions()
-	assert.Equal(t, CodecTypeAuto, o.CodecType)
 }
