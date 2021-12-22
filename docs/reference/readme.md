@@ -540,13 +540,13 @@ redis_wait_count_total                        | Counter   | Total number of conn
 redis_wait_duration_ms_total                  | Counter   | Total time spent waiting for connections
 storage_operation_duration_ms                 | Histogram | Storage operation duration by operation, result, backend and service
 
-#### Identity Manager 
+#### Identity Manager
 
-Identity manager metrics have `pomerium_identity_manager` prefix. 
+Identity manager metrics have `pomerium_identity_manager` prefix.
 
 Name                                          | Type      | Description
 --------------------------------------------- | --------- | -----------------------------------------------------------------------
-last_refresh_timestamp                        | Gauge     | Timestamp of last directory refresh operation. 
+last_refresh_timestamp                        | Gauge     | Timestamp of last directory refresh operation.
 user_refresh_success_timestamp                | Gauge     | Timestamp of last successful user refresh.
 user_refresh_error_timestamp                  | Gauge     | Timestamp of last user refresh ended in an error.
 user_refresh_errors                           | Counter   | User refresh error counter.
