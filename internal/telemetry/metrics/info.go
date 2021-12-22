@@ -21,6 +21,22 @@ var (
 		ConfigLastReloadView,
 		ConfigLastReloadSuccessView,
 		IdentityManagerLastRefreshView,
+
+		IdentityManagerLastUserRefreshErrorTimestampView,
+		IdentityManagerLastUserRefreshErrorView,
+		IdentityManagerLastUserRefreshSuccessTimestampView,
+		IdentityManagerLastUserRefreshSuccessView,
+
+		IdentityManagerLastUserGroupRefreshErrorTimestampView,
+		IdentityManagerLastUserGroupRefreshErrorView,
+		IdentityManagerLastUserGroupRefreshSuccessTimestampView,
+		IdentityManagerLastUserGroupRefreshSuccessView,
+
+		IdentityManagerLastSessionRefreshErrorTimestampView,
+		IdentityManagerLastSessionRefreshErrorView,
+		IdentityManagerLastSessionRefreshSuccessTimestampView,
+		IdentityManagerLastSessionRefreshSuccessView,
+
 		ConfigDBVersionView,
 		ConfigDBErrorsView,
 	}
@@ -47,6 +63,69 @@ var (
 		metrics.IdentityManagerLastRefreshTimestamp,
 		"Timestamp of last directory refresh",
 		"seconds",
+	)
+
+	identityManagerLastUserRefreshSuccessTimestamp = stats.Int64(
+		metrics.IdentityManagerLastUserRefreshSuccessTimestamp,
+		"Timestamp of last successful directory user refresh success",
+		stats.UnitSeconds,
+	)
+	identityManagerLastUserRefreshErrorTimestamp = stats.Int64(
+		metrics.IdentityManagerLastUserRefreshErrorTimestamp,
+		"Timestamp of last directory user refresh error",
+		stats.UnitSeconds,
+	)
+	identityManagerLastUserRefreshSuccess = stats.Int64(
+		metrics.IdentityManagerLastUserRefreshSuccess,
+		"Total successful directory user refresh requests",
+		stats.UnitDimensionless,
+	)
+	identityManagerLastUserRefreshError = stats.Int64(
+		metrics.IdentityManagerLastUserRefreshError,
+		"Total successful directory user refresh errors",
+		stats.UnitDimensionless,
+	)
+
+	identityManagerLastUserGroupRefreshSuccessTimestamp = stats.Int64(
+		metrics.IdentityManagerLastUserGroupRefreshSuccessTimestamp,
+		"Timestamp of last successful user group refresh success",
+		stats.UnitSeconds,
+	)
+	identityManagerLastUserGroupRefreshErrorTimestamp = stats.Int64(
+		metrics.IdentityManagerLastUserGroupRefreshErrorTimestamp,
+		"Timestamp of last directory user group refresh error",
+		stats.UnitSeconds,
+	)
+	identityManagerLastUserGroupRefreshSuccess = stats.Int64(
+		metrics.IdentityManagerLastUserGroupRefreshSuccess,
+		"Total successful directory user group refresh requests",
+		stats.UnitDimensionless,
+	)
+	identityManagerLastUserGroupRefreshError = stats.Int64(
+		metrics.IdentityManagerLastUserGroupRefreshError,
+		"Total successful directory user refresh errors",
+		stats.UnitDimensionless,
+	)
+
+	identityManagerLastSessionRefreshSuccessTimestamp = stats.Int64(
+		metrics.IdentityManagerLastSessionRefreshSuccessTimestamp,
+		"Timestamp of last successful session refresh success",
+		stats.UnitSeconds,
+	)
+	identityManagerLastSessionRefreshErrorTimestamp = stats.Int64(
+		metrics.IdentityManagerLastSessionRefreshErrorTimestamp,
+		"Timestamp of last session refresh error",
+		stats.UnitSeconds,
+	)
+	identityManagerLastSessionRefreshSuccess = stats.Int64(
+		metrics.IdentityManagerLastSessionRefreshSuccess,
+		"Total successful session refresh requests",
+		stats.UnitDimensionless,
+	)
+	identityManagerLastSessionRefreshError = stats.Int64(
+		metrics.IdentityManagerLastSessionRefreshError,
+		"Total successful session refresh errors",
+		stats.UnitDimensionless,
 	)
 
 	// ConfigDBVersionView contains last databroker config version that was processed
@@ -95,11 +174,137 @@ var (
 		Measure:     identityManagerLastRefresh,
 		Aggregation: view.LastValue(),
 	}
+
+	// IdentityManagerLastUserRefreshSuccessView contains successful user refresh counter
+	IdentityManagerLastUserRefreshSuccessView = &view.View{
+		Name:        identityManagerLastUserRefreshSuccess.Name(),
+		Description: identityManagerLastUserRefreshSuccess.Description(),
+		Measure:     identityManagerLastUserRefreshSuccess,
+		Aggregation: view.Count(),
+	}
+	// IdentityManagerLastUserRefreshErrorView contains user refresh errors counter
+	IdentityManagerLastUserRefreshErrorView = &view.View{
+		Name:        identityManagerLastUserRefreshError.Name(),
+		Description: identityManagerLastUserRefreshError.Description(),
+		Measure:     identityManagerLastUserRefreshError,
+		Aggregation: view.Count(),
+	}
+	// IdentityManagerLastUserRefreshSuccessTimestampView contains successful user refresh counter
+	IdentityManagerLastUserRefreshSuccessTimestampView = &view.View{
+		Name:        identityManagerLastUserRefreshSuccessTimestamp.Name(),
+		Description: identityManagerLastUserRefreshSuccessTimestamp.Description(),
+		Measure:     identityManagerLastUserRefreshSuccessTimestamp,
+		Aggregation: view.LastValue(),
+	}
+	// IdentityManagerLastUserRefreshErrorTimestampView contains user refresh errors counter
+	IdentityManagerLastUserRefreshErrorTimestampView = &view.View{
+		Name:        identityManagerLastUserRefreshErrorTimestamp.Name(),
+		Description: identityManagerLastUserRefreshErrorTimestamp.Description(),
+		Measure:     identityManagerLastUserRefreshErrorTimestamp,
+		Aggregation: view.LastValue(),
+	}
+
+	// IdentityManagerLastUserGroupRefreshSuccessView contains successful user group refresh counter
+	IdentityManagerLastUserGroupRefreshSuccessView = &view.View{
+		Name:        identityManagerLastUserGroupRefreshSuccess.Name(),
+		Description: identityManagerLastUserGroupRefreshSuccess.Description(),
+		Measure:     identityManagerLastUserGroupRefreshSuccess,
+		Aggregation: view.Count(),
+	}
+	// IdentityManagerLastUserGroupRefreshErrorView contains user group refresh errors counter
+	IdentityManagerLastUserGroupRefreshErrorView = &view.View{
+		Name:        identityManagerLastUserGroupRefreshError.Name(),
+		Description: identityManagerLastUserGroupRefreshError.Description(),
+		Measure:     identityManagerLastUserGroupRefreshError,
+		Aggregation: view.Count(),
+	}
+	// IdentityManagerLastUserGroupRefreshSuccessTimestampView contains successful user group refresh counter
+	IdentityManagerLastUserGroupRefreshSuccessTimestampView = &view.View{
+		Name:        identityManagerLastUserGroupRefreshSuccessTimestamp.Name(),
+		Description: identityManagerLastUserGroupRefreshSuccessTimestamp.Description(),
+		Measure:     identityManagerLastUserGroupRefreshSuccessTimestamp,
+		Aggregation: view.LastValue(),
+	}
+	// IdentityManagerLastUserGroupRefreshErrorTimestampView contains user group refresh errors counter
+	IdentityManagerLastUserGroupRefreshErrorTimestampView = &view.View{
+		Name:        identityManagerLastUserGroupRefreshErrorTimestamp.Name(),
+		Description: identityManagerLastUserGroupRefreshErrorTimestamp.Description(),
+		Measure:     identityManagerLastUserGroupRefreshErrorTimestamp,
+		Aggregation: view.LastValue(),
+	}
+
+	// IdentityManagerLastSessionRefreshSuccessView contains successful user refresh counter
+	IdentityManagerLastSessionRefreshSuccessView = &view.View{
+		Name:        identityManagerLastSessionRefreshSuccess.Name(),
+		Description: identityManagerLastSessionRefreshSuccess.Description(),
+		Measure:     identityManagerLastSessionRefreshSuccess,
+		Aggregation: view.Count(),
+	}
+	// IdentityManagerLastSessionRefreshErrorView contains user refresh errors counter
+	IdentityManagerLastSessionRefreshErrorView = &view.View{
+		Name:        identityManagerLastUserRefreshError.Name(),
+		Description: identityManagerLastUserRefreshError.Description(),
+		Measure:     identityManagerLastUserRefreshError,
+		Aggregation: view.Count(),
+	}
+	// IdentityManagerLastSessionRefreshSuccessTimestampView contains successful session refresh counter
+	IdentityManagerLastSessionRefreshSuccessTimestampView = &view.View{
+		Name:        identityManagerLastSessionRefreshSuccessTimestamp.Name(),
+		Description: identityManagerLastSessionRefreshSuccessTimestamp.Description(),
+		Measure:     identityManagerLastSessionRefreshSuccessTimestamp,
+		Aggregation: view.LastValue(),
+	}
+	// IdentityManagerLastSessionRefreshErrorTimestampView contains session refresh errors counter
+	IdentityManagerLastSessionRefreshErrorTimestampView = &view.View{
+		Name:        identityManagerLastSessionRefreshErrorTimestamp.Name(),
+		Description: identityManagerLastSessionRefreshErrorTimestamp.Description(),
+		Measure:     identityManagerLastSessionRefreshErrorTimestamp,
+		Aggregation: view.LastValue(),
+	}
 )
 
 // RecordIdentityManagerLastRefresh records that the identity manager refreshed users and groups.
-func RecordIdentityManagerLastRefresh() {
-	stats.Record(context.Background(), identityManagerLastRefresh.M(time.Now().Unix()))
+func RecordIdentityManagerLastRefresh(ctx context.Context) {
+	stats.Record(ctx, identityManagerLastRefresh.M(time.Now().Unix()))
+}
+
+func RecordIdentityManagerUserRefresh(ctx context.Context, err error) {
+	counter := identityManagerLastUserRefreshSuccess
+	ts := identityManagerLastUserRefreshSuccessTimestamp
+	if err != nil {
+		counter = identityManagerLastUserRefreshError
+		ts = identityManagerLastUserRefreshErrorTimestamp
+	}
+	stats.Record(ctx,
+		ts.M(time.Now().Unix()),
+		counter.M(1),
+	)
+}
+
+func RecordIdentityManagerUserGroupRefresh(ctx context.Context, err error) {
+	counter := identityManagerLastUserGroupRefreshSuccess
+	ts := identityManagerLastUserGroupRefreshSuccessTimestamp
+	if err != nil {
+		counter = identityManagerLastUserGroupRefreshError
+		ts = identityManagerLastUserGroupRefreshErrorTimestamp
+	}
+	stats.Record(ctx,
+		ts.M(time.Now().Unix()),
+		counter.M(1),
+	)
+}
+
+func RecordIdentityManagerSessionRefresh(ctx context.Context, err error) {
+	counter := identityManagerLastSessionRefreshSuccess
+	ts := identityManagerLastSessionRefreshSuccessTimestamp
+	if err != nil {
+		counter = identityManagerLastSessionRefreshError
+		ts = identityManagerLastSessionRefreshErrorTimestamp
+	}
+	stats.Record(ctx,
+		ts.M(time.Now().Unix()),
+		counter.M(1),
+	)
 }
 
 // SetDBConfigInfo records status, databroker version and error count while parsing
