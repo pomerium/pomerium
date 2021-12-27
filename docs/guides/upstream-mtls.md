@@ -11,15 +11,15 @@ description: >-
 
 # Upstream mTLS With Pomerium
 
-Part of a complete zero-trust security model is secure communication between your authenticated proxy (Pomerium) and the upstream service it provides access to. This means both Pomerium *and* the upstream service will authenticate each other.
+Part of a complete zero-trust security model is secure communication between your identity-aware access proxy (Pomerium) and the upstream service it provides access to. This means both Pomerium *and* the upstream service will authenticate each other.
 
-Pomerium confirms the identity of the upstream service by the TLS certificate it serves. See [`tls_custom_ca_file`] and [`tls_server_name`] for more information on configuring Pomerium to accept an upstream's TLS certificate.
+Pomerium confirms the identity of an upstream service by the TLS certificate it serves. See [`tls_custom_ca_file`] and [`tls_server_name`] for more information on configuring Pomerium to accept an upstream's TLS certificate.
 
-How an upstream service is configured to validate and accept client certificates is entirely up to that specific service and how it's configured. To provide a general explanation, in this guide we will use [OpenSSL] and [mkcert] to demonstrate how to configure Pomerium to provide the client certificate.
+Generally, every organization has a preferred method of managing internal certificates. How an upstream service is configured to validate and accept client certificates is entirely up to that specific service and how it's configured. To provide a general explanation, in this guide we will use [OpenSSL] and [mkcert] to demonstrate how to configure Pomerium to provide the client certificate.
 
 ## Before You Begin
 
-- To simplify this proof-of-concept demonstration, we assume that Pomerium is running in all-in-one mode as a system service with the configuration file in the [standard location](/docs/install/binary.md#configuration-file), configured to communicate with an identity provider (**IdP**), and all command are run on the same host. You may have to move files and/or adjust paths and commands to match a different configuration.
+- To simplify this proof-of-concept, we assume that Pomerium is running in all-in-one mode as a system service with the configuration file in the [standard location](/docs/install/binary.md#configuration-file), configured to communicate with an identity provider (**IdP**), and all command are run on the same host. You may have to move files and/or adjust paths and commands to match a different configuration.
 
     See [Install - Binaries](/docs/install/binary.md) for more information on initial setup.
 
@@ -31,7 +31,7 @@ How an upstream service is configured to validate and accept client certificates
 
 !!!include(install-mkcert.md)!!!
 
-1. Create a certificate and key for our demo upstream service, OpenSSL:
+1. Create a certificate and key for our example upstream service, OpenSSL:
 
     ```bash{1}
     mkcert openssl.localhost
@@ -116,7 +116,7 @@ OpenSSL is installed or easily available for most 'nix-based operating systems l
 
     > no client certificate available
 
-    In the next section we'll adjust the OpenSSL server to require a client certificate and edit our Pomerium configuration to provide one.
+    In the next section, we'll adjust the OpenSSL server to require a client certificate and edit our Pomerium configuration to provide one.
 
 ## Install Pomerium Client Certificate
 
@@ -148,7 +148,7 @@ OpenSSL is installed or easily available for most 'nix-based operating systems l
               - email:
                   is: user@example.com
 
-1. Now when you visit <https://openssl.localhost.pomium.io> you should see additional output under "Client certificate", confirming that the upstream service has read and validating Pomerium's client certificate. Your upstream service is now using mTLS for mutual authentication!
+1. Now when you visit <https://openssl.localhost.pomium.io> you should see additional output under "Client certificate", confirming that the upstream service has read and validated Pomerium's client certificate. Your upstream service is now using mTLS for mutual authentication!
 
 Obviously, the OpenSSL server is a trivial upstream service, and is purpose-built to work with encryption and not do much else. Practical mutual authenticate can be a much more complex setup depending on the service, and may require a sidecar or service mesh. This exercise merely serves to demonstrate how easy it is to configure Pomerium to provide client certificates to the upstream service.
 
