@@ -12,13 +12,13 @@ Device authentication is becoming more widely discussed as more products begin t
 
 ## Authenticated Device Types
 
-Device authentication is made possible through trusted execution environment (**TEE**) devices that provide a hardware-attested identity and state. The specific implementation of this general concept is different across the devices that provide device authentication, but they generally fall into two categories: secure enclaves and cross-platform security keys.
+Device authentication is made possible through trusted execution environment (**TEE**) devices that provide a hardware-attested identity and state. The specific implementation of this general concept is different across the devices that provide device authentication, but they generally fall into two categories: secure enclaves and cross-platform security keys. In broad strokes, the biggest difference is whether the hardware device can be removed (e.g. a yubikey) or not (e.g. the TPM in your iPhone). 
 
 ### Secure Enclaves
 
 Also called platform or internal authenticators, a secure enclave is physically bound to a specific computing device.
 
-- TPM (Trusted Platform Module): These devices are usually built in to a product's mainboard, or can be installed in devices with a TPM header, as shown [here][toms-hardware-tpm]. They include a small processor to carry out cryptographic functions on the device, instead of on the system's processor where it could be interfered with. Trust is usually derived from a private key or certificate signed by a trusted manufacture's certificate authority.
+- TPM (Trusted Platform Module): These devices are usually built into a product's mainboard, or can be installed in devices with a TPM header, as shown [here][toms-hardware-tpm]. They include a small processor to carry out cryptographic functions on the device, instead of on the system's processor where it could be interfered with. Trust is usually derived from a private key or certificate signed by a trusted manufacture's certificate authority.
 
 - Mobile devices: Most newer Apple and Android devices include a [Secure Enclave][apple-enclave] or [Hardware-backed Keystore][android-keystore]
 
@@ -43,7 +43,7 @@ Pomerium uses the [Web Authentication][webauthn-api] (**WebAuthN**) API to bring
 To get started, review the following pages:
 
 - [Pomerium Policy Language](/docs/topcics/ppl.md) to learn how to build policies that use device ID.
-- [Enroll a Device](/guides/enroll-device.md) to teach end users how to enroll devices on Pomerium.
+- [Enroll a Device](/guides/enroll-device.md) to teach end-users how to enroll devices on Pomerium.
 
 [toms-hardware-tpm]: https://www.tomshardware.com/reviews/tpm-trusted-platform-module-header,5766.html
 [fido-spec]: https://fidoalliance.org/specifications/

@@ -7,7 +7,7 @@ meta:
       pomerium identity-access-proxy webauthn device id enroll
       authentication authorization
 description: >-
-  This guide covers how to enroll a trusted execution environment device as a Pomerium end user.
+  This guide covers how to enroll a trusted execution environment device as a Pomerium end-user.
 ---
 
 # Enroll a Device
