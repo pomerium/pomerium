@@ -1,10 +1,10 @@
 ---
-title: Device Authentication
+title: Device Identity
 description: >-
   Learn about how WebAuthn is used to authenticate and authorize access using Device ID and state.
 ---
 
-## Device Authentication
+## Device Identity
 
 One of the core components of a zero-trust security model is device authentication. Think of it as a component of multi-factor authentication; In addition to "what you know" (password) and "who you are" (biometrics, face recognition, etc), device authentication covers "what you have" by confirming that the device you are using to access a system is trusted.
 
