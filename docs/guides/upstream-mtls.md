@@ -15,7 +15,7 @@ Part of a complete zero-trust security model is secure communication between you
 
 Pomerium confirms the identity of an upstream service by the TLS certificate it serves. See [`tls_custom_ca_file`] and [`tls_server_name`] for more information on configuring Pomerium to accept an upstream's TLS certificate.
 
-Generally, every organization has a preferred method of managing internal certificates. How an upstream service is configured to validate and accept client certificates is entirely up to that specific service and how it's configured. To provide a general explanation, in this guide we will use [OpenSSL] and [mkcert] to demonstrate how to configure Pomerium to provide the client certificate.
+Generally, every organization has a preferred method of managing internal certificates. How an upstream service is configured to validate and accept client certificates is entirely up to that specific service and how it's configured. To provide a general explanation, in this guide we will use [mkcert] to provide the client certificate to Pomerium, and [OpenSSL] as the upstream service.
 
 ## Before You Begin
 
