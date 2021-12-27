@@ -15,103 +15,143 @@ Secure communication on the web typically refers to using signed server certific
 
 To authenticate clients (users), we typically use an identity provider (IDP). Clients must login before they can access a protected endpoint. However the TLS protocol also supports mutual authenticate (mTLS) via signed client certificates.
 
-As of version 0.9.0, Pomerium supports requiring signed client certificates with the `client_ca`/`client_ca_file` configuration options. This guide covers how to configure Pomerium to implement mutual authentication using client certificates with a custom certificate authority.
+Pomerium supports requiring signed client certificates with the `client_ca`/`client_ca_file` configuration options. This guide covers how to configure Pomerium to implement mutual authentication using client certificates with a custom certificate authority.
 
-## Creating Certificates
+## Before You Begin
 
-We will use the `mkcert` application to create the certificates. To install `mkcert` follow the instructions on [Github](https://github.com/FiloSottile/mkcert#installation).
+- This guide assumes you already have a working Pomerium instance. See our [Quick-Start] doc for installation through Docker, and one of the [Identity Provider] docs to connect it to your IdP. You should also have a working route to test against.
 
-For this guide the `localhost.pomerium.io` domain will be our root domain (all subdomains on `localhost.pomerium.io` point to `localhost`). First create a trusted root certificate authority:
+- We will use the `mkcert` application to create the certificates. To install `mkcert` follow the instructions on [Github](https://github.com/FiloSottile/mkcert#installation).
 
-```bash
-mkcert -install
-```
+    ::: warning
+    The `mkcert` tool is designed for testing. It creates a locally-trusted root certificate for development purposes. We're using mkcert for this proof-of-concept example, but consider using a different certificate solution for production environments.
+    :::
 
-Next create a wildcard certificate for `*.localhost.pomerium.io`:
+- For this guide the `localhost.pomerium.io` domain will be our root domain (all subdomains on `localhost.pomerium.io` point to `localhost`).
 
-```bash
-mkcert '*.localhost.pomerium.io'
-```
+## Create Certificates
 
-This creates two files in the current working directory:
+1. Create a trusted root certificate authority (**CA**):
 
-- `_wildcard.localhost.pomerium.io.pem`
-- `_wildcard.localhost.pomerium.io-key.pem`
+    ```bash
+    mkcert -install
+    ```
 
-We will use these files for the server TLS certificate.
+1. Create a wildcard certificate for `*.localhost.pomerium.io`:
 
-Finally create a client TLS certificate by running:
+    ```bash
+    mkcert '*.localhost.pomerium.io'
+    ```
 
-```bash
-mkcert -client -pkcs12 '*.localhost.pomerium.io'
-```
+    ::: tip Note
+    If you already have a certificate solution for route ingress, you can skip this step. Client certificates can be validated from a certificate authority independent of the route CA.
+    :::
 
-This creates a third file in the current working directory:
+    This creates two files in the current working directory:
 
-- `_wildcard.localhost.pomerium.io-client.p12`
+    - `_wildcard.localhost.pomerium.io.pem`
+    - `_wildcard.localhost.pomerium.io-key.pem`
+
+    We will use these files for the server TLS certificate.
+
+1. Create a client TLS certificate:
+
+    ```bash
+    mkcert -client -pkcs12 'yourUsername@localhost.pomerium.io'
+    ```
+
+    This creates a new file in the current working directory:
+
+    - `yourUsername@localhost.pomerium.io-client.p12`
 
 ## Configure Pomerium
 
-Create a `config.yaml` file in the current directory. (You can replace `/YOUR/MKCERT/CAROOT` in this example with the value of `mkcert -CAROOT`)
+Pomerium can be configured to require a client certificate for all routes signed by a single CA, or on a per-route basis with the CA set individually.
+
+### Require mTLS for All Routes
+
+Update the `config.yaml` file or environment variables with the following aditions. Replace `/YOUR/MKCERT/CAROOT` in this example with the value of `mkcert -CAROOT`:
+
+::: tip
+This configuration will require client certificates for _all_ routes. See [rquire mTLS per Route](#require-mtls-per-route) to enable mTLS on for specific routes.
+:::
+
+::::: tabs
+:::: tab config.yaml
 
 ```yaml
-# config.yaml
-address: ":8443"
-authenticate_service_url: "https://authenticate.localhost.pomerium.io:8443"
+# If you're using a separate certificate for server-side TLS, leave these keys unchanged.
 certificate_file: "_wildcard.localhost.pomerium.io.pem"
 certificate_key_file: "_wildcard.localhost.pomerium.io-key.pem"
 
 # "$(mkcert -CAROOT)/rootCA.pem"
 client_ca_file: "/YOUR/MKCERT/CAROOT/rootCA.pem"
+```
 
-# generate with "$(head -c32 /dev/urandom | base64)"
-cookie_secret: "NvNqawPTQQelACkTovVcnfZQ3mP25Tv3DxeiUkRFyTA="
-shared_secret: "NvNqawPTQQelACkTovVcnfZQ3mP25Tv3DxeiUkRFyTA="
+Alternately, you can encode the client certificate authority as a base64-encoded string (`cat $(mkcert -CAROOT)/rootCA.pem | base64 -w 0`) and provide the value to `client_ca`.
 
-# replace with your IDP provider
-idp_provider: "google"
-idp_client_id: YOUR_CLIENT_ID
-idp_client_secret: YOUR_SECRET
+::::
+:::: tab Environment Variables
+```bash
+# If you're using a separate certificate for server-side TLS, leave these variables unchanged.
+CERTIFICATE_FILE="_wildcard.localhost.pomerium.io.pem"
+CERTIFICATE_KEY_FILE="_wildcard.localhost.pomerium.io-key.pem"
 
-routes:
-  - from: "https://verify.localhost.pomerium.io:8443"
-    to: "https://verify.org"
+# "$(mkcert -CAROOT)/rootCA.pem"
+CLIENT_CA_FILE="/YOUR/MKCERT/CAROOT/rootCA.pem"
+```
+
+Alternately, you can encode the client certificate authority as a base64-encoded string (`cat $(mkcert -CAROOT)/rootCA.pem | base64 -w 0`) and provide the value as `CLIENT_CA`.
+
+::::
+:::::
+
+Start Pomerium.
+
+### Require mTLS per Route
+
+You can define a client certificate authority for an individual route. Use this option to only require mTLS for specific routes, or to require certificates singed by a different CA than the one required by default with `client_ca` or `client_ca_file`:
+
+```yaml{3-4}
+  - from: https://verify.localhost.pomerium.io
+    to: https://verify.pomerium.com
+    # "$(mkcert -CAROOT)/rootCA.pem"
+    tls_downstream_client_ca_file: "/YOUR/MKCERT/CAROOT/rootCA.pem"
+    pass_identity_headers: true
     policy:
       - allow:
           or:
-            - accept: true
+            - domain:
+                is: example.com
 ```
 
-Start Pomerium with:
-
-```bash
-pomerium -config config.yaml
-```
-
-Before visiting the page in your browser we have one final step.
+Alternately, you can encode the client certificate authority as a base64-encoded string (`cat $(mkcert -CAROOT)/rootCA.pem | base64 -w 0`) and provide the value to `tls_downstream_client_ca`.
 
 ## Install Client Certificate
 
-Because `https://verify.localhost.pomerium.io:8443` now requires a client certificate to be accessed, we first need to install that client certificate in our browser. The following instructions are for Chrome, but client certificates are supported in all major browsers.
+Because your routes now require a client certificate to be accessed, we must install that client certificate in the browser. The following instructions are for Chrome, but client certificates are supported in all major browsers.
 
-Go to <chrome://settings/certificates>:
+1. Go to `chrome://settings/certificates`:
 
-![chrome settings](./img/mtls/01-chrome-settings-certificates.png)
+    ![chrome settings](./img/mtls/01-chrome-settings-certificates.png)
 
-Next click on Import and browse to the directory where you created the certificates above. Choose `_wildcard.localhost.pomerium.io-client.p12`:
+1. Click on **Import** and browse to the directory where you created the certificates above. Choose `_wildcard.localhost.pomerium.io-client.p12`:
 
-![import client certificate](./img/mtls/02-import-client-certificate.png)
+    ![import client certificate](./img/mtls/02-import-client-certificate.png)
 
-You will be prompted for the certificate password. The default password is **`changeit`**:
+1. You will be prompted for the certificate password. The default password is **`changeit`**:
 
-![enter certificate password](./img/mtls/03-enter-certificate-password.png)
+    ![enter certificate password](./img/mtls/03-enter-certificate-password.png)
 
-You should see the `org-mkcert development certificate` in the list of your certificates:
+1. The **org-mkcert development certificate** should now be in your list of certificates:
 
-![certificate list](./img/mtls/04-certificate-list.png)
+    ![certificate list](./img/mtls/04-certificate-list.png)
 
 ## Using the Client Certificate
 
-You can now visit **<https://verify.localhost.pomerium.io>** and you should be prompted to choose a client certificate:
+You can now visit **<https://verify.localhost.pomerium.io>** (or another route you've defined) and you should be prompted to choose a client certificate:
 
 ![choose client certificate](./img/mtls/05-select-client-certificate.png)
+
+[Quick-Start]: /docs/install/readme.md
+[Identity Provider]: /docs/identity-providers/readme.md
