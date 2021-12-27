@@ -48,7 +48,7 @@ require (
 	github.com/prometheus/common v0.32.1
 	github.com/prometheus/procfs v0.7.3
 	github.com/rjeczalik/notify v0.9.3-0.20201210012515-e2a77dcc14cf
-	github.com/rs/cors v1.8.0
+	github.com/rs/cors v1.8.2
 	github.com/rs/zerolog v1.26.1
 	github.com/scylladb/go-set v1.0.2
 	github.com/shirou/gopsutil/v3 v3.21.11
