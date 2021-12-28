@@ -13,8 +13,6 @@ One of the core components of a zero-trust security model device identity, where
 
 The history of IT security has, until recently, mostly focused on user identity verification. In this model, access to a service is granted only after verifying a user's identity and authorization to that service. This was usually sufficient in scenarios where the user's access was physically limited to trusted devices in trusted physical and network spaces; a PC sitting in an office in the company headquarters on a local network, for example.
 
-Device authentication is made possible through trusted execution environment (**TEE**) devices that provide a hardware-attested identity and state. The specific implementation of this general concept is different across the devices that provide device authentication, but they generally fall into two categories: secure enclaves and cross-platform security keys. In broad strokes, the biggest difference is whether the hardware device can be removed (e.g. a yubikey) or not (e.g. the TPM in your iPhone). 
-
 Device identity is becoming more widely discussed as more products begin to use or require it. For example, Windows 11 generated a lot of news by [requiring TPM 2.0][win11-reqs], and Apple is taking steps to [eliminate passwords][apple-passkeys]:
 
 | ![Verge Article Header and Apple Video Page](./img/verge-apple.png) |
