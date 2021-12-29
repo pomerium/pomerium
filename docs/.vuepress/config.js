@@ -178,6 +178,7 @@ module.exports = {
           children: [
             "topics/certificates",
             "topics/data-storage",
+            "topics/device-identity",
             "topics/getting-users-identity",
             "topics/original-request-context",
             "topics/ppl",
@@ -215,6 +216,7 @@ module.exports = {
             "cloud-run",
             "mtls",
             "code-server",
+            "enroll-device",
             "grafana",
             "istio",
             "jwt-verification",
