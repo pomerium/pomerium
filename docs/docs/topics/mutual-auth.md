@@ -11,15 +11,15 @@ description: >-
 
 # Mutual Authentication: A Component of Zero-Trust
 
-Pomerium provides a good layer of security out of the box, but it's not (and can't be) configured for complete [zero trust] right out of the box. This page explains several methods of achieving mutual authentication, a big part of the zero-trust model, with practical examples.
+Pomerium provides a good layer of security out of the box, but it's not (and can't be) configured for complete [zero trust] right out of the box. This page explains several methods of achieving mutual authentication — a big part of the zero-trust model — with practical examples.
 
-This is a long page that dives into several specific security practices that provide mutual authentication. You can use the table of contents below to narrow down to the specific tools you're interested in, or read the entire doc for a deeper understanding of how these tools work together to support strong infrastructure security.
+This is a nuanced topic that dives into several specific security practices that provide mutual authentication. You can use the table of contents below to narrow down to the specific tools you're interested in or read the entire doc for a deeper understanding of how these tools work together to support strong infrastructure security.
 
 [[toc]]
 
 ## What Is Mutual Authentication?
 
-The concept of mutual authentication is deceptively simple. It means that both sides of a connection can validate the identity of the other. The application of this concept however, can be varied and complex. Pomerium provides the features and capability to provide mutual authentication between itself and end users, as well, as between itself and upstream services, but configuring those external endpoints can vary depending on each service's features.
+The concept of mutual authentication is deceptively simple. It means that both sides of a connection can validate the identity of the other. The application of this concept, however, can be varied and complex. Pomerium provides the features and capability to provide mutual authentication between itself and end users, as well as between itself and upstream services, but configuring those external endpoints can vary depending on each service's features.
 
 ## Pomerium Defaults
 
@@ -28,7 +28,7 @@ The concept of mutual authentication is deceptively simple. It means that both s
 > - **Encrypted**: Yes (from the end user to Pomerium. It's up to the service to provide a TLS endpoint for Pomerium to use.)
 > - **Mutual Authentication**: None
 
-Let's look at a basic installation of Pomerium on a local network, with a single downstream service. This service contains sensitive data that we only want the right people to access.
+Let's look at a basic installation of Pomerium on a local network, with a single downstream service. This service contains sensitive data that we want to ensure is confidential and cannot be tampered with.
 
 ::: tip Note
 This section describes multiple services of Pomerium like Authenticate and Proxy as separate services. If you are running Pomerium in all-in-one mode, these will be a single process/container in your environment.
@@ -79,7 +79,7 @@ While your network *should* be secured to only allow traffic at specified ports 
 > - **Encrypted**: Yes (from the end user to Pomerium. It's up to the service to provide a TLS endpoint for Pomerium to use.)
 > - **Mutual Authentication**: Application Layer
 
-Many, but not all, modern web applications support json web tokens (**JWTs**). These tokens are provided by Pomerium (with the [`pass_identity_headers`] key) to the downstream service so that it can independently verify that the traffic it receives is authorized.
+Many, but not all, modern web applications support [json web tokens](https://datatracker.ietf.org/doc/html/rfc7519) (**JWTs**). These tokens can be provided by Pomerium (with the [`pass_identity_headers`] key) so that an upstream service can independently verify that the traffic has properly gone through Pomerium, and that the incoming user request is authorized.
 
 Let's look at an example, modeled from our [Grafana] integration guide:
 
@@ -153,7 +153,7 @@ flowchart RL
 
 1. The browser initiates a connection to `example.com` over the `http` protocol.
 1. The server sends its public certificate to the browser.
-1. The browser reads the certificate chain to find the CA, and checks against the computers keystore to see if the CA is one that it trusts.
+1. The browser reads the certificate chain to find the CA, and checks against the computer's keystore to see if the CA is one that it trusts.
 1. After confirming the CA is trusted the browser reconnects to the server, this time using the `https` protocol and encrypting the traffic using the public certificate.
 
 The process above confirms the identity of the *server*, protecting the client. Mutual TLS (**mTLS**) allows the server to confirm the identity of the *client* using a client certificate.
@@ -172,7 +172,7 @@ The exchange diagrammed here occurs *after* the initial connection and confirmat
 :::
 
 1. After the server certificate is trusted and an `HTTPS` connection is established, the server requests a client certificate.
-1. The user is prompted to use one of the certificates previously imported into thr browser. This certificate is send to the server
+1. The user is prompted to use one of the certificates previously imported into the browser. This certificate is sent to the server
 1. The server validates the client certificate signing authority against its trusted keystore or authorized client CA. Once authorized, the server resumes normal encrypted communication with the client.
 
 mTLS can also be configured between Pomerium and an upstream service. This secures the service itself from bad actors in your network by only allowing communication with the Pomerium proxy.
