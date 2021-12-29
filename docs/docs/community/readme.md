@@ -19,7 +19,7 @@ description: >-
 
 - Follow us on Twitter [@pomerium_io](https://twitter.com/pomerium_io) or [LinkedIn](https://www.linkedin.com/company/pomerium-inc) for the latest updates and industry news.
 
-- Check out our [Discourse](https://discuss.pomerium.com/) where the community explores Pomerium's uses and shares their best practices.
+- Check out our forum, [Discuss](https://discuss.pomerium.com/), where the community explores Pomerium's uses and shares their best practices.
 
 - Want updates delivered directly to your inbox? Sign up for our newsletter here:
 
@@ -27,9 +27,9 @@ description: >-
 
 ## Get help
 
-If you have a quick question about using Pomerium, [join our slack channel](https://slack.pomerium.io)! There will be more people there who can help you than just the Pomerium developers who follow our issue tracker. Issues are not the place for usage questions.
+For general help and configuration questions, discussions about integrations or complex setups, or anything else related to Pomerium, head to our [Discuss](https://discuss.pomerium.com/) forum, where you can search for open threads or start a new one.
 
-For deeper help and configuration troubleshooting, head to our [Discourse](https://discuss.pomerium.com/), where you can search for open threads or start a new one.
+We prefer to communicate in Discuss so that answers can be indexes and easy to find for others. If a specific issue requires a faster back and forth to find a resolution, we may ask to move the discussion to [our slack channel](https://slack.pomerium.io). 
 
 ## Report bugs
 
@@ -41,6 +41,6 @@ We suggest reading [How to Report Bugs Effectively](http://www.chiark.greenend.o
 
 ## Suggest features
 
-First, search to see if your feature has already been requested on [GitHub](https://github.com/pomerium/pomerium/issues) or [Discourse](https://discuss.pomerium.com/). If it has, you can add a :+1: reaction to vote for it. If your feature idea is new, open an issue to request the feature. You don't have to follow the bug template for feature requests. Please describe your idea thoroughly so that we know how to implement it! Really vague requests may not be helpful or actionable and without clarification will have to be closed.
+First, search to see if your feature has already been requested on [GitHub](https://github.com/pomerium/pomerium/issues) or [Discuss](https://discuss.pomerium.com/). If it has, you can add a :+1: reaction to vote for it. If your feature idea is new, open an issue to request the feature. You don't have to follow the bug template for feature requests. Please describe your idea thoroughly so that we know how to implement it! Really vague requests may not be helpful or actionable and without clarification will have to be closed.
 
 While we really do value your requests and implement many of them, not all features are a good fit for Pomerium. If a feature is not in the best interest of the Pomerium project or its users in general, we may politely decline to implement it.
