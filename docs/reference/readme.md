@@ -177,6 +177,8 @@ The Autocert Trusted Certificate Authority is the x509 CA (bundle) used when com
 
 Certificates are the x509 _public-key_ and _private-key_ used to establish secure HTTP and gRPC connections. Any combination of the above can be used together, and are additive. You can also use any of these settings in conjunction with `Autocert` to get OCSP stapling.
 
+Certificates loaded into Pomerium from these config values are used to attempt secure connections between end users and services, between Pomerium services, and to upstream endpoints.
+
 For example, if specifying multiple certificates at once:
 
 ```yaml
@@ -188,6 +190,15 @@ certificates:
   - cert: "$HOME/.acme.sh/prometheus.example.com_ecc/fullchain.cer"
     key: "$HOME/.acme.sh/prometheus.example.com_ecc/prometheus.example.com.key"
 ```
+
+Or to set a single certificate and key covering multiple domains and/or a wildcard subdomain:
+
+```yaml
+certificate_file: "$HOME/.acme.sh/*.example.com/fullchain.crt"
+certificate_key:  "$HOME/.acme.sh/*.example.com/*.example.com.key"
+```
+
+**Note:** Pomerium will check your system's trust/key store for valid certificates first. If your certificate solution imports into the system store, you don't need to also specify them with these configuration keys.
 
 
 ### Client Certificate Authority
@@ -514,6 +525,10 @@ Each metric exposed by Pomerium has a `pomerium` prefix, which is omitted in the
 
 Name                                          | Type      | Description
 --------------------------------------------- | --------- | -----------------------------------------------------------------------
+build_info                                    | Gauge     | Pomerium build metadata by git revision, service, version and goversion
+config_checksum_int64                         | Gauge     | Currently loaded configuration checksum by service
+config_last_reload_success                    | Gauge     | Whether the last configuration reload succeeded by service
+config_last_reload_success_timestamp          | Gauge     | The timestamp of the last successful configuration reload by service
 grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service
 grpc_client_request_size_bytes                | Histogram | GRPC client request size by service
 grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service
@@ -530,10 +545,6 @@ http_server_request_duration_ms               | Histogram | HTTP server request 
 http_server_request_size_bytes                | Histogram | HTTP server request size by service
 http_server_requests_total                    | Counter   | Total HTTP server requests handled by service
 http_server_response_size_bytes               | Histogram | HTTP server response size by service
-build_info                                    | Gauge     | Pomerium build metadata by git revision, service, version and goversion
-config_checksum_int64                         | Gauge     | Currently loaded configuration checksum by service
-config_last_reload_success                    | Gauge     | Whether the last configuration reload succeeded by service
-config_last_reload_success_timestamp          | Gauge     | The timestamp of the last successful configuration reload by service
 redis_conns                                   | Gauge     | Number of total connections in the pool
 redis_idle_conns                              | Gauge     | Total number of times free connection was found in the pool
 redis_wait_count_total                        | Counter   | Total number of connections waited for
@@ -547,18 +558,18 @@ Identity manager metrics have `pomerium_identity_manager` prefix.
 Name                                          | Type      | Description
 --------------------------------------------- | --------- | -----------------------------------------------------------------------
 last_refresh_timestamp                        | Gauge     | Timestamp of last directory refresh operation.
-user_refresh_success_timestamp                | Gauge     | Timestamp of last successful user refresh.
-user_refresh_error_timestamp                  | Gauge     | Timestamp of last user refresh ended in an error.
-user_refresh_errors                           | Counter   | User refresh error counter.
-user_refresh_success                          | Counter   | User refresh success counter.
-user_group_refresh_success_timestamp          | Gauge     | Timestamp of last group successful user refresh.
-user_group_refresh_error_timestamp            | Gauge     | Timestamp of last user group refresh ended in an error.
-user_group_refresh_errors                     | Counter   | User group refresh error counter.
-user_group_refresh_success                    | Counter   | User group refresh success counter.
-session_refresh_success_timestamp             | Gauge     | Timestamp of last successful session refresh.
 session_refresh_error_timestamp               | Gauge     | Timestamp of last session refresh ended in an error.
 session_refresh_errors                        | Counter   | Session refresh error counter.
 session_refresh_success                       | Counter   | Session refresh success counter.
+session_refresh_success_timestamp             | Gauge     | Timestamp of last successful session refresh.
+user_group_refresh_error_timestamp            | Gauge     | Timestamp of last user group refresh ended in an error.
+user_group_refresh_errors                     | Counter   | User group refresh error counter.
+user_group_refresh_success                    | Counter   | User group refresh success counter.
+user_group_refresh_success_timestamp          | Gauge     | Timestamp of last group successful user refresh.
+user_refresh_error_timestamp                  | Gauge     | Timestamp of last user refresh ended in an error.
+user_refresh_errors                           | Counter   | User refresh error counter.
+user_refresh_success                          | Counter   | User refresh success counter.
+user_refresh_success_timestamp                | Gauge     | Timestamp of last successful user refresh.
 
 #### Envoy Proxy Metrics
 
