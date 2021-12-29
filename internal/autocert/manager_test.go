@@ -13,7 +13,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"net/http"
@@ -548,7 +547,7 @@ func Test_configureTrustedRoots(t *testing.T) {
 			require.NoError(t, err)
 			ok := copy.AppendCertsFromPEM(ca.certPEM)
 			require.Equal(t, true, ok)
-			f, err := ioutil.TempFile("", "pomerium-test-ca")
+			f, err := os.CreateTemp("", "pomerium-test-ca")
 			require.NoError(t, err)
 			n, err := f.Write(ca.certPEM)
 			require.NoError(t, err)

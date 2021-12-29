@@ -1,7 +1,6 @@
 package fileutil
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -18,7 +17,7 @@ func TestWatcher(t *testing.T) {
 		return
 	}
 
-	err = ioutil.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2, 3, 4}, 0o666)
+	err = os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2, 3, 4}, 0o666)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -29,7 +28,7 @@ func TestWatcher(t *testing.T) {
 	ch := w.Bind()
 	defer w.Unbind(ch)
 
-	err = ioutil.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{5, 6, 7, 8}, 0o666)
+	err = os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{5, 6, 7, 8}, 0o666)
 	if !assert.NoError(t, err) {
 		return
 	}

@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
@@ -86,7 +86,7 @@ func (o *AutocertOptions) Validate() error {
 		}
 	}
 	if o.TrustedCAFile != "" {
-		if _, err := ioutil.ReadFile(o.TrustedCAFile); err != nil {
+		if _, err := os.ReadFile(o.TrustedCAFile); err != nil {
 			return fmt.Errorf("config: bad trusted certificate (bundle) file: %w", err)
 		}
 		if _, err := cryptutil.GetCertPool("", o.TrustedCAFile); err != nil {

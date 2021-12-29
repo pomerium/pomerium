@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -317,7 +316,7 @@ func RedisTLSConfig() *tls.Config {
 		panic(err)
 	}
 	caCertPool := x509.NewCertPool()
-	caCert, err := ioutil.ReadFile(filepath.Join(TestDataRoot(), "tls", "ca.crt"))
+	caCert, err := os.ReadFile(filepath.Join(TestDataRoot(), "tls", "ca.crt"))
 	if err != nil {
 		panic(err)
 	}

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"time"
@@ -124,7 +123,7 @@ func Do(ctx context.Context, method, endpoint, userAgent string, headers map[str
 	}
 
 	var respBody []byte
-	respBody, err = ioutil.ReadAll(resp.Body)
+	respBody, err = io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return err

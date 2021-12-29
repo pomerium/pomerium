@@ -3,7 +3,6 @@ package reproxy
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -30,7 +29,7 @@ func TestMiddleware(t *testing.T) {
 		res, err := http.Get(srv.URL)
 		require.NoError(t, err)
 
-		body, err := ioutil.ReadAll(res.Body)
+		body, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		res.Body.Close()
 
@@ -72,7 +71,7 @@ func TestMiddleware(t *testing.T) {
 		res, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
 
-		body, err := ioutil.ReadAll(res.Body)
+		body, err := io.ReadAll(res.Body)
 		require.NoError(t, err)
 		res.Body.Close()
 

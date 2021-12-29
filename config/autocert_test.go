@@ -8,7 +8,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/pem"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"testing"
@@ -91,7 +90,7 @@ func TestAutocertOptions_Validate(t *testing.T) {
 			}
 		},
 		"ok/trusted-ca-file": func(t *testing.T) test {
-			f, err := ioutil.TempFile("", "pomerium-test-ca")
+			f, err := os.CreateTemp("", "pomerium-test-ca")
 			require.NoError(t, err)
 			n, err := f.Write(certPEM)
 			require.NoError(t, err)
@@ -129,7 +128,7 @@ func TestAutocertOptions_Validate(t *testing.T) {
 			}
 		},
 		"fail/trusted-ca-combined": func(t *testing.T) test {
-			f, err := ioutil.TempFile("", "pomerium-test-ca")
+			f, err := os.CreateTemp("", "pomerium-test-ca")
 			require.NoError(t, err)
 			n, err := f.Write(certPEM)
 			require.NoError(t, err)

@@ -2,7 +2,6 @@ package config
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -22,12 +21,12 @@ func TestFileWatcherSource(t *testing.T) {
 		return
 	}
 
-	err = ioutil.WriteFile(filepath.Join(tmpdir, "example.txt"), []byte{1, 2, 3, 4}, 0o600)
+	err = os.WriteFile(filepath.Join(tmpdir, "example.txt"), []byte{1, 2, 3, 4}, 0o600)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	err = ioutil.WriteFile(filepath.Join(tmpdir, "kubernetes-example.txt"), []byte{1, 2, 3, 4}, 0o600)
+	err = os.WriteFile(filepath.Join(tmpdir, "kubernetes-example.txt"), []byte{1, 2, 3, 4}, 0o600)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -50,7 +49,7 @@ func TestFileWatcherSource(t *testing.T) {
 		})
 	})
 
-	err = ioutil.WriteFile(filepath.Join(tmpdir, "example.txt"), []byte{5, 6, 7, 8}, 0o600)
+	err = os.WriteFile(filepath.Join(tmpdir, "example.txt"), []byte{5, 6, 7, 8}, 0o600)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -61,7 +60,7 @@ func TestFileWatcherSource(t *testing.T) {
 		t.Error("expected OnConfigChange to be fired after modifying a file")
 	}
 
-	err = ioutil.WriteFile(filepath.Join(tmpdir, "kubernetes-example.txt"), []byte{5, 6, 7, 8}, 0o600)
+	err = os.WriteFile(filepath.Join(tmpdir, "kubernetes-example.txt"), []byte{5, 6, 7, 8}, 0o600)
 	if !assert.NoError(t, err) {
 		return
 	}

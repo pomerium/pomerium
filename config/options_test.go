@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"sync"
@@ -234,7 +233,7 @@ func Test_parsePolicyFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tempFile, _ := ioutil.TempFile("", "*.json")
+			tempFile, _ := os.CreateTemp("", "*.json")
 			defer tempFile.Close()
 			defer os.Remove(tempFile.Name())
 			tempFile.Write(tt.policyBytes)
@@ -344,7 +343,7 @@ func TestOptionsFromViper(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tempFile, _ := ioutil.TempFile("", "*.json")
+			tempFile, _ := os.CreateTemp("", "*.json")
 			defer tempFile.Close()
 			defer os.Remove(tempFile.Name())
 			tempFile.Write(tt.configBytes)
@@ -462,7 +461,7 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 		"ok/custom-ca-file": func(t *testing.T) test {
 			certPEM, err := newCACertPEM()
 			require.NoError(t, err)
-			f, err := ioutil.TempFile("", "pomerium-test-ca")
+			f, err := os.CreateTemp("", "pomerium-test-ca")
 			require.NoError(t, err)
 			n, err := f.Write(certPEM)
 			require.NoError(t, err)
@@ -531,8 +530,8 @@ func TestCertificatesArrayParsing(t *testing.T) {
 
 	testCertFileRef := "./testdata/example-cert.pem"
 	testKeyFileRef := "./testdata/example-key.pem"
-	testCertFile, _ := ioutil.ReadFile(testCertFileRef)
-	testKeyFile, _ := ioutil.ReadFile(testKeyFileRef)
+	testCertFile, _ := os.ReadFile(testCertFileRef)
+	testKeyFile, _ := os.ReadFile(testKeyFileRef)
 	testCertAsBase64 := base64.StdEncoding.EncodeToString(testCertFile)
 	testKeyAsBase64 := base64.StdEncoding.EncodeToString(testKeyFile)
 

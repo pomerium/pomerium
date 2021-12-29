@@ -2,7 +2,7 @@ package tripper
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -28,7 +28,7 @@ func mockMiddleware(id string) func(next http.RoundTripper) http.RoundTripper {
 		return RoundTripperFunc(func(r *http.Request) (*http.Response, error) {
 			resp, _ := next.RoundTrip(r)
 
-			body, _ := ioutil.ReadAll(resp.Body)
+			body, _ := io.ReadAll(resp.Body)
 			mockResp := httptest.NewRecorder()
 			mockResp.Write(body)
 			mockResp.WriteString(fmt.Sprintf(",%s", id))
@@ -52,7 +52,7 @@ func TestNew(t *testing.T) {
 		t.Errorf("Wrong number of constructors in chain")
 	}
 
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 	if string(b) != want {
 		t.Errorf("Wrong constructors.  want=%s, got=%s", want, b)
 	}
@@ -66,7 +66,7 @@ func TestThenNoMiddleware(t *testing.T) {
 	resp, _ := chain.Then(t1).
 		RoundTrip(httptest.NewRequest("GET", "/", nil))
 
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 	if string(b) != want {
 		t.Errorf("Wrong constructors.  want=%s, got=%s", want, b)
 	}
@@ -95,7 +95,7 @@ func TestAppend(t *testing.T) {
 		t.Errorf("Wrong number of constructors in chain")
 	}
 
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 	if string(b) != want {
 		t.Errorf("Wrong constructors.  want=%s, got=%s", want, b)
 	}
@@ -114,7 +114,7 @@ func TestAppendImmutability(t *testing.T) {
 	resp, _ := chain.Then(t1).
 		RoundTrip(httptest.NewRequest("GET", "/", nil))
 
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 	if string(b) != want {
 		t.Errorf("Wrong constructors.  want=%s, got=%s", want, b)
 	}

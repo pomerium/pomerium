@@ -8,7 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	go_oidc "github.com/coreos/go-oidc/v3/oidc"
@@ -110,7 +110,7 @@ func (transport *wellKnownConfiguration) RoundTrip(req *http.Request) (*http.Res
 	}
 	defer res.Body.Close()
 
-	bs, err := ioutil.ReadAll(res.Body)
+	bs, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -125,6 +125,6 @@ func (transport *wellKnownConfiguration) RoundTrip(req *http.Request) (*http.Res
 		bs, _ = json.Marshal(wk)
 	}
 
-	res.Body = ioutil.NopCloser(bytes.NewReader(bs))
+	res.Body = io.NopCloser(bytes.NewReader(bs))
 	return res, nil
 }
