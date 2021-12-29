@@ -11,7 +11,7 @@ description: >-
 
 ### Policy for Device Identity
 
-This release of Pomerium adds the ability to set policy based on system registration via [WebAuthN](https://www.w3.org/TR/webauthn-2/#registration-extension).
+This release of Pomerium adds the ability to set policy based on system registration via [WebAuthN](https://en.wikipedia.org/wiki/WebAuthn).
 
 See [Device Identity](/docs/topics/device-identity.md) for more details.
 
