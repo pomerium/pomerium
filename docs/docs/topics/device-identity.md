@@ -7,13 +7,13 @@ sidebarDepth: 1
 
 # Device Identity
 
-One of the core components of a zero-trust security model device identity, whereby a device's identity and state can be authenticated and factored into access control decisions. This topic page covers the concept of device identity and how it applies to the zero-trust model.
+One of the core components of the zero-trust security model is **device identity**, which is the ability for a device to have a unique, unclonable identity string that can be authenticated and factored into access control decisions. This topic page covers the concept of device identity, and how it applies to the zero-trust model.
 
 ## Why Device Identity Is Important
 
 The history of IT security has, until recently, mostly focused on user identity verification. In this model, access to a service is granted only after verifying a user's identity and authorization to that service. This was usually sufficient in scenarios where the user's access was physically limited to trusted devices in trusted physical and network spaces; a PC sitting in an office in the company headquarters on a local network, for example.
 
-Device identity is becoming more widely discussed as more products begin to use or require it. For example, Windows 11 generated a lot of news by [requiring TPM 2.0][win11-reqs], and Apple is taking steps to [eliminate passwords][apple-passkeys]:
+Hardware-backed device identity is becoming more widely discussed as more products begin to implement or require it across all tech industries. For example, Windows 11 generated a lot of news by [requiring TPM 2.0][win11-reqs], and Apple is taking steps to [eliminate passwords][apple-passkeys]:
 
 | ![Verge Article Header and Apple Video Page](./img/verge-apple.png) |
 |:--|
@@ -21,7 +21,7 @@ Device identity is becoming more widely discussed as more products begin to use 
 
 Device identity protects a trusted user from accessing sensitive data from a potentially unsafe device, like their personal computer or phone. Think of it as similar to multi-factor authentication (**MFA**); where MFA covers "what you know" (password) and "who you are" (biometrics, face recognition, etc), device identity asks "is this device safe?" by confirming that the device you are using to access a system is trusted.
 
-Device identity is similar but unique to MFA. Where MFA is an additional layer of protection on user identity, Device identity is a unique identifier that asserts trust of the hardware itself.
+Device identity is similar but unique to MFA. Where MFA is an additional layer of protection on user identity, hardware-backed device identity can be used to enhance and augment authorization decisions beyond the initial authentication flow. Where MFA increases the trust-level of a user, device identity provides trust for the device being used. More importantly, it denies access for non-trusted, potentially insecure devices.
 
 ## What Is Device Identity
 
@@ -53,7 +53,7 @@ The nature of cross-platform keys mean they are not associated with a single end
 
 ## Implement Device Identity with Pomerium
 
-Pomerium supports policies that use device identity since version [0.16.0](/docs/upgrading.md#policy-for-device-identity). We use the [Web Authentication][webauthn-api] (**WebAuthN**) API to bring authentication and authorization based on device identity into your security framework. It enables users to register their device ID, and admins to require a trusted device before accessing one, several, or all services.
+Pomerium supports policies that use device identity since version [0.16.0](/docs/upgrading.md#policy-for-device-identity). We use the [Web Authentication][webauthn-api] (**WebAuthN**) API to bring authentication and authorization based on device identity into your security framework. Pomerium's device identity support enables users to register their devices, and administrators to enforce access to applications and services to a particular set of trusted devices.
 
 You can review our implementation of the WebAuthn specification [on GitHub](https://github.com/pomerium/webauthn).
 
@@ -65,9 +65,8 @@ To get started, review the following pages:
 
 ## Looking Ahead: Device Posture
 
-Even if they only use the right device, what happens when a exploit is discovered in their OS or browser? How do you restrict access until the exploit is patched? Expanded iterations of device identity methods account for this using **device posture**, sometimes referred to as device state.
+Even if access is restricted to known devices, what happens when a user is found to have a vulnerable OS or browser version? How can an administrator ensure their network is not exposed, and that the user's system is promptly patched and remediated?  As secure enclave technologies evolve, **device posture** -- which is sometimes referred to as device state -- will play an increasingly important role in not only authorization decisions but also in helping to quickly remediate vulnerable corporate devices. Device posture is a more complex superset of device identity, with more information about the device and software being used to generate the resulting identifier.
 
-A device state is more complex superset of device identity, with more information about the device and software being used to generate the resulting identifier. This includes the operating system and web browser version. Device posture can be used by secure systems to ensure that users do not access sensitive information using software that has not been updated for, say, a known security flaw.
 
 Designing your security model to use device identity also primes your infrastructure to implement advanced security rules based on device posture down the road.
 
