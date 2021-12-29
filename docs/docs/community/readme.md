@@ -29,7 +29,7 @@ description: >-
 
 For general help and configuration questions, discussions about integrations or complex setups, or anything else related to Pomerium, head to our [Discuss](https://discuss.pomerium.com/) forum, where you can search for open threads or start a new one.
 
-We prefer to communicate in Discuss so that answers can be indexes and easy to find for others. If a specific issue requires a faster back and forth to find a resolution, we may ask to move the discussion to [our slack channel](https://slack.pomerium.io). 
+We prefer to communicate in Discuss so that answers can be indexes and easy to find for others. If a specific issue requires a faster back and forth to find a resolution, we may ask to move the discussion to [our slack channel](https://slack.pomerium.io).
 
 ## Report bugs
 
