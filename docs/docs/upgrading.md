@@ -11,23 +11,23 @@ description: >-
 
 ### Policy for Device Identity
 
-This release of Pomerium adds the ability to set policy based on system registration via [WebAuthN](https://www.w3.org/TR/webauthn-2/#registration-extension).
+This release of Pomerium adds the ability to set policy based on system registration via [WebAuthN](https://en.wikipedia.org/wiki/WebAuthn).
 
-See [device identity](/docs/topics/device-identity.md) for more details.
+See [Device Identity](/docs/topics/device-identity.md) for more details.
 
 ### HTTP PPL Criteria
 
-`http_path` and `http_method` are now supported for matching HTTP requests in policies. See [PPL](/docs/topics/ppl.md#criteria) for more details.
+`http_path` and `http_method` are now supported for matching HTTP requests in policies. See [Pomerium Policy Language](/docs/topics/ppl.md#criteria) for more details.
 
 ## Breaking
 
-### Self Signed fallback certificates
+### Self-signed fallback certificates
 
-When selecting a TLS certificate for a listener, Pomerium attempts to locate one by iterating through the provide certs and searching for a SAN match against a service URL such as `databroker_service_url`.
+When selecting a TLS certificate for a listener, Pomerium attempts to locate one by iterating through the provided certs and searching for a SAN match. This applies to all listeners, including internal service URLs like `databroker_service_url` and public endpoints like `authenticate.example.com`.
 
 Previously, when no match was found, Pomerium would select the "first" certificate in the list. However, the definition of "first" might change based on runtime configuration, so the certificate selection was non-deterministic.
 
-Starting in v0.16, Pomerium will instead generate a self signed certificate if it cannot locate an appropriate certificate from the provided configuration.  If you discover that you are receiving a self signed certificate rather than a certificate from `certificate`/`certificate_file`/`certs`, you have a mismatch between your service URL and the names covered in your certificates.
+Starting in v0.16, Pomerium will instead generate a self-signed certificate if it cannot locate an appropriate certificate from the provided configuration or system key/trust store. If you discover that you are receiving a self-signed certificate rather than a certificate from [`certificate`/`certificates`/`certificate_file`](/reference/readme.md#certificates) or the trust store, you have a mismatch between your service URL and the names covered in your certificates.
 
 ### OIDC flow no longer sets default uri params
 
