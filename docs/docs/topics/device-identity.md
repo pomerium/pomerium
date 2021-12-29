@@ -25,13 +25,13 @@ Device identity is similar but unique to MFA. Where MFA is an additional layer o
 
 ## What Is Device Identity
 
-> When you remove "the perimeter" as the source of trust to your infrastructure, you must replace it with a level of trust for every person, **device**, and hop in the communication path. Where the other, more commonly implemented facets of zero-trust validates the user and traffic, device identity (through WebAuthn) validates the end user's device.
+> When you remove "[the perimeter]" as the source of trust to your infrastructure, you must replace it with a level of trust for every person, **device**, and hop in the communication path. Where the other, more commonly implemented facets of zero-trust validates the user and traffic, device identity (through WebAuthn) validates the end user's device.
 
 Device ID is a unique identifying key that can only be created by the specific combination of hardware and software present on a specific device. How this is accomplished is largely dependent on the tools available on the user hardware, which we've detailed below.
 
 ### Authenticated Device Types
 
-Device identity is made possible through trusted execution environment (**TEE**) devices that provide a hardware-attested identity. The specific implementation of this general concept is different across the devices that provide device identity, but they generally fall into two categories: secure enclaves and cross-platform security keys.
+Device identity is made possible through trusted execution environment (**TEE**) devices that provide a hardware-attested identity. The specific implementation of this general concept is different across the devices that provide device identity, but they generally fall into two categories: [secure enclaves and cross-platform security keys].
 
 #### Secure Enclaves
 
@@ -61,7 +61,7 @@ To get started, review the following pages:
 
 - [Pomerium Policy Language](/docs/topcics/ppl.md) to learn how to build policies that use device ID.
 - [Enroll a Device](/guides/enroll-device.md) to teach end-users how to enroll devices on Pomerium.
-
+- [pomerium/webauthn](https://github.com/pomerium/webauthn) on GitHub, our implementation of the WebAuthn specification.
 
 ## Looking Ahead: Device Posture
 
@@ -74,6 +74,8 @@ Designing your security model to use device identity also primes your infrastruc
 [apple-enclave]: https://support.apple.com/guide/security/secure-enclave-sec59b0b31ff/web
 [apple-passkeys]: https://developer.apple.com/documentation/authenticationservices/public-private_key_authentication/supporting_passkeys
 [fido-spec]: https://fidoalliance.org/specifications/
+[secure enclaves and cross-platform security keys]: https://developers.yubico.com/WebAuthn/WebAuthn_Developer_Guide/Platform_vs_Cross-Platform.html
+[the perimeter]: https://www.microsoft.com/security/blog/2019/10/23/perimeter-based-network-defense-transform-zero-trust-model/
 [toms-hardware-tpm]: https://www.tomshardware.com/reviews/tpm-trusted-platform-module-header,5766.html
 [verge-tpm]: https://www.theverge.com/2021/6/25/22550376/microsoft-windows-11-tpm-chips-requirement-security
 [webauthn-api]: https://www.w3.org/TR/webauthn-2/#registration-extension
