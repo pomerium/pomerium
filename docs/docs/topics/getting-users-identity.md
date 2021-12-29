@@ -72,9 +72,8 @@ Though you will very likely be verifying signed-headers programmatically in your
 1. Provide pomerium with a base64 encoded Elliptic Curve ([NIST P-256] aka [secp256r1] aka prime256v1) Private Key. In production, you'd likely want to get these from your KMS.
 
 ```bash
-# see ./scripts/generate_self_signed_signing_key.sh
-openssl ecparam  -genkey  -name prime256v1  -noout  -out ec_private.pem
-openssl req  -x509  -new  -key ec_private.pem  -days 1000000  -out ec_public.pem  -subj "/CN=unused"
+openssl ecparam -genkey -name prime256v1 -noout -out ec_private.pem
+openssl ec -in ec_private.pem -pubout -out ec_public.pem
 # careful! this will output your private key in terminal
 cat ec_private.pem | base64
 ```
@@ -99,7 +98,7 @@ SIGNING_KEY=ZxqyyIPPX0oWrrOwsxXgl0hHnTx3mBVhQ2kvW1YB4MM=
 
 ![httpbin displaying verified jwt](./img/verifying-headers-2.png)
 
-**Viola!** Hopefully walking through a manual verification has helped give you a better feel for how signed JWT tokens are used as a secondary validation mechanism in pomerium.
+**Voila!** Hopefully walking through a manual verification has helped give you a better feel for how signed JWT tokens are used as a secondary validation mechanism in pomerium.
 
 ::: warning
 

@@ -57,7 +57,7 @@ Log level sets the global logging level for pomerium. Only logs of the desired l
 
 #### Proxy Log Level
 
-Proxy log level sets the logging level for the pomerium proxy service access logs. Only logs of the desired level and above will be logged.
+Proxy log level sets the logging level for the Pomerium Proxy service access logs. Only logs of the desired level and above will be logged.
 
 ### Cookies
 

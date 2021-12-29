@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/webauthnutil"
 )
 
 func (a *Authorize) handleResultAllowed(
@@ -212,7 +213,7 @@ func (a *Authorize) requireWebAuthnResponse(
 	if deviceType, ok := result.Allow.AdditionalData["device_type"].(string); ok {
 		q.Set(urlutil.QueryDeviceType, deviceType)
 	} else {
-		q.Set(urlutil.QueryDeviceType, "default")
+		q.Set(urlutil.QueryDeviceType, webauthnutil.DefaultDeviceType)
 	}
 	q.Set(urlutil.QueryRedirectURI, checkRequestURL.String())
 	signinURL.RawQuery = q.Encode()

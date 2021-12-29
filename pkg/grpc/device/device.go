@@ -5,10 +5,64 @@ import (
 	"context"
 	"fmt"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/pomerium/pomerium/pkg/encoding/base58"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
+
+// DeleteCredential deletes a credential from the databroker.
+func DeleteCredential(
+	ctx context.Context,
+	client databroker.DataBrokerServiceClient,
+	credentialID string,
+) (*Credential, error) {
+	credential, err := GetCredential(ctx, client, credentialID)
+	if status.Code(err) == codes.NotFound {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	any := protoutil.NewAny(credential)
+	_, err = client.Put(ctx, &databroker.PutRequest{
+		Record: &databroker.Record{
+			Type:      any.GetTypeUrl(),
+			Id:        credentialID,
+			Data:      any,
+			DeletedAt: timestamppb.Now(),
+		},
+	})
+	return credential, err
+}
+
+// DeleteEnrollment deletes an enrollment from the databroker.
+func DeleteEnrollment(
+	ctx context.Context,
+	client databroker.DataBrokerServiceClient,
+	enrollmentID string,
+) (*Enrollment, error) {
+	enrollment, err := GetEnrollment(ctx, client, enrollmentID)
+	if status.Code(err) == codes.NotFound {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	any := protoutil.NewAny(enrollment)
+	_, err = client.Put(ctx, &databroker.PutRequest{
+		Record: &databroker.Record{
+			Type:      any.GetTypeUrl(),
+			Id:        enrollmentID,
+			Data:      any,
+			DeletedAt: timestamppb.Now(),
+		},
+	})
+	return enrollment, err
+}
 
 // GetCredential gets a credential from the databroker.
 func GetCredential(

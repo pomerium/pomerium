@@ -13,6 +13,34 @@ const (
 	ConfigLastReloadSuccess = "config_last_reload_success"
 	// IdentityManagerLastRefreshTimestamp is IdP sync timestamp
 	IdentityManagerLastRefreshTimestamp = "identity_manager_last_refresh_timestamp"
+
+	// IdentityManagerLastUserRefreshSuccessTimestamp is a timestamp of last user refresh
+	IdentityManagerLastUserRefreshSuccessTimestamp = "identity_manager_last_user_refresh_success_timestamp"
+	// IdentityManagerLastUserRefreshErrorTimestamp is a timestamp of last user refresh error
+	IdentityManagerLastUserRefreshErrorTimestamp = "identity_manager_last_user_refresh_error_timestamp"
+	// IdentityManagerLastUserRefreshError is a counter of last user refresh errors
+	IdentityManagerLastUserRefreshError = "identity_manager_last_user_refresh_errors"
+	// IdentityManagerLastUserRefreshSuccess is a counter of last user refresh success
+	IdentityManagerLastUserRefreshSuccess = "identity_manager_last_user_refresh_success"
+
+	// IdentityManagerLastUserGroupRefreshSuccessTimestamp is a timestamp of last user group refresh
+	IdentityManagerLastUserGroupRefreshSuccessTimestamp = "identity_manager_last_user_group_refresh_success_timestamp"
+	// IdentityManagerLastUserGroupRefreshErrorTimestamp is a timestamp of last user group refresh error
+	IdentityManagerLastUserGroupRefreshErrorTimestamp = "identity_manager_last_user_group_refresh_error_timestamp"
+	// IdentityManagerLastUserGroupRefreshError is a counter of last user group refresh errors
+	IdentityManagerLastUserGroupRefreshError = "identity_manager_last_user_group_refresh_errors"
+	// IdentityManagerLastUserGroupRefreshSuccess is a counter of last user group refresh success
+	IdentityManagerLastUserGroupRefreshSuccess = "identity_manager_last_user_group_refresh_success"
+
+	// IdentityManagerLastSessionRefreshSuccessTimestamp is a timestamp of last session refresh
+	IdentityManagerLastSessionRefreshSuccessTimestamp = "identity_manager_last_session_refresh_success_timestamp"
+	// IdentityManagerLastSessionRefreshErrorTimestamp is a timestamp of last session refresh error
+	IdentityManagerLastSessionRefreshErrorTimestamp = "identity_manager_last_session_refresh_error_timestamp"
+	// IdentityManagerLastSessionRefreshError is a counter of last session refresh errors
+	IdentityManagerLastSessionRefreshError = "identity_manager_last_session_refresh_errors"
+	// IdentityManagerLastSessionRefreshSuccess is a counter of last session refresh success
+	IdentityManagerLastSessionRefreshSuccess = "identity_manager_last_session_refresh_success"
+
 	// BuildInfo is a gauge that may be used to detect whether component is live, and also has version
 	BuildInfo = "build_info"
 	// PolicyCountTotal is total amount of routes currently configured

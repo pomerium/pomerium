@@ -216,6 +216,7 @@ func (mgr *Manager) refreshDirectoryUserGroups(ctx context.Context) (nextRefresh
 	defer clearTimeout()
 
 	directoryGroups, directoryUsers, err := mgr.cfg.Load().directory.UserGroups(ctx)
+	metrics.RecordIdentityManagerUserGroupRefresh(ctx, err)
 	if err != nil {
 		msg := "failed to refresh directory users and groups"
 		if ctx.Err() != nil {
@@ -234,7 +235,7 @@ func (mgr *Manager) refreshDirectoryUserGroups(ctx context.Context) (nextRefresh
 	mgr.mergeGroups(ctx, directoryGroups)
 	mgr.mergeUsers(ctx, directoryUsers)
 
-	metrics.RecordIdentityManagerLastRefresh()
+	metrics.RecordIdentityManagerLastRefresh(ctx)
 
 	return mgr.cfg.Load().groupRefreshInterval
 }
@@ -404,6 +405,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 	}
 
 	newToken, err := mgr.cfg.Load().authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), &s)
+	metrics.RecordIdentityManagerSessionRefresh(ctx, err)
 	if isTemporaryError(err) {
 		log.Error(ctx).Err(err).
 			Str("user_id", s.GetUserId()).
@@ -472,6 +474,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 		}
 
 		err := mgr.cfg.Load().authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), &u)
+		metrics.RecordIdentityManagerUserRefresh(ctx, err)
 		if isTemporaryError(err) {
 			log.Error(ctx).Err(err).
 				Str("user_id", s.GetUserId()).

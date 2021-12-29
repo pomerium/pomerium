@@ -24,7 +24,7 @@ require (
 	github.com/golangci/golangci-lint v1.43.0
 	github.com/google/btree v1.0.1
 	github.com/google/go-cmp v0.5.6
-	github.com/google/go-jsonnet v0.17.0
+	github.com/google/go-jsonnet v0.18.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
@@ -48,12 +48,12 @@ require (
 	github.com/prometheus/common v0.32.1
 	github.com/prometheus/procfs v0.7.3
 	github.com/rjeczalik/notify v0.9.3-0.20201210012515-e2a77dcc14cf
-	github.com/rs/cors v1.8.0
-	github.com/rs/zerolog v1.26.0
+	github.com/rs/cors v1.8.2
+	github.com/rs/zerolog v1.26.1
 	github.com/scylladb/go-set v1.0.2
 	github.com/shirou/gopsutil/v3 v3.21.11
 	github.com/spf13/cobra v1.2.1 // indirect
-	github.com/spf13/viper v1.10.0
+	github.com/spf13/viper v1.10.1
 	github.com/stretchr/testify v1.7.0
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80
@@ -62,13 +62,13 @@ require (
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da
 	go.opencensus.io v0.23.0
 	go.uber.org/zap v1.19.1
-	golang.org/x/crypto v0.0.0-20211115234514-b4de73f9ece8
+	golang.org/x/crypto v0.0.0-20211215165025-cf75a172585e
 	golang.org/x/net v0.0.0-20211111083644-e5c967477495
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	google.golang.org/api v0.62.0
+	google.golang.org/api v0.63.0
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa
-	google.golang.org/grpc v1.42.0
+	google.golang.org/grpc v1.43.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/auth0.v5 v5.21.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
@@ -249,7 +249,7 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.5.0 // indirect
-	golang.org/x/sys v0.0.0-20211205182925-97ca703d548d // indirect
+	golang.org/x/sys v0.0.0-20211210111614-af8b64212486 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.7 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect

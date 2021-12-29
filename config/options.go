@@ -1033,8 +1033,11 @@ func (o *Options) GetQPS() float64 {
 
 // GetCodecType gets a codec type.
 func (o *Options) GetCodecType() CodecType {
-	if IsAll(o.Services) && o.CodecType == CodecTypeAuto {
-		return CodecTypeHTTP1
+	if o.CodecType == CodecTypeUnset {
+		if IsAll(o.Services) {
+			return CodecTypeHTTP1
+		}
+		return CodecTypeAuto
 	}
 	return o.CodecType
 }

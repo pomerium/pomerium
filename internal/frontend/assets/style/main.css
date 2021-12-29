@@ -147,6 +147,9 @@ body {
 .box-inner {
   padding: 35px;
 }
+.box-inner ~ .box-inner {
+  padding-top: 0;
+}
 
 .white {
   background: white;
@@ -333,6 +336,17 @@ div.category-header {
   background: url(/.pomerium/assets/img/jwt.svg) 100% 0 no-repeat;
 }
 
+
+.experimental-icon {
+  display: block;
+  position: relative;
+  top: 2px;
+  float: right;
+  width: 27px;
+  height: 25px;
+  background: url(/.pomerium/assets/img/experimental.svg) 100% 0 no-repeat;
+}
+
 div.category-link {
   background: #f6f9fc;
 
@@ -474,6 +488,7 @@ a.button {
   display: inline-block;
   text-decoration: none;
   text-transform: none;
+  white-space: nowrap;
   transition: box-shadow 150ms ease-in-out;
 }
 

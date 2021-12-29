@@ -224,7 +224,7 @@ The name of the session cookie sent to clients.
 - Environmental Variable: `COOKIE_SECRET`
 - Config File Key: `cookie_secret`
 - Type: [base64 encoded] `string`
-- Required for proxy service
+- Required for Proxy service
 
 Secret used to encrypt and sign session cookies. You can generate a random key with `head -c32 /dev/urandom | base64`.
 
@@ -510,6 +510,8 @@ Expose a prometheus endpoint on the specified port.
 
 #### Pomerium Metrics Tracked
 
+Each metric exposed by Pomerium has a `pomerium` prefix, which is omitted in the table below for brevity.
+
 Name                                          | Type      | Description
 --------------------------------------------- | --------- | -----------------------------------------------------------------------
 grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service
@@ -528,21 +530,41 @@ http_server_request_duration_ms               | Histogram | HTTP server request 
 http_server_request_size_bytes                | Histogram | HTTP server request size by service
 http_server_requests_total                    | Counter   | Total HTTP server requests handled by service
 http_server_response_size_bytes               | Histogram | HTTP server response size by service
-pomerium_build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion
-pomerium_config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service
-pomerium_config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service
-pomerium_config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service
+build_info                                    | Gauge     | Pomerium build metadata by git revision, service, version and goversion
+config_checksum_int64                         | Gauge     | Currently loaded configuration checksum by service
+config_last_reload_success                    | Gauge     | Whether the last configuration reload succeeded by service
+config_last_reload_success_timestamp          | Gauge     | The timestamp of the last successful configuration reload by service
 redis_conns                                   | Gauge     | Number of total connections in the pool
 redis_idle_conns                              | Gauge     | Total number of times free connection was found in the pool
 redis_wait_count_total                        | Counter   | Total number of connections waited for
 redis_wait_duration_ms_total                  | Counter   | Total time spent waiting for connections
 storage_operation_duration_ms                 | Histogram | Storage operation duration by operation, result, backend and service
 
+#### Identity Manager
+
+Identity manager metrics have `pomerium_identity_manager` prefix.
+
+Name                                          | Type      | Description
+--------------------------------------------- | --------- | -----------------------------------------------------------------------
+last_refresh_timestamp                        | Gauge     | Timestamp of last directory refresh operation.
+user_refresh_success_timestamp                | Gauge     | Timestamp of last successful user refresh.
+user_refresh_error_timestamp                  | Gauge     | Timestamp of last user refresh ended in an error.
+user_refresh_errors                           | Counter   | User refresh error counter.
+user_refresh_success                          | Counter   | User refresh success counter.
+user_group_refresh_success_timestamp          | Gauge     | Timestamp of last group successful user refresh.
+user_group_refresh_error_timestamp            | Gauge     | Timestamp of last user group refresh ended in an error.
+user_group_refresh_errors                     | Counter   | User group refresh error counter.
+user_group_refresh_success                    | Counter   | User group refresh success counter.
+session_refresh_success_timestamp             | Gauge     | Timestamp of last successful session refresh.
+session_refresh_error_timestamp               | Gauge     | Timestamp of last session refresh ended in an error.
+session_refresh_errors                        | Counter   | Session refresh error counter.
+session_refresh_success                       | Counter   | Session refresh success counter.
+
 #### Envoy Proxy Metrics
 
 As of `v0.9`, Pomerium uses [envoy](https://www.envoyproxy.io/) for the data plane. As such, proxy related metrics are sourced from envoy, and use envoy's internal [stats data model](https://www.envoyproxy.io/docs/envoy/latest/operations/stats_overview). Please see Envoy's documentation for information about specific metrics.
 
-All metrics coming from envoy will be labeled with `service="pomerium"` or `service="pomerium-proxy"`, depending if you're running all-in-one or distributed service mode.
+All metrics coming from envoy will be labeled with `service="pomerium"` or `service="pomerium-proxy"`, depending if you're running all-in-one or distributed service mode and have `pomerium` prefix added to the standard envoy metric name.
 
 
 ### Metrics Basic Authentication
@@ -587,7 +609,7 @@ The Client Certificate Authority is the x509 _public-key_ used to validate [mTLS
 - Options: `debug` `info` `warn` `error`
 - Default: value of `log_level` or `debug` if both are unset
 
-Proxy log level sets the logging level for the pomerium proxy service access logs. Only logs of the desired level and above will be logged.
+Proxy log level sets the logging level for the Pomerium Proxy service access logs. Only logs of the desired level and above will be logged.
 
 
 ### Service Mode
@@ -635,7 +657,7 @@ tracing_datadog_address | `host:port` address of the Datadog Trace Agent. Defaul
 
 #### Jaeger (partial)
 
-**Warning** At this time, Jaeger protocol does not capture spans inside the proxy service. Please use Zipkin protocol with Jaeger for full support.
+**Warning** At this time, Jaeger protocol does not capture spans inside the Proxy service. Please use Zipkin protocol with Jaeger for full support.
 
 [Jaeger](https://www.jaegertracing.io/) is a distributed tracing system released as open source by Uber Technologies. It is used for monitoring and troubleshooting microservices-based distributed systems, including:
 
@@ -850,7 +872,7 @@ Authenticate Service URL is the externally accessible URL for the authenticate s
 - Required; inferred in all-in-one mode to be localhost.
 - Example: `https://pomerium-authorize-service.default.svc.cluster.local` or `https://localhost:5443`
 
-Authorize Service URL is the location of the internally accessible authorize service. NOTE: Unlike authenticate, authorize has no publicly accessible http handlers so this setting is purely for gRPC communication.
+Authorize Service URL is the location of the internally accessible Authorize service. NOTE: Unlike authenticate, authorize has no publicly accessible http handlers so this setting is purely for gRPC communication.
 
 If your load balancer does not support gRPC pass-through you'll need to set this value to an internally routable location (`https://pomerium-authorize-service.default.svc.cluster.local`) instead of an externally routable one (`https://authorize.corp.example.com`).
 
@@ -918,9 +940,15 @@ Default Upstream Timeout is the default timeout applied to a proxied route when 
 
 Set Response Headers specifies a mapping of [HTTP Header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers) to be added globally to all managed routes and pomerium's authenticate service.
 
-By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/OWASP_Secure_Headers_Project) are set.
+By default, conservative [secure HTTP headers](https://www.owasp.org/index.php/OWASP_Secure_Headers_Project) are set:
+
+  - `max-age=31536000` instructs the browser to pin the certificate for a domain for a year. This helps prevent man-in-the-middle attacks, but can create issues when developing new environments with temporary certificates. See [Troubleshooting - HSTS](/docs/troubleshooting.md#hsts) for more information.
+  - `includeSubDomains` applies these rules to subdomains, which is how individual routes are defined.
+  - `preload` instructs the browser to preload the certificate from an HSTS preload service if available. This means that the certificate can be loaded from an already-trusted secure connection, and the user never needs to connect to your domain without TLS.
 
 ![pomerium security headers](./img/security-headers.png)
+
+See [MDN Web Docs - Strict-Transport-Security](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security) for more information.
 
 :::tip
 
@@ -1727,7 +1755,7 @@ If set, enables proxying of websocket connections.
 - Required
 - Example: `https://authorize.corp.example.com`
 
-Authorize Service URL is the location of the internally accessible authorize service. Multiple URLs can be specified with `authorize_service_urls`.
+Authorize Service URL is the location of the internally accessible Authorize service. Multiple URLs can be specified with `authorize_service_urls`.
 
 
 ### Google Cloud Serverless Authentication Service Account
