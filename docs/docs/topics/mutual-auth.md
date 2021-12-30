@@ -23,10 +23,10 @@ The concept of mutual authentication is deceptively simple. It means that both s
 
 ## Pomerium Defaults
 
-> - **Security**: Moderate
-> - **Difficulty**: Easy
-> - **Encrypted**: Yes (from the end user to Pomerium. It's up to the service to provide a TLS endpoint for Pomerium to use.)
-> - **Mutual Authentication**: None
+- **Security**: Moderate
+- **Difficulty**: Easy
+- **Encrypted**: Yes (from the end user to Pomerium. It's up to the service to provide a TLS endpoint for Pomerium to use.)
+- **Mutual Authentication**: None
 
 Let's look at a basic installation of Pomerium on a local network, with a single upstream service. This service contains sensitive data that we want to ensure is confidential and cannot be tampered with.
 
@@ -71,14 +71,14 @@ While your network *should* be secured to only allow traffic at specified ports 
 
 ## JWT Verification: Application-based Mutual Authentication
 
-> - **Security**: Strong
-> - **Difficulty**: Moderate
-> - **Encrypted**: Yes (from the end user to Pomerium. It's up to the service to provide a TLS endpoint for Pomerium to use.)
-> - **Mutual Authentication**: Application Layer
+- **Security**: Strong
+- **Difficulty**: Moderate
+- **Encrypted**: Yes (from the end user to Pomerium. It's up to the service to provide a TLS endpoint for Pomerium to use.)
+- **Mutual Authentication**: Application Layer
 
-Many, but not all, modern web applications support [json web tokens][jwt-rfc] (**JWTs**). These tokens can be provided by Pomerium (with the [`pass_identity_headers`] key) so that an upstream service can independently verify that the traffic has properly gone through Pomerium, and that the incoming user request is authorized.
+Many, but not all, modern web applications support [JSON web tokens][jwt-rfc] (**JWTs**). These tokens can be provided by Pomerium (with the [`pass_identity_headers`] key) so that an upstream service can independently verify that the traffic has properly gone through Pomerium, and that the incoming user request is authorized.
 
-JWTs are verified the same way as TLS certificates, by checking that they are signed by a trusted authority. Pomerium provides that authority with a json web key set (**JWKS**) which signs the JWT. Upstream services that utilize JWTs can be directed to Pomerium for the JWKS.
+JWTs are verified the same way as TLS certificates, by checking that they are signed by a trusted authority. Pomerium provides that authority with a JSON web key set (**JWKS**) which signs the JWT. Upstream services that utilize JWTs can be directed to Pomerium for the JWKS.
 
 Let's look at an example:
 
@@ -126,10 +126,10 @@ In this way, we've applied a zero-trust security model to the application layer 
 
 ## mTLS: Protocol-based Mutual Authentication
 
-> - **Security**: Excellent
-> - **Difficulty**: Hard
-> - **Encrypted**: Yes
-> - **Mutual Authentication**: Protocol Layer
+>{.breakdown} - **Security**: Excellent
+- **Difficulty**: Hard
+- **Encrypted**: Yes
+- **Mutual Authentication**: Protocol Layer
 
 ### [North-south mTLS](https://en.wikipedia.org/wiki/North-south_traffic)
 
