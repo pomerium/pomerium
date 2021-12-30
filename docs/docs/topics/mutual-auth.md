@@ -296,7 +296,7 @@ flowchart LR
   - The communication between Pomerium and the user app is mutually authenticated with mTLS, and the user's JWT is passed from Pomerium to the app to confirm the user identity to the service. The service validates the JWT against Pomerium's signing Key.
 - The admin also authenticates with Pomerium to access their services:
   - The connection is authenticated and encrypted the same as the user's, but the route to the admin app also requires a client certificate for mutual authentication at the protocol layer.
-  - The connection from the admin to the admin app is now mutually authenticated both upstream and downstream from Pomerium.
+  - The connections from the admin to the admin services are now mutually authenticated both upstream and downstream from Pomerium.
 - The API server is required by both the user and admin apps. Rather than build authentication into the API service, it is accessible only through a sidecar. The sidecar only accepts mTLS-authenticated connections from the proxy, so both apps connect to the API through Pomerium.
 
 ## Legend
