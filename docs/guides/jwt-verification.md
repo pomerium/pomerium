@@ -11,7 +11,7 @@ description: >-
 # JWT Verification
 This example demonstrates how to verify the [Pomerium JWT assertion header](https://www.pomerium.io/reference/#pass-identity-headers) using [Envoy](https://www.envoyproxy.io/). This is useful for legacy or 3rd party applications which can't be modified to perform verification themselves.
 
-This guide is a practical demonstration of some of the concept of mutual authentication, using JSON web tokens (**JWTs**).
+This guide is a practical demonstration of some of the topics discussed in [Mutual Authentication: A Component of Zero-Trust].
 
 ## Requirements
 - [Docker](https://www.docker.com/)
@@ -29,13 +29,15 @@ Three services are configured in a `docker-compose.yaml` file:
 
 In our Docker Compose configuration we'll define two networks. `pomerium` and `envoy-jwt-checker` will be on the `frontend` network, simulating your local area network (**LAN**). `envoy-jwt-checker` will also be on the `backend` network, along with `httpbin`. This means that `envoy-jwt-checker` is the only other service that can communicate with `httpbin`.
 
+For a detailed explanation of this security model, see [Mutual Authentication With a Sidecar]
+
 Once running, the user visits [verify.localhost.pomerium.io], is authenticated through [authenticate.localhost.pomerium.io], and then the HTTP request is sent to envoy which proxies it to the httpbin app.
 
 Before allowing the request Envoy will verify the signed JWT assertion header using the public key defined by `authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json`.
 
 ## Setup
 
-The configuration presented here assumes a working route to the domain space `*.localhost.pomerium.io`. You can make entries in your `hosts` file for the domains used or change this value to match your local environment.
+The configuration presented here assumes a working route to the domain space `*.localhost.pomerium.io`. You can make entries in your `hosts` file for the domains used, or change this value to match your local environment.
 
 ::: tip
 Mac and Linux users can use DNSMasq to map the `*.localhost.pomerium.io` domain (including all subdomains) to a specified test address:
@@ -221,7 +223,7 @@ Replace the identity provider credentials, secrets, and signing key. Adjust the 
 
 ## Run
 
-You should now be able to run the example with the following steps.
+You should now be able to run the example with:
 
 1. Turn on the example configuration in Docker:
 
@@ -237,4 +239,6 @@ You should now be able to run the example with the following steps.
 [httpbin.localhost.pomerium.io]: https://verify.localhost.pomerium.io
 [Local Development with Wildcard DNS on Linux]: https://sixfeetup.com/blog/local-development-with-wildcard-dns-on-linux
 [Local Development with Wildcard DNS]: https://blog.thesparktree.com/local-development-with-wildcard-dns
+[Mutual Authentication: A Component of Zero-Trust]: /docs/topics/mutual-auth.md
+[Mutual Authentication With a Sidecar]: /docs/topics/mutual-auth.md#mutual-authentication-with-a-sidecar
 [verify.localhost.pomerium.io]: https://verify.localhost.pomerium.io
