@@ -181,6 +181,7 @@ module.exports = {
             "topics/device-identity",
             "topics/getting-users-identity",
             "topics/original-request-context",
+            "topics/mutual-auth",
             "topics/ppl",
             "topics/production-deployment",
             "topics/programmatic-access",
