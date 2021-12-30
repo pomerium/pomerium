@@ -28,46 +28,43 @@ The concept of mutual authentication is deceptively simple. It means that both s
 > - **Encrypted**: Yes (from the end user to Pomerium. It's up to the service to provide a TLS endpoint for Pomerium to use.)
 > - **Mutual Authentication**: None
 
-Let's look at a basic installation of Pomerium on a local network, with a single downstream service. This service contains sensitive data that we want to ensure is confidential and cannot be tampered with.
+Let's look at a basic installation of Pomerium on a local network, with a single upstream service. This service contains sensitive data that we want to ensure is confidential and cannot be tampered with.
 
 ::: tip Note
-This section describes multiple services of Pomerium like Authenticate and Proxy as separate services. If you are running Pomerium in all-in-one mode, these will be a single process/container in your environment.
+Throughout this guide we will diagram Pomerium as a single service, as it is in all-in-one mode. This is the version provided by our [binaries] and in our Docker-based [Quick Start] page.
 :::
 
 ```mermaid
-flowchart TD
-    D[End User]
-        D <--> A
-    subgraph LAN
-    style LAN stroke-dasharray: 5 5
-    A(Pomerium Proxy Service)
-    B(Pomerium Authenticate Service)
-    A <-.-> B
-    C(Service)
-    A <--> C
-    end
+flowchart LR
+  C(End User)
+  D(Identity Provider)
+  C==o A
+  A-.-D
+  subgraph lan[Internal Network]
+    style lan stroke-dasharray: 5 5
+    A(Pomerium)
+    B(Upstream Service)
+    A --- B
+  end
 ```
 
-1. When the user connects to the route `service.example.com` the traffic is received by the Pomerium Proxy service.
-1. The proxy redirects to the Authenticate service to validate the user by having them sign in with the identity provider (**IdP**).
-1. After authentication succeeds, the proxy verifies that the authenticated (**authn**) user is authorized (**authz**) to access the service, and begins communication with it.
+1. When the user connects to the route `service.example.com` the traffic is received by Pomerium.
+1. Pomerium redirects the user to the identity provider (**IdP**) to sign in and validate their identity.
+1. After signing in to the IdP, Pomerium verifies that the authenticated (**authn**) user is authorized (**authz**) to access the service, and begins communication with it.
 
-This is a good start, only the users that are supposed to have access to the service get through. But this model is dependent on the security of your network perimeter. If a bad actor gains access to your local area network (**LAN**), they can now communicate with the service directly:
+This is a good start, only the users that are supposed to have access to the service get through. But this model is dependent on the security of your network perimeter. If a bad actor gains access to your internal network, they can now communicate with the service directly:
 
 ```mermaid
-flowchart TD
-    D[End User]
-    D <--> A
-    E[/Hacker/]
-    E<--->C
-    subgraph LAN
-    style LAN stroke-dasharray: 5 5
-    A(Pomerium Proxy Service)
-    B(Pomerium Authenticate Service)
-    A <-.-> B
-    C(Service)
-    A <--> C
-    end
+flowchart LR
+  C(End User)
+  C==o A
+  subgraph lan[Internal Network]
+    style lan stroke-dasharray: 5 5
+    A(Pomerium)
+    B(Upstream Service)
+    A --- B
+  end
+  E[/Hacker/]---B
 ```
 
 While your network *should* be secured to only allow traffic at specified ports and directed to specified services, this creates a single point of failure. A hacker need only bypass your firewall to get direct access to your service.
@@ -79,56 +76,53 @@ While your network *should* be secured to only allow traffic at specified ports 
 > - **Encrypted**: Yes (from the end user to Pomerium. It's up to the service to provide a TLS endpoint for Pomerium to use.)
 > - **Mutual Authentication**: Application Layer
 
-Many, but not all, modern web applications support [json web tokens](https://datatracker.ietf.org/doc/html/rfc7519) (**JWTs**). These tokens can be provided by Pomerium (with the [`pass_identity_headers`] key) so that an upstream service can independently verify that the traffic has properly gone through Pomerium, and that the incoming user request is authorized.
+Many, but not all, modern web applications support [json web tokens][jwt-rfc] (**JWTs**). These tokens can be provided by Pomerium (with the [`pass_identity_headers`] key) so that an upstream service can independently verify that the traffic has properly gone through Pomerium, and that the incoming user request is authorized.
 
-Let's look at an example, modeled from our [Grafana] integration guide:
+JWTs are verified the same way as TLS certificates, by checking that they are signed by a trusted authority. Pomerium provides that authority with a json web key set (**JWKS**) which signs the JWT. Upstream services that utilize JWTs can be directed to Pomerium for the JWKS.
 
-```mermaid
-flowchart TD
-    D[End User]
-    D<-->A
-    subgraph LAN
-    style LAN stroke-dasharray: 5 5
-        subgraph Pomerium [ ];
-        style Pomerium stroke-width: 0
-            A(Pomerium Proxy Service)
-            B(Pomerium Authenticate Service)
-        end
-            C(Grafana)
-    end
-    A <-.-> B
-    A <--> C
-    C -.-> B
-```
-
-1. When the user connects to the route `grafana.example.com` the traffic is received by the Pomerium Proxy service.
-1. The proxy redirects to the Authenticate service to validate the user by having them sign in with the identity provider (**IdP**).
-1. After authentication succeeds, the proxy verifies that the authenticated user is authorized to access the service, and sends the connection to Grafana, including the `X-Pomerium-JWT-Assertion` header containing the JWT signed by the key set in the Pomerium Authenticate service.
-1. The service (Grafana) reads the signing key from the Authenticate service, and uses it to validate the JWT. Finding it to match, the traffic is allowed.
-
-Our hacker may be able to forge a basic JWT, but they can't sign it with the key secured in the Pomerium configuration, so Grafana rejects their connections:
+Let's look at an example:
 
 ```mermaid
-flowchart TD
-    D[End User]
-    E[/Hacker/]
-    E---xC
-    D<-->A
-    subgraph LAN
-    style LAN stroke-dasharray: 5 5
-        subgraph Pomerium[ ];
-        style Pomerium stroke-width: 0
-            A(Pomerium Proxy Service)
-            B(Pomerium Authenticate Service)
-        end
-            C(Grafana)
-    end
-    A <-.-> B
-    A <--> C
-    C -.-> B
+flowchart LR
+  D(End User)
+  C(Identity Provider)
+  D==oA
+  subgraph lan[Internal Network]
+    direction LR
+    style lan stroke-dasharray: 5 5
+    A(Pomerium)
+    B(Upstream Service)
+    A ==o B
+  end
+  B-.JWKS Verification.-A
+  C-.-A
 ```
 
-In this way, we've applied a zero-trust security model to the application layer of our infrastructure's network model.
+1. When the user connects to the route `service.example.com` the traffic is received Pomerium.
+1. Pomerium redirects the user to the identity provider (**IdP**) to sign in and validate their identity.
+1. After authentication succeeds, Pomerium verifies that the authenticated user is authorized to access the upstream service, and sends the connection to it, including the `X-Pomerium-JWT-Assertion` header containing the JWT signed by the key set in Pomerium.
+1. The upstream service reads the signing key from Pomerium, and uses it to validate the JWT. Finding that the JWT was signed by the trusted key, the traffic is allowed.
+
+Our hacker may be able to forge a basic JWT, but they can't sign it with the key secured in the Pomerium configuration, so the upstream service rejects their connections:
+
+```mermaid
+flowchart LR
+D(End User)
+C(Identity Provider)
+D==oA
+subgraph lan[Internal Network]
+  direction LR
+  style lan stroke-dasharray: 5 5
+  A(Pomerium)
+  B(Upstream Service)
+  A ==o B
+end
+B-.JWKS Verification.-A
+C-.-A
+E[/Hacker/] --x B
+```
+
+In this way, we've applied a zero-trust security model to the application layer of our infrastructure's network model. You can see JWT verification in practice with our [Grafana] integration guide.
 
 ## mTLS: Protocol-based Mutual Authentication
 
@@ -141,14 +135,15 @@ Most tech professionals are familiar with [Transport Layer Security] (**TLS**). 
 
 ```mermaid
 flowchart RL
-    subgraph pc [PC]
-    D(Browser) -.-> B(Trusted Keystore)
-    end
-    subgraph Server
-    D-. http .-> A[Service]
-    A-. Certificate .->D
-    end
-    D<-- https -->A
+  subgraph pc [PC]
+    D(Browser) -.- B(Trusted Keystore)
+  end
+  subgraph Server
+    A(Service)-.Certificate.->D
+  end
+  D==oA
+  style pc fill: white, stroke: black
+style Server fill: white, stroke: black
 ```
 
 1. The browser initiates a connection to `example.com` over the `http` protocol.
@@ -160,36 +155,37 @@ The process above confirms the identity of the *server*, protecting the client. 
 
 ```mermaid
 flowchart RL
-    subgraph Server
-    A[Service]<-.->C[Trusted Keystore]
-    end
-    D(Browser)-- Client Certificate -->A
-    A-- Client Certificate Request --->D
+  subgraph pc [PC]
+    D(Browser) -.- B(Trusted Keystore)
+  end
+  subgraph Server
+    A(Service)-.-C(Trusted Keystore)
+  end
+  D(Browser)-. Client Certificate .->A
+  A-. Server Certificate ..->D
+  D<==>A
+  style pc fill: white, stroke: black
+  style Server fill: white, stroke: black
 ```
-
-::: tip
-The exchange diagrammed here occurs *after* the initial connection and confirmation of the server-side certificate shown above.
-:::
 
 1. After the server certificate is trusted and an `HTTPS` connection is established, the server requests a client certificate.
 1. The user is prompted to use one of the certificates previously imported into the browser. This certificate is sent to the server
 1. The server validates the client certificate signing authority against its trusted keystore or authorized client CA. Once authorized, the server resumes normal encrypted communication with the client.
 
-mTLS can also be configured between Pomerium and an upstream service. This secures the service itself from bad actors in your network by only allowing communication with the Pomerium proxy.
+mTLS can also be configured between Pomerium and the end user, and/or with an upstream service. Configuring mTLS for many end users is cumbersome, and new technologies like [device identity verification] provide verification of the user and their hardware. But mTLS between Pomerium and an upstream service need only be configured once per service, and minimally maintained by updating certificates.
 
 ```mermaid
-flowchart TD
-    A[End User]
-    B[/Hacker/]
-    subgraph LAN
-    C(Pomerium Proxy Service)
-    D(Pomerium Authenticate Service)
-    E(Service)
-    end
-    A<--mTLS-->C
-    C<-.HTTPS.->D
-    C<--mTLS-->E
-    B---xE
+flowchart LR
+  A(End User)
+  B[/Hacker/]
+  subgraph lan[Internal Network]
+    style lan stroke-dasharray: 5 5
+    C(Pomerium)
+    D(Service)
+  end
+  A<==>C
+  C<==>D
+  B---xD
 ```
 
 In this way, we've applied a zero-trust security model to the protocol layer of our infrastructure's network model.
@@ -201,26 +197,28 @@ If your company depends on software that was not built for mutual authentication
 We describe the technical steps to test such a configuration using Envoy and Docker containers in our [JWT Verification] guide, but let's describe it conceptually here:
 
 ```mermaid
-flowchart BT
-    A(Pomerium Proxy Service)
-    B(Pomerium Authenticate Service)
-    C(Sidecar)
-    D[End User]
-    E[Service]
-    D<-->A
-    subgraph Docker Network: frontend
-        A
-        B
-        C
+flowchart LR
+  A(End User)
+  B(Pomerium)
+  C(Sidecar)
+  D(Service)
+  subgraph lan[Internal Network]
+    style lan stroke-dasharray: 5 5
+    subgraph spacing[ ]
+      style spacing stroke-width:0px,fill:#ffffde;
     end
-    subgraph Docker Network: backend
-        C
-        E<-->C
+    subgraph docker1 [Docker Network Frontend]
+      style docker1 stroke-dasharray:5 5;
+      B
     end
-    A <-.-> B
-    A <--> C
-    C --> A
-    C -.-> B
+    subgraph docker2 [Docker Network Backend]
+      C
+      D
+    end
+  end
+  A==oB
+  B<==>C
+  C---D
 ```
 
 In this example, the service is only network-accessible from the `backend` network. The only other container with access to that network is `sidecar`, which performs the JWT or mTLS authentication before allowing traffic to the service.
@@ -228,28 +226,30 @@ In this example, the service is only network-accessible from the `backend` netwo
 Because the `backend` network is inaccessible to any traffic not coming from the sidecar, a bad actor has no way of accessing it:
 
 ```mermaid
-flowchart BT
-    A(Pomerium Proxy Service)
-    B(Pomerium Authenticate Service)
-    C(Sidecar)
-    D[End User]
-    E[Service]
-    F[/Hacker/]
-    D<-->A
-    F--xC
-    subgraph Docker Network: frontend
-        A
-        B
-        C
+flowchart LR
+  A(End User)
+  B(Pomerium)
+  C(Sidecar)
+  D(Service)
+  E[/Hacker/]
+  subgraph lan[Internal Network]
+    style lan stroke-dasharray: 5 5
+    subgraph spacing[ ]
+      style spacing stroke-width:0px,fill:#ffffde;
     end
-    subgraph Docker Network: backend
-        C
-        E<-->C
+    subgraph docker1 [Docker Network Frontend]
+      style docker1 stroke-dasharray:5 5;
+      B
     end
-    A <-.-> B
-    A <--> C
-    C --> A
-    C -.-> B
+    subgraph docker2 [Docker Network Backend]
+      C
+      D
+    end
+  end
+  A==oB
+  B<==>C
+  C---D
+  E---xdocker2
 ```
 
 ## Putting It All Together
@@ -261,46 +261,130 @@ Security practices can often seem like a scale with best practices at one end an
 At this point, the security model becomes difficult to accurately describe with a simple graph... but we'll try anyway.
 
 ```mermaid
-flowchart TD
-    A[End User]
-    G[Admin]
-    subgraph LAN
-    style LAN stroke-dasharray: 5 5
+flowchart LR
+  A(End User)
+  B(Pomerium)
+  C(Identity Provider)
+  D(User App)
+  E(Admin Services)
+  F(Sidecar)
+  G(Admin)
+  H(API)
+  subgraph lan[Internal Network]
+    style lan stroke-dasharray: 5 5
     direction LR
-        subgraph Pomerium [ ];
-        style Pomerium stroke-width: 0
-        B(Pomerium Proxy Service)
-        C(Pomerium Authenticate Service)
-        end
-        subgraph Services [ ];
-        direction TB
-        style Services stroke-width: 0
-        D(User App)
-        E(Admin App)
-        end
-        F[Sidecar]
-        subgraph Sidecar [ ];
-        style Sidecar stroke-dasharray: 5 5
-        H(API)
-        F<-->H
-        end
+    B
+    D
+    E
+    F
+    subgraph Sidecar [Secure VLAN];
+      H
+      F---H
     end
-    A <-- TLS --> B
-    A <--JWT--> C
-    B -.-> C
-    B<--mTLS & JWT-->D
-    B<--mTLS-->E
-    B<--mTLS--->F
-    G<==mTLS==>B
-    G<--->C
+  end
+  A ==TLS==o B
+  B<==mTLS==>D
+  B-.JWT.-D
+  B<==mTLS==>E
+  B<==mTLS===>F
+  G<==mTLS==>B
+  C-.-B
 ```
 
-- In this example, End users authenticate with Pomerium to access the user app. Their connection to the proxy service is authenticated after signing in to their IdP and encrypted with TLS. The communication between the proxy service and the user app is mutually authenticated with mTLS, and the user's JWT is passed from the proxy to the app to confirm the user identity to the service.
-- The Admin's connection is authenticated and encrypted the same was as the user's, but the route to the admin app also requires a client certificate. The connection from the admin to the admin app is now mutually authenticated both upstream and downstream from the proxy service.
+- In this example, End users authenticate with Pomerium to access the user app:
+  - Their connection to Pomerium is authenticated after signing in to their identity provider, and encrypted with TLS.
+  - The communication between Pomerium and the user app is mutually authenticated with mTLS, and the user's JWT is passed from Pomerium to the app to confirm the user identity to the service. The service validates the JWT against Pomerium's signing Key.
+- The admin also authenticates with Pomerium to access their services:
+  - The connection is authenticated and encrypted the same as the user's, but the route to the admin app also requires a client certificate for mutual authentication at the protocol layer.
+  - The connection from the admin to the admin app is now mutually authenticated both upstream and downstream from Pomerium.
 - The API server is required by both the user and admin apps. Rather than build authentication into the API service, it is accessible only through a sidecar. The sidecar only accepts mTLS-authenticated connections from the proxy, so both apps connect to the API through Pomerium.
 
-[`pass_identity_headers`]: /reference/readme.md#pass-identity-headers
+## Legend
+
+The expandable legend below describes how different elements are used in the graphs above.
+
+::: details Legend
+The graphs in this guide use a consistent format to indicate certain aspects of the data flow.
+
+---
+
+```mermaid
+flowchart LR
+A --HTTP--- B
+```
+
+Thin lines represent un-encrypted traffic over HTTP.
+
+---
+
+```mermaid
+flowchart LR
+A[Client]==tls==o B[Server]
+```
+
+Thick lines represent encrypted traffic using TLS. the circle represents which end of the connection is providing a certificate to establish trust.
+
+---
+
+```mermaid
+flowchart LR
+A<==mTLS==>B
+```
+
+Thick lines with arrows on both ends represent a connection secured by mTLS, where each side provides a TLS certificate and the other can verify its identity.
+
+---
+
+```mermaid
+flowchart LR
+A-.out-of-band.-B
+```
+
+Dashed lines represent out-of-band connections. These occur when, for example, various services talk to each other to validate connections made by the user.
+
+---
+
+```mermaid
+flowchart LR
+A[/Hacker/]--broken--x B[Server]
+```
+
+Lines with an **X** represent a failed attempt to gain access to a system.
+
+---
+
+```mermaid
+flowchart LR
+subgraph Internet
+style Internet stroke-dasharray: 5 5
+D[Client]
+end
+subgraph lan [Internal Network]
+  direction TB
+  style lan stroke-dasharray: 5 5
+  A[Pomerium]
+  D--oA
+  A<==>E
+  E[Service Mesh]
+  E<==>C
+  subgraph docker [Docker Network]
+    style docker margin-top: 10
+    direction TB
+    C[Service]
+  end
+end
+```
+
+Yellow blocks represent different networks like the internet, an internal network, or a virtual network like Docker provides. Dashed borders represent network perimeters allowing general access. Solid borders represent secured perimeters only permitting the traffic represented in the diagram.
+:::
+
+[binaries]: /docs/install/binary.md
+[device identity verification]: /docs/topics/device-identity.md
 [Grafana]: /guides/grafana.md
 [JWT Verification]: /guides/jwt-verification.md
+[jwt-rfc]: https://datatracker.ietf.org/doc/html/rfc7519
+[Kubernetes]: /docs/k8s/helm.md
+[`pass_identity_headers`]: /reference/readme.md#pass-identity-headers
+[Quick Start]: /docs/install/readme.md
 [Transport Layer Security]: https://en.wikipedia.org/wiki/Transport_Layer_Security
 [zero trust]: https://link-to-something.com

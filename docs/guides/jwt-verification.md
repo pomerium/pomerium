@@ -40,7 +40,7 @@ Before allowing the request Envoy will verify the signed JWT assertion header us
 The configuration presented here assumes a working route to the domain space `*.localhost.pomerium.io`. You can make entries in your `hosts` file for the domains used, or change this value to match your local environment.
 
 ::: tip
-Mac and Linux users can use DNSMasq to map the `*.localhost.pomerium.io` domain (including all subdomains) to a specfied test address:
+Mac and Linux users can use DNSMasq to map the `*.localhost.pomerium.io` domain (including all subdomains) to a specified test address:
 
 - [Local Development with Wildcard DNS] (macOS)
 - [Local Development with Wildcard DNS on Linux]
