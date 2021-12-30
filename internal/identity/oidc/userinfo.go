@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -47,7 +47,7 @@ func (transport *userInfoRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 	}
 	defer res.Body.Close()
 
-	bs, err := ioutil.ReadAll(res.Body)
+	bs, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -68,6 +68,6 @@ func (transport *userInfoRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 		bs, _ = json.Marshal(userInfo)
 	}
 
-	res.Body = ioutil.NopCloser(bytes.NewReader(bs))
+	res.Body = io.NopCloser(bytes.NewReader(bs))
 	return res, nil
 }

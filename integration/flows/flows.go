@@ -4,7 +4,7 @@ package flows
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -111,7 +111,7 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 		if err != nil {
 			return nil, err
 		}
-		bodyBytes, err := ioutil.ReadAll(res.Body)
+		bodyBytes, err := io.ReadAll(res.Body)
 		if err != nil {
 			return nil, err
 		}

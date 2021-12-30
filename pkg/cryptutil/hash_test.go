@@ -5,7 +5,6 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -39,7 +38,7 @@ func TestPasswordHashing(t *testing.T) {
 
 // Benchmarks SHA256 on 16K of random data.
 func BenchmarkSHA256(b *testing.B) {
-	data, err := ioutil.ReadFile("testdata/random")
+	data, err := os.ReadFile("testdata/random")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -51,7 +50,7 @@ func BenchmarkSHA256(b *testing.B) {
 
 // Benchmarks SHA512/256 on 16K of random data.
 func BenchmarkSHA512_256(b *testing.B) {
-	data, err := ioutil.ReadFile("testdata/random")
+	data, err := os.ReadFile("testdata/random")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -73,7 +72,7 @@ func BenchmarkBcrypt(b *testing.B) {
 
 func ExampleHash() {
 	tag := "hashing file for lookup key"
-	contents, err := ioutil.ReadFile("testdata/random")
+	contents, err := os.ReadFile("testdata/random")
 	if err != nil {
 		fmt.Printf("could not read file: %v\n", err)
 		os.Exit(1)

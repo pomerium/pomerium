@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -669,7 +668,7 @@ func (o *Options) Validate() error {
 	}
 
 	if o.ClientCAFile != "" {
-		_, err := ioutil.ReadFile(o.ClientCAFile)
+		_, err := os.ReadFile(o.ClientCAFile)
 		if err != nil {
 			return fmt.Errorf("config: bad client ca file: %w", err)
 		}
@@ -947,7 +946,7 @@ func (o *Options) GetClientCA() ([]byte, error) {
 		return base64.StdEncoding.DecodeString(o.ClientCA)
 	}
 	if o.ClientCAFile != "" {
-		return ioutil.ReadFile(o.ClientCAFile)
+		return os.ReadFile(o.ClientCAFile)
 	}
 	return nil, nil
 }

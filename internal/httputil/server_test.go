@@ -3,7 +3,7 @@ package httputil
 import (
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -108,7 +108,7 @@ func TestNewServer(t *testing.T) {
 				if err != nil {
 					log.Fatal(err)
 				}
-				greeting, err := ioutil.ReadAll(res.Body)
+				greeting, err := io.ReadAll(res.Body)
 				res.Body.Close()
 				if err != nil {
 					log.Fatal(err)

@@ -6,7 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/caddyserver/certmagic"
 
@@ -32,7 +32,7 @@ func GetCertPool(ca, caFile string) (*x509.CertPool, error) {
 			return nil, fmt.Errorf("failed to decode base64-encoded certificate authority: %w", err)
 		}
 	} else {
-		data, err = ioutil.ReadFile(caFile)
+		data, err = os.ReadFile(caFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read certificate authority file (%s): %w", caFile, err)
 		}

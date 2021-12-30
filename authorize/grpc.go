@@ -2,7 +2,7 @@ package authorize
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -159,7 +159,7 @@ func getHTTPRequestFromCheckRequest(req *envoy_service_auth_v3.CheckRequest) *ht
 		Method:     hattrs.GetMethod(),
 		URL:        &u,
 		Header:     make(http.Header),
-		Body:       ioutil.NopCloser(strings.NewReader(hattrs.GetBody())),
+		Body:       io.NopCloser(strings.NewReader(hattrs.GetBody())),
 		Host:       hattrs.GetHost(),
 		RequestURI: hattrs.GetPath(),
 	}

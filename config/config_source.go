@@ -3,7 +3,7 @@ package config
 import (
 	"context"
 	"crypto/sha256"
-	"io/ioutil"
+	"os"
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
@@ -250,7 +250,7 @@ func (src *FileWatcherSource) check(ctx context.Context, cfg *Config) {
 
 	for _, f := range fs {
 		_, _ = h.Write([]byte{0})
-		bs, err := ioutil.ReadFile(f)
+		bs, err := os.ReadFile(f)
 		if err == nil {
 			src.watcher.Add(f)
 			_, _ = h.Write(bs)

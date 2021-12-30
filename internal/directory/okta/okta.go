@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"sort"
@@ -383,7 +382,7 @@ func newAPIError(res *http.Response) error {
 	if res == nil {
 		return nil
 	}
-	buf, _ := ioutil.ReadAll(io.LimitReader(res.Body, readLimit)) // limit to 100kb
+	buf, _ := io.ReadAll(io.LimitReader(res.Body, readLimit)) // limit to 100kb
 
 	err := &APIError{
 		HTTPStatusCode: res.StatusCode,

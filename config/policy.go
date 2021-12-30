@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"regexp"
@@ -474,7 +473,7 @@ func (p *Policy) Validate() error {
 	}
 
 	if p.TLSDownstreamClientCAFile != "" {
-		bs, err := ioutil.ReadFile(p.TLSDownstreamClientCAFile)
+		bs, err := os.ReadFile(p.TLSDownstreamClientCAFile)
 		if err != nil {
 			return fmt.Errorf("config: couldn't load downstream client ca: %w", err)
 		}
@@ -486,7 +485,7 @@ func (p *Policy) Validate() error {
 			return fmt.Errorf("config: specified both `kubernetes_service_account_token_file` and `kubernetes_service_account_token`")
 		}
 
-		token, err := ioutil.ReadFile(p.KubernetesServiceAccountTokenFile)
+		token, err := os.ReadFile(p.KubernetesServiceAccountTokenFile)
 		if err != nil {
 			return fmt.Errorf("config: failed to load kubernetes service account token: %w", err)
 		}

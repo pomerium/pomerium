@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -79,7 +78,7 @@ func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Buil
 
 		// Checksum is written at build time, if it's not empty we verify the binary
 		if files.Checksum() != "" {
-			bs, err := ioutil.ReadFile(envoyPath)
+			bs, err := os.ReadFile(envoyPath)
 			if err != nil {
 				return nil, fmt.Errorf("error reading envoy binary for checksum verification: %w", err)
 			}

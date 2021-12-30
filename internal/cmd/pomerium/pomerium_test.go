@@ -2,7 +2,6 @@ package pomerium
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -112,7 +111,7 @@ func Test_run(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpFile, err := ioutil.TempFile(os.TempDir(), "*.json")
+			tmpFile, err := os.CreateTemp(os.TempDir(), "*.json")
 			if err != nil {
 				t.Fatal("Cannot create temporary file", err)
 			}
