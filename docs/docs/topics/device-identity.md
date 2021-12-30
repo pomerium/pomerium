@@ -57,7 +57,7 @@ Pomerium supports policies that use device identity since version [0.16.0](/docs
 
 To get started, review the following pages:
 
-- [Pomerium Policy Language](/docs/topcics/ppl.md) to learn how to build policies that use device ID.
+- [Pomerium Policy Language](/docs/topics/ppl.md) to learn how to build policies that use device ID.
 - [Enroll a Device](/guides/enroll-device.md) to teach end-users how to enroll devices on Pomerium.
 - [pomerium/webauthn](https://github.com/pomerium/webauthn) on GitHub, our implementation of the WebAuthn specification.
 

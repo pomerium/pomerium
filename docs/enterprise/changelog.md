@@ -27,7 +27,7 @@ sidebarDepth: 0
 
 ### New
 
-- [Telemetry]: View real time metrics and status from Pomerium components inside the Enterprise Console.
+- [Telemetry] - View real time metrics and status from Pomerium components inside the Enterprise Console.
 - More expressive policy syntax: Pomerium's new extended [policy language] allows more complex policies to be configured, along with non-identity based conditions for access.
 - Support for [Google Cloud Serverless] configuration on routes.
 - Support for [SPDY] configuration on routes.
@@ -35,14 +35,14 @@ sidebarDepth: 0
 
 ### Updated
 
-- Certificate Management: Certificates with overlapping SAN names are no longer permitted.
-- [Policies]: New editing screen supports Wizard based, Text based or Rego based policy.
-- Policies: Only global administrators may manage Rego based policies.
-- Policies: Support time based criteria.
-- [Service Accounts]: Simplified UI.
-- Service Accounts: Support token expiration time.
-- Service Accounts: Namespace support.
-- Impersonation: Impersonation is now done on an individual session basis.
+- Certificate Management - Certificates with overlapping SAN names are no longer permitted.
+- [Policies] - New editing screen supports Wizard based, Text based or Rego based policy.
+- Policies - Only global administrators may manage Rego based policies.
+- Policies - Support time based criteria.
+- [Service Accounts] - Simplified UI.
+- Service Accounts - Support token expiration time.
+- Service Accounts - Namespace support.
+- Impersonation - Impersonation is now done on an individual session basis.
 - Various other bug fixes and improvements.
 
 [`signing key`]: /reference/readme.md#signing-key
