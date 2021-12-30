@@ -50,7 +50,7 @@ flowchart LR
 
 1. When the user connects to the route `service.example.com` the traffic is received by Pomerium.
 1. Pomerium redirects the user to the identity provider (**IdP**) to sign in and validate their identity.
-1. After signing in to the IdP, Pomerium verifies that the authenticated (**authn**) user is authorized (**authz**) to access the service, and begins communication with it.
+1. After signing in to the IdP, Pomerium verifies that the authenticated (**AuthN**) user is authorized (**AuthZ**) to access the service, and begins communication with it.
 
 This is a good start, only the users that are supposed to have access to the service get through. But this model is dependent on the security of your network perimeter. If a bad actor gains access to your internal network, they can now communicate with the service directly:
 
@@ -131,6 +131,8 @@ In this way, we've applied a zero-trust security model to the application layer 
 > - **Encrypted**: Yes
 > - **Mutual Authentication**: Protocol Layer
 
+### [North-south mTLS](https://en.wikipedia.org/wiki/North-south_traffic)
+
 Most tech professionals are familiar with [Transport Layer Security] (**TLS**). The majority of traffic on the web today is sent using TLS. In addition to encrypting data using the server's TLS certificate, the server identity is validated by the certificate and the Certificate Authority (**CA**) that signed it.
 
 ```mermaid
@@ -171,7 +173,7 @@ flowchart RL
 1. After the server certificate is trusted and an `HTTPS` connection is established, the server requests a client certificate.
 1. The user is prompted to use one of the certificates previously imported into the browser. This certificate is sent to the server
 1. The server validates the client certificate signing authority against its trusted keystore or authorized client CA. Once authorized, the server resumes normal encrypted communication with the client.
-
+### [East-west mTLS](https://en.wikipedia.org/wiki/East-west_traffic)
 mTLS can also be configured between Pomerium and the end user, and/or with an upstream service. Configuring mTLS for many end users is cumbersome, and new technologies like [device identity verification] provide verification of the user and their hardware. But mTLS between Pomerium and an upstream service need only be configured once per service, and minimally maintained by updating certificates.
 
 ```mermaid
