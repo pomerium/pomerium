@@ -20,7 +20,7 @@ This guide will demonstrate how to secure an instance of Grafana behind Pomerium
 
 This guide begins with the following steps assumed complete:
 
-- A running instance of Pomerium. If you haven't already installed Pomerium, see our articles for installation on [Docker](/docs/install/readme.md), [Kubernetes](/docs/install/helm.md), or as an all-in-one [binary](/docs/install/binary.html).
+- A running instance of Pomerium. If you haven't already installed Pomerium, see our articles for installation on [Docker](/docs/install/readme.md), [Kubernetes](/docs/k8s/helm.md), or as an all-in-one [binary](/docs/install/binary.md).
 - Administrator access to a working Grafana instance, including write access to the config file `grafana.ini`, usually found in `/etc/grafana`.
 
 This guide uses the following temporary values in commands and configuration examples, which will need to be adjusted for your setup:
