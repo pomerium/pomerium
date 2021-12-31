@@ -389,4 +389,5 @@ Yellow blocks represent different networks like the internet, an internal networ
 [`pass_identity_headers`]: /reference/readme.md#pass-identity-headers
 [Quick Start]: /docs/install/readme.md
 [Transport Layer Security]: https://en.wikipedia.org/wiki/Transport_Layer_Security
-[zero trust]: https://link-to-something.com
+[zero trust]: https://www.pomerium.com/docs/background.html
+
