@@ -63,16 +63,9 @@ While we do our best to keep our documentation up to date, changes to third-part
       environment:
         GITLAB_OMNIBUS_CONFIG: |
           external_url 'https://gitlab.pomerium.localhost.io'
-          registry_external_url 'https://gitlab.pomerium.localhost.io'
           letsencrypt['enable'] = false
           nginx['listen_port'] = 80
           nginx['listen_https'] = false
-          registry_nginx['listen_port'] = 80
-          registry_nginx['listen_https'] = false
-          pages_nginx['listen_port'] = 80
-          pages_nginx['listen_https'] = false
-          mattermost_nginx['listen_port'] = 80
-          mattermost_nginx['listen_https'] = false
       volumes:
         - '/srv/gitlab/config:/etc/gitlab'
         - '/srv/gitlab/logs:/var/log/gitlab'
@@ -87,6 +80,10 @@ While we do our best to keep our documentation up to date, changes to third-part
 
     - Adjust `external_url` and `registry_external_url` to match the external path, which we will define in Pomerium later in the process.
     - Adjust the paths under `volumes` to match the directories created in [the previous section](#prepare-the-environment).
+
+    ::: tip
+    Additional integrations like [Mattermost](https://docs.gitlab.com/ee/integration/mattermost/) and [Pages](https://docs.gitlab.com/ee/user/project/pages/) will require additional configuration (i.e. `mattermost_nginx[*]`).
+    :::
 
 1.  Bring up the new Docker Compose configuration:
 
@@ -188,6 +185,10 @@ Create this certificate using your infrastructure's preferred internal certifica
 
 If you have an internal certificate solution, generate a certificate for `gitlab.pomerium.localhost.io` and note the path to the certificate authority (**CA**) root before proceeding. 
 
+::: tip
+Integrations that use unique subdomains will require their own certificates and Pomerium routes.
+:::
+
 1.  Create the directory `/srv/gitlab/config/ssl/` (adjusted for your local Docker volume path), and move the certificate and key files there:
 
     ```bash
@@ -221,24 +222,11 @@ If you have an internal certificate solution, generate a certificate for `gitlab
       environment:
         GITLAB_OMNIBUS_CONFIG: |
         external_url 'https://gitlab.pomerium.localhost.io'
-        registry_external_url 'https://gitlab.pomerium.localhost.io'
         letsencrypt['enable'] = false
         nginx['listen_port'] = 443
         nginx['listen_https'] = true
         nginx['ssl_certificate'] = "/etc/gitlab/ssl/gitlab.localhost.pomerium.io.pem"
         nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/gitlab.localhost.pomerium.io-key.pem"
-        registry_nginx['listen_port'] = 443
-        registry_nginx['listen_https'] = true
-        registry_nginx['ssl_certificate'] = "/etc/gitlab/ssl/gitlab.localhost.pomerium.io.pem"
-        registry_nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/gitlab.localhost.pomerium.io-key.pem"
-        pages_nginx['listen_port'] = 443
-        pages_nginx['listen_https'] = true
-        pages_nginx['ssl_certificate'] = "/etc/gitlab/ssl/gitlab.localhost.pomerium.io.pem"
-        pages_nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/gitlab.localhost.pomerium.io-key.pem"
-        mattermost_nginx['listen_port'] = 443
-        mattermost_nginx['listen_https'] = true
-        mattermost_nginx['ssl_certificate'] = "/etc/gitlab/ssl/gitlab.localhost.pomerium.io.pem"
-        mattermost_nginx['ssl_certificate_key'] = "/etc/gitlab/ssl/gitlab.localhost.pomerium.io-key.pem"
       volumes:
         - '/srv/gitlab/config:/etc/gitlab'
         - '/srv/gitlab/logs:/var/log/gitlab'
