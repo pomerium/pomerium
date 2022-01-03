@@ -100,7 +100,7 @@ While we do our best to keep our documentation up to date, changes to third-part
 
 ## Configure a Pomerium Route
 
-Edit `config.yaml` and add a route for GitLab. Note that this example assumes access to the mkcert CA certificate at `/mkcert/rootCA.pem`:
+Edit `config.yaml` and add a route for GitLab:
 
 ```yaml
   - from: https://gitlab.localhost.pomerium.io
@@ -113,7 +113,7 @@ Edit `config.yaml` and add a route for GitLab. Note that this example assumes ac
                 is: example.com
 ```
 
-Once the route is applied, you should be able to access GitLab from `https://gitlab.localhost.pomerium.io`. Note that when using Docker, you may need to restart the Pomerium container to apply the changes.
+Once the route is applied, you should be able to access GitLab from `https://gitlab.localhost.pomerium.io`. Note that when using Docker, you may need to restart the Pomerium container to apply the changes as file change detection can be finicky on mounted docker volumes.
 
 Use `grep` within the container to find the default root password:
 
