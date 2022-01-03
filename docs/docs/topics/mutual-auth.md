@@ -126,12 +126,11 @@ In this way, we've applied a zero-trust security model to the application layer 
 
 ## mTLS: Protocol-based Mutual Authentication
 
->{.breakdown} - **Security**: Excellent
 - **Difficulty**: Hard
 - **Encrypted**: Yes
 - **Mutual Authentication**: Protocol Layer
 
-### [North-south mTLS](https://en.wikipedia.org/wiki/North-south_traffic)
+### North-south mTLS
 
 Most tech professionals are familiar with [Transport Layer Security] (**TLS**). The majority of traffic on the web today is sent using TLS. In addition to encrypting data using the server's TLS certificate, the server identity is validated by the certificate and the Certificate Authority (**CA**) that signed it.
 
@@ -153,7 +152,7 @@ style Server fill: white, stroke: black
 1. The browser reads the certificate chain to find the CA, and checks against the computer's keystore to see if the CA is one that it trusts.
 1. After confirming the CA is trusted the browser reconnects to the server, this time using the `https` protocol and encrypting the traffic using the public certificate.
 
-The process above confirms the identity of the *server*, protecting the client. Mutual TLS (**mTLS**) allows the server to confirm the identity of the *client* using a client certificate.
+The process above, called [North-south mTLS](https://en.wikipedia.org/wiki/North-south_traffic), confirms the identity of the *server*, protecting the client. Mutual TLS (**mTLS**) allows the server to confirm the identity of the *client* using a client certificate.
 
 ```mermaid
 flowchart RL
@@ -173,8 +172,10 @@ flowchart RL
 1. After the server certificate is trusted and an `HTTPS` connection is established, the server requests a client certificate.
 1. The user is prompted to use one of the certificates previously imported into the browser. This certificate is sent to the server
 1. The server validates the client certificate signing authority against its trusted keystore or authorized client CA. Once authorized, the server resumes normal encrypted communication with the client.
-### [East-west mTLS](https://en.wikipedia.org/wiki/East-west_traffic)
-mTLS can also be configured between Pomerium and the end user, and/or with an upstream service. Configuring mTLS for many end users is cumbersome, and new technologies like [device identity verification] provide verification of the user and their hardware. But mTLS between Pomerium and an upstream service need only be configured once per service, and minimally maintained by updating certificates.
+
+### East-west mTLS
+
+TLS encryption between services in an internal network is referred to as [East-west mTLS](https://en.wikipedia.org/wiki/East-west_traffic). mTLS can also be configured between Pomerium and the end user, and/or with an upstream service. Configuring mTLS for many end users is cumbersome, and new technologies like [device identity verification] provide verification of the user and their hardware. But mTLS between Pomerium and an upstream service need only be configured once per service, and minimally maintained by updating certificates.
 
 ```mermaid
 flowchart LR
