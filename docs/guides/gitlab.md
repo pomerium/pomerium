@@ -92,7 +92,7 @@ While we do our best to keep our documentation up to date, changes to third-part
     ```
 
     The container may take several minutes to initialize. Once complete, the status provided to `docker ps` will change from `health:starting` to `healthy`.
-    
+
     You can also monitor the progress with `docker logs -f gitlab`. Note that even after the process is complete, the log file will continue to output log messages.
 
 ## Configure a Pomerium Route
@@ -183,7 +183,7 @@ Create this certificate using your infrastructure's preferred internal certifica
 1.  Note the location of the mkcert root certificate files with `mkcert -CAROOT`. You will need to provide this path to your Pomerium configuration to validate the certificate provided by GitLab.
 ::::
 
-If you have an internal certificate solution, generate a certificate for `gitlab.pomerium.localhost.io` and note the path to the certificate authority (**CA**) root before proceeding. 
+If you have an internal certificate solution, generate a certificate for `gitlab.pomerium.localhost.io` and note the path to the certificate authority (**CA**) root before proceeding.
 
 ::: tip
 Integrations that use unique subdomains will require their own certificates and Pomerium routes.
