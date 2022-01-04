@@ -137,7 +137,7 @@ func (a *Authenticate) getWebAuthnURL(values url.Values) (*url.URL, error) {
 			urlutil.QueryDeviceType:      {webauthnutil.DefaultDeviceType},
 			urlutil.QueryEnrollmentToken: nil,
 			urlutil.QueryRedirectURI: {uri.ResolveReference(&url.URL{
-				Path: "/.pomerium/",
+				Path: "/.pomerium/device-enrolled",
 			}).String()},
 		}).Encode(),
 	})

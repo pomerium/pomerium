@@ -302,7 +302,17 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request, state *
 			Id: webauthnutil.GetDeviceCredentialID(serverCredential.ID),
 		},
 	})
-	return h.saveSessionAndRedirect(w, r, state, redirectURIParam)
+
+	// add the device credential ID to the redirect uri
+	redirectURI, err := urlutil.ParseAndValidateURL(redirectURIParam)
+	if err != nil {
+		return err
+	}
+	q := redirectURI.Query()
+	q.Set(urlutil.QueryDeviceCredentialID, deviceCredentialID)
+	redirectURI.RawQuery = q.Encode()
+
+	return h.saveSessionAndRedirect(w, r, state, redirectURI.String())
 }
 
 func (h *Handler) handleUnregister(w http.ResponseWriter, r *http.Request, state *State) error {
@@ -432,7 +442,7 @@ func (h *Handler) saveSessionAndRedirect(w http.ResponseWriter, r *http.Request,
 	encodedJWT := base64.URLEncoding.EncodeToString(encryptedJWT)
 
 	// redirect to the proxy callback URL with the session
-	callbackURL, err := urlutil.GetCallbackURL(r, encodedJWT)
+	callbackURL, err := urlutil.GetCallbackURLForRedirectURI(r, encodedJWT, rawRedirectURI)
 	if err != nil {
 		return err
 	}

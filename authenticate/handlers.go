@@ -18,6 +18,7 @@ import (
 	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/authenticate/handlers"
 	"github.com/pomerium/pomerium/authenticate/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
@@ -98,6 +99,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Path("/sign_in").Handler(a.requireValidSignature(a.SignIn))
 	sr.Path("/sign_out").Handler(a.requireValidSignature(a.SignOut))
 	sr.Path("/webauthn").Handler(webauthn.New(a.getWebauthnState))
+	sr.Path("/device-enrolled").Handler(handlers.DeviceEnrolled())
 }
 
 func (a *Authenticate) mountWellKnown(r *mux.Router) {

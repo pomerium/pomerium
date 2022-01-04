@@ -11,7 +11,12 @@ var ErrMissingRedirectURI = errors.New("missing " + QueryRedirectURI)
 
 // GetCallbackURL gets the proxy's callback URL from a request and a base64url encoded + encrypted session state JWT.
 func GetCallbackURL(r *http.Request, encodedSessionJWT string) (*url.URL, error) {
-	rawRedirectURI := r.FormValue(QueryRedirectURI)
+	return GetCallbackURLForRedirectURI(r, encodedSessionJWT, r.FormValue(QueryRedirectURI))
+}
+
+// GetCallbackURLForRedirectURI gets the proxy's callback URL from a request and a base64url encoded + encrypted session
+// state JWT.
+func GetCallbackURLForRedirectURI(r *http.Request, encodedSessionJWT, rawRedirectURI string) (*url.URL, error) {
 	if rawRedirectURI == "" {
 		return nil, ErrMissingRedirectURI
 	}
