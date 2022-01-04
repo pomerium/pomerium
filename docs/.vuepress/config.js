@@ -98,6 +98,7 @@ module.exports = {
           sidebarDepth: 0,
           children: [
             "",
+            "glossary",
             "releases",
             "architecture",
             "background",
