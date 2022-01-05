@@ -97,5 +97,5 @@ IDP_SERVICE_ACCOUNT="REPLACE_ME" # base64 encoded JSON object
 [environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
 [oauth2]: https://oauth.net/2/
 [openid connect]: https://en.wikipedia.org/wiki/OpenID_Connect
-[pomerium-install]: /docs/install/
+[pomerium-install]: /docs/install/readme.md
 [Group ID]: https://developer.okta.com/docs/reference/api/groups/

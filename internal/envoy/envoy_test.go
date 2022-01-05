@@ -2,7 +2,7 @@ package envoy
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"regexp"
 	"strings"
 	"testing"
@@ -37,7 +37,7 @@ func TestServer_handleLogs(t *testing.T) {
 
 func Benchmark_handleLogs(b *testing.B) {
 	line := `[LOG_FORMAT]debug--http--[external/envoy/source/common/http/conn_manager_impl.cc:781] [C25][S14758077654018620250] request headers complete (end_stream=false):\\n\\':authority\\', \\'enabled-ws-echo.localhost.pomerium.io\\'\\n\\':path\\', \\'/\\'\\n\\':method\\', \\'GET\\'\\n\\'upgrade\\', \\'websocket\\'\\n\\'connection\\', \\'upgrade\\'\\n\\'x-request-id\\', \\'30ac7726e0b9e00a9c9ab2bf66d692ac\\'\\n\\'x-real-ip\\', \\'172.17.0.1\\'\\n\\'x-forwarded-for\\', \\'172.17.0.1\\'\\n\\'x-forwarded-host\\', \\'enabled-ws-echo.localhost.pomerium.io\\'\\n\\'x-forwarded-port\\', \\'443\\'\\n\\'x-forwarded-proto\\', \\'https\\'\\n\\'x-scheme\\', \\'https\\'\\n\\'user-agent\\', \\'Go-http-client/1.1\\'\\n\\'sec-websocket-key\\', \\'4bh7+YFVzrJiblaSu/CVfg==\\'\\n\\'sec-websocket-version\\', \\'13\\'`
-	rc := ioutil.NopCloser(strings.NewReader(line))
+	rc := io.NopCloser(strings.NewReader(line))
 	srv := &Server{}
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 

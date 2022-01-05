@@ -4,7 +4,6 @@ package filemgr
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -41,7 +40,7 @@ func (mgr *Manager) BytesDataSource(fileName string, data []byte) *envoy_config_
 
 	filePath := filepath.Join(mgr.cfg.cacheDir, fileName)
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		err = ioutil.WriteFile(filePath, data, 0o600)
+		err = os.WriteFile(filePath, data, 0o600)
 		if err != nil {
 			log.Error(context.TODO()).Err(err).Msg("filemgr: error writing cache file, falling back to inline bytes")
 			return inlineBytes(data)
@@ -76,7 +75,7 @@ func (mgr *Manager) ClearCache() {
 
 // FileDataSource returns an envoy config data source based on a file.
 func (mgr *Manager) FileDataSource(filePath string) *envoy_config_core_v3.DataSource {
-	data, err := ioutil.ReadFile(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return inlineFilename(filePath)
 	}

@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -82,7 +81,7 @@ func (src *gcpIdentityTokenSource) Token() (*oauth2.Token, error) {
 		}
 		defer func() { _ = res.Body.Close() }()
 
-		bs, err := ioutil.ReadAll(io.LimitReader(res.Body, GCPIdentityMaxBodySize))
+		bs, err := io.ReadAll(io.LimitReader(res.Body, GCPIdentityMaxBodySize))
 		if err != nil {
 			return nil, err
 		}

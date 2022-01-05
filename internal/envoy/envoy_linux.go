@@ -5,7 +5,7 @@ package envoy
 
 import (
 	"context"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"sync"
 	"syscall"
@@ -99,7 +99,7 @@ func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []stri
 }
 
 func readBaseID() (int, bool) {
-	bs, err := ioutil.ReadFile(baseIDPath)
+	bs, err := os.ReadFile(baseIDPath)
 	if err != nil {
 		return 0, false
 	}

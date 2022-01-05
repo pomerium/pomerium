@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -178,7 +178,7 @@ func Test_HTTPMetricsRoundTripper(t *testing.T) {
 			req, _ := http.NewRequest(tt.verb, tt.url, new(bytes.Buffer))
 			resp, err := client.Do(req)
 			// must be done to record()
-			ioutil.ReadAll(resp.Body)
+			io.ReadAll(resp.Body)
 
 			t.Logf("response: %#v, %#v\n\n", resp, err)
 			testDataRetrieval(HTTPClientRequestSizeView, t, tt.wanthttpClientRequestSize)

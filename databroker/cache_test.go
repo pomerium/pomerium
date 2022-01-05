@@ -1,7 +1,6 @@
 package databroker
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 	"testing"
@@ -11,7 +10,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	dir, err := ioutil.TempDir("", "example")
+	dir, err := os.MkdirTemp("", "example")
 	if err != nil {
 		log.Fatal(err)
 	}

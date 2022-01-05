@@ -37,7 +37,7 @@ Though securing [Kubernetes Dashboard] as an example may seem contrived, the dam
 
 [Kubernetes Dashboard] is a general purpose, web-based UI for Kubernetes clusters. It allows users to manage applications running in the cluster and troubleshoot them, as well as manage the cluster itself.
 
-Use [Helm] to install a new instance of [Kubernetes Dashboard]:
+Use [Helm] to install a new instance of [Kubernetes Dashboard] :
 
 ```bash
 helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
@@ -56,7 +56,6 @@ Following the configuration defined in [Install Pomerium using Helm], add a rout
     ```yaml
         - from: https://dashboard.localhost.pomerium.io
           to: https://kubernetes-dashboard.default.svc.cluster.local
-          tls_skip_verify: true
           allow_spdy: true
           tls_skip_verify: true
           kubernetes_service_account_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
@@ -108,6 +107,6 @@ Your browser does not support the video tag.
 [helm chart]: https://github.com/pomerium/pomerium-helm
 [Helm]: https://helm.sh
 [Install Pomerium using Helm]: /docs/k8s/helm.md
-[kubernetes dashboard]: https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
+[Kubernetes Dashboard]: https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
 [Securing Kubernetes]: /guides/kubernetes.md
 [User Permissions]: /guides/kubernetes.md#user-permissions

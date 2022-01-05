@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -37,7 +37,7 @@ func getMetrics(t *testing.T, envoyURL *url.URL) []byte {
 	h.ServeHTTP(rec, req)
 
 	resp := rec.Result()
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 
 	if resp == nil || resp.StatusCode != 200 {
 		t.Errorf("Metrics endpoint failed to respond: %s", b)

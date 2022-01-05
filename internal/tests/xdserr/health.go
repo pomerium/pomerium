@@ -3,7 +3,7 @@ package xdserr
 import (
 	"context"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -40,7 +40,7 @@ func checkHealth(ctx context.Context, client *http.Client, addr string) error {
 	}
 	defer resp.Body.Close()
 
-	if _, err = ioutil.ReadAll(resp.Body); err != nil {
+	if _, err = io.ReadAll(resp.Body); err != nil {
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {

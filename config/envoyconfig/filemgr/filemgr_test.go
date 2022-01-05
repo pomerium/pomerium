@@ -1,7 +1,6 @@
 package filemgr
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -34,7 +33,7 @@ func Test(t *testing.T) {
 
 	t.Run("file", func(t *testing.T) {
 		tmpFilePath := filepath.Join(dir, "test.txt")
-		_ = ioutil.WriteFile(tmpFilePath, []byte("TEST1"), 0o777)
+		_ = os.WriteFile(tmpFilePath, []byte("TEST1"), 0o777)
 
 		mgr := NewManager(WithCacheDir(dir))
 
@@ -45,7 +44,7 @@ func Test(t *testing.T) {
 			},
 		}, ds)
 
-		_ = ioutil.WriteFile(tmpFilePath, []byte("TEST2"), 0o777)
+		_ = os.WriteFile(tmpFilePath, []byte("TEST2"), 0o777)
 
 		ds = mgr.FileDataSource(tmpFilePath)
 		assert.Equal(t, &envoy_config_core_v3.DataSource{
