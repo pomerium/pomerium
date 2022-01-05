@@ -23,7 +23,7 @@ This guide demonstrates how to configure a self-hosted GitLab server (a.k.a. git
 - This guide assumes a running instance of Pomerium, already configured with an identity Provider (**IdP**) and running as a docker container on the same host/swarm. See our [Quick-Start] page for more information on installing Pomerium with Docker Compose.
 
   ::: warning
-  While Pomerium can be configured to use self-hosted GitLab [as an IdP][gitlab-idp], we do not recommend doing so while also running it behind Pomerium. In addition to the potential to lock out access to the IdP (breaking access to all routes), we consider it best practice to keep a separation of services between your identity provider protected services, especially those housing sensitive data like source code.
+  While Pomerium can be configured to use self-hosted GitLab [as an IdP][gitlab-idp], we do not recommend doing so while also running it behind Pomerium. In addition to the potential to lock out access to the IdP (breaking access to all routes), we consider it best practice to separate your identity provider and protected services, especially those housing sensitive data like source code.
   :::
 
 - The initial setup documented here uses un-encrypted HTTP traffic between Pomerium and GitLab. The last section covers upgrading the GitLab configuration with a TLS certificate.
