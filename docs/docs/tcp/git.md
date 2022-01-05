@@ -1,0 +1,67 @@
+---
+title: Git
+description: Tunnel Git connections through Pomerium
+---
+
+# Tunneled Git Connections
+
+When hosting a self-hosted Git server like [GitLab](/guides/gitlab.md) behind Pomerium, you can protect desktop client access to the source code with the same identity-aware access as the web interface using an encrypted TCP tunnel.
+
+
+ ## Basic Connection
+
+ 1. Create a TCP tunnel, using either [`pomerium-cli`](/docs/releases.md#pomerium-cli) or the Pomerium Desktop client. These examples use Git connections over SSH:
+
+    ::::: tabs
+    :::: tab pomerium-cli
+    ```bash
+    pomerium-cli tcp git.corp.example.com:22 --listen :2202
+    ```
+
+    :::tip --listen
+    The `--listen` flag is optional. It lets you define what port the tunnel listens on locally. If not specified, the client will choose a random available port.
+    :::
+
+    ::::
+    :::: tab Pomerium Desktop
+    ![An example connection to a Git service from Pomerium Desktop](./img/desktop/example-git-connection.png)
+
+    :::tip Local Address
+    The **Local Address** field is optional. Using it defines what port the tunnel listens on locally. If not specified, Pomerium Desktop will choose a random available port.
+    :::
+
+    ::::
+    :::::
+
+1. Add the tunneled connection as a remote for your local repository:
+
+    ```bash
+    git remote add gitlab-tunneled ssh://git@127.0.0.1:2202/username/project-name
+    ```
+
+Now when you first initiate a `pull`, `push`, or `fetch` command your web browser will open to authenticate and authorize the connection.
+
+## Always Tunnel through Pomerium
+
+Because Git uses the SSH protocol, we can define a `Host` block in our local SSH configuration file to initiate the tunneled connection whenever it's needed.
+
+1. Open your local SSH configuration file at `~/.ssh/config` and add a new Hosts `block`:
+
+    ```bash
+    Host git-tunnel
+      HostName git.corp.example.com
+      User git
+      ProxyCommand /usr/bin/pomerium-cli tcp --listen - %h:%p
+    ```
+
+1. For each repository, add a remote using this host:
+
+    ```bash
+    git remote add origin git@git-tunnel:userName/projectName
+    ```
+
+
+## More Resources
+
+- [Git Documentation](https://git-scm.com/doc)
+- [Secure GitLab with Pomerium](/guide/gitlab.mdZ)
