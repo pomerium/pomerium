@@ -219,6 +219,7 @@ module.exports = {
             "code-server",
             "enroll-device",
             "grafana",
+            "gitlab",
             "istio",
             "jwt-verification",
             "kubernetes",
