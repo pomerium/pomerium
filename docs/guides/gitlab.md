@@ -157,7 +157,7 @@ Now when you first initiate a `pull`, `push`, or `fetch` command your web browse
 
 ## Identity Management
 
-While GitLab has a [JWT OmniAuth provider], it only accepts a JSON web token (**JWT**) as a callback url parameter and not as an HTTP header as [provided by pomerium](/reference/readme.md#pass-identity-headers). If your IdP is a [supported Omniauth provider](https://docs.gitlab.com/ee/integration/omniauth.html#supported-providers), you can integrate it directly to GitLab to re-use your current session, but it will require signing in twice, once with Pomerium and again with GitLab:
+While GitLab has a [JWT OmniAuth provider], it only accepts a JSON web token (**JWT**) as a callback url parameter and not as an HTTP header [provided by Pomerium](/reference/readme.md#pass-identity-headers). If your IdP is a [supported OmniAuth provider](https://docs.gitlab.com/ee/integration/omniauth.html#supported-providers), you can integrate it directly to GitLab to re-use your current session, but it will require signing in twice; once with Pomerium and again with GitLab:
 
 <video controls  muted="true" playsinline="" width="100%" control=""><source src="./img/gitlab/gitlab-login.webm" type="video/webm">
 Your browser does not support the video tag.
@@ -165,7 +165,7 @@ Your browser does not support the video tag.
 
 ## Upstream TLS
 
-As part of a complete [zero-trust][Background] security model, all connections should be encrypted and [mutually authenticated][mTLS]. An important step in this process is configuring GitLab to serve content to Pomerium using HTTPS.
+As part of a complete [zero trust][Background] security model, all connections should be encrypted and [mutually authenticated][mTLS]. An important step in this process is configuring GitLab to serve content to Pomerium using HTTPS.
 
 Because GitLab's internal Nginx server is configured to use the [FQDN] even when behind a proxy service, GitLab itself must use a separate, internal certificate for `gitlab.pomerium.localhost.io`. This is unique from the certificate Pomerium uses to serve the route to end users.
 
