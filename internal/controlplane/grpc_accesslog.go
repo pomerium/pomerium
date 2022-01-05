@@ -23,7 +23,7 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogS
 			return err
 		}
 
-		for _, entry := range msg.GetHttpLogs().LogEntry {
+		for _, entry := range msg.GetHttpLogs().GetLogEntry() {
 			reqPath := entry.GetRequest().GetPath()
 			var evt *zerolog.Event
 			if reqPath == "/ping" || reqPath == "/healthz" {
