@@ -303,16 +303,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request, state *
 		},
 	})
 
-	// add the device credential ID to the redirect uri
-	redirectURI, err := urlutil.ParseAndValidateURL(redirectURIParam)
-	if err != nil {
-		return err
-	}
-	q := redirectURI.Query()
-	q.Set(urlutil.QueryDeviceCredentialID, deviceCredentialID)
-	redirectURI.RawQuery = q.Encode()
-
-	return h.saveSessionAndRedirect(w, r, state, redirectURI.String())
+	return h.saveSessionAndRedirect(w, r, state, redirectURIParam)
 }
 
 func (h *Handler) handleUnregister(w http.ResponseWriter, r *http.Request, state *State) error {

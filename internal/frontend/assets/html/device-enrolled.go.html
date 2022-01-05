@@ -1,53 +1,30 @@
 {{define "device-enrolled.html"}}<!DOCTYPE html>
 <html lang="en" charset="utf-8">
-
-<head>
+  <head>
     <title>Device Successfully Enrolled</title>
     {{template "header.html"}}
-</head>
+  </head>
 
-<body>
-<div class="inner">
-    <div class="header clearfix">
+  <body>
+    <div class="inner">
+      <div class="header clearfix">
         <div class="heading"></div>
-    </div>
-    <div class="content">
+      </div>
+      <div class="content">
         <div class="white box">
-            <div class="largestatus">
-                <div class="title-wrapper">
-                    <span class="title">Device Successfully Enrolled</span>
-                    <label class="status-time">
-                        <span>
-                            Device was successfully enrolled.
-                        </span>
-                    </label>
-                </div>
+          <div class="largestatus">
+            <div class="title-wrapper">
+              <span class="title">Device Successfully Enrolled</span>
+              <label class="status-time">
+                <span>
+                  Device was successfully enrolled.
+                </span>
+              </label>
             </div>
+          </div>
         </div>
-
-
-        {{if .DeviceCredentialID}}
-        <div class="category white box">
-            <div class="messages">
-                <div class="box-inner">
-                    <div class="category-header clearfix">
-                        <span class="category-title">Details</span>
-                    </div>
-                    </ul>
-                    <table>
-                        <tbody>
-                        <tr>
-                            <td>Device Credential ID</td>
-                            <td>{{.DeviceCredentialID}}</td>
-                        </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        {{end}}
+      </div>
     </div>
-</div>
-</body>
+  </body>
 </html>
 {{end}}
