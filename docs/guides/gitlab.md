@@ -120,19 +120,19 @@ sudo docker exec -it gitlab grep 'Password:' /etc/gitlab/initial_root_password
 
 ### Configure TCP Connections
 
-1. An additional route will provide an encrypted TCP tunnel through which users can securely access code using Git:
+1.  An additional route will provide an encrypted TCP tunnel through which users can securely access code using Git:
 
-  ```yaml
-    - from: tcp+https://gitlab.localhost.pomerium.io
-      to: tcp://gitlab:22
-      policy:
-        - allow:
-            or:
-              - groups:
-                  has: devs@example.com
-  ```
+    ```yaml
+      - from: tcp+https://gitlab.localhost.pomerium.io
+        to: tcp://gitlab:22
+        policy:
+          - allow:
+              or:
+                - groups:
+                    has: devs@example.com
+    ```
 
-1. Once this route is applied, users can create an encrypted connection using [pomerium-cli] or the [Pomerium Desktop] app:
+1.  Once this route is applied, users can create an encrypted connection using [pomerium-cli] or the [Pomerium Desktop] app:
 
     ::::: tabs
     :::: tab Pomerium-CLI
@@ -147,7 +147,7 @@ sudo docker exec -it gitlab grep 'Password:' /etc/gitlab/initial_root_password
     ::::
     :::::
 
-1. Add the tunneled connection as a remote:
+1.  Add the tunneled connection as a remote:
 
     ```bash
     git remote add gitlab-tunneled ssh://git@127.0.0.1:2202/username/project-name
