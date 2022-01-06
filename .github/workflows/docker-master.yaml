@@ -17,6 +17,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
@@ -46,6 +49,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.metadata.outputs.tags }}
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
@@ -58,6 +62,7 @@ jobs:
           context: .
           file: ./Dockerfile.debug
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: pomerium/pomerium:debug
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}

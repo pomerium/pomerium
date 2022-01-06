@@ -1,3 +1,5 @@
+ARG ARCH=amd64
+
 FROM golang:latest as build
 WORKDIR /go/src/github.com/pomerium/pomerium
 
@@ -20,7 +22,7 @@ RUN apt-get update && apt-get install -y ca-certificates
 # Remove expired root (https://github.com/pomerium/pomerium/issues/2653)
 RUN rm /usr/share/ca-certificates/mozilla/DST_Root_CA_X3.crt && update-ca-certificates
 
-FROM gcr.io/distroless/base:debug
+FROM gcr.io/distroless/base:debug-${ARCH}
 ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
