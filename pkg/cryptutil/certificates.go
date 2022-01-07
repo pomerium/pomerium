@@ -163,7 +163,7 @@ func EncodePrivateKey(key *ecdsa.PrivateKey) ([]byte, error) {
 // GenerateSelfSignedCertificate generates a self-signed TLS certificate.
 //
 // mostly copied from https://golang.org/src/crypto/tls/generate_cert.go
-func GenerateSelfSignedCertificate(domain string) (*tls.Certificate, error) {
+func GenerateSelfSignedCertificate(domain string, configure ...func(*x509.Certificate)) (*tls.Certificate, error) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, fmt.Errorf("failed to geneate private key: %w", err)
@@ -175,7 +175,7 @@ func GenerateSelfSignedCertificate(domain string) (*tls.Certificate, error) {
 		return nil, fmt.Errorf("failed to generate serial number: %w", err)
 	}
 
-	template := x509.Certificate{
+	template := &x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			Organization: []string{"Pomerium"},
@@ -191,9 +191,12 @@ func GenerateSelfSignedCertificate(domain string) (*tls.Certificate, error) {
 	} else {
 		template.DNSNames = append(template.DNSNames, domain)
 	}
+	for _, f := range configure {
+		f(template)
+	}
 
 	publicKeyBytes, err := x509.CreateCertificate(rand.Reader,
-		&template, &template,
+		template, template,
 		privateKey.Public(), privateKey,
 	)
 	if err != nil {
