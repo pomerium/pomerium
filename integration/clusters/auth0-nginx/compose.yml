@@ -922,7 +922,7 @@ services:
   verify-ready:
     command:
     - -wait
-    - http://verify:80/
+    - http://verify:8000/
     - -timeout
     - 10m
     image: jwilder/dockerize:0.6.1
