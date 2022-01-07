@@ -152,7 +152,7 @@ style Server fill: white, stroke: black
 1. The browser reads the certificate chain to find the CA, and checks against the computer's keystore to see if the CA is one that it trusts.
 1. After confirming the CA is trusted the browser reconnects to the server, this time using the `https` protocol and encrypting the traffic using the public certificate.
 
-The process above, called [North-south mTLS](https://en.wikipedia.org/wiki/North-south_traffic), confirms the identity of the *server*, protecting the client. Mutual TLS (**mTLS**) allows the server to confirm the identity of the *client* using a client certificate.
+The process above, an example of [north-south traffic](https://en.wikipedia.org/wiki/North-south_traffic) over HTTPS, confirms the identity of the *server*, protecting the client. Mutual TLS (**mTLS**) allows the server to confirm the identity of the *client* using a client certificate.
 
 ```mermaid
 flowchart RL
@@ -175,7 +175,7 @@ flowchart RL
 
 ### East-west mTLS
 
-TLS encryption between services in an internal network is referred to as [East-west mTLS](https://en.wikipedia.org/wiki/East-west_traffic). mTLS can also be configured between Pomerium and the end user, and/or with an upstream service. Configuring mTLS for many end users is cumbersome, and new technologies like [device identity verification] provide verification of the user and their hardware. But mTLS between Pomerium and an upstream service need only be configured once per service, and minimally maintained by updating certificates.
+Traffic between services in an internal network is referred to as [east-west traffic](https://en.wikipedia.org/wiki/East-west_traffic). mTLS can also be configured between Pomerium and the end user, and/or with an upstream service. Configuring mTLS for many end users is cumbersome, and new technologies like [device identity verification] provide verification of the user and their hardware. But mTLS between Pomerium and an upstream service (the east-west traffic) need only be configured once per service, and minimally maintained by updating certificates.
 
 ```mermaid
 flowchart LR
