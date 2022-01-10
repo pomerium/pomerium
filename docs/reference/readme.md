@@ -827,7 +827,7 @@ If you plan to write authorization policies using groups, or any other data that
 - Environmental Variable: `IDP_PROVIDER_URL`
 - Config File Key: `idp_provider_url`
 - Type: `string`
-- Required, depending on provider
+- Required, depending on provider (Do not use with Google).
 
 Provider URL is the base path to an identity provider's [OpenID connect discovery document](https://openid.net/specs/openid-connect-discovery-1_0.html). For example, google's URL would be `https://accounts.google.com` for [their discover document](https://accounts.google.com/.well-known/openid-configuration).
 
