@@ -648,6 +648,12 @@ func (b *Builder) buildDownstreamTLSContext(ctx context.Context,
 		return nil
 	}
 
+	err = validateCertificate(cert)
+	if err != nil {
+		log.Warn(ctx).Str("domain", domain).Err(err).Msg("invalid certificate for domain")
+		return nil
+	}
+
 	var alpnProtocols []string
 	switch cfg.Options.GetCodecType() {
 	case config.CodecTypeHTTP1:
