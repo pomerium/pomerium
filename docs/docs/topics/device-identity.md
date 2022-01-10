@@ -7,7 +7,7 @@ sidebarDepth: 1
 
 # Device Identity
 
-One of the core components of the zero-trust security model is **device identity**, which is the ability for a device to have a unique, unclonable identity string that can be authenticated and factored into access control decisions. This topic page covers the concept of device identity, and how it applies to the zero-trust model.
+One of the core components of the zero trust security model is **device identity**, which is the ability for a device to have a unique, unclonable identity string that can be authenticated and factored into access control decisions. This topic page covers the concept of device identity, and how it applies to the zero trust model.
 
 ## Why Device Identity Is Important
 
@@ -25,7 +25,7 @@ Device identity is similar but unique to MFA. Where MFA is an additional layer o
 
 ## What Is Device Identity
 
-> When you remove "[the perimeter]" as the source of trust to your infrastructure, you must replace it with a level of trust for every person, **device**, and hop in the communication path. Where the other, more commonly implemented facets of zero-trust validates the user and traffic, device identity (through WebAuthn) validates the end user's device.
+> When you remove "[the perimeter]" as the source of trust to your infrastructure, you must replace it with a level of trust for every person, **device**, and hop in the communication path. Where the other, more commonly implemented facets of zero trust validates the user and traffic, device identity (through WebAuthn) validates the end user's device.
 
 Device ID is a unique identifying key that can only be created by the specific combination of hardware and software present on a specific device. How this is accomplished is largely dependent on the tools available on the user hardware, which we've detailed below.
 

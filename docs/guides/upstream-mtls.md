@@ -11,7 +11,7 @@ description: >-
 
 # Upstream mTLS With Pomerium
 
-Part of a complete zero-trust security model is secure communication between your identity-aware access proxy (Pomerium) and the upstream service it provides access to. This means both Pomerium *and* the upstream service will authenticate each other.
+Part of a complete zero trust security model is secure communication between your identity-aware access proxy (Pomerium) and the upstream service it provides access to. This means both Pomerium *and* the upstream service will authenticate each other.
 
 Pomerium confirms the identity of an upstream service by the TLS certificate it serves. See [`tls_custom_ca_file`] and [`tls_server_name`] for more information on configuring Pomerium to accept an upstream's TLS certificate.
 

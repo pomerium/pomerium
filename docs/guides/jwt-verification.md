@@ -11,7 +11,7 @@ description: >-
 # JWT Verification
 This example demonstrates how to verify the [Pomerium JWT assertion header](https://www.pomerium.io/reference/#pass-identity-headers) using [Envoy](https://www.envoyproxy.io/). This is useful for legacy or 3rd party applications which can't be modified to perform verification themselves.
 
-This guide is a practical demonstration of some of the topics discussed in [Mutual Authentication: A Component of Zero-Trust].
+This guide is a practical demonstration of some of the topics discussed in [Mutual Authentication: A Component of Zero Trust].
 
 ## Requirements
 - [Docker](https://www.docker.com/)
@@ -239,6 +239,6 @@ You should now be able to run the example with:
 [httpbin.localhost.pomerium.io]: https://verify.localhost.pomerium.io
 [Local Development with Wildcard DNS on Linux]: https://sixfeetup.com/blog/local-development-with-wildcard-dns-on-linux
 [Local Development with Wildcard DNS]: https://blog.thesparktree.com/local-development-with-wildcard-dns
-[Mutual Authentication: A Component of Zero-Trust]: /docs/topics/mutual-auth.md
+[Mutual Authentication: A Component of Zero Trust]: /docs/topics/mutual-auth.md
 [Mutual Authentication With a Sidecar]: /docs/topics/mutual-auth.md#mutual-authentication-with-a-sidecar
 [verify.localhost.pomerium.io]: https://verify.localhost.pomerium.io

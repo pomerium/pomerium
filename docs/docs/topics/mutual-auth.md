@@ -9,9 +9,9 @@ description: >-
   This page describes the concept of mutual authentication and why it's important.
 ---
 
-# Mutual Authentication: A Component of Zero-Trust
+# Mutual Authentication: A Component of Zero Trust
 
-Pomerium provides a good layer of security out of the box, but it's not (and can't be) configured for complete [zero trust] right out of the box. This page explains several methods of achieving mutual authentication — a big part of the zero-trust model — with practical examples.
+Pomerium provides a good layer of security out of the box, but it's not (and can't be) configured for complete [zero trust] right out of the box. This page explains several methods of achieving mutual authentication — a big part of the zero trust model — with practical examples.
 
 This is a nuanced topic that dives into several specific security practices that provide mutual authentication. You can use the table of contents below to narrow down to the specific tools you're interested in or read the entire doc for a deeper understanding of how these tools work together to support strong infrastructure security.
 
@@ -122,7 +122,7 @@ C-.-A
 E[/Hacker/] --x B
 ```
 
-In this way, we've applied a zero-trust security model to the application layer of our infrastructure's network model. You can see JWT verification in practice with our [Grafana] integration guide.
+In this way, we've applied a zero trust security model to the application layer of our infrastructure's network model. You can see JWT verification in practice with our [Grafana] integration guide.
 
 ## mTLS: Protocol-based Mutual Authentication
 
@@ -191,7 +191,7 @@ flowchart LR
   B---xD
 ```
 
-In this way, we've applied a zero-trust security model to the protocol layer of our infrastructure's network model.
+In this way, we've applied a zero trust security model to the protocol layer of our infrastructure's network model.
 
 ## Mutual Authentication With a Sidecar
 
