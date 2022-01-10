@@ -11,7 +11,7 @@ description: >-
 
 # Securing Argo
 
-[Argo](https://argoproj.github.io/projects/argo) is an open-source container-native workflow engine for orchestrating parallel jobs on Kubernetes. This guide covers how to add authentication and authorization to Argo using Pomerium.
+[Argo](https://argoproj.github.io/workflows) is an open-source container-native workflow engine for orchestrating parallel jobs on Kubernetes. This guide covers how to add authentication and authorization to Argo using Pomerium.
 
 ## Install Argo
 
