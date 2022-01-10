@@ -61,7 +61,7 @@ require (
 	github.com/volatiletech/null/v9 v9.0.0
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da
 	go.opencensus.io v0.23.0
-	go.uber.org/zap v1.19.1
+	go.uber.org/zap v1.20.0
 	golang.org/x/crypto v0.0.0-20211215165025-cf75a172585e
 	golang.org/x/net v0.0.0-20211111083644-e5c967477495
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
