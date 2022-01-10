@@ -36,7 +36,7 @@ func TestBuildSubjectNameIndication(t *testing.T) {
 	assert.Equal(t, "example.example.org", b.buildSubjectNameIndication(&url.URL{Host: "example.com:1234"}, "*.example.org"))
 }
 
-func TestValidateCertificatge(t *testing.T) {
+func TestValidateCertificate(t *testing.T) {
 	cert, err := cryptutil.GenerateSelfSignedCertificate("example.com", func(tpl *x509.Certificate) {
 		// set the must staple flag on the cert
 		tpl.ExtraExtensions = append(tpl.ExtraExtensions, pkix.Extension{
