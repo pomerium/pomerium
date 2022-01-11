@@ -8,6 +8,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/policy/generator"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/policy/rules"
+	"github.com/pomerium/pomerium/pkg/webauthnutil"
 )
 
 const (
@@ -73,7 +74,7 @@ func (c deviceCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, [
 		}...)
 	}
 
-	deviceType := "default"
+	deviceType := webauthnutil.DefaultDeviceType
 	if v, ok := obj[deviceOperatorType]; ok {
 		s, ok := v.(parser.String)
 		if !ok {
