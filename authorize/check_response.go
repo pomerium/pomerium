@@ -39,45 +39,33 @@ func (a *Authorize) handleResultDenied(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
 	result *evaluator.Result,
+	isForwardAuthVerify bool,
+	reasons criteria.Reasons,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
 	denyStatusCode := int32(http.StatusForbidden)
 	denyStatusText := http.StatusText(http.StatusForbidden)
 
 	switch {
-	case result.Deny.Reasons.Has(criteria.ReasonRouteNotFound):
+	case reasons.Has(criteria.ReasonUserUnauthenticated):
+		// when the user is unauthenticated it means they haven't
+		// logged in yet, so redirect to authenticate
+		return a.requireLoginResponse(ctx, in, isForwardAuthVerify)
+	case reasons.Has(criteria.ReasonDeviceUnauthenticated):
+		// when the user's device is unauthenticated it means they haven't
+		// registered a webauthn device yet, so redirect to the webauthn flow
+		return a.requireWebAuthnResponse(ctx, in, result, isForwardAuthVerify)
+	case reasons.Has(criteria.ReasonDeviceUnauthorized):
+		denyStatusCode = httputil.StatusDeviceUnauthorized
+		denyStatusText = httputil.DetailsText(httputil.StatusDeviceUnauthorized)
+	case reasons.Has(criteria.ReasonRouteNotFound):
 		denyStatusCode = http.StatusNotFound
 		denyStatusText = httputil.DetailsText(http.StatusNotFound)
-	case result.Deny.Reasons.Has(criteria.ReasonInvalidClientCertificate):
+	case reasons.Has(criteria.ReasonInvalidClientCertificate):
 		denyStatusCode = httputil.StatusInvalidClientCertificate
 		denyStatusText = httputil.DetailsText(httputil.StatusInvalidClientCertificate)
 	}
 
 	return a.deniedResponse(ctx, in, denyStatusCode, denyStatusText, nil)
-}
-
-func (a *Authorize) handleResultNotAllowed(
-	ctx context.Context,
-	in *envoy_service_auth_v3.CheckRequest,
-	result *evaluator.Result,
-	isForwardAuthVerify bool,
-) (*envoy_service_auth_v3.CheckResponse, error) {
-	switch {
-	case result.Allow.Reasons.Has(criteria.ReasonUserUnauthenticated):
-		// when the user is unauthenticated it means they haven't
-		// logged in yet, so redirect to authenticate
-		return a.requireLoginResponse(ctx, in, isForwardAuthVerify)
-	case result.Allow.Reasons.Has(criteria.ReasonDeviceUnauthenticated):
-		// when the user's device is unauthenticated it means they haven't
-		// registered a webauthn device yet, so redirect to the webauthn flow
-		return a.requireWebAuthnResponse(ctx, in, result, isForwardAuthVerify)
-	case result.Allow.Reasons.Has(criteria.ReasonDeviceUnauthorized):
-		return a.deniedResponse(ctx, in,
-			httputil.StatusDeviceUnauthorized,
-			httputil.DetailsText(httputil.StatusDeviceUnauthorized),
-			nil)
-	}
-
-	return a.deniedResponse(ctx, in, http.StatusForbidden, httputil.DetailsText(http.StatusForbidden), nil)
 }
 
 func (a *Authorize) okResponse(headers http.Header) *envoy_service_auth_v3.CheckResponse {
@@ -211,6 +199,8 @@ func (a *Authorize) requireWebAuthnResponse(
 	checkRequestURL.Scheme = "https"
 
 	if deviceType, ok := result.Allow.AdditionalData["device_type"].(string); ok {
+		q.Set(urlutil.QueryDeviceType, deviceType)
+	} else if deviceType, ok := result.Deny.AdditionalData["device_type"].(string); ok {
 		q.Set(urlutil.QueryDeviceType, deviceType)
 	} else {
 		q.Set(urlutil.QueryDeviceType, webauthnutil.DefaultDeviceType)
