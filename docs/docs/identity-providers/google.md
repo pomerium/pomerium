@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 0
 meta:
   - name: keywords
-    content: google gsuite gmail oidc openid-connect workspaces
+    content: google, gsuite, gmail, oidc, openid connect, workspaces, identity provider, idp
 ---
 
 # Google Workspace (formerly known as G Suite)

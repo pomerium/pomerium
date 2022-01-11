@@ -3,7 +3,7 @@ title: Kubernetes Dashboard
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy kubernetes helm k8s oauth dashboard
+    content: pomerium, identity access proxy, kubernetes, helm, k8s, oauth, dashboard,
 description: >-
   This guide covers how to add authentication and authorization to kubernetes dashboard using single-sing-on, pomerium, helm, and letsencrypt certificates.
 ---

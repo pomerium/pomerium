@@ -4,7 +4,7 @@ lang: en-US
 # sidebarDepth: 0
 meta:
   - name: keywords
-    content: github oauth2 provider identity-provider
+    content: github, oauth2, provider, identity provider, idp
 ---
 
 # GitHub

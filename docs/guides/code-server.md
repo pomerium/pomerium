@@ -4,8 +4,8 @@ lang: en-US
 meta:
   - name: keywords
     content: >-
-      pomerium identity-access-proxy visual-studio-code visual studio code
-      authentication authorization
+      pomerium, identity access proxy, visual studio code,
+      authentication, authorization
 description: >-
   This guide covers how to add authentication and authorization to a hosted,
   fully, online instance of visual studio code.

@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 0
 meta:
   - name: keywords
-    content: pomerium architecture
+    content: pomerium, architecture
 ---
 
 # Architecture

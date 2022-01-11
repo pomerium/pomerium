@@ -3,7 +3,7 @@ title: API
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy oidc reverse-proxy enterprise console api python go
+    content: pomerium, identity access proxy, oidc, reverse proxy, enterprise, console, api, python, go
 ---
 
 # Enterprise Console API

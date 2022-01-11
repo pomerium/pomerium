@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 2
 meta:
   - name: keywords
-    content: configuration options settings pomerium
+    content: configuration, options, settings, pomerium, reference
 ---
 
 # Configuration Settings
