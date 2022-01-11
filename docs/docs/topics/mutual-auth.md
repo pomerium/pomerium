@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 1
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy mutual authentication jwt jwks mtls
+    content: pomerium, identity access proxy, mutual authentication, jwt, jwks, mtls
 description: >-
   This page describes the concept of mutual authentication and why it's important.
 ---

@@ -3,7 +3,7 @@ title: Binaries
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy oidc reverse-proxy
+    content: pomerium, identity access proxy, oidc, reverse proxy, identity aware proxy
 ---
 
 # Binaries

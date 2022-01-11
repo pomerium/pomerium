@@ -4,7 +4,7 @@ lang: en-US
 description: Get Pomerium up and running quickly with Docker.
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy oidc docker reverse-proxy containers
+    content: pomerium, identity access proxy, oidc, docker, reverse proxy, containers, identity aware proxy
 ---
 
 # Pomerium using Docker

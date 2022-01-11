@@ -3,7 +3,7 @@ title: Upstream mTLS
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy mtls client-certificate
+    content: pomerium, identity access proxy, mtls, client certificate, mutual authentication
 description: >-
   This guide covers how to configure Pomerium to provide mutual authentication
   (mTLS) to an upstream service, using client certificates with a custom certificate authority.

@@ -4,7 +4,7 @@ lang: en-US
 meta:
   - name: keywords
     content: >-
-      pomerium bittorrent torrent pomerium identity-access-proxy transmission-daemon transmission authentication authorization
+      pomerium, bittorrent, torrent, identity access proxy, transmission-daemon, transmission, authentication, authorization
 description: >-
   Learn how to use Pomerium as an authentication and authorization proxy for a Transmission torrent daemon.
 ---

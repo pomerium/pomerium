@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 0
 meta:
   - name: keywords
-    content: pomerium community contributing pr code
+    content: pomerium, community, contributing, pr, code
 description: >-
   This document describes how you can find issues to work on, fix/add
   documentation, and how setup Pomerium for local development.

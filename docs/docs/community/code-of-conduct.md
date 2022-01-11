@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 0
 meta:
   - name: keywords
-    content: pomerium community contributing code-of-conduct
+    content: pomerium, community, contributing, code of conduct
 ---
 
 # Contributor Covenant Code of Conduct

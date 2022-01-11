@@ -3,7 +3,7 @@ title: Install
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy oidc docker reverse-proxy containers install enterprise console
+    content: pomerium, identity access proxy, oidc, docker, reverse proxy, containers, install, enterprise, console
 ---
 
 There are several ways to install Pomerium Enterprise, to suite your organization's needs. We provide open-source Pomerium and Pomerium Enterprise as deb and rpm packages from an upstream repository, and as Docker images, and Helm charts. You can also build Pomerium from source.

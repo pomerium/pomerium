@@ -3,7 +3,7 @@ title: JWT Verification
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy envoy jwt
+    content: pomerium, identity access proxy, envoy, jwt,
 description: >-
   This example demonstrates how to verify the Pomerium JWT assertion header using Envoy.
 ---

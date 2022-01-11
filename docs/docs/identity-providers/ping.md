@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 0
 meta:
   - name: keywords
-    content: ping oidc
+    content: ping, oidc, identity provider, idp
 ---
 
 # Ping Identity

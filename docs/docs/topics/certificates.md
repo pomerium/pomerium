@@ -4,7 +4,7 @@ sidebarDepth: 1
 lang: en-US
 meta:
   - name: keywords
-    content: x509 certificates tls mtls letsencrypt lets encrypt
+    content: x509, certificates, tls, mtls, letsencrypt, lets encrypt
 ---
 
 # Certificates
