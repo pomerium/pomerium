@@ -4,8 +4,8 @@ lang: en-US
 meta:
   - name: keywords
     content: >-
-      pomerium identity-access-proxy gitlab gitlab-ee docker
-      authentication authorization
+      pomerium, identity access proxy, gitlab, gitlab-ee, docker,
+      authentication, authorization, self-hosted
 description: >-
   This guide covers how to secure self-hosted GitLab behind Pomerium, providing authentication and authorization through your IdP.
 ---

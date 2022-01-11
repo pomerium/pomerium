@@ -3,7 +3,7 @@ title: Argo
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy argo argo-cd
+    content: pomerium, identity access proxy, argo, cd, continuous deployment
 description: >-
   This guide covers how to add authentication and authorization to an instance
   of argo.

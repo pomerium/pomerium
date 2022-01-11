@@ -3,7 +3,7 @@ title: Nginx
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy nginx
+    content: pomerium, identity access proxy, nginx
 description: >-
   This guide covers how to use Pomerium to protect services behind an nginx
   proxy.

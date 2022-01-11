@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 2
 meta:
     - name: keywords
-      content: configuration options settings Pomerium Enterprise
+      content: configuration, options, settings, pomerium, enterprise, reference
 ---
 
 # Manage
@@ -366,6 +366,8 @@ A policy can only support PPL or Rego. Once one is set, the other tab is disable
 
 Certificates are the x509 _public-key_ and _private-key_ used to establish secure HTTP and gRPC connections. Any combination of the above can be used together, and are additive. You can also use any of these settings in conjunction with `Autocert` to get OCSP stapling.
 
+Certificates loaded into Pomerium from these config values are used to attempt secure connections between end users and services, between Pomerium services, and to upstream endpoints.
+
 For example, if specifying multiple certificates at once:
 
 ```yaml
@@ -377,6 +379,15 @@ certificates:
   - cert: "$HOME/.acme.sh/prometheus.example.com_ecc/fullchain.cer"
     key: "$HOME/.acme.sh/prometheus.example.com_ecc/prometheus.example.com.key"
 ```
+
+Or to set a single certificate and key covering multiple domains and/or a wildcard subdomain:
+
+```yaml
+certificate_file: "$HOME/.acme.sh/*.example.com/fullchain.crt"
+certificate_key:  "$HOME/.acme.sh/*.example.com/*.example.com.key"
+```
+
+**Note:** Pomerium will check your system's trust/key store for valid certificates first. If your certificate solution imports into the system store, you don't need to also specify them with these configuration keys.
 
 [route-concept]: /enterprise/concepts.md#routes
 [route-reference]: /enterprise/reference/manage.md#routes

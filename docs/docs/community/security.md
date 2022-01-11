@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 0
 meta:
   - name: keywords
-    content: pomerium security disclosure vulnerabilities
+    content: pomerium, security, disclosure, vulnerabilities
 ---
 
 # Security Policy

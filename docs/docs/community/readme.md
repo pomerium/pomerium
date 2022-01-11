@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 0
 meta:
   - name: keywords
-    content: pomerium community help bugs updates features
+    content: pomerium, community, help, bugs, updates, features
 
 description: >-
   This document describes how you users can stay up to date with pomerium,

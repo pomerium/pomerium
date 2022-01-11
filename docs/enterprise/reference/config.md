@@ -3,7 +3,7 @@ title: Environment Variables
 lang: en-US
 meta:
     - name: keywords
-      content: configuration options settings Pomerium Enterprise
+      content: configuration, options, settings, pomerium, enterprise, reference
 ---
 
 # Pomerium Console Environment Variables

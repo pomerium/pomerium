@@ -3,7 +3,7 @@ title: Helm
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy oidc kubernetes Helm reverse-proxy
+    content: pomerium, identity access proxy, oidc, kubernetes, helm, reverse proxy, ingress controller
 ---
 
 # Install Pomerium using Helm
