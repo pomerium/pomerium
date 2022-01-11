@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 0
 meta:
   - name: keywords
-    content: azure active-directory active directory ad microsoft
+    content: azure, active directory, ad, microsoft, identity provider, idp
 ---
 
 # Azure Active Directory

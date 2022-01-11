@@ -3,7 +3,7 @@ title: Synology
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy synology docker
+    content: pomerium, identity access proxy, synology, docker, dsm, nas
 ---
 
 # Synology

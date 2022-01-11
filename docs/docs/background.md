@@ -3,7 +3,7 @@ title: Background
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy beyondcorp zero-trust reverse-proxy ztn zta
+    content: pomerium, identity access proxy, beyondcorp, zero trust, reverse proxy, ztn, zta
 ---
 
 # Background
@@ -41,9 +41,9 @@ In summary, perimeter based security suffers from the following shortcomings:
 - Even just defining what the network perimeter is is an increasingly difficult proposition in a remote-work, BYOD, multi-cloud world. Most organizations are a heterogeneous mix of clouds, servers, devices, and organizational units.
 - VPNs are often misused and exacerbate the issue by opening yet another door into your network organization.
 
-### Zero-trust
+### Zero Trust
 
-[Zero-trust](https://ldapwiki.com/wiki/Zero%20Trust) instead attempts to mitigate these shortcomings by adopting the following principles:
+[Zero trust](https://ldapwiki.com/wiki/Zero%20Trust) instead attempts to mitigate these shortcomings by adopting the following principles:
 
 - Trust flows from identity, device-state, and context; not network location.
 - Treat both internal and external networks as untrusted.
@@ -51,11 +51,11 @@ In summary, perimeter based security suffers from the following shortcomings:
 - Every device, user, and application's communication should be authenticated, authorized, and encrypted.
 - Access policy should be dynamic, and built from multiple sources.
 
-To be clear, _perimeter security is not defunct_, nor is zero-trust security a panacea or a single product. Many of the ideas and principles of perimeter security are still relevant and are part of a holistic, and wide-ranging security policy. After all, we still want our castles to have high walls.
+To be clear, _perimeter security is not defunct_, nor is zero trust security a panacea or a single product. Many of the ideas and principles of perimeter security are still relevant and are part of a holistic, and wide-ranging security policy. After all, we still want our castles to have high walls.
 
 ## Further reading
 
-The zero-trust security model was first articulated by [John Kindervag](http://www.virtualstarmedia.com/downloads/Forrester_zero_trust_DNA.pdf) in 2010, and by Google in 2011 as a result of the [Operation Aurora](https://en.wikipedia.org/wiki/Operation_Aurora) breach. What follows is a curated list of resources that covers the topic in more depth.
+The zero trust security model was first articulated by [John Kindervag](http://www.virtualstarmedia.com/downloads/Forrester_zero_trust_DNA.pdf) in 2010, and by Google in 2011 as a result of the [Operation Aurora](https://en.wikipedia.org/wiki/Operation_Aurora) breach. What follows is a curated list of resources that covers the topic in more depth.
 
 ### Government Recommendations
 

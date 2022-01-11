@@ -6,7 +6,7 @@ sidebarDepth: 0
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium troubleshooting faq frequently asked questions
+    content: pomerium, troubleshooting, faq, frequently asked questions
 ---
 
 # Troubleshooting

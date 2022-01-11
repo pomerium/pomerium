@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 1
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy oidc kubernetes Ingress reverse-proxy
+    content: pomerium, identity access proxy, oidc, kubernetes, ingress, ingress controller, reverse proxy
 ---
 
 # Kubernetes Ingress Controller

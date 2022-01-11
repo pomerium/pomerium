@@ -4,12 +4,12 @@ sidebarDepth: 1
 lang: en-US
 meta:
   - name: keywords
-    content: x509 certificates tls mtls letsencrypt lets encrypt
+    content: x509, certificates, tls, mtls, letsencrypt, lets encrypt
 ---
 
 # Certificates
 
-[Certificates](https://en.wikipedia.org/wiki/X.509) and [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security) play a vital role in [zero-trust][principles] networks, and in Pomerium.
+[Certificates](https://en.wikipedia.org/wiki/X.509) and [TLS](https://en.wikipedia.org/wiki/Transport_Layer_Security) play a vital role in [zero trust][principles] networks, and in Pomerium.
 
 This document covers a few options in how to generate and set up TLS certificates suitable for working with pomerium.
 
@@ -124,4 +124,4 @@ Certificates, TLS, and Public Key Cryptography is a vast subject we cannot adequ
 [certificate_key]: ../../reference/readme.md#certificates
 [override_certificate_name]: ../../reference/readme.md#override-certificate-name
 [principles]: ../background.md#history
-[zero-trust]: ../background.md#zero-trust
+[zero trust]: ../background.md#zero-trust

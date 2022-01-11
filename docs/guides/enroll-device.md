@@ -4,8 +4,8 @@ lang: en-US
 meta:
   - name: keywords
     content: >-
-      pomerium identity-access-proxy webauthn device id enroll
-      authentication authorization
+      pomerium, identity access proxy, webauthn, device id, enroll, enrollment,
+      authentication, authorization
 description: >-
   This guide covers how to enroll a trusted execution environment device as a Pomerium end-user.
 ---

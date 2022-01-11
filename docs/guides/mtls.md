@@ -3,7 +3,7 @@ title: Client-Side mTLS
 lang: en-US
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy mtls client-certificate
+    content: pomerium, identity access proxy, mtls, client certificate, mutual authentication
 description: >-
   This guide covers how to use Pomerium to implement mutual authentication
   (mTLS) for end-users, using client certificates with a custom certificate authority.

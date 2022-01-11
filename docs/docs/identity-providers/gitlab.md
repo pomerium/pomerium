@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 0
 meta:
   - name: keywords
-    content: gitlab oidc openid-connect identity-provider
+    content: gitlab, oidc, openid connect, identity provider, idp
 ---
 
 # GitLab
