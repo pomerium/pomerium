@@ -1,5 +1,3 @@
-ARG TARGETARCH
-
 # build our own root trust store from current stable
 FROM debian:stable as casource
 RUN apt-get update && apt-get install -y ca-certificates
