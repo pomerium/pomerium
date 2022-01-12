@@ -137,10 +137,7 @@ func (h *Handler) handleAuthenticate(w http.ResponseWriter, r *http.Request, sta
 	}
 
 	// get the stored device type
-	deviceType, err := webauthnutil.GetDeviceType(ctx, state.Client, deviceTypeParam)
-	if err != nil {
-		return fmt.Errorf("error retrieving webauthn device type: %w", err)
-	}
+	deviceType := webauthnutil.GetDeviceType(ctx, state.Client, deviceTypeParam)
 
 	// get the device credentials
 	knownDeviceCredentials, err := getKnownDeviceCredentials(ctx, state.Client, u.GetDeviceCredentialIds()...)
@@ -232,10 +229,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request, state *
 	}
 
 	// get the stored device type
-	deviceType, err := webauthnutil.GetDeviceType(ctx, state.Client, deviceTypeParam)
-	if err != nil {
-		return fmt.Errorf("error retrieving webauthn device type: %w", err)
-	}
+	deviceType := webauthnutil.GetDeviceType(ctx, state.Client, deviceTypeParam)
 
 	creationOptions, err := webauthnutil.GetCreationOptionsForCredential(
 		state.SharedKey,
@@ -370,10 +364,7 @@ func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *Stat
 	}
 
 	// get the stored device type
-	deviceType, err := webauthnutil.GetDeviceType(ctx, state.Client, deviceTypeParam)
-	if err != nil {
-		return err
-	}
+	deviceType := webauthnutil.GetDeviceType(ctx, state.Client, deviceTypeParam)
 
 	creationOptions := webauthnutil.GenerateCreationOptions(state.SharedKey, deviceType, u)
 	requestOptions := webauthnutil.GenerateRequestOptions(state.SharedKey, deviceType, knownDeviceCredentials)

@@ -35,8 +35,7 @@ func TestGetDeviceType(t *testing.T) {
 				}, nil
 			},
 		}
-		deviceType, err := GetDeviceType(ctx, client, "any")
-		assert.NoError(t, err)
+		deviceType := GetDeviceType(ctx, client, "any")
 		assert.Equal(t, "Example", deviceType.GetName())
 	})
 	t.Run("default", func(t *testing.T) {
@@ -45,17 +44,7 @@ func TestGetDeviceType(t *testing.T) {
 				return nil, status.Error(codes.NotFound, "not found")
 			},
 		}
-		deviceType, err := GetDeviceType(ctx, client, "any")
-		assert.NoError(t, err)
+		deviceType := GetDeviceType(ctx, client, "any")
 		assert.Equal(t, "Any", deviceType.GetName())
-	})
-	t.Run("not found", func(t *testing.T) {
-		client := &mockDataBrokerServiceClient{
-			get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
-				return nil, status.Error(codes.NotFound, "not found")
-			},
-		}
-		_, err := GetDeviceType(ctx, client, "example")
-		assert.Error(t, err)
 	})
 }
