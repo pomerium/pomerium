@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/encoding/base58"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -178,6 +179,20 @@ func PutCredential(
 			Data: any,
 		},
 	})
+	// this can happen if we exceed the max message size in gRPC, so we try removing some data
+	if status.Code(err) == codes.ResourceExhausted && credential.GetWebauthn() != nil {
+		log.Warn(ctx).Msg("device: saving device credential resulted in resource exhausted error, removing responses and retrying")
+		credential.GetWebauthn().AuthenticateResponse = nil
+		credential.GetWebauthn().RegisterResponse = nil
+		any = protoutil.NewAny(credential)
+		_, err = client.Put(ctx, &databroker.PutRequest{
+			Record: &databroker.Record{
+				Type: any.GetTypeUrl(),
+				Id:   credential.GetId(),
+				Data: any,
+			},
+		})
+	}
 	return err
 }
 
@@ -195,6 +210,9 @@ func PutEnrollment(
 			Data: any,
 		},
 	})
+	if status.Code(err) == codes.ResourceExhausted {
+		log.Warn(ctx).Msg("device: saving device enrollment resulted in resource exhausted error")
+	}
 	return err
 }
 
@@ -212,5 +230,8 @@ func PutOwnerCredentialRecord(
 			Data: any,
 		},
 	})
+	if status.Code(err) == codes.ResourceExhausted {
+		log.Warn(ctx).Msg("device: saving device owner credential record resulted in resource exhausted error")
+	}
 	return err
 }

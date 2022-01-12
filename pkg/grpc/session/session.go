@@ -5,10 +5,13 @@ import (
 	context "context"
 	"fmt"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/identity"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
@@ -56,6 +59,9 @@ func Put(ctx context.Context, client databroker.DataBrokerServiceClient, s *Sess
 			Data: any,
 		},
 	})
+	if status.Code(err) == codes.ResourceExhausted {
+		log.Warn(ctx).Msg("session: saving session resulted in resource exhausted error")
+	}
 	return res, err
 }
 

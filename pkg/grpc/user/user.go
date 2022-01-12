@@ -5,9 +5,12 @@ import (
 	context "context"
 	"fmt"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/internal/identity"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
@@ -43,6 +46,9 @@ func Put(ctx context.Context, client databroker.DataBrokerServiceClient, u *User
 			Data: any,
 		},
 	})
+	if status.Code(err) == codes.ResourceExhausted {
+		log.Warn(ctx).Msg("user: saving user resulted in resource exhausted error")
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -59,6 +65,9 @@ func PutServiceAccount(ctx context.Context, client databroker.DataBrokerServiceC
 			Data: any,
 		},
 	})
+	if status.Code(err) == codes.ResourceExhausted {
+		log.Warn(ctx).Msg("user: saving service account resulted in resource exhausted error")
+	}
 	if err != nil {
 		return nil, err
 	}
