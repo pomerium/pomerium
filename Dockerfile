@@ -1,5 +1,3 @@
-ARG TARGETARCH=amd64
-
 FROM golang:latest as build
 WORKDIR /go/src/github.com/pomerium/pomerium
 
