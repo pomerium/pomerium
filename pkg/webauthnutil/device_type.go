@@ -62,14 +62,14 @@ func GetDeviceType(
 	ctx context.Context,
 	client databroker.DataBrokerServiceClient,
 	deviceTypeID string,
-) (*device.Type, error) {
+) *device.Type {
 	deviceType, err := device.GetType(ctx, client, deviceTypeID)
 	if status.Code(err) == codes.NotFound {
-		var ok bool
-		deviceType, ok = predefinedDeviceTypes[deviceTypeID]
-		if ok {
-			err = nil
-		}
+		deviceType = predefinedDeviceTypes[deviceTypeID]
 	}
-	return deviceType, err
+	if deviceType == nil {
+		deviceType = proto.Clone(predefinedDeviceTypes[DefaultDeviceType]).(*device.Type)
+		deviceType.Id = deviceTypeID
+	}
+	return deviceType
 }
