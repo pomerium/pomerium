@@ -1,5 +1,3 @@
-ARG ARCH
-
 # build our own root trust store from current stable
 FROM debian:stable as casource
 RUN apt-get update && apt-get install -y ca-certificates
@@ -10,7 +8,7 @@ RUN rm /usr/share/ca-certificates/mozilla/DST_Root_CA_X3.crt && update-ca-certif
 FROM busybox:latest as build
 RUN touch /config.yaml
 
-FROM gcr.io/distroless/base-debian10:latest-${ARCH}
+FROM gcr.io/distroless/base-debian10:latest-${TARGETARCH:-amd64}
 ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
 COPY pomerium* /bin/
