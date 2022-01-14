@@ -652,7 +652,7 @@ object_union(xs) = merged {
 		some k
 		xs[_0][k]
 		vs := [xv | xv := xs[_][k]]
-		v := vs[minus(count(vs), 1)]
+		v := vs[count(vs) - 1]
 	}
 }
 
