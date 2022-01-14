@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 
 	"github.com/google/uuid"
 	"github.com/pomerium/csrf"
@@ -340,7 +341,9 @@ func (h *Handler) handleUnregister(w http.ResponseWriter, r *http.Request, state
 
 	// remove the credential from the session
 	state.Session.DeviceCredentials = removeSessionDeviceCredential(state.Session.DeviceCredentials, deviceCredentialID)
-	return h.saveSessionAndRedirect(w, r, state, "/.pomerium")
+	return h.saveSessionAndRedirect(w, r, state, urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{
+		Path: "/.pomerium",
+	}).String())
 }
 
 func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *State) error {
