@@ -37,7 +37,7 @@ require (
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.4.3
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
-	github.com/open-policy-agent/opa v0.35.0
+	github.com/open-policy-agent/opa v0.36.0
 	github.com/openzipkin/zipkin-go v0.3.0
 	github.com/ory/dockertest/v3 v3.8.1
 	github.com/peterbourgon/ff/v3 v3.1.2
@@ -52,7 +52,7 @@ require (
 	github.com/rs/zerolog v1.26.1
 	github.com/scylladb/go-set v1.0.2
 	github.com/shirou/gopsutil/v3 v3.21.12
-	github.com/spf13/cobra v1.2.1 // indirect
+	github.com/spf13/cobra v1.3.0 // indirect
 	github.com/spf13/viper v1.10.1
 	github.com/stretchr/testify v1.7.0
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f
@@ -117,7 +117,7 @@ require (
 	github.com/ettle/strcase v0.1.1 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fatih/structtag v1.2.0 // indirect
-	github.com/felixge/httpsnoop v1.0.1 // indirect
+	github.com/felixge/httpsnoop v1.0.2 // indirect
 	github.com/fxamacker/cbor/v2 v2.3.0 // indirect
 	github.com/fzipp/gocyclo v0.3.1 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
