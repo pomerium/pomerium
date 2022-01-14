@@ -734,89 +734,15 @@ func getRouteableDomainsForTLSDomain(options *config.Options, addr string, tlsDo
 }
 
 func getAllRouteableDomains(options *config.Options, addr string) ([]string, error) {
-	forwardAuthURL, err := options.GetForwardAuthURL()
-	if err != nil {
-		return nil, err
+	switch addr {
+	case options.Addr:
+		return options.GetAllRouteableHTTPDomains()
+	case options.GetGRPCAddr():
+		return options.GetAllRouteableGRPCDomains()
 	}
 
-	lookup := map[string]struct{}{}
-	if config.IsAuthenticate(options.Services) && addr == options.Addr {
-		authenticateURL, err := options.GetInternalAuthenticateURL()
-		if err != nil {
-			return nil, err
-		}
-		for _, h := range urlutil.GetDomainsForURL(*authenticateURL) {
-			lookup[h] = struct{}{}
-		}
-	}
-
-	// authorize urls
-	if config.IsAll(options.Services) && addr == options.GetGRPCAddr() {
-		authorizeURLs, err := options.GetAuthorizeURLs()
-		if err != nil {
-			return nil, err
-		}
-		for _, u := range authorizeURLs {
-			for _, h := range urlutil.GetDomainsForURL(*u) {
-				lookup[h] = struct{}{}
-			}
-		}
-	} else if config.IsAuthorize(options.Services) && addr == options.GetGRPCAddr() {
-		authorizeURLs, err := options.GetInternalAuthorizeURLs()
-		if err != nil {
-			return nil, err
-		}
-		for _, u := range authorizeURLs {
-			for _, h := range urlutil.GetDomainsForURL(*u) {
-				lookup[h] = struct{}{}
-			}
-		}
-	}
-
-	// databroker urls
-	if config.IsAll(options.Services) && addr == options.GetGRPCAddr() {
-		dataBrokerURLs, err := options.GetDataBrokerURLs()
-		if err != nil {
-			return nil, err
-		}
-		for _, u := range dataBrokerURLs {
-			for _, h := range urlutil.GetDomainsForURL(*u) {
-				lookup[h] = struct{}{}
-			}
-		}
-	} else if config.IsDataBroker(options.Services) && addr == options.GetGRPCAddr() {
-		dataBrokerURLs, err := options.GetInternalDataBrokerURLs()
-		if err != nil {
-			return nil, err
-		}
-		for _, u := range dataBrokerURLs {
-			for _, h := range urlutil.GetDomainsForURL(*u) {
-				lookup[h] = struct{}{}
-			}
-		}
-	}
-
-	// policy urls
-	if config.IsProxy(options.Services) && addr == options.Addr {
-		for _, policy := range options.GetAllPolicies() {
-			for _, h := range urlutil.GetDomainsForURL(*policy.Source.URL) {
-				lookup[h] = struct{}{}
-			}
-		}
-		if forwardAuthURL != nil {
-			for _, h := range urlutil.GetDomainsForURL(*forwardAuthURL) {
-				lookup[h] = struct{}{}
-			}
-		}
-	}
-
-	domains := make([]string, 0, len(lookup))
-	for domain := range lookup {
-		domains = append(domains, domain)
-	}
-	sort.Strings(domains)
-
-	return domains, nil
+	// no other domains supported
+	return nil, nil
 }
 
 func getAllTLSDomains(options *config.Options, addr string) ([]string, error) {

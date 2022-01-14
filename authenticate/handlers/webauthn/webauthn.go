@@ -50,12 +50,13 @@ var (
 
 // State is the state needed by the Handler to handle requests.
 type State struct {
-	SharedKey    []byte
-	Client       databroker.DataBrokerServiceClient
-	Session      *session.Session
-	SessionState *sessions.State
-	SessionStore sessions.SessionStore
-	RelyingParty *webauthn.RelyingParty
+	SharedKey       []byte
+	Client          databroker.DataBrokerServiceClient
+	PomeriumDomains []string
+	Session         *session.Session
+	SessionState    *sessions.State
+	SessionStore    sessions.SessionStore
+	RelyingParty    *webauthn.RelyingParty
 }
 
 // A StateProvider provides state for the handler.
@@ -392,6 +393,12 @@ func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *Stat
 }
 
 func (h *Handler) saveSessionAndRedirect(w http.ResponseWriter, r *http.Request, state *State, rawRedirectURI string) error {
+	// if the redirect URL is for a URL we don't control, just do a plain redirect
+	if !isURLForPomerium(state.PomeriumDomains, rawRedirectURI) {
+		httputil.Redirect(w, r, rawRedirectURI, http.StatusFound)
+		return nil
+	}
+
 	// save the session to the databroker
 	res, err := session.Put(r.Context(), state.Client, state.Session)
 	if err != nil {
@@ -512,4 +519,19 @@ func getOrCreateDeviceEnrollment(
 		return nil, err
 	}
 	return deviceEnrollment, nil
+}
+
+func isURLForPomerium(pomeriumDomains []string, rawURI string) bool {
+	uri, err := urlutil.ParseAndValidateURL(rawURI)
+	if err != nil {
+		return false
+	}
+
+	for _, domain := range pomeriumDomains {
+		if urlutil.StripPort(domain) == urlutil.StripPort(uri.Host) {
+			return true
+		}
+	}
+
+	return false
 }
