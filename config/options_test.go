@@ -12,7 +12,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -727,12 +726,6 @@ func TestOptions_GetAllRouteableHTTPDomains(t *testing.T) {
 		"from2.example.com",
 		"from2.example.com:443",
 	}, domains)
-}
-
-func mustParseURL(t *testing.T, rawURL string) *url.URL {
-	u, err := urlutil.ParseAndValidateURL(rawURL)
-	require.NoError(t, err)
-	return u
 }
 
 func mustParseWeightedURLs(t *testing.T, urls ...string) []WeightedURL {
