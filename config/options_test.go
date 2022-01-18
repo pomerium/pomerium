@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -683,6 +684,55 @@ func TestOptions_GetOauthOptions(t *testing.T) {
 	u, err := opts.GetAuthenticateURL()
 	require.NoError(t, err)
 	assert.Equal(t, u.Hostname(), oauthOptions.RedirectURL.Hostname())
+}
+func TestOptions_GetAllRouteableGRPCDomains(t *testing.T) {
+	opts := &Options{
+		AuthenticateURLString: "https://authenticate.example.com",
+		AuthorizeURLString:    "https://authorize.example.com",
+		DataBrokerURLString:   "https://databroker.example.com",
+		Services:              "all",
+	}
+	domains, err := opts.GetAllRouteableGRPCDomains()
+	assert.NoError(t, err)
+
+	assert.Equal(t, []string{
+		"authorize.example.com",
+		"authorize.example.com:443",
+		"databroker.example.com",
+		"databroker.example.com:443",
+	}, domains)
+}
+
+func TestOptions_GetAllRouteableHTTPDomains(t *testing.T) {
+	p1 := Policy{From: "https://from1.example.com"}
+	p1.Validate()
+	p2 := Policy{From: "https://from2.example.com"}
+	p2.Validate()
+
+	opts := &Options{
+		AuthenticateURLString: "https://authenticate.example.com",
+		AuthorizeURLString:    "https://authorize.example.com",
+		DataBrokerURLString:   "https://databroker.example.com",
+		Policies:              []Policy{p1, p2},
+		Services:              "all",
+	}
+	domains, err := opts.GetAllRouteableHTTPDomains()
+	assert.NoError(t, err)
+
+	assert.Equal(t, []string{
+		"authenticate.example.com",
+		"authenticate.example.com:443",
+		"from1.example.com",
+		"from1.example.com:443",
+		"from2.example.com",
+		"from2.example.com:443",
+	}, domains)
+}
+
+func mustParseURL(t *testing.T, rawURL string) *url.URL {
+	u, err := urlutil.ParseAndValidateURL(rawURL)
+	require.NoError(t, err)
+	return u
 }
 
 func mustParseWeightedURLs(t *testing.T, urls ...string) []WeightedURL {
