@@ -152,6 +152,12 @@ OpenSSL is installed or easily available for most 'nix-based operating systems l
 
 Obviously, the OpenSSL server is a trivial upstream service, and is purpose-built to work with encryption and not do much else. Practical mutual authenticate can be a much more complex setup depending on the service, and may require a sidecar or service mesh. This exercise merely serves to demonstrate how easy it is to configure Pomerium to provide client certificates to the upstream service.
 
+## More Resources
+
+ - [Mutual Authentication: A Component of Zero Trust](/docs/topics/mutual-auth.md)
+ - [Client-Side mTLS With Pomerium](/guides/mtls.md)
+ - [JWT Verification](/guides/jwt-verification.md)
+
 [mkcert]: https://github.com/FiloSottile/mkcert
 [OpenSSL]: https://www.openssl.org/
 [`tls_custom_ca_file`]: /reference/readme.md#tls-custom-certificate-authority
