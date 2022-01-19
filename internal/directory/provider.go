@@ -3,6 +3,7 @@ package directory
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"sync"
 
@@ -65,6 +66,7 @@ func GetProvider(options Options) (provider Provider) {
 	if options.ProviderURL != "" {
 		providerURL, _ = url.Parse(options.ProviderURL)
 	}
+	var errSyncDisabled error
 	switch options.Provider {
 	case auth0.Name:
 		serviceAccount, err := auth0.ParseServiceAccount(options)
@@ -73,6 +75,7 @@ func GetProvider(options Options) (provider Provider) {
 				auth0.WithDomain(options.ProviderURL),
 				auth0.WithServiceAccount(serviceAccount))
 		}
+		errSyncDisabled = fmt.Errorf("invalid auth0 service account: %w", err)
 		log.Warn(ctx).
 			Str("service", "directory").
 			Str("provider", options.Provider).
@@ -83,6 +86,7 @@ func GetProvider(options Options) (provider Provider) {
 		if err == nil {
 			return azure.New(azure.WithServiceAccount(serviceAccount))
 		}
+		errSyncDisabled = fmt.Errorf("invalid Azure service account: %w", err)
 		log.Warn(ctx).
 			Str("service", "directory").
 			Str("provider", options.Provider).
@@ -93,6 +97,7 @@ func GetProvider(options Options) (provider Provider) {
 		if err == nil {
 			return github.New(github.WithServiceAccount(serviceAccount))
 		}
+		errSyncDisabled = fmt.Errorf("invalid GitHub service account: %w", err)
 		log.Warn(ctx).
 			Str("service", "directory").
 			Str("provider", options.Provider).
@@ -108,6 +113,7 @@ func GetProvider(options Options) (provider Provider) {
 				gitlab.WithURL(providerURL),
 				gitlab.WithServiceAccount(serviceAccount))
 		}
+		errSyncDisabled = fmt.Errorf("invalid GitLab service account: %w", err)
 		log.Warn(ctx).
 			Str("service", "directory").
 			Str("provider", options.Provider).
@@ -124,11 +130,12 @@ func GetProvider(options Options) (provider Provider) {
 			}
 			return google.New(googleOptions...)
 		}
+		errSyncDisabled = fmt.Errorf("invalid google service account: %w", err)
 		log.Warn(ctx).
 			Str("service", "directory").
 			Str("provider", options.Provider).
 			Err(err).
-			Msg("invalid service account for google directory provider")
+			Msg("invalid service account for Google directory provider")
 	case okta.Name:
 		serviceAccount, err := okta.ParseServiceAccount(options.ServiceAccount)
 		if err == nil {
@@ -136,6 +143,7 @@ func GetProvider(options Options) (provider Provider) {
 				okta.WithProviderURL(providerURL),
 				okta.WithServiceAccount(serviceAccount))
 		}
+		errSyncDisabled = fmt.Errorf("invalid Okta service account: %w", err)
 		log.Warn(ctx).
 			Str("service", "directory").
 			Str("provider", options.Provider).
@@ -146,6 +154,7 @@ func GetProvider(options Options) (provider Provider) {
 		if err == nil {
 			return onelogin.New(onelogin.WithServiceAccount(serviceAccount))
 		}
+		errSyncDisabled = fmt.Errorf("invalid OneLogin service account: %w", err)
 		log.Warn(ctx).
 			Str("service", "directory").
 			Str("provider", options.Provider).
@@ -158,25 +167,30 @@ func GetProvider(options Options) (provider Provider) {
 				ping.WithProviderURL(providerURL),
 				ping.WithServiceAccount(serviceAccount))
 		}
+		errSyncDisabled = fmt.Errorf("invalid Ping service account: %w", err)
 		log.Warn(ctx).
 			Str("service", "directory").
 			Str("provider", options.Provider).
 			Err(err).
 			Msg("invalid service account for ping directory provider")
+	default:
+		errSyncDisabled = fmt.Errorf("unknown directory provider %s", options.Provider)
 	}
 
 	log.Warn(ctx).
 		Str("provider", options.Provider).
-		Msg("no directory provider implementation found, disabling support for groups")
-	return nullProvider{}
+		Msg(errSyncDisabled.Error())
+	return nullProvider{errSyncDisabled}
 }
 
-type nullProvider struct{}
-
-func (nullProvider) User(ctx context.Context, userID, accessToken string) (*directory.User, error) {
-	return nil, nil
+type nullProvider struct {
+	error
 }
 
-func (nullProvider) UserGroups(ctx context.Context) ([]*Group, []*User, error) {
-	return nil, nil, nil
+func (p nullProvider) User(ctx context.Context, userID, accessToken string) (*directory.User, error) {
+	return nil, p.error
+}
+
+func (p nullProvider) UserGroups(ctx context.Context) ([]*Group, []*User, error) {
+	return nil, nil, p.error
 }
