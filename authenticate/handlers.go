@@ -686,13 +686,19 @@ func (a *Authenticate) getWebauthnState(ctx context.Context) (*webauthn.State, e
 		return nil, err
 	}
 
+	pomeriumDomains, err := a.options.Load().GetAllRouteableHTTPDomains()
+	if err != nil {
+		return nil, err
+	}
+
 	return &webauthn.State{
-		SharedKey:    state.sharedKey,
-		Client:       state.dataBrokerClient,
-		Session:      s,
-		SessionState: ss,
-		SessionStore: state.sessionStore,
-		RelyingParty: state.webauthnRelyingParty,
+		SharedKey:       state.sharedKey,
+		Client:          state.dataBrokerClient,
+		PomeriumDomains: pomeriumDomains,
+		Session:         s,
+		SessionState:    ss,
+		SessionStore:    state.sessionStore,
+		RelyingParty:    state.webauthnRelyingParty,
 	}, nil
 }
 
