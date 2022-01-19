@@ -112,7 +112,7 @@ Now that Pomerium is installed in the cluster, we can define authentication and 
     apiVersion: security.istio.io/v1beta1
     kind: RequestAuthentication
     metadata:
-      name: require-pomerium-jwt
+      name: nginx-require-pomerium-jwt
     spec:
       selector:
         matchLabels:
@@ -134,7 +134,7 @@ Now that Pomerium is installed in the cluster, we can define authentication and 
     apiVersion: security.istio.io/v1beta1
     kind: AuthorizationPolicy
     metadata:
-      name: require-pomerium-jwt
+      name: nginx-require-pomerium-jwt
     spec:
       selector:
         matchLabels:
@@ -143,7 +143,7 @@ Now that Pomerium is installed in the cluster, we can define authentication and 
       rules:
       - when:
         - key: request.auth.claims[aud]
-          values: ["hello.localhost.pomerium.io"] # This should match the value of spec.host in the services Ingress
+          values: ["hello.localhost.pomerium.io"] # This should match the value of spec.host in the service's Ingress
     ```
 
     This file defines two Custom Resources. The first is a `RequestAuthentication`, and it specifies:
@@ -184,11 +184,115 @@ Now that Pomerium is installed in the cluster, we can define authentication and 
 
 1. After applying the update with `kubectl apply -f example-ingress.yaml`, you should now be able to access the test service in the browser.
 
-## Grafana ini
+## Grafana
 
-On the Grafana side we are using the Grafana Helm chart and what follows is the relevant section of the `values.yml` file. The most important thing here is that we need to tell Grafana from which request header to grab the username. In this case that's `X-Pomerium-Claim-Email` because we will be using the user's email (provided by your identity provider) as their username in Grafana. For all the configuration options check out the Grafana documentation about its auth-proxy authentication method.
+To demonstrate complete authorization validation through to the upstream service we'll use Grafana, as it's easy to configure to accept user authN from JWTs.
 
-<<< @/examples/kubernetes/istio/grafana.ini.yml
+1. Add the Grafana repository to Helm:
+
+    ```bash
+    helm repo add grafana https://grafana.github.io/helm-charts
+    ```
+
+1. Create a `grafana-values.yaml` file and add the annotations for the Pomerium Ingress Controller:
+
+    ```yaml
+    ingress:
+      enabled: true
+      annotations:
+        # Specify the certificate issuer for your namespace or cluster. For example:
+        # cert-manager.io/issuer: pomerium-issuer
+        ingress.pomerium.io/pass_identity_headers: "true"
+        ingress.pomerium.io/policy: |
+          - allow:
+              or:
+                - domain:
+                    is: example.com
+      hosts:
+        - "grafana.localhost.pomerium.io"
+      tls:
+      - hosts:
+        - grafana.localhost.pomerium.io
+        secretName: grafana.localhost.pomerium.io-tls
+    persistence:
+      type: pvc
+      enabled: false
+      # storageClassName: default
+      accessModes:
+        - ReadWriteOnce
+      size: 10Gi
+      # annotations: {}
+      finalizers:
+        - kubernetes.io/pvc-protection
+    ```
+
+    ::: tip
+    Persistence is required to retain user data. Review the [Grafana Helm chart configuration](https://github.com/grafana/helm-charts/tree/main/charts/grafana#configuration) options to set the values for your environment.
+    :::
+
+1. Install Grafana to the cluster:
+
+    ```bash
+    helm install grafana grafana/grafana --values grafana-values.yaml
+    ```
+
+1. Follow the instructions in the terminal output to log in as the admin user. Follow the [Add Users to Grafana](/guides/grafana.md#add-users-to-grafana) section of our Grafana guide to add a user that can be identified by the Pomerium JWT.
+
+
+1. To the same file, add the following values to the `grafana.ini` section.
+
+    <<< @/examples/kubernetes/istio/grafana.ini.yml
+
+    This tells Grafana to use the email address provided in the `X-Pomerium-Jwt-Assertion` JWT and associate it with the matching Grafana user. It also disabled Grafana's login form. See Grafana's [JWT authentication](https://grafana.com/docs/grafana/latest/auth/jwt/) documentation for more configuration options.
+
+1. Upgrade Grafana with the new configuration options:
+
+    ```bash
+    helm upgrade --install grafana grafana/grafana --values grafana-values.yaml
+    ```
+
+1. Now when you visit the Grafana route, you should be signed in as the user matching your Pomerium claim. To finalize the installation, create a new `authorization-policy.yaml` file. Adjust the matchers and host values for Grafana, and enable `forwardOriginalToken`:
+
+    ```yaml{15}
+    apiVersion: security.istio.io/v1beta1
+    kind: RequestAuthentication
+    metadata:
+      name: grafana-require-pomerium-jwt
+    spec:
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: grafana # This matches the label applied to our test service
+      jwtRules:
+      - issuer: "authenticate.localhost.pomerium.io" # Adjust to match your Authenticate service URL
+        audiences:
+          - grafana.localhost.pomerium.io # This should match the value of spec.host in the services Ingress
+        fromHeaders:
+          - name: "X-Pomerium-Jwt-Assertion"
+        forwardOriginalToken: true
+        jwksUri: https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json # Adjust to match your Authenticate service URL.
+        # The jwksUri key above is the preferred method of retrieving the signing key, and should be used in production. See 
+        # See https://istio.io/latest/docs/reference/config/security/jwt/#JWTRule
+        #
+        #If the Authenticate service is using a localhost or other domain that's not a FQDN. You can instead provide the content from that path using the jwks key:
+        #jwks: |
+        #  {"keys":[{"use":"sig","kty":"EC","kid":"e1c5d20b9cf771de0bd6038ee5b5fe831f771d3715b72c2db921611ffca7242f","crv":"P-256","alg":"ES256","x":"j8I1I7eb0Imr2pvxRk13cK9ZjAA3VPrdUIHkAslX2e0","y":"jfWNKJkq3b5hrTz2JsrXCcvgJCPP7QSFgX1ZT9wapIQ"}]}
+    ---
+    apiVersion: security.istio.io/v1beta1
+    kind: AuthorizationPolicy
+    metadata:
+      name: grafana-require-pomerium-jwt
+    spec:
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: grafana # This matches the label applied to our test service
+      action: ALLOW
+      rules:
+      - when:
+        - key: request.auth.claims[aud]
+          values: ["grafana.localhost.pomerium.io"] # This should match the value of spec.host in the service's Ingress
+    ```
+
+    Apply the policies with `kubectl apply -f` to complete the configuration.
 
 [Istio]: https://istio.io/latest/
 [istio]: https://github.com/istio/istio
@@ -200,13 +304,3 @@ On the Grafana side we are using the Grafana Helm chart and what follows is the 
 [Pomerium Ingress Controller]: /docs/k8s/ingress.md
 [zero trust]: /docs/background.md#zero-trust
 [Install Pomerium using Helm]: /docs/k8s/helm.md
-
-<!--
-- The following example shows how to make Grafana's [auth proxy](https://grafana.com/docs/grafana/latest/auth/auth-proxy) work with Pomerium inside of an Istio mesh.
-
-#### Service Entry For Manually Configured Routes
-
-If you are enforcing mutual TLS in your service mesh you will need to add a ServiceEntry for your identity provider so that Istio knows not to expect a mutual TLS connection with, for example `https://yourcompany.okta.com`.
-
-<<< @/examples/kubernetes/istio/service-entry.yml
- -->
