@@ -170,6 +170,8 @@ func PutCredential(
 	client databroker.DataBrokerServiceClient,
 	credential *Credential,
 ) error {
+	shrinkCredential(credential)
+
 	any := protoutil.NewAny(credential)
 	_, err := client.Put(ctx, &databroker.PutRequest{
 		Record: &databroker.Record{
@@ -213,4 +215,34 @@ func PutOwnerCredentialRecord(
 		},
 	})
 	return err
+}
+
+var maxCredentialSize = 256 * 1024
+
+// shrinkCredential shrinks a credential object by removing unnecessary responses and options
+// until its within the max credential size
+func shrinkCredential(credential *Credential) {
+	for len(protoutil.NewAny(credential).GetValue()) > maxCredentialSize {
+		if specifier := credential.Specifier.(*Credential_Webauthn); specifier != nil {
+			// (1) remove authenticate responses
+			if len(specifier.Webauthn.AuthenticateResponse) > 0 {
+				specifier.Webauthn.AuthenticateResponse = specifier.Webauthn.AuthenticateResponse[1:]
+				continue
+			}
+
+			// (2) remove register response
+			if len(specifier.Webauthn.RegisterResponse) > 0 {
+				specifier.Webauthn.RegisterResponse = nil
+				continue
+			}
+
+			// (3) remove register options
+			if len(specifier.Webauthn.RegisterOptions) > 0 {
+				specifier.Webauthn.RegisterOptions = nil
+				continue
+			}
+		}
+
+		break
+	}
 }
