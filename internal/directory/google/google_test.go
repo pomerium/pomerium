@@ -12,6 +12,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/pomerium/pomerium/internal/directory/directoryerrors"
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
 
@@ -85,7 +87,7 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 					_ = json.NewEncoder(w).Encode(M{
 						"kind": "admin#directory#groups",
 						"groups": []M{
-							{"id": "group1", "directMembersCount": "1"},
+							{"id": "group1", "directMembersCount": "2"},
 							{"id": "group2"},
 						},
 					})
@@ -97,8 +99,16 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 					_ = json.NewEncoder(w).Encode(M{
 						"members": []M{
 							{
-								"kind": "admin#directory#member",
-								"id":   "user1",
+								"kind":  "admin#directory#member",
+								"id":    "inside-user1",
+								"email": "user1@inside.test",
+								"type":  "USER",
+							},
+							{
+								"kind":  "admin#directory#member",
+								"id":    "outside-user1",
+								"email": "user1@outside.test",
+								"type":  "USER",
 							},
 						},
 					})
@@ -112,24 +122,24 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 					"users": []M{
 						{
 							"kind":         "admin#directory#user",
-							"id":           "user1",
-							"primaryEmail": "user1@example.com",
+							"id":           "inside-user1",
+							"primaryEmail": "user1@inside.test",
 						},
 					},
 				})
 			})
 			r.Get("/{user_id}", func(w http.ResponseWriter, r *http.Request) {
 				switch chi.URLParam(r, "user_id") {
-				case "user1":
+				case "inside-user1":
 					_ = json.NewEncoder(w).Encode(M{
 						"kind": "admin#directory#user",
-						"id":   "user1",
+						"id":   "inside-user1",
 						"name": M{
 							"fullName": "User 1",
 						},
-						"primaryEmail": "user1@example.com",
+						"primaryEmail": "user1@inside.test",
 					})
-				case "user2":
+				case "outside-user1":
 					http.Error(w, "forbidden", http.StatusForbidden)
 				default:
 					http.Error(w, "not found", http.StatusNotFound)
@@ -158,20 +168,20 @@ func TestProvider_User(t *testing.T) {
 		TokenURL:   srv.URL + "/token",
 	}), WithURL(srv.URL))
 
-	du, err := p.User(ctx, "user1", "")
+	du, err := p.User(ctx, "inside-user1", "")
 	if !assert.NoError(t, err) {
 		return
 	}
-	assert.Equal(t, "user1", du.Id)
-	assert.Equal(t, "user1@example.com", du.Email)
+	assert.Equal(t, "inside-user1", du.Id)
+	assert.Equal(t, "user1@inside.test", du.Email)
 	assert.Equal(t, "User 1", du.DisplayName)
 	assert.Equal(t, []string{"group1", "group2"}, du.GroupIds)
 
-	du, err = p.User(ctx, "user2", "")
-	if !assert.NoError(t, err) {
+	du, err = p.User(ctx, "outside-user1", "")
+	if assert.ErrorIs(t, err, directoryerrors.ErrPreferExistingInformation) {
 		return
 	}
-	assert.Equal(t, "user2", du.Id)
+	assert.Equal(t, "outside-user1", du.Id)
 }
 
 func TestProvider_UserGroups(t *testing.T) {
@@ -199,7 +209,8 @@ func TestProvider_UserGroups(t *testing.T) {
 	assert.Equal(t, []*directory.Group{
 		{Id: "group1"},
 	}, dgs)
-	assert.Equal(t, []*directory.User{
-		{Id: "user1", Email: "user1@example.com", GroupIds: []string{"group1"}},
-	}, dus)
+	testutil.AssertProtoJSONEqual(t, `[
+		{ "id": "inside-user1", "email": "user1@inside.test", "groupIds": ["group1"] },
+		{ "id": "outside-user1", "email": "user1@outside.test", "groupIds": ["group1"] }
+	]`, dus)
 }

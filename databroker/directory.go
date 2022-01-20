@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/pomerium/pomerium/internal/directory/directoryerrors"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -22,7 +25,20 @@ func (c *DataBroker) RefreshUser(ctx context.Context, req *directory.RefreshUser
 	}
 
 	u, err := dp.User(ctx, req.GetUserId(), req.GetAccessToken())
-	if err != nil {
+	// if the returned error signals we should prefer existing information
+	if errors.Is(err, directoryerrors.ErrPreferExistingInformation) {
+		_, err = c.dataBrokerServer.Get(ctx, &databroker.GetRequest{
+			Type: protoutil.GetTypeURL(new(directory.User)),
+			Id:   req.GetUserId(),
+		})
+		switch status.Code(err) {
+		case codes.OK:
+			return new(emptypb.Empty), nil
+		case codes.NotFound: // go ahead and save the user that was returned
+		default:
+			return nil, err
+		}
+	} else if err != nil {
 		return nil, err
 	}
 
