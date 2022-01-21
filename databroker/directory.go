@@ -3,6 +3,7 @@ package databroker
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -36,7 +37,7 @@ func (c *DataBroker) RefreshUser(ctx context.Context, req *directory.RefreshUser
 			return new(emptypb.Empty), nil
 		case codes.NotFound: // go ahead and save the user that was returned
 		default:
-			return nil, err
+			return nil, fmt.Errorf("databroker: error retrieving existing user record for refresh: %w", err)
 		}
 	} else if err != nil {
 		return nil, err
