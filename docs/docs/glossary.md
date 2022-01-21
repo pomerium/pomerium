@@ -16,10 +16,10 @@ Pomerium's documentation uses a lot of terminology specific to the networking an
 ## General
 
 ### Access Token
-This is a general term referring to a string issued by an identifying service like an [identity provider] that validates the holder to have a specific set of permissions. Most of the access tokens discussed in our docs are [JWTs].
+This is a general term referring to a string issued by an identifying service like an [identity provider] that validates the holder to have a specific set of permissions. Most of the access tokens discussed in our docs are [JWTs] formatted following the [Oauth 2.0 RFC](https://datatracker.ietf.org/doc/html/rfc6749#section-7.1).
 
 ### Identity Provider
-An identity provider (**IdP**) is used to [authenticate] a user, i.e. confirm their identity. Pomerium uses external IdPs to better integrate into existing environments, and to achieve strong separation of services.
+An identity provider (**IdP**) is used to [authenticate] a user, i.e. confirm their identity. Pomerium uses external IdPs to better integrate into existing environments, and to achieve strong separation of services. Pomerium provides [single sign-on] from your IdP to your entire network infrastructure from a single location.
 
 ### Identity-aware Proxy
 A [proxy](https://en.wikipedia.org/wiki/Proxy_server) is an intermediate service between one or more clients or servers. Most of the proxies discussed in our docs are technically [reverse proxies](https://en.wikipedia.org/wiki/Reverse_proxy), sitting between one or more servers and all clients, providing a single point of ingress into a system.
@@ -30,22 +30,25 @@ An identity-aware proxy can provide contextual access to specific services based
 Commonly shortened to **JSON**, [JavaScript object notation](https://en.wikipedia.org/wiki/JSON) is a common format used to represent and share structured sets of data as arrays of key-value pairs.
 
 ### JSON Web Key Sets
-Usually abbreviate as **JWKS**, this is a [JSON]-formatted set of one or more keys provided by a trusted issuer and used by service to verify [JWTs] provided by a client.
+Usually abbreviate as **JWKS**, this is a [JSON]-formatted set of one or more keys provided by a trusted issuer and used by service to verify [JWTs] provided by a client. Formatting is defined by the [JSON Web Key RFC](https://datatracker.ietf.org/doc/html/rfc7517).
 
 ### JSON Web Token
-Often referred to as **JWTs**, a JSON web token is a [JSON]-formatted string provided to a user by an [identity provider], which validates the user's identity to subsequent services (such as an [identity-aware-proxy]).
+Often referred to as **JWTs**, a JSON web token is a [JSON]-formatted string provided to a user by an [identity provider], which validates the user's identity to subsequent services (such as an [identity-aware-proxy]). JWTs are formatted according to the [JSON Web Token RFC](https://datatracker.ietf.org/doc/html/rfc7519)
 
 ### Namespace
 "Namespaces" is an over-saturated term, having different meanings in different contexts. [Pomerium Enterprise][pom-namespace] uses Namespaces to provide separation of access and control to [routes]. Kubernetes uses their [namespaces][k8s-namespace] to isolate groups of resources within a cluster.
 
 ### Perimeter
-The term "Perimeter" in the context of Pomerium and general networking usually refers to your internal network, and common tools like firewalls used to restrict access to it. Historically, most security models used the perimeter as the main layer of protection to a network system. The principles of [zero trust] assume that the perimeter can be (and likely is) compromised, and require security between each connection, including those between internal services.
+The term "Perimeter" in the context of Pomerium and general networking usually refers to your internal network, and common tools like firewalls used to restrict access to it. [Historically](/docs/background.md#history), most security models used the perimeter as the main layer of protection to a network system. The principles of [zero trust] assume that the perimeter can be (and likely is) compromised, and require security between each connection, including those between internal services.
 
 ### Policy
 Pomerium allows administrators to define authorization policies dictating what combination of users, groups, devices, etc, have access to protected services. Open-source Pomerium defines a unique policy to every [route], while Pomerium Enterprise can define reusable policies at the global and [namespace] level.
 
 ### Route
 Specific to Pomerium, a route is a defined path from outside the network (via a public domain) to an internal service. Routes can be defined in the [configuration](/reference/readme.md#routes) for open-source Pomerium or the [Pomerium Enterprise Console][pom-routes].
+
+### Single Sign-On
+Single Sign-On (**SSO**) is the most frequently asked for requirement by enterprise organizations looking to adopt new SaaS applications. SSO enables authentication via an organization’s [identity provider], such as [Google Workspace](/docs/identity-providers/google.md) or [Okta](/docs/identity-providers/okta.md), as opposed to users or IT admins managing hundreds, if not thousands, of usernames and passwords.
 
 ## Networking
 
@@ -108,5 +111,6 @@ Zero-trust is a philosophy and/or framework for security models that includes se
 [pom-routes]: /enterprise/concepts.md#routes
 [route]: #route
 [routes]: #route
+[single sign-on]: #single-sign-on
 [support]: https://discuss.pomerium.com/c/support/9
 [zero trust]: #zero-trust
