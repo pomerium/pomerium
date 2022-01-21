@@ -140,7 +140,7 @@ Pomerium provides authentication via your existing identity provider (Pomerium s
 
 Authorization policy can be expressed in a high-level, [declarative language](/enterprise/reference/manage.md#pomerium-policy-language) or [as code](/enterprise/reference/manage.md#rego) that can be used to enforce ABAC, RBAC, or any other governance policy controls. Pomerium can make holistic policy and authorization decisions using external data and request context factors such as user groups, roles, time, day, location and vulnerability status.
 
-Pomerium enables zero-trust based access in which trust flows from identity, device-state, and context, not network location. Every device, user, and application's communication should be authenticated, authorized, and encrypted.
+Pomerium enables zero trust based access in which trust flows from identity, device-state, and context, not network location. Every device, user, and application's communication should be authenticated, authorized, and encrypted.
 
 With Pomerium:
 

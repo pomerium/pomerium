@@ -18,6 +18,7 @@ import (
 	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/authenticate/handlers"
 	"github.com/pomerium/pomerium/authenticate/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
@@ -98,6 +99,13 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Path("/sign_in").Handler(a.requireValidSignature(a.SignIn))
 	sr.Path("/sign_out").Handler(a.requireValidSignature(a.SignOut))
 	sr.Path("/webauthn").Handler(webauthn.New(a.getWebauthnState))
+	sr.Path("/device-enrolled").Handler(handlers.DeviceEnrolled())
+
+	cr := sr.PathPrefix("/callback").Subrouter()
+	cr.Use(func(h http.Handler) http.Handler {
+		return middleware.ValidateSignature(a.state.Load().sharedKey)(h)
+	})
+	cr.Path("/").Handler(httputil.HandlerFunc(a.Callback)).Methods(http.MethodGet)
 }
 
 func (a *Authenticate) mountWellKnown(r *mux.Router) {
@@ -686,4 +694,52 @@ func (a *Authenticate) getWebauthnState(ctx context.Context) (*webauthn.State, e
 		SessionStore: state.sessionStore,
 		RelyingParty: state.webauthnRelyingParty,
 	}, nil
+}
+
+// Callback handles the result of a successful call to the authenticate service
+// and is responsible setting per-route sessions.
+func (a *Authenticate) Callback(w http.ResponseWriter, r *http.Request) error {
+	redirectURLString := r.FormValue(urlutil.QueryRedirectURI)
+	encryptedSession := r.FormValue(urlutil.QuerySessionEncrypted)
+
+	redirectURL, err := urlutil.ParseAndValidateURL(redirectURLString)
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+
+	rawJWT, err := a.saveCallbackSession(w, r, encryptedSession)
+	if err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+
+	// if programmatic, encode the session jwt as a query param
+	if isProgrammatic := r.FormValue(urlutil.QueryIsProgrammatic); isProgrammatic == "true" {
+		q := redirectURL.Query()
+		q.Set(urlutil.QueryPomeriumJWT, string(rawJWT))
+		redirectURL.RawQuery = q.Encode()
+	}
+	httputil.Redirect(w, r, redirectURL.String(), http.StatusFound)
+	return nil
+}
+
+// saveCallbackSession takes an encrypted per-route session token, decrypts
+// it using the shared service key, then stores it the local session store.
+func (a *Authenticate) saveCallbackSession(w http.ResponseWriter, r *http.Request, enctoken string) ([]byte, error) {
+	state := a.state.Load()
+
+	// 1. extract the base64 encoded and encrypted JWT from query params
+	encryptedJWT, err := base64.URLEncoding.DecodeString(enctoken)
+	if err != nil {
+		return nil, fmt.Errorf("proxy: malfromed callback token: %w", err)
+	}
+	// 2. decrypt the JWT using the cipher using the _shared_ secret key
+	rawJWT, err := cryptutil.Decrypt(state.sharedCipher, encryptedJWT, nil)
+	if err != nil {
+		return nil, fmt.Errorf("proxy: callback token decrypt error: %w", err)
+	}
+	// 3. Save the decrypted JWT to the session store directly as a string, without resigning
+	if err = state.sessionStore.SaveSession(w, r, rawJWT); err != nil {
+		return nil, fmt.Errorf("proxy: callback session save failure: %w", err)
+	}
+	return rawJWT, nil
 }

@@ -4,8 +4,8 @@ lang: en-US
 meta:
   - name: keywords
     content: >-
-      pomerium identity-access-proxy data logging graphing grafana
-      authentication authorization
+      pomerium, identity access proxy, data, logging, graphing, grafana,
+      authentication, authorization
 description: >-
   This guide covers how to use Pomerium to authenticate and authorize users of Grafana.
 ---

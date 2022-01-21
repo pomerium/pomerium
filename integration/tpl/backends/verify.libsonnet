@@ -35,7 +35,7 @@ function(mode) {
         image: 'jwilder/dockerize:0.6.1',
         command: [
           '-wait',
-          'http://' + name + ':80/',
+          'http://' + name + ':8000/',
           '-timeout',
           '10m',
         ],
@@ -49,7 +49,7 @@ function(mode) {
       { name: 'http', port: 80, targetPort: 'http' },
     ]),
     utils.KubernetesDeployment(name, image, null, [
-      { name: 'http', containerPort: 80 },
+      { name: 'http', containerPort: 8000 },
     ]),
   ],
 }

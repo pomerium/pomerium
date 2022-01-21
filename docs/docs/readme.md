@@ -5,8 +5,8 @@ sidebarDepth: 0
 meta:
   - name: keywords
     content: >-
-      pomerium overview identity-access-proxy beyondcorp zero-trust
-      reverse-proxy ztn zero-trust-networks
+      pomerium, overview, identity access proxy, beyondcorp, zero trust,
+      reverse proxy, ztn, zero trust networks
 ---
 
 # What is Pomerium

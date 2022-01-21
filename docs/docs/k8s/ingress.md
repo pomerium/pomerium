@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 1
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy oidc kubernetes Ingress reverse-proxy
+    content: pomerium, identity access proxy, oidc, kubernetes, ingress, ingress controller, reverse proxy
 ---
 
 # Kubernetes Ingress Controller
@@ -167,6 +167,7 @@ The remaining annotations are specific to or behave differently than they do whe
 | `ingress.pomerium.io/tls_downstream_client_ca_secret` | Name of Kubernetes `tls` Secret containing a [Client CA][client-certificate-authority] for validating downstream clients. |
 | `ingress.pomerium.io/secure_upstream`                 | When set to `"true"`, use `https` when connecting to the upstream endpoint. |
 | `ingress.pomerium.io/path_regex`                      | When set to `"true"` enables path regex matching. See the [Regular Expressions Path Matching](#regular-expressions-path-matching) section for more information. |
+| `ingress.pomerium.io/service_proxy_upstream`          | When set to `"true"` forces Pomerium to connect to upstreams through the k8s service proxy, and not individual endpoints. <br/> This is useful when deploying Pomerium inside a service mesh. |
 
 ::: tip
 

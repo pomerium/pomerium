@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 
 	"github.com/google/uuid"
 	"github.com/pomerium/csrf"
@@ -137,10 +138,7 @@ func (h *Handler) handleAuthenticate(w http.ResponseWriter, r *http.Request, sta
 	}
 
 	// get the stored device type
-	deviceType, err := webauthnutil.GetDeviceType(ctx, state.Client, deviceTypeParam)
-	if err != nil {
-		return fmt.Errorf("error retrieving webauthn device type: %w", err)
-	}
+	deviceType := webauthnutil.GetDeviceType(ctx, state.Client, deviceTypeParam)
 
 	// get the device credentials
 	knownDeviceCredentials, err := getKnownDeviceCredentials(ctx, state.Client, u.GetDeviceCredentialIds()...)
@@ -232,10 +230,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request, state *
 	}
 
 	// get the stored device type
-	deviceType, err := webauthnutil.GetDeviceType(ctx, state.Client, deviceTypeParam)
-	if err != nil {
-		return fmt.Errorf("error retrieving webauthn device type: %w", err)
-	}
+	deviceType := webauthnutil.GetDeviceType(ctx, state.Client, deviceTypeParam)
 
 	creationOptions, err := webauthnutil.GetCreationOptionsForCredential(
 		state.SharedKey,
@@ -302,6 +297,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request, state *
 			Id: webauthnutil.GetDeviceCredentialID(serverCredential.ID),
 		},
 	})
+
 	return h.saveSessionAndRedirect(w, r, state, redirectURIParam)
 }
 
@@ -345,7 +341,9 @@ func (h *Handler) handleUnregister(w http.ResponseWriter, r *http.Request, state
 
 	// remove the credential from the session
 	state.Session.DeviceCredentials = removeSessionDeviceCredential(state.Session.DeviceCredentials, deviceCredentialID)
-	return h.saveSessionAndRedirect(w, r, state, "/.pomerium")
+	return h.saveSessionAndRedirect(w, r, state, urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{
+		Path: "/.pomerium",
+	}).String())
 }
 
 func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *State) error {
@@ -369,10 +367,7 @@ func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *Stat
 	}
 
 	// get the stored device type
-	deviceType, err := webauthnutil.GetDeviceType(ctx, state.Client, deviceTypeParam)
-	if err != nil {
-		return err
-	}
+	deviceType := webauthnutil.GetDeviceType(ctx, state.Client, deviceTypeParam)
 
 	creationOptions := webauthnutil.GenerateCreationOptions(state.SharedKey, deviceType, u)
 	requestOptions := webauthnutil.GenerateRequestOptions(state.SharedKey, deviceType, knownDeviceCredentials)
@@ -432,7 +427,7 @@ func (h *Handler) saveSessionAndRedirect(w http.ResponseWriter, r *http.Request,
 	encodedJWT := base64.URLEncoding.EncodeToString(encryptedJWT)
 
 	// redirect to the proxy callback URL with the session
-	callbackURL, err := urlutil.GetCallbackURL(r, encodedJWT)
+	callbackURL, err := urlutil.GetCallbackURLForRedirectURI(r, encodedJWT, rawRedirectURI)
 	if err != nil {
 		return err
 	}

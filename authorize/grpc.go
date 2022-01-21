@@ -72,16 +72,20 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		a.logAuthorizeCheck(ctx, in, out, res, s, u)
 	}()
 
+	isForwardAuthVerify := isForwardAuth && hreq.URL.Path == "/verify"
+
+	// if there's a deny, the result is denied using the deny reasons.
 	if res.Deny.Value {
-		return a.handleResultDenied(ctx, in, res)
+		return a.handleResultDenied(ctx, in, res, isForwardAuthVerify, res.Deny.Reasons)
 	}
 
+	// if there's an allow, the result is allowed.
 	if res.Allow.Value {
 		return a.handleResultAllowed(ctx, in, res)
 	}
 
-	isForwardAuthVerify := isForwardAuth && hreq.URL.Path == "/verify"
-	return a.handleResultNotAllowed(ctx, in, res, isForwardAuthVerify)
+	// otherwise, the result is denied using the allow reasons.
+	return a.handleResultDenied(ctx, in, res, isForwardAuthVerify, res.Allow.Reasons)
 }
 
 func getForwardAuthURL(r *http.Request) *url.URL {

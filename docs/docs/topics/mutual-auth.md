@@ -4,14 +4,14 @@ lang: en-US
 sidebarDepth: 1
 meta:
   - name: keywords
-    content: pomerium identity-access-proxy mutual authentication jwt jwks mtls
+    content: pomerium, identity access proxy, mutual authentication, jwt, jwks, mtls
 description: >-
   This page describes the concept of mutual authentication and why it's important.
 ---
 
-# Mutual Authentication: A Component of Zero-Trust
+# Mutual Authentication: A Component of Zero Trust
 
-Pomerium provides a good layer of security out of the box, but it's not (and can't be) configured for complete [zero trust] right out of the box. This page explains several methods of achieving mutual authentication — a big part of the zero-trust model — with practical examples.
+Pomerium provides a good layer of security out of the box, but it's not (and can't be) configured for complete [zero trust] right out of the box. This page explains several methods of achieving mutual authentication — a big part of the zero trust model — with practical examples.
 
 This is a nuanced topic that dives into several specific security practices that provide mutual authentication. You can use the table of contents below to narrow down to the specific tools you're interested in or read the entire doc for a deeper understanding of how these tools work together to support strong infrastructure security.
 
@@ -122,7 +122,7 @@ C-.-A
 E[/Hacker/] --x B
 ```
 
-In this way, we've applied a zero-trust security model to the application layer of our infrastructure's network model. You can see JWT verification in practice with our [Grafana] integration guide.
+In this way, we've applied a zero trust security model to the application layer of our infrastructure's network model. You can see JWT verification in practice with our [Grafana] integration guide.
 
 ## mTLS: Protocol-based Mutual Authentication
 
@@ -152,7 +152,7 @@ style Server fill: white, stroke: black
 1. The browser reads the certificate chain to find the CA, and checks against the computer's keystore to see if the CA is one that it trusts.
 1. After confirming the CA is trusted the browser reconnects to the server, this time using the `https` protocol and encrypting the traffic using the public certificate.
 
-The process above, called [North-south mTLS](https://en.wikipedia.org/wiki/North-south_traffic), confirms the identity of the *server*, protecting the client. Mutual TLS (**mTLS**) allows the server to confirm the identity of the *client* using a client certificate.
+The process above, an example of [north-south traffic](https://en.wikipedia.org/wiki/North-south_traffic) over HTTPS, confirms the identity of the *server*, protecting the client. Mutual TLS (**mTLS**) allows the server to confirm the identity of the *client* using a client certificate.
 
 ```mermaid
 flowchart RL
@@ -175,7 +175,7 @@ flowchart RL
 
 ### East-west mTLS
 
-TLS encryption between services in an internal network is referred to as [East-west mTLS](https://en.wikipedia.org/wiki/East-west_traffic). mTLS can also be configured between Pomerium and the end user, and/or with an upstream service. Configuring mTLS for many end users is cumbersome, and new technologies like [device identity verification] provide verification of the user and their hardware. But mTLS between Pomerium and an upstream service need only be configured once per service, and minimally maintained by updating certificates.
+Traffic between services in an internal network is referred to as [east-west traffic](https://en.wikipedia.org/wiki/East-west_traffic). mTLS can also be configured between Pomerium and the end user, and/or with an upstream service. Configuring mTLS for many end users is cumbersome, and new technologies like [device identity verification] provide verification of the user and their hardware. But mTLS between Pomerium and an upstream service (the east-west traffic) need only be configured once per service, and minimally maintained by updating certificates.
 
 ```mermaid
 flowchart LR
@@ -191,7 +191,7 @@ flowchart LR
   B---xD
 ```
 
-In this way, we've applied a zero-trust security model to the protocol layer of our infrastructure's network model.
+In this way, we've applied a zero trust security model to the protocol layer of our infrastructure's network model.
 
 ## Mutual Authentication With a Sidecar
 

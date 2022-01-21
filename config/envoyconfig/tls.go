@@ -1,12 +1,18 @@
 package envoyconfig
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/asn1"
+	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
 
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 )
+
+var oidMustStaple = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 1, 24}
 
 func (b *Builder) buildSubjectAlternativeNameMatcher(
 	dst *url.URL,
@@ -49,4 +55,33 @@ func (b *Builder) buildSubjectNameIndication(
 	}
 	sni = strings.Replace(sni, "*", "example", -1)
 	return sni
+}
+
+// validateCertificate validates that a certificate can be used with Envoy's TLS stack.
+func validateCertificate(cert *tls.Certificate) error {
+	if len(cert.Certificate) == 0 {
+		return nil
+	}
+
+	// parse the x509 certificate because leaf isn't always filled in
+	x509cert, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return err
+	}
+
+	// check to make sure that if we require an OCSP staple that its available.
+	if len(cert.OCSPStaple) == 0 && hasMustStaple(x509cert) {
+		return fmt.Errorf("certificate requires OCSP stapling but has no OCSP staple response")
+	}
+
+	return nil
+}
+
+func hasMustStaple(cert *x509.Certificate) bool {
+	for _, ext := range cert.Extensions {
+		if ext.Id.Equal(oidMustStaple) {
+			return true
+		}
+	}
+	return false
 }

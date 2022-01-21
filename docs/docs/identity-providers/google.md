@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 0
 meta:
   - name: keywords
-    content: google gsuite gmail oidc openid-connect workspaces
+    content: google, gsuite, gmail, oidc, openid connect, workspaces, identity provider, idp
 ---
 
 # Google Workspace (formerly known as G Suite)
@@ -126,7 +126,6 @@ Your [environmental variables] should look something like this.
 
 ```bash
 IDP_PROVIDER="google"
-IDP_PROVIDER_URL="https://accounts.google.com"
 IDP_CLIENT_ID="yyyy.apps.googleusercontent.com"
 IDP_CLIENT_SECRET="xxxxxx"
 IDP_SERVICE_ACCOUNT="zzzz" # output of `base64 -i service-account-key.json`

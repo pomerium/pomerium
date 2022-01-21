@@ -4,7 +4,7 @@ description: >-
   This article describes how to leverage pomerium for TCP proxying
 meta:
   - name: keywords
-    content: pomerium pomerium-cli proxy identity-access-proxy ssh tcp postgres database redis mysql application non-http
+    content: pomerium, pomerium-cli, proxy, identity access proxy, ssh, tcp, postgres, database, redis, mysql, application, non http, tunnel
 ---
 
 # TCP Support

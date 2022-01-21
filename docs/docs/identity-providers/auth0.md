@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 0
 meta:
   - name: keywords
-    content: auth0
+    content: auth0, pomerium, identity provider, idp
 ---
 
 # Auth0
