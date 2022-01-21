@@ -9,8 +9,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/pomerium/pomerium/internal/directory/ping"
-
 	"github.com/pomerium/pomerium/internal/directory/auth0"
 	"github.com/pomerium/pomerium/internal/directory/azure"
 	"github.com/pomerium/pomerium/internal/directory/github"
@@ -18,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/internal/directory/google"
 	"github.com/pomerium/pomerium/internal/directory/okta"
 	"github.com/pomerium/pomerium/internal/directory/onelogin"
+	"github.com/pomerium/pomerium/internal/directory/ping"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )

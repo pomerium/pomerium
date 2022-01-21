@@ -17,6 +17,7 @@ import (
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 
+	"github.com/pomerium/pomerium/internal/directory/directoryerrors"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
@@ -100,7 +101,7 @@ func (p *Provider) User(ctx context.Context, userID, accessToken string) (*direc
 		Do()
 	if isAccessDenied(err) {
 		// ignore forbidden errors as a user may login from another gsuite domain
-		return du, nil
+		return du, directoryerrors.ErrPreferExistingInformation
 	} else if err != nil {
 		return nil, fmt.Errorf("google: error getting user: %w", err)
 	} else {
@@ -138,6 +139,7 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		return nil, nil, fmt.Errorf("google: error getting API client: %w", err)
 	}
 
+	// query all the groups
 	var groups []*directory.Group
 	err = apiClient.Groups.List().
 		Context(ctx).
@@ -160,7 +162,37 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		return nil, nil, fmt.Errorf("google: error getting groups: %w", err)
 	}
 
+	// query all the user members for each group
+	// - create a lookup table for the user (storing id and name)
+	//   (this includes users who aren't necessarily members of the same organization)
+	// - create a lookup table for the user's groups
 	userLookup := map[string]apiUserObject{}
+	userIDToGroups := map[string][]string{}
+	for _, group := range groups {
+		group := group
+		err = apiClient.Members.List(group.Id).
+			Context(ctx).
+			Pages(ctx, func(res *admin.Members) error {
+				for _, member := range res.Members {
+					// only include user objects
+					if member.Type != "USER" {
+						continue
+					}
+
+					userLookup[member.Id] = apiUserObject{
+						ID:    member.Id,
+						Email: member.Email,
+					}
+					userIDToGroups[member.Id] = append(userIDToGroups[member.Id], group.Id)
+				}
+				return nil
+			})
+		if err != nil {
+			return nil, nil, fmt.Errorf("google: error getting group members: %w", err)
+		}
+	}
+
+	// query all the users in the organization
 	err = apiClient.Users.List().
 		Context(ctx).
 		Customer(currentAccountCustomerID).
@@ -179,22 +211,6 @@ func (p *Provider) UserGroups(ctx context.Context) ([]*directory.Group, []*direc
 		})
 	if err != nil {
 		return nil, nil, fmt.Errorf("google: error getting users: %w", err)
-	}
-
-	userIDToGroups := map[string][]string{}
-	for _, group := range groups {
-		group := group
-		err = apiClient.Members.List(group.Id).
-			Context(ctx).
-			Pages(ctx, func(res *admin.Members) error {
-				for _, member := range res.Members {
-					userIDToGroups[member.Id] = append(userIDToGroups[member.Id], group.Id)
-				}
-				return nil
-			})
-		if err != nil {
-			return nil, nil, fmt.Errorf("google: error getting group members: %w", err)
-		}
 	}
 
 	var users []*directory.User
