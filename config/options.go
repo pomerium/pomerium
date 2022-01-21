@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -1039,6 +1040,106 @@ func (o *Options) GetCodecType() CodecType {
 		return CodecTypeAuto
 	}
 	return o.CodecType
+}
+
+// GetAllRouteableGRPCDomains returns all the possible gRPC domains handled by the Pomerium options.
+func (o *Options) GetAllRouteableGRPCDomains() ([]string, error) {
+	lookup := map[string]struct{}{}
+
+	// authorize urls
+	if IsAll(o.Services) {
+		authorizeURLs, err := o.GetAuthorizeURLs()
+		if err != nil {
+			return nil, err
+		}
+		for _, u := range authorizeURLs {
+			for _, h := range urlutil.GetDomainsForURL(*u) {
+				lookup[h] = struct{}{}
+			}
+		}
+	} else if IsAuthorize(o.Services) {
+		authorizeURLs, err := o.GetInternalAuthorizeURLs()
+		if err != nil {
+			return nil, err
+		}
+		for _, u := range authorizeURLs {
+			for _, h := range urlutil.GetDomainsForURL(*u) {
+				lookup[h] = struct{}{}
+			}
+		}
+	}
+
+	// databroker urls
+	if IsAll(o.Services) {
+		dataBrokerURLs, err := o.GetDataBrokerURLs()
+		if err != nil {
+			return nil, err
+		}
+		for _, u := range dataBrokerURLs {
+			for _, h := range urlutil.GetDomainsForURL(*u) {
+				lookup[h] = struct{}{}
+			}
+		}
+	} else if IsDataBroker(o.Services) {
+		dataBrokerURLs, err := o.GetInternalDataBrokerURLs()
+		if err != nil {
+			return nil, err
+		}
+		for _, u := range dataBrokerURLs {
+			for _, h := range urlutil.GetDomainsForURL(*u) {
+				lookup[h] = struct{}{}
+			}
+		}
+	}
+
+	domains := make([]string, 0, len(lookup))
+	for domain := range lookup {
+		domains = append(domains, domain)
+	}
+	sort.Strings(domains)
+
+	return domains, nil
+}
+
+// GetAllRouteableHTTPDomains returns all the possible HTTP domains handled by the Pomerium options.
+func (o *Options) GetAllRouteableHTTPDomains() ([]string, error) {
+	forwardAuthURL, err := o.GetForwardAuthURL()
+	if err != nil {
+		return nil, err
+	}
+
+	lookup := map[string]struct{}{}
+	if IsAuthenticate(o.Services) {
+		authenticateURL, err := o.GetInternalAuthenticateURL()
+		if err != nil {
+			return nil, err
+		}
+		for _, h := range urlutil.GetDomainsForURL(*authenticateURL) {
+			lookup[h] = struct{}{}
+		}
+	}
+
+	// policy urls
+	if IsProxy(o.Services) {
+		for _, policy := range o.GetAllPolicies() {
+			for _, h := range urlutil.GetDomainsForURL(*policy.Source.URL) {
+				lookup[h] = struct{}{}
+			}
+		}
+		if forwardAuthURL != nil {
+			for _, h := range urlutil.GetDomainsForURL(*forwardAuthURL) {
+				lookup[h] = struct{}{}
+			}
+		}
+	}
+
+	domains := make([]string, 0, len(lookup))
+	for domain := range lookup {
+		domains = append(domains, domain)
+	}
+	sort.Strings(domains)
+
+	return domains, nil
 }
 
 // Checksum returns the checksum of the current options struct

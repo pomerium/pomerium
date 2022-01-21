@@ -14,7 +14,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.1.0
 	github.com/docker/docker v20.10.12+incompatible
 	github.com/envoyproxy/go-control-plane v0.10.1
-	github.com/envoyproxy/protoc-gen-validate v0.6.2
+	github.com/envoyproxy/protoc-gen-validate v0.6.3
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-jose/go-jose/v3 v3.0.0
@@ -37,8 +37,8 @@ require (
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.4.3
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
-	github.com/open-policy-agent/opa v0.36.0
-	github.com/openzipkin/zipkin-go v0.3.0
+	github.com/open-policy-agent/opa v0.36.1
+	github.com/openzipkin/zipkin-go v0.4.0
 	github.com/ory/dockertest/v3 v3.8.1
 	github.com/peterbourgon/ff/v3 v3.1.2
 	github.com/pomerium/csrf v1.7.0
@@ -66,8 +66,8 @@ require (
 	golang.org/x/net v0.0.0-20211111083644-e5c967477495
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	google.golang.org/api v0.64.0
-	google.golang.org/genproto v0.0.0-20211223182754-3ac035c7e7cb
+	google.golang.org/api v0.65.0
+	google.golang.org/genproto v0.0.0-20220107163113-42d7afdf6368
 	google.golang.org/grpc v1.43.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/auth0.v5 v5.21.1
@@ -77,7 +77,7 @@ require (
 
 require (
 	4d63.com/gochecknoglobals v0.1.0 // indirect
-	cloud.google.com/go v0.99.0 // indirect
+	cloud.google.com/go/compute v0.1.0 // indirect
 	github.com/Antonboom/errname v0.1.5 // indirect
 	github.com/Antonboom/nilnil v0.1.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
@@ -173,7 +173,7 @@ require (
 	github.com/ldez/tagliatelle v0.2.0 // indirect
 	github.com/libdns/libdns v0.2.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
-	github.com/lyft/protoc-gen-star v0.5.3 // indirect
+	github.com/lyft/protoc-gen-star v0.6.0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/maratori/testpackage v1.0.1 // indirect
 	github.com/matoous/godox v0.0.0-20210227103229-6504466cf951 // indirect
