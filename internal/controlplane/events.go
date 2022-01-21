@@ -14,40 +14,14 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/events"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
-const maxEnvoyConfigurationEvents = 50
+const maxEvents = 50
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
 
-func (srv *Server) handleEnvoyConfigurationEvent(evt *events.EnvoyConfigurationEvent) {
-	select {
-	case srv.envoyConfigurationEvents <- evt:
-	default:
-		log.Warn(context.Background()).
-			Interface("event", evt).
-			Msg("controlplane: dropping envoy configuration event due to full channel")
-	}
-}
-
-func (srv *Server) runEnvoyConfigurationEventHandler(ctx context.Context) error {
-	for {
-		var evt *events.EnvoyConfigurationEvent
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case evt = <-srv.envoyConfigurationEvents:
-		}
-
-		withGRPCBackoff(ctx, func() error {
-			return srv.storeEnvoyConfigurationEvent(ctx, evt)
-		})
-	}
-}
-
-func (srv *Server) storeEnvoyConfigurationEvent(ctx context.Context, evt *events.EnvoyConfigurationEvent) error {
+func (srv *Server) storeEvent(ctx context.Context, evt proto.Message) error {
 	any := protoutil.NewAny(evt)
 
 	client, err := srv.getDataBrokerClient(ctx)
@@ -55,17 +29,17 @@ func (srv *Server) storeEnvoyConfigurationEvent(ctx context.Context, evt *events
 		return err
 	}
 
-	if !srv.haveSetEnvoyConfigurationEventOptions {
+	if !srv.haveSetCapacity[any.GetTypeUrl()] {
 		_, err = client.SetOptions(ctx, &databrokerpb.SetOptionsRequest{
 			Type: any.GetTypeUrl(),
 			Options: &databrokerpb.Options{
-				Capacity: proto.Uint64(maxEnvoyConfigurationEvents),
+				Capacity: proto.Uint64(maxEvents),
 			},
 		})
 		if err != nil {
 			return err
 		}
-		srv.haveSetEnvoyConfigurationEventOptions = true
+		srv.haveSetCapacity[any.GetTypeUrl()] = true
 	}
 
 	_, err = client.Put(ctx, &databrokerpb.PutRequest{
