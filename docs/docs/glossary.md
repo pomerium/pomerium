@@ -9,7 +9,7 @@ description: A quick reference of commonly used terms.
 
 # Glossary
 
-Pomerium's documentation use a lot of terminology specific to the networking and security space. This glossary defines common terms readers may be unfamiliar with. If you come across an unfamiliar term not listed in this page, please let us know in our [Discuss support forum][support] and we'll add it.
+Pomerium's documentation uses a lot of terminology specific to the networking and security space. This glossary defines common terms readers may be unfamiliar with. If you come across an unfamiliar term not listed in this page, please let us know in our [Discuss support forum][support] and we'll add it.
 
 [[toc]]
 
@@ -22,7 +22,7 @@ This is a general term referring to a string issued by an identifying service li
 An identity provider (**IdP**) is used to [authenticate] a user, i.e. confirm their identity. Pomerium uses external IdPs to better integrate into existing environments, and to achieve strong separation of services.
 
 ### Identity-aware Proxy
-A [proxy](https://en.wikipedia.org/wiki/Proxy_server) is an intermediate service between a one or more clients or servers. Most of the proxies discussed in our docs are technically [reverse proxies](https://en.wikipedia.org/wiki/Reverse_proxy), sitting between one or more severs and all clients, providing a single point of ingress into a system.
+A [proxy](https://en.wikipedia.org/wiki/Proxy_server) is an intermediate service between one or more clients or servers. Most of the proxies discussed in our docs are technically [reverse proxies](https://en.wikipedia.org/wiki/Reverse_proxy), sitting between one or more servers and all clients, providing a single point of ingress into a system.
 
 An identity-aware proxy can provide contextual access to specific services based on the identity of the client. In Pomerium's case, identity is provided by the client in the form of a [JWT] issued by the [identity provider].
 
@@ -42,7 +42,7 @@ Often referred to as **JWTs**, a JSON web token is a [JSON]-formatted string pro
 The term "Perimeter" in the context of Pomerium and general networking usually refers to your internal network, and common tools like firewalls used to restrict access to it. Historically, most security models used the perimeter as the main layer of protection to a network system. The principles of [zero trust] assume that the perimeter can be (and likely is) compromised, and require security between each connection, including those between internal services.
 
 ### Policy
-Pomerium allows administrators to define policies dictating what combination of users, groups, devices, etc, have access to protected services. Open-source Pomerium defines a unique policy to every [route], while Pomerium Enterprise can define reusable policies at the global and [namespace] level.
+Pomerium allows administrators to define authorization policies dictating what combination of users, groups, devices, etc, have access to protected services. Open-source Pomerium defines a unique policy to every [route], while Pomerium Enterprise can define reusable policies at the global and [namespace] level.
 
 ### Route
 Specific to Pomerium, a route is a defined path from outside the network (via a public domain) to an internal service. Routes can be defined in the [configuration](/reference/readme.md#routes) for open-source Pomerium or the [Pomerium Enterprise Console][pom-routes].
@@ -67,7 +67,7 @@ When discussing traffic between end users and services, we use "upstream" to ref
 ## Security
 
 ### Authentication
-Abbreviated as **AuthN**, this refers to the validation of a user's identity. It can also refer to validation of an user's [device](/docs/topics/device-identity.md). Access to a protected resource is usually granted only after a client's authentication and [authorization] is validated. This is usually done by verifying the [JWT] provided by the client.
+Abbreviated as **AuthN**, this refers to the validation of a user's identity. It can also refer to validation of an user's [device](/docs/topics/device-identity.md). Access to a protected resource is usually granted only after a client's authentication and [authorization] are validated. This is usually done by verifying the [JWT] provided by the client.
 
 ### Authorization
 Abbreviated as **AuthZ**, authorization is the process of validating a client's access to a protected resource. This is usually done after a client as been [authenticated], and is determined by comparing the contents of the clients [JWT] against the [policies] present for the [route].
