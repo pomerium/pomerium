@@ -12,12 +12,12 @@
     <div class="header clearfix">
       <div class="heading">
         <a href="{{.RedirectURL}}" class="logo"></a>
-            <span>
-              <form action="{{.SignOutURL}}" method="post">
-                {{.csrfField}}
-                <input class="button" type="submit" value="Logout"/>
-              </form>
-            </span>
+        <span>
+          <form action="{{.SignOutURL}}" method="post">
+            {{.csrfField}}
+            <input class="button" type="submit" value="Logout" />
+          </form>
+        </span>
       </div>
     </div>
     <div class="content">
@@ -26,16 +26,17 @@
           {{range .User.GetClaim "picture"}}
           <img class="status-bubble" src="{{.|safeURL}}" alt="user image" />
           {{else}}
-          <img class="status-bubble" src="{{dataURL "/.pomerium/assets/img/account_circle-24px.svg"}}" xmlns="http://www.w3.org/2000/svg" />
+          <img class="status-bubble" src="{{dataURL " /.pomerium/assets/img/account_circle-24px.svg"}}"
+            xmlns="http://www.w3.org/2000/svg" />
           {{end}}
           <div class="title-wrapper">
             <span class="title">
               {{with .User.Name}}
-                Hi {{.}}!
+              Hi {{.}}!
               {{else}}
-                {{range .User.GetClaim "given_name"}}
-                  Hi {{.}}!
-                {{end}}
+              {{range .User.GetClaim "given_name"}}
+              Hi {{.}}!
+              {{end}}
               {{end}}
             </span>
             <label class="status-time">
@@ -122,11 +123,11 @@
                   <td>{{$k}}</td>
                   <td>
                     {{range $v.AsSlice}}
-                      {{if eq $k "exp" "iat" "updated_at"}}
+                    {{if eq $k "exp" "iat" "updated_at"}}
                     <p>{{formatTime .}}</p>
-                      {{else}}
+                    {{else}}
                     <p>{{.}}</p>
-                      {{end}}
+                    {{end}}
                     {{end}}
                   </td>
                 </tr>
@@ -138,7 +139,8 @@
             {{end}}
           </div>
           <div class="category-link">
-            User <a href="https://docs.pomerium.io/reference/#jwt-claim-headers">identity claims</a> can be passed to upstream applications.
+            User <a href="https://docs.pomerium.io/reference/#jwt-claim-headers">identity claims</a> can be passed to
+            upstream applications.
           </div>
         </div>
       </div>
@@ -173,7 +175,8 @@
             {{end}}
           </div>
           <div class="category-link">
-            Your associated groups are pulled from your <a href="https://www.pomerium.io/docs/identity-providers/">identity provider</a>.
+            Your associated groups are pulled from your <a
+              href="https://www.pomerium.io/docs/identity-providers/">identity provider</a>.
           </div>
         </div>
       </div>
@@ -189,24 +192,24 @@
             {{if .CurrentDeviceCredentials}}
             <table>
               <thead>
-              <tr>
-                <th>ID</th>
-              </tr>
+                <tr>
+                  <th>ID</th>
+                </tr>
               </thead>
               <tbody>
-              {{range .CurrentDeviceCredentials}}
-              <tr>
-                <td>{{.ID}}</td>
-                <td>
-                  <form action="{{$.WebAuthnURL}}" method="POST" class="delete-credential-form">
-                    {{$.csrfField}}
-                    <input type="hidden" name="action" value="unregister">
-                    <input type="hidden" name="pomerium_device_credential_id" value="{{.ID}}">
-                    <button type="submit">Delete</button>
-                  </form>
-                </td>
-              </tr>
-              {{end}}
+                {{range .CurrentDeviceCredentials}}
+                <tr>
+                  <td>{{.ID}}</td>
+                  <td>
+                    <form action="{{$.WebAuthnURL}}" method="POST" class="delete-credential-form">
+                      {{$.csrfField}}
+                      <input type="hidden" name="action" value="unregister">
+                      <input type="hidden" name="pomerium_device_credential_id" value="{{.ID}}">
+                      <button type="submit">Delete</button>
+                    </form>
+                  </td>
+                </tr>
+                {{end}}
               </tbody>
             </table>
             {{else}}
@@ -220,24 +223,24 @@
             </div>
             <table>
               <thead>
-              <tr>
-                <th>ID</th>
-              </tr>
+                <tr>
+                  <th>ID</th>
+                </tr>
               </thead>
               <tbody>
-              {{range .OtherDeviceCredentials}}
-              <tr>
-                <td>{{.ID}}</td>
-                <td>
-                  <form action="{{$.WebAuthnURL}}" method="POST" class="delete-credential-form">
-                    {{$.csrfField}}
-                    <input type="hidden" name="action" value="unregister">
-                    <input type="hidden" name="pomerium_device_credential_id" value="{{.ID}}">
-                    <button type="submit">Delete</button>
-                  </form>
-                </td>
-              </tr>
-              {{end}}
+                {{range .OtherDeviceCredentials}}
+                <tr>
+                  <td>{{.ID}}</td>
+                  <td>
+                    <form action="{{$.WebAuthnURL}}" method="POST" class="delete-credential-form">
+                      {{$.csrfField}}
+                      <input type="hidden" name="action" value="unregister">
+                      <input type="hidden" name="pomerium_device_credential_id" value="{{.ID}}">
+                      <button type="submit">Delete</button>
+                    </form>
+                  </td>
+                </tr>
+                {{end}}
               </tbody>
             </table>
           </div>
@@ -260,6 +263,7 @@
         </ul>
         <p>© Pomerium, Inc.</p>
       </div>
+    </div>
 </body>
 
 
@@ -270,7 +274,7 @@
     }
   }
 
-  Array.from(document.getElementsByClassName("delete-credential-form")).forEach(function(el) {
+  Array.from(document.getElementsByClassName("delete-credential-form")).forEach(function (el) {
     el.addEventListener("submit", onDeleteDeviceCredential);
   });
 </script>
