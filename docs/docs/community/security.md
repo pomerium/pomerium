@@ -123,9 +123,9 @@ This process can take some time. Every effort will be made to handle the bug in 
 
 ## Reporting a Security Bug
 
-If you believe you've found a security vulnerability in Pomerium, please notify us; we will work with you to resolve the issue promptly. Thank you for helping to keep Pomerium and our users safe! Though at this time we do not have a paid bug bounty program, we deeply appreciate any effort to discover and disclose security vulnerabilities responsibly.
+Please notify us of any potential vulnerability discovered in Pomerium. We will work with you to resolve the issue promptly. Thank you for helping to keep Pomerium and our users safe! Though at this time we do not have a paid bug bounty program, we deeply appreciate any effort to discover and disclose security vulnerabilities responsibly.
 
-All security bugs in Pomerium should be reported by email to security@pomerium.com . Your email will be acknowledged within 48 hours, and you'll receive a more detailed response to your email within 72 hours indicating the next steps in handling your report.
+All security bugs in Pomerium should be reported by email to security@pomerium.com . Your email will be acknowledged within 48 hours, and you'll receive a more detailed response to your email within 72 hours indicating the next steps in handling your report. This response policy applies only to Pomerium itself, not to our marketing or docs sites.
 
 While researching, we'd like you to refrain from:
 
