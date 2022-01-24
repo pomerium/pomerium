@@ -23,7 +23,7 @@ In this guide, we'll demonstrate how to configure Pomerium and Istio in a Kubern
 
 ## How it Works
 
-In our [Mutual Authentication section on Sidecars](/docs/topics/mutual-auth.md#mutual-authentication-with-a-sidecar), we detail how a single service can offload authN and authz to a sidecar service. In a service mesh, each service in an internal network is provisioned a sidecar, and the controller configures them to provide mutual authentication with each other:
+In our [Mutual Authentication section on Sidecars](/docs/topics/mutual-auth.md#mutual-authentication-with-a-sidecar), we detail how a single service can offload authN and authz to a sidecar service. In a service mesh, each service in an internal network is deployed with a sidecar, and the controller configures them to provide mutual authentication with each other:
 
 ```mermaid
 flowchart LR
@@ -70,25 +70,43 @@ Follow [Install Pomerium using Helm] to set up the Pomerium Ingress Controller a
     kubectl label namespace pomerium istio-injection=enabled
     ```
 
-1. In your `pomerium-values.yaml` file, make the following adjustments for integration with Istio:
+1. Update your `pomerium-values.yaml` file, making note of the changes for integration with Istio:
 
     ```yaml
-    proxy:
-      deployment:
-        podAnnotations:
-          traffic.sidecar.istio.io/excludeInboundPorts: "80,443" # allow external connections to terminate directly on the Pomerium proxy rather than the sidecar
-    config:
-      generateTLS: false # disable certificate generation since we offload TLS to the mesh
-      insecure: true # disable TLS on internal Pomerium services
-    ingress:
-      enabled: false # disable the default ingress resource since we are using our ingress controller
-    ingressController:
-      enabled: true # enable the Pomerium Ingress Controller
-    service:
-      authorize:
-        headless: false # send traffic to the Pomerium Authorize through the Istio service rather than to individual pods
-      databroker:
-        headless: false # send traffic to the Pomerium Databroker through the Istio service rather than to individual pods
+authenticate:
+  idp:
+    provider: "google"
+    clientID: YOUR_CLIENT_ID
+    clientSecret: YOUR_SECRET
+    serviceAccount: YOUR_SERVICE_ACCOUNT
+    
+proxy:
+  deployment:
+    podAnnotations:
+      traffic.sidecar.istio.io/excludeInboundPorts: "80,443" # allow external connections to terminate directly on the Pomerium proxy rather than the sidecar
+
+config:
+  rootDomain: localhost.pomerium.io
+  generateTLS: false # disable certificate generation since we offload TLS to the mesh
+  insecure: true # disable TLS on internal Pomerium services
+
+ingress:
+  enabled: false # disable the default ingress resource since we are using our ingress controller
+
+ingressController:
+  enabled: true # enable the Pomerium Ingress Controller
+
+redis:
+  tls:
+    enabled: false # TLS is handled by istio
+  enabled: true
+
+service:
+  authorize:
+    headless: false # send traffic to the Pomerium Authorize through the Istio service rather than to individual pods
+  databroker:
+    headless: false # send traffic to the Pomerium Databroker through the Istio service rather than to individual pods
+
     ```
 
 1. When [defining a test service](/docs/k8s/helm.md#define-a-test-service), you should now see two containers for the service pod:
@@ -106,7 +124,7 @@ Follow [Install Pomerium using Helm] to set up the Pomerium Ingress Controller a
 
 Now that Pomerium is installed in the cluster, we can define authentication and authorization rules for Istio, which will validate traffic to our example service as coming from the Pomerium Proxy service, through an authorized route, and with an authenticated user token.
 
-1. Adjust the following example `authorization-policy.yaml` file to match your Kubernetes environment and domain names:
+1. Adjust the following example `nginx-istio-policy.yaml` file to match your Kubernetes environment and domain names:
 
     ```yaml
     apiVersion: security.istio.io/v1beta1
@@ -233,7 +251,7 @@ To demonstrate complete authorization validation through to the upstream service
 1. Install Grafana to the cluster:
 
     ```bash
-    helm install grafana grafana/grafana --values grafana-values.yaml
+    helm upgrade --install grafana grafana/grafana --values grafana-values.yaml
     ```
 
 1. Follow the instructions in the terminal output to log in as the admin user. Follow the [Add Users to Grafana](/guides/grafana.md#add-users-to-grafana) section of our Grafana guide to add a user that can be identified by the Pomerium JWT.
@@ -251,7 +269,7 @@ To demonstrate complete authorization validation through to the upstream service
     helm upgrade --install grafana grafana/grafana --values grafana-values.yaml
     ```
 
-1. Now when you visit the Grafana route, you should be signed in as the user matching your Pomerium claim. To finalize the installation, create a new `authorization-policy.yaml` file. Adjust the matchers and host values for Grafana, and enable `forwardOriginalToken`:
+1. Now when you visit the Grafana route, you should be signed in as the user matching your Pomerium claim. To finalize the installation, create a new `grafana-istio-policy.yaml` file. Adjust the matchers and host values for Grafana, and enable `forwardOriginalToken`:
 
     ```yaml{15}
     apiVersion: security.istio.io/v1beta1
