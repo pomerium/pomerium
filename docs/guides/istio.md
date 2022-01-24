@@ -73,40 +73,39 @@ Follow [Install Pomerium using Helm] to set up the Pomerium Ingress Controller a
 1. Update your `pomerium-values.yaml` file, making note of the changes for integration with Istio:
 
     ```yaml
-authenticate:
-  idp:
-    provider: "google"
-    clientID: YOUR_CLIENT_ID
-    clientSecret: YOUR_SECRET
-    serviceAccount: YOUR_SERVICE_ACCOUNT
-    
-proxy:
-  deployment:
-    podAnnotations:
-      traffic.sidecar.istio.io/excludeInboundPorts: "80,443" # allow external connections to terminate directly on the Pomerium proxy rather than the sidecar
+    authenticate:
+      idp:
+        provider: "google"
+        clientID: YOUR_CLIENT_ID
+        clientSecret: YOUR_SECRET
+        serviceAccount: YOUR_SERVICE_ACCOUNT
+        
+    proxy:
+      deployment:
+        podAnnotations:
+          traffic.sidecar.istio.io/excludeInboundPorts: "80,443" # allow external connections to terminate directly on the Pomerium proxy rather than the sidecar
 
-config:
-  rootDomain: localhost.pomerium.io
-  generateTLS: false # disable certificate generation since we offload TLS to the mesh
-  insecure: true # disable TLS on internal Pomerium services
+    config:
+      rootDomain: localhost.pomerium.io
+      generateTLS: false # disable certificate generation since we offload TLS to the mesh
+      insecure: true # disable TLS on internal Pomerium services
 
-ingress:
-  enabled: false # disable the default ingress resource since we are using our ingress controller
+    ingress:
+      enabled: false # disable the default ingress resource since we are using our ingress controller
 
-ingressController:
-  enabled: true # enable the Pomerium Ingress Controller
+    ingressController:
+      enabled: true # enable the Pomerium Ingress Controller
 
-redis:
-  tls:
-    enabled: false # TLS is handled by istio
-  enabled: true
+    redis:
+      tls:
+        enabled: false # TLS is handled by istio
+      enabled: true
 
-service:
-  authorize:
-    headless: false # send traffic to the Pomerium Authorize through the Istio service rather than to individual pods
-  databroker:
-    headless: false # send traffic to the Pomerium Databroker through the Istio service rather than to individual pods
-
+    service:
+      authorize:
+        headless: false # send traffic to the Pomerium Authorize through the Istio service rather than to individual pods
+      databroker:
+        headless: false # send traffic to the Pomerium Databroker through the Istio service rather than to individual pods
     ```
 
 1. When [defining a test service](/docs/k8s/helm.md#define-a-test-service), you should now see two containers for the service pod:
