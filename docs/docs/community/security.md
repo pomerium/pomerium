@@ -132,7 +132,7 @@ While researching, we'd like you to refrain from:
 - Any form of Denial of Service (DoS)
 - Spamming
 - Social engineering or phishing of Pomerium employees or contractors
-- Any attacks against Pomerium's physical property or data centers 
+- Any attacks against Pomerium's physical property or data centers
 
 We may revise these guidelines from time to time. The most current version of the guidelines will be available at <https://pomerium.com/docs/community/security>.
 
