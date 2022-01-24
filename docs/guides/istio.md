@@ -141,7 +141,7 @@ Now that Pomerium is installed in the cluster, we can define authentication and 
         fromHeaders:
           - name: "X-Pomerium-Jwt-Assertion"
         jwksUri: https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json # Adjust to match your Authenticate service URL.
-        # The jwksUri key above is the preferred method of retrieving the signing key, and should be used in production. See 
+        # The jwksUri key above is the preferred method of retrieving the signing key, and should be used in production. See
         # See https://istio.io/latest/docs/reference/config/security/jwt/#JWTRule
         #
         #If the Authenticate service is using a localhost or other domain that's not a FQDN. You can instead provide the content from that path using the jwks key:
