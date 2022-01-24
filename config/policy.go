@@ -565,8 +565,16 @@ func (p *Policy) Matches(requestURL url.URL) bool {
 	}
 
 	if p.Regex != "" {
-		re, err := regexp.Compile(p.Regex)
-		if err == nil && !re.MatchString(requestURL.String()) {
+		rawRE := p.Regex
+		if !strings.HasPrefix(rawRE, "^") {
+			rawRE = "^" + rawRE
+		}
+		if !strings.HasSuffix(rawRE, "$") {
+			rawRE += "$"
+		}
+
+		re, err := regexp.Compile(rawRE)
+		if err == nil && !re.MatchString(requestURL.Path) {
 			return false
 		}
 	}

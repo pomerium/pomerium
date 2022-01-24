@@ -50,6 +50,16 @@ func ParseAndValidateURL(rawurl string) (*url.URL, error) {
 	return u, nil
 }
 
+// MustParseAndValidateURL parses the URL via ParseAndValidateURL but panics if there is an error.
+// (useful for testing)
+func MustParseAndValidateURL(rawURL string) url.URL {
+	u, err := ParseAndValidateURL(rawURL)
+	if err != nil {
+		panic(err)
+	}
+	return *u
+}
+
 // ValidateURL wraps standard library's default url.Parse because
 // it's much more lenient about what type of urls it accepts than pomerium.
 func ValidateURL(u *url.URL) error {
