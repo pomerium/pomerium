@@ -5,7 +5,7 @@ meta:
   - name: keywords
     content: >-
       pomerium, identity access proxy, visual studio code,
-      authentication, authorization
+      authentication, authorization, code server, vscode, coder, codercom
 description: >-
   This guide covers how to add authentication and authorization to a hosted,
   fully, online instance of visual studio code.
@@ -15,7 +15,7 @@ description: >-
 
 ## Background
 
-This guide covers using Pomerium to secure an instance of [code-server]. Pomerium is an identity-aware access proxy that can add single-sign-on / access control to any service, including visual studio code.
+This guide covers using Pomerium to secure an instance of [code-server]. Pomerium is an identity-aware access proxy that can add single-sign-on / access control to any service, including Visual Studio Code.
 
 ### Visual Studio Code
 
@@ -33,25 +33,18 @@ One of the interesting attributes of [Visual Studio Code] is that it is built on
 
 ## Pre-requisites
 
-This guide assumes you have already completed one of the [install] guides, and have a working instance of Pomerium up and running. For purpose of this guide, I'm going to use docker-compose, though any other deployment method would work equally well.
+This guide assumes you have already completed one of the [install] guides, and have a working instance of Pomerium up and running. For purpose of this guide, we'll use [Docker Compose](https://docs.docker.com/compose/), though any other deployment method would work equally well.
 
 ## Configure
 
-### Pomerium Config
+### Add A Route
 
-```
-# config.yaml
-# See detailed configuration settings : https://www.pomerium.com/docs/reference/
+Define a route in your Pomerium configuration file:
 
-authenticate_service_url: https://authenticate.corp.domain.example
-
-# identity provider settings : https://www.pomerium.com/docs/identity-providers.html
-idp_provider: google
-idp_client_id: REPLACE_ME
-idp_client_secret: REPLACE_ME
+```yaml
 
 routes:
-  - from: https://code.corp.domain.example
+  - from: https://code.corp.example.com
     to: http://codeserver:8080
     policy:
       - allow:
@@ -61,67 +54,76 @@ routes:
     allow_websockets: true
 ```
 
-### Docker-compose
+In this example route, `code.corp.example.com` is the publicly accessible route for the route, and `codeserver` is the local hostname for the server or container running code-server.
+
+### Docker Compose
+
+In the `services` section of your `docker-compose.yaml` file, add a block for code-server:
 
 ```yaml
-codeserver:
-  image: codercom/code-server:latest
-  restart: always
-  ports:
-    - 8080:8080
-  volumes:
-    - ./code-server:/home/coder/project
-  command: --auth none --disable-telemetry /home/coder/project
+services:
+  codeserver:
+    image: codercom/code-server:latest
+    restart: always
+    ports:
+      - 8080:8080
+    volumes:
+      - ./code-server:/home/coder/project
+    command: --auth none --disable-telemetry /home/coder/project
 ```
 
-### That's it
+### Apply and Test
 
-Simply navigate to your domain (e.g. `https://code.corp.domain.example`).
+1. Bring up your new code-server container. If you're already running your containers with Docker Compose in detached mode, you can apply changes with `docker-compose up -d`.
 
-![visual studio code pomerium hello world](./img/vscode-helloworld.png)
+1. After saving your Pomerium configuration file, you may need to restart the docker Pomerium docker container. This is caused by issues with Docker recognizing timestamp updates for files in volume mounts.
 
-### (Example) Develop Pomerium in Pomerium
+1. Navigate to your domain (e.g. `https://code.corp.domain.example`).
+
+    ![visual studio code pomerium hello world](./img/vscode-helloworld.png)
+
+## Develop Pomerium in Pomerium (Example)
 
 As a final touch, now that we've done all this work we might as well use our new development environment to write some real, actual code. And what better project is there than Pomerium? 😉
 
-To build Pomerium, we must [install go](https://golang.org/doc/install) which is as simple as running the following commands in the [integrated terminal].
+1. To build Pomerium, we must [install go](https://golang.org/doc/install) which is as simple as running the following commands in the [integrated terminal]:
 
-```bash
-# install dependencies with apt
-sudo apt-get update && sudo apt-get install -y wget make zip
+    ```bash
+    # install dependencies with apt
+    sudo apt-get update && sudo apt-get install -y wget make zip
 
-# download go
-wget https://golang.org/dl/go1.16.4.linux-amd64.tar.gz
-sudo tar -C /usr/local -xzf go1.16.4.linux-amd64.tar.gz
-```
+    # download go
+    wget https://golang.org/dl/go1.16.4.linux-amd64.tar.gz
+    sudo tar -C /usr/local -xzf go1.16.4.linux-amd64.tar.gz
+    ```
 
-Then add Go to our [PATH].
+1. Add Go to our [PATH]:
 
-```bash
-# add the following to $HOME/.bashrc
-export PATH=$PATH:/usr/local/go/bin
-export PATH=$PATH:$(go env GOPATH)/bin
-```
+    ```bash
+    # add the following to $HOME/.bashrc
+    export PATH=$PATH:/usr/local/go/bin
+    export PATH=$PATH:$(go env GOPATH)/bin
+    ```
 
-Reload [PATH] by opening the [integrated terminal] and sourcing the updated `.bashrc` file.
+1. Reload [PATH] by opening the [integrated terminal] and sourcing the updated `.bashrc` file:
 
-```bash
-source $HOME/.bashrc
-```
+    ```bash
+    source $HOME/.bashrc
+    ```
 
-Finally, now that we've got Go all we need to go is grab the latest source and build.
+1. Now that we've got Go all we need to go is grab the latest source and build:
 
-```bash
-# get the latest source
-git clone https://github.com/pomerium/pomerium.git
+    ```bash
+    # get the latest source
+    git clone https://github.com/pomerium/pomerium.git
 
-# build pomerium
-cd pomerium
-make build
-# run pomerium!
-./bin/pomerium --version
-# v0.14.0-28-g38a75913+38a75913
-```
+    # build pomerium
+    cd pomerium
+    make build
+    # run pomerium!
+    ./bin/pomerium --version
+    # v0.14.0-28-g38a75913+38a75913
+    ```
 
 Happy remote hacking!!!😁
 
