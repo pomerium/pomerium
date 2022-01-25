@@ -6,10 +6,12 @@ import (
 	"testing"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 func Test_PolicyValidate(t *testing.T) {
@@ -231,5 +233,40 @@ func TestPolicy_FromToPb(t *testing.T) {
 		policyFromProto, err := NewPolicyFromProto(pbPolicy)
 		assert.NoError(t, err)
 		assert.Equal(t, p.Redirect.HTTPSRedirect, policyFromProto.Redirect.HTTPSRedirect)
+	})
+}
+
+func TestPolicy_Matches(t *testing.T) {
+	t.Run("full", func(t *testing.T) {
+		p := &Policy{
+			From:  "https://www.example.com",
+			To:    mustParseWeightedURLs(t, "https://localhost"),
+			Regex: `/foo`,
+		}
+		assert.NoError(t, p.Validate())
+
+		assert.False(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/foo/bar`)),
+			"regex should only match full string")
+	})
+	t.Run("issue2952", func(t *testing.T) {
+		p := &Policy{
+			From:  "https://www.example.com",
+			To:    mustParseWeightedURLs(t, "https://localhost"),
+			Regex: `^\/foo\/bar\/[0-9a-f]\/{0,1}$`,
+		}
+		assert.NoError(t, p.Validate())
+
+		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/foo/bar/0`)))
+	})
+	t.Run("issue2592-test2", func(t *testing.T) {
+		p := &Policy{
+			From:  "https://www.example.com",
+			To:    mustParseWeightedURLs(t, "https://localhost"),
+			Regex: `/admin/.*`,
+		}
+		assert.NoError(t, p.Validate())
+
+		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/admin/foo`)))
+		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/admin/bar`)))
 	})
 }
