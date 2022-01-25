@@ -18,13 +18,13 @@ Pomerium's documentation uses a lot of terminology specific to the networking an
 ### Access Token
 This general term refers to a string that validates the holder to have a specific set of permissions, issued by an identifying service like an [identity provider]. Most of the access tokens discussed in our docs are [JSON Web Tokens (**JWTs**)][JWT] formatted following the [Oauth 2.0 RFC](https://datatracker.ietf.org/doc/html/rfc6749#section-7.1).
 
-### Identity Provider
-An identity provider (**IdP**) is used to [authenticate] a user, i.e. confirm their identity. Pomerium uses external IdPs to better integrate into existing environments and to achieve strong separation of services. Pomerium provides [single sign-on] from your IdP to your entire network infrastructure from a single location.
-
-### Identity-aware Proxy
+### Context-aware Proxy
 A [proxy](https://en.wikipedia.org/wiki/Proxy_server) is an intermediate service between one or more clients or servers. Most of the proxies discussed in our docs are technically [reverse proxies](https://en.wikipedia.org/wiki/Reverse_proxy), sitting between one or more servers and all clients, providing a single point of ingress into a system.
 
-An identity-aware proxy can provide contextual access to specific services based on the identity of the client. In Pomerium's case, identity is provided by the client in the form of a [JWT] issued by the [identity provider].
+An context-aware proxy can provide contextual access to specific services based on the identity of the client and the state of the device they are using. Using Pomerium, context is provided by the client in the form of a [JWT] issued by the [identity provider], and optionally by the device using a [secure enclave].
+
+### Identity Provider
+An identity provider (**IdP**) is used to [authenticate] a user, i.e. confirm their identity. Pomerium uses external IdPs to better integrate into existing environments and to achieve strong separation of services. Pomerium provides [single sign-on] from your IdP to your entire network infrastructure from a single location.
 
 ### JavaScript Object Notation
 Commonly shortened to **JSON**, [JavaScript object notation](https://en.wikipedia.org/wiki/JSON) is a common format used to represent and share structured sets of data as arrays of key-value pairs.
@@ -111,6 +111,7 @@ Zero trust is a philosophy and/or framework for security models that includes se
 [pom-routes]: /enterprise/concepts.md#routes
 [route]: #route
 [routes]: #route
+[secure enclave]: #secure-enclave
 [single sign-on]: #single-sign-on
 [support]: https://discuss.pomerium.com/c/support/9
 [zero trust]: #zero-trust
