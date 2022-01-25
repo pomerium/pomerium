@@ -1101,14 +1101,14 @@ settings:
           - Environmental Variable: `JWT_CLAIMS_HEADERS`
           - Config File Key: `jwt_claims_headers`
           - Type: slice of `string`
-          - Example: `email`,`groups`, `user`
+          - Example: `email`, `groups`, `user`, `given_name`
           - Optional
         doc: |
           The JWT Claim Headers setting allows you to pass specific user session data down to upstream applications as HTTP request headers. Note, unlike the header `x-pomerium-jwt-assertion` these values are not signed by the authorization service.
 
           Any claim in the pomerium session JWT can be placed into a corresponding header for upstream consumption. This claim information is sourced from your Identity Provider (IdP) and Pomerium's own session metadata. The header will have the following format:
 
-          `X-Pomerium-Claim-{Name}` where `{Name}` is the name of the claim requested.
+          `X-Pomerium-Claim-{Name}` where `{Name}` is the name of the claim requested.  Underscores will be replaced with dashes; e.g. `X-Pomerium-Claim-Given-Name`.
 
           This option also supports a nested object to customize the header name. For example:
 
