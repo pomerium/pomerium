@@ -91,7 +91,7 @@ Security keys are often used to provide a physical resource to perform multi-fac
 A **TEE** is a physical method of executing cryptographic functions using data that cannot be accessed by the rest of the physical device. This is a core part of [device identity](/docs/topics/device-identity.md) validation.
 
 ### Zero Trust
-Zero-trust is a philosophy and/or framework for security models that includes several facets. We go into detail in our [Background](/docs/background.md#zero-trust) page, but briefly: zero-trust assumes that any one method of security is fallible, and defines a set of security principles that work in concert to provide the highest security without over-burdening administrators, end users, or network devices with extraneous overhead.
+Zero trust is a philosophy and/or framework for security models that includes several facets. We go into detail in our [Background](/docs/background.md#zero-trust) page, but briefly: zero-trust assumes that any one method of security is fallible, and defines a set of security principles that work in concert to provide the highest security without over-burdening administrators, end users, or network devices with extraneous overhead.
 
 [authenticate]: #authentication
 [authenticated]: #authentication
