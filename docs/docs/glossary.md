@@ -16,10 +16,10 @@ Pomerium's documentation uses a lot of terminology specific to the networking an
 ## General
 
 ### Access Token
-This is a general term referring to a string issued by an identifying service like an [identity provider] that validates the holder to have a specific set of permissions. Most of the access tokens discussed in our docs are [JWTs] formatted following the [Oauth 2.0 RFC](https://datatracker.ietf.org/doc/html/rfc6749#section-7.1).
+This general term refers to a string that validates the holder to have a specific set of permissions, issued by an identifying service like an [identity provider]. Most of the access tokens discussed in our docs are [JSON Web Tokens (**JWTs**)][JWT] formatted following the [Oauth 2.0 RFC](https://datatracker.ietf.org/doc/html/rfc6749#section-7.1).
 
 ### Identity Provider
-An identity provider (**IdP**) is used to [authenticate] a user, i.e. confirm their identity. Pomerium uses external IdPs to better integrate into existing environments, and to achieve strong separation of services. Pomerium provides [single sign-on] from your IdP to your entire network infrastructure from a single location.
+An identity provider (**IdP**) is used to [authenticate] a user, i.e. confirm their identity. Pomerium uses external IdPs to better integrate into existing environments and to achieve strong separation of services. Pomerium provides [single sign-on] from your IdP to your entire network infrastructure from a single location.
 
 ### Identity-aware Proxy
 A [proxy](https://en.wikipedia.org/wiki/Proxy_server) is an intermediate service between one or more clients or servers. Most of the proxies discussed in our docs are technically [reverse proxies](https://en.wikipedia.org/wiki/Reverse_proxy), sitting between one or more servers and all clients, providing a single point of ingress into a system.
@@ -79,7 +79,7 @@ Abbreviated as **AuthZ**, authorization is the process of validating a client's 
 "Least user privilege" is a core concept of the [zero trust] model. It's the practice of only providing a user as much access to protected systems as is required for them to operate in their job's function. This is a risk-mitigation strategy; since compromised user credentials can only be used to access services they are granted access to, users that do not need access to highly sensitive services should not have them.
 
 ### Mutual Authentication
-Mutual authentication is the security strategy of having both sides of a connection validate the identity of the other. This reduces the possibility of bad actors to impersonate valid communication endpoints. This topic is discussed in detail in [Mutual Authentication: A Component of Zero-Trust](/docs/topics/mutual-auth.md).
+Mutual authentication is the security strategy of having both sides of a connection validate the identity of the other. This reduces the possibility of bad actors to impersonate valid communication endpoints. This topic is discussed in detail in [Mutual Authentication: A Component of Zero Trust](/docs/topics/mutual-auth.md).
 
 ### Secure Enclave
 A Secure Enclave is a sub-component or device physically bound to a specific device that can safely store sensitive data used to validate [device identity](/docs/topics/device-identity.md).
