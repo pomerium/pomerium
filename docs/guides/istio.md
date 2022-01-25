@@ -79,7 +79,7 @@ Follow [Install Pomerium using Helm] to set up the Pomerium Ingress Controller a
         clientID: YOUR_CLIENT_ID
         clientSecret: YOUR_SECRET
         serviceAccount: YOUR_SERVICE_ACCOUNT
-        
+
     proxy:
       deployment:
         podAnnotations:
@@ -193,6 +193,7 @@ Now that Pomerium is installed in the cluster, we can define authentication and 
     metadata:
       name: hello
       annotations:
+        kubernetes.io/ingress.class: pomerium
         cert-manager.io/issuer: pomerium-issuer
         ingress.pomerium.io/pass_identity_headers: "true"
         ingress.pomerium.io/policy: '[{"allow":{"and":[{"domain":{"is":"example.com"}}]}}]'
@@ -219,6 +220,7 @@ To demonstrate complete authorization validation through to the upstream service
       annotations:
         # Specify the certificate issuer for your namespace or cluster. For example:
         # cert-manager.io/issuer: pomerium-issuer
+        kubernetes.io/ingress.class: pomerium
         ingress.pomerium.io/pass_identity_headers: "true"
         ingress.pomerium.io/policy: |
           - allow:
@@ -287,7 +289,7 @@ To demonstrate complete authorization validation through to the upstream service
           - name: "X-Pomerium-Jwt-Assertion"
         forwardOriginalToken: true
         jwksUri: https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json # Adjust to match your Authenticate service URL.
-        # The jwksUri key above is the preferred method of retrieving the signing key, and should be used in production. See 
+        # The jwksUri key above is the preferred method of retrieving the signing key, and should be used in production.
         # See https://istio.io/latest/docs/reference/config/security/jwt/#JWTRule
         #
         #If the Authenticate service is using a localhost or other domain that's not a FQDN. You can instead provide the content from that path using the jwks key:
