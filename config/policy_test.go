@@ -258,4 +258,15 @@ func TestPolicy_Matches(t *testing.T) {
 
 		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/foo/bar/0`)))
 	})
+	t.Run("issue2592-test2", func(t *testing.T) {
+		p := &Policy{
+			From:  "https://www.example.com",
+			To:    mustParseWeightedURLs(t, "https://localhost"),
+			Regex: `/admin/.*`,
+		}
+		assert.NoError(t, p.Validate())
+
+		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/admin/foo`)))
+		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/admin/bar`)))
+	})
 }
