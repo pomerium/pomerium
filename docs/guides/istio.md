@@ -12,7 +12,7 @@ description: >-
 
 # Istio with Pomerium
 
-Istio provides application-aware networking via a service mesh and control plane. When configured with the [Pomerium Ingress Controller] for kubernetes, this enables authorization (**authZ**) and authentication (**authN**) of [east-west traffic] in your internal network bringing you closer to complete [zero trust].
+Istio provides application-aware networking via a service mesh and control plane. When configured with the [Pomerium Ingress Controller] for kubernetes, this enables authorization (**[authZ]**) and authentication (**[authN]**) of [east-west traffic] in your internal network bringing you closer to complete [zero trust].
 
 In this guide, we'll demonstrate how to configure Pomerium and Istio in a Kubernetes environment to provide mutual authentication at both the transport and application layer. We'll demonstrate first with a simple test service (Ngix), and then use [Grafana][grafana-guide] to illustrate how the final service can use the same authentication data for user association.
 
@@ -313,13 +313,15 @@ To demonstrate complete authorization validation through to the upstream service
 
     Apply the policies with `kubectl apply -f` to complete the configuration.
 
+[authN]: /docs/glossary.md#authentication
+[authZ]:/docs/glossary.md#authorization
 [Istio]: https://istio.io/latest/
 [istio]: https://github.com/istio/istio
 [certmanager]: https://github.com/jetstack/cert-manager
 [grafana]: https://github.com/grafana/grafana
 [grafana-guide]: /guides/grafana.md
-[east-west traffic]: https://en.wikipedia.org/wiki/East-west_traffic
-[north-south traffic]: https://en.wikipedia.org/wiki/North-south_traffic
+[east-west traffic]: /docs/glossary.md#east-west-traffic
+[north-south traffic]: /docs/glossary.md#north-south-traffic
 [Pomerium Ingress Controller]: /docs/k8s/ingress.md
 [zero trust]: /docs/background.md#zero-trust
 [Install Pomerium using Helm]: /docs/k8s/helm.md
