@@ -33,7 +33,7 @@ Commonly shortened to **JSON**, [JavaScript object notation](https://en.wikipedi
 Usually abbreviate as **JWKS**, this is a [JSON]-formatted set of one or more keys provided by a trusted issuer and used by service to verify [JWTs] provided by a client. Formatting is defined by the [JSON Web Key RFC](https://datatracker.ietf.org/doc/html/rfc7517).
 
 ### JSON Web Token
-Often referred to as **JWTs**, a JSON web token is a [JSON]-formatted string provided to a user by an [identity provider], which validates the user's identity to subsequent services (such as an [identity-aware proxy]). JWTs are formatted according to the [JSON Web Token RFC](https://datatracker.ietf.org/doc/html/rfc7519)
+Often referred to as **JWTs**, a JSON web token is a [JSON]-formatted string provided to a user by an [identity provider], which validates the user's identity to subsequent services (such as a [context-aware proxy]). JWTs are formatted according to the [JSON Web Token RFC](https://datatracker.ietf.org/doc/html/rfc7519)
 
 ### Namespace
 "Namespaces" is an over-saturated term, having different meanings in different contexts. [Pomerium Enterprise][pom-namespace] uses Namespaces to provide separation of access and control to [routes]. Kubernetes uses their [namespaces][k8s-namespace] to isolate groups of resources within a cluster.
@@ -98,7 +98,7 @@ Zero trust is a philosophy and/or framework for security models that includes se
 [authorization]: #authorization
 [east-west traffic]: #east-west-traffic
 [identity provider]: #identity-provider
-[identity-aware proxy]: #identity-aware-proxy
+[context-aware proxy]: #context-aware-proxy
 [JSON]: #javascript-object-notation
 [JWT]: #json-web-token
 [JWTs]: #json-web-token
