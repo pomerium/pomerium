@@ -750,6 +750,25 @@ func Test_getAllDomains(t *testing.T) {
 			}
 			assert.Equal(t, expect, actual)
 		})
+		t.Run("both", func(t *testing.T) {
+			newOptions := *options
+			newOptions.GRPCAddr = newOptions.Addr
+			actual, err := getAllRouteableDomains(&newOptions, "127.0.0.1:9000")
+			require.NoError(t, err)
+			expect := []string{
+				"a.example.com",
+				"a.example.com:80",
+				"authenticate.example.com",
+				"authenticate.example.com:443",
+				"authorize.example.com:9001",
+				"b.example.com",
+				"b.example.com:443",
+				"c.example.com",
+				"c.example.com:443",
+				"cache.example.com:9001",
+			}
+			assert.Equal(t, expect, actual)
+		})
 	})
 	t.Run("tls", func(t *testing.T) {
 		t.Run("http", func(t *testing.T) {
