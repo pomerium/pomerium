@@ -5,11 +5,9 @@ option go_package = "github.com/pomerium/pomerium/pkg/grpc/events";
 
 import "google/protobuf/timestamp.proto";
 
-// IDPErrorEvents is a list of IDP error events.
-message IDPErrorEvents { repeated IDPErrorEvent values = 1; }
-
-// IDPErrorEvent is an IDP error event.
-message IDPErrorEvent {
+// LastError is a last error
+message LastError {
   google.protobuf.Timestamp time = 1;
   string message = 2;
+  string id = 3;
 }

@@ -42,10 +42,17 @@ func (srv *Server) storeEvent(ctx context.Context, evt proto.Message) error {
 		srv.haveSetCapacity[any.GetTypeUrl()] = true
 	}
 
+	var id string
+	if withID, ok := evt.(interface{ GetId() string }); ok {
+		id = withID.GetId()
+	} else {
+		id = uuid.NewString()
+	}
+
 	_, err = client.Put(ctx, &databrokerpb.PutRequest{
 		Record: &databrokerpb.Record{
 			Type: any.GetTypeUrl(),
-			Id:   uuid.NewString(),
+			Id:   id,
 			Data: any,
 		},
 	})

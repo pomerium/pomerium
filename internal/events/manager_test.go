@@ -18,7 +18,7 @@ func TestManager(t *testing.T) {
 	})
 	assert.NotEmpty(t, handle)
 
-	expect := &IDPErrorEvent{Message: "TEST"}
+	expect := &LastError{Message: "TEST"}
 	mgr.Dispatch(expect)
 
 	assert.Eventually(t, func() bool {
