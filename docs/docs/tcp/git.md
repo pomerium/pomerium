@@ -33,10 +33,10 @@ When hosting a self-hosted Git server like [GitLab](/guides/gitlab.md) behind Po
     ::::
     :::::
 
-1. Add the tunneled connection as a remote for your local repository:
+1. Clone the repository using the tunneled connection as a remote:
 
     ```bash
-    git remote add gitlab-tunneled ssh://git@127.0.0.1:2202/username/project-name
+    git clone ssh://git@127.0.0.1:2202/username/project-name
     ```
 
 Now when you first initiate a `pull`, `push`, or `fetch` command your web browser will open to authenticate and authorize the connection.
@@ -51,13 +51,13 @@ Because Git uses the SSH protocol, we can define a `Host` block in our local SSH
     Host git-tunnel
       HostName git.corp.example.com
       User git
-      ProxyCommand /usr/bin/pomerium-cli tcp --listen - %h:%p
+      ProxyCommand pomerium-cli tcp --listen - %h:%p
     ```
 
-1. For each repository, add a remote using this host:
+1. For each repository, clone using this host:
 
     ```bash
-    git remote add origin git@git-tunnel:userName/projectName
+    git clone git@git-tunnel:userName/projectName
     ```
 
 ::: tip
