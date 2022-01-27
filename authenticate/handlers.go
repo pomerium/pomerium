@@ -448,6 +448,19 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.userInfo")
 	defer span.End()
 
+	// if we came in with a redirect URI, save it to a cookie so it doesn't expire with the HMAC
+	if redirectURI := r.FormValue(urlutil.QueryRedirectURI); redirectURI != "" {
+		u := urlutil.GetAbsoluteURL(r)
+		u.RawQuery = ""
+
+		http.SetCookie(w, &http.Cookie{
+			Name:  urlutil.QueryRedirectURI,
+			Value: redirectURI,
+		})
+		http.Redirect(w, r, u.String(), http.StatusFound)
+		return nil
+	}
+
 	state := a.state.Load()
 
 	s, err := a.getSessionFromCtx(ctx)
@@ -624,23 +637,6 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 	}
 
 	return rawIDToken
-}
-
-func (a *Authenticate) getSignOutURL(r *http.Request) (*url.URL, error) {
-	uri, err := a.options.Load().GetAuthenticateURL()
-	if err != nil {
-		return nil, err
-	}
-
-	uri = uri.ResolveReference(&url.URL{
-		Path: "/.pomerium/sign_out",
-	})
-	if redirectURI := r.FormValue(urlutil.QueryRedirectURI); redirectURI != "" {
-		uri.RawQuery = (&url.Values{
-			urlutil.QueryRedirectURI: {redirectURI},
-		}).Encode()
-	}
-	return urlutil.NewSignedURL(a.state.Load().sharedKey, uri).Sign(), nil
 }
 
 func (a *Authenticate) getCurrentSession(ctx context.Context) (s *session.Session, isImpersonated bool, err error) {
