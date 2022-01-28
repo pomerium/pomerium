@@ -10,6 +10,12 @@ description: >-
 
 When new version of Pomerium Enterprise are released, check back to this page before you upgrade.
 
+## 0.16.0
+
+## Before You Upgrade
+
+- Configuring `signing-key` has been replaced by setting `authenticate-service-url`.  The [signing key] will be automatically retrieved by Pomerium Enterprise Console.  `signing-key` will continue to work, however `authenticate-service-url` is required for device enrollment.
+
 ## 0.15.0
 
 ### Before You Upgrade
