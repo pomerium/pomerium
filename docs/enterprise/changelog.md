@@ -3,7 +3,34 @@ title: Changelog
 sidebarDepth: 0
 ---
 
-#  Changelog
+# Changelog
+
+## 0.16.0
+
+### New
+
+- Devices: It is now possible to manage, enroll, approve, and write authorization policy for device identity.
+- Signing keys can now be dynamically pulled from the Authenticate service's JWKS endpoint.
+- Added the ability to write PPL policy for HTTP method and path contexts.
+
+### Updated
+
+- Policies can now incorporate device identity and approval status.
+- Routes certificate UI now shows the matching TLS certificate used.
+- Routes now has Kubernetes service account token field
+- Metric addresses are now shown in the runtime info dashboard.
+- Envoy was upgraded to 1.20.1.
+- The code editor now supports dark mode.
+- Various UI style improvements and fixes.
+
+### Fixed
+
+- `--tls-insecure-skip-verify` was not applied to databroker connections.
+- Fixed a bug in the host rewrite code (thank you @rankinc for reporting).
+- Fixed a bug in the way timeout fields were being displayed.
+- Fixed a bug in the way route header fields were being ordered.
+
+### Fixed
 
 ## 0.15.2
 
@@ -46,10 +73,10 @@ sidebarDepth: 0
 - Various other bug fixes and improvements.
 
 [`signing key`]: /reference/readme.md#signing-key
-[Telemetry]: /enterprise/reference/reports.md#traffic
+[google cloud serverless]: /reference/readme.md#enable-google-cloud-serverless-authentication
+[policies]: /enterprise/reference/manage.md#policies-2
 [policy language]: /enterprise/reference/manage.md#pomerium-policy-language
-[Google Cloud Serverless]: /reference/readme.md#enable-google-cloud-serverless-authentication
-[SPDY]: /reference/readme.md#spdy
 [runtime]: /enterprise/reference/reports.md#runtime
-[Policies]: /enterprise/reference/manage.md#policies-2
-[Service Accounts]: /enterprise/concepts.md#service-accounts
+[service accounts]: /enterprise/concepts.md#service-accounts
+[spdy]: /reference/readme.md#spdy
+[telemetry]: /enterprise/reference/reports.md#traffic
