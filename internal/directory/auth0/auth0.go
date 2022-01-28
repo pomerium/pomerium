@@ -4,8 +4,6 @@ package auth0
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -13,6 +11,7 @@ import (
 	"github.com/rs/zerolog"
 	"gopkg.in/auth0.v5/management"
 
+	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
@@ -36,6 +35,10 @@ type (
 type newManagersFunc = func(ctx context.Context, domain string, serviceAccount *ServiceAccount) (RoleManager, UserManager, error)
 
 func defaultNewManagersFunc(ctx context.Context, domain string, serviceAccount *ServiceAccount) (RoleManager, UserManager, error) {
+	// override the domain for the management api if supplied
+	if serviceAccount.Domain != "" {
+		domain = serviceAccount.Domain
+	}
 	m, err := management.New(domain,
 		management.WithClientCredentials(serviceAccount.ClientID, serviceAccount.Secret),
 		management.WithContext(ctx))
@@ -224,8 +227,10 @@ func getRoleUserIDs(rm RoleManager, roleID string) ([]string, error) {
 
 // A ServiceAccount is used by the Auth0 provider to query the API.
 type ServiceAccount struct {
-	ClientID string `json:"client_id"`
-	Secret   string `json:"secret"`
+	Domain       string `json:"domain"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+	Secret       string `json:"secret"`
 }
 
 // ParseServiceAccount parses the service account in the config options.
@@ -253,18 +258,21 @@ func parseServiceAccountFromOptions(clientID, clientSecret string) (*ServiceAcco
 }
 
 func parseServiceAccountFromString(rawServiceAccount string) (*ServiceAccount, error) {
-	bs, err := base64.StdEncoding.DecodeString(rawServiceAccount)
-	if err != nil {
-		return nil, fmt.Errorf("auth0: could not decode base64: %w", err)
-	}
-
 	var serviceAccount ServiceAccount
-	if err := json.Unmarshal(bs, &serviceAccount); err != nil {
+	if err := encoding.DecodeBase64OrJSON(rawServiceAccount, &serviceAccount); err != nil {
 		return nil, fmt.Errorf("auth0: could not unmarshal json: %w", err)
 	}
 
 	if serviceAccount.ClientID == "" {
 		return nil, errors.New("auth0: client_id is required")
+	}
+
+	// for backwards compatibility we support secret and client_secret
+	if serviceAccount.Secret == "" {
+		serviceAccount.Secret = serviceAccount.ClientSecret
+	}
+	if serviceAccount.ClientSecret == "" {
+		serviceAccount.ClientSecret = serviceAccount.Secret
 	}
 
 	if serviceAccount.Secret == "" {
