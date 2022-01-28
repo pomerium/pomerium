@@ -32,33 +32,6 @@ func (mock *mockDataBrokerServer) SetOptions(ctx context.Context, req *databroke
 }
 
 func TestEvents(t *testing.T) {
-	t.Run("passes events", func(t *testing.T) {
-		srv := &Server{envoyConfigurationEvents: make(chan *events.EnvoyConfigurationEvent, 1)}
-		srv.handleEnvoyConfigurationEvent(new(events.EnvoyConfigurationEvent))
-		evt := <-srv.envoyConfigurationEvents
-		assert.NotNil(t, evt)
-	})
-	t.Run("receives events", func(t *testing.T) {
-		ctx := context.Background()
-
-		srv := &Server{
-			envoyConfigurationEvents: make(chan *events.EnvoyConfigurationEvent, 1),
-		}
-		srv.currentConfig.Store(versionedConfig{
-			Config: &config.Config{
-				Options: &config.Options{},
-			},
-		})
-
-		ctx, cancel := context.WithCancel(ctx)
-		eg, ctx := errgroup.WithContext(ctx)
-		eg.Go(func() error {
-			return srv.runEnvoyConfigurationEventHandler(ctx)
-		})
-		srv.envoyConfigurationEvents <- new(events.EnvoyConfigurationEvent)
-		cancel()
-		assert.Equal(t, context.Canceled, eg.Wait())
-	})
 	t.Run("saves events", func(t *testing.T) {
 		ctx := context.Background()
 		ctx, cancel := context.WithCancel(ctx)
@@ -98,7 +71,9 @@ func TestEvents(t *testing.T) {
 		eg.Go(func() error {
 			defer cancel()
 
-			srv := &Server{}
+			srv := &Server{
+				haveSetCapacity: make(map[string]bool),
+			}
 			srv.currentConfig.Store(versionedConfig{
 				Config: &config.Config{
 					OutboundPort: outboundPort,
@@ -109,13 +84,13 @@ func TestEvents(t *testing.T) {
 					},
 				},
 			})
-			err := srv.storeEnvoyConfigurationEvent(ctx, new(events.EnvoyConfigurationEvent))
+			err := srv.storeEvent(ctx, new(events.EnvoyConfigurationEvent))
 			assert.NoError(t, err)
 			return err
 		})
 		_ = eg.Wait()
 
-		assert.Equal(t, uint64(maxEnvoyConfigurationEvents), setOptionsRequest.GetOptions().GetCapacity())
+		assert.Equal(t, uint64(maxEvents), setOptionsRequest.GetOptions().GetCapacity())
 		assert.Equal(t, "type.googleapis.com/pomerium.events.EnvoyConfigurationEvent", putRequest.GetRecord().GetType())
 	})
 }

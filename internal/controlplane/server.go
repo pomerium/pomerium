@@ -21,13 +21,13 @@ import (
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/controlplane/xdsmgr"
 	"github.com/pomerium/pomerium/internal/envoy/files"
+	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/version"
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
-	"github.com/pomerium/pomerium/pkg/grpc/events"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
@@ -63,16 +63,15 @@ type Server struct {
 	metricsMgr    *config.MetricsManager
 	reproxy       *reproxy.Handler
 
-	haveSetEnvoyConfigurationEventOptions bool
-	envoyConfigurationEvents              chan *events.EnvoyConfigurationEvent
+	haveSetCapacity map[string]bool
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
 func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager) (*Server, error) {
 	srv := &Server{
-		metricsMgr:               metricsMgr,
-		reproxy:                  reproxy.New(),
-		envoyConfigurationEvents: make(chan *events.EnvoyConfigurationEvent, 10),
+		metricsMgr:      metricsMgr,
+		reproxy:         reproxy.New(),
+		haveSetCapacity: map[string]bool{},
 	}
 	srv.currentConfig.Store(versionedConfig{
 		Config: cfg,
@@ -129,7 +128,7 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager) (*Server, 
 		return nil, err
 	}
 
-	srv.xdsmgr = xdsmgr.NewManager(res, srv.handleEnvoyConfigurationEvent)
+	srv.xdsmgr = xdsmgr.NewManager(res)
 	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv.GRPCServer, srv.xdsmgr)
 
 	return srv, nil
@@ -139,10 +138,12 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager) (*Server, 
 func (srv *Server) Run(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 
-	// handle envoy configuration events
-	eg.Go(func() error {
-		return srv.runEnvoyConfigurationEventHandler(ctx)
+	handle := events.Register(func(evt events.Event) {
+		withGRPCBackoff(ctx, func() error {
+			return srv.storeEvent(ctx, evt)
+		})
 	})
+	defer events.Unregister(handle)
 
 	// start the gRPC server
 	eg.Go(func() error {

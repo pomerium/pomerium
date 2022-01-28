@@ -91,6 +91,7 @@ func (m *Service) validate(all bool) error {
 	if len(errors) > 0 {
 		return ServiceMultiError(errors)
 	}
+
 	return nil
 }
 
@@ -284,6 +285,7 @@ func (m *RegisterRequest) validate(all bool) error {
 	if len(errors) > 0 {
 		return RegisterRequestMultiError(errors)
 	}
+
 	return nil
 }
 
@@ -412,6 +414,7 @@ func (m *RegisterResponse) validate(all bool) error {
 	if len(errors) > 0 {
 		return RegisterResponseMultiError(errors)
 	}
+
 	return nil
 }
 
@@ -511,6 +514,7 @@ func (m *ListRequest) validate(all bool) error {
 	if len(errors) > 0 {
 		return ListRequestMultiError(errors)
 	}
+
 	return nil
 }
 
@@ -667,6 +671,7 @@ func (m *ServiceRegistration) validate(all bool) error {
 	if len(errors) > 0 {
 		return ServiceRegistrationMultiError(errors)
 	}
+
 	return nil
 }
 
@@ -802,6 +807,7 @@ func (m *ServiceList) validate(all bool) error {
 	if len(errors) > 0 {
 		return ServiceListMultiError(errors)
 	}
+
 	return nil
 }
 
