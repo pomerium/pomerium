@@ -11,6 +11,9 @@ function encode(raw) {
   return base64encode(raw);
 }
 
+
+const isSafari = navigator.userAgent.match("Macintosh") && navigator.userAgent.match("Safari");
+
 async function authenticate(requestOptions) {
   const credential = await navigator.credentials.get({
     publicKey: {
@@ -39,47 +42,55 @@ async function authenticate(requestOptions) {
 }
 
 async function register(creationOptions) {
-  const credential = await navigator.credentials.create({
-    publicKey: {
-      attestation: creationOptions.attestation || undefined,
-      authenticatorSelection: {
-        authenticatorAttachment:
-          creationOptions.authenticatorSelection.authenticatorAttachment ||
-          undefined,
-        requireResidentKey:
-          creationOptions.authenticatorSelection.requireResidentKey ||
-          undefined,
-        residentKey: creationOptions.authenticatorSelection.residentKey,
-        userVerification:
-          creationOptions.authenticatorSelection.userVerification || undefined,
+  try {
+    const credential = await navigator.credentials.create({
+      publicKey: {
+        attestation: creationOptions.attestation || undefined,
+        authenticatorSelection: {
+          authenticatorAttachment:
+              creationOptions.authenticatorSelection.authenticatorAttachment ||
+              undefined,
+          requireResidentKey:
+              creationOptions.authenticatorSelection.requireResidentKey ||
+              undefined,
+          residentKey: creationOptions.authenticatorSelection.residentKey,
+          userVerification:
+              creationOptions.authenticatorSelection.userVerification || undefined,
+        },
+        challenge: decode(creationOptions.challenge),
+        pubKeyCredParams: creationOptions.pubKeyCredParams.map((p) => ({
+          type: p.type,
+          alg: p.alg,
+        })),
+        rp: {
+          name: creationOptions.rp.name,
+        },
+        timeout: creationOptions.timeout,
+        user: {
+          id: decode(creationOptions.user.id),
+          name: creationOptions.user.name,
+          displayName: creationOptions.user.displayName,
+        },
       },
-      challenge: decode(creationOptions.challenge),
-      pubKeyCredParams: creationOptions.pubKeyCredParams.map((p) => ({
-        type: p.type,
-        alg: p.alg,
-      })),
-      rp: {
-        name: creationOptions.rp.name,
+    });
+    const inputEl = document.getElementById("register_response");
+    inputEl.value = JSON.stringify({
+      id: credential.id,
+      type: credential.type,
+      rawId: encode(credential.rawId),
+      response: {
+        attestationObject: encode(credential.response.attestationObject),
+        clientDataJSON: encode(credential.response.clientDataJSON),
       },
-      timeout: creationOptions.timeout,
-      user: {
-        id: decode(creationOptions.user.id),
-        name: creationOptions.user.name,
-        displayName: creationOptions.user.displayName,
-      },
-    },
-  });
-  const inputEl = document.getElementById("register_response");
-  inputEl.value = JSON.stringify({
-    id: credential.id,
-    type: credential.type,
-    rawId: encode(credential.rawId),
-    response: {
-      attestationObject: encode(credential.response.attestationObject),
-      clientDataJSON: encode(credential.response.clientDataJSON),
-    },
-  });
-  inputEl.parentElement.submit();
+    });
+    inputEl.parentElement.submit();
+  } catch(e) {
+    if (isSafari && creationOptions.authenticatorSelection.authenticatorAttachment === "platform") {
+      alert(`Safari on MacOS does not currently support platform keys: ${e}`);
+    } else {
+      alert(`${e}`)
+    }
+  }
 }
 
 function init() {
