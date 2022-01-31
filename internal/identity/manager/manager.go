@@ -205,6 +205,7 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 			mgr.refreshUser(ctx, key)
 		}
 
+		metrics.RecordIdentityManagerLastRefresh(ctx)
 		timer.Reset(time.Until(nextTime))
 	}
 }
@@ -234,8 +235,6 @@ func (mgr *Manager) refreshDirectoryUserGroups(ctx context.Context) (nextRefresh
 
 	mgr.mergeGroups(ctx, directoryGroups)
 	mgr.mergeUsers(ctx, directoryUsers)
-
-	metrics.RecordIdentityManagerLastRefresh(ctx)
 
 	return mgr.cfg.Load().groupRefreshInterval
 }
