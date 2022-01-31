@@ -250,6 +250,15 @@ func parseServiceAccountFromOptions(clientID, clientSecret string) (*ServiceAcco
 	if serviceAccount.ClientID == "" {
 		return nil, fmt.Errorf("auth0: client_id is required")
 	}
+
+	// for backwards compatibility we support secret and client_secret
+	if serviceAccount.Secret == "" {
+		serviceAccount.Secret = serviceAccount.ClientSecret
+	}
+	if serviceAccount.ClientSecret == "" {
+		serviceAccount.ClientSecret = serviceAccount.Secret
+	}
+
 	if serviceAccount.Secret == "" {
 		return nil, fmt.Errorf("auth0: client_secret is required")
 	}
