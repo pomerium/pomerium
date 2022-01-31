@@ -16,7 +16,6 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/webauthnutil"
 )
 
 // ValidateOptions checks that configuration are complete and valid.
@@ -123,25 +122,6 @@ func (a *Authenticate) updateProvider(cfg *config.Config) error {
 	a.provider.Store(provider)
 
 	return nil
-}
-
-func (a *Authenticate) getWebAuthnURL(values url.Values) (*url.URL, error) {
-	uri, err := a.options.Load().GetAuthenticateURL()
-	if err != nil {
-		return nil, err
-	}
-
-	uri = uri.ResolveReference(&url.URL{
-		Path: "/.pomerium/webauthn",
-		RawQuery: buildURLValues(values, url.Values{
-			urlutil.QueryDeviceType:      {webauthnutil.DefaultDeviceType},
-			urlutil.QueryEnrollmentToken: nil,
-			urlutil.QueryRedirectURI: {uri.ResolveReference(&url.URL{
-				Path: "/.pomerium/device-enrolled",
-			}).String()},
-		}).Encode(),
-	})
-	return urlutil.NewSignedURL(a.state.Load().sharedKey, uri).Sign(), nil
 }
 
 // buildURLValues creates a new url.Values map by traversing the keys in `defaults` and using the values

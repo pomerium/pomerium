@@ -21,6 +21,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/wrappers"
+	"github.com/scylladb/go-set"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -734,15 +735,28 @@ func getRouteableDomainsForTLSDomain(options *config.Options, addr string, tlsDo
 }
 
 func getAllRouteableDomains(options *config.Options, addr string) ([]string, error) {
-	switch addr {
-	case options.Addr:
-		return options.GetAllRouteableHTTPDomains()
-	case options.GetGRPCAddr():
-		return options.GetAllRouteableGRPCDomains()
+	allDomains := set.NewStringSet()
+
+	if addr == options.Addr {
+		domains, err := options.GetAllRouteableHTTPDomains()
+		if err != nil {
+			return nil, err
+		}
+		allDomains.Add(domains...)
 	}
 
-	// no other domains supported
-	return nil, nil
+	if addr == options.GetGRPCAddr() {
+		domains, err := options.GetAllRouteableGRPCDomains()
+		if err != nil {
+			return nil, err
+		}
+		allDomains.Add(domains...)
+	}
+
+	domains := allDomains.List()
+	sort.Strings(domains)
+
+	return domains, nil
 }
 
 func getAllTLSDomains(options *config.Options, addr string) ([]string, error) {

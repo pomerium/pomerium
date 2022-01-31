@@ -423,6 +423,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 	s.OauthToken = ToOAuthToken(newToken)
 
 	err = mgr.cfg.Load().authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), &s)
+	metrics.RecordIdentityManagerUserRefresh(ctx, err)
 	if isTemporaryError(err) {
 		log.Error(ctx).Err(err).
 			Str("user_id", s.GetUserId()).

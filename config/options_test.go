@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var cmpOptIgnoreUnexported = cmpopts.IgnoreUnexported(Options{})
+var cmpOptIgnoreUnexported = cmpopts.IgnoreUnexported(Options{}, Policy{})
 
 func Test_Validate(t *testing.T) {
 	t.Parallel()

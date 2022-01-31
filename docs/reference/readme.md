@@ -831,6 +831,8 @@ If you plan to write authorization policies using groups, or any other data that
 
 Provider URL is the base path to an identity provider's [OpenID connect discovery document](https://openid.net/specs/openid-connect-discovery-1_0.html). An example Azure URL would be `https://login.microsoftonline.com/common/v2.0` for [their discover document](https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration).
 
+"Base path" is defined as the section of the URL to the discovery document up to (but not including) `/.well-known/openid-configuration`.
+
 
 ### Identity Provider Request Params
 - Environmental Variable: `IDP_REQUEST_PARAMS`

@@ -44,9 +44,10 @@ type Policy struct {
 	Source *StringURL `yaml:",omitempty" json:"source,omitempty" hash:"ignore"`
 
 	// Additional route matching options
-	Prefix string `mapstructure:"prefix" yaml:"prefix,omitempty" json:"prefix,omitempty"`
-	Path   string `mapstructure:"path" yaml:"path,omitempty" json:"path,omitempty"`
-	Regex  string `mapstructure:"regex" yaml:"regex,omitempty" json:"regex,omitempty"`
+	Prefix        string `mapstructure:"prefix" yaml:"prefix,omitempty" json:"prefix,omitempty"`
+	Path          string `mapstructure:"path" yaml:"path,omitempty" json:"path,omitempty"`
+	Regex         string `mapstructure:"regex" yaml:"regex,omitempty" json:"regex,omitempty"`
+	compiledRegex *regexp.Regexp
 
 	// Path Rewrite Options
 	PrefixRewrite            string `mapstructure:"prefix_rewrite" yaml:"prefix_rewrite,omitempty" json:"prefix_rewrite,omitempty"`
@@ -496,6 +497,17 @@ func (p *Policy) Validate() error {
 		return fmt.Errorf("config: only prefix_rewrite or regex_rewrite_pattern can be specified, but not both")
 	}
 
+	if p.Regex != "" {
+		rawRE := p.Regex
+		if !strings.HasPrefix(rawRE, "^") {
+			rawRE = "^" + rawRE
+		}
+		if !strings.HasSuffix(rawRE, "$") {
+			rawRE += "$"
+		}
+		p.compiledRegex, _ = regexp.Compile(rawRE)
+	}
+
 	return nil
 }
 
@@ -564,9 +576,8 @@ func (p *Policy) Matches(requestURL url.URL) bool {
 		}
 	}
 
-	if p.Regex != "" {
-		re, err := regexp.Compile(p.Regex)
-		if err == nil && !re.MatchString(requestURL.String()) {
+	if p.compiledRegex != nil {
+		if !p.compiledRegex.MatchString(requestURL.Path) {
 			return false
 		}
 	}
