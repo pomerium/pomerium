@@ -39,8 +39,8 @@ func Unregister(sinkHandle EventSinkHandle) {
 type (
 	// EnvoyConfigurationEvent re-exports events.EnvoyConfigurationEvent.
 	EnvoyConfigurationEvent = events.EnvoyConfigurationEvent
-	// IDPErrorEvent re-exports events.IDPErrorEvent.
-	IDPErrorEvent = events.IDPErrorEvent
+	// LastError re-exports events.LastError.
+	LastError = events.LastError
 )
 
 // re-exported protobuf constants
