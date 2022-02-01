@@ -43,7 +43,7 @@ require (
 	github.com/peterbourgon/ff/v3 v3.1.2
 	github.com/pomerium/csrf v1.7.0
 	github.com/pomerium/webauthn v0.0.0-20211014213840-422c7ce1077f
-	github.com/prometheus/client_golang v1.12.0
+	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.32.1
 	github.com/prometheus/procfs v0.7.3
