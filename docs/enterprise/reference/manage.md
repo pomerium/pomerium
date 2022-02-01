@@ -389,6 +389,39 @@ certificate_key:  "$HOME/.acme.sh/*.example.com/*.example.com.key"
 
 **Note:** Pomerium will check your system's trust/key store for valid certificates first. If your certificate solution imports into the system store, you don't need to also specify them with these configuration keys.
 
+## Devices
+
+Introduced in v0.16.0, the **Manage Devices** page lets administrators manage user devices for policy-based authorization.
+
+
+### Devices List
+
+Displays the currently enrolled devices for each user, along with their current approval status.
+Administrators can inspect, approve, or delete registered devices from this table.
+
+![List of user devices](../img/console-devices.png)
+
+
+### New Enrollment
+
+The **New Enrollment** button allows administrators to create a custom link for a specific user to use to register a new device, which will automatically be approved.
+This scheme is known as [Trust on First Use (TOFU)](https://en.wikipedia.org/wiki/Trust_on_first_use).
+
+![Example device enrollment](../img/new-enrollment.png)
+
+
+#### Search Users
+
+New Enrollment URLs are only valid for the specified user.
+
+#### Redirect URL
+
+**Required**: The URL the user will be taken to after device enrollment is successful.
+
+#### Enrollment Type
+
+Specify if the user can enroll any device identity, or restrict it to a [secure enclave](/docs/topics/device-identity.md#secure-enclaves).
+
 [route-concept]: /enterprise/concepts.md#routes
 [route-reference]: /enterprise/reference/manage.md#routes
 [namespace-concept]: /enterprise/concepts.md#namespaces
