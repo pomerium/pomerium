@@ -16,7 +16,7 @@ description: >-
 
 This guide demonstrates how to configure a self-hosted GitLab server (a.k.a. gitlab-ee) behind Pomerium for identity-aware access.
 
-## Before You Being
+## Before You Begin
 
 - This guide is written for an environment using [Docker Compose].
 
