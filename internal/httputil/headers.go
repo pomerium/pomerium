@@ -38,7 +38,7 @@ const (
 // by default includes profile photo exceptions for supported identity providers.
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/script-src
 var HeadersContentSecurityPolicy = map[string]string{
-	"Content-Security-Policy": "default-src 'none'; style-src 'self' 'unsafe-inline' data:; img-src * data:; script-src 'self' 'unsafe-inline'",
+	"Content-Security-Policy": "default-src 'none'; style-src 'self' 'unsafe-inline' data:; img-src * data:; script-src 'self' 'unsafe-inline'; font-src data:",
 	"Referrer-Policy":         "Same-origin",
 }
 

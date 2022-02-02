@@ -7,6 +7,98 @@ import muiCreateTheme, {
 
 export const createTheme = (): MuiTheme =>
   muiCreateTheme({
+    components: {
+      MuiBackdrop: {
+        styleOverrides: {
+          root: {
+            backgroundColor: "rgba(68, 56, 102, 0.8)",
+          },
+        },
+      },
+      MuiBreadcrumbs: {
+        styleOverrides: {
+          separator: {
+            opacity: "30%",
+          },
+        },
+      },
+      MuiChip: {
+        styleOverrides: {
+          root: {
+            backgroundColor: "rgba(0,0,0,0.075)",
+          },
+        },
+      },
+      MuiDialog: {
+        styleOverrides: {
+          paper: {
+            padding: 0,
+          },
+        },
+      },
+      MuiDialogActions: {
+        styleOverrides: {
+          root: {
+            padding: "16px",
+            display: "flex",
+            flexFlow: "row nowrap",
+            justifyContent: "flex-end",
+          },
+        },
+      },
+      MuiDialogContent: {
+        styleOverrides: {
+          root: { padding: "16px" },
+        },
+      },
+      MuiDialogTitle: {
+        styleOverrides: {
+          root: {
+            display: "flex",
+            flexFlow: "row nowrap",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "16px",
+          },
+        },
+      },
+      MuiFilledInput: {
+        styleOverrides: {
+          root: {
+            borderRadius: "4px",
+          },
+        },
+      },
+      MuiLinearProgress: {
+        styleOverrides: {
+          root: {
+            borderRadius: 3,
+            overflow: "hidden",
+          },
+        },
+      },
+      MuiListItemIcon: {
+        styleOverrides: {
+          root: {
+            minWidth: 32,
+          },
+        },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            borderRadius: "4px",
+          },
+        },
+      },
+      MuiTableCell: {
+        styleOverrides: {
+          head: {
+            fontWeight: 600,
+          },
+        },
+      },
+    },
     palette: {
       action: {
         active: "#39256C",

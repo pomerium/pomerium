@@ -97,6 +97,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Use(a.RetrieveSession)
 	sr.Use(a.VerifySession)
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
+	sr.Path("/index.css").Handler(httputil.HandlerFunc(ui.ServeCSS))
 	sr.Path("/index.js").Handler(httputil.HandlerFunc(ui.ServeJS))
 	sr.Path("/sign_in").Handler(a.requireValidSignature(a.SignIn))
 	sr.Path("/sign_out").Handler(a.requireValidSignature(a.SignOut))
@@ -534,20 +535,36 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	input := map[string]interface{}{
+	_ = map[string]interface{}{
 		"IsImpersonated":           isImpersonated,
-		"State":                    s,         // local session state (cookie, header, etc)
-		"Session":                  pbSession, // current access, refresh, id token
-		"User":                     pbUser,    // user details inferred from oidc id_token
+		"State":                    s, // local session state (cookie, header, etc)
 		"CurrentDeviceCredentials": currentDeviceCredentials,
 		"OtherDeviceCredentials":   otherDeviceCredentials,
-		"DirectoryUser":            pbDirectoryUser, // user details inferred from idp directory
-		"DirectoryGroups":          groups,          // user's groups inferred from idp directory
+		"DirectoryGroups":          groups, // user's groups inferred from idp directory
 		"csrfField":                csrf.TemplateField(r),
 		"SignOutURL":               signoutURL,
 		"WebAuthnURL":              webAuthnURL,
 	}
-	return ui.ServeUserInfo(w, r, input)
+
+	handlers.UserInfo(handlers.UserInfoData{
+		DirectoryGroups: groups,
+		DirectoryUser:   pbDirectoryUser,
+		Session:         pbSession,
+		User:            pbUser,
+	}).ServeHTTP(w, r)
+	return nil
+
+	// if directoryUserBS, err := protojson.Marshal(pbDirectoryUser); err == nil {
+	// 	input["directoryUser"] = json.RawMessage(directoryUserBS)
+	// }
+	// if sessionBS, err := protojson.Marshal(pbSession); err == nil {
+	// 	input["session"] = json.RawMessage(sessionBS)
+	// }
+	// if userBS, err := protojson.Marshal(pbUser); err == nil {
+	// 	input["user"] = json.RawMessage(userBS)
+	// }
+
+	// return ui.ServeUserInfo(w, r, input)
 }
 
 func (a *Authenticate) saveSessionToDataBroker(

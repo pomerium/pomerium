@@ -19,6 +19,19 @@ var (
 	uiFS embed.FS
 )
 
+// ServeCSS serves the index.css file.
+func ServeCSS(w http.ResponseWriter, r *http.Request) error {
+	f, etag, err := openLocalOrEmbeddedFile("dist/index.css")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	w.Header().Set("ETag", `"`+etag+`"`)
+	http.ServeContent(w, r, "index.css", time.Time{}, f.(io.ReadSeeker))
+	return nil
+}
+
 // ServeJS serves the index.js file.
 func ServeJS(w http.ResponseWriter, r *http.Request) error {
 	f, etag, err := openLocalOrEmbeddedFile("dist/index.js")
