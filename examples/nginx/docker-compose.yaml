@@ -20,7 +20,7 @@ services:
   verify:
     image: pomerium/verify
     expose:
-      - 80
+      - 8000
   pomerium:
     image: pomerium/pomerium:latest
     volumes:
