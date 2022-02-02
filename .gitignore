@@ -62,6 +62,8 @@ tags
 # dependencies
 ui/node_modules
 ui/bower_components
+ui/dist/index.js
+ui/dist/index.css
 
 # for building static assets
 node_modules

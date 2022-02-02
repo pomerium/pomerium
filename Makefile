@@ -82,14 +82,18 @@ proto:
 	cd pkg/grpc && ./protoc.bash
 
 .PHONY: build
-build: build-deps ## Builds dynamic executables and/or packages.
+build: build-deps build-ui ## Builds dynamic executables and/or packages.
 	@echo "==> $@"
 	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
 .PHONY: build-debug
-build-debug: build-deps ## Builds binaries appropriate for debugging
+build-debug: build-deps build-ui ## Builds binaries appropriate for debugging
 	@echo "==> $@"
 	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -gcflags="all=-N -l" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
+
+build-ui: build-deps
+	@echo "==> $@"
+	@cd ui; yarn build
 
 .PHONY: lint
 lint: ## Verifies `golint` passes.

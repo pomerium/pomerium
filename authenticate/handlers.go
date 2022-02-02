@@ -33,6 +33,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/ui"
 )
 
 // Handler returns the authenticate service's handler chain.
@@ -96,6 +97,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Use(a.RetrieveSession)
 	sr.Use(a.VerifySession)
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
+	sr.Path("/index.js").Handler(httputil.HandlerFunc(ui.ServeJS))
 	sr.Path("/sign_in").Handler(a.requireValidSignature(a.SignIn))
 	sr.Path("/sign_out").Handler(a.requireValidSignature(a.SignOut))
 	sr.Path("/webauthn").Handler(webauthn.New(a.getWebauthnState))
@@ -545,7 +547,7 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		"SignOutURL":               signoutURL,
 		"WebAuthnURL":              webAuthnURL,
 	}
-	return a.templates.ExecuteTemplate(w, "userInfo.html", input)
+	return ui.ServeUserInfo(w, r, input)
 }
 
 func (a *Authenticate) saveSessionToDataBroker(
