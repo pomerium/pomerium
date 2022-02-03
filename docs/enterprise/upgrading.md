@@ -14,7 +14,7 @@ When new version of Pomerium Enterprise are released, check back to this page be
 
 ## Before You Upgrade
 
-- The [`signing-key`](/enterprise/reference/config.md#signing-key) key has been replaced with [`authenticate-service-url`](/enterprise/reference/config.md#authenticate-service-url). Instead of manually setting the signing key in the Enterprise Console to match the Authenticate Service, we specify the trusted URL of the Authenticate Service to pull the signing key from.
+- The [`signing-key`](/enterprise/reference/config.md#signing-key) has been replaced with [`authenticate-service-url`](/enterprise/reference/config.md#authenticate-service-url). Instead of manually setting the signing key in the Enterprise Console to match the Authenticate Service, we specify the trusted URL of the Authenticate Service to pull the signing key from.
 
   The `signing-key` key will continue to work for existing configurations, but [device enrollment](/enterprise/reference/manage.md#new-enrollment) will not work until it is replaced by `authenticate-service-url`.
 
