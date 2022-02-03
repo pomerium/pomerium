@@ -51,24 +51,24 @@ export const SessionDeviceCredentials: FC<SessionDeviceCredentialsProps> = ({
             webAuthnUrl={webAuthnUrl}
           />
         </Box>
-        <Toolbar>
-          <Typography variant="h4" flexGrow={1}>
-            Other Device Credentials
-          </Typography>
-        </Toolbar>
-        <Box sx={{ padding: 3, paddingTop: 0 }}>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>ID</TableCell>
-                  <TableCell></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody></TableBody>
-            </Table>
-          </TableContainer>
-        </Box>
+        {otherDeviceCredentialIds?.length > 0 ? (
+          <>
+            <Toolbar>
+              <Typography variant="h4" flexGrow={1}>
+                Other Device Credentials
+              </Typography>
+            </Toolbar>
+            <Box sx={{ padding: 3, paddingTop: 0 }}>
+              <DeviceCredentialsTable
+                csrfToken={csrfToken}
+                ids={otherDeviceCredentialIds}
+                webAuthnUrl={webAuthnUrl}
+              />
+            </Box>
+          </>
+        ) : (
+          <></>
+        )}
         <Footer>
           <Typography variant="caption">
             Register device with <a href={webAuthnUrl}>WebAuthn</a>.

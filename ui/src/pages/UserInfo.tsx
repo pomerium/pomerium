@@ -20,6 +20,7 @@ const UserInfo: FC<UserInfoProps> = ({ data }) => {
         <UserClaims user={data?.user} />
         <GroupDetails groups={data?.directoryGroups} />
         <SessionDeviceCredentials
+          csrfToken={data?.csrfToken}
           session={data?.session}
           user={data?.user}
           webAuthnUrl={data?.webAuthnUrl}
