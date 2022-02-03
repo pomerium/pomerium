@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CAFxX/httpcompression"
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -46,13 +45,7 @@ func (a *Authenticate) Handler() http.Handler {
 
 // Mount mounts the authenticate routes to the given router.
 func (a *Authenticate) Mount(r *mux.Router) {
-	compressor, err := httpcompression.DefaultAdapter()
-	if err != nil {
-		panic(err)
-	}
-
 	r.StrictSlash(true)
-	r.Use(compressor)
 	r.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 	r.Use(func(h http.Handler) http.Handler {
 		options := a.options.Load()

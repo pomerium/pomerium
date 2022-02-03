@@ -6,6 +6,7 @@ import (
 	"net/http/pprof"
 	"time"
 
+	"github.com/CAFxX/httpcompression"
 	"github.com/gorilla/handlers"
 
 	"github.com/pomerium/pomerium/internal/frontend"
@@ -16,7 +17,13 @@ import (
 )
 
 func (srv *Server) addHTTPMiddleware() {
+	compressor, err := httpcompression.DefaultAdapter()
+	if err != nil {
+		panic(err)
+	}
+
 	root := srv.HTTPRouter
+	root.Use(compressor)
 	root.Use(srv.reproxy.Middleware)
 	root.Use(requestid.HTTPMiddleware())
 	root.Use(log.NewHandler(log.Logger))
