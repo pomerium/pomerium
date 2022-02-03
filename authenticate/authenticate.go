@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/identity"
@@ -117,18 +116,4 @@ func (a *Authenticate) updateProvider(cfg *config.Config) error {
 	a.provider.Store(provider)
 
 	return nil
-}
-
-// buildURLValues creates a new url.Values map by traversing the keys in `defaults` and using the values
-// from `values` if they exist, otherwise the provided defaults
-func buildURLValues(values, defaults url.Values) url.Values {
-	result := make(url.Values)
-	for k, vs := range defaults {
-		if values.Has(k) {
-			result[k] = values[k]
-		} else if vs != nil {
-			result[k] = vs
-		}
-	}
-	return result
 }

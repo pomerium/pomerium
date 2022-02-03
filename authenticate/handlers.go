@@ -100,7 +100,14 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Path("/sign_in").Handler(a.requireValidSignature(a.SignIn))
 	sr.Path("/sign_out").Handler(a.requireValidSignature(a.SignOut))
 	sr.Path("/webauthn").Handler(webauthn.New(a.getWebauthnState))
-	sr.Path("/device-enrolled").Handler(handlers.DeviceEnrolled())
+	sr.Path("/device-enrolled").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		authenticateURL, err := a.options.Load().GetAuthenticateURL()
+		if err != nil {
+			return err
+		}
+		handlers.DeviceEnrolled(authenticateURL, a.state.Load().sharedKey).ServeHTTP(w, r)
+		return nil
+	}))
 	for _, fileName := range []string{
 		"apple-touch-icon.png",
 		"favicon-16x16.png",
@@ -477,6 +484,11 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 
 	state := a.state.Load()
 
+	authenticateURL, err := a.options.Load().GetAuthenticateURL()
+	if err != nil {
+		return err
+	}
+
 	s, err := a.getSessionFromCtx(ctx)
 	if err != nil {
 		s.ID = uuid.New().String()
@@ -514,71 +526,17 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		groups = append(groups, pbDirectoryGroup)
 	}
 
-	signoutURL, err := a.getSignOutURL(r)
-	if err != nil {
-		return fmt.Errorf("invalid signout url: %w", err)
-	}
-
-	webAuthnURL, err := a.getWebAuthnURL(r.URL.Query())
-	if err != nil {
-		return fmt.Errorf("invalid webauthn url: %w", err)
-	}
-
-	type DeviceCredentialInfo struct {
-		ID string
-	}
-	var currentDeviceCredentials, otherDeviceCredentials []DeviceCredentialInfo
-	for _, id := range pbUser.GetDeviceCredentialIds() {
-		selected := false
-		for _, c := range pbSession.GetDeviceCredentials() {
-			if c.GetId() == id {
-				selected = true
-			}
-		}
-		if selected {
-			currentDeviceCredentials = append(currentDeviceCredentials, DeviceCredentialInfo{
-				ID: id,
-			})
-		} else {
-			otherDeviceCredentials = append(otherDeviceCredentials, DeviceCredentialInfo{
-				ID: id,
-			})
-		}
-	}
-
-	_ = map[string]interface{}{
-		"IsImpersonated":           isImpersonated,
-		"State":                    s, // local session state (cookie, header, etc)
-		"CurrentDeviceCredentials": currentDeviceCredentials,
-		"OtherDeviceCredentials":   otherDeviceCredentials,
-		"DirectoryGroups":          groups, // user's groups inferred from idp directory
-		"csrfField":                csrf.TemplateField(r),
-		"SignOutURL":               signoutURL,
-		"WebAuthnURL":              webAuthnURL,
-	}
-
 	handlers.UserInfo(handlers.UserInfoData{
 		CSRFToken:       csrf.Token(r),
 		DirectoryGroups: groups,
 		DirectoryUser:   pbDirectoryUser,
+		IsImpersonated:  isImpersonated,
 		Session:         pbSession,
-		SignOutURL:      signoutURL.String(),
+		SignOutURL:      urlutil.SignOutURL(r, authenticateURL, state.sharedKey),
 		User:            pbUser,
-		WebAuthnURL:     webAuthnURL.String(),
+		WebAuthnURL:     urlutil.WebAuthnURL(r, authenticateURL, state.sharedKey, r.URL.Query()),
 	}).ServeHTTP(w, r)
 	return nil
-
-	// if directoryUserBS, err := protojson.Marshal(pbDirectoryUser); err == nil {
-	// 	input["directoryUser"] = json.RawMessage(directoryUserBS)
-	// }
-	// if sessionBS, err := protojson.Marshal(pbSession); err == nil {
-	// 	input["session"] = json.RawMessage(sessionBS)
-	// }
-	// if userBS, err := protojson.Marshal(pbUser); err == nil {
-	// 	input["user"] = json.RawMessage(userBS)
-	// }
-
-	// return ui.ServeUserInfo(w, r, input)
 }
 
 func (a *Authenticate) saveSessionToDataBroker(
@@ -715,12 +673,18 @@ func (a *Authenticate) getWebauthnState(ctx context.Context) (*webauthn.State, e
 		return nil, err
 	}
 
+	authenticateURL, err := a.options.Load().GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
+
 	pomeriumDomains, err := a.options.Load().GetAllRouteableHTTPDomains()
 	if err != nil {
 		return nil, err
 	}
 
 	return &webauthn.State{
+		AuthenticateURL: authenticateURL,
 		SharedKey:       state.sharedKey,
 		Client:          state.dataBrokerClient,
 		PomeriumDomains: pomeriumDomains,

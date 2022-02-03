@@ -18,6 +18,7 @@ type UserInfoData struct {
 	CSRFToken       string
 	DirectoryGroups []*directory.Group
 	DirectoryUser   *directory.User
+	IsImpersonated  bool
 	Session         *session.Session
 	SignOutURL      string
 	User            *user.User
@@ -38,6 +39,7 @@ func (data UserInfoData) ToJSON() map[string]interface{} {
 	if bs, err := protojson.Marshal(data.DirectoryUser); err == nil {
 		m["directoryUser"] = json.RawMessage(bs)
 	}
+	m["isImpersonated"] = data.IsImpersonated
 	if bs, err := protojson.Marshal(data.Session); err == nil {
 		m["session"] = json.RawMessage(bs)
 	}

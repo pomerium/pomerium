@@ -10,7 +10,7 @@ import Typography from "@mui/material/Typography";
 import React, { FC, useRef, useState } from "react";
 import {
   WebAuthnCreationOptions,
-  WebAuthnRegistrationData,
+  WebAuthnRegistrationPageData,
   WebAuthnRequestOptions
 } from "src/types";
 
@@ -90,7 +90,7 @@ async function createCredential(
 }
 
 type WebAuthnRegistrationPageProps = {
-  data: WebAuthnRegistrationData;
+  data: WebAuthnRegistrationPageData;
 };
 const WebAuthnRegistrationPage: FC<WebAuthnRegistrationPageProps> = ({
   data

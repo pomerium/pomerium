@@ -5,7 +5,7 @@ import Header from "./components/Header";
 import UserInfoPage from "./components/UserInfoPage";
 import WebAuthnRegistrationPage from "./components/WebAuthnRegistrationPage";
 import { createTheme } from "./theme";
-import { PomeriumData } from "./types";
+import { PageData } from "./types";
 import Container from "@mui/material/Container";
 import CssBaseline from "@mui/material/CssBaseline";
 import Stack from "@mui/material/Stack";
@@ -15,20 +15,20 @@ import React, { FC } from "react";
 const theme = createTheme();
 
 const App: FC = () => {
-  const pomeriumData = (window["POMERIUM_DATA"] || {}) as PomeriumData;
+  const data = (window["POMERIUM_DATA"] || {}) as PageData;
   let body: React.ReactNode = <></>;
-  switch (pomeriumData?.page) {
+  switch (data?.page) {
     case "DeviceEnrolled":
-      body = <DeviceEnrolledPage />;
+      body = <DeviceEnrolledPage data={data} />;
       break;
     case "Error":
-      body = <ErrorPage data={pomeriumData} />;
+      body = <ErrorPage data={data} />;
       break;
     case "UserInfo":
-      body = <UserInfoPage data={pomeriumData} />;
+      body = <UserInfoPage data={data} />;
       break;
     case "WebAuthnRegistration":
-      body = <WebAuthnRegistrationPage data={pomeriumData} />;
+      body = <WebAuthnRegistrationPage data={data} />;
       break;
   }
   return (
@@ -36,7 +36,7 @@ const App: FC = () => {
       <CssBaseline />
       <Container maxWidth="md" disableGutters>
         <Stack spacing={3}>
-          <Header />
+          <Header csrfToken={data?.csrfToken} signOutUrl={data?.signOutUrl} />
           {body}
           <Footer />
         </Stack>

@@ -1,10 +1,10 @@
 import HeroSection from "./HeroSection";
 import Container from "@mui/material/Container";
 import React, { FC } from "react";
-import { DeviceEnrolledData } from "src/types";
+import { DeviceEnrolledPageData } from "src/types";
 
 type DeviceEnrolledPageProps = {
-  data: DeviceEnrolledData;
+  data: DeviceEnrolledPageData;
 };
 const DeviceEnrolledPage: FC<DeviceEnrolledPageProps> = () => {
   return (

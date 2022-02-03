@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/pomerium/csrf"
 )
 
 var (
@@ -37,6 +39,7 @@ func ServePage(w http.ResponseWriter, r *http.Request, page string, data map[str
 	if data == nil {
 		data = make(map[string]interface{})
 	}
+	data["csrfToken"] = csrf.Token(r)
 	data["page"] = page
 
 	jsonData, err := json.Marshal(data)

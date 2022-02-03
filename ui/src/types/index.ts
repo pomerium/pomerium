@@ -79,7 +79,12 @@ export type WebAuthnRequestOptions = {
 
 // page data
 
-export type ErrorPageData = {
+type BasePageData = {
+  csrfToken?: string;
+  signOutUrl?: string;
+};
+
+export type ErrorPageData = BasePageData & {
   page: "Error";
 
   canDebug?: boolean;
@@ -91,23 +96,22 @@ export type ErrorPageData = {
   version?: string;
 };
 
-export type DeviceEnrolledData = {
+export type DeviceEnrolledPageData = BasePageData & {
   page: "DeviceEnrolled";
 };
 
-export type UserInfoData = {
+export type UserInfoPageData = BasePageData & {
   page: "UserInfo";
 
   csrfToken: string;
   directoryGroups?: Group[];
   directoryUser?: DirectoryUser;
   session?: Session;
-  signOutUrl?: string;
   user?: User;
   webAuthnUrl?: string;
 };
 
-export type WebAuthnRegistrationData = {
+export type WebAuthnRegistrationPageData = BasePageData & {
   page: "WebAuthnRegistration";
 
   creationOptions?: WebAuthnCreationOptions;
@@ -116,8 +120,8 @@ export type WebAuthnRegistrationData = {
   selfUrl: string;
 };
 
-export type PomeriumData =
+export type PageData =
   | ErrorPageData
-  | DeviceEnrolledData
-  | UserInfoData
-  | WebAuthnRegistrationData;
+  | DeviceEnrolledPageData
+  | UserInfoPageData
+  | WebAuthnRegistrationPageData;

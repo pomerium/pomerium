@@ -13,7 +13,6 @@ import (
 	"net/url"
 
 	"github.com/google/uuid"
-	"github.com/pomerium/csrf"
 	"github.com/pomerium/webauthn"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -48,13 +47,14 @@ var (
 
 // State is the state needed by the Handler to handle requests.
 type State struct {
-	SharedKey       []byte
+	AuthenticateURL *url.URL
 	Client          databroker.DataBrokerServiceClient
 	PomeriumDomains []string
+	RelyingParty    *webauthn.RelyingParty
 	Session         *session.Session
 	SessionState    *sessions.State
 	SessionStore    sessions.SessionStore
-	RelyingParty    *webauthn.RelyingParty
+	SharedKey       []byte
 }
 
 // A StateProvider provides state for the handler.
@@ -370,10 +370,10 @@ func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *Stat
 	requestOptions := webauthnutil.GenerateRequestOptions(state.SharedKey, deviceType, knownDeviceCredentials)
 
 	return ui.ServePage(w, r, "WebAuthnRegistration", map[string]interface{}{
-		"csrfToken":       csrf.Token(r),
 		"creationOptions": creationOptions,
 		"requestOptions":  requestOptions,
 		"selfUrl":         r.URL.String(),
+		"signOutUrl":      urlutil.SignOutURL(r, nil, state.SharedKey),
 	})
 }
 

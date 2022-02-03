@@ -4,13 +4,12 @@ import PersonIcon from "./PersonIcon";
 import SessionDetails from "./SessionDetails";
 import SessionDeviceCredentials from "./SessionDeviceCredentials";
 import UserClaims from "./UserClaims";
-import UserInfoWelcome from "./UserInfoWelcome";
 import MuiAvatar from "@mui/material/Avatar";
 import Container from "@mui/material/Container";
 import Stack from "@mui/material/Stack";
 import styled from "@mui/material/styles/styled";
 import React, { FC } from "react";
-import { UserInfoData } from "src/types";
+import { UserInfoPageData } from "src/types";
 
 const Avatar = styled(MuiAvatar)(({ theme }) => ({
   backgroundColor: theme.palette.primary.main,
@@ -19,7 +18,7 @@ const Avatar = styled(MuiAvatar)(({ theme }) => ({
 }));
 
 type UserInfoPageProps = {
-  data: UserInfoData;
+  data: UserInfoPageData;
 };
 const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
   const name = data?.user?.claims?.given_name?.[0] || data?.user?.name;
