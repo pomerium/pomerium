@@ -24,11 +24,13 @@
   "dependencies": {
     "@emotion/react": "^11.7.1",
     "@emotion/styled": "^11.6.0",
+    "@fontsource/dm-mono": "^4.5.2",
     "@fontsource/dm-sans": "^4.5.1",
     "@mui/material": "^5.4.0",
     "luxon": "^2.3.0",
     "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react-dom": "^17.0.2",
+    "react-feather": "^2.0.9"
   },
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "2.0.4",

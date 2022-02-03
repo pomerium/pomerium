@@ -1,4 +1,5 @@
 import { softShadows } from "./shadows";
+import "@fontsource/dm-mono";
 import "@fontsource/dm-sans";
 import common from "@mui/material/colors/common";
 import muiCreateTheme, {

@@ -1,5 +1,6 @@
 import { Session } from "../types";
 import ClaimsTable from "./ClaimsTable";
+import IDField from "./IDField";
 import Section from "./Section";
 import Stack from "@mui/material/Stack";
 import Table from "@mui/material/Table";
@@ -17,15 +18,19 @@ export const SessionDetails: FC<SessionDetailsProps> = ({ session }) => {
     <Section title="Session Details">
       <Stack spacing={3}>
         <TableContainer>
-          <Table>
+          <Table size="small">
             <TableBody>
               <TableRow>
                 <TableCell>ID</TableCell>
-                <TableCell>{session?.id || ""}</TableCell>
+                <TableCell>
+                  <IDField value={session?.id} />
+                </TableCell>
               </TableRow>
               <TableRow>
                 <TableCell>User ID</TableCell>
-                <TableCell>{session?.userId || ""}</TableCell>
+                <TableCell>
+                  <IDField value={session?.userId} />
+                </TableCell>
               </TableRow>
               <TableRow>
                 <TableCell>Expires At</TableCell>

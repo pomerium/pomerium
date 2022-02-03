@@ -1,3 +1,4 @@
+import Footer from "./components/Footer";
 import Header from "./components/Header";
 import UserInfo from "./pages/UserInfo";
 import { createTheme } from "./theme";
@@ -11,8 +12,7 @@ import React, { FC } from "react";
 const theme = createTheme();
 
 const App: FC = () => {
-  const userInfoData =
-    (window["POMERIUM_DATA"] as unknown as UserInfoData) || {};
+  const userInfoData = (window["POMERIUM_DATA"] || {}) as UserInfoData;
 
   return (
     <ThemeProvider theme={theme}>
@@ -21,6 +21,7 @@ const App: FC = () => {
         <Stack spacing={3}>
           <Header />
           <UserInfo data={userInfoData} />
+          <Footer />
         </Stack>
       </Container>
     </ThemeProvider>

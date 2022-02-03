@@ -15,15 +15,19 @@ import (
 
 // UserInfoData is the data for the UserInfo page.
 type UserInfoData struct {
+	CSRFToken       string
 	DirectoryGroups []*directory.Group
 	DirectoryUser   *directory.User
 	Session         *session.Session
+	SignOutURL      string
 	User            *user.User
+	WebAuthnURL     string
 }
 
 // MarshalJSON encodes the user info data as JSON.
 func (data UserInfoData) MarshalJSON() ([]byte, error) {
 	m := map[string]interface{}{}
+	m["csrfToken"] = data.CSRFToken
 	var directoryGroups []json.RawMessage
 	for _, directoryGroup := range data.DirectoryGroups {
 		if bs, err := protojson.Marshal(directoryGroup); err == nil {
@@ -37,9 +41,11 @@ func (data UserInfoData) MarshalJSON() ([]byte, error) {
 	if bs, err := protojson.Marshal(data.Session); err == nil {
 		m["session"] = json.RawMessage(bs)
 	}
+	m["signOutUrl"] = data.SignOutURL
 	if bs, err := protojson.Marshal(data.User); err == nil {
 		m["user"] = json.RawMessage(bs)
 	}
+	m["webAuthnUrl"] = data.WebAuthnURL
 	return json.Marshal(m)
 }
 

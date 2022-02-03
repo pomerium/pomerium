@@ -1,5 +1,8 @@
+import GroupDetails from "../components/GroupDetails";
 import SessionDetails from "../components/SessionDetails";
+import SessionDeviceCredentials from "../components/SessionDeviceCredentials";
 import UserClaims from "../components/UserClaims";
+import UserInfoWelcome from "../components/UserInfoWelcome";
 import Container from "@mui/material/Container";
 import Stack from "@mui/material/Stack";
 import React, { FC } from "react";
@@ -12,28 +15,15 @@ const UserInfo: FC<UserInfoProps> = ({ data }) => {
   return (
     <Container>
       <Stack spacing={3}>
+        <UserInfoWelcome user={data?.user} />
         <SessionDetails session={data?.session} />
         <UserClaims user={data?.user} />
-        {/* <Section
-          title="Groups"
-          footer={
-            <>
-              Your associated groups are pulled from your{" "}
-              <a href="https://www.pomerium.io/docs/identity-providers/">
-                identity provider
-              </a>
-              .
-            </>
-          }
-        ></Section>
-        <Paper>
-          <Typography variant="h6">Groups</Typography>
-        </Paper>
-        <Paper>
-          <Typography variant="h6">
-            Current Session Device Credentials
-          </Typography>
-        </Paper> */}
+        <GroupDetails groups={data?.directoryGroups} />
+        <SessionDeviceCredentials
+          session={data?.session}
+          user={data?.user}
+          webAuthnUrl={data?.webAuthnUrl}
+        />
       </Stack>
     </Container>
   );

@@ -18,7 +18,7 @@ const ClaimsTable: FC<ClaimsTableProps> = ({ claims }) => {
 
   return (
     <TableContainer>
-      <Table>
+      <Table size="small">
         <TableHead>
           <TableRow>
             <TableCell variant="head">Claims</TableCell>

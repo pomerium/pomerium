@@ -547,10 +547,13 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	handlers.UserInfo(handlers.UserInfoData{
+		CSRFToken:       csrf.Token(r),
 		DirectoryGroups: groups,
 		DirectoryUser:   pbDirectoryUser,
 		Session:         pbSession,
+		SignOutURL:      signoutURL.String(),
 		User:            pbUser,
+		WebAuthnURL:     webAuthnURL.String(),
 	}).ServeHTTP(w, r)
 	return nil
 
