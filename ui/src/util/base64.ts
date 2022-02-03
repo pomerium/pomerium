@@ -38,7 +38,11 @@ base64Lookup[95 /* _ */] = 63;
 /**
  * Encode an `ArrayBuffer` to base64.
  */
-function encode(buffer, chars = base64Chars, padding = "=") {
+export function encode(
+  buffer: ArrayBuffer,
+  chars = base64Chars,
+  padding = "="
+): string {
   const bytes = new Uint8Array(buffer);
   const length = bytes.length;
   let base64 = "";
@@ -59,14 +63,14 @@ function encode(buffer, chars = base64Chars, padding = "=") {
 /**
  * Encode using the base64url variant.
  */
-function encodeUrl(buffer) {
+export function encodeUrl(buffer: ArrayBuffer): string {
   return encode(buffer, base64UrlChars, "");
 }
 
 /**
  * Decode a base64 encoded string.
  */
-function decode(base64, lookup = base64Lookup) {
+export function decode(base64: string, lookup = base64Lookup): ArrayBuffer {
   const length = base64.length;
   let bufferLength = Math.floor(base64.length * 0.75);
   let p = 0;
@@ -88,5 +92,3 @@ function decode(base64, lookup = base64Lookup) {
   }
   return bytes;
 }
-
-export { encode, encodeUrl, decode };

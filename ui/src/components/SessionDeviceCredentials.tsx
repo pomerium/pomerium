@@ -1,5 +1,5 @@
 import DeviceCredentialsTable from "../components/DeviceCredentialsTable";
-import { Footer } from "../components/Section";
+import SectionFooter from "../components/SectionFooter";
 import { Session, User } from "../types";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -69,11 +69,11 @@ export const SessionDeviceCredentials: FC<SessionDeviceCredentialsProps> = ({
         ) : (
           <></>
         )}
-        <Footer>
+        <SectionFooter>
           <Typography variant="caption">
             Register device with <a href={webAuthnUrl}>WebAuthn</a>.
           </Typography>
-        </Footer>
+        </SectionFooter>
       </Stack>
     </Paper>
   );

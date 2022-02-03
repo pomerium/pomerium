@@ -46,7 +46,58 @@ export type User = {
   name: string;
 };
 
+export type WebAuthnCreationOptions = {
+  attestation: AttestationConveyancePreference;
+  authenticatorSelection: {
+    authenticatorAttachment?: AuthenticatorAttachment;
+    requireResidentKey?: boolean;
+    residentKey?: ResidentKeyRequirement;
+    userVerification?: UserVerificationRequirement;
+  };
+  challenge: string;
+  pubKeyCredParams: PublicKeyCredentialParameters[];
+  rp: {
+    name: string;
+  };
+  timeout: number;
+  user: {
+    displayName: string;
+    id: string;
+    name: string;
+  };
+};
+
+export type WebAuthnRequestOptions = {
+  allowCredentials: Array<{
+    type: "public-key";
+    id: string;
+  }>;
+  challenge: string;
+  timeout: number;
+  userVerification: UserVerificationRequirement;
+};
+
+// page data
+
+export type ErrorPageData = {
+  page: "Error";
+
+  canDebug?: boolean;
+  debugUrl?: string;
+  error?: string;
+  requestId?: string;
+  status?: number;
+  statusText?: string;
+  version?: string;
+};
+
+export type DeviceEnrolledData = {
+  page: "DeviceEnrolled";
+};
+
 export type UserInfoData = {
+  page: "UserInfo";
+
   csrfToken: string;
   directoryGroups?: Group[];
   directoryUser?: DirectoryUser;
@@ -55,3 +106,18 @@ export type UserInfoData = {
   user?: User;
   webAuthnUrl?: string;
 };
+
+export type WebAuthnRegistrationData = {
+  page: "WebAuthnRegistration";
+
+  creationOptions?: WebAuthnCreationOptions;
+  csrfToken: string;
+  requestOptions?: WebAuthnRequestOptions;
+  selfUrl: string;
+};
+
+export type PomeriumData =
+  | ErrorPageData
+  | DeviceEnrolledData
+  | UserInfoData
+  | WebAuthnRegistrationData;

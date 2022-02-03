@@ -24,8 +24,8 @@ type UserInfoData struct {
 	WebAuthnURL     string
 }
 
-// MarshalJSON encodes the user info data as JSON.
-func (data UserInfoData) MarshalJSON() ([]byte, error) {
+// ToJSON converts the data into a JSON map.
+func (data UserInfoData) ToJSON() map[string]interface{} {
 	m := map[string]interface{}{}
 	m["csrfToken"] = data.CSRFToken
 	var directoryGroups []json.RawMessage
@@ -46,12 +46,12 @@ func (data UserInfoData) MarshalJSON() ([]byte, error) {
 		m["user"] = json.RawMessage(bs)
 	}
 	m["webAuthnUrl"] = data.WebAuthnURL
-	return json.Marshal(m)
+	return m
 }
 
 // UserInfo returns a handler that renders the user info page.
 func UserInfo(data UserInfoData) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		return ui.ServeUserInfo(w, r, data)
+		return ui.ServePage(w, r, "UserInfo", data.ToJSON())
 	})
 }

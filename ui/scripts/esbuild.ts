@@ -6,6 +6,7 @@ build({
   outfile: "dist/index.js",
   sourcemap: "inline",
   watch: process.argv.includes("--watch"),
+  minify: !process.argv.includes("--watch"),
   logLevel: "info",
   loader: {
     ".svg": "dataurl",

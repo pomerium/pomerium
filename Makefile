@@ -71,11 +71,6 @@ tag: ## Create a new git tag to prepare to build a release
 	git tag -sa $(VERSION) -m "$(VERSION)"
 	@echo "Run git push origin $(VERSION) to push your new tag to GitHub."
 
-.PHONY: frontend
-frontend: ## Runs go generate on the static assets package.
-	@echo "==> $@"
-	@CGO_ENABLED=0 GO111MODULE=on $(GO) generate github.com/pomerium/pomerium/internal/frontend
-
 .PHONY: proto
 proto:
 	@echo "==> $@"

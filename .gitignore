@@ -94,3 +94,5 @@ docs/.vuepress/dist/
 internal/envoy/files/envoy-*-?????
 internal/envoy/files/envoy-*-?????.sha256
 internal/envoy/files/envoy-*-?????.version
+
+yarn-error.log

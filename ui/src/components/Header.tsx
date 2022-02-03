@@ -9,7 +9,9 @@ const Header: FC = () => {
   return (
     <AppBar position="sticky">
       <Toolbar>
-        <Logo />
+        <a href="/.pomerium">
+          <Logo />
+        </a>
         <Box flexGrow={1} />
         <Button variant="text" color="inherit">
           Logout

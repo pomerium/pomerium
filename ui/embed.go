@@ -19,34 +19,26 @@ var (
 	uiFS embed.FS
 )
 
-// ServeCSS serves the index.css file.
-func ServeCSS(w http.ResponseWriter, r *http.Request) error {
-	f, etag, err := openLocalOrEmbeddedFile("dist/index.css")
+// ServeFile serves a file.
+func ServeFile(w http.ResponseWriter, r *http.Request, filePath string) error {
+	f, etag, err := openLocalOrEmbeddedFile(filepath.Join("dist", filePath))
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
 	w.Header().Set("ETag", `"`+etag+`"`)
-	http.ServeContent(w, r, "index.css", time.Time{}, f.(io.ReadSeeker))
+	http.ServeContent(w, r, filepath.Base(filePath), time.Time{}, f.(io.ReadSeeker))
 	return nil
 }
 
-// ServeJS serves the index.js file.
-func ServeJS(w http.ResponseWriter, r *http.Request) error {
-	f, etag, err := openLocalOrEmbeddedFile("dist/index.js")
-	if err != nil {
-		return err
+// ServePage serves the index.html page.
+func ServePage(w http.ResponseWriter, r *http.Request, page string, data map[string]interface{}) error {
+	if data == nil {
+		data = make(map[string]interface{})
 	}
-	defer f.Close()
+	data["page"] = page
 
-	w.Header().Set("ETag", `"`+etag+`"`)
-	http.ServeContent(w, r, "index.js", time.Time{}, f.(io.ReadSeeker))
-	return nil
-}
-
-// ServeUserInfo serves the UserInfo page.
-func ServeUserInfo(w http.ResponseWriter, r *http.Request, data interface{}) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return err

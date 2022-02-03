@@ -5,12 +5,10 @@ package authorize
 import (
 	"context"
 	"fmt"
-	"html/template"
 	"sync"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -22,7 +20,6 @@ type Authorize struct {
 	state          *atomicAuthorizeState
 	store          *evaluator.Store
 	currentOptions *config.AtomicOptions
-	templates      *template.Template
 
 	dataBrokerInitialSync chan struct{}
 
@@ -37,7 +34,6 @@ func New(cfg *config.Config) (*Authorize, error) {
 	a := Authorize{
 		currentOptions:        config.NewAtomicOptions(),
 		store:                 evaluator.NewStore(),
-		templates:             template.Must(frontend.NewTemplates()),
 		dataBrokerInitialSync: make(chan struct{}),
 	}
 

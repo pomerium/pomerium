@@ -6,11 +6,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"html/template"
 	"net/url"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/log"
@@ -48,8 +46,6 @@ func ValidateOptions(o *config.Options) error {
 
 // Authenticate contains data required to run the authenticate service.
 type Authenticate struct {
-	templates *template.Template
-
 	options  *config.AtomicOptions
 	provider *identity.AtomicAuthenticator
 	state    *atomicAuthenticateState
@@ -58,10 +54,9 @@ type Authenticate struct {
 // New validates and creates a new authenticate service from a set of Options.
 func New(cfg *config.Config) (*Authenticate, error) {
 	a := &Authenticate{
-		templates: template.Must(frontend.NewTemplates()),
-		options:   config.NewAtomicOptions(),
-		provider:  identity.NewAtomicAuthenticator(),
-		state:     newAtomicAuthenticateState(newAuthenticateState()),
+		options:  config.NewAtomicOptions(),
+		provider: identity.NewAtomicAuthenticator(),
+		state:    newAtomicAuthenticateState(newAuthenticateState()),
 	}
 
 	state, err := newAuthenticateStateFromConfig(cfg)

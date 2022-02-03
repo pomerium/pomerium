@@ -97,12 +97,23 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Use(a.RetrieveSession)
 	sr.Use(a.VerifySession)
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
-	sr.Path("/index.css").Handler(httputil.HandlerFunc(ui.ServeCSS))
-	sr.Path("/index.js").Handler(httputil.HandlerFunc(ui.ServeJS))
 	sr.Path("/sign_in").Handler(a.requireValidSignature(a.SignIn))
 	sr.Path("/sign_out").Handler(a.requireValidSignature(a.SignOut))
 	sr.Path("/webauthn").Handler(webauthn.New(a.getWebauthnState))
 	sr.Path("/device-enrolled").Handler(handlers.DeviceEnrolled())
+	for _, fileName := range []string{
+		"apple-touch-icon.png",
+		"favicon-16x16.png",
+		"favicon-32x32.png",
+		"favicon.ico",
+		"index.css",
+		"index.js",
+	} {
+		fileName := fileName
+		sr.Path("/" + fileName).Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+			return ui.ServeFile(w, r, fileName)
+		}))
+	}
 
 	cr := sr.PathPrefix("/callback").Subrouter()
 	cr.Use(func(h http.Handler) http.Handler {

@@ -7,14 +7,12 @@ package proxy
 import (
 	"context"
 	"fmt"
-	"html/template"
 	"net/http"
 	"sync/atomic"
 
 	"github.com/gorilla/mux"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
@@ -49,7 +47,6 @@ func ValidateOptions(o *config.Options) error {
 
 // Proxy stores all the information associated with proxying a request.
 type Proxy struct {
-	templates      *template.Template
 	state          *atomicProxyState
 	currentOptions *config.AtomicOptions
 	currentRouter  atomic.Value
@@ -64,7 +61,6 @@ func New(cfg *config.Config) (*Proxy, error) {
 	}
 
 	p := &Proxy{
-		templates:      template.Must(frontend.NewTemplates()),
 		state:          newAtomicProxyState(state),
 		currentOptions: config.NewAtomicOptions(),
 	}
