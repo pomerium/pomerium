@@ -86,6 +86,11 @@ Pomerium utilizes a [minimal](https://github.com/GoogleContainerTools/distroless
   docker pull pomerium/pomerium:master
   ```
 
+Rootless image tags for official releases are also published for additional security.  In these images, Pomerium runs as the `nonroot` user.  Depending on your deployment environment, you may need to grant the container additional [capabilities](https://linux-audit.com/linux-capabilities-hardening-linux-binaries-by-removing-setuid/) or change the listening port from `443`.
+
+- `rootless-vX.Y.Z`: the rootless image for a specific release
+- `rootless`: the latest rootless image
+
 ### Helm
 
 Pomerium maintains a [helm](https://helm.sh) chart for easy Kubernetes deployment with best practices <https://helm.pomerium.io/>
