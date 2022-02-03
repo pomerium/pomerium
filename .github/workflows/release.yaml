@@ -91,6 +91,9 @@ jobs:
           docker tag gcr.io/pomerium-io/pomerium:${{ steps.tagName.outputs.tag }}-cloudrun gcr.io/pomerium-io/pomerium:latest-cloudrun
           docker push gcr.io/pomerium-io/pomerium:latest-cloudrun
 
+          docker manifest create -a pomerium/pomerium:nonroot pomerium/pomerium:nonroot-amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium:nonroot-arm64v8-${{ steps.tagName.outputs.tag }}
+          docker manifest push pomerium/pomerium:nonroot
+
   deploy:
     runs-on: ubuntu-latest
     needs: goreleaser
