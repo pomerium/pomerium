@@ -9,7 +9,7 @@ description: This article describes various ways to install pomerium
 Pomerium is shipped in multiple formats and architectures to suit a variety of deployment patterns. There are two binaries:
 
 - `pomerium` is the primary server component. It is a monolithic binary that can perform the function of any [services mode](/reference/readme.md#service-mode).
-- `pomerium-cli` (optional) is a command-line client for working with Pomerium.  Functions include acting as an authentication helper for tools like [kubectl](/docs/k8s/readme.md).
+- `pomerium-cli` (optional) is a command-line client for working with Pomerium. Functions include acting as an authentication helper for tools like [kubectl](/docs/k8s/readme.md).
 
 
 [[toc]]
@@ -86,7 +86,7 @@ Pomerium utilizes a [minimal](https://github.com/GoogleContainerTools/distroless
   docker pull pomerium/pomerium:master
   ```
 
-Rootless images for official releases are also published to provide additional security.  In these images, Pomerium runs as the `nonroot` user.  Depending on your deployment environment, you may need to grant the container additional [capabilities](https://linux-audit.com/linux-capabilities-hardening-linux-binaries-by-removing-setuid/) or change the listening port from `443`.
+Rootless images for official releases are also published to provide additional security. In these images, Pomerium runs as the `nonroot` user. Depending on your deployment environment, you may need to grant the container additional [capabilities](https://linux-audit.com/linux-capabilities-hardening-linux-binaries-by-removing-setuid/) or change the listening port from `443`.
 
 - `nonroot-vX.Y.Z`: the rootless image for a specific release
 - `nonroot`: rootless equivalent to the `latest` tag
