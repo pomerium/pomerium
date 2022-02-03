@@ -88,8 +88,8 @@ Pomerium utilizes a [minimal](https://github.com/GoogleContainerTools/distroless
 
 Rootless images for official releases are also published to provide additional security. In these images, Pomerium runs as the `nonroot` user. Depending on your deployment environment, you may need to grant the container additional [capabilities](https://linux-audit.com/linux-capabilities-hardening-linux-binaries-by-removing-setuid/) or change the listening port from `443`.
 
-- `nonroot-vX.Y.Z`: the rootless image for a specific release
-- `nonroot`: rootless equivalent to the `latest` tag
+- `:nonroot-vX.Y.Z`: the rootless image for a specific release
+- `:nonroot`: rootless equivalent to the `latest` tag
 
 ### Helm
 
