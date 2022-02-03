@@ -16,7 +16,7 @@ authenticate_service_url: https://authenticate.localhost.pomerium.io
 
 policy:
   - from: https://verify.localhost.pomerium.io
-    to: https://httpbin
+    to: http://verify:8000
     allowed_domains:
       - pomerium.com
       - gmail.com
