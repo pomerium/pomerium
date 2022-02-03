@@ -91,6 +91,10 @@ Rootless images for official releases are also published to provide additional s
 - `:nonroot-vX.Y.Z`: the rootless image for a specific release
 - `:nonroot`: rootless equivalent to the `latest` tag
 
+Debug images are also available for official releases. These include shell environments to allow operators to perform debugging steps from inside the container.
+- `debug-vX.Y.Z`: the debug image for a specific release
+- `debug`: debug equivalent of the `latest` tag
+
 ### Helm
 
 Pomerium maintains a [helm](https://helm.sh) chart for easy Kubernetes deployment with best practices <https://helm.pomerium.io/>
