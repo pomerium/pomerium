@@ -77,16 +77,21 @@ proto:
 	cd pkg/grpc && ./protoc.bash
 
 .PHONY: build
-build: build-deps build-ui ## Builds dynamic executables and/or packages.
+build: build-go build-ui
 	@echo "==> $@"
-	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
 .PHONY: build-debug
 build-debug: build-deps build-ui ## Builds binaries appropriate for debugging
 	@echo "==> $@"
 	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -gcflags="all=-N -l" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
-build-ui: build-deps
+.PHONY: build-go
+build-go: build-deps
+	@echo "==> $@"
+	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
+
+.PHONY: build-ui
+build-ui: yarn
 	@echo "==> $@"
 	@cd ui; yarn build
 
@@ -127,6 +132,11 @@ clean: ## Cleanup any build binaries or packages.
 snapshot: build-deps ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
 	@echo "==> $@"
 	@goreleaser release --rm-dist -f .github/goreleaser.yaml --snapshot
+
+.PHONY: yarn
+yarn:
+	@echo "==> $@"
+	cd ui ; yarn install
 
 .PHONY: help
 help:

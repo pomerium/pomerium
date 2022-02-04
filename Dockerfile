@@ -1,4 +1,19 @@
-FROM golang:latest as build
+FROM node:16 as ui
+WORKDIR /build
+
+COPY .git ./.git
+COPY Makefile ./Makefile
+
+# download yarn dependencies
+COPY ui/yarn.lock ./ui/yarn.lock
+COPY ui/package.json ./ui/package.json
+RUN make yarn
+
+# build ui
+COPY ./ui/ ./ui/
+RUN make build-ui
+
+FROM golang:1.17-buster as build
 WORKDIR /go/src/github.com/pomerium/pomerium
 
 RUN apt-get update \
@@ -8,10 +23,10 @@ RUN apt-get update \
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+COPY --from=ui /build/ui/dist ./ui/dist
 
 # build
-RUN make build-deps
-RUN make build NAME=pomerium
+RUN make build-go NAME=pomerium
 RUN touch /config.yaml
 
 # build our own root trust store from current stable
