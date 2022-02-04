@@ -22,6 +22,7 @@
     ]
   },
   "dependencies": {
+    "@babel/core": "^7.0.0",
     "@emotion/react": "^11.7.1",
     "@emotion/styled": "^11.6.0",
     "@fontsource/dm-mono": "^4.5.2",
@@ -36,6 +37,7 @@
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "2.0.4",
     "@types/luxon": "^2.0.9",
+    "@types/node": "^17.0.14",
     "@types/react": "^17.0.34",
     "@types/react-dom": "^17.0.11",
     "@typescript-eslint/eslint-plugin": "^5.10.2",
