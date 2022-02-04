@@ -155,8 +155,8 @@ func stringPtr(in string) *string {
 }
 
 func TestProvider_UserGroups(t *testing.T) {
-	expectedDomain := "example.com"
-	expectedServiceAccount := &ServiceAccount{ClientID: "c_id", Secret: "secret"}
+	expectedDomain := "login.example.com"
+	expectedServiceAccount := &ServiceAccount{Domain: "login-example.auth0.com", ClientID: "c_id", Secret: "secret"}
 
 	tests := []struct {
 		name                         string
@@ -517,12 +517,32 @@ func TestParseServiceAccount(t *testing.T) {
 		{
 			"valid", "eyJjbGllbnRfaWQiOiJpLWFtLWNsaWVudC1pZCIsInNlY3JldCI6ImktYW0tc2VjcmV0In0K",
 			&ServiceAccount{
-				ClientID: "i-am-client-id",
-				Secret:   "i-am-secret",
+				ClientID:     "i-am-client-id",
+				ClientSecret: "i-am-secret",
+				Secret:       "i-am-secret",
 			},
 			nil,
 		},
-		{"base64 err", "!!!!", nil, errors.New("auth0: could not decode base64: illegal base64 data at input byte 0")},
+		{
+			"json", `{"client_id": "i-am-client-id", "client_secret": "i-am-secret"}`,
+			&ServiceAccount{
+				ClientID:     "i-am-client-id",
+				ClientSecret: "i-am-secret",
+				Secret:       "i-am-secret",
+			},
+			nil,
+		},
+		{
+			"domain", `{"domain": "example.auth0.com", "client_id": "i-am-client-id", "client_secret": "i-am-secret"}`,
+			&ServiceAccount{
+				ClientID:     "i-am-client-id",
+				ClientSecret: "i-am-secret",
+				Domain:       "example.auth0.com",
+				Secret:       "i-am-secret",
+			},
+			nil,
+		},
+		{"base64 err", "!!!!", nil, errors.New("auth0: could not unmarshal json: illegal base64 data at input byte 0")},
 		{"json err", "PAo=", nil, errors.New("auth0: could not unmarshal json: invalid character '<' looking for beginning of value")},
 		{"no client_id", "eyJzZWNyZXQiOiJpLWFtLXNlY3JldCJ9Cg==", nil, errors.New("auth0: client_id is required")},
 		{"no secret", "eyJjbGllbnRfaWQiOiJpLWFtLWNsaWVudC1pZCJ9Cg==", nil, errors.New("auth0: secret is required")},
