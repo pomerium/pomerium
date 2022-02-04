@@ -91,8 +91,10 @@ Rootless images for official releases are also published to provide additional s
 - `:nonroot-vX.Y.Z`: the rootless image for a specific release
 - `:nonroot`: rootless equivalent to the `latest` tag
 
-Debug images are also available for official releases. These include shell environments to allow operators to perform debugging steps from inside the container.
+Debug images are also available. These include shell environments to allow operators to perform debugging steps from inside the container.  If the image you are using already has a tag, prepend `debug-` for the debug image.  Examples:
+
 - `debug-vX.Y.Z`: the debug image for a specific release
+- `debug-nonroot`: the debug image for the latest `nonroot` image
 - `debug`: debug equivalent of the `latest` tag
 
 ### Helm
