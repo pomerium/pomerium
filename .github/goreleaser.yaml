@@ -108,6 +108,22 @@ dockers:
       - "--label=homepage=http://www.pomerium.io"
 
   - image_templates:
+      - "pomerium/pomerium:debug-nonroot-amd64-{{ .Tag }}"
+    dockerfile: .github/Dockerfile-release-debug-nonroot
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+      - "--label=repository=http://github.com/pomerium/pomerium"
+      - "--label=homepage=http://www.pomerium.io"
+
+
+  - image_templates:
       - "gcr.io/pomerium-io/pomerium:{{ .Tag }}-cloudrun"
     dockerfile: .github/Dockerfile-cloudrun
     use: buildx
@@ -169,6 +185,22 @@ dockers:
       - "--label=repository=http://github.com/pomerium/pomerium"
       - "--label=homepage=http://www.pomerium.io"
 
+  - goarch: arm64
+    image_templates:
+      - "pomerium/pomerium:debug-nonroot-arm64v8-{{ .Tag }}"
+    dockerfile: .github/Dockerfile-release-debug-nonroot
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+      - "--label=repository=http://github.com/pomerium/pomerium"
+      - "--label=homepage=http://www.pomerium.io"
+
 docker_manifests:
   - name_template: "pomerium/pomerium:{{ .Tag }}"
     image_templates:
@@ -184,6 +216,11 @@ docker_manifests:
     image_templates:
       - pomerium/pomerium:debug-arm64v8-{{ .Tag }}
       - pomerium/pomerium:debug-amd64-{{ .Tag }}
+
+  - name_template: "pomerium/pomerium:debug-nonroot-{{ .Tag }}"
+    image_templates:
+      - pomerium/pomerium:debug-nonroot-arm64v8-{{ .Tag }}
+      - pomerium/pomerium:debug-nonroot-amd64-{{ .Tag }}
 
 brews:
   - # Name template of the recipe
