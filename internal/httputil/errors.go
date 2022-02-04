@@ -78,6 +78,7 @@ func (e *HTTPError) ErrorResponse(w http.ResponseWriter, r *http.Request) {
 		m["debugUrl"] = response.DebugURL.String()
 	}
 
+	w.WriteHeader(response.Status)
 	if err := ui.ServePage(w, r, "Error", m); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
