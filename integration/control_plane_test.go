@@ -46,7 +46,7 @@ func TestDashboard(t *testing.T) {
 		assert.Equal(t, 3, res.StatusCode/100, "unexpected status code")
 	})
 	t.Run("image asset", func(t *testing.T) {
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://authenticate.localhost.pomerium.io/.pomerium/assets/img/pomerium.svg", nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://authenticate.localhost.pomerium.io/.pomerium/apple-touch-icon.png", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -58,7 +58,7 @@ func TestDashboard(t *testing.T) {
 		defer res.Body.Close()
 
 		assert.Equal(t, http.StatusOK, res.StatusCode, "unexpected status code")
-		assert.Equal(t, "image/svg+xml", res.Header.Get("Content-Type"))
+		assert.Equal(t, "image/png", res.Header.Get("Content-Type"))
 	})
 }
 
