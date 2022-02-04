@@ -373,7 +373,7 @@ func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *Stat
 		"creationOptions": creationOptions,
 		"requestOptions":  requestOptions,
 		"selfUrl":         r.URL.String(),
-		"signOutUrl":      urlutil.SignOutURL(r, nil, state.SharedKey),
+		"signOutUrl":      urlutil.SignOutURL(r, state.AuthenticateURL, state.SharedKey),
 	})
 }
 
