@@ -135,7 +135,6 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 							Code: envoy_type_v3.StatusCode(codes.InvalidArgument),
 						},
 						Headers: []*envoy_config_core_v3.HeaderValueOption{
-							mkHeader("Content-Type", "text/html; charset=UTF-8", false),
 							mkHeader("X-Pomerium-Intercepted-Response", "true", false),
 						},
 						Body: "Access Denied",
@@ -152,7 +151,7 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tc.want.Status.Code, got.Status.Code)
 			assert.Equal(t, tc.want.Status.Message, got.Status.Message)
-			assert.Equal(t, tc.want.GetDeniedResponse().GetHeaders(), got.GetDeniedResponse().GetHeaders())
+			testutil.AssertProtoEqual(t, tc.want.GetDeniedResponse().GetHeaders(), got.GetDeniedResponse().GetHeaders())
 		})
 	}
 }

@@ -9,9 +9,18 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/testing/protocmp"
 )
+
+// AssertProtoEqual asserts that two protobuf messages equal. Slices of messages are also supported.
+func AssertProtoEqual(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) bool {
+	t.Helper()
+	return assert.True(t, cmp.Equal(expected, actual, protocmp.Transform()),
+		cmp.Diff(expected, actual, protocmp.Transform()))
+}
 
 // AssertProtoJSONEqual asserts that a protobuf message matches the given JSON. The protoMsg can also be a slice
 // of protobuf messages.
