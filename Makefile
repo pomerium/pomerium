@@ -71,25 +71,29 @@ tag: ## Create a new git tag to prepare to build a release
 	git tag -sa $(VERSION) -m "$(VERSION)"
 	@echo "Run git push origin $(VERSION) to push your new tag to GitHub."
 
-.PHONY: frontend
-frontend: ## Runs go generate on the static assets package.
-	@echo "==> $@"
-	@CGO_ENABLED=0 GO111MODULE=on $(GO) generate github.com/pomerium/pomerium/internal/frontend
-
 .PHONY: proto
 proto:
 	@echo "==> $@"
 	cd pkg/grpc && ./protoc.bash
 
 .PHONY: build
-build: build-deps ## Builds dynamic executables and/or packages.
+build: build-go build-ui
+	@echo "==> $@"
+
+.PHONY: build-debug
+build-debug: build-deps build-ui ## Builds binaries appropriate for debugging
+	@echo "==> $@"
+	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -gcflags="all=-N -l" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
+
+.PHONY: build-go
+build-go: build-deps
 	@echo "==> $@"
 	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 
-.PHONY: build-debug
-build-debug: build-deps ## Builds binaries appropriate for debugging
+.PHONY: build-ui
+build-ui: yarn
 	@echo "==> $@"
-	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -gcflags="all=-N -l" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
+	@cd ui; yarn build
 
 .PHONY: lint
 lint: ## Verifies `golint` passes.
@@ -128,6 +132,11 @@ clean: ## Cleanup any build binaries or packages.
 snapshot: build-deps ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
 	@echo "==> $@"
 	@goreleaser release --rm-dist -f .github/goreleaser.yaml --snapshot
+
+.PHONY: yarn
+yarn:
+	@echo "==> $@"
+	cd ui ; yarn install
 
 .PHONY: help
 help:

@@ -1,15 +1,12 @@
 package httputil
 
 import (
-	"html/template"
 	"net/http"
 	"net/url"
 
-	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
+	"github.com/pomerium/pomerium/ui"
 )
-
-var errorTemplate = template.Must(frontend.NewTemplates())
 
 // HTTPError contains an HTTP status code and wrapped error.
 type HTTPError struct {
@@ -68,7 +65,21 @@ func (e *HTTPError) ErrorResponse(w http.ResponseWriter, r *http.Request) {
 		RenderJSON(w, e.Status, response)
 		return
 	}
-	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	w.WriteHeader(e.Status)
-	errorTemplate.ExecuteTemplate(w, "error.html", response)
+
+	m := map[string]interface{}{
+		"canDebug":   response.CanDebug,
+		"error":      response.Error,
+		"requestId":  response.RequestID,
+		"status":     response.Status,
+		"statusText": response.StatusText,
+		"version":    response.Version,
+	}
+	if response.DebugURL != nil {
+		m["debugUrl"] = response.DebugURL.String()
+	}
+
+	w.WriteHeader(response.Status)
+	if err := ui.ServePage(w, r, "Error", m); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }

@@ -8,21 +8,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
 
 	"github.com/google/uuid"
-	"github.com/pomerium/csrf"
 	"github.com/pomerium/webauthn"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/encoding/jws"
-	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -33,6 +29,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/webauthnutil"
+	"github.com/pomerium/pomerium/ui"
 )
 
 const maxAuthenticateResponses = 5
@@ -50,13 +47,14 @@ var (
 
 // State is the state needed by the Handler to handle requests.
 type State struct {
-	SharedKey       []byte
+	AuthenticateURL *url.URL
 	Client          databroker.DataBrokerServiceClient
 	PomeriumDomains []string
+	RelyingParty    *webauthn.RelyingParty
 	Session         *session.Session
 	SessionState    *sessions.State
 	SessionStore    sessions.SessionStore
-	RelyingParty    *webauthn.RelyingParty
+	SharedKey       []byte
 }
 
 // A StateProvider provides state for the handler.
@@ -64,15 +62,13 @@ type StateProvider = func(context.Context) (*State, error)
 
 // Handler is the WebAuthn device handler.
 type Handler struct {
-	getState  StateProvider
-	templates *template.Template
+	getState StateProvider
 }
 
 // New creates a new Handler.
 func New(getState StateProvider) *Handler {
 	return &Handler{
-		getState:  getState,
-		templates: template.Must(frontend.NewTemplates()),
+		getState: getState,
 	}
 }
 
@@ -373,23 +369,12 @@ func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *Stat
 	creationOptions := webauthnutil.GenerateCreationOptions(state.SharedKey, deviceType, u)
 	requestOptions := webauthnutil.GenerateRequestOptions(state.SharedKey, deviceType, knownDeviceCredentials)
 
-	var buf bytes.Buffer
-	err = h.templates.ExecuteTemplate(&buf, "webauthn.html", map[string]interface{}{
-		"csrfField": csrf.TemplateField(r),
-		"Data": map[string]interface{}{
-			"creationOptions": creationOptions,
-			"requestOptions":  requestOptions,
-		},
-		"SelfURL": r.URL.String(),
+	return ui.ServePage(w, r, "WebAuthnRegistration", map[string]interface{}{
+		"creationOptions": creationOptions,
+		"requestOptions":  requestOptions,
+		"selfUrl":         r.URL.String(),
+		"signOutUrl":      urlutil.SignOutURL(r, state.AuthenticateURL, state.SharedKey),
 	})
-	if err != nil {
-		return err
-	}
-
-	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusOK)
-	_, err = io.Copy(w, &buf)
-	return err
 }
 
 func (h *Handler) saveSessionAndRedirect(w http.ResponseWriter, r *http.Request, state *State, rawRedirectURI string) error {

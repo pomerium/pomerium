@@ -62,6 +62,8 @@ tags
 # dependencies
 ui/node_modules
 ui/bower_components
+ui/dist/index.js
+ui/dist/index.css
 
 # for building static assets
 node_modules
@@ -74,7 +76,6 @@ lib/core/MetadataBlog.js
 
 translated_docs
 build/
-yarn.lock
 node_modules
 i18n/*
 docs/.vuepress/dist/
@@ -92,3 +93,5 @@ docs/.vuepress/dist/
 internal/envoy/files/envoy-*-?????
 internal/envoy/files/envoy-*-?????.sha256
 internal/envoy/files/envoy-*-?????.version
+
+yarn-error.log

@@ -6,11 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"html/template"
-	"net/url"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/log"
@@ -48,8 +45,6 @@ func ValidateOptions(o *config.Options) error {
 
 // Authenticate contains data required to run the authenticate service.
 type Authenticate struct {
-	templates *template.Template
-
 	options  *config.AtomicOptions
 	provider *identity.AtomicAuthenticator
 	state    *atomicAuthenticateState
@@ -58,10 +53,9 @@ type Authenticate struct {
 // New validates and creates a new authenticate service from a set of Options.
 func New(cfg *config.Config) (*Authenticate, error) {
 	a := &Authenticate{
-		templates: template.Must(frontend.NewTemplates()),
-		options:   config.NewAtomicOptions(),
-		provider:  identity.NewAtomicAuthenticator(),
-		state:     newAtomicAuthenticateState(newAuthenticateState()),
+		options:  config.NewAtomicOptions(),
+		provider: identity.NewAtomicAuthenticator(),
+		state:    newAtomicAuthenticateState(newAuthenticateState()),
 	}
 
 	state, err := newAuthenticateStateFromConfig(cfg)
@@ -122,18 +116,4 @@ func (a *Authenticate) updateProvider(cfg *config.Config) error {
 	a.provider.Store(provider)
 
 	return nil
-}
-
-// buildURLValues creates a new url.Values map by traversing the keys in `defaults` and using the values
-// from `values` if they exist, otherwise the provided defaults
-func buildURLValues(values, defaults url.Values) url.Values {
-	result := make(url.Values)
-	for k, vs := range defaults {
-		if values.Has(k) {
-			result[k] = values[k]
-		} else if vs != nil {
-			result[k] = vs
-		}
-	}
-	return result
 }

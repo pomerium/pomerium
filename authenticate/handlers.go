@@ -33,6 +33,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/ui"
 )
 
 // Handler returns the authenticate service's handler chain.
@@ -99,7 +100,27 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Path("/sign_in").Handler(a.requireValidSignature(a.SignIn))
 	sr.Path("/sign_out").Handler(a.requireValidSignature(a.SignOut))
 	sr.Path("/webauthn").Handler(webauthn.New(a.getWebauthnState))
-	sr.Path("/device-enrolled").Handler(handlers.DeviceEnrolled())
+	sr.Path("/device-enrolled").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		authenticateURL, err := a.options.Load().GetAuthenticateURL()
+		if err != nil {
+			return err
+		}
+		handlers.DeviceEnrolled(authenticateURL, a.state.Load().sharedKey).ServeHTTP(w, r)
+		return nil
+	}))
+	for _, fileName := range []string{
+		"apple-touch-icon.png",
+		"favicon-16x16.png",
+		"favicon-32x32.png",
+		"favicon.ico",
+		"index.css",
+		"index.js",
+	} {
+		fileName := fileName
+		sr.Path("/" + fileName).Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+			return ui.ServeFile(w, r, fileName)
+		}))
+	}
 
 	cr := sr.PathPrefix("/callback").Subrouter()
 	cr.Use(func(h http.Handler) http.Handler {
@@ -463,6 +484,11 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 
 	state := a.state.Load()
 
+	authenticateURL, err := a.options.Load().GetAuthenticateURL()
+	if err != nil {
+		return err
+	}
+
 	s, err := a.getSessionFromCtx(ctx)
 	if err != nil {
 		s.ID = uuid.New().String()
@@ -500,52 +526,17 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		groups = append(groups, pbDirectoryGroup)
 	}
 
-	signoutURL, err := a.getSignOutURL(r)
-	if err != nil {
-		return fmt.Errorf("invalid signout url: %w", err)
-	}
-
-	webAuthnURL, err := a.getWebAuthnURL(r.URL.Query())
-	if err != nil {
-		return fmt.Errorf("invalid webauthn url: %w", err)
-	}
-
-	type DeviceCredentialInfo struct {
-		ID string
-	}
-	var currentDeviceCredentials, otherDeviceCredentials []DeviceCredentialInfo
-	for _, id := range pbUser.GetDeviceCredentialIds() {
-		selected := false
-		for _, c := range pbSession.GetDeviceCredentials() {
-			if c.GetId() == id {
-				selected = true
-			}
-		}
-		if selected {
-			currentDeviceCredentials = append(currentDeviceCredentials, DeviceCredentialInfo{
-				ID: id,
-			})
-		} else {
-			otherDeviceCredentials = append(otherDeviceCredentials, DeviceCredentialInfo{
-				ID: id,
-			})
-		}
-	}
-
-	input := map[string]interface{}{
-		"IsImpersonated":           isImpersonated,
-		"State":                    s,         // local session state (cookie, header, etc)
-		"Session":                  pbSession, // current access, refresh, id token
-		"User":                     pbUser,    // user details inferred from oidc id_token
-		"CurrentDeviceCredentials": currentDeviceCredentials,
-		"OtherDeviceCredentials":   otherDeviceCredentials,
-		"DirectoryUser":            pbDirectoryUser, // user details inferred from idp directory
-		"DirectoryGroups":          groups,          // user's groups inferred from idp directory
-		"csrfField":                csrf.TemplateField(r),
-		"SignOutURL":               signoutURL,
-		"WebAuthnURL":              webAuthnURL,
-	}
-	return a.templates.ExecuteTemplate(w, "userInfo.html", input)
+	handlers.UserInfo(handlers.UserInfoData{
+		CSRFToken:       csrf.Token(r),
+		DirectoryGroups: groups,
+		DirectoryUser:   pbDirectoryUser,
+		IsImpersonated:  isImpersonated,
+		Session:         pbSession,
+		SignOutURL:      urlutil.SignOutURL(r, authenticateURL, state.sharedKey),
+		User:            pbUser,
+		WebAuthnURL:     urlutil.WebAuthnURL(r, authenticateURL, state.sharedKey, r.URL.Query()),
+	}).ServeHTTP(w, r)
+	return nil
 }
 
 func (a *Authenticate) saveSessionToDataBroker(
@@ -682,12 +673,18 @@ func (a *Authenticate) getWebauthnState(ctx context.Context) (*webauthn.State, e
 		return nil, err
 	}
 
+	authenticateURL, err := a.options.Load().GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
+
 	pomeriumDomains, err := a.options.Load().GetAllRouteableHTTPDomains()
 	if err != nil {
 		return nil, err
 	}
 
 	return &webauthn.State{
+		AuthenticateURL: authenticateURL,
 		SharedKey:       state.sharedKey,
 		Client:          state.dataBrokerClient,
 		PomeriumDomains: pomeriumDomains,

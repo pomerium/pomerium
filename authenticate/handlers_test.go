@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -29,7 +28,6 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
-	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
@@ -49,7 +47,6 @@ func testAuthenticate() *Authenticate {
 		redirectURL:  redirectURL,
 		cookieSecret: cryptutil.NewKey(),
 	})
-	auth.templates = template.Must(frontend.NewTemplates())
 	auth.options = config.NewAtomicOptions()
 	auth.options.Store(&config.Options{
 		SharedKey: cryptutil.NewBase64Key(),
@@ -268,9 +265,8 @@ func TestAuthenticate_SignOut(t *testing.T) {
 					},
 					directoryClient: new(mockDirectoryServiceClient),
 				}),
-				templates: template.Must(frontend.NewTemplates()),
-				options:   config.NewAtomicOptions(),
-				provider:  identity.NewAtomicAuthenticator(),
+				options:  config.NewAtomicOptions(),
+				provider: identity.NewAtomicAuthenticator(),
 			}
 			if tt.signoutRedirectURL != "" {
 				opts := a.options.Load()
@@ -671,7 +667,6 @@ func TestAuthenticate_userInfo(t *testing.T) {
 					},
 					directoryClient: new(mockDirectoryServiceClient),
 				}),
-				templates: template.Must(frontend.NewTemplates()),
 			}
 			r := httptest.NewRequest(tt.method, tt.url.String(), nil)
 			state, err := tt.sessionStore.LoadSession(r)
@@ -761,7 +756,6 @@ func TestAuthenticate_SignOut_CSRF(t *testing.T) {
 			},
 			directoryClient: new(mockDirectoryServiceClient),
 		}),
-		templates: template.Must(frontend.NewTemplates()),
 	}
 	tests := []struct {
 		name          string

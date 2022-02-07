@@ -2,7 +2,6 @@ package authorize
 
 import (
 	"context"
-	"html/template"
 	"net/http"
 	"net/url"
 	"testing"
@@ -19,7 +18,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
-	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -114,7 +112,6 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 			}},
 		}},
 	})
-	a.templates = template.Must(frontend.NewTemplates())
 
 	tests := []struct {
 		name    string
@@ -138,7 +135,6 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 							Code: envoy_type_v3.StatusCode(codes.InvalidArgument),
 						},
 						Headers: []*envoy_config_core_v3.HeaderValueOption{
-							mkHeader("Content-Type", "text/html; charset=UTF-8", false),
 							mkHeader("X-Pomerium-Intercepted-Response", "true", false),
 						},
 						Body: "Access Denied",
@@ -155,7 +151,7 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tc.want.Status.Code, got.Status.Code)
 			assert.Equal(t, tc.want.Status.Message, got.Status.Message)
-			assert.Equal(t, tc.want.GetDeniedResponse().GetHeaders(), got.GetDeniedResponse().GetHeaders())
+			testutil.AssertProtoEqual(t, tc.want.GetDeniedResponse().GetHeaders(), got.GetDeniedResponse().GetHeaders())
 		})
 	}
 }

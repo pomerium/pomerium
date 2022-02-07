@@ -9,7 +9,6 @@ import (
 	"github.com/CAFxX/httpcompression"
 	"github.com/gorilla/handlers"
 
-	"github.com/pomerium/pomerium/internal/frontend"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -48,7 +47,6 @@ func (srv *Server) addHTTPMiddleware() {
 	}, srv.name))
 	root.HandleFunc("/healthz", httputil.HealthCheck)
 	root.HandleFunc("/ping", httputil.HealthCheck)
-	root.PathPrefix("/.pomerium/assets/").Handler(http.StripPrefix("/.pomerium/assets/", frontend.MustAssetHandler()))
 
 	// pprof
 	root.Path("/debug/pprof/cmdline").HandlerFunc(pprof.Cmdline)

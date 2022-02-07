@@ -8,12 +8,13 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/device"
 )
 
 // DefaultDeviceType is the default device type when none is specified.
-const DefaultDeviceType = "any"
+const DefaultDeviceType = urlutil.DefaultDeviceType
 
 var supportedPublicKeyCredentialParameters = []*device.WebAuthnOptions_PublicKeyCredentialParameters{
 	{Type: device.WebAuthnOptions_PUBLIC_KEY, Alg: int64(cose.AlgorithmES256)},

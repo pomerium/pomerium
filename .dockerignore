@@ -1,2 +1,5 @@
 dist/
 bin/
+ui/dist/index.js
+ui/dist/index.css
+ui/node_modules/

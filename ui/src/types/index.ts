@@ -1,0 +1,127 @@
+export type Claims = Record<string, unknown[]>;
+
+export type DirectoryUser = {
+  displayName: string;
+  email: string;
+  groupIds: string[];
+  id: string;
+};
+
+export type Group = {
+  id: string;
+  email: string;
+  name: string;
+};
+
+export type Session = {
+  audience: string[];
+  claims: Claims;
+  deviceCredentials: Array<{
+    typeId: string;
+    id: string;
+  }>;
+  expiresAt: string;
+  id: string;
+  idToken: {
+    expiresAt: string;
+    issuedAt: string;
+    issuer: string;
+    raw: string;
+    subject: string;
+  };
+  issuedAt: string;
+  oauthToken: {
+    accessToken: string;
+    expiresAt: string;
+    refreshToken: string;
+    tokenType: string;
+  };
+  userId: string;
+};
+
+export type User = {
+  claims: Claims;
+  deviceCredentialIds: string[];
+  id: string;
+  name: string;
+};
+
+export type WebAuthnCreationOptions = {
+  attestation: AttestationConveyancePreference;
+  authenticatorSelection: {
+    authenticatorAttachment?: AuthenticatorAttachment;
+    requireResidentKey?: boolean;
+    residentKey?: ResidentKeyRequirement;
+    userVerification?: UserVerificationRequirement;
+  };
+  challenge: string;
+  pubKeyCredParams: PublicKeyCredentialParameters[];
+  rp: {
+    name: string;
+  };
+  timeout: number;
+  user: {
+    displayName: string;
+    id: string;
+    name: string;
+  };
+};
+
+export type WebAuthnRequestOptions = {
+  allowCredentials: Array<{
+    type: "public-key";
+    id: string;
+  }>;
+  challenge: string;
+  timeout: number;
+  userVerification: UserVerificationRequirement;
+};
+
+// page data
+
+type BasePageData = {
+  csrfToken?: string;
+  signOutUrl?: string;
+};
+
+export type ErrorPageData = BasePageData & {
+  page: "Error";
+
+  canDebug?: boolean;
+  debugUrl?: string;
+  error?: string;
+  requestId?: string;
+  status?: number;
+  statusText?: string;
+  version?: string;
+};
+
+export type DeviceEnrolledPageData = BasePageData & {
+  page: "DeviceEnrolled";
+};
+
+export type UserInfoPageData = BasePageData & {
+  page: "UserInfo";
+
+  csrfToken: string;
+  directoryGroups?: Group[];
+  directoryUser?: DirectoryUser;
+  session?: Session;
+  user?: User;
+  webAuthnUrl?: string;
+};
+
+export type WebAuthnRegistrationPageData = BasePageData & {
+  page: "WebAuthnRegistration";
+
+  creationOptions?: WebAuthnCreationOptions;
+  csrfToken: string;
+  requestOptions?: WebAuthnRequestOptions;
+  selfUrl: string;
+};
+
+export type PageData =
+  | ErrorPageData
+  | DeviceEnrolledPageData
+  | UserInfoPageData
+  | WebAuthnRegistrationPageData;
