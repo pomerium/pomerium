@@ -11,7 +11,7 @@ RUN touch /config.yaml
 FROM gcr.io/distroless/base-debian10:latest-${TARGETARCH:-amd64}
 ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
-COPY pomerium* /bin/
+COPY pomerium /bin/
 COPY --from=build /config.yaml /pomerium/config.yaml
 COPY --from=casource /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 ENTRYPOINT [ "/bin/pomerium" ]

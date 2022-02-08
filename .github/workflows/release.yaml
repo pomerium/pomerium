@@ -94,6 +94,12 @@ jobs:
           docker manifest create -a pomerium/pomerium:nonroot pomerium/pomerium:nonroot-amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium:nonroot-arm64v8-${{ steps.tagName.outputs.tag }}
           docker manifest push pomerium/pomerium:nonroot
 
+          docker manifest create -a pomerium/pomerium:debug pomerium/pomerium:debug-amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium:debug-arm64v8-${{ steps.tagName.outputs.tag }}
+          docker manifest push pomerium/pomerium:debug
+
+          docker manifest create -a pomerium/pomerium:debug-nonroot pomerium/pomerium:debug-nonroot-amd64-${{ steps.tagName.outputs.tag }} pomerium/pomerium:debug-nonroot-arm64v8-${{ steps.tagName.outputs.tag }}
+          docker manifest push pomerium/pomerium:debug-nonroot
+
   deploy:
     runs-on: ubuntu-latest
     needs: goreleaser
