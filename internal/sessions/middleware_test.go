@@ -7,9 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -84,7 +82,7 @@ func TestVerifier(t *testing.T) {
 		},
 		{
 			"simple good load",
-			mock.Store{Session: &sessions.State{Version: "v1", ID: "xyz", Subject: "hi", Expiry: jwt.NewNumericDate(time.Now().Add(time.Second))}},
+			mock.Store{Session: &sessions.State{Version: "v1", ID: "xyz", Subject: "hi"}},
 			sessions.State{Version: "v1", ID: "xyz"},
 			200,
 		},

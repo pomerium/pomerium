@@ -7,39 +7,7 @@ import (
 
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/go-cmp/cmp"
-	"golang.org/x/oauth2"
 )
-
-func TestState_IsExpired(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name        string
-		Audience    jwt.Audience
-		Expiry      *jwt.NumericDate
-		NotBefore   *jwt.NumericDate
-		IssuedAt    *jwt.NumericDate
-		AccessToken *oauth2.Token
-
-		audience string
-		wantErr  bool
-	}{
-		{"good", []string{"a", "b", "c"}, jwt.NewNumericDate(time.Now().Add(time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), &oauth2.Token{Expiry: time.Now().Add(time.Hour)}, "a", false},
-		{"bad expiry", []string{"a", "b", "c"}, jwt.NewNumericDate(time.Now().Add(-time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), jwt.NewNumericDate(time.Now().Add(-time.Hour)), &oauth2.Token{Expiry: time.Now().Add(time.Hour)}, "a", true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &State{
-				Audience:  tt.Audience,
-				Expiry:    tt.Expiry,
-				NotBefore: tt.NotBefore,
-				IssuedAt:  tt.IssuedAt,
-			}
-			if exp := s.IsExpired(); exp != tt.wantErr {
-				t.Errorf("State.IsExpired() error = %v, wantErr %v", exp, tt.wantErr)
-			}
-		})
-	}
-}
 
 func TestState_UnmarshalJSON(t *testing.T) {
 	fixedTime := time.Date(2009, 11, 17, 20, 34, 58, 651387237, time.UTC)
@@ -56,25 +24,25 @@ func TestState_UnmarshalJSON(t *testing.T) {
 		{
 			"good",
 			&State{ID: "xyz"},
-			State{ID: "xyz", NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime)},
+			State{ID: "xyz", IssuedAt: jwt.NewNumericDate(fixedTime)},
 			false,
 		},
 		{
 			"with user",
 			&State{ID: "xyz"},
-			State{ID: "xyz", NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime)},
+			State{ID: "xyz", IssuedAt: jwt.NewNumericDate(fixedTime)},
 			false,
 		},
 		{
 			"without",
 			&State{ID: "xyz", Subject: "user"},
-			State{ID: "xyz", Subject: "user", NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime)},
+			State{ID: "xyz", Subject: "user", IssuedAt: jwt.NewNumericDate(fixedTime)},
 			false,
 		},
 		{
 			"missing id",
 			&State{},
-			State{NotBefore: jwt.NewNumericDate(fixedTime), IssuedAt: jwt.NewNumericDate(fixedTime)},
+			State{IssuedAt: jwt.NewNumericDate(fixedTime)},
 			true,
 		},
 	}

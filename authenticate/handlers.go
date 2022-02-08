@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/pomerium/csrf"
@@ -535,7 +534,6 @@ func (a *Authenticate) saveSessionToDataBroker(
 	options := a.options.Load()
 
 	sessionExpiry := timestamppb.New(time.Now().Add(options.CookieExpire))
-	sessionState.Expiry = jwt.NewNumericDate(sessionExpiry.AsTime())
 	idTokenIssuedAt := timestamppb.New(sessionState.IssuedAt.Time())
 
 	s := &session.Session{

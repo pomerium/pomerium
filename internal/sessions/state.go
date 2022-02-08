@@ -46,13 +46,11 @@ func (v *Version) UnmarshalJSON(b []byte) error {
 // State is our object that keeps track of a user's session state
 type State struct {
 	// Public claim values (as specified in RFC 7519).
-	Issuer    string           `json:"iss,omitempty"`
-	Subject   string           `json:"sub,omitempty"`
-	Audience  jwt.Audience     `json:"aud,omitempty"`
-	Expiry    *jwt.NumericDate `json:"exp,omitempty"`
-	NotBefore *jwt.NumericDate `json:"nbf,omitempty"`
-	IssuedAt  *jwt.NumericDate `json:"iat,omitempty"`
-	ID        string           `json:"jti,omitempty"`
+	Issuer   string           `json:"iss,omitempty"`
+	Subject  string           `json:"sub,omitempty"`
+	Audience jwt.Audience     `json:"aud,omitempty"`
+	IssuedAt *jwt.NumericDate `json:"iat,omitempty"`
+	ID       string           `json:"jti,omitempty"`
 
 	// "ver" field is not standard, but is supported by most providers.
 	Version Version `json:"ver,omitempty"`
@@ -77,15 +75,9 @@ type State struct {
 func NewSession(s *State, issuer string, audience []string) State {
 	newState := *s
 	newState.IssuedAt = jwt.NewNumericDate(timeNow())
-	newState.NotBefore = newState.IssuedAt
 	newState.Audience = audience
 	newState.Issuer = issuer
 	return newState
-}
-
-// IsExpired returns true if the users's session is expired.
-func (s *State) IsExpired() bool {
-	return s.Expiry != nil && timeNow().After(s.Expiry.Time())
 }
 
 // UserID returns the corresponding user ID for a session.

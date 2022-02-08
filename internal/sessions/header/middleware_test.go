@@ -6,13 +6,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/pomerium/pomerium/internal/encoding/ecjson"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 
-	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -44,21 +42,21 @@ func TestVerifier(t *testing.T) {
 		{
 			"good auth header session",
 			"Pomerium ",
-			sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))},
+			sessions.State{},
 			http.StatusText(http.StatusOK),
 			http.StatusOK,
 		},
 		{
 			"empty auth header",
 			"Pomerium ",
-			sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))},
+			sessions.State{},
 			"internal/sessions: session is not found\n",
 			http.StatusUnauthorized,
 		},
 		{
 			"bad auth type",
 			"bees ",
-			sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))},
+			sessions.State{},
 			"internal/sessions: session is not found\n",
 			http.StatusUnauthorized,
 		},
