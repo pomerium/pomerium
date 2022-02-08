@@ -81,7 +81,7 @@ build: build-go build-ui
 	@echo "==> $@"
 
 .PHONY: build-debug
-build-debug: build-deps build-ui ## Builds binaries appropriate for debugging
+build-debug: build-deps ## Builds binaries appropriate for debugging
 	@echo "==> $@"
 	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -gcflags="all=-N -l" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
 

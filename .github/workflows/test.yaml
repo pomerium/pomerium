@@ -2,6 +2,7 @@ on:
   push:
     branches:
       - master
+      - increase_yarn_timeout
   pull_request:
 
 name: Test
@@ -214,6 +215,8 @@ jobs:
           context: .
           file: ./Dockerfile
           push: false
+          cache-from: type=registry,ref=pomerium/pomerium:buildcache
+          cache-to: type=registry,ref=pomerium/pomerium:buildcache,mode=max
 
   precommit:
     runs-on: ubuntu-latest
