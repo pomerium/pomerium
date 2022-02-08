@@ -135,6 +135,7 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 							Code: envoy_type_v3.StatusCode(codes.InvalidArgument),
 						},
 						Headers: []*envoy_config_core_v3.HeaderValueOption{
+							mkHeader("Content-Type", "text/html; charset=UTF-8", false),
 							mkHeader("X-Pomerium-Intercepted-Response", "true", false),
 						},
 						Body: "Access Denied",
