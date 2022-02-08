@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/pomerium/pomerium/ui"
-
 	"github.com/gorilla/mux"
 
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -20,26 +18,13 @@ import (
 
 // registerDashboardHandlers returns the proxy service's ServeMux
 func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
-	h := r.PathPrefix(dashboardPath).Subrouter()
+	h := httputil.DashboardSubrouter(r)
 	h.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 
 	// special pomerium endpoints for users to view their session
 	h.Path("/").HandlerFunc(p.userInfo).Methods(http.MethodGet)
 	h.Path("/sign_out").Handler(httputil.HandlerFunc(p.SignOut)).Methods(http.MethodGet, http.MethodPost)
 	h.Path("/jwt").Handler(httputil.HandlerFunc(p.jwtAssertion)).Methods(http.MethodGet)
-	for _, fileName := range []string{
-		"apple-touch-icon.png",
-		"favicon-16x16.png",
-		"favicon-32x32.png",
-		"favicon.ico",
-		"index.css",
-		"index.js",
-	} {
-		fileName := fileName
-		h.Path("/" + fileName).Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-			return ui.ServeFile(w, r, fileName)
-		}))
-	}
 
 	// called following authenticate auth flow to grab a new or existing session
 	// the route specific cookie is returned in a signed query params
