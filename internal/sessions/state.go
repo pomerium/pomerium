@@ -58,10 +58,6 @@ type State struct {
 	// Azure returns OID which should be used instead of subject.
 	OID string `json:"oid,omitempty"`
 
-	// Programmatic whether this state is used for machine-to-machine
-	// programmatic access.
-	Programmatic bool `json:"programmatic"`
-
 	// DatabrokerServerVersion tracks the last referenced databroker server version
 	// for the saved session.
 	DatabrokerServerVersion uint64 `json:"databroker_server_version,omitempty"`

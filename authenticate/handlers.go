@@ -229,10 +229,6 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	if r.FormValue(urlutil.QueryIsProgrammatic) == "true" {
-		newSession.Programmatic = true
-	}
-
 	// sign the route session, as a JWT
 	signedJWT, err := state.sharedEncoder.Marshal(newSession)
 	if err != nil {
