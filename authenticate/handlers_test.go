@@ -138,6 +138,7 @@ func TestAuthenticate_SignIn(t *testing.T) {
 		{"good additional audience", "https", "corp.example.example", map[string]string{urlutil.QueryForwardAuth: "x.y.z", urlutil.QueryRedirectURI: "https://dst.some.example/"}, &mstore.Store{Session: &sessions.State{}}, identity.MockProvider{}, &mock.Encoder{}, http.StatusFound},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
@@ -145,6 +146,9 @@ func TestAuthenticate_SignIn(t *testing.T) {
 			sharedCipher, _ := cryptutil.NewAEADCipherFromBase64(cryptutil.NewBase64Key())
 
 			a := &Authenticate{
+				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
+					return tt.provider, nil
+				})),
 				state: newAtomicAuthenticateState(&authenticateState{
 					sharedCipher:     sharedCipher,
 					sessionStore:     tt.session,
@@ -173,11 +177,9 @@ func TestAuthenticate_SignIn(t *testing.T) {
 					directoryClient: new(mockDirectoryServiceClient),
 				}),
 
-				options:  config.NewAtomicOptions(),
-				provider: identity.NewAtomicAuthenticator(),
+				options: config.NewAtomicOptions(),
 			}
 			a.options.Store(&config.Options{SharedKey: base64.StdEncoding.EncodeToString(cryptutil.NewKey())})
-			a.provider.Store(tt.provider)
 			uri := &url.URL{Scheme: tt.scheme, Host: tt.host}
 
 			queryString := uri.Query()
@@ -233,10 +235,14 @@ func TestAuthenticate_SignOut(t *testing.T) {
 		{"no redirect uri", http.MethodPost, nil, "", "", "sig", "ts", identity.MockProvider{LogOutResponse: (*uriParseHelper("https://microsoft.com"))}, &mstore.Store{Encrypted: true, Session: &sessions.State{}}, http.StatusOK, "{\"Status\":200,\"Error\":\"OK: user logged out\"}\n"},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			a := &Authenticate{
+				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
+					return tt.provider, nil
+				})),
 				state: newAtomicAuthenticateState(&authenticateState{
 					sessionStore:     tt.sessionStore,
 					encryptedEncoder: mock.Encoder{},
@@ -265,15 +271,13 @@ func TestAuthenticate_SignOut(t *testing.T) {
 					},
 					directoryClient: new(mockDirectoryServiceClient),
 				}),
-				options:  config.NewAtomicOptions(),
-				provider: identity.NewAtomicAuthenticator(),
+				options: config.NewAtomicOptions(),
 			}
 			if tt.signoutRedirectURL != "" {
 				opts := a.options.Load()
 				opts.SignOutRedirectURLString = tt.signoutRedirectURL
 				a.options.Store(opts)
 			}
-			a.provider.Store(tt.provider)
 			u, _ := url.Parse("/sign_out")
 			params, _ := url.ParseQuery(u.RawQuery)
 			params.Add("sig", tt.sig)
@@ -345,6 +349,7 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 		{"bad hmac", http.MethodGet, time.Now().Unix(), base64.URLEncoding.EncodeToString([]byte("malformed_state")), "", "", "", "code", "https://corp.pomerium.io", "https://authenticate.pomerium.io", &mstore.Store{}, identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, "https://corp.pomerium.io", http.StatusBadRequest},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
@@ -358,6 +363,9 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			}
 			authURL, _ := url.Parse(tt.authenticateURL)
 			a := &Authenticate{
+				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
+					return tt.provider, nil
+				})),
 				state: newAtomicAuthenticateState(&authenticateState{
 					dataBrokerClient: mockDataBrokerServiceClient{
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
@@ -373,10 +381,8 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 					cookieCipher:     aead,
 					encryptedEncoder: signer,
 				}),
-				options:  config.NewAtomicOptions(),
-				provider: identity.NewAtomicAuthenticator(),
+				options: config.NewAtomicOptions(),
 			}
-			a.provider.Store(tt.provider)
 			u, _ := url.Parse("/oauthGet")
 			params, _ := url.ParseQuery(u.RawQuery)
 			params.Add("error", tt.paramErr)
@@ -478,6 +484,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
@@ -490,7 +497,10 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			a := Authenticate{
+			a := &Authenticate{
+				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
+					return tt.provider, nil
+				})),
 				state: newAtomicAuthenticateState(&authenticateState{
 					cookieSecret:     cryptutil.NewKey(),
 					redirectURL:      uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
@@ -519,10 +529,8 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 					},
 					directoryClient: new(mockDirectoryServiceClient),
 				}),
-				options:  config.NewAtomicOptions(),
-				provider: identity.NewAtomicAuthenticator(),
+				options: config.NewAtomicOptions(),
 			}
-			a.provider.Store(tt.provider)
 			r := httptest.NewRequest("GET", "/", nil)
 			state, err := tt.session.LoadSession(r)
 			if err != nil {

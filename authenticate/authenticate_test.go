@@ -57,11 +57,10 @@ func TestOptions_Validate(t *testing.T) {
 		{"invalid cookie secret", invalidCookieSecret, true},
 		{"short cookie secret", shortCookieLength, true},
 		{"no shared secret", badSharedKey, true},
-		{"no client id", emptyClientID, true},
-		{"no client secret", emptyClientSecret, true},
 		{"empty callback path", badCallbackPath, true},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if err := ValidateOptions(tt.o); (err != nil) != tt.wantErr {
 				t.Errorf("Options.Validate() error = %v, wantErr %v", err, tt.wantErr)
@@ -107,13 +106,12 @@ func TestNew(t *testing.T) {
 		{"good", good, false},
 		{"empty opts", &config.Options{}, true},
 		{"fails to validate", badRedirectURL, true},
-		{"bad provider", badProvider, true},
-		{"empty provider url", emptyProviderURL, true},
 		{"good signing key", goodSigningKey, false},
 		{"bad signing key", badSigningKey, true},
 		{"bad public signing key", badSigninKeyPublic, true},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := New(&config.Config{Options: tt.opts})
 			if (err != nil) != tt.wantErr {

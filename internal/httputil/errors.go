@@ -27,7 +27,11 @@ func NewError(status int, err error) error {
 
 // Error implements the `error` interface.
 func (e *HTTPError) Error() string {
-	return StatusText(e.Status) + ": " + e.Err.Error()
+	str := StatusText(e.Status)
+	if e.Err != nil {
+		str += ": " + e.Err.Error()
+	}
+	return str
 }
 
 // Unwrap implements the `error` Unwrap interface.
