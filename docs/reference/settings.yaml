@@ -1027,7 +1027,9 @@ settings:
           - Type: [base64 encoded] `string` or relative file location
           - Optional
         doc: |
-          Certificate Authority is set when behind-the-ingress service communication uses custom or self-signed certificates.
+          This defines a set of root certificate authorities that Pomerium uses when communicating with other TLS-protected services.
+
+          **Note**: Unlike route-specific certificate authority settings, this setting augments (rather than replaces) the system's trust store. But routes that specify a CA will ignore those provided here.
 
           :::warning
 
@@ -1775,7 +1777,7 @@ settings:
           - Type: `bool`
           - Default: `false`
         doc: |
-          TLS Skip Verification controls whether a client verifies the server's certificate chain and host name. If enabled, TLS accepts any certificate presented by the server and any host name in that certificate. In this mode, TLS is susceptible to man-in-the-middle attacks. This should be used only for testing.
+          TLS Skip Verification controls whether the Pomerium Proxy Service verifies the upstream server's certificate chain and host name. If enabled, Pomerium accepts any certificate presented by the upstream server and any host name in that certificate. In this mode, TLS is susceptible to man-in-the-middle attacks. This should be used only for testing.
       - name: "TLS Server Name"
         keys: ["tls_server_name"]
         attributes: |
@@ -1791,9 +1793,9 @@ settings:
           - Type: [base64 encoded] `string` or relative file location
           - Optional
         doc: |
-          TLS Custom Certificate Authority defines a set of root certificate authorities that clients use when verifying server certificates.
+          TLS Custom Certificate Authority defines a set of root certificate authorities that the Pomerium Proxy Service uses when verifying upstream server certificates.
 
-          Note: This setting will replace (not append) the system's trust store for a given route.
+          **Note**: This setting will replace (not append) the system's trust store for a given route.
       - name: "TLS Downstream Client Certificate Authority"
         keys: ["tls_downstream_client_ca", "tls_downstream_client_ca_file"]
         attributes: |
@@ -1801,8 +1803,10 @@ settings:
           - Type: [base64 encoded] `string` or relative file location
           - Optional
         doc: |
-          If specified downstream clients (eg a user's browser) will be required to provide a valid client TLS
+          If specified, downstream clients (eg a user's browser) will be required to provide a valid client TLS
           certificate. This overrides the global `client_ca` option for this route.
+
+          See [Client-Side mTLS With Pomerium](/guides/mtls.md) for more information.
       - name: "TLS Client Certificate"
         keys:
           [
@@ -1816,7 +1820,9 @@ settings:
           - Type: [base64 encoded] `string` or relative file location
           - Optional
         doc: |
-          Pomerium supports client certificates which can be used to enforce [mutually authenticated and encrypted TLS connections](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS). For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/master/examples/mutual-tls) and the [certificate docs](/docs/topics/certificates.md).
+          If specified, Pomerium will present this client certificate to upstream services when requested to enforce [mutual authentication](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS).
+
+          For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/master/examples/mutual-tls) and the [Upstream mTLS With Pomerium](/guides/upstream-mtls.md) guide.
       - name: "Pass Identity Headers"
         keys: ["pass_identity_headers"]
         attributes: |
