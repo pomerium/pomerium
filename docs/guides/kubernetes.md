@@ -5,7 +5,7 @@ meta:
   - name: keywords
     content: pomerium, identity access proxy, kubernetes, helm, k8s, oauth
 description: >-
-  This guide covers how to add authentication and authorization to kubernetes apiserver using single-sing-on and pomerium.
+  This guide covers how to add authentication and authorization to kubernetes api server using single-sign-on and Pomerium.
 ---
 
 # Securing Kubernetes
