@@ -19,6 +19,11 @@ jobs:
       - name: Unshallow
         run: git fetch --prune --unshallow
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.x
+
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
