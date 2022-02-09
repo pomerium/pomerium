@@ -2,7 +2,6 @@ on:
   push:
     branches:
       - master
-      - increase_yarn_timeout
   pull_request:
 
 name: Test
