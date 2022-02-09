@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	go_oidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/pomerium/csrf"
@@ -29,6 +30,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -195,34 +197,11 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	state := a.state.Load()
 
-	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
-	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-
-	jwtAudience := []string{state.redirectURL.Host, redirectURL.Host}
-
-	// if the callback is explicitly set, set it and add an additional audience
-	if callbackStr := r.FormValue(urlutil.QueryCallbackURI); callbackStr != "" {
-		callbackURL, err := urlutil.ParseAndValidateURL(callbackStr)
-		if err != nil {
-			return httputil.NewError(http.StatusBadRequest, err)
-		}
-		jwtAudience = append(jwtAudience, callbackURL.Host)
-	}
-
-	// add an additional claim for the forward-auth host, if set
-	if fwdAuth := r.FormValue(urlutil.QueryForwardAuth); fwdAuth != "" {
-		jwtAudience = append(jwtAudience, fwdAuth)
-	}
-
 	s, err := a.getSessionFromCtx(ctx)
 	if err != nil {
 		state.sessionStore.ClearSession(w, r)
 		return err
 	}
-
-	newSession := sessions.NewSession(s, state.redirectURL.Host, jwtAudience)
 
 	// re-persist the session, useful when session was evicted from session
 	if err := state.sessionStore.SaveSession(w, r, s); err != nil {
@@ -230,7 +209,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// sign the route session, as a JWT
-	signedJWT, err := state.sharedEncoder.Marshal(newSession)
+	signedJWT, err := state.sharedEncoder.Marshal(s)
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
@@ -404,29 +383,28 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		return nil, httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	s := sessions.State{ID: uuid.New().String()}
-	err = claims.Claims.Claims(&s)
+	var idToken go_oidc.IDToken
+	err = claims.Claims.Claims(&idToken)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling session state: %w", err)
 	}
 
-	newState := sessions.NewSession(
-		&s,
-		state.redirectURL.Hostname(),
-		[]string{state.redirectURL.Hostname()})
-
 	if nextRedirectURL, err := urlutil.ParseAndValidateURL(redirectURL.Query().Get(urlutil.QueryRedirectURI)); err == nil {
-		newState.Audience = append(newState.Audience, nextRedirectURL.Hostname())
+		idToken.Audience = append(idToken.Audience, nextRedirectURL.Hostname())
 	}
 
 	// save the session and access token to the databroker
-	err = a.saveSessionToDataBroker(ctx, &newState, claims, accessToken)
+	res, err := a.saveSessionToDataBroker(ctx, &idToken, claims, accessToken)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, err)
 	}
 
 	// ...  and the user state to local storage.
-	if err := state.sessionStore.SaveSession(w, r, &newState); err != nil {
+	if err := state.sessionStore.SaveSession(w, r, &sessions.State{
+		ID:                      res.GetRecord().GetId(),
+		DatabrokerServerVersion: res.GetServerVersion(),
+		DatabrokerRecordVersion: res.GetRecord().GetVersion(),
+	}); err != nil {
 		return nil, fmt.Errorf("failed saving new session: %w", err)
 	}
 	return redirectURL, nil
@@ -522,29 +500,40 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 
 func (a *Authenticate) saveSessionToDataBroker(
 	ctx context.Context,
-	sessionState *sessions.State,
+	idToken *go_oidc.IDToken,
 	claims identity.SessionClaims,
 	accessToken *oauth2.Token,
-) error {
+) (*databroker.PutResponse, error) {
 	state := a.state.Load()
 	options := a.options.Load()
 
+	var additionalClaims struct {
+		OID string `json:"oid"`
+	}
+	err := claims.Claims.Claims(&additionalClaims)
+	if err != nil {
+		return nil, err
+	}
+
 	sessionExpiry := timestamppb.New(time.Now().Add(options.CookieExpire))
-	idTokenIssuedAt := timestamppb.New(sessionState.IssuedAt.Time())
 
 	s := &session.Session{
-		Id:        sessionState.ID,
-		UserId:    sessionState.UserID(a.provider.Load().Name()),
+		Id:        uuid.NewString(),
 		IssuedAt:  timestamppb.Now(),
 		ExpiresAt: sessionExpiry,
 		IdToken: &session.IDToken{
-			Issuer:    sessionState.Issuer, // todo(bdd): the issuer is not authN but the downstream IdP from the claims
-			Subject:   sessionState.Subject,
+			Issuer:    idToken.Issuer,
+			Subject:   idToken.Subject,
 			ExpiresAt: sessionExpiry,
-			IssuedAt:  idTokenIssuedAt,
+			IssuedAt:  timestamppb.New(idToken.IssuedAt),
 		},
 		OauthToken: manager.ToOAuthToken(accessToken),
-		Audience:   sessionState.Audience,
+		Audience:   idToken.Audience,
+	}
+	if additionalClaims.OID != "" {
+		s.UserId = additionalClaims.OID
+	} else {
+		s.UserId = idToken.Subject
 	}
 	s.SetRawIDToken(claims.RawIDToken)
 	s.AddClaims(claims.Flatten())
@@ -557,21 +546,19 @@ func (a *Authenticate) saveSessionToDataBroker(
 			Id: s.GetUserId(),
 		}
 	}
-	err := a.provider.Load().UpdateUserInfo(ctx, accessToken, &managerUser)
+	err = a.provider.Load().UpdateUserInfo(ctx, accessToken, &managerUser)
 	if err != nil {
-		return fmt.Errorf("authenticate: error retrieving user info: %w", err)
+		return nil, fmt.Errorf("authenticate: error retrieving user info: %w", err)
 	}
 	_, err = user.Put(ctx, state.dataBrokerClient, managerUser.User)
 	if err != nil {
-		return fmt.Errorf("authenticate: error saving user: %w", err)
+		return nil, fmt.Errorf("authenticate: error saving user: %w", err)
 	}
 
 	res, err := session.Put(ctx, state.dataBrokerClient, s)
 	if err != nil {
-		return fmt.Errorf("authenticate: error saving session: %w", err)
+		return nil, fmt.Errorf("authenticate: error saving session: %w", err)
 	}
-	sessionState.DatabrokerServerVersion = res.GetServerVersion()
-	sessionState.DatabrokerRecordVersion = res.GetRecord().GetVersion()
 
 	_, err = state.directoryClient.RefreshUser(ctx, &directory.RefreshUserRequest{
 		UserId:      s.UserId,
@@ -581,7 +568,7 @@ func (a *Authenticate) saveSessionToDataBroker(
 		log.Error(ctx).Err(err).Msg("directory: failed to refresh user data")
 	}
 
-	return nil
+	return res, nil
 }
 
 // revokeSession always clears the local session and tries to revoke the associated session stored in the

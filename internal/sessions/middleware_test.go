@@ -82,7 +82,7 @@ func TestVerifier(t *testing.T) {
 		},
 		{
 			"simple good load",
-			mock.Store{Session: &sessions.State{ID: "xyz", Subject: "hi"}},
+			mock.Store{Session: &sessions.State{ID: "xyz"}},
 			sessions.State{ID: "xyz"},
 			200,
 		},

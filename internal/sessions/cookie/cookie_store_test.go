@@ -3,7 +3,6 @@ package cookie
 import (
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -115,7 +114,7 @@ func TestStore_SaveSession(t *testing.T) {
 	}{
 		{"good", &sessions.State{ID: "xyz"}, ecjson.New(c), ecjson.New(c), false, false},
 		{"bad cipher", &sessions.State{ID: "xyz"}, nil, nil, true, true},
-		{"huge cookie", &sessions.State{ID: "xyz", Subject: fmt.Sprintf("%x", hugeString)}, ecjson.New(c), ecjson.New(c), false, false},
+		{"huge cookie", &sessions.State{ID: "xyz"}, ecjson.New(c), ecjson.New(c), false, false},
 		{"marshal error", &sessions.State{ID: "xyz"}, mock.Encoder{MarshalError: errors.New("error")}, ecjson.New(c), true, true},
 		{"nil encoder cannot save non string type", &sessions.State{ID: "xyz"}, nil, ecjson.New(c), true, true},
 		{"good marshal string directly", cryptutil.NewBase64Key(), nil, ecjson.New(c), false, true},

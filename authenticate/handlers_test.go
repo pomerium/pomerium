@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -595,7 +594,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			"good",
 			mustParseURL("/"),
 			http.MethodGet,
-			&mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}},
+			&mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID"}},
 			http.StatusOK,
 			"",
 		},
@@ -603,7 +602,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			"missing signature",
 			mustParseURL("/?pomerium_redirect_uri=http://example.com"),
 			http.MethodGet,
-			&mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}},
+			&mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID"}},
 			http.StatusBadRequest,
 			"",
 		},
@@ -611,7 +610,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			"bad signature",
 			urlutil.NewSignedURL([]byte("BAD KEY"), mustParseURL("/?pomerium_redirect_uri=http://example.com")).Sign(),
 			http.MethodGet,
-			&mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}},
+			&mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID"}},
 			http.StatusBadRequest,
 			"",
 		},
