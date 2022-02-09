@@ -129,7 +129,9 @@ Unlike the decimal value notion used for the `tracing_sample_rate` [key](/refere
 
 #### Certificate Authority
 
-Certificate Authority is set when behind-the-ingress service communication uses custom or self-signed certificates.
+This defines a set of root certificate authorities that Pomerium uses when communicating with other TLS-protected services.
+
+**Note**: Unlike route-specific certificate authority settings, this setting augments (rather than replaces) the system's trust store. But routes that specify a CA will ignore those provided here.
 
 :::warning
 
@@ -143,11 +145,11 @@ Default Upstream Timeout is the default timeout applied to a proxied route when 
 
 #### JWT Claim Headers
 
-The JWT Claim Headers setting allows you to pass specific user session data down to upstream applications as HTTP request headers. Note, unlike the header `x-pomerium-jwt-assertion` these values are not signed by the authorization service.
+The JWT Claim Headers setting allows you to pass specific user session data to upstream applications as HTTP request headers. Note, unlike the header `x-pomerium-jwt-assertion` these values are not signed by the authorization service.
 
 Any claim in the pomerium session JWT can be placed into a corresponding header for upstream consumption. This claim information is sourced from your Identity Provider (IdP) and Pomerium's own session metadata. The header will have the following format:
 
-`X-Pomerium-Claim-{Name}` where `{Name}` is the name of the claim requested.
+`X-Pomerium-Claim-{Name}` where `{Name}` is the name of the claim requested. Underscores will be replaced with dashes; e.g. `X-Pomerium-Claim-Given-Name`.
 
 This option also supports a nested object to customize the header name. For example:
 
