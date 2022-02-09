@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package pomerium.identity;
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/identity";
+
+message Provider {
+  string id = 1;
+  string client_id = 2;
+  string client_secret = 3;
+  string type = 4;
+  repeated string scopes = 5;
+  string service_account = 6;
+  string url = 7;
+  map<string, string> request_params = 8;
+}

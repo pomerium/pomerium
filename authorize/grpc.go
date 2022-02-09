@@ -76,7 +76,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	// if there's a deny, the result is denied using the deny reasons.
 	if res.Deny.Value {
-		return a.handleResultDenied(ctx, in, res, isForwardAuthVerify, res.Deny.Reasons)
+		return a.handleResultDenied(ctx, in, req, res, isForwardAuthVerify, res.Deny.Reasons)
 	}
 
 	// if there's an allow, the result is allowed.
@@ -85,7 +85,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	}
 
 	// otherwise, the result is denied using the allow reasons.
-	return a.handleResultDenied(ctx, in, res, isForwardAuthVerify, res.Allow.Reasons)
+	return a.handleResultDenied(ctx, in, req, res, isForwardAuthVerify, res.Allow.Reasons)
 }
 
 func getForwardAuthURL(r *http.Request) *url.URL {

@@ -172,38 +172,46 @@ func TestRequireLogin(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("accept empty", func(t *testing.T) {
-		res, err := a.requireLoginResponse(context.Background(), &envoy_service_auth_v3.CheckRequest{},
+		res, err := a.requireLoginResponse(context.Background(),
+			&envoy_service_auth_v3.CheckRequest{},
+			&evaluator.Request{},
 			false)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
 	t.Run("accept html", func(t *testing.T) {
-		res, err := a.requireLoginResponse(context.Background(), &envoy_service_auth_v3.CheckRequest{
-			Attributes: &envoy_service_auth_v3.AttributeContext{
-				Request: &envoy_service_auth_v3.AttributeContext_Request{
-					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
-						Headers: map[string]string{
-							"accept": "*/*",
+		res, err := a.requireLoginResponse(context.Background(),
+			&envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+							Headers: map[string]string{
+								"accept": "*/*",
+							},
 						},
 					},
 				},
 			},
-		}, false)
+			&evaluator.Request{},
+			false)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
 	t.Run("accept json", func(t *testing.T) {
-		res, err := a.requireLoginResponse(context.Background(), &envoy_service_auth_v3.CheckRequest{
-			Attributes: &envoy_service_auth_v3.AttributeContext{
-				Request: &envoy_service_auth_v3.AttributeContext_Request{
-					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
-						Headers: map[string]string{
-							"accept": "application/json",
+		res, err := a.requireLoginResponse(context.Background(),
+			&envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+							Headers: map[string]string{
+								"accept": "application/json",
+							},
 						},
 					},
 				},
 			},
-		}, false)
+			&evaluator.Request{},
+			false)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})

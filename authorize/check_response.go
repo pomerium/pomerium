@@ -38,6 +38,7 @@ func (a *Authorize) handleResultAllowed(
 func (a *Authorize) handleResultDenied(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
+	request *evaluator.Request,
 	result *evaluator.Result,
 	isForwardAuthVerify bool,
 	reasons criteria.Reasons,
@@ -49,7 +50,7 @@ func (a *Authorize) handleResultDenied(
 	case reasons.Has(criteria.ReasonUserUnauthenticated):
 		// when the user is unauthenticated it means they haven't
 		// logged in yet, so redirect to authenticate
-		return a.requireLoginResponse(ctx, in, isForwardAuthVerify)
+		return a.requireLoginResponse(ctx, in, request, isForwardAuthVerify)
 	case reasons.Has(criteria.ReasonDeviceUnauthenticated):
 		// when the user's device is unauthenticated it means they haven't
 		// registered a webauthn device yet, so redirect to the webauthn flow
@@ -141,6 +142,7 @@ func (a *Authorize) deniedResponse(
 func (a *Authorize) requireLoginResponse(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
+	request *evaluator.Request,
 	isForwardAuthVerify bool,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
 	opts := a.currentOptions.Load()
@@ -164,6 +166,7 @@ func (a *Authorize) requireLoginResponse(
 	checkRequestURL.Scheme = "https"
 
 	q.Set(urlutil.QueryRedirectURI, checkRequestURL.String())
+	q.Set(urlutil.QueryIdentityProviderID, opts.GetIdentityProviderForPolicy(request.Policy).GetId())
 	signinURL.RawQuery = q.Encode()
 	redirectTo := urlutil.NewSignedURL(state.sharedKey, signinURL).String()
 

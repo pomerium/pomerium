@@ -19,14 +19,15 @@ func defaultGetIdentityProvider(options *config.Options, idpID string) (identity
 	}
 	redirectURL.Path = options.AuthenticateCallbackPath
 
+	idp := options.GetIdentityProviderForID(idpID)
 	return identity.NewAuthenticator(oauth.Options{
 		RedirectURL:     redirectURL,
-		ProviderName:    options.Provider,
-		ProviderURL:     options.ProviderURL,
-		ClientID:        options.ClientID,
-		ClientSecret:    options.ClientSecret,
-		Scopes:          options.Scopes,
-		ServiceAccount:  options.ServiceAccount,
-		AuthCodeOptions: options.RequestParams,
+		ProviderName:    idp.GetType(),
+		ProviderURL:     idp.GetUrl(),
+		ClientID:        idp.GetClientId(),
+		ClientSecret:    idp.GetClientSecret(),
+		Scopes:          idp.GetScopes(),
+		ServiceAccount:  idp.GetServiceAccount(),
+		AuthCodeOptions: idp.GetRequestParams(),
 	})
 }
