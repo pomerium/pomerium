@@ -33,7 +33,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
-	"github.com/pomerium/pomerium/ui"
 )
 
 // Handler returns the authenticate service's handler chain.
@@ -80,7 +79,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 }
 
 func (a *Authenticate) mountDashboard(r *mux.Router) {
-	sr := r.PathPrefix("/.pomerium").Subrouter()
+	sr := httputil.DashboardSubrouter(r)
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
 			state := a.state.Load()
@@ -108,19 +107,6 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 		handlers.DeviceEnrolled(authenticateURL, a.state.Load().sharedKey).ServeHTTP(w, r)
 		return nil
 	}))
-	for _, fileName := range []string{
-		"apple-touch-icon.png",
-		"favicon-16x16.png",
-		"favicon-32x32.png",
-		"favicon.ico",
-		"index.css",
-		"index.js",
-	} {
-		fileName := fileName
-		sr.Path("/" + fileName).Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-			return ui.ServeFile(w, r, fileName)
-		}))
-	}
 
 	cr := sr.PathPrefix("/callback").Subrouter()
 	cr.Use(func(h http.Handler) http.Handler {

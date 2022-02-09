@@ -18,7 +18,7 @@ import (
 
 // registerDashboardHandlers returns the proxy service's ServeMux
 func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
-	h := r.PathPrefix(dashboardPath).Subrouter()
+	h := httputil.DashboardSubrouter(r)
 	h.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 
 	// special pomerium endpoints for users to view their session
