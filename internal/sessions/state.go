@@ -52,9 +52,6 @@ type State struct {
 	IssuedAt *jwt.NumericDate `json:"iat,omitempty"`
 	ID       string           `json:"jti,omitempty"`
 
-	// "ver" field is not standard, but is supported by most providers.
-	Version Version `json:"ver,omitempty"`
-
 	// Azure returns OID which should be used instead of subject.
 	OID string `json:"oid,omitempty"`
 

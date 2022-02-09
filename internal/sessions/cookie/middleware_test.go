@@ -42,7 +42,7 @@ func TestVerifier(t *testing.T) {
 	}{
 		{
 			"good cookie session",
-			sessions.State{Version: "v1", ID: "xyz"},
+			sessions.State{ID: "xyz"},
 			http.StatusText(http.StatusOK),
 			http.StatusOK,
 		},

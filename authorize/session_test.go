@@ -18,7 +18,7 @@ func TestLoadSession(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	state := &sessions.State{ID: "xyz", Version: "v1"}
+	state := &sessions.State{ID: "xyz"}
 	rawjwt, err := encoder.Marshal(state)
 	if !assert.NoError(t, err) {
 		return
