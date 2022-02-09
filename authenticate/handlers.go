@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/pomerium/csrf"
@@ -228,10 +227,6 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 	// re-persist the session, useful when session was evicted from session
 	if err := state.sessionStore.SaveSession(w, r, s); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
-	}
-
-	if r.FormValue(urlutil.QueryIsProgrammatic) == "true" {
-		newSession.Programmatic = true
 	}
 
 	// sign the route session, as a JWT
@@ -535,7 +530,6 @@ func (a *Authenticate) saveSessionToDataBroker(
 	options := a.options.Load()
 
 	sessionExpiry := timestamppb.New(time.Now().Add(options.CookieExpire))
-	sessionState.Expiry = jwt.NewNumericDate(sessionExpiry.AsTime())
 	idTokenIssuedAt := timestamppb.New(sessionState.IssuedAt.Time())
 
 	s := &session.Session{
@@ -576,7 +570,8 @@ func (a *Authenticate) saveSessionToDataBroker(
 	if err != nil {
 		return fmt.Errorf("authenticate: error saving session: %w", err)
 	}
-	sessionState.Version = sessions.Version(fmt.Sprint(res.GetServerVersion()))
+	sessionState.DatabrokerServerVersion = res.GetServerVersion()
+	sessionState.DatabrokerRecordVersion = res.GetRecord().GetVersion()
 
 	_, err = state.directoryClient.RefreshUser(ctx, &directory.RefreshUserRequest{
 		UserId:      s.UserId,

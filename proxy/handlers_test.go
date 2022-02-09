@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -21,7 +20,6 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 
-	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 )
@@ -160,7 +158,7 @@ func TestProxy_Callback(t *testing.T) {
 			nil,
 			map[string]string{urlutil.QueryCallbackURI: "ok", urlutil.QuerySessionEncrypted: goodEncryptionString},
 			&mock.Encoder{MarshalResponse: []byte("x")},
-			&mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}},
+			&mstore.Store{Session: &sessions.State{}},
 			http.StatusFound,
 			"",
 		},
@@ -174,7 +172,7 @@ func TestProxy_Callback(t *testing.T) {
 			nil,
 			map[string]string{urlutil.QueryIsProgrammatic: "true", urlutil.QueryCallbackURI: "ok", urlutil.QuerySessionEncrypted: goodEncryptionString},
 			&mock.Encoder{MarshalResponse: []byte("x")},
-			&mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}},
+			&mstore.Store{Session: &sessions.State{}},
 			http.StatusFound,
 			"",
 		},
@@ -188,7 +186,7 @@ func TestProxy_Callback(t *testing.T) {
 			nil,
 			map[string]string{urlutil.QuerySessionEncrypted: "KBEjQ9rnCxaAX-GOqexGw9ivEQURqts3zZ2mNGy0wnVa3SbtM399KlBq2nZ-9wM21FfsZX52er4jlmC7kPEKM3P7uZ41zR0zeys1-_74a5tQp-vsf1WXZfRsgVOuBcWPkMiWEoc379JFHxGDudp5VhU8B-dcQt4f3_PtLTHARkuH54io1Va2gNMq4Hiy8sQ1MPGCQeltH_JMzzdDpXdmdusWrXUvCGkba24muvAV06D8XRVJj6Iu9eK94qFnqcHc7wzziEbb8ADBues9dwbtb6jl8vMWz5rN6XvXqA5YpZv_MQZlsrO4oXFFQDevdgB84cX1tVbVu6qZvK_yQBZqzpOjWA9uIaoSENMytoXuWAlFO_sXjswfX8JTNdGwzB7qQRNPqxVG_sM_tzY3QhPm8zqwEzsXG5DokxZfVt2I5WJRUEovFDb4BnK9KFnnkEzLEdMudixVnXeGmTtycgJvoTeTCQRPfDYkcgJ7oKf4tGea-W7z5UAVa2RduJM9ZoM6YtJX7jgDm__PvvqcE0knJUF87XHBzdcOjoDF-CUze9xDJgNBlvPbJqVshKrwoqSYpePSDH9GUCNKxGequW3Ma8GvlFfhwd0rK6IZG-XWkyk0XSWQIGkDSjAvhB1wsOusCCguDjbpVZpaW5MMyTkmx68pl6qlIKT5UCcrVPl4ix5ZEj91mUDF0O1t04haD7VZuLVFXVGmqtFrBKI76sdYN-zkokaa1_chPRTyqMQFlqu_8LD6-RiK3UccGM-dEmnX72i91NP9F9OK0WJr9Cheup1C_P0mjqAO4Cb8oIHm0Oxz_mRqv5QbTGJtb3xwPLPuVjVCiE4gGBcuU2ixpSVf5HUF7y1KicVMCKiX9ATCBtg8sTdQZQnPEtHcHHAvdsnDVwev1LGfqA-Gdvg="},
 			&mock.Encoder{MarshalResponse: []byte("x")},
-			&mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}},
+			&mstore.Store{Session: &sessions.State{}},
 			http.StatusBadRequest,
 			"",
 		},
@@ -216,7 +214,7 @@ func TestProxy_Callback(t *testing.T) {
 			nil,
 			map[string]string{urlutil.QuerySessionEncrypted: "^"},
 			&mock.Encoder{MarshalResponse: []byte("x")},
-			&mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}},
+			&mstore.Store{Session: &sessions.State{}},
 			http.StatusBadRequest,
 			"",
 		},
@@ -230,7 +228,7 @@ func TestProxy_Callback(t *testing.T) {
 			nil,
 			nil,
 			&mock.Encoder{},
-			&mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}},
+			&mstore.Store{Session: &sessions.State{}},
 			http.StatusBadRequest,
 			"",
 		},
@@ -412,7 +410,7 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 			nil,
 			map[string]string{urlutil.QueryCallbackURI: "ok", urlutil.QuerySessionEncrypted: goodEncryptionString},
 			&mock.Encoder{MarshalResponse: []byte("x")},
-			&mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}},
+			&mstore.Store{Session: &sessions.State{}},
 			http.StatusFound,
 			"",
 		},
@@ -428,7 +426,7 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 				urlutil.QuerySessionEncrypted: goodEncryptionString,
 			},
 			&mock.Encoder{MarshalResponse: []byte("x")},
-			&mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}},
+			&mstore.Store{Session: &sessions.State{}},
 			http.StatusFound,
 			"",
 		},
@@ -440,7 +438,7 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 			nil,
 			map[string]string{urlutil.QuerySessionEncrypted: goodEncryptionString + cryptutil.NewBase64Key()},
 			&mock.Encoder{MarshalResponse: []byte("x")},
-			&mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}},
+			&mstore.Store{Session: &sessions.State{}},
 			http.StatusBadRequest,
 			"",
 		},
@@ -464,7 +462,7 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 			nil,
 			map[string]string{urlutil.QuerySessionEncrypted: "^"},
 			&mock.Encoder{MarshalResponse: []byte("x")},
-			&mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}},
+			&mstore.Store{Session: &sessions.State{}},
 			http.StatusBadRequest,
 			"",
 		},
@@ -476,7 +474,7 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 			nil,
 			nil,
 			&mock.Encoder{},
-			&mstore.Store{Session: &sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}},
+			&mstore.Store{Session: &sessions.State{}},
 			http.StatusBadRequest,
 			"",
 		},

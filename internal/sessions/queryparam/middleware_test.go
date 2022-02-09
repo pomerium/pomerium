@@ -6,13 +6,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/pomerium/pomerium/internal/encoding/ecjson"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 
-	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -41,8 +39,8 @@ func TestVerifier(t *testing.T) {
 		wantBody   string
 		wantStatus int
 	}{
-		{"good auth query param session", sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}, http.StatusText(http.StatusOK), http.StatusOK},
-		{"empty auth query param", sessions.State{Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}, "internal/sessions: session is not found\n", http.StatusUnauthorized},
+		{"good auth query param session", sessions.State{}, http.StatusText(http.StatusOK), http.StatusOK},
+		{"empty auth query param", sessions.State{}, "internal/sessions: session is not found\n", http.StatusUnauthorized},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -3,7 +3,7 @@ package mock
 import (
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/pomerium/pomerium/internal/sessions"
 )
@@ -25,7 +25,7 @@ func TestStore(t *testing.T) {
 				SaveError:       nil,
 				LoadError:       nil,
 			},
-			"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwcm9ncmFtbWF0aWMiOmZhbHNlLCJzdWIiOiIwMTAxIn0.PXmONj-P1lV2BVAZ21lTicAapZr3w8yE2eX9zO07zQc",
+			"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMTAxIn0.Yfxj4xDTI0PHX7Mdi1wkY6S6Mn0dbROWNhS6xEe8LTc",
 			&sessions.State{Subject: "0101"},
 			false,
 			false,
@@ -45,9 +45,7 @@ func TestStore(t *testing.T) {
 				t.Errorf("mockstore.LoadSession() error = %v, wantLoadErr %v", err, tt.wantLoadErr)
 				return
 			}
-			if diff := cmp.Diff(got, tt.wantLoad); diff != "" {
-				t.Errorf("mockstore.LoadSession() = %v", diff)
-			}
+			assert.Equal(t, tt.wantLoad, got)
 			ms.ClearSession(nil, nil)
 			if ms.ResponseSession != "" {
 				t.Errorf("ResponseSession not empty! %s", ms.ResponseSession)

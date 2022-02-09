@@ -6,11 +6,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/pomerium/pomerium/internal/sessions"
 
-	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/pomerium/pomerium/internal/encoding/ecjson"
@@ -44,7 +42,7 @@ func TestVerifier(t *testing.T) {
 	}{
 		{
 			"good cookie session",
-			sessions.State{Version: "v1", ID: "xyz", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))},
+			sessions.State{ID: "xyz"},
 			http.StatusText(http.StatusOK),
 			http.StatusOK,
 		},

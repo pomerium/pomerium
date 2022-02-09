@@ -431,7 +431,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		{
 			"good",
 			nil,
-			&mstore.Store{Session: &sessions.State{Version: "v1", ID: "xyz", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}},
+			&mstore.Store{Session: &sessions.State{ID: "xyz"}},
 			nil,
 			identity.MockProvider{RefreshResponse: oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}},
 			http.StatusOK,
@@ -439,7 +439,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		{
 			"invalid session",
 			nil,
-			&mstore.Store{Session: &sessions.State{Version: "v1", ID: "xyz", Expiry: jwt.NewNumericDate(time.Now().Add(10 * time.Minute))}},
+			&mstore.Store{Session: &sessions.State{ID: "xyz"}},
 			errors.New("hi"),
 			identity.MockProvider{},
 			http.StatusFound,
@@ -447,7 +447,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		{
 			"good refresh expired",
 			nil,
-			&mstore.Store{Session: &sessions.State{Version: "v1", ID: "xyz", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}},
+			&mstore.Store{Session: &sessions.State{ID: "xyz"}},
 			nil,
 			identity.MockProvider{RefreshResponse: oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}},
 			http.StatusOK,
@@ -455,7 +455,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		{
 			"expired,refresh error",
 			nil,
-			&mstore.Store{Session: &sessions.State{Version: "v1", ID: "xyz", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}},
+			&mstore.Store{Session: &sessions.State{ID: "xyz"}},
 			sessions.ErrExpired,
 			identity.MockProvider{RefreshError: errors.New("error")},
 			http.StatusFound,
@@ -463,7 +463,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		{
 			"expired,save error",
 			nil,
-			&mstore.Store{SaveError: errors.New("error"), Session: &sessions.State{Version: "v1", ID: "xyz", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}},
+			&mstore.Store{SaveError: errors.New("error"), Session: &sessions.State{ID: "xyz"}},
 			sessions.ErrExpired,
 			identity.MockProvider{RefreshResponse: oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}},
 			http.StatusFound,
@@ -471,7 +471,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		{
 			"expired XHR,refresh error",
 			map[string]string{"X-Requested-With": "XmlHttpRequest"},
-			&mstore.Store{Session: &sessions.State{Version: "v1", ID: "xyz", Expiry: jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))}},
+			&mstore.Store{Session: &sessions.State{ID: "xyz"}},
 			sessions.ErrExpired,
 			identity.MockProvider{RefreshError: errors.New("error")},
 			http.StatusUnauthorized,

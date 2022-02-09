@@ -7,9 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -26,7 +24,7 @@ func TestNewContext(t *testing.T) {
 		err  error
 		want context.Context
 	}{
-		{"simple", context.Background(), &sessions.State{Version: "v1", ID: "xyz"}, nil, nil},
+		{"simple", context.Background(), &sessions.State{ID: "xyz"}, nil, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -79,19 +77,19 @@ func TestVerifier(t *testing.T) {
 		{
 			"empty session",
 			mock.Store{LoadError: sessions.ErrNoSessionFound},
-			sessions.State{Version: "v1", ID: "xyz"},
+			sessions.State{ID: "xyz"},
 			401,
 		},
 		{
 			"simple good load",
-			mock.Store{Session: &sessions.State{Version: "v1", ID: "xyz", Subject: "hi", Expiry: jwt.NewNumericDate(time.Now().Add(time.Second))}},
-			sessions.State{Version: "v1", ID: "xyz"},
+			mock.Store{Session: &sessions.State{ID: "xyz", Subject: "hi"}},
+			sessions.State{ID: "xyz"},
 			200,
 		},
 		{
 			"session error",
 			mock.Store{LoadError: errors.New("err")},
-			sessions.State{Version: "v1", ID: "xyz"},
+			sessions.State{ID: "xyz"},
 			401,
 		},
 	}
