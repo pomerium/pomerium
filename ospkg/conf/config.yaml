@@ -18,6 +18,7 @@ idp_service_account: XXXXXX
 routes:
   - from: https://yoursite.localhost.pomerium.io
     to: https://yoursite.local
+    policy:
       - allow:
           or:
             - user:
