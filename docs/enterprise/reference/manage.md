@@ -394,6 +394,14 @@ certificate_key:  "$HOME/.acme.sh/*.example.com/*.example.com.key"
 Introduced in v0.16.0, the **Manage Devices** page lets administrators manage user devices for policy-based authorization.
 
 
+### Manage Devices
+
+From this page, administrators can manage new and existing device enrollments.
+Device enrollment let's you create [policies](/docs/topics/ppl.html#device-matcher) that use [device identity](/docs/topics/device-identity.md).
+- Users can [self-enroll](/guides/enroll-device.md) devices, which must then be approved in the **Devices List** for policies requiring approved devices.
+- Administrators can use the **New Enrollment** button to create a link for the user to enroll a device as pre-approved.
+
+
 ### Devices List
 
 Displays the currently enrolled devices for each user, along with their current approval status.
