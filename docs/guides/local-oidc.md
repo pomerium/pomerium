@@ -80,7 +80,7 @@ cookie_secret: <reducted>
 # https://pomerium.io/reference/#routes
 routes:
   - from: https://verify.localhost.pomerium.io
-    to: http://verify
+    to: http://verify:8000
     policy:
       - allow:
           or:
