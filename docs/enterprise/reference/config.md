@@ -23,6 +23,12 @@ A list of audiences for verifying signing key
 
 **Default value:** `[]`
 
+## authenticate-service-url
+
+URL for the authenticate service
+
+**Default value:** `none`
+
 ## bind-addr
 
 the address to listen on
@@ -54,6 +60,12 @@ the database to connect to
 the databroker service url
 
 **Default value:** `http://localhost:5443`
+
+## debug-config-dump
+
+dump databroker configuration
+
+**Default value:** `false`
 
 ## disable-validation
 
