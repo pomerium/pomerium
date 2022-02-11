@@ -7,6 +7,8 @@ options:
 - name: audience
   default_value: '[]'
   usage: A list of audiences for verifying signing key
+- name: authenticate-service-url
+  usage: URL for the authenticate service
 - name: bind-addr
   default_value: :8701
   usage: the address to listen on
@@ -22,6 +24,9 @@ options:
 - name: databroker-service-url
   default_value: http://localhost:5443
   usage: the databroker service url
+- name: debug-config-dump
+  default_value: "false"
+  usage: dump databroker configuration
 - name: disable-validation
   default_value: "false"
   usage: disable config validation
