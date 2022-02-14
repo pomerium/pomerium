@@ -24,4 +24,5 @@ docker run --rm=true -it -v "$(pwd)":/usr/local/src/your-app -v "pomerium-change
     --security-label "## Security" \
     --cache-file /cache \
     --enhancement-labels "improvement,Improvement,enhancement,Enhancement,feature" \
+    --exclude-labels "docs,ci" \
     --add-sections '{"documentation":{"prefix":"## Documentation","labels":["docs"]}, "dependency":{"prefix":"## Dependency","labels":["dependency","dependencies"]}, "deployment":{"prefix":"## Deployment","labels":["deployment"]}}'
