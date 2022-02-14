@@ -1684,6 +1684,24 @@ When enabled, this option will pass identity headers to upstream applications. T
 - X-Pomerium-Claim-*
 
 
+### Pass Access Token
+- `yaml`/`json` setting: `pass_access_token`
+- Type: `bool`
+- Optional
+- Default: `false`
+
+When enabled, this option will pass the OAuth access token to upstream applications as a Bearer token in the Authorization header.
+
+
+### Pass ID Token
+- `yaml`/`json` setting: `pass_id_token`
+- Type: `bool`
+- Optional
+- Default: `false`
+
+When enabled, this option will pass the OIDC id token to upstream applications as a Bearer token in the Authorization header.
+
+
 ### SPDY
 - Config File Key: `allow_spdy`
 - Type: `bool`

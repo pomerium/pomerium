@@ -143,6 +143,12 @@ type Policy struct {
 	//
 	PassIdentityHeaders bool `mapstructure:"pass_identity_headers" yaml:"pass_identity_headers,omitempty"`
 
+	// PassAccessToken adds the user's access token as an Authorization header to the upstream request.
+	PassAccessToken bool `mapstructure:"pass_access_token" yaml:"pass_access_token,omitempty"`
+
+	// PassIDToken adds the user's id token as an Authorization header to the upstream request.
+	PassIDToken bool `mapstructure:"pass_id_token" yaml:"pass_id_token,omitempty"`
+
 	// KubernetesServiceAccountToken is the kubernetes token to use for upstream requests.
 	KubernetesServiceAccountToken string `mapstructure:"kubernetes_service_account_token" yaml:"kubernetes_service_account_token,omitempty"`
 	// KubernetesServiceAccountTokenFile contains the kubernetes token to use for upstream requests.
@@ -245,6 +251,8 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		HostPathRegexRewritePattern:      pb.GetHostPathRegexRewritePattern(),
 		HostPathRegexRewriteSubstitution: pb.GetHostPathRegexRewriteSubstitution(),
 		PassIdentityHeaders:              pb.GetPassIdentityHeaders(),
+		PassAccessToken:                  pb.GetPassAccessToken(),
+		PassIDToken:                      pb.GetPassIdToken(),
 		KubernetesServiceAccountToken:    pb.GetKubernetesServiceAccountToken(),
 		SetResponseHeaders:               pb.GetSetResponseHeaders(),
 		EnableGoogleCloudServerlessAuthentication: pb.GetEnableGoogleCloudServerlessAuthentication(),
@@ -359,6 +367,8 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		RemoveRequestHeaders:             p.RemoveRequestHeaders,
 		PreserveHostHeader:               p.PreserveHostHeader,
 		PassIdentityHeaders:              p.PassIdentityHeaders,
+		PassAccessToken:                  p.PassAccessToken,
+		PassIdToken:                      p.PassIDToken,
 		KubernetesServiceAccountToken:    p.KubernetesServiceAccountToken,
 		Policies:                         sps,
 		SetResponseHeaders:               p.SetResponseHeaders,
@@ -506,6 +516,10 @@ func (p *Policy) Validate() error {
 			rawRE += "$"
 		}
 		p.compiledRegex, _ = regexp.Compile(rawRE)
+	}
+
+	if p.PassAccessToken && p.PassIDToken {
+		return fmt.Errorf("config: only pass_access_token or pass_id_token can be specified, but not both")
 	}
 
 	return nil

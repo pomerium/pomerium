@@ -22,6 +22,8 @@ type HeadersRequest struct {
 	KubernetesServiceAccountToken             string         `json:"kubernetes_service_account_token"`
 	ToAudience                                string         `json:"to_audience"`
 	Session                                   RequestSession `json:"session"`
+	PassAccessToken                           bool           `json:"pass_access_token"`
+	PassIDToken                               bool           `json:"pass_id_token"`
 }
 
 // NewHeadersRequestFromPolicy creates a new HeadersRequest from a policy.
@@ -37,6 +39,8 @@ func NewHeadersRequestFromPolicy(policy *config.Policy) *HeadersRequest {
 	for _, wu := range policy.To {
 		input.ToAudience = "https://" + wu.URL.Hostname()
 	}
+	input.PassAccessToken = policy.PassAccessToken
+	input.PassIDToken = policy.PassIDToken
 	return input
 }
 

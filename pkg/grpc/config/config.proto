@@ -89,6 +89,8 @@ message Route {
 
   bool preserve_host_header = 24;
   bool pass_identity_headers = 25;
+  bool pass_access_token = 54;
+  bool pass_id_token = 55;
 
   string kubernetes_service_account_token = 26;
   bool enable_google_cloud_serverless_authentication = 42;
@@ -102,6 +104,7 @@ message Route {
   optional string host_rewrite_header = 51;
   optional string host_path_regex_rewrite_pattern = 52;
   optional string host_path_regex_rewrite_substitution = 53;
+
 }
 
 message Policy {

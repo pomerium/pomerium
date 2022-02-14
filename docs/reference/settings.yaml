@@ -1836,6 +1836,24 @@ settings:
 
           - X-Pomerium-Jwt-Assertion
           - X-Pomerium-Claim-*
+      - name: "Pass Access Token"
+        keys: ["pass_access_token"]
+        attributes: |
+          - `yaml`/`json` setting: `pass_access_token`
+          - Type: `bool`
+          - Optional
+          - Default: `false`
+        doc: |
+          When enabled, this option will pass the OAuth access token to upstream applications as a Bearer token in the Authorization header.
+      - name: "Pass ID Token"
+        keys: ["pass_id_token"]
+        attributes: |
+          - `yaml`/`json` setting: `pass_id_token`
+          - Type: `bool`
+          - Optional
+          - Default: `false`
+        doc: |
+          When enabled, this option will pass the OIDC id token to upstream applications as a Bearer token in the Authorization header.
       - name: "SPDY"
         keys: ["allow_spdy"]
         attributes: |
