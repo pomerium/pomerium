@@ -1,8 +1,8 @@
-name: Docker Master
+name: Docker Main
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   publish:
@@ -34,7 +34,7 @@ jobs:
         run: |
           IMAGE=pomerium/pomerium
           SHA_TAG=git-${GITHUB_SHA::8}
-          TAGS=${IMAGE}:master
+          TAGS=${IMAGE}:main
           TAGS=${TAGS},${IMAGE}:${SHA_TAG}
           TS=$(date +%Y%m%d%H%M%S)
           echo ::set-output name=tags::${TAGS}
@@ -43,7 +43,7 @@ jobs:
           echo ::set-output name=image::${IMAGE}
           echo ::set-output name=sha-tag::${SHA_TAG}
 
-      - name: Docker Publish - Master
+      - name: Docker Publish - Main
         uses: docker/build-push-action@v2
         with:
           context: .
@@ -92,7 +92,6 @@ jobs:
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          branch: master
           commit_message: |
             Bump test environment pomerium/pomerium
             Image tag: ${{ needs.publish.outputs.sha-tag }}
