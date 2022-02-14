@@ -109,7 +109,6 @@ jobs:
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          branch: master
           commit_message: |
             Bump test environment pomerium/pomerium
             Image tag: ${{ needs.goreleaser.outputs.tag }}
