@@ -35,6 +35,7 @@ jobs:
           IMAGE=pomerium/pomerium
           SHA_TAG=git-${GITHUB_SHA::8}
           TAGS=${IMAGE}:main
+          TAGS=${TAGS},${IMAGE}:master
           TAGS=${TAGS},${IMAGE}:${SHA_TAG}
           TS=$(date +%Y%m%d%H%M%S)
           echo ::set-output name=tags::${TAGS}
