@@ -34,6 +34,12 @@ message RouteRedirect {
 }
 
 message Route {
+  enum AuthorizationHeaderMode {
+    PASS_THROUGH = 0;
+    ACCESS_TOKEN = 1;
+    ID_TOKEN = 2;
+  }
+
   string name = 1;
 
   string from = 2;
@@ -86,11 +92,10 @@ message Route {
   repeated string remove_request_headers = 23;
   map<string, string> set_response_headers = 41;
   repeated RouteRewriteHeader rewrite_response_headers = 40;
+  AuthorizationHeaderMode set_authorization_header = 54;
 
   bool preserve_host_header = 24;
   bool pass_identity_headers = 25;
-  bool pass_access_token = 54;
-  bool pass_id_token = 55;
 
   string kubernetes_service_account_token = 26;
   bool enable_google_cloud_serverless_authentication = 42;

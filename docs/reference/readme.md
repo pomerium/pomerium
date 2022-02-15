@@ -1476,6 +1476,18 @@ explicitly set, then `timeout` would be unlimited (`0s`). You still may specify 
 of the connection using `timeout` value (i.e. to 1 day).
 
 
+### Set Authorization Header
+- `yaml`/`json` setting: `set_authorization_header`
+- Type: `string` (`pass_through`, `access_token` or `id_token`)
+- Optional
+- Default: `pass_through`
+
+Set Authorization Header allows you to send a user's identity token through as a Bearer token in the Authorization header.
+
+Use `access_token` to send the OAuth access token, `id_token` to send the OIDC id token, or `pass_through` (the default) to leave the Authorization header unchanged
+when it's not used for Pomerium authentication.
+
+
 ### Set Request Headers
 - Config File Key: `set_request_headers`
 - Type: map of `strings` key value pairs
@@ -1682,24 +1694,6 @@ When enabled, this option will pass identity headers to upstream applications. T
 
 - X-Pomerium-Jwt-Assertion
 - X-Pomerium-Claim-*
-
-
-### Pass Access Token
-- `yaml`/`json` setting: `pass_access_token`
-- Type: `bool`
-- Optional
-- Default: `false`
-
-When enabled, this option will pass the OAuth access token to upstream applications as a Bearer token in the Authorization header.
-
-
-### Pass ID Token
-- `yaml`/`json` setting: `pass_id_token`
-- Type: `bool`
-- Optional
-- Default: `false`
-
-When enabled, this option will pass the OIDC id token to upstream applications as a Bearer token in the Authorization header.
 
 
 ### SPDY
