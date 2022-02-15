@@ -424,7 +424,7 @@ New Enrollment URLs are only valid for the specified user.
 
 #### Redirect URL
 
-**Required**: The URL the user will be taken to after device enrollment is successful.
+**Optional**: The URL the user will be taken to after device enrollment is successful.
 
 #### Enrollment Type
 
