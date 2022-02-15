@@ -7,7 +7,7 @@
 5. Update vuepress branch config in `config.js`
    1. Set new default text nav
    2. Add new branch to item list
-6. Create a new release branch for major/minor releases, eg `0-15-0`, off master.  Patch releases use existing release branches.
+6. Create a new release branch for major/minor releases, eg `0-15-0`, off main.  Patch releases use existing release branches.
 7. Create Github release with name and tag matching `v[version]` on the appropriate release branch.
 8. Copy/paste changelog from generated output into Github release notes
 9.  GH automation should take it from there and build/upload artifacts
@@ -24,13 +24,13 @@ The changelog will be written to changelog.out
 ## Major/minor release example
 
 ```bash
-GITHUB_TOKEN=XXXXXX ./changelog.sh v0.14.0 v0.15.0 master changelog.out
+GITHUB_TOKEN=XXXXXX ./changelog.sh v0.14.0 v0.15.0 main changelog.out
 ```
 
 ## Patch release example
 
 ```bash
-GITHUB_TOKEN=XXXXXX ./changelog.sh v0.14.6 v0.14.7 master changelog.out
+GITHUB_TOKEN=XXXXXX ./changelog.sh v0.14.6 v0.14.7 main changelog.out
 ```
 
 # Release branches

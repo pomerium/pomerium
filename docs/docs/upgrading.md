@@ -196,7 +196,7 @@ There are two [storage backend types] available: `memory` or `redis`. You can se
 
 #### Memory Storage Backend
 
-For `memory` storage, restarting the cache service will result in all users having to re-login. Code for the in-memory database used by the cache service can be found here: [internal/databroker/memory](https://github.com/pomerium/pomerium/tree/master/internal/databroker/memory).
+For `memory` storage, restarting the cache service will result in all users having to re-login. Code for the in-memory database used by the cache service can be found here: [internal/databroker/memory](https://github.com/pomerium/pomerium/tree/main/internal/databroker/memory).
 
 :::warning
 
@@ -212,8 +212,8 @@ In production deployments, we recommend using the `redis` storage backend. Unlik
 
 Please see the following interfaces for reference to implement your storage backend interface.
 
-- [databroker gRPC interface](https://github.com/pomerium/pomerium/blob/master/pkg/grpc/databroker/databroker.proto)
-- [storage backend interface](https://github.com/pomerium/pomerium/blob/master/pkg/storage/storage.go)
+- [databroker gRPC interface](https://github.com/pomerium/pomerium/blob/main/pkg/grpc/databroker/databroker.proto)
+- [storage backend interface](https://github.com/pomerium/pomerium/blob/main/pkg/storage/storage.go)
 
 ### Identity headers
 

@@ -524,53 +524,53 @@ Expose a prometheus endpoint on the specified port.
 
 Each metric exposed by Pomerium has a `pomerium` prefix, which is omitted in the table below for brevity.
 
-Name                                          | Type      | Description
---------------------------------------------- | --------- | -----------------------------------------------------------------------
-build_info                                    | Gauge     | Pomerium build metadata by git revision, service, version and goversion
-config_checksum_int64                         | Gauge     | Currently loaded configuration checksum by service
-config_last_reload_success                    | Gauge     | Whether the last configuration reload succeeded by service
-config_last_reload_success_timestamp          | Gauge     | The timestamp of the last successful configuration reload by service
-grpc_client_request_duration_ms               | Histogram | GRPC client request duration by service
-grpc_client_request_size_bytes                | Histogram | GRPC client request size by service
-grpc_client_requests_total                    | Counter   | Total GRPC client requests made by service
-grpc_client_response_size_bytes               | Histogram | GRPC client response size by service
-grpc_server_request_duration_ms               | Histogram | GRPC server request duration by service
-grpc_server_request_size_bytes                | Histogram | GRPC server request size by service
-grpc_server_requests_total                    | Counter   | Total GRPC server requests made by service
-grpc_server_response_size_bytes               | Histogram | GRPC server response size by service
-http_client_request_duration_ms               | Histogram | HTTP client request duration by service
-http_client_request_size_bytes                | Histogram | HTTP client request size by service
-http_client_requests_total                    | Counter   | Total HTTP client requests made by service
-http_client_response_size_bytes               | Histogram | HTTP client response size by service
-http_server_request_duration_ms               | Histogram | HTTP server request duration by service
-http_server_request_size_bytes                | Histogram | HTTP server request size by service
-http_server_requests_total                    | Counter   | Total HTTP server requests handled by service
-http_server_response_size_bytes               | Histogram | HTTP server response size by service
-redis_conns                                   | Gauge     | Number of total connections in the pool
-redis_idle_conns                              | Gauge     | Total number of times free connection was found in the pool
-redis_wait_count_total                        | Counter   | Total number of connections waited for
-redis_wait_duration_ms_total                  | Counter   | Total time spent waiting for connections
-storage_operation_duration_ms                 | Histogram | Storage operation duration by operation, result, backend and service
+| Name                                 | Type      | Description                                                             |
+| ------------------------------------ | --------- | ----------------------------------------------------------------------- |
+| build_info                           | Gauge     | Pomerium build metadata by git revision, service, version and goversion |
+| config_checksum_int64                | Gauge     | Currently loaded configuration checksum by service                      |
+| config_last_reload_success           | Gauge     | Whether the last configuration reload succeeded by service              |
+| config_last_reload_success_timestamp | Gauge     | The timestamp of the last successful configuration reload by service    |
+| grpc_client_request_duration_ms      | Histogram | GRPC client request duration by service                                 |
+| grpc_client_request_size_bytes       | Histogram | GRPC client request size by service                                     |
+| grpc_client_requests_total           | Counter   | Total GRPC client requests made by service                              |
+| grpc_client_response_size_bytes      | Histogram | GRPC client response size by service                                    |
+| grpc_server_request_duration_ms      | Histogram | GRPC server request duration by service                                 |
+| grpc_server_request_size_bytes       | Histogram | GRPC server request size by service                                     |
+| grpc_server_requests_total           | Counter   | Total GRPC server requests made by service                              |
+| grpc_server_response_size_bytes      | Histogram | GRPC server response size by service                                    |
+| http_client_request_duration_ms      | Histogram | HTTP client request duration by service                                 |
+| http_client_request_size_bytes       | Histogram | HTTP client request size by service                                     |
+| http_client_requests_total           | Counter   | Total HTTP client requests made by service                              |
+| http_client_response_size_bytes      | Histogram | HTTP client response size by service                                    |
+| http_server_request_duration_ms      | Histogram | HTTP server request duration by service                                 |
+| http_server_request_size_bytes       | Histogram | HTTP server request size by service                                     |
+| http_server_requests_total           | Counter   | Total HTTP server requests handled by service                           |
+| http_server_response_size_bytes      | Histogram | HTTP server response size by service                                    |
+| redis_conns                          | Gauge     | Number of total connections in the pool                                 |
+| redis_idle_conns                     | Gauge     | Total number of times free connection was found in the pool             |
+| redis_wait_count_total               | Counter   | Total number of connections waited for                                  |
+| redis_wait_duration_ms_total         | Counter   | Total time spent waiting for connections                                |
+| storage_operation_duration_ms        | Histogram | Storage operation duration by operation, result, backend and service    |
 
 #### Identity Manager
 
 Identity manager metrics have `pomerium_identity_manager` prefix.
 
-Name                                          | Type      | Description
---------------------------------------------- | --------- | -----------------------------------------------------------------------
-last_refresh_timestamp                        | Gauge     | Timestamp of last directory refresh operation.
-session_refresh_error_timestamp               | Gauge     | Timestamp of last session refresh ended in an error.
-session_refresh_errors                        | Counter   | Session refresh error counter.
-session_refresh_success                       | Counter   | Session refresh success counter.
-session_refresh_success_timestamp             | Gauge     | Timestamp of last successful session refresh.
-user_group_refresh_error_timestamp            | Gauge     | Timestamp of last user group refresh ended in an error.
-user_group_refresh_errors                     | Counter   | User group refresh error counter.
-user_group_refresh_success                    | Counter   | User group refresh success counter.
-user_group_refresh_success_timestamp          | Gauge     | Timestamp of last group successful user refresh.
-user_refresh_error_timestamp                  | Gauge     | Timestamp of last user refresh ended in an error.
-user_refresh_errors                           | Counter   | User refresh error counter.
-user_refresh_success                          | Counter   | User refresh success counter.
-user_refresh_success_timestamp                | Gauge     | Timestamp of last successful user refresh.
+| Name                                 | Type    | Description                                             |
+| ------------------------------------ | ------- | ------------------------------------------------------- |
+| last_refresh_timestamp               | Gauge   | Timestamp of last directory refresh operation.          |
+| session_refresh_error_timestamp      | Gauge   | Timestamp of last session refresh ended in an error.    |
+| session_refresh_errors               | Counter | Session refresh error counter.                          |
+| session_refresh_success              | Counter | Session refresh success counter.                        |
+| session_refresh_success_timestamp    | Gauge   | Timestamp of last successful session refresh.           |
+| user_group_refresh_error_timestamp   | Gauge   | Timestamp of last user group refresh ended in an error. |
+| user_group_refresh_errors            | Counter | User group refresh error counter.                       |
+| user_group_refresh_success           | Counter | User group refresh success counter.                     |
+| user_group_refresh_success_timestamp | Gauge   | Timestamp of last group successful user refresh.        |
+| user_refresh_error_timestamp         | Gauge   | Timestamp of last user refresh ended in an error.       |
+| user_refresh_errors                  | Counter | User refresh error counter.                             |
+| user_refresh_success                 | Counter | User refresh success counter.                           |
+| user_refresh_success_timestamp       | Gauge   | Timestamp of last successful user refresh.              |
 
 #### Envoy Proxy Metrics
 
@@ -654,18 +654,18 @@ Each unit of work is called a Span in a trace. Spans include metadata about the 
 
 #### Shared Tracing Settings
 
-Config Key          | Description                                                                          | Required
-:------------------ | :----------------------------------------------------------------------------------- | --------
-tracing_provider    | The name of the tracing provider. (e.g. jaeger, zipkin)                              | ✅
-tracing_sample_rate | Percentage of requests to sample in decimal notation. Default is `0.0001`, or .01%   | ❌
+| Config Key          | Description                                                                        | Required |
+| :------------------ | :--------------------------------------------------------------------------------- | -------- |
+| tracing_provider    | The name of the tracing provider. (e.g. jaeger, zipkin)                            | ✅        |
+| tracing_sample_rate | Percentage of requests to sample in decimal notation. Default is `0.0001`, or .01% | ❌        |
 
 #### Datadog
 
 Datadog is a real-time monitoring system that supports distributed tracing and monitoring.
 
-Config Key              | Description                                                                  | Required
-:---------------------- | :--------------------------------------------------------------------------- | --------
-tracing_datadog_address | `host:port` address of the Datadog Trace Agent. Defaults to `localhost:8126` | ❌
+| Config Key              | Description                                                                  | Required |
+| :---------------------- | :--------------------------------------------------------------------------- | -------- |
+| tracing_datadog_address | `host:port` address of the Datadog Trace Agent. Defaults to `localhost:8126` | ❌        |
 
 #### Jaeger (partial)
 
@@ -679,10 +679,10 @@ tracing_datadog_address | `host:port` address of the Datadog Trace Agent. Defaul
 - Service dependency analysis
 - Performance / latency optimization
 
-Config Key                        | Description                                 | Required
-:-------------------------------- | :------------------------------------------ | --------
-tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅
-tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅
+| Config Key                        | Description                                 | Required |
+| :-------------------------------- | :------------------------------------------ | -------- |
+| tracing_jaeger_collector_endpoint | Url to the Jaeger HTTP Thrift collector.    | ✅        |
+| tracing_jaeger_agent_endpoint     | Send spans to jaeger-agent at this address. | ✅        |
 
 #### Zipkin
 
@@ -690,9 +690,9 @@ Zipkin is an open source distributed tracing system and protocol.
 
 Many tracing backends support zipkin either directly or through intermediary agents, including Jaeger. For full tracing support, we recommend using the Zipkin tracing protocol.
 
-Config Key              | Description                      | Required
-:---------------------- | :------------------------------- | --------
-tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅
+| Config Key              | Description                      | Required |
+| :---------------------- | :------------------------------- | -------- |
+| tracing_zipkin_endpoint | Url to the Zipkin HTTP endpoint. | ✅        |
 
 #### Example
 
@@ -1088,11 +1088,11 @@ By default, the `databroker` service uses an in-memory databroker.
 
 To create your own data broker, implement the following gRPC interface:
 
-- [pkg/grpc/databroker/databroker.proto](https://github.com/pomerium/pomerium/blob/master/pkg/grpc/databroker/databroker.proto)
+- [pkg/grpc/databroker/databroker.proto](https://github.com/pomerium/pomerium/blob/main/pkg/grpc/databroker/databroker.proto)
 
 For an example implementation, the in-memory database used by the databroker service can be found here:
 
-- [pkg/databroker/memory](https://github.com/pomerium/pomerium/tree/master/pkg/databroker/memory)
+- [pkg/databroker/memory](https://github.com/pomerium/pomerium/tree/main/pkg/databroker/memory)
 
 
 ### Data Broker Internal Service URL
@@ -1669,7 +1669,7 @@ See [Client-Side mTLS With Pomerium](/guides/mtls.md) for more information.
 
 If specified, Pomerium will present this client certificate to upstream services when requested to enforce [mutual authentication](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS).
 
-For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/master/examples/mutual-tls) and the [Upstream mTLS With Pomerium](/guides/upstream-mtls.md) guide.
+For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/main/examples/mutual-tls) and the [Upstream mTLS With Pomerium](/guides/upstream-mtls.md) guide.
 
 
 ### Pass Identity Headers
@@ -1802,7 +1802,7 @@ Signing Key is the private key used to sign a user's attestation JWT which can b
 
 If set, the signing key's public key will can retrieved by hitting Pomerium's `/.well-known/pomerium/jwks.json` endpoint which lives on the authenticate service. Otherwise, the endpoint will return an empty keyset.
 
-For example, assuming you have [generated an ES256 key](https://github.com/pomerium/pomerium/blob/master/scripts/generate_self_signed_signing_key.sh) as follows.
+For example, assuming you have [generated an ES256 key](https://github.com/pomerium/pomerium/blob/main/scripts/generate_self_signed_signing_key.sh) as follows.
 
 ```bash
 # Generates an P-256 (ES256) signing key
@@ -1844,7 +1844,7 @@ If no certificate is specified, one will be generated and the base64'd public ke
 [letsencrypt]: https://letsencrypt.org/
 [oidc rfc]: https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
 [okta]: /docs/identity-providers/okta.md
-[script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
+[script]: https://github.com/pomerium/pomerium/blob/main/scripts/generate_wildcard_cert.sh
 [signed headers]: /docs/topics/getting-users-identity.md
 [toml]: https://en.wikipedia.org/wiki/TOML
 [yaml]: https://en.wikipedia.org/wiki/YAML

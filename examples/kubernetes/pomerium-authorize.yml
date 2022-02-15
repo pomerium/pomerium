@@ -27,7 +27,7 @@ spec:
         app: pomerium-authorize
     spec:
       containers:
-        - image: pomerium/pomerium:master
+        - image: pomerium/pomerium:main
           name: pomerium-authorize
           args:
             - --config=/etc/pomerium/config.yaml

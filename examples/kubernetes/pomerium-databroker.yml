@@ -28,7 +28,7 @@ spec:
         app: pomerium-databroker
     spec:
       containers:
-        - image: pomerium/pomerium:master
+        - image: pomerium/pomerium:main
           name: pomerium-databroker
           args:
             - --config=/etc/pomerium/config.yaml

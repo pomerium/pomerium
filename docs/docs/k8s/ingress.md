@@ -19,7 +19,7 @@ Use Pomerium as a first-class secure-by-default Ingress Controller. The Pomerium
 ### System Requirements
 
 - Kubernetes v1.19.0+
-- Pomerium [Helm Chart](https://github.com/pomerium/pomerium-helm/tree/master/charts/pomerium) v25.0.0+
+- Pomerium [Helm Chart](https://github.com/pomerium/pomerium-helm/tree/main/charts/pomerium) v25.0.0+
 
 ### Limitations
 
@@ -47,18 +47,18 @@ You may deploy the Ingress controller from your own manifests by using the `pome
 
 ## Configuration
 
-|  Flag                          | Description                                                          |
-| ------------------------------ | -------------------------------------------------------------------- |
-| `--databroker-service-url`     | The databroker service url
-| `--databroker-tls-ca`          | `base64` encoded TLS CA
-| `--databroker-tls-ca-file`     | TLS CA file path for the databroker connection connection
-| `--health-probe-bind-address`  | The address the probe endpoint binds to. (default ":8081")
-| `--metrics-bind-address`       | The address the metric endpoint binds to. (default ":8080")
-| `--name`                       | IngressClass controller name (default "pomerium.io/ingress-controller")
-| `--namespaces`                 | Namespaces to watch, omit to watch all namespaces
-| `--prefix`                     | Ingress annotation prefix (default "ingress.pomerium.io")
-| `--shared-secret`              | `base64` encoded shared secret for communicating with databroker
-| `--update-status-from-service` | Update ingress status from given service status (pomerium-proxy)|
+| Flag                           | Description                                                             |
+| ------------------------------ | ----------------------------------------------------------------------- |
+| `--databroker-service-url`     | The databroker service url                                              |
+| `--databroker-tls-ca`          | `base64` encoded TLS CA                                                 |
+| `--databroker-tls-ca-file`     | TLS CA file path for the databroker connection connection               |
+| `--health-probe-bind-address`  | The address the probe endpoint binds to. (default ":8081")              |
+| `--metrics-bind-address`       | The address the metric endpoint binds to. (default ":8080")             |
+| `--name`                       | IngressClass controller name (default "pomerium.io/ingress-controller") |
+| `--namespaces`                 | Namespaces to watch, omit to watch all namespaces                       |
+| `--prefix`                     | Ingress annotation prefix (default "ingress.pomerium.io")               |
+| `--shared-secret`              | `base64` encoded shared secret for communicating with databroker        |
+| `--update-status-from-service` | Update ingress status from given service status (pomerium-proxy)        |
 
 The helm chart exposes a subset of these flags for appropriate customization.
 
@@ -160,13 +160,13 @@ Most configuration keys in non-Kubernetes deployments can be specified as annota
 
 The remaining annotations are specific to or behave differently than they do when using Pomerium without the Ingress Controller:
 
-| Annotation                        | Description |
-| --------------------------------- | ------------------------------------------------------------------------------------------- |
-| `ingress.pomerium.io/tls_custom_ca_secret`            | Name of Kubernetes `tls` Secret containing a custom [CA certificate][`tls_custom_ca_secret`] for the upstream. |
-| `ingress.pomerium.io/tls_client_secret`               | Name of Kubernetes `tls` Secret containing a [client certificate][tls_client_certificate] for connecting to the upstream. |
-| `ingress.pomerium.io/tls_downstream_client_ca_secret` | Name of Kubernetes `tls` Secret containing a [Client CA][client-certificate-authority] for validating downstream clients. |
-| `ingress.pomerium.io/secure_upstream`                 | When set to `"true"`, use `https` when connecting to the upstream endpoint. |
-| `ingress.pomerium.io/path_regex`                      | When set to `"true"` enables path regex matching. See the [Regular Expressions Path Matching](#regular-expressions-path-matching) section for more information. |
+| Annotation                                            | Description                                                                                                                                                                                   |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ingress.pomerium.io/tls_custom_ca_secret`            | Name of Kubernetes `tls` Secret containing a custom [CA certificate][`tls_custom_ca_secret`] for the upstream.                                                                                |
+| `ingress.pomerium.io/tls_client_secret`               | Name of Kubernetes `tls` Secret containing a [client certificate][tls_client_certificate] for connecting to the upstream.                                                                     |
+| `ingress.pomerium.io/tls_downstream_client_ca_secret` | Name of Kubernetes `tls` Secret containing a [Client CA][client-certificate-authority] for validating downstream clients.                                                                     |
+| `ingress.pomerium.io/secure_upstream`                 | When set to `"true"`, use `https` when connecting to the upstream endpoint.                                                                                                                   |
+| `ingress.pomerium.io/path_regex`                      | When set to `"true"` enables path regex matching. See the [Regular Expressions Path Matching](#regular-expressions-path-matching) section for more information.                               |
 | `ingress.pomerium.io/service_proxy_upstream`          | When set to `"true"` forces Pomerium to connect to upstreams through the k8s service proxy, and not individual endpoints. <br/> This is useful when deploying Pomerium inside a service mesh. |
 
 ::: tip
@@ -372,7 +372,7 @@ If your domain has [HSTS] enabled and you visit an endpoint while Pomerium is us
 For more information on the Pomerium Ingress Controller or the Kubernetes concepts discussed, see:
 
 - [Ingress (Kubernetes Docs)](https://kubernetes.io/docs/concepts/services-networking/ingress/)
-- [Pomerium Helm Chart README: Pomerium Ingress Controller](https://github.com/travisgroth/pomerium-helm/tree/master/charts/pomerium#pomerium-ingress-controller)
+- [Pomerium Helm Chart README: Pomerium Ingress Controller](https://github.com/pomerium/pomerium-helm/tree/main/charts/pomerium#pomerium-ingress-controller)
 - [Pomerium Kubernetes Ingress Controller (code repository)](https://github.com/pomerium/ingress-controller)
 
 [`ingress.pomerium.io/allow_any_authenticated_user`]: /reference/readme.md#allow-any-authenticated-user
