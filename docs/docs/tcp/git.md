@@ -67,4 +67,4 @@ If you've already defined an SSH configuration for all domains managed by Pomeri
 ## More Resources
 
 - [Git Documentation](https://git-scm.com/doc)
-- [Secure GitLab with Pomerium](/guide/gitlab.mdZ)
+- [Secure GitLab with Pomerium](/guides/gitlab.md)
