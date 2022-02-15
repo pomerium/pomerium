@@ -34,7 +34,7 @@ postamble: |
   [letsencrypt]: https://letsencrypt.org/
   [oidc rfc]: https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
   [okta]: /docs/identity-providers/okta.md
-  [script]: https://github.com/pomerium/pomerium/blob/master/scripts/generate_wildcard_cert.sh
+  [script]: https://github.com/pomerium/pomerium/blob/main/scripts/generate_wildcard_cert.sh
   [signed headers]: /docs/topics/getting-users-identity.md
   [toml]: https://en.wikipedia.org/wiki/TOML
   [yaml]: https://en.wikipedia.org/wiki/YAML
@@ -1221,11 +1221,11 @@ settings:
 
           To create your own data broker, implement the following gRPC interface:
 
-          - [pkg/grpc/databroker/databroker.proto](https://github.com/pomerium/pomerium/blob/master/pkg/grpc/databroker/databroker.proto)
+          - [pkg/grpc/databroker/databroker.proto](https://github.com/pomerium/pomerium/blob/main/pkg/grpc/databroker/databroker.proto)
 
           For an example implementation, the in-memory database used by the databroker service can be found here:
 
-          - [pkg/databroker/memory](https://github.com/pomerium/pomerium/tree/master/pkg/databroker/memory)
+          - [pkg/databroker/memory](https://github.com/pomerium/pomerium/tree/main/pkg/databroker/memory)
       - name: "Data Broker Internal Service URL"
         keys: ["databroker_internal_service_url"]
         attributes: |
@@ -1823,7 +1823,7 @@ settings:
         doc: |
           If specified, Pomerium will present this client certificate to upstream services when requested to enforce [mutual authentication](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS).
 
-          For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/master/examples/mutual-tls) and the [Upstream mTLS With Pomerium](/guides/upstream-mtls.md) guide.
+          For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/main/examples/mutual-tls) and the [Upstream mTLS With Pomerium](/guides/upstream-mtls.md) guide.
       - name: "Pass Identity Headers"
         keys: ["pass_identity_headers"]
         attributes: |
@@ -1960,7 +1960,7 @@ settings:
 
           If set, the signing key's public key will can retrieved by hitting Pomerium's `/.well-known/pomerium/jwks.json` endpoint which lives on the authenticate service. Otherwise, the endpoint will return an empty keyset.
 
-          For example, assuming you have [generated an ES256 key](https://github.com/pomerium/pomerium/blob/master/scripts/generate_self_signed_signing_key.sh) as follows.
+          For example, assuming you have [generated an ES256 key](https://github.com/pomerium/pomerium/blob/main/scripts/generate_self_signed_signing_key.sh) as follows.
 
           ```bash
           # Generates an P-256 (ES256) signing key

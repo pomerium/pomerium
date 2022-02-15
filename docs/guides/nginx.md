@@ -11,7 +11,7 @@ description: >-
 
 # Securing Nginx
 
-This recipe's sources can be found [on github](https://github.com/pomerium/pomerium/tree/master/examples/nginx)
+This recipe's sources can be found [on github](https://github.com/pomerium/pomerium/tree/main/examples/nginx)
 
 At the end, you will have a locally running install of [verify](https://verify.pomerium.com/) behind nginx with policy enforced by Pomerium.
 
@@ -36,7 +36,7 @@ This recipe is designed to run on a local docker-compose instance. The included 
 
 - docker
 - docker-compose
-- A copy of the [example repo](https://github.com/pomerium/pomerium/tree/master/examples/nginx) checked out
+- A copy of the [example repo](https://github.com/pomerium/pomerium/tree/main/examples/nginx) checked out
 - Valid credentials for your OIDC provider
 - (Optional) `mkcert` to generate locally trusted certificates
 

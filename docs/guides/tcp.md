@@ -12,7 +12,7 @@ description: >-
 
 The following guide demonstrates how to use Pomerium's [TCP Proxying](/docs/tcp/readme.md) support with various TCP services such as databases and other non-HTTP protocols.  It also covers integration points with them when possible.
 
-The source files from this guide can be found on [GitHub](https://github.com/pomerium/pomerium/tree/master/examples/tcp/).
+The source files from this guide can be found on [GitHub](https://github.com/pomerium/pomerium/tree/main/examples/tcp/).
 
 ## Background
 
@@ -37,7 +37,7 @@ This recipe is designed to run on a local docker-compose instance. The included 
 
 * docker
 * docker-compose
-* A copy of the [example repo](https://github.com/pomerium/pomerium/tree/master/examples/tcp/) checked out
+* A copy of the [example repo](https://github.com/pomerium/pomerium/tree/main/examples/tcp/) checked out
 * Valid credentials for your OIDC provider
 * The [Pomerium Client](/docs/releases.md#pomerium-cli) installed
 * (Optional) `mkcert` to generate locally trusted certificates

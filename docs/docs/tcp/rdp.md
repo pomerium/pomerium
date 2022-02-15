@@ -51,7 +51,7 @@ Some clients, like Remmina, support running commands before and after connection
 
     ```bash
     cd ~/
-    wget https://github.com/pomerium/pomerium/blob/master/examples/tcp/pomerium-tunnel.sh
+    wget https://github.com/pomerium/pomerium/blob/main/examples/tcp/pomerium-tunnel.sh
     chmod +x pomerium-tunnel.sh
     ```
 

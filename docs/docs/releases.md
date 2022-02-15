@@ -80,10 +80,10 @@ Pomerium utilizes a [minimal](https://github.com/GoogleContainerTools/distroless
   v0.2.0+87e214b
   ```
 
-- `:master` : which will pull an image in sync with git's [master](https://github.com/pomerium/pomerium/tree/master) branch.
+- `:main` : which will pull an image in sync with git's [main](https://github.com/pomerium/pomerium/tree/main) branch.
 
   ```bash{1}
-  docker pull pomerium/pomerium:master
+  docker pull pomerium/pomerium:main
   ```
 
 Rootless images for official releases are also published to provide additional security. In these images, Pomerium runs as the `nonroot` user. Depending on your deployment environment, you may need to grant the container additional [capabilities](https://linux-audit.com/linux-capabilities-hardening-linux-binaries-by-removing-setuid/) or change the listening port from `443`.
@@ -106,7 +106,7 @@ helm repo add pomerium https://helm.pomerium.io
 helm install pomerium/pomerium
 ```
 
-See the [README](https://github.com/pomerium/pomerium-helm/blob/master/charts/pomerium/README.md) for up to date install options.
+See the [README](https://github.com/pomerium/pomerium-helm/blob/main/charts/pomerium/README.md) for up to date install options.
 
 ### Source
 

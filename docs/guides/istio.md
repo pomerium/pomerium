@@ -19,7 +19,7 @@ In this guide, we'll demonstrate how to configure Pomerium and Istio in a Kubern
 ## Before You Begin
 
 - You will need a Kubernetes environment with Istio installed. Refer to their [Getting Started](https://istio.io/latest/docs/setup/getting-started/) guide for more information.
-- This configuration uses the Pomerium Ingress Controller for [north-south traffic]. This guide uses our [Helm chart](https://github.com/pomerium/pomerium-helm/tree/master/charts/pomerium) as detailed in [Install Pomerium using Helm]. We'll cover the values needed to configure the controller with an Istio service mesh, but you can refer to the [documentation][Pomerium Ingress Controller] for a complete overview of the controller spec.
+- This configuration uses the Pomerium Ingress Controller for [north-south traffic]. This guide uses our [Helm chart](https://github.com/pomerium/pomerium-helm/tree/main/charts/pomerium) as detailed in [Install Pomerium using Helm]. We'll cover the values needed to configure the controller with an Istio service mesh, but you can refer to the [documentation][Pomerium Ingress Controller] for a complete overview of the controller spec.
 
 ## How it Works
 

@@ -116,7 +116,7 @@ In general, Pomerium follows [Go's security policy](https://golang.org/security)
 1. Once the security report is received it is assigned a primary handler. This person coordinates the fix and release process.
 2. The issue is confirmed and a list of affected software is determined.
 3. Code is audited to find any potential similar problems.
-4. Fixes are prepared for the most recent major releases and the head/master revision.
+4. Fixes are prepared for the most recent major releases and the head/main revision.
 5. When the fixes are applied, announcements are sent to [pomerium-announce](https://groups.google.com/g/pomerium-announce).
 
 This process can take some time. Every effort will be made to handle the bug in as timely a manner as possible, however it's important that we follow the process described above to ensure that disclosures are handled consistently.

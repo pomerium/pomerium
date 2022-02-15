@@ -10,7 +10,7 @@ description: >-
 
 # Securing Traefik Ingress
 
-This guide's sources can be found [on github](https://github.com/pomerium/pomerium/tree/master/examples/traefik-ingress).
+This guide's sources can be found [on github](https://github.com/pomerium/pomerium/tree/main/examples/traefik-ingress).
 
 At the end, you will have an install of a hello-world app proxied by [Traefik](https://containo.us/traefik/) with authorization policy enforced by Pomerium.
 
@@ -37,7 +37,7 @@ For more information on using Pomerium as an external authorization endpoint, se
 
 - Access to a Kubernetes cluster
 - [Helm](https://helm.sh/) (already initialized if using helm v2)
-- A copy of the [example repo](https://github.com/pomerium/pomerium/tree/master/examples/traefik-ingress) checked out
+- A copy of the [example repo](https://github.com/pomerium/pomerium/tree/main/examples/traefik-ingress) checked out
 - Valid credentials for your OIDC provider
 - (Optional) `mkcert` to generate locally trusted certificates
 
