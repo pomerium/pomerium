@@ -197,7 +197,7 @@ settings:
               - name: "Search Users"
                 doc: "New Enrollment URLs are only valid for the specified user."
               - name: "Redirect URL"
-                doc: "**Required**: The URL the user will be taken to after device enrollment is successful."
+                doc: "**Optional**: The URL the user will be taken to after device enrollment is successful."
               - name: "Enrollment Type"
                 doc: "Specify if the user can enroll any device identity, or restrict it to a [secure enclave](/docs/topics/device-identity.md#secure-enclaves)."
   - name: "Configure"
