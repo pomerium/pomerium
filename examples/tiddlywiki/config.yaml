@@ -8,7 +8,7 @@ idp_client_secret: REPLACEME
 cookie_secret: REPLACEME
 jwt_claims_headers: email
 
-policy:
+routes:
   - from: https://wiki.localhost.pomerium.io
     to: http://tiddlywiki:8080
     policy:

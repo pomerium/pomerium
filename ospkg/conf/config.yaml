@@ -15,8 +15,11 @@ idp_client_id: XXXX
 idp_client_secret: YYYY
 idp_service_account: XXXXXX
 
-policy:
+routes:
   - from: https://yoursite.localhost.pomerium.io
     to: https://yoursite.local
-    allowed_users:
-      - user@domain.com
+    policy:
+      - allow:
+          or:
+            - user:
+                is: user@domain.com
