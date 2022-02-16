@@ -62,6 +62,7 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 						"members@delta": []M{
 							{"@odata.type": "#microsoft.graph.user", "id": "user-2"},
 							{"@odata.type": "#microsoft.graph.user", "id": "user-3"},
+							{"@odata.type": "#microsoft.graph.user", "id": "user-4"},
 						},
 					},
 				},
@@ -73,6 +74,7 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 					{"id": "user-1", "displayName": "User 1", "mail": "user1@example.com"},
 					{"id": "user-2", "displayName": "User 2", "mail": "user2@example.com"},
 					{"id": "user-3", "displayName": "User 3", "userPrincipalName": "user3_example.com#EXT#@user3example.onmicrosoft.com"},
+					{"id": "user-4", "displayName": "User 4", "userPrincipalName": "user4@example.com"},
 				},
 			})
 		})
@@ -185,6 +187,12 @@ func TestProvider_UserGroups(t *testing.T) {
 			GroupIds:    []string{"test"},
 			DisplayName: "User 3",
 			Email:       "user3@example.com",
+		},
+		{
+			Id:          "user-4",
+			GroupIds:    []string{"test"},
+			DisplayName: "User 4",
+			Email:       "user4@example.com",
 		},
 	}, users)
 	testutil.AssertProtoJSONEqual(t, `[
