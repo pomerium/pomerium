@@ -16,11 +16,14 @@ idp_provider: google
 idp_client_id: REPLACE_ME
 idp_client_secret: REPLACE_ME
 
-policy:
+routes:
   - from: https://mtls.corp.domain.example
     to: https://localhost:8443
-    allowed_domains:
-      - domain.example
+    policy:
+      - allow:
+          or:
+            - domain:
+                is: domain.example
     tls_custom_ca_file: "/Users/bdd/examples/mutual-tls/out/good-ca.crt"
     tls_client_cert_file: "/Users/bdd/examples/mutual-tls/out/pomerium.crt"
     tls_client_key_file: "/Users/bdd/examples/mutual-tls/out/pomerium.key"
