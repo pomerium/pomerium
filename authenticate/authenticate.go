@@ -8,10 +8,7 @@ import (
 	"fmt"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/identity"
-	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -28,15 +25,6 @@ func ValidateOptions(o *config.Options) error {
 	if _, err := cryptutil.NewAEADCipherFromBase64(o.CookieSecret); err != nil {
 		return fmt.Errorf("authenticate: 'COOKIE_SECRET' invalid %w", err)
 	}
-	if o.Provider == "" {
-		return errors.New("authenticate: 'IDP_PROVIDER' is required")
-	}
-	if o.ClientID == "" {
-		return errors.New("authenticate: 'IDP_CLIENT_ID' is required")
-	}
-	if o.ClientSecret == "" {
-		return errors.New("authenticate: 'IDP_CLIENT_SECRET' is required")
-	}
 	if o.AuthenticateCallbackPath == "" {
 		return errors.New("authenticate: 'AUTHENTICATE_CALLBACK_PATH' is required")
 	}
@@ -45,17 +33,17 @@ func ValidateOptions(o *config.Options) error {
 
 // Authenticate contains data required to run the authenticate service.
 type Authenticate struct {
-	options  *config.AtomicOptions
-	provider *identity.AtomicAuthenticator
-	state    *atomicAuthenticateState
+	cfg     *authenticateConfig
+	options *config.AtomicOptions
+	state   *atomicAuthenticateState
 }
 
 // New validates and creates a new authenticate service from a set of Options.
-func New(cfg *config.Config) (*Authenticate, error) {
+func New(cfg *config.Config, options ...Option) (*Authenticate, error) {
 	a := &Authenticate{
-		options:  config.NewAtomicOptions(),
-		provider: identity.NewAtomicAuthenticator(),
-		state:    newAtomicAuthenticateState(newAuthenticateState()),
+		cfg:     getAuthenticateConfig(options...),
+		options: config.NewAtomicOptions(),
+		state:   newAtomicAuthenticateState(newAuthenticateState()),
 	}
 
 	state, err := newAuthenticateStateFromConfig(cfg)
@@ -63,11 +51,6 @@ func New(cfg *config.Config) (*Authenticate, error) {
 		return nil, err
 	}
 	a.state.Store(state)
-
-	err = a.updateProvider(cfg)
-	if err != nil {
-		return nil, err
-	}
 
 	return a, nil
 }
@@ -84,36 +67,4 @@ func (a *Authenticate) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	} else {
 		a.state.Store(state)
 	}
-	if err := a.updateProvider(cfg); err != nil {
-		log.Error(ctx).Err(err).Msg("authenticate: failed to update identity provider")
-	}
-}
-
-func (a *Authenticate) updateProvider(cfg *config.Config) error {
-	u, err := cfg.Options.GetAuthenticateURL()
-	if err != nil {
-		return err
-	}
-
-	redirectURL, _ := urlutil.DeepCopy(u)
-	redirectURL.Path = cfg.Options.AuthenticateCallbackPath
-
-	// configure our identity provider
-	provider, err := identity.NewAuthenticator(
-		oauth.Options{
-			RedirectURL:     redirectURL,
-			ProviderName:    cfg.Options.Provider,
-			ProviderURL:     cfg.Options.ProviderURL,
-			ClientID:        cfg.Options.ClientID,
-			ClientSecret:    cfg.Options.ClientSecret,
-			Scopes:          cfg.Options.Scopes,
-			ServiceAccount:  cfg.Options.ServiceAccount,
-			AuthCodeOptions: cfg.Options.RequestParams,
-		})
-	if err != nil {
-		return err
-	}
-	a.provider.Store(provider)
-
-	return nil
 }

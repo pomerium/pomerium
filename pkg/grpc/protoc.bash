@@ -96,6 +96,11 @@ _import_paths=$(join_by , "${_imports[@]}")
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./directory/." \
   ./directory/directory.proto
 
+
+../../scripts/protoc -I ./identity/ \
+  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./identity/." \
+  ./identity/identity.proto
+
 ../../scripts/protoc -I ./registry/ \
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./registry/." \
   --validate_out="lang=go,paths=source_relative:./registry" \

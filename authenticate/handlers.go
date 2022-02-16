@@ -161,10 +161,22 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 		defer span.End()
 
 		state := a.state.Load()
+		idpID := r.FormValue(urlutil.QueryIdentityProviderID)
 
 		sessionState, err := a.getSessionFromCtx(ctx)
 		if err != nil {
-			log.FromRequest(r).Info().Err(err).Msg("authenticate: session load error")
+			log.FromRequest(r).Info().
+				Err(err).
+				Str("idp_id", idpID).
+				Msg("authenticate: session load error")
+			return a.reauthenticateOrFail(w, r, err)
+		}
+
+		if sessionState.IdentityProviderID != idpID {
+			log.FromRequest(r).Info().
+				Str("idp_id", idpID).
+				Str("id", sessionState.ID).
+				Msg("authenticate: session not associated with identity provider")
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
@@ -172,7 +184,11 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 			return errors.New("authenticate: databroker client cannot be nil")
 		}
 		if _, err = session.Get(ctx, state.dataBrokerClient, sessionState.ID); err != nil {
-			log.FromRequest(r).Info().Err(err).Str("id", sessionState.ID).Msg("authenticate: session not found in databroker")
+			log.FromRequest(r).Info().
+				Err(err).
+				Str("idp_id", idpID).
+				Str("id", sessionState.ID).
+				Msg("authenticate: session not found in databroker")
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
@@ -222,7 +238,12 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	newSession := sessions.NewSession(s, state.redirectURL.Host, jwtAudience)
+	// start over if this is a different identity provider
+	if s == nil || s.IdentityProviderID != r.FormValue(urlutil.QueryIdentityProviderID) {
+		s = sessions.NewState(urlutil.QueryIdentityProviderID)
+	}
+
+	newSession := s.WithNewIssuer(state.redirectURL.Host, jwtAudience)
 
 	// re-persist the session, useful when session was evicted from session
 	if err := state.sessionStore.SaveSession(w, r, s); err != nil {
@@ -258,6 +279,13 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignOut")
 	defer span.End()
 
+	options := a.options.Load()
+
+	idp, err := a.cfg.getIdentityProvider(options, r.FormValue(urlutil.QueryIdentityProviderID))
+	if err != nil {
+		return err
+	}
+
 	rawIDToken := a.revokeSession(ctx, w, r)
 
 	redirectString := ""
@@ -272,7 +300,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 		redirectString = uri
 	}
 
-	endSessionURL, err := a.provider.Load().LogOut()
+	endSessionURL, err := idp.LogOut()
 	if err == nil && redirectString != "" {
 		params := url.Values{}
 		params.Add("id_token_hint", rawIDToken)
@@ -300,12 +328,20 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 // https://tools.ietf.org/html/rfc6749#section-4.2.1
 // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest
 func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Request, err error) error {
-	state := a.state.Load()
 	// If request AJAX/XHR request, return a 401 instead because the redirect
 	// will almost certainly violate their CORs policy
 	if reqType := r.Header.Get("X-Requested-With"); strings.EqualFold(reqType, "XmlHttpRequest") {
 		return httputil.NewError(http.StatusUnauthorized, err)
 	}
+
+	options := a.options.Load()
+	state := a.state.Load()
+
+	idp, err := a.cfg.getIdentityProvider(options, r.FormValue(urlutil.QueryIdentityProviderID))
+	if err != nil {
+		return err
+	}
+
 	state.sessionStore.ClearSession(w, r)
 	redirectURL := state.redirectURL.ResolveReference(r.URL)
 	nonce := csrf.Token(r)
@@ -314,7 +350,7 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 	enc := cryptutil.Encrypt(state.cookieCipher, []byte(redirectURL.String()), b)
 	b = append(b, enc...)
 	encodedState := base64.URLEncoding.EncodeToString(b)
-	signinURL, err := a.provider.Load().GetSignInURL(encodedState)
+	signinURL, err := idp.GetSignInURL(encodedState)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError,
 			fmt.Errorf("failed to get sign in url: %w", err))
@@ -349,6 +385,7 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.getOAuthCallback")
 	defer span.End()
 
+	options := a.options.Load()
 	state := a.state.Load()
 
 	// Error Authentication Response: rfc6749#section-4.1.2.1 & OIDC#3.1.2.6
@@ -357,19 +394,11 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	if idpError := r.FormValue("error"); idpError != "" {
 		return nil, httputil.NewError(a.statusForErrorCode(idpError), fmt.Errorf("identity provider: %v", idpError))
 	}
+
 	// fail if no session redemption code is returned
 	code := r.FormValue("code")
 	if code == "" {
 		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("identity provider returned empty code"))
-	}
-
-	// Successful Authentication Response: rfc6749#section-4.1.2 & OIDC#3.1.2.5
-	//
-	// Exchange the supplied Authorization Code for a valid user session.
-	var claims identity.SessionClaims
-	accessToken, err := a.provider.Load().Authenticate(ctx, code, &claims)
-	if err != nil {
-		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
 	}
 
 	// state includes a csrf nonce (validated by middleware) and redirect uri
@@ -403,24 +432,35 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)
 	}
+	idpID := redirectURL.Query().Get(urlutil.QueryIdentityProviderID)
 
-	s := sessions.State{ID: uuid.New().String()}
+	idp, err := a.cfg.getIdentityProvider(options, idpID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Successful Authentication Response: rfc6749#section-4.1.2 & OIDC#3.1.2.5
+	//
+	// Exchange the supplied Authorization Code for a valid user session.
+	var claims identity.SessionClaims
+	accessToken, err := idp.Authenticate(ctx, code, &claims)
+	if err != nil {
+		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
+	}
+
+	s := sessions.NewState(idpID)
 	err = claims.Claims.Claims(&s)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling session state: %w", err)
 	}
 
-	newState := sessions.NewSession(
-		&s,
-		state.redirectURL.Hostname(),
-		[]string{state.redirectURL.Hostname()})
-
+	newState := s.WithNewIssuer(state.redirectURL.Hostname(), []string{state.redirectURL.Hostname()})
 	if nextRedirectURL, err := urlutil.ParseAndValidateURL(redirectURL.Query().Get(urlutil.QueryRedirectURI)); err == nil {
 		newState.Audience = append(newState.Audience, nextRedirectURL.Hostname())
 	}
 
 	// save the session and access token to the databroker
-	err = a.saveSessionToDataBroker(ctx, &newState, claims, accessToken)
+	err = a.saveSessionToDataBroker(ctx, r, &newState, claims, accessToken)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, err)
 	}
@@ -522,6 +562,7 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 
 func (a *Authenticate) saveSessionToDataBroker(
 	ctx context.Context,
+	r *http.Request,
 	sessionState *sessions.State,
 	claims identity.SessionClaims,
 	accessToken *oauth2.Token,
@@ -529,12 +570,17 @@ func (a *Authenticate) saveSessionToDataBroker(
 	state := a.state.Load()
 	options := a.options.Load()
 
+	idp, err := a.cfg.getIdentityProvider(options, r.FormValue(urlutil.QueryIdentityProviderID))
+	if err != nil {
+		return err
+	}
+
 	sessionExpiry := timestamppb.New(time.Now().Add(options.CookieExpire))
 	idTokenIssuedAt := timestamppb.New(sessionState.IssuedAt.Time())
 
 	s := &session.Session{
 		Id:        sessionState.ID,
-		UserId:    sessionState.UserID(a.provider.Load().Name()),
+		UserId:    sessionState.UserID(idp.Name()),
 		IssuedAt:  timestamppb.Now(),
 		ExpiresAt: sessionExpiry,
 		IdToken: &session.IDToken{
@@ -557,7 +603,7 @@ func (a *Authenticate) saveSessionToDataBroker(
 			Id: s.GetUserId(),
 		}
 	}
-	err := a.provider.Load().UpdateUserInfo(ctx, accessToken, &managerUser)
+	err = idp.UpdateUserInfo(ctx, accessToken, &managerUser)
 	if err != nil {
 		return fmt.Errorf("authenticate: error retrieving user info: %w", err)
 	}
@@ -588,9 +634,16 @@ func (a *Authenticate) saveSessionToDataBroker(
 // databroker. If successful, it returns the original `id_token` of the session, if failed, returns
 // and empty string.
 func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter, r *http.Request) string {
+	options := a.options.Load()
 	state := a.state.Load()
+
 	// clear the user's local session no matter what
 	defer state.sessionStore.ClearSession(w, r)
+
+	idp, err := a.cfg.getIdentityProvider(options, r.FormValue(urlutil.QueryIdentityProviderID))
+	if err != nil {
+		return ""
+	}
 
 	var rawIDToken string
 	sessionState, err := a.getSessionFromCtx(ctx)
@@ -600,7 +653,7 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 
 	if s, _ := session.Get(ctx, state.dataBrokerClient, sessionState.ID); s != nil && s.OauthToken != nil {
 		rawIDToken = s.GetIdToken().GetRaw()
-		if err := a.provider.Load().Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
+		if err := idp.Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
 			log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to revoke access token")
 		}
 	}

@@ -162,6 +162,11 @@ type Policy struct {
 	// SetResponseHeaders sets response headers.
 	SetResponseHeaders map[string]string `mapstructure:"set_response_headers" yaml:"set_response_headers,omitempty"`
 
+	// IDPClientID is the client id used for the identity provider.
+	IDPClientID string `mapstructure:"idp_client_id" yaml:"idp_client_id,omitempty"`
+	// IDPClientSecret is the client secret used for the identity provider.
+	IDPClientSecret string `mapstructure:"idp_client_secret" yaml:"idp_client_secret,omitempty"`
+
 	Policy *PPLPolicy `mapstructure:"policy" yaml:"policy,omitempty" json:"policy,omitempty"`
 }
 

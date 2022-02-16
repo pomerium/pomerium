@@ -3,10 +3,10 @@ package sessions
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/google/uuid"
 )
 
 // ErrMissingID is the error for a session state that has no ID set.
@@ -14,34 +14,6 @@ var ErrMissingID = errors.New("invalid session: missing id")
 
 // timeNow is time.Now but pulled out as a variable for tests.
 var timeNow = time.Now
-
-// Version represents "ver" field in JWT public claims.
-//
-// The field is not specified by RFC 7519, so providers can
-// return either string or number (like okta).
-type Version string
-
-// String implements fmt.Stringer interface.
-func (v *Version) String() string {
-	return string(*v)
-}
-
-// UnmarshalJSON implements json.Unmarshaler interface.
-func (v *Version) UnmarshalJSON(b []byte) error {
-	var tmp interface{}
-	if err := json.Unmarshal(b, &tmp); err != nil {
-		return err
-	}
-	switch val := tmp.(type) {
-	case string:
-		*v = Version(val)
-	case float64:
-		*v = Version(fmt.Sprintf("%g", val))
-	default:
-		return errors.New("invalid type for Version")
-	}
-	return nil
-}
 
 // State is our object that keeps track of a user's session state
 type State struct {
@@ -61,12 +33,26 @@ type State struct {
 	// DatabrokerRecordVersion tracks the last referenced databroker record version
 	// for the saved session.
 	DatabrokerRecordVersion uint64 `json:"databroker_record_version,omitempty"`
+
+	// IdentityProviderID is the identity provider for the session.
+	IdentityProviderID string `json:"idp_id,omitempty"`
 }
 
-// NewSession updates issuer, audience, and issuance timestamps but keeps
-// parent expiry.
-func NewSession(s *State, issuer string, audience []string) State {
-	newState := *s
+// NewState creates a new State.
+func NewState(idpID string) *State {
+	return &State{
+		IssuedAt:           jwt.NewNumericDate(timeNow()),
+		ID:                 uuid.NewString(),
+		IdentityProviderID: idpID,
+	}
+}
+
+// WithNewIssuer creates a new State from an existing State.
+func (s *State) WithNewIssuer(issuer string, audience []string) State {
+	newState := State{}
+	if s != nil {
+		newState = *s
+	}
 	newState.IssuedAt = jwt.NewNumericDate(timeNow())
 	newState.Audience = audience
 	newState.Issuer = issuer
