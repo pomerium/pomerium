@@ -1,39 +1,69 @@
 import Box from "@mui/material/Box";
-import Container from "@mui/material/Container";
 import Stack from "@mui/material/Stack";
 import React, { FC } from "react";
+import {FooterLink} from "./FooterLink";
+import AppBar from "@mui/material/AppBar";
 
 const Footer: FC = () => {
   return (
-    <Container component="footer">
+    <AppBar
+      position="fixed"
+      sx={{
+        zIndex: (theme) => theme.zIndex.drawer + 1,
+        top: 'auto',
+        bottom: 0,
+      }}
+    >
       <Stack
         direction="row"
         spacing={2}
         sx={{
           fontSize: "0.85rem",
-          padding: "16px"
+          padding: "16px",
+          paddingLeft: "40px",
+          paddingRight: "40px"
         }}
       >
         <Box>
-          <a href="https://pomerium.com/">Home</a>
+          <FooterLink
+            href="https://pomerium.com/"
+          >
+            Home
+          </FooterLink>
         </Box>
         <Box>
-          <a href="https://pomerium.com/docs">Docs</a>
+          <FooterLink
+            href="https://pomerium.com/docs"
+          >
+            Docs
+          </FooterLink>
         </Box>
         <Box>
-          <a href="https://pomerium.com/docs/community/">Support</a>
+          <FooterLink
+            href="https://pomerium.com/docs/community/"
+          >
+            Support
+          </FooterLink>
         </Box>
         <Box>
-          <a href="https://github.com/pomerium">GitHub</a>
+          <FooterLink
+            href="https://github.com/pomerium"
+          >
+            Github
+          </FooterLink>
         </Box>
         <Box>
-          <a href="https://twitter.com/pomerium_io">@pomerium_io</a>
+          <FooterLink
+            href="https://twitter.com/pomerium_io"
+          >
+            @pomerium_io
+          </FooterLink>
         </Box>
         <Box flexGrow={1} sx={{ textAlign: "right" }}>
           © Pomerium, Inc.
         </Box>
       </Stack>
-    </Container>
+    </AppBar>
   );
 };
 export default Footer;

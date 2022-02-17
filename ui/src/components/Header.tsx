@@ -12,21 +12,22 @@ type HeaderProps = {
 };
 const Header: FC<HeaderProps> = ({ csrfToken, signOutUrl }) => {
   return (
-    <AppBar position="sticky">
+    <AppBar
+      position="fixed"
+      sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
+    >
       <Toolbar>
         <a href="/.pomerium">
           <Logo />
         </a>
         <Box flexGrow={1} />
-        {signOutUrl ? (
+        {!!signOutUrl && (
           <form action={signOutUrl}>
             <CsrfInput csrfToken={csrfToken} />
             <Button variant="text" color="inherit" type="submit">
               Logout
             </Button>
           </form>
-        ) : (
-          <></>
         )}
       </Toolbar>
     </AppBar>

@@ -5,6 +5,7 @@ import Stack from "@mui/material/Stack";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import React, { FC } from "react";
+import {useTheme} from "@mui/material/styles";
 
 export type SectionProps = React.PropsWithChildren<{
   title: React.ReactNode;
@@ -17,14 +18,15 @@ export const Section: FC<SectionProps> = ({
   children,
   footer
 }) => {
+  const theme = useTheme();
   return (
     <Paper sx={{ overflow: "hidden" }}>
       <Stack>
         <Toolbar>
-          <Typography variant="h4" flexGrow={1}>
+          <Typography variant="h4">
             {title}
           </Typography>
-          {icon ? <Box>{icon}</Box> : <></>}
+          {!!icon && (<Box sx={{marginLeft: theme.spacing(3)}}>{icon}</Box>)}
         </Toolbar>
         <Box sx={{ padding: 3, paddingTop: 0 }}>{children}</Box>
         {footer ? (

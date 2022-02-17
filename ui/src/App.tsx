@@ -6,11 +6,12 @@ import UserInfoPage from "./components/UserInfoPage";
 import WebAuthnRegistrationPage from "./components/WebAuthnRegistrationPage";
 import { createTheme } from "./theme";
 import { PageData } from "./types";
-import Container from "@mui/material/Container";
 import CssBaseline from "@mui/material/CssBaseline";
-import Stack from "@mui/material/Stack";
 import { ThemeProvider } from "@mui/material/styles";
 import React, { FC } from "react";
+import {ToolbarOffset} from "./components/ToolbarOffset";
+import Box from "@mui/material/Box";
+import {SubpageContextProvider} from "./context/Subpage";
 
 const theme = createTheme();
 
@@ -34,13 +35,18 @@ const App: FC = () => {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Container maxWidth="md" disableGutters>
-        <Stack spacing={3}>
-          <Header csrfToken={data?.csrfToken} signOutUrl={data?.signOutUrl} />
-          {body}
-          <Footer />
-        </Stack>
-      </Container>
+      <SubpageContextProvider>
+        <Header csrfToken={data?.csrfToken} signOutUrl={data?.signOutUrl} />
+        <ToolbarOffset />
+        <Box
+          sx={{overflow: 'hidden', height: 'calc(100vh - 120px)'}}
+        >
+          <Box sx={{overflow: 'auto', height: '100%', paddingTop: theme.spacing(5)}}>
+            {body}
+          </Box>
+        </Box>
+        <Footer />
+      </SubpageContextProvider>
     </ThemeProvider>
   );
 };
