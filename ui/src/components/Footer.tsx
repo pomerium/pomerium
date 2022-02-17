@@ -20,8 +20,8 @@ const Footer: FC = () => {
         sx={{
           fontSize: "0.85rem",
           padding: "16px",
-          paddingLeft: "40px",
-          paddingRight: "40px"
+          paddingLeft: "32px",
+          paddingRight: "32px"
         }}
       >
         <Box>
