@@ -110,6 +110,8 @@ message Route {
   optional string host_path_regex_rewrite_pattern = 52;
   optional string host_path_regex_rewrite_substitution = 53;
 
+  optional string idp_client_id = 55;
+  optional string idp_client_secret = 56;
 }
 
 message Policy {

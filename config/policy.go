@@ -13,6 +13,7 @@ import (
 	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -258,6 +259,8 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		KubernetesServiceAccountToken:    pb.GetKubernetesServiceAccountToken(),
 		SetResponseHeaders:               pb.GetSetResponseHeaders(),
 		EnableGoogleCloudServerlessAuthentication: pb.GetEnableGoogleCloudServerlessAuthentication(),
+		IDPClientID:     pb.GetIdpClientId(),
+		IDPClientSecret: pb.GetIdpClientSecret(),
 	}
 
 	if pb.Redirect.IsSet() {
@@ -373,6 +376,12 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		KubernetesServiceAccountToken:    p.KubernetesServiceAccountToken,
 		Policies:                         sps,
 		SetResponseHeaders:               p.SetResponseHeaders,
+	}
+	if p.IDPClientID != "" {
+		pb.IdpClientId = proto.String(p.IDPClientID)
+	}
+	if p.IDPClientSecret != "" {
+		pb.IdpClientSecret = proto.String(p.IDPClientSecret)
 	}
 	if p.Redirect != nil {
 		pb.Redirect = &configpb.RouteRedirect{
