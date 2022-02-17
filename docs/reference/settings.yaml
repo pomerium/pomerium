@@ -1622,6 +1622,19 @@ settings:
           or set it to unlimited (`0s`). If `idle_timeout` is specified, and `timeout` is not
           explicitly set, then `timeout` would be unlimited (`0s`). You still may specify maximum lifetime
           of the connection using `timeout` value (i.e. to 1 day).
+
+      - name: "Set Authorization Header"
+        keys: ["set_authorization_header"]
+        attributes: |
+          - `yaml`/`json` setting: `set_authorization_header`
+          - Type: `string` (`pass_through`, `access_token` or `id_token`)
+          - Optional
+          - Default: `pass_through`
+        doc: |
+          Set Authorization Header allows you to send a user's identity token through as a Bearer token in the Authorization header.
+
+          Use `access_token` to send the OAuth access token, `id_token` to send the OIDC id token, or `pass_through` (the default) to leave the Authorization header unchanged
+          when it's not used for Pomerium authentication.
       - name: "Set Request Headers"
         keys: ["set_request_headers"]
         attributes: |
