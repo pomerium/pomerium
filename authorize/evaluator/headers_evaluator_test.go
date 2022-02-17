@@ -106,4 +106,40 @@ func TestHeadersEvaluator(t *testing.T) {
 		assert.Equal(t, "u2", claims["sub"], "should set subject to user id")
 		assert.Equal(t, "u2", claims["user"], "should set user to user id")
 	})
+
+	t.Run("access token", func(t *testing.T) {
+		output, err := eval(t,
+			[]proto.Message{
+				&session.Session{Id: "s1", OauthToken: &session.OAuthToken{
+					AccessToken: "ACCESS_TOKEN",
+				}},
+			},
+			&HeadersRequest{
+				FromAudience:    "from.example.com",
+				ToAudience:      "to.example.com",
+				Session:         RequestSession{ID: "s1"},
+				PassAccessToken: true,
+			})
+		require.NoError(t, err)
+
+		assert.Equal(t, "Bearer ACCESS_TOKEN", output.Headers.Get("Authorization"))
+	})
+
+	t.Run("id token", func(t *testing.T) {
+		output, err := eval(t,
+			[]proto.Message{
+				&session.Session{Id: "s1", IdToken: &session.IDToken{
+					Raw: "ID_TOKEN",
+				}},
+			},
+			&HeadersRequest{
+				FromAudience: "from.example.com",
+				ToAudience:   "to.example.com",
+				Session:      RequestSession{ID: "s1"},
+				PassIDToken:  true,
+			})
+		require.NoError(t, err)
+
+		assert.Equal(t, "Bearer ID_TOKEN", output.Headers.Get("Authorization"))
+	})
 }
