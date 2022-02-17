@@ -1537,6 +1537,22 @@ settings:
           or set it to unlimited (`0s`). If `idle_timeout` is specified, and `timeout` is not
           explicitly set, then `timeout` would be unlimited (`0s`). You still may specify maximum lifetime
           of the connection using `timeout` value (i.e. to 1 day).
+      - name: "Identity Provider Client ID (per route)"
+        keys: ["routes.idp_client_id"]
+        attributes: |
+          - `yaml`/`json` setting: `idp_client_id`
+          - Type: `string`
+          - Optional
+        doc: |
+          When set, this overrides the value of [idp_client_id](#identity-provider-client-id) set globally for this route.
+      - name: "Identity Provider Client Secret (per route)"
+        keys: ["routes.idp_client_id"]
+        attributes: |
+          - `yaml`/`json` setting: `idp_client_secret`
+          - Type: `string`
+          - Optional
+        doc: |
+          When set, this overrides the value of [idp_client_secret](#identity-provider-client-secret) set globally for this route.
       - name: "Kubernetes Service Account Token"
         keys:
           [

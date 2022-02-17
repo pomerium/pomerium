@@ -1395,6 +1395,22 @@ explicitly set, then `timeout` would be unlimited (`0s`). You still may specify 
 of the connection using `timeout` value (i.e. to 1 day).
 
 
+### Identity Provider Client ID (per route)
+- `yaml`/`json` setting: `idp_client_id`
+- Type: `string`
+- Optional
+
+When set, this overrides the value of [idp_client_id](#identity-provider-client-id) set globally for this route.
+
+
+### Identity Provider Client Secret (per route)
+- `yaml`/`json` setting: `idp_client_secret`
+- Type: `string`
+- Optional
+
+When set, this overrides the value of [idp_client_secret](#identity-provider-client-secret) set globally for this route.
+
+
 ### Kubernetes Service Account Token
 - `yaml`/`json` setting: `kubernetes_service_account_token` / `kubernetes_service_account_token_file`
 - Type: `string` or relative file location containing a Kubernetes bearer token
