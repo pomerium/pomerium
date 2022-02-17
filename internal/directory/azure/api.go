@@ -37,7 +37,7 @@ func (obj apiUser) getEmail() string {
 	email := obj.UserPrincipalName
 	if idx := strings.Index(email, "#EXT"); idx > 0 {
 		email = email[:idx]
-		
+
 		// find the last _ and replace it with @
 		if idx := strings.LastIndex(email, "_"); idx > 0 {
 			email = email[:idx] + "@" + email[idx+1:]
