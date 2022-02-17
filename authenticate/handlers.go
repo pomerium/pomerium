@@ -271,9 +271,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 // SignOut signs the user out and attempts to revoke the user's identity session
 // Handles both GET and POST.
 func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
-	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignOut")
-	defer span.End()
-
+	// check for an HMAC'd URL. If none is found, show a confirmation page.
 	err := middleware.ValidateRequestURL(a.getExternalRequest(r), a.state.Load().sharedKey)
 	if err != nil {
 		authenticateURL, err := a.options.Load().GetAuthenticateURL()
@@ -286,6 +284,14 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 		}).ServeHTTP(w, r)
 		return nil
 	}
+
+	// otherwise actually do the sign out
+	return a.signOutRedirect(w, r)
+}
+
+func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) error {
+	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignOut")
+	defer span.End()
 
 	options := a.options.Load()
 

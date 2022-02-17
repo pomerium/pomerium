@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 
 	"github.com/go-jose/go-jose/v3"
-	"github.com/pomerium/webauthn"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -24,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/webauthnutil"
+	"github.com/pomerium/webauthn"
 )
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
