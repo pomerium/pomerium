@@ -81,7 +81,6 @@ export type WebAuthnRequestOptions = {
 
 type BasePageData = {
   csrfToken?: string;
-  signOutUrl?: string;
 };
 
 export type ErrorPageData = BasePageData & {
@@ -98,6 +97,11 @@ export type ErrorPageData = BasePageData & {
 
 export type DeviceEnrolledPageData = BasePageData & {
   page: "DeviceEnrolled";
+};
+
+export type SignOutConfirmPageData = BasePageData & {
+  page: "SignOutConfirm";
+  url: string;
 };
 
 export type UserInfoPageData = BasePageData & {
@@ -123,5 +127,6 @@ export type WebAuthnRegistrationPageData = BasePageData & {
 export type PageData =
   | ErrorPageData
   | DeviceEnrolledPageData
+  | SignOutConfirmPageData
   | UserInfoPageData
   | WebAuthnRegistrationPageData;

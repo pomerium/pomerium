@@ -2,6 +2,7 @@ import DeviceEnrolledPage from "./components/DeviceEnrolledPage";
 import ErrorPage from "./components/ErrorPage";
 import Footer from "./components/Footer";
 import Header from "./components/Header";
+import SignOutConfirmPage from "./components/SignOutConfirmPage";
 import UserInfoPage from "./components/UserInfoPage";
 import WebAuthnRegistrationPage from "./components/WebAuthnRegistrationPage";
 import { createTheme } from "./theme";
@@ -24,6 +25,9 @@ const App: FC = () => {
     case "Error":
       body = <ErrorPage data={data} />;
       break;
+    case "SignOutConfirm":
+      body = <SignOutConfirmPage data={data} />;
+      break;
     case "UserInfo":
       body = <UserInfoPage data={data} />;
       break;
@@ -36,7 +40,7 @@ const App: FC = () => {
       <CssBaseline />
       <Container maxWidth="md" disableGutters>
         <Stack spacing={3}>
-          <Header csrfToken={data?.csrfToken} signOutUrl={data?.signOutUrl} />
+          <Header />
           {body}
           <Footer />
         </Stack>

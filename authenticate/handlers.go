@@ -12,11 +12,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/pomerium/csrf"
 	"github.com/rs/cors"
 	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/authenticate/handlers"
 	"github.com/pomerium/pomerium/authenticate/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -55,8 +55,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 			csrf.Path("/"),
 			csrf.UnsafePaths(
 				[]string{
-					"/oauth2/callback",    // rfc6749#section-10.12 accepts GET
-					"/.pomerium/sign_out", // https://openid.net/specs/openid-connect-frontchannel-1_0.html
+					"/oauth2/callback", // rfc6749#section-10.12 accepts GET
 				}),
 			csrf.FormValueName("state"), // rfc6749#section-10.12
 			csrf.CookieName(csrfKey),
@@ -96,14 +95,10 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Use(a.VerifySession)
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
 	sr.Path("/sign_in").Handler(a.requireValidSignature(a.SignIn))
-	sr.Path("/sign_out").Handler(a.requireValidSignature(a.SignOut))
+	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
 	sr.Path("/webauthn").Handler(webauthn.New(a.getWebauthnState))
 	sr.Path("/device-enrolled").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		authenticateURL, err := a.options.Load().GetAuthenticateURL()
-		if err != nil {
-			return err
-		}
-		handlers.DeviceEnrolled(authenticateURL, a.state.Load().sharedKey).ServeHTTP(w, r)
+		handlers.DeviceEnrolled().ServeHTTP(w, r)
 		return nil
 	}))
 
@@ -278,6 +273,19 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignOut")
 	defer span.End()
+
+	err := middleware.ValidateRequestURL(a.getExternalRequest(r), a.state.Load().sharedKey)
+	if err != nil {
+		authenticateURL, err := a.options.Load().GetAuthenticateURL()
+		if err != nil {
+			return err
+		}
+
+		handlers.SignOutConfirm(handlers.SignOutConfirmData{
+			URL: urlutil.SignOutURL(r, authenticateURL, a.state.Load().sharedKey),
+		}).ServeHTTP(w, r)
+		return nil
+	}
 
 	options := a.options.Load()
 
@@ -553,7 +561,6 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		DirectoryUser:   pbDirectoryUser,
 		IsImpersonated:  isImpersonated,
 		Session:         pbSession,
-		SignOutURL:      urlutil.SignOutURL(r, authenticateURL, state.sharedKey),
 		User:            pbUser,
 		WebAuthnURL:     urlutil.WebAuthnURL(r, authenticateURL, state.sharedKey, r.URL.Query()),
 	}).ServeHTTP(w, r)

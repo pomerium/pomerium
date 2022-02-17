@@ -13,7 +13,6 @@ import (
 	"net/url"
 
 	"github.com/google/uuid"
-	"github.com/pomerium/webauthn"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -30,6 +29,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/webauthnutil"
 	"github.com/pomerium/pomerium/ui"
+	"github.com/pomerium/webauthn"
 )
 
 const maxAuthenticateResponses = 5
@@ -373,7 +373,6 @@ func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *Stat
 		"creationOptions": creationOptions,
 		"requestOptions":  requestOptions,
 		"selfUrl":         r.URL.String(),
-		"signOutUrl":      urlutil.SignOutURL(r, state.AuthenticateURL, state.SharedKey),
 	})
 }
 
