@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/base64"
+	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -27,6 +28,13 @@ fblo6RBxUQ==
 -----END CERTIFICATE-----
 `
 
+func getLocalCertPEM(s *httptest.Server) []byte {
+	return pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: s.Certificate().Raw,
+	})
+}
+
 func TestHTTPTransport(t *testing.T) {
 	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -35,7 +43,7 @@ func TestHTTPTransport(t *testing.T) {
 
 	src := NewStaticSource(&Config{
 		Options: &Options{
-			CA: base64.StdEncoding.EncodeToString([]byte(localCert)),
+			CA: base64.StdEncoding.EncodeToString(getLocalCertPEM(s)),
 		},
 	})
 	transport := NewHTTPTransport(src)
@@ -70,13 +78,13 @@ func TestPolicyHTTPTransport(t *testing.T) {
 	})
 	t.Run("ca", func(t *testing.T) {
 		_, err := get(&Options{
-			CA: base64.StdEncoding.EncodeToString([]byte(localCert)),
+			CA: base64.StdEncoding.EncodeToString(getLocalCertPEM(s)),
 		}, &Policy{})
 		assert.NoError(t, err)
 	})
 	t.Run("custom ca", func(t *testing.T) {
 		_, err := get(&Options{}, &Policy{
-			TLSCustomCA: base64.StdEncoding.EncodeToString([]byte(localCert)),
+			TLSCustomCA: base64.StdEncoding.EncodeToString(getLocalCertPEM(s)),
 		})
 		assert.NoError(t, err)
 	})
