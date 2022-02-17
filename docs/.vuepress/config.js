@@ -224,6 +224,7 @@ module.exports = {
             "cloud-run",
             "mtls",
             "code-server",
+            "admin-enroll-device",
             "enroll-device",
             "grafana",
             "gitlab",
