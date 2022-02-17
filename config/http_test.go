@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/base64"
+	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,23 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// this cert is the cert used by httptest when creating a TLS server
-var localCert = `
------BEGIN CERTIFICATE-----
-MIICEzCCAXygAwIBAgIQMIMChMLGrR+QvmQvpwAU6zANBgkqhkiG9w0BAQsFADAS
-MRAwDgYDVQQKEwdBY21lIENvMCAXDTcwMDEwMTAwMDAwMFoYDzIwODQwMTI5MTYw
-MDAwWjASMRAwDgYDVQQKEwdBY21lIENvMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCB
-iQKBgQDuLnQAI3mDgey3VBzWnB2L39JUU4txjeVE6myuDqkM/uGlfjb9SjY1bIw4
-iA5sBBZzHi3z0h1YV8QPuxEbi4nW91IJm2gsvvZhIrCHS3l6afab4pZBl2+XsDul
-rKBxKKtD1rGxlG4LjncdabFn9gvLZad2bSysqz/qTAUStTvqJQIDAQABo2gwZjAO
-BgNVHQ8BAf8EBAMCAqQwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDwYDVR0TAQH/BAUw
-AwEB/zAuBgNVHREEJzAlggtleGFtcGxlLmNvbYcEfwAAAYcQAAAAAAAAAAAAAAAA
-AAAAATANBgkqhkiG9w0BAQsFAAOBgQCEcetwO59EWk7WiJsG4x8SY+UIAA+flUI9
-tyC4lNhbcF2Idq9greZwbYCqTTTr2XiRNSMLCOjKyI7ukPoPjo16ocHj+P3vZGfs
-h1fIw3cSS2OolhloGw/XM6RWPWtPAlGykKLciQrBru5NAPvCMsb/I1DAceTiotQM
-fblo6RBxUQ==
------END CERTIFICATE-----
-`
+func getLocalCertPEM(s *httptest.Server) []byte {
+	return pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: s.Certificate().Raw,
+	})
+}
 
 func TestHTTPTransport(t *testing.T) {
 	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +25,7 @@ func TestHTTPTransport(t *testing.T) {
 
 	src := NewStaticSource(&Config{
 		Options: &Options{
-			CA: base64.StdEncoding.EncodeToString([]byte(localCert)),
+			CA: base64.StdEncoding.EncodeToString(getLocalCertPEM(s)),
 		},
 	})
 	transport := NewHTTPTransport(src)
@@ -70,13 +60,13 @@ func TestPolicyHTTPTransport(t *testing.T) {
 	})
 	t.Run("ca", func(t *testing.T) {
 		_, err := get(&Options{
-			CA: base64.StdEncoding.EncodeToString([]byte(localCert)),
+			CA: base64.StdEncoding.EncodeToString(getLocalCertPEM(s)),
 		}, &Policy{})
 		assert.NoError(t, err)
 	})
 	t.Run("custom ca", func(t *testing.T) {
 		_, err := get(&Options{}, &Policy{
-			TLSCustomCA: base64.StdEncoding.EncodeToString([]byte(localCert)),
+			TLSCustomCA: base64.StdEncoding.EncodeToString(getLocalCertPEM(s)),
 		})
 		assert.NoError(t, err)
 	})

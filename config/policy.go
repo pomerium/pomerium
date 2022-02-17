@@ -117,6 +117,10 @@ type Policy struct {
 	TLSDownstreamClientCA     string `mapstructure:"tls_downstream_client_ca" yaml:"tls_downstream_client_ca,omitempty"`
 	TLSDownstreamClientCAFile string `mapstructure:"tls_downstream_client_ca_file" yaml:"tls_downstream_client_ca_file,omitempty"`
 
+	// SetAuthorizationHeader sets the authorization request header based on the user's identity. Supported modes are
+	// `pass_through`, `access_token` and `id_token`.
+	SetAuthorizationHeader string `mapstructure:"set_authorization_header" yaml:"set_authorization_header,omitempty"`
+
 	// SetRequestHeaders adds a collection of headers to the upstream request
 	// in the form of key value pairs. Note bene, this will overwrite the
 	// value of any existing value of a given header key.
@@ -242,6 +246,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		TLSClientKeyFile:                 pb.GetTlsClientKeyFile(),
 		TLSDownstreamClientCA:            pb.GetTlsDownstreamClientCa(),
 		TLSDownstreamClientCAFile:        pb.GetTlsDownstreamClientCaFile(),
+		SetAuthorizationHeader:           pb.GetSetAuthorizationHeader().String(),
 		SetRequestHeaders:                pb.GetSetRequestHeaders(),
 		RemoveRequestHeaders:             pb.GetRemoveRequestHeaders(),
 		PreserveHostHeader:               pb.GetPreserveHostHeader(),
@@ -364,6 +369,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		RemoveRequestHeaders:             p.RemoveRequestHeaders,
 		PreserveHostHeader:               p.PreserveHostHeader,
 		PassIdentityHeaders:              p.PassIdentityHeaders,
+		SetAuthorizationHeader:           p.GetSetAuthorizationHeader(),
 		KubernetesServiceAccountToken:    p.KubernetesServiceAccountToken,
 		Policies:                         sps,
 		SetResponseHeaders:               p.SetResponseHeaders,
@@ -513,6 +519,10 @@ func (p *Policy) Validate() error {
 		p.compiledRegex, _ = regexp.Compile(rawRE)
 	}
 
+	if _, ok := configpb.Route_AuthorizationHeaderModeFromString(p.SetAuthorizationHeader); !ok && p.SetAuthorizationHeader != "" {
+		return fmt.Errorf("config: invalid policy set_authorization_header: %v", p.SetAuthorizationHeader)
+	}
+
 	return nil
 }
 
@@ -637,6 +647,12 @@ func (p *Policy) AllAllowedUsers() []string {
 		aus = append(aus, sp.AllowedUsers...)
 	}
 	return aus
+}
+
+// GetSetAuthorizationHeader gets the set authorization header mode.
+func (p *Policy) GetSetAuthorizationHeader() configpb.Route_AuthorizationHeaderMode {
+	mode, _ := configpb.Route_AuthorizationHeaderModeFromString(p.SetAuthorizationHeader)
+	return mode
 }
 
 // StringURL stores a URL as a string in json.

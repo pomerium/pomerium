@@ -8,6 +8,8 @@ package pomerium.headers
 #   session:
 #     id: string
 #   to_audience: string
+#   pass_access_token: boolean
+#   pass_id_token: boolean
 #
 # data:
 #   issuer: string
@@ -153,7 +155,7 @@ base_jwt_claims := [
 	["user", jwt_payload_user],
 	["email", jwt_payload_email],
 	["groups", jwt_payload_groups],
-	["sid", jwt_payload_sid]
+	["sid", jwt_payload_sid],
 ]
 
 additional_jwt_claims := [[k, v] |
@@ -208,12 +210,24 @@ google_cloud_serverless_headers = h {
 }
 
 routing_key_headers = h {
-    input.enable_routing_key
-    h := [
-        ["x-pomerium-routing-key", crypto.sha256(input.session.id)]
-    ]
+	input.enable_routing_key
+	h := [["x-pomerium-routing-key", crypto.sha256(input.session.id)]]
 } else = [] {
-    true
+	true
+}
+
+pass_access_token_headers = h {
+	input.pass_access_token
+	h := [["Authorization", concat(" ", ["Bearer", session.oauth_token.access_token])]]
+} else = [] {
+	true
+}
+
+pass_id_token_headers = h {
+	input.pass_id_token
+	h := [["Authorization", concat(" ", ["Bearer", session.id_token.raw])]]
+} else = [] {
+	true
 }
 
 identity_headers := {key: values |
@@ -226,16 +240,19 @@ identity_headers := {key: values |
 				[ck, cv] := jwt_claims[_]
 				ck == k
 			],
-			[""]
+			[""],
 		)[0]
+
 		header_value := get_header_string_value(raw_header_value)
 	]
 
 	h3 := kubernetes_headers
 	h4 := [[k, v] | v := google_cloud_serverless_headers[k]]
 	h5 := routing_key_headers
+	h6 := pass_access_token_headers
+	h7 := pass_id_token_headers
 
-	h := array.concat(array.concat(array.concat(array.concat(h1, h2), h3), h4), h5)
+	h := array.concat(array.concat(array.concat(array.concat(array.concat(array.concat(h1, h2), h3), h4), h5), h6), h7)
 
 	some i
 	[key, v1] := h[i]
