@@ -6,3 +6,4 @@ export const FooterLink = styled(Link)(({ theme }) => ({
   fontWeight: `bold`,
   color: theme.palette.text.secondary
 }));
+export default FooterLink;

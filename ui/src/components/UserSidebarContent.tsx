@@ -55,3 +55,4 @@ export const UserSidebarContent:FC = ():JSX.Element => {
     </List>
   );
 }
+export default UserSidebarContent;
