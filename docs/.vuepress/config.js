@@ -27,6 +27,7 @@ module.exports = {
       {
         hostname: "https://www.pomerium.com",
         outFile: "docs/sitemap.xml",
+        exclude: ['/docs/partials/'],
       },
     ],
     [
