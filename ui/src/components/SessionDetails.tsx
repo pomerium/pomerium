@@ -9,6 +9,7 @@ import TableContainer from "@mui/material/TableContainer";
 import TableRow from "@mui/material/TableRow";
 import React, { FC } from "react";
 import ClaimValue from "./ClaimValue";
+import {startCase} from "lodash";
 
 export type SessionDetailsProps = {
   session: Session;
@@ -39,7 +40,7 @@ export const SessionDetails: FC<SessionDetailsProps> = ({ session }) => {
               {Object.entries(session?.claims || {}).map(
                 ([key, values]) => (
                 <TableRow key={key}>
-                  <TableCell variant="head">{key}</TableCell>
+                  <TableCell variant="head">{startCase(key)}</TableCell>
                   <TableCell align="left">
                     {values?.map((v, i) => (
                       <React.Fragment key={`${v}`}>
