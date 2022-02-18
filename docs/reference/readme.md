@@ -1280,6 +1280,25 @@ Each route defines at minimum a `from` and `to` field, and a `policy` key defini
 <<< @/examples/config/route.example.yaml
 
 
+### Allow Any Authenticated User
+- `yaml`/`json` setting: `allow_any_authenticated_user`
+- Type: `bool`
+- Optional
+- Default: `false`
+
+**Use with caution:** This setting will allow all requests for any user which is able to authenticate with our given identity provider. For instance, if you are using a corporate GSuite account, an unrelated gmail user will be able to access the underlying upstream.
+
+Use of this setting means Pomerium **will not enforce centralized authorization policy** for this route. The upstream is responsible for handling any authorization.
+
+
+### Cluster Name
+- Config File Key: `name`
+- Type: `string`
+- Optional
+
+Runtime metrics for this policy would be available under `envoy_cluster_`*`name`* prefix.
+
+
 ### CORS Preflight
 - `yaml`/`json` setting: `cors_allow_preflight`
 - Type: `bool`
@@ -1318,6 +1337,80 @@ Only secure schemes (`https` and `tcp+https`) are supported.
 :::
 
 
+### Health Checks
+- Config File Key: `health_checks`
+- Type: `array of objects`
+- Optional
+
+When defined, will issue periodic health check requests to upstream servers. When health checks are defined, unhealthy upstream servers would not serve traffic.
+See also `outlier_detection` for automatic upstream server health detection.
+In presence of multiple upstream servers, it is recommended to set up either `health_checks` or `outlier_detection` or both.
+
+See [Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/health_checking) for a list of [supported parameters](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto#envoy-v3-api-msg-config-core-v3-healthcheck).
+
+Only one of `http_health_check`, `tcp_health_check`, or `grpc_health_check` may be configured per health_check object definition.
+
+- [TCP](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto#envoy-v3-api-msg-config-core-v3-healthcheck-tcphealthcheck)
+- [HTTP](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto#envoy-v3-api-msg-config-core-v3-healthcheck-httphealthcheck)
+- [GRPC](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto#envoy-v3-api-msg-config-core-v3-healthcheck-grpchealthcheck)
+
+See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.md#active-health-checks).
+
+
+### Host Rewrite
+- `yaml`/`json` settings: `host_rewrite`, `host_rewrite_header`, `host_path_regex_rewrite_pattern`, `host_path_regex_rewrite_substitution`
+- Type: `string`
+- Optional
+- Example: `host_rewrite: "example.com"`
+
+The `host` header can be preserved via the `preserve_host_header` setting or customized via three mutually exclusive options:
+
+1. `preserve_host_header` will, when enabled, this option will pass the host header from the incoming request to the proxied host, instead of the destination hostname. It's an optional parameter of type `bool` that defaults to `false`.
+
+    See [ProxyPreserveHost](http://httpd.apache.org/docs/2.0/mod/mod_proxy.html#proxypreservehost).
+2. `host_rewrite`, which will rewrite the host to a new literal value.
+3. `host_rewrite_header`, which will rewrite the host to match an incoming header value.
+4. `host_path_regex_rewrite_pattern` & `host_path_regex_rewrite_substitution`, which will rewrite the host according to a regex matching the path. For example with the following config:
+
+    ```yaml
+    host_path_regex_rewrite_pattern: "^/(.+)/.+$"
+    host_path_regex_rewrite_substitution: \1
+    ```
+
+    Would rewrite the host header to `example.com` given the path `/example.com/some/path`.
+
+The 2nd, 3rd and 4th options correspond to the Envoy route action host related options, which can be found [here](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto.html#config-route-v3-routeaction).
+
+
+### Idle Timeout
+- `yaml`/`json` setting: `idle_timeout`
+- Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
+- Optional
+- Default: `5m`
+
+If you are proxying long-lived requests that employ streaming calls such as websockets or gRPC,
+set this to either a maximum value there may be no data exchange over a connection (recommended),
+or set it to unlimited (`0s`). If `idle_timeout` is specified, and `timeout` is not
+explicitly set, then `timeout` would be unlimited (`0s`). You still may specify maximum lifetime
+of the connection using `timeout` value (i.e. to 1 day).
+
+
+### Identity Provider Client ID (per route)
+- `yaml`/`json` setting: `idp_client_id`
+- Type: `string`
+- Optional
+
+When set, this overrides the value of [idp_client_id](#identity-provider-client-id) set globally for this route.
+
+
+### Identity Provider Client Secret (per route)
+- `yaml`/`json` setting: `idp_client_secret`
+- Type: `string`
+- Optional
+
+When set, this overrides the value of [idp_client_secret](#identity-provider-client-secret) set globally for this route.
+
+
 ### Kubernetes Service Account Token
 - `yaml`/`json` setting: `kubernetes_service_account_token` / `kubernetes_service_account_token_file`
 - Type: `string` or relative file location containing a Kubernetes bearer token
@@ -1329,17 +1422,59 @@ Use this token to authenticate requests to a Kubernetes API server.
 Pomerium will [impersonate](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation) the Pomerium user's identity, and Kubernetes RBAC can be applied to IdP user and groups.
 
 
-### Signout Redirect URL
-- Environmental Variable: `SIGNOUT_REDIRECT_URL`
-- Config File Key: `signout_redirect_url`
-- Type: `URL`
-- Required
-- Example: `https://signout-redirect-url.corp.example.com`
+### Load Balancing Policy
+- Config File Key: `lb_policy`
+- Type: `enum`
+- Optional
 
-Signout redirect url is the url user will be redirected to after signing out.
+In presence of multiple upstreams, defines load balancing strategy between them.
 
-You can overwrite this behavior by passing the query param `pomerium_redirect_uri` or post value `pomerium_redirect_uri`
-to the `/.pomerium/signout/` endpoint.
+See [Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-enum-config-cluster-v3-cluster-lbpolicy) for more details.
+
+- [`ROUND_ROBIN`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#weighted-round-robin) (default)
+- [`LEAST_REQUEST`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#weighted-least-request) and may be further configured using [`least_request_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-msg-config-cluster-v3-cluster-leastrequestlbconfig)
+- [`RING_HASH`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#ring-hash) and may be further configured using [`ring_hash_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#config-cluster-v3-cluster-ringhashlbconfig) option
+- [`RANDOM`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#random)
+- [`MAGLEV`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#maglev) and may be further configured using [`maglev_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-msg-config-cluster-v3-cluster-maglevlbconfig) option
+
+Some policy types support additional [configuration](#load-balancing-policy-config).
+
+
+### Load Balancing Policy Config
+- Config File Key: `least_request_lb_config`, `ring_hash_lb_config`, `maglev_lb_config`
+- Type: `object`
+- Optional
+
+When [`lb_policy`](#load-balancing-policy) is configured, you may further customize policy settings for `LEAST_REQUEST`, `RING_HASH`, AND `MAGLEV` using one of the following options.
+
+- [`least_request_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-msg-config-cluster-v3-cluster-leastrequestlbconfig)
+- [`ring_hash_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#config-cluster-v3-cluster-ringhashlbconfig)
+- [`maglev_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-msg-config-cluster-v3-cluster-maglevlbconfig)
+
+See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.md#load-balancing-method)
+
+
+### Outlier Detection
+- `yaml`/`json` setting: `outlier_detection`
+- Type: `object`
+- Optional
+- Example: `{ "consecutive_5xx": 12 }`
+
+Outlier detection and ejection is the process of dynamically determining whether some number of hosts in an upstream cluster are performing unlike the others and removing them from the healthy load balancing set.
+
+See Envoy [documentation](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/outlier#arch-overview-outlier-detection) and [API](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/outlier_detection.proto#envoy-v3-api-msg-config-cluster-v3-outlierdetection) for more details.
+
+
+### Pass Identity Headers
+- `yaml`/`json` setting: `pass_identity_headers`
+- Type: `bool`
+- Optional
+- Default: `false`
+
+When enabled, this option will pass identity headers to upstream applications. These headers include:
+
+- X-Pomerium-Jwt-Assertion
+- X-Pomerium-Claim-*
 
 
 ### Path
@@ -1379,30 +1514,6 @@ prefix_rewrite: /
 A request to `https://from.example.com/admin` would be forwarded to `https://to.example.com/`.
 
 
-### Host Rewrite
-- `yaml`/`json` settings: `host_rewrite`, `host_rewrite_header`, `host_path_regex_rewrite_pattern`, `host_path_regex_rewrite_substitution`
-- Type: `string`
-- Optional
-- Example: `host_rewrite: "example.com"`
-
-The `host` header can be preserved via the `preserve_host_header` setting or customized via 3 mutually exclusive options:
-
-1. `preserve_host_header` when enabled, this option will pass the host header from the incoming request to the proxied host, instead of the destination hostname. It's an optional parameter of type `bool` that defaults to `false`.
-    See [ProxyPreserveHost](http://httpd.apache.org/docs/2.0/mod/mod_proxy.html#proxypreservehost).
-2. `host_rewrite` which will rewrite the host to a new literal value.
-3. `host_rewrite_header` which will rewrite the host to match an incoming header value.
-4. `host_path_regex_rewrite_pattern`, `host_path_regex_rewrite_substitution` which will rewrite the host according to a regex matching the path. For example with the following config:
-
-    ```yaml
-    host_path_regex_rewrite_pattern: "^/(.+)/.+$"
-    host_path_regex_rewrite_substitution: \1
-    ```
-
-    Would rewrite the host header to `example.com` given the path `/example.com/some/path`.
-
-The 2nd, 3rd and 4th options correspond to the envoy route action host related options, which can be found [here](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/route/v3/route_components.proto.html#config-route-v3-routeaction).
-
-
 ### Public Access
 - `yaml`/`json` setting: `allow_public_unauthenticated_access`
 - Type: `bool`
@@ -1414,15 +1525,25 @@ The 2nd, 3rd and 4th options correspond to the envoy route action host related o
 If this setting is enabled, no whitelists (e.g. Allowed Users) should be provided in this route.
 
 
-### Allow Any Authenticated User
-- `yaml`/`json` setting: `allow_any_authenticated_user`
-- Type: `bool`
+### Redirect
+- `yaml`/`json` setting: 'redirect'
+- Type: object
 - Optional
-- Default: `false`
+- Example: `{ "host_redirect": "example.com" }`
 
-**Use with caution:** This setting will allow all requests for any user which is able to authenticate with our given identity provider. For instance, if you are using a corporate GSuite account, an unrelated gmail user will be able to access the underlying upstream.
+`Redirect` is used to redirect incoming requests to a new URL. The `redirect` field is an object with several possible
+options:
 
-Use of this setting means Pomerium **will not enforce centralized authorization policy** for this route. The upstream is responsible for handling any authorization.
+- `https_redirect` (boolean): the incoming scheme will be swapped with "https".
+- `scheme_redirect` (string): the incoming scheme will be swapped with the given value.
+- `host_redirect` (string): the incoming host will be swapped with the given value.
+- `port_redirect` (integer): the incoming port will be swapped with the given value.
+- `path_redirect` (string): the incoming path portion of the URL will be swapped with the given value.
+- `prefix_rewrite` (string): the incoming matched prefix will be swapped with the given value.
+- `response_code` (integer): the response code to use for the redirect. Defaults to 301.
+- `strip_query` (boolean): indicates that during redirection, the query portion of the URL will be removed. Defaults to false.
+
+Either `redirect` or `to` must be set.
 
 
 ### Regex
@@ -1443,15 +1564,49 @@ If set, the route will only match incoming requests with a path that matches the
 If set, the URL path will be rewritten according to the pattern and substitution, similar to `prefix_rewrite`.
 
 
-### Outlier Detection
-- `yaml`/`json` setting: `outlier_detection`
+### Remove Request Headers
+- Config File Key: `remove_request_headers`
+- Type: array of `strings`
+- Optional
+
+Remove Request Headers allows you to remove given request headers. This can be useful if you want to prevent privacy information from being passed to downstream applications. For example:
+
+```yaml
+- from: https://verify.corp.example.com
+  to: https://verify.pomerium.com
+  policy:
+    - allow:
+        or:
+          - email:
+              is: user@example.com
+  remove_request_headers:
+    - X-Email
+    - X-Username
+```
+
+
+### Rewrite Response Headers
+- Config File Key: `rewrite_response_headers`
 - Type: `object`
 - Optional
-- Example: `{ "consecutive_5xx": 12 }`
+- Example: `[{ "header": "Location", "prefix": "http://localhost:8000/two/", "value": "http://frontend/one/" }]`
 
-Outlier detection and ejection is the process of dynamically determining whether some number of hosts in an upstream cluster are performing unlike the others and removing them from the healthy load balancing set.
+Rewrite Response Headers allows you to modify response headers before they are returned to the client. The `header` field will match the HTTP header name, and `prefix` will be replaced with `value`. For example, if the downstream server returns a header:
 
-See Envoy [documentation](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/outlier#arch-overview-outlier-detection) and [API](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/outlier_detection.proto#envoy-v3-api-msg-config-cluster-v3-outlierdetection) for more details.
+```text
+Location: http://localhost:8000/two/some/path/
+```
+
+And the policy has this config:
+
+```yaml
+rewrite_response_headers:
+  - header: Location
+    prefix: http://localhost:8000/two/
+    value: http://frontend/one/
+```
+
+The browser would be redirected to: `http://frontend/one/some/path/`. This is similar to nginx's [`proxy_redirect` option](http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_redirect), but can be used for any header.
 
 
 ### Route Timeout
@@ -1461,19 +1616,6 @@ See Envoy [documentation](https://www.envoyproxy.io/docs/envoy/latest/intro/arch
 - Default: `30s`
 
 Policy timeout establishes the per-route timeout value. Cannot exceed global timeout values.
-
-
-### Idle Timeout
-- `yaml`/`json` setting: `idle_timeout`
-- Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
-- Optional
-- Default: `5m`
-
-If you are proxying long-lived requests that employ streaming calls such as websockets or gRPC,
-set this to either a maximum value there may be no data exchange over a connection (recommended),
-or set it to unlimited (`0s`). If `idle_timeout` is specified, and `timeout` is not
-explicitly set, then `timeout` would be unlimited (`0s`). You still may specify maximum lifetime
-of the connection using `timeout` value (i.e. to 1 day).
 
 
 ### Set Authorization Header
@@ -1486,6 +1628,14 @@ Set Authorization Header allows you to send a user's identity token through as a
 
 Use `access_token` to send the OAuth access token, `id_token` to send the OIDC id token, or `pass_through` (the default) to leave the Authorization header unchanged
 when it's not used for Pomerium authentication.
+
+
+### Set Response Headers
+- Config File Key: `set_response_headers`
+- Type: map of `strings` key value pairs
+- Optional
+
+Set Response Headers allows you to set static values for the given response headers. These headers will take precedence over the global `set_response_headers`.
 
 
 ### Set Request Headers
@@ -1516,78 +1666,64 @@ Neither `:-prefixed` pseudo-headers nor the `Host:` header may be modified via t
 :::
 
 
-### Remove Request Headers
-- Config File Key: `remove_request_headers`
-- Type: array of `strings`
+### Signout Redirect URL
+- Environmental Variable: `SIGNOUT_REDIRECT_URL`
+- Config File Key: `signout_redirect_url`
+- Type: `URL`
+- Required
+- Example: `https://signout-redirect-url.corp.example.com`
+
+Signout redirect url is the url user will be redirected to after signing out.
+
+You can overwrite this behavior by passing the query param `pomerium_redirect_uri` or post value `pomerium_redirect_uri`
+to the `/.pomerium/signout/` endpoint.
+
+
+### TLS Client Certificate
+- Config File Key: `tls_client_cert` and `tls_client_key` or `tls_client_cert_file` and `tls_client_key_file`
+- Type: [base64 encoded] `string` or relative file location
 - Optional
 
-Remove Request Headers allows you to remove given request headers. This can be useful if you want to prevent privacy information from being passed to downstream applications. For example:
+If specified, Pomerium will present this client certificate to upstream services when requested to enforce [mutual authentication](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS).
 
-```yaml
-- from: https://verify.corp.example.com
-  to: https://verify.pomerium.com
-  policy:
-    - allow:
-        or:
-          - email:
-              is: user@example.com
-  remove_request_headers:
-    - X-Email
-    - X-Username
-```
+For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/main/examples/mutual-tls) and the [Upstream mTLS With Pomerium](/guides/upstream-mtls.md) guide.
 
 
-### Set Response Headers
-- Config File Key: `set_response_headers`
-- Type: map of `strings` key value pairs
+### TLS Custom Certificate Authority
+- Config File Key: `tls_custom_ca` or `tls_custom_ca_file`
+- Type: [base64 encoded] `string` or relative file location
 - Optional
 
-Set Response Headers allows you to set static values for the given response headers. These headers will take precedence over the global `set_response_headers`.
+TLS Custom Certificate Authority defines a set of root certificate authorities that the Pomerium Proxy Service uses when verifying upstream server certificates.
+
+**Note**: This setting will replace (not append) the system's trust store for a given route.
 
 
-### Rewrite Response Headers
-- Config File Key: `rewrite_response_headers`
-- Type: `object`
+### TLS Downstream Client Certificate Authority
+- Config File Key: `tls_downstream_client_ca` or `tls_downstream_client_ca_file`
+- Type: [base64 encoded] `string` or relative file location
 - Optional
-- Example: `[{ "header": "Location", "prefix": "http://localhost:8000/two/", "value": "http://frontend/one/" }]`
 
-Rewrite Response Headers allows you to modify response headers before they are returned to the client. The `header` field will match the HTTP header name, and `prefix` will be replaced with `value`. For example, if the downstream server returns a header:
+If specified, downstream clients (eg a user's browser) will be required to provide a valid client TLS
+certificate. This overrides the global `client_ca` option for this route.
 
-```text
-Location: http://localhost:8000/two/some/path/
-```
-
-And the policy has this config:
-
-```yaml
-rewrite_response_headers:
-  - header: Location
-    prefix: http://localhost:8000/two/
-    value: http://frontend/one/
-```
-
-The browser would be redirected to: `http://frontend/one/some/path/`. This is similar to nginx's [`proxy_redirect` option](http://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_redirect), but can be used for any header.
+See [Client-Side mTLS With Pomerium](/guides/mtls.md) for more information.
 
 
-### Redirect
-- `yaml`/`json` setting: 'redirect'
-- Type: object
+### TLS Skip Verification
+- Config File Key: `tls_skip_verify`
+- Type: `bool`
+- Default: `false`
+
+TLS Skip Verification controls whether the Pomerium Proxy Service verifies the upstream server's certificate chain and host name. If enabled, Pomerium accepts any certificate presented by the upstream server and any host name in that certificate. In this mode, TLS is susceptible to man-in-the-middle attacks. This should be used only for testing.
+
+
+### TLS Server Name
+- Config File Key: `tls_server_name`
+- Type: `string`
 - Optional
-- Example: `{ "host_redirect": "example.com" }`
 
-`Redirect` is used to redirect incoming requests to a new URL. The `redirect` field is an object with several possible
-options:
-
-- `https_redirect` (boolean): the incoming scheme will be swapped with "https".
-- `scheme_redirect` (string): the incoming scheme will be swapped with the given value.
-- `host_redirect` (string): the incoming host will be swapped with the given value.
-- `port_redirect` (integer): the incoming port will be swapped with the given value.
-- `path_redirect` (string): the incoming path portion of the URL will be swapped with the given value.
-- `prefix_rewrite` (string): the incoming matched prefix will be swapped with the given value.
-- `response_code` (integer): the response code to use for the redirect. Defaults to 301.
-- `strip_query` (boolean): indicates that during redirection, the query portion of the URL will be removed. Defaults to false.
-
-Either `redirect` or `to` must be set.
+TLS Server Name overrides the hostname specified in the `to` field. If set, this server name will be used to verify the certificate name. This is useful when the backend of your service is an TLS server with a valid certificate, but mismatched name.
 
 
 ### To
@@ -1637,131 +1773,12 @@ Either `redirect` or `to` must be set.
 :::
 
 
-### TLS Skip Verification
-- Config File Key: `tls_skip_verify`
-- Type: `bool`
-- Default: `false`
-
-TLS Skip Verification controls whether the Pomerium Proxy Service verifies the upstream server's certificate chain and host name. If enabled, Pomerium accepts any certificate presented by the upstream server and any host name in that certificate. In this mode, TLS is susceptible to man-in-the-middle attacks. This should be used only for testing.
-
-
-### TLS Server Name
-- Config File Key: `tls_server_name`
-- Type: `string`
-- Optional
-
-TLS Server Name overrides the hostname specified in the `to` field. If set, this server name will be used to verify the certificate name. This is useful when the backend of your service is an TLS server with a valid certificate, but mismatched name.
-
-
-### TLS Custom Certificate Authority
-- Config File Key: `tls_custom_ca` or `tls_custom_ca_file`
-- Type: [base64 encoded] `string` or relative file location
-- Optional
-
-TLS Custom Certificate Authority defines a set of root certificate authorities that the Pomerium Proxy Service uses when verifying upstream server certificates.
-
-**Note**: This setting will replace (not append) the system's trust store for a given route.
-
-
-### TLS Downstream Client Certificate Authority
-- Config File Key: `tls_downstream_client_ca` or `tls_downstream_client_ca_file`
-- Type: [base64 encoded] `string` or relative file location
-- Optional
-
-If specified, downstream clients (eg a user's browser) will be required to provide a valid client TLS
-certificate. This overrides the global `client_ca` option for this route.
-
-See [Client-Side mTLS With Pomerium](/guides/mtls.md) for more information.
-
-
-### TLS Client Certificate
-- Config File Key: `tls_client_cert` and `tls_client_key` or `tls_client_cert_file` and `tls_client_key_file`
-- Type: [base64 encoded] `string` or relative file location
-- Optional
-
-If specified, Pomerium will present this client certificate to upstream services when requested to enforce [mutual authentication](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS).
-
-For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/main/examples/mutual-tls) and the [Upstream mTLS With Pomerium](/guides/upstream-mtls.md) guide.
-
-
-### Pass Identity Headers
-- `yaml`/`json` setting: `pass_identity_headers`
-- Type: `bool`
-- Optional
-- Default: `false`
-
-When enabled, this option will pass identity headers to upstream applications. These headers include:
-
-- X-Pomerium-Jwt-Assertion
-- X-Pomerium-Claim-*
-
-
 ### SPDY
 - Config File Key: `allow_spdy`
 - Type: `bool`
 - Default: `false`
 
 If set, enables proxying of SPDY protocol upgrades.
-
-
-### Cluster Name
-- Config File Key: `name`
-- Type: `string`
-- Optional
-
-Runtime metrics for this policy would be available under `envoy_cluster_`*`name`* prefix.
-
-
-### Load Balancing Policy
-- Config File Key: `lb_policy`
-- Type: `enum`
-- Optional
-
-In presence of multiple upstreams, defines load balancing strategy between them.
-
-See [Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-enum-config-cluster-v3-cluster-lbpolicy) for more details.
-
-- [`ROUND_ROBIN`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#weighted-round-robin) (default)
-- [`LEAST_REQUEST`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#weighted-least-request) and may be further configured using [`least_request_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-msg-config-cluster-v3-cluster-leastrequestlbconfig)
-- [`RING_HASH`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#ring-hash) and may be further configured using [`ring_hash_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#config-cluster-v3-cluster-ringhashlbconfig) option
-- [`RANDOM`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#random)
-- [`MAGLEV`](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#maglev) and may be further configured using [`maglev_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-msg-config-cluster-v3-cluster-maglevlbconfig) option
-
-Some policy types support additional [configuration](#load-balancing-policy-config).
-
-
-### Load Balancing Policy Config
-- Config File Key: `least_request_lb_config`, `ring_hash_lb_config`, `maglev_lb_config`
-- Type: `object`
-- Optional
-
-When [`lb_policy`](#load-balancing-policy) is configured, you may further customize policy settings for `LEAST_REQUEST`, `RING_HASH`, AND `MAGLEV` using one of the following options.
-
-- [`least_request_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-msg-config-cluster-v3-cluster-leastrequestlbconfig)
-- [`ring_hash_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#config-cluster-v3-cluster-ringhashlbconfig)
-- [`maglev_lb_config`](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto#envoy-v3-api-msg-config-cluster-v3-cluster-maglevlbconfig)
-
-See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.md#load-balancing-method)
-
-
-### Health Checks
-- Config File Key: `health_checks`
-- Type: `array of objects`
-- Optional
-
-When defined, will issue periodic health check requests to upstream servers. When health checks are defined, unhealthy upstream servers would not serve traffic.
-See also `outlier_detection` for automatic upstream server health detection.
-In presence of multiple upstream servers, it is recommended to set up either `health_checks` or `outlier_detection` or both.
-
-See [Envoy documentation](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/health_checking) for a list of [supported parameters](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto#envoy-v3-api-msg-config-core-v3-healthcheck).
-
-Only one of `http_health_check`, `tcp_health_check`, or `grpc_health_check` may be configured per health_check object definition.
-
-- [TCP](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto#envoy-v3-api-msg-config-core-v3-healthcheck-tcphealthcheck)
-- [HTTP](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto#envoy-v3-api-msg-config-core-v3-healthcheck-httphealthcheck)
-- [GRPC](https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/core/v3/health_check.proto#envoy-v3-api-msg-config-core-v3-healthcheck-grpchealthcheck)
-
-See [Load Balancing](/docs/topics/load-balancing) for example [configurations](/docs/topics/load-balancing.md#active-health-checks).
 
 
 ### Websocket Connections
