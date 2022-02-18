@@ -13,7 +13,7 @@ This article covers Pomerium built-in load balancing capabilities in presence of
 You may specify multiple servers for your upstream application, and Pomerium would load balance user requests between them.
 
 ```yaml
-policy:
+routes:
   - from: https://myapp.localhost.pomerium.io
     to:
       - http://myapp-srv-1:8080
@@ -34,7 +34,7 @@ See [Health Checking](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_ove
 ### HTTP Example
 
 ```yaml
-policy:
+routes:
   - from: https://myapp.localhost.pomerium.io
     to:
       - http://myapp-srv-1:8080
@@ -51,7 +51,7 @@ policy:
 ### TCP Example
 
 ```yaml
-policy:
+routes:
   - from: tcp+https://tcp-service.localhost.pomerium.io
     to:
       - tcp://tcp-1.local
@@ -74,7 +74,7 @@ Passive health check tries to deduce upstream server health based on recent obse
 See [Outlier Detection](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/outlier) for comprehensive overview.
 
 ```yaml
-policy:
+routes:
   - from: https://myapp.localhost.pomerium.io
     to:
       - http://myapp-srv-1:8080
@@ -95,7 +95,7 @@ policy:
 ### Example
 
 ```yaml
-policy:
+routes:
   - from: https://myapp.localhost.pomerium.io
     to:
       - http://myapp-srv-1:8080
@@ -117,7 +117,7 @@ When a list of upstream URLs is specified in the `to` field, you may append an o
 This configuration uses the default `round_robin` load balancer policy but specifies different frequency of selection be applied to the upstreams.
 
 ```yaml
-policy:
+routes:
   - from: https://myapp.localhost.pomerium.io
     to:
       - http://myapp-srv-1:8080,10

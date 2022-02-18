@@ -1,6 +1,5 @@
 # Main configuration flags : https://www.pomerium.com/docs/reference/
 
-
 pomerium_debug: true
 address: :80
 cookie_secret: YVFTMIfW8yBJw+a6sYwdW8rHbU+IAAV/SUkCTg9Jtpo=
@@ -14,10 +13,14 @@ insecure_server: true
 forward_auth_url: http://fwdauth.localhost.pomerium.io
 authenticate_service_url: https://authenticate.localhost.pomerium.io
 
-policy:
+routes:
   - from: https://verify.localhost.pomerium.io
     to: http://verify:8000
-    allowed_domains:
-      - pomerium.com
-      - gmail.com
+    policy:
+      - allow:
+          or:
+            - domain:
+                is: pomerium.com
+            - domain:
+                is: gmail.com
     pass_identity_headers: true
