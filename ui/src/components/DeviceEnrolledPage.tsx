@@ -8,7 +8,7 @@ type DeviceEnrolledPageProps = {
 };
 const DeviceEnrolledPage: FC<DeviceEnrolledPageProps> = () => {
   return (
-    <Container>
+    <Container maxWidth={false}>
       <HeroSection
         title="Device Enrolled"
         text="Device Successfully Enrolled"
