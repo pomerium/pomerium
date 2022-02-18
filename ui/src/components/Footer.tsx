@@ -16,12 +16,11 @@ const Footer: FC = () => {
     >
       <Stack
         direction="row"
-        spacing={2}
+        spacing={8}
+        justifyContent="center"
         sx={{
           fontSize: "0.85rem",
           padding: "16px",
-          paddingLeft: "32px",
-          paddingRight: "32px"
         }}
       >
         <Box>
@@ -40,27 +39,10 @@ const Footer: FC = () => {
         </Box>
         <Box>
           <FooterLink
-            href="https://pomerium.com/docs/community/"
+            href="https://discuss.pomerium.com"
           >
             Support
           </FooterLink>
-        </Box>
-        <Box>
-          <FooterLink
-            href="https://github.com/pomerium"
-          >
-            Github
-          </FooterLink>
-        </Box>
-        <Box>
-          <FooterLink
-            href="https://twitter.com/pomerium_io"
-          >
-            @pomerium_io
-          </FooterLink>
-        </Box>
-        <Box flexGrow={1} sx={{ textAlign: "right" }}>
-          © Pomerium, Inc.
         </Box>
       </Stack>
     </AppBar>

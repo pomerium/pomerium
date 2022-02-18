@@ -36,13 +36,17 @@ const App: FC = () => {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <SubpageContextProvider>
-        <Header csrfToken={data?.csrfToken} signOutUrl={data?.signOutUrl} />
+        <Header
+          includeSidebar={data?.page === "UserInfo"}
+          data={data}
+        />
         <ToolbarOffset />
         <Box
           sx={{overflow: 'hidden', height: 'calc(100vh - 120px)'}}
         >
           <Box sx={{overflow: 'auto', height: '100%', paddingTop: theme.spacing(5)}}>
             {body}
+            <ToolbarOffset />
           </Box>
         </Box>
         <Footer />

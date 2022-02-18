@@ -6,7 +6,7 @@ export interface SubpageContextValue {
 }
 
 export const SubpageContext = createContext<SubpageContextValue>({
-  subpage: "Welcome",
+  subpage: "User",
   setSubpage: (_: string) => {},
 });
 
@@ -17,7 +17,7 @@ export const SubpageContextProvider:FC = ({children}) => {
   }
 
   const initState = {
-    subpage: "Welcome",
+    subpage: "User",
     setSubpage
   }
 

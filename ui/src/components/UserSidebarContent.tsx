@@ -1,7 +1,7 @@
 import React, {FC, ReactNode, useContext} from "react";
 import {SubpageContext} from "../context/Subpage";
 import {List, ListItemButton, ListItemIcon, ListItemText} from "@mui/material";
-import {Activity, Gift, User, Users} from "react-feather";
+import {User, Users} from "react-feather";
 import {Devices} from "@mui/icons-material";
 
 export interface Subpage {
@@ -11,28 +11,22 @@ export interface Subpage {
 
 export const sectionList: Subpage[] = [
   {
-    title: 'Welcome',
-    icon: <Gift />
-  },
-  {
-    title: 'Session',
-    icon: <Activity />
-  },
-  {
-    title: 'Claims',
+    title: 'User',
     icon: <User />
   },
   {
-    title: 'Groups',
+    title: 'Groups Info',
     icon: <Users />
   },
   {
-    title: 'Devices',
+    title: 'Devices Info',
     icon: <Devices />
   },
 ]
-
-export const UserSidebarContent:FC = ():JSX.Element => {
+type UserSidebarContent = {
+  close: () => void | null;
+};
+export const UserSidebarContent:FC<UserSidebarContent> = ({close}:UserSidebarContent):JSX.Element => {
 
   const info = useContext(SubpageContext);
 
@@ -43,7 +37,10 @@ export const UserSidebarContent:FC = ():JSX.Element => {
           <ListItemButton
             key={'tab ' + title}
             selected={title === info.subpage}
-            onClick={() => info.setSubpage(title)}
+            onClick={() => {
+              info.setSubpage(title)
+              !!close && close();
+            }}
           >
             <ListItemIcon>
               {icon}
