@@ -104,7 +104,7 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
         {userName && (
           <>
             <IconButton color="inherit" onClick={handleMenuOpen}>
-              <Avatar name={userName} url={get(data, 'claims.picture', null)} />
+              <Avatar name={userName} url={get(data, 'user.claims.picture', null)} />
             </IconButton>
             <Menu
               onClose={handleMenuClose}
