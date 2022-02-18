@@ -1,3 +1,8 @@
+---
+sitemap:
+  exclude: true
+---
+
 In the event that you lose access to the console via delegated access (the policy defined in Pomerium), there exists a fallback procedure to regain access to the console via a generated recovery token.
 
 ![Pomerium Enterprise Recovery Sign In](./img/recovery-token.png)

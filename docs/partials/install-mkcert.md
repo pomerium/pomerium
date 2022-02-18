@@ -1,3 +1,8 @@
+---
+sitemap:
+  exclude: true
+---
+
 After [installing mkcert], confirm the presence and names of your local CA files:
 
 ```bash
