@@ -11,6 +11,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/ui"
+	"github.com/pomerium/webauthn"
 )
 
 // UserInfoData is the data for the UserInfo page.
@@ -22,7 +23,10 @@ type UserInfoData struct {
 	Session         *session.Session
 	SignOutURL      string
 	User            *user.User
-	WebAuthnURL     string
+
+	WebAuthnCreationOptions *webauthn.PublicKeyCredentialCreationOptions
+	WebAuthnRequestOptions  *webauthn.PublicKeyCredentialRequestOptions
+	WebAuthnURL             string
 }
 
 // ToJSON converts the data into a JSON map.
@@ -47,6 +51,8 @@ func (data UserInfoData) ToJSON() map[string]interface{} {
 	if bs, err := protojson.Marshal(data.User); err == nil {
 		m["user"] = json.RawMessage(bs)
 	}
+	m["webAuthnCreationOptions"] = data.WebAuthnCreationOptions
+	m["webAuthnRequestOptions"] = data.WebAuthnRequestOptions
 	m["webAuthnUrl"] = data.WebAuthnURL
 	return m
 }

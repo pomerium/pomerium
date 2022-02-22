@@ -13,7 +13,6 @@ import (
 	"net/url"
 
 	"github.com/google/uuid"
-	"github.com/pomerium/webauthn"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -30,6 +29,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/webauthnutil"
 	"github.com/pomerium/pomerium/ui"
+	"github.com/pomerium/webauthn"
 )
 
 const maxAuthenticateResponses = 5
@@ -72,9 +72,48 @@ func New(getState StateProvider) *Handler {
 	}
 }
 
+// GetOptions returns the creation and request options for WebAuthn.
+func (h *Handler) GetOptions(ctx context.Context) (
+	creationOptions *webauthn.PublicKeyCredentialCreationOptions,
+	requestOptions *webauthn.PublicKeyCredentialRequestOptions,
+	err error,
+) {
+	state, err := h.getState(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return h.getOptions(ctx, state, webauthnutil.DefaultDeviceType)
+}
+
 // ServeHTTP serves the HTTP handler.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	httputil.HandlerFunc(h.handle).ServeHTTP(w, r)
+}
+
+func (h *Handler) getOptions(ctx context.Context, state *State, deviceTypeParam string) (
+	creationOptions *webauthn.PublicKeyCredentialCreationOptions,
+	requestOptions *webauthn.PublicKeyCredentialRequestOptions,
+	err error,
+) {
+	// get the user information
+	u, err := user.Get(ctx, state.Client, state.Session.GetUserId())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// get the device credentials
+	knownDeviceCredentials, err := getKnownDeviceCredentials(ctx, state.Client, u.GetDeviceCredentialIds()...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// get the stored device type
+	deviceType := webauthnutil.GetDeviceType(ctx, state.Client, deviceTypeParam)
+
+	creationOptions = webauthnutil.GenerateCreationOptions(state.SharedKey, deviceType, u)
+	requestOptions = webauthnutil.GenerateRequestOptions(state.SharedKey, deviceType, knownDeviceCredentials)
+	return creationOptions, requestOptions, nil
 }
 
 func (h *Handler) handle(w http.ResponseWriter, r *http.Request) error {
@@ -351,23 +390,10 @@ func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *Stat
 		return errMissingDeviceType
 	}
 
-	// get the user information
-	u, err := user.Get(ctx, state.Client, state.Session.GetUserId())
+	creationOptions, requestOptions, err := h.getOptions(ctx, state, deviceTypeParam)
 	if err != nil {
 		return err
 	}
-
-	// get the device credentials
-	knownDeviceCredentials, err := getKnownDeviceCredentials(ctx, state.Client, u.GetDeviceCredentialIds()...)
-	if err != nil {
-		return err
-	}
-
-	// get the stored device type
-	deviceType := webauthnutil.GetDeviceType(ctx, state.Client, deviceTypeParam)
-
-	creationOptions := webauthnutil.GenerateCreationOptions(state.SharedKey, deviceType, u)
-	requestOptions := webauthnutil.GenerateRequestOptions(state.SharedKey, deviceType, knownDeviceCredentials)
 
 	return ui.ServePage(w, r, "WebAuthnRegistration", map[string]interface{}{
 		"creationOptions": creationOptions,

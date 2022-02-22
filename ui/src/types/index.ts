@@ -108,6 +108,8 @@ export type UserInfoPageData = BasePageData & {
   directoryUser?: DirectoryUser;
   session?: Session;
   user?: User;
+  webAuthnCreationOptions?: WebAuthnCreationOptions;
+  webAuthnRequestOptions?: WebAuthnRequestOptions;
   webAuthnUrl?: string;
 };
 

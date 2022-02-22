@@ -2,9 +2,9 @@ package webauthnutil
 
 import (
 	"github.com/google/uuid"
-	"github.com/pomerium/webauthn"
 
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/webauthn"
 )
 
 var pomeriumUserNamespace = uuid.MustParse("2929d3f7-f0b0-478f-9dd5-970d51eb3859")

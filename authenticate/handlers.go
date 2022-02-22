@@ -12,11 +12,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/pomerium/csrf"
 	"github.com/rs/cors"
 	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/authenticate/handlers"
 	"github.com/pomerium/pomerium/authenticate/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -97,7 +97,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
 	sr.Path("/sign_in").Handler(a.requireValidSignature(a.SignIn))
 	sr.Path("/sign_out").Handler(a.requireValidSignature(a.SignOut))
-	sr.Path("/webauthn").Handler(webauthn.New(a.getWebauthnState))
+	sr.Path("/webauthn").Handler(a.webauthn)
 	sr.Path("/device-enrolled").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		authenticateURL, err := a.options.Load().GetAuthenticateURL()
 		if err != nil {
@@ -547,6 +547,8 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		groups = append(groups, pbDirectoryGroup)
 	}
 
+	creationOptions, requestOptions, _ := a.webauthn.GetOptions(ctx)
+
 	handlers.UserInfo(handlers.UserInfoData{
 		CSRFToken:       csrf.Token(r),
 		DirectoryGroups: groups,
@@ -555,7 +557,10 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		Session:         pbSession,
 		SignOutURL:      urlutil.SignOutURL(r, authenticateURL, state.sharedKey),
 		User:            pbUser,
-		WebAuthnURL:     urlutil.WebAuthnURL(r, authenticateURL, state.sharedKey, r.URL.Query()),
+
+		WebAuthnCreationOptions: creationOptions,
+		WebAuthnRequestOptions:  requestOptions,
+		WebAuthnURL:             urlutil.WebAuthnURL(r, authenticateURL, state.sharedKey, r.URL.Query()),
 	}).ServeHTTP(w, r)
 	return nil
 }
