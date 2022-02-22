@@ -4,10 +4,12 @@ lang: en-US
 sidebarDepth: 0
 meta:
   - name: keywords
-    content: okta oidc, identity provider, idp
+    content: okta oidc, identity provider, idp, context, context-aware,
 ---
 
 # Okta
+
+Okta is a popular identity provider used by businesses of all sizes. Integrating Pomerium with Okta allows you to use the identity they provide to apply context-driven policies to your infrastructure.
 
 This page covers configuring Okta to communicate with Pomerium. It assumes you have already [installed Pomerium][pomerium-install] before you begin.
 
