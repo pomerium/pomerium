@@ -830,7 +830,7 @@ If you plan to write authorization policies using groups, or any other data that
 - Type: `string`
 - Required, depending on provider (Do not use with Google).
 
-Provider URL is the base path to an identity provider's [OpenID connect discovery document](https://openid.net/specs/openid-connect-discovery-1_0.html). For example, google's URL would be `https://accounts.google.com` for [their discover document](https://accounts.google.com/.well-known/openid-configuration).
+Provider URL is the base path to an identity provider's [OpenID connect discovery document](https://openid.net/specs/openid-connect-discovery-1_0.html). An example Azure URL would be `https://login.microsoftonline.com/common/v2.0` for [their discover document](https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration).
 
 "Base path" is defined as the section of the URL to the discovery document up to (but not including) `/.well-known/openid-configuration`.
 
@@ -1601,17 +1601,12 @@ The browser would be redirected to: `http://frontend/one/some/path/`. This is si
 Policy timeout establishes the per-route timeout value. Cannot exceed global timeout values.
 
 
-### Idle Timeout
-- `yaml`/`json` setting: `idle_timeout`
-- Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
-- Optional
-- Default: `5m`
+### SPDY
+- Config File Key: `allow_spdy`
+- Type: `bool`
+- Default: `false`
 
-If you are proxying long-lived requests that employ streaming calls such as websockets or gRPC,
-set this to either a maximum value there may be no data exchange over a connection (recommended),
-or set it to unlimited (`0s`). If `idle_timeout` is specified, and `timeout` is not
-explicitly set, then `timeout` would be unlimited (`0s`). You still may specify maximum lifetime
-of the connection using `timeout` value (i.e. to 1 day).
+If set, enables proxying of SPDY protocol upgrades.
 
 
 ### Set Request Headers
@@ -1747,73 +1742,6 @@ All requests to `https://verify.corp.example.com/*` will be forwarded to `https:
 Either `redirect` or `to` must be set.
 
 :::
-
-
-### TLS Skip Verification
-- Config File Key: `tls_skip_verify`
-- Type: `bool`
-- Default: `false`
-
-TLS Skip Verification controls whether the Pomerium Proxy Service verifies the upstream server's certificate chain and host name. If enabled, Pomerium accepts any certificate presented by the upstream server and any host name in that certificate. In this mode, TLS is susceptible to man-in-the-middle attacks. This should be used only for testing.
-
-
-### TLS Server Name
-- Config File Key: `tls_server_name`
-- Type: `string`
-- Optional
-
-TLS Server Name overrides the hostname specified in the `to` field. If set, this server name will be used to verify the certificate name. This is useful when the backend of your service is an TLS server with a valid certificate, but mismatched name.
-
-
-### TLS Custom Certificate Authority
-- Config File Key: `tls_custom_ca` or `tls_custom_ca_file`
-- Type: [base64 encoded] `string` or relative file location
-- Optional
-
-TLS Custom Certificate Authority defines a set of root certificate authorities that the Pomerium Proxy Service uses when verifying upstream server certificates.
-
-**Note**: This setting will replace (not append) the system's trust store for a given route.
-
-
-### TLS Downstream Client Certificate Authority
-- Config File Key: `tls_downstream_client_ca` or `tls_downstream_client_ca_file`
-- Type: [base64 encoded] `string` or relative file location
-- Optional
-
-If specified, downstream clients (eg a user's browser) will be required to provide a valid client TLS
-certificate. This overrides the global `client_ca` option for this route.
-
-See [Client-Side mTLS With Pomerium](/guides/mtls.md) for more information.
-
-
-### TLS Client Certificate
-- Config File Key: `tls_client_cert` and `tls_client_key` or `tls_client_cert_file` and `tls_client_key_file`
-- Type: [base64 encoded] `string` or relative file location
-- Optional
-
-If specified, Pomerium will present this client certificate to upstream services when requested to enforce [mutual authentication](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS).
-
-For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/master/examples/mutual-tls) and the [Upstream mTLS With Pomerium](/guides/upstream-mtls.md) guide.
-
-
-### Pass Identity Headers
-- `yaml`/`json` setting: `pass_identity_headers`
-- Type: `bool`
-- Optional
-- Default: `false`
-
-When enabled, this option will pass identity headers to upstream applications. These headers include:
-
-- X-Pomerium-Jwt-Assertion
-- X-Pomerium-Claim-*
-
-
-### SPDY
-- Config File Key: `allow_spdy`
-- Type: `bool`
-- Default: `false`
-
-If set, enables proxying of SPDY protocol upgrades.
 
 
 ### Websocket Connections

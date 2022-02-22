@@ -1748,19 +1748,14 @@ settings:
           - Default: `30s`
         doc: |
           Policy timeout establishes the per-route timeout value. Cannot exceed global timeout values.
-      - name: "Idle Timeout"
-        keys: ["idle_timeout"]
+      - name: "SPDY"
+        keys: ["allow_spdy"]
         attributes: |
-          - `yaml`/`json` setting: `idle_timeout`
-          - Type: [Go Duration](https://golang.org/pkg/time/#Duration.String) `string`
-          - Optional
-          - Default: `5m`
+          - Config File Key: `allow_spdy`
+          - Type: `bool`
+          - Default: `false`
         doc: |
-          If you are proxying long-lived requests that employ streaming calls such as websockets or gRPC,
-          set this to either a maximum value there may be no data exchange over a connection (recommended),
-          or set it to unlimited (`0s`). If `idle_timeout` is specified, and `timeout` is not
-          explicitly set, then `timeout` would be unlimited (`0s`). You still may specify maximum lifetime
-          of the connection using `timeout` value (i.e. to 1 day).
+          If set, enables proxying of SPDY protocol upgrades.
       - name: "Set Request Headers"
         keys: ["set_request_headers"]
         attributes: |
@@ -1902,79 +1897,6 @@ settings:
           Either `redirect` or `to` must be set.
 
           :::
-      - name: "TLS Skip Verification"
-        keys: ["tls_skip_verify"]
-        attributes: |
-          - Config File Key: `tls_skip_verify`
-          - Type: `bool`
-          - Default: `false`
-        doc: |
-          TLS Skip Verification controls whether the Pomerium Proxy Service verifies the upstream server's certificate chain and host name. If enabled, Pomerium accepts any certificate presented by the upstream server and any host name in that certificate. In this mode, TLS is susceptible to man-in-the-middle attacks. This should be used only for testing.
-      - name: "TLS Server Name"
-        keys: ["tls_server_name"]
-        attributes: |
-          - Config File Key: `tls_server_name`
-          - Type: `string`
-          - Optional
-        doc: |
-          TLS Server Name overrides the hostname specified in the `to` field. If set, this server name will be used to verify the certificate name. This is useful when the backend of your service is an TLS server with a valid certificate, but mismatched name.
-      - name: "TLS Custom Certificate Authority"
-        keys: ["tls_custom_ca", "tls_custom_ca_file"]
-        attributes: |
-          - Config File Key: `tls_custom_ca` or `tls_custom_ca_file`
-          - Type: [base64 encoded] `string` or relative file location
-          - Optional
-        doc: |
-          TLS Custom Certificate Authority defines a set of root certificate authorities that the Pomerium Proxy Service uses when verifying upstream server certificates.
-
-          **Note**: This setting will replace (not append) the system's trust store for a given route.
-      - name: "TLS Downstream Client Certificate Authority"
-        keys: ["tls_downstream_client_ca", "tls_downstream_client_ca_file"]
-        attributes: |
-          - Config File Key: `tls_downstream_client_ca` or `tls_downstream_client_ca_file`
-          - Type: [base64 encoded] `string` or relative file location
-          - Optional
-        doc: |
-          If specified, downstream clients (eg a user's browser) will be required to provide a valid client TLS
-          certificate. This overrides the global `client_ca` option for this route.
-
-          See [Client-Side mTLS With Pomerium](/guides/mtls.md) for more information.
-      - name: "TLS Client Certificate"
-        keys:
-          [
-            "tls_client_cert",
-            "tls_client_key",
-            "tls_client_cert_file",
-            "tls_client_key_file",
-          ]
-        attributes: |
-          - Config File Key: `tls_client_cert` and `tls_client_key` or `tls_client_cert_file` and `tls_client_key_file`
-          - Type: [base64 encoded] `string` or relative file location
-          - Optional
-        doc: |
-          If specified, Pomerium will present this client certificate to upstream services when requested to enforce [mutual authentication](https://en.wikipedia.org/wiki/Mutual_authentication) (mTLS).
-
-          For more details, see our [mTLS example repository](https://github.com/pomerium/pomerium/tree/master/examples/mutual-tls) and the [Upstream mTLS With Pomerium](/guides/upstream-mtls.md) guide.
-      - name: "Pass Identity Headers"
-        keys: ["pass_identity_headers"]
-        attributes: |
-          - `yaml`/`json` setting: `pass_identity_headers`
-          - Type: `bool`
-          - Optional
-          - Default: `false`
-        doc: |
-          When enabled, this option will pass identity headers to upstream applications. These headers include:
-
-          - X-Pomerium-Jwt-Assertion
-          - X-Pomerium-Claim-*
-      - name: "SPDY"
-        keys: ["allow_spdy"]
-        attributes: |
-          - Config File Key: `allow_spdy`
-          - Type: `bool`
-          - Default: `false`
-        doc: |
-          If set, enables proxying of SPDY protocol upgrades.
       - name: "Websocket Connections"
         keys: ["allow_websockets"]
         attributes: |
