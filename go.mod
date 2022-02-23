@@ -21,7 +21,7 @@ require (
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2
-	github.com/golangci/golangci-lint v1.44.0
+	github.com/golangci/golangci-lint v1.44.2
 	github.com/google/btree v1.0.1
 	github.com/google/go-cmp v0.5.7
 	github.com/google/go-jsonnet v0.18.0
@@ -63,11 +63,11 @@ require (
 	go.opencensus.io v0.23.0
 	go.uber.org/zap v1.21.0
 	golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce
-	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
+	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	google.golang.org/api v0.68.0
-	google.golang.org/genproto v0.0.0-20220204002441-d6cc3cc0770e
+	google.golang.org/api v0.69.0
+	google.golang.org/genproto v0.0.0-20220211171837-173942840c17
 	google.golang.org/grpc v1.44.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/auth0.v5 v5.21.1
@@ -98,10 +98,10 @@ require (
 	github.com/ashanbrown/makezero v1.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bkielbasa/cyclop v1.2.0 // indirect
-	github.com/blizzy78/varnamelen v0.5.0 // indirect
+	github.com/blizzy78/varnamelen v0.6.0 // indirect
 	github.com/bombsimon/wsl/v3 v3.3.0 // indirect
-	github.com/breml/bidichk v0.2.1 // indirect
-	github.com/breml/errchkjson v0.2.1 // indirect
+	github.com/breml/bidichk v0.2.2 // indirect
+	github.com/breml/errchkjson v0.2.3 // indirect
 	github.com/butuzov/ireturn v0.1.1 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
 	github.com/charithe/durationcheck v0.0.9 // indirect
@@ -109,7 +109,7 @@ require (
 	github.com/cncf/xds/go v0.0.0-20211130200136-a8f946100490 // indirect
 	github.com/containerd/containerd v1.5.5 // indirect
 	github.com/containerd/continuity v0.1.0 // indirect
-	github.com/daixiang0/gci v0.2.9 // indirect
+	github.com/daixiang0/gci v0.3.1-0.20220208004058-76d765e3ab48 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/denis-tingajkin/go-header v0.4.2 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
@@ -160,6 +160,7 @@ require (
 	github.com/gostaticanalysis/forcetypeassert v0.1.0 // indirect
 	github.com/gostaticanalysis/nilerr v0.1.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/hexops/gotextdiff v1.0.3 // indirect
 	github.com/iancoleman/strcase v0.2.0 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
@@ -171,11 +172,11 @@ require (
 	github.com/kisielk/gotool v1.0.0 // indirect
 	github.com/klauspost/compress v1.14.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
-	github.com/kulti/thelper v0.5.0 // indirect
+	github.com/kulti/thelper v0.5.1 // indirect
 	github.com/kunwardeep/paralleltest v1.0.3 // indirect
 	github.com/kyoh86/exportloopref v0.1.8 // indirect
 	github.com/ldez/gomoddirectives v0.2.2 // indirect
-	github.com/ldez/tagliatelle v0.3.0 // indirect
+	github.com/ldez/tagliatelle v0.3.1 // indirect
 	github.com/leonklingele/grouper v1.1.0 // indirect
 	github.com/libdns/libdns v0.2.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
@@ -189,7 +190,7 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/mbilski/exhaustivestruct v1.2.0 // indirect
 	github.com/mgechev/dots v0.0.0-20210922191527-e955255bf517 // indirect
-	github.com/mgechev/revive v1.1.3 // indirect
+	github.com/mgechev/revive v1.1.4 // indirect
 	github.com/miekg/dns v1.1.43 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
@@ -244,7 +245,7 @@ require (
 	github.com/tommy-muehle/go-mnd/v2 v2.5.0 // indirect
 	github.com/uber/jaeger-client-go v2.25.0+incompatible // indirect
 	github.com/ultraware/funlen v0.0.3 // indirect
-	github.com/ultraware/whitespace v0.0.4 // indirect
+	github.com/ultraware/whitespace v0.0.5 // indirect
 	github.com/uudashr/gocognit v1.0.5 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
@@ -259,9 +260,9 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.5.1 // indirect
-	golang.org/x/sys v0.0.0-20220204135822-1c1b9b1eba6a // indirect
+	golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/tools v0.1.9-0.20211228192929-ee1ca4ffc4da // indirect
+	golang.org/x/tools v0.1.9 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/DataDog/dd-trace-go.v1 v1.22.0 // indirect

@@ -86,7 +86,7 @@ services:
 
 As a final touch, now that we've done all this work we might as well use our new development environment to write some real, actual code. And what better project is there than Pomerium? 😉
 
-1. To build Pomerium, we must [install go](https://golang.org/doc/install) which is as simple as running the following commands in the [integrated terminal]:
+1. To build Pomerium, we must [install go](https://golang.org/doc/install) which is as simple as running the following commands in the [integrated terminal] :
 
     ```bash
     # install dependencies with apt
@@ -97,7 +97,7 @@ As a final touch, now that we've done all this work we might as well use our new
     sudo tar -C /usr/local -xzf go1.16.4.linux-amd64.tar.gz
     ```
 
-1. Add Go to our [PATH]:
+1. Add Go to our [PATH] :
 
     ```bash
     # add the following to $HOME/.bashrc

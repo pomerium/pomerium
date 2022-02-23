@@ -6,13 +6,15 @@ import Button from "@mui/material/Button";
 import Container from "@mui/material/Container";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
 import React, { FC, useRef, useState } from "react";
 import {
   WebAuthnCreationOptions,
   WebAuthnRegistrationPageData,
   WebAuthnRequestOptions
 } from "src/types";
+import JwtIcon from "./JwtIcon";
+import ClaimsTable from "./ClaimsTable";
+import Section from "./Section";
 
 type CredentialForAuthenticate = {
   id: string;
@@ -154,48 +156,39 @@ const WebAuthnRegistrationPage: FC<WebAuthnRegistrationPageProps> = ({
   }
 
   return (
-    <Container>
-      <Stack spacing={3}>
-        <HeroSection
-          title={
-            <>
-              WebAuthn Registration <ExperimentalIcon />
-            </>
-          }
+    <Section title="WebAuthn Registration" icon={<ExperimentalIcon />}>
+      <Paper sx={{ padding: "16px" }}>
+        <Stack direction="row" justifyContent="center" spacing={3}>
+          <Button onClick={handleClickRegister} variant="contained">
+            Register New Device
+          </Button>
+          <Button
+            onClick={handleClickAuthenticate}
+            variant="contained"
+            disabled={!enableAuthenticate}
+          >
+            Authenticate Existing Device
+          </Button>
+        </Stack>
+      </Paper>
+      <form ref={authenticateFormRef} method="post" action={data?.selfUrl}>
+        <input type="hidden" name="_pomerium_csrf" value={data?.csrfToken} />
+        <input type="hidden" name="action" value="authenticate" />
+        <input
+          type="hidden"
+          name="authenticate_response"
+          ref={authenticateResponseRef}
         />
-        <Paper sx={{ padding: "16px" }}>
-          <Stack direction="row" justifyContent="center" spacing={3}>
-            <Button onClick={handleClickRegister} variant="contained">
-              Register New Device
-            </Button>
-            <Button
-              onClick={handleClickAuthenticate}
-              variant="contained"
-              disabled={!enableAuthenticate}
-            >
-              Authenticate Existing Device
-            </Button>
-          </Stack>
-        </Paper>
-        <form ref={authenticateFormRef} method="post" action={data?.selfUrl}>
-          <input type="hidden" name="_pomerium_csrf" value={data?.csrfToken} />
-          <input type="hidden" name="action" value="authenticate" />
-          <input
-            type="hidden"
-            name="authenticate_response"
-            ref={authenticateResponseRef}
-          />
-        </form>
-        <form ref={registerFormRef} method="POST" action={data?.selfUrl}>
-          <input type="hidden" name="_pomerium_csrf" value={data?.csrfToken} />
-          <input type="hidden" name="action" value="register" />
-          <input
-            type="hidden"
-            name="register_response"
-            ref={registerResponseRef}
-          />
-        </form>
-      </Stack>
+      </form>
+      <form ref={registerFormRef} method="POST" action={data?.selfUrl}>
+        <input type="hidden" name="_pomerium_csrf" value={data?.csrfToken} />
+        <input type="hidden" name="action" value="register" />
+        <input
+          type="hidden"
+          name="register_response"
+          ref={registerResponseRef}
+        />
+      </form>
       <AlertDialog
         title="Error"
         severity="error"
@@ -204,7 +197,7 @@ const WebAuthnRegistrationPage: FC<WebAuthnRegistrationPageProps> = ({
       >
         {error}
       </AlertDialog>
-    </Container>
+    </Section>
   );
 };
 export default WebAuthnRegistrationPage;

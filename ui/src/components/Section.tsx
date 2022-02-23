@@ -21,10 +21,10 @@ export const Section: FC<SectionProps> = ({
     <Paper sx={{ overflow: "hidden" }}>
       <Stack>
         <Toolbar>
-          <Typography variant="h4" flexGrow={1}>
+          <Typography variant="h4">
             {title}
           </Typography>
-          {icon ? <Box>{icon}</Box> : <></>}
+          {!!icon && (<Box sx={{marginLeft: (theme) => theme.spacing(3)}}>{icon}</Box>)}
         </Toolbar>
         <Box sx={{ padding: 3, paddingTop: 0 }}>{children}</Box>
         {footer ? (

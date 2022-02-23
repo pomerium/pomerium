@@ -27,6 +27,10 @@ module.exports = {
       {
         hostname: "https://www.pomerium.com",
         outFile: "docs/sitemap.xml",
+        exclude: [
+          '/partials/generate-recovery-token.html',
+          '/partials/install-mkcert.html',
+        ],
       },
     ],
     [
@@ -224,6 +228,7 @@ module.exports = {
             "cloud-run",
             "mtls",
             "code-server",
+            "admin-enroll-device",
             "enroll-device",
             "grafana",
             "gitlab",

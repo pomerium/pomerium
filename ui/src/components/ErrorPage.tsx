@@ -14,7 +14,7 @@ export type ErrorPageProps = {
 };
 export const ErrorPage: FC<ErrorPageProps> = ({ data }) => {
   return (
-    <Container>
+    <Container maxWidth={false}>
       <Paper sx={{ overflow: "hidden" }}>
         <Stack>
           <Box sx={{ padding: "16px" }}>
