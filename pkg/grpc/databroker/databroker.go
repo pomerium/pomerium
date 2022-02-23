@@ -5,10 +5,47 @@ import (
 	"context"
 	"fmt"
 	"io"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 //go:generate go run github.com/golang/mock/mockgen -source=databroker.pb.go -destination ./mock_databroker/databroker.pb.go DataBrokerServiceClient
 //go:generate go run github.com/golang/mock/mockgen -source=leaser.go -destination ./mock_databroker/leaser.go LeaserHandler
+
+type recordObject interface {
+	proto.Message
+	GetId() string
+}
+
+// NewRecord creates a new Record.
+func NewRecord(object recordObject) *Record {
+	return &Record{
+		Type: grpcutil.GetTypeURL(object),
+		Id:   object.GetId(),
+		Data: protoutil.NewAny(object),
+	}
+}
+
+// Get gets a record from the databroker and unmarshals it into the object.
+func Get(ctx context.Context, client DataBrokerServiceClient, object recordObject) error {
+	res, err := client.Get(ctx, &GetRequest{
+		Type: grpcutil.GetTypeURL(object),
+		Id:   object.GetId(),
+	})
+	if err != nil {
+		return err
+	}
+
+	return res.GetRecord().GetData().UnmarshalTo(object)
+}
+
+// Put puts a record into the databroker.
+func Put(ctx context.Context, client DataBrokerServiceClient, object recordObject) (*PutResponse, error) {
+	return client.Put(ctx, &PutRequest{Record: NewRecord(object)})
+}
 
 // ApplyOffsetAndLimit applies the offset and limit to the list of records.
 func ApplyOffsetAndLimit(all []*Record, offset, limit int) (records []*Record, totalCount int) {

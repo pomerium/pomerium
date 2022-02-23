@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	envoy_service_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v3"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -43,7 +42,7 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogS
 			evt = evt.Str("forwarded-for", entry.GetRequest().GetForwardedFor())
 			evt = evt.Str("request-id", entry.GetRequest().GetRequestId())
 			// response properties
-			dur, _ := ptypes.Duration(entry.CommonProperties.TimeToLastDownstreamTxByte)
+			dur := entry.CommonProperties.TimeToLastDownstreamTxByte.AsDuration()
 			evt = evt.Dur("duration", dur)
 			evt = evt.Uint64("size", entry.Response.ResponseBodyBytes)
 			evt = evt.Uint32("response-code", entry.GetResponse().GetResponseCode().GetValue())

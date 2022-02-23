@@ -14,7 +14,6 @@ import (
 
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -23,6 +22,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/authenticate/handlers/webauthn"
 	"github.com/pomerium/pomerium/config"
@@ -158,20 +158,10 @@ func TestAuthenticate_SignIn(t *testing.T) {
 					encryptedEncoder: tt.encoder,
 					dataBrokerClient: mockDataBrokerServiceClient{
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
-							data, err := ptypes.MarshalAny(&session.Session{
-								Id: "SESSION_ID",
-							})
-							if err != nil {
-								return nil, err
-							}
-
 							return &databroker.GetResponse{
-								Record: &databroker.Record{
-									Version: 1,
-									Type:    data.GetTypeUrl(),
-									Id:      "SESSION_ID",
-									Data:    data,
-								},
+								Record: databroker.NewRecord(&session.Session{
+									Id: "SESSION_ID",
+								}),
 							}, nil
 						},
 					},
@@ -322,20 +312,10 @@ func TestAuthenticate_SignOut(t *testing.T) {
 					sharedEncoder:    mock.Encoder{},
 					dataBrokerClient: mockDataBrokerServiceClient{
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
-							data, err := ptypes.MarshalAny(&session.Session{
-								Id: "SESSION_ID",
-							})
-							if err != nil {
-								return nil, err
-							}
-
 							return &databroker.GetResponse{
-								Record: &databroker.Record{
-									Version: 1,
-									Type:    data.GetTypeUrl(),
-									Id:      "SESSION_ID",
-									Data:    data,
-								},
+								Record: databroker.NewRecord(&session.Session{
+									Id: "SESSION_ID",
+								}),
 							}, nil
 						},
 						put: func(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
@@ -583,20 +563,10 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 					sharedEncoder:    signer,
 					dataBrokerClient: mockDataBrokerServiceClient{
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
-							data, err := ptypes.MarshalAny(&session.Session{
-								Id: "SESSION_ID",
-							})
-							if err != nil {
-								return nil, err
-							}
-
 							return &databroker.GetResponse{
-								Record: &databroker.Record{
-									Version: 1,
-									Type:    data.GetTypeUrl(),
-									Id:      "SESSION_ID",
-									Data:    data,
-								},
+								Record: databroker.NewRecord(&session.Session{
+									Id: "SESSION_ID",
+								}),
 							}, nil
 						},
 					},
@@ -671,7 +641,6 @@ func TestAuthenticate_userInfo(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	pbNow, _ := ptypes.TimestampProto(now)
 	tests := []struct {
 		name         string
 		url          *url.URL
@@ -727,22 +696,12 @@ func TestAuthenticate_userInfo(t *testing.T) {
 					sharedEncoder:    signer,
 					dataBrokerClient: mockDataBrokerServiceClient{
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
-							data, err := ptypes.MarshalAny(&session.Session{
-								Id:      "SESSION_ID",
-								UserId:  "USER_ID",
-								IdToken: &session.IDToken{IssuedAt: pbNow},
-							})
-							if err != nil {
-								return nil, err
-							}
-
 							return &databroker.GetResponse{
-								Record: &databroker.Record{
-									Version: 1,
-									Type:    data.GetTypeUrl(),
+								Record: databroker.NewRecord(&session.Session{
 									Id:      "SESSION_ID",
-									Data:    data,
-								},
+									UserId:  "USER_ID",
+									IdToken: &session.IDToken{IssuedAt: timestamppb.New(now)},
+								}),
 							}, nil
 						},
 					},

@@ -18,7 +18,6 @@ import (
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/scylladb/go-set"
@@ -432,7 +431,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 
 	var maxStreamDuration *durationpb.Duration
 	if options.WriteTimeout > 0 {
-		maxStreamDuration = ptypes.DurationProto(options.WriteTimeout)
+		maxStreamDuration = durationpb.New(options.WriteTimeout)
 	}
 
 	rc, err := b.buildRouteConfiguration("main", virtualHosts)
@@ -452,10 +451,10 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		HttpFilters: filters,
 		AccessLog:   buildAccessLogs(options),
 		CommonHttpProtocolOptions: &envoy_config_core_v3.HttpProtocolOptions{
-			IdleTimeout:       ptypes.DurationProto(options.IdleTimeout),
+			IdleTimeout:       durationpb.New(options.IdleTimeout),
 			MaxStreamDuration: maxStreamDuration,
 		},
-		RequestTimeout: ptypes.DurationProto(options.ReadTimeout),
+		RequestTimeout: durationpb.New(options.ReadTimeout),
 		Tracing: &envoy_http_connection_manager.HttpConnectionManager_Tracing{
 			RandomSampling: &envoy_type_v3.Percent{Value: options.TracingSampleRate * 100},
 			Provider:       tracingProvider,

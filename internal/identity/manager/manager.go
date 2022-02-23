@@ -490,7 +490,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 			continue
 		}
 
-		record, err := user.Put(ctx, mgr.cfg.Load().dataBrokerClient, u.User)
+		res, err := databroker.Put(ctx, mgr.cfg.Load().dataBrokerClient, u.User)
 		if err != nil {
 			log.Error(ctx).Err(err).
 				Str("user_id", s.GetUserId()).
@@ -499,7 +499,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 			continue
 		}
 
-		mgr.onUpdateUser(ctx, record, u.User)
+		mgr.onUpdateUser(ctx, res.GetRecord(), u.User)
 	}
 }
 
