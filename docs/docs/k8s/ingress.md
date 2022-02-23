@@ -124,6 +124,18 @@ metadata:
 
 :::
 
+::: tip
+Routes are sorted and applied in the following order:
+
+- ascending by `from`,
+- descending by `path`,
+- descending by `regex`,
+- descending by `prefix`,
+- ascending by `id`.
+
+This sorting order helps ensure that more restrictive routes for specific paths and regexes are applied correctly.
+:::
+
 ### Supported Annotations
 
 Most configuration keys in non-Kubernetes deployments can be specified as annotation in an Ingress Resource definition. The format is `ingress.pomerium.io/${OPTION_NAME}`. The expandable list below contains the annotations available, which behave as described in our reference documentation (with links to the appropriate reference documentation).
