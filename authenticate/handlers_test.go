@@ -24,6 +24,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/pomerium/pomerium/authenticate/handlers/webauthn"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -748,6 +749,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 					directoryClient: new(mockDirectoryServiceClient),
 				}),
 			}
+			a.webauthn = webauthn.New(a.getWebauthnState)
 			r := httptest.NewRequest(tt.method, tt.url.String(), nil)
 			state, err := tt.sessionStore.LoadSession(r)
 			if err != nil {
