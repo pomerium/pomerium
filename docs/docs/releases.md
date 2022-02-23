@@ -68,21 +68,21 @@ Pomerium utilizes a [minimal](https://github.com/GoogleContainerTools/distroless
 
 - `:vX.Y.Z`: which will pull the a [specific tagged release](https://github.com/pomerium/pomerium/tags).
 
-  ```bash
-  $ docker run pomerium/pomerium:v0.1.0 --version
+  ```bash{1}
+  docker run pomerium/pomerium:v0.1.0 --version
   v0.1.0+53bfa4e
   ```
 
 - `:latest`: which will pull the [most recent tagged release](https://github.com/pomerium/pomerium/releases).
 
-  ```bash
-  $ docker pull pomerium/pomerium:latest && docker run pomerium/pomerium:latest --version
+  ```bash{1}
+  docker pull pomerium/pomerium:latest && docker run pomerium/pomerium:latest --version
   v0.2.0+87e214b
   ```
 
 - `:master` : which will pull an image in sync with git's [master](https://github.com/pomerium/pomerium/tree/master) branch.
 
-  ```bash
+  ```bash{1}
   docker pull pomerium/pomerium:master
   ```
 
