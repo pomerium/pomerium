@@ -21,7 +21,6 @@ type UserInfoData struct {
 	DirectoryUser   *directory.User
 	IsImpersonated  bool
 	Session         *session.Session
-	SignOutURL      string
 	User            *user.User
 
 	WebAuthnCreationOptions *webauthn.PublicKeyCredentialCreationOptions
@@ -47,7 +46,6 @@ func (data UserInfoData) ToJSON() map[string]interface{} {
 	if bs, err := protojson.Marshal(data.Session); err == nil {
 		m["session"] = json.RawMessage(bs)
 	}
-	m["signOutUrl"] = data.SignOutURL
 	if bs, err := protojson.Marshal(data.User); err == nil {
 		m["user"] = json.RawMessage(bs)
 	}
