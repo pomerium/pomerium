@@ -4,13 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/pomerium/webauthn"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/webauthn"
 )
 
 type mockDataBrokerServiceClient struct {

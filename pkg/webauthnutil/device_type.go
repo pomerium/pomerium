@@ -3,7 +3,6 @@ package webauthnutil
 import (
 	"context"
 
-	"github.com/pomerium/webauthn/cose"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -11,6 +10,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/device"
+	"github.com/pomerium/webauthn/cose"
 )
 
 // DefaultDeviceType is the default device type when none is specified.

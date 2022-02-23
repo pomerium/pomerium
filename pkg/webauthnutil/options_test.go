@@ -3,12 +3,12 @@ package webauthnutil
 import (
 	"testing"
 
-	"github.com/pomerium/webauthn"
-	"github.com/pomerium/webauthn/cose"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pomerium/pomerium/pkg/grpc/device"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/webauthn"
+	"github.com/pomerium/webauthn/cose"
 )
 
 func TestGenerateCreationOptions(t *testing.T) {
