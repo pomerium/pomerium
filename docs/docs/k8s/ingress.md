@@ -127,11 +127,11 @@ metadata:
 ::: tip
 Routes are sorted and applied in the following order:
 
-- ascending by `from`,
-- descending by `path`,
-- descending by `regex`,
-- descending by `prefix`,
-- ascending by `id`.
+1. ascending by `from`,
+1. descending by `path`,
+1. descending by `regex`,
+1. descending by `prefix`,
+1. ascending by `id`.
 
 This sorting order helps ensure that more restrictive routes for specific paths and regexes are applied correctly.
 :::
