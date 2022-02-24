@@ -125,13 +125,13 @@ metadata:
 :::
 
 ::: tip
-Routes are sorted and applied in the following order:
+Routes are sorted and applied in the following order.
 
-1. ascending by `from`,
-1. descending by `path`,
-1. descending by `regex`,
-1. descending by `prefix`,
-1. ascending by `id`.
+1. Ascending by `from`.
+1. Descending by `path`.
+1. Descending by `regex`.
+1. Descending by `prefix`.
+1. Ascending by `id`.
 
 This sorting order helps ensure that more restrictive routes for specific paths and regexes are applied correctly.
 :::
