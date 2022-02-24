@@ -321,7 +321,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request, state *
 
 	// save the user
 	u.DeviceCredentialIds = append(u.DeviceCredentialIds, deviceCredential.GetId())
-	_, err = user.Put(ctx, state.Client, u)
+	_, err = databroker.Put(ctx, state.Client, u)
 	if err != nil {
 		return err
 	}
@@ -370,7 +370,7 @@ func (h *Handler) handleUnregister(w http.ResponseWriter, r *http.Request, state
 
 	// remove the credential from the user
 	u.DeviceCredentialIds = removeString(u.DeviceCredentialIds, deviceCredentialID)
-	_, err = user.Put(ctx, state.Client, u)
+	_, err = databroker.Put(ctx, state.Client, u)
 	if err != nil {
 		return err
 	}

@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -18,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 const bufSize = 1024 * 1024
@@ -49,7 +49,7 @@ func TestServerSync(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 	c := databroker.NewDataBrokerServiceClient(conn)
-	any, _ := ptypes.MarshalAny(new(user.User))
+	any := protoutil.NewAny(new(user.User))
 	numRecords := 200
 
 	var serverVersion uint64
@@ -101,7 +101,7 @@ func BenchmarkSync(b *testing.B) {
 	}
 	defer conn.Close()
 	c := databroker.NewDataBrokerServiceClient(conn)
-	any, _ := ptypes.MarshalAny(new(session.Session))
+	any := protoutil.NewAny(new(session.Session))
 	numRecords := 10000
 
 	for i := 0; i < numRecords; i++ {

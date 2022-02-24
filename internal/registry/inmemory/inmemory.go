@@ -10,7 +10,6 @@ import (
 	"github.com/pomerium/pomerium/internal/signal"
 	pb "github.com/pomerium/pomerium/pkg/grpc/registry"
 
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -116,10 +115,7 @@ func (s *inMemoryServer) lockAndReport(services []*pb.Service) (bool, error) {
 
 // reportLocked updates registration and also returns an indication whether service list was updated
 func (s *inMemoryServer) reportLocked(services []*pb.Service) (bool, error) {
-	expires, err := ptypes.TimestampProto(time.Now().Add(s.ttl))
-	if err != nil {
-		return false, err
-	}
+	expires := timestamppb.New(time.Now().Add(s.ttl))
 
 	inserted := false
 	for _, svc := range services {

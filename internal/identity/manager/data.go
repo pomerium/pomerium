@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/btree"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -65,8 +65,8 @@ func (s Session) NextRefresh() time.Time {
 	var tm time.Time
 
 	if s.GetOauthToken().GetExpiresAt() != nil {
-		expiry, err := ptypes.Timestamp(s.GetOauthToken().GetExpiresAt())
-		if err == nil && !expiry.IsZero() {
+		expiry := s.GetOauthToken().GetExpiresAt().AsTime()
+		if s.GetOauthToken().GetExpiresAt().IsValid() && !expiry.IsZero() {
 			expiry = expiry.Add(-s.gracePeriod)
 			if tm.IsZero() || expiry.Before(tm) {
 				tm = expiry
@@ -75,8 +75,8 @@ func (s Session) NextRefresh() time.Time {
 	}
 
 	if s.GetExpiresAt() != nil {
-		expiry, err := ptypes.Timestamp(s.GetExpiresAt())
-		if err == nil && !expiry.IsZero() {
+		expiry := s.GetExpiresAt().AsTime()
+		if s.GetExpiresAt().IsValid() && !expiry.IsZero() {
 			if tm.IsZero() || expiry.Before(tm) {
 				tm = expiry
 			}
@@ -119,14 +119,14 @@ func (s *Session) UnmarshalJSON(data []byte) error {
 	if exp, ok := raw["exp"]; ok {
 		var secs int64
 		if err := json.Unmarshal(exp, &secs); err == nil {
-			s.Session.IdToken.ExpiresAt, _ = ptypes.TimestampProto(time.Unix(secs, 0))
+			s.Session.IdToken.ExpiresAt = timestamppb.New(time.Unix(secs, 0))
 		}
 		delete(raw, "exp")
 	}
 	if iat, ok := raw["iat"]; ok {
 		var secs int64
 		if err := json.Unmarshal(iat, &secs); err == nil {
-			s.Session.IdToken.IssuedAt, _ = ptypes.TimestampProto(time.Unix(secs, 0))
+			s.Session.IdToken.IssuedAt = timestamppb.New(time.Unix(secs, 0))
 		}
 		delete(raw, "iat")
 	}

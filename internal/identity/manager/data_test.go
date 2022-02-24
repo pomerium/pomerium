@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -41,21 +41,18 @@ func TestSession_NextRefresh(t *testing.T) {
 	assert.Equal(t, tm1.Add(time.Minute), s.NextRefresh())
 
 	tm2 := time.Date(2020, 6, 5, 13, 0, 0, 0, time.UTC)
-	pbtm2, _ := ptypes.TimestampProto(tm2)
 	s.OauthToken = &session.OAuthToken{
-		ExpiresAt: pbtm2,
+		ExpiresAt: timestamppb.New(tm2),
 	}
 	assert.Equal(t, tm2.Add(-time.Second*10), s.NextRefresh())
 
 	tm3 := time.Date(2020, 6, 5, 12, 15, 0, 0, time.UTC)
-	pbtm3, _ := ptypes.TimestampProto(tm3)
-	s.ExpiresAt = pbtm3
+	s.ExpiresAt = timestamppb.New(tm3)
 	assert.Equal(t, tm3, s.NextRefresh())
 }
 
 func TestSession_UnmarshalJSON(t *testing.T) {
 	tm := time.Date(2020, 6, 5, 12, 0, 0, 0, time.UTC)
-	pbtm, _ := ptypes.TimestampProto(tm)
 	var s Session
 	err := json.Unmarshal([]byte(`{
 		"iss": "https://some.issuer.com",
@@ -69,8 +66,8 @@ func TestSession_UnmarshalJSON(t *testing.T) {
 	assert.NotNil(t, s.Session.IdToken)
 	assert.Equal(t, "https://some.issuer.com", s.Session.IdToken.Issuer)
 	assert.Equal(t, "subject", s.Session.IdToken.Subject)
-	assert.Equal(t, pbtm, s.Session.IdToken.ExpiresAt)
-	assert.Equal(t, pbtm, s.Session.IdToken.IssuedAt)
+	assert.Equal(t, timestamppb.New(tm), s.Session.IdToken.ExpiresAt)
+	assert.Equal(t, timestamppb.New(tm), s.Session.IdToken.IssuedAt)
 	assert.Equal(t, map[string]*structpb.ListValue{
 		"some-other-claim": {Values: []*structpb.Value{protoutil.ToStruct("xyz")}},
 	}, s.Claims)

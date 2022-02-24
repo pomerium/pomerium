@@ -17,7 +17,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/csrf"
-
 	"github.com/pomerium/pomerium/authenticate/handlers"
 	"github.com/pomerium/pomerium/authenticate/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -30,6 +29,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -626,7 +626,7 @@ func (a *Authenticate) saveSessionToDataBroker(
 	if err != nil {
 		return fmt.Errorf("authenticate: error retrieving user info: %w", err)
 	}
-	_, err = user.Put(ctx, state.dataBrokerClient, managerUser.User)
+	_, err = databroker.Put(ctx, state.dataBrokerClient, managerUser.User)
 	if err != nil {
 		return fmt.Errorf("authenticate: error saving user: %w", err)
 	}
@@ -703,13 +703,11 @@ func (a *Authenticate) getCurrentSession(ctx context.Context) (s *session.Sessio
 
 func (a *Authenticate) getUser(ctx context.Context, userID string) (*user.User, error) {
 	client := a.state.Load().dataBrokerClient
-
 	return user.Get(ctx, client, userID)
 }
 
 func (a *Authenticate) getDirectoryUser(ctx context.Context, userID string) (*directory.User, error) {
 	client := a.state.Load().dataBrokerClient
-
 	return directory.GetUser(ctx, client, userID)
 }
 
