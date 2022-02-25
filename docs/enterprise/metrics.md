@@ -22,7 +22,7 @@ For production deployments, we suggest using a dedicated Prometheus instance.
 
    The example above has Pomerium providing metrics at port `9999` on an IP address reachable by the Pomerium Console service.
 
-   If you're running Pomerium Enterprise in a distributed environment where the IP address is not known at the time of deployment, you can use the locally resolvable domain name of the Pomerium host (`pomerium.local`, for example), or override this key with the environment variable `METRICS_ADDRESS`. We do not recommend using a FQDN as this endpoint can expose potentially sensitive information.
+   If you're running Pomerium Enterprise in a distributed environment where the IP address is not known at the time of deployment, you can use the resolvable FQDN of the Pomerium host (`pomerium0.internal.mycompany.com`, for example), or override this key with the environment variable `METRICS_ADDRESS`. We do not recommend exposing this endpoint to public traffic as it can contain potentially sensitive information.
 
 ## External Prometheus
 
