@@ -13,7 +13,7 @@ One of the core components of the zero trust security model is **device identity
 
 The history of IT security has, until recently, mostly focused on user identity verification. In this model, access to a service is granted only after verifying a user's identity and authorization to that service. This was usually sufficient in scenarios where the user's access was physically limited to trusted devices in trusted physical and network spaces; a PC sitting in an office in the company headquarters on a local network, for example.
 
-Hardware-backed device identity is becoming more widely discussed as more products begin to implement or require it across all tech industries. For example, Windows 11 generated a lot of news by [requiring TPM 2.0][win11-reqs], and Apple is taking steps to [eliminate passwords][apple-passkeys]:
+Hardware-backed device identity is becoming more widely discussed as more products begin to implement or require it across all tech industries. For example, Windows 11 generated a lot of news by [requiring TPM 2.0][win11-reqs], and Apple is taking steps to [eliminate passwords][apple-passkeys] :
 
 | ![Verge Article Header and Apple Video Page](./img/verge-apple.png) |
 |:--|
