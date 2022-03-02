@@ -115,6 +115,7 @@ export type UserInfoPageData = BasePageData & {
   webAuthnCreationOptions?: WebAuthnCreationOptions;
   webAuthnRequestOptions?: WebAuthnRequestOptions;
   webAuthnUrl?: string;
+  pomeriumVersion: string;
 };
 
 export type WebAuthnRegistrationPageData = BasePageData & {

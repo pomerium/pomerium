@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/pomerium/pomerium/internal/version"
 	"net/http"
 	"net/url"
 	"strings"
@@ -575,6 +576,7 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		WebAuthnCreationOptions: creationOptions,
 		WebAuthnRequestOptions:  requestOptions,
 		WebAuthnURL:             urlutil.WebAuthnURL(r, authenticateURL, state.sharedKey, r.URL.Query()),
+		PomeriumVersion:         version.FullVersion(),
 	}).ServeHTTP(w, r)
 	return nil
 }

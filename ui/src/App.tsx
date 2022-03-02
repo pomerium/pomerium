@@ -8,16 +8,18 @@ import UserInfoPage from "./components/UserInfoPage";
 import WebAuthnRegistrationPage from "./components/WebAuthnRegistrationPage";
 import { SubpageContextProvider } from "./context/Subpage";
 import { createTheme } from "./theme";
-import { PageData } from "./types";
+import {PageData, UserInfoPageData} from "./types";
 import Box from "@mui/material/Box";
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider } from "@mui/material/styles";
 import React, { FC } from "react";
+import {get} from "lodash";
 
 const theme = createTheme();
 
 const App: FC = () => {
   const data = (window["POMERIUM_DATA"] || {}) as PageData;
+  console.log(data);
   let body: React.ReactNode = <></>;
   switch (data?.page) {
     case "DeviceEnrolled":
@@ -54,7 +56,7 @@ const App: FC = () => {
             <ToolbarOffset />
           </Box>
         </Box>
-        <Footer />
+        <Footer pomeriumVersion={get(data, 'pomeriumVersion')} />
       </SubpageContextProvider>
     </ThemeProvider>
   );
