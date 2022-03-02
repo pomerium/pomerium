@@ -19,7 +19,6 @@ const theme = createTheme();
 
 const App: FC = () => {
   const data = (window["POMERIUM_DATA"] || {}) as PageData;
-  console.log(data);
   let body: React.ReactNode = <></>;
   switch (data?.page) {
     case "DeviceEnrolled":
