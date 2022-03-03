@@ -28,6 +28,7 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
@@ -575,6 +576,7 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		WebAuthnCreationOptions: creationOptions,
 		WebAuthnRequestOptions:  requestOptions,
 		WebAuthnURL:             urlutil.WebAuthnURL(r, authenticateURL, state.sharedKey, r.URL.Query()),
+		PomeriumVersion:         version.FullVersion(),
 	}).ServeHTTP(w, r)
 	return nil
 }

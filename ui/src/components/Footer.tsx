@@ -4,7 +4,11 @@ import React, { FC } from "react";
 import {FooterLink} from "./FooterLink";
 import AppBar from "@mui/material/AppBar";
 
-const Footer: FC = () => {
+type FooterData = {
+  pomeriumVersion?: string;
+}
+
+const Footer: FC<FooterData> = ({pomeriumVersion}) => {
   return (
     <AppBar
       position="fixed"
@@ -20,7 +24,10 @@ const Footer: FC = () => {
         justifyContent="center"
         sx={{
           fontSize: "0.85rem",
-          padding: "16px",
+          paddingLeft: "16px",
+          paddingRight: "16px",
+          paddingBottom: "8px",
+          paddingTop: "16px",
         }}
       >
         <Box>
@@ -45,6 +52,19 @@ const Footer: FC = () => {
           </FooterLink>
         </Box>
       </Stack>
+      {!!pomeriumVersion && (
+        <Stack
+          direction="row"
+          spacing={2}
+          justifyContent="center"
+          sx={{
+            paddingBottom: "6px",
+            fontSize: "0.85rem",
+          }}
+        >
+          <Box><b>Pomerium Version:</b> {pomeriumVersion}</Box>
+        </Stack>
+      )}
     </AppBar>
   );
 };
