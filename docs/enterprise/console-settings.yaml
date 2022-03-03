@@ -44,12 +44,14 @@ settings:
             settings:
               - name: "Name"
                 doc: This value is only visible in the Console UI.
+                more: '/enterprise/reference/manage.html#name'
               - name: "From"
               - name: "To"
               - name: "Redirect"
               - name: "Pass Identity Headers"
               - name: "Policies"
                 doc: Add or remove Policies to be applied to the Route. Note that Policies enforced in the Route's Namespace will be applied automatically.
+                more: '/enterprise/reference/manage.html#policies-2'
               - name: "Enable Google Cloud Serverless Authentication"
           - name: "Matchers"
             settings:
@@ -180,7 +182,7 @@ settings:
               Device enrollment let's you create [policies](/docs/topics/ppl.md#device-matcher) that use [device identity](/docs/topics/device-identity.md).
               - Users can [self-enroll](/guides/enroll-device.md) devices, which must then be approved in the **Devices List** for policies requiring approved devices.
               - Administrators can use the **New Enrollment** button to create a link for the user to enroll a device as pre-approved. See our [Pre-Approved Device Enrollment](/guides/admin-enroll-device.md) guide for more information.
-
+            more: '/enterprise/reference/manage.html#manage-devices'
           - name: "Devices List"
             doc: |
               Displays the currently enrolled devices for each user, along with their current approval status.
@@ -193,13 +195,17 @@ settings:
               This scheme is known as [Trust on First Use (TOFU)](https://en.wikipedia.org/wiki/Trust_on_first_use).
 
               ![Example device enrollment](./img/new-enrollment.png)
+            more: '/guides/admin-enroll-device.html'
             settings:
               - name: "Search Users"
                 doc: "New Enrollment URLs are only valid for the specified user."
+                more: '/guides/admin-enroll-device.html'
               - name: "Redirect URL"
                 doc: "**Optional**: The URL the user will be taken to after device enrollment is successful."
+                more: '/guides/admin-enroll-device.html'
               - name: "Enrollment Type"
                 doc: "Specify if the user can enroll any device identity, or restrict it to a [secure enclave](/docs/topics/device-identity.md#secure-enclaves)."
+                more: '/guides/admin-enroll-device.html'
   - name: "Configure"
     settings:
       - name: "Settings"
