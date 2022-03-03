@@ -114,6 +114,13 @@ func Warn(ctx context.Context) *zerolog.Event {
 	return contextLogger(ctx).Warn()
 }
 
+// Error starts a new message with error level.
+//
+// You must call Msg on the returned event in order to send the event.
+func Error(ctx context.Context) *zerolog.Event {
+	return contextLogger(ctx).Error()
+}
+
 func contextLogger(ctx context.Context) *zerolog.Logger {
 	global := Logger()
 	if global.GetLevel() == zerolog.Disabled {
@@ -131,13 +138,6 @@ func WithContext(ctx context.Context, update func(c zerolog.Context) zerolog.Con
 	l := contextLogger(ctx).With().Logger()
 	l.UpdateContext(update)
 	return l.WithContext(ctx)
-}
-
-// Error starts a new message with error level.
-//
-// You must call Msg on the returned event in order to send the event.
-func Error(ctx context.Context) *zerolog.Event {
-	return Logger().Error()
 }
 
 // Fatal starts a new message with fatal level. The os.Exit(1) function
