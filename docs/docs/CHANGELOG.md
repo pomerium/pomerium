@@ -1,5 +1,142 @@
 # Changelog
 
+## [v0.17.0](https://github.com/pomerium/pomerium/tree/v0.17.0) (2022-03-03)
+
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.16.4...v0.17.0)
+
+## New
+
+- adds pomerium version to the user info endpoint [\#3093](https://github.com/pomerium/pomerium/pull/3093) (@nhayfield)
+- grpc: remove ptypes references [\#3078](https://github.com/pomerium/pomerium/pull/3078) (@calebdoxsey)
+- userinfo: add webauthn buttons to user info page [\#3075](https://github.com/pomerium/pomerium/pull/3075) (@calebdoxsey)
+- Style update for User Info Endpoint [\#3055](https://github.com/pomerium/pomerium/pull/3055) (@nhayfield)
+- session: remove unused session state properties [\#3022](https://github.com/pomerium/pomerium/pull/3022) (@calebdoxsey)
+- frontend: react+mui [\#3004](https://github.com/pomerium/pomerium/pull/3004) (@calebdoxsey)
+- controlplane: add compression middleware [\#3000](https://github.com/pomerium/pomerium/pull/3000) (@calebdoxsey)
+- authenticate: fix expiring user info endpoint [\#2976](https://github.com/pomerium/pomerium/pull/2976) (@calebdoxsey)
+- last known metric error [\#2974](https://github.com/pomerium/pomerium/pull/2974) (@wasaga)
+- directory: save IDP errors to databroker, put event handling in dedicated package [\#2957](https://github.com/pomerium/pomerium/pull/2957) (@calebdoxsey)
+- google: support groups for users outside of the organization [\#2950](https://github.com/pomerium/pomerium/pull/2950) (@calebdoxsey)
+- return explicit error when directory sync is disabled [\#2949](https://github.com/pomerium/pomerium/pull/2949) (@wasaga)
+- authenticate: add device-enrolled page [\#2892](https://github.com/pomerium/pomerium/pull/2892) (@calebdoxsey)
+- remove deprecated ioutil usages [\#2877](https://github.com/pomerium/pomerium/pull/2877) (@cfanbo)
+
+## Fixed
+
+- fix link for picture in avatar [\#3066](https://github.com/pomerium/pomerium/pull/3066) (@nhayfield)
+- userinfo: fix logout button, add sign out confirm page [\#3058](https://github.com/pomerium/pomerium/pull/3058) (@calebdoxsey)
+- config: fix httptest local certificate [\#3056](https://github.com/pomerium/pomerium/pull/3056) (@calebdoxsey)
+- proxy: fix error page [\#3020](https://github.com/pomerium/pomerium/pull/3020) (@calebdoxsey)
+- auth0: support explicit domains in the service account [\#2980](https://github.com/pomerium/pomerium/pull/2980) (@calebdoxsey)
+- config: fix TLS config when address and grpc\_address are the same [\#2975](https://github.com/pomerium/pomerium/pull/2975) (@calebdoxsey)
+- deployment: enable goreleaser buildx [\#2968](https://github.com/pomerium/pomerium/pull/2968) (@travisgroth)
+- config: fix policy matching for regular expressions [\#2966](https://github.com/pomerium/pomerium/pull/2966) (@calebdoxsey)
+- devices: shrink credentials by removing unnecessary data [\#2951](https://github.com/pomerium/pomerium/pull/2951) (@calebdoxsey)
+- authenticate: support webauthn redirects to non-pomerium domains [\#2936](https://github.com/pomerium/pomerium/pull/2936) (@calebdoxsey)
+- webauthn: use absolute URL for delete redirect [\#2935](https://github.com/pomerium/pomerium/pull/2935) (@calebdoxsey)
+- authenticate: add callback endpoint [\#2931](https://github.com/pomerium/pomerium/pull/2931) (@calebdoxsey)
+- devices: treat undefined device types as any [\#2927](https://github.com/pomerium/pomerium/pull/2927) (@calebdoxsey)
+- deployment: fix distroless base arch [\#2925](https://github.com/pomerium/pomerium/pull/2925) (@travisgroth)
+- handle device states in deny block, fix default device type [\#2919](https://github.com/pomerium/pomerium/pull/2919) (@calebdoxsey)
+- envoy: check certificates for must-staple flag and drop them if they are missing the response [\#2917](https://github.com/pomerium/pomerium/pull/2917) (@backport-actions-token[bot])
+- envoy: check certificates for must-staple flag and drop them if they are missing the response [\#2909](https://github.com/pomerium/pomerium/pull/2909) (@calebdoxsey)
+- integration: fix default port for verify service [\#2895](https://github.com/pomerium/pomerium/pull/2895) (@calebdoxsey)
+
+## Dependency
+
+- chore\(deps\): bump actions/setup-node from 2 to 3 [\#3089](https://github.com/pomerium/pomerium/pull/3089) (@dependabot[bot])
+- chore\(deps\): bump actions/setup-python from 2 to 3 [\#3088](https://github.com/pomerium/pomerium/pull/3088) (@dependabot[bot])
+- chore\(deps\): bump mikefarah/yq from 4.20.2 to 4.21.1 [\#3087](https://github.com/pomerium/pomerium/pull/3087) (@dependabot[bot])
+- chore\(deps\): bump google.golang.org/api from 0.69.0 to 0.70.0 [\#3086](https://github.com/pomerium/pomerium/pull/3086) (@dependabot[bot])
+- chore\(deps\): bump url-parse from 1.5.7 to 1.5.10 [\#3085](https://github.com/pomerium/pomerium/pull/3085) (@dependabot[bot])
+- deps: bump envoy to v1.20.2 [\#3082](https://github.com/pomerium/pomerium/pull/3082) (@travisgroth)
+- chore\(deps\): bump mikefarah/yq from 4.20.1 to 4.20.2 [\#3072](https://github.com/pomerium/pomerium/pull/3072) (@dependabot[bot])
+- chore\(deps\): bump google.golang.org/api from 0.68.0 to 0.69.0 [\#3071](https://github.com/pomerium/pomerium/pull/3071) (@dependabot[bot])
+- chore\(deps\): bump github.com/golangci/golangci-lint from 1.44.0 to 1.44.2 [\#3070](https://github.com/pomerium/pomerium/pull/3070) (@dependabot[bot])
+- chore\(deps\): bump url-parse from 1.5.1 to 1.5.7 [\#3068](https://github.com/pomerium/pomerium/pull/3068) (@dependabot[bot])
+- chore\(deps\): bump github.com/gorilla/websocket from 1.4.2 to 1.5.0 [\#3052](https://github.com/pomerium/pomerium/pull/3052) (@dependabot[bot])
+- chore\(deps\): bump mikefarah/yq from 4.18.1 to 4.20.1 [\#3051](https://github.com/pomerium/pomerium/pull/3051) (@dependabot[bot])
+- chore\(deps\): bump follow-redirects from 1.14.7 to 1.14.8 [\#3043](https://github.com/pomerium/pomerium/pull/3043) (@dependabot[bot])
+- chore\(deps\): bump go.uber.org/zap from 1.20.0 to 1.21.0 [\#3041](https://github.com/pomerium/pomerium/pull/3041) (@dependabot[bot])
+- chore\(deps\): bump github.com/open-policy-agent/opa from 0.37.1 to 0.37.2 [\#3040](https://github.com/pomerium/pomerium/pull/3040) (@dependabot[bot])
+- chore\(deps\): bump google.golang.org/api from 0.66.0 to 0.68.0 [\#3033](https://github.com/pomerium/pomerium/pull/3033) (@dependabot[bot])
+- deps: increase yarn network timeout [\#3018](https://github.com/pomerium/pomerium/pull/3018) (@travisgroth)
+- chore\(deps\): bump github.com/caddyserver/certmagic from 0.15.2 to 0.15.3 [\#3014](https://github.com/pomerium/pomerium/pull/3014) (@dependabot[bot])
+- chore\(deps\): bump github.com/open-policy-agent/opa from 0.36.1 to 0.37.1 [\#3013](https://github.com/pomerium/pomerium/pull/3013) (@dependabot[bot])
+- chore\(deps\): bump github.com/shirou/gopsutil/v3 from 3.21.12 to 3.22.1 [\#3012](https://github.com/pomerium/pomerium/pull/3012) (@dependabot[bot])
+- chore\(deps\): bump github.com/mholt/acmez from 1.0.1 to 1.0.2 [\#3011](https://github.com/pomerium/pomerium/pull/3011) (@dependabot[bot])
+- chore\(deps\): bump mermaid from 8.12.1 to 8.13.10 [\#3010](https://github.com/pomerium/pomerium/pull/3010) (@dependabot[bot])
+- chore\(deps\): bump follow-redirects from 1.14.1 to 1.14.7 [\#3009](https://github.com/pomerium/pomerium/pull/3009) (@dependabot[bot])
+- chore\(deps\): bump prismjs from 1.24.1 to 1.26.0 [\#3008](https://github.com/pomerium/pomerium/pull/3008) (@dependabot[bot])
+- chore\(deps\): bump mikefarah/yq from 4.17.2 to 4.18.1 [\#2989](https://github.com/pomerium/pomerium/pull/2989) (@dependabot[bot])
+- chore\(deps\): bump google.golang.org/grpc from 1.43.0 to 1.44.0 [\#2988](https://github.com/pomerium/pomerium/pull/2988) (@dependabot[bot])
+- chore\(deps\): bump github.com/golangci/golangci-lint from 1.43.0 to 1.44.0 [\#2987](https://github.com/pomerium/pomerium/pull/2987) (@dependabot[bot])
+- chore\(deps\): bump google.golang.org/api from 0.65.0 to 0.66.0 [\#2986](https://github.com/pomerium/pomerium/pull/2986) (@dependabot[bot])
+- chore\(deps\): bump github.com/prometheus/client\_golang from 1.12.0 to 1.12.1 [\#2985](https://github.com/pomerium/pomerium/pull/2985) (@dependabot[bot])
+- chore\(deps\): bump mikefarah/yq from 4.16.2 to 4.17.2 [\#2963](https://github.com/pomerium/pomerium/pull/2963) (@dependabot[bot])
+- chore\(deps\): bump github.com/google/go-cmp from 0.5.6 to 0.5.7 [\#2962](https://github.com/pomerium/pomerium/pull/2962) (@dependabot[bot])
+- chore\(deps\): bump github.com/prometheus/client\_golang from 1.11.0 to 1.12.0 [\#2961](https://github.com/pomerium/pomerium/pull/2961) (@dependabot[bot])
+- chore\(deps\): bump github.com/openzipkin/zipkin-go from 0.3.0 to 0.4.0 [\#2942](https://github.com/pomerium/pomerium/pull/2942) (@dependabot[bot])
+- chore\(deps\): bump google.golang.org/api from 0.64.0 to 0.65.0 [\#2941](https://github.com/pomerium/pomerium/pull/2941) (@dependabot[bot])
+- chore\(deps\): bump github.com/envoyproxy/protoc-gen-validate from 0.6.2 to 0.6.3 [\#2940](https://github.com/pomerium/pomerium/pull/2940) (@dependabot[bot])
+- chore\(deps\): bump github.com/open-policy-agent/opa from 0.36.0 to 0.36.1 [\#2939](https://github.com/pomerium/pomerium/pull/2939) (@dependabot[bot])
+- chore\(deps\): bump google.golang.org/api from 0.63.0 to 0.64.0 [\#2913](https://github.com/pomerium/pomerium/pull/2913) (@dependabot[bot])
+- chore\(deps\): bump go.uber.org/zap from 1.19.1 to 1.20.0 [\#2912](https://github.com/pomerium/pomerium/pull/2912) (@dependabot[bot])
+- chore\(deps\): bump github.com/open-policy-agent/opa from 0.35.0 to 0.36.0 [\#2911](https://github.com/pomerium/pomerium/pull/2911) (@dependabot[bot])
+- chore\(deps\): bump github.com/go-chi/chi from 1.5.4 to 4.1.2+incompatible [\#2910](https://github.com/pomerium/pomerium/pull/2910) (@dependabot[bot])
+- envoy: upgrade to 1.20.1 [\#2902](https://github.com/pomerium/pomerium/pull/2902) (@calebdoxsey)
+- chore\(deps\): bump github.com/shirou/gopsutil/v3 from 3.21.11 to 3.21.12 [\#2886](https://github.com/pomerium/pomerium/pull/2886) (@dependabot[bot])
+- chore\(deps\): bump github.com/rs/cors from 1.8.0 to 1.8.2 [\#2855](https://github.com/pomerium/pomerium/pull/2855) (@dependabot[bot])
+- chore\(deps\): bump github.com/google/go-jsonnet from 0.17.0 to 0.18.0 [\#2854](https://github.com/pomerium/pomerium/pull/2854) (@dependabot[bot])
+- chore\(deps\): bump mikefarah/yq from 4.16.1 to 4.16.2 [\#2853](https://github.com/pomerium/pomerium/pull/2853) (@dependabot[bot])
+
+## Deployment
+
+- deployment: remove DST cert workaround from debug image [\#2958](https://github.com/pomerium/pomerium/pull/2958) (@travisgroth)
+- deployment: multi-arch master images [\#2896](https://github.com/pomerium/pomerium/pull/2896) (@travisgroth)
+
+## Changed
+
+- config: add idp\_client\_id and idp\_client\_secret to protobuf [\#3060](https://github.com/pomerium/pomerium/pull/3060) (@calebdoxsey)
+- fix: frontend html tag mismatch [\#2954](https://github.com/pomerium/pomerium/pull/2954) (@cfanbo)
+- Remove spurious \</ul\> tags [\#2946](https://github.com/pomerium/pomerium/pull/2946) (@sylr)
+- disable blank github issues [\#2898](https://github.com/pomerium/pomerium/pull/2898) (@travisgroth)
+
+## [v0.16.4](https://github.com/pomerium/pomerium/tree/v0.16.4) (2022-02-25)
+
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.16.3...v0.16.4)
+
+## Dependency
+
+- deps: update envoy to v1.19.3 [\#3083](https://github.com/pomerium/pomerium/pull/3083) (@travisgroth)
+
+## [v0.16.3](https://github.com/pomerium/pomerium/tree/v0.16.3) (2022-02-11)
+
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.16.2...v0.16.3)
+
+## Fixed
+
+- deployment: only include pomerium binary [\#3007](https://github.com/pomerium/pomerium/pull/3007) (@travisgroth)
+- auth0: support explicit domains in the service account [\#2996](https://github.com/pomerium/pomerium/pull/2996) (@backport-actions-token[bot])
+
+## [v0.16.2](https://github.com/pomerium/pomerium/tree/v0.16.2) (2022-01-25)
+
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.16.1...v0.16.2)
+
+## Fixed
+
+- config: fix policy matching for regular expressions [\#2969](https://github.com/pomerium/pomerium/pull/2969) (@backport-actions-token[bot])
+
+## [v0.16.1](https://github.com/pomerium/pomerium/tree/v0.16.1) (2022-01-19)
+
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.16.0...v0.16.1)
+
+## Fixed
+
+- webauthn: use absolute URL for delete redirect [\#2937](https://github.com/pomerium/pomerium/pull/2937) (@backport-actions-token[bot])
+- handle device states in deny block, fix default device type [\#2924](https://github.com/pomerium/pomerium/pull/2924) (@backport-actions-token[bot])
+- integration: fix default port for verify service [\#2908](https://github.com/pomerium/pomerium/pull/2908) (@backport-actions-token[bot])
+
 ## [v0.16.0](https://github.com/pomerium/pomerium/tree/v0.16.0) (2021-12-22)
 
 [Full Changelog](https://github.com/pomerium/pomerium/compare/v0.15.8...v0.16.0)
