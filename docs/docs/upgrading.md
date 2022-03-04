@@ -5,6 +5,24 @@ description: >-
   for Pomerium. Please read it carefully.
 ---
 
+# Since 0.16.0
+
+## New
+
+### Per Route OIDC Credentials
+
+This release of Pomerium adds the ability to bind a route to unique OIDC credentials.  This allows Identity Provider administrators to view Pomerium protected applications individually rather than as a single shared application.
+
+See [idp_client_id](/reference/readme.md#identity-provider-client-id-per-route) and [idp_client_secret](/reference/readme.md#identity-provider-client-secret-per-route) for configuration details.
+
+### Updated User Info Page
+
+The `.pomerium` user info page has been redesigned to better structure data around user identity, group, and device information.
+
+### External Google Groups
+
+Pomerium policy now supports group members from outside of your organization.
+
 # Since 0.15.0
 
 ## New
