@@ -1,6 +1,7 @@
 # Changelog
 
-## [v0.17.0](https://github.com/pomerium/pomerium/tree/v0.17.0) (2022-03-03)
+
+## [v0.17.0](https://github.com/pomerium/pomerium/tree/v0.17.0) (2022-03-04)
 
 [Full Changelog](https://github.com/pomerium/pomerium/compare/v0.16.4...v0.17.0)
 
@@ -31,14 +32,15 @@
 - config: fix TLS config when address and grpc\_address are the same [\#2975](https://github.com/pomerium/pomerium/pull/2975) (@calebdoxsey)
 - deployment: enable goreleaser buildx [\#2968](https://github.com/pomerium/pomerium/pull/2968) (@travisgroth)
 - config: fix policy matching for regular expressions [\#2966](https://github.com/pomerium/pomerium/pull/2966) (@calebdoxsey)
+- fix: frontend html tag mismatch [\#2954](https://github.com/pomerium/pomerium/pull/2954) (@cfanbo)
 - devices: shrink credentials by removing unnecessary data [\#2951](https://github.com/pomerium/pomerium/pull/2951) (@calebdoxsey)
+- Remove spurious \</ul\> tags [\#2946](https://github.com/pomerium/pomerium/pull/2946) (@sylr)
 - authenticate: support webauthn redirects to non-pomerium domains [\#2936](https://github.com/pomerium/pomerium/pull/2936) (@calebdoxsey)
 - webauthn: use absolute URL for delete redirect [\#2935](https://github.com/pomerium/pomerium/pull/2935) (@calebdoxsey)
 - authenticate: add callback endpoint [\#2931](https://github.com/pomerium/pomerium/pull/2931) (@calebdoxsey)
 - devices: treat undefined device types as any [\#2927](https://github.com/pomerium/pomerium/pull/2927) (@calebdoxsey)
 - deployment: fix distroless base arch [\#2925](https://github.com/pomerium/pomerium/pull/2925) (@travisgroth)
 - handle device states in deny block, fix default device type [\#2919](https://github.com/pomerium/pomerium/pull/2919) (@calebdoxsey)
-- envoy: check certificates for must-staple flag and drop them if they are missing the response [\#2917](https://github.com/pomerium/pomerium/pull/2917) (@backport-actions-token[bot])
 - envoy: check certificates for must-staple flag and drop them if they are missing the response [\#2909](https://github.com/pomerium/pomerium/pull/2909) (@calebdoxsey)
 - integration: fix default port for verify service [\#2895](https://github.com/pomerium/pomerium/pull/2895) (@calebdoxsey)
 
@@ -49,6 +51,7 @@
 - chore\(deps\): bump mikefarah/yq from 4.20.2 to 4.21.1 [\#3087](https://github.com/pomerium/pomerium/pull/3087) (@dependabot[bot])
 - chore\(deps\): bump google.golang.org/api from 0.69.0 to 0.70.0 [\#3086](https://github.com/pomerium/pomerium/pull/3086) (@dependabot[bot])
 - chore\(deps\): bump url-parse from 1.5.7 to 1.5.10 [\#3085](https://github.com/pomerium/pomerium/pull/3085) (@dependabot[bot])
+- chore\(deps\): bump prismjs from 1.26.0 to 1.27.0 [\#3084](https://github.com/pomerium/pomerium/pull/3084) (@dependabot[bot])
 - deps: bump envoy to v1.20.2 [\#3082](https://github.com/pomerium/pomerium/pull/3082) (@travisgroth)
 - chore\(deps\): bump mikefarah/yq from 4.20.1 to 4.20.2 [\#3072](https://github.com/pomerium/pomerium/pull/3072) (@dependabot[bot])
 - chore\(deps\): bump google.golang.org/api from 0.68.0 to 0.69.0 [\#3071](https://github.com/pomerium/pomerium/pull/3071) (@dependabot[bot])
@@ -98,8 +101,7 @@
 ## Changed
 
 - config: add idp\_client\_id and idp\_client\_secret to protobuf [\#3060](https://github.com/pomerium/pomerium/pull/3060) (@calebdoxsey)
-- fix: frontend html tag mismatch [\#2954](https://github.com/pomerium/pomerium/pull/2954) (@cfanbo)
-- Remove spurious \</ul\> tags [\#2946](https://github.com/pomerium/pomerium/pull/2946) (@sylr)
+- Extract email for active directory users that don't have access to exchange [\#3053](https://github.com/pomerium/pomerium/pull/3053) (@JBodkin-Amphora)
 - disable blank github issues [\#2898](https://github.com/pomerium/pomerium/pull/2898) (@travisgroth)
 
 ## [v0.16.4](https://github.com/pomerium/pomerium/tree/v0.16.4) (2022-02-25)
