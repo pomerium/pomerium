@@ -24,10 +24,13 @@
 
 ## Fixed
 
+- databroker: use contextual logging for errors, use original record type for encryption [\#3096](https://github.com/pomerium/pomerium/pull/3096) (@calebdoxsey)
 - fix link for picture in avatar [\#3066](https://github.com/pomerium/pomerium/pull/3066) (@nhayfield)
 - userinfo: fix logout button, add sign out confirm page [\#3058](https://github.com/pomerium/pomerium/pull/3058) (@calebdoxsey)
 - config: fix httptest local certificate [\#3056](https://github.com/pomerium/pomerium/pull/3056) (@calebdoxsey)
 - proxy: fix error page [\#3020](https://github.com/pomerium/pomerium/pull/3020) (@calebdoxsey)
+- deployment: only include pomerium binary [\#3007](https://github.com/pomerium/pomerium/pull/3007) (@travisgroth)
+- auth0: support explicit domains in the service account [\#2996](https://github.com/pomerium/pomerium/pull/2996) (@backport-actions-token[bot])
 - auth0: support explicit domains in the service account [\#2980](https://github.com/pomerium/pomerium/pull/2980) (@calebdoxsey)
 - config: fix TLS config when address and grpc\_address are the same [\#2975](https://github.com/pomerium/pomerium/pull/2975) (@calebdoxsey)
 - deployment: enable goreleaser buildx [\#2968](https://github.com/pomerium/pomerium/pull/2968) (@travisgroth)
