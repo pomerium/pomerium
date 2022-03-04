@@ -13,7 +13,7 @@ description: >-
 
 This release of Pomerium adds the ability to bind a route to unique OIDC credentials.  This allows Identity Provider administrators to view Pomerium protected applications individually rather than as a single shared application.
 
-See [idp_client_id](/docs/reference/#identity-provider-client-id-per-route) and [idp_client_secret](/docs/reference/#identity-provider-client-secret-per-route) for configuration details.
+See [idp_client_id](/reference/readme.md#identity-provider-client-id-per-route) and [idp_client_secret](/reference/readme.md#identity-provider-client-secret-per-route) for configuration details.
 
 ### Updated User Info Page
 
