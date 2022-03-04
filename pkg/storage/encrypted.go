@@ -146,7 +146,7 @@ func (e *encryptedBackend) decryptRecord(in *databroker.Record) (out *databroker
 	// Create a new record so that we don't re-use any internal state
 	return &databroker.Record{
 		Version:    in.Version,
-		Type:       data.TypeUrl,
+		Type:       in.Type,
 		Id:         in.Id,
 		Data:       data,
 		ModifiedAt: in.ModifiedAt,
