@@ -14,7 +14,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.1.0
 	github.com/docker/docker v20.10.12+incompatible
 	github.com/envoyproxy/go-control-plane v0.10.1
-	github.com/envoyproxy/protoc-gen-validate v0.6.3
+	github.com/envoyproxy/protoc-gen-validate v0.6.7
 	github.com/fsnotify/fsnotify v1.5.1
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-jose/go-jose/v3 v3.0.0
