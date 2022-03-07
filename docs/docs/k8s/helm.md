@@ -200,9 +200,9 @@ For development and testing, you can use `kubectl` to create a local proxy:
 sudo -E kubectl --namespace pomerium port-forward service/pomerium-proxy 443:443
 ```
 
-Open a browser and navigate to `hello.localhost.pomerium.com`.
+Open a browser and navigate to `hello.localhost.pomerium.io`.
 
-You can also navigate to the special pomerium endpoint `hello.localhost.pomerium.com/.pomerium/` to see your current user details.
+You can also navigate to the special pomerium endpoint `hello.localhost.pomerium.io/.pomerium/` to see your current user details.
 
 ![currently logged in user](./img/logged-in-as.png)
 
