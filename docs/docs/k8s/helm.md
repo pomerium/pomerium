@@ -71,6 +71,11 @@ If you haven't already, install cert-manager and create a CA issuer. You can fol
     cert-manager-cainjector-69d885bf55-6x5v2   1/1     Running   0          33s
     cert-manager-webhook-8d7495f4-s5s6p        1/1     Running   0          33s
     ```
+1. Create a namespace for pomerium:
+
+   ```bash
+   kubectl create namespace pomerium
+   ```
 
 1. In your Pomerium namespace, create a Kubernetes secret for the rootCA-key file in your local CA root:
 
