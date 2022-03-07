@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -43,6 +45,15 @@ func ToStruct(value interface{}) *structpb.Value {
 		return NewStructNumber(float64(v))
 	case uint64:
 		return NewStructNumber(float64(v))
+	}
+
+	if msg, ok := value.(proto.Message); ok {
+		bs, _ := protojson.Marshal(msg)
+		var s structpb.Struct
+		_ = protojson.Unmarshal(bs, &s)
+		return &structpb.Value{
+			Kind: &structpb.Value_StructValue{StructValue: &s},
+		}
 	}
 
 	rv := reflect.ValueOf(value)
