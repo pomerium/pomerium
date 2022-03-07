@@ -98,6 +98,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 				"X-Forwarded-Proto": "https",
 			},
 			certPEM,
+			"",
 		),
 	}
 	assert.Equal(t, expect, actual)
@@ -304,6 +305,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 				"X-Forwarded-Proto": "https",
 			},
 			certPEM,
+			"",
 		),
 	}
 	assert.Equal(t, expect, actual)
