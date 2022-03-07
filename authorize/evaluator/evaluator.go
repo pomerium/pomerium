@@ -40,16 +40,24 @@ type RequestHTTP struct {
 	URL               string            `json:"url"`
 	Headers           map[string]string `json:"headers"`
 	ClientCertificate string            `json:"client_certificate"`
+	IP                string            `json:"ip"`
 }
 
 // NewRequestHTTP creates a new RequestHTTP.
-func NewRequestHTTP(method string, requestURL url.URL, headers map[string]string, rawClientCertificate string) RequestHTTP {
+func NewRequestHTTP(
+	method string,
+	requestURL url.URL,
+	headers map[string]string,
+	rawClientCertificate string,
+	ip string,
+) RequestHTTP {
 	return RequestHTTP{
 		Method:            method,
 		Path:              requestURL.Path,
 		URL:               requestURL.String(),
 		Headers:           headers,
 		ClientCertificate: rawClientCertificate,
+		IP:                ip,
 	}
 }
 

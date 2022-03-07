@@ -133,6 +133,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 			requestURL,
 			getCheckRequestHeaders(in),
 			getPeerCertificate(in),
+			in.GetAttributes().GetSource().GetAddress().GetSocketAddress().GetAddress(),
 		),
 	}
 	if sessionState != nil {

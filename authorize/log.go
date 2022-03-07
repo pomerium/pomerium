@@ -35,6 +35,7 @@ func (a *Authorize) logAuthorizeCheck(
 	evt = evt.Str("path", stripQueryString(hattrs.GetPath()))
 	evt = evt.Str("host", hattrs.GetHost())
 	evt = evt.Str("query", hattrs.GetQuery())
+	evt = evt.Str("ip", in.GetAttributes().GetSource().GetAddress().GetSocketAddress().GetAddress())
 
 	// session information
 	if s, ok := s.(*session.Session); ok {

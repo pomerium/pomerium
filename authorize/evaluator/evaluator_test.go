@@ -481,6 +481,7 @@ func TestEvaluator(t *testing.T) {
 				*mustParseURL("https://from.example.com/"),
 				nil,
 				testValidCert,
+				"",
 			),
 		})
 		require.NoError(t, err)
@@ -494,6 +495,7 @@ func TestEvaluator(t *testing.T) {
 				*mustParseURL("https://from.example.com/test"),
 				nil,
 				testValidCert,
+				"",
 			),
 		})
 		require.NoError(t, err)
