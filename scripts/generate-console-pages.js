@@ -69,15 +69,14 @@ meta:
 
 The keys listed below can be applied in Pomerium Console's \`config.yaml\` file, or applied as environment variables (in uppercase, replacing \`-\` with \`_\`).
 
+| Name    | Description | Default Value |
+|:--------|:-------------|---------------|
 `;
   const keySection = (obj) => {
     //console.log(JSON.stringify(obj.name)) // For Debugging
-    let header = `## ` + obj.name + "\n\n";
-    let body = `${obj.usage}
-
-**Default value:** \`${obj.default_value ? obj.default_value : `none`}\`
-`;
-    return header + body;
+    let name = `| ` + obj.name + " |";
+    let body = ` ${(obj.usage).replace(/\n/g, '')} | ${obj.default_value ? `\`${obj.default_value.replace(/\n/g, '')}\`` : `none`} |`;
+    return name + body;
   };
 
   let content =
