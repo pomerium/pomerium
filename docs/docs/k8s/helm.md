@@ -21,6 +21,7 @@ This quick-start will show you how to deploy Pomerium with [Helm] on [Kubernetes
      See [Organizing Cluster Access Using kubeconfig Files] for more information.
    - A namespace in the cluster for Pomerium. This document assumes the namespace `pomerium`.
 - A configured [identity provider].
+- A domain space. The steps below use `*.localhost.pomerium.io` as a placeholder value. We have set DNS records for this domain space to point to `127.0.0.1` (localhost), so you can use this domain space when testing Pomerium locally.
 - [TLS certificates]. If you don't yet have a production environment with trusted certificates, this page will cover using [mkcert] to create locally trusted certificates, and [cert-manager] to manage them in the cluster.
 
 ::: tip
@@ -200,9 +201,9 @@ For development and testing, you can use `kubectl` to create a local proxy:
 sudo -E kubectl --namespace pomerium port-forward service/pomerium-proxy 443:443
 ```
 
-Open a browser and navigate to `hello.localhost.pomerium.com`.
+Open a browser and navigate to `hello.localhost.pomerium.io`.
 
-You can also navigate to the special pomerium endpoint `hello.localhost.pomerium.com/.pomerium/` to see your current user details.
+You can also navigate to the special pomerium endpoint `hello.localhost.pomerium.io/.pomerium/` to see your current user details.
 
 ![currently logged in user](./img/logged-in-as.png)
 
