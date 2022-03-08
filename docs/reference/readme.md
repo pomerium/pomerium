@@ -24,6 +24,14 @@ Pomerium can hot-reload route configuration details, authorization policy, certi
 
 :::
 
+## All-In-One vs Split Service mode
+
+When running Pomerium as a single system service or container, all the options on this page can be set in a single `config.yaml` file, or passed to the single instance as environment variables.
+
+When running Pomerium in a distributed environment where there are multiple processes, each handling separate [components](https://www.pomerium.com/docs/architecture.md#component-level), all components can still share a single config file or set of environment variables.
+
+Alternately, you can create individual config files or sets of environment variables for each service. When doing so, each file or set must have matching [shared settings](#shared-settings), as well as settings relevant to that [service mode](#service-mode). The list below is sorted to better differentiate which config options correlate to which service mode.
+
 
 ## Shared Settings
 These configuration variables are shared by all services, in all service modes.
