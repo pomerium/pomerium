@@ -4,7 +4,7 @@ lang: en-US
 sidebarDepth: 0
 meta:
   - name: keywords
-    content: okta oidc, identity provider, idp, context, context-aware,
+    content: okta oidc, identity provider, idp, context, context-aware
 ---
 
 # Okta
