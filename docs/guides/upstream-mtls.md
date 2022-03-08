@@ -25,7 +25,8 @@ Generally, every organization has a preferred method of managing internal certif
 
 - This guide uses [mkcert] to provide certificates. mkcert is a development tool, and not designed for production environments. In this guide, mkcert takes the place of your trusted certificate tooling solution.
 
-- We use `*.pomerium.localhost.io` as the placeholder for the Pomerium domain space. If you're testing on your local computer you can edit `/etc/hosts` or use dnsmasq on [macOS](https://blog.thesparktree.com/local-development-with-wildcard-dns) or [Linux](https://sixfeetup.com/blog/local-development-with-wildcard-dns-on-linux) systems to route this domain space to your local computer.
+- We use `*.pomerium.localhost.io` as the placeholder for the Pomerium domain space. We have set DNS records for this domain space to point to `127.0.0.1` (localhost), so you can use this domain space when testing Pomerium locally.
+  If you're testing on your local computer with another domain space, you can edit `/etc/hosts` or use dnsmasq on [macOS](https://blog.thesparktree.com/local-development-with-wildcard-dns) or [Linux](https://sixfeetup.com/blog/local-development-with-wildcard-dns-on-linux) systems to route your domain space to your local computer.
 
 ## Create Certificates
 
