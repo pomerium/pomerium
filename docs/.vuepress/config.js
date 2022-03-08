@@ -30,6 +30,7 @@ module.exports = {
         exclude: [
           '/partials/generate-recovery-token.html',
           '/partials/install-mkcert.html',
+          '/tcp/service-template.html',
         ],
       },
     ],
