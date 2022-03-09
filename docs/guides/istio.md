@@ -14,7 +14,7 @@ description: >-
 
 Istio provides application-aware networking via a service mesh and control plane. When configured with the [Pomerium Ingress Controller] for kubernetes, this enables authorization (**[authZ]**) and authentication (**[authN]**) of [east-west traffic] in your internal network bringing you closer to complete [zero trust].
 
-In this guide, we'll demonstrate how to configure Pomerium and Istio in a Kubernetes environment to provide mutual authentication at both the transport and application layer. We'll demonstrate first with a simple test service (Ngix), and then use [Grafana][grafana-guide] to illustrate how the final service can use the same authentication data for user association.
+In this guide, we'll demonstrate how to configure Pomerium and Istio in a Kubernetes environment to provide mutual authentication at both the transport and application layer. We'll demonstrate first with a simple test service (Nginx), and then use [Grafana][grafana-guide] to illustrate how the final service can use the same authentication data for user association.
 
 ## Before You Begin
 
