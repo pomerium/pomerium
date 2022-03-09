@@ -183,6 +183,10 @@ module.exports = {
           ]
         },
         {
+          title: "Production Deployment",
+          path: "/docs/production-deployment",
+        },
+        {
           title: "Topics",
           collapsable: false,
           path: "/docs/topics/",
@@ -196,7 +200,6 @@ module.exports = {
             "topics/original-request-context",
             "topics/mutual-auth",
             "topics/ppl",
-            "topics/production-deployment",
             "topics/programmatic-access",
             "topics/single-sign-out",
             "topics/load-balancing",
