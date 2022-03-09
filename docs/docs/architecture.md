@@ -47,9 +47,9 @@ Pomerium is composed of 4 logical components:
   - Provides streaming authoritative session and identity data to Authorize service
   - Stores session and identity data in persistent storage
 
-In production deployments, it is recommended that you deploy each component separately. This allows you to limit external attack surface, as well as scale and manage the services independently.
+In production deployments, it is recommended that you deploy each component [separately](/reference/readme.md#service-mode). This allows you to limit external attack surface, as well as scale and manage the services independently.
 
-In test deployments, all four components may run from a single binary and configuration.
+In test deployments, all four components may run from a [single binary and configuration](/reference/readme.md#all-in-one-vs-split-service-mode).
 
 ![pomerium architecture diagram](./img/pomerium-container-context.svg)
 
