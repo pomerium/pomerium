@@ -207,8 +207,12 @@ settings:
                 doc: "Specify if the user can enroll any device identity, or restrict it to a [secure enclave](/docs/topics/device-identity.md#secure-enclaves)."
                 more: '/guides/admin-enroll-device.html'
   - name: "Configure"
+    doc: |
+      The **Configure** section of the Pomerium Enterprise Console houses settings that affect the entirety of the Console environment, i.e. across all Namespaces. Adjust these settings with care.
     settings:
       - name: "Settings"
+        doc: |
+          The **Settings** section holds global settings that affect how the Pomerium Enterprise Console runs, logs, and communicates. Values set here are applied globally, except for settings documented to override global options.
         settings:
           - name: "Global"
             settings:

@@ -75,6 +75,12 @@ A user with the Viewer role can:
 
 In addition to the access provided by the Viewer role, a Manager can create, read, update, and delete routes, policies, and certificates in a Namespace (as well as its children). A Manager may also reference policies and certificates in the parent Namespace.
 
+::: warning
+Managers in any Namespace should note: while creating a route for an [upstream](/docs/glossary.md#upstream-downstream) path prevents additional routes to that path *in the same namespace*, Managers in other namespaces can create alternate routes to the same path.
+
+If you need to ensure that access to a service is only accessible from a single route, consider implementing [Mutual Authentication](/docs/topics/mutual-auth.md) between Pomerium and the upstream service. This can be achieved using one of several methods, including [mTLS](/guides/upstream-mtls.md) and [JWT verification](/guides/jwt-verification.md). You can also utilize a service mesh like [Istio](/guides/istio.html)
+:::
+
 #### Admin
 
 An Admin user has permissions across all Namespaces. They can manage global settings, sessions, and service accounts, as well as view events and runtime data.
