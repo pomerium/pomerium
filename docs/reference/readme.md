@@ -40,6 +40,16 @@ These configuration variables are shared by all services, in all service modes.
 Address specifies the host and port to serve HTTP requests from. If empty, `:443` is used. Note, in all-in-one deployments, gRPC traffic will be served on loopback on port `:5443`.
 
 
+### Authenticate Service URL
+- Environmental Variable: `AUTHENTICATE_SERVICE_URL`
+- Config File Key: `authenticate_service_url`
+- Type: `URL`
+- Required
+- Example: `https://authenticate.corp.example.com`
+
+Authenticate Service URL is the externally accessible URL for the authenticate service. In split service mode, this key is required by all services other than Databroker.
+
+
 ### Autocert
 - Environmental Variable: `AUTOCERT`
 - Config File Key: `autocert`
@@ -287,6 +297,16 @@ Setting this to false enables hostile javascript to steal session cookies and im
 - Default: `14h`
 
 Sets the lifetime of session cookies. After this interval, users must reauthenticate.
+
+
+### Data Broker Service URL
+- Environmental Variable: `DATABROKER_SERVICE_URL` or `DATABROKER_SERVICE_URLS`
+- Config File Key: `databroker_service_url` or `databroker_service_urls`
+- Type: `URL`
+- Example: `https://databroker.corp.example.com`
+- Default: in all-in-one mode, `http://localhost:5443`
+
+The data broker service URL points to a data broker which is responsible for storing associated authorization context (e.g. sessions, users and user groups). Multiple URLs can be specified with `databroker_service_urls`.
 
 
 ### Debug
@@ -737,16 +757,6 @@ See also:
 - [Google - Setting Redirect URI](https://developers.google.com/identity/protocols/OpenIDConnect#setredirecturi)
 
 
-### Authenticate Service URL
-- Environmental Variable: `AUTHENTICATE_SERVICE_URL`
-- Config File Key: `authenticate_service_url`
-- Type: `URL`
-- Required
-- Example: `https://authenticate.corp.example.com`
-
-Authenticate Service URL is the externally accessible URL for the authenticate service.
-
-
 ### Authenticate Internal Service URL
 - Environmental Variable: `AUTHENTICATE_INTERNAL_SERVICE_URL`
 - Config File Key: `authenticate_internal_service_url`
@@ -869,24 +879,16 @@ Use it at your own risk, if you set a too low value, you may reach IDP API rate 
 
 ## Proxy Service
 
-### Authenticate Service URL
-- Environmental Variable: `AUTHENTICATE_SERVICE_URL`
-- Config File Key: `authenticate_service_url`
-- Type: `URL`
-- Required
-- Example: `https://authenticate.corp.example.com`
-
-Authenticate Service URL is the externally accessible URL for the authenticate service.
-
-
 ### Authorize Service URL
-- Environmental Variable: `AUTHORIZE_SERVICE_URL`
-- Config File Key: `authorize_service_url`
+- Environmental Variable: `AUTHORIZE_SERVICE_URL or `AUTHORIZE_SERVICE_URLS`
+- Config File Key: `authorize_service_url` or `authorize_service_urls`
 - Type: `URL`
 - Required; inferred in all-in-one mode to be localhost.
-- Example: `https://pomerium-authorize-service.default.svc.cluster.local` or `https://localhost:5443`
+- Example: `https://pomerium-authorize-service.default.svc.cluster.local`, `https://localhost:5443`, `https://authorize.corp.example.com`
 
 Authorize Service URL is the location of the internally accessible Authorize service. NOTE: Unlike authenticate, authorize has no publicly accessible http handlers so this setting is purely for gRPC communication.
+
+Multiple URLs can be specified with `authorize_service_urls`.
 
 If your load balancer does not support gRPC pass-through you'll need to set this value to an internally routable location (`https://pomerium-authorize-service.default.svc.cluster.local`) instead of an externally routable one (`https://authorize.corp.example.com`).
 
@@ -1073,16 +1075,6 @@ More details on this problem are available in [Github Issue #2150](https://githu
 
 ## Data Broker Service
 The databroker service is used for storing user session data.
-
-
-### Data Broker Service URL
-- Environmental Variable: `DATABROKER_SERVICE_URL` or `DATABROKER_SERVICE_URLS`
-- Config File Key: `databroker_service_url` or `databroker_service_urls`
-- Type: `URL`
-- Example: `https://databroker.corp.example.com`
-- Default: in all-in-one mode, `http://localhost:5443`
-
-The data broker service URL points to a data broker which is responsible for storing associated authorization context (e.g. sessions, users and user groups). Multiple URLs can be specified with `databroker_service_urls`.
 
 By default, the `databroker` service uses an in-memory databroker.
 
@@ -1796,16 +1788,6 @@ If set, enables proxying of websocket connections.
 
 
 ## Authorize Service
-
-### Authorize Service URL
-- Environmental Variable: `AUTHORIZE_SERVICE_URL` or `AUTHORIZE_SERVICE_URLS`
-- Config File Key: `authorize_service_url` or `authorize_service_urls`
-- Type: `URL`
-- Required
-- Example: `https://authorize.corp.example.com`
-
-Authorize Service URL is the location of the internally accessible Authorize service. Multiple URLs can be specified with `authorize_service_urls`.
-
 
 ### Google Cloud Serverless Authentication Service Account
 - Environmental Variable: `GOOGLE_CLOUD_SERVERLESS_AUTHENTICATION_SERVICE_ACCOUNT`
