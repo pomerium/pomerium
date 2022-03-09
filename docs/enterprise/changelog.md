@@ -5,6 +5,15 @@ sidebarDepth: 0
 
 # Changelog
 
+## 0.17.0
+
+### New
+- Pomerium Enterprise now requires a valid license to start.
+
+### Updated
+
+- Route and Policy screens have been redesigned for better UX.
+
 ## 0.16.0
 
 ### New

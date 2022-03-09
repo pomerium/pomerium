@@ -10,6 +10,12 @@ description: >-
 
 When new version of Pomerium Enterprise are released, check back to this page before you upgrade.
 
+## 0.17.0
+
+## Before You Upgrade
+
+- The new `license-key`  option is required for starting Pomerium Enterprise. Please contact your account team if you have not been issued one yet.
+
 ## 0.16.0
 
 ## Before You Upgrade
