@@ -9,7 +9,11 @@ meta:
 
 # Configure
 
+The **Configure** section of the Pomerium Enterprise Console houses settings that affect the entirety of the Console environment, i.e. across all Namespaces. Adjust these settings with care.
+
 ## Settings
+
+The **Settings** section holds global settings that affect how the Pomerium Enterprise Console runs, logs, and communicates. Values set here are applied globally, except for settings documented to override global options.
 
 
 ### Global
