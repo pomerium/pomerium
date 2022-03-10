@@ -19,7 +19,7 @@ This quick-start will show you how to deploy Pomerium with [Helm] on [Kubernetes
    - Export the configuration file from your Kubernetes host and export it to your `KUBECONFIG` environment variable (usually by placing it in `~/.kube`).
 
      See [Organizing Cluster Access Using kubeconfig Files] for more information.
-   - A namespace in the cluster for Pomerium. This document assumes the namespace `pomerium`.
+   - A namespace in the cluster for Pomerium. This document assumes the namespace `pomerium`, which you can create with `kubectl create namespace pomerium`.
 - A configured [identity provider].
 - [TLS certificates]. If you don't yet have a production environment with trusted certificates, this page will cover using [mkcert] to create locally trusted certificates, and [cert-manager] to manage them in the cluster.
 
@@ -71,11 +71,6 @@ If you haven't already, install cert-manager and create a CA issuer. You can fol
     cert-manager-cainjector-69d885bf55-6x5v2   1/1     Running   0          33s
     cert-manager-webhook-8d7495f4-s5s6p        1/1     Running   0          33s
     ```
-1. Create a namespace for pomerium:
-
-   ```bash
-   kubectl create namespace pomerium
-   ```
 
 1. In your Pomerium namespace, create a Kubernetes secret for the rootCA-key file in your local CA root:
 
