@@ -13,6 +13,10 @@ By tunneling SSH connections through your Pomerium service:
  - The SSH service can remain closed to the internet, or even restricted to only accept connections from the Pomerium Proxy service
  - Authentication and authorization is managed by Pomerium, using your IdP for identity, and can be easily managed at scale.
 
+::: tip
+This example assumes you've already [created a TCP route](/docs/tcp/readme.md#configure-routes) for this service.
+:::
+
  ## Basic Connection
 
  1. Create a TCP tunnel, using either [`pomerium-cli`](/docs/releases.md#pomerium-cli) or the Pomerium Desktop client:

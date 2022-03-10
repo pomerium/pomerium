@@ -7,6 +7,10 @@ description: Tunnel Redis connections through Pomerium
 
 Redis is a popular in-memory data structure store. It can be run locally or configured as a single or distributed standalone service.
 
+::: tip
+This example assumes you've already [created a TCP route](/docs/tcp/readme.md#configure-routes) for this service.
+:::
+
 ## Basic Connection
 
  1. Create a TCP tunnel, using either [`pomerium-cli`](/docs/releases.md#pomerium-cli) or the Pomerium Desktop client:
