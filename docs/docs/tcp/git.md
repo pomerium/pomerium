@@ -7,6 +7,9 @@ description: Tunnel Git connections through Pomerium
 
 When hosting a self-hosted Git server like [GitLab](/guides/gitlab.md) behind Pomerium, you can protect desktop client access to the source code with the same identity-aware access as the web interface using an encrypted TCP tunnel.
 
+::: tip
+This example assumes you've already [created a TCP route](/docs/tcp/readme.md#configure-routes) for this service.
+:::
 
  ## Basic Connection
 
