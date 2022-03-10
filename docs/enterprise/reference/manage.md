@@ -13,6 +13,17 @@ meta:
 
 A [Route](/enterprise/concepts.md#routes) defines how to access a service running behind Pomerium. This includes authentication (both for Pomerium and passed through to the service), rewrites, header management, load balancing, etc.
 
+When first installing Pomerium Enterprise, users may want to import existing routes from the open-source Pomerium core. The **Import Routes** button accepts the open-source `config.yaml` file and imports routes from it to Pomerium Enterprise.
+
+From the main Routes page you can view and manage existing routes. From the table of routes you can:
+  - filter visible routes,
+  - delete one or more routes,
+  - move routes between Namespaces,
+  - export one or more route definitions to a CSV file,
+  - create a JSON-formatted policy report on one or more selected routes.
+
+The sections below cover the options available when creating or editing a route.
+
 
 ### General
 
