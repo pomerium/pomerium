@@ -6,7 +6,7 @@ description: >-
 
 # Securing Pomerium
 
-Pomerium is a tool for securing your infrastructure, following the principles  [Zero Trust](/docs/background.md#zero-trust). But that doesn't mean that your stack is "secure" right out of the box. Additionally, security is a battle of give and take; more security often comes at the cost of more complexity, both for the administrator and the end-user. What layers of security you choose to apply (and how you configure them) is highly independent on each use case.
+Pomerium is a tool for securing your infrastructure, following the principles of [Zero Trust](/docs/background.md#zero-trust). But that doesn't mean that your stack is "secure" right out of the box. Additionally, security is a battle of give and take; more security often comes at the cost of more complexity, both for the administrator and the end-user. What layers of security you choose to apply (and how you configure them) is highly independent on each use case.
 
 While we can't tell you what tools and technologies are right for you, we've compiled a list of all the security-related documentation we have, organized to help you discover what path to take.
 
@@ -30,7 +30,7 @@ The long-time standard for server identity verification, the use of TLS certific
 
 ## User Identity and Context
 
-Part of Pomerium's strength comes from the ability we provide to pass user identity and context to your upstream service. This enables repeated verification of authorization throughout a system.
+Part of Pomerium's strength comes from the ability to pass user identity and context to your upstream service. This enables repeated verification of authorization throughout a system.
 
 - [Getting the user's identity](/docs/topics/getting-users-identity.md) details the JWT Pomerium creates to identify the user in any given request.
 - [Original User Context](/docs/topics/original-request-context.md) explains how to pass along the user context when upstream services communicate with each other to complete a request.
@@ -45,6 +45,6 @@ Often overlooked or confused with multi-factor-authentication, device identity (
 
 ## Service Mesh
 
-If you've read through all the docs linked above, first of all *wow*. That's a lot to absorb, kudos to you. But if you got this far and you're overwhelmed thinking about how to manage mutual authentication, user context verification, etc, between all your various applications, then you're primed and ready for a **service mesh**. That is, a software component that acts as an infrastructure layer to facilitate the communication (and authentication) between services.
+If you've read through all the docs linked above, first of all *wow*. That's a lot to absorb, kudos to you. But if you got this far and you're overwhelmed thinking about how to manage mutual authentication, user context verification, etc, between all your various applications, then you're primed and ready for a **service mesh**. A service mesh is a software component that acts as an infrastructure layer to facilitate the communication (and authentication) between services.
 
 - Our [Istio](/guides/istio.md) guide covers integration between Pomerium and Istio, the most common service mesh.
