@@ -22,7 +22,7 @@ services:
     image: pomerium/pomerium:latest
     environment:
       # Generate new secret keys. e.g. `head -c32 /dev/urandom | base64`
-      - COOKIE_SECRET=<reducted>
+      - COOKIE_SECRET=<redacted>
     volumes:
       # Mount your domain's certificates : https://www.pomerium.com/docs/reference/certificates
       - ./_wildcard.localhost.pomerium.io-key.pem:/pomerium/privkey.pem:ro
@@ -40,7 +40,7 @@ services:
   verify:
     image: pomerium/verify
     expose:
-      - 80
+      - 8000
 
   identityprovider:
     image: qlik/simple-oidc-provider
@@ -75,7 +75,7 @@ idp_client_id: foo
 idp_client_secret: bar
 
 # Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
-cookie_secret: <reducted>
+cookie_secret: <redacted>
 
 # https://pomerium.io/reference/#routes
 routes:
@@ -154,7 +154,7 @@ $ : wait identityprovider up
 $ docker-compose up -d
 ```
 
-Now accessing to `https://verify.localhost.pomerium.io` and you will be redireted to OIDC server for authentication.
+Now upon accessing `https://verify.localhost.pomerium.io` you will be redirected to OIDC server for authentication.
 
 [identity provider]: ../docs/identity-providers/readme.md
 [qlik/simple-oidc-provider]: https://hub.docker.com/r/qlik/simple-oidc-provider/
