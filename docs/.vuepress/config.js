@@ -162,6 +162,7 @@ module.exports = {
               sidebarDepth: 0,
               children: [
                 "tcp/git",
+                "tcp/ms-sql",
                 "tcp/mysql",
                 "tcp/rdp",
                 "tcp/redis",
