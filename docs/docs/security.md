@@ -6,7 +6,7 @@ description: >-
 
 # Securing Pomerium
 
-Pomerium is a tool for securing your infrastructure, following the principles of [Zero Trust](/docs/background.md#zero-trust). But that doesn't mean that your stack is "secure" right out of the box. Additionally, security is a battle of give and take; more security often comes at the cost of more complexity, both for the administrator and the end-user. What layers of security you choose to apply (and how you configure them) is highly independent on each use case.
+Pomerium is a tool for securing your infrastructure while adhering to the principles of [Zero Trust](/docs/background.md#zero-trust). But that doesn't mean that your stack is "secure" right out of the box. Additionally, security is a battle of give and take; more security often comes at the cost of more complexity, both for the administrator and the end-user. What layers of security you choose to apply (and how you configure them) is highly independent on each use case.
 
 While we can't tell you what tools and technologies are right for you, we've compiled a list of all the security-related documentation we have, organized to help you discover what path to take.
 
@@ -14,14 +14,14 @@ While we can't tell you what tools and technologies are right for you, we've com
 
 If you're just getting started, we suggest reviewing the following pages:
 
-- [Background](/docs/background.md) - A quick primer on the failures of legacy models of "perimeter security", and an introduction to the concept of Zero Trust.
+- [Background](/docs/background.md) - A quick primer on the failures of legacy models of "perimeter security" and an introduction to the concept of Zero Trust.
 - [Architecture](/docs/architecture.md) - Learn how Pomerium is broken down into component services. How you choose to deploy Pomerium will set the stage for the kind of security practices that apply to your stack.
 - [Mutual Authentication: A Component of Zero Trust](/docs/topics/mutual-auth.md) - Zero Trust's core principle could be said as "trust nothing without first (and continuously) verifying it". Mutual authentication is a big part of bringing that principle to bear. This page explains the concept and how it's achieved across several different layers of the network stack.
 - [Glossary](/docs/glossary.md) - Keep this page handy for when you run into new or unfamiliar terminology.
 
 ## TLS Certificates
 
-The long-time standard for server identity verification, the use of TLS certificates has exploded since [Let's Encrypt](https://letsencrypt.org/) made it possible for anyone to get a trusted certificate for free.
+The long-time standard for server identity verification, the use of TLS certificates has exploded ever since [Let's Encrypt](https://letsencrypt.org/) made it possible for anyone to get a trusted certificate for free.
 
 - The [Certificates](/docs/topics/certificates.md) topic page covers several basic methods for generating trusted or testing certificates.
 - Our article on [Installing Pomerium Using Helm](/docs/k8s/helm.md) touches [briefly](/docs/k8s/helm.md#install-and-configure-cert-manager) on using [cert-manager](https://cert-manager.io/docs/) to manage certificates in Kubernetes environments. We also wrote a guide for their docs site covering integration of the [Pomerium Ingress](https://cert-manager.io/docs/tutorials/acme/pomerium-ingress/) Controller with cert-manager.
@@ -39,7 +39,7 @@ Part of Pomerium's strength comes from the ability to pass user identity and con
 
 ## Device Identity
 
-Often overlooked or confused with multi-factor-authentication, device identity (and posture) is one of the most important and under-utilized aspects of a strong zero trust security model.
+Often overlooked or confused with multi-factor authentication (MFA), device identity (and posture) is one of the most important and under-utilized aspects of a strong zero trust security model.
 
 - [Device Identity](/docs/topics/device-identity.md) provides background on the concept, and points the reader on how to configure policies that use device identity, and enroll devices in both open-source and Enterprise environments.
 
