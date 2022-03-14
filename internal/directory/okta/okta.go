@@ -17,6 +17,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/tomnomnom/linkheader"
 
+	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
@@ -350,13 +351,13 @@ type ServiceAccount struct {
 
 // ParseServiceAccount parses the service account in the config options.
 func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
-	bs, err := base64.StdEncoding.DecodeString(rawServiceAccount)
-	if err != nil {
-		return nil, err
-	}
-
 	var serviceAccount ServiceAccount
-	if err := json.Unmarshal(bs, &serviceAccount); err != nil {
+	err := encoding.DecodeBase64OrJSON(rawServiceAccount, &serviceAccount)
+	if err != nil {
+		bs, err := base64.StdEncoding.DecodeString(rawServiceAccount)
+		if err != nil {
+			return nil, err
+		}
 		serviceAccount.APIKey = string(bs)
 	}
 

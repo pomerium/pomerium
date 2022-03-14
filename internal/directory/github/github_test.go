@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vektah/gqlparser/ast"
 	"github.com/vektah/gqlparser/parser"
 
@@ -345,6 +346,49 @@ func TestProvider_UserGroups(t *testing.T) {
 		{ "id": "team3", "name": "team3" },
 		{ "id": "team4", "name": "team4" }
 	]`, groups)
+}
+
+func TestParseServiceAccount(t *testing.T) {
+	tests := []struct {
+		name              string
+		rawServiceAccount string
+		serviceAccount    *ServiceAccount
+		wantErr           bool
+	}{
+		{
+			"json",
+			`{"username": "USERNAME", "personal_access_token": "PERSONAL_ACCESS_TOKEN"}`,
+			&ServiceAccount{Username: "USERNAME", PersonalAccessToken: "PERSONAL_ACCESS_TOKEN"},
+			false,
+		},
+		{
+			"base64 json",
+			`eyJ1c2VybmFtZSI6ICJVU0VSTkFNRSIsICJwZXJzb25hbF9hY2Nlc3NfdG9rZW4iOiAiUEVSU09OQUxfQUNDRVNTX1RPS0VOIn0=`,
+			&ServiceAccount{Username: "USERNAME", PersonalAccessToken: "PERSONAL_ACCESS_TOKEN"},
+			false,
+		},
+		{
+			"empty",
+			"",
+			nil,
+			true,
+		},
+		{
+			"invalid",
+			"Zm9v---",
+			nil,
+			true,
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := ParseServiceAccount(tc.rawServiceAccount)
+			require.True(t, (err != nil) == tc.wantErr)
+			assert.Equal(t, tc.serviceAccount, got)
+		})
+	}
 }
 
 func mustParseURL(rawurl string) *url.URL {

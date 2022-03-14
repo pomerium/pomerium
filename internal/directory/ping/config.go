@@ -101,8 +101,7 @@ type ServiceAccount struct {
 // ParseServiceAccount parses the service account in the config options.
 func ParseServiceAccount(rawServiceAccount string) (*ServiceAccount, error) {
 	var serviceAccount ServiceAccount
-	err := encoding.DecodeBase64OrJSON(rawServiceAccount, &serviceAccount)
-	if err != nil {
+	if err := encoding.DecodeBase64OrJSON(rawServiceAccount, &serviceAccount); err != nil {
 		return nil, err
 	}
 
