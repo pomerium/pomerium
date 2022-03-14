@@ -122,7 +122,21 @@ Next, we need to give that service account permissionson the GSuite / Workspace 
 
 ![Google create service account](./img/google/google-gsuite-add-scopes.png)
 
-Your [environmental variables] should look something like this.
+
+Your `config.yaml` values or [environment variables] should look something like this:
+
+::::: tabs
+:::: tab config.yaml
+
+```yaml
+idp-provider: "google"
+idp-client-id: "yyyy.apps.googleusercontent.com"
+idp-client-secret: "xxxxxx"
+idp-service-account: "zzzz" # output of `base64 -i service-account-key.json`
+```
+
+::::
+:::: tab Environment Variables
 
 ```bash
 IDP_PROVIDER="google"
@@ -131,9 +145,12 @@ IDP_CLIENT_SECRET="xxxxxx"
 IDP_SERVICE_ACCOUNT="zzzz" # output of `base64 -i service-account-key.json`
 ```
 
+::::
+:::::
+
 [client id]: ../../reference/readme.md#identity-provider-client-id
 [client secret]: ../../reference/readme.md#identity-provider-client-secret
-[environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
+[environment variables]: https://en.wikipedia.org/wiki/Environment_variable
 [oauth2]: https://oauth.net/2/
 [openid connect]: https://en.wikipedia.org/wiki/OpenID_Connect
 [service account]: ../../reference/readme.md#identity-provider-service-account
