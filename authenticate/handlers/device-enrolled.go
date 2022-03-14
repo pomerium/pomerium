@@ -8,8 +8,8 @@ import (
 )
 
 // DeviceEnrolled displays an HTML page informing the user that they've successfully enrolled a device.
-func DeviceEnrolled() http.Handler {
+func DeviceEnrolled(data UserInfoData) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		return ui.ServePage(w, r, "DeviceEnrolled", map[string]interface{}{})
+		return ui.ServePage(w, r, "DeviceEnrolled", data.ToJSON())
 	})
 }

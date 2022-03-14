@@ -100,7 +100,12 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
 	sr.Path("/webauthn").Handler(a.webauthn)
 	sr.Path("/device-enrolled").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		handlers.DeviceEnrolled().ServeHTTP(w, r)
+		userInfoData, err := a.getUserInfoData(r)
+		if err != nil {
+			return err
+		}
+
+		handlers.DeviceEnrolled(userInfoData).ServeHTTP(w, r)
 		return nil
 	}))
 
@@ -505,6 +510,7 @@ func (a *Authenticate) getSessionFromCtx(ctx context.Context) (*sessions.State, 
 func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.userInfo")
 	defer span.End()
+	r = r.WithContext(ctx)
 
 	// if we came in with a redirect URI, save it to a cookie so it doesn't expire with the HMAC
 	if redirectURI := r.FormValue(urlutil.QueryRedirectURI); redirectURI != "" {
@@ -519,32 +525,42 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		return nil
 	}
 
-	state := a.state.Load()
-
-	authenticateURL, err := a.options.Load().GetAuthenticateURL()
+	userInfoData, err := a.getUserInfoData(r)
 	if err != nil {
 		return err
 	}
 
-	s, err := a.getSessionFromCtx(ctx)
+	handlers.UserInfo(userInfoData).ServeHTTP(w, r)
+	return nil
+}
+
+func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, error) {
+	state := a.state.Load()
+
+	authenticateURL, err := a.options.Load().GetAuthenticateURL()
+	if err != nil {
+		return handlers.UserInfoData{}, err
+	}
+
+	s, err := a.getSessionFromCtx(r.Context())
 	if err != nil {
 		s.ID = uuid.New().String()
 	}
 
-	pbSession, isImpersonated, err := a.getCurrentSession(ctx)
+	pbSession, isImpersonated, err := a.getCurrentSession(r.Context())
 	if err != nil {
 		pbSession = &session.Session{
 			Id: s.ID,
 		}
 	}
 
-	pbUser, err := a.getUser(ctx, pbSession.GetUserId())
+	pbUser, err := a.getUser(r.Context(), pbSession.GetUserId())
 	if err != nil {
 		pbUser = &user.User{
 			Id: pbSession.GetUserId(),
 		}
 	}
-	pbDirectoryUser, err := a.getDirectoryUser(ctx, pbSession.GetUserId())
+	pbDirectoryUser, err := a.getDirectoryUser(r.Context(), pbSession.GetUserId())
 	if err != nil {
 		pbDirectoryUser = &directory.User{
 			Id: pbSession.GetUserId(),
@@ -552,7 +568,7 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 	}
 	var groups []*directory.Group
 	for _, groupID := range pbDirectoryUser.GetGroupIds() {
-		pbDirectoryGroup, err := directory.GetGroup(ctx, state.dataBrokerClient, groupID)
+		pbDirectoryGroup, err := directory.GetGroup(r.Context(), state.dataBrokerClient, groupID)
 		if err != nil {
 			pbDirectoryGroup = &directory.Group{
 				Id:    groupID,
@@ -563,9 +579,9 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		groups = append(groups, pbDirectoryGroup)
 	}
 
-	creationOptions, requestOptions, _ := a.webauthn.GetOptions(ctx)
+	creationOptions, requestOptions, _ := a.webauthn.GetOptions(r.Context())
 
-	handlers.UserInfo(handlers.UserInfoData{
+	return handlers.UserInfoData{
 		CSRFToken:       csrf.Token(r),
 		DirectoryGroups: groups,
 		DirectoryUser:   pbDirectoryUser,
@@ -577,8 +593,7 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		WebAuthnRequestOptions:  requestOptions,
 		WebAuthnURL:             urlutil.WebAuthnURL(r, authenticateURL, state.sharedKey, r.URL.Query()),
 		PomeriumVersion:         version.FullVersion(),
-	}).ServeHTTP(w, r)
-	return nil
+	}, nil
 }
 
 func (a *Authenticate) saveSessionToDataBroker(
