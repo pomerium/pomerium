@@ -244,10 +244,6 @@ Additional TLS certificates may be supplied by creating a Kubernetes secret(s) i
 
 Please note that the referenced `tls_client_secret` must be a [TLS Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets). `tls_custom_ca_secret` and `tls_downstream_client_ca_secret` must contain `ca.crt` containing a .PEM encoded (base64-encoded DER format) public certificate.
 
-::: tip
-If you're using a wildcard certificate on all routes using the Pomerium IngressClass, you can set the secret for the cert globally when defining the class. See the [Pomerium Ingress Controller README](https://github.com/pomerium/ingress-controller#ingressclass) for more information.
-:::
-
 ### External services
 
 You may refer to external services by defining a [Service](https://kubernetes.io/docs/concepts/services-networking/service/) with `externalName`.

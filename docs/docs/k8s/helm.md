@@ -142,6 +142,21 @@ If you haven't already, install cert-manager and create a CA issuer. You can fol
    If you changed the `*.localhost.pomerium.io` value in `pomerium-certificates.yaml` update `config.rootDomain` to match, omitting the `*`.
    :::
 
+   ::: details Default Certificate
+   If you're using a single wildcard certificate for all routes managed by Pomerium, you can set it in an annotation for the ingress controller.
+
+   Add a block defining the default certificate to `pomerium-values.yaml`:
+
+   ```yaml
+   ingressController:
+     ingressClassResource:
+       defaultCertSecret: 'namespace/certSecretName'
+   ```
+
+   Now when defining ingresses you need not specify individual certificates, as documented in our example service below.
+
+   :::
+
 1. Add Pomerium's Helm repo:
 
    ```bash
