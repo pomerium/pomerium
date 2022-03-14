@@ -148,6 +148,13 @@ IDP_SERVICE_ACCOUNT="zzzz" # output of `base64 -i service-account-key.json`
 ::::
 :::::
 
+## Troubleshooting
+
+### `invalid service account for Google directory provider`
+
+This error message in Pomerium log output coincides with an empty **Groups** field in the `/.pomerium` endpoint. It indicates that your [service account](#create-a-service-account) is missing or incorrectly configured. Revisit the linked section above to adjust your service account settings as needed.
+
+
 [client id]: ../../reference/readme.md#identity-provider-client-id
 [client secret]: ../../reference/readme.md#identity-provider-client-secret
 [environment variables]: https://en.wikipedia.org/wiki/Environment_variable
