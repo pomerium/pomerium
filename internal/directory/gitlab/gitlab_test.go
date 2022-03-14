@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/internal/testutil"
 )
@@ -77,6 +78,49 @@ func Test(t *testing.T) {
 		{ "id": "1", "name": "Group 1" },
 		{ "id": "2", "name": "Group 2" }
 	]`, groups)
+}
+
+func TestParseServiceAccount(t *testing.T) {
+	tests := []struct {
+		name              string
+		rawServiceAccount string
+		serviceAccount    *ServiceAccount
+		wantErr           bool
+	}{
+		{
+			"json",
+			`{"private_token":"PRIVATE_TOKEN"}`,
+			&ServiceAccount{PrivateToken: "PRIVATE_TOKEN"},
+			false,
+		},
+		{
+			"base64 json",
+			`eyJwcml2YXRlX3Rva2VuIjoiUFJJVkFURV9UT0tFTiJ9`,
+			&ServiceAccount{PrivateToken: "PRIVATE_TOKEN"},
+			false,
+		},
+		{
+			"empty",
+			"",
+			nil,
+			true,
+		},
+		{
+			"invalid",
+			"Zm9v---",
+			nil,
+			true,
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := ParseServiceAccount(tc.rawServiceAccount)
+			require.True(t, (err != nil) == tc.wantErr)
+			assert.Equal(t, tc.serviceAccount, got)
+		})
+	}
 }
 
 func mustParseURL(rawurl string) *url.URL {

@@ -3,7 +3,6 @@ package azure
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
 
+	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 )
@@ -301,14 +301,8 @@ func parseServiceAccountFromOptions(clientID, clientSecret, providerURL string) 
 }
 
 func parseServiceAccountFromString(rawServiceAccount string) (*ServiceAccount, error) {
-	bs, err := base64.StdEncoding.DecodeString(rawServiceAccount)
-	if err != nil {
-		return nil, err
-	}
-
 	var serviceAccount ServiceAccount
-	err = json.Unmarshal(bs, &serviceAccount)
-	if err != nil {
+	if err := encoding.DecodeBase64OrJSON(rawServiceAccount, &serviceAccount); err != nil {
 		return nil, err
 	}
 

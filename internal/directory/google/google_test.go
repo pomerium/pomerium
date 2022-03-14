@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/internal/directory/directoryerrors"
 	"github.com/pomerium/pomerium/internal/testutil"
@@ -213,4 +214,47 @@ func TestProvider_UserGroups(t *testing.T) {
 		{ "id": "inside-user1", "email": "user1@inside.test", "groupIds": ["group1"] },
 		{ "id": "outside-user1", "email": "user1@outside.test", "groupIds": ["group1"] }
 	]`, dus)
+}
+
+func TestParseServiceAccount(t *testing.T) {
+	tests := []struct {
+		name              string
+		rawServiceAccount string
+		serviceAccount    *ServiceAccount
+		wantErr           bool
+	}{
+		{
+			"json",
+			`{"impersonate_user":"IMPERSONATE_USER"}`,
+			&ServiceAccount{ImpersonateUser: "IMPERSONATE_USER"},
+			false,
+		},
+		{
+			"base64 json",
+			`eyJpbXBlcnNvbmF0ZV91c2VyIjoiSU1QRVJTT05BVEVfVVNFUiJ9`,
+			&ServiceAccount{ImpersonateUser: "IMPERSONATE_USER"},
+			false,
+		},
+		{
+			"empty",
+			"",
+			nil,
+			true,
+		},
+		{
+			"invalid",
+			"Zm9v---",
+			nil,
+			true,
+		},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := ParseServiceAccount(tc.rawServiceAccount)
+			require.True(t, (err != nil) == tc.wantErr)
+			assert.Equal(t, tc.serviceAccount, got)
+		})
+	}
 }

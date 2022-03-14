@@ -341,8 +341,9 @@ func TestParseServiceAccount(t *testing.T) {
 		apiKey            string
 		wantErr           bool
 	}{
-		{"json", "ewogICAgImFwaV9rZXkiOiAiZm9vIgp9Cg==", "foo", false},
-		{"value", "Zm9v", "foo", false},
+		{"json", `{"api_key": "foo"}`, "foo", false},
+		{"base64 json", "ewogICAgImFwaV9rZXkiOiAiZm9vIgp9Cg==", "foo", false},
+		{"base64 value", "Zm9v", "foo", false},
 		{"empty", "", "", true},
 		{"invalid", "Zm9v---", "", true},
 	}

@@ -218,13 +218,31 @@ func TestParseServiceAccount(t *testing.T) {
 			DirectoryID:  "0303f438-3c5c-4190-9854-08d3eb31bd9f",
 		}, serviceAccount)
 	})
-	t.Run("by service account", func(t *testing.T) {
+	t.Run("by service account base64", func(t *testing.T) {
 		serviceAccount, err := ParseServiceAccount(directory.Options{
 			ServiceAccount: base64.StdEncoding.EncodeToString([]byte(`{
 				"client_id": "CLIENT_ID",
 				"client_secret": "CLIENT_SECRET",
 				"directory_id": "0303f438-3c5c-4190-9854-08d3eb31bd9f"
 			}`)),
+		})
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		assert.Equal(t, &ServiceAccount{
+			ClientID:     "CLIENT_ID",
+			ClientSecret: "CLIENT_SECRET",
+			DirectoryID:  "0303f438-3c5c-4190-9854-08d3eb31bd9f",
+		}, serviceAccount)
+	})
+	t.Run("by service account json", func(t *testing.T) {
+		serviceAccount, err := ParseServiceAccount(directory.Options{
+			ServiceAccount: `{
+				"client_id": "CLIENT_ID",
+				"client_secret": "CLIENT_SECRET",
+				"directory_id": "0303f438-3c5c-4190-9854-08d3eb31bd9f"
+			}`,
 		})
 		if !assert.NoError(t, err) {
 			return
