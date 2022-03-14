@@ -6,7 +6,7 @@ description: >-
 
 # Securing Pomerium
 
-Pomerium is a tool for securing your infrastructure while adhering to the principles of [Zero Trust](/docs/background.md#zero-trust). But that doesn't mean that your stack is "secure" right out of the box. Additionally, security is a battle of give and take; more security often comes at the cost of more complexity, both for the administrator and the end-user. What layers of security you choose to apply (and how you configure them) is highly independent on each use case.
+Pomerium is a tool for securing your infrastructure while adhering to the principles of [Zero Trust](/docs/background.md#zero-trust). But that doesn't mean that your stack is "secure" right out of the box. Additionally, security is a battle of give and take; more security often comes at the cost of more complexity, both for the administrator and the end-user. What layers of security you choose to apply (and how you configure them) is highly dependent on your use case.
 
 While we can't tell you what tools and technologies are right for you, we've compiled a list of all the security-related documentation we have, organized to help you discover what path to take.
 
