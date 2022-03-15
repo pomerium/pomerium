@@ -55,7 +55,7 @@ Our [Helm deployment](/docs/k8s/helm.md) supports [Horizontal Pod Autoscaling](h
 
 #### Proxy
 
-The Proxy service, as the name implies, is responsible for proxying all user traffic, in addition to performing checks to the Authentication and Authorization components. The proxy is directly in path for user traffic.
+The Proxy service, as the name implies, is responsible for proxying all user traffic, in addition to performing checks to the Authorization service. The proxy is directly in path for user traffic.
 
 Proxy will need resources scaled in conjunction with request count and may need average request size accounted for. The heavier your user traffic, the more resources the Proxy service should have provisioned.
 
@@ -101,15 +101,14 @@ In any production deployment, running multiple replicas of each Pomerium service
 
 ### Proxy
 
-You should deploy Layer 4 load balancers in front of the Pomerium Proxy services to provide high availability and horizontal scaling. Do not use L7 load balancers, since the Proxy service handles redirects, sticky sessions, etc.
+You should deploy Layer 4 load balancing between end users and Pomerium Proxy services to provide high availability and horizontal scaling. Do not use L7 load balancers, since the Proxy service handles redirects, sticky sessions, etc.
 
-Note that deployments on Kubernetes can utilize The [Pomerium Ingress Controller](/docs/k8s/ingress.md) to handle load balancing.
+Note that deployments on Kubernetes can utilize The [Pomerium Ingress Controller](/docs/k8s/ingress.md) to simplify configuration.
 
 ### Authenticate
 
 You should provide a TCP or HTTP(s) load balancer between end users and the Authenticate services.
 
-Authenticate is compatible with any L4 or L7/HTTP load balancer. Session stickiness should not be required.
 
 ### Authorize and Databroker
 
