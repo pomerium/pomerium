@@ -1050,8 +1050,8 @@ github.com/onsi/gomega v1.10.3/go.mod h1:V9xEwhxec5O8UDM77eCW8vLymOMltsqPVYWrpDs
 github.com/onsi/gomega v1.16.0/go.mod h1:HnhC7FXeEQY45zxNK3PPoIUhzk/80Xly9PcubAlGdZY=
 github.com/onsi/gomega v1.17.0 h1:9Luw4uT5HTjHTN8+aNcSThgH1vdXnmdJ8xIfZ4wyTRE=
 github.com/onsi/gomega v1.17.0/go.mod h1:HnhC7FXeEQY45zxNK3PPoIUhzk/80Xly9PcubAlGdZY=
-github.com/open-policy-agent/opa v0.38.0 h1:XuGM6yZmHCPO4o1JJGs8pKuoC/vMFkr4pjBVhFLrOk8=
-github.com/open-policy-agent/opa v0.38.0/go.mod h1:z0+Gw2+Re8cEf4/GjHr/wAL1diGy8BkhICIiCUb8y6A=
+github.com/open-policy-agent/opa v0.38.1 h1:4iSk7OBFe0kiO4Jfs5gWgDP+Hly9eoAs4jUcWG6j0Vo=
+github.com/open-policy-agent/opa v0.38.1/go.mod h1:z0+Gw2+Re8cEf4/GjHr/wAL1diGy8BkhICIiCUb8y6A=
 github.com/opencontainers/go-digest v0.0.0-20170106003457-a6d0ee40d420/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=
 github.com/opencontainers/go-digest v0.0.0-20180430190053-c9281466c8b2/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=
 github.com/opencontainers/go-digest v1.0.0-rc1/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=
