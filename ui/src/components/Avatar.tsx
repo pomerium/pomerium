@@ -10,7 +10,7 @@ type AvatarProps = {
 
 export const Avatar = ({ url, name }: AvatarProps): JSX.Element => {
   if (isArray(url)) {
-    url = url?.pop();
+    url = url?.[0];
   }
 
   if (url === "https://graph.microsoft.com/v1.0/me/photo/$value") {
