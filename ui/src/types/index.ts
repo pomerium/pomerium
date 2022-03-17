@@ -95,18 +95,7 @@ export type ErrorPageData = BasePageData & {
   version?: string;
 };
 
-export type DeviceEnrolledPageData = BasePageData & {
-  page: "DeviceEnrolled";
-};
-
-export type SignOutConfirmPageData = BasePageData & {
-  page: "SignOutConfirm";
-  url: string;
-};
-
-export type UserInfoPageData = BasePageData & {
-  page: "UserInfo";
-
+export type UserInfoData = {
   csrfToken: string;
   directoryGroups?: Group[];
   directoryUser?: DirectoryUser;
@@ -117,6 +106,21 @@ export type UserInfoPageData = BasePageData & {
   webAuthnUrl?: string;
   pomeriumVersion: string;
 };
+
+export type DeviceEnrolledPageData = BasePageData &
+  UserInfoData & {
+    page: "DeviceEnrolled";
+  };
+
+export type SignOutConfirmPageData = BasePageData & {
+  page: "SignOutConfirm";
+  url: string;
+};
+
+export type UserInfoPageData = BasePageData &
+  UserInfoData & {
+    page: "UserInfo";
+  };
 
 export type WebAuthnRegistrationPageData = BasePageData & {
   page: "WebAuthnRegistration";

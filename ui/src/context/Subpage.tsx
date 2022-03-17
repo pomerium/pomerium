@@ -1,4 +1,4 @@
-import React, {createContext, FC, useState} from 'react'
+import React, { createContext, FC, useState } from "react";
 
 export interface SubpageContextValue {
   subpage: string;
@@ -10,22 +10,25 @@ export const SubpageContext = createContext<SubpageContextValue>({
   setSubpage: (_: string) => {},
 });
 
-export const SubpageContextProvider:FC = ({children}) => {
-
+export type SubpageContextProviderProps = {
+  page: string;
+};
+export const SubpageContextProvider: FC<SubpageContextProviderProps> = ({
+  page,
+  children,
+}) => {
   const setSubpage = (subpage: string) => {
-    setState({...state, subpage})
-  }
+    setState({ ...state, subpage });
+  };
 
   const initState = {
-    subpage: "User",
-    setSubpage
-  }
+    subpage: page === "DeviceEnrolled" ? "Devices Info" : "User",
+    setSubpage,
+  };
 
-  const [state, setState] = useState(initState)
+  const [state, setState] = useState(initState);
 
   return (
-    <SubpageContext.Provider value={state}>
-      {children}
-    </SubpageContext.Provider>
-  )
-}
+    <SubpageContext.Provider value={state}>{children}</SubpageContext.Provider>
+  );
+};

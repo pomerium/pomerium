@@ -1,9 +1,18 @@
-import { Drawer, useMediaQuery } from "@mui/material";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Drawer,
+  useMediaQuery,
+} from "@mui/material";
 import Container from "@mui/material/Container";
 import Stack from "@mui/material/Stack";
 import { useTheme } from "@mui/material/styles";
-import React, { FC, useContext } from "react";
-import { UserInfoPageData } from "src/types";
+import React, { FC, useContext, useEffect, useState } from "react";
+import { UserInfoData } from "src/types";
 
 import { SubpageContext } from "../context/Subpage";
 import GroupDetails from "./GroupDetails";
@@ -13,7 +22,7 @@ import { ToolbarOffset } from "./ToolbarOffset";
 import { UserSidebarContent } from "./UserSidebarContent";
 
 type UserInfoPageProps = {
-  data: UserInfoPageData;
+  data: UserInfoData & { page: "DeviceEnrolled" | "UserInfo" };
 };
 const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
   const theme = useTheme();
@@ -23,8 +32,31 @@ const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
   });
   const { subpage } = useContext(SubpageContext);
 
+  const [showDeviceEnrolled, setShowDeviceEnrolled] = useState(false);
+
+  useEffect(() => {
+    if (data.page === "DeviceEnrolled") {
+      setShowDeviceEnrolled(true);
+    } else {
+      setShowDeviceEnrolled(false);
+    }
+  }, [data.page]);
+
+  function handleCloseDeviceEnrolled() {
+    setShowDeviceEnrolled(false);
+  }
+
   return (
     <Container maxWidth={false}>
+      <Dialog open={showDeviceEnrolled} onClose={handleCloseDeviceEnrolled}>
+        <DialogTitle>Device Enrolled</DialogTitle>
+        <DialogContent>
+          <DialogContentText>Device Successfully Enrolled</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeviceEnrolled}>OK</Button>
+        </DialogActions>
+      </Dialog>
       {mdUp && (
         <Drawer
           anchor="left"
