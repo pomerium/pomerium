@@ -3,63 +3,67 @@ usage: pomerium-console serve [flags]
 options:
 - name: administrators
   usage: |
-    a list of user ids, names or emails to make administrators, useful for bootstrapping
+    A list of user ids, names or emails to make administrators. Useful for bootstrapping.
 - name: audience
   default_value: '[]'
-  usage: A list of audiences for verifying signing key
+  usage: A list of audiences for verifying the signing key.
 - name: authenticate-service-url
-  usage: URL for the authenticate service
+  usage: |
+    URL for the Authenticate Service. Required for Device Registration.
 - name: bind-addr
   default_value: :8701
-  usage: the address to listen on
+  usage: The address the Pomerium Console will listen on.
 - name: customer-id
-  usage: the customer id
+  usage: The customer ID
 - name: database-encryption-key
   usage: |
-    base64-encoded encryption key for encrypting sensitive data in the database
+    The base64-encoded encryption key for encrypting sensitive data in the database.
 - name: database-url
   default_value: |
     postgresql://pomerium:pomerium@localhost:5432/dashboard?sslmode=disable
-  usage: the database to connect to
+  usage: The database Pomerium Enterprise Console will use.
 - name: databroker-service-url
   default_value: http://localhost:5443
-  usage: the databroker service url
+  usage: The databroker service URL.
 - name: debug-config-dump
   default_value: "false"
-  usage: dump databroker configuration
+  usage: |
+    Dumps the Databroker configuration. This is a debug option to be used only when specified by Pomerium Support.
+- name: disable-remote-diagnostics
+  default_value: "true"
+  usage: Disable remote diagnostics.
 - name: disable-validation
   default_value: "false"
-  usage: disable config validation
-- name: enable-remote-diagnostics
-  default_value: "false"
-  usage: enable remote diagnostics
+  usage: Disable config validation.
 - name: grpc-addr
   default_value: :8702
-  usage: the address to listen for gRPC on
+  usage: The address to listen for gRPC on.
 - name: help
   shorthand: h
   default_value: "false"
   usage: help for serve
-- name: license
-  usage: license JWT
+- name: license-key
+  usage: 'Required: Provide the license key issued by your account team.'
 - name: override-certificate-name
   usage: |
-    override the certificate name used for the databroker connection
+    Overrides the certificate name used for the databroker connection.
 - name: prometheus-data-dir
-  usage: path to prometheus data
+  usage: The path to Prometheus data
 - name: prometheus-listen-addr
   default_value: 127.0.0.1:9090
-  usage: embedded prometheus listen address as host:port
+  usage: |
+    When set, embedded Prometheus listens at this address. Set as `host:port`
 - name: prometheus-scrape-interval
   default_value: 10s
-  usage: prometheus scrape frequency
+  usage: The Prometheus scrape frequency
 - name: prometheus-url
-  usage: url to access prometheus metrics server
+  usage: The URL to access the Prometheus metrics server.
 - name: shared-secret
-  usage: base64-encoded shared secret for signing JWTs
+  usage: |
+    The base64-encoded secret for signing JWTs, shared with OSS Pomerium.
 - name: signing-key
   usage: |
-    base64-encoded signing key (public or private) for verifying JWTs
+    base64-encoded signing key (public or private) for verifying JWTs. This option is deprecated in favor of `authenticate-service-url`.
 - name: tls-ca
   usage: base64-encoded string of tls-ca
 - name: tls-ca-file
@@ -71,14 +75,14 @@ options:
 - name: tls-insecure-skip-verify
   default_value: "false"
   usage: |
-    disable remote hosts TLS certificate chain and hostname check
+    Disable remote hosts TLS certificate chain and hostname checks.
 - name: tls-key
   usage: base64-encoded string of tls-key
 - name: tls-key-file
   usage: file storing tls-key
 - name: use-static-assets
   default_value: "true"
-  usage: when false, forward static requests to localhost:3000
+  usage: When false, forward static requests to `localhost:3000`.
 inherited_options:
 - name: config
   usage: Set configuration file path
