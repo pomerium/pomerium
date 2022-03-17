@@ -132,7 +132,7 @@ Your `config.yaml` values or [environment variables] should look something like 
 idp-provider: "google"
 idp-client-id: "yyyy.apps.googleusercontent.com"
 idp-client-secret: "xxxxxx"
-idp-service-account: "zzzz" # output of `base64 -i service-account-key.json`
+idp-service-account: "zzzz" # output of `base64 -i service-account-key.json`, with impersonate_user set.
 ```
 
 ::::
@@ -142,7 +142,7 @@ idp-service-account: "zzzz" # output of `base64 -i service-account-key.json`
 IDP_PROVIDER="google"
 IDP_CLIENT_ID="yyyy.apps.googleusercontent.com"
 IDP_CLIENT_SECRET="xxxxxx"
-IDP_SERVICE_ACCOUNT="zzzz" # output of `base64 -i service-account-key.json`
+IDP_SERVICE_ACCOUNT="zzzz" # output of `base64 -i service-account-key.json`, with impersonate_user set.
 ```
 
 ::::
