@@ -122,18 +122,42 @@ Next, we need to give that service account permissionson the GSuite / Workspace 
 
 ![Google create service account](./img/google/google-gsuite-add-scopes.png)
 
-Your [environmental variables] should look something like this.
+
+Your `config.yaml` values or [environment variables] should look something like this:
+
+::::: tabs
+:::: tab config.yaml
+
+```yaml
+idp-provider: "google"
+idp-client-id: "yyyy.apps.googleusercontent.com"
+idp-client-secret: "xxxxxx"
+idp-service-account: "zzzz" # output of `base64 -i service-account-key.json`, with impersonate_user set.
+```
+
+::::
+:::: tab Environment Variables
 
 ```bash
 IDP_PROVIDER="google"
 IDP_CLIENT_ID="yyyy.apps.googleusercontent.com"
 IDP_CLIENT_SECRET="xxxxxx"
-IDP_SERVICE_ACCOUNT="zzzz" # output of `base64 -i service-account-key.json`
+IDP_SERVICE_ACCOUNT="zzzz" # output of `base64 -i service-account-key.json`, with impersonate_user set.
 ```
+
+::::
+:::::
+
+## Troubleshooting
+
+### `invalid service account for Google directory provider`
+
+This error message in Pomerium log output coincides with an empty **Groups** field in the `/.pomerium` endpoint. It indicates that your [service account](#create-a-service-account) is missing or incorrectly configured. Revisit the linked section above to adjust your service account settings as needed.
+
 
 [client id]: ../../reference/readme.md#identity-provider-client-id
 [client secret]: ../../reference/readme.md#identity-provider-client-secret
-[environmental variables]: https://en.wikipedia.org/wiki/Environment_variable
+[environment variables]: https://en.wikipedia.org/wiki/Environment_variable
 [oauth2]: https://oauth.net/2/
 [openid connect]: https://en.wikipedia.org/wiki/OpenID_Connect
 [service account]: ../../reference/readme.md#identity-provider-service-account
