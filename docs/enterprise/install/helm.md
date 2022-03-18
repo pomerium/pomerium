@@ -147,9 +147,9 @@ This setup assumes an existing certificate solution using cert-manager, as descr
    sudo -E kubectl --namespace pomerium port-forward service/pomerium-proxy 443:443
    ```
 
-1. When visiting `https://console.localhost.pomerium.io`, you should see the Session List page:
+1. When visiting `https://console.localhost.pomerium.io`, you should see the Traffic:
 
-   ![The Session List page after installing Pomerium Enterprise](../img/console-session-landing.png)
+   ![The Traffic List page after installing Pomerium Enterprise](../img/console-route-traffic.png)
 
 ## Troubleshooting
 
