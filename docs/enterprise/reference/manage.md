@@ -46,6 +46,11 @@ Only secure schemes (`https` and `tcp+https`) are supported.
 
 :::
 
+#### Metrics Name
+
+Once a Route is created, the Metric Name field will populate. You can use this name to scrape the Prometheus service for metrics on this Route when making custom dashboards.
+
+
 #### To
 
 `To` is the destination(s) of a proxied request. It can be an internal resource, or an external resource. Multiple upstream resources can be targeted by using a list instead of a single URL:

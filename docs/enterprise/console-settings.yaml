@@ -57,6 +57,9 @@ settings:
                 doc: This value is only visible in the Console UI.
                 more: '/enterprise/reference/manage.html#name'
               - name: "From"
+              - name: "Metrics Name"
+                doc: |
+                  Once a Route is created, the Metric Name field will populate. You can use this name to scrape the Prometheus service for metrics on this Route when making custom dashboards.
               - name: "To"
               - name: "Redirect"
               - name: "Pass Identity Headers"
