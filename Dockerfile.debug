@@ -28,7 +28,7 @@ COPY --from=ui /build/ui/dist ./ui/dist
 # build
 RUN make build-debug NAME=pomerium
 RUN touch /config.yaml
-RUN go get github.com/go-delve/delve/cmd/dlv
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
 
 FROM alpine:latest
 ENV AUTOCERT_DIR /data/autocert
