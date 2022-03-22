@@ -121,6 +121,26 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 				}
 			}
 		}
+		renderNodeField := func(field *ast.Field, path []string, value string) string {
+		outer:
+			for _, segment := range path {
+				for _, selection := range field.SelectionSet {
+					subField, ok := selection.(*ast.Field)
+					if !ok {
+						continue
+					}
+
+					if subField.Name != segment {
+						continue
+					}
+
+					field = subField
+					continue outer
+				}
+				return ""
+			}
+			return value
+		}
 		handleTeams := func(orgSlug string, field *ast.Field) {
 			teams := &qlTeamConnection{}
 
@@ -141,33 +161,45 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 				case "org1":
 					teams.PageInfo = qlPageInfo{HasNextPage: true, EndCursor: "TOKEN1"}
 					teams.Edges = []qlTeamEdge{
-						{Node: qlTeam{ID: "MDQ6VGVhbTE=", Slug: "team1", Name: "Team 1", Members: &qlTeamMemberConnection{
-							PageInfo: qlPageInfo{HasNextPage: false},
-							Edges: []qlTeamMemberEdge{
-								{Node: qlUser{ID: "user1"}},
-								{Node: qlUser{ID: "user2"}},
-							},
-						}}},
+						{Node: qlTeam{
+							ID:   renderNodeField(field, []string{"edges", "node", "id"}, "MDQ6VGVhbTE="),
+							Slug: renderNodeField(field, []string{"edges", "node", "slug"}, "team1"),
+							Name: renderNodeField(field, []string{"edges", "node", "name"}, "Team 1"),
+							Members: &qlTeamMemberConnection{
+								PageInfo: qlPageInfo{HasNextPage: false},
+								Edges: []qlTeamMemberEdge{
+									{Node: qlUser{ID: "user1"}},
+									{Node: qlUser{ID: "user2"}},
+								},
+							}}},
 					}
 				case "org2":
 					teams.PageInfo = qlPageInfo{HasNextPage: false}
 					teams.Edges = []qlTeamEdge{
-						{Node: qlTeam{ID: "MDQ6VGVhbTM=", Slug: "team3", Name: "Team 3", Members: &qlTeamMemberConnection{
-							PageInfo: qlPageInfo{HasNextPage: true, EndCursor: "TOKEN1"},
-							Edges: []qlTeamMemberEdge{
-								{Node: qlUser{ID: "user1"}},
-								{Node: qlUser{ID: "user2"}},
-							},
-						}}},
+						{Node: qlTeam{
+							ID:   renderNodeField(field, []string{"edges", "node", "id"}, "MDQ6VGVhbTM="),
+							Slug: renderNodeField(field, []string{"edges", "node", "slug"}, "team3"),
+							Name: renderNodeField(field, []string{"edges", "node", "name"}, "Team 3"),
+							Members: &qlTeamMemberConnection{
+								PageInfo: qlPageInfo{HasNextPage: true, EndCursor: "TOKEN1"},
+								Edges: []qlTeamMemberEdge{
+									{Node: qlUser{ID: "user1"}},
+									{Node: qlUser{ID: "user2"}},
+								},
+							}}},
 					}
 					if userLogin == "" || userLogin == "user4" {
 						teams.Edges = append(teams.Edges, qlTeamEdge{
-							Node: qlTeam{ID: "MDQ6VGVhbTQ=", Slug: "team4", Name: "Team 4", Members: &qlTeamMemberConnection{
-								PageInfo: qlPageInfo{HasNextPage: false},
-								Edges: []qlTeamMemberEdge{
-									{Node: qlUser{ID: "user4"}},
-								},
-							}},
+							Node: qlTeam{
+								ID:   renderNodeField(field, []string{"edges", "node", "id"}, "MDQ6VGVhbTQ="),
+								Slug: renderNodeField(field, []string{"edges", "node", "slug"}, "team4"),
+								Name: renderNodeField(field, []string{"edges", "node", "name"}, "Team 4"),
+								Members: &qlTeamMemberConnection{
+									PageInfo: qlPageInfo{HasNextPage: false},
+									Edges: []qlTeamMemberEdge{
+										{Node: qlUser{ID: "user4"}},
+									},
+								}},
 						})
 					}
 				default:
@@ -176,12 +208,16 @@ func newMockAPI(t *testing.T, srv *httptest.Server) http.Handler {
 			case "TOKEN1":
 				teams.PageInfo = qlPageInfo{HasNextPage: false}
 				teams.Edges = []qlTeamEdge{
-					{Node: qlTeam{ID: "MDQ6VGVhbTI=", Slug: "team2", Name: "Team 2", Members: &qlTeamMemberConnection{
-						PageInfo: qlPageInfo{HasNextPage: false},
-						Edges: []qlTeamMemberEdge{
-							{Node: qlUser{ID: "user1"}},
-						},
-					}}},
+					{Node: qlTeam{
+						ID:   renderNodeField(field, []string{"edges", "node", "id"}, "MDQ6VGVhbTI="),
+						Slug: renderNodeField(field, []string{"edges", "node", "slug"}, "team2"),
+						Name: renderNodeField(field, []string{"edges", "node", "name"}, "Team 2"),
+						Members: &qlTeamMemberConnection{
+							PageInfo: qlPageInfo{HasNextPage: false},
+							Edges: []qlTeamMemberEdge{
+								{Node: qlUser{ID: "user1"}},
+							},
+						}}},
 				}
 			default:
 				t.Errorf("unexpected cursor: %s", cursor)

@@ -216,6 +216,7 @@ func (p *Provider) listUserOrganizationTeams(ctx context.Context, userSlug strin
 					edges {
 						node {
 							id
+							slug
 						}
 					}
 				}
