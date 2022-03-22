@@ -37,7 +37,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - uses: google-github-actions/setup-gcloud@master
+      - uses: google-github-actions/setup-gcloud@v0
         with:
           project_id: pomerium-io
           service_account_key: ${{ secrets.GCP_SERVICE_ACCOUNT }}
