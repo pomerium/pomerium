@@ -127,6 +127,10 @@ module.exports = {
           ],
         },
         {
+          title: "Securing Pomerium",
+          path: "/docs/security",
+        },
+        {
           title: "Identity Providers",
           collapsable: true,
           path: "/docs/identity-providers/",
