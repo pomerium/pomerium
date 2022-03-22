@@ -51,41 +51,33 @@ You can connect to this route with either the Pomerium CLI or Pomerium Desktop c
 
 Download the latest release from [GitHub](https://github.com/pomerium/desktop-client/releases).
 
-- **Windows**: The installer `exe` will install and open the Desktop Client. Right click on the system tray icon to interact with it.
+- **Windows**: The installer `.exe` file will install and open the Desktop Client. Right click on the system tray icon to interact with it.
 - **Linux**: We provide Linux binaries as `.AppImage` files, which can be executed in place or managed with a tool like [AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher). Interact with the client from the system tray icon.
 - **macOS**: Open the `dmg` and move the binary to **Applications**. Interact with the client from the system tray icon.
 
 ### Add a Connection
 
-![A new connection to an SSH gateway](./img/desktop/new-ssh-connection.png)
+![A new connection to an SSH gateway](./img/desktop/demo-new-connection.png)
 
-#### Destination Url
+**Name**: A local name for the route.
 
-Matches the [From](/enterprise/reference/manage.md#from) value of the route. Always include the port specified in the route, and do not include the `https://` protocol.
+**Destination**: Matches the [From](/enterprise/reference/manage.md#from) value of the route, without the protocol. Always include the port specified in the route, and do not include the `https://` protocol.
 
-#### Disable TLS Verification
+**Local Address**: The local address and port number from which to access the service locally. If left blank, the client will choose a random port to listen to on the loopback address.
 
-Allows untrusted certificates from the Pomerium gateway
+  In most cases, you only need to specify the port (ex: `:2222`), and the client will listen on all available local addresses.
 
-#### Local Address
+**Tags**: Use tags to sort and organize your TCP routes.
 
-(optional)
+---
 
-The local address and port number from which to access the service locally. If left blank, the client will choose a random port to listen to on the loopback address.
+#### Advanced Settings
 
-In most cases, you only need to specify the port (ex: `:2222`), and the client will listen on all available local addresses.
+**Pomerium URL**: The Pomerium Proxy service address. This is required if the **Destination URL** can't be resolved from DNS or a local `hosts` entry, or if the Proxy service uses a non-standard port.
 
-#### Alternate Pomerium Url
+**Disable TLS Verification**: Allows untrusted certificates from the Pomerium gateway
 
-(optional)
-
-The Pomerium Proxy service address. This is required if the **Destination URL** can't be resolved from DNS or a local `hosts` entry, or if the Proxy service uses a non-standard port.
-
-#### CA File Path or CA File Text
-
-(optional)
-
-If your Pomerium proxy is using a certificate signed by a Certificate Authority (**CA**) that's not in your system's trusted key store, provide the CA certificate here. Alternately, you can toggle **Disable TLS Verification**.
+**Client Certificate & Certificate Key File or Text**: For routes that require client certificates for [mTLS](/guides/mtls.md), you can provide the certificate and key file to the Pomerium Desktop client.
 
 ::::
 :::: tab Pomerium CLI
@@ -132,7 +124,7 @@ For more examples and detailed usage information, see [TCP Support](/docs/tcp/re
 
 ## Advanced Configuration
 
-If Pomerium is listening on a port other than `443` (set with the [`address` key](/reference/readme.md#address)), the `pomerium-url` flag (CLI) or "Alternate Pomerium URL" field (GUI) is required. This specifies the address and port for the client to communicate over, while the standard URL defines the port assignment for the specific route. For example:
+If Pomerium is listening on a port other than `443` (set with the [`address` key](/reference/readme.md#address)), the `pomerium-url` flag (CLI) or "Pomerium URL" field (GUI) is required. This specifies the address and port for the client to communicate over, while the standard URL defines the port assignment for the specific route. For example:
 
 ```bash
 pomerium-cli tcp ssh.localhost:pomerium.io:2222 \
