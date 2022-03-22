@@ -101,14 +101,14 @@ Timeouts set the global server timeouts. Timeouts can also be set for individual
 
 Set max connection age for GRPC servers. After this interval, servers ask clients to reconnect and perform any rediscovery for new/updated endpoints from DNS.
 
-See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters for details
+See <https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters> (opens new window) for details
 
 
 #### GRPC Server Max Connection Age Grace
 
 Additive period with grpc_server_max_connection_age, after which servers will force connections to close.
 
-See https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters (opens new window)for details
+See <https://godoc.org/google.golang.org/grpc/keepalive#ServerParameters> (opens new window) for details
 
 
 ### Tracing
@@ -184,28 +184,15 @@ Before you begin, confirm you are in the correct Namespace. A service account ca
 
 1. From the main menu, select **Service Accounts** under **CONFIGURE**. Click the **+ ADD SERVICE ACCOUNT** button:
 
-   ![An empty Service Accounts page](./img/add-service-account.png)
+   ![The Service Accounts page](./img/console-service-account.png)
 
 1. Service accounts can be unique and exist only for Pomerium, or impersonate directory users from your IdP.
 
-   ::::: tabs
-   :::: tab Unique
-   Give the user a unique ID. Consider referencing the Namespace you're creating it under, for easier reference later. Optionally set an expiration date:
+   Give the user a unique ID, or select an existing user to impersonate. Consider referencing the Namespace you're creating it under, for easier reference later. Optionally set an expiration date:
 
    ![Adding a unique service account](./img/create-service-account.png)
 
    The user ID set here corresponds to the `User` criteria when editing a policy.
-   ::::
-   :::: tab Impersonated
-   You can find your User ID by going to the special endpoint `/.pomerium`, or selecting **Logout** under your user in the upper right hand corner (this will not immediately log you out):
-
-   ![Session Details](./img/user-id.png)
-
-   Copy the User ID and paste it into the **User ID** field in the **Add Service Account** modal. The lookahead search should show you the user name You can also optionally set an expiration date:
-
-   ![Adding an impersonated service account](./img/create-impersonated-service-account.png)
-   ::::
-   :::::
 
 1. After you click **Submit**, the modal presents the JSON web token (**JWT**) for the service account. Temporarily save it somewhere secure, as you will not be able to view it again:
 
@@ -215,7 +202,11 @@ Before you begin, confirm you are in the correct Namespace. A service account ca
 
 1. Edit or create policies to give the service account access to the internal service:
 
-   ![An example policy for a service account](./img/service-account-policy.png)
+  ![An example policy for a service account](./img/create-policy-1.png)
+
+  ---
+
+  ![An example policy for a service account](./img/create-policy-2.png)
 
 
 ## Namespaces
