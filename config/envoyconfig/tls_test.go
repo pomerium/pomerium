@@ -13,20 +13,29 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
-func TestBuildSubjectAlternativeNameMatcher(t *testing.T) {
+func TestBuildSubjectAltNameMatcher(t *testing.T) {
 	b := new(Builder)
-	testutil.AssertProtoJSONEqual(t, `
-		{ "exact": "example.com" }
-	`, b.buildSubjectAlternativeNameMatcher(&url.URL{Host: "example.com:1234"}, ""))
-	testutil.AssertProtoJSONEqual(t, `
-		{ "exact": "example.org" }
-	`, b.buildSubjectAlternativeNameMatcher(&url.URL{Host: "example.com:1234"}, "example.org"))
-	testutil.AssertProtoJSONEqual(t, `
-		{ "safeRegex": {
-			"googleRe2": {},
-			"regex": ".*\\.example\\.org"
-		} }
-	`, b.buildSubjectAlternativeNameMatcher(&url.URL{Host: "example.com:1234"}, "*.example.org"))
+	testutil.AssertProtoJSONEqual(t, `{
+		"sanType": "DNS",
+		"matcher": {
+			"exact": "example.com"
+		}
+	}`, b.buildSubjectAltNameMatcher(&url.URL{Host: "example.com:1234"}, ""))
+	testutil.AssertProtoJSONEqual(t, `{
+		"sanType": "DNS",
+		"matcher": {
+			"exact": "example.org"
+		}
+	}`, b.buildSubjectAltNameMatcher(&url.URL{Host: "example.com:1234"}, "example.org"))
+	testutil.AssertProtoJSONEqual(t, `{
+		"sanType": "DNS",
+		"matcher": {
+			"safeRegex": {
+				"googleRe2": {},
+				"regex": ".*\\.example\\.org"
+			}
+		}
+	}`, b.buildSubjectAltNameMatcher(&url.URL{Host: "example.com:1234"}, "*.example.org"))
 }
 
 func TestBuildSubjectNameIndication(t *testing.T) {
