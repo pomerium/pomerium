@@ -26,7 +26,6 @@ type UserInfoData struct {
 	WebAuthnCreationOptions *webauthn.PublicKeyCredentialCreationOptions
 	WebAuthnRequestOptions  *webauthn.PublicKeyCredentialRequestOptions
 	WebAuthnURL             string
-	PomeriumVersion         string
 }
 
 // ToJSON converts the data into a JSON map.
@@ -53,7 +52,6 @@ func (data UserInfoData) ToJSON() map[string]interface{} {
 	m["webAuthnCreationOptions"] = data.WebAuthnCreationOptions
 	m["webAuthnRequestOptions"] = data.WebAuthnRequestOptions
 	m["webAuthnUrl"] = data.WebAuthnURL
-	m["pomeriumVersion"] = data.PomeriumVersion
 	return m
 }
 

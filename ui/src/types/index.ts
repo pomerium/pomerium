@@ -92,7 +92,6 @@ export type ErrorPageData = BasePageData & {
   requestId?: string;
   status?: number;
   statusText?: string;
-  version?: string;
 };
 
 export type UserInfoData = {
@@ -104,7 +103,6 @@ export type UserInfoData = {
   webAuthnCreationOptions?: WebAuthnCreationOptions;
   webAuthnRequestOptions?: WebAuthnRequestOptions;
   webAuthnUrl?: string;
-  pomeriumVersion: string;
 };
 
 export type DeviceEnrolledPageData = BasePageData &

@@ -1,20 +1,17 @@
+import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import React, { FC } from "react";
-import {FooterLink} from "./FooterLink";
-import AppBar from "@mui/material/AppBar";
 
-type FooterData = {
-  pomeriumVersion?: string;
-}
+import { FooterLink } from "./FooterLink";
 
-const Footer: FC<FooterData> = ({pomeriumVersion}) => {
+const Footer: FC = () => {
   return (
     <AppBar
       position="fixed"
       sx={{
         zIndex: (theme) => theme.zIndex.drawer + 1,
-        top: 'auto',
+        top: "auto",
         bottom: 0,
       }}
     >
@@ -31,40 +28,15 @@ const Footer: FC<FooterData> = ({pomeriumVersion}) => {
         }}
       >
         <Box>
-          <FooterLink
-            href="https://pomerium.com/"
-          >
-            Home
-          </FooterLink>
+          <FooterLink href="https://pomerium.com/">Home</FooterLink>
         </Box>
         <Box>
-          <FooterLink
-            href="https://pomerium.com/docs"
-          >
-            Docs
-          </FooterLink>
+          <FooterLink href="https://pomerium.com/docs">Docs</FooterLink>
         </Box>
         <Box>
-          <FooterLink
-            href="https://discuss.pomerium.com"
-          >
-            Support
-          </FooterLink>
+          <FooterLink href="https://discuss.pomerium.com">Support</FooterLink>
         </Box>
       </Stack>
-      {!!pomeriumVersion && (
-        <Stack
-          direction="row"
-          spacing={2}
-          justifyContent="center"
-          sx={{
-            paddingBottom: "6px",
-            fontSize: "0.85rem",
-          }}
-        >
-          <Box><b>Pomerium Version:</b> {pomeriumVersion}</Box>
-        </Stack>
-      )}
     </AppBar>
   );
 };
