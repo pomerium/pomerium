@@ -1,7 +1,6 @@
 import Box from "@mui/material/Box";
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider } from "@mui/material/styles";
-import { get } from "lodash";
 import React, { FC } from "react";
 
 import ErrorPage from "./components/ErrorPage";
@@ -53,7 +52,7 @@ const App: FC = () => {
             <ToolbarOffset />
           </Box>
         </Box>
-        <Footer pomeriumVersion={get(data, "pomeriumVersion")} />
+        <Footer />
       </SubpageContextProvider>
     </ThemeProvider>
   );

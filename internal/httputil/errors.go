@@ -52,7 +52,6 @@ func (e *HTTPError) ErrorResponse(w http.ResponseWriter, r *http.Request) {
 		StatusText string   `json:"-"`
 		RequestID  string   `json:",omitempty"`
 		CanDebug   bool     `json:"-"`
-		Version    string   `json:"-"`
 		DebugURL   *url.URL `json:",omitempty"`
 	}{
 		Status:     e.Status,
@@ -76,7 +75,6 @@ func (e *HTTPError) ErrorResponse(w http.ResponseWriter, r *http.Request) {
 		"requestId":  response.RequestID,
 		"status":     response.Status,
 		"statusText": response.StatusText,
-		"version":    response.Version,
 	}
 	if response.DebugURL != nil {
 		m["debugUrl"] = response.DebugURL.String()
