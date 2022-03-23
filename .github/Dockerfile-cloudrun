@@ -1,9 +1,9 @@
-FROM pomerium/vals-entrypoint as entrypoint
+FROM pomerium/vals-entrypoint:latest@sha256:7a5726b04cb080722e458296dd3ca1386d474b139c074af862aa164ccd829441 as entrypoint
 
-FROM busybox:latest as build
+FROM busybox:latest@sha256:caa382c432891547782ce7140fb3b7304613d3b0438834dce1cad68896ab110a as build
 RUN touch /config.yaml
 
-FROM gcr.io/distroless/base
+FROM gcr.io/distroless/base:latest@sha256:b0216a38315e7d4e14a70338f4bcfdf622bcd2ca2f3fcb48de446c4bb51f7243
 ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
 COPY pomerium* /bin/
