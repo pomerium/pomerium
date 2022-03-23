@@ -107,7 +107,7 @@ Note that deployments on Kubernetes can utilize The [Pomerium Ingress Controller
 
 ### Authenticate
 
-You should provide a TCP or HTTP(s) load balancer between end users and the Authenticate services.
+The suggested practice is to use the Pomerium Proxy service to load-balance Authenticate. Alternately, you could use an independent Layer 4 or Layer 7 load balancer, but this increases complexity.
 
 
 ### Authorize and Databroker
