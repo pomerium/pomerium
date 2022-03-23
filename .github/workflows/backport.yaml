@@ -12,13 +12,13 @@ jobs:
     steps:
       - name: Generate token
         id: generate_token
-        uses: tibdex/github-app-token@v1
+        uses: tibdex/github-app-token@7ce9ffdcdeb2ba82b01b51d6584a6a85872336d4 # pin@v1
         with:
           app_id: ${{ secrets.BACKPORT_APP_APPID }}
           private_key: ${{ secrets.BACKPORT_APP_PRIVATE_KEY }}
 
       - name: Backport
-        uses: tibdex/backport@v1
+        uses: tibdex/backport@e2ffd4c5a70730dfd19046859dfaf366e3de6466 # pin@v1
         with:
           github_token: ${{ steps.generate_token.outputs.token }}
           title_template: "{{originalTitle}}"

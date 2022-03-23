@@ -14,30 +14,30 @@ jobs:
       tag: ${{ steps.tagName.outputs.tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@a12a3943b4bdde767164f792f33f40b04645d846 # pin@v3
 
       - name: Unshallow
         run: git fetch --prune --unshallow
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@9ced9a43a244f3ac94f13bfd896db8c8f30da67a # pin@v3
         with:
           node-version: 16.x
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # pin@v2
         with:
           go-version: 1.17.x
 
       - name: Set up Docker
         run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
-      - uses: azure/docker-login@v1
+      - uses: azure/docker-login@81744f9799e7eaa418697cb168452a2882ae844a # pin@v1
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - uses: google-github-actions/setup-gcloud@v0
+      - uses: google-github-actions/setup-gcloud@877d4953d2c70a0ba7ef3290ae968eb24af233bb # pin@v0
         with:
           project_id: pomerium-io
           service_account_key: ${{ secrets.GCP_SERVICE_ACCOUNT }}
@@ -46,7 +46,7 @@ jobs:
         run: gcloud auth configure-docker
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
+        uses: goreleaser/goreleaser-action@b953231f81b8dfd023c58e0854a721e35037f28b # pin@v2
         with:
           version: v0.184.0
           args: release --config .github/goreleaser.yaml
@@ -110,18 +110,19 @@ jobs:
     needs: goreleaser
     steps:
       - name: Checkout Helmfile Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@a12a3943b4bdde767164f792f33f40b04645d846 # pin@v3
         with:
           repository: pomerium/helmfile
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump test environment
-        uses: mikefarah/yq@v4.23.1
+        uses: mikefarah/yq@03f57b7034d0330d54663881def67523347dfc9c # pin@v4.23.1
         with:
-          cmd: yq eval '.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i environments/internal-prd/values/pomerium-demo.yaml
+          cmd: yq eval '.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i
+            environments/internal-prd/values/pomerium-demo.yaml
 
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v4
+        uses: stefanzweifel/git-auto-commit-action@c4b132ec2c77a21fcab564bd3c92610cee84b894 # pin@v4
         with:
           commit_message: |
             Bump test environment pomerium/pomerium

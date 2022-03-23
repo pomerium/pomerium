@@ -13,18 +13,18 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@a12a3943b4bdde767164f792f33f40b04645d846 # pin@v3
         with:
           fetch-depth: 0
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@27d0a4f181a40b142cce983c5393082c365d1480 # pin@v1
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@94ab11c41e45d028884a99163086648e898eed25 # pin@v1
 
       - name: Login to DockerHub
-        uses: docker/login-action@v1
+        uses: docker/login-action@dd4fa0671be5250ee6f50aedf4cb05514abda2c7 # pin@v1
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -45,7 +45,7 @@ jobs:
           echo ::set-output name=sha-tag::${SHA_TAG}
 
       - name: Docker Publish - Main
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a # pin@v2
         with:
           context: .
           file: ./Dockerfile
@@ -58,7 +58,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Docker Publish - Debug
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a # pin@v2
         with:
           context: .
           file: ./Dockerfile.debug
@@ -75,23 +75,25 @@ jobs:
     needs: publish
     steps:
       - name: Checkout Helmfile Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@a12a3943b4bdde767164f792f33f40b04645d846 # pin@v3
         with:
           repository: pomerium/helmfile
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump psql environment
-        uses: mikefarah/yq@v4.23.1
+        uses: mikefarah/yq@03f57b7034d0330d54663881def67523347dfc9c # pin@v4.23.1
         with:
-          cmd: yq eval '.image.tag = "${{ needs.publish.outputs.sha-tag }}"' -i environments/internal-prd/pomerium-master-postgres/values/pomerium.yaml
+          cmd: yq eval '.image.tag = "${{ needs.publish.outputs.sha-tag }}"' -i
+            environments/internal-prd/pomerium-master-postgres/values/pomerium.yaml
 
       - name: Bump mysql environment
-        uses: mikefarah/yq@v4.23.1
+        uses: mikefarah/yq@03f57b7034d0330d54663881def67523347dfc9c # pin@v4.23.1
         with:
-          cmd: yq eval '.image.tag = "${{ needs.publish.outputs.sha-tag }}"' -i environments/internal-prd/pomerium-master-mysql/values/pomerium.yaml
+          cmd: yq eval '.image.tag = "${{ needs.publish.outputs.sha-tag }}"' -i
+            environments/internal-prd/pomerium-master-mysql/values/pomerium.yaml
 
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v4
+        uses: stefanzweifel/git-auto-commit-action@c4b132ec2c77a21fcab564bd3c92610cee84b894 # pin@v4
         with:
           commit_message: |
             Bump test environment pomerium/pomerium
