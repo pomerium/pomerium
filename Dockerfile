@@ -1,4 +1,4 @@
-FROM node:16 as ui
+FROM node:16@sha256:68e34cfcd8276ad531b12b3454af5c24cd028752dfccacce4e19efef6f7cdbe0 as ui
 WORKDIR /build
 
 COPY .git ./.git
