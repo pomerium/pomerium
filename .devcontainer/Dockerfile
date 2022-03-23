@@ -1,6 +1,5 @@
 # See here for image contents: https://github.com/microsoft/vscode-dev-containers/tree/v0.137.0/containers/go/.devcontainer/base.Dockerfile
-ARG VARIANT="1"
-FROM mcr.microsoft.com/vscode/devcontainers/go:0-${VARIANT}
+FROM mcr.microsoft.com/vscode/devcontainers/go:0-1@sha256:ec4067ba197ea0c44268641bd252c0bdfa61228202cee5f447925f9ac76d59b3
 
 # [Optional] Install a version of Node.js using nvm for front end dev
 ARG INSTALL_NODE="true"
