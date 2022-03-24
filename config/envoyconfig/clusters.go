@@ -13,7 +13,6 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
-	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -209,8 +208,8 @@ func (b *Builder) buildInternalTransportSocket(
 	}
 
 	validationContext := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
-		MatchSubjectAltNames: []*envoy_type_matcher_v3.StringMatcher{
-			b.buildSubjectAlternativeNameMatcher(endpoint, options.OverrideCertificateName),
+		MatchTypedSubjectAltNames: []*envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher{
+			b.buildSubjectAltNameMatcher(endpoint, options.OverrideCertificateName),
 		},
 	}
 	bs, err := getCombinedCertificateAuthority(options.CA, options.CAFile)
@@ -312,8 +311,8 @@ func (b *Builder) buildPolicyValidationContext(
 	dst url.URL,
 ) (*envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext, error) {
 	validationContext := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
-		MatchSubjectAltNames: []*envoy_type_matcher_v3.StringMatcher{
-			b.buildSubjectAlternativeNameMatcher(&dst, policy.TLSServerName),
+		MatchTypedSubjectAltNames: []*envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher{
+			b.buildSubjectAltNameMatcher(&dst, policy.TLSServerName),
 		},
 	}
 	if policy.TLSCustomCAFile != "" {

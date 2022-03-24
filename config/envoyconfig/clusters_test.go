@@ -80,8 +80,11 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 							]
 						},
 						"validationContext": {
-							"matchSubjectAltNames": [{
-								"exact": "example.com"
+							"matchTypedSubjectAltNames": [{
+								"sanType": "DNS",
+								"matcher": {
+									"exact": "example.com"
+								}
 							}],
 							"trustedCa": {
 								"filename": "`+rootCA+`"
@@ -131,8 +134,11 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 							]
 						},
 						"validationContext": {
-							"matchSubjectAltNames": [{
-								"exact": "use-this-name.example.com"
+							"matchTypedSubjectAltNames": [{
+								"sanType": "DNS",
+								"matcher": {
+									"exact": "use-this-name.example.com"
+								}
 							}],
 							"trustedCa": {
 								"filename": "`+rootCA+`"
@@ -182,8 +188,11 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 							]
 						},
 						"validationContext": {
-							"matchSubjectAltNames": [{
-								"exact": "example.com"
+							"matchTypedSubjectAltNames": [{
+								"sanType": "DNS",
+								"matcher": {
+									"exact": "example.com"
+								}
 							}],
 							"trustedCa": {
 								"filename": "`+rootCA+`"
@@ -234,8 +243,11 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 							]
 						},
 						"validationContext": {
-							"matchSubjectAltNames": [{
-								"exact": "example.com"
+							"matchTypedSubjectAltNames": [{
+								"sanType": "DNS",
+								"matcher": {
+									"exact": "example.com"
+								}
 							}],
 							"trustedCa": {
 								"filename": "`+customCA+`"
@@ -284,8 +296,11 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 							]
 						},
 						"validationContext": {
-							"matchSubjectAltNames": [{
-								"exact": "example.com"
+							"matchTypedSubjectAltNames": [{
+								"sanType": "DNS",
+								"matcher": {
+									"exact": "example.com"
+								}
 							}],
 							"trustedCa": {
 								"filename": "`+combinedCA+`"
@@ -344,8 +359,11 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 							}
 						}],
 						"validationContext": {
-							"matchSubjectAltNames": [{
-								"exact": "example.com"
+							"matchTypedSubjectAltNames": [{
+								"sanType": "DNS",
+								"matcher": {
+									"exact": "example.com"
+								}
 							}],
 							"trustedCa": {
 								"filename": "`+rootCA+`"
@@ -478,8 +496,11 @@ func Test_buildCluster(t *testing.T) {
 									]
 								},
 								"validationContext": {
-									"matchSubjectAltNames": [{
-										"exact": "example.com"
+									"matchTypedSubjectAltNames": [{
+										"sanType": "DNS",
+										"matcher": {
+											"exact": "example.com"
+										}
 									}],
 									"trustedCa": {
 										"filename": "`+rootCA+`"
@@ -521,8 +542,11 @@ func Test_buildCluster(t *testing.T) {
 								]
 							},
 							"validationContext": {
-								"matchSubjectAltNames": [{
-									"exact": "example.com"
+								"matchTypedSubjectAltNames": [{
+									"sanType": "DNS",
+									"matcher": {
+										"exact": "example.com"
+									}
 								}],
 								"trustedCa": {
 									"filename": "`+rootCA+`"

@@ -9,15 +9,16 @@ import (
 	"regexp"
 	"strings"
 
+	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 )
 
 var oidMustStaple = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 1, 24}
 
-func (b *Builder) buildSubjectAlternativeNameMatcher(
+func (b *Builder) buildSubjectAltNameMatcher(
 	dst *url.URL,
 	overrideName string,
-) *envoy_type_matcher_v3.StringMatcher {
+) *envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher {
 	sni := dst.Hostname()
 	if overrideName != "" {
 		sni = overrideName
@@ -26,21 +27,27 @@ func (b *Builder) buildSubjectAlternativeNameMatcher(
 	if strings.Contains(sni, "*") {
 		pattern := regexp.QuoteMeta(sni)
 		pattern = strings.Replace(pattern, "\\*", ".*", -1)
-		return &envoy_type_matcher_v3.StringMatcher{
-			MatchPattern: &envoy_type_matcher_v3.StringMatcher_SafeRegex{
-				SafeRegex: &envoy_type_matcher_v3.RegexMatcher{
-					EngineType: &envoy_type_matcher_v3.RegexMatcher_GoogleRe2{
-						GoogleRe2: &envoy_type_matcher_v3.RegexMatcher_GoogleRE2{},
+		return &envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher{
+			SanType: envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher_DNS,
+			Matcher: &envoy_type_matcher_v3.StringMatcher{
+				MatchPattern: &envoy_type_matcher_v3.StringMatcher_SafeRegex{
+					SafeRegex: &envoy_type_matcher_v3.RegexMatcher{
+						EngineType: &envoy_type_matcher_v3.RegexMatcher_GoogleRe2{
+							GoogleRe2: &envoy_type_matcher_v3.RegexMatcher_GoogleRE2{},
+						},
+						Regex: pattern,
 					},
-					Regex: pattern,
 				},
 			},
 		}
 	}
 
-	return &envoy_type_matcher_v3.StringMatcher{
-		MatchPattern: &envoy_type_matcher_v3.StringMatcher_Exact{
-			Exact: sni,
+	return &envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher{
+		SanType: envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher_DNS,
+		Matcher: &envoy_type_matcher_v3.StringMatcher{
+			MatchPattern: &envoy_type_matcher_v3.StringMatcher_Exact{
+				Exact: sni,
+			},
 		},
 	}
 }
