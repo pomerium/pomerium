@@ -159,6 +159,10 @@ When using Redis, the [shared secret](/reference/readme.md#shared-secret) is use
 
 The resolution is to flush the Redis database with [`FLUSHDB`](https://redis.io/commands/flushdb) or [`FLUSHALL`](https://redis.io/commands/FLUSHALL).
 
+An example of how to do this on Kubernetes with TLS enabled is to use kubectl to execute a command on the master pod, like so:
+`kubectl exec -it pomerium-redis-master-0 -- redis-cli --tls --cert /opt/bitnami/redis/certs/tls.crt --key /opt/bitnami/redis/certs/tls.key --cacert /opt/bitnami/redis/certs/ca.crt FLUSHALL ASYNC`
+If TLS is not enabled, you may omit the TLS options.
+
 ### RPC Errors
 
 #### certificate signed by unknown authority
