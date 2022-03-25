@@ -27,9 +27,9 @@ Each instance of Pomerium runs in all-in-one mode unless specified to run as a s
 
 It's important to note that any production deployment with more than one instance of Pomerium (in any combination of modes) should be configured to use Redis as the [`databroker_storage_type`](/reference/readme.md#data-broker-storage-type). See [Data Storage - Backends](/docs/topics/data-storage.md#backends) for more details.
 
-### All in One
+### All-in-One
 
-In smaller deployments or while testing, it may be desirable to run in "all-in-one" mode. This reduces the resource footprint and simplifies DNS configuration. All URLs point at the same pomerium service instance.
+It may be desirable to run in "all-in-one" mode in smaller deployments or while testing. This reduces the resource footprint and simplifies DNS configuration. All URLs point at the same Pomerium service instance.
 
 ### Discrete Services
 
@@ -97,7 +97,7 @@ In a production configuration, Databroker CPU/IO utilization also translates to 
 
 ## Load Balancing
 
-In any production deployment, running multiple replicas of each Pomerium service is strongly recommended. Each service has slightly different concerns about utilizing the replicas for HA and scaling, enumerated below.
+In any production deployment, running multiple replicas of each Pomerium service is strongly recommended. Each service has slightly different concerns about utilizing the replicas for high availability and scaling, enumerated below.
 
 ### Proxy
 
@@ -112,7 +112,7 @@ The suggested practice is to use the Pomerium Proxy service to load-balance Auth
 
 ### Authorize and Databroker
 
-You do **not** need to provide a load balancer in front of Authorize and Databroker services. Both utilize GRPC, and thus has special requirements if you should choose to use an external load balancer. GRPC can perform client based load balancing, and in most configurations is the best architecture.
+You do **not** need to provide a load balancer in front of Authorize and Databroker services. Both utilize GRPC and have special requirements if you should choose to use an external load balancer. GRPC can perform client based load balancing and is the best architecture for most configurations.
 
 By default, Pomerium gRPC clients will automatically connect to all IPs returned by a DNS query for the name of an upstream service. They will then regularly re-query DNS for changes to the Authorize or Databroker service cluster. Health checks and failover are automatic.
 
@@ -122,7 +122,7 @@ You can also define multiple domain names for Databroker or Authorize services w
 
 As mentioned in [scaling](#scaling), Pomerium components themselves are stateless and support horizontal scale out for both availability and performance reasons.
 
-A given service type does not require communication with its peer instances to provide high availability. Eg, a Proxy service instance does not communicate with Proxy instances.
+A given service type does not require communication with its peer instances to provide high availability. E.g., a Proxy service instance does not communicate with Proxy instances.
 
 Regardless of the service mode, it is recommended you run at least 2 instances of Pomerium with as much physical and logical separation as possible. For example, in Cloud environments, you should deploy instances of each service to at least 2 different zones. On-prem environments should deploy >=2 instances to independent hardware.
 
@@ -139,11 +139,11 @@ Pomerium utilizes TLS end to end, so the placement, certificate authorities and 
 In a typical deployment, a minimum of two certs are required:
 
 - A wildcard certificate which covers the external `from` names, the Proxy service's external name and the Authenticate service's external name
- - Must be trusted by user browsers or clients
- - Must cover subject names from the user perspective
+  - Must be trusted by user browsers or clients
+  - Must cover subject names from the user perspective
 - A certificate which covers the Authorize service's name
- - Must be trusted by the Proxy
- - Must cover the subject name from the Proxy's perspective
+  - Must be trusted by the Proxy
+  - Must cover the subject name from the Proxy's perspective
 
 If you have L7 load balancing in front of the Proxy/Authenticate:
 
