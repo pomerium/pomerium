@@ -46,18 +46,5 @@ func (a *Authenticate) getExternalRequest(r *http.Request) *http.Request {
 		return r
 	}
 
-	// if we're not using a different internal URL there's nothing to do
-	if externalURL.String() == internalURL.String() {
-		return r
-	}
-
-	// replace the internal host with the external host
-	er := r.Clone(r.Context())
-	if er.URL.Host == internalURL.Host {
-		er.URL.Host = externalURL.Host
-	}
-	if er.Host == internalURL.Host {
-		er.Host = externalURL.Host
-	}
-	return er
+	return urlutil.GetExternalRequest(internalURL, externalURL, r)
 }
