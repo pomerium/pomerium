@@ -81,3 +81,11 @@ databroker_storage_ca_file: /tls/ca.pem
 ::: tip
 the second `s` in `rediss` is intentional and turns on TLS support
 :::
+
+::: tip
+It is necessary when regenerating the shared secret between Pomerium and Redis to execute a FLUSHALL or FLUSHDB on the Redis master.
+Be aware that these commands will reset all keys in your database, and they are disabled by default in the Helm Bitnami Redis chart.
+An example of how to do this on Kubernetes with TLS enabled is to use kubectl to execute a command on the master pod, like so:
+`kubectl exec -it pomerium-redis-master-0 -- redis-cli --tls --cert /opt/bitnami/redis/certs/tls.crt --key /opt/bitnami/redis/certs/tls.key --cacert /opt/bitnami/redis/certs/ca.crt FLUSHALL ASYNC`
+If TLS is not enabled, you may omit the TLS options.
+:::
