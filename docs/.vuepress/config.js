@@ -147,12 +147,12 @@ module.exports = {
           ],
         },
         {
-          title: "Production Deployments",
+          title: "Production",
           collapsable: true,
           type: "group",
           children: [
             "/docs/security",
-            "topics/production-deployment",
+            "/docs/production-deployment",
           ]
         },
         {
@@ -191,10 +191,6 @@ module.exports = {
             "k8s/helm",
             "k8s/ingress",
           ]
-        },
-        {
-          title: "Production Deployment",
-          path: "/docs/production-deployment",
         },
         {
           title: "Topics",
