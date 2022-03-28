@@ -41,7 +41,7 @@ const (
 // Manager manages TLS certificates.
 type Manager struct {
 	src          config.Source
-	acmeTemplate certmagic.ACMEManager
+	acmeTemplate certmagic.ACMEIssuer
 
 	mu        sync.RWMutex
 	config    *config.Config
@@ -61,7 +61,7 @@ func New(src config.Source) (*Manager, error) {
 
 func newManager(ctx context.Context,
 	src config.Source,
-	acmeTemplate certmagic.ACMEManager,
+	acmeTemplate certmagic.ACMEIssuer,
 	checkInterval time.Duration,
 ) (*Manager, error) {
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
@@ -124,7 +124,7 @@ func newManager(ctx context.Context,
 	return mgr, nil
 }
 
-func (mgr *Manager) getCertMagicConfig(cfg *config.Config) (*certmagic.Config, error) {
+func (mgr *Manager) getCertMagicConfig(ctx context.Context, cfg *config.Config) (*certmagic.Config, error) {
 	mgr.certmagic.MustStaple = cfg.Options.AutocertOptions.MustStaple
 	mgr.certmagic.OnDemand = nil // disable on-demand
 	mgr.certmagic.Storage = &certmagic.FileStorage{Path: cfg.Options.AutocertOptions.Folder}
@@ -134,11 +134,11 @@ func (mgr *Manager) getCertMagicConfig(cfg *config.Config) (*certmagic.Config, e
 	}
 	// add existing certs to the cache, and staple OCSP
 	for _, cert := range certs {
-		if err := mgr.certmagic.CacheUnmanagedTLSCertificate(cert, nil); err != nil {
+		if err := mgr.certmagic.CacheUnmanagedTLSCertificate(ctx, cert, nil); err != nil {
 			return nil, fmt.Errorf("config: failed caching cert: %w", err)
 		}
 	}
-	acmeMgr := certmagic.NewACMEManager(mgr.certmagic, mgr.acmeTemplate)
+	acmeMgr := certmagic.NewACMEIssuer(mgr.certmagic, mgr.acmeTemplate)
 	err = configureCertificateAuthority(acmeMgr, cfg.Options.AutocertOptions)
 	if err != nil {
 		return nil, err
@@ -166,7 +166,7 @@ func (mgr *Manager) renewConfigCerts(ctx context.Context) error {
 	defer mgr.mu.Unlock()
 
 	cfg := mgr.config
-	cm, err := mgr.getCertMagicConfig(cfg)
+	cm, err := mgr.getCertMagicConfig(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ func (mgr *Manager) renewConfigCerts(ctx context.Context) error {
 	var renew, ocsp []string
 	log.Debug(ctx).Strs("domains", sourceHostnames(cfg)).Msg("checking domains")
 	for _, domain := range sourceHostnames(cfg) {
-		cert, err := cm.CacheManagedCertificate(domain)
+		cert, err := cm.CacheManagedCertificate(ctx, domain)
 		if err != nil {
 			// this happens for unmanaged certificates
 			continue
@@ -228,7 +228,7 @@ func (mgr *Manager) update(ctx context.Context, cfg *config.Config) error {
 
 // obtainCert obtains a certificate for given domain, use cached manager if cert exists there.
 func (mgr *Manager) obtainCert(ctx context.Context, domain string, cm *certmagic.Config) (certmagic.Certificate, error) {
-	cert, err := cm.CacheManagedCertificate(domain)
+	cert, err := cm.CacheManagedCertificate(ctx, domain)
 	if err != nil {
 		log.Info(ctx).Str("domain", domain).Msg("obtaining certificate")
 		err = cm.ObtainCertSync(ctx, domain)
@@ -237,7 +237,7 @@ func (mgr *Manager) obtainCert(ctx context.Context, domain string, cm *certmagic
 			return certmagic.Certificate{}, errObtainCertFailed
 		}
 		metrics.RecordAutocertRenewal()
-		cert, err = cm.CacheManagedCertificate(domain)
+		cert, err = cm.CacheManagedCertificate(ctx, domain)
 	}
 	return cert, err
 }
@@ -255,7 +255,7 @@ func (mgr *Manager) renewCert(ctx context.Context, domain string, cert certmagic
 		}
 		log.Warn(ctx).Err(err).Msg("renew client certificated failed, use existing cert")
 	}
-	return cm.CacheManagedCertificate(domain)
+	return cm.CacheManagedCertificate(ctx, domain)
 }
 
 func (mgr *Manager) updateAutocert(ctx context.Context, cfg *config.Config) error {
@@ -263,7 +263,7 @@ func (mgr *Manager) updateAutocert(ctx context.Context, cfg *config.Config) erro
 		return nil
 	}
 
-	cm, err := mgr.getCertMagicConfig(cfg)
+	cm, err := mgr.getCertMagicConfig(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -334,7 +334,7 @@ func (mgr *Manager) handleHTTPChallenge(w http.ResponseWriter, r *http.Request) 
 	if obj == nil {
 		return false
 	}
-	acmeMgr := obj.(*certmagic.ACMEManager)
+	acmeMgr := obj.(*certmagic.ACMEIssuer)
 	return acmeMgr.HandleHTTPChallenge(w, r)
 }
 
@@ -347,7 +347,7 @@ func (mgr *Manager) GetConfig() *config.Config {
 }
 
 // configureCertificateAuthority configures the acmeMgr ACME Certificate Authority settings.
-func configureCertificateAuthority(acmeMgr *certmagic.ACMEManager, opts config.AutocertOptions) error {
+func configureCertificateAuthority(acmeMgr *certmagic.ACMEIssuer, opts config.AutocertOptions) error {
 	acmeMgr.Agreed = true
 	if opts.UseStaging {
 		acmeMgr.CA = acmeMgr.TestCA
@@ -362,7 +362,7 @@ func configureCertificateAuthority(acmeMgr *certmagic.ACMEManager, opts config.A
 }
 
 // configureExternalAccountBinding configures the acmeMgr ACME External Account Binding settings.
-func configureExternalAccountBinding(acmeMgr *certmagic.ACMEManager, opts config.AutocertOptions) error {
+func configureExternalAccountBinding(acmeMgr *certmagic.ACMEIssuer, opts config.AutocertOptions) error {
 	if opts.EABKeyID != "" || opts.EABMACKey != "" {
 		acmeMgr.ExternalAccount = &acme.EAB{}
 	}
@@ -380,7 +380,7 @@ func configureExternalAccountBinding(acmeMgr *certmagic.ACMEManager, opts config
 }
 
 // configureTrustedRoots configures the acmeMgr x509 roots to trust when communicating with an ACME CA.
-func configureTrustedRoots(acmeMgr *certmagic.ACMEManager, opts config.AutocertOptions) error {
+func configureTrustedRoots(acmeMgr *certmagic.ACMEIssuer, opts config.AutocertOptions) error {
 	if opts.TrustedCA != "" {
 		// pool effectively contains the certificate(s) in the TrustedCA base64 PEM appended to the system roots
 		pool, err := cryptutil.GetCertPool(opts.TrustedCA, "")

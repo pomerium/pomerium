@@ -248,7 +248,7 @@ func TestConfig(t *testing.T) {
 			HTTPRedirectAddr: addr,
 			Policies:         []config.Policy{p1},
 		},
-	}), certmagic.ACMEManager{
+	}), certmagic.ACMEIssuer{
 		CA:     srv.URL + "/acme/directory",
 		TestCA: srv.URL + "/acme/directory",
 	}, time.Millisecond*100)
@@ -368,8 +368,8 @@ func readJWSPayload(r io.Reader, dst interface{}) {
 	_ = json.Unmarshal(bs, dst)
 }
 
-func newACMEManager() *certmagic.ACMEManager {
-	return &certmagic.ACMEManager{
+func newACMEIssuer() *certmagic.ACMEIssuer {
+	return &certmagic.ACMEIssuer{
 		CA:     certmagic.DefaultACME.CA,
 		TestCA: certmagic.DefaultACME.TestCA,
 	}
@@ -377,22 +377,22 @@ func newACMEManager() *certmagic.ACMEManager {
 
 func Test_configureCertificateAuthority(t *testing.T) {
 	type args struct {
-		acmeMgr *certmagic.ACMEManager
+		acmeMgr *certmagic.ACMEIssuer
 		opts    config.AutocertOptions
 	}
 	type test struct {
 		args     args
-		expected *certmagic.ACMEManager
+		expected *certmagic.ACMEIssuer
 		wantErr  bool
 	}
 	var tests = map[string]func(t *testing.T) test{
 		"ok/default": func(t *testing.T) test {
 			return test{
 				args: args{
-					acmeMgr: newACMEManager(),
+					acmeMgr: newACMEIssuer(),
 					opts:    config.AutocertOptions{},
 				},
-				expected: &certmagic.ACMEManager{
+				expected: &certmagic.ACMEIssuer{
 					Agreed: true,
 					CA:     certmagic.DefaultACME.CA,
 					TestCA: certmagic.DefaultACME.TestCA,
@@ -403,12 +403,12 @@ func Test_configureCertificateAuthority(t *testing.T) {
 		"ok/staging": func(t *testing.T) test {
 			return test{
 				args: args{
-					acmeMgr: newACMEManager(),
+					acmeMgr: newACMEIssuer(),
 					opts: config.AutocertOptions{
 						UseStaging: true,
 					},
 				},
-				expected: &certmagic.ACMEManager{
+				expected: &certmagic.ACMEIssuer{
 					Agreed: true,
 					CA:     certmagic.DefaultACME.TestCA,
 					TestCA: certmagic.DefaultACME.TestCA,
@@ -419,14 +419,14 @@ func Test_configureCertificateAuthority(t *testing.T) {
 		"ok/custom-ca-staging": func(t *testing.T) test {
 			return test{
 				args: args{
-					acmeMgr: newACMEManager(),
+					acmeMgr: newACMEIssuer(),
 					opts: config.AutocertOptions{
 						CA:         "test-ca.example.com/directory",
 						Email:      "test@example.com",
 						UseStaging: true,
 					},
 				},
-				expected: &certmagic.ACMEManager{
+				expected: &certmagic.ACMEIssuer{
 					Agreed: true,
 					CA:     "test-ca.example.com/directory",
 					Email:  "test@example.com",
@@ -442,8 +442,8 @@ func Test_configureCertificateAuthority(t *testing.T) {
 			if err := configureCertificateAuthority(tc.args.acmeMgr, tc.args.opts); (err != nil) != tc.wantErr {
 				t.Errorf("configureCertificateAuthority() error = %v, wantErr %v", err, tc.wantErr)
 			}
-			if !cmp.Equal(tc.expected, tc.args.acmeMgr, cmpopts.IgnoreUnexported(certmagic.ACMEManager{})) {
-				t.Errorf("configureCertificateAuthority() diff = %s", cmp.Diff(tc.expected, tc.args.acmeMgr, cmpopts.IgnoreUnexported(certmagic.ACMEManager{})))
+			if !cmp.Equal(tc.expected, tc.args.acmeMgr, cmpopts.IgnoreUnexported(certmagic.ACMEIssuer{})) {
+				t.Errorf("configureCertificateAuthority() diff = %s", cmp.Diff(tc.expected, tc.args.acmeMgr, cmpopts.IgnoreUnexported(certmagic.ACMEIssuer{})))
 			}
 		})
 	}
@@ -451,25 +451,25 @@ func Test_configureCertificateAuthority(t *testing.T) {
 
 func Test_configureExternalAccountBinding(t *testing.T) {
 	type args struct {
-		acmeMgr *certmagic.ACMEManager
+		acmeMgr *certmagic.ACMEIssuer
 		opts    config.AutocertOptions
 	}
 	type test struct {
 		args     args
-		expected *certmagic.ACMEManager
+		expected *certmagic.ACMEIssuer
 		wantErr  bool
 	}
 	var tests = map[string]func(t *testing.T) test{
 		"ok": func(t *testing.T) test {
 			return test{
 				args: args{
-					acmeMgr: newACMEManager(),
+					acmeMgr: newACMEIssuer(),
 					opts: config.AutocertOptions{
 						EABKeyID:  "keyID",
 						EABMACKey: "29D7t6-mOuEV5vvBRX0UYF5T7x6fomidhM1kMJco-yw",
 					},
 				},
-				expected: &certmagic.ACMEManager{
+				expected: &certmagic.ACMEIssuer{
 					CA:     certmagic.DefaultACME.CA,
 					TestCA: certmagic.DefaultACME.TestCA,
 					ExternalAccount: &acme.EAB{
@@ -483,7 +483,7 @@ func Test_configureExternalAccountBinding(t *testing.T) {
 		"fail/error-decoding-mac-key": func(t *testing.T) test {
 			return test{
 				args: args{
-					acmeMgr: newACMEManager(),
+					acmeMgr: newACMEIssuer(),
 					opts: config.AutocertOptions{
 						EABKeyID:  "keyID",
 						EABMACKey: ">invalid-base-64-data<",
@@ -501,8 +501,8 @@ func Test_configureExternalAccountBinding(t *testing.T) {
 			if (err != nil) != tc.wantErr {
 				t.Errorf("configureExternalAccountBinding() error = %v, wantErr %v", err, tc.wantErr)
 			}
-			if err == nil && !cmp.Equal(tc.expected, tc.args.acmeMgr, cmpopts.IgnoreUnexported(certmagic.ACMEManager{})) {
-				t.Errorf("configureCertificateAuthority() diff = %s", cmp.Diff(tc.expected, tc.args.acmeMgr, cmpopts.IgnoreUnexported(certmagic.ACMEManager{})))
+			if err == nil && !cmp.Equal(tc.expected, tc.args.acmeMgr, cmpopts.IgnoreUnexported(certmagic.ACMEIssuer{})) {
+				t.Errorf("configureCertificateAuthority() diff = %s", cmp.Diff(tc.expected, tc.args.acmeMgr, cmpopts.IgnoreUnexported(certmagic.ACMEIssuer{})))
 			}
 		})
 	}
@@ -512,12 +512,12 @@ func Test_configureTrustedRoots(t *testing.T) {
 	ca, err := newTestCA()
 	require.NoError(t, err)
 	type args struct {
-		acmeMgr *certmagic.ACMEManager
+		acmeMgr *certmagic.ACMEIssuer
 		opts    config.AutocertOptions
 	}
 	type test struct {
 		args     args
-		expected *certmagic.ACMEManager
+		expected *certmagic.ACMEIssuer
 		wantErr  bool
 		cleanup  func()
 	}
@@ -529,12 +529,12 @@ func Test_configureTrustedRoots(t *testing.T) {
 			require.Equal(t, true, ok)
 			return test{
 				args: args{
-					acmeMgr: newACMEManager(),
+					acmeMgr: newACMEIssuer(),
 					opts: config.AutocertOptions{
 						TrustedCA: base64.StdEncoding.EncodeToString(ca.certPEM),
 					},
 				},
-				expected: &certmagic.ACMEManager{
+				expected: &certmagic.ACMEIssuer{
 					CA:           certmagic.DefaultACME.CA,
 					TestCA:       certmagic.DefaultACME.TestCA,
 					TrustedRoots: copy,
@@ -554,12 +554,12 @@ func Test_configureTrustedRoots(t *testing.T) {
 			require.Equal(t, len(ca.certPEM), n)
 			return test{
 				args: args{
-					acmeMgr: newACMEManager(),
+					acmeMgr: newACMEIssuer(),
 					opts: config.AutocertOptions{
 						TrustedCAFile: f.Name(),
 					},
 				},
-				expected: &certmagic.ACMEManager{
+				expected: &certmagic.ACMEIssuer{
 					CA:           certmagic.DefaultACME.CA,
 					TestCA:       certmagic.DefaultACME.TestCA,
 					TrustedRoots: copy,
@@ -575,12 +575,12 @@ func Test_configureTrustedRoots(t *testing.T) {
 			require.NoError(t, err)
 			return test{
 				args: args{
-					acmeMgr: newACMEManager(),
+					acmeMgr: newACMEIssuer(),
 					opts: config.AutocertOptions{
 						TrustedCA: ">invalid-base-64-ca-pem<",
 					},
 				},
-				expected: &certmagic.ACMEManager{
+				expected: &certmagic.ACMEIssuer{
 					CA:           certmagic.DefaultACME.CA,
 					TestCA:       certmagic.DefaultACME.TestCA,
 					TrustedRoots: copy,
@@ -593,12 +593,12 @@ func Test_configureTrustedRoots(t *testing.T) {
 			require.NoError(t, err)
 			return test{
 				args: args{
-					acmeMgr: newACMEManager(),
+					acmeMgr: newACMEIssuer(),
 					opts: config.AutocertOptions{
 						TrustedCAFile: "some-non-existing-file",
 					},
 				},
-				expected: &certmagic.ACMEManager{
+				expected: &certmagic.ACMEIssuer{
 					CA:           certmagic.DefaultACME.CA,
 					TestCA:       certmagic.DefaultACME.TestCA,
 					TrustedRoots: copy,
@@ -614,8 +614,8 @@ func Test_configureTrustedRoots(t *testing.T) {
 			if (err != nil) != tc.wantErr {
 				t.Errorf("configureTrustedRoots() error = %v, wantErr %v", err, tc.wantErr)
 			}
-			if err == nil && !cmp.Equal(tc.expected, tc.args.acmeMgr, cmpopts.IgnoreUnexported(certmagic.ACMEManager{}, x509.CertPool{})) {
-				t.Errorf("configureCertificateAuthority() diff = %s", cmp.Diff(tc.expected, tc.args.acmeMgr, cmpopts.IgnoreUnexported(certmagic.ACMEManager{}, x509.CertPool{})))
+			if err == nil && !cmp.Equal(tc.expected, tc.args.acmeMgr, cmpopts.IgnoreUnexported(certmagic.ACMEIssuer{}, x509.CertPool{})) {
+				t.Errorf("configureCertificateAuthority() diff = %s", cmp.Diff(tc.expected, tc.args.acmeMgr, cmpopts.IgnoreUnexported(certmagic.ACMEIssuer{}, x509.CertPool{})))
 			}
 			if err == nil && !cmp.Equal(tc.expected.TrustedRoots.Subjects(), tc.args.acmeMgr.TrustedRoots.Subjects()) {
 				t.Errorf("configureCertificateAuthority() subjects diff = %s", cmp.Diff(tc.expected.TrustedRoots.Subjects(), tc.args.acmeMgr.TrustedRoots.Subjects()))
