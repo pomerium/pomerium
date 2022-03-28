@@ -141,3 +141,22 @@ func Join(elements ...string) string {
 	}
 	return builder.String()
 }
+
+// GetExternalRequest modifies a request so that it appears to be for an external URL instead of
+// an internal URL.
+func GetExternalRequest(internalURL, externalURL *url.URL, r *http.Request) *http.Request {
+	// if we're not using a different internal URL there's nothing to do
+	if externalURL.String() == internalURL.String() {
+		return r
+	}
+
+	// replace the internal host with the external host
+	er := r.Clone(r.Context())
+	if er.URL.Host == internalURL.Host {
+		er.URL.Host = externalURL.Host
+	}
+	if er.Host == internalURL.Host {
+		er.Host = externalURL.Host
+	}
+	return er
+}
