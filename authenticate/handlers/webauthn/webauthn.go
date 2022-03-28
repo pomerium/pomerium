@@ -47,14 +47,15 @@ var (
 
 // State is the state needed by the Handler to handle requests.
 type State struct {
-	AuthenticateURL *url.URL
-	Client          databroker.DataBrokerServiceClient
-	PomeriumDomains []string
-	RelyingParty    *webauthn.RelyingParty
-	Session         *session.Session
-	SessionState    *sessions.State
-	SessionStore    sessions.SessionStore
-	SharedKey       []byte
+	AuthenticateURL         *url.URL
+	InternalAuthenticateURL *url.URL
+	Client                  databroker.DataBrokerServiceClient
+	PomeriumDomains         []string
+	RelyingParty            *webauthn.RelyingParty
+	Session                 *session.Session
+	SessionState            *sessions.State
+	SessionStore            sessions.SessionStore
+	SharedKey               []byte
 }
 
 // A StateProvider provides state for the handler.
@@ -122,7 +123,10 @@ func (h *Handler) handle(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	err = middleware.ValidateRequestURL(r, s.SharedKey)
+	err = middleware.ValidateRequestURL(
+		urlutil.GetExternalRequest(s.InternalAuthenticateURL, s.AuthenticateURL, r),
+		s.SharedKey,
+	)
 	if err != nil {
 		return err
 	}
