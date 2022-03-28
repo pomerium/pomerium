@@ -14,7 +14,7 @@ jobs:
         platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # pin@v2
+      - uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # pin@v2
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -61,7 +61,7 @@ jobs:
         go-version: [1.17.x]
         node-version: [16.x]
     steps:
-      - uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # pin@v2
+      - uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # pin@v2
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -119,7 +119,7 @@ jobs:
         idp: [auth0, azure, github, gitlab, google, oidc, okta, onelogin, ping]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # pin@v2
+      - uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # pin@v2
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -165,7 +165,7 @@ jobs:
         platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # pin@v2
+      - uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # pin@v2
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -222,7 +222,7 @@ jobs:
       - uses: actions/checkout@a12a3943b4bdde767164f792f33f40b04645d846 # pin@v3
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # pin@v2
+      - uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # pin@v2
         with:
           go-version: 1.17.x
       - uses: actions/setup-python@0ebf233433c08fb9061af664d501c3f3ff0e9e20 # pin@v3
@@ -243,7 +243,7 @@ jobs:
     needs:
       - build
     steps:
-      - uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # pin@v2
+      - uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # pin@v2
         with:
           go-version: 1.17.x
 
