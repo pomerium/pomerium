@@ -613,10 +613,11 @@ func (a *Authenticate) saveSessionToDataBroker(
 	idTokenIssuedAt := timestamppb.New(sessionState.IssuedAt.Time())
 
 	s := &session.Session{
-		Id:        sessionState.ID,
-		UserId:    sessionState.UserID(idp.Name()),
-		IssuedAt:  timestamppb.Now(),
-		ExpiresAt: sessionExpiry,
+		Id:         sessionState.ID,
+		UserId:     sessionState.UserID(idp.Name()),
+		IssuedAt:   timestamppb.Now(),
+		AccessedAt: timestamppb.Now(),
+		ExpiresAt:  sessionExpiry,
 		IdToken: &session.IDToken{
 			Issuer:    sessionState.Issuer, // todo(bdd): the issuer is not authN but the downstream IdP from the claims
 			Subject:   sessionState.Subject,
