@@ -21,7 +21,7 @@ require (
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2
-	github.com/golangci/golangci-lint v1.45.0
+	github.com/golangci/golangci-lint v1.45.2
 	github.com/google/btree v1.0.1
 	github.com/google/go-cmp v0.5.7
 	github.com/google/go-jsonnet v0.18.0
@@ -98,7 +98,7 @@ require (
 	github.com/ashanbrown/makezero v1.1.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bkielbasa/cyclop v1.2.0 // indirect
-	github.com/blizzy78/varnamelen v0.6.0 // indirect
+	github.com/blizzy78/varnamelen v0.6.1 // indirect
 	github.com/bombsimon/wsl/v3 v3.3.0 // indirect
 	github.com/breml/bidichk v0.2.2 // indirect
 	github.com/breml/errchkjson v0.2.3 // indirect
@@ -159,7 +159,7 @@ require (
 	github.com/gostaticanalysis/comment v1.4.2 // indirect
 	github.com/gostaticanalysis/forcetypeassert v0.1.0 // indirect
 	github.com/gostaticanalysis/nilerr v0.1.1 // indirect
-	github.com/hashicorp/go-version v1.2.1 // indirect
+	github.com/hashicorp/go-version v1.4.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hexops/gotextdiff v1.0.3 // indirect
 	github.com/iancoleman/strcase v0.2.0 // indirect
