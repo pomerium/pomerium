@@ -81,13 +81,13 @@ jobs:
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump psql environment
-        uses: mikefarah/yq@03f57b7034d0330d54663881def67523347dfc9c # pin@v4.23.1
+        uses: mikefarah/yq@bc2118736bca883de2e2c345bb7f7ef52c994920 # pin@v4.23.1
         with:
           cmd: yq eval '.image.tag = "${{ needs.publish.outputs.sha-tag }}"' -i
             environments/internal-prd/pomerium-master-postgres/values/pomerium.yaml
 
       - name: Bump mysql environment
-        uses: mikefarah/yq@03f57b7034d0330d54663881def67523347dfc9c # pin@v4.23.1
+        uses: mikefarah/yq@bc2118736bca883de2e2c345bb7f7ef52c994920 # pin@v4.23.1
         with:
           cmd: yq eval '.image.tag = "${{ needs.publish.outputs.sha-tag }}"' -i
             environments/internal-prd/pomerium-master-mysql/values/pomerium.yaml
