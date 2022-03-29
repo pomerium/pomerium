@@ -6,6 +6,7 @@ option go_package = "github.com/pomerium/pomerium/pkg/grpc/databroker";
 import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
 message Record {
@@ -46,7 +47,10 @@ message QueryResponse {
   int64 total_count = 2;
 }
 
-message PutRequest { Record record = 1; }
+message PutRequest {
+  Record record = 1;
+  optional google.protobuf.FieldMask mask = 2;
+}
 message PutResponse {
   uint64 server_version = 1;
   Record record = 2;
