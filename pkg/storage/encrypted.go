@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -103,7 +104,7 @@ func (e *encryptedBackend) Lease(ctx context.Context, leaseName, leaseID string,
 	return e.underlying.Lease(ctx, leaseName, leaseID, ttl)
 }
 
-func (e *encryptedBackend) Put(ctx context.Context, record *databroker.Record) (uint64, error) {
+func (e *encryptedBackend) Put(ctx context.Context, record *databroker.Record, mask *fieldmaskpb.FieldMask) (uint64, error) {
 	encrypted, err := e.encrypt(record.GetData())
 	if err != nil {
 		return 0, err
@@ -112,7 +113,7 @@ func (e *encryptedBackend) Put(ctx context.Context, record *databroker.Record) (
 	newRecord := proto.Clone(record).(*databroker.Record)
 	newRecord.Data = encrypted
 
-	serverVersion, err := e.underlying.Put(ctx, newRecord)
+	serverVersion, err := e.underlying.Put(ctx, newRecord, mask)
 	if err != nil {
 		return 0, err
 	}
