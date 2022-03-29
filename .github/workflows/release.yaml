@@ -121,7 +121,7 @@ jobs:
       - name: Bump test environment
         uses: mikefarah/yq@bc2118736bca883de2e2c345bb7f7ef52c994920 # pin@v4.23.1
         with:
-          cmd: yq eval '.pomerium.image.tag = "v0.17.0"' -i projects/pomerium-demo/pomerium-demo/values.yaml
+          cmd: yq eval '.pomerium.image.tag = "v0.17.1"' -i projects/pomerium-demo/pomerium-demo/values.yaml
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@c4b132ec2c77a21fcab564bd3c92610cee84b894 # pin@v4
