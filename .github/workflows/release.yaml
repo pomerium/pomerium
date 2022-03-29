@@ -112,14 +112,13 @@ jobs:
       - name: Checkout Helmfile Repo
         uses: actions/checkout@a12a3943b4bdde767164f792f33f40b04645d846 # pin@v3
         with:
-          repository: pomerium/helmfile
+          repository: pomerium/gitops-argocd
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump test environment
         uses: mikefarah/yq@bc2118736bca883de2e2c345bb7f7ef52c994920 # pin@v4.23.1
         with:
-          cmd: yq eval '.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i
-            environments/internal-prd/values/pomerium-demo.yaml
+          cmd: yq eval '.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i projects/pomerium-demo/pomerium-demo/values.yaml
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@c4b132ec2c77a21fcab564bd3c92610cee84b894 # pin@v4
