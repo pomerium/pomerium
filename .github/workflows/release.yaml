@@ -112,13 +112,13 @@ jobs:
       - name: Checkout Helmfile Repo
         uses: actions/checkout@v2
         with:
-          repository: pomerium/helmfile
+          repository: pomerium/gitops-argocd
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump test environment
         uses: mikefarah/yq@v4.21.1
         with:
-          cmd: yq eval '.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i environments/internal-prd/values/pomerium-demo.yaml
+          cmd: yq eval '.pomerium.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i projects/pomerium-demo/pomerium-demo/values.yaml
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v4
