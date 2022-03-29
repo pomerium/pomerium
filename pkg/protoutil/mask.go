@@ -9,23 +9,23 @@ import (
 
 // MergeAnyWithFieldMask merges the data in src with the data in dst,
 // but only the fields identified by the given mask.
-func MergeAnyWithFieldMask(dst, src *anypb.Any, mask *fieldmaskpb.FieldMask) *anypb.Any {
+func MergeAnyWithFieldMask(dst, src *anypb.Any, mask *fieldmaskpb.FieldMask) (*anypb.Any, error) {
 	if mask == nil {
-		return src
+		return src, nil
 	}
 
 	srcMsg, err := src.UnmarshalNew()
 	if err != nil {
-		return dst
+		return nil, err
 	}
 
 	dstMsg, err := dst.UnmarshalNew()
 	if err != nil {
-		return dst
+		return nil, err
 	}
 
 	fmutils.Filter(srcMsg, mask.GetPaths())
 	proto.Merge(dstMsg, srcMsg)
 
-	return NewAny(dstMsg)
+	return anypb.New(dstMsg)
 }

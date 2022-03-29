@@ -331,11 +331,15 @@ func (backend *Backend) put(
 		},
 		func(p redis.Pipeliner, version uint64) error {
 			if oldRecord != nil {
-				record.Data = protoutil.MergeAnyWithFieldMask(
+				var err error
+				record.Data, err = protoutil.MergeAnyWithFieldMask(
 					oldRecord.GetData(),
 					record.GetData(),
 					mask,
 				)
+				if err != nil {
+					return err
+				}
 			}
 
 			bs, err := proto.Marshal(record)
