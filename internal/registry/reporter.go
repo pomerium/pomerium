@@ -66,6 +66,10 @@ func (r *Reporter) OnConfigChange(ctx context.Context, cfg *config.Config) {
 }
 
 func getReportedServices(cfg *config.Config) ([]*pb.Service, error) {
+	if cfg.Options.MetricsAddr == "" {
+		return nil, nil
+	}
+
 	mu, err := metricsURL(*cfg.Options)
 	if err != nil {
 		return nil, err
