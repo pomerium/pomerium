@@ -96,9 +96,66 @@ Events:
   Warning  UpdateError  3s                  pomerium-ingress  upsert routes: parsing ingress: annotations: applying policy annotations: parsing policy: invalid rules in policy: unsupported conditional "maybe", only and, or, not, nor and action are allowed
 ```
 
-### Redirect Loop with Redis Databroker
+### Shared Secret Mismatch
+
+Pomerium's independent services communicate securely using a [shared secret](/reference/readme.md#shared-secret). When services or the databroker have mismatched secrets, Pomerium will fail.
+
+Pomerium Core will log a shared secret mismatch with:
+
+```json
+{
+  "level": "error",
+  "syncer_id": "authorize",
+  "syncer_type": "",
+  "error": "rpc error: code = Unauthenticated desc = invalid JWT: go-jose/go-jose: error in cryptographic primitive",
+  "time": "2022-03-22T07:26:14-04:00",
+  "message": "sync"
+}
+```
+
+And Pomerium Enterprise will log the error with:
+
+```json
+{
+  "level": "error",
+  "ts": "2022-03-22T07:21:02-04:00",
+  "caller": "dashboard/server.go:187",
+  "msg": "syncer",
+  "error": "failed to sync all devices: rpc error: code = Unauthenticated desc = invalid JWT: go-jose/go-jose: error in cryptographic primitive",
+  "stacktrace": "github.com/pomerium/pomerium-console/svc/dashboard.(*Server).Run.func2\n\t/PATH/TO/POMERIUM/CONSOLE/SERVICE/svc/dashboard/server.go:187\ngolang.org/x/sync/errgroup.(*Group).Go.func1\n\t/Users/tgroth/workspace/go/pkg/mod/golang.org/x/sync@v0.0.0-20210220032951-036812b2e83c/errgroup/errgroup.go:57"
+}
+{
+  "level": "info",
+  "ts": "2022-03-22T07:21:02-04:00",
+  "caller": "dashboard/server.go:202",
+  "msg": "stopping dashboard servers"
+}
+```
+
+Update the [shared secret](/reference/readme.md#shared-secret) across all Pomerium services to match the one set for the Databroker.
+
+#### Redis Secret Mismatch
 
 When using Redis, the [shared secret](/reference/readme.md#shared-secret) is used to encrypt data in Redis itself. If you change the configured shared secret, data from Redis can no longer be decrypted. This results in errant behavior, including redirect loops when a user session cannot be retrieved from the databroker.
+
+```json
+{
+  "level": "error",
+  "syncer_id": "authorize",
+  "syncer_type": "",
+  "error": "rpc error: code = Unknown desc = cryptutil: decryption failed (mismatched keys?): chacha20poly1305: message authentication failed",
+  "time": "2022-03-22T07:18:12-04:00",
+  "message": "error during initial sync"
+}
+{
+  "level": "error",
+  "syncer_id": "authorize",
+  "syncer_type": "",
+  "error": "rpc error: code = Unknown desc = cryptutil: decryption failed (mismatched keys?): chacha20poly1305: message authentication failed",
+  "time": "2022-03-22T07:18:12-04:00",
+  "message": "sync"
+}
+```
 
 The resolution is to flush the Redis database with [`FLUSHDB`](https://redis.io/commands/flushdb) or [`FLUSHALL`](https://redis.io/commands/FLUSHALL).
 
