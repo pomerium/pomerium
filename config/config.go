@@ -18,6 +18,10 @@ type Config struct {
 	HTTPPort string
 	// OutboundPort is the port the outbound gRPC listener is running on.
 	OutboundPort string
+	// MetricsPort is the port the metrics listener is running on.
+	MetricsPort string
+	// DebugPort is the port the debug listener is running on.
+	DebugPort string
 }
 
 // Clone creates a clone of the config.
@@ -32,6 +36,8 @@ func (cfg *Config) Clone() *Config {
 		GRPCPort:     cfg.GRPCPort,
 		HTTPPort:     cfg.HTTPPort,
 		OutboundPort: cfg.OutboundPort,
+		MetricsPort:  cfg.MetricsPort,
+		DebugPort:    cfg.DebugPort,
 	}
 }
 

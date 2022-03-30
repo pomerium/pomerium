@@ -49,12 +49,12 @@ func (srv *Server) addHTTPMiddleware() {
 	root.HandleFunc("/ping", httputil.HealthCheck)
 
 	// pprof
-	root.Path("/debug/pprof/cmdline").HandlerFunc(pprof.Cmdline)
-	root.Path("/debug/pprof/profile").HandlerFunc(pprof.Profile)
-	root.Path("/debug/pprof/symbol").HandlerFunc(pprof.Symbol)
-	root.Path("/debug/pprof/trace").HandlerFunc(pprof.Trace)
-	root.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
+	srv.DebugRouter.Path("/debug/pprof/cmdline").HandlerFunc(pprof.Cmdline)
+	srv.DebugRouter.Path("/debug/pprof/profile").HandlerFunc(pprof.Profile)
+	srv.DebugRouter.Path("/debug/pprof/symbol").HandlerFunc(pprof.Symbol)
+	srv.DebugRouter.Path("/debug/pprof/trace").HandlerFunc(pprof.Trace)
+	srv.DebugRouter.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
 
 	// metrics
-	root.Handle("/metrics", srv.metricsMgr)
+	srv.MetricsRouter.Handle("/metrics", srv.metricsMgr)
 }
