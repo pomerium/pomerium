@@ -947,8 +947,6 @@ github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182aff
 github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369/go.mod h1:BSXmuO+STAnVfrANrmjBb36TMTDstsz7MSK+HVaYKv4=
 github.com/mbilski/exhaustivestruct v1.2.0 h1:wCBmUnSYufAHO6J4AVWY6ff+oxWxsVFrwgOdMUQePUo=
 github.com/mbilski/exhaustivestruct v1.2.0/go.mod h1:OeTBVxQWoEmB2J2JCHmXWPJ0aksxSUOUy+nvtVEfzXc=
-github.com/mennanov/fmutils v0.1.1 h1:7GAoy/WI1ZUJDmuyB/i33DrL+E9ruj6BXv2GMqIBtj0=
-github.com/mennanov/fmutils v0.1.1/go.mod h1:DE+qeI9Xy5s1GA4trgq8H26jr5DgJ4a9+0D1DPVCqyk=
 github.com/mgechev/dots v0.0.0-20210922191527-e955255bf517/go.mod h1:KQ7+USdGKfpPjXk4Ga+5XxQM4Lm4e3gAogrreFAYpOg=
 github.com/mgechev/revive v1.1.4 h1:sZOjY6GU35Kr9jKa/wsKSHgrFz8eASIB5i3tqWZMp0A=
 github.com/mgechev/revive v1.1.4/go.mod h1:ZZq2bmyssGh8MSPz3VVziqRNIMYTJXzP8MUKG90vZ9A=

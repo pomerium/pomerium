@@ -184,7 +184,7 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 		return nil, err
 	}
 
-	serverVersion, err := db.Put(ctx, record, req.Mask)
+	serverVersion, err := db.Put(ctx, record)
 	if err != nil {
 		return nil, err
 	}

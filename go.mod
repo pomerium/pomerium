@@ -6,7 +6,6 @@ require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1
 	contrib.go.opencensus.io/exporter/prometheus v0.4.1
 	contrib.go.opencensus.io/exporter/zipkin v0.1.2
-	github.com/CAFxX/httpcompression v0.0.8
 	github.com/DataDog/opencensus-go-exporter-datadog v0.0.0-20200406135749-5c268882acf0
 	github.com/caddyserver/certmagic v0.16.0
 	github.com/cenkalti/backoff/v4 v4.1.2
@@ -34,7 +33,6 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/martinlindhe/base36 v1.1.0
-	github.com/mennanov/fmutils v0.1.1
 	github.com/mholt/acmez v1.0.2
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.4.3
@@ -76,6 +74,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	sigs.k8s.io/yaml v1.3.0
 )
+
+require github.com/CAFxX/httpcompression v0.0.8
 
 require (
 	4d63.com/gochecknoglobals v0.1.0 // indirect

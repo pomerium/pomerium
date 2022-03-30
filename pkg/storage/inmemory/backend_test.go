@@ -6,18 +6,14 @@ import (
 	"testing"
 	"time"
 
-	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -36,7 +32,7 @@ func TestBackend(t *testing.T) {
 			Type: "TYPE",
 			Id:   "abcd",
 			Data: data,
-		}, nil)
+		})
 		assert.NoError(t, err)
 		assert.Equal(t, backend.serverVersion, sv)
 		record, err := backend.Get(ctx, "TYPE", "abcd")
@@ -55,7 +51,7 @@ func TestBackend(t *testing.T) {
 			Type:      "TYPE",
 			Id:        "abcd",
 			DeletedAt: timestamppb.Now(),
-		}, nil)
+		})
 		assert.NoError(t, err)
 		assert.Equal(t, backend.serverVersion, sv)
 		record, err := backend.Get(ctx, "TYPE", "abcd")
@@ -67,7 +63,7 @@ func TestBackend(t *testing.T) {
 			sv, err := backend.Put(ctx, &databroker.Record{
 				Type: "TYPE",
 				Id:   fmt.Sprint(i),
-			}, nil)
+			})
 			assert.NoError(t, err)
 			assert.Equal(t, backend.serverVersion, sv)
 		}
@@ -87,7 +83,7 @@ func TestExpiry(t *testing.T) {
 		sv, err := backend.Put(ctx, &databroker.Record{
 			Type: "TYPE",
 			Id:   fmt.Sprint(i),
-		}, nil)
+		})
 		assert.NoError(t, err)
 		assert.Equal(t, backend.serverVersion, sv)
 	}
@@ -127,7 +123,7 @@ func TestConcurrency(t *testing.T) {
 		for i := 0; i < 1000; i++ {
 			_, _ = backend.Put(ctx, &databroker.Record{
 				Id: fmt.Sprint(i),
-			}, nil)
+			})
 		}
 		return nil
 	})
@@ -159,7 +155,7 @@ func TestStream(t *testing.T) {
 			_, err := backend.Put(ctx, &databroker.Record{
 				Type: "TYPE",
 				Id:   fmt.Sprint(i),
-			}, nil)
+			})
 			assert.NoError(t, err)
 		}
 		return nil
@@ -210,7 +206,7 @@ func TestCapacity(t *testing.T) {
 		_, err = backend.Put(ctx, &databroker.Record{
 			Type: "EXAMPLE",
 			Id:   fmt.Sprint(i),
-		}, nil)
+		})
 		require.NoError(t, err)
 	}
 
@@ -248,45 +244,4 @@ func TestLease(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, ok, "expected b to to acquire the lease")
 	}
-}
-
-func TestFieldMask(t *testing.T) {
-	ctx := context.Background()
-	backend := New()
-
-	_, _ = backend.Put(ctx, &databroker.Record{
-		Type: "example",
-		Id:   "example",
-		Data: protoutil.NewAny(&envoy_type_v3.SemanticVersion{
-			MajorNumber: 1,
-			MinorNumber: 1,
-			Patch:       1,
-		}),
-	}, nil)
-
-	_, _ = backend.Put(ctx, &databroker.Record{
-		Type: "example",
-		Id:   "example",
-		Data: protoutil.NewAny(&envoy_type_v3.SemanticVersion{
-			MajorNumber: 2,
-			MinorNumber: 2,
-			Patch:       2,
-		}),
-	}, &fieldmaskpb.FieldMask{
-		Paths: []string{"major_number", "patch"},
-	})
-
-	record, _ := backend.Get(ctx, "example", "example")
-	record.ModifiedAt = nil
-	testutil.AssertProtoJSONEqual(t, `{
-		"data": {
-			"@type": "type.googleapis.com/envoy.type.v3.SemanticVersion",
-			"majorNumber": 2,
-			"minorNumber": 1,
-			"patch": 2
-		},
-		"id": "example",
-		"type": "example",
-		"version": "2"
-	}`, record)
 }
