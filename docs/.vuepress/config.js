@@ -127,10 +127,6 @@ module.exports = {
           ],
         },
         {
-          title: "Securing Pomerium",
-          path: "/docs/security",
-        },
-        {
           title: "Identity Providers",
           collapsable: true,
           path: "/docs/identity-providers/",
@@ -149,6 +145,15 @@ module.exports = {
             "identity-providers/one-login",
             "identity-providers/ping",
           ],
+        },
+        {
+          title: "Production",
+          collapsable: true,
+          type: "group",
+          children: [
+            "/docs/security",
+            "/docs/production-deployment",
+          ]
         },
         {
           title: "TCP Connections",
@@ -186,10 +191,6 @@ module.exports = {
             "k8s/helm",
             "k8s/ingress",
           ]
-        },
-        {
-          title: "Production Deployment",
-          path: "/docs/production-deployment",
         },
         {
           title: "Topics",
