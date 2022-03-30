@@ -315,10 +315,15 @@ type mockDataBrokerServiceClient struct {
 	databroker.DataBrokerServiceClient
 
 	get func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error)
+	put func(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error)
 }
 
 func (m mockDataBrokerServiceClient) Get(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 	return m.get(ctx, in, opts...)
+}
+
+func (m mockDataBrokerServiceClient) Put(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
+	return m.put(ctx, in, opts...)
 }
 
 func TestAuthorize_Check(t *testing.T) {

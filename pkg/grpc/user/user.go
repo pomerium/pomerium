@@ -16,6 +16,17 @@ func Get(ctx context.Context, client databroker.DataBrokerServiceClient, userID 
 	return u, databroker.Get(ctx, client, u)
 }
 
+// GetServiceAccount gets a service account from the databroker.
+func GetServiceAccount(ctx context.Context, client databroker.DataBrokerServiceClient, serviceAccountID string) (*ServiceAccount, error) {
+	sa := &ServiceAccount{Id: serviceAccountID}
+	return sa, databroker.Get(ctx, client, sa)
+}
+
+// PutServiceAccount saves a service account to the databroker.
+func PutServiceAccount(ctx context.Context, client databroker.DataBrokerServiceClient, serviceAccount *ServiceAccount) (*databroker.PutResponse, error) {
+	return databroker.Put(ctx, client, serviceAccount)
+}
+
 // AddClaims adds the flattened claims to the user.
 func (x *User) AddClaims(claims identity.FlattenedClaims) {
 	if x.Claims == nil {

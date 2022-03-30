@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/fieldmaskpb"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -13,7 +13,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
-	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 const (
@@ -65,15 +64,11 @@ func (tracker *AccessTracker) Run(ctx context.Context) {
 	}
 	runSubmit := func() {
 		client := tracker.provider.GetDataBrokerServiceClient()
-		now := timestamppb.Now()
 
 		var err error
 
 		sessionAccesses.ForEach(func(sessionID string) bool {
-			err = tracker.put(ctx, client, &session.Session{
-				Id:         sessionID,
-				AccessedAt: now,
-			})
+			err = tracker.updateSession(ctx, client, sessionID)
 			return err == nil
 		})
 		if err != nil {
@@ -82,10 +77,7 @@ func (tracker *AccessTracker) Run(ctx context.Context) {
 		}
 
 		serviceAccountAccesses.ForEach(func(serviceAccountID string) bool {
-			err = tracker.put(ctx, client, &user.ServiceAccount{
-				Id:         serviceAccountID,
-				AccessedAt: now,
-			})
+			err = tracker.updateServiceAccount(ctx, client, serviceAccountID)
 			return err == nil
 		})
 		if err != nil {
@@ -129,25 +121,34 @@ func (tracker *AccessTracker) TrackSessionAccess(sessionID string) {
 	}
 }
 
-func (tracker *AccessTracker) put(
+func (tracker *AccessTracker) updateServiceAccount(
 	ctx context.Context,
 	client databroker.DataBrokerServiceClient,
-	object interface {
-		proto.Message
-		GetAccessedAt() *timestamppb.Timestamp
-		GetId() string
-	},
+	serviceAccountID string,
 ) error {
-	any := protoutil.NewAny(object)
-	_, err := client.Put(ctx, &databroker.PutRequest{
-		Record: &databroker.Record{
-			Type: any.TypeUrl,
-			Id:   object.GetId(),
-			Data: any,
-		},
-		Mask: &fieldmaskpb.FieldMask{
-			Paths: []string{"accessed_at"},
-		},
-	})
+	sa, err := user.GetServiceAccount(ctx, client, serviceAccountID)
+	if status.Code(err) == codes.NotFound {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	sa.AccessedAt = timestamppb.Now()
+	_, err = user.PutServiceAccount(ctx, client, sa)
+	return err
+}
+
+func (tracker *AccessTracker) updateSession(
+	ctx context.Context,
+	client databroker.DataBrokerServiceClient,
+	sessionID string,
+) error {
+	s, err := session.Get(ctx, client, sessionID)
+	if status.Code(err) == codes.NotFound {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	s.AccessedAt = timestamppb.Now()
+	_, err = session.Put(ctx, client, s)
 	return err
 }
