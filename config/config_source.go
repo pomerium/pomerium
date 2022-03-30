@@ -110,13 +110,15 @@ func NewFileOrEnvironmentSource(
 		return nil, err
 	}
 
-	ports, err := netutil.AllocatePorts(3)
+	ports, err := netutil.AllocatePorts(5)
 	if err != nil {
 		return nil, err
 	}
 	grpcPort := ports[0]
 	httpPort := ports[1]
 	outboundPort := ports[2]
+	metricsPort := ports[3]
+	debugPort := ports[4]
 
 	cfg := &Config{
 		Options:      options,
@@ -125,6 +127,8 @@ func NewFileOrEnvironmentSource(
 		GRPCPort:     grpcPort,
 		HTTPPort:     httpPort,
 		OutboundPort: outboundPort,
+		MetricsPort:  metricsPort,
+		DebugPort:    debugPort,
 	}
 	metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
 

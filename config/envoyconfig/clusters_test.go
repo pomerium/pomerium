@@ -25,7 +25,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	cacheDir, _ := os.UserCacheDir()
 	customCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "custom-ca-32484c314b584447463735303142374c31414145374650305a525539554938594d524855353757313942494d473847535231.pem")
 
-	b := New("local-grpc", "local-http", filemgr.NewManager(), nil)
+	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
 	rootCABytes, _ := getCombinedCertificateAuthority("", "")
 	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
 
@@ -361,7 +361,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 
 func Test_buildCluster(t *testing.T) {
 	ctx := context.Background()
-	b := New("local-grpc", "local-http", filemgr.NewManager(), nil)
+	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
 	rootCABytes, _ := getCombinedCertificateAuthority("", "")
 	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
 	o1 := config.NewDefaultOptions()
@@ -834,7 +834,7 @@ func Test_bindConfig(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
 	defer clearTimeout()
 
-	b := New("local-grpc", "local-http", filemgr.NewManager(), nil)
+	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
 	t.Run("no bind config", func(t *testing.T) {
 		cluster, err := b.buildPolicyCluster(ctx, &config.Options{}, &config.Policy{
 			From: "https://from.example.com",
