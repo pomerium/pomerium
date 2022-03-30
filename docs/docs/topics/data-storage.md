@@ -81,3 +81,7 @@ databroker_storage_ca_file: /tls/ca.pem
 ::: tip
 the second `s` in `rediss` is intentional and turns on TLS support
 :::
+
+## Troubleshooting
+
+Most issues with the Databroker service are caused by a [`shared_secret`](/reference/readme.md#shared-secret) mismatch between services. See [Troubleshooting - Shared Secret Mismatch](/docs/troubleshooting.md#shared-secret-mismatch) for details.
