@@ -147,7 +147,44 @@ Once the new route is applied, users can access Grafana from `https://grafana.lo
 
 ### Manage Access at Scale
 
-The steps outlined above work to confirm the configuration for small teams, but adding users individually and manually does not scale for larger organizations. To add users to Grafana at scale, consider using Grafana's Admin API and the [Global Users] endpoint to automate the creation of Grafana users with data from your IdP.
+The steps outlined above work to confirm the configuration for small teams, but adding users individually and manually does not scale for larger organizations. To add users to Grafana at scale, you can use a slightly different Grafana configuration to auto-signup users as they log in.
+
+```ini
+[auth.jwt]
+enabled = true
+header_name = X-Pomerium-Jwt-Assertion
+email_claim = email
+jwk_set_url = https://auth.localhost.pomerium.io/.well-known/pomerium/jwks.json
+cache_ttl = 60m
+username_claim = sub
+auto_sign_up = true
+[users]
+auto_assign_org = true
+auto_assign_org_role = Editor
+```
+
+This configuration:
+
+- sets the username to the value of the "sub" claim,
+- sets the login to automatically create a new user
+- auto assigns the user to the existing default organization
+- auto assigns the user the "Editor" role - note this could also be "Admin" or "Viewer"
+
+This will autocreate a user with their email and username populated.  To have the "Name" field populated for users, you can set the JWT Claims Headers to `email,name` in this way:
+
+```yaml
+config:
+  jwt_claims_headers: email,name
+
+extraEnv:
+  JWT_CLAIMS_HEADERS: email,name
+```
+
+This configuration will allow seamless authentication and authorization without any additional toil for your team.
+
+::: tip Note
+Ensure your Grafana is up to date to take advantage of auto_sign_up, as it is only available for JWT as of version 8.4.0 of Grafana.
+:::
 
 ## Troubleshooting
 
