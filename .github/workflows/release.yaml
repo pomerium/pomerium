@@ -109,7 +109,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: goreleaser
     steps:
-      - name: Checkout Helmfile Repo
+      - name: Checkout Gitops Repo
         uses: actions/checkout@a12a3943b4bdde767164f792f33f40b04645d846 # pin@v3
         with:
           repository: pomerium/gitops-argocd
