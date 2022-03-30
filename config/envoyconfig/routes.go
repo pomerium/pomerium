@@ -57,51 +57,20 @@ func (b *Builder) buildPomeriumHTTPRoutes(options *config.Options, domain string
 		return nil, err
 	}
 	if !isFrontingAuthenticate {
-		// enable ext_authz
-		r, err := b.buildControlPlanePathRoute("/.pomerium/jwt", true)
-		if err != nil {
-			return nil, err
-		}
-		routes = append(routes, r)
-
-		// disable ext_authz and passthrough to proxy handlers
-		r, err = b.buildControlPlanePathRoute("/ping", false)
-		if err != nil {
-			return nil, err
-		}
-		routes = append(routes, r)
-		r, err = b.buildControlPlanePathRoute("/healthz", false)
-		if err != nil {
-			return nil, err
-		}
-		routes = append(routes, r)
-		r, err = b.buildControlPlanePathRoute("/.pomerium", false)
-		if err != nil {
-			return nil, err
-		}
-		routes = append(routes, r)
-		r, err = b.buildControlPlanePrefixRoute("/.pomerium/", false)
-		if err != nil {
-			return nil, err
-		}
-		routes = append(routes, r)
-		r, err = b.buildControlPlanePathRoute("/.well-known/pomerium", false)
-		if err != nil {
-			return nil, err
-		}
-		routes = append(routes, r)
-		r, err = b.buildControlPlanePrefixRoute("/.well-known/pomerium/", false)
-		if err != nil {
-			return nil, err
-		}
-		routes = append(routes, r)
+		routes = append(routes,
+			// enable ext_authz
+			b.buildControlPlanePathRoute("/.pomerium/jwt", true),
+			// disable ext_authz and passthrough to proxy handlers
+			b.buildControlPlanePathRoute("/ping", false),
+			b.buildControlPlanePathRoute("/healthz", false),
+			b.buildControlPlanePathRoute("/.pomerium", false),
+			b.buildControlPlanePrefixRoute("/.pomerium/", false),
+			b.buildControlPlanePathRoute("/.well-known/pomerium", false),
+			b.buildControlPlanePrefixRoute("/.well-known/pomerium/", false),
+		)
 		// per #837, only add robots.txt if there are no unauthenticated routes
 		if !hasPublicPolicyMatchingURL(options, url.URL{Scheme: "https", Host: domain, Path: "/robots.txt"}) {
-			r, err := b.buildControlPlanePathRoute("/robots.txt", false)
-			if err != nil {
-				return nil, err
-			}
-			routes = append(routes, r)
+			routes = append(routes, b.buildControlPlanePathRoute("/robots.txt", false))
 		}
 	}
 	// if we're handling authentication, add the oauth2 callback url
@@ -110,11 +79,10 @@ func (b *Builder) buildPomeriumHTTPRoutes(options *config.Options, domain string
 		return nil, err
 	}
 	if config.IsAuthenticate(options.Services) && hostMatchesDomain(authenticateURL, domain) {
-		r, err := b.buildControlPlanePrefixRoute("/", false)
-		if err != nil {
-			return nil, err
-		}
-		routes = append(routes, r)
+		routes = append(routes,
+			b.buildControlPlanePathRoute(options.AuthenticateCallbackPath, false),
+			b.buildControlPlanePathRoute("/", false),
+		)
 	}
 	// if we're the proxy and this is the forward-auth url
 	forwardAuthURL, err := options.GetForwardAuthURL()
@@ -196,7 +164,7 @@ func (b *Builder) buildControlPlanePathAndQueryRoute(path string, queryparams []
 	}, nil
 }
 
-func (b *Builder) buildControlPlanePathRoute(path string, protected bool) (*envoy_config_route_v3.Route, error) {
+func (b *Builder) buildControlPlanePathRoute(path string, protected bool) *envoy_config_route_v3.Route {
 	r := &envoy_config_route_v3.Route{
 		Name: "pomerium-path-" + path,
 		Match: &envoy_config_route_v3.RouteMatch{
@@ -215,10 +183,10 @@ func (b *Builder) buildControlPlanePathRoute(path string, protected bool) (*envo
 			"envoy.filters.http.ext_authz": disableExtAuthz,
 		}
 	}
-	return r, nil
+	return r
 }
 
-func (b *Builder) buildControlPlanePrefixRoute(prefix string, protected bool) (*envoy_config_route_v3.Route, error) {
+func (b *Builder) buildControlPlanePrefixRoute(prefix string, protected bool) *envoy_config_route_v3.Route {
 	r := &envoy_config_route_v3.Route{
 		Name: "pomerium-prefix-" + prefix,
 		Match: &envoy_config_route_v3.RouteMatch{
@@ -237,7 +205,7 @@ func (b *Builder) buildControlPlanePrefixRoute(prefix string, protected bool) (*
 			"envoy.filters.http.ext_authz": disableExtAuthz,
 		}
 	}
-	return r, nil
+	return r
 }
 
 // getClusterID returns a cluster ID

@@ -86,6 +86,8 @@ func Run(ctx context.Context, configFile string) error {
 		Str("grpc-port", src.GetConfig().GRPCPort).
 		Str("http-port", src.GetConfig().HTTPPort).
 		Str("outbound-port", src.GetConfig().OutboundPort).
+		Str("metrics-port", src.GetConfig().MetricsPort).
+		Str("debug-port", src.GetConfig().DebugPort).
 		Msg("server started")
 
 	// create envoy server

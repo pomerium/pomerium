@@ -50,11 +50,15 @@ func (avo *atomicVersionedConfig) Store(cfg versionedConfig) {
 
 // A Server is the control-plane gRPC and HTTP servers.
 type Server struct {
-	GRPCListener net.Listener
-	GRPCServer   *grpc.Server
-	HTTPListener net.Listener
-	HTTPRouter   *mux.Router
-	Builder      *envoyconfig.Builder
+	GRPCListener    net.Listener
+	GRPCServer      *grpc.Server
+	HTTPListener    net.Listener
+	HTTPRouter      *mux.Router
+	MetricsListener net.Listener
+	MetricsRouter   *mux.Router
+	DebugListener   net.Listener
+	DebugRouter     *mux.Router
+	Builder         *envoyconfig.Builder
 
 	currentConfig atomicVersionedConfig
 	name          string
@@ -106,7 +110,25 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager) (*Server, 
 		_ = srv.GRPCListener.Close()
 		return nil, err
 	}
+
+	srv.MetricsListener, err = net.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.MetricsPort))
+	if err != nil {
+		_ = srv.GRPCListener.Close()
+		_ = srv.HTTPListener.Close()
+		return nil, err
+	}
+
+	srv.DebugListener, err = net.Listen("tcp4", net.JoinHostPort("127.0.0.1", cfg.DebugPort))
+	if err != nil {
+		_ = srv.GRPCListener.Close()
+		_ = srv.HTTPListener.Close()
+		_ = srv.DebugListener.Close()
+		return nil, err
+	}
+
 	srv.HTTPRouter = mux.NewRouter()
+	srv.DebugRouter = mux.NewRouter()
+	srv.MetricsRouter = mux.NewRouter()
 	srv.addHTTPMiddleware()
 
 	srv.filemgr = filemgr.NewManager()
@@ -115,6 +137,7 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager) (*Server, 
 	srv.Builder = envoyconfig.New(
 		srv.GRPCListener.Addr().String(),
 		srv.HTTPListener.Addr().String(),
+		srv.MetricsListener.Addr().String(),
 		srv.filemgr,
 		srv.reproxy,
 	)
@@ -175,28 +198,41 @@ func (srv *Server) Run(ctx context.Context) error {
 		return nil
 	})
 
-	hsrv := (&http.Server{
-		BaseContext: func(li net.Listener) context.Context {
-			return ctx
-		},
-		Handler: srv.HTTPRouter,
-	})
+	for _, entry := range []struct {
+		Name     string
+		Listener net.Listener
+		Handler  *mux.Router
+	}{
+		{"http", srv.HTTPListener, srv.HTTPRouter},
+		{"debug", srv.DebugListener, srv.DebugRouter},
+		{"metrics", srv.MetricsListener, srv.MetricsRouter},
+	} {
+		entry := entry
+		hsrv := (&http.Server{
+			BaseContext: func(li net.Listener) context.Context {
+				return ctx
+			},
+			Handler: entry.Handler,
+		})
 
-	// start the HTTP server
-	eg.Go(func() error {
-		log.Info(ctx).Str("addr", srv.HTTPListener.Addr().String()).Msg("starting control-plane HTTP server")
-		return hsrv.Serve(srv.HTTPListener)
-	})
+		// start the HTTP server
+		eg.Go(func() error {
+			log.Info(ctx).
+				Str("addr", entry.Listener.Addr().String()).
+				Msgf("starting control-plane %s server", entry.Name)
+			return hsrv.Serve(entry.Listener)
+		})
 
-	// gracefully stop the HTTP server on context cancellation
-	eg.Go(func() error {
-		<-ctx.Done()
+		// gracefully stop the HTTP server on context cancellation
+		eg.Go(func() error {
+			<-ctx.Done()
 
-		ctx, cleanup := context.WithTimeout(ctx, time.Second*5)
-		defer cleanup()
+			ctx, cleanup := context.WithTimeout(ctx, time.Second*5)
+			defer cleanup()
 
-		return hsrv.Shutdown(ctx)
-	})
+			return hsrv.Shutdown(ctx)
+		})
+	}
 
 	return eg.Wait()
 }

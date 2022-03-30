@@ -96,7 +96,8 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			`+routeString("path", "/.well-known/pomerium", false)+`,
 			`+routeString("prefix", "/.well-known/pomerium/", false)+`,
 			`+routeString("path", "/robots.txt", false)+`,
-			`+routeString("prefix", "/", false)+`
+			`+routeString("path", "/oauth2/callback", false)+`,
+			`+routeString("path", "/", false)+`
 		]`, routes)
 	})
 	t.Run("proxy fronting authenticate", func(t *testing.T) {
@@ -167,8 +168,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 
 func Test_buildControlPlanePathRoute(t *testing.T) {
 	b := &Builder{filemgr: filemgr.NewManager()}
-	route, err := b.buildControlPlanePathRoute("/hello/world", false)
-	require.NoError(t, err)
+	route := b.buildControlPlanePathRoute("/hello/world", false)
 	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-path-/hello/world",
@@ -190,8 +190,7 @@ func Test_buildControlPlanePathRoute(t *testing.T) {
 
 func Test_buildControlPlanePrefixRoute(t *testing.T) {
 	b := &Builder{filemgr: filemgr.NewManager()}
-	route, err := b.buildControlPlanePrefixRoute("/hello/world/", false)
-	require.NoError(t, err)
+	route := b.buildControlPlanePrefixRoute("/hello/world/", false)
 	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-prefix-/hello/world/",
