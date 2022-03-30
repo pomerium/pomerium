@@ -49,9 +49,6 @@ const (
 // gRPC server, or is used for healthchecks (authorize only service)
 const DefaultAlternativeAddr = ":5443"
 
-// EnvoyAdminURL indicates where the envoy control plane is listening
-var EnvoyAdminURL = &url.URL{Host: "127.0.0.1:9901", Scheme: "http"}
-
 // The randomSharedKey is used if no shared key is supplied in all-in-one mode.
 var randomSharedKey = cryptutil.NewBase64Key()
 

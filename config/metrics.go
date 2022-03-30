@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"os"
 	"sync"
 
@@ -16,12 +17,13 @@ import (
 
 // A MetricsManager manages metrics for a given configuration.
 type MetricsManager struct {
-	mu             sync.RWMutex
-	installationID string
-	serviceName    string
-	addr           string
-	basicAuth      string
-	handler        http.Handler
+	mu                sync.RWMutex
+	installationID    string
+	serviceName       string
+	addr              string
+	basicAuth         string
+	envoyAdminAddress string
+	handler           http.Handler
 }
 
 // NewMetricsManager creates a new MetricsManager.
@@ -46,8 +48,8 @@ func (mgr *MetricsManager) OnConfigChange(ctx context.Context, cfg *Config) {
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 
-	mgr.updateInfo(cfg)
-	mgr.updateServer(cfg)
+	mgr.updateInfo(ctx, cfg)
+	mgr.updateServer(ctx, cfg)
 }
 
 func (mgr *MetricsManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -61,7 +63,7 @@ func (mgr *MetricsManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	mgr.handler.ServeHTTP(w, r)
 }
 
-func (mgr *MetricsManager) updateInfo(cfg *Config) {
+func (mgr *MetricsManager) updateInfo(ctx context.Context, cfg *Config) {
 	serviceName := telemetry.ServiceName(cfg.Options.Services)
 	if serviceName == mgr.serviceName {
 		return
@@ -69,7 +71,7 @@ func (mgr *MetricsManager) updateInfo(cfg *Config) {
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Error(context.TODO()).Err(err).Msg("telemetry/metrics: failed to get OS hostname")
+		log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to get OS hostname")
 		hostname = "__unknown__"
 	}
 
@@ -77,26 +79,34 @@ func (mgr *MetricsManager) updateInfo(cfg *Config) {
 	mgr.serviceName = serviceName
 }
 
-func (mgr *MetricsManager) updateServer(cfg *Config) {
+func (mgr *MetricsManager) updateServer(ctx context.Context, cfg *Config) {
 	if cfg.Options.MetricsAddr == mgr.addr &&
 		cfg.Options.MetricsBasicAuth == mgr.basicAuth &&
-		cfg.Options.InstallationID == mgr.installationID {
+		cfg.Options.InstallationID == mgr.installationID &&
+		cfg.Options.EnvoyAdminAddress == mgr.envoyAdminAddress {
 		return
 	}
 
 	mgr.addr = cfg.Options.MetricsAddr
 	mgr.basicAuth = cfg.Options.MetricsBasicAuth
 	mgr.installationID = cfg.Options.InstallationID
+	mgr.envoyAdminAddress = cfg.Options.EnvoyAdminAddress
 	mgr.handler = nil
 
 	if mgr.addr == "" {
-		log.Info(context.TODO()).Msg("metrics: http server disabled")
+		log.Info(ctx).Msg("metrics: http server disabled")
 		return
 	}
 
-	handler, err := metrics.PrometheusHandler(EnvoyAdminURL, mgr.installationID)
+	envoyURL, err := url.Parse("http://" + cfg.Options.EnvoyAdminAddress)
 	if err != nil {
-		log.Error(context.TODO()).Err(err).Msg("metrics: failed to create prometheus handler")
+		log.Error(ctx).Err(err).Msg("metrics: invalid envoy admin address, disabling")
+		return
+	}
+
+	handler, err := metrics.PrometheusHandler(envoyURL, mgr.installationID)
+	if err != nil {
+		log.Error(ctx).Err(err).Msg("metrics: failed to create prometheus handler")
 		return
 	}
 

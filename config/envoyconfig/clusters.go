@@ -34,6 +34,10 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		Scheme: "http",
 		Host:   b.localHTTPAddress,
 	}
+	metricsURL := &url.URL{
+		Scheme: "http",
+		Host:   b.localMetricsAddress,
+	}
 	authorizeURLs, err := cfg.Options.GetInternalAuthorizeURLs()
 	if err != nil {
 		return nil, err
@@ -49,6 +53,11 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 	}
 
 	controlHTTP, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-control-plane-http", []*url.URL{httpURL}, upstreamProtocolAuto)
+	if err != nil {
+		return nil, err
+	}
+
+	controlMetrics, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-control-plane-metrics", []*url.URL{metricsURL}, upstreamProtocolAuto)
 	if err != nil {
 		return nil, err
 	}
@@ -74,6 +83,7 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 	clusters := []*envoy_config_cluster_v3.Cluster{
 		controlGRPC,
 		controlHTTP,
+		controlMetrics,
 		authorizeCluster,
 		databrokerCluster,
 	}

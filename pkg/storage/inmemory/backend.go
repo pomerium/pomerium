@@ -234,7 +234,10 @@ func (backend *Backend) Put(
 	if mask != nil {
 		oldRecord := c.Get(record.GetId())
 		if oldRecord != nil {
-			record.Data = protoutil.MergeAnyWithFieldMask(oldRecord.Data, record.Data, mask)
+			record.Data, err = protoutil.MergeAnyWithFieldMask(oldRecord.Data, record.Data, mask)
+			if err != nil {
+				return serverVersion, err
+			}
 		}
 	}
 

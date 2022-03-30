@@ -6,6 +6,7 @@ import (
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
@@ -26,8 +27,9 @@ func TestMergeWithFieldMask(t *testing.T) {
 		MinorNumber: 1,
 		Patch:       2,
 	})
-	actual := MergeAnyWithFieldMask(m1, m2, &fieldmaskpb.FieldMask{
+	actual, err := MergeAnyWithFieldMask(m1, m2, &fieldmaskpb.FieldMask{
 		Paths: []string{"major_number", "patch"},
 	})
+	require.NoError(t, err)
 	assert.Empty(t, cmp.Diff(expect, actual, protocmp.Transform()))
 }
