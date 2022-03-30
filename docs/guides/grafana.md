@@ -150,6 +150,8 @@ Once the new route is applied, users can access Grafana from `https://grafana.lo
 The steps outlined above work to confirm the configuration for small teams, but adding users individually and manually does not scale for larger organizations. To add users to Grafana at scale, you can use a slightly different Grafana configuration to auto-signup users as they log in.
 
 ```ini
+[auth]
+signout_redirect_url = https://my-grafana-url.localhost.pomerium.io/.pomerium/sign_out
 [auth.jwt]
 enabled = true
 header_name = X-Pomerium-Jwt-Assertion
@@ -165,6 +167,7 @@ auto_assign_org_role = Editor
 
 This configuration:
 
+- sets the signout redirect url so that users can log out - replace `my-grafana-url.localhost.pomerium.io` with your Grafana domain
 - sets the username to the value of the "sub" claim,
 - sets the login to automatically create a new user
 - auto assigns the user to the existing default organization
