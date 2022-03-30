@@ -118,11 +118,13 @@ func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) sess
 
 	s, ok := a.store.GetRecordData(grpcutil.GetTypeURL(new(session.Session)), sessionID).(*session.Session)
 	if ok {
+		a.accessTracker.TrackSessionAccess(sessionID)
 		return s
 	}
 
 	sa, ok := a.store.GetRecordData(grpcutil.GetTypeURL(new(user.ServiceAccount)), sessionID).(*user.ServiceAccount)
 	if ok {
+		a.accessTracker.TrackServiceAccountAccess(sessionID)
 		return sa
 	}
 
@@ -135,6 +137,7 @@ func (a *Authorize) forceSyncSession(ctx context.Context, sessionID string) sess
 	if !ok {
 		return nil
 	}
+	a.accessTracker.TrackSessionAccess(sessionID)
 	return s
 }
 
