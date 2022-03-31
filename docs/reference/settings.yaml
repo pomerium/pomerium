@@ -29,7 +29,7 @@ preamble: |
 
   When running Pomerium as a single system service or container, all the options on this page can be set in a single `config.yaml` file, or passed to the single instance as environment variables.
 
-  When running Pomerium in a distributed environment where there are multiple processes, each handling separate [components](https://www.pomerium.com/docs/architecture.md#component-level), all services can still share a single config file or set of environment variables.
+  When running Pomerium in a distributed environment where there are multiple processes, each handling separate [components](/docs/architecture.md#component-level), all services can still share a single config file or set of environment variables.
 
   Alternately, you can create individual config files or sets of environment variables for each service. When doing so, each file or set must have matching [shared settings](#shared-settings), as well as settings relevant to that [service mode](#service-mode). The list below is sorted to better differentiate which config options correlate to which service mode.
 
@@ -1121,7 +1121,9 @@ settings:
         doc: |
           The JWT Claim Headers setting allows you to pass specific user session data to upstream applications as HTTP request headers. Note, unlike the header `x-pomerium-jwt-assertion` these values are not signed by the authorization service.
 
-          Any claim in the pomerium session JWT can be placed into a corresponding header for upstream consumption. This claim information is sourced from your Identity Provider (IdP) and Pomerium's own session metadata. The header will have the following format:
+          Additionally, this will add the claim to the `X-Pomerium-Jwt-Assertion` header provided by [`pass_identity_headers`](#pass-identity-headers), if not already present.
+
+          Any claim in the pomerium session JWT can be placed into a corresponding header and the JWT payload for upstream consumption. This claim information is sourced from your Identity Provider (IdP) and Pomerium's own session metadata. The header will have the following format:
 
           `X-Pomerium-Claim-{Name}` where `{Name}` is the name of the claim requested. Underscores will be replaced with dashes; e.g. `X-Pomerium-Claim-Given-Name`.
 
@@ -1136,7 +1138,7 @@ settings:
 
           Use this option if you previously relied on `x-pomerium-authenticated-user-{email|user-id|groups}`.
         shortdoc: |
-          The JWT Claim Headers setting allows you to pass specific user session data down to downstream applications as HTTP request headers.
+          The JWT Claim Headers setting allows you to pass specific user session data to upstream applications as HTTP request headers and additional JWT claims.
       - name: "Override Certificate Name"
         keys: ["override_certificate_name"]
         attributes: |
