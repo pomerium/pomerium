@@ -26,29 +26,23 @@ This guide begins with the following steps assumed complete:
 This guide uses the following temporary values in commands and configuration examples, which will need to be adjusted for your setup:
 
 - `http://grafana:3000` - The path Pomerium will use to access Grafana. This example emulates a common Docker-based setup.
-- `http://grafana.local:3000` - The path to access the Grafana interface from your local computer. We will need direct access to add at least one user before Pomerium is configured.
+- `http://grafana.local:3000` - The path to access the Grafana interface from your local computer. Depending on your desired configuration, you may need direct access to add at least one user before Pomerium is configured.
 - `https://grafana.localhost.pomerium.io` - The path to access Grafana through Pomerium. Change this to match the domain space Pomerium is configured in.
 
 ## Enable JWT Authentication in Grafana
 
 Edit `grafana.ini` to configure [JWT authentication]. Replace `auth.localhost.pomerium.io` with the value of [`authenticate_service_url`] in your Pomerium configuration:
 
-```ini
+```abnf
+[auth]
+signout_redirect_url = https://grafana.localhost.pomerium.io/.pomerium/sign_out ; signs users out of Pomerium when they sign out from Grafana
 [auth.jwt]
-enabled = true
-header_name = X-Pomerium-Jwt-Assertion
-email_claim = email
-jwk_set_url = https://auth.localhost.pomerium.io/.well-known/pomerium/jwks.json
-cache_ttl = 60m
+enabled = true ;enables authentication by JWT
+header_name = X-Pomerium-Jwt-Assertion ;defines the header to look at to provide the JWT
+email_claim = email ;associates the email_claim in the JWT with the email of the Grafana user
+jwk_set_url = https://auth.localhost.pomerium.io/.well-known/pomerium/jwks.json ;URL to the signing key to validate the JWT
+cache_ttl = 60m ;sets a 60 minute cache time for the token
 ```
-
-This configuration:
-
-- enables authentication by JSON web token (**JWT**),
-- defines the header to look at to provide the JWT,
-- associates the email_claim in the JWT with the email of the Grafana user,
-- specifies the location of the signing key for the JWT to validate it,
-- sets a 60 minute cache time for the token.
 
 Once you've saved and exited the file, restart Grafana.
 
@@ -57,8 +51,10 @@ Once you've saved and exited the file, restart Grafana.
 At this stage Grafana is configured to use the `email` claim in the JWT to associate an incoming connection with a user. Pomerium will be configured to include identity information via the JWT in the next section. But the user must still exist in Grafana to be associated. Otherwise, you will see this error in the browser after authenticating:
 
 ```json
-{"message":"Invalid JWT"}
+{"message":"User not found"}
 ```
+
+Further down in this guide we'll go over Grafana's `auto_sign_up` option to create users as needed. But first we should create at least one user with administrator privileges. If you plan on administering Grafana through a direct connection to the service, you can skip this section.
 
 1. To add users without requiring them to accept an invitation, log in to Grafana directly as an admin user at `http://grafana.local:3000`.
 
@@ -147,46 +143,59 @@ Once the new route is applied, users can access Grafana from `https://grafana.lo
 
 ### Manage Access at Scale
 
-The steps outlined above work to confirm the configuration for small teams, but adding users individually and manually does not scale for larger organizations. To add users to Grafana at scale, you can use a slightly different Grafana configuration to auto-signup users as they log in.
+::: tip Note
+Ensure that Grafana is up to date to take advantage of `auto_sign_up`, as it is only available for JWT as of version 8.4.0.
+:::
 
-```ini
+The steps outlined above work to confirm the configuration for small teams, but adding users individually and manually does not scale for larger organizations. To add users to Grafana at scale, you can use the Grafana's `auto_sign_up`configuration to auto-signup users as they log in:
+
+```abnf
 [auth]
-signout_redirect_url = https://my-grafana-url.localhost.pomerium.io/.pomerium/sign_out
+signout_redirect_url = https://grafana.localhost.pomerium.io/.pomerium/sign_out
 [auth.jwt]
 enabled = true
 header_name = X-Pomerium-Jwt-Assertion
 email_claim = email
 jwk_set_url = https://auth.localhost.pomerium.io/.well-known/pomerium/jwks.json
 cache_ttl = 60m
-username_claim = sub
-auto_sign_up = true
+username_claim = sub ;sets the username to the value of the "sub" claim
+auto_sign_up = true ;sets the login to automatically create a new user if one doesn't exist
 [users]
-auto_assign_org = true
-auto_assign_org_role = Editor
+auto_assign_org = true ;auto assigns the user to the existing default organization
+auto_assign_org_role = Editor ;auto assigns the user the "Editor" role
 ```
+Note that the value of `auto_assign_org_role` could also be "Admin" or "Viewer".
 
-This configuration:
+This will automatically create a user with their email and username populated.  To have the "Name" field populated for users, you can set the `jwt_claims_headers` option in Pomerium to include `name` in the JWT payload:
 
-- sets the signout redirect url so that users can log out - replace `my-grafana-url.localhost.pomerium.io` with your Grafana domain
-- sets the username to the value of the "sub" claim,
-- sets the login to automatically create a new user
-- auto assigns the user to the existing default organization
-- auto assigns the user the "Editor" role - note this could also be "Admin" or "Viewer"
-
-This will autocreate a user with their email and username populated.  To have the "Name" field populated for users, you can set the JWT Claims Headers to `email,name` in this way:
+::::: tabs
+:::: tab config.yaml
 
 ```yaml
-config:
-  jwt_claims_headers: email,name
-
-extraEnv:
-  JWT_CLAIMS_HEADERS: email,name
+jwt_claims_headers: name
 ```
+::::
+:::: tab Environment Variable
+```bash
+JWT_CLAIMS_HEADERS=name
+```
+::::
+:::: tab Pomerium Ingress Controller
+```yaml
+extraEnv:
+  JWT_CLAIMS_HEADERS: name
+```
+::::
+:::::
 
 This configuration will allow seamless authentication and authorization without any additional toil for your team.
 
-::: tip Note
-Ensure your Grafana is up to date to take advantage of auto_sign_up, as it is only available for JWT as of version 8.4.0 of Grafana.
+::: tip Tip for Google Users
+When using Google as an IdP, the user field is populated by a numeric value that you can not configure. Note that Grafana can accept the `name` field as a username, including spaces:
+
+```abnf
+username_claim = name
+```
 :::
 
 ## Troubleshooting
