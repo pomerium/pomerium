@@ -1,4 +1,6 @@
 name: Release
+permissions:
+  contents: read
 
 on:
   release:
@@ -7,6 +9,10 @@ on:
 
 jobs:
   goreleaser:
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
     runs-on: ubuntu-latest
     env:
       DOCKER_CLI_EXPERIMENTAL: "enabled"

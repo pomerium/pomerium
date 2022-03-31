@@ -1,10 +1,12 @@
+name: Test
+permissions:
+  contents: read
 on:
   push:
     branches:
       - main
   pull_request:
 
-name: Test
 jobs:
   test:
     strategy:
