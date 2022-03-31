@@ -3,6 +3,7 @@ package authorize
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,6 +30,7 @@ func TestAccessTracker(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	var mu sync.Mutex
 	sessions := map[string]*session.Session{
 		"session-0": {
 			Id: "session-0",
@@ -54,6 +56,9 @@ func TestAccessTracker(t *testing.T) {
 	tracker := NewAccessTracker(&testAccessTrackerProvider{
 		dataBrokerServiceClient: &mockDataBrokerServiceClient{
 			get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
+				mu.Lock()
+				defer mu.Unlock()
+
 				switch in.GetType() {
 				case "type.googleapis.com/session.Session":
 					s, ok := sessions[in.GetId()]
@@ -84,6 +89,9 @@ func TestAccessTracker(t *testing.T) {
 				}
 			},
 			put: func(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
+				mu.Lock()
+				defer mu.Unlock()
+
 				switch in.GetRecord().GetType() {
 				case "type.googleapis.com/session.Session":
 					data, _ := in.GetRecord().GetData().UnmarshalNew()
@@ -121,6 +129,9 @@ func TestAccessTracker(t *testing.T) {
 	}
 
 	assert.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+
 		return sessions["session-0"].GetAccessedAt().IsValid() &&
 			sessions["session-1"].GetAccessedAt().IsValid() &&
 			sessions["session-2"].GetAccessedAt().IsValid() &&
