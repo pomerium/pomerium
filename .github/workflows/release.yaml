@@ -1,4 +1,6 @@
 name: Release
+permissions:
+  contents: read
 
 on:
   release:
