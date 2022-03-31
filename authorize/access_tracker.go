@@ -18,6 +18,7 @@ import (
 const (
 	accessTrackerMaxSize        = 1_000
 	accessTrackerDebouncePeriod = 10 * time.Second
+	accessTrackerUpdateTimeout  = 3 * time.Second
 )
 
 // A AccessTrackerProvider provides the databroker service client for tracking session access.
@@ -126,6 +127,9 @@ func (tracker *AccessTracker) updateServiceAccount(
 	client databroker.DataBrokerServiceClient,
 	serviceAccountID string,
 ) error {
+	ctx, clearTimeout := context.WithTimeout(ctx, accessTrackerUpdateTimeout)
+	defer clearTimeout()
+
 	sa, err := user.GetServiceAccount(ctx, client, serviceAccountID)
 	if status.Code(err) == codes.NotFound {
 		return nil
@@ -142,6 +146,9 @@ func (tracker *AccessTracker) updateSession(
 	client databroker.DataBrokerServiceClient,
 	sessionID string,
 ) error {
+	ctx, clearTimeout := context.WithTimeout(ctx, accessTrackerUpdateTimeout)
+	defer clearTimeout()
+
 	s, err := session.Get(ctx, client, sessionID)
 	if status.Code(err) == codes.NotFound {
 		return nil
