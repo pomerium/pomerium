@@ -5,6 +5,7 @@ import (
 	context "context"
 	"fmt"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -48,6 +49,7 @@ func Get(ctx context.Context, client databroker.DataBrokerServiceClient, session
 
 // Put sets a session in the databroker.
 func Put(ctx context.Context, client databroker.DataBrokerServiceClient, s *Session) (*databroker.PutResponse, error) {
+	s = proto.Clone(s).(*Session)
 	any := protoutil.NewAny(s)
 	res, err := client.Put(ctx, &databroker.PutRequest{
 		Record: &databroker.Record{

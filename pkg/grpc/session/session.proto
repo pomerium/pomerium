@@ -37,6 +37,7 @@ message Session {
   repeated DeviceCredential device_credentials = 17;
   google.protobuf.Timestamp issued_at = 14;
   google.protobuf.Timestamp expires_at = 4;
+  google.protobuf.Timestamp accessed_at = 18;
   IDToken id_token = 6;
   OAuthToken oauth_token = 7;
   map<string, google.protobuf.ListValue> claims = 9;

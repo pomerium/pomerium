@@ -13,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 // Authorize struct holds
@@ -20,6 +21,7 @@ type Authorize struct {
 	state          *atomicAuthorizeState
 	store          *evaluator.Store
 	currentOptions *config.AtomicOptions
+	accessTracker  *AccessTracker
 
 	dataBrokerInitialSync chan struct{}
 
@@ -31,11 +33,12 @@ type Authorize struct {
 
 // New validates and creates a new Authorize service from a set of config options.
 func New(cfg *config.Config) (*Authorize, error) {
-	a := Authorize{
+	a := &Authorize{
 		currentOptions:        config.NewAtomicOptions(),
 		store:                 evaluator.NewStore(),
 		dataBrokerInitialSync: make(chan struct{}),
 	}
+	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 
 	state, err := newAuthorizeStateFromConfig(cfg, a.store)
 	if err != nil {
@@ -43,11 +46,17 @@ func New(cfg *config.Config) (*Authorize, error) {
 	}
 	a.state = newAtomicAuthorizeState(state)
 
-	return &a, nil
+	return a, nil
+}
+
+// GetDataBrokerServiceClient returns the current DataBrokerServiceClient.
+func (a *Authorize) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	return a.state.Load().dataBrokerClient
 }
 
 // Run runs the authorize service.
 func (a *Authorize) Run(ctx context.Context) error {
+	go a.accessTracker.Run(ctx)
 	return newDataBrokerSyncer(a).Run(ctx)
 }
 
