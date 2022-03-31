@@ -1,11 +1,9 @@
 name: Backport
 on:
-  pull_request:
-
-  # pull_request_target:
-  #   types:
-  #     - closed
-  #     - labeled
+  pull_request_target:
+    types:
+      - closed
+      - labeled
 
 jobs:
   backport:
