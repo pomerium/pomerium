@@ -2,6 +2,7 @@ package authorize
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -33,6 +34,8 @@ type AccessTracker struct {
 	serviceAccountAccesses chan string
 	maxSize                int
 	debouncePeriod         time.Duration
+
+	droppedAccesses int64
 }
 
 // NewAccessTracker creates a new SessionAccessTracker.
@@ -64,6 +67,12 @@ func (tracker *AccessTracker) Run(ctx context.Context) {
 		serviceAccountAccesses.Add(serviceAccountID)
 	}
 	runSubmit := func() {
+		if dropped := atomic.SwapInt64(&tracker.droppedAccesses, 0); dropped > 0 {
+			log.Error(ctx).
+				Int64("dropped", dropped).
+				Msg("authorize: failed to track all session accesses")
+		}
+
 		client := tracker.provider.GetDataBrokerServiceClient()
 
 		var err error
@@ -109,7 +118,7 @@ func (tracker *AccessTracker) TrackServiceAccountAccess(serviceAccountID string)
 	select {
 	case tracker.serviceAccountAccesses <- serviceAccountID:
 	default:
-		// drop
+		atomic.AddInt64(&tracker.droppedAccesses, 1)
 	}
 }
 
@@ -118,7 +127,7 @@ func (tracker *AccessTracker) TrackSessionAccess(sessionID string) {
 	select {
 	case tracker.sessionAccesses <- sessionID:
 	default:
-		// drop
+		atomic.AddInt64(&tracker.droppedAccesses, 1)
 	}
 }
 
