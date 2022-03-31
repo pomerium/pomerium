@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
@@ -21,7 +20,7 @@ func TestEncryptedBackend(t *testing.T) {
 
 	m := map[string]*anypb.Any{}
 	backend := &mockBackend{
-		put: func(ctx context.Context, record *databroker.Record, mask *fieldmaskpb.FieldMask) (uint64, error) {
+		put: func(ctx context.Context, record *databroker.Record) (uint64, error) {
 			record.ModifiedAt = timestamppb.Now()
 			record.Version++
 			m[record.GetId()] = record.GetData()
@@ -65,7 +64,7 @@ func TestEncryptedBackend(t *testing.T) {
 		Id:   "TEST-1",
 		Data: any,
 	}
-	_, err = e.Put(ctx, rec, nil)
+	_, err = e.Put(ctx, rec)
 	if !assert.NoError(t, err) {
 		return
 	}

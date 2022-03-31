@@ -11,14 +11,12 @@ import (
 	"github.com/google/btree"
 	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -206,11 +204,7 @@ func (backend *Backend) Lease(_ context.Context, leaseName, leaseID string, ttl 
 }
 
 // Put puts a record into the in-memory store.
-func (backend *Backend) Put(
-	ctx context.Context,
-	record *databroker.Record,
-	mask *fieldmaskpb.FieldMask,
-) (serverVersion uint64, err error) {
+func (backend *Backend) Put(ctx context.Context, record *databroker.Record) (serverVersion uint64, err error) {
 	if record == nil {
 		return backend.serverVersion, fmt.Errorf("records cannot be nil")
 	}
@@ -225,23 +219,13 @@ func (backend *Backend) Put(
 	defer backend.mu.Unlock()
 	defer backend.onChange.Broadcast(ctx)
 
+	backend.recordChange(record)
+
 	c, ok := backend.lookup[record.GetType()]
 	if !ok {
 		c = NewRecordCollection()
 		backend.lookup[record.GetType()] = c
 	}
-
-	if mask != nil {
-		oldRecord := c.Get(record.GetId())
-		if oldRecord != nil {
-			record.Data, err = protoutil.MergeAnyWithFieldMask(oldRecord.Data, record.Data, mask)
-			if err != nil {
-				return serverVersion, err
-			}
-		}
-	}
-
-	backend.recordChange(record)
 
 	if record.GetDeletedAt() != nil {
 		c.Delete(record.GetId())

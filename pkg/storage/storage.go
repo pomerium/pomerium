@@ -11,7 +11,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -52,7 +51,7 @@ type Backend interface {
 	// Lease acquires a lease, or renews an existing one. If the lease is acquired true is returned.
 	Lease(ctx context.Context, leaseName, leaseID string, ttl time.Duration) (bool, error)
 	// Put is used to insert or update a record.
-	Put(ctx context.Context, record *databroker.Record, mask *fieldmaskpb.FieldMask) (serverVersion uint64, err error)
+	Put(ctx context.Context, record *databroker.Record) (serverVersion uint64, err error)
 	// SetOptions sets the options for a type.
 	SetOptions(ctx context.Context, recordType string, options *databroker.Options) error
 	// Sync syncs record changes after the specified version.
