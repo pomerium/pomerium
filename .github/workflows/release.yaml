@@ -1,4 +1,6 @@
 name: Release
+permissions:
+  contents: read
 
 on:
   release:
@@ -7,6 +9,10 @@ on:
 
 jobs:
   goreleaser:
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
     runs-on: ubuntu-latest
     env:
       DOCKER_CLI_EXPERIMENTAL: "enabled"
@@ -51,7 +57,7 @@ jobs:
           version: v0.184.0
           args: release --config .github/goreleaser.yaml
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
           APPARITOR_GITHUB_TOKEN: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Get tag name

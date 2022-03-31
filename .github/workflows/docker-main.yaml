@@ -1,4 +1,6 @@
 name: Docker Main
+permissions:
+  contents: read
 on:
   push:
     branches:
