@@ -18,7 +18,8 @@ jobs:
           private_key: ${{ secrets.BACKPORT_APP_PRIVATE_KEY }}
 
       - name: Backport
-        uses: tibdex/backport@e2ffd4c5a70730dfd19046859dfaf366e3de6466 # pin@v1
+        uses: pomerium/backport@2271564b709b2cbe6c164f142cabc11d35f52f9a # pin@retain_labels branch pending https://github.com/tibdex/backport/pull/79
         with:
           github_token: ${{ steps.generate_token.outputs.token }}
           title_template: "{{originalTitle}}"
+          copy_original_labels: true
