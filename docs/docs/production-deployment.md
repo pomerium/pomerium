@@ -41,7 +41,7 @@ Please also see [Architecture](/docs/architecture.md) for information on compone
 
 In split service mode, you have the opportunity to scale the components of Pomerium independently.
 
-All of Pomerium's components are designed to be stateless, and may all be scaled horizontally or vertically. In general, horizontal scaling is recommended. Vertical scaling will lead to diminished returns after ~8 vCPUs.
+All of Pomerium's components are designed to be [stateless](/docs/glossary.md#stateless), and may all be scaled horizontally or vertically. In general, horizontal scaling is recommended. Vertical scaling will lead to diminished returns after ~8 vCPUs.
 
 The Databroker service, which is responsible for session and identity related data, must be [configured for external persistence](/docs/topics/data-storage.md) to be fully stateless.
 
