@@ -227,7 +227,7 @@ jobs:
       - uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # pin@v2
         with:
           go-version: 1.17.x
-      - uses: actions/setup-python@0ebf233433c08fb9061af664d501c3f3ff0e9e20 # pin@v3
+      - uses: actions/setup-python@9c644ca2ab8e57ea0a487b5ec2f8290740378bfd # pin@v3
       - uses: pre-commit/action@876132a3c26aa072b09eab6c5395b4749eeb2435 # pin@release
         with:
           extra_args: --show-diff-on-failure --from-ref ${{
