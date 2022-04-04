@@ -142,6 +142,14 @@ jwt_payload_groups = v {
 	true
 }
 
+jwt_payload_name = v {
+	v = get_header_string_value(session.claims.name)
+} else = v {
+	v = get_header_string_value(user.claims.name)
+} else = "" {
+	true
+}
+
 # the session id is always set to the input session id, even if impersonating
 jwt_payload_sid := input.session.id
 
@@ -156,6 +164,7 @@ base_jwt_claims := [
 	["email", jwt_payload_email],
 	["groups", jwt_payload_groups],
 	["sid", jwt_payload_sid],
+	["name", jwt_payload_name],
 ]
 
 additional_jwt_claims := [[k, v] |
