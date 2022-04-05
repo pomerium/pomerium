@@ -78,6 +78,8 @@ message Route {
 
   bool tls_skip_verify = 14;
   string tls_server_name = 15;
+  string tls_upstream_server_name = 57;
+  string tls_downstream_server_name = 58;
   string tls_custom_ca = 16;
   string tls_custom_ca_file = 17;
 
