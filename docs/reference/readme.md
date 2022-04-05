@@ -1015,7 +1015,7 @@ Use this option if you previously relied on `x-pomerium-authenticated-user-{emai
 ### Override Certificate Name
 - Environmental Variable: `OVERRIDE_CERTIFICATE_NAME`
 - Config File Key: `override_certificate_name`
-- Type: `int`
+- Type: `string`
 - Optional
 - Example: `*.corp.example.com` if wild card or `authenticate.corp.example.com`/`authorize.corp.example.com`
 
