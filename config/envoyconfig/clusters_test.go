@@ -125,7 +125,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"ECDHE-RSA-AES256-SHA",
 								"AES256-GCM-SHA384",
 								"AES256-SHA"
-            	            ],
+							],
 							"ecdhCurves": [
 								"X25519",
 								"P-256",
