@@ -1144,7 +1144,7 @@ settings:
         attributes: |
           - Environmental Variable: `OVERRIDE_CERTIFICATE_NAME`
           - Config File Key: `override_certificate_name`
-          - Type: `int`
+          - Type: `string`
           - Optional
           - Example: `*.corp.example.com` if wild card or `authenticate.corp.example.com`/`authorize.corp.example.com`
         doc: |
