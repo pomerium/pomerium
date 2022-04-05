@@ -50,6 +50,9 @@ Specific to Pomerium, a route is a defined path from outside the network (via a 
 ### Single Sign-On
 Single Sign-On (**SSO**) is the most frequently asked for requirement by enterprise organizations looking to adopt new SaaS applications. SSO enables authentication via an organization’s [identity provider], such as [Google Workspace](/docs/identity-providers/google.md) or [Okta](/docs/identity-providers/okta.md), as opposed to users or IT admins managing hundreds, if not thousands, of usernames and passwords.
 
+### Stateless
+Another overloaded term in the tech space, we use the term stateless when talking about Pomerium's Proxy, Authenticate, and Authorize [components](/docs/architecture.md#component-level). They are stateless because they rely on the Databroker component to provide persistent data. This means that the other services can be destroyed, recreated, and scaled horizontally without any data loss.
+
 ## Networking
 
 ### Custom Resource Definition
