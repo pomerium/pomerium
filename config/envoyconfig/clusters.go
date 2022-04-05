@@ -267,6 +267,9 @@ func (b *Builder) buildPolicyTransportSocket(
 	if policy.TLSServerName != "" {
 		sni = policy.TLSServerName
 	}
+	if policy.TLSUpstreamServerName != "" {
+		sni = policy.TLSUpstreamServerName
+	}
 	tlsContext := &envoy_extensions_transport_sockets_tls_v3.UpstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			TlsParams: &envoy_extensions_transport_sockets_tls_v3.TlsParameters{
@@ -320,9 +323,16 @@ func (b *Builder) buildPolicyValidationContext(
 	policy *config.Policy,
 	dst url.URL,
 ) (*envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext, error) {
+	overrideName := ""
+	if policy.TLSServerName != "" {
+		overrideName = policy.TLSServerName
+	}
+	if policy.TLSUpstreamServerName != "" {
+		overrideName = policy.TLSUpstreamServerName
+	}
 	validationContext := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
 		MatchTypedSubjectAltNames: []*envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher{
-			b.buildSubjectAltNameMatcher(&dst, policy.TLSServerName),
+			b.buildSubjectAltNameMatcher(&dst, overrideName),
 		},
 	}
 	if policy.TLSCustomCAFile != "" {

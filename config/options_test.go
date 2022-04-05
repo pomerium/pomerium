@@ -707,12 +707,14 @@ func TestOptions_GetAllRouteableHTTPDomains(t *testing.T) {
 	p1.Validate()
 	p2 := Policy{From: "https://from2.example.com"}
 	p2.Validate()
+	p3 := Policy{From: "https://from3.example.com", TLSDownstreamServerName: "from.example.com"}
+	p3.Validate()
 
 	opts := &Options{
 		AuthenticateURLString: "https://authenticate.example.com",
 		AuthorizeURLString:    "https://authorize.example.com",
 		DataBrokerURLString:   "https://databroker.example.com",
-		Policies:              []Policy{p1, p2},
+		Policies:              []Policy{p1, p2, p3},
 		Services:              "all",
 	}
 	domains, err := opts.GetAllRouteableHTTPDomains()
@@ -721,10 +723,14 @@ func TestOptions_GetAllRouteableHTTPDomains(t *testing.T) {
 	assert.Equal(t, []string{
 		"authenticate.example.com",
 		"authenticate.example.com:443",
+		"from.example.com",
+		"from.example.com:443",
 		"from1.example.com",
 		"from1.example.com:443",
 		"from2.example.com",
 		"from2.example.com:443",
+		"from3.example.com",
+		"from3.example.com:443",
 	}, domains)
 }
 
