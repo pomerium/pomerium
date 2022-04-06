@@ -117,6 +117,10 @@ func NewPolicyHTTPTransport(options *Options, policy *Policy, disableHTTP2 bool)
 		tlsClientConfig.ServerName = policy.TLSServerName
 		isCustomClientConfig = true
 	}
+	if policy.TLSUpstreamServerName != "" {
+		tlsClientConfig.ServerName = policy.TLSUpstreamServerName
+		isCustomClientConfig = true
+	}
 
 	// We avoid setting a custom client config unless we have to as
 	// if TLSClientConfig is nil, the default configuration is used.

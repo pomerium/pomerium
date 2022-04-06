@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"sort"
 	"time"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -20,7 +19,6 @@ import (
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/wrappers"
-	"github.com/scylladb/go-set"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -28,7 +26,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/internal/sets"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -268,7 +266,7 @@ func (b *Builder) buildFilterChains(
 
 	var chains []*envoy_config_listener_v3.FilterChain
 	for _, domain := range tlsDomains {
-		routeableDomains, err := getRouteableDomainsForTLSDomain(options, addr, domain)
+		routeableDomains, err := getRouteableDomainsForTLSServerName(options, addr, domain)
 		if err != nil {
 			return nil, err
 		}
@@ -718,23 +716,30 @@ func (b *Builder) buildDownstreamValidationContext(ctx context.Context,
 	return vc
 }
 
-func getRouteableDomainsForTLSDomain(options *config.Options, addr string, tlsDomain string) ([]string, error) {
-	allDomains, err := getAllRouteableDomains(options, addr)
-	if err != nil {
-		return nil, err
+func getRouteableDomainsForTLSServerName(options *config.Options, addr string, tlsServerName string) ([]string, error) {
+	allDomains := sets.NewSortedString()
+
+	if addr == options.Addr {
+		domains, err := options.GetAllRouteableHTTPDomainsForTLSServerName(tlsServerName)
+		if err != nil {
+			return nil, err
+		}
+		allDomains.Add(domains...)
 	}
 
-	var filtered []string
-	for _, domain := range allDomains {
-		if urlutil.StripPort(domain) == tlsDomain {
-			filtered = append(filtered, domain)
+	if addr == options.GetGRPCAddr() {
+		domains, err := options.GetAllRouteableGRPCDomainsForTLSServerName(tlsServerName)
+		if err != nil {
+			return nil, err
 		}
+		allDomains.Add(domains...)
 	}
-	return filtered, nil
+
+	return allDomains.ToSlice(), nil
 }
 
 func getAllRouteableDomains(options *config.Options, addr string) ([]string, error) {
-	allDomains := set.NewStringSet()
+	allDomains := sets.NewSortedString()
 
 	if addr == options.Addr {
 		domains, err := options.GetAllRouteableHTTPDomains()
@@ -752,10 +757,7 @@ func getAllRouteableDomains(options *config.Options, addr string) ([]string, err
 		allDomains.Add(domains...)
 	}
 
-	domains := allDomains.List()
-	sort.Strings(domains)
-
-	return domains, nil
+	return allDomains.ToSlice(), nil
 }
 
 func getAllTLSDomains(options *config.Options, addr string) ([]string, error) {
@@ -764,22 +766,16 @@ func getAllTLSDomains(options *config.Options, addr string) ([]string, error) {
 		return nil, err
 	}
 
-	lookup := map[string]struct{}{}
+	domains := sets.NewSortedString()
 	for _, hp := range allDomains {
 		if d, _, err := net.SplitHostPort(hp); err == nil {
-			lookup[d] = struct{}{}
+			domains.Add(d)
 		} else {
-			lookup[hp] = struct{}{}
+			domains.Add(hp)
 		}
 	}
 
-	domains := make([]string, 0, len(lookup))
-	for domain := range lookup {
-		domains = append(domains, domain)
-	}
-	sort.Strings(domains)
-
-	return domains, nil
+	return domains.ToSlice(), nil
 }
 
 func hostsMatchDomain(urls []*url.URL, host string) bool {

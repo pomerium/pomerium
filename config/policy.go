@@ -99,7 +99,9 @@ type Policy struct {
 	// if your backend is an HTTPS server with a valid certificate, but you
 	// want to communicate to the backend with an internal hostname (e.g.
 	// Docker container name).
-	TLSServerName string `mapstructure:"tls_server_name" yaml:"tls_server_name,omitempty"`
+	TLSServerName           string `mapstructure:"tls_server_name" yaml:"tls_server_name,omitempty"`
+	TLSDownstreamServerName string `mapstructure:"tls_downstream_server_name" yaml:"tls_downstream_server_name,omitempty"`
+	TLSUpstreamServerName   string `mapstructure:"tls_upstream_server_name" yaml:"tls_upstream_server_name,omitempty"`
 
 	// TLSCustomCA defines the  root certificate to use with a given
 	// route when verifying server certificates.
@@ -239,6 +241,8 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		AllowSPDY:                        pb.GetAllowSpdy(),
 		TLSSkipVerify:                    pb.GetTlsSkipVerify(),
 		TLSServerName:                    pb.GetTlsServerName(),
+		TLSDownstreamServerName:          pb.GetTlsDownstreamServerName(),
+		TLSUpstreamServerName:            pb.GetTlsUpstreamServerName(),
 		TLSCustomCA:                      pb.GetTlsCustomCa(),
 		TLSCustomCAFile:                  pb.GetTlsCustomCaFile(),
 		TLSClientCert:                    pb.GetTlsClientCert(),
@@ -360,6 +364,8 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		AllowSpdy:                        p.AllowSPDY,
 		TlsSkipVerify:                    p.TLSSkipVerify,
 		TlsServerName:                    p.TLSServerName,
+		TlsUpstreamServerName:            p.TLSUpstreamServerName,
+		TlsDownstreamServerName:          p.TLSDownstreamServerName,
 		TlsCustomCa:                      p.TLSCustomCA,
 		TlsCustomCaFile:                  p.TLSCustomCAFile,
 		TlsClientCert:                    p.TLSClientCert,

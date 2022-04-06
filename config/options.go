@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -29,6 +28,7 @@ import (
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/sets"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -1041,7 +1041,13 @@ func (o *Options) GetCodecType() CodecType {
 
 // GetAllRouteableGRPCDomains returns all the possible gRPC domains handled by the Pomerium options.
 func (o *Options) GetAllRouteableGRPCDomains() ([]string, error) {
-	lookup := map[string]struct{}{}
+	return o.GetAllRouteableGRPCDomainsForTLSServerName("")
+}
+
+// GetAllRouteableGRPCDomainsForTLSServerName  returns all the possible gRPC domains handled by the Pomerium options
+// for the given TLS server name.
+func (o *Options) GetAllRouteableGRPCDomainsForTLSServerName(tlsServerName string) ([]string, error) {
+	domains := sets.NewSortedString()
 
 	// authorize urls
 	if IsAll(o.Services) {
@@ -1051,7 +1057,9 @@ func (o *Options) GetAllRouteableGRPCDomains() ([]string, error) {
 		}
 		for _, u := range authorizeURLs {
 			for _, h := range urlutil.GetDomainsForURL(*u) {
-				lookup[h] = struct{}{}
+				if tlsServerName == "" || urlutil.StripPort(h) == tlsServerName {
+					domains.Add(h)
+				}
 			}
 		}
 	} else if IsAuthorize(o.Services) {
@@ -1061,7 +1069,9 @@ func (o *Options) GetAllRouteableGRPCDomains() ([]string, error) {
 		}
 		for _, u := range authorizeURLs {
 			for _, h := range urlutil.GetDomainsForURL(*u) {
-				lookup[h] = struct{}{}
+				if tlsServerName == "" || urlutil.StripPort(h) == tlsServerName {
+					domains.Add(h)
+				}
 			}
 		}
 	}
@@ -1074,7 +1084,9 @@ func (o *Options) GetAllRouteableGRPCDomains() ([]string, error) {
 		}
 		for _, u := range dataBrokerURLs {
 			for _, h := range urlutil.GetDomainsForURL(*u) {
-				lookup[h] = struct{}{}
+				if tlsServerName == "" || urlutil.StripPort(h) == tlsServerName {
+					domains.Add(h)
+				}
 			}
 		}
 	} else if IsDataBroker(o.Services) {
@@ -1084,35 +1096,39 @@ func (o *Options) GetAllRouteableGRPCDomains() ([]string, error) {
 		}
 		for _, u := range dataBrokerURLs {
 			for _, h := range urlutil.GetDomainsForURL(*u) {
-				lookup[h] = struct{}{}
+				if tlsServerName == "" || urlutil.StripPort(h) == tlsServerName {
+					domains.Add(h)
+				}
 			}
 		}
 	}
 
-	domains := make([]string, 0, len(lookup))
-	for domain := range lookup {
-		domains = append(domains, domain)
-	}
-	sort.Strings(domains)
-
-	return domains, nil
+	return domains.ToSlice(), nil
 }
 
 // GetAllRouteableHTTPDomains returns all the possible HTTP domains handled by the Pomerium options.
 func (o *Options) GetAllRouteableHTTPDomains() ([]string, error) {
+	return o.GetAllRouteableHTTPDomainsForTLSServerName("")
+}
+
+// GetAllRouteableHTTPDomainsForTLSServerName returns all the possible HTTP domains handled by the Pomerium options
+// for the given TLS server name.
+func (o *Options) GetAllRouteableHTTPDomainsForTLSServerName(tlsServerName string) ([]string, error) {
 	forwardAuthURL, err := o.GetForwardAuthURL()
 	if err != nil {
 		return nil, err
 	}
 
-	lookup := map[string]struct{}{}
+	domains := sets.NewSortedString()
 	if IsAuthenticate(o.Services) {
 		authenticateURL, err := o.GetInternalAuthenticateURL()
 		if err != nil {
 			return nil, err
 		}
 		for _, h := range urlutil.GetDomainsForURL(*authenticateURL) {
-			lookup[h] = struct{}{}
+			if tlsServerName == "" || urlutil.StripPort(h) == tlsServerName {
+				domains.Add(h)
+			}
 		}
 	}
 
@@ -1120,23 +1136,32 @@ func (o *Options) GetAllRouteableHTTPDomains() ([]string, error) {
 	if IsProxy(o.Services) {
 		for _, policy := range o.GetAllPolicies() {
 			for _, h := range urlutil.GetDomainsForURL(*policy.Source.URL) {
-				lookup[h] = struct{}{}
+				if tlsServerName == "" ||
+					policy.TLSDownstreamServerName == tlsServerName ||
+					urlutil.StripPort(h) == tlsServerName {
+					domains.Add(h)
+				}
+			}
+			if policy.TLSDownstreamServerName != "" {
+				tlsURL := policy.Source.URL.ResolveReference(&url.URL{Host: policy.TLSDownstreamServerName})
+				for _, h := range urlutil.GetDomainsForURL(*tlsURL) {
+					if tlsServerName == "" ||
+						urlutil.StripPort(h) == tlsServerName {
+						domains.Add(h)
+					}
+				}
 			}
 		}
 		if forwardAuthURL != nil {
 			for _, h := range urlutil.GetDomainsForURL(*forwardAuthURL) {
-				lookup[h] = struct{}{}
+				if tlsServerName == "" || urlutil.StripPort(h) == tlsServerName {
+					domains.Add(h)
+				}
 			}
 		}
 	}
 
-	domains := make([]string, 0, len(lookup))
-	for domain := range lookup {
-		domains = append(domains, domain)
-	}
-	sort.Strings(domains)
-
-	return domains, nil
+	return domains.ToSlice(), nil
 }
 
 // Checksum returns the checksum of the current options struct
