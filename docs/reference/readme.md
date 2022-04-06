@@ -1720,6 +1720,14 @@ See [Client-Side mTLS With Pomerium](/guides/mtls.md) for more information.
 TLS Skip Verification controls whether the Pomerium Proxy Service verifies the upstream server's certificate chain and host name. If enabled, Pomerium accepts any certificate presented by the upstream server and any host name in that certificate. In this mode, TLS is susceptible to man-in-the-middle attacks. This should be used only for testing.
 
 
+### TLS Server Name
+- Config File Key: `tls_server_name`
+- Type: `string`
+- Optional
+
+**Deprecated**: this key has been replaced with `tls_upstream_server_name`.
+
+
 ### TLS Upstream Server Name
 - Config File Key: `tls_upstream_server_name`
 - Type: `string`
