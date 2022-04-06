@@ -33,7 +33,7 @@ This guide assumes you already have Pomerium installed and connected to your [Id
 
     ```conf
     [WebService]
-    Origins = https://cockpit.localhost.pomerium.io wss://localhost.pomerium.io 
+    Origins = https://cockpit.localhost.pomerium.io wss://localhost.pomerium.io
     ProtocolHeader = X-Forwarded-Proto
     ```
 
