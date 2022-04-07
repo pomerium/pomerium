@@ -1,5 +1,6 @@
 {
   "devDependencies": {
+    "@limdongjin/vuepress-plugin-simple-seo": "https://github.com/pomerium/vuepress-plugin-simple-seo",
     "@vuepress/plugin-google-analytics": "1.8.2",
     "js-yaml": "^4.1.0",
     "vuepress": "1.8.2",
