@@ -33,9 +33,6 @@ def main():
 
 
 def rewrite_settings_yaml(path):
-    path = os.path.normpath(os.path.join(os.path.dirname(__file__), '..',
-                                         'docs', 'enterprise', 'console-settings.yaml'))
-
     with open(path) as f:
         doc = yaml.load(f)
 

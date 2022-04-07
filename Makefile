@@ -143,6 +143,7 @@ gen-docs:
 	@echo "==> $@"
 	pip3 install ruamel.yaml
 	python3 ./scripts/generate-settings-docs.py
+	node scripts/generate-console-pages.js
 
 .PHONY: help
 help:
