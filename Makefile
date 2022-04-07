@@ -138,6 +138,12 @@ yarn:
 	@echo "==> $@"
 	cd ui ; yarn install --network-timeout 120000
 
+.PHONY: gen-docs
+gen-docs:
+	@echo "==> $@"
+	pip3 install ruamel.yaml
+	python3 ./scripts/generate-settings-docs.py
+
 .PHONY: help
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
