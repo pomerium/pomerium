@@ -238,6 +238,7 @@ module.exports = {
             "argo",
             "cloud-run",
             "mtls",
+            "cockpit",
             "code-server",
             "admin-enroll-device",
             "enroll-device",
