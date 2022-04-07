@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	googlegrpc "google.golang.org/grpc"
+
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -17,11 +19,12 @@ import (
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
 
 type authorizeState struct {
-	sharedKey        []byte
-	evaluator        *evaluator.Evaluator
-	encoder          encoding.MarshalUnmarshaler
-	dataBrokerClient databroker.DataBrokerServiceClient
-	auditEncryptor   *protoutil.Encryptor
+	sharedKey                  []byte
+	evaluator                  *evaluator.Evaluator
+	encoder                    encoding.MarshalUnmarshaler
+	dataBrokerClientConnection *googlegrpc.ClientConn
+	dataBrokerClient           databroker.DataBrokerServiceClient
+	auditEncryptor             *protoutil.Encryptor
 }
 
 func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*authorizeState, error) {
@@ -62,6 +65,7 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*a
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error creating databroker connection: %w", err)
 	}
+	state.dataBrokerClientConnection = cc
 	state.dataBrokerClient = databroker.NewDataBrokerServiceClient(cc)
 
 	auditKey, err := cfg.Options.GetAuditKey()

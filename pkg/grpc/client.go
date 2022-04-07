@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -54,7 +55,7 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 		grpc.WithInsecure(),
 	}
 	dialOptions = append(dialOptions, other...)
-	log.Info(ctx).Str("address", opts.Address).Msg("dialing")
+	log.Info(ctx).Str("address", opts.Address).Msg("grpc: dialing")
 	return grpc.DialContext(ctx, opts.Address, dialOptions...)
 }
 
@@ -123,4 +124,28 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 	}
 	cache.opts = opts
 	return cache.current, nil
+}
+
+// WaitForReady waits for the connection to be ready.
+func WaitForReady(ctx context.Context, cc *grpc.ClientConn, timeout time.Duration) error {
+	if cc.GetState() == connectivity.Ready {
+		return nil
+	}
+
+	ctx, clearTimeout := context.WithTimeout(ctx, timeout)
+	defer clearTimeout()
+
+	cc.Connect()
+	ticker := time.NewTicker(time.Millisecond * 50)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+
+		if cc.GetState() == connectivity.Ready {
+			return nil
+		}
+	}
 }
