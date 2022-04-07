@@ -137,6 +137,7 @@ func WaitForReady(ctx context.Context, cc *grpc.ClientConn, timeout time.Duratio
 
 	cc.Connect()
 	ticker := time.NewTicker(time.Millisecond * 50)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
