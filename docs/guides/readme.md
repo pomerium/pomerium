@@ -6,6 +6,7 @@ This section contains applications, and scenario specific guides for Pomerium.
 - The [argo](./argo.md) guide demonstrates how Pomerium can be used to add access control to [Argo](https://argoproj.github.io/projects/argo).
 - The [Client-Side mTLS](./mtls.md) guide demonstrates how Pomerium can be used to add mutual authentication to end-user connections using client certificates and a custom certificate authority.
 - The [Cloud Run](./cloud-run.md) recipe demonstrates deploying Pomerium to Google Cloud Run as well as using it to Authorize users to protected Cloud Run endpoints.
+- Secure [Cockpit](./cockpit.md), a web GUI for Linux server administration, behind a Pomerium route.
 - The [code-server](./code-server.md) guide demonstrates how Pomerium can be used to add access control to third-party applications that don't ship with [fine-grained access control](https://github.com/cdr/code-server/issues/905). code-server is a tool to run Visual Studio code as a web application.
 - See [Device Admin-Enrollment](./admin-enroll-device.md) to create pre-approved device enrollment links in the Pomerium Enterprise Console.
 - See [Device User-Enrollment](./enroll-device.md) to learn how to register a security device (TPM, Yubikey, etc) to access routes requiring a device ID.
