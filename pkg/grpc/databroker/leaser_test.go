@@ -3,6 +3,7 @@ package databroker_test
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -135,4 +136,43 @@ func TestLeaser(t *testing.T) {
 		err := leaser.Run(context.Background())
 		assert.Equal(t, exitErr, err)
 	})
+}
+
+func TestLeasers(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	exitErr := errors.New("EXIT")
+
+	client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
+	client.EXPECT().
+		AcquireLease(gomock.Any(), &databroker.AcquireLeaseRequest{
+			Name:     "TEST",
+			Duration: durationpb.New(time.Second * 30),
+		}).
+		Return(&databroker.AcquireLeaseResponse{
+			Id: "lease1",
+		}, nil).
+		Times(1)
+	client.EXPECT().
+		ReleaseLease(gomock.Any(), &databroker.ReleaseLeaseRequest{
+			Name: "TEST",
+			Id:   "lease1",
+		}).
+		Times(1)
+
+	var counter int64
+	fn1 := func(ctx context.Context) error {
+		atomic.AddInt64(&counter, 1)
+		return exitErr
+	}
+	fn2 := func(ctx context.Context) error {
+		atomic.AddInt64(&counter, 10)
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	leaser := databroker.NewLeasers("TEST", time.Second*30, client, fn1, fn2)
+	err := leaser.Run(context.Background())
+	assert.Equal(t, exitErr, err)
+	assert.EqualValues(t, 11, counter)
 }
