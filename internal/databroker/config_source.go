@@ -3,6 +3,7 @@ package databroker
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -208,6 +209,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 			Str("outbound_port", cfg.OutboundPort).
 			Strs("databroker_urls", databrokerURLs).
 			Msg("config: starting databroker config source syncer")
+		_ = grpc.WaitForReady(ctx, cc, time.Second*10)
 		_ = syncer.Run(ctx)
 	}()
 }

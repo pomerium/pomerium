@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
@@ -13,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -57,6 +59,7 @@ func (a *Authorize) GetDataBrokerServiceClient() databroker.DataBrokerServiceCli
 // Run runs the authorize service.
 func (a *Authorize) Run(ctx context.Context) error {
 	go a.accessTracker.Run(ctx)
+	_ = grpc.WaitForReady(ctx, a.state.Load().dataBrokerClientConnection, time.Second*10)
 	return newDataBrokerSyncer(a).Run(ctx)
 }
 
