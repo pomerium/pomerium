@@ -123,7 +123,6 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	defer span.End()
 
 	if req.Policy == nil {
-		fmt.Println(">>>NOT FOUND<<<")
 		return notFoundOutput, nil
 	}
 
@@ -134,7 +133,6 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 
 	policyEvaluator, ok := e.policyEvaluators[id]
 	if !ok {
-		fmt.Println(">>>NOT DEFINED<<<")
 		return notFoundOutput, nil
 	}
 
