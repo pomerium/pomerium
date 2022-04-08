@@ -30,7 +30,7 @@ func NewHTTPTransport(src Source) *http.Transport {
 				}
 				lock.Unlock()
 			} else {
-				log.Error(context.Background()).Err(err).Msg("config: error getting cert pool")
+				log.Error(ctx).Err(err).Msg("config: error getting cert pool")
 			}
 		} else {
 			lock.Lock()
