@@ -47,7 +47,7 @@ module.exports = {
       default_site_name: 'Pomerium Documentation',
       default_twitter_site: '@pomerium_io',
       default_twitter_creator: '@pomerium_io',
-      default_image: 'img/logo-round.png',
+      default_image: 'img/pomerium-icon-1.png',
       default_twitter_card: 'summary',
       },
     ],
