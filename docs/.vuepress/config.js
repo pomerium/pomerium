@@ -40,6 +40,17 @@ module.exports = {
         ga: "UA-129872447-2",
       },
     ],
+    [
+      '@limdongjin/vuepress-plugin-simple-seo',
+      {
+      root_url: 'https://www.pomerium.com/',
+      default_site_name: 'Pomerium Documentation',
+      default_twitter_site: '@pomerium_io',
+      default_twitter_creator: '@pomerium_io',
+      default_image: 'img/logo-round.png',
+      default_twitter_card: 'summary',
+      },
+    ],
   ],
   markdown: {
     externalLinkSymbol: false,
