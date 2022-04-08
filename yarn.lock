@@ -908,6 +908,10 @@
   resolved "https://registry.yarnpkg.com/@braintree/sanitize-url/-/sanitize-url-3.1.0.tgz#8ff71d51053cd5ee4981e5a501d80a536244f7fd"
   integrity sha512-GcIY79elgB+azP74j8vqkiXz8xLFfIzbQJdlwOPisgbKT00tviJQuEghOXSMVxJ00HoYJbGswr4kcllUc4xCcg==
 
+"@limdongjin/vuepress-plugin-simple-seo@https://github.com/pomerium/vuepress-plugin-simple-seo":
+  version "1.0.4-alpha.5"
+  resolved "https://github.com/pomerium/vuepress-plugin-simple-seo#b8898006d4a6f446dd378e0967e8bb60ee827d44"
+
 "@mrmlnc/readdir-enhanced@^2.2.1":
   version "2.2.1"
   resolved "https://registry.yarnpkg.com/@mrmlnc/readdir-enhanced/-/readdir-enhanced-2.2.1.tgz#524af240d1a360527b730475ecfa1344aa540dde"
