@@ -20,22 +20,16 @@ func NewHTTPTransport(src Source) *http.Transport {
 		tlsConfig *tls.Config
 	)
 	update := func(ctx context.Context, cfg *Config) {
-		if cfg.Options.CA != "" || cfg.Options.CAFile != "" {
-			rootCAs, err := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile)
-			if err == nil {
-				lock.Lock()
-				tlsConfig = &tls.Config{
-					RootCAs:    rootCAs,
-					MinVersion: tls.VersionTLS12,
-				}
-				lock.Unlock()
-			} else {
-				log.Error(context.Background()).Err(err).Msg("config: error getting cert pool")
-			}
-		} else {
+		rootCAs, err := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile)
+		if err == nil {
 			lock.Lock()
-			tlsConfig = nil
+			tlsConfig = &tls.Config{
+				RootCAs:    rootCAs,
+				MinVersion: tls.VersionTLS12,
+			}
 			lock.Unlock()
+		} else {
+			log.Error(context.Background()).Err(err).Msg("config: error getting cert pool")
 		}
 	}
 	src.OnConfigChange(context.Background(), update)
