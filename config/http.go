@@ -3,63 +3,55 @@ package config
 import (
 	"context"
 	"crypto/tls"
+	"net"
 	"net/http"
-	"sync/atomic"
+	"sync"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/tripper"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-
-	"github.com/rs/zerolog"
 )
-
-type httpTransport struct {
-	underlying *http.Transport
-	transport  atomic.Value
-}
 
 // NewHTTPTransport creates a new http transport. If CA or CAFile is set, the transport will
 // add the CA to system cert pool.
-func NewHTTPTransport(src Source) http.RoundTripper {
-	ctx := log.WithContext(context.TODO(), func(c zerolog.Context) zerolog.Context {
-		return c.Caller()
-	})
-	t := new(httpTransport)
-	t.underlying, _ = http.DefaultTransport.(*http.Transport)
-	src.OnConfigChange(ctx, func(ctx context.Context, cfg *Config) {
-		t.update(ctx, cfg.Options)
-	})
-	t.update(ctx, src.GetConfig().Options)
-	return t
-}
-
-func (t *httpTransport) update(ctx context.Context, options *Options) {
-	nt := new(http.Transport)
-	if t.underlying != nil {
-		nt = t.underlying.Clone()
-	}
-	if options.CA != "" || options.CAFile != "" {
-		rootCAs, err := cryptutil.GetCertPool(options.CA, options.CAFile)
-		if err == nil {
-			nt.TLSClientConfig = &tls.Config{
-				RootCAs:    rootCAs,
-				MinVersion: tls.VersionTLS12,
+func NewHTTPTransport(src Source) *http.Transport {
+	var (
+		lock      sync.Mutex
+		tlsConfig *tls.Config
+	)
+	update := func(ctx context.Context, cfg *Config) {
+		if cfg.Options.CA != "" || cfg.Options.CAFile != "" {
+			rootCAs, err := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile)
+			if err == nil {
+				lock.Lock()
+				tlsConfig = &tls.Config{
+					RootCAs:    rootCAs,
+					MinVersion: tls.VersionTLS12,
+				}
+				lock.Unlock()
+			} else {
+				log.Error(context.Background()).Err(err).Msg("config: error getting cert pool")
 			}
 		} else {
-			log.Error(ctx).Err(err).Msg("config: error getting cert pool")
+			lock.Lock()
+			tlsConfig = nil
+			lock.Unlock()
 		}
 	}
-	t.transport.Store(nt)
-}
+	src.OnConfigChange(context.Background(), update)
+	update(context.Background(), src.GetConfig())
 
-// RoundTrip executes an HTTP request.
-func (t *httpTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	return t.transport.Load().(http.RoundTripper).RoundTrip(req)
-}
-
-// Clone returns a clone of the transport.
-func (t *httpTransport) Clone() *http.Transport {
-	return t.transport.Load().(*http.Transport).Clone()
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		lock.Lock()
+		d := &tls.Dialer{
+			Config: tlsConfig,
+		}
+		lock.Unlock()
+		return d.DialContext(ctx, network, addr)
+	}
+	transport.ForceAttemptHTTP2 = true
+	return transport
 }
 
 // NewPolicyHTTPTransport creates a new http RoundTripper for a policy.
