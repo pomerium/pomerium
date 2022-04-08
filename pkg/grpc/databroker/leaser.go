@@ -50,6 +50,11 @@ func NewLeaser(leaseName string, ttl time.Duration, handler LeaserHandler) *Leas
 	}
 }
 
+// NewLeasers creates a leaser using multiple handler functions
+func NewLeasers(leaseName string, ttl time.Duration, client DataBrokerServiceClient, handlers ...func(context.Context) error) *Leaser {
+	return NewLeaser(leaseName, ttl, &leaseHandlers{client, handlers})
+}
+
 // Run acquires the lease and runs the handler. This continues until either:
 //
 // 1. ctx is canceled
@@ -156,4 +161,28 @@ func (locker *Leaser) withLease(ctx context.Context, leaseID string) error {
 		err = nil
 	}
 	return err
+}
+
+type leaseHandlers struct {
+	DataBrokerServiceClient
+	handlers []func(ctx context.Context) error
+}
+
+// GetDataBrokerServiceClient implements databroker.LeaseHandler
+func (h *leaseHandlers) GetDataBrokerServiceClient() DataBrokerServiceClient {
+	return h.DataBrokerServiceClient
+}
+
+// RunLeased implements databroker.LeaseHandler
+func (h *leaseHandlers) RunLeased(ctx context.Context) error {
+	eg, ctx := errgroup.WithContext(ctx)
+
+	for _, fn := range h.handlers {
+		x := func(f func(context.Context) error) func() error {
+			return func() error { return f(ctx) }
+		}
+		eg.Go(x(fn))
+	}
+
+	return eg.Wait()
 }
