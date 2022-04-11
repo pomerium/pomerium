@@ -177,25 +177,25 @@ func ObjectGet() *ast.Rule {
 # object_get is like object.get, but supports converting "/" in keys to separate lookups
 # rego doesn't support recursion, so we hard code a limited number of /'s
 object_get(obj, key, def) = value {
-	segments := split(key, "/")
+	segments := split(replace(key, ".", "/"), "/")
 	count(segments) == 2
 	o1 := object.get(obj, segments[0], {})
 	value = object.get(o1, segments[1], def)
 } else = value {
-	segments := split(key, "/")
+	segments := split(replace(key, ".", "/"), "/")
 	count(segments) == 3
 	o1 := object.get(obj, segments[0], {})
 	o2 := object.get(o1, segments[1], {})
 	value = object.get(o2, segments[2], def)
 } else = value {
-	segments := split(key, "/")
+	segments := split(replace(key, ".", "/"), "/")
 	count(segments) == 4
 	o1 := object.get(obj, segments[0], {})
 	o2 := object.get(o1, segments[1], {})
 	o3 := object.get(o2, segments[2], {})
 	value = object.get(o3, segments[3], def)
 } else = value {
-	segments := split(key, "/")
+	segments := split(replace(key, ".", "/"), "/")
 	count(segments) == 5
 	o1 := object.get(obj, segments[0], {})
 	o2 := object.get(o1, segments[1], {})
