@@ -751,14 +751,14 @@ else = [] {
 }
 
 object_get(obj, key, def) = value {
-	segments := split(key, "/")
+	segments := split(replace(key, ".", "/"), "/")
 	count(segments) == 2
 	o1 := object.get(obj, segments[0], {})
 	value = object.get(o1, segments[1], def)
 }
 
 else = value {
-	segments := split(key, "/")
+	segments := split(replace(key, ".", "/"), "/")
 	count(segments) == 3
 	o1 := object.get(obj, segments[0], {})
 	o2 := object.get(o1, segments[1], {})
@@ -766,7 +766,7 @@ else = value {
 }
 
 else = value {
-	segments := split(key, "/")
+	segments := split(replace(key, ".", "/"), "/")
 	count(segments) == 4
 	o1 := object.get(obj, segments[0], {})
 	o2 := object.get(o1, segments[1], {})
@@ -775,7 +775,7 @@ else = value {
 }
 
 else = value {
-	segments := split(key, "/")
+	segments := split(replace(key, ".", "/"), "/")
 	count(segments) == 5
 	o1 := object.get(obj, segments[0], {})
 	o2 := object.get(o1, segments[1], {})
