@@ -1,4 +1,3 @@
-FROM pomerium/vals-entrypoint:latest@sha256:7a5726b04cb080722e458296dd3ca1386d474b139c074af862aa164ccd829441 as entrypoint
 
 FROM busybox:latest@sha256:caa382c432891547782ce7140fb3b7304613d3b0438834dce1cad68896ab110a as build
 RUN touch /config.yaml
@@ -8,11 +7,10 @@ ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
 COPY pomerium* /bin/
 COPY --from=build /config.yaml /pomerium/config.yaml
-COPY --from=entrypoint /bin/vals-entrypoint /bin/vals-entrypoint
 
 ENV ADDRESS ":8080"
 ENV GRPC_INSECURE true
 ENV INSECURE_SERVER true
 
-ENTRYPOINT ["/bin/vals-entrypoint"]
-CMD ["exec","--","/bin/pomerium","-config","/pomerium/config.yaml"]
+ENTRYPOINT [ "/bin/pomerium" ]
+CMD ["-config","/pomerium/config.yaml"]
