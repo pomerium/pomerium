@@ -26,7 +26,7 @@ jobs:
         run: git fetch --prune --unshallow
 
       - name: Set up Node.js
-        uses: actions/setup-node@5b52f097d36d4b0b2f94ed6de710023fbb8b2236 # pin@v3
+        uses: actions/setup-node@56337c425554a6be30cdef71bf441f15be286854 # pin@v3
         with:
           node-version: 16.x
 
