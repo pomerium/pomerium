@@ -68,7 +68,6 @@ func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 						"name": "pomerium-control-plane-grpc",
 						"type": "STATIC",
 						"connectTimeout": "5s",
-						"http2ProtocolOptions": {},
 						"loadAssignment": {
 							"clusterName": "pomerium-control-plane-grpc",
 							"endpoints": [{
@@ -83,6 +82,19 @@ func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 									}
 								}]
 							}]
+						},
+						"typedExtensionProtocolOptions": {
+							"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
+								"@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
+								"explicitHttpConfig": {
+									"http2ProtocolOptions": {
+										"allowConnect": true,
+										"initialConnectionWindowSize": 1048576,
+										"initialStreamWindowSize": 65536,
+										"maxConcurrentStreams": 100
+									}
+								}
+							}
 						}
 					}
 				]
