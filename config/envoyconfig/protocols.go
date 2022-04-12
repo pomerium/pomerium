@@ -5,6 +5,7 @@ import (
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_extensions_upstreams_http_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/upstreams/http/v3"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
@@ -32,6 +33,12 @@ var http2ProtocolOptions = &envoy_config_core_v3.Http2ProtocolOptions{
 	MaxConcurrentStreams:        wrapperspb.UInt32(maxConcurrentStreams),
 	InitialStreamWindowSize:     wrapperspb.UInt32(initialStreamWindowSizeLimit),
 	InitialConnectionWindowSize: wrapperspb.UInt32(initialConnectionWindowSizeLimit),
+}
+
+func buildTypedExtensionProtocolOptions(endpoints []Endpoint, upstreamProtocol upstreamProtocolConfig) map[string]*anypb.Any {
+	return map[string]*anypb.Any{
+		"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": marshalAny(buildUpstreamProtocolOptions(endpoints, upstreamProtocol)),
+	}
 }
 
 func buildUpstreamProtocolOptions(endpoints []Endpoint, upstreamProtocol upstreamProtocolConfig) *envoy_extensions_upstreams_http_v3.HttpProtocolOptions {

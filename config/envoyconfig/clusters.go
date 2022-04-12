@@ -14,7 +14,6 @@ import (
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -394,10 +393,7 @@ func (b *Builder) buildCluster(
 		cluster.TransportSocket = cluster.TransportSocketMatches[0].TransportSocket
 	}
 
-	cluster.TypedExtensionProtocolOptions = map[string]*anypb.Any{
-		"envoy.extensions.upstreams.http.v3.HttpProtocolOptions": marshalAny(buildUpstreamProtocolOptions(endpoints, upstreamProtocol)),
-	}
-
+	cluster.TypedExtensionProtocolOptions = buildTypedExtensionProtocolOptions(endpoints, upstreamProtocol)
 	cluster.ClusterDiscoveryType = getClusterDiscoveryType(lbEndpoints)
 
 	return cluster.Validate()

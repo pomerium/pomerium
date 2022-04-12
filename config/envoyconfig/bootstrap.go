@@ -7,7 +7,6 @@ import (
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	envoy_config_bootstrap_v3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
-	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_config_metrics_v3 "github.com/envoyproxy/go-control-plane/envoy/config/metrics/v3"
 	envoy_extensions_access_loggers_file_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/file/v3"
@@ -100,7 +99,7 @@ func (b *Builder) BuildBootstrapStaticResources() (*envoy_config_bootstrap_v3.Bo
 				},
 			},
 		},
-		Http2ProtocolOptions: &envoy_config_core_v3.Http2ProtocolOptions{},
+		TypedExtensionProtocolOptions: buildTypedExtensionProtocolOptions(nil, upstreamProtocolHTTP2),
 	}
 
 	staticCfg := &envoy_config_bootstrap_v3.Bootstrap_StaticResources{
