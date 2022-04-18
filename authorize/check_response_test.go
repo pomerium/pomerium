@@ -16,6 +16,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/testutil"
@@ -39,7 +40,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
 	a.state.Load().encoder = encoder
 	a.currentOptions.Store(opt)
-	a.store = evaluator.NewStoreFromProtos(0,
+	a.store = store.NewFromProtos(0,
 		&session.Session{
 			Id:     "SESSION_ID",
 			UserId: "USER_ID",

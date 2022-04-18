@@ -1,9 +1,10 @@
-package evaluator
+package store
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -12,8 +13,8 @@ import (
 )
 
 func TestStore(t *testing.T) {
-	s := NewStore()
 	t.Run("records", func(t *testing.T) {
+		s := New()
 		u := &user.User{
 			Version: "v1",
 			Id:      "u1",
@@ -60,5 +61,23 @@ func TestStore(t *testing.T) {
 		s.ClearRecords()
 		v = s.GetRecordData(any.GetTypeUrl(), u.GetId())
 		assert.Nil(t, v)
+	})
+	t.Run("cidr", func(t *testing.T) {
+		s := New()
+		any := protoutil.NewAny(&structpb.Struct{Fields: map[string]*structpb.Value{
+			"$index": structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+				"cidr": structpb.NewStringValue("192.168.0.0/16"),
+			}}),
+			"id": structpb.NewStringValue("r1"),
+		}})
+		s.UpdateRecord(0, &databroker.Record{
+			Version: 1,
+			Type:    any.GetTypeUrl(),
+			Id:      "r1",
+			Data:    any,
+		})
+
+		v := s.GetRecordData(any.GetTypeUrl(), "192.168.0.7")
+		assert.NotNil(t, v)
 	})
 }

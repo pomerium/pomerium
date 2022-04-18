@@ -8,6 +8,7 @@ import (
 	googlegrpc "google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -27,7 +28,7 @@ type authorizeState struct {
 	auditEncryptor             *protoutil.Encryptor
 }
 
-func newAuthorizeStateFromConfig(cfg *config.Config, store *evaluator.Store) (*authorizeState, error) {
+func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*authorizeState, error) {
 	if err := validateOptions(cfg.Options); err != nil {
 		return nil, fmt.Errorf("authorize: bad options: %w", err)
 	}

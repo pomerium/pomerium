@@ -1,10 +1,10 @@
-package evaluator
+// Package store contains a datastore for authorization policy evaluation.
+package store
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 	"sync/atomic"
 
 	"github.com/go-jose/go-jose/v3"
@@ -24,83 +24,25 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
-type dataBrokerData struct {
-	mu sync.RWMutex
-	m  map[string]map[string]proto.Message
-}
-
-func newDataBrokerData() *dataBrokerData {
-	return &dataBrokerData{
-		m: map[string]map[string]proto.Message{},
-	}
-}
-
-func (dbd *dataBrokerData) clear() {
-	dbd.mu.Lock()
-	defer dbd.mu.Unlock()
-
-	dbd.m = map[string]map[string]proto.Message{}
-}
-
-func (dbd *dataBrokerData) delete(typeURL, id string) {
-	dbd.mu.Lock()
-	defer dbd.mu.Unlock()
-
-	m, ok := dbd.m[typeURL]
-	if !ok {
-		return
-	}
-
-	delete(m, id)
-
-	if len(m) == 0 {
-		delete(dbd.m, typeURL)
-	}
-}
-
-func (dbd *dataBrokerData) get(typeURL, id string) proto.Message {
-	dbd.mu.RLock()
-	defer dbd.mu.RUnlock()
-
-	m, ok := dbd.m[typeURL]
-	if !ok {
-		return nil
-	}
-	return m[id]
-}
-
-func (dbd *dataBrokerData) set(typeURL, id string, msg proto.Message) {
-	dbd.mu.Lock()
-	defer dbd.mu.Unlock()
-
-	m, ok := dbd.m[typeURL]
-	if !ok {
-		m = map[string]proto.Message{}
-		dbd.m[typeURL] = m
-	}
-	m[id] = msg
-}
-
 // A Store stores data for the OPA rego policy evaluation.
 type Store struct {
 	storage.Store
-
-	dataBrokerData *dataBrokerData
+	index *index
 
 	dataBrokerServerVersion, dataBrokerRecordVersion uint64
 }
 
-// NewStore creates a new Store.
-func NewStore() *Store {
+// New creates a new Store.
+func New() *Store {
 	return &Store{
-		Store:          inmem.New(),
-		dataBrokerData: newDataBrokerData(),
+		Store: inmem.New(),
+		index: newIndex(),
 	}
 }
 
-// NewStoreFromProtos creates a new Store from an existing set of protobuf messages.
-func NewStoreFromProtos(serverVersion uint64, msgs ...proto.Message) *Store {
-	s := NewStore()
+// NewFromProtos creates a new Store from an existing set of protobuf messages.
+func NewFromProtos(serverVersion uint64, msgs ...proto.Message) *Store {
+	s := New()
 	for _, msg := range msgs {
 		any := protoutil.NewAny(msg)
 		record := new(databroker.Record)
@@ -120,7 +62,7 @@ func NewStoreFromProtos(serverVersion uint64, msgs ...proto.Message) *Store {
 
 // ClearRecords removes all the records from the store.
 func (s *Store) ClearRecords() {
-	s.dataBrokerData.clear()
+	s.index.clear()
 }
 
 // GetDataBrokerVersions gets the databroker versions.
@@ -131,8 +73,8 @@ func (s *Store) GetDataBrokerVersions() (serverVersion, recordVersion uint64) {
 
 // GetRecordData gets a record's data from the store. `nil` is returned
 // if no record exists for the given type and id.
-func (s *Store) GetRecordData(typeURL, id string) proto.Message {
-	return s.dataBrokerData.get(typeURL, id)
+func (s *Store) GetRecordData(typeURL, idOrValue string) proto.Message {
+	return s.index.find(typeURL, idOrValue)
 }
 
 // UpdateIssuer updates the issuer in the store. The issuer is used as part of JWT construction.
@@ -159,10 +101,10 @@ func (s *Store) UpdateRoutePolicies(routePolicies []config.Policy) {
 // UpdateRecord updates a record in the store.
 func (s *Store) UpdateRecord(serverVersion uint64, record *databroker.Record) {
 	if record.GetDeletedAt() != nil {
-		s.dataBrokerData.delete(record.GetType(), record.GetId())
+		s.index.delete(record.GetType(), record.GetId())
 	} else {
 		msg, _ := record.GetData().UnmarshalNew()
-		s.dataBrokerData.set(record.GetType(), record.GetId(), msg)
+		s.index.set(record.GetType(), record.GetId(), msg)
 	}
 	s.write("/databroker_server_version", fmt.Sprint(serverVersion))
 	s.write("/databroker_record_version", fmt.Sprint(record.GetVersion()))
