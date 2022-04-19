@@ -82,7 +82,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
 			state := a.state.Load()
-			err := middleware.ValidateRequestURL(r, state.sharedKey)
+			err := middleware.ValidateRequestURL(a.getExternalRequest(r), state.sharedKey)
 			if err != nil {
 				log.FromRequest(r).Info().Err(err).Msg("authenticate: origin blocked")
 			}
@@ -109,10 +109,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	}))
 
 	cr := sr.PathPrefix("/callback").Subrouter()
-	cr.Use(func(h http.Handler) http.Handler {
-		return middleware.ValidateSignature(a.state.Load().sharedKey)(h)
-	})
-	cr.Path("/").Handler(httputil.HandlerFunc(a.Callback)).Methods(http.MethodGet)
+	cr.Path("/").Handler(a.requireValidSignature(a.Callback)).Methods(http.MethodGet)
 }
 
 func (a *Authenticate) mountWellKnown(r *mux.Router) {
