@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
@@ -21,7 +22,7 @@ import (
 // Authorize struct holds
 type Authorize struct {
 	state          *atomicAuthorizeState
-	store          *evaluator.Store
+	store          *store.Store
 	currentOptions *config.AtomicOptions
 	accessTracker  *AccessTracker
 
@@ -37,7 +38,7 @@ type Authorize struct {
 func New(cfg *config.Config) (*Authorize, error) {
 	a := &Authorize{
 		currentOptions:        config.NewAtomicOptions(),
-		store:                 evaluator.NewStore(),
+		store:                 store.New(),
 		dataBrokerInitialSync: make(chan struct{}),
 	}
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
@@ -85,7 +86,7 @@ func validateOptions(o *config.Options) error {
 }
 
 // newPolicyEvaluator returns an policy evaluator.
-func newPolicyEvaluator(opts *config.Options, store *evaluator.Store) (*evaluator.Evaluator, error) {
+func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Evaluator, error) {
 	metrics.AddPolicyCountCallback("pomerium-authorize", func() int64 {
 		return int64(len(opts.GetAllPolicies()))
 	})

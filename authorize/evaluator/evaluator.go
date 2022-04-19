@@ -11,6 +11,7 @@ import (
 	"github.com/go-jose/go-jose/v3"
 	"github.com/open-policy-agent/opa/rego"
 
+	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -77,14 +78,14 @@ type Result struct {
 
 // An Evaluator evaluates policies.
 type Evaluator struct {
-	store             *Store
+	store             *store.Store
 	policyEvaluators  map[uint64]*PolicyEvaluator
 	headersEvaluators *HeadersEvaluator
 	clientCA          []byte
 }
 
 // New creates a new Evaluator.
-func New(ctx context.Context, store *Store, options ...Option) (*Evaluator, error) {
+func New(ctx context.Context, store *store.Store, options ...Option) (*Evaluator, error) {
 	e := &Evaluator{store: store}
 
 	cfg := getConfig(options...)

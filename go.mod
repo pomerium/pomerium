@@ -75,7 +75,10 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
-require github.com/CAFxX/httpcompression v0.0.8
+require (
+	github.com/CAFxX/httpcompression v0.0.8
+	github.com/kentik/patricia v1.0.0
+)
 
 require (
 	4d63.com/gochecknoglobals v0.1.0 // indirect

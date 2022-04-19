@@ -8,6 +8,7 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 	octrace "go.opencensus.io/trace"
 
+	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -97,7 +98,7 @@ type PolicyEvaluator struct {
 }
 
 // NewPolicyEvaluator creates a new PolicyEvaluator.
-func NewPolicyEvaluator(ctx context.Context, store *Store, configPolicy *config.Policy) (*PolicyEvaluator, error) {
+func NewPolicyEvaluator(ctx context.Context, store *store.Store, configPolicy *config.Policy) (*PolicyEvaluator, error) {
 	e := new(PolicyEvaluator)
 
 	// generate the base rego script for the policy

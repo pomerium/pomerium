@@ -9,7 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 
+	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -27,7 +29,7 @@ func TestPolicyEvaluator(t *testing.T) {
 	require.NoError(t, err)
 
 	eval := func(t *testing.T, policy *config.Policy, data []proto.Message, input *PolicyRequest) (*PolicyResponse, error) {
-		store := NewStoreFromProtos(math.MaxUint64, data...)
+		store := store.NewFromProtos(math.MaxUint64, data...)
 		store.UpdateIssuer("authenticate.example.com")
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
@@ -195,5 +197,42 @@ func TestPolicyEvaluator(t *testing.T) {
 				Deny:  NewRuleResult(true, criteria.ReasonAccept, criteria.ReasonInvalidClientCertificate),
 			}, output)
 		})
+	})
+	t.Run("cidr", func(t *testing.T) {
+		r1 := &structpb.Struct{Fields: map[string]*structpb.Value{
+			"$index": structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+				"cidr": structpb.NewStringValue("192.168.0.0/16"),
+			}}),
+			"country": structpb.NewStringValue("US"),
+		}}
+
+		p := &config.Policy{
+			From: "https://from.example.com",
+			To:   config.WeightedURLs{{URL: *mustParseURL("https://to.example.com")}},
+			SubPolicies: []config.SubPolicy{
+				{Rego: []string{`
+					package pomerium.policy
+
+					allow {
+						record := get_databroker_record("type.googleapis.com/google.protobuf.Struct", "192.168.0.7")
+						record.country == "US"
+					}
+				`}},
+			},
+		}
+		output, err := eval(t,
+			p,
+			[]proto.Message{s1, u1, s2, u2, r1},
+			&PolicyRequest{
+				HTTP:    RequestHTTP{Method: "GET", URL: "https://from.example.com/path"},
+				Session: RequestSession{ID: "s1"},
+
+				IsValidClientCertificate: true,
+			})
+		require.NoError(t, err)
+		assert.Equal(t, &PolicyResponse{
+			Allow: NewRuleResult(true),
+			Deny:  NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+		}, output)
 	})
 }

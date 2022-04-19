@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -35,7 +36,7 @@ func TestEvaluator(t *testing.T) {
 	require.NoError(t, err)
 
 	eval := func(t *testing.T, options []Option, data []proto.Message, req *Request) (*Result, error) {
-		store := NewStoreFromProtos(math.MaxUint64, data...)
+		store := store.NewFromProtos(math.MaxUint64, data...)
 		store.UpdateIssuer("authenticate.example.com")
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
@@ -512,7 +513,7 @@ func mustParseURL(str string) *url.URL {
 }
 
 func BenchmarkEvaluator_Evaluate(b *testing.B) {
-	store := NewStore()
+	store := store.New()
 
 	policies := []config.Policy{
 		{
