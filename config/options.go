@@ -1130,6 +1130,16 @@ func (o *Options) GetAllRouteableHTTPDomainsForTLSServerName(tlsServerName strin
 				domains.Add(h)
 			}
 		}
+
+		authenticateURL, err = o.GetAuthenticateURL()
+		if err != nil {
+			return nil, err
+		}
+		for _, h := range urlutil.GetDomainsForURL(*authenticateURL) {
+			if tlsServerName == "" || urlutil.StripPort(h) == tlsServerName {
+				domains.Add(h)
+			}
+		}
 	}
 
 	// policy urls
