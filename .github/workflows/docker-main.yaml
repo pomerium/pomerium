@@ -95,7 +95,7 @@ jobs:
             projects/pomerium-master-mysql/pomerium/values.yaml
 
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@c4b132ec2c77a21fcab564bd3c92610cee84b894 # pin@v4
+        uses: stefanzweifel/git-auto-commit-action@49620cd3ed21ee620a48530e81dba0d139c9cb80 # pin@v4
         with:
           commit_message: |
             Bump test environment pomerium/pomerium
