@@ -407,12 +407,6 @@ func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *Stat
 }
 
 func (h *Handler) saveSessionAndRedirect(w http.ResponseWriter, r *http.Request, state *State, rawRedirectURI string) error {
-	// if the redirect URL is for a URL we don't control, just do a plain redirect
-	if !isURLForPomerium(state.PomeriumDomains, rawRedirectURI) {
-		httputil.Redirect(w, r, rawRedirectURI, http.StatusFound)
-		return nil
-	}
-
 	// save the session to the databroker
 	res, err := session.Put(r.Context(), state.Client, state.Session)
 	if err != nil {
@@ -425,6 +419,12 @@ func (h *Handler) saveSessionAndRedirect(w http.ResponseWriter, r *http.Request,
 	err = state.SessionStore.SaveSession(w, r, state.SessionState)
 	if err != nil {
 		return err
+	}
+
+	// if the redirect URL is for a URL we don't control, just do a plain redirect
+	if !isURLForPomerium(state.PomeriumDomains, rawRedirectURI) {
+		httputil.Redirect(w, r, rawRedirectURI, http.StatusFound)
+		return nil
 	}
 
 	// sign+encrypt the session JWT
