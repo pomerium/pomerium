@@ -54,7 +54,7 @@ func (a *Authorize) handleResultDenied(
 	case reasons.Has(criteria.ReasonDeviceUnauthenticated):
 		// when the user's device is unauthenticated it means they haven't
 		// registered a webauthn device yet, so redirect to the webauthn flow
-		return a.requireWebAuthnResponse(ctx, in, result, isForwardAuthVerify)
+		return a.requireWebAuthnResponse(ctx, in, request, result, isForwardAuthVerify)
 	case reasons.Has(criteria.ReasonDeviceUnauthorized):
 		denyStatusCode = httputil.StatusDeviceUnauthorized
 		denyStatusText = httputil.DetailsText(httputil.StatusDeviceUnauthorized)
@@ -178,6 +178,7 @@ func (a *Authorize) requireLoginResponse(
 func (a *Authorize) requireWebAuthnResponse(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
+	request *evaluator.Request,
 	result *evaluator.Result,
 	isForwardAuthVerify bool,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
@@ -209,6 +210,7 @@ func (a *Authorize) requireWebAuthnResponse(
 		q.Set(urlutil.QueryDeviceType, webauthnutil.DefaultDeviceType)
 	}
 	q.Set(urlutil.QueryRedirectURI, checkRequestURL.String())
+	q.Set(urlutil.QueryIdentityProviderID, opts.GetIdentityProviderForPolicy(request.Policy).GetId())
 	signinURL.RawQuery = q.Encode()
 	redirectTo := urlutil.NewSignedURL(state.sharedKey, signinURL).String()
 

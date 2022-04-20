@@ -39,5 +39,6 @@ func DashboardSubrouter(parent *mux.Router) *mux.Router {
 			return ui.ServeFile(w, r, fileName)
 		}))
 	}
-	return r
+	// return a new subrouter so any middleware doesn't get added to the static files
+	return r.NewRoute().Subrouter()
 }
