@@ -117,3 +117,27 @@ func (x *PutResponse) GetRecord() *Record {
 	}
 	return records[0]
 }
+
+// default is 4MB, but we'll do 1MB
+const maxMessageSize = 1024 * 1024 * 1
+
+// OptimumPutRequestsFromRecords creates one or more PutRequests from a slice of records.
+// If the size of the request exceeds the max message size it will be split in half
+// recursively until the requests are less than or equal to the max message size.
+func OptimumPutRequestsFromRecords(records []*Record) []*PutRequest {
+	if len(records) <= 1 {
+		return []*PutRequest{{Records: records}}
+	}
+
+	req := &PutRequest{
+		Records: records,
+	}
+	if proto.Size(req) <= maxMessageSize {
+		return []*PutRequest{req}
+	}
+
+	return append(
+		OptimumPutRequestsFromRecords(records[:len(records)/2]),
+		OptimumPutRequestsFromRecords(records[len(records)/2:])...,
+	)
+}
