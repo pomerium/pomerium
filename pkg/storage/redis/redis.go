@@ -241,7 +241,7 @@ func (backend *Backend) Lease(ctx context.Context, leaseName, leaseID string, tt
 }
 
 // Put puts a record into redis.
-func (backend *Backend) Put(ctx context.Context, record *databroker.Record) (serverVersion uint64, err error) {
+func (backend *Backend) Put(ctx context.Context, records []*databroker.Record) (serverVersion uint64, err error) {
 	ctx, span := trace.StartSpan(ctx, "databroker.redis.Put")
 	defer span.End()
 	defer func(start time.Time) { recordOperation(ctx, start, "put", err) }(time.Now())
@@ -251,14 +251,20 @@ func (backend *Backend) Put(ctx context.Context, record *databroker.Record) (ser
 		return serverVersion, err
 	}
 
-	err = backend.put(ctx, record)
+	err = backend.put(ctx, records)
 	if err != nil {
 		return serverVersion, err
 	}
 
-	err = backend.enforceOptions(ctx, record.GetType())
-	if err != nil {
-		return serverVersion, err
+	recordTypes := map[string]struct{}{}
+	for _, record := range records {
+		recordTypes[record.GetType()] = struct{}{}
+	}
+	for recordType := range recordTypes {
+		err = backend.enforceOptions(ctx, recordType)
+		if err != nil {
+			return serverVersion, err
+		}
 	}
 
 	return serverVersion, nil
@@ -294,33 +300,37 @@ func (backend *Backend) Sync(ctx context.Context, serverVersion, recordVersion u
 	return newRecordStream(ctx, backend, serverVersion, recordVersion), nil
 }
 
-func (backend *Backend) put(ctx context.Context, record *databroker.Record) error {
+func (backend *Backend) put(ctx context.Context, records []*databroker.Record) error {
 	return backend.incrementVersion(ctx,
 		func(tx *redis.Tx, version uint64) error {
-			record.ModifiedAt = timestamppb.Now()
-			record.Version = version
+			for i, record := range records {
+				record.ModifiedAt = timestamppb.Now()
+				record.Version = version + uint64(i)
+			}
 			return nil
 		},
 		func(p redis.Pipeliner, version uint64) error {
-			bs, err := proto.Marshal(record)
-			if err != nil {
-				return err
-			}
+			for i, record := range records {
+				bs, err := proto.Marshal(record)
+				if err != nil {
+					return err
+				}
 
-			key, field := getHashKey(record.GetType(), record.GetId())
-			if record.DeletedAt != nil {
-				p.HDel(ctx, key, field)
-			} else {
-				p.HSet(ctx, key, field, bs)
-				p.ZAdd(ctx, getRecordTypeChangesKey(record.GetType()), &redis.Z{
-					Score:  float64(record.GetModifiedAt().GetSeconds()),
-					Member: record.GetId(),
+				key, field := getHashKey(record.GetType(), record.GetId())
+				if record.DeletedAt != nil {
+					p.HDel(ctx, key, field)
+				} else {
+					p.HSet(ctx, key, field, bs)
+					p.ZAdd(ctx, getRecordTypeChangesKey(record.GetType()), &redis.Z{
+						Score:  float64(record.GetModifiedAt().GetSeconds()) + float64(i)/float64(len(records)),
+						Member: record.GetId(),
+					})
+				}
+				p.ZAdd(ctx, changesSetKey, &redis.Z{
+					Score:  float64(version) + float64(i),
+					Member: bs,
 				})
 			}
-			p.ZAdd(ctx, changesSetKey, &redis.Z{
-				Score:  float64(version),
-				Member: bs,
-			})
 			return nil
 		})
 }
@@ -354,7 +364,7 @@ func (backend *Backend) enforceOptions(ctx context.Context, recordType string) e
 		if err == nil {
 			// mark the record as deleted and re-submit
 			record.DeletedAt = timestamppb.Now()
-			err = backend.put(ctx, record)
+			err = backend.put(ctx, []*databroker.Record{record})
 			if err != nil {
 				return err
 			}

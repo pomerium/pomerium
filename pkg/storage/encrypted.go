@@ -103,22 +103,28 @@ func (e *encryptedBackend) Lease(ctx context.Context, leaseName, leaseID string,
 	return e.underlying.Lease(ctx, leaseName, leaseID, ttl)
 }
 
-func (e *encryptedBackend) Put(ctx context.Context, record *databroker.Record) (uint64, error) {
-	encrypted, err := e.encrypt(record.GetData())
+func (e *encryptedBackend) Put(ctx context.Context, records []*databroker.Record) (uint64, error) {
+	encryptedRecords := make([]*databroker.Record, len(records))
+	for i, record := range records {
+		encrypted, err := e.encrypt(record.GetData())
+		if err != nil {
+			return 0, err
+		}
+
+		newRecord := proto.Clone(record).(*databroker.Record)
+		newRecord.Data = encrypted
+		encryptedRecords[i] = newRecord
+	}
+
+	serverVersion, err := e.underlying.Put(ctx, encryptedRecords)
 	if err != nil {
 		return 0, err
 	}
 
-	newRecord := proto.Clone(record).(*databroker.Record)
-	newRecord.Data = encrypted
-
-	serverVersion, err := e.underlying.Put(ctx, newRecord)
-	if err != nil {
-		return 0, err
+	for i, record := range records {
+		record.ModifiedAt = encryptedRecords[i].ModifiedAt
+		record.Version = encryptedRecords[i].Version
 	}
-
-	record.ModifiedAt = newRecord.ModifiedAt
-	record.Version = newRecord.Version
 
 	return serverVersion, nil
 }

@@ -18,12 +18,12 @@ import (
 func Delete(ctx context.Context, client databroker.DataBrokerServiceClient, sessionID string) error {
 	any := protoutil.NewAny(new(Session))
 	_, err := client.Put(ctx, &databroker.PutRequest{
-		Record: &databroker.Record{
+		Records: []*databroker.Record{{
 			Type:      any.GetTypeUrl(),
 			Id:        sessionID,
 			Data:      any,
 			DeletedAt: timestamppb.Now(),
-		},
+		}},
 	})
 	return err
 }
@@ -52,11 +52,11 @@ func Put(ctx context.Context, client databroker.DataBrokerServiceClient, s *Sess
 	s = proto.Clone(s).(*Session)
 	any := protoutil.NewAny(s)
 	res, err := client.Put(ctx, &databroker.PutRequest{
-		Record: &databroker.Record{
+		Records: []*databroker.Record{{
 			Type: any.GetTypeUrl(),
 			Id:   s.Id,
 			Data: any,
-		},
+		}},
 	})
 	return res, err
 }

@@ -20,10 +20,12 @@ func TestEncryptedBackend(t *testing.T) {
 
 	m := map[string]*anypb.Any{}
 	backend := &mockBackend{
-		put: func(ctx context.Context, record *databroker.Record) (uint64, error) {
-			record.ModifiedAt = timestamppb.Now()
-			record.Version++
-			m[record.GetId()] = record.GetData()
+		put: func(ctx context.Context, records []*databroker.Record) (uint64, error) {
+			for _, record := range records {
+				record.ModifiedAt = timestamppb.Now()
+				record.Version++
+				m[record.GetId()] = record.GetData()
+			}
 			return 0, nil
 		},
 		get: func(ctx context.Context, recordType, id string) (*databroker.Record, error) {
@@ -64,7 +66,7 @@ func TestEncryptedBackend(t *testing.T) {
 		Id:   "TEST-1",
 		Data: any,
 	}
-	_, err = e.Put(ctx, rec)
+	_, err = e.Put(ctx, []*databroker.Record{rec})
 	if !assert.NoError(t, err) {
 		return
 	}

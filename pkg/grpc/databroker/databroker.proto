@@ -46,10 +46,10 @@ message QueryResponse {
   int64 total_count = 2;
 }
 
-message PutRequest { Record record = 1; }
+message PutRequest { repeated Record records = 1; }
 message PutResponse {
   uint64 server_version = 1;
-  Record record = 2;
+  repeated Record records = 2;
 }
 
 message SetOptionsRequest {

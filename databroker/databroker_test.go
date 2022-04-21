@@ -56,11 +56,11 @@ func TestServerSync(t *testing.T) {
 
 	for i := 0; i < numRecords; i++ {
 		res, err := c.Put(ctx, &databroker.PutRequest{
-			Record: &databroker.Record{
+			Records: []*databroker.Record{{
 				Type: any.TypeUrl,
 				Id:   strconv.Itoa(i),
 				Data: any,
-			},
+			}},
 		})
 		require.NoError(t, err)
 		serverVersion = res.GetServerVersion()
@@ -106,11 +106,11 @@ func BenchmarkSync(b *testing.B) {
 
 	for i := 0; i < numRecords; i++ {
 		_, _ = c.Put(ctx, &databroker.PutRequest{
-			Record: &databroker.Record{
+			Records: []*databroker.Record{{
 				Type: any.TypeUrl,
 				Id:   strconv.Itoa(i),
 				Data: any,
-			},
+			}},
 		})
 	}
 

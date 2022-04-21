@@ -172,26 +172,24 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databroker.PutResponse, error) {
 	_, span := trace.StartSpan(ctx, "databroker.grpc.Put")
 	defer span.End()
-	record := req.GetRecord()
 
-	log.Info(ctx).
-		Str("type", record.GetType()).
-		Str("id", record.GetId()).
-		Msg("put")
+	records := req.GetRecords()
 
 	db, err := srv.getBackend()
 	if err != nil {
 		return nil, err
 	}
 
-	serverVersion, err := db.Put(ctx, record)
+	serverVersion, err := db.Put(ctx, records)
 	if err != nil {
 		return nil, err
 	}
-	return &databroker.PutResponse{
+	res := &databroker.PutResponse{
 		ServerVersion: serverVersion,
-		Record:        record,
-	}, nil
+		Records:       records,
+	}
+
+	return res, nil
 }
 
 // ReleaseLease releases a lease.

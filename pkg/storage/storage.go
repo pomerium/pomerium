@@ -50,8 +50,8 @@ type Backend interface {
 	GetOptions(ctx context.Context, recordType string) (*databroker.Options, error)
 	// Lease acquires a lease, or renews an existing one. If the lease is acquired true is returned.
 	Lease(ctx context.Context, leaseName, leaseID string, ttl time.Duration) (bool, error)
-	// Put is used to insert or update a record.
-	Put(ctx context.Context, record *databroker.Record) (serverVersion uint64, err error)
+	// Put is used to insert or update records.
+	Put(ctx context.Context, records []*databroker.Record) (serverVersion uint64, err error)
 	// SetOptions sets the options for a type.
 	SetOptions(ctx context.Context, recordType string, options *databroker.Options) error
 	// Sync syncs record changes after the specified version.

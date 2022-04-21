@@ -45,11 +45,11 @@ func (c *DataBroker) RefreshUser(ctx context.Context, req *directory.RefreshUser
 
 	any := protoutil.NewAny(u)
 	_, err = c.dataBrokerServer.Put(ctx, &databroker.PutRequest{
-		Record: &databroker.Record{
+		Records: []*databroker.Record{{
 			Type: any.GetTypeUrl(),
 			Id:   u.GetId(),
 			Data: any,
-		},
+		}},
 	})
 	if err != nil {
 		return nil, err

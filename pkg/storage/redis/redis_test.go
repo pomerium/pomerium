@@ -44,11 +44,11 @@ func TestBackend(t *testing.T) {
 		})
 		t.Run("get record", func(t *testing.T) {
 			data := new(anypb.Any)
-			sv, err := backend.Put(ctx, &databroker.Record{
+			sv, err := backend.Put(ctx, []*databroker.Record{{
 				Type: "TYPE",
 				Id:   "abcd",
 				Data: data,
-			})
+			}})
 			assert.NoError(t, err)
 			assert.Equal(t, serverVersion, sv)
 			record, err := backend.Get(ctx, "TYPE", "abcd")
@@ -63,11 +63,11 @@ func TestBackend(t *testing.T) {
 			}
 		})
 		t.Run("delete record", func(t *testing.T) {
-			sv, err := backend.Put(ctx, &databroker.Record{
+			sv, err := backend.Put(ctx, []*databroker.Record{{
 				Type:      "TYPE",
 				Id:        "abcd",
 				DeletedAt: timestamppb.Now(),
-			})
+			}})
 			assert.NoError(t, err)
 			assert.Equal(t, serverVersion, sv)
 			record, err := backend.Get(ctx, "TYPE", "abcd")
@@ -76,10 +76,10 @@ func TestBackend(t *testing.T) {
 		})
 		t.Run("get all records", func(t *testing.T) {
 			for i := 0; i < 1000; i++ {
-				sv, err := backend.Put(ctx, &databroker.Record{
+				sv, err := backend.Put(ctx, []*databroker.Record{{
 					Type: "TYPE",
 					Id:   fmt.Sprint(i),
-				})
+				}})
 				assert.NoError(t, err)
 				assert.Equal(t, serverVersion, sv)
 			}
@@ -160,10 +160,10 @@ func TestChangeSignal(t *testing.T) {
 
 			// put a new value to trigger a change
 			for {
-				_, err = backend.Put(ctx, &databroker.Record{
+				_, err = backend.Put(ctx, []*databroker.Record{{
 					Type: "TYPE",
 					Id:   "ID",
-				})
+				}})
 				if err != nil {
 					return err
 				}
@@ -197,10 +197,10 @@ func TestExpiry(t *testing.T) {
 		require.NoError(t, err)
 
 		for i := 0; i < 1000; i++ {
-			_, err := backend.Put(ctx, &databroker.Record{
+			_, err := backend.Put(ctx, []*databroker.Record{{
 				Type: "TYPE",
 				Id:   fmt.Sprint(i),
-			})
+			}})
 			assert.NoError(t, err)
 		}
 		stream, err := backend.Sync(ctx, serverVersion, 0)
@@ -244,10 +244,10 @@ func TestCapacity(t *testing.T) {
 		require.NoError(t, err)
 
 		for i := 0; i < 10; i++ {
-			_, err = backend.Put(ctx, &databroker.Record{
+			_, err = backend.Put(ctx, []*databroker.Record{{
 				Type: "EXAMPLE",
 				Id:   fmt.Sprint(i),
-			})
+			}})
 			require.NoError(t, err)
 		}
 

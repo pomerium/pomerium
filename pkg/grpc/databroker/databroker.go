@@ -43,8 +43,12 @@ func Get(ctx context.Context, client DataBrokerServiceClient, object recordObjec
 }
 
 // Put puts a record into the databroker.
-func Put(ctx context.Context, client DataBrokerServiceClient, object recordObject) (*PutResponse, error) {
-	return client.Put(ctx, &PutRequest{Record: NewRecord(object)})
+func Put(ctx context.Context, client DataBrokerServiceClient, objects ...recordObject) (*PutResponse, error) {
+	records := make([]*Record, len(objects))
+	for i, object := range objects {
+		records[i] = NewRecord(object)
+	}
+	return client.Put(ctx, &PutRequest{Records: records})
 }
 
 // ApplyOffsetAndLimit applies the offset and limit to the list of records.
@@ -94,4 +98,22 @@ loop:
 	}
 
 	return records, recordVersion, serverVersion, nil
+}
+
+// GetRecord gets the first record, or nil if there are none.
+func (x *PutRequest) GetRecord() *Record {
+	records := x.GetRecords()
+	if len(records) == 0 {
+		return nil
+	}
+	return records[0]
+}
+
+// GetRecord gets the first record, or nil if there are none.
+func (x *PutResponse) GetRecord() *Record {
+	records := x.GetRecords()
+	if len(records) == 0 {
+		return nil
+	}
+	return records[0]
 }
