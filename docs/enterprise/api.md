@@ -54,7 +54,7 @@ Service accounts created in any Namespace other than **Global** will include a r
 :::: tabs
 ::: tab Python
 ```bash
-pip3 install git+ssh://git@github.com/pomerium/enterprise-client-python.git
+pip3 install git+https://git@github.com/pomerium/enterprise-client-python
 ```
 :::
 ::: tab Go
