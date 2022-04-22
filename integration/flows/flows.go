@@ -111,11 +111,11 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 		if err != nil {
 			return nil, err
 		}
+		defer res.Body.Close()
 		bodyBytes, err := io.ReadAll(res.Body)
 		if err != nil {
 			return nil, err
 		}
-		defer res.Body.Close()
 		url, err = url.Parse(string(bodyBytes))
 		if err != nil {
 			return nil, err
