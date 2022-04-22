@@ -10,7 +10,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/go-redis/redis/v8"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -136,54 +136,6 @@ func (backend *Backend) Get(ctx context.Context, recordType, id string) (_ *data
 	return &record, nil
 }
 
-// GetAll gets all the records from redis.
-func (backend *Backend) GetAll(ctx context.Context) (records []*databroker.Record, versions *databroker.Versions, err error) {
-	ctx, span := trace.StartSpan(ctx, "databroker.redis.GetAll")
-	defer span.End()
-	defer func(start time.Time) { recordOperation(ctx, start, "getall", err) }(time.Now())
-
-	versions = new(databroker.Versions)
-
-	versions.ServerVersion, err = backend.getOrCreateServerVersion(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	p := backend.client.Pipeline()
-	lastVersionCmd := p.Get(ctx, lastVersionKey)
-	resultsCmd := p.HVals(ctx, recordHashKey)
-	_, err = p.Exec(ctx)
-	if errors.Is(err, redis.Nil) {
-		// nil is returned when there are no records
-		return nil, versions, nil
-	} else if err != nil {
-		return nil, nil, fmt.Errorf("redis: error beginning GetAll pipeline: %w", err)
-	}
-
-	versions.LatestRecordVersion, err = lastVersionCmd.Uint64()
-	if errors.Is(err, redis.Nil) {
-	} else if err != nil {
-		return nil, nil, fmt.Errorf("redis: error retrieving GetAll latest record version: %w", err)
-	}
-
-	var results []string
-	results, err = resultsCmd.Result()
-	if err != nil {
-		return nil, nil, fmt.Errorf("redis: error retrieving GetAll records: %w", err)
-	}
-
-	for _, result := range results {
-		var record databroker.Record
-		err := proto.Unmarshal([]byte(result), &record)
-		if err != nil {
-			log.Warn(ctx).Err(err).Msg("redis: invalid record detected")
-			continue
-		}
-		records = append(records, &record)
-	}
-	return records, versions, nil
-}
-
 // GetOptions gets the options for the given record type.
 func (backend *Backend) GetOptions(ctx context.Context, recordType string) (*databroker.Options, error) {
 	raw, err := backend.client.HGet(ctx, optionsKey, recordType).Result()
@@ -297,7 +249,17 @@ func (backend *Backend) SetOptions(ctx context.Context, recordType string, optio
 
 // Sync returns a record stream of any records changed after the specified recordVersion.
 func (backend *Backend) Sync(ctx context.Context, serverVersion, recordVersion uint64) (storage.RecordStream, error) {
-	return newRecordStream(ctx, backend, serverVersion, recordVersion), nil
+	return newSyncRecordStream(ctx, backend, serverVersion, recordVersion), nil
+}
+
+// SyncLatest returns a record stream of all the records. Some records may be returned twice if the are updated while the
+// stream is streaming.
+func (backend *Backend) SyncLatest(ctx context.Context) (serverVersion uint64, stream storage.RecordStream, err error) {
+	serverVersion, err = backend.getOrCreateServerVersion(ctx)
+	if err != nil {
+		return 0, nil, err
+	}
+	return serverVersion, newSyncLatestRecordStream(ctx, backend), nil
 }
 
 func (backend *Backend) put(ctx context.Context, records []*databroker.Record) error {

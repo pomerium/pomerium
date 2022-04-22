@@ -40,18 +40,6 @@ func TestEncryptedBackend(t *testing.T) {
 				ModifiedAt: timestamppb.Now(),
 			}, nil
 		},
-		getAll: func(ctx context.Context) ([]*databroker.Record, *databroker.Versions, error) {
-			var records []*databroker.Record
-			for id, data := range m {
-				records = append(records, &databroker.Record{
-					Id:         id,
-					Data:       data,
-					Version:    1,
-					ModifiedAt: timestamppb.Now(),
-				})
-			}
-			return records, &databroker.Versions{}, nil
-		},
 	}
 
 	e, err := NewEncryptedBackend(cryptutil.NewKey(), backend)
@@ -84,14 +72,4 @@ func TestEncryptedBackend(t *testing.T) {
 	assert.Equal(t, any.TypeUrl, record.Data.TypeUrl, "type should be preserved")
 	assert.Equal(t, any.Value, record.Data.Value, "value should be preserved")
 	assert.NotEqual(t, any.TypeUrl, record.Type, "record type should be preserved")
-
-	records, _, err := e.GetAll(ctx)
-	if !assert.NoError(t, err) {
-		return
-	}
-	if assert.Len(t, records, 1) {
-		assert.Equal(t, any.TypeUrl, records[0].Data.TypeUrl, "type should be preserved")
-		assert.Equal(t, any.Value, records[0].Data.Value, "value should be preserved")
-		assert.NotEqual(t, any.TypeUrl, records[0].Type, "record type should be preserved")
-	}
 }

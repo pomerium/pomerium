@@ -19,24 +19,9 @@ import (
 // Errors
 var (
 	ErrNotFound             = errors.New("record not found")
-	ErrStreamClosed         = errors.New("record stream closed")
+	ErrStreamDone           = errors.New("record stream done")
 	ErrInvalidServerVersion = status.Error(codes.Aborted, "invalid server version")
 )
-
-// A RecordStream is a stream of records.
-type RecordStream interface {
-	// Close closes the record stream and releases any underlying resources.
-	Close() error
-	// Next is called to retrieve the next record. If one is available it will
-	// be returned immediately. If none is available and block is true, the method
-	// will block until one is available or an error occurs. The error should be
-	// checked with a call to `.Err()`.
-	Next(block bool) bool
-	// Record returns the current record.
-	Record() *databroker.Record
-	// Err returns any error that occurred while streaming.
-	Err() error
-}
 
 // Backend is the interface required for a storage backend.
 type Backend interface {
@@ -44,8 +29,6 @@ type Backend interface {
 	Close() error
 	// Get is used to retrieve a record.
 	Get(ctx context.Context, recordType, id string) (*databroker.Record, error)
-	// GetAll gets all the records.
-	GetAll(ctx context.Context) (records []*databroker.Record, version *databroker.Versions, err error)
 	// GetOptions gets the options for a type.
 	GetOptions(ctx context.Context, recordType string) (*databroker.Options, error)
 	// Lease acquires a lease, or renews an existing one. If the lease is acquired true is returned.
@@ -56,6 +39,8 @@ type Backend interface {
 	SetOptions(ctx context.Context, recordType string, options *databroker.Options) error
 	// Sync syncs record changes after the specified version.
 	Sync(ctx context.Context, serverVersion, recordVersion uint64) (RecordStream, error)
+	// SyncLatest syncs all the records.
+	SyncLatest(ctx context.Context) (serverVersion uint64, stream RecordStream, err error)
 }
 
 // MatchAny searches any data with a query.

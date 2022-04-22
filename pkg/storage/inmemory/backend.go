@@ -142,23 +142,6 @@ func (backend *Backend) Get(_ context.Context, recordType, id string) (*databrok
 	return dup(record), nil
 }
 
-// GetAll gets all the records from the in-memory store.
-func (backend *Backend) GetAll(_ context.Context) ([]*databroker.Record, *databroker.Versions, error) {
-	backend.mu.RLock()
-	defer backend.mu.RUnlock()
-
-	var all []*databroker.Record
-	for _, rs := range backend.lookup {
-		for _, r := range rs.List() {
-			all = append(all, dup(r))
-		}
-	}
-	return all, &databroker.Versions{
-		ServerVersion:       backend.serverVersion,
-		LatestRecordVersion: backend.lastVersion,
-	}, nil
-}
-
 // GetOptions returns the options for a type in the in-memory store.
 func (backend *Backend) GetOptions(_ context.Context, recordType string) (*databroker.Options, error) {
 	backend.mu.RLock()
@@ -261,10 +244,23 @@ func (backend *Backend) SetOptions(_ context.Context, recordType string, options
 
 // Sync returns a record stream for any changes after recordVersion.
 func (backend *Backend) Sync(ctx context.Context, serverVersion, recordVersion uint64) (storage.RecordStream, error) {
-	if serverVersion != backend.serverVersion {
+	backend.mu.RLock()
+	currentServerVersion := backend.serverVersion
+	backend.mu.RUnlock()
+
+	if serverVersion != currentServerVersion {
 		return nil, storage.ErrInvalidServerVersion
 	}
-	return newRecordStream(ctx, backend, recordVersion), nil
+	return newSyncRecordStream(ctx, backend, recordVersion), nil
+}
+
+// SyncLatest returns a record stream for all the records.
+func (backend *Backend) SyncLatest(ctx context.Context) (serverVersion uint64, stream storage.RecordStream, err error) {
+	backend.mu.RLock()
+	currentServerVersion := backend.serverVersion
+	backend.mu.RUnlock()
+
+	return currentServerVersion, newSyncLatestRecordStream(ctx, backend), nil
 }
 
 func (backend *Backend) recordChange(record *databroker.Record) {

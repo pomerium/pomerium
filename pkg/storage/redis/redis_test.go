@@ -17,6 +17,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 func TestBackend(t *testing.T) {
@@ -73,20 +74,6 @@ func TestBackend(t *testing.T) {
 			record, err := backend.Get(ctx, "TYPE", "abcd")
 			assert.Error(t, err)
 			assert.Nil(t, record)
-		})
-		t.Run("get all records", func(t *testing.T) {
-			for i := 0; i < 1000; i++ {
-				sv, err := backend.Put(ctx, []*databroker.Record{{
-					Type: "TYPE",
-					Id:   fmt.Sprint(i),
-				}})
-				assert.NoError(t, err)
-				assert.Equal(t, serverVersion, sv)
-			}
-			records, versions, err := backend.GetAll(ctx)
-			assert.NoError(t, err)
-			assert.Len(t, records, 1000)
-			assert.Equal(t, uint64(1002), versions.LatestRecordVersion)
 		})
 		return nil
 	}
@@ -232,7 +219,9 @@ func TestCapacity(t *testing.T) {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	ctx := context.Background()
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	defer clearTimeout()
+
 	require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {
 		backend, err := New(rawURL, WithExpiry(0))
 		require.NoError(t, err)
@@ -251,7 +240,11 @@ func TestCapacity(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		records, _, err := backend.GetAll(ctx)
+		_, stream, err := backend.SyncLatest(ctx)
+		require.NoError(t, err)
+		defer stream.Close()
+
+		records, err := storage.RecordStreamToList(stream)
 		require.NoError(t, err)
 		assert.Len(t, records, 3)
 

@@ -81,20 +81,6 @@ func (e *encryptedBackend) Get(ctx context.Context, recordType, id string) (*dat
 	return record, nil
 }
 
-func (e *encryptedBackend) GetAll(ctx context.Context) ([]*databroker.Record, *databroker.Versions, error) {
-	records, versions, err := e.underlying.GetAll(ctx)
-	if err != nil {
-		return nil, versions, err
-	}
-	for i := range records {
-		records[i], err = e.decryptRecord(records[i])
-		if err != nil {
-			return nil, versions, err
-		}
-	}
-	return records, versions, nil
-}
-
 func (e *encryptedBackend) GetOptions(ctx context.Context, recordType string) (*databroker.Options, error) {
 	return e.underlying.GetOptions(ctx, recordType)
 }
@@ -139,6 +125,17 @@ func (e *encryptedBackend) Sync(ctx context.Context, serverVersion, recordVersio
 		return nil, err
 	}
 	return &encryptedRecordStream{
+		underlying: stream,
+		backend:    e,
+	}, nil
+}
+
+func (e *encryptedBackend) SyncLatest(ctx context.Context) (serverVersion uint64, stream RecordStream, err error) {
+	serverVersion, stream, err = e.underlying.SyncLatest(ctx)
+	if err != nil {
+		return serverVersion, nil, err
+	}
+	return serverVersion, &encryptedRecordStream{
 		underlying: stream,
 		backend:    e,
 	}, nil

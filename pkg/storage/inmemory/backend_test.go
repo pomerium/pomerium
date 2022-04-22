@@ -58,20 +58,6 @@ func TestBackend(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, record)
 	})
-	t.Run("get all records", func(t *testing.T) {
-		for i := 0; i < 1000; i++ {
-			sv, err := backend.Put(ctx, []*databroker.Record{{
-				Type: "TYPE",
-				Id:   fmt.Sprint(i),
-			}})
-			assert.NoError(t, err)
-			assert.Equal(t, backend.serverVersion, sv)
-		}
-		records, versions, err := backend.GetAll(ctx)
-		assert.NoError(t, err)
-		assert.Len(t, records, 1000)
-		assert.Equal(t, uint64(1002), versions.LatestRecordVersion)
-	})
 }
 
 func TestExpiry(t *testing.T) {
@@ -115,7 +101,7 @@ func TestConcurrency(t *testing.T) {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		for i := 0; i < 1000; i++ {
-			_, _, _ = backend.GetAll(ctx)
+			_, _ = backend.Get(ctx, "", fmt.Sprint(i))
 		}
 		return nil
 	})
@@ -171,7 +157,7 @@ func TestStreamClose(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, backend.Close())
 		assert.False(t, stream.Next(true))
-		assert.Equal(t, storage.ErrStreamClosed, stream.Err())
+		assert.Error(t, stream.Err())
 	})
 	t.Run("by stream", func(t *testing.T) {
 		backend := New()
@@ -179,7 +165,7 @@ func TestStreamClose(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, stream.Close())
 		assert.False(t, stream.Next(true))
-		assert.Equal(t, storage.ErrStreamClosed, stream.Err())
+		assert.Error(t, stream.Err())
 	})
 	t.Run("by context", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(ctx)
@@ -188,7 +174,7 @@ func TestStreamClose(t *testing.T) {
 		require.NoError(t, err)
 		cancel()
 		assert.False(t, stream.Next(true))
-		assert.Equal(t, context.Canceled, stream.Err())
+		assert.Error(t, stream.Err())
 	})
 }
 
@@ -210,7 +196,10 @@ func TestCapacity(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	records, _, err := backend.GetAll(ctx)
+	_, stream, err := backend.SyncLatest(ctx)
+	require.NoError(t, err)
+
+	records, err := storage.RecordStreamToList(stream)
 	require.NoError(t, err)
 	assert.Len(t, records, 3)
 
