@@ -1,4 +1,7 @@
 authenticate:
+  ingress:
+    tls:
+      secretName: pomerium-tls
   existingTLSSecret: pomerium-tls
   idp:
     provider: "google"
@@ -33,6 +36,9 @@ redis:
 
 ingressController:
   enabled: true
+
+ingress:
+  enabled: false
 
 config:
   rootDomain: localhost.pomerium.io
