@@ -35,7 +35,7 @@ require (
 	github.com/martinlindhe/base36 v1.1.0
 	github.com/mholt/acmez v1.0.2
 	github.com/mitchellh/hashstructure/v2 v2.0.2
-	github.com/mitchellh/mapstructure v1.4.3
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
 	github.com/open-policy-agent/opa v0.39.0
 	github.com/openzipkin/zipkin-go v0.4.0
