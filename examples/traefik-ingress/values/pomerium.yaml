@@ -10,7 +10,7 @@ config:
   sharedSecret: R0+XRoGVpcoi4PfB8tMlvnrS5XUasO+D1frAEdYcYjs=
   cookieSecret: FLPCOQKigK5EQnyXlBhchl5fgzNKqi3ubtvOGt477Dg=
   generateTLS: true
-  policy:
+  routes:
     - from: https://hello.localhost.pomerium.io
       to: http://hello-nginx
       allowed_domains:
