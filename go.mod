@@ -7,7 +7,7 @@ require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.1
 	contrib.go.opencensus.io/exporter/zipkin v0.1.2
 	github.com/DataDog/opencensus-go-exporter-datadog v0.0.0-20200406135749-5c268882acf0
-	github.com/caddyserver/certmagic v0.16.0
+	github.com/caddyserver/certmagic v0.16.1
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/client9/misspell v0.3.4
