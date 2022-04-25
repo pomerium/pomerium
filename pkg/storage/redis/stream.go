@@ -72,7 +72,9 @@ func newSyncLatestRecordStream(
 		func(ctx context.Context, block bool) (*databroker.Record, error) {
 			var err error
 			recordVersion, err = backend.client.Get(ctx, lastVersionKey).Uint64()
-			if err != nil {
+			if errors.Is(err, redis.Nil) {
+				// this happens if there are no records
+			} else if err != nil {
 				return nil, err
 			}
 			return nil, storage.ErrStreamDone
