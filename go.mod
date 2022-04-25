@@ -35,7 +35,7 @@ require (
 	github.com/martinlindhe/base36 v1.1.0
 	github.com/mholt/acmez v1.0.2
 	github.com/mitchellh/hashstructure/v2 v2.0.2
-	github.com/mitchellh/mapstructure v1.4.3
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
 	github.com/open-policy-agent/opa v0.39.0
 	github.com/openzipkin/zipkin-go v0.4.0
@@ -45,7 +45,7 @@ require (
 	github.com/pomerium/webauthn v0.0.0-20211014213840-422c7ce1077f
 	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/client_model v0.2.0
-	github.com/prometheus/common v0.33.0
+	github.com/prometheus/common v0.34.0
 	github.com/prometheus/procfs v0.7.3
 	github.com/rjeczalik/notify v0.9.3-0.20201210012515-e2a77dcc14cf
 	github.com/rs/cors v1.8.2
