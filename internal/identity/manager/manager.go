@@ -259,11 +259,11 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 				defer mgr.dataBrokerSemaphore.Release(1)
 
 				_, err := mgr.cfg.Load().dataBrokerClient.Put(ctx, &databroker.PutRequest{
-					Record: &databroker.Record{
+					Records: []*databroker.Record{{
 						Type: any.GetTypeUrl(),
 						Id:   id,
 						Data: any,
-					},
+					}},
 				})
 				if err != nil {
 					return fmt.Errorf("failed to update directory group: %s", id)
@@ -285,11 +285,11 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 				defer mgr.dataBrokerSemaphore.Release(1)
 
 				_, err := mgr.cfg.Load().dataBrokerClient.Put(ctx, &databroker.PutRequest{
-					Record: &databroker.Record{
+					Records: []*databroker.Record{{
 						Type:      any.GetTypeUrl(),
 						Id:        id,
 						DeletedAt: timestamppb.Now(),
-					},
+					}},
 				})
 				if err != nil {
 					return fmt.Errorf("failed to delete directory group: %s", id)
@@ -325,11 +325,11 @@ func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.
 
 				client := mgr.cfg.Load().dataBrokerClient
 				if _, err := client.Put(ctx, &databroker.PutRequest{
-					Record: &databroker.Record{
+					Records: []*databroker.Record{{
 						Type: any.GetTypeUrl(),
 						Id:   id,
 						Data: any,
-					},
+					}},
 				}); err != nil {
 					return fmt.Errorf("failed to update directory user: %s", id)
 				}
@@ -351,12 +351,12 @@ func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.
 
 				client := mgr.cfg.Load().dataBrokerClient
 				if _, err := client.Put(ctx, &databroker.PutRequest{
-					Record: &databroker.Record{
+					Records: []*databroker.Record{{
 						Type:      any.GetTypeUrl(),
 						Id:        id,
 						Data:      any,
 						DeletedAt: timestamppb.Now(),
-					},
+					}},
 				}); err != nil {
 					return fmt.Errorf("failed to delete directory user (%s): %w", id, err)
 				}
@@ -499,7 +499,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 			continue
 		}
 
-		mgr.onUpdateUser(ctx, res.GetRecord(), u.User)
+		mgr.onUpdateUser(ctx, res.GetRecords()[0], u.User)
 	}
 }
 

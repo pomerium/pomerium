@@ -181,14 +181,15 @@ func waitHealthy(ctx context.Context, client *http.Client, routes []*config.Rout
 
 	return nil
 }
+
 func saveConfig(ctx context.Context, client databroker.DataBrokerServiceClient, cfg *config.Config) error {
 	any := protoutil.NewAny(cfg)
 	r, err := client.Put(ctx, &databroker.PutRequest{
-		Record: &databroker.Record{
+		Records: []*databroker.Record{{
 			Type: any.GetTypeUrl(),
 			Id:   "test_config",
 			Data: any,
-		}})
+		}}})
 	if err != nil {
 		return err
 	}

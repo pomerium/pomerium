@@ -145,20 +145,28 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 		return nil, err
 	}
 
-	all, _, err := db.GetAll(ctx)
+	_, stream, err := db.SyncLatest(ctx)
 	if err != nil {
 		return nil, err
 	}
+	defer stream.Close()
 
 	var filtered []*databroker.Record
-	for _, record := range all {
+	for stream.Next(false) {
+		record := stream.Record()
+
 		if record.GetType() != req.GetType() {
 			continue
 		}
+
 		if query != "" && !storage.MatchAny(record.GetData(), query) {
 			continue
 		}
+
 		filtered = append(filtered, record)
+	}
+	if stream.Err() != nil {
+		return nil, stream.Err()
 	}
 
 	records, totalCount := databroker.ApplyOffsetAndLimit(filtered, int(req.GetOffset()), int(req.GetLimit()))
@@ -172,11 +180,15 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databroker.PutResponse, error) {
 	_, span := trace.StartSpan(ctx, "databroker.grpc.Put")
 	defer span.End()
-	record := req.GetRecord()
 
+	records := req.GetRecords()
+	var recordType string
+	for _, record := range records {
+		recordType = record.GetType()
+	}
 	log.Info(ctx).
-		Str("type", record.GetType()).
-		Str("id", record.GetId()).
+		Int("record-count", len(records)).
+		Str("record-type", recordType).
 		Msg("put")
 
 	db, err := srv.getBackend()
@@ -184,14 +196,16 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 		return nil, err
 	}
 
-	serverVersion, err := db.Put(ctx, record)
+	serverVersion, err := db.Put(ctx, records)
 	if err != nil {
 		return nil, err
 	}
-	return &databroker.PutResponse{
+	res := &databroker.PutResponse{
 		ServerVersion: serverVersion,
-		Record:        record,
-	}, nil
+		Records:       records,
+	}
+
+	return res, nil
 }
 
 // ReleaseLease releases a lease.
@@ -318,12 +332,17 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 		return err
 	}
 
-	records, versions, err := backend.GetAll(ctx)
+	serverVersion, recordStream, err := backend.SyncLatest(ctx)
 	if err != nil {
 		return err
 	}
+	recordVersion := uint64(0)
 
-	for _, record := range records {
+	for recordStream.Next(false) {
+		record := recordStream.Record()
+		if record.GetVersion() > recordVersion {
+			recordVersion = record.GetVersion()
+		}
 		if req.GetType() == "" || req.GetType() == record.GetType() {
 			err = stream.Send(&databroker.SyncLatestResponse{
 				Response: &databroker.SyncLatestResponse_Record{
@@ -335,11 +354,17 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 			}
 		}
 	}
+	if recordStream.Err() != nil {
+		return recordStream.Err()
+	}
 
 	// always send the server version last in case there are no records
 	return stream.Send(&databroker.SyncLatestResponse{
 		Response: &databroker.SyncLatestResponse_Versions{
-			Versions: versions,
+			Versions: &databroker.Versions{
+				ServerVersion:       serverVersion,
+				LatestRecordVersion: recordVersion,
+			},
 		},
 	})
 }

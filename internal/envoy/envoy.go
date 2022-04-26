@@ -22,7 +22,6 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	envoy_config_bootstrap_v3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/natefinch/atomic"
 	"github.com/rs/zerolog"
@@ -283,7 +282,7 @@ func (srv *Server) buildBootstrapConfig(cfg *config.Config) ([]byte, error) {
 		LayeredRuntime:   layeredRuntimeCfg,
 	}
 
-	jsonBytes, err := protojson.Marshal(proto.MessageV2(bootstrapCfg))
+	jsonBytes, err := protojson.Marshal(bootstrapCfg)
 	if err != nil {
 		return nil, err
 	}

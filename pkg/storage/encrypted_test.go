@@ -20,10 +20,12 @@ func TestEncryptedBackend(t *testing.T) {
 
 	m := map[string]*anypb.Any{}
 	backend := &mockBackend{
-		put: func(ctx context.Context, record *databroker.Record) (uint64, error) {
-			record.ModifiedAt = timestamppb.Now()
-			record.Version++
-			m[record.GetId()] = record.GetData()
+		put: func(ctx context.Context, records []*databroker.Record) (uint64, error) {
+			for _, record := range records {
+				record.ModifiedAt = timestamppb.Now()
+				record.Version++
+				m[record.GetId()] = record.GetData()
+			}
 			return 0, nil
 		},
 		get: func(ctx context.Context, recordType, id string) (*databroker.Record, error) {
@@ -37,18 +39,6 @@ func TestEncryptedBackend(t *testing.T) {
 				Version:    1,
 				ModifiedAt: timestamppb.Now(),
 			}, nil
-		},
-		getAll: func(ctx context.Context) ([]*databroker.Record, *databroker.Versions, error) {
-			var records []*databroker.Record
-			for id, data := range m {
-				records = append(records, &databroker.Record{
-					Id:         id,
-					Data:       data,
-					Version:    1,
-					ModifiedAt: timestamppb.Now(),
-				})
-			}
-			return records, &databroker.Versions{}, nil
 		},
 	}
 
@@ -64,7 +54,7 @@ func TestEncryptedBackend(t *testing.T) {
 		Id:   "TEST-1",
 		Data: any,
 	}
-	_, err = e.Put(ctx, rec)
+	_, err = e.Put(ctx, []*databroker.Record{rec})
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -82,14 +72,4 @@ func TestEncryptedBackend(t *testing.T) {
 	assert.Equal(t, any.TypeUrl, record.Data.TypeUrl, "type should be preserved")
 	assert.Equal(t, any.Value, record.Data.Value, "value should be preserved")
 	assert.NotEqual(t, any.TypeUrl, record.Type, "record type should be preserved")
-
-	records, _, err := e.GetAll(ctx)
-	if !assert.NoError(t, err) {
-		return
-	}
-	if assert.Len(t, records, 1) {
-		assert.Equal(t, any.TypeUrl, records[0].Data.TypeUrl, "type should be preserved")
-		assert.Equal(t, any.Value, records[0].Data.Value, "value should be preserved")
-		assert.NotEqual(t, any.TypeUrl, records[0].Type, "record type should be preserved")
-	}
 }

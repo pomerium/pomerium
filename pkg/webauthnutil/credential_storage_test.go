@@ -41,9 +41,11 @@ func TestCredentialStorage(t *testing.T) {
 			}, nil
 		},
 		put: func(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
-			m[in.GetRecord().GetType()+"/"+in.GetRecord().GetId()] = in.GetRecord()
+			for _, record := range in.GetRecords() {
+				m[record.GetType()+"/"+record.GetId()] = record
+			}
 			return &databroker.PutResponse{
-				Record: in.GetRecord(),
+				Records: in.GetRecords(),
 			}, nil
 		},
 	}

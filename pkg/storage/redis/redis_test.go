@@ -17,6 +17,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 func TestBackend(t *testing.T) {
@@ -44,11 +45,11 @@ func TestBackend(t *testing.T) {
 		})
 		t.Run("get record", func(t *testing.T) {
 			data := new(anypb.Any)
-			sv, err := backend.Put(ctx, &databroker.Record{
+			sv, err := backend.Put(ctx, []*databroker.Record{{
 				Type: "TYPE",
 				Id:   "abcd",
 				Data: data,
-			})
+			}})
 			assert.NoError(t, err)
 			assert.Equal(t, serverVersion, sv)
 			record, err := backend.Get(ctx, "TYPE", "abcd")
@@ -63,30 +64,16 @@ func TestBackend(t *testing.T) {
 			}
 		})
 		t.Run("delete record", func(t *testing.T) {
-			sv, err := backend.Put(ctx, &databroker.Record{
+			sv, err := backend.Put(ctx, []*databroker.Record{{
 				Type:      "TYPE",
 				Id:        "abcd",
 				DeletedAt: timestamppb.Now(),
-			})
+			}})
 			assert.NoError(t, err)
 			assert.Equal(t, serverVersion, sv)
 			record, err := backend.Get(ctx, "TYPE", "abcd")
 			assert.Error(t, err)
 			assert.Nil(t, record)
-		})
-		t.Run("get all records", func(t *testing.T) {
-			for i := 0; i < 1000; i++ {
-				sv, err := backend.Put(ctx, &databroker.Record{
-					Type: "TYPE",
-					Id:   fmt.Sprint(i),
-				})
-				assert.NoError(t, err)
-				assert.Equal(t, serverVersion, sv)
-			}
-			records, versions, err := backend.GetAll(ctx)
-			assert.NoError(t, err)
-			assert.Len(t, records, 1000)
-			assert.Equal(t, uint64(1002), versions.LatestRecordVersion)
 		})
 		return nil
 	}
@@ -160,10 +147,10 @@ func TestChangeSignal(t *testing.T) {
 
 			// put a new value to trigger a change
 			for {
-				_, err = backend.Put(ctx, &databroker.Record{
+				_, err = backend.Put(ctx, []*databroker.Record{{
 					Type: "TYPE",
 					Id:   "ID",
-				})
+				}})
 				if err != nil {
 					return err
 				}
@@ -197,10 +184,10 @@ func TestExpiry(t *testing.T) {
 		require.NoError(t, err)
 
 		for i := 0; i < 1000; i++ {
-			_, err := backend.Put(ctx, &databroker.Record{
+			_, err := backend.Put(ctx, []*databroker.Record{{
 				Type: "TYPE",
 				Id:   fmt.Sprint(i),
-			})
+			}})
 			assert.NoError(t, err)
 		}
 		stream, err := backend.Sync(ctx, serverVersion, 0)
@@ -232,7 +219,9 @@ func TestCapacity(t *testing.T) {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	ctx := context.Background()
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	defer clearTimeout()
+
 	require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {
 		backend, err := New(rawURL, WithExpiry(0))
 		require.NoError(t, err)
@@ -244,14 +233,18 @@ func TestCapacity(t *testing.T) {
 		require.NoError(t, err)
 
 		for i := 0; i < 10; i++ {
-			_, err = backend.Put(ctx, &databroker.Record{
+			_, err = backend.Put(ctx, []*databroker.Record{{
 				Type: "EXAMPLE",
 				Id:   fmt.Sprint(i),
-			})
+			}})
 			require.NoError(t, err)
 		}
 
-		records, _, err := backend.GetAll(ctx)
+		_, stream, err := backend.SyncLatest(ctx)
+		require.NoError(t, err)
+		defer stream.Close()
+
+		records, err := storage.RecordStreamToList(stream)
 		require.NoError(t, err)
 		assert.Len(t, records, 3)
 

@@ -13,25 +13,20 @@ import (
 
 type mockBackend struct {
 	Backend
-	put    func(ctx context.Context, record *databroker.Record) (uint64, error)
-	get    func(ctx context.Context, recordType, id string) (*databroker.Record, error)
-	getAll func(ctx context.Context) ([]*databroker.Record, *databroker.Versions, error)
+	put func(ctx context.Context, records []*databroker.Record) (uint64, error)
+	get func(ctx context.Context, recordType, id string) (*databroker.Record, error)
 }
 
 func (m *mockBackend) Close() error {
 	return nil
 }
 
-func (m *mockBackend) Put(ctx context.Context, record *databroker.Record) (uint64, error) {
-	return m.put(ctx, record)
+func (m *mockBackend) Put(ctx context.Context, records []*databroker.Record) (uint64, error) {
+	return m.put(ctx, records)
 }
 
 func (m *mockBackend) Get(ctx context.Context, recordType, id string) (*databroker.Record, error) {
 	return m.get(ctx, recordType, id)
-}
-
-func (m *mockBackend) GetAll(ctx context.Context) ([]*databroker.Record, *databroker.Versions, error) {
-	return m.getAll(ctx)
 }
 
 func TestMatchAny(t *testing.T) {

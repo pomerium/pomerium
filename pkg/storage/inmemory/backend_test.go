@@ -28,11 +28,11 @@ func TestBackend(t *testing.T) {
 	})
 	t.Run("get record", func(t *testing.T) {
 		data := new(anypb.Any)
-		sv, err := backend.Put(ctx, &databroker.Record{
+		sv, err := backend.Put(ctx, []*databroker.Record{{
 			Type: "TYPE",
 			Id:   "abcd",
 			Data: data,
-		})
+		}})
 		assert.NoError(t, err)
 		assert.Equal(t, backend.serverVersion, sv)
 		record, err := backend.Get(ctx, "TYPE", "abcd")
@@ -47,30 +47,16 @@ func TestBackend(t *testing.T) {
 		}
 	})
 	t.Run("delete record", func(t *testing.T) {
-		sv, err := backend.Put(ctx, &databroker.Record{
+		sv, err := backend.Put(ctx, []*databroker.Record{{
 			Type:      "TYPE",
 			Id:        "abcd",
 			DeletedAt: timestamppb.Now(),
-		})
+		}})
 		assert.NoError(t, err)
 		assert.Equal(t, backend.serverVersion, sv)
 		record, err := backend.Get(ctx, "TYPE", "abcd")
 		assert.Error(t, err)
 		assert.Nil(t, record)
-	})
-	t.Run("get all records", func(t *testing.T) {
-		for i := 0; i < 1000; i++ {
-			sv, err := backend.Put(ctx, &databroker.Record{
-				Type: "TYPE",
-				Id:   fmt.Sprint(i),
-			})
-			assert.NoError(t, err)
-			assert.Equal(t, backend.serverVersion, sv)
-		}
-		records, versions, err := backend.GetAll(ctx)
-		assert.NoError(t, err)
-		assert.Len(t, records, 1000)
-		assert.Equal(t, uint64(1002), versions.LatestRecordVersion)
 	})
 }
 
@@ -80,10 +66,10 @@ func TestExpiry(t *testing.T) {
 	defer func() { _ = backend.Close() }()
 
 	for i := 0; i < 1000; i++ {
-		sv, err := backend.Put(ctx, &databroker.Record{
+		sv, err := backend.Put(ctx, []*databroker.Record{{
 			Type: "TYPE",
 			Id:   fmt.Sprint(i),
-		})
+		}})
 		assert.NoError(t, err)
 		assert.Equal(t, backend.serverVersion, sv)
 	}
@@ -115,15 +101,15 @@ func TestConcurrency(t *testing.T) {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		for i := 0; i < 1000; i++ {
-			_, _, _ = backend.GetAll(ctx)
+			_, _ = backend.Get(ctx, "", fmt.Sprint(i))
 		}
 		return nil
 	})
 	eg.Go(func() error {
 		for i := 0; i < 1000; i++ {
-			_, _ = backend.Put(ctx, &databroker.Record{
+			_, _ = backend.Put(ctx, []*databroker.Record{{
 				Id: fmt.Sprint(i),
-			})
+			}})
 		}
 		return nil
 	})
@@ -152,10 +138,10 @@ func TestStream(t *testing.T) {
 	})
 	eg.Go(func() error {
 		for i := 0; i < 10000; i++ {
-			_, err := backend.Put(ctx, &databroker.Record{
+			_, err := backend.Put(ctx, []*databroker.Record{{
 				Type: "TYPE",
 				Id:   fmt.Sprint(i),
-			})
+			}})
 			assert.NoError(t, err)
 		}
 		return nil
@@ -171,7 +157,7 @@ func TestStreamClose(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, backend.Close())
 		assert.False(t, stream.Next(true))
-		assert.Equal(t, storage.ErrStreamClosed, stream.Err())
+		assert.Error(t, stream.Err())
 	})
 	t.Run("by stream", func(t *testing.T) {
 		backend := New()
@@ -179,7 +165,7 @@ func TestStreamClose(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, stream.Close())
 		assert.False(t, stream.Next(true))
-		assert.Equal(t, storage.ErrStreamClosed, stream.Err())
+		assert.Error(t, stream.Err())
 	})
 	t.Run("by context", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(ctx)
@@ -188,7 +174,7 @@ func TestStreamClose(t *testing.T) {
 		require.NoError(t, err)
 		cancel()
 		assert.False(t, stream.Next(true))
-		assert.Equal(t, context.Canceled, stream.Err())
+		assert.Error(t, stream.Err())
 	})
 }
 
@@ -203,14 +189,17 @@ func TestCapacity(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := 0; i < 10; i++ {
-		_, err = backend.Put(ctx, &databroker.Record{
+		_, err = backend.Put(ctx, []*databroker.Record{{
 			Type: "EXAMPLE",
 			Id:   fmt.Sprint(i),
-		})
+		}})
 		require.NoError(t, err)
 	}
 
-	records, _, err := backend.GetAll(ctx)
+	_, stream, err := backend.SyncLatest(ctx)
+	require.NoError(t, err)
+
+	records, err := storage.RecordStreamToList(stream)
 	require.NoError(t, err)
 	assert.Len(t, records, 3)
 

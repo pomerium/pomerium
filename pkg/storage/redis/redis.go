@@ -10,7 +10,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/go-redis/redis/v8"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -136,54 +136,6 @@ func (backend *Backend) Get(ctx context.Context, recordType, id string) (_ *data
 	return &record, nil
 }
 
-// GetAll gets all the records from redis.
-func (backend *Backend) GetAll(ctx context.Context) (records []*databroker.Record, versions *databroker.Versions, err error) {
-	ctx, span := trace.StartSpan(ctx, "databroker.redis.GetAll")
-	defer span.End()
-	defer func(start time.Time) { recordOperation(ctx, start, "getall", err) }(time.Now())
-
-	versions = new(databroker.Versions)
-
-	versions.ServerVersion, err = backend.getOrCreateServerVersion(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	p := backend.client.Pipeline()
-	lastVersionCmd := p.Get(ctx, lastVersionKey)
-	resultsCmd := p.HVals(ctx, recordHashKey)
-	_, err = p.Exec(ctx)
-	if errors.Is(err, redis.Nil) {
-		// nil is returned when there are no records
-		return nil, versions, nil
-	} else if err != nil {
-		return nil, nil, fmt.Errorf("redis: error beginning GetAll pipeline: %w", err)
-	}
-
-	versions.LatestRecordVersion, err = lastVersionCmd.Uint64()
-	if errors.Is(err, redis.Nil) {
-	} else if err != nil {
-		return nil, nil, fmt.Errorf("redis: error retrieving GetAll latest record version: %w", err)
-	}
-
-	var results []string
-	results, err = resultsCmd.Result()
-	if err != nil {
-		return nil, nil, fmt.Errorf("redis: error retrieving GetAll records: %w", err)
-	}
-
-	for _, result := range results {
-		var record databroker.Record
-		err := proto.Unmarshal([]byte(result), &record)
-		if err != nil {
-			log.Warn(ctx).Err(err).Msg("redis: invalid record detected")
-			continue
-		}
-		records = append(records, &record)
-	}
-	return records, versions, nil
-}
-
 // GetOptions gets the options for the given record type.
 func (backend *Backend) GetOptions(ctx context.Context, recordType string) (*databroker.Options, error) {
 	raw, err := backend.client.HGet(ctx, optionsKey, recordType).Result()
@@ -241,7 +193,7 @@ func (backend *Backend) Lease(ctx context.Context, leaseName, leaseID string, tt
 }
 
 // Put puts a record into redis.
-func (backend *Backend) Put(ctx context.Context, record *databroker.Record) (serverVersion uint64, err error) {
+func (backend *Backend) Put(ctx context.Context, records []*databroker.Record) (serverVersion uint64, err error) {
 	ctx, span := trace.StartSpan(ctx, "databroker.redis.Put")
 	defer span.End()
 	defer func(start time.Time) { recordOperation(ctx, start, "put", err) }(time.Now())
@@ -251,14 +203,20 @@ func (backend *Backend) Put(ctx context.Context, record *databroker.Record) (ser
 		return serverVersion, err
 	}
 
-	err = backend.put(ctx, record)
+	err = backend.put(ctx, records)
 	if err != nil {
 		return serverVersion, err
 	}
 
-	err = backend.enforceOptions(ctx, record.GetType())
-	if err != nil {
-		return serverVersion, err
+	recordTypes := map[string]struct{}{}
+	for _, record := range records {
+		recordTypes[record.GetType()] = struct{}{}
+	}
+	for recordType := range recordTypes {
+		err = backend.enforceOptions(ctx, recordType)
+		if err != nil {
+			return serverVersion, err
+		}
 	}
 
 	return serverVersion, nil
@@ -291,36 +249,50 @@ func (backend *Backend) SetOptions(ctx context.Context, recordType string, optio
 
 // Sync returns a record stream of any records changed after the specified recordVersion.
 func (backend *Backend) Sync(ctx context.Context, serverVersion, recordVersion uint64) (storage.RecordStream, error) {
-	return newRecordStream(ctx, backend, serverVersion, recordVersion), nil
+	return newSyncRecordStream(ctx, backend, serverVersion, recordVersion), nil
 }
 
-func (backend *Backend) put(ctx context.Context, record *databroker.Record) error {
+// SyncLatest returns a record stream of all the records. Some records may be returned twice if the are updated while the
+// stream is streaming.
+func (backend *Backend) SyncLatest(ctx context.Context) (serverVersion uint64, stream storage.RecordStream, err error) {
+	serverVersion, err = backend.getOrCreateServerVersion(ctx)
+	if err != nil {
+		return 0, nil, err
+	}
+	return serverVersion, newSyncLatestRecordStream(ctx, backend), nil
+}
+
+func (backend *Backend) put(ctx context.Context, records []*databroker.Record) error {
 	return backend.incrementVersion(ctx,
 		func(tx *redis.Tx, version uint64) error {
-			record.ModifiedAt = timestamppb.Now()
-			record.Version = version
+			for i, record := range records {
+				record.ModifiedAt = timestamppb.Now()
+				record.Version = version + uint64(i)
+			}
 			return nil
 		},
 		func(p redis.Pipeliner, version uint64) error {
-			bs, err := proto.Marshal(record)
-			if err != nil {
-				return err
-			}
+			for i, record := range records {
+				bs, err := proto.Marshal(record)
+				if err != nil {
+					return err
+				}
 
-			key, field := getHashKey(record.GetType(), record.GetId())
-			if record.DeletedAt != nil {
-				p.HDel(ctx, key, field)
-			} else {
-				p.HSet(ctx, key, field, bs)
-				p.ZAdd(ctx, getRecordTypeChangesKey(record.GetType()), &redis.Z{
-					Score:  float64(record.GetModifiedAt().GetSeconds()),
-					Member: record.GetId(),
+				key, field := getHashKey(record.GetType(), record.GetId())
+				if record.DeletedAt != nil {
+					p.HDel(ctx, key, field)
+				} else {
+					p.HSet(ctx, key, field, bs)
+					p.ZAdd(ctx, getRecordTypeChangesKey(record.GetType()), &redis.Z{
+						Score:  float64(record.GetModifiedAt().GetSeconds()) + float64(i)/float64(len(records)),
+						Member: record.GetId(),
+					})
+				}
+				p.ZAdd(ctx, changesSetKey, &redis.Z{
+					Score:  float64(version) + float64(i),
+					Member: bs,
 				})
 			}
-			p.ZAdd(ctx, changesSetKey, &redis.Z{
-				Score:  float64(version),
-				Member: bs,
-			})
 			return nil
 		})
 }
@@ -354,7 +326,7 @@ func (backend *Backend) enforceOptions(ctx context.Context, recordType string) e
 		if err == nil {
 			// mark the record as deleted and re-submit
 			record.DeletedAt = timestamppb.Now()
-			err = backend.put(ctx, record)
+			err = backend.put(ctx, []*databroker.Record{record})
 			if err != nil {
 				return err
 			}

@@ -2,12 +2,18 @@ package databroker
 
 import (
 	"context"
+	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
+
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 func TestApplyOffsetAndLimit(t *testing.T) {
@@ -103,6 +109,26 @@ func TestInitialSync(t *testing.T) {
 	assert.Equal(t, uint64(2), recordVersion)
 	assert.Equal(t, uint64(1), serverVersion)
 	assert.Equal(t, []*Record{r1, r2}, records)
+}
+
+func TestOptimumPutRequestsFromRecords(t *testing.T) {
+	var records []*Record
+	for i := 0; i < 10_000; i++ {
+		s := structpb.NewStructValue(&structpb.Struct{
+			Fields: map[string]*structpb.Value{
+				"long_string": structpb.NewStringValue(strings.Repeat("x", 987)),
+			},
+		})
+		records = append(records, &Record{
+			Id:   fmt.Sprintf("%d", i),
+			Data: protoutil.NewAny(s),
+		})
+	}
+	requests := OptimumPutRequestsFromRecords(records)
+	for _, request := range requests {
+		assert.LessOrEqual(t, proto.Size(request), maxMessageSize)
+		assert.GreaterOrEqual(t, proto.Size(request), maxMessageSize/2)
+	}
 }
 
 type mockServer struct {

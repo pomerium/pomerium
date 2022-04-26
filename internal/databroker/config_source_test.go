@@ -64,11 +64,11 @@ func TestConfigSource(t *testing.T) {
 		},
 	})
 	_, _ = dataBrokerServer.Put(ctx, &databroker.PutRequest{
-		Record: &databroker.Record{
+		Records: []*databroker.Record{{
 			Type: data.TypeUrl,
 			Id:   "1",
 			Data: data,
-		},
+		}},
 	})
 
 	select {

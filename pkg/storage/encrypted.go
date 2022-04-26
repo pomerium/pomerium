@@ -81,20 +81,6 @@ func (e *encryptedBackend) Get(ctx context.Context, recordType, id string) (*dat
 	return record, nil
 }
 
-func (e *encryptedBackend) GetAll(ctx context.Context) ([]*databroker.Record, *databroker.Versions, error) {
-	records, versions, err := e.underlying.GetAll(ctx)
-	if err != nil {
-		return nil, versions, err
-	}
-	for i := range records {
-		records[i], err = e.decryptRecord(records[i])
-		if err != nil {
-			return nil, versions, err
-		}
-	}
-	return records, versions, nil
-}
-
 func (e *encryptedBackend) GetOptions(ctx context.Context, recordType string) (*databroker.Options, error) {
 	return e.underlying.GetOptions(ctx, recordType)
 }
@@ -103,22 +89,28 @@ func (e *encryptedBackend) Lease(ctx context.Context, leaseName, leaseID string,
 	return e.underlying.Lease(ctx, leaseName, leaseID, ttl)
 }
 
-func (e *encryptedBackend) Put(ctx context.Context, record *databroker.Record) (uint64, error) {
-	encrypted, err := e.encrypt(record.GetData())
+func (e *encryptedBackend) Put(ctx context.Context, records []*databroker.Record) (uint64, error) {
+	encryptedRecords := make([]*databroker.Record, len(records))
+	for i, record := range records {
+		encrypted, err := e.encrypt(record.GetData())
+		if err != nil {
+			return 0, err
+		}
+
+		newRecord := proto.Clone(record).(*databroker.Record)
+		newRecord.Data = encrypted
+		encryptedRecords[i] = newRecord
+	}
+
+	serverVersion, err := e.underlying.Put(ctx, encryptedRecords)
 	if err != nil {
 		return 0, err
 	}
 
-	newRecord := proto.Clone(record).(*databroker.Record)
-	newRecord.Data = encrypted
-
-	serverVersion, err := e.underlying.Put(ctx, newRecord)
-	if err != nil {
-		return 0, err
+	for i, record := range records {
+		record.ModifiedAt = encryptedRecords[i].ModifiedAt
+		record.Version = encryptedRecords[i].Version
 	}
-
-	record.ModifiedAt = newRecord.ModifiedAt
-	record.Version = newRecord.Version
 
 	return serverVersion, nil
 }
@@ -133,6 +125,17 @@ func (e *encryptedBackend) Sync(ctx context.Context, serverVersion, recordVersio
 		return nil, err
 	}
 	return &encryptedRecordStream{
+		underlying: stream,
+		backend:    e,
+	}, nil
+}
+
+func (e *encryptedBackend) SyncLatest(ctx context.Context) (serverVersion uint64, stream RecordStream, err error) {
+	serverVersion, stream, err = e.underlying.SyncLatest(ctx)
+	if err != nil {
+		return serverVersion, nil, err
+	}
+	return serverVersion, &encryptedRecordStream{
 		underlying: stream,
 		backend:    e,
 	}, nil
