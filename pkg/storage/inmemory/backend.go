@@ -188,6 +188,10 @@ func (backend *Backend) Lease(_ context.Context, leaseName, leaseID string, ttl 
 
 // Put puts a record into the in-memory store.
 func (backend *Backend) Put(ctx context.Context, records []*databroker.Record) (serverVersion uint64, err error) {
+	backend.mu.Lock()
+	defer backend.mu.Unlock()
+	defer backend.onChange.Broadcast(ctx)
+
 	recordTypes := map[string]struct{}{}
 	for _, record := range records {
 		if record == nil {
@@ -199,10 +203,6 @@ func (backend *Backend) Put(ctx context.Context, records []*databroker.Record) (
 				Str("db_id", record.Id).
 				Str("db_type", record.Type)
 		})
-
-		backend.mu.Lock()
-		defer backend.mu.Unlock()
-		defer backend.onChange.Broadcast(ctx)
 
 		backend.recordChange(record)
 

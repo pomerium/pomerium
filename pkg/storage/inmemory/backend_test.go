@@ -28,22 +28,36 @@ func TestBackend(t *testing.T) {
 	})
 	t.Run("get record", func(t *testing.T) {
 		data := new(anypb.Any)
-		sv, err := backend.Put(ctx, []*databroker.Record{{
-			Type: "TYPE",
-			Id:   "abcd",
-			Data: data,
-		}})
+		sv, err := backend.Put(ctx, []*databroker.Record{
+			{
+				Type: "TYPE",
+				Id:   "a",
+				Data: data,
+			},
+			{
+				Type: "TYPE",
+				Id:   "b",
+				Data: data,
+			},
+			{
+				Type: "TYPE",
+				Id:   "c",
+				Data: data,
+			},
+		})
 		assert.NoError(t, err)
 		assert.Equal(t, backend.serverVersion, sv)
-		record, err := backend.Get(ctx, "TYPE", "abcd")
-		require.NoError(t, err)
-		if assert.NotNil(t, record) {
-			assert.Equal(t, data, record.Data)
-			assert.Nil(t, record.DeletedAt)
-			assert.Equal(t, "abcd", record.Id)
-			assert.NotNil(t, record.ModifiedAt)
-			assert.Equal(t, "TYPE", record.Type)
-			assert.Equal(t, uint64(1), record.Version)
+		for i, id := range []string{"a", "b", "c"} {
+			record, err := backend.Get(ctx, "TYPE", id)
+			require.NoError(t, err)
+			if assert.NotNil(t, record) {
+				assert.Equal(t, data, record.Data)
+				assert.Nil(t, record.DeletedAt)
+				assert.Equal(t, id, record.Id)
+				assert.NotNil(t, record.ModifiedAt)
+				assert.Equal(t, "TYPE", record.Type)
+				assert.Equal(t, uint64(i+1), record.Version)
+			}
 		}
 	})
 	t.Run("delete record", func(t *testing.T) {
