@@ -1,5 +1,40 @@
 # Changelog
 
+## [v0.17.2](https://github.com/pomerium/pomerium/tree/v0.17.2) (2022-04-22)
+
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.17.1...v0.17.2)
+
+## Fixed
+
+- authorize: pass idp id for webauthn url, allow unauthenticated access to static files [\#3284] (@calebdoxsey)
+- config: fix DefaultTransport so it is still a \*http.Transport [\#3260] (@calebdoxsey)
+
+## Dependency
+
+- chore\(deps\): bump actions/setup-python from 3.1.0 to 3.1.2 [\#3266]
+
+## Docs
+
+- Add UUID to docs yaml blocks \(\#3251\) [\#3259] (@alexfornuto)
+
+## [v0.17.2](https://github.com/pomerium/pomerium/tree/v0.17.1) (2022-03-30)
+
+[Full Changelog](https://github.com/pomerium/pomerium/compare/v0.17.0...v0.17.1)
+
+# Security Notice
+
+This release includes a fix to a medium severity [security issue](https://github.com/pomerium/pomerium/security/advisories/GHSA-q98f-2x4p-prjr).
+
+We recommend that all users upgrade.
+
+## Security
+
+- authenticate: fix debug and metrics endpoints [\#3215](https://github.com/pomerium/pomerium/pull/3215) (@backport-actions-token[bot])
+
+## Fixed
+
+- authenticate: fix internal url with webauthn [\#3195](https://github.com/pomerium/pomerium/pull/3195) (@backport-actions-token[bot])
+- github: fix missing groups [\#3176](https://github.com/pomerium/pomerium/pull/3176) (@backport-actions-token[bot])
 
 ## [v0.17.0](https://github.com/pomerium/pomerium/tree/v0.17.0) (2022-03-04)
 
