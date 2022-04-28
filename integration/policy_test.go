@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -14,6 +15,42 @@ import (
 
 	"github.com/pomerium/pomerium/integration/flows"
 )
+
+func TestQueryStringParams(t *testing.T) {
+	ctx := context.Background()
+	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
+	defer clearTimeout()
+
+	qs := url.Values{
+		"q1": {"a&b&c"},
+		"q2": {"x?y?z"},
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/?"+qs.Encode(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := getClient().Do(req)
+	if !assert.NoError(t, err, "unexpected http error") {
+		return
+	}
+	defer res.Body.Close()
+
+	var result struct {
+		Query map[string]string
+	}
+	err = json.NewDecoder(res.Body).Decode(&result)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	assert.Equal(t, map[string]string{
+		"q1": "a&b&c",
+		"q2": "x?y?z",
+	}, result.Query,
+		"expected custom request header to be sent upstream")
+}
 
 func TestCORS(t *testing.T) {
 	if ClusterType == "traefik" || ClusterType == "nginx" {
