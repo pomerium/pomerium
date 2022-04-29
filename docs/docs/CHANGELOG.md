@@ -17,7 +17,7 @@
 
 - Add UUID to docs yaml blocks \(\#3251\) [\#3259] (@alexfornuto)
 
-## [v0.17.2](https://github.com/pomerium/pomerium/tree/v0.17.1) (2022-03-30)
+## [v0.17.1](https://github.com/pomerium/pomerium/tree/v0.17.1) (2022-03-30)
 
 [Full Changelog](https://github.com/pomerium/pomerium/compare/v0.17.0...v0.17.1)
 
