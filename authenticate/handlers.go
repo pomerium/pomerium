@@ -505,6 +505,8 @@ func (a *Authenticate) getSessionFromCtx(ctx context.Context) (*sessions.State, 
 func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.userInfo")
 	defer span.End()
+	r = r.WithContext(ctx)
+	r = a.getExternalRequest(r)
 
 	// if we came in with a redirect URI, save it to a cookie so it doesn't expire with the HMAC
 	if redirectURI := r.FormValue(urlutil.QueryRedirectURI); redirectURI != "" {
