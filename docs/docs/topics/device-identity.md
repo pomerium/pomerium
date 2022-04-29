@@ -55,6 +55,8 @@ The nature of cross-platform keys mean they are not associated with a single end
 
 Pomerium supports policies that use device identity since version [0.16.0](/docs/upgrading.md#policy-for-device-identity). We use the [Web Authentication][webauthn-api] (**WebAuthN**) API to bring authentication and authorization based on device identity into your security framework. Pomerium's device identity support enables users to register their devices, and administrators to enforce access to applications and services to a particular set of trusted devices.
 
+<iframe width="800" height="500" src="https://www.youtube.com/embed/aJzgnaXEpLo?rel=0" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen />
+
 To get started, review the following pages:
 
 - [Pomerium Policy Language](/docs/topics/ppl.md) to learn how to build policies that use device ID.
