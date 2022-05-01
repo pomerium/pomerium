@@ -261,6 +261,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		HostPathRegexRewriteSubstitution: pb.GetHostPathRegexRewriteSubstitution(),
 		PassIdentityHeaders:              pb.GetPassIdentityHeaders(),
 		KubernetesServiceAccountToken:    pb.GetKubernetesServiceAccountToken(),
+		KubernetesServiceAccountTokenFile: pb.GetKubernetesServiceAccountTokenFile(),
 		SetResponseHeaders:               pb.GetSetResponseHeaders(),
 		EnableGoogleCloudServerlessAuthentication: pb.GetEnableGoogleCloudServerlessAuthentication(),
 		IDPClientID:     pb.GetIdpClientId(),
@@ -380,6 +381,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		PassIdentityHeaders:              p.PassIdentityHeaders,
 		SetAuthorizationHeader:           p.GetSetAuthorizationHeader(),
 		KubernetesServiceAccountToken:    p.KubernetesServiceAccountToken,
+		KubernetesServiceAccountTokenFile: p.KubernetesServiceAccountTokenFile,
 		Policies:                         sps,
 		SetResponseHeaders:               p.SetResponseHeaders,
 	}
