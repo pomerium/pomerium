@@ -402,6 +402,7 @@ For more information on the Pomerium Ingress Controller or the Kubernetes concep
 [`ingress.pomerium.io/host_rewrite`]: /reference/readme.md#host-rewrite
 [`ingress.pomerium.io/host_rewrite_header`]: /reference/readme.md#host-rewrite
 [`ingress.pomerium.io/idle_timeout`]: /reference/readme.md#idle-timeout
+[`ingress.pomerium.io/kubernetes_service_account_token_file`]: /reference/readme.md#kubernetes-service-account-token
 [`ingress.pomerium.io/lb_config`]: /reference/readme.md#load-balancing-policy-config
 [`ingress.pomerium.io/outlier_detection`]: /reference/readme.md#outlier-detection
 [`ingress.pomerium.io/pass_identity_headers`]: /reference/readme.md#pass-identity-headers
