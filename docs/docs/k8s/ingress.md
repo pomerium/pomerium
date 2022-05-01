@@ -156,6 +156,7 @@ Most configuration keys in non-Kubernetes deployments can be specified as annota
 - [`ingress.pomerium.io/host_rewrite`]
 - [`ingress.pomerium.io/host_rewrite_header`]
 - [`ingress.pomerium.io/idle_timeout`]
+- [`ingress.pomerium.io/kubernetes_service_account_token_file`]
 - [`ingress.pomerium.io/outlier_detection`]
 - [`ingress.pomerium.io/pass_identity_headers`]
 - [`ingress.pomerium.io/policy`]
