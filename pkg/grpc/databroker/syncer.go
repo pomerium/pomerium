@@ -128,12 +128,13 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 }
 
 func (syncer *Syncer) init(ctx context.Context) error {
-	log.Info(ctx).Msg("initial sync")
+	log.Info(ctx).Msg("databroker/syncer: starting initial sync")
+	start := time.Now()
 	records, recordVersion, serverVersion, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient(), &SyncLatestRequest{
 		Type: syncer.cfg.typeURL,
 	})
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("error during initial sync")
+		log.Error(ctx).Err(err).Msg("databroker/syncer: error during initial sync")
 		return err
 	}
 	syncer.backoff.Reset()
@@ -145,6 +146,11 @@ func (syncer *Syncer) init(ctx context.Context) error {
 	syncer.serverVersion = serverVersion
 	syncer.handler.UpdateRecords(ctx, serverVersion, records)
 
+	log.Info(ctx).
+		Int("record-count", len(records)).
+		Dur("elapsed", time.Since(start)).
+		Msg("databroker: initial sync complete")
+
 	return nil
 }
 
@@ -154,11 +160,11 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 		RecordVersion: syncer.recordVersion,
 	})
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("error during sync")
+		log.Error(ctx).Err(err).Msg("databroker/syncer: error during sync")
 		return err
 	}
 
-	log.Info(ctx).Msg("listening for updates")
+	log.Info(ctx).Msg("databroker/syncer: listening for updates")
 
 	for {
 		res, err := stream.Recv()
@@ -172,11 +178,11 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 		}
 
 		rec := res.GetRecord()
-		log.Debug(logCtxRec(ctx, rec)).Msg("syncer got record")
+		log.Debug(logCtxRec(ctx, rec)).Msg("databroker/syncer: got record")
 
 		if syncer.recordVersion != res.GetRecord().GetVersion()-1 {
 			log.Error(logCtxRec(ctx, rec)).Err(err).
-				Msg("aborted sync due to missing record")
+				Msg("databroker/syncer: aborted sync due to missing record")
 			syncer.serverVersion = 0
 			return fmt.Errorf("missing record version")
 		}

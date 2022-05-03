@@ -254,12 +254,12 @@ func (backend *Backend) Sync(ctx context.Context, serverVersion, recordVersion u
 
 // SyncLatest returns a record stream of all the records. Some records may be returned twice if the are updated while the
 // stream is streaming.
-func (backend *Backend) SyncLatest(ctx context.Context) (serverVersion uint64, stream storage.RecordStream, err error) {
+func (backend *Backend) SyncLatest(ctx context.Context, recordType string) (serverVersion uint64, stream storage.RecordStream, err error) {
 	serverVersion, err = backend.getOrCreateServerVersion(ctx)
 	if err != nil {
 		return 0, nil, err
 	}
-	return serverVersion, newSyncLatestRecordStream(ctx, backend), nil
+	return serverVersion, newSyncLatestRecordStream(ctx, backend, recordType), nil
 }
 
 func (backend *Backend) put(ctx context.Context, records []*databroker.Record) error {

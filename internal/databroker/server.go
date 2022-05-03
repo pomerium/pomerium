@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -145,7 +146,7 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 		return nil, err
 	}
 
-	_, stream, err := db.SyncLatest(ctx)
+	_, stream, err := db.SyncLatest(ctx, req.GetType())
 	if err != nil {
 		return nil, err
 	}
@@ -332,30 +333,56 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 		return err
 	}
 
-	serverVersion, recordStream, err := backend.SyncLatest(ctx)
+	serverVersion, recordStream, err := backend.SyncLatest(ctx, req.GetType())
 	if err != nil {
 		return err
 	}
 	recordVersion := uint64(0)
 
-	for recordStream.Next(false) {
-		record := recordStream.Record()
-		if record.GetVersion() > recordVersion {
-			recordVersion = record.GetVersion()
-		}
-		if req.GetType() == "" || req.GetType() == record.GetType() {
-			err = stream.Send(&databroker.SyncLatestResponse{
-				Response: &databroker.SyncLatestResponse_Record{
-					Record: record,
-				},
-			})
-			if err != nil {
-				return err
+	rc := make(chan *databroker.Record, 1)
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		defer close(rc)
+
+		for recordStream.Next(false) {
+			record := recordStream.Record()
+			if record.GetVersion() > recordVersion {
+				recordVersion = record.GetVersion()
+			}
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case rc <- record:
 			}
 		}
-	}
-	if recordStream.Err() != nil {
-		return recordStream.Err()
+		if recordStream.Err() != nil {
+			return recordStream.Err()
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case record, ok := <-rc:
+				if !ok {
+					return nil
+				}
+				err = stream.Send(&databroker.SyncLatestResponse{
+					Response: &databroker.SyncLatestResponse_Record{
+						Record: record,
+					},
+				})
+				if err != nil {
+					return err
+				}
+			}
+		}
+	})
+	err = eg.Wait()
+	if err != nil {
+		return err
 	}
 
 	// always send the server version last in case there are no records

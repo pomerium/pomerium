@@ -40,7 +40,7 @@ type Backend interface {
 	// Sync syncs record changes after the specified version.
 	Sync(ctx context.Context, serverVersion, recordVersion uint64) (RecordStream, error)
 	// SyncLatest syncs all the records.
-	SyncLatest(ctx context.Context) (serverVersion uint64, stream RecordStream, err error)
+	SyncLatest(ctx context.Context, recordType string) (serverVersion uint64, stream RecordStream, err error)
 }
 
 // MatchAny searches any data with a query.

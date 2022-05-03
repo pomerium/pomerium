@@ -63,7 +63,13 @@ func newSyncRecordStream(
 func newSyncLatestRecordStream(
 	ctx context.Context,
 	backend *Backend,
+	recordType string,
 ) storage.RecordStream {
+	pattern := ""
+	if recordType != "" {
+		pattern = recordType + "*"
+	}
+
 	var recordVersion, cursor uint64
 	scannedOnce := false
 	var scannedRecords []*databroker.Record
@@ -94,7 +100,7 @@ func newSyncLatestRecordStream(
 				}
 
 				var err error
-				scannedRecords, err = nextScannedRecords(ctx, backend, &cursor)
+				scannedRecords, err = nextScannedRecords(ctx, backend, &cursor, pattern)
 				if err != nil {
 					return nil, err
 				}
@@ -104,15 +110,24 @@ func newSyncLatestRecordStream(
 		},
 		// 3. stream any records which have been updated in the interim
 		func(ctx context.Context, block bool) (*databroker.Record, error) {
-			return nextChangedRecord(ctx, backend, &recordVersion)
+			for {
+				record, err := nextChangedRecord(ctx, backend, &recordVersion)
+				if err != nil {
+					return nil, err
+				}
+
+				if recordType == "" || record.GetType() == recordType {
+					return record, nil
+				}
+			}
 		},
 	}, nil)
 }
 
-func nextScannedRecords(ctx context.Context, backend *Backend, cursor *uint64) ([]*databroker.Record, error) {
+func nextScannedRecords(ctx context.Context, backend *Backend, cursor *uint64, pattern string) ([]*databroker.Record, error) {
 	var values []string
 	var err error
-	values, *cursor, err = backend.client.HScan(ctx, recordHashKey, *cursor, "", 0).Result()
+	values, *cursor, err = backend.client.HScan(ctx, recordHashKey, *cursor, pattern, 0).Result()
 	if errors.Is(err, redis.Nil) {
 		return nil, storage.ErrStreamDone
 	} else if err != nil {

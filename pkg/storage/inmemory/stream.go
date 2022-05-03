@@ -10,13 +10,18 @@ import (
 func newSyncLatestRecordStream(
 	ctx context.Context,
 	backend *Backend,
+	recordType string,
 ) storage.RecordStream {
 	var ready []*databroker.Record
 	return storage.NewRecordStream(ctx, backend.closed, []storage.RecordStreamGenerator{
 		func(ctx context.Context, block bool) (*databroker.Record, error) {
 			backend.mu.RLock()
-			for _, co := range backend.lookup {
-				ready = append(ready, co.List()...)
+			if recordType == "" {
+				for _, co := range backend.lookup {
+					ready = append(ready, co.List()...)
+				}
+			} else {
+				ready = append(ready, backend.lookup[recordType].List()...)
 			}
 			backend.mu.RUnlock()
 			return nil, storage.ErrStreamDone

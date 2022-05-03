@@ -38,6 +38,10 @@ func (c *RecordCollection) Delete(recordID string) {
 
 // Get gets a record from the collection.
 func (c *RecordCollection) Get(recordID string) *databroker.Record {
+	if c == nil {
+		return nil
+	}
+
 	node, ok := c.records[recordID]
 	if !ok {
 		return nil
@@ -47,11 +51,19 @@ func (c *RecordCollection) Get(recordID string) *databroker.Record {
 
 // Len returns the length of the collection.
 func (c *RecordCollection) Len() int {
+	if c == nil {
+		return 0
+	}
+
 	return len(c.records)
 }
 
 // List lists all the records in the collection in insertion order.
 func (c *RecordCollection) List() []*databroker.Record {
+	if c == nil {
+		return nil
+	}
+
 	var all []*databroker.Record
 	for el := c.insertionOrder.Front(); el != nil; el = el.Next() {
 		all = append(all, c.records[el.Value.(string)].Record)
