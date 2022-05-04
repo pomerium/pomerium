@@ -94,6 +94,7 @@ func (a *Authorize) forceSyncToVersion(ctx context.Context, serverVersion, recor
 	defer clearTimeout()
 
 	ticker := time.NewTicker(time.Millisecond * 50)
+	defer ticker.Stop()
 	for {
 		currentServerVersion, currentRecordVersion := a.store.GetDataBrokerVersions()
 		// check if the local record version is up to date with the expected record version
