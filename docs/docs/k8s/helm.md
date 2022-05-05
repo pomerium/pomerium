@@ -26,6 +26,8 @@ This quick-start will show you how to deploy Pomerium with [Helm] on [Kubernetes
 
 ::: tip
 This configuration installs Redis as the data broker service. While this isn't strictly required when running Pomerium by itself, it is necessary for Pomerium Enterprise, and still highly recommended if not.
+
+The configuration detailed below uses the Pomerium Ingress Controller. See our [Ingress Controller] doc for more detailed information and configuration options.
 :::
 
 ## Certificates
@@ -224,7 +226,10 @@ You can also navigate to the special pomerium endpoint `hello.localhost.pomerium
 
 ## Next Steps
 
-Congratulations on installing Pomerium to your Kubernetes cluster! If you're installing Pomerium Enterprise next, see [Install Pomerium Enterprise in Helm]. If not, check our our [guides](/guides/readme.md) to install common services behind Pomerium.
+Congratulations on installing Pomerium to your Kubernetes cluster!
+
+- See [Ingress Controller] to learn more about the Pomerium Ingress Controller.
+- If you're installing Pomerium Enterprise next, see [Install Pomerium Enterprise in Helm]. If not, check our our [guides](/guides/readme.md) to install common services behind Pomerium.
 
 [cert-manager]: https://cert-manager.io/docs/
 [cert-manager: CA]: https://cert-manager.io/docs/configuration/ca/
@@ -232,6 +237,7 @@ Congratulations on installing Pomerium to your Kubernetes cluster! If you're ins
 [Helm]: https://helm.sh
 [Install helm]: https://helm.sh/docs/using_helm/
 [identity provider]: ../identity-providers/readme.md
+[Ingress Controller]: /docs/k8s/ingress.md
 [Install Pomerium Enterprise in Helm]: /enterprise/install/helm.md
 [Install kubectl]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
 [Kubernetes]: https://kubernetes.io
