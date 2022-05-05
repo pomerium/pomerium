@@ -217,6 +217,65 @@ settings:
       A policy can only support PPL or Rego. Once one is set, the other tab is disabled.
       :::
 
+      ::: details Example Rego Policy
+
+      This example policy compares the `given_name` claim from a user's session against a list of popular first names, and only allows the 100 most popular first names.
+
+      ```rego
+      package pomerium.policy
+
+      session = s {
+        s = gset_databroker_record("type.googleapis.com/user.ServiceAccount", input.session.id)
+        s != null
+      } else = s {
+        s = get_databroker_record("type.googleapis.com/session.Session", input.session.id)
+        s != null
+      } else = {} {
+        true
+      }
+
+      user = u {
+        u = get_databroker_record("type.googleapis.com/user.User", session.user_id)
+      } else = {} {
+        true
+      }
+
+      allow = [true, {"custom-rego-authorized"}] {
+        # grab all the claims from the user and session objects
+        session_claims := object.get(session, "claims", {})
+        user_claims := object.get(user, "claims", {})
+        all_claims := object.union(session_claims, user_claims)
+
+        # get the given_name claim. claim values are always an array of strings
+        given_names := object.get(all_claims, "given_name", [])
+
+        # query a JSON dump of the most popular baby names from 2020
+        response := http.send({
+          "method": "GET",
+          "url": "https://raw.githubusercontent.com/aruljohn/popular-baby-names/master/2020/boy_names_2020.json",
+          "force_json_decode": true,
+        })
+
+        # only include the top 100 names
+        all_names := response.body.names
+        popular_names := array.slice(all_names, 0, 99)
+
+        # check that there's a given name in the popular names
+        some i
+        some j
+        popular_names[i] == given_names[j]
+      } else = [false, {"custom-rego-unauthorized"}] {
+        session.id != ""
+      } else = [false, {"user-unauthenticated"}] {
+        true
+      }
+
+      ```
+
+      This example pulls session data from the Databroker service using `type.googleapis.com/session.Session` for users and `type.googleapis.com/user.ServiceAccount` for service accounts.
+
+      :::
+
       ### Overrides
 
       - **Any Authenticated User**: This setting will allow access to a route with this policy attached to any user who can authenticate to your Identity Provider (**IdP**).
