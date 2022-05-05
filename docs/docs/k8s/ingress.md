@@ -159,7 +159,10 @@ Most configuration keys in non-Kubernetes deployments can be specified as annota
 - [`ingress.pomerium.io/outlier_detection`]
 - [`ingress.pomerium.io/pass_identity_headers`]
 - [`ingress.pomerium.io/policy`]
+- [`ingress.pomerium.io/prefix_rewrite`]
 - [`ingress.pomerium.io/preserve_host_header`]
+- [`ingress.pomerium.io/regex_rewrite_pattern`]
+- [`ingress.pomerium.io/regex_rewrite_substitution`]
 - [`ingress.pomerium.io/remove_request_headers`]
 - [`ingress.pomerium.io/rewrite_response_headers`]
 - [`ingress.pomerium.io/set_request_headers`]
@@ -405,7 +408,10 @@ For more information on the Pomerium Ingress Controller or the Kubernetes concep
 [`ingress.pomerium.io/outlier_detection`]: /reference/readme.md#outlier-detection
 [`ingress.pomerium.io/pass_identity_headers`]: /reference/readme.md#pass-identity-headers
 [`ingress.pomerium.io/policy`]: /reference/readme.md#policy
+[`ingress.pomerium.io/prefix_rewrite`]: /reference/readme.md#prefix-rewrite
 [`ingress.pomerium.io/preserve_host_header`]: /reference/readme.md#host-rewrite
+[`ingress.pomerium.io/regex_rewrite_pattern`]: /reference/readme.md#regex-rewrite
+[`ingress.pomerium.io/regex_rewrite_substitution`]: /reference/readme.md#regex-rewrite
 [`ingress.pomerium.io/remove_request_headers`]: /reference/readme.md#remove-request-headers
 [`ingress.pomerium.io/rewrite_response_headers`]: /reference/readme.md#rewrite-response-headers
 [`ingress.pomerium.io/set_request_headers`]: /reference/readme.md#set-request-headers
