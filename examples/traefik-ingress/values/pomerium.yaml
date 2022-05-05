@@ -13,8 +13,11 @@ config:
   routes:
     - from: https://hello.localhost.pomerium.io
       to: http://hello-nginx
-      allowed_domains:
-        - gmail.com
+      policy:
+        - allow:
+            or:
+              - domain:
+                  is: gmail.com
 ingress:
   annotations:
     traefik.ingress.kubernetes.io/router.tls: "true"
