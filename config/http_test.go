@@ -37,6 +37,13 @@ func TestHTTPTransport(t *testing.T) {
 }
 
 func TestPolicyHTTPTransport(t *testing.T) {
+	originalTransport := http.DefaultTransport
+	defer func() {
+		http.DefaultTransport = originalTransport
+	}()
+	src := NewStaticSource(&Config{Options: &Options{}})
+	http.DefaultTransport = NewHTTPTransport(src)
+
 	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
