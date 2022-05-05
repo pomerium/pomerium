@@ -62,6 +62,7 @@ func NewPolicyHTTPTransport(options *Options, policy *Policy, disableHTTP2 bool)
 	//
 	if disableHTTP2 {
 		transport.TLSNextProto = map[string]func(authority string, c *tls.Conn) http.RoundTripper{}
+		transport.ForceAttemptHTTP2 = false
 	}
 
 	var tlsClientConfig tls.Config
@@ -111,6 +112,7 @@ func NewPolicyHTTPTransport(options *Options, policy *Policy, disableHTTP2 bool)
 	// We avoid setting a custom client config unless we have to as
 	// if TLSClientConfig is nil, the default configuration is used.
 	if isCustomClientConfig {
+		transport.DialTLSContext = nil
 		transport.TLSClientConfig = &tlsClientConfig
 	}
 	return c.Then(transport)
