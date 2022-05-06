@@ -640,6 +640,25 @@ func TestJwksEndpoint(t *testing.T) {
 func TestAuthenticate_userInfo(t *testing.T) {
 	t.Parallel()
 
+	t.Run("cookie-redirect-uri", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest("GET", "https://authenticate.service.cluster.local/.pomerium/?pomerium_redirect_uri=https://www.example.com", nil)
+		var a Authenticate
+		a.state = newAtomicAuthenticateState(&authenticateState{
+			cookieSecret: cryptutil.NewKey(),
+		})
+		a.options = config.NewAtomicOptions()
+		a.options.Store(&config.Options{
+			SharedKey:                     cryptutil.NewBase64Key(),
+			AuthenticateURLString:         "https://authenticate.example.com",
+			AuthenticateInternalURLString: "https://authenticate.service.cluster.local",
+		})
+		err := a.userInfo(w, r)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusFound, w.Code)
+		assert.Equal(t, "https://authenticate.example.com/.pomerium/", w.Header().Get("Location"))
+	})
+
 	now := time.Now()
 	tests := []struct {
 		name         string

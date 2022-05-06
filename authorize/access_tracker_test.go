@@ -92,30 +92,30 @@ func TestAccessTracker(t *testing.T) {
 				mu.Lock()
 				defer mu.Unlock()
 
-				switch in.GetRecord().GetType() {
-				case "type.googleapis.com/session.Session":
-					data, _ := in.GetRecord().GetData().UnmarshalNew()
-					sessions[in.Record.GetId()] = data.(*session.Session)
-					return &databroker.PutResponse{
-						Record: &databroker.Record{
-							Type: in.GetRecord().GetType(),
-							Id:   in.GetRecord().GetId(),
+				res := new(databroker.PutResponse)
+				for _, record := range in.GetRecords() {
+					switch record.GetType() {
+					case "type.googleapis.com/session.Session":
+						data, _ := record.GetData().UnmarshalNew()
+						sessions[record.GetId()] = data.(*session.Session)
+						res.Records = append(res.Records, &databroker.Record{
+							Type: record.GetType(),
+							Id:   record.GetId(),
 							Data: protoutil.NewAny(data),
-						},
-					}, nil
-				case "type.googleapis.com/user.ServiceAccount":
-					data, _ := in.GetRecord().GetData().UnmarshalNew()
-					serviceAccounts[in.Record.GetId()] = data.(*user.ServiceAccount)
-					return &databroker.PutResponse{
-						Record: &databroker.Record{
-							Type: in.GetRecord().GetType(),
-							Id:   in.GetRecord().GetId(),
+						})
+					case "type.googleapis.com/user.ServiceAccount":
+						data, _ := record.GetData().UnmarshalNew()
+						serviceAccounts[record.GetId()] = data.(*user.ServiceAccount)
+						res.Records = append(res.Records, &databroker.Record{
+							Type: record.GetType(),
+							Id:   record.GetId(),
 							Data: protoutil.NewAny(data),
-						},
-					}, nil
-				default:
-					return nil, status.Errorf(codes.InvalidArgument, "unknown type: %s", in.GetRecord().GetType())
+						})
+					default:
+						return nil, status.Errorf(codes.InvalidArgument, "unknown type: %s", record.GetType())
+					}
 				}
+				return res, nil
 			},
 		},
 	}, 200, time.Second)

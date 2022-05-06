@@ -142,23 +142,6 @@ func (backend *Backend) Get(_ context.Context, recordType, id string) (*databrok
 	return dup(record), nil
 }
 
-// GetAll gets all the records from the in-memory store.
-func (backend *Backend) GetAll(_ context.Context) ([]*databroker.Record, *databroker.Versions, error) {
-	backend.mu.RLock()
-	defer backend.mu.RUnlock()
-
-	var all []*databroker.Record
-	for _, rs := range backend.lookup {
-		for _, r := range rs.List() {
-			all = append(all, dup(r))
-		}
-	}
-	return all, &databroker.Versions{
-		ServerVersion:       backend.serverVersion,
-		LatestRecordVersion: backend.lastVersion,
-	}, nil
-}
-
 // GetOptions returns the options for a type in the in-memory store.
 func (backend *Backend) GetOptions(_ context.Context, recordType string) (*databroker.Options, error) {
 	backend.mu.RLock()
@@ -204,36 +187,42 @@ func (backend *Backend) Lease(_ context.Context, leaseName, leaseID string, ttl 
 }
 
 // Put puts a record into the in-memory store.
-func (backend *Backend) Put(ctx context.Context, record *databroker.Record) (serverVersion uint64, err error) {
-	if record == nil {
-		return backend.serverVersion, fmt.Errorf("records cannot be nil")
-	}
-
-	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("db_op", "put").
-			Str("db_id", record.Id).
-			Str("db_type", record.Type)
-	})
-
+func (backend *Backend) Put(ctx context.Context, records []*databroker.Record) (serverVersion uint64, err error) {
 	backend.mu.Lock()
 	defer backend.mu.Unlock()
 	defer backend.onChange.Broadcast(ctx)
 
-	backend.recordChange(record)
+	recordTypes := map[string]struct{}{}
+	for _, record := range records {
+		if record == nil {
+			return backend.serverVersion, fmt.Errorf("records cannot be nil")
+		}
 
-	c, ok := backend.lookup[record.GetType()]
-	if !ok {
-		c = NewRecordCollection()
-		backend.lookup[record.GetType()] = c
+		ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+			return c.Str("db_op", "put").
+				Str("db_id", record.Id).
+				Str("db_type", record.Type)
+		})
+
+		backend.recordChange(record)
+
+		c, ok := backend.lookup[record.GetType()]
+		if !ok {
+			c = NewRecordCollection()
+			backend.lookup[record.GetType()] = c
+		}
+
+		if record.GetDeletedAt() != nil {
+			c.Delete(record.GetId())
+		} else {
+			c.Put(dup(record))
+		}
+
+		recordTypes[record.GetType()] = struct{}{}
 	}
-
-	if record.GetDeletedAt() != nil {
-		c.Delete(record.GetId())
-	} else {
-		c.Put(dup(record))
+	for recordType := range recordTypes {
+		backend.enforceCapacity(recordType)
 	}
-
-	backend.enforceCapacity(record.GetType())
 
 	return backend.serverVersion, nil
 }
@@ -255,10 +244,23 @@ func (backend *Backend) SetOptions(_ context.Context, recordType string, options
 
 // Sync returns a record stream for any changes after recordVersion.
 func (backend *Backend) Sync(ctx context.Context, serverVersion, recordVersion uint64) (storage.RecordStream, error) {
-	if serverVersion != backend.serverVersion {
+	backend.mu.RLock()
+	currentServerVersion := backend.serverVersion
+	backend.mu.RUnlock()
+
+	if serverVersion != currentServerVersion {
 		return nil, storage.ErrInvalidServerVersion
 	}
-	return newRecordStream(ctx, backend, recordVersion), nil
+	return newSyncRecordStream(ctx, backend, recordVersion), nil
+}
+
+// SyncLatest returns a record stream for all the records.
+func (backend *Backend) SyncLatest(ctx context.Context) (serverVersion uint64, stream storage.RecordStream, err error) {
+	backend.mu.RLock()
+	currentServerVersion := backend.serverVersion
+	backend.mu.RUnlock()
+
+	return currentServerVersion, newSyncLatestRecordStream(ctx, backend), nil
 }
 
 func (backend *Backend) recordChange(record *databroker.Record) {

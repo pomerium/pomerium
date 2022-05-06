@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@dcd71f646680f2efd8db4afa5ad64fdcba30e748 # pin@v3
+        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
         with:
           fetch-depth: 0
 
@@ -23,7 +23,7 @@ jobs:
         uses: docker/setup-qemu-action@27d0a4f181a40b142cce983c5393082c365d1480 # pin@v1
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@94ab11c41e45d028884a99163086648e898eed25 # pin@v1
+        uses: docker/setup-buildx-action@f211e3e9ded2d9377c8cadc4489a4e38014bc4c9 # pin@v1
 
       - name: Login to DockerHub
         uses: docker/login-action@dd4fa0671be5250ee6f50aedf4cb05514abda2c7 # pin@v1
@@ -77,19 +77,19 @@ jobs:
     needs: publish
     steps:
       - name: Checkout Gitops Repo
-        uses: actions/checkout@dcd71f646680f2efd8db4afa5ad64fdcba30e748 # pin@v3
+        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
         with:
           repository: pomerium/gitops-argocd
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump psql environment
-        uses: mikefarah/yq@ed5b811f37384d92f62898492ddd81b6dc3af38f # pin@v4.23.1
+        uses: mikefarah/yq@1425d0720ec16e51172b88c871ac85f56bcd8ae3 # pin@v4.23.1
         with:
           cmd: yq eval '.pomerium.image.tag = "${{ needs.publish.outputs.sha-tag }}"' -i
             projects/pomerium-master-postgres/pomerium/values.yaml
 
       - name: Bump mysql environment
-        uses: mikefarah/yq@ed5b811f37384d92f62898492ddd81b6dc3af38f # pin@v4.23.1
+        uses: mikefarah/yq@1425d0720ec16e51172b88c871ac85f56bcd8ae3 # pin@v4.23.1
         with:
           cmd: yq eval '.pomerium.image.tag = "${{ needs.publish.outputs.sha-tag }}"' -i
             projects/pomerium-master-mysql/pomerium/values.yaml

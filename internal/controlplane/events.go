@@ -50,11 +50,11 @@ func (srv *Server) storeEvent(ctx context.Context, evt proto.Message) error {
 	}
 
 	_, err = client.Put(ctx, &databrokerpb.PutRequest{
-		Record: &databrokerpb.Record{
+		Records: []*databrokerpb.Record{{
 			Type: any.GetTypeUrl(),
 			Id:   id,
 			Data: any,
-		},
+		}},
 	})
 	if err != nil {
 		return err

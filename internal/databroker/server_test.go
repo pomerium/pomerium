@@ -58,19 +58,19 @@ func TestServer_Get(t *testing.T) {
 		s.Id = "1"
 		any := protoutil.NewAny(s)
 		_, err := srv.Put(context.Background(), &databroker.PutRequest{
-			Record: &databroker.Record{
+			Records: []*databroker.Record{{
 				Type: any.TypeUrl,
 				Id:   s.Id,
 				Data: any,
-			},
+			}},
 		})
 		assert.NoError(t, err)
 		_, err = srv.Put(context.Background(), &databroker.PutRequest{
-			Record: &databroker.Record{
+			Records: []*databroker.Record{{
 				Type:      any.TypeUrl,
 				Id:        s.Id,
 				DeletedAt: timestamppb.Now(),
-			},
+			}},
 		})
 		assert.NoError(t, err)
 		_, err = srv.Get(context.Background(), &databroker.GetRequest{
@@ -90,11 +90,11 @@ func TestServer_Options(t *testing.T) {
 	s.Id = "1"
 	any := protoutil.NewAny(s)
 	_, err := srv.Put(context.Background(), &databroker.PutRequest{
-		Record: &databroker.Record{
+		Records: []*databroker.Record{{
 			Type: any.TypeUrl,
 			Id:   s.Id,
 			Data: any,
-		},
+		}},
 	})
 	assert.NoError(t, err)
 	_, err = srv.SetOptions(context.Background(), &databroker.SetOptionsRequest{
@@ -139,11 +139,11 @@ func TestServer_Query(t *testing.T) {
 	s.Id = "1"
 	any := protoutil.NewAny(s)
 	_, err := srv.Put(context.Background(), &databroker.PutRequest{
-		Record: &databroker.Record{
+		Records: []*databroker.Record{{
 			Type: any.TypeUrl,
 			Id:   s.Id,
 			Data: any,
-		},
+		}},
 	})
 	assert.NoError(t, err)
 	_, err = srv.Query(context.Background(), &databroker.QueryRequest{
@@ -160,11 +160,11 @@ func TestServer_Sync(t *testing.T) {
 	s.Id = "1"
 	any := protoutil.NewAny(s)
 	_, err := srv.Put(context.Background(), &databroker.PutRequest{
-		Record: &databroker.Record{
+		Records: []*databroker.Record{{
 			Type: any.TypeUrl,
 			Id:   s.Id,
 			Data: any,
-		},
+		}},
 	})
 	assert.NoError(t, err)
 
@@ -216,11 +216,11 @@ func TestServer_Sync(t *testing.T) {
 		}
 
 		_, err = srv.Put(context.Background(), &databroker.PutRequest{
-			Record: &databroker.Record{
+			Records: []*databroker.Record{{
 				Type: any.TypeUrl,
 				Id:   s.Id,
 				Data: any,
-			},
+			}},
 		})
 		assert.NoError(t, err)
 
@@ -244,11 +244,11 @@ func TestServerInvalidStorage(t *testing.T) {
 	s.Id = "1"
 	any := protoutil.NewAny(s)
 	_, err := srv.Put(context.Background(), &databroker.PutRequest{
-		Record: &databroker.Record{
+		Records: []*databroker.Record{{
 			Type: any.TypeUrl,
 			Id:   s.Id,
 			Data: any,
-		},
+		}},
 	})
 	_ = assert.Error(t, err) && assert.Contains(t, err.Error(), "unsupported storage type")
 }
@@ -265,11 +265,11 @@ func TestServerRedis(t *testing.T) {
 		s.Id = "1"
 		any := protoutil.NewAny(s)
 		_, err := srv.Put(context.Background(), &databroker.PutRequest{
-			Record: &databroker.Record{
+			Records: []*databroker.Record{{
 				Type: any.TypeUrl,
 				Id:   s.Id,
 				Data: any,
-			},
+			}},
 		})
 		assert.NoError(t, err)
 

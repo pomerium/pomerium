@@ -14,6 +14,9 @@ description: >-
 
 If a Pomerium route is configured to [require device authentication](/docs/topics/ppl.md#device-matcher), then the user must register a [trusted execution environment](/docs/topics/device-identity.md#authenticated-device-types) (**TEE**) device before accessing the route. In Enterprise environments, policies can require that devices be approved in the Pomerium Enterprise Console.
 
+
+<iframe width="800" height="500" src="https://www.youtube.com/embed/aJzgnaXEpLo?rel=0" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen />
+
 To make the management of approved devices easier, the Enterprise Console lets administrators create registration links that will allow users to register devices as pre-approved, following the [**TOFU**](https://en.wikipedia.org/wiki/Trust_on_first_use) authentication scheme.
 
 This guide instructs Pomerium Enterprise admins on how to create user-specific enrollment links.

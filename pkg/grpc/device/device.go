@@ -29,12 +29,12 @@ func DeleteCredential(
 
 	any := protoutil.NewAny(credential)
 	_, err = client.Put(ctx, &databroker.PutRequest{
-		Record: &databroker.Record{
+		Records: []*databroker.Record{{
 			Type:      any.GetTypeUrl(),
 			Id:        credentialID,
 			Data:      any,
 			DeletedAt: timestamppb.Now(),
-		},
+		}},
 	})
 	return credential, err
 }
@@ -54,12 +54,12 @@ func DeleteEnrollment(
 
 	any := protoutil.NewAny(enrollment)
 	_, err = client.Put(ctx, &databroker.PutRequest{
-		Record: &databroker.Record{
+		Records: []*databroker.Record{{
 			Type:      any.GetTypeUrl(),
 			Id:        enrollmentID,
 			Data:      any,
 			DeletedAt: timestamppb.Now(),
-		},
+		}},
 	})
 	return enrollment, err
 }
@@ -174,11 +174,11 @@ func PutCredential(
 
 	any := protoutil.NewAny(credential)
 	_, err := client.Put(ctx, &databroker.PutRequest{
-		Record: &databroker.Record{
+		Records: []*databroker.Record{{
 			Type: any.GetTypeUrl(),
 			Id:   credential.GetId(),
 			Data: any,
-		},
+		}},
 	})
 	return err
 }
@@ -191,11 +191,11 @@ func PutEnrollment(
 ) error {
 	any := protoutil.NewAny(enrollment)
 	_, err := client.Put(ctx, &databroker.PutRequest{
-		Record: &databroker.Record{
+		Records: []*databroker.Record{{
 			Type: any.GetTypeUrl(),
 			Id:   enrollment.GetId(),
 			Data: any,
-		},
+		}},
 	})
 	return err
 }
@@ -208,11 +208,11 @@ func PutOwnerCredentialRecord(
 ) error {
 	any := protoutil.NewAny(ownerCredentialRecord)
 	_, err := client.Put(ctx, &databroker.PutRequest{
-		Record: &databroker.Record{
+		Records: []*databroker.Record{{
 			Type: any.GetTypeUrl(),
 			Id:   base58.Encode(ownerCredentialRecord.GetId()),
 			Data: any,
-		},
+		}},
 	})
 	return err
 }
