@@ -211,7 +211,7 @@ jobs:
         uses: docker/setup-buildx-action@f211e3e9ded2d9377c8cadc4489a4e38014bc4c9 # pin@v1
 
       - name: Docker Build
-        uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a # pin@v2
+        uses: docker/build-push-action@e551b19e49efd4e98792db7592c17c09b89db8d8 # pin@v2
         with:
           context: .
           file: ./Dockerfile
