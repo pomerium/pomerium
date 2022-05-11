@@ -22,6 +22,9 @@ func New(
 	fileManager *filemgr.Manager,
 	reproxyHandler *reproxy.Handler,
 ) *Builder {
+	if reproxyHandler == nil {
+		reproxyHandler = reproxy.New()
+	}
 	return &Builder{
 		localGRPCAddress:    localGRPCAddress,
 		localHTTPAddress:    localHTTPAddress,
