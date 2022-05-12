@@ -87,7 +87,7 @@ idp_provider: "auth0"
 idp_provider_url: "https://awesome-company.auth0.com"
 idp_client_id: "REPLACE_ME" # from the web application
 idp_client_secret: "REPLACE_ME" # from the web application
-idp_service_acount: "REPLACE_ME" # built from the machine-to-machine application, base64-encoded
+idp_service_account: "REPLACE_ME" # built from the machine-to-machine application, base64-encoded
 ```
 :::
 ::: tab Environment Variables
