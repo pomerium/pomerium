@@ -146,12 +146,12 @@ merge_with_or(results) = [true, reasons, additional_data] {
 // true, or vice-versa.
 func InvertCriterionResult() *ast.Rule {
 	return ast.MustParseRule(`
-invert_criterion_result(in) = out {
-	in[0]
-	out = array.concat([false], array.slice(in, 1, count(in)))
+invert_criterion_result(ins) = out {
+	ins[0]
+	out = array.concat([false], array.slice(ins, 1, count(ins)))
 } else = out {
-	not in[0]
-	out = array.concat([true], array.slice(in, 1, count(in)))
+	not ins[0]
+	out = array.concat([true], array.slice(ins, 1, count(ins)))
 }
 `)
 }
