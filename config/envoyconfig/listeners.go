@@ -443,6 +443,8 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		return nil, err
 	}
 	tc := marshalAny(&envoy_http_connection_manager.HttpConnectionManager{
+		AlwaysSetRequestIdInResponse: true,
+
 		CodecType:  options.GetCodecType().ToEnvoy(),
 		StatPrefix: "ingress",
 		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
