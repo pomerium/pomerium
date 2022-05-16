@@ -10,9 +10,16 @@ import (
 func newSyncLatestRecordStream(
 	ctx context.Context,
 	backend *Backend,
-) storage.RecordStream {
+	recordType string,
+	expr storage.FilterExpression,
+) (storage.RecordStream, error) {
+	filter, err := storage.RecordStreamFilterFromFilterExpression(expr)
+	if err != nil {
+		return nil, err
+	}
+
 	var ready []*databroker.Record
-	return storage.NewRecordStream(ctx, backend.closed, []storage.RecordStreamGenerator{
+	generator := storage.FilteredRecordStreamGenerator(
 		func(ctx context.Context, block bool) (*databroker.Record, error) {
 			backend.mu.RLock()
 			for _, co := range backend.lookup {
@@ -21,6 +28,11 @@ func newSyncLatestRecordStream(
 			backend.mu.RUnlock()
 			return nil, storage.ErrStreamDone
 		},
+		filter,
+	)
+
+	return storage.NewRecordStream(ctx, backend.closed, []storage.RecordStreamGenerator{
+		generator,
 		func(ctx context.Context, block bool) (*databroker.Record, error) {
 			if len(ready) == 0 {
 				return nil, storage.ErrStreamDone
@@ -30,7 +42,7 @@ func newSyncLatestRecordStream(
 			ready = ready[1:]
 			return dup(record), nil
 		},
-	}, nil)
+	}, nil), nil
 }
 
 func newSyncRecordStream(
