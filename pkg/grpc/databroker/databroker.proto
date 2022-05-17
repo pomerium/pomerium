@@ -6,6 +6,7 @@ option go_package = "github.com/pomerium/pomerium/pkg/grpc/databroker";
 import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
 message Record {
@@ -40,10 +41,13 @@ message QueryRequest {
   string query = 2;
   int64 offset = 3;
   int64 limit = 4;
+  google.protobuf.Struct filter = 5;
 }
 message QueryResponse {
   repeated Record records = 1;
   int64 total_count = 2;
+  uint64 server_version = 3;
+  uint64 record_version = 4;
 }
 
 message PutRequest { repeated Record records = 1; }
