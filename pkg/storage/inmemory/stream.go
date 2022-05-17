@@ -24,17 +24,18 @@ func newSyncLatestRecordStream(
 	}
 
 	var ready []*databroker.Record
-	generator := storage.FilteredRecordStreamGenerator(
-		func(ctx context.Context, block bool) (*databroker.Record, error) {
-			backend.mu.RLock()
-			for _, co := range backend.lookup {
-				ready = append(ready, co.List()...)
+	generator := func(ctx context.Context, block bool) (*databroker.Record, error) {
+		backend.mu.RLock()
+		for _, co := range backend.lookup {
+			for _, record := range co.List() {
+				if filter(record) {
+					ready = append(ready, record)
+				}
 			}
-			backend.mu.RUnlock()
-			return nil, storage.ErrStreamDone
-		},
-		filter,
-	)
+		}
+		backend.mu.RUnlock()
+		return nil, storage.ErrStreamDone
+	}
 
 	return storage.NewRecordStream(ctx, backend.closed, []storage.RecordStreamGenerator{
 		generator,
