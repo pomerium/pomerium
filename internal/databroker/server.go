@@ -339,9 +339,6 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 
 	for recordStream.Next(false) {
 		record := recordStream.Record()
-		if record.GetVersion() > recordVersion {
-			recordVersion = record.GetVersion()
-		}
 		if req.GetType() == "" || req.GetType() == record.GetType() {
 			err = stream.Send(&databroker.SyncLatestResponse{
 				Response: &databroker.SyncLatestResponse_Record{
