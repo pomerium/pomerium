@@ -151,7 +151,7 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 		return nil, err
 	}
 
-	_, _, stream, err := db.SyncLatest(ctx, req.GetType(), expr)
+	serverVersion, recordVersion, stream, err := db.SyncLatest(ctx, req.GetType(), expr)
 	if err != nil {
 		return nil, err
 	}
@@ -173,8 +173,10 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 
 	records, totalCount := databroker.ApplyOffsetAndLimit(filtered, int(req.GetOffset()), int(req.GetLimit()))
 	return &databroker.QueryResponse{
-		Records:    records,
-		TotalCount: int64(totalCount),
+		Records:       records,
+		TotalCount:    int64(totalCount),
+		ServerVersion: serverVersion,
+		RecordVersion: recordVersion,
 	}, nil
 }
 
