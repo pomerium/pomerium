@@ -130,7 +130,11 @@ func (e *encryptedBackend) Sync(ctx context.Context, serverVersion, recordVersio
 	}, nil
 }
 
-func (e *encryptedBackend) SyncLatest(ctx context.Context, recordType string, filter FilterExpression) (serverVersion, recordVersion uint64, stream RecordStream, err error) {
+func (e *encryptedBackend) SyncLatest(
+	ctx context.Context,
+	recordType string,
+	filter FilterExpression,
+) (serverVersion, recordVersion uint64, stream RecordStream, err error) {
 	serverVersion, recordVersion, stream, err = e.underlying.SyncLatest(ctx, recordType, filter)
 	if err != nil {
 		return serverVersion, recordVersion, nil, err

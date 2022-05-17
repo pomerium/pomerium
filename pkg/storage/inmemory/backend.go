@@ -258,14 +258,15 @@ func (backend *Backend) Sync(ctx context.Context, serverVersion, recordVersion u
 func (backend *Backend) SyncLatest(
 	ctx context.Context,
 	recordType string,
-	filter storage.FilterExpression,
+	expr storage.FilterExpression,
 ) (serverVersion, recordVersion uint64, stream storage.RecordStream, err error) {
 	backend.mu.RLock()
 	serverVersion = backend.serverVersion
 	recordVersion = backend.lastVersion
 	backend.mu.RUnlock()
 
-	return serverVersion, recordVersion, newSyncLatestRecordStream(ctx, backend), nil
+	stream, err = newSyncLatestRecordStream(ctx, backend, recordType, expr)
+	return serverVersion, recordVersion, stream, err
 }
 
 func (backend *Backend) recordChange(record *databroker.Record) {

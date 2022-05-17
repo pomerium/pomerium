@@ -17,6 +17,11 @@ func newSyncLatestRecordStream(
 	if err != nil {
 		return nil, err
 	}
+	if recordType != "" {
+		filter = filter.And(func(record *databroker.Record) (keep bool) {
+			return record.GetType() == recordType
+		})
+	}
 
 	var ready []*databroker.Record
 	generator := storage.FilteredRecordStreamGenerator(
