@@ -254,12 +254,26 @@ func (backend *Backend) Sync(ctx context.Context, serverVersion, recordVersion u
 
 // SyncLatest returns a record stream of all the records. Some records may be returned twice if the are updated while the
 // stream is streaming.
-func (backend *Backend) SyncLatest(ctx context.Context) (serverVersion uint64, stream storage.RecordStream, err error) {
+func (backend *Backend) SyncLatest(
+	ctx context.Context,
+	recordType string,
+	expr storage.FilterExpression,
+) (serverVersion, recordVersion uint64, stream storage.RecordStream, err error) {
 	serverVersion, err = backend.getOrCreateServerVersion(ctx)
 	if err != nil {
-		return 0, nil, err
+		return serverVersion, recordVersion, nil, err
 	}
-	return serverVersion, newSyncLatestRecordStream(ctx, backend), nil
+
+	recordVersion, err = backend.client.Get(ctx, lastVersionKey).Uint64()
+	if errors.Is(err, redis.Nil) {
+		// this happens if there are no records
+		err = nil
+	} else if err != nil {
+		return serverVersion, recordVersion, nil, err
+	}
+
+	stream, err = newSyncLatestRecordStream(ctx, backend, recordType, expr)
+	return serverVersion, recordVersion, stream, err
 }
 
 func (backend *Backend) put(ctx context.Context, records []*databroker.Record) error {

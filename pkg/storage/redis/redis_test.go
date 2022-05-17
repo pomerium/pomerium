@@ -240,7 +240,7 @@ func TestCapacity(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		_, stream, err := backend.SyncLatest(ctx)
+		_, _, stream, err := backend.SyncLatest(ctx, "EXAMPLE", nil)
 		require.NoError(t, err)
 		defer stream.Close()
 

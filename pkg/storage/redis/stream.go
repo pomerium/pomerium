@@ -63,23 +63,23 @@ func newSyncRecordStream(
 func newSyncLatestRecordStream(
 	ctx context.Context,
 	backend *Backend,
-) storage.RecordStream {
-	var recordVersion, cursor uint64
+	recordType string,
+	expr storage.FilterExpression,
+) (storage.RecordStream, error) {
+	filter, err := storage.RecordStreamFilterFromFilterExpression(expr)
+	if err != nil {
+		return nil, err
+	}
+	if recordType != "" {
+		filter = filter.And(func(record *databroker.Record) (keep bool) {
+			return record.GetType() == recordType
+		})
+	}
+
+	var cursor uint64
 	scannedOnce := false
 	var scannedRecords []*databroker.Record
-	return storage.NewRecordStream(ctx, backend.closed, []storage.RecordStreamGenerator{
-		// 1. get the current record version
-		func(ctx context.Context, block bool) (*databroker.Record, error) {
-			var err error
-			recordVersion, err = backend.client.Get(ctx, lastVersionKey).Uint64()
-			if errors.Is(err, redis.Nil) {
-				// this happens if there are no records
-			} else if err != nil {
-				return nil, err
-			}
-			return nil, storage.ErrStreamDone
-		},
-		// 2. stream all the records
+	generator := storage.FilteredRecordStreamGenerator(
 		func(ctx context.Context, block bool) (*databroker.Record, error) {
 			for {
 				if len(scannedRecords) > 0 {
@@ -102,11 +102,12 @@ func newSyncLatestRecordStream(
 				scannedOnce = true
 			}
 		},
-		// 3. stream any records which have been updated in the interim
-		func(ctx context.Context, block bool) (*databroker.Record, error) {
-			return nextChangedRecord(ctx, backend, &recordVersion)
-		},
-	}, nil)
+		filter,
+	)
+
+	return storage.NewRecordStream(ctx, backend.closed, []storage.RecordStreamGenerator{
+		generator,
+	}, nil), nil
 }
 
 func nextScannedRecords(ctx context.Context, backend *Backend, cursor *uint64) ([]*databroker.Record, error) {
