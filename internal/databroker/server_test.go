@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sort"
 	"testing"
 	"time"
 
@@ -175,6 +176,13 @@ func TestServer_Query(t *testing.T) {
 	assert.NoError(t, err)
 
 	if assert.Len(t, res.Records, 4) {
+		sort.Slice(res.Records, func(i, j int) bool {
+			return res.Records[i].GetId() < res.Records[j].GetId()
+		})
+		assert.Equal(t, "1", res.Records[0].GetId())
+		assert.Equal(t, "3", res.Records[1].GetId())
+		assert.Equal(t, "5", res.Records[2].GetId())
+		assert.Equal(t, "7", res.Records[3].GetId())
 	}
 }
 
