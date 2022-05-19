@@ -2,11 +2,11 @@ package postgres
 
 import (
 	"context"
-	"errors"
 	"time"
 
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 
+	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -33,7 +33,7 @@ func newRecordStream(
 		backend: backend,
 		expr:    expr,
 	}
-	stream.ctx, stream.cancel = context.WithCancel(ctx)
+	stream.ctx, stream.cancel = contextutil.Merge(ctx, backend.closeCtx)
 	return stream
 }
 
@@ -52,13 +52,13 @@ func (stream *recordStream) Next(block bool) bool {
 		return true
 	}
 
-	var conn *pgx.Conn
-	_, conn, stream.err = stream.backend.init(stream.ctx)
+	var pool *pgxpool.Pool
+	_, pool, stream.err = stream.backend.init(stream.ctx)
 	if stream.err != nil {
 		return false
 	}
 
-	stream.pending, stream.err = listRecords(stream.ctx, conn, stream.expr, stream.offset, recordBatchSize)
+	stream.pending, stream.err = listRecords(stream.ctx, pool, stream.expr, stream.offset, recordBatchSize)
 	if stream.err != nil {
 		return false
 	}
@@ -103,7 +103,7 @@ func newChangedRecordStream(
 		ticker:        time.NewTicker(watchPollInterval),
 		changed:       backend.onChange.Bind(),
 	}
-	stream.ctx, stream.cancel = context.WithCancel(ctx)
+	stream.ctx, stream.cancel = contextutil.Merge(ctx, backend.closeCtx)
 	return stream
 }
 
@@ -120,18 +120,18 @@ func (stream *changedRecordStream) Next(block bool) bool {
 			return false
 		}
 
-		var conn *pgx.Conn
-		_, conn, stream.err = stream.backend.init(stream.ctx)
+		var pool *pgxpool.Pool
+		_, pool, stream.err = stream.backend.init(stream.ctx)
 		if stream.err != nil {
 			return false
 		}
 
 		stream.record, stream.err = getNextChangedRecord(
 			stream.ctx,
-			conn,
+			pool,
 			stream.recordVersion,
 		)
-		if errors.Is(stream.err, storage.ErrNotFound) {
+		if isNotFound(stream.err) {
 			stream.err = nil
 		} else if stream.err != nil {
 			return false

@@ -9,10 +9,13 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -22,6 +25,7 @@ var (
 	migrationInfoTableName = "migration_info"
 	recordsTableName       = "records"
 	recordChangesTableName = "record_changes"
+	recordChangeNotifyName = "pomerium_record_change"
 	recordOptionsTableName = "record_options"
 	leasesTableName        = "leases"
 )
@@ -30,6 +34,14 @@ type querier interface {
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error)
 	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
+}
+
+func deleteChangesBefore(ctx context.Context, q querier, cutoff time.Time) error {
+	_, err := q.Exec(ctx, `
+		DELETE FROM `+schemaName+`.`+recordChangesTableName+`
+		WHERE modified_at < $1
+	`, cutoff)
+	return err
 }
 
 func dup(record *databroker.Record) *databroker.Record {
@@ -71,15 +83,14 @@ func getLatestRecordVersion(ctx context.Context, q querier) (recordVersion uint6
 func getNextChangedRecord(ctx context.Context, q querier, afterRecordVersion uint64) (*databroker.Record, error) {
 	var recordType, recordID string
 	var version uint64
-	var data pgtype.Bytea
+	var data pgtype.JSONB
 	var modifiedAt pgtype.Timestamptz
 	var deletedAt pgtype.Timestamptz
-	row := q.QueryRow(ctx, `
+	err := q.QueryRow(ctx, `
 		SELECT type, id, version, data, modified_at, deleted_at
 		  FROM `+schemaName+`.`+recordChangesTableName+`
 		 WHERE version > $1
-	`, afterRecordVersion)
-	err := row.Scan(&recordType, &recordID, &version, &data, &modifiedAt, &deletedAt)
+	`, afterRecordVersion).Scan(&recordType, &recordID, &version, &data, &modifiedAt, &deletedAt)
 	if isNotFound(err) {
 		return nil, storage.ErrNotFound
 	} else if err != nil {
@@ -87,7 +98,7 @@ func getNextChangedRecord(ctx context.Context, q querier, afterRecordVersion uin
 	}
 
 	var any anypb.Any
-	err = proto.Unmarshal(data.Bytes, &any)
+	err = protojson.Unmarshal(data.Bytes, &any)
 	if err != nil {
 		return nil, err
 	}
@@ -121,14 +132,13 @@ func getOptions(ctx context.Context, q querier, recordType string) (*databroker.
 
 func getRecord(ctx context.Context, q querier, recordType, recordID string) (*databroker.Record, error) {
 	var version uint64
-	var data pgtype.Bytea
+	var data pgtype.JSONB
 	var modifiedAt pgtype.Timestamptz
-	row := q.QueryRow(ctx, `
+	err := q.QueryRow(ctx, `
 		SELECT version, data, modified_at
 		  FROM `+schemaName+`.`+recordsTableName+`
 		 WHERE type=$1 AND id=$2
-	`, recordType, recordID)
-	err := row.Scan(&version, &data, &modifiedAt)
+	`, recordType, recordID).Scan(&version, &data, &modifiedAt)
 	if isNotFound(err) {
 		return nil, storage.ErrNotFound
 	} else if err != nil {
@@ -136,7 +146,7 @@ func getRecord(ctx context.Context, q querier, recordType, recordID string) (*da
 	}
 
 	var any anypb.Any
-	err = proto.Unmarshal(data.Bytes, &any)
+	err = protojson.Unmarshal(data.Bytes, &any)
 	if err != nil {
 		return nil, err
 	}
@@ -172,12 +182,13 @@ func listRecords(ctx context.Context, q querier, expr storage.FilterExpression, 
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var records []*databroker.Record
 	for rows.Next() {
 		var recordType, id string
 		var version uint64
-		var data pgtype.Bytea
+		var data pgtype.JSONB
 		var modifiedAt pgtype.Timestamptz
 		err = rows.Scan(&recordType, &id, &version, &data, &modifiedAt)
 		if err != nil {
@@ -185,7 +196,7 @@ func listRecords(ctx context.Context, q querier, expr storage.FilterExpression, 
 		}
 
 		var any anypb.Any
-		err = proto.Unmarshal(data.Bytes, &any)
+		err = protojson.Unmarshal(data.Bytes, &any)
 		if err != nil {
 			return nil, err
 		}
@@ -217,7 +228,7 @@ func maybeAcquireLease(ctx context.Context, q querier, leaseName, leaseID string
 }
 
 func putRecordChange(ctx context.Context, q querier, record *databroker.Record) error {
-	data := bytesaFromAny(record.GetData())
+	data := jsonbFromAny(record.GetData())
 	modifiedAt := timestamptzFromTimestamppb(record.GetModifiedAt())
 	deletedAt := timestamptzFromTimestamppb(record.GetDeletedAt())
 	err := q.QueryRow(ctx, `
@@ -233,7 +244,7 @@ func putRecordChange(ctx context.Context, q querier, record *databroker.Record) 
 }
 
 func putRecord(ctx context.Context, q querier, record *databroker.Record) error {
-	data := bytesaFromAny(record.GetData())
+	data := jsonbFromAny(record.GetData())
 	modifiedAt := timestamptzFromTimestamppb(record.GetModifiedAt())
 	var err error
 	if record.GetDeletedAt() == nil {
@@ -272,9 +283,26 @@ func setOptions(ctx context.Context, q querier, recordType string, options *data
 	return err
 }
 
-func bytesaFromAny(any *anypb.Any) pgtype.Bytea {
-	bs, _ := proto.Marshal(any)
-	return pgtype.Bytea{Status: pgtype.Present, Bytes: bs}
+func signalRecordChange(ctx context.Context, q querier) error {
+	_, err := q.Exec(ctx, `NOTIFY `+recordChangeNotifyName)
+	return err
+}
+
+func jsonbFromAny(any *anypb.Any) pgtype.JSONB {
+	if any == nil {
+		return pgtype.JSONB{Status: pgtype.Null}
+	}
+
+	bs, err := protojson.Marshal(any)
+	if err != nil {
+		log.Warn(context.Background()).
+			Err(err).
+			Str("data", prototext.Format(any)).
+			Msg("storage/postgres: error marshaling any to JSON")
+		return pgtype.JSONB{Status: pgtype.Null}
+	}
+
+	return pgtype.JSONB{Bytes: bs, Status: pgtype.Present}
 }
 
 func timestamppbFromTimestamptz(ts pgtype.Timestamptz) *timestamppb.Timestamp {

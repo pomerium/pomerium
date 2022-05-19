@@ -22,7 +22,7 @@ func TestBackend(t *testing.T) {
 	defer clearTimeout()
 
 	require.NoError(t, testutil.WithTestPostgres(func(dsn string) error {
-		backend := NewBackend(dsn)
+		backend := New(dsn)
 		defer backend.Close()
 
 		t.Run("put", func(t *testing.T) {
@@ -91,19 +91,6 @@ func TestBackend(t *testing.T) {
 			defer stream.Close()
 
 			count := map[string]int{}
-			for i := 0; i < 5; i++ {
-				if assert.True(t, stream.Next(false)) {
-					count[stream.Record().GetId()]++
-				}
-			}
-
-			for i := 0; i < 5; i++ {
-				_, err := backend.Put(ctx, []*databroker.Record{{
-					Type: "latest-test",
-					Id:   fmt.Sprint(i),
-				}})
-				require.NoError(t, err)
-			}
 
 			for stream.Next(true) {
 				count[stream.Record().GetId()]++
@@ -111,13 +98,40 @@ func TestBackend(t *testing.T) {
 			assert.NoError(t, err)
 
 			for i := 0; i < 100; i++ {
-				if i < 5 {
-					assert.Equal(t, 2, count[fmt.Sprint(i)],
-						"should return the same record twice when updated while streaming")
+				assert.Equal(t, 1, count[fmt.Sprint(i)])
+			}
+		})
+
+		t.Run("changed", func(t *testing.T) {
+			serverVersion, recordVersion, stream, err := backend.SyncLatest(ctx, "", nil)
+			require.NoError(t, err)
+			assert.NoError(t, stream.Close())
+
+			stream, err = backend.Sync(ctx, serverVersion, recordVersion)
+			require.NoError(t, err)
+			defer stream.Close()
+
+			go func() {
+				for i := 0; i < 10; i++ {
+					_, err := backend.Put(ctx, []*databroker.Record{{
+						Type: "sync-test",
+						Id:   fmt.Sprint(i),
+					}})
+					assert.NoError(t, err)
+					time.Sleep(50 * time.Millisecond)
+				}
+			}()
+
+			for i := 0; i < 10; i++ {
+				if assert.True(t, stream.Next(true)) {
+					assert.Equal(t, fmt.Sprint(i), stream.Record().GetId())
+					assert.Equal(t, "sync-test", stream.Record().GetType())
 				} else {
-					assert.Equal(t, 1, count[fmt.Sprint(i)])
+					break
 				}
 			}
+			assert.False(t, stream.Next(false))
+			assert.NoError(t, stream.Err())
 		})
 
 		return nil

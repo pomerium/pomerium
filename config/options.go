@@ -540,7 +540,7 @@ func (o *Options) Validate() error {
 
 	switch o.DataBrokerStorageType {
 	case StorageInMemoryName:
-	case StorageRedisName:
+	case StorageRedisName, StoragePostgresName:
 		if o.DataBrokerStorageConnectionString == "" {
 			return errors.New("config: missing databroker storage backend dsn")
 		}

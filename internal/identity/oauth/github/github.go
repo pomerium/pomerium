@@ -42,7 +42,7 @@ const (
 	refreshDeadline = time.Minute * 60
 )
 
-var maxTime = time.Unix(1<<63-1, 0)
+var maxTime = time.Unix(253370793661, 0) // year 9999
 
 // https://developer.github.com/apps/building-oauth-apps/understanding-scopes-for-oauth-apps/
 var defaultScopes = []string{"user:email", "read:org"}

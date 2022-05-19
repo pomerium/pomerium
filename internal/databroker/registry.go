@@ -90,7 +90,7 @@ func (srv *Server) newRegistryLocked() (registry.Interface, error) {
 	ctx := context.Background()
 
 	switch srv.cfg.storageType {
-	case config.StorageInMemoryName:
+	case config.StorageInMemoryName, config.StoragePostgresName:
 		log.Info(ctx).Msg("using in-memory registry")
 		return inmemory.New(ctx, srv.cfg.registryTTL), nil
 	case config.StorageRedisName:

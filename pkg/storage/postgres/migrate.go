@@ -16,7 +16,7 @@ var migrations = []func(context.Context, pgx.Tx) error{
 				type TEXT NOT NULL,
 				id TEXT NOT NULL,
 				version BIGINT NOT NULL,
-				data BYTEA NOT NULL,
+				data JSONB NOT NULL,
 				modified_at TIMESTAMPTZ NOT NULL DEFAULT(NOW()),
 
 				index_cidr INET NULL,
@@ -41,7 +41,7 @@ var migrations = []func(context.Context, pgx.Tx) error{
 				type TEXT NOT NULL,
 				id TEXT NOT NULL,
 				version BIGSERIAL,
-				data BYTEA NOT NULL,
+				data JSONB NOT NULL,
 				modified_at TIMESTAMPTZ NOT NULL,
 				deleted_at TIMESTAMPTZ NULL,
 

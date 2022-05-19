@@ -2,35 +2,79 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
-	"github.com/jackc/pgconn"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
+	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 // Backend is a storage Backend implemented with Postgres.
 type Backend struct {
+	cfg      *config
 	dsn      string
 	onChange *signal.Signal
 
+	closeCtx context.Context
+	close    context.CancelFunc
+
 	mu            sync.RWMutex
-	conn          *pgx.Conn
+	pool          *pgxpool.Pool
 	serverVersion uint64
 }
 
-// NewBackend creates a new Backend.
-func NewBackend(dsn string) *Backend {
-	return &Backend{
+// New creates a new Backend.
+func New(dsn string, options ...Option) *Backend {
+	backend := &Backend{
+		cfg:      getConfig(options...),
 		dsn:      dsn,
 		onChange: signal.New(),
 	}
+	backend.closeCtx, backend.close = context.WithCancel(context.Background())
+	go backend.doPeriodically(func(ctx context.Context) error {
+		_, pool, err := backend.init(ctx)
+		if err != nil {
+			return err
+		}
+
+		return deleteChangesBefore(ctx, pool, time.Now().Add(-backend.cfg.expiry))
+	}, time.Minute)
+	go backend.doPeriodically(func(ctx context.Context) error {
+		_, pool, err := backend.init(backend.closeCtx)
+		if err != nil {
+			return err
+		}
+
+		conn, err := pool.Acquire(ctx)
+		if err != nil {
+			return err
+		}
+		defer conn.Release()
+
+		_, err = conn.Exec(ctx, `LISTEN `+recordChangeNotifyName)
+		if err != nil {
+			return err
+		}
+
+		_, err = conn.Conn().WaitForNotification(ctx)
+		if err != nil {
+			return err
+		}
+
+		backend.onChange.Broadcast(ctx)
+
+		return nil
+	}, time.Millisecond*100)
+	return backend
 }
 
 // Close closes the underlying database connection.
@@ -38,12 +82,13 @@ func (backend *Backend) Close() error {
 	backend.mu.Lock()
 	defer backend.mu.Unlock()
 
-	var err error
-	if backend.conn != nil {
-		err = backend.conn.Close(context.Background())
-		backend.conn = nil
+	backend.close()
+
+	if backend.pool != nil {
+		backend.pool.Close()
+		backend.pool = nil
 	}
-	return err
+	return nil
 }
 
 // Get gets a record from the database.
@@ -51,6 +96,9 @@ func (backend *Backend) Get(
 	ctx context.Context,
 	recordType, recordID string,
 ) (*databroker.Record, error) {
+	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
+	defer cancel()
+
 	_, conn, err := backend.init(ctx)
 	if err != nil {
 		return nil, err
@@ -64,6 +112,9 @@ func (backend *Backend) GetOptions(
 	ctx context.Context,
 	recordType string,
 ) (*databroker.Options, error) {
+	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
+	defer cancel()
+
 	_, conn, err := backend.init(ctx)
 	if err != nil {
 		return nil, err
@@ -78,6 +129,9 @@ func (backend *Backend) Lease(
 	leaseName, leaseID string,
 	ttl time.Duration,
 ) (acquired bool, err error) {
+	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
+	defer cancel()
+
 	_, conn, err := backend.init(ctx)
 	if err != nil {
 		return false, err
@@ -96,12 +150,15 @@ func (backend *Backend) Put(
 	ctx context.Context,
 	records []*databroker.Record,
 ) (serverVersion uint64, err error) {
-	serverVersion, conn, err := backend.init(ctx)
+	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
+	defer cancel()
+
+	serverVersion, pool, err := backend.init(ctx)
 	if err != nil {
 		return 0, err
 	}
 
-	return serverVersion, conn.BeginFunc(ctx, func(tx pgx.Tx) error {
+	err = pool.BeginFunc(ctx, func(tx pgx.Tx) error {
 		now := timestamppb.Now()
 
 		// add all the records
@@ -113,12 +170,12 @@ func (backend *Backend) Put(
 			record.ModifiedAt = now
 			err := putRecordChange(ctx, tx, record)
 			if err != nil {
-				return err
+				return fmt.Errorf("storage/postgres: error saving record change: %w", err)
 			}
 
 			err = putRecord(ctx, tx, record)
 			if err != nil {
-				return err
+				return fmt.Errorf("storage/postgres: error saving record: %w", err)
 			}
 			records[i] = record
 		}
@@ -127,16 +184,22 @@ func (backend *Backend) Put(
 		for recordType := range recordTypes {
 			options, err := getOptions(ctx, tx, recordType)
 			if err != nil {
-				return err
+				return fmt.Errorf("storage/postgres: error getting options: %w", err)
 			}
 			err = enforceOptions(ctx, tx, recordType, options)
 			if err != nil {
-				return err
+				return fmt.Errorf("storage/postgres: error enforcing options: %w", err)
 			}
 		}
 
 		return nil
 	})
+	if err != nil {
+		return serverVersion, err
+	}
+
+	err = signalRecordChange(ctx, pool)
+	return serverVersion, err
 }
 
 // SetOptions sets the options for the given record type.
@@ -145,6 +208,9 @@ func (backend *Backend) SetOptions(
 	recordType string,
 	options *databroker.Options,
 ) error {
+	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
+	defer cancel()
+
 	_, conn, err := backend.init(ctx)
 	if err != nil {
 		return err
@@ -158,7 +224,19 @@ func (backend *Backend) Sync(
 	ctx context.Context,
 	serverVersion, recordVersion uint64,
 ) (storage.RecordStream, error) {
-	panic("Sync not implemented")
+	// the original ctx will be used for the stream, this ctx used for pre-stream calls
+	callCtx, cancel := contextutil.Merge(ctx, backend.closeCtx)
+	defer cancel()
+
+	currentServerVersion, _, err := backend.init(callCtx)
+	if err != nil {
+		return nil, err
+	}
+	if currentServerVersion != serverVersion {
+		return nil, storage.ErrInvalidServerVersion
+	}
+
+	return newChangedRecordStream(ctx, backend, recordVersion), nil
 }
 
 // SyncLatest syncs the latest version of each record.
@@ -167,12 +245,16 @@ func (backend *Backend) SyncLatest(
 	recordType string,
 	expr storage.FilterExpression,
 ) (serverVersion, recordVersion uint64, stream storage.RecordStream, err error) {
-	serverVersion, conn, err := backend.init(ctx)
+	// the original ctx will be used for the stream, this ctx used for pre-stream calls
+	callCtx, cancel := contextutil.Merge(ctx, backend.closeCtx)
+	defer cancel()
+
+	serverVersion, pool, err := backend.init(callCtx)
 	if err != nil {
 		return 0, 0, nil, err
 	}
 
-	recordVersion, err = getLatestRecordVersion(ctx, conn)
+	recordVersion, err = getLatestRecordVersion(callCtx, pool)
 	if err != nil {
 		return 0, 0, nil, err
 	}
@@ -189,44 +271,41 @@ func (backend *Backend) SyncLatest(
 		}
 	}
 
-	stream1 := newRecordStream(ctx, backend, expr)
-	stream2 := newChangedRecordStream(ctx, backend, recordVersion)
-	stream = storage.NewConcatenatedRecordStream(stream1, stream2)
+	stream = newRecordStream(ctx, backend, expr)
 	return serverVersion, recordVersion, stream, nil
 }
 
-func (backend *Backend) init(ctx context.Context) (serverVersion uint64, conn *pgx.Conn, err error) {
+func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *pgxpool.Pool, err error) {
 	backend.mu.RLock()
 	serverVersion = backend.serverVersion
-	conn = backend.conn
+	pool = backend.pool
 	backend.mu.RUnlock()
 
-	if conn != nil {
-		return serverVersion, conn, nil
+	if pool != nil {
+		return serverVersion, pool, nil
 	}
 
 	backend.mu.Lock()
 	defer backend.mu.Unlock()
 
-	config, err := pgx.ParseConfig(backend.dsn)
+	// double-checked locking, might have already initialized, so just return
+	serverVersion = backend.serverVersion
+	pool = backend.pool
+	if pool != nil {
+		return serverVersion, pool, nil
+	}
+
+	config, err := pgxpool.ParseConfig(backend.dsn)
 	if err != nil {
 		return serverVersion, nil, err
 	}
 
-	config.OnNotification = func(pc *pgconn.PgConn, n *pgconn.Notification) {
-		log.Info(context.Background()).
-			Str("address", pc.Conn().RemoteAddr().String()).
-			Str("channel", n.Channel).
-			Uint32("pid", n.PID).
-			Msg("postgres: notification")
-	}
-
-	conn, err = pgx.ConnectConfig(context.Background(), config)
+	pool, err = pgxpool.ConnectConfig(context.Background(), config)
 	if err != nil {
 		return serverVersion, nil, err
 	}
 
-	err = conn.BeginFunc(ctx, func(tx pgx.Tx) error {
+	err = pool.BeginFunc(ctx, func(tx pgx.Tx) error {
 		var err error
 		serverVersion, err = migrate(ctx, tx)
 		return err
@@ -236,6 +315,35 @@ func (backend *Backend) init(ctx context.Context) (serverVersion uint64, conn *p
 	}
 
 	backend.serverVersion = serverVersion
-	backend.conn = conn
-	return serverVersion, conn, nil
+	backend.pool = pool
+	return serverVersion, pool, nil
+}
+
+func (backend *Backend) doPeriodically(f func(ctx context.Context) error, dur time.Duration) {
+	ctx := backend.closeCtx
+
+	ticker := time.NewTicker(dur)
+	defer ticker.Stop()
+
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 0
+
+	for {
+		err := f(ctx)
+		if err == nil {
+			bo.Reset()
+			select {
+			case <-backend.closeCtx.Done():
+				return
+			case <-ticker.C:
+			}
+		} else {
+			log.Error(ctx).Err(err).Msg("storage/postgres")
+			select {
+			case <-backend.closeCtx.Done():
+				return
+			case <-time.After(bo.NextBackOff()):
+			}
+		}
+	}
 }
