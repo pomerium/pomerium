@@ -136,6 +136,7 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 		Str("query", req.GetQuery()).
 		Int64("offset", req.GetOffset()).
 		Int64("limit", req.GetLimit()).
+		Interface("filter", req.GetFilter()).
 		Msg("query")
 
 	query := strings.ToLower(req.GetQuery())
@@ -145,7 +146,12 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 		return nil, err
 	}
 
-	_, _, stream, err := db.SyncLatest(ctx, req.GetType(), nil)
+	expr, err := storage.FilterExpressionFromStruct(req.GetFilter())
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid query filter: %v", err)
+	}
+
+	serverVersion, recordVersion, stream, err := db.SyncLatest(ctx, req.GetType(), expr)
 	if err != nil {
 		return nil, err
 	}
@@ -154,10 +160,6 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 	var filtered []*databroker.Record
 	for stream.Next(false) {
 		record := stream.Record()
-
-		if record.GetType() != req.GetType() {
-			continue
-		}
 
 		if query != "" && !storage.MatchAny(record.GetData(), query) {
 			continue
@@ -171,8 +173,10 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 
 	records, totalCount := databroker.ApplyOffsetAndLimit(filtered, int(req.GetOffset()), int(req.GetLimit()))
 	return &databroker.QueryResponse{
-		Records:    records,
-		TotalCount: int64(totalCount),
+		Records:       records,
+		TotalCount:    int64(totalCount),
+		ServerVersion: serverVersion,
+		RecordVersion: recordVersion,
 	}, nil
 }
 

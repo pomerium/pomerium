@@ -3,8 +3,10 @@ package databroker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
+	"sort"
 	"testing"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/testutil"
@@ -135,21 +138,52 @@ func TestServer_Query(t *testing.T) {
 	cfg := newServerConfig()
 	srv := newServer(cfg)
 
-	s := new(session.Session)
-	s.Id = "1"
-	any := protoutil.NewAny(s)
-	_, err := srv.Put(context.Background(), &databroker.PutRequest{
-		Records: []*databroker.Record{{
-			Type: any.TypeUrl,
-			Id:   s.Id,
-			Data: any,
-		}},
+	for i := 0; i < 10; i++ {
+		s := new(session.Session)
+		s.Id = fmt.Sprint(i)
+		any := protoutil.NewAny(s)
+		_, err := srv.Put(context.Background(), &databroker.PutRequest{
+			Records: []*databroker.Record{{
+				Type: any.TypeUrl,
+				Id:   s.Id,
+				Data: any,
+			}},
+		})
+		assert.NoError(t, err)
+	}
+	res, err := srv.Query(context.Background(), &databroker.QueryRequest{
+		Type: protoutil.GetTypeURL(new(session.Session)),
+		Filter: &structpb.Struct{
+			Fields: map[string]*structpb.Value{
+				"$or": structpb.NewListValue(&structpb.ListValue{Values: []*structpb.Value{
+					structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+						"id": structpb.NewStringValue("1"),
+					}}),
+					structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+						"id": structpb.NewStringValue("3"),
+					}}),
+					structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+						"id": structpb.NewStringValue("5"),
+					}}),
+					structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+						"id": structpb.NewStringValue("7"),
+					}}),
+				}}),
+			},
+		},
+		Limit: 10,
 	})
 	assert.NoError(t, err)
-	_, err = srv.Query(context.Background(), &databroker.QueryRequest{
-		Type: any.TypeUrl,
-	})
-	assert.NoError(t, err)
+
+	if assert.Len(t, res.Records, 4) {
+		sort.Slice(res.Records, func(i, j int) bool {
+			return res.Records[i].GetId() < res.Records[j].GetId()
+		})
+		assert.Equal(t, "1", res.Records[0].GetId())
+		assert.Equal(t, "3", res.Records[1].GetId())
+		assert.Equal(t, "5", res.Records[2].GetId())
+		assert.Equal(t, "7", res.Records[3].GetId())
+	}
 }
 
 func TestServer_Sync(t *testing.T) {
