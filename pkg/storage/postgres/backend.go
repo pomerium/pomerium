@@ -158,8 +158,16 @@ func (backend *Backend) Put(
 		return 0, err
 	}
 
-	err = pool.BeginFunc(ctx, func(tx pgx.Tx) error {
+	err = pool.BeginTxFunc(ctx, pgx.TxOptions{
+		IsoLevel:   pgx.Serializable,
+		AccessMode: pgx.ReadWrite,
+	}, func(tx pgx.Tx) error {
 		now := timestamppb.Now()
+
+		recordVersion, err := getLatestRecordVersion(ctx, tx)
+		if err != nil {
+			return fmt.Errorf("storage/postgres: error getting latest record version: %w", err)
+		}
 
 		// add all the records
 		recordTypes := map[string]struct{}{}
@@ -168,6 +176,7 @@ func (backend *Backend) Put(
 
 			record = dup(record)
 			record.ModifiedAt = now
+			record.Version = recordVersion + uint64(i) + 1
 			err := putRecordChange(ctx, tx, record)
 			if err != nil {
 				return fmt.Errorf("storage/postgres: error saving record change: %w", err)

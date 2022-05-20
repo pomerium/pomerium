@@ -231,11 +231,10 @@ func putRecordChange(ctx context.Context, q querier, record *databroker.Record) 
 	data := jsonbFromAny(record.GetData())
 	modifiedAt := timestamptzFromTimestamppb(record.GetModifiedAt())
 	deletedAt := timestamptzFromTimestamppb(record.GetDeletedAt())
-	err := q.QueryRow(ctx, `
-		INSERT INTO `+schemaName+`.`+recordChangesTableName+` (type, id, data, modified_at, deleted_at)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING version
-	`, record.GetType(), record.GetId(), data, modifiedAt, deletedAt).Scan(&record.Version)
+	_, err := q.Exec(ctx, `
+		INSERT INTO `+schemaName+`.`+recordChangesTableName+` (type, id, version, data, modified_at, deleted_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`, record.GetType(), record.GetId(), record.GetVersion(), data, modifiedAt, deletedAt)
 	if err != nil {
 		return err
 	}
@@ -253,7 +252,6 @@ func putRecord(ctx context.Context, q querier, record *databroker.Record) error 
 			VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (type, id) DO UPDATE
 			SET version=$3, data=$4, modified_at=$5
-			WHERE `+schemaName+`.`+recordsTableName+`.version<$3
 		`, record.GetType(), record.GetId(), record.GetVersion(), data, modifiedAt)
 	} else {
 		_, err = q.Exec(ctx, `

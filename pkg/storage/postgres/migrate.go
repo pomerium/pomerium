@@ -40,7 +40,7 @@ var migrations = []func(context.Context, pgx.Tx) error{
 			CREATE TABLE `+schemaName+`.`+recordChangesTableName+` (
 				type TEXT NOT NULL,
 				id TEXT NOT NULL,
-				version BIGSERIAL,
+				version BIGINT NOT NULL,
 				data JSONB NOT NULL,
 				modified_at TIMESTAMPTZ NOT NULL,
 				deleted_at TIMESTAMPTZ NULL,
