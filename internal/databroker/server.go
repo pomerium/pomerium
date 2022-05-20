@@ -149,7 +149,7 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 
 	expr, err := storage.FilterExpressionFromStruct(req.GetFilter())
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.InvalidArgument, "invalid query filter: %v", err)
 	}
 
 	serverVersion, recordVersion, stream, err := db.SyncLatest(ctx, req.GetType(), expr)
