@@ -98,7 +98,7 @@ jobs:
       - name: cover
         run: make cover
 
-      - uses: jandelgado/gcov2lcov-action@2477d9ec11814a9326e7fdde8d315783d163edb7 # pin@v1.0.8
+      - uses: jandelgado/gcov2lcov-action@fc567b789b78d676959759edfb9b7a30e884fc1d # pin@v1.0.8
         name: convert coverage to lcov
         with:
           infile: coverage.txt
