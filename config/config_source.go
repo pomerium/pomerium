@@ -139,9 +139,6 @@ func NewFileOrEnvironmentSource(
 		config:     cfg,
 	}
 	src.watcher.Add(configFile)
-	options.viper.OnConfigChange(src.onConfigChange(ctx))
-	go options.viper.WatchConfig()
-
 	ch := src.watcher.Bind()
 	go func() {
 		for range ch {
@@ -174,6 +171,7 @@ func (src *FileOrEnvironmentSource) check(ctx context.Context) {
 		log.Error(ctx).Err(err).Msg("config: error updating config")
 		metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), false)
 	}
+	src.config = cfg
 	src.mu.Unlock()
 
 	src.Trigger(ctx, cfg)

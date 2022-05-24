@@ -25,7 +25,6 @@ import (
 	"github.com/pomerium/pomerium/internal/envoy/files"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
-	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/proxy"
 )
@@ -165,18 +164,14 @@ func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *con
 	if err != nil {
 		return fmt.Errorf("error creating authenticate service: %w", err)
 	}
-
-	authenticateURL, err := src.GetConfig().Options.GetInternalAuthenticateURL()
+	err = controlPlane.EnableAuthenticate(svc)
 	if err != nil {
-		return fmt.Errorf("error getting authenticate URL: %w", err)
+		return fmt.Errorf("error adding authenticate service to control plane: %w", err)
 	}
 
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
-	host := urlutil.StripPort(authenticateURL.Host)
-	sr := controlPlane.HTTPRouter.Host(host).Subrouter()
-	svc.Mount(sr)
-	log.Info(context.TODO()).Str("host", host).Msg("enabled authenticate service")
+	log.Info(context.TODO()).Msg("enabled authenticate service")
 
 	return nil
 }
@@ -222,7 +217,10 @@ func setupProxy(ctx context.Context, src config.Source, controlPlane *controlpla
 	if err != nil {
 		return fmt.Errorf("error creating proxy service: %w", err)
 	}
-	controlPlane.HTTPRouter.PathPrefix("/").Handler(svc)
+	err = controlPlane.EnableProxy(svc)
+	if err != nil {
+		return fmt.Errorf("error adding proxy service to control plane: %w", err)
+	}
 
 	log.Info(context.TODO()).Msg("enabled proxy service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
