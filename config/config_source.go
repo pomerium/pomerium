@@ -90,6 +90,7 @@ func (src *StaticSource) OnConfigChange(ctx context.Context, li ChangeListener) 
 // A FileOrEnvironmentSource retrieves config options from a file or the environment.
 type FileOrEnvironmentSource struct {
 	configFile string
+	watcher    *fileutil.Watcher
 
 	mu     sync.RWMutex
 	config *Config
@@ -134,35 +135,48 @@ func NewFileOrEnvironmentSource(
 
 	src := &FileOrEnvironmentSource{
 		configFile: configFile,
+		watcher:    fileutil.NewWatcher(),
 		config:     cfg,
 	}
+	src.watcher.Add(configFile)
 	options.viper.OnConfigChange(src.onConfigChange(ctx))
 	go options.viper.WatchConfig()
+
+	ch := src.watcher.Bind()
+	go func() {
+		for range ch {
+			src.check(ctx)
+		}
+	}()
 
 	return src, nil
 }
 
 func (src *FileOrEnvironmentSource) onConfigChange(ctx context.Context) func(fsnotify.Event) {
 	return func(evt fsnotify.Event) {
-		ctx := log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-			return c.Str("config_change_id", uuid.New().String())
-		})
-		log.Info(ctx).Msg("config: file updated, reconfiguring...")
-		src.mu.Lock()
-		cfg := src.config
-		options, err := newOptionsFromConfig(src.configFile)
-		if err == nil {
-			cfg = cfg.Clone()
-			cfg.Options = options
-			metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
-		} else {
-			log.Error(ctx).Err(err).Msg("config: error updating config")
-			metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), false)
-		}
-		src.mu.Unlock()
-
-		src.Trigger(ctx, cfg)
+		src.check(ctx)
 	}
+}
+
+func (src *FileOrEnvironmentSource) check(ctx context.Context) {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("config_change_id", uuid.New().String())
+	})
+	log.Info(ctx).Msg("config: file updated, reconfiguring...")
+	src.mu.Lock()
+	cfg := src.config
+	options, err := newOptionsFromConfig(src.configFile)
+	if err == nil {
+		cfg = cfg.Clone()
+		cfg.Options = options
+		metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
+	} else {
+		log.Error(ctx).Err(err).Msg("config: error updating config")
+		metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), false)
+	}
+	src.mu.Unlock()
+
+	src.Trigger(ctx, cfg)
 }
 
 // GetConfig gets the config.
