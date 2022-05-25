@@ -8,6 +8,4 @@ import "envoy/service/auth/v3/external_auth.proto";
 message Record {
   envoy.service.auth.v3.CheckRequest request = 1;
   envoy.service.auth.v3.CheckResponse response = 2;
-  uint64 databroker_server_version = 3;
-  uint64 databroker_record_version = 4;
 }

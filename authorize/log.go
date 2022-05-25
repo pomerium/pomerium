@@ -12,9 +12,11 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc/audit"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 func (a *Authorize) logAuthorizeCheck(
@@ -39,7 +41,7 @@ func (a *Authorize) logAuthorizeCheck(
 
 	// session information
 	if s, ok := s.(*session.Session); ok {
-		evt = a.populateLogSessionDetails(evt, s)
+		evt = a.populateLogSessionDetails(ctx, evt, s)
 	}
 	if sa, ok := s.(*user.ServiceAccount); ok {
 		evt = evt.Str("service-account-id", sa.GetId())
@@ -61,8 +63,6 @@ func (a *Authorize) logAuthorizeCheck(
 		}
 		evt = evt.Str("user", u.GetId())
 		evt = evt.Str("email", u.GetEmail())
-		evt = evt.Uint64("databroker_server_version", res.DataBrokerServerVersion)
-		evt = evt.Uint64("databroker_record_version", res.DataBrokerRecordVersion)
 	}
 
 	// potentially sensitive, only log if debug mode
@@ -80,10 +80,6 @@ func (a *Authorize) logAuthorizeCheck(
 			Request:  in,
 			Response: out,
 		}
-		if res != nil {
-			record.DatabrokerServerVersion = res.DataBrokerServerVersion
-			record.DatabrokerRecordVersion = res.DataBrokerRecordVersion
-		}
 		sealed, err := enc.Encrypt(record)
 		if err != nil {
 			log.Warn(ctx).Err(err).Msg("authorize: error encrypting audit record")
@@ -96,26 +92,50 @@ func (a *Authorize) logAuthorizeCheck(
 	}
 }
 
-func (a *Authorize) populateLogSessionDetails(evt *zerolog.Event, s *session.Session) *zerolog.Event {
+func (a *Authorize) populateLogSessionDetails(ctx context.Context, evt *zerolog.Event, s *session.Session) *zerolog.Event {
 	evt = evt.Str("session-id", s.GetId())
 	if s.GetImpersonateSessionId() == "" {
 		return evt
 	}
 
+	querier := storage.GetQuerier(ctx)
+
 	evt = evt.Str("impersonate-session-id", s.GetImpersonateSessionId())
-	impersonatedSession, ok := a.store.GetRecordData(
-		grpcutil.GetTypeURL(new(session.Session)),
-		s.GetImpersonateSessionId(),
-	).(*session.Session)
+	req := &databroker.QueryRequest{
+		Type:  grpcutil.GetTypeURL(new(session.Session)),
+		Limit: 1,
+	}
+	req.SetFilterByID(s.GetImpersonateSessionId())
+	res, err := querier.Query(ctx, req)
+	if err != nil || len(res.GetRecords()) == 0 {
+		return evt
+	}
+
+	impersonatedSessionMsg, err := res.GetRecords()[0].GetData().UnmarshalNew()
+	if err != nil {
+		return evt
+	}
+	impersonatedSession, ok := impersonatedSessionMsg.(*session.Session)
 	if !ok {
 		return evt
 	}
 	evt = evt.Str("impersonate-user-id", impersonatedSession.GetUserId())
 
-	impersonatedUser, ok := a.store.GetRecordData(
-		grpcutil.GetTypeURL(new(user.User)),
-		impersonatedSession.GetUserId(),
-	).(*user.User)
+	req = &databroker.QueryRequest{
+		Type:  grpcutil.GetTypeURL(new(user.User)),
+		Limit: 1,
+	}
+	req.SetFilterByID(impersonatedSession.GetUserId())
+	res, err = querier.Query(ctx, req)
+	if err != nil || len(res.GetRecords()) == 0 {
+		return evt
+	}
+
+	impersonatedUserMsg, err := res.GetRecords()[0].GetData().UnmarshalNew()
+	if err != nil {
+		return evt
+	}
+	impersonatedUser, ok := impersonatedUserMsg.(*user.User)
 	if !ok {
 		return evt
 	}

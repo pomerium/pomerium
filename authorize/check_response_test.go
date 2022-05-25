@@ -20,8 +20,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/testutil"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
 func TestAuthorize_okResponse(t *testing.T) {
@@ -40,17 +38,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
 	a.state.Load().encoder = encoder
 	a.currentOptions.Store(opt)
-	a.store = store.NewFromProtos(0,
-		&session.Session{
-			Id:     "SESSION_ID",
-			UserId: "USER_ID",
-		},
-		&user.User{
-			Id:    "USER_ID",
-			Name:  "foo",
-			Email: "foo@example.com",
-		},
-	)
+	a.store = store.New()
 	pe, err := newPolicyEvaluator(opt, a.store)
 	require.NoError(t, err)
 	a.state.Load().evaluator = pe
