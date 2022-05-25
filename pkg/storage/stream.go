@@ -118,3 +118,57 @@ func RecordListToStream(ctx context.Context, records []*databroker.Record) Recor
 		},
 	}, nil)
 }
+
+type concatenatedRecordStream struct {
+	streams []RecordStream
+	index   int
+}
+
+// NewConcatenatedRecordStream creates a new record stream that streams all the records from the
+// first stream before streaming all the records of the subsequent streams.
+func NewConcatenatedRecordStream(streams ...RecordStream) RecordStream {
+	return &concatenatedRecordStream{
+		streams: streams,
+	}
+}
+
+func (stream *concatenatedRecordStream) Close() error {
+	var err error
+	for _, s := range stream.streams {
+		if e := s.Close(); e != nil {
+			err = e
+		}
+	}
+	return err
+}
+
+func (stream *concatenatedRecordStream) Next(block bool) bool {
+	for {
+		if stream.index >= len(stream.streams) {
+			return false
+		}
+
+		if stream.streams[stream.index].Next(block) {
+			return true
+		}
+
+		if stream.streams[stream.index].Err() != nil {
+			return false
+		}
+		stream.index++
+	}
+}
+
+func (stream *concatenatedRecordStream) Record() *databroker.Record {
+	if stream.index >= len(stream.streams) {
+		return nil
+	}
+	return stream.streams[stream.index].Record()
+}
+
+func (stream *concatenatedRecordStream) Err() error {
+	if stream.index >= len(stream.streams) {
+		return nil
+	}
+	return stream.streams[stream.index].Err()
+}

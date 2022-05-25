@@ -15,6 +15,8 @@ const (
 	ServiceDataBroker = "databroker"
 	// StorageRedisName is the name of the redis storage backend
 	StorageRedisName = "redis"
+	// StoragePostgresName is the name of the Postgres storage backend
+	StoragePostgresName = "postgres"
 	// StorageInMemoryName is the name of the in-memory storage backend
 	StorageInMemoryName = "memory"
 )

@@ -30,6 +30,13 @@ func NewRandomStringN(c int) string {
 	return base64.StdEncoding.EncodeToString(randomBytes(c))
 }
 
+// NewRandomUInt32 returns a random uint32.
+//
+// Panics if source of randomness fails.
+func NewRandomUInt32() uint32 {
+	return binary.LittleEndian.Uint32(randomBytes(4))
+}
+
 // NewRandomUInt64 returns a random uint64.
 //
 // Panics if source of randomness fails.

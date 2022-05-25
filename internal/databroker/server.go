@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
+	"github.com/pomerium/pomerium/pkg/storage/postgres"
 	"github.com/pomerium/pomerium/pkg/storage/redis"
 )
 
@@ -186,14 +187,21 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 	defer span.End()
 
 	records := req.GetRecords()
-	var recordType string
-	for _, record := range records {
-		recordType = record.GetType()
+	if len(records) == 1 {
+		log.Info(ctx).
+			Str("record-type", records[0].GetType()).
+			Str("record-id", records[0].GetId()).
+			Msg("put")
+	} else {
+		var recordType string
+		for _, record := range records {
+			recordType = record.GetType()
+		}
+		log.Info(ctx).
+			Int("record-count", len(records)).
+			Str("record-type", recordType).
+			Msg("put")
 	}
-	log.Info(ctx).
-		Int("record-count", len(records)).
-		Str("record-type", recordType).
-		Msg("put")
 
 	db, err := srv.getBackend()
 	if err != nil {
@@ -398,6 +406,9 @@ func (srv *Server) newBackendLocked() (backend storage.Backend, err error) {
 	case config.StorageInMemoryName:
 		log.Info(ctx).Msg("using in-memory store")
 		return inmemory.New(), nil
+	case config.StoragePostgresName:
+		log.Info(ctx).Msg("using postgres store")
+		backend = postgres.New(srv.cfg.storageConnectionString)
 	case config.StorageRedisName:
 		log.Info(ctx).Msg("using redis store")
 		backend, err = redis.New(
@@ -407,14 +418,14 @@ func (srv *Server) newBackendLocked() (backend storage.Backend, err error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to create new redis storage: %w", err)
 		}
+		if srv.cfg.secret != nil {
+			backend, err = storage.NewEncryptedBackend(srv.cfg.secret, backend)
+			if err != nil {
+				return nil, err
+			}
+		}
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", srv.cfg.storageType)
-	}
-	if srv.cfg.secret != nil {
-		backend, err = storage.NewEncryptedBackend(srv.cfg.secret, backend)
-		if err != nil {
-			return nil, err
-		}
 	}
 	return backend, nil
 }
