@@ -113,7 +113,7 @@ spellcheck: # Spellcheck docs
 .PHONY: cover
 cover: get-envoy ## Runs go test with coverage
 	@echo "==> $@"
-	$(GO) test -race -coverprofile=coverage.txt -tags "$(BUILDTAGS)" $(shell $(GO) list ./... | grep -v vendor | grep -v github.com/pomerium/pomerium/integration)
+	$(GO) test -race -coverprofile=coverage.txt -tags "$(BUILDTAGS)" $(shell $(GO) list ./... | grep -v vendor | grep -v github.com/pomerium/pomerium/integration | grep -v github.com/pomerium/pomerium/pkg/storage/postgres)
 	@sed -i.bak '/\.pb\.go\:/d' coverage.txt
 	@sed -i.bak '/\/mock\.go\:/d' coverage.txt
 	@sort -o coverage.txt coverage.txt
