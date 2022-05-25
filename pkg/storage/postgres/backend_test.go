@@ -3,6 +3,8 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -18,6 +20,10 @@ import (
 )
 
 func TestBackend(t *testing.T) {
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
+
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
 	defer clearTimeout()
 
