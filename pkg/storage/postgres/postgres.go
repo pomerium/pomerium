@@ -10,12 +10,10 @@ import (
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -228,10 +226,14 @@ func maybeAcquireLease(ctx context.Context, q querier, leaseName, leaseID string
 }
 
 func putRecordChange(ctx context.Context, q querier, record *databroker.Record) error {
-	data := jsonbFromAny(record.GetData())
+	data, err := jsonbFromAny(record.GetData())
+	if err != nil {
+		return err
+	}
+
 	modifiedAt := timestamptzFromTimestamppb(record.GetModifiedAt())
 	deletedAt := timestamptzFromTimestamppb(record.GetDeletedAt())
-	_, err := q.Exec(ctx, `
+	_, err = q.Exec(ctx, `
 		INSERT INTO `+schemaName+`.`+recordChangesTableName+` (type, id, version, data, modified_at, deleted_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`, record.GetType(), record.GetId(), record.GetVersion(), data, modifiedAt, deletedAt)
@@ -243,9 +245,12 @@ func putRecordChange(ctx context.Context, q querier, record *databroker.Record) 
 }
 
 func putRecord(ctx context.Context, q querier, record *databroker.Record) error {
-	data := jsonbFromAny(record.GetData())
+	data, err := jsonbFromAny(record.GetData())
+	if err != nil {
+		return err
+	}
+
 	modifiedAt := timestamptzFromTimestamppb(record.GetModifiedAt())
-	var err error
 	if record.GetDeletedAt() == nil {
 		_, err = q.Exec(ctx, `
 			INSERT INTO `+schemaName+`.`+recordsTableName+` (type, id, version, data, modified_at)
@@ -286,21 +291,17 @@ func signalRecordChange(ctx context.Context, q querier) error {
 	return err
 }
 
-func jsonbFromAny(any *anypb.Any) pgtype.JSONB {
+func jsonbFromAny(any *anypb.Any) (pgtype.JSONB, error) {
 	if any == nil {
-		return pgtype.JSONB{Status: pgtype.Null}
+		return pgtype.JSONB{Status: pgtype.Null}, nil
 	}
 
 	bs, err := protojson.Marshal(any)
 	if err != nil {
-		log.Warn(context.Background()).
-			Err(err).
-			Str("data", prototext.Format(any)).
-			Msg("storage/postgres: error marshaling any to JSON")
-		return pgtype.JSONB{Status: pgtype.Null}
+		return pgtype.JSONB{Status: pgtype.Null}, err
 	}
 
-	return pgtype.JSONB{Bytes: bs, Status: pgtype.Present}
+	return pgtype.JSONB{Bytes: bs, Status: pgtype.Present}, nil
 }
 
 func timestamppbFromTimestamptz(ts pgtype.Timestamptz) *timestamppb.Timestamp {
