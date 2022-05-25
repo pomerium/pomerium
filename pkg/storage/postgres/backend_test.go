@@ -54,6 +54,7 @@ func TestBackend(t *testing.T) {
 				_, err = backend.Put(ctx, []*databroker.Record{{
 					Type: "capacity-test",
 					Id:   fmt.Sprint(i),
+					Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{})),
 				}})
 				require.NoError(t, err)
 			}
@@ -88,6 +89,7 @@ func TestBackend(t *testing.T) {
 				_, err := backend.Put(ctx, []*databroker.Record{{
 					Type: "latest-test",
 					Id:   fmt.Sprint(i),
+					Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{})),
 				}})
 				require.NoError(t, err)
 			}
@@ -122,6 +124,7 @@ func TestBackend(t *testing.T) {
 					_, err := backend.Put(ctx, []*databroker.Record{{
 						Type: "sync-test",
 						Id:   fmt.Sprint(i),
+						Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{})),
 					}})
 					assert.NoError(t, err)
 					time.Sleep(50 * time.Millisecond)
