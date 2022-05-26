@@ -6,7 +6,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
@@ -147,12 +146,6 @@ func NewFileOrEnvironmentSource(
 	}()
 
 	return src, nil
-}
-
-func (src *FileOrEnvironmentSource) onConfigChange(ctx context.Context) func(fsnotify.Event) {
-	return func(evt fsnotify.Event) {
-		src.check(ctx)
-	}
 }
 
 func (src *FileOrEnvironmentSource) check(ctx context.Context) {

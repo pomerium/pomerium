@@ -73,6 +73,7 @@ func New(cfg *config.Config) (*Proxy, error) {
 	return p, nil
 }
 
+// Mount mounts the http handler to a mux router.
 func (p *Proxy) Mount(r *mux.Router) {
 	r.PathPrefix("/").Handler(p)
 }

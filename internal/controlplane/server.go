@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"sync/atomic"
 	"time"
 
@@ -140,7 +141,16 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager) (*Server, 
 	}
 	srv.DebugRouter = mux.NewRouter()
 	srv.MetricsRouter = mux.NewRouter()
-	srv.addHTTPMiddleware()
+
+	// pprof
+	srv.DebugRouter.Path("/debug/pprof/cmdline").HandlerFunc(pprof.Cmdline)
+	srv.DebugRouter.Path("/debug/pprof/profile").HandlerFunc(pprof.Profile)
+	srv.DebugRouter.Path("/debug/pprof/symbol").HandlerFunc(pprof.Symbol)
+	srv.DebugRouter.Path("/debug/pprof/trace").HandlerFunc(pprof.Trace)
+	srv.DebugRouter.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
+
+	// metrics
+	srv.MetricsRouter.Handle("/metrics", srv.metricsMgr)
 
 	srv.filemgr = filemgr.NewManager()
 	srv.filemgr.ClearCache()
@@ -269,11 +279,13 @@ func (srv *Server) OnConfigChange(ctx context.Context, cfg *config.Config) error
 	return nil
 }
 
+// EnableAuthenticate enables the authenticate service.
 func (srv *Server) EnableAuthenticate(svc Service) error {
 	srv.authenticateSvc = svc
 	return srv.updateRouter(srv.currentConfig.Load().Config)
 }
 
+// EnableProxy enables the proxy service.
 func (srv *Server) EnableProxy(svc Service) error {
 	srv.proxySvc = svc
 	return srv.updateRouter(srv.currentConfig.Load().Config)
@@ -292,5 +304,7 @@ func (srv *Server) updateRouter(cfg *config.Config) error {
 	if srv.proxySvc != nil {
 		srv.proxySvc.Mount(httpRouter)
 	}
+	srv.addHTTPMiddleware(httpRouter)
 	srv.httpRouter.Store(http.Handler(httpRouter))
+	return nil
 }
