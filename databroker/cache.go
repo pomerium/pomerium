@@ -9,6 +9,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -74,8 +75,11 @@ func New(cfg *config.Config) (*DataBroker, error) {
 		grpc.WithStatsHandler(clientStatsHandler.Handler),
 	}
 
+	ctx := log.WithContext(context.Background(), func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "databroker").Str("config_source", "bootstrap")
+	})
 	localGRPCConnection, err := grpc.DialContext(
-		context.Background(),
+		ctx,
 		localListener.Addr().String(),
 		clientDialOptions...,
 	)
@@ -99,7 +103,7 @@ func New(cfg *config.Config) (*DataBroker, error) {
 	}
 	c.Register(c.localGRPCServer)
 
-	err = c.update(cfg)
+	err = c.update(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +113,7 @@ func New(cfg *config.Config) (*DataBroker, error) {
 
 // OnConfigChange is called whenever configuration is changed.
 func (c *DataBroker) OnConfigChange(ctx context.Context, cfg *config.Config) {
-	err := c.update(cfg)
+	err := c.update(ctx, cfg)
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("databroker: error updating configuration")
 	}
@@ -141,7 +145,7 @@ func (c *DataBroker) Run(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (c *DataBroker) update(cfg *config.Config) error {
+func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 	if err := validate(cfg.Options); err != nil {
 		return fmt.Errorf("databroker: bad option: %w", err)
 	}
@@ -149,11 +153,6 @@ func (c *DataBroker) update(cfg *config.Config) error {
 	oauthOptions, err := cfg.Options.GetOauthOptions()
 	if err != nil {
 		return fmt.Errorf("databroker: invalid oauth options: %w", err)
-	}
-
-	authenticator, err := identity.NewAuthenticator(oauthOptions)
-	if err != nil {
-		return fmt.Errorf("databroker: failed to create authenticator: %w", err)
 	}
 
 	directoryProvider := directory.GetProvider(directory.Options{
@@ -171,11 +170,17 @@ func (c *DataBroker) update(cfg *config.Config) error {
 	dataBrokerClient := databroker.NewDataBrokerServiceClient(c.localGRPCConnection)
 
 	options := []manager.Option{
-		manager.WithAuthenticator(authenticator),
 		manager.WithDirectoryProvider(directoryProvider),
 		manager.WithDataBrokerClient(dataBrokerClient),
 		manager.WithGroupRefreshInterval(cfg.Options.RefreshDirectoryInterval),
 		manager.WithGroupRefreshTimeout(cfg.Options.RefreshDirectoryTimeout),
+	}
+
+	authenticator, err := identity.NewAuthenticator(oauthOptions)
+	if err != nil {
+		log.Error(ctx).Err(err).Msg("databroker: failed to create authenticator")
+	} else {
+		options = append(options, manager.WithAuthenticator(authenticator))
 	}
 
 	if c.manager == nil {

@@ -56,6 +56,8 @@ func NewAuthenticator(o oauth.Options) (a Authenticator, err error) {
 		a, err = onelogin.New(ctx, &o)
 	case ping.Name:
 		a, err = ping.New(ctx, &o)
+	case "":
+		return nil, fmt.Errorf("identity: provider is not defined")
 	default:
 		return nil, fmt.Errorf("identity: unknown provider: %s", o.ProviderName)
 	}
