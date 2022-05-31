@@ -3,11 +3,11 @@ package controlplane
 
 import (
 	"net/http"
-	"net/http/pprof"
 	"time"
 
 	"github.com/CAFxX/httpcompression"
 	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -15,13 +15,12 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 )
 
-func (srv *Server) addHTTPMiddleware() {
+func (srv *Server) addHTTPMiddleware(root *mux.Router) {
 	compressor, err := httpcompression.DefaultAdapter()
 	if err != nil {
 		panic(err)
 	}
 
-	root := srv.HTTPRouter
 	root.Use(compressor)
 	root.Use(srv.reproxy.Middleware)
 	root.Use(requestid.HTTPMiddleware())
@@ -47,14 +46,4 @@ func (srv *Server) addHTTPMiddleware() {
 	}, srv.name))
 	root.HandleFunc("/healthz", httputil.HealthCheck)
 	root.HandleFunc("/ping", httputil.HealthCheck)
-
-	// pprof
-	srv.DebugRouter.Path("/debug/pprof/cmdline").HandlerFunc(pprof.Cmdline)
-	srv.DebugRouter.Path("/debug/pprof/profile").HandlerFunc(pprof.Profile)
-	srv.DebugRouter.Path("/debug/pprof/symbol").HandlerFunc(pprof.Symbol)
-	srv.DebugRouter.Path("/debug/pprof/trace").HandlerFunc(pprof.Trace)
-	srv.DebugRouter.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
-
-	// metrics
-	srv.MetricsRouter.Handle("/metrics", srv.metricsMgr)
 }
