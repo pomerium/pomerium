@@ -172,6 +172,8 @@ func GetProvider(options Options) (provider Provider) {
 			Str("provider", options.Provider).
 			Err(err).
 			Msg("invalid service account for ping directory provider")
+	case "":
+		errSyncDisabled = fmt.Errorf("no directory provider configured")
 	default:
 		errSyncDisabled = fmt.Errorf("unknown directory provider %s", options.Provider)
 	}
