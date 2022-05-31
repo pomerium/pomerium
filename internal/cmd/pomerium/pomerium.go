@@ -171,7 +171,7 @@ func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *con
 
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
-	log.Info(context.TODO()).Msg("enabled authenticate service")
+	log.Info(ctx).Msg("enabled authenticate service")
 
 	return nil
 }
