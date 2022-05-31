@@ -293,6 +293,7 @@ func (srv *Server) EnableProxy(svc Service) error {
 
 func (srv *Server) updateRouter(cfg *config.Config) error {
 	httpRouter := mux.NewRouter()
+	srv.addHTTPMiddleware(httpRouter)
 	if srv.authenticateSvc != nil {
 		authenticateURL, err := cfg.Options.GetInternalAuthenticateURL()
 		if err != nil {
@@ -304,7 +305,6 @@ func (srv *Server) updateRouter(cfg *config.Config) error {
 	if srv.proxySvc != nil {
 		srv.proxySvc.Mount(httpRouter)
 	}
-	srv.addHTTPMiddleware(httpRouter)
 	srv.httpRouter.Store(http.Handler(httpRouter))
 	return nil
 }
