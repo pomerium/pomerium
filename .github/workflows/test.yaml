@@ -16,7 +16,7 @@ jobs:
         platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/setup-go@fcdc43634adb5f7ae75a9d7a9b9361790f7293e2 # pin@v2
+      - uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # pin@v2
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -63,7 +63,7 @@ jobs:
         go-version: [1.18.x]
         node-version: [16.x]
     steps:
-      - uses: actions/setup-go@fcdc43634adb5f7ae75a9d7a9b9361790f7293e2 # pin@v2
+      - uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # pin@v2
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -98,7 +98,7 @@ jobs:
       - name: cover
         run: make cover
 
-      - uses: jandelgado/gcov2lcov-action@fc567b789b78d676959759edfb9b7a30e884fc1d # pin@v1.0.8
+      - uses: jandelgado/gcov2lcov-action@c680c0f7c7442485f1749eb2a13e54a686e76eb5 # pin@v1.0.8
         name: convert coverage to lcov
         with:
           infile: coverage.txt
@@ -121,7 +121,7 @@ jobs:
         idp: [auth0, azure, github, gitlab, google, oidc, okta, onelogin, ping]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/setup-go@fcdc43634adb5f7ae75a9d7a9b9361790f7293e2 # pin@v2
+      - uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # pin@v2
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -167,7 +167,7 @@ jobs:
         platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/setup-go@fcdc43634adb5f7ae75a9d7a9b9361790f7293e2 # pin@v2
+      - uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # pin@v2
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -224,7 +224,7 @@ jobs:
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@fcdc43634adb5f7ae75a9d7a9b9361790f7293e2 # pin@v2
+      - uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # pin@v2
         with:
           go-version: 1.18.x
       - uses: actions/setup-python@98f2ad02fd48d057ee3b4d4f66525b231c3e52b6 # pin@v3
@@ -245,7 +245,7 @@ jobs:
     needs:
       - build
     steps:
-      - uses: actions/setup-go@fcdc43634adb5f7ae75a9d7a9b9361790f7293e2 # pin@v2
+      - uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # pin@v2
         with:
           go-version: 1.18.x
 

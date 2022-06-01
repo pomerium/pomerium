@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"sync/atomic"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -48,12 +50,16 @@ func (avo *atomicVersionedConfig) Store(cfg versionedConfig) {
 	avo.value.Store(cfg)
 }
 
+// A Service can be mounted on the control plane.
+type Service interface {
+	Mount(r *mux.Router)
+}
+
 // A Server is the control-plane gRPC and HTTP servers.
 type Server struct {
 	GRPCListener    net.Listener
 	GRPCServer      *grpc.Server
 	HTTPListener    net.Listener
-	HTTPRouter      *mux.Router
 	MetricsListener net.Listener
 	MetricsRouter   *mux.Router
 	DebugListener   net.Listener
@@ -66,6 +72,10 @@ type Server struct {
 	filemgr       *filemgr.Manager
 	metricsMgr    *config.MetricsManager
 	reproxy       *reproxy.Handler
+
+	httpRouter      atomic.Value
+	authenticateSvc Service
+	proxySvc        Service
 
 	haveSetCapacity map[string]bool
 }
@@ -126,10 +136,21 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager) (*Server, 
 		return nil, err
 	}
 
-	srv.HTTPRouter = mux.NewRouter()
+	if err := srv.updateRouter(cfg); err != nil {
+		return nil, err
+	}
 	srv.DebugRouter = mux.NewRouter()
 	srv.MetricsRouter = mux.NewRouter()
-	srv.addHTTPMiddleware()
+
+	// pprof
+	srv.DebugRouter.Path("/debug/pprof/cmdline").HandlerFunc(pprof.Cmdline)
+	srv.DebugRouter.Path("/debug/pprof/profile").HandlerFunc(pprof.Profile)
+	srv.DebugRouter.Path("/debug/pprof/symbol").HandlerFunc(pprof.Symbol)
+	srv.DebugRouter.Path("/debug/pprof/trace").HandlerFunc(pprof.Trace)
+	srv.DebugRouter.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
+
+	// metrics
+	srv.MetricsRouter.Handle("/metrics", srv.metricsMgr)
 
 	srv.filemgr = filemgr.NewManager()
 	srv.filemgr.ClearCache()
@@ -201,9 +222,11 @@ func (srv *Server) Run(ctx context.Context) error {
 	for _, entry := range []struct {
 		Name     string
 		Listener net.Listener
-		Handler  *mux.Router
+		Handler  http.Handler
 	}{
-		{"http", srv.HTTPListener, srv.HTTPRouter},
+		{"http", srv.HTTPListener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			srv.httpRouter.Load().(http.Handler).ServeHTTP(w, r)
+		})},
 		{"debug", srv.DebugListener, srv.DebugRouter},
 		{"metrics", srv.MetricsListener, srv.MetricsRouter},
 	} {
@@ -239,6 +262,9 @@ func (srv *Server) Run(ctx context.Context) error {
 
 // OnConfigChange updates the pomerium config options.
 func (srv *Server) OnConfigChange(ctx context.Context, cfg *config.Config) error {
+	if err := srv.updateRouter(cfg); err != nil {
+		return err
+	}
 	srv.reproxy.Update(ctx, cfg)
 	prev := srv.currentConfig.Load()
 	srv.currentConfig.Store(versionedConfig{
@@ -250,5 +276,35 @@ func (srv *Server) OnConfigChange(ctx context.Context, cfg *config.Config) error
 		return err
 	}
 	srv.xdsmgr.Update(ctx, res)
+	return nil
+}
+
+// EnableAuthenticate enables the authenticate service.
+func (srv *Server) EnableAuthenticate(svc Service) error {
+	srv.authenticateSvc = svc
+	return srv.updateRouter(srv.currentConfig.Load().Config)
+}
+
+// EnableProxy enables the proxy service.
+func (srv *Server) EnableProxy(svc Service) error {
+	srv.proxySvc = svc
+	return srv.updateRouter(srv.currentConfig.Load().Config)
+}
+
+func (srv *Server) updateRouter(cfg *config.Config) error {
+	httpRouter := mux.NewRouter()
+	srv.addHTTPMiddleware(httpRouter)
+	if srv.authenticateSvc != nil {
+		authenticateURL, err := cfg.Options.GetInternalAuthenticateURL()
+		if err != nil {
+			return err
+		}
+		authenticateHost := urlutil.StripPort(authenticateURL.Host)
+		srv.authenticateSvc.Mount(httpRouter.Host(authenticateHost).Subrouter())
+	}
+	if srv.proxySvc != nil {
+		srv.proxySvc.Mount(httpRouter)
+	}
+	srv.httpRouter.Store(http.Handler(httpRouter))
 	return nil
 }

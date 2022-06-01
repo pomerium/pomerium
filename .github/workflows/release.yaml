@@ -31,7 +31,7 @@ jobs:
           node-version: 16.x
 
       - name: Set up Go
-        uses: actions/setup-go@fcdc43634adb5f7ae75a9d7a9b9361790f7293e2 # pin@v2
+        uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # pin@v2
         with:
           go-version: 1.18.x
 
@@ -122,7 +122,7 @@ jobs:
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump test environment
-        uses: mikefarah/yq@1425d0720ec16e51172b88c871ac85f56bcd8ae3 # pin@v4.23.1
+        uses: mikefarah/yq@70403375d7b96075bd68b40c434807cff1593568 # pin@v4.23.1
         with:
           cmd: yq eval '.pomerium.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i projects/pomerium-demo/pomerium-demo/values.yaml
 
