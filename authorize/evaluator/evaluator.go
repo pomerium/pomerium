@@ -72,8 +72,6 @@ type Result struct {
 	Allow   RuleResult
 	Deny    RuleResult
 	Headers http.Header
-
-	DataBrokerServerVersion, DataBrokerRecordVersion uint64
 }
 
 // An Evaluator evaluates policies.
@@ -170,7 +168,6 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		Deny:    policyOutput.Deny,
 		Headers: headersOutput.Headers,
 	}
-	res.DataBrokerServerVersion, res.DataBrokerRecordVersion = e.store.GetDataBrokerVersions()
 	return res, nil
 }
 

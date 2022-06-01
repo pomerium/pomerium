@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"google.golang.org/protobuf/proto"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -116,6 +117,27 @@ func (x *PutResponse) GetRecord() *Record {
 		return nil
 	}
 	return records[0]
+}
+
+// SetFilterByID sets the filter to an id.
+func (x *QueryRequest) SetFilterByID(id string) {
+	x.Filter = &structpb.Struct{Fields: map[string]*structpb.Value{
+		"id": structpb.NewStringValue(id),
+	}}
+}
+
+// SetFilterByIDOrIndex sets the filter to an id or an index.
+func (x *QueryRequest) SetFilterByIDOrIndex(idOrIndex string) {
+	x.Filter = &structpb.Struct{Fields: map[string]*structpb.Value{
+		"$or": structpb.NewListValue(&structpb.ListValue{Values: []*structpb.Value{
+			structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+				"id": structpb.NewStringValue(idOrIndex),
+			}}),
+			structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+				"$index": structpb.NewStringValue(idOrIndex),
+			}}),
+		}}),
+	}}
 }
 
 // default is 4MB, but we'll do 1MB

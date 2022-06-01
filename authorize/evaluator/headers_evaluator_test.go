@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 func TestNewHeadersRequestFromPolicy(t *testing.T) {
@@ -51,13 +52,15 @@ func TestHeadersEvaluator(t *testing.T) {
 	require.NoError(t, err)
 
 	eval := func(t *testing.T, data []proto.Message, input *HeadersRequest) (*HeadersResponse, error) {
-		store := store.NewFromProtos(math.MaxUint64, data...)
+		ctx := context.Background()
+		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
+		store := store.New()
 		store.UpdateIssuer("authenticate.example.com")
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
-		e, err := NewHeadersEvaluator(context.Background(), store)
+		e, err := NewHeadersEvaluator(ctx, store)
 		require.NoError(t, err)
-		return e.Evaluate(context.Background(), input)
+		return e.Evaluate(ctx, input)
 	}
 
 	t.Run("groups", func(t *testing.T) {

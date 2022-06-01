@@ -2,29 +2,24 @@ package evaluator
 
 import (
 	"context"
-	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
-	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 func TestEvaluator(t *testing.T) {
@@ -36,13 +31,15 @@ func TestEvaluator(t *testing.T) {
 	require.NoError(t, err)
 
 	eval := func(t *testing.T, options []Option, data []proto.Message, req *Request) (*Result, error) {
-		store := store.NewFromProtos(math.MaxUint64, data...)
+		ctx := context.Background()
+		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
+		store := store.New()
 		store.UpdateIssuer("authenticate.example.com")
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
-		e, err := New(context.Background(), store, options...)
+		e, err := New(ctx, store, options...)
 		require.NoError(t, err)
-		return e.Evaluate(context.Background(), req)
+		return e.Evaluate(ctx, req)
 	}
 
 	policies := []config.Policy{
@@ -510,105 +507,4 @@ func mustParseURL(str string) *url.URL {
 		panic(err)
 	}
 	return u
-}
-
-func BenchmarkEvaluator_Evaluate(b *testing.B) {
-	store := store.New()
-
-	policies := []config.Policy{
-		{
-			From: "https://from.example.com",
-			To: config.WeightedURLs{
-				{URL: *mustParseURL("https://to.example.com")},
-			},
-			AllowedUsers: []string{"SOME_USER"},
-		},
-	}
-	options := []Option{
-		WithAuthenticateURL("https://authn.example.com"),
-		WithPolicies(policies),
-	}
-
-	e, err := New(context.Background(), store, options...)
-	if !assert.NoError(b, err) {
-		return
-	}
-
-	lastSessionID := ""
-
-	for i := 0; i < 100000; i++ {
-		sessionID := uuid.New().String()
-		lastSessionID = sessionID
-		userID := uuid.New().String()
-		data := protoutil.NewAny(&session.Session{
-			Version: fmt.Sprint(i),
-			Id:      sessionID,
-			UserId:  userID,
-			IdToken: &session.IDToken{
-				Issuer:   "benchmark",
-				Subject:  userID,
-				IssuedAt: timestamppb.Now(),
-			},
-			OauthToken: &session.OAuthToken{
-				AccessToken:  "ACCESS TOKEN",
-				TokenType:    "Bearer",
-				RefreshToken: "REFRESH TOKEN",
-			},
-		})
-		store.UpdateRecord(0, &databroker.Record{
-			Version: uint64(i),
-			Type:    "type.googleapis.com/session.Session",
-			Id:      sessionID,
-			Data:    data,
-		})
-		data = protoutil.NewAny(&user.User{
-			Version: fmt.Sprint(i),
-			Id:      userID,
-		})
-		store.UpdateRecord(0, &databroker.Record{
-			Version: uint64(i),
-			Type:    "type.googleapis.com/user.User",
-			Id:      userID,
-			Data:    data,
-		})
-
-		data = protoutil.NewAny(&directory.User{
-			Version:  fmt.Sprint(i),
-			Id:       userID,
-			GroupIds: []string{"1", "2", "3", "4"},
-		})
-		store.UpdateRecord(0, &databroker.Record{
-			Version: uint64(i),
-			Type:    data.TypeUrl,
-			Id:      userID,
-			Data:    data,
-		})
-
-		data = protoutil.NewAny(&directory.Group{
-			Version: fmt.Sprint(i),
-			Id:      fmt.Sprint(i),
-		})
-		store.UpdateRecord(0, &databroker.Record{
-			Version: uint64(i),
-			Type:    data.TypeUrl,
-			Id:      fmt.Sprint(i),
-			Data:    data,
-		})
-	}
-
-	b.ResetTimer()
-	ctx := context.Background()
-	for i := 0; i < b.N; i++ {
-		_, _ = e.Evaluate(ctx, &Request{
-			Policy: &policies[0],
-			HTTP: RequestHTTP{
-				Method:  "GET",
-				URL:     "https://example.com/path",
-				Headers: map[string]string{},
-			},
-			Session: RequestSession{
-				ID: lastSessionID,
-			},
-		})
-	}
 }

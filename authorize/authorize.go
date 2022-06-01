@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
@@ -17,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 // Authorize struct holds
@@ -25,8 +28,7 @@ type Authorize struct {
 	store          *store.Store
 	currentOptions *config.AtomicOptions
 	accessTracker  *AccessTracker
-
-	dataBrokerInitialSync chan struct{}
+	globalCache    storage.Cache
 
 	// The stateLock prevents updating the evaluator store simultaneously with an evaluation.
 	// This should provide a consistent view of the data at a given server/record version and
@@ -37,9 +39,9 @@ type Authorize struct {
 // New validates and creates a new Authorize service from a set of config options.
 func New(cfg *config.Config) (*Authorize, error) {
 	a := &Authorize{
-		currentOptions:        config.NewAtomicOptions(),
-		store:                 store.New(),
-		dataBrokerInitialSync: make(chan struct{}),
+		currentOptions: config.NewAtomicOptions(),
+		store:          store.New(),
+		globalCache:    storage.NewGlobalCache(time.Minute),
 	}
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 
@@ -59,19 +61,16 @@ func (a *Authorize) GetDataBrokerServiceClient() databroker.DataBrokerServiceCli
 
 // Run runs the authorize service.
 func (a *Authorize) Run(ctx context.Context) error {
-	go a.accessTracker.Run(ctx)
-	_ = grpc.WaitForReady(ctx, a.state.Load().dataBrokerClientConnection, time.Second*10)
-	return newDataBrokerSyncer(a).Run(ctx)
-}
-
-// WaitForInitialSync blocks until the initial sync is complete.
-func (a *Authorize) WaitForInitialSync(ctx context.Context) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-a.dataBrokerInitialSync:
-	}
-	return nil
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		a.accessTracker.Run(ctx)
+		return nil
+	})
+	eg.Go(func() error {
+		_ = grpc.WaitForReady(ctx, a.state.Load().dataBrokerClientConnection, time.Second*10)
+		return nil
+	})
+	return eg.Wait()
 }
 
 func validateOptions(o *config.Options) error {

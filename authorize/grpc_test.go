@@ -337,8 +337,6 @@ func TestAuthorize_Check(t *testing.T) {
 	}
 	a.currentOptions.Store(&config.Options{ForwardAuthURLString: "https://forward-auth.example.com"})
 
-	close(a.dataBrokerInitialSync)
-
 	cmpOpts := []cmp.Option{
 		cmpopts.IgnoreUnexported(envoy_service_auth_v3.CheckResponse{}),
 		cmpopts.IgnoreUnexported(status.Status{}),

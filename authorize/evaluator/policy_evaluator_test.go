@@ -2,7 +2,6 @@ package evaluator
 
 import (
 	"context"
-	"math"
 	"strings"
 	"testing"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/policy"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 func TestPolicyEvaluator(t *testing.T) {
@@ -29,13 +29,15 @@ func TestPolicyEvaluator(t *testing.T) {
 	require.NoError(t, err)
 
 	eval := func(t *testing.T, policy *config.Policy, data []proto.Message, input *PolicyRequest) (*PolicyResponse, error) {
-		store := store.NewFromProtos(math.MaxUint64, data...)
+		ctx := context.Background()
+		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
+		store := store.New()
 		store.UpdateIssuer("authenticate.example.com")
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
-		e, err := NewPolicyEvaluator(context.Background(), store, policy)
+		e, err := NewPolicyEvaluator(ctx, store, policy)
 		require.NoError(t, err)
-		return e.Evaluate(context.Background(), input)
+		return e.Evaluate(ctx, input)
 	}
 
 	p1 := &config.Policy{

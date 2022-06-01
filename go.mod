@@ -6,7 +6,9 @@ require (
 	contrib.go.opencensus.io/exporter/jaeger v0.2.1
 	contrib.go.opencensus.io/exporter/prometheus v0.4.1
 	contrib.go.opencensus.io/exporter/zipkin v0.1.2
+	github.com/CAFxX/httpcompression v0.0.8
 	github.com/DataDog/opencensus-go-exporter-datadog v0.0.0-20200406135749-5c268882acf0
+	github.com/VictoriaMetrics/fastcache v1.10.0
 	github.com/caddyserver/certmagic v0.16.0
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/cespare/xxhash/v2 v2.1.2
@@ -29,9 +31,11 @@ require (
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
-	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru v0.5.4
+	github.com/jackc/pgconn v1.12.1
+	github.com/jackc/pgtype v1.11.0
+	github.com/jackc/pgx/v4 v4.16.1
 	github.com/martinlindhe/base36 v1.1.0
 	github.com/mholt/acmez v1.0.2
 	github.com/mitchellh/hashstructure/v2 v2.0.2
@@ -73,14 +77,6 @@ require (
 	gopkg.in/auth0.v5 v5.21.1
 	gopkg.in/yaml.v3 v3.0.0
 	sigs.k8s.io/yaml v1.3.0
-)
-
-require (
-	github.com/CAFxX/httpcompression v0.0.8
-	github.com/jackc/pgconn v1.12.1
-	github.com/jackc/pgtype v1.11.0
-	github.com/jackc/pgx/v4 v4.16.1
-	github.com/kentik/patricia v1.0.0
 )
 
 require (
@@ -148,6 +144,7 @@ require (
 	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/snappy v0.0.4 // indirect
 	github.com/golangci/check v0.0.0-20180506172741-cfe4005ccda2 // indirect
 	github.com/golangci/dupl v0.0.0-20180902072040-3e9179ac440a // indirect
 	github.com/golangci/go-misc v0.0.0-20220329215616-d24fe342adfe // indirect
@@ -166,6 +163,7 @@ require (
 	github.com/gostaticanalysis/comment v1.4.2 // indirect
 	github.com/gostaticanalysis/forcetypeassert v0.1.0 // indirect
 	github.com/gostaticanalysis/nilerr v0.1.1 // indirect
+	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-version v1.4.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hexops/gotextdiff v1.0.3 // indirect
