@@ -81,8 +81,8 @@ local Environment(mode, idp, dns_suffix) =
     CERTIFICATE_KEY: std.base64(importstr '../files/trusted-key.pem'),
     CERTIFICATE_AUTHORITY: std.base64(importstr '../files/ca.pem'),
     COOKIE_SECRET: 'UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=',
-    DATABROKER_STORAGE_TYPE: 'redis',
-    DATABROKER_STORAGE_CONNECTION_STRING: 'redis://redis:6379',
+    DATABROKER_STORAGE_TYPE: 'postgres',
+    DATABROKER_STORAGE_CONNECTION_STRING: 'postgres://pomerium:password@postgres:5432/test',
     ENVOY_ADMIN_ADDRESS: '0.0.0.0:9901',
     GOOGLE_CLOUD_SERVERLESS_AUTHENTICATION_SERVICE_ACCOUNT: std.base64(std.manifestJsonEx(
       GoogleCloudServerlessAuthenticationServiceAccount(dns_suffix), ''
@@ -120,7 +120,7 @@ local ComposeService(name, definition, additionalAliases=[]) =
       for name in [
         'fortio',
         'mock-idp',
-        'redis',
+        'postgres',
         'trusted-httpdetails',
         'trusted-1-httpdetails',
         'trusted-2-httpdetails',
@@ -135,7 +135,7 @@ local ComposeService(name, definition, additionalAliases=[]) =
 
 function(mode, idp, dns_suffix='') {
   local name = 'pomerium',
-  local image = 'pomerium/pomerium:${POMERIUM_TAG:-master}',
+  local image = 'pomerium/pomerium:${POMERIUM_TAG:-main}',
   local environment = Environment(mode, idp, dns_suffix),
 
   compose: {
