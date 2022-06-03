@@ -23,7 +23,7 @@ local Merge(items) =
   else
     items[std.length(items) - 1];
 
-local KubernetesDeployment(name, image, command, ports) =
+local KubernetesDeployment(name, container) =
   {
     apiVersion: 'apps/v1',
     kind: 'Deployment',
@@ -40,13 +40,7 @@ local KubernetesDeployment(name, image, command, ports) =
         },
         spec: {
           containers: [
-            {
-              name: name,
-              image: image,
-              ports: ports,
-            } + if std.type(command) == 'null' then {} else {
-              args: command,
-            },
+            { name: name } + container,
           ],
         },
       },

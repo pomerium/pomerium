@@ -7,7 +7,7 @@ local Command() =
     |||
       set -x
       # the dev image is only available locally, so load it first
-      if [ "${POMERIUM_TAG:-master}" = "dev" ]; then
+      if [ "${POMERIUM_TAG:-main}" = "dev" ]; then
         sh -c '
           while true ; do
             ctr --connect-timeout=1s --timeout=60s images import /k3s-tmp/pomerium-dev.tar && break

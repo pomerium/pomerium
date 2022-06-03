@@ -145,11 +145,11 @@ services:
                     },
                     {
                       "name": "DATABROKER_STORAGE_CONNECTION_STRING",
-                      "value": "redis://redis:6379"
+                      "value": "postgres://pomerium:password@postgres:5432/test"
                     },
                     {
                       "name": "DATABROKER_STORAGE_TYPE",
-                      "value": "redis"
+                      "value": "postgres"
                     },
                     {
                       "name": "ENVOY_ADMIN_ADDRESS",
@@ -231,30 +231,44 @@ services:
         "apiVersion": "apps/v1",
         "kind": "Deployment",
         "metadata": {
-          "name": "redis",
+          "name": "postgres",
           "namespace": "default"
         },
         "spec": {
           "replicas": 1,
           "selector": {
             "matchLabels": {
-              "app": "redis"
+              "app": "postgres"
             }
           },
           "template": {
             "metadata": {
               "labels": {
-                "app": "redis"
+                "app": "postgres"
               }
             },
             "spec": {
               "containers": [
                 {
-                  "image": "redis:6.2.5-alpine",
-                  "name": "redis",
+                  "env": [
+                    {
+                      "name": "POSTGRES_DB",
+                      "value": "test"
+                    },
+                    {
+                      "name": "POSTGRES_PASSWORD",
+                      "value": "password"
+                    },
+                    {
+                      "name": "POSTGRES_USER",
+                      "value": "pomerium"
+                    }
+                  ],
+                  "image": "postgres:14.3-alpine",
+                  "name": "postgres",
                   "ports": [
                     {
-                      "containerPort": 6379,
+                      "containerPort": 5432,
                       "name": "tcp"
                     }
                   ]
@@ -266,7 +280,7 @@ services:
       }
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
-      kubectl wait --for=condition=available deployment/redis
+      kubectl wait --for=condition=available deployment/postgres
       cat <<-END_OF_MANIFEST | tee /tmp/manifest.json
       {
         "apiVersion": "apps/v1",
@@ -726,21 +740,21 @@ services:
         "kind": "Service",
         "metadata": {
           "labels": {
-            "app": "redis"
+            "app": "postgres"
           },
-          "name": "redis",
+          "name": "postgres",
           "namespace": "default"
         },
         "spec": {
           "ports": [
             {
               "name": "tcp",
-              "port": 6379,
+              "port": 5432,
               "targetPort": "tcp"
             }
           ],
           "selector": {
-            "app": "redis"
+            "app": "postgres"
           }
         }
       }
