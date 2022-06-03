@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"fmt"
+	"net/netip"
 	"strings"
 
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -39,8 +40,12 @@ func addFilterExpressionToQuery(query *string, args *[]interface{}, expr storage
 			*args = append(*args, expr.Value)
 			return nil
 		case "$index":
-			*query += schemaName + "." + recordsTableName + ".index_cidr >>= " + fmt.Sprintf("$%d", len(*args)+1)
-			*args = append(*args, expr.Value)
+			if isCIDR(expr.Value) {
+				*query += schemaName + "." + recordsTableName + ".index_cidr >>= " + fmt.Sprintf("$%d", len(*args)+1)
+				*args = append(*args, expr.Value)
+			} else {
+				*query += " false "
+			}
 			return nil
 		default:
 			return fmt.Errorf("unsupported equals filter: %v", expr.Fields)
@@ -48,4 +53,14 @@ func addFilterExpressionToQuery(query *string, args *[]interface{}, expr storage
 	default:
 		return fmt.Errorf("unsupported filter expression: %T", expr)
 	}
+}
+
+func isCIDR(value string) bool {
+	if _, err := netip.ParsePrefix(value); err == nil {
+		return true
+	}
+	if _, err := netip.ParseAddr(value); err == nil {
+		return true
+	}
+	return false
 }
