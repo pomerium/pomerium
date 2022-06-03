@@ -48,8 +48,11 @@ function(mode) {
     utils.KubernetesService(name, [
       { name: 'http', port: 80, targetPort: 'http' },
     ]),
-    utils.KubernetesDeployment(name, image, null, [
-      { name: 'http', containerPort: 8000 },
-    ]),
+    utils.KubernetesDeployment(name, {
+      image: image,
+      ports: [
+        { name: 'http', containerPort: 8000 },
+      ],
+    }),
   ],
 }

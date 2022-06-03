@@ -23,9 +23,13 @@ function() {
     volumes: {},
   },
   kubernetes: [
-    utils.KubernetesDeployment(name, image, command, [
-      { name: 'http', containerPort: 80 },
-    ]),
+    utils.KubernetesDeployment(name, {
+      image: image,
+      args: command,
+      ports: [
+        { name: 'http', containerPort: 80 },
+      ],
+    }),
     utils.KubernetesService(name, [
       { name: 'http', port: 80, targetPort: 'http' },
     ]),

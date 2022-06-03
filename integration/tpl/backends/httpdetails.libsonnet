@@ -78,10 +78,14 @@ function() {
   kubernetes: std.foldl(
     function(acc, variation)
       acc + [
-        utils.KubernetesDeployment(variation.name + '-' + suffix, image, Command(variation), [
-          { name: 'http', containerPort: 8080 },
-          { name: 'https', containerPort: 8443 },
-        ]),
+        utils.KubernetesDeployment(variation.name + '-' + suffix, {
+          image: image,
+          args: Command(variation),
+          ports: [
+            { name: 'http', containerPort: 8080 },
+            { name: 'https', containerPort: 8443 },
+          ],
+        }),
         utils.KubernetesService(variation.name + '-' + suffix, [
           { name: 'http', port: 8080, targetPort: 'http' },
           { name: 'https', port: 8443, targetPort: 'https' },

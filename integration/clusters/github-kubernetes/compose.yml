@@ -250,6 +250,20 @@ services:
             "spec": {
               "containers": [
                 {
+                  "env": [
+                    {
+                      "name": "POSTGRES_DB",
+                      "value": "test"
+                    },
+                    {
+                      "name": "POSTGRES_PASSWORD",
+                      "value": "password"
+                    },
+                    {
+                      "name": "POSTGRES_USER",
+                      "value": "pomerium"
+                    }
+                  ],
                   "image": "postgres:14.3-alpine",
                   "name": "postgres",
                   "ports": [

@@ -33,9 +33,13 @@ function(idp) {
     volumes: {},
   },
   kubernetes: [
-    utils.KubernetesDeployment(name, image, command, [
-      { name: 'http', containerPort: 8024 },
-    ]),
+    utils.KubernetesDeployment(name, {
+      image: image,
+      args: command,
+      ports: [
+        { name: 'http', containerPort: 8024 },
+      ],
+    }),
     utils.KubernetesService(name, [
       { name: 'http', port: 8024, targetPort: 'http' },
     ]),
