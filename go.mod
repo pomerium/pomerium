@@ -55,7 +55,7 @@ require (
 	github.com/rs/cors v1.8.2
 	github.com/rs/zerolog v1.26.1
 	github.com/scylladb/go-set v1.0.2
-	github.com/shirou/gopsutil/v3 v3.22.4
+	github.com/shirou/gopsutil/v3 v3.22.5
 	github.com/spf13/cobra v1.4.0 // indirect
 	github.com/spf13/viper v1.12.0
 	github.com/stretchr/testify v1.7.1
