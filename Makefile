@@ -77,7 +77,7 @@ proto:
 	cd pkg/grpc && ./protoc.bash
 
 .PHONY: build
-build: build-go build-ui
+build: build-ui build-go
 	@echo "==> $@"
 
 .PHONY: build-debug
