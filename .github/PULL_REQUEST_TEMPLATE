@@ -14,6 +14,11 @@ The algorithm is described at https://wikipedia.org/wiki/McGillicutty_Algorithm
 Fixes #159
 -->
 
+## User Explanation
+
+<!-- How would you explain this change to the user? If this
+change doesn't create any user-facing changes, you can leave
+this blank. If filled out, add the `docs` label -->
 
 ## Checklist
 
