@@ -188,10 +188,17 @@ func (backend *Backend) Put(
 		return nil
 	}
 
-	err = pool.BeginTxFunc(ctx, pgx.TxOptions{
-		IsoLevel:   pgx.Serializable,
-		AccessMode: pgx.ReadWrite,
-	}, insert)
+	for i := 0; i < 5; i++ {
+		err = pool.BeginTxFunc(ctx, pgx.TxOptions{
+			IsoLevel:   pgx.Serializable,
+			AccessMode: pgx.ReadWrite,
+		}, insert)
+		if err == nil {
+			break
+		} else if !errors.As(err, new(pgx.SerializationError)) {
+			return serverVersion, err
+		}
+	}
 	if err != nil {
 		return serverVersion, err
 	}
@@ -217,17 +224,10 @@ func (backend *Backend) Put(
 		return nil
 	}
 
-	for i := 0; i < 5; i++ {
-		err = pool.BeginTxFunc(ctx, pgx.TxOptions{
-			IsoLevel:   pgx.ReadCommitted,
-			AccessMode: pgx.ReadWrite,
-		}, enforce)
-		if err == nil {
-			break
-		} else if !errors.As(err, new(pgx.SerializationError)) {
-			return serverVersion, err
-		}
-	}
+	err = pool.BeginTxFunc(ctx, pgx.TxOptions{
+		IsoLevel:   pgx.ReadCommitted,
+		AccessMode: pgx.ReadWrite,
+	}, enforce)
 	if err != nil {
 		return serverVersion, err
 	}
