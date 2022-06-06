@@ -188,6 +188,8 @@ func (backend *Backend) Put(
 		return nil
 	}
 
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 0
 	for i := 0; i < 5; i++ {
 		err = pool.BeginTxFunc(ctx, pgx.TxOptions{
 			IsoLevel:   pgx.Serializable,
@@ -197,6 +199,11 @@ func (backend *Backend) Put(
 			break
 		} else if !errors.As(err, new(pgx.SerializationError)) {
 			return serverVersion, err
+		}
+		select {
+		case <-ctx.Done():
+			return serverVersion, ctx.Err()
+		case <-time.After(bo.NextBackOff()):
 		}
 	}
 	if err != nil {
