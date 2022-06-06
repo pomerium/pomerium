@@ -261,8 +261,8 @@ func putRecord(ctx context.Context, q querier, record *databroker.Record) error 
 	} else {
 		_, err = q.Exec(ctx, `
 			DELETE FROM `+schemaName+`.`+recordsTableName+`
-			WHERE type=$1 AND id=$2 AND version<$3
-		`, record.GetType(), record.GetId(), record.GetVersion())
+			WHERE type=$1 AND id=$2
+		`, record.GetType(), record.GetId())
 	}
 	if err != nil {
 		return err

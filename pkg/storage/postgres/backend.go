@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -158,10 +159,7 @@ func (backend *Backend) Put(
 		return 0, err
 	}
 
-	err = pool.BeginTxFunc(ctx, pgx.TxOptions{
-		IsoLevel:   pgx.Serializable,
-		AccessMode: pgx.ReadWrite,
-	}, func(tx pgx.Tx) error {
+	insert := func(tx pgx.Tx) error {
 		now := timestamppb.Now()
 
 		recordVersion, err := getLatestRecordVersion(ctx, tx)
@@ -170,9 +168,7 @@ func (backend *Backend) Put(
 		}
 
 		// add all the records
-		recordTypes := map[string]struct{}{}
 		for i, record := range records {
-			recordTypes[record.GetType()] = struct{}{}
 
 			record = dup(record)
 			record.ModifiedAt = now
@@ -189,6 +185,23 @@ func (backend *Backend) Put(
 			records[i] = record
 		}
 
+		return nil
+	}
+
+	err = pool.BeginTxFunc(ctx, pgx.TxOptions{
+		IsoLevel:   pgx.Serializable,
+		AccessMode: pgx.ReadWrite,
+	}, insert)
+	if err != nil {
+		return serverVersion, err
+	}
+
+	enforce := func(tx pgx.Tx) error {
+		recordTypes := map[string]struct{}{}
+		for _, record := range records {
+			recordTypes[record.GetType()] = struct{}{}
+		}
+
 		// enforce options for each record type
 		for recordType := range recordTypes {
 			options, err := getOptions(ctx, tx, recordType)
@@ -202,7 +215,19 @@ func (backend *Backend) Put(
 		}
 
 		return nil
-	})
+	}
+
+	for i := 0; i < 5; i++ {
+		err = pool.BeginTxFunc(ctx, pgx.TxOptions{
+			IsoLevel:   pgx.ReadCommitted,
+			AccessMode: pgx.ReadWrite,
+		}, enforce)
+		if err == nil {
+			break
+		} else if !errors.As(err, new(pgx.SerializationError)) {
+			return serverVersion, err
+		}
+	}
 	if err != nil {
 		return serverVersion, err
 	}
