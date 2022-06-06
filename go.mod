@@ -24,7 +24,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2
 	github.com/golangci/golangci-lint v1.46.2
-	github.com/google/btree v1.0.1
+	github.com/google/btree v1.1.1
 	github.com/google/go-cmp v0.5.8
 	github.com/google/go-jsonnet v0.18.0
 	github.com/google/uuid v1.3.0
@@ -72,7 +72,7 @@ require (
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
 	google.golang.org/api v0.81.0
 	google.golang.org/genproto v0.0.0-20220519153652-3a47de7e79bd
-	google.golang.org/grpc v1.46.2
+	google.golang.org/grpc v1.47.0
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/auth0.v5 v5.21.1
 	gopkg.in/yaml.v3 v3.0.0
