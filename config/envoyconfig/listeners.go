@@ -243,7 +243,7 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 		host = ""
 	}
 
-	addr := buildAddress(fmt.Sprintf("%s:%s", host, port), 9902)
+	addr := buildAddress(net.JoinHostPort(host, port), 9902)
 	li := newEnvoyListener(fmt.Sprintf("metrics-ingress-%d", hashutil.MustHash(addr)))
 	li.Address = addr
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{filterChain}
