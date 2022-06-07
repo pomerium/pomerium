@@ -158,53 +158,32 @@ func (backend *Backend) Put(
 		return 0, err
 	}
 
-	err = pool.BeginTxFunc(ctx, pgx.TxOptions{
-		IsoLevel:   pgx.Serializable,
-		AccessMode: pgx.ReadWrite,
-	}, func(tx pgx.Tx) error {
-		now := timestamppb.Now()
+	now := timestamppb.Now()
 
-		recordVersion, err := getLatestRecordVersion(ctx, tx)
+	// add all the records
+	recordTypes := map[string]struct{}{}
+	for i, record := range records {
+		recordTypes[record.GetType()] = struct{}{}
+
+		record = dup(record)
+		record.ModifiedAt = now
+		err := putRecordAndChange(ctx, pool, record)
 		if err != nil {
-			return fmt.Errorf("storage/postgres: error getting latest record version: %w", err)
+			return serverVersion, fmt.Errorf("storage/postgres: error saving record: %w", err)
 		}
+		records[i] = record
+	}
 
-		// add all the records
-		recordTypes := map[string]struct{}{}
-		for i, record := range records {
-			recordTypes[record.GetType()] = struct{}{}
-
-			record = dup(record)
-			record.ModifiedAt = now
-			record.Version = recordVersion + uint64(i) + 1
-			err := putRecordChange(ctx, tx, record)
-			if err != nil {
-				return fmt.Errorf("storage/postgres: error saving record change: %w", err)
-			}
-
-			err = putRecord(ctx, tx, record)
-			if err != nil {
-				return fmt.Errorf("storage/postgres: error saving record: %w", err)
-			}
-			records[i] = record
+	// enforce options for each record type
+	for recordType := range recordTypes {
+		options, err := getOptions(ctx, pool, recordType)
+		if err != nil {
+			return serverVersion, fmt.Errorf("storage/postgres: error getting options: %w", err)
 		}
-
-		// enforce options for each record type
-		for recordType := range recordTypes {
-			options, err := getOptions(ctx, tx, recordType)
-			if err != nil {
-				return fmt.Errorf("storage/postgres: error getting options: %w", err)
-			}
-			err = enforceOptions(ctx, tx, recordType, options)
-			if err != nil {
-				return fmt.Errorf("storage/postgres: error enforcing options: %w", err)
-			}
+		err = enforceOptions(ctx, pool, recordType, options)
+		if err != nil {
+			return serverVersion, fmt.Errorf("storage/postgres: error enforcing options: %w", err)
 		}
-
-		return nil
-	})
-	if err != nil {
-		return serverVersion, err
 	}
 
 	err = signalRecordChange(ctx, pool)

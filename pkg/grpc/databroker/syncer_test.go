@@ -205,15 +205,9 @@ func TestSyncer(t *testing.T) {
 
 	select {
 	case <-ctx.Done():
-		t.Fatal("6. expected call to clear records due to skipped version")
-	case <-clearCh:
-	}
-
-	select {
-	case <-ctx.Done():
-		t.Fatal("7. expected call to update records")
+		t.Fatal("6. expected call to update records")
 	case records := <-updateCh:
-		testutil.AssertProtoJSONEqual(t, `[{"id": "r3", "version": "1002"}, {"id": "r5", "version": "1004"}]`, records)
+		testutil.AssertProtoJSONEqual(t, `[{"id": "r5", "version": "1004"}]`, records)
 	}
 
 	assert.NoError(t, syncer.Close())
