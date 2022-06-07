@@ -233,6 +233,10 @@ func putRecordAndChange(ctx context.Context, q querier, record *databroker.Recor
 
 	modifiedAt := timestamptzFromTimestamppb(record.GetModifiedAt())
 	deletedAt := timestamptzFromTimestamppb(record.GetDeletedAt())
+	indexCIDR := &pgtype.Text{Status: pgtype.Null}
+	if cidr := storage.GetRecordIndexCIDR(record.GetData()); cidr != nil {
+		_ = indexCIDR.Set(cidr.String())
+	}
 
 	query := `
 		WITH t1 AS (
@@ -243,12 +247,11 @@ func putRecordAndChange(ctx context.Context, q querier, record *databroker.Recor
 	`
 	if record.GetDeletedAt() == nil {
 		query += `
-			INSERT INTO ` + schemaName + `.` + recordsTableName + ` (type, id, version, data, modified_at)
-			VALUES ($1, $2, (SELECT version FROM t1), $3, $4)
+			INSERT INTO ` + schemaName + `.` + recordsTableName + ` (type, id, version, data, modified_at, index_cidr)
+			VALUES ($1, $2, (SELECT version FROM t1), $3, $4, $6)
 			ON CONFLICT (type, id) DO UPDATE
-			SET version=(SELECT version FROM t1), data=$3, modified_at=$4
+			SET version=(SELECT version FROM t1), data=$3, modified_at=$4, index_cidr=$6
 			RETURNING ` + schemaName + `.` + recordsTableName + `.version
-
 		`
 	} else {
 		query += `
@@ -257,7 +260,7 @@ func putRecordAndChange(ctx context.Context, q querier, record *databroker.Recor
 			RETURNING ` + schemaName + `.` + recordsTableName + `.version
 		`
 	}
-	err = q.QueryRow(ctx, query, record.GetType(), record.GetId(), data, modifiedAt, deletedAt).Scan(&record.Version)
+	err = q.QueryRow(ctx, query, record.GetType(), record.GetId(), data, modifiedAt, deletedAt, indexCIDR).Scan(&record.Version)
 	if err != nil {
 		return err
 	}
