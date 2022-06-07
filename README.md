@@ -24,3 +24,30 @@ For comprehensive docs, and tutorials see our [documentation].
 [go environment]: https://golang.org/doc/install
 [godocs]: https://godoc.org/github.com/pomerium/pomerium
 [quick start guide]: https://www.pomerium.io/guide/
+
+## Integration Tests
+
+To run the integration tests locally, first build a local development image:
+
+```bash
+./scripts/build-dev-docker.bash
+```
+
+Next go to the `integration/clusters` folder and pick a cluster, for example `google-single`, then use docker-compose to start the cluster. We use an environment variable to specify the `dev` docker image we built earlier:
+
+```bash
+cd integration/clusters/google-single
+env POMERIUM_TAG=dev docker-compose up -V
+```
+
+Once that's up and running you can run the integration tests from another terminal:
+
+```bash
+go test -count=1 -v ./integration/...
+```
+
+If you need to make a change to the clusters themselves, there's a `tpl` folder that contains `jsonnet` files. Make a change and then rebuild the clusters by running:
+
+```bash
+go run ./integration/cmd/pomerium-integration-tests/ generate-configuration
+```
