@@ -80,7 +80,16 @@ var migrations = []func(context.Context, pgx.Tx) error{
 		return nil
 	},
 	2: func(ctx context.Context, tx pgx.Tx) error {
+		serverVersion := uint64(cryptutil.NewRandomUInt32())
 		_, err := tx.Exec(ctx, `
+			UPDATE `+schemaName+`.`+migrationInfoTableName+`
+			SET server_version = $1
+		`, serverVersion)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.Exec(ctx, `
 			DELETE FROM `+schemaName+`.`+recordChangesTableName+`
 		`)
 		if err != nil {
