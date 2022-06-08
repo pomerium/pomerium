@@ -3,11 +3,10 @@ package authorize
 import (
 	"context"
 
-	"github.com/open-policy-agent/opa/storage"
-
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 type sessionOrServiceAccount interface {

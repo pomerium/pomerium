@@ -113,3 +113,8 @@ func matchProtoMapValue(fd protoreflect.FieldDescriptor, m protoreflect.Map, que
 	})
 	return matches
 }
+
+// IsNotFound returns true if the error is because a record was not found.
+func IsNotFound(err error) bool {
+	return errors.Is(err, ErrNotFound) || status.Code(err) == codes.NotFound
+}
