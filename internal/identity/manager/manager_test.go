@@ -6,11 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker/mock_databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -30,12 +32,15 @@ func (mock mockProvider) UserGroups(ctx context.Context) ([]*directory.Group, []
 }
 
 func TestManager_onUpdateRecords(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
 	defer clearTimeout()
 
 	now := time.Now()
 
 	mgr := New(
+		WithDataBrokerClient(mock_databroker.NewMockDataBrokerServiceClient(ctrl)),
 		WithDirectoryProvider(mockProvider{}),
 		WithGroupRefreshInterval(time.Hour),
 		WithNow(func() time.Time {
@@ -67,12 +72,17 @@ func TestManager_onUpdateRecords(t *testing.T) {
 }
 
 func TestManager_refreshDirectoryUserGroups(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
 	defer clearTimeout()
 
 	t.Run("backoff", func(t *testing.T) {
 		cnt := 0
+		client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
+		client.EXPECT().Put(gomock.Any(), gomock.Any()).AnyTimes()
 		mgr := New(
+			WithDataBrokerClient(client),
 			WithDirectoryProvider(mockProvider{
 				userGroups: func(ctx context.Context) ([]*directory.Group, []*directory.User, error) {
 					cnt++
