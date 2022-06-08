@@ -264,10 +264,13 @@ func (mgr *Manager) mergeGroups(ctx context.Context, directoryGroups []*director
 		}
 	}
 
-	for _, batch := range databroker.OptimumPutRequestsFromRecords(records) {
+	for i, batch := range databroker.OptimumPutRequestsFromRecords(records) {
 		_, err := mgr.cfg.Load().dataBrokerClient.Put(ctx, batch)
 		if err != nil {
-			log.Warn(ctx).Err(err).Msg("manager: failed to update groups")
+			log.Warn(ctx).Err(err).
+				Int("batch", i).
+				Int("record-count", len(batch.GetRecords())).
+				Msg("manager: failed to update groups")
 		}
 	}
 }
@@ -307,10 +310,13 @@ func (mgr *Manager) mergeUsers(ctx context.Context, directoryUsers []*directory.
 		}
 	}
 
-	for _, batch := range databroker.OptimumPutRequestsFromRecords(records) {
+	for i, batch := range databroker.OptimumPutRequestsFromRecords(records) {
 		_, err := mgr.cfg.Load().dataBrokerClient.Put(ctx, batch)
 		if err != nil {
-			log.Warn(ctx).Err(err).Msg("manager: failed to update users")
+			log.Warn(ctx).Err(err).
+				Int("batch", i).
+				Int("record-count", len(batch.GetRecords())).
+				Msg("manager: failed to update users")
 		}
 	}
 }
