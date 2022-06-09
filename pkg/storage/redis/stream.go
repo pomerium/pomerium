@@ -17,6 +17,7 @@ import (
 func newSyncRecordStream(
 	ctx context.Context,
 	backend *Backend,
+	recordType string,
 	serverVersion uint64,
 	recordVersion uint64,
 ) storage.RecordStream {
@@ -36,7 +37,7 @@ func newSyncRecordStream(
 					return nil, storage.ErrInvalidServerVersion
 				}
 
-				record, err := nextChangedRecord(ctx, backend, &recordVersion)
+				record, err := nextChangedRecord(ctx, backend, recordType, &recordVersion)
 				if err == nil {
 					return record, nil
 				} else if !errors.Is(err, storage.ErrStreamDone) {
@@ -135,7 +136,7 @@ func nextScannedRecords(ctx context.Context, backend *Backend, cursor *uint64) (
 	return records, nil
 }
 
-func nextChangedRecord(ctx context.Context, backend *Backend, recordVersion *uint64) (*databroker.Record, error) {
+func nextChangedRecord(ctx context.Context, backend *Backend, recordType string, recordVersion *uint64) (*databroker.Record, error) {
 	for {
 		cmd := backend.client.ZRangeByScore(ctx, changesSetKey, &redis.ZRangeBy{
 			Min:    fmt.Sprintf("(%d", *recordVersion),
@@ -155,10 +156,17 @@ func nextChangedRecord(ctx context.Context, backend *Backend, recordVersion *uin
 		result := results[0]
 		var record databroker.Record
 		err = proto.Unmarshal([]byte(result), &record)
-		*recordVersion++
-		if err == nil {
-			return &record, nil
+		if err != nil {
+			log.Warn(ctx).Err(err).Msg("redis: invalid record detected")
+			*recordVersion++
+			continue
 		}
-		log.Warn(ctx).Err(err).Msg("redis: invalid record detected")
+
+		*recordVersion = record.GetVersion()
+		if recordType != "" && record.GetType() != recordType {
+			continue
+		}
+
+		return &record, nil
 	}
 }

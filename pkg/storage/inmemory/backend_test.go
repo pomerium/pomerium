@@ -87,7 +87,7 @@ func TestExpiry(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, backend.serverVersion, sv)
 	}
-	stream, err := backend.Sync(ctx, backend.serverVersion, 0)
+	stream, err := backend.Sync(ctx, "", backend.serverVersion, 0)
 	require.NoError(t, err)
 	var records []*databroker.Record
 	for stream.Next(false) {
@@ -98,7 +98,7 @@ func TestExpiry(t *testing.T) {
 
 	backend.removeChangesBefore(time.Now().Add(time.Second))
 
-	stream, err = backend.Sync(ctx, backend.serverVersion, 0)
+	stream, err = backend.Sync(ctx, "", backend.serverVersion, 0)
 	require.NoError(t, err)
 	records = nil
 	for stream.Next(false) {
@@ -135,7 +135,7 @@ func TestStream(t *testing.T) {
 	backend := New()
 	defer func() { _ = backend.Close() }()
 
-	stream, err := backend.Sync(ctx, backend.serverVersion, 0)
+	stream, err := backend.Sync(ctx, "TYPE", backend.serverVersion, 0)
 	require.NoError(t, err)
 	defer func() { _ = stream.Close() }()
 
@@ -167,7 +167,7 @@ func TestStreamClose(t *testing.T) {
 	ctx := context.Background()
 	t.Run("by backend", func(t *testing.T) {
 		backend := New()
-		stream, err := backend.Sync(ctx, backend.serverVersion, 0)
+		stream, err := backend.Sync(ctx, "", backend.serverVersion, 0)
 		require.NoError(t, err)
 		require.NoError(t, backend.Close())
 		assert.False(t, stream.Next(true))
@@ -175,7 +175,7 @@ func TestStreamClose(t *testing.T) {
 	})
 	t.Run("by stream", func(t *testing.T) {
 		backend := New()
-		stream, err := backend.Sync(ctx, backend.serverVersion, 0)
+		stream, err := backend.Sync(ctx, "", backend.serverVersion, 0)
 		require.NoError(t, err)
 		require.NoError(t, stream.Close())
 		assert.False(t, stream.Next(true))
@@ -184,7 +184,7 @@ func TestStreamClose(t *testing.T) {
 	t.Run("by context", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(ctx)
 		backend := New()
-		stream, err := backend.Sync(ctx, backend.serverVersion, 0)
+		stream, err := backend.Sync(ctx, "", backend.serverVersion, 0)
 		require.NoError(t, err)
 		cancel()
 		assert.False(t, stream.Next(true))

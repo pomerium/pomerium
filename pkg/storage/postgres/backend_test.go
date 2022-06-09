@@ -111,11 +111,11 @@ func TestBackend(t *testing.T) {
 		})
 
 		t.Run("changed", func(t *testing.T) {
-			serverVersion, recordVersion, stream, err := backend.SyncLatest(ctx, "", nil)
+			serverVersion, recordVersion, stream, err := backend.SyncLatest(ctx, "sync-test", nil)
 			require.NoError(t, err)
 			assert.NoError(t, stream.Close())
 
-			stream, err = backend.Sync(ctx, serverVersion, recordVersion)
+			stream, err = backend.Sync(ctx, "", serverVersion, recordVersion)
 			require.NoError(t, err)
 			defer stream.Close()
 
