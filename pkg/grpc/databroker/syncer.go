@@ -2,7 +2,6 @@ package databroker
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	backoff "github.com/cenkalti/backoff/v4"
@@ -174,12 +173,6 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 		rec := res.GetRecord()
 		log.Debug(logCtxRec(ctx, rec)).Msg("syncer got record")
 
-		if syncer.recordVersion != res.GetRecord().GetVersion()-1 {
-			log.Error(logCtxRec(ctx, rec)).Err(err).
-				Msg("aborted sync due to missing record")
-			syncer.serverVersion = 0
-			return fmt.Errorf("missing record version")
-		}
 		syncer.recordVersion = res.GetRecord().GetVersion()
 		if syncer.cfg.typeURL == "" || syncer.cfg.typeURL == res.GetRecord().GetType() {
 			ctx := logCtxRec(ctx, rec)

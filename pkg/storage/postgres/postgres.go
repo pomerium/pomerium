@@ -225,7 +225,7 @@ func maybeAcquireLease(ctx context.Context, q querier, leaseName, leaseID string
 	return leaseHolderID, err
 }
 
-func putRecordChange(ctx context.Context, q querier, record *databroker.Record) error {
+func putRecordAndChange(ctx context.Context, q querier, record *databroker.Record) error {
 	data, err := jsonbFromAny(record.GetData())
 	if err != nil {
 		return err
@@ -233,40 +233,38 @@ func putRecordChange(ctx context.Context, q querier, record *databroker.Record) 
 
 	modifiedAt := timestamptzFromTimestamppb(record.GetModifiedAt())
 	deletedAt := timestamptzFromTimestamppb(record.GetDeletedAt())
-	_, err = q.Exec(ctx, `
-		INSERT INTO `+schemaName+`.`+recordChangesTableName+` (type, id, version, data, modified_at, deleted_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
-	`, record.GetType(), record.GetId(), record.GetVersion(), data, modifiedAt, deletedAt)
-	if err != nil {
-		return err
+	indexCIDR := &pgtype.Text{Status: pgtype.Null}
+	if cidr := storage.GetRecordIndexCIDR(record.GetData()); cidr != nil {
+		_ = indexCIDR.Set(cidr.String())
 	}
 
-	return nil
-}
-
-func putRecord(ctx context.Context, q querier, record *databroker.Record) error {
-	data, err := jsonbFromAny(record.GetData())
-	if err != nil {
-		return err
-	}
-
-	modifiedAt := timestamptzFromTimestamppb(record.GetModifiedAt())
-	if record.GetDeletedAt() == nil {
-		_, err = q.Exec(ctx, `
-			INSERT INTO `+schemaName+`.`+recordsTableName+` (type, id, version, data, modified_at)
+	query := `
+		WITH t1 AS (
+			INSERT INTO ` + schemaName + `.` + recordChangesTableName + ` (type, id, data, modified_at, deleted_at)
 			VALUES ($1, $2, $3, $4, $5)
+			RETURNING *
+		)
+	`
+	if record.GetDeletedAt() == nil {
+		query += `
+			INSERT INTO ` + schemaName + `.` + recordsTableName + ` (type, id, version, data, modified_at, index_cidr)
+			VALUES ($1, $2, (SELECT version FROM t1), $3, $4, $6)
 			ON CONFLICT (type, id) DO UPDATE
-			SET version=$3, data=$4, modified_at=$5
-		`, record.GetType(), record.GetId(), record.GetVersion(), data, modifiedAt)
+			SET version=(SELECT version FROM t1), data=$3, modified_at=$4, index_cidr=$6
+			RETURNING ` + schemaName + `.` + recordsTableName + `.version
+		`
 	} else {
-		_, err = q.Exec(ctx, `
-			DELETE FROM `+schemaName+`.`+recordsTableName+`
-			WHERE type=$1 AND id=$2 AND version<$3
-		`, record.GetType(), record.GetId(), record.GetVersion())
+		query += `
+			DELETE FROM ` + schemaName + `.` + recordsTableName + `
+			WHERE type=$1 AND id=$2
+			RETURNING ` + schemaName + `.` + recordsTableName + `.version
+		`
 	}
+	err = q.QueryRow(ctx, query, record.GetType(), record.GetId(), data, modifiedAt, deletedAt, indexCIDR).Scan(&record.Version)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
