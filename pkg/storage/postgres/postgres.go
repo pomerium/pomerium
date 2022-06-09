@@ -4,6 +4,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgconn"
@@ -91,7 +92,7 @@ func getNextChangedRecord(ctx context.Context, q querier, recordType string, aft
 	`
 	args := []any{afterRecordVersion}
 	if recordType != "" {
-		recordType += ` AND type = $2`
+		query += ` AND type = $2`
 		args = append(args, recordType)
 	}
 	query += `
@@ -102,13 +103,13 @@ func getNextChangedRecord(ctx context.Context, q querier, recordType string, aft
 	if isNotFound(err) {
 		return nil, storage.ErrNotFound
 	} else if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error querying next changed record: %w", err)
 	}
 
 	var any anypb.Any
 	err = protojson.Unmarshal(data.Bytes, &any)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error unmarshaling changed record data: %w", err)
 	}
 
 	return &databroker.Record{
