@@ -5,13 +5,12 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -30,14 +29,13 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
-	"github.com/pomerium/pomerium/internal/envoy/files"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
+	"github.com/pomerium/pomerium/pkg/envoy/files"
 )
 
 const (
-	workingDirectoryName = ".pomerium-envoy"
-	configFileName       = "envoy-config.yaml"
+	configFileName = "envoy-config.yaml"
 )
 
 type serverOptions struct {
@@ -62,38 +60,13 @@ type Server struct {
 
 // NewServer creates a new server with traffic routed by envoy.
 func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Builder) (*Server, error) {
-	wd := filepath.Join(os.TempDir(), workingDirectoryName)
-	err := os.MkdirAll(wd, embeddedEnvoyPermissions)
+	envoyPath, err := Extract()
 	if err != nil {
-		return nil, fmt.Errorf("error creating temporary working directory for envoy: %w", err)
-	}
-
-	envoyPath := OverrideEnvoyPath
-	if envoyPath == "" {
-		envoyPath, err = extractEmbeddedEnvoy(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("error extracting embedded envoy binary: %w", err)
-		}
-
-		// Checksum is written at build time, if it's not empty we verify the binary
-		if files.Checksum() != "" {
-			bs, err := os.ReadFile(envoyPath)
-			if err != nil {
-				return nil, fmt.Errorf("error reading envoy binary for checksum verification: %w", err)
-			}
-			h := sha256.New()
-			h.Write(bs)
-			s := hex.EncodeToString(h.Sum(nil))
-			if files.Checksum() != s {
-				return nil, fmt.Errorf("invalid envoy binary, expected %s but got %s", files.Checksum(), s)
-			}
-		} else {
-			log.Info(ctx).Msg("no checksum defined, envoy binary will not be verified!")
-		}
+		return nil, fmt.Errorf("extracting envoy: %w", err)
 	}
 
 	srv := &Server{
-		wd:        wd,
+		wd:        path.Dir(envoyPath),
 		builder:   builder,
 		grpcPort:  src.GetConfig().GRPCPort,
 		httpPort:  src.GetConfig().HTTPPort,

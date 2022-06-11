@@ -1,5 +1,5 @@
-//go:build darwin && arm64
-// +build darwin,arm64
+//go:build darwin && arm64 && !embed_pomerium
+// +build darwin,arm64,!embed_pomerium
 
 package files
 

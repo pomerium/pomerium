@@ -6,10 +6,13 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/pomerium/pomerium/internal/cmd/pomerium"
-	"github.com/pomerium/pomerium/internal/envoy/files"
+	"github.com/rs/zerolog"
+
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
+	"github.com/pomerium/pomerium/pkg/envoy/files"
 )
 
 var (
@@ -33,5 +36,16 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	return pomerium.Run(ctx, *configFile)
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("config_file_source", *configFile).Bool("bootstrap", true)
+	})
+
+	var src config.Source
+
+	src, err := config.NewFileOrEnvironmentSource(*configFile, files.FullVersion())
+	if err != nil {
+		return err
+	}
+
+	return pomerium.Run(ctx, src)
 }

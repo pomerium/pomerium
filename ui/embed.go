@@ -3,27 +3,18 @@ package ui
 
 import (
 	"bytes"
-	"embed"
 	"encoding/json"
-	"fmt"
 	"io"
-	"io/fs"
 	"net/http"
-	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/pomerium/csrf"
 )
 
-var (
-	//go:embed dist/*
-	uiFS embed.FS
-)
-
 // ServeFile serves a file.
 func ServeFile(w http.ResponseWriter, r *http.Request, filePath string) error {
-	f, etag, err := openLocalOrEmbeddedFile(filepath.Join("dist", filePath))
+	f, etag, err := openFile(filepath.Join("dist", filePath))
 	if err != nil {
 		return err
 	}
@@ -47,7 +38,7 @@ func ServePage(w http.ResponseWriter, r *http.Request, page string, data map[str
 		return err
 	}
 
-	f, _, err := openLocalOrEmbeddedFile("dist/index.html")
+	f, _, err := openFile("dist/index.html")
 	if err != nil {
 		return err
 	}
@@ -67,27 +58,3 @@ func ServePage(w http.ResponseWriter, r *http.Request, page string, data map[str
 }
 
 var startTime = time.Now()
-
-func openLocalOrEmbeddedFile(name string) (f fs.File, etag string, err error) {
-	f, err = os.Open(filepath.Join("ui", name))
-	if os.IsNotExist(err) {
-		f, err = uiFS.Open(name)
-	}
-	if err != nil {
-		return nil, "", err
-	}
-
-	fi, err := f.Stat()
-	if err != nil {
-		_ = f.Close()
-		return nil, "", err
-	}
-
-	modTime := fi.ModTime()
-	if modTime.IsZero() {
-		modTime = startTime
-	}
-	etag = fmt.Sprintf("%x", modTime.UnixNano())
-
-	return f, etag, nil
-}

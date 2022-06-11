@@ -1,5 +1,5 @@
-//go:build linux && arm64
-// +build linux,arm64
+//go:build linux && arm64 && !embed_pomerium
+// +build linux,arm64,!embed_pomerium
 
 package files
 

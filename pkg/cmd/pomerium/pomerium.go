@@ -11,7 +11,6 @@ import (
 	"syscall"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
-	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/authenticate"
@@ -21,27 +20,21 @@ import (
 	"github.com/pomerium/pomerium/internal/autocert"
 	"github.com/pomerium/pomerium/internal/controlplane"
 	"github.com/pomerium/pomerium/internal/databroker"
-	"github.com/pomerium/pomerium/internal/envoy"
-	"github.com/pomerium/pomerium/internal/envoy/files"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/envoy"
+	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/proxy"
 )
 
 // Run runs the main pomerium application.
-func Run(ctx context.Context, configFile string) error {
+func Run(ctx context.Context, src config.Source) error {
 	log.Info(ctx).
 		Str("envoy_version", files.FullVersion()).
 		Str("version", version.FullVersion()).
+		Interface("config", src.GetConfig()).
 		Msg("cmd/pomerium")
-
-	var src config.Source
-
-	src, err := config.NewFileOrEnvironmentSource(configFile, files.FullVersion())
-	if err != nil {
-		return err
-	}
 
 	src = databroker.NewConfigSource(ctx, src)
 	logMgr := config.NewLogManager(ctx, src)
@@ -50,7 +43,7 @@ func Run(ctx context.Context, configFile string) error {
 	// trigger changes when underlying files are changed
 	src = config.NewFileWatcherSource(src)
 
-	src, err = autocert.New(src)
+	src, err := autocert.New(src)
 	if err != nil {
 		return err
 	}
@@ -75,9 +68,7 @@ func Run(ctx context.Context, configFile string) error {
 			}
 		})
 
-	if err = controlPlane.OnConfigChange(log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("config_file_source", configFile).Bool("bootstrap", true)
-	}), src.GetConfig()); err != nil {
+	if err = controlPlane.OnConfigChange(ctx, src.GetConfig()); err != nil {
 		return fmt.Errorf("applying config: %w", err)
 	}
 
