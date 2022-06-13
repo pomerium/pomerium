@@ -1,6 +1,6 @@
 // Package auth0 implements OpenID Connect for auth0
 //
-// https://www.pomerium.com/docs/identity-providers/auth0.html
+// https://www.pomerium.com/docs/identity-providers/auth0
 package auth0
 
 import (

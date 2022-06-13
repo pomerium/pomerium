@@ -1,6 +1,6 @@
 // Package azure implements OpenID Connect for Microsoft Azure
 //
-// https://www.pomerium.com/docs/identity-providers/azure.html
+// https://www.pomerium.com/docs/identity-providers/azure
 package azure
 
 import (

@@ -40,7 +40,7 @@ import (
 const DisableHeaderKey = "disable"
 
 const (
-	idpCustomScopesDocLink = "https://www.pomerium.com/reference/#identity-provider-scopes"
+	idpCustomScopesDocLink = "https://www.pomerium.com/docs/reference/identity-provider-scopes"
 	idpCustomScopesWarnMsg = "config: using custom scopes may result in undefined behavior, see: " + idpCustomScopesDocLink
 )
 

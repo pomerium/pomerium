@@ -13,7 +13,7 @@ import (
 // registerFwdAuthHandlers returns a set of handlers that support using pomerium
 // as a "forward-auth" provider with other reverse proxies like nginx, traefik.
 //
-// see : https://www.pomerium.com/configuration/#forward-auth
+// see : https://www.pomerium.com/docs/reference/forward-auth
 func (p *Proxy) registerFwdAuthHandlers() http.Handler {
 	r := httputil.NewRouter()
 	// NGNIX's forward-auth capabilities are split across two settings:
