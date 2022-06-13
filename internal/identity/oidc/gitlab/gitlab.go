@@ -1,6 +1,6 @@
 // Package gitlab implements OpenID Connect for Gitlab
 //
-// https://www.pomerium.io/docs/identity-providers/gitlab.html
+// https://www.pomerium.com/docs/identity-providers/gitlab.html
 package gitlab
 
 import (

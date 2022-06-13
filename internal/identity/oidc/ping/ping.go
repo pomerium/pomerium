@@ -1,6 +1,6 @@
 // Package ping implements OpenID Connect for Ping
 //
-// https://www.pomerium.io/docs/identity-providers/ping.html
+// https://www.pomerium.com/docs/identity-providers/ping.html
 package ping
 
 import (
