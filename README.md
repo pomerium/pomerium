@@ -23,7 +23,7 @@ For comprehensive docs, and tutorials see our [documentation].
 [documentation]: https://pomerium.com/docs/
 [go environment]: https://golang.org/doc/install
 [godocs]: https://godoc.org/github.com/pomerium/pomerium
-[quick start guide]: https://www.pomerium.com/guide/
+[quick start guide]: https://www.pomerium.com/docs/install/quickstart
 
 ## Integration Tests
 
