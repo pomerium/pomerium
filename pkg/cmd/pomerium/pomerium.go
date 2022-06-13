@@ -33,7 +33,6 @@ func Run(ctx context.Context, src config.Source) error {
 	log.Info(ctx).
 		Str("envoy_version", files.FullVersion()).
 		Str("version", version.FullVersion()).
-		Interface("config", src.GetConfig()).
 		Msg("cmd/pomerium")
 
 	src = databroker.NewConfigSource(ctx, src)
