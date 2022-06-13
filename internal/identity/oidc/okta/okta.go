@@ -1,6 +1,6 @@
 // Package okta implements OpenID Connect for okta
 //
-// https://www.pomerium.io/docs/identity-providers/okta.html
+// https://www.pomerium.com/docs/identity-providers/okta
 package okta
 
 import (

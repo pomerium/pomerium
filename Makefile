@@ -35,7 +35,7 @@ GETENVOY_VERSION = v0.2.0
 GORELEASER_VERSION = v0.174.2
 
 .PHONY: all
-all: clean build-deps test lint spellcheck build ## Runs a clean, build, fmt, lint, test, and vet.
+all: clean build-deps test lint build ## Runs a clean, build, fmt, lint, test, and vet.
 
 
 .PHONY: generate-mocks
@@ -60,11 +60,6 @@ deps-release: get-envoy ## Install release dependencies
 .PHONY: build-deps
 build-deps: deps-build deps-release
 	@echo "==> $@"
-
-.PHONY: docs
-docs: ## Start the vuepress docs development server
-	@echo "==> $@"
-	@yarn && yarn docs:dev
 
 .PHONY: tag
 tag: ## Create a new git tag to prepare to build a release
@@ -105,11 +100,6 @@ test: get-envoy ## Runs the go tests.
 	@echo "==> $@"
 	@$(GO) test -tags "$(BUILDTAGS)" $(shell $(GO) list ./... | grep -v vendor | grep -v github.com/pomerium/pomerium/integration)
 
-.PHONY: spellcheck
-spellcheck: # Spellcheck docs
-	@echo "==> Spell checking docs..."
-	@$(GO) run github.com/client9/misspell/cmd/misspell -error -source=text docs/
-
 .PHONY: cover
 cover: get-envoy ## Runs go test with coverage
 	@echo "==> $@"
@@ -137,13 +127,6 @@ snapshot: build-deps ## Builds the cross-compiled binaries, naming them in such 
 yarn:
 	@echo "==> $@"
 	cd ui ; yarn install --network-timeout 120000
-
-.PHONY: gen-docs
-gen-docs:
-	@echo "==> $@"
-	pip3 install ruamel.yaml
-	python3 ./scripts/generate-settings-docs.py
-	node scripts/generate-console-pages.js
 
 .PHONY: help
 help:

@@ -49,9 +49,6 @@ jobs:
       - name: Lint
         if: runner.os == 'Linux'
         run: make lint
-      - name: spellcheck
-        if: runner.os == 'Linux'
-        run: make spellcheck
       - name: test
         if: runner.os != 'Linux'
         run: make test

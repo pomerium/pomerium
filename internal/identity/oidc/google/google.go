@@ -1,6 +1,6 @@
 // Package google implements OpenID Connect for Google and GSuite.
 //
-// https://www.pomerium.io/docs/identity-providers/google.html
+// https://www.pomerium.com/docs/identity-providers/google
 // https://developers.google.com/identity/protocols/oauth2/openid-connect
 package google
 
