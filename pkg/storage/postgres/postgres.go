@@ -4,6 +4,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgconn"
@@ -78,27 +79,37 @@ func getLatestRecordVersion(ctx context.Context, q querier) (recordVersion uint6
 	return recordVersion, err
 }
 
-func getNextChangedRecord(ctx context.Context, q querier, afterRecordVersion uint64) (*databroker.Record, error) {
-	var recordType, recordID string
+func getNextChangedRecord(ctx context.Context, q querier, recordType string, afterRecordVersion uint64) (*databroker.Record, error) {
+	var recordID string
 	var version uint64
 	var data pgtype.JSONB
 	var modifiedAt pgtype.Timestamptz
 	var deletedAt pgtype.Timestamptz
-	err := q.QueryRow(ctx, `
+	query := `
 		SELECT type, id, version, data, modified_at, deleted_at
-		  FROM `+schemaName+`.`+recordChangesTableName+`
-		 WHERE version > $1
-	`, afterRecordVersion).Scan(&recordType, &recordID, &version, &data, &modifiedAt, &deletedAt)
+		FROM ` + schemaName + `.` + recordChangesTableName + `
+		WHERE version > $1
+	`
+	args := []any{afterRecordVersion}
+	if recordType != "" {
+		query += ` AND type = $2`
+		args = append(args, recordType)
+	}
+	query += `
+		ORDER BY version ASC
+		LIMIT 1
+	`
+	err := q.QueryRow(ctx, query, args...).Scan(&recordType, &recordID, &version, &data, &modifiedAt, &deletedAt)
 	if isNotFound(err) {
 		return nil, storage.ErrNotFound
 	} else if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error querying next changed record: %w", err)
 	}
 
 	var any anypb.Any
 	err = protojson.Unmarshal(data.Bytes, &any)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error unmarshaling changed record data: %w", err)
 	}
 
 	return &databroker.Record{

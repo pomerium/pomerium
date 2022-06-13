@@ -82,6 +82,7 @@ const watchPollInterval = 30 * time.Second
 
 type changedRecordStream struct {
 	backend       *Backend
+	recordType    string
 	recordVersion uint64
 
 	ctx     context.Context
@@ -95,10 +96,12 @@ type changedRecordStream struct {
 func newChangedRecordStream(
 	ctx context.Context,
 	backend *Backend,
+	recordType string,
 	recordVersion uint64,
 ) storage.RecordStream {
 	stream := &changedRecordStream{
 		backend:       backend,
+		recordType:    recordType,
 		recordVersion: recordVersion,
 		ticker:        time.NewTicker(watchPollInterval),
 		changed:       backend.onChange.Bind(),
@@ -129,6 +132,7 @@ func (stream *changedRecordStream) Next(block bool) bool {
 		stream.record, stream.err = getNextChangedRecord(
 			stream.ctx,
 			pool,
+			stream.recordType,
 			stream.recordVersion,
 		)
 		if isNotFound(stream.err) {

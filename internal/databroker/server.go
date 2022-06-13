@@ -308,7 +308,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 		return err
 	}
 
-	recordStream, err := backend.Sync(ctx, req.GetServerVersion(), req.GetRecordVersion())
+	recordStream, err := backend.Sync(ctx, req.GetType(), req.GetServerVersion(), req.GetRecordVersion())
 	if err != nil {
 		return err
 	}

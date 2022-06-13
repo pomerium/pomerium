@@ -54,6 +54,7 @@ func newSyncLatestRecordStream(
 func newSyncRecordStream(
 	ctx context.Context,
 	backend *Backend,
+	recordType string,
 	recordVersion uint64,
 ) storage.RecordStream {
 	changed := backend.onChange.Bind()
@@ -67,7 +68,7 @@ func newSyncRecordStream(
 			}
 
 			for {
-				ready = backend.getSince(recordVersion)
+				ready = backend.getSince(recordType, recordVersion)
 
 				if len(ready) > 0 {
 					// records are sorted by version,

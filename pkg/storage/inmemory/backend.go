@@ -243,7 +243,7 @@ func (backend *Backend) SetOptions(_ context.Context, recordType string, options
 }
 
 // Sync returns a record stream for any changes after recordVersion.
-func (backend *Backend) Sync(ctx context.Context, serverVersion, recordVersion uint64) (storage.RecordStream, error) {
+func (backend *Backend) Sync(ctx context.Context, recordType string, serverVersion, recordVersion uint64) (storage.RecordStream, error) {
 	backend.mu.RLock()
 	currentServerVersion := backend.serverVersion
 	backend.mu.RUnlock()
@@ -251,7 +251,7 @@ func (backend *Backend) Sync(ctx context.Context, serverVersion, recordVersion u
 	if serverVersion != currentServerVersion {
 		return nil, storage.ErrInvalidServerVersion
 	}
-	return newSyncRecordStream(ctx, backend, recordVersion), nil
+	return newSyncRecordStream(ctx, backend, recordType, recordVersion), nil
 }
 
 // SyncLatest returns a record stream for all the records.
@@ -304,7 +304,7 @@ func (backend *Backend) enforceCapacity(recordType string) {
 	}
 }
 
-func (backend *Backend) getSince(version uint64) []*databroker.Record {
+func (backend *Backend) getSince(recordType string, version uint64) []*databroker.Record {
 	backend.mu.RLock()
 	defer backend.mu.RUnlock()
 
@@ -322,6 +322,16 @@ func (backend *Backend) getSince(version uint64) []*databroker.Record {
 		}
 		return true
 	})
+
+	if recordType != "" {
+		var filtered []*databroker.Record
+		for _, record := range records {
+			if record.GetType() == recordType {
+				filtered = append(filtered, record)
+			}
+		}
+		records = filtered
+	}
 	return records
 }
 

@@ -119,8 +119,8 @@ func (e *encryptedBackend) SetOptions(ctx context.Context, recordType string, op
 	return e.underlying.SetOptions(ctx, recordType, options)
 }
 
-func (e *encryptedBackend) Sync(ctx context.Context, serverVersion, recordVersion uint64) (RecordStream, error) {
-	stream, err := e.underlying.Sync(ctx, serverVersion, recordVersion)
+func (e *encryptedBackend) Sync(ctx context.Context, recordType string, serverVersion, recordVersion uint64) (RecordStream, error) {
+	stream, err := e.underlying.Sync(ctx, recordType, serverVersion, recordVersion)
 	if err != nil {
 		return nil, err
 	}

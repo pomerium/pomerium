@@ -190,7 +190,7 @@ func TestExpiry(t *testing.T) {
 			}})
 			assert.NoError(t, err)
 		}
-		stream, err := backend.Sync(ctx, serverVersion, 0)
+		stream, err := backend.Sync(ctx, "TYPE", serverVersion, 0)
 		require.NoError(t, err)
 		var records []*databroker.Record
 		for stream.Next(false) {
@@ -201,7 +201,7 @@ func TestExpiry(t *testing.T) {
 
 		backend.removeChangesBefore(ctx, time.Now().Add(time.Second))
 
-		stream, err = backend.Sync(ctx, serverVersion, 0)
+		stream, err = backend.Sync(ctx, "TYPE", serverVersion, 0)
 		require.NoError(t, err)
 		records = nil
 		for stream.Next(false) {

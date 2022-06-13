@@ -151,6 +151,7 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 	stream, err := syncer.handler.GetDataBrokerServiceClient().Sync(ctx, &SyncRequest{
 		ServerVersion: syncer.serverVersion,
 		RecordVersion: syncer.recordVersion,
+		Type:          syncer.cfg.typeURL,
 	})
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("error during sync")
