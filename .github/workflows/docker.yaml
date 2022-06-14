@@ -13,6 +13,7 @@ jobs:
       matrix:
         platform: [ubuntu-latest]
         dockerfile: [Dockerfile, Dockerfile.debug]
+        dockerplatform: [linux/amd64, linux/arm64]
 
     runs-on: ${{ matrix.platform }}
 
@@ -65,12 +66,14 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           push: ${{ github.ref == 'refs/heads/main' }}
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.dockerplatform }}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
             org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
             org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
     runs-on: ubuntu-latest
