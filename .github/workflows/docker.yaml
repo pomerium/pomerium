@@ -13,7 +13,6 @@ jobs:
       matrix:
         platform: [ubuntu-latest]
         dockerfile: [Dockerfile, Dockerfile.debug]
-        dockerplatform: [linux/amd64, linux/arm64]
 
     runs-on: ${{ matrix.platform }}
 
@@ -52,7 +51,7 @@ jobs:
             TAGS=${TAGS},${IMAGE}:${SHA_TAG}
           fi
           TS=$(date +%Y%m%d%H%M%S)
-          BUILDCACHE_TAG=buildcache-$(echo -n "$DOCKERFILE-$DOCKERPLATFORM" | sha1sum | awk '{print $1}')
+          BUILDCACHE_TAG=buildcache-$(echo -n "$DOCKERFILE" | sha1sum | awk '{print $1}')
           echo ::set-output name=tags::${TAGS}
           echo ::set-output name=timestamp::${TS}
           echo ::set-output name=name::pomerium
@@ -61,7 +60,6 @@ jobs:
           echo ::set-output name=buildcache-tag::${BUILDCACHE_TAG}
         env:
           DOCKERFILE: ${{ matrix.dockerfile }}
-          DOCKERPLATFORM: ${{ matrix.dockerplatform }}
 
       - name: Docker Publish
         uses: docker/build-push-action@e551b19e49efd4e98792db7592c17c09b89db8d8
@@ -69,7 +67,7 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           push: ${{ github.ref == 'refs/heads/main' }}
-          platforms: ${{ matrix.dockerplatform }}
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.metadata.outputs.tags }}
           labels: |
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
