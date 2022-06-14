@@ -9,8 +9,6 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 )
 
-var defaultManager = New()
-
 // A Manager manages the dispatching of events to event sinks.
 type Manager struct {
 	mu    sync.RWMutex

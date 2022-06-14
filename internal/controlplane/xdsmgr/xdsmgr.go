@@ -45,10 +45,12 @@ type Manager struct {
 	nonceToConfig *lru.Cache
 
 	hostname string
+
+	events *events.Manager
 }
 
 // NewManager creates a new Manager.
-func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource) *Manager {
+func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource, evt *events.Manager) *Manager {
 	nonceToConfig, _ := lru.New(maxNonceCacheSize) // the only error they return is when size is negative, which never happens
 
 	return &Manager{
@@ -59,6 +61,8 @@ func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource) *Ma
 		resources:     resources,
 
 		hostname: getHostname(),
+
+		events: evt,
 	}
 }
 
@@ -268,7 +272,7 @@ func (mgr *Manager) nonceToConfigVersion(nonce string) (ver uint64) {
 }
 
 func (mgr *Manager) nackEvent(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
-	events.Dispatch(&events.EnvoyConfigurationEvent{
+	mgr.events.Dispatch(&events.EnvoyConfigurationEvent{
 		Instance:             mgr.hostname,
 		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_NACK,
 		Time:                 timestamppb.Now(),
@@ -294,7 +298,7 @@ func (mgr *Manager) nackEvent(ctx context.Context, req *envoy_service_discovery_
 }
 
 func (mgr *Manager) ackEvent(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
-	events.Dispatch(&events.EnvoyConfigurationEvent{
+	mgr.events.Dispatch(&events.EnvoyConfigurationEvent{
 		Instance:             mgr.hostname,
 		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_ACK,
 		Time:                 timestamppb.Now(),
@@ -315,7 +319,7 @@ func (mgr *Manager) ackEvent(ctx context.Context, req *envoy_service_discovery_v
 }
 
 func (mgr *Manager) changeEvent(ctx context.Context, res *envoy_service_discovery_v3.DeltaDiscoveryResponse) {
-	events.Dispatch(&events.EnvoyConfigurationEvent{
+	mgr.events.Dispatch(&events.EnvoyConfigurationEvent{
 		Instance:             mgr.hostname,
 		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_RESPONSE,
 		Time:                 timestamppb.Now(),
