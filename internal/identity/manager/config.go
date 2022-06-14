@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/directory"
+	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -24,6 +25,7 @@ type config struct {
 	sessionRefreshGracePeriod     time.Duration
 	sessionRefreshCoolOffDuration time.Duration
 	now                           func() time.Time
+	eventMgr                      *events.Manager
 }
 
 func newConfig(options ...Option) *config {
@@ -95,6 +97,13 @@ func WithSessionRefreshCoolOffDuration(dur time.Duration) Option {
 func WithNow(now func() time.Time) Option {
 	return func(cfg *config) {
 		cfg.now = now
+	}
+}
+
+// WithEventManager passes an event manager to record events
+func WithEventManager(mgr *events.Manager) Option {
+	return func(c *config) {
+		c.eventMgr = mgr
 	}
 }
 

@@ -9,9 +9,7 @@ import (
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/metrics"
 )
@@ -277,7 +275,6 @@ func RecordIdentityManagerUserRefresh(ctx context.Context, err error) {
 	if err != nil {
 		counter = identityManagerLastUserRefreshError
 		ts = identityManagerLastUserRefreshErrorTimestamp
-		storeLastErrorEvent(counter.Name(), err)
 	}
 	stats.Record(ctx,
 		ts.M(time.Now().Unix()),
@@ -292,7 +289,6 @@ func RecordIdentityManagerUserGroupRefresh(ctx context.Context, err error) {
 	if err != nil {
 		counter = identityManagerLastUserGroupRefreshError
 		ts = identityManagerLastUserGroupRefreshErrorTimestamp
-		storeLastErrorEvent(counter.Name(), err)
 	}
 	stats.Record(ctx,
 		ts.M(time.Now().Unix()),
@@ -307,20 +303,11 @@ func RecordIdentityManagerSessionRefresh(ctx context.Context, err error) {
 	if err != nil {
 		counter = identityManagerLastSessionRefreshError
 		ts = identityManagerLastSessionRefreshErrorTimestamp
-		storeLastErrorEvent(counter.Name(), err)
 	}
 	stats.Record(ctx,
 		ts.M(time.Now().Unix()),
 		counter.M(1),
 	)
-}
-
-func storeLastErrorEvent(id string, err error) {
-	events.Dispatch(&events.LastError{
-		Time:    timestamppb.Now(),
-		Message: err.Error(),
-		Id:      id,
-	})
 }
 
 // SetDBConfigInfo records status, databroker version and error count while parsing

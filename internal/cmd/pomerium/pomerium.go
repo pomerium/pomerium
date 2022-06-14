@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/envoy"
 	"github.com/pomerium/pomerium/internal/envoy/files"
+	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/version"
@@ -63,8 +64,10 @@ func Run(ctx context.Context, configFile string) error {
 	traceMgr := config.NewTraceManager(ctx, src)
 	defer traceMgr.Close()
 
+	eventsMgr := events.New()
+
 	// setup the control plane
-	controlPlane, err := controlplane.NewServer(src.GetConfig(), metricsMgr)
+	controlPlane, err := controlplane.NewServer(src.GetConfig(), metricsMgr, eventsMgr)
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}
@@ -109,7 +112,7 @@ func Run(ctx context.Context, configFile string) error {
 	}
 	var dataBrokerServer *databroker_service.DataBroker
 	if config.IsDataBroker(src.GetConfig().Options.Services) {
-		dataBrokerServer, err = setupDataBroker(ctx, src, controlPlane)
+		dataBrokerServer, err = setupDataBroker(ctx, src, controlPlane, eventsMgr)
 		if err != nil {
 			return fmt.Errorf("setting up databroker: %w", err)
 		}
@@ -189,8 +192,12 @@ func setupAuthorize(ctx context.Context, src config.Source, controlPlane *contro
 	return svc, nil
 }
 
-func setupDataBroker(ctx context.Context, src config.Source, controlPlane *controlplane.Server) (*databroker_service.DataBroker, error) {
-	svc, err := databroker_service.New(src.GetConfig())
+func setupDataBroker(ctx context.Context,
+	src config.Source,
+	controlPlane *controlplane.Server,
+	eventsMgr *events.Manager,
+) (*databroker_service.DataBroker, error) {
+	svc, err := databroker_service.New(src.GetConfig(), eventsMgr)
 	if err != nil {
 		return nil, fmt.Errorf("error creating databroker service: %w", err)
 	}
