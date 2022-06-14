@@ -58,7 +58,7 @@ jobs:
           echo ::set-output name=name::pomerium
           echo ::set-output name=image::${IMAGE}
           echo ::set-output name=sha-tag::${SHA_TAG}
-          echo ::set-output name=buildcache-tag::
+          echo ::set-output name=buildcache-tag::${BUILDCACHE_TAG}
         env:
           DOCKERFILE: ${{ matrix.dockerfile }}
           DOCKERPLATFORM: ${{ matrix.dockerplatform }}
