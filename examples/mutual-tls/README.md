@@ -7,7 +7,7 @@ A tiny go http server that enforces client certificates and can be used to test 
 ### Pomerium config
 
 ```yaml
-# See detailed configuration settings : https://www.pomerium.io/reference/
+# See detailed configuration settings : https://www.pomerium.com/docs/reference
 authenticate_service_url: https://authenticate.corp.domain.example
 authorize_service_url: https://authorize.corp.domain.example
 
@@ -45,7 +45,7 @@ services:
       - CERTIFICATE_KEY
       - COOKIE_SECRET
     volumes:
-      # Mount your config file : https://www.pomerium.io/reference/
+      # Mount your config file : https://www.pomerium.com/docs/reference
       # be sure to change the default values :)
       - ./example.config.yaml:/pomerium/config.yaml:ro
     ports:

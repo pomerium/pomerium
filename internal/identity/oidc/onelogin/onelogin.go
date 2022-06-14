@@ -1,6 +1,6 @@
 // Package onelogin implements OpenID Connect for OneLogin
 //
-// https://www.pomerium.io/docs/identity-providers/one-login.html
+// https://www.pomerium.com/docs/identity-providers/one-login
 package onelogin
 
 import (
