@@ -177,6 +177,7 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 		manager.WithDataBrokerClient(dataBrokerClient),
 		manager.WithGroupRefreshInterval(cfg.Options.RefreshDirectoryInterval),
 		manager.WithGroupRefreshTimeout(cfg.Options.RefreshDirectoryTimeout),
+		manager.WithEventManager(c.eventsMgr),
 	}
 
 	authenticator, err := identity.NewAuthenticator(oauthOptions)
