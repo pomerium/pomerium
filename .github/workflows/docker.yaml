@@ -1,4 +1,4 @@
-name: Docker Main
+name: Docker
 permissions:
   contents: read
 on:
@@ -57,7 +57,7 @@ jobs:
           echo ::set-output name=image::${IMAGE}
           echo ::set-output name=sha-tag::${SHA_TAG}
         env:
-          REF: ${{ github.ref }}
+          DOCKERFILE: ${{ matrix.dockerfile }}
 
       - name: Docker Publish
         uses: docker/build-push-action@e551b19e49efd4e98792db7592c17c09b89db8d8
