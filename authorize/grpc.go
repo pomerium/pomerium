@@ -61,16 +61,12 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	if sessionState != nil {
 		s, err = a.getDataBrokerSessionOrServiceAccount(ctx, sessionState.ID)
 		if err != nil {
-			log.Warn(ctx).Err(err).Msg("clearing session due to force sync failed")
+			log.Warn(ctx).Err(err).Msg("clearing session due to missing session or service account")
 			sessionState = nil
 		}
 	}
 	if s != nil {
-		u, err = a.getDataBrokerUser(ctx, s.GetUserId())
-		if err != nil {
-			log.Warn(ctx).Err(err).Msg("clearing session due to force sync failed")
-			sessionState = nil
-		}
+		u, _ = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
 	}
 
 	req, err := a.getEvaluatorRequestFromCheckRequest(in, sessionState)

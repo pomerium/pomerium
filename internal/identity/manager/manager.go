@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/directory"
+	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/identity/identity"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/scheduler"
@@ -23,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	metrics_ids "github.com/pomerium/pomerium/pkg/metrics"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -208,11 +210,12 @@ func (mgr *Manager) refreshDirectoryUserGroups(ctx context.Context) (nextRefresh
 
 	directoryGroups, directoryUsers, err := mgr.cfg.Load().directory.UserGroups(ctx)
 	metrics.RecordIdentityManagerUserGroupRefresh(ctx, err)
+	mgr.recordLastError(metrics_ids.IdentityManagerLastUserGroupRefreshError, err)
 	if err != nil {
 		msg := "failed to refresh directory users and groups"
 		if ctx.Err() != nil {
 			msg += ". You may need to increase the identity provider directory timeout setting"
-			msg += "(https://www.pomerium.io/reference/#identity-provider-refresh-directory-settings)"
+			msg += "(https://www.pomerium.com/docs/reference/identity-provider-refresh-directory-settings)"
 		}
 		log.Warn(ctx).Err(err).Msg(msg)
 
@@ -356,6 +359,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 
 	newToken, err := mgr.cfg.Load().authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), &s)
 	metrics.RecordIdentityManagerSessionRefresh(ctx, err)
+	mgr.recordLastError(metrics_ids.IdentityManagerLastSessionRefreshError, err)
 	if isTemporaryError(err) {
 		log.Error(ctx).Err(err).
 			Str("user_id", s.GetUserId()).
@@ -374,6 +378,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 
 	err = mgr.cfg.Load().authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), &s)
 	metrics.RecordIdentityManagerUserRefresh(ctx, err)
+	mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 	if isTemporaryError(err) {
 		log.Error(ctx).Err(err).
 			Str("user_id", s.GetUserId()).
@@ -426,6 +431,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 
 		err := mgr.cfg.Load().authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), &u)
 		metrics.RecordIdentityManagerUserRefresh(ctx, err)
+		mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 		if isTemporaryError(err) {
 			log.Error(ctx).Err(err).
 				Str("user_id", s.GetUserId()).
@@ -550,6 +556,21 @@ func (mgr *Manager) reset() {
 	mgr.directoryUsers = make(map[string]*directory.User)
 	mgr.sessions = sessionCollection{BTree: btree.New(8)}
 	mgr.users = userCollection{BTree: btree.New(8)}
+}
+
+func (mgr *Manager) recordLastError(id string, err error) {
+	if err == nil {
+		return
+	}
+	evtMgr := mgr.cfg.Load().eventMgr
+	if evtMgr == nil {
+		return
+	}
+	evtMgr.Dispatch(&events.LastError{
+		Time:    timestamppb.Now(),
+		Message: err.Error(),
+		Id:      id,
+	})
 }
 
 func isTemporaryError(err error) bool {

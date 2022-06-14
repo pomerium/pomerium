@@ -21,21 +21,6 @@ type EventSink func(Event)
 // An EventSinkHandle is a reference to a registered EventSink so that it can be unregistered.
 type EventSinkHandle string
 
-// Dispatch dispatches an event to any event sinks.
-func Dispatch(evt Event) {
-	defaultManager.Dispatch(evt)
-}
-
-// Register registers a new sink to receive events.
-func Register(sink EventSink) EventSinkHandle {
-	return defaultManager.Register(sink)
-}
-
-// Unregister unregisters a sink so it will no longer receive events.
-func Unregister(sinkHandle EventSinkHandle) {
-	defaultManager.Unregister(sinkHandle)
-}
-
 type (
 	// EnvoyConfigurationEvent re-exports events.EnvoyConfigurationEvent.
 	EnvoyConfigurationEvent = events.EnvoyConfigurationEvent

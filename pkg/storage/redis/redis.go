@@ -248,8 +248,12 @@ func (backend *Backend) SetOptions(ctx context.Context, recordType string, optio
 }
 
 // Sync returns a record stream of any records changed after the specified recordVersion.
-func (backend *Backend) Sync(ctx context.Context, serverVersion, recordVersion uint64) (storage.RecordStream, error) {
-	return newSyncRecordStream(ctx, backend, serverVersion, recordVersion), nil
+func (backend *Backend) Sync(
+	ctx context.Context,
+	recordType string,
+	serverVersion, recordVersion uint64,
+) (storage.RecordStream, error) {
+	return newSyncRecordStream(ctx, backend, recordType, serverVersion, recordVersion), nil
 }
 
 // SyncLatest returns a record stream of all the records. Some records may be returned twice if the are updated while the

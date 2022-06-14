@@ -2,7 +2,6 @@ package databroker
 
 import (
 	"context"
-	"time"
 
 	"github.com/pomerium/pomerium/internal/log"
 )
@@ -33,18 +32,7 @@ func newFastForwardHandler(ctx context.Context, handler SyncerHandler) SyncerHan
 }
 
 func (ff *fastForwardHandler) update(ctx context.Context, c *ffCmd) {
-	versions := make([]uint64, len(c.records))
-	for i, r := range c.records {
-		versions[i] = r.Version
-	}
-
-	now := time.Now()
 	ff.handler.UpdateRecords(ctx, c.serverVersion, c.records)
-	log.Info(ctx).
-		Dur("elapsed", time.Since(now)).
-		Uint64("server_version", c.serverVersion).
-		Uints64("versions", versions).
-		Msg("UpdateRecords")
 }
 
 func (ff *fastForwardHandler) runSelect(ctx context.Context) {

@@ -210,6 +210,7 @@ func (backend *Backend) SetOptions(
 // Sync syncs the records.
 func (backend *Backend) Sync(
 	ctx context.Context,
+	recordType string,
 	serverVersion, recordVersion uint64,
 ) (storage.RecordStream, error) {
 	// the original ctx will be used for the stream, this ctx used for pre-stream calls
@@ -224,7 +225,7 @@ func (backend *Backend) Sync(
 		return nil, storage.ErrInvalidServerVersion
 	}
 
-	return newChangedRecordStream(ctx, backend, recordVersion), nil
+	return newChangedRecordStream(ctx, backend, recordType, recordVersion), nil
 }
 
 // SyncLatest syncs the latest version of each record.

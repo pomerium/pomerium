@@ -16,6 +16,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/directory"
+	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/manager"
 	"github.com/pomerium/pomerium/internal/log"
@@ -33,6 +34,7 @@ import (
 type DataBroker struct {
 	dataBrokerServer *dataBrokerServer
 	manager          *manager.Manager
+	eventsMgr        *events.Manager
 
 	localListener                net.Listener
 	localGRPCServer              *grpc.Server
@@ -45,7 +47,7 @@ type DataBroker struct {
 }
 
 // New creates a new databroker service.
-func New(cfg *config.Config) (*DataBroker, error) {
+func New(cfg *config.Config, eventsMgr *events.Manager) (*DataBroker, error) {
 	localListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
@@ -100,6 +102,7 @@ func New(cfg *config.Config) (*DataBroker, error) {
 		localGRPCConnection:          localGRPCConnection,
 		deprecatedCacheClusterDomain: dataBrokerURLs[0].Hostname(),
 		dataBrokerStorageType:        cfg.Options.DataBrokerStorageType,
+		eventsMgr:                    eventsMgr,
 	}
 	c.Register(c.localGRPCServer)
 
@@ -174,6 +177,7 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 		manager.WithDataBrokerClient(dataBrokerClient),
 		manager.WithGroupRefreshInterval(cfg.Options.RefreshDirectoryInterval),
 		manager.WithGroupRefreshTimeout(cfg.Options.RefreshDirectoryTimeout),
+		manager.WithEventManager(c.eventsMgr),
 	}
 
 	authenticator, err := identity.NewAuthenticator(oauthOptions)

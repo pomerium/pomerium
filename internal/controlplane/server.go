@@ -65,6 +65,7 @@ type Server struct {
 	DebugListener   net.Listener
 	DebugRouter     *mux.Router
 	Builder         *envoyconfig.Builder
+	EventsMgr       *events.Manager
 
 	currentConfig atomicVersionedConfig
 	name          string
@@ -81,9 +82,10 @@ type Server struct {
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
-func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager) (*Server, error) {
+func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr *events.Manager) (*Server, error) {
 	srv := &Server{
 		metricsMgr:      metricsMgr,
+		EventsMgr:       eventsMgr,
 		reproxy:         reproxy.New(),
 		haveSetCapacity: map[string]bool{},
 	}
@@ -172,7 +174,7 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager) (*Server, 
 		return nil, err
 	}
 
-	srv.xdsmgr = xdsmgr.NewManager(res)
+	srv.xdsmgr = xdsmgr.NewManager(res, eventsMgr)
 	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv.GRPCServer, srv.xdsmgr)
 
 	return srv, nil
@@ -182,12 +184,12 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager) (*Server, 
 func (srv *Server) Run(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 
-	handle := events.Register(func(evt events.Event) {
+	handle := srv.EventsMgr.Register(func(evt events.Event) {
 		withGRPCBackoff(ctx, func() error {
 			return srv.storeEvent(ctx, evt)
 		})
 	})
-	defer events.Unregister(handle)
+	defer srv.EventsMgr.Unregister(handle)
 
 	// start the gRPC server
 	eg.Go(func() error {

@@ -40,7 +40,7 @@ import (
 const DisableHeaderKey = "disable"
 
 const (
-	idpCustomScopesDocLink = "https://www.pomerium.io/reference/#identity-provider-scopes"
+	idpCustomScopesDocLink = "https://www.pomerium.com/docs/reference/identity-provider-scopes"
 	idpCustomScopesWarnMsg = "config: using custom scopes may result in undefined behavior, see: " + idpCustomScopesDocLink
 )
 
@@ -172,7 +172,7 @@ type Options struct {
 	CAFile                  string `mapstructure:"certificate_authority_file" yaml:"certificate_authority_file,omitempty"`
 
 	// SigningKey is the private key used to add a JWT-signature to upstream requests.
-	// https://www.pomerium.io/docs/topics/getting-users-identity.html
+	// https://www.pomerium.com/docs/topics/getting-users-identity.html
 	SigningKey string `mapstructure:"signing_key" yaml:"signing_key,omitempty"`
 
 	HeadersEnv string `yaml:",omitempty"`

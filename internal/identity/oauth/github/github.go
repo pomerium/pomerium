@@ -1,6 +1,6 @@
 // Package github implements OAuth2 based authentication for github
 //
-// https://www.pomerium.io/docs/identity-providers/github.html
+// https://www.pomerium.com/docs/identity-providers/github
 package github
 
 import (
