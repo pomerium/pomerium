@@ -45,7 +45,7 @@ jobs:
           IMAGE=pomerium/pomerium
           SHA_TAG=git-${GITHUB_SHA::8}
           if [ $DOCKERFILE == 'Dockerfile.debug' ]; then
-            TAGS=pomerium/pomerium:debug
+            TAGS=${IMAGE}:debug
           else
             TAGS=${IMAGE}:main
             TAGS=${TAGS},${IMAGE}:master
@@ -72,8 +72,8 @@ jobs:
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
             org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
             org.opencontainers.image.revision=${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=pomerium/pomerium:buildcache
+          cache-to: type=registry,ref=pomerium/pomerium:buildcache,mode=max,compression=zstd
 
   deploy:
     runs-on: ubuntu-latest
