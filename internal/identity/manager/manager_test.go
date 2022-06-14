@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker/mock_databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	metrics_ids "github.com/pomerium/pomerium/pkg/metrics"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -141,12 +142,13 @@ func TestManager_reportErrors(t *testing.T) {
 	})
 	defer evtMgr.Unregister(handle)
 
-	expectMsg := func(msg string) {
+	expectMsg := func(id, msg string) {
 		t.Helper()
 		assert.Eventually(t, func() bool {
 			select {
 			case evt := <-received:
-				return evt.GetMessage() == msg
+				lastErr := evt.(*events.LastError)
+				return msg == lastErr.Message && id == lastErr.Id
 			default:
 				return false
 			}
@@ -183,13 +185,13 @@ func TestManager_reportErrors(t *testing.T) {
 	})
 
 	_ = mgr.refreshDirectoryUserGroups(ctx)
-	expectMsg("user groups")
+	expectMsg(metrics_ids.IdentityManagerLastUserGroupRefreshError, "user groups")
 
 	mgr.refreshUser(ctx, "user1")
-	expectMsg("update user info")
+	expectMsg(metrics_ids.IdentityManagerLastUserRefreshError, "update user info")
 
 	mgr.refreshSession(ctx, "user1", "session1")
-	expectMsg("update session")
+	expectMsg(metrics_ids.IdentityManagerLastSessionRefreshError, "update session")
 }
 
 func mkRecord(msg recordable) *databroker.Record {
