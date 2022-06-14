@@ -52,13 +52,16 @@ jobs:
             TAGS=${TAGS},${IMAGE}:${SHA_TAG}
           fi
           TS=$(date +%Y%m%d%H%M%S)
+          BUILDCACHE_TAG=buildcache-$(echo -n "$DOCKERFILE-$DOCKERPLATFORM" | sha1sum | awk '{print $1}')
           echo ::set-output name=tags::${TAGS}
           echo ::set-output name=timestamp::${TS}
           echo ::set-output name=name::pomerium
           echo ::set-output name=image::${IMAGE}
           echo ::set-output name=sha-tag::${SHA_TAG}
+          echo ::set-output name=buildcache-tag::
         env:
           DOCKERFILE: ${{ matrix.dockerfile }}
+          DOCKERPLATFORM: ${{ matrix.dockerplatform }}
 
       - name: Docker Publish
         uses: docker/build-push-action@e551b19e49efd4e98792db7592c17c09b89db8d8
@@ -72,8 +75,8 @@ jobs:
             org.opencontainers.image.created=${{ steps.metadata.outputs.timestamp }}
             org.opencontainers.image.name=${{ steps.metadata.outputs.name }}
             org.opencontainers.image.revision=${{ github.sha }}
-          cache-from: type=registry,ref=pomerium/pomerium:buildcache
-          cache-to: type=registry,ref=pomerium/pomerium:buildcache,mode=max,compression=zstd
+          cache-from: type=registry,ref=pomerium/pomerium:${{ steps.metadata.outputs.buildcache-tag }}
+          cache-to: type=registry,ref=pomerium/pomerium:${{ steps.metadata.outputs.buildcache-tag }},mode=max,compression=zstd
 
   deploy:
     runs-on: ubuntu-latest
