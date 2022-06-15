@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"net/url"
 
@@ -523,9 +522,7 @@ func getOrCreateDeviceEnrollment(
 	deviceEnrollment.CredentialId = deviceCredentialID
 	deviceEnrollment.EnrolledAt = timestamppb.Now()
 	deviceEnrollment.UserAgent = r.UserAgent()
-	if ip, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		deviceEnrollment.IpAddress = ip
-	}
+	deviceEnrollment.IpAddress = httputil.GetClientIPAddress(r)
 
 	err := device.PutEnrollment(ctx, state.Client, deviceEnrollment)
 	if err != nil {
