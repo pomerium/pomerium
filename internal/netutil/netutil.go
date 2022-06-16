@@ -4,19 +4,25 @@ package netutil
 import "net"
 
 // AllocatePorts allocates random ports suitable for listening.
-func AllocatePorts(count int) ([]string, error) {
-	var ports []string
-	for i := 0; i < count; i++ {
-		li, err := net.Listen("tcp", "127.0.0.1:0")
+func AllocatePorts(count int) ([]int, error) {
+	// based on https://github.com/tendermint/tendermint/issues/3682#issuecomment-497333084
+	ports := make([]int, count)
+
+	for k := range ports {
+		addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 		if err != nil {
-			return nil, err
+			return ports, err
 		}
-		_, port, _ := net.SplitHostPort(li.Addr().String())
-		err = li.Close()
+
+		l, err := net.ListenTCP("tcp", addr)
 		if err != nil {
-			return nil, err
+			return ports, err
 		}
-		ports = append(ports, port)
+		// This is done on purpose - we want to keep ports
+		// busy to avoid collisions when getting the next one
+		defer func() { _ = l.Close() }()
+		ports[k] = l.Addr().(*net.TCPAddr).Port
 	}
+
 	return ports, nil
 }

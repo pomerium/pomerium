@@ -2,6 +2,7 @@ package config
 
 import (
 	"crypto/tls"
+	"strconv"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/netutil"
@@ -67,11 +68,11 @@ func (cfg *Config) AllocatePorts() error {
 		return err
 	}
 
-	cfg.GRPCPort = ports[0]
-	cfg.HTTPPort = ports[1]
-	cfg.OutboundPort = ports[2]
-	cfg.MetricsPort = ports[3]
-	cfg.DebugPort = ports[4]
+	cfg.GRPCPort = strconv.Itoa(ports[0])
+	cfg.HTTPPort = strconv.Itoa(ports[1])
+	cfg.OutboundPort = strconv.Itoa(ports[2])
+	cfg.MetricsPort = strconv.Itoa(ports[3])
+	cfg.DebugPort = strconv.Itoa(ports[4])
 
 	return nil
 }
