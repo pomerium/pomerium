@@ -1,6 +1,9 @@
 package httputil
 
-import "net/http"
+import (
+	"net"
+	"net/http"
+)
 
 const (
 	// StatusDeviceUnauthorized is the status code returned when a client's
@@ -38,4 +41,17 @@ func StatusText(code int) string {
 		return txt
 	}
 	return http.StatusText(code)
+}
+
+// GetClientIPAddress gets a client's IP address for an HTTP request.
+func GetClientIPAddress(r *http.Request) string {
+	if ip := r.Header.Get("X-Envoy-External-Address"); ip != "" {
+		return ip
+	}
+
+	if ip, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return ip
+	}
+
+	return "127.0.0.1"
 }
