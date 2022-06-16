@@ -1,20 +1,36 @@
-package pomerium
+package pomerium_test
 
 import (
 	"context"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
+	"github.com/pomerium/pomerium/pkg/envoy/files"
 )
 
 func Test_run(t *testing.T) {
 	os.Clearenv()
+
+	run := func(ctx context.Context, configFile string) error {
+		src, err := config.NewFileOrEnvironmentSource(configFile, files.FullVersion())
+		if err != nil {
+			return err
+		}
+
+		return pomerium.Run(ctx, src)
+	}
+
 	tests := []struct {
 		name           string
 		configFileFlag string
-		wantErr        bool
+		check          func(require.TestingT, error, ...any)
 	}{
-		{"nil configuration", "", true},
+		{"nil configuration", "", require.Error},
 		{"bad proxy no authenticate url", `
 		{
 			"address": ":9433",
@@ -26,7 +42,7 @@ func Test_run(t *testing.T) {
 			"services": "proxy",
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
 		  }
-		`, true},
+		`, require.Error},
 		{"bad authenticate no cookie secret", `
 		{
 			"address": ":9433",
@@ -37,7 +53,7 @@ func Test_run(t *testing.T) {
 			"services": "authenticate",
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
 		  }
-		`, true},
+		`, require.Error},
 		{"bad authorize service bad shared key", `
 		{
 			"address": ":9433",
@@ -49,7 +65,7 @@ func Test_run(t *testing.T) {
 			"services": "authorize",
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
 		  }
-		`, true},
+		`, require.Error},
 		{"bad http port", `
 		{
 			"address": ":-1",
@@ -63,7 +79,7 @@ func Test_run(t *testing.T) {
 			"services": "proxy",
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
 		  }
-		`, true},
+		`, require.Error},
 		{"bad redirect port", `
 		{
 			"address": ":9433",
@@ -78,7 +94,7 @@ func Test_run(t *testing.T) {
 			"services": "proxy",
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
 		  }
-		`, true},
+		`, require.Error},
 		{"bad metrics port ", `
 		{
 			"address": ":9433",
@@ -92,7 +108,7 @@ func Test_run(t *testing.T) {
 			"services": "proxy",
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
 		  }
-		`, true},
+		`, require.Error},
 		{"malformed tracing provider", `
 		{
 			"tracing_provider": "bad tracing provider",
@@ -107,7 +123,7 @@ func Test_run(t *testing.T) {
 			"services": "proxy",
 			"policy": [{ "from": "https://pomerium.io", "to": "https://httpbin.org" }]
 		  }
-		`, true},
+		`, require.Error},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -115,7 +131,7 @@ func Test_run(t *testing.T) {
 			if err != nil {
 				t.Fatal("Cannot create temporary file", err)
 			}
-			defer os.Remove(tmpFile.Name())
+			defer func() { _ = os.Remove(tmpFile.Name()) }()
 			fn := tmpFile.Name()
 			if _, err := tmpFile.Write([]byte(tt.configFileFlag)); err != nil {
 				tmpFile.Close()
@@ -126,10 +142,7 @@ func Test_run(t *testing.T) {
 			ctx, clearTimeout := context.WithTimeout(context.Background(), 500*time.Millisecond)
 			defer clearTimeout()
 
-			err = Run(ctx, configFile)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			tt.check(t, run(ctx, configFile))
 		})
 	}
 }

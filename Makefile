@@ -113,8 +113,8 @@ clean: ## Cleanup any build binaries or packages.
 	@echo "==> $@"
 	$(RM) -r $(BINDIR)
 	$(RM) -r $(BUILDDIR)
-	$(RM) internal/envoy/files/envoy-*
-	$(RM) $GOPATH/bin/protoc-gen-validate
+	$(RM) pkg/envoy/files/envoy-*
+	$(RM) $(GOPATH)/bin/protoc-gen-validate
 	$(RM) -r /tmp/pomerium-protoc
 	$(RM) -r /tmp/pomerium-protoc-3pp
 

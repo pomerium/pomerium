@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
+	"github.com/pomerium/pomerium/internal/netutil"
 )
 
 // Config holds pomerium configuration options.
@@ -57,4 +58,20 @@ func (cfg *Config) AllCertificates() ([]tls.Certificate, error) {
 // Checksum returns the config checksum.
 func (cfg *Config) Checksum() uint64 {
 	return hashutil.MustHash(cfg)
+}
+
+// AllocatePorts populates
+func (cfg *Config) AllocatePorts() error {
+	ports, err := netutil.AllocatePorts(5)
+	if err != nil {
+		return err
+	}
+
+	cfg.GRPCPort = ports[0]
+	cfg.HTTPPort = ports[1]
+	cfg.OutboundPort = ports[2]
+	cfg.MetricsPort = ports[3]
+	cfg.DebugPort = ports[4]
+
+	return nil
 }

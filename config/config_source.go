@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"crypto/sha256"
+	"fmt"
 	"os"
 	"sync"
 
@@ -11,7 +12,6 @@ import (
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/netutil"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 )
 
@@ -110,26 +110,15 @@ func NewFileOrEnvironmentSource(
 		return nil, err
 	}
 
-	ports, err := netutil.AllocatePorts(5)
-	if err != nil {
-		return nil, err
-	}
-	grpcPort := ports[0]
-	httpPort := ports[1]
-	outboundPort := ports[2]
-	metricsPort := ports[3]
-	debugPort := ports[4]
-
 	cfg := &Config{
 		Options:      options,
 		EnvoyVersion: envoyVersion,
-
-		GRPCPort:     grpcPort,
-		HTTPPort:     httpPort,
-		OutboundPort: outboundPort,
-		MetricsPort:  metricsPort,
-		DebugPort:    debugPort,
 	}
+
+	if err = cfg.AllocatePorts(); err != nil {
+		return nil, fmt.Errorf("allocating ports: %w", err)
+	}
+
 	metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
 
 	src := &FileOrEnvironmentSource{
