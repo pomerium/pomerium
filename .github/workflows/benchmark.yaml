@@ -10,7 +10,7 @@ on:
   pull_request:
 
 jobs:
-  integration:
+  benchmark:
     strategy:
       fail-fast: false
       matrix:
@@ -63,3 +63,5 @@ jobs:
         with:
           tool: "go"
           output-file-path: benchmark.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
