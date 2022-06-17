@@ -1,7 +1,8 @@
 name: Benchmark
 
 permissions:
-  contents: read
+  contents: write
+  deployments: write
 
 on:
   push:
