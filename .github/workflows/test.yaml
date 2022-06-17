@@ -156,6 +156,16 @@ jobs:
           (cd ./integration/clusters/${{matrix.idp}}-${{matrix.deployment}} && docker-compose logs -f &)
           go test -v ./integration/...
 
+      - name: benchmarks
+        run: |
+          go test -bench 'Benchmark' ./integration/... | tee benchmark.txt
+
+      - name: store benchmark
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: "go"
+          output-file-path: benchmark.txt
+
   build:
     strategy:
       matrix:
