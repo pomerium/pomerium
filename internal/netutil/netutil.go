@@ -11,12 +11,12 @@ func AllocatePorts(count int) ([]int, error) {
 	for k := range ports {
 		addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 		if err != nil {
-			return ports, err
+			return nil, err
 		}
 
 		l, err := net.ListenTCP("tcp", addr)
 		if err != nil {
-			return ports, err
+			return nil, err
 		}
 		// This is done on purpose - we want to keep ports
 		// busy to avoid collisions when getting the next one
