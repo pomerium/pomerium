@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1655502897521,
+  "lastUpdate": 1655597888456,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -68,6 +68,42 @@ window.BENCHMARK_DATA = {
             "value": 8541071,
             "unit": "ns/op",
             "extra": "139 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "bobbydesimone@gmail.com",
+            "name": "Bobby DeSimone",
+            "username": "desimone"
+          },
+          "committer": {
+            "email": "bobbydesimone@gmail.com",
+            "name": "Bobby DeSimone",
+            "username": "desimone"
+          },
+          "distinct": true,
+          "id": "88cf5bd2c77fe7c620a647a6e6b3ee2399ebf99c",
+          "message": "chore(dep): update docker cli / distribution\n\nFixes OCI Manifest Type Confusion Issue.\n\nCloses https://github.com/pomerium/pomerium/security/dependabot/26",
+          "timestamp": "2022-06-18T17:14:02-07:00",
+          "tree_id": "b4969db140e8f2efee80623a82b3436a7a6c7738",
+          "url": "https://github.com/pomerium/pomerium/commit/88cf5bd2c77fe7c620a647a6e6b3ee2399ebf99c"
+        },
+        "date": 1655597888042,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14673208,
+            "unit": "ns/op",
+            "extra": "82 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8153170,
+            "unit": "ns/op",
+            "extra": "145 times\n2 procs"
           }
         ]
       }
