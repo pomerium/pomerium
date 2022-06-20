@@ -30,14 +30,14 @@ jobs:
         with:
           fetch-depth: 0
       - name: cache go binaries
-        uses: actions/cache@30f413bfed0a2bc738fdfd409e5a9e96b24545fd # pin@v3
+        uses: actions/cache@c3f1317a9e7b1ef106c153ac8c0f00fed3ddbc0d # pin@v3
         id: cache-go-bin
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
           restore-keys: ${{ runner.os }}-go-bin
 
-      - uses: actions/cache@30f413bfed0a2bc738fdfd409e5a9e96b24545fd # pin@v3
+      - uses: actions/cache@c3f1317a9e7b1ef106c153ac8c0f00fed3ddbc0d # pin@v3
         with:
           path: |
             ~/go/pkg/mod
@@ -76,14 +76,14 @@ jobs:
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
       - name: cache go binaries
-        uses: actions/cache@30f413bfed0a2bc738fdfd409e5a9e96b24545fd # pin@v3
+        uses: actions/cache@c3f1317a9e7b1ef106c153ac8c0f00fed3ddbc0d # pin@v3
         id: cache-go-bin
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
           restore-keys: ${{ runner.os }}-go-bin
 
-      - uses: actions/cache@30f413bfed0a2bc738fdfd409e5a9e96b24545fd # pin@v3
+      - uses: actions/cache@c3f1317a9e7b1ef106c153ac8c0f00fed3ddbc0d # pin@v3
         with:
           path: |
             ~/go/pkg/mod
@@ -131,7 +131,7 @@ jobs:
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
         with:
           fetch-depth: 0
-      - uses: actions/cache@30f413bfed0a2bc738fdfd409e5a9e96b24545fd # pin@v3
+      - uses: actions/cache@c3f1317a9e7b1ef106c153ac8c0f00fed3ddbc0d # pin@v3
         with:
           path: |
             ~/go/pkg
@@ -175,7 +175,7 @@ jobs:
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
         with:
           fetch-depth: 0
-      - uses: actions/cache@30f413bfed0a2bc738fdfd409e5a9e96b24545fd # pin@v3
+      - uses: actions/cache@c3f1317a9e7b1ef106c153ac8c0f00fed3ddbc0d # pin@v3
         with:
           path: |
             ~/go/pkg/mod
