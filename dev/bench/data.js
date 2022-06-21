@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1655838320940,
+  "lastUpdate": 1655838368478,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -604,6 +604,42 @@ window.BENCHMARK_DATA = {
             "value": 7906509,
             "unit": "ns/op",
             "extra": "151 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f2ebd3b46aa60a002de960a12c63dc4b3de00f4a",
+          "message": "chore(deps): bump github.com/stretchr/testify from 1.7.2 to 1.7.3 (#3435)\n\nBumps [github.com/stretchr/testify](https://github.com/stretchr/testify) from 1.7.2 to 1.7.3.\r\n- [Release notes](https://github.com/stretchr/testify/releases)\r\n- [Commits](https://github.com/stretchr/testify/compare/v1.7.2...v1.7.3)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/stretchr/testify\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-06-21T12:59:12-06:00",
+          "tree_id": "c2205e97e2cae2d1b3eb50cd349c05ba36775e8f",
+          "url": "https://github.com/pomerium/pomerium/commit/f2ebd3b46aa60a002de960a12c63dc4b3de00f4a"
+        },
+        "date": 1655838368001,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16804536,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9150327,
+            "unit": "ns/op",
+            "extra": "128 times\n2 procs"
           }
         ]
       }
