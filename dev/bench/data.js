@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1655838368478,
+  "lastUpdate": 1655839067858,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -640,6 +640,42 @@ window.BENCHMARK_DATA = {
             "value": 9150327,
             "unit": "ns/op",
             "extra": "128 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "270f8b4f2c539ca73f97eb6667df9aa2b51d43b5",
+          "message": "chore(deps): bump github.com/google/btree from 1.1.1 to 1.1.2 (#3434)\n\nBumps [github.com/google/btree](https://github.com/google/btree) from 1.1.1 to 1.1.2.\r\n- [Release notes](https://github.com/google/btree/releases)\r\n- [Commits](https://github.com/google/btree/compare/v1.1.1...v1.1.2)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/google/btree\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-06-21T12:59:29-06:00",
+          "tree_id": "90268b8cbcf5558f96fe0272e98f8071d28235ad",
+          "url": "https://github.com/pomerium/pomerium/commit/270f8b4f2c539ca73f97eb6667df9aa2b51d43b5"
+        },
+        "date": 1655839066507,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18574270,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10144306,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
