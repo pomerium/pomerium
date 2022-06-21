@@ -36,7 +36,7 @@ require (
 	github.com/jackc/pgconn v1.12.1
 	github.com/jackc/pgtype v1.11.0
 	github.com/jackc/pgx/v4 v4.16.1
-	github.com/martinlindhe/base36 v1.1.0
+	github.com/martinlindhe/base36 v1.1.1
 	github.com/mholt/acmez v1.0.2
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.5.0
