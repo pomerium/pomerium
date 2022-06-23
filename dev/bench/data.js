@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1655839067858,
+  "lastUpdate": 1656001991037,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -676,6 +676,38 @@ window.BENCHMARK_DATA = {
             "value": 10144306,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "1150a8e10002c4cdb6f57049d996a9a6d7faee7b",
+          "message": "postgres: fix record deletion",
+          "timestamp": "2022-06-23T13:06:19Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3446/commits/1150a8e10002c4cdb6f57049d996a9a6d7faee7b"
+        },
+        "date": 1656001990276,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15346242,
+            "unit": "ns/op",
+            "extra": "75 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9316713,
+            "unit": "ns/op",
+            "extra": "136 times\n2 procs"
           }
         ]
       }
