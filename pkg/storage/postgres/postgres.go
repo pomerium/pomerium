@@ -256,6 +256,9 @@ func putRecordAndChange(ctx context.Context, q querier, record *databroker.Recor
 			RETURNING *
 		)
 	`
+	args := []any{
+		record.GetType(), record.GetId(), data, modifiedAt, deletedAt,
+	}
 	if record.GetDeletedAt() == nil {
 		query += `
 			INSERT INTO ` + schemaName + `.` + recordsTableName + ` (type, id, version, data, modified_at, index_cidr)
@@ -264,6 +267,7 @@ func putRecordAndChange(ctx context.Context, q querier, record *databroker.Recor
 			SET version=(SELECT version FROM t1), data=$3, modified_at=$4, index_cidr=$6
 			RETURNING ` + schemaName + `.` + recordsTableName + `.version
 		`
+		args = append(args, indexCIDR)
 	} else {
 		query += `
 			DELETE FROM ` + schemaName + `.` + recordsTableName + `
@@ -271,8 +275,8 @@ func putRecordAndChange(ctx context.Context, q querier, record *databroker.Recor
 			RETURNING ` + schemaName + `.` + recordsTableName + `.version
 		`
 	}
-	err = q.QueryRow(ctx, query, record.GetType(), record.GetId(), data, modifiedAt, deletedAt, indexCIDR).Scan(&record.Version)
-	if err != nil {
+	err = q.QueryRow(ctx, query, args...).Scan(&record.Version)
+	if err != nil && !isNotFound(err) {
 		return err
 	}
 

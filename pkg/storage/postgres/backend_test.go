@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -39,6 +40,21 @@ func TestBackend(t *testing.T) {
 				{Type: "test-1", Id: "r2", Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{
 					"k2": protoutil.NewStructString("v2"),
 				}))},
+			})
+			assert.NotEqual(t, 0, serverVersion)
+			assert.NoError(t, err)
+		})
+
+		t.Run("delete", func(t *testing.T) {
+			serverVersion, err := backend.Put(ctx, []*databroker.Record{
+				{
+					Type: "test-1",
+					Id:   "r3",
+					Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{
+						"k1": protoutil.NewStructString("v1"),
+					})),
+					DeletedAt: timestamppb.Now(),
+				},
 			})
 			assert.NotEqual(t, 0, serverVersion)
 			assert.NoError(t, err)
