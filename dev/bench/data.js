@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1656347602573,
+  "lastUpdate": 1656348096378,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -876,6 +876,42 @@ window.BENCHMARK_DATA = {
             "value": 8041334,
             "unit": "ns/op",
             "extra": "152 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ab4080f76d5a92b7fa829b91d946a0175640309e",
+          "message": "chore(deps): bump google.golang.org/api from 0.84.0 to 0.85.0 (#3447)\n\nBumps [google.golang.org/api](https://github.com/googleapis/google-api-go-client) from 0.84.0 to 0.85.0.\r\n- [Release notes](https://github.com/googleapis/google-api-go-client/releases)\r\n- [Changelog](https://github.com/googleapis/google-api-go-client/blob/main/CHANGES.md)\r\n- [Commits](https://github.com/googleapis/google-api-go-client/compare/v0.84.0...v0.85.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: google.golang.org/api\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-06-27T10:30:12-06:00",
+          "tree_id": "8bbc7a093269d755a6ef58d6305554ea7d1c5bb9",
+          "url": "https://github.com/pomerium/pomerium/commit/ab4080f76d5a92b7fa829b91d946a0175640309e"
+        },
+        "date": 1656348096008,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15556055,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9151353,
+            "unit": "ns/op",
+            "extra": "138 times\n2 procs"
           }
         ]
       }
