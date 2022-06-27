@@ -1,15 +1,22 @@
 package controlplane
 
 import (
+	"bufio"
 	"context"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"os"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/hashicorp/nomad/client/lib/fifo"
 	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -79,6 +86,9 @@ type Server struct {
 	proxySvc        Service
 
 	haveSetCapacity map[string]bool
+
+	eventFifoPath string
+	eventFifoOpen func() (io.ReadCloser, error)
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
@@ -88,6 +98,7 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 		EventsMgr:       eventsMgr,
 		reproxy:         reproxy.New(),
 		haveSetCapacity: map[string]bool{},
+		eventFifoPath:   filepath.Join(os.TempDir(), uuid.New().String()),
 	}
 	srv.currentConfig.Store(versionedConfig{
 		Config: cfg,
@@ -157,10 +168,17 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 	srv.filemgr = filemgr.NewManager()
 	srv.filemgr.ClearCache()
 
+	// event fifo
+	srv.eventFifoOpen, err = fifo.CreateAndRead(srv.eventFifoPath)
+	if err != nil {
+		return nil, fmt.Errorf("error creating fifo: %w", err)
+	}
+
 	srv.Builder = envoyconfig.New(
 		srv.GRPCListener.Addr().String(),
 		srv.HTTPListener.Addr().String(),
 		srv.MetricsListener.Addr().String(),
+		srv.eventFifoPath,
 		srv.filemgr,
 		srv.reproxy,
 	)
@@ -195,6 +213,27 @@ func (srv *Server) Run(ctx context.Context) error {
 	eg.Go(func() error {
 		log.Info(ctx).Str("addr", srv.GRPCListener.Addr().String()).Msg("starting control-plane gRPC server")
 		return srv.GRPCServer.Serve(srv.GRPCListener)
+	})
+
+	// read event logs
+	logs, err := srv.eventFifoOpen()
+	if err != nil {
+		return err
+	}
+	eg.Go(func() error {
+		<-ctx.Done()
+		_ = logs.Close()
+		return nil
+	})
+	eg.Go(func() error {
+		s := bufio.NewScanner(logs)
+		for s.Scan() {
+			log.Info(ctx).
+				RawJSON("event", s.Bytes()).
+				Msg("envoy health check event")
+		}
+
+		return s.Err()
 	})
 
 	// gracefully stop the gRPC server on context cancellation

@@ -9,9 +9,11 @@ import (
 	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/volatiletech/null/v9"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
@@ -25,7 +27,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	cacheDir, _ := os.UserCacheDir()
 	customCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "custom-ca-32484c314b584447463735303142374c31414145374650305a525539554938594d524855353757313942494d473847535231.pem")
 
-	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
+	b := New("local-grpc", "local-http", "local-metrics", "/tmp/events", filemgr.NewManager(), nil)
 	rootCABytes, _ := getCombinedCertificateAuthority("", "")
 	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
 
@@ -433,7 +435,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 
 func Test_buildCluster(t *testing.T) {
 	ctx := context.Background()
-	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
+	b := New("local-grpc", "local-http", "local-metrics", "/tmp/events", filemgr.NewManager(), nil)
 	rootCABytes, _ := getCombinedCertificateAuthority("", "")
 	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
 	o1 := config.NewDefaultOptions()
@@ -912,7 +914,7 @@ func Test_bindConfig(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
 	defer clearTimeout()
 
-	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
+	b := New("local-grpc", "local-http", "local-metrics", "/tmp/events", filemgr.NewManager(), nil)
 	t.Run("no bind config", func(t *testing.T) {
 		cluster, err := b.buildPolicyCluster(ctx, &config.Options{}, &config.Policy{
 			From: "https://from.example.com",
@@ -956,6 +958,35 @@ func Test_bindConfig(t *testing.T) {
 			}
 		`, cluster.UpstreamBindConfig)
 	})
+}
+
+func Test_clusterHealthChecks(t *testing.T) {
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	defer clearTimeout()
+
+	b := New("local-grpc", "local-http", "local-metrics", "/tmp/events", filemgr.NewManager(), nil)
+
+	cluster, err := b.buildPolicyCluster(ctx, &config.Options{}, &config.Policy{
+		From: "https://from.example.com",
+		To:   mustParseWeightedURLs(t, "https://to.example.com"),
+		EnvoyOpts: &envoy_config_cluster_v3.Cluster{
+			HealthChecks: []*envoy_config_core_v3.HealthCheck{{
+				Timeout:            durationpb.New(time.Second),
+				Interval:           durationpb.New(time.Second),
+				HealthyThreshold:   wrapperspb.UInt32(1),
+				UnhealthyThreshold: wrapperspb.UInt32(1),
+				HealthChecker: &envoy_config_core_v3.HealthCheck_HttpHealthCheck_{
+					HttpHealthCheck: &envoy_config_core_v3.HealthCheck_HttpHealthCheck{
+						Path: "/",
+					},
+				},
+			}},
+		},
+	})
+	assert.NoError(t, err)
+	if assert.Len(t, cluster.GetHealthChecks(), 1) {
+		assert.Equal(t, "/tmp/events", cluster.GetHealthChecks()[0].GetEventLogPath())
+	}
 }
 
 func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {

@@ -145,6 +145,12 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, options *config.Option
 	cluster := new(envoy_config_cluster_v3.Cluster)
 	proto.Merge(cluster, policy.EnvoyOpts)
 
+	for _, healthCheck := range cluster.GetHealthChecks() {
+		if healthCheck.GetEventLogPath() == "" {
+			healthCheck.EventLogPath = b.eventFifoPath
+		}
+	}
+
 	if options.EnvoyBindConfigFreebind.IsSet() || options.EnvoyBindConfigSourceAddress != "" {
 		cluster.UpstreamBindConfig = new(envoy_config_core_v3.BindConfig)
 		if options.EnvoyBindConfigFreebind.IsSet() {

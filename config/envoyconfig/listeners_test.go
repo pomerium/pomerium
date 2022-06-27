@@ -25,7 +25,7 @@ func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-354e49305a5a39414a545530374e58454e48334148524c4e324258463837364355564c4e4532464b54355139495547514a38.pem")
 	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3350415a38414e4e4a4655424e55393430474147324651433949384e485341334b5157364f424b4c5856365a545937383735.pem")
 
-	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
+	b := New("local-grpc", "local-http", "local-metrics", "/tmp/events", filemgr.NewManager(), nil)
 	li, err := b.buildMetricsListener(&config.Config{
 		Options: &config.Options{
 			MetricsAddr:           "127.0.0.1:9902",
@@ -108,7 +108,7 @@ func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 }
 
 func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
-	b := New("local-grpc", "local-http", "local-metrics", nil, nil)
+	b := New("local-grpc", "local-http", "local-metrics", "/tmp/events", nil, nil)
 
 	options := config.NewDefaultOptions()
 	options.SkipXffAppend = true
@@ -524,7 +524,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 }
 
 func Test_buildDownstreamTLSContext(t *testing.T) {
-	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
+	b := New("local-grpc", "local-http", "local-metrics", "/tmp/events", filemgr.NewManager(), nil)
 
 	cacheDir, _ := os.UserCacheDir()
 	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-354e49305a5a39414a545530374e58454e48334148524c4e324258463837364355564c4e4532464b54355139495547514a38.pem")
@@ -806,7 +806,7 @@ func Test_hostMatchesDomain(t *testing.T) {
 }
 
 func Test_buildRouteConfiguration(t *testing.T) {
-	b := New("local-grpc", "local-http", "local-metrics", nil, nil)
+	b := New("local-grpc", "local-http", "local-metrics", "/tmp/events", nil, nil)
 	virtualHosts := make([]*envoy_config_route_v3.VirtualHost, 10)
 	routeConfig, err := b.buildRouteConfiguration("test-route-configuration", virtualHosts)
 	require.NoError(t, err)
@@ -816,7 +816,7 @@ func Test_buildRouteConfiguration(t *testing.T) {
 }
 
 func Test_requireProxyProtocol(t *testing.T) {
-	b := New("local-grpc", "local-http", "local-metrics", nil, nil)
+	b := New("local-grpc", "local-http", "local-metrics", "/tmp/events", nil, nil)
 	t.Run("required", func(t *testing.T) {
 		li, err := b.buildMainListener(context.Background(), &config.Config{Options: &config.Options{
 			UseProxyProtocol: true,

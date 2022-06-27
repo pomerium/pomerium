@@ -10,6 +10,7 @@ type Builder struct {
 	localGRPCAddress    string
 	localHTTPAddress    string
 	localMetricsAddress string
+	eventFifoPath       string
 	filemgr             *filemgr.Manager
 	reproxy             *reproxy.Handler
 }
@@ -19,6 +20,7 @@ func New(
 	localGRPCAddress string,
 	localHTTPAddress string,
 	localMetricsAddress string,
+	eventFifoPath string,
 	fileManager *filemgr.Manager,
 	reproxyHandler *reproxy.Handler,
 ) *Builder {
@@ -29,6 +31,7 @@ func New(
 		localGRPCAddress:    localGRPCAddress,
 		localHTTPAddress:    localHTTPAddress,
 		localMetricsAddress: localMetricsAddress,
+		eventFifoPath:       eventFifoPath,
 		filemgr:             fileManager,
 		reproxy:             reproxyHandler,
 	}
