@@ -6,11 +6,14 @@ import (
 
 // GetIdentityProviderForID returns the identity provider associated with the given IDP id.
 // If none is found the default provider is returned.
-func (o *Options) GetIdentityProviderForID(idpID string) *identity.Provider {
+func (o *Options) GetIdentityProviderForID(idpID string) (*identity.Provider, error) {
 	for _, policy := range o.GetAllPolicies() {
-		idp := o.GetIdentityProviderForPolicy(&policy) //nolint
+		idp, err := o.GetIdentityProviderForPolicy(&policy) //nolint
+		if err != nil {
+			return nil, err
+		}
 		if idp.GetId() == idpID {
-			return idp
+			return idp, nil
 		}
 	}
 
@@ -19,10 +22,15 @@ func (o *Options) GetIdentityProviderForID(idpID string) *identity.Provider {
 
 // GetIdentityProviderForPolicy gets the identity provider associated with the given policy.
 // If policy is nil, or changes none of the default settings, the default provider is returned.
-func (o *Options) GetIdentityProviderForPolicy(policy *Policy) *identity.Provider {
+func (o *Options) GetIdentityProviderForPolicy(policy *Policy) (*identity.Provider, error) {
+	clientSecret, err := o.GetClientSecret()
+	if err != nil {
+		return nil, err
+	}
+
 	idp := &identity.Provider{
 		ClientId:       o.ClientID,
-		ClientSecret:   o.ClientSecret,
+		ClientSecret:   clientSecret,
 		Type:           o.Provider,
 		Scopes:         o.Scopes,
 		ServiceAccount: o.ServiceAccount,
@@ -38,5 +46,5 @@ func (o *Options) GetIdentityProviderForPolicy(policy *Policy) *identity.Provide
 		}
 	}
 	idp.Id = idp.Hash()
-	return idp
+	return idp, nil
 }

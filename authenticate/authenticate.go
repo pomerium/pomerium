@@ -23,7 +23,11 @@ func ValidateOptions(o *config.Options) error {
 	if _, err := cryptutil.NewAEADCipher(sharedKey); err != nil {
 		return fmt.Errorf("authenticate: 'SHARED_SECRET' invalid: %w", err)
 	}
-	if _, err := cryptutil.NewAEADCipherFromBase64(o.CookieSecret); err != nil {
+	cookieSecret, err := o.GetCookieSecret()
+	if err != nil {
+		return fmt.Errorf("authenticate: 'COOKIE_SECRET' invalid: %w", err)
+	}
+	if _, err := cryptutil.NewAEADCipher(cookieSecret); err != nil {
 		return fmt.Errorf("authenticate: 'COOKIE_SECRET' invalid %w", err)
 	}
 	if o.AuthenticateCallbackPath == "" {

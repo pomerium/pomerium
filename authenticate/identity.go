@@ -19,7 +19,10 @@ func defaultGetIdentityProvider(options *config.Options, idpID string) (identity
 	}
 	redirectURL.Path = options.AuthenticateCallbackPath
 
-	idp := options.GetIdentityProviderForID(idpID)
+	idp, err := options.GetIdentityProviderForID(idpID)
+	if err != nil {
+		return nil, err
+	}
 	return identity.NewAuthenticator(oauth.Options{
 		RedirectURL:     redirectURL,
 		ProviderName:    idp.GetType(),

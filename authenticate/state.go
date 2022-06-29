@@ -101,7 +101,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	}
 
 	// private state encoder setup, used to encrypt oauth2 tokens
-	state.cookieSecret, err = base64.StdEncoding.DecodeString(cfg.Options.CookieSecret)
+	state.cookieSecret, err = cfg.Options.GetCookieSecret()
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,11 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	state.sessionStore = cookieStore
 	state.sessionLoaders = []sessions.SessionLoader{headerStore, cookieStore}
 	state.jwk = new(jose.JSONWebKeySet)
-	if cfg.Options.SigningKey != "" {
+	signingKey, err := cfg.Options.GetSigningKey()
+	if err != nil {
+		return nil, err
+	}
+	if signingKey != "" {
 		decodedCert, err := base64.StdEncoding.DecodeString(cfg.Options.SigningKey)
 		if err != nil {
 			return nil, fmt.Errorf("authenticate: failed to decode signing key: %w", err)

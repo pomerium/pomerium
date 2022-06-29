@@ -166,7 +166,11 @@ func (a *Authorize) requireLoginResponse(
 	checkRequestURL.Scheme = "https"
 
 	q.Set(urlutil.QueryRedirectURI, checkRequestURL.String())
-	q.Set(urlutil.QueryIdentityProviderID, opts.GetIdentityProviderForPolicy(request.Policy).GetId())
+	idp, err := opts.GetIdentityProviderForPolicy(request.Policy)
+	if err != nil {
+		return nil, err
+	}
+	q.Set(urlutil.QueryIdentityProviderID, idp.GetId())
 	signinURL.RawQuery = q.Encode()
 	redirectTo := urlutil.NewSignedURL(state.sharedKey, signinURL).String()
 
@@ -210,7 +214,11 @@ func (a *Authorize) requireWebAuthnResponse(
 		q.Set(urlutil.QueryDeviceType, webauthnutil.DefaultDeviceType)
 	}
 	q.Set(urlutil.QueryRedirectURI, checkRequestURL.String())
-	q.Set(urlutil.QueryIdentityProviderID, opts.GetIdentityProviderForPolicy(request.Policy).GetId())
+	idp, err := opts.GetIdentityProviderForPolicy(request.Policy)
+	if err != nil {
+		return nil, err
+	}
+	q.Set(urlutil.QueryIdentityProviderID, idp.GetId())
 	signinURL.RawQuery = q.Encode()
 	redirectTo := urlutil.NewSignedURL(state.sharedKey, signinURL).String()
 

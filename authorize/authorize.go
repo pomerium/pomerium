@@ -103,10 +103,15 @@ func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Ev
 		return nil, fmt.Errorf("authorize: invalid authenticate url: %w", err)
 	}
 
+	signingKey, err := opts.GetSigningKey()
+	if err != nil {
+		return nil, fmt.Errorf("authorize: invalid signing key: %w", err)
+	}
+
 	return evaluator.New(ctx, store,
 		evaluator.WithPolicies(opts.GetAllPolicies()),
 		evaluator.WithClientCA(clientCA),
-		evaluator.WithSigningKey(opts.SigningKey),
+		evaluator.WithSigningKey(signingKey),
 		evaluator.WithAuthenticateURL(authenticateURL.String()),
 		evaluator.WithGoogleCloudServerlessAuthenticationServiceAccount(opts.GetGoogleCloudServerlessAuthenticationServiceAccount()),
 		evaluator.WithJWTClaimsHeaders(opts.JWTClaimsHeaders),

@@ -71,7 +71,8 @@ type Options struct {
 
 	// SharedKey is the shared secret authorization key used to mutually authenticate
 	// requests between services.
-	SharedKey string `mapstructure:"shared_secret" yaml:"shared_secret,omitempty"`
+	SharedKey        string `mapstructure:"shared_secret" yaml:"shared_secret,omitempty"`
+	SharedSecretFile string `mapstructure:"shared_secret_file" yaml:"shared_secret_file,omitempty"`
 
 	// Services is a list enabled service mode. If none are selected, "all" is used.
 	// Available options are : "all", "authenticate", "proxy".
@@ -132,21 +133,23 @@ type Options struct {
 
 	// Session/Cookie management
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie
-	CookieName     string        `mapstructure:"cookie_name" yaml:"cookie_name,omitempty"`
-	CookieSecret   string        `mapstructure:"cookie_secret" yaml:"cookie_secret,omitempty"`
-	CookieDomain   string        `mapstructure:"cookie_domain" yaml:"cookie_domain,omitempty"`
-	CookieSecure   bool          `mapstructure:"cookie_secure" yaml:"cookie_secure,omitempty"`
-	CookieHTTPOnly bool          `mapstructure:"cookie_http_only" yaml:"cookie_http_only,omitempty"`
-	CookieExpire   time.Duration `mapstructure:"cookie_expire" yaml:"cookie_expire,omitempty"`
+	CookieName       string        `mapstructure:"cookie_name" yaml:"cookie_name,omitempty"`
+	CookieSecret     string        `mapstructure:"cookie_secret" yaml:"cookie_secret,omitempty"`
+	CookieSecretFile string        `mapstructure:"cookie_secret_file" yaml:"cookie_secret_file,omitempty"`
+	CookieDomain     string        `mapstructure:"cookie_domain" yaml:"cookie_domain,omitempty"`
+	CookieSecure     bool          `mapstructure:"cookie_secure" yaml:"cookie_secure,omitempty"`
+	CookieHTTPOnly   bool          `mapstructure:"cookie_http_only" yaml:"cookie_http_only,omitempty"`
+	CookieExpire     time.Duration `mapstructure:"cookie_expire" yaml:"cookie_expire,omitempty"`
 
 	// Identity provider configuration variables as specified by RFC6749
 	// https://openid.net/specs/openid-connect-basic-1_0.html#RFC6749
-	ClientID       string   `mapstructure:"idp_client_id" yaml:"idp_client_id,omitempty"`
-	ClientSecret   string   `mapstructure:"idp_client_secret" yaml:"idp_client_secret,omitempty"`
-	Provider       string   `mapstructure:"idp_provider" yaml:"idp_provider,omitempty"`
-	ProviderURL    string   `mapstructure:"idp_provider_url" yaml:"idp_provider_url,omitempty"`
-	Scopes         []string `mapstructure:"idp_scopes" yaml:"idp_scopes,omitempty"`
-	ServiceAccount string   `mapstructure:"idp_service_account" yaml:"idp_service_account,omitempty"`
+	ClientID         string   `mapstructure:"idp_client_id" yaml:"idp_client_id,omitempty"`
+	ClientSecret     string   `mapstructure:"idp_client_secret" yaml:"idp_client_secret,omitempty"`
+	ClientSecretFile string   `mapstructure:"idp_client_secret_file" yaml:"idp_client_secret_file,omitempty"`
+	Provider         string   `mapstructure:"idp_provider" yaml:"idp_provider,omitempty"`
+	ProviderURL      string   `mapstructure:"idp_provider_url" yaml:"idp_provider_url,omitempty"`
+	Scopes           []string `mapstructure:"idp_scopes" yaml:"idp_scopes,omitempty"`
+	ServiceAccount   string   `mapstructure:"idp_service_account" yaml:"idp_service_account,omitempty"`
 	// Identity provider refresh directory interval/timeout settings.
 	RefreshDirectoryTimeout  time.Duration `mapstructure:"idp_refresh_directory_timeout" yaml:"idp_refresh_directory_timeout,omitempty"`
 	RefreshDirectoryInterval time.Duration `mapstructure:"idp_refresh_directory_interval" yaml:"idp_refresh_directory_interval,omitempty"`
@@ -173,7 +176,8 @@ type Options struct {
 
 	// SigningKey is the private key used to add a JWT-signature to upstream requests.
 	// https://www.pomerium.com/docs/topics/getting-users-identity.html
-	SigningKey string `mapstructure:"signing_key" yaml:"signing_key,omitempty"`
+	SigningKey     string `mapstructure:"signing_key" yaml:"signing_key,omitempty"`
+	SigningKeyFile string `mapstructure:"signing_key_file" yaml:"signing_key_file,omitempty"`
 
 	HeadersEnv string `yaml:",omitempty"`
 	// SetResponseHeaders to set on all proxied requests. Add a 'disable' key map to turn off.
@@ -895,12 +899,16 @@ func (o *Options) GetOauthOptions() (oauth.Options, error) {
 	redirectURL = redirectURL.ResolveReference(&url.URL{
 		Path: o.AuthenticateCallbackPath,
 	})
+	clientSecret, err := o.GetClientSecret()
+	if err != nil {
+		return oauth.Options{}, err
+	}
 	return oauth.Options{
 		RedirectURL:    redirectURL,
 		ProviderName:   o.Provider,
 		ProviderURL:    o.ProviderURL,
 		ClientID:       o.ClientID,
-		ClientSecret:   o.ClientSecret,
+		ClientSecret:   clientSecret,
 		Scopes:         o.Scopes,
 		ServiceAccount: o.ServiceAccount,
 	}, nil
@@ -991,6 +999,13 @@ func (o *Options) GetCertificates() ([]tls.Certificate, error) {
 // GetSharedKey gets the decoded shared key.
 func (o *Options) GetSharedKey() ([]byte, error) {
 	sharedKey := o.SharedKey
+	if o.SharedSecretFile != "" {
+		bs, err := os.ReadFile(o.SharedSecretFile)
+		if err != nil {
+			return nil, err
+		}
+		sharedKey = string(bs)
+	}
 	// mutual auth between services on the same host can be generated at runtime
 	if IsAll(o.Services) && o.SharedKey == "" && o.DataBrokerStorageType == StorageInMemoryName {
 		sharedKey = randomSharedKey
@@ -1172,6 +1187,49 @@ func (o *Options) GetAllRouteableHTTPDomainsForTLSServerName(tlsServerName strin
 	}
 
 	return domains.ToSlice(), nil
+}
+
+// GetClientSecret gets the client secret.
+func (o *Options) GetClientSecret() (string, error) {
+	if o == nil {
+		return "", nil
+	}
+	if o.ClientSecretFile != "" {
+		bs, err := os.ReadFile(o.ClientSecretFile)
+		if err != nil {
+			return "", err
+		}
+		return string(bs), nil
+	}
+	return o.ClientSecret, nil
+}
+
+// GetCookieSecret gets the decoded cookie secret.
+func (o *Options) GetCookieSecret() ([]byte, error) {
+	cookieSecret := o.CookieSecret
+	if o.CookieSecretFile != "" {
+		bs, err := os.ReadFile(o.CookieSecretFile)
+		if err != nil {
+			return nil, err
+		}
+		cookieSecret = string(bs)
+	}
+	return base64.StdEncoding.DecodeString(cookieSecret)
+}
+
+// GetSigningKey gets the signing key.
+func (o *Options) GetSigningKey() (string, error) {
+	if o == nil {
+		return "", nil
+	}
+	if o.SigningKeyFile != "" {
+		bs, err := os.ReadFile(o.SigningKeyFile)
+		if err != nil {
+			return "", err
+		}
+		return string(bs), nil
+	}
+	return o.SigningKey, nil
 }
 
 // Checksum returns the checksum of the current options struct
