@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1656519059134,
+  "lastUpdate": 1656521276009,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -1012,6 +1012,42 @@ window.BENCHMARK_DATA = {
             "value": 8389409,
             "unit": "ns/op",
             "extra": "145 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "86625a4ddb6004214bc24821337d9dab2d8102cc",
+          "message": "config: support files for shared_secret, client_secret, cookie_secret and signing_key (#3453)",
+          "timestamp": "2022-06-29T10:44:08-06:00",
+          "tree_id": "51f91afa5597fc501524fadd563ec4878a3cf3dd",
+          "url": "https://github.com/pomerium/pomerium/commit/86625a4ddb6004214bc24821337d9dab2d8102cc"
+        },
+        "date": 1656521275357,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18525800,
+            "unit": "ns/op",
+            "extra": "75 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9290206,
+            "unit": "ns/op",
+            "extra": "133 times\n2 procs"
           }
         ]
       }
