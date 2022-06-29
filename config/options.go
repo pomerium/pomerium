@@ -92,6 +92,10 @@ type Options struct {
 
 	CertificateFiles []certificateFilePair `mapstructure:"certificates" yaml:"certificates,omitempty"`
 
+	// An optional override that the connection manager will write to the server header in responses.
+	// If not set, the default is envoy.
+	ServerName string `mapstructure:"server_name" yaml:"server_name"`
+
 	// Cert and Key is the x509 certificate used to create the HTTPS server.
 	Cert string `mapstructure:"certificate" yaml:"certificate,omitempty"`
 	Key  string `mapstructure:"certificate_key" yaml:"certificate_key,omitempty"`
