@@ -4,8 +4,11 @@ import (
 	"crypto/tls"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
-	"github.com/pomerium/pomerium/internal/netutil"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 )
+
+// MetricsScrapeEndpoint defines additional metrics endpoints that would be scraped and exposed by pomerium
+type MetricsScrapeEndpoint metrics.ScrapeEndpoint
 
 // Config holds pomerium configuration options.
 type Config struct {
@@ -23,12 +26,21 @@ type Config struct {
 	MetricsPort string
 	// DebugPort is the port the debug listener is running on.
 	DebugPort string
+
+	// MetricsScrapeEndpoints additional metrics endpoints to scrape and provide part of metrics
+	MetricsScrapeEndpoints []MetricsScrapeEndpoint
 }
 
 // Clone creates a clone of the config.
 func (cfg *Config) Clone() *Config {
 	newOptions := new(Options)
-	*newOptions = *cfg.Options
+	if cfg.Options != nil {
+		*newOptions = *cfg.Options
+	}
+
+	endpoints := make([]MetricsScrapeEndpoint, len(cfg.MetricsScrapeEndpoints))
+	_ = copy(endpoints, cfg.MetricsScrapeEndpoints)
+
 	return &Config{
 		Options:          newOptions,
 		AutoCertificates: cfg.AutoCertificates,
@@ -39,6 +51,8 @@ func (cfg *Config) Clone() *Config {
 		OutboundPort: cfg.OutboundPort,
 		MetricsPort:  cfg.MetricsPort,
 		DebugPort:    cfg.DebugPort,
+
+		MetricsScrapeEndpoints: endpoints,
 	}
 }
 
@@ -61,17 +75,10 @@ func (cfg *Config) Checksum() uint64 {
 }
 
 // AllocatePorts populates
-func (cfg *Config) AllocatePorts() error {
-	ports, err := netutil.AllocatePorts(5)
-	if err != nil {
-		return err
-	}
-
+func (cfg *Config) AllocatePorts(ports [5]string) {
 	cfg.GRPCPort = ports[0]
 	cfg.HTTPPort = ports[1]
 	cfg.OutboundPort = ports[2]
 	cfg.MetricsPort = ports[3]
 	cfg.DebugPort = ports[4]
-
-	return nil
 }

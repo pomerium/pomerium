@@ -13,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/pkg/netutil"
 )
 
 // A ChangeListener is called when configuration changes.
@@ -115,9 +116,12 @@ func NewFileOrEnvironmentSource(
 		EnvoyVersion: envoyVersion,
 	}
 
-	if err = cfg.AllocatePorts(); err != nil {
+	ports, err := netutil.AllocatePorts(5)
+	if err != nil {
 		return nil, fmt.Errorf("allocating ports: %w", err)
 	}
+
+	cfg.AllocatePorts(*(*[5]string)(ports))
 
 	metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
 
