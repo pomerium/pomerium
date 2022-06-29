@@ -222,14 +222,18 @@ func (src *FileWatcherSource) check(ctx context.Context, cfg *Config) {
 		cfg.Options.CertFile,
 		cfg.Options.ClientCAFile,
 		cfg.Options.ClientCRLFile,
+		cfg.Options.ClientSecretFile,
+		cfg.Options.CookieSecretFile,
 		cfg.Options.DataBrokerStorageCAFile,
 		cfg.Options.DataBrokerStorageCertFile,
 		cfg.Options.DataBrokerStorageCertKeyFile,
 		cfg.Options.KeyFile,
-		cfg.Options.PolicyFile,
-		cfg.Options.MetricsClientCAFile,
 		cfg.Options.MetricsCertificateFile,
 		cfg.Options.MetricsCertificateKeyFile,
+		cfg.Options.MetricsClientCAFile,
+		cfg.Options.PolicyFile,
+		cfg.Options.SharedSecretFile,
+		cfg.Options.SigningKeyFile,
 	}
 
 	for _, pair := range cfg.Options.CertificateFiles {

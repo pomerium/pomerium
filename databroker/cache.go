@@ -158,13 +158,18 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("databroker: invalid oauth options: %w", err)
 	}
 
+	clientSecret, err := cfg.Options.GetClientSecret()
+	if err != nil {
+		return fmt.Errorf("databroker: error retrieving IPD client secret: %w", err)
+	}
+
 	directoryProvider := directory.GetProvider(directory.Options{
 		ServiceAccount: cfg.Options.ServiceAccount,
 		Provider:       cfg.Options.Provider,
 		ProviderURL:    cfg.Options.ProviderURL,
 		QPS:            cfg.Options.GetQPS(),
 		ClientID:       cfg.Options.ClientID,
-		ClientSecret:   cfg.Options.ClientSecret,
+		ClientSecret:   clientSecret,
 	})
 	c.mu.Lock()
 	c.directoryProvider = directoryProvider

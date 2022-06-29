@@ -38,7 +38,11 @@ func ValidateOptions(o *config.Options) error {
 		return fmt.Errorf("proxy: invalid 'SHARED_SECRET': %w", err)
 	}
 
-	if _, err := cryptutil.NewAEADCipherFromBase64(o.CookieSecret); err != nil {
+	cookieSecret, err := o.GetCookieSecret()
+	if err != nil {
+		return fmt.Errorf("proxy: invalid 'COOKIE_SECRET': %w", err)
+	}
+	if _, err := cryptutil.NewAEADCipher(cookieSecret); err != nil {
 		return fmt.Errorf("proxy: invalid 'COOKIE_SECRET': %w", err)
 	}
 

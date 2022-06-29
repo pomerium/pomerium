@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"crypto/cipher"
-	"encoding/base64"
 	"net/url"
 	"sync/atomic"
 
@@ -51,7 +50,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 		return nil, err
 	}
 
-	state.cookieSecret, err = base64.StdEncoding.DecodeString(cfg.Options.CookieSecret)
+	state.cookieSecret, err = cfg.Options.GetCookieSecret()
 	if err != nil {
 		return nil, err
 	}
