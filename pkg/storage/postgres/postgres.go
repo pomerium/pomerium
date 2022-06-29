@@ -16,17 +16,20 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 var (
-	schemaName             = "pomerium"
-	migrationInfoTableName = "migration_info"
-	recordsTableName       = "records"
-	recordChangesTableName = "record_changes"
-	recordChangeNotifyName = "pomerium_record_change"
-	recordOptionsTableName = "record_options"
-	leasesTableName        = "leases"
+	schemaName              = "pomerium"
+	migrationInfoTableName  = "migration_info"
+	recordsTableName        = "records"
+	recordChangesTableName  = "record_changes"
+	recordChangeNotifyName  = "pomerium_record_change"
+	recordOptionsTableName  = "record_options"
+	leasesTableName         = "leases"
+	serviceChangeNotifyName = "pomerium_service_change"
+	servicesTableName       = "services"
 )
 
 type querier interface {
@@ -41,6 +44,17 @@ func deleteChangesBefore(ctx context.Context, q querier, cutoff time.Time) error
 		WHERE modified_at < $1
 	`, cutoff)
 	return err
+}
+
+func deleteExpiredServices(ctx context.Context, q querier, cutoff time.Time) (rowCount int64, err error) {
+	cmd, err := q.Exec(ctx, `
+		DELETE FROM `+schemaName+`.`+servicesTableName+`
+		WHERE expires_at < $1
+	`, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return cmd.RowsAffected(), nil
 }
 
 func dup(record *databroker.Record) *databroker.Record {
@@ -221,6 +235,40 @@ func listRecords(ctx context.Context, q querier, expr storage.FilterExpression, 
 	return records, rows.Err()
 }
 
+func listServices(ctx context.Context, q querier) ([]*registry.Service, error) {
+	var services []*registry.Service
+
+	query := `
+		SELECT kind, endpoint
+		FROM  ` + schemaName + `.` + servicesTableName + `
+		ORDER BY kind, endpoint
+	`
+	rows, err := q.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var kind, endpoint string
+		err = rows.Scan(&kind, &endpoint)
+		if err != nil {
+			return nil, err
+		}
+
+		services = append(services, &registry.Service{
+			Kind:     registry.ServiceKind(registry.ServiceKind_value[kind]),
+			Endpoint: endpoint,
+		})
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return services, nil
+}
+
 func maybeAcquireLease(ctx context.Context, q querier, leaseName, leaseID string, ttl time.Duration) (leaseHolderID string, err error) {
 	tbl := schemaName + "." + leasesTableName
 	expiresAt := timestamptzFromTimestamppb(timestamppb.New(time.Now().Add(ttl)))
@@ -283,6 +331,17 @@ func putRecordAndChange(ctx context.Context, q querier, record *databroker.Recor
 	return nil
 }
 
+func putService(ctx context.Context, q querier, svc *registry.Service, expiresAt time.Time) error {
+	query := `
+		INSERT INTO ` + schemaName + `.` + servicesTableName + ` (kind, endpoint, expires_at)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (kind, endpoint) DO UPDATE
+		SET expires_at=$3
+	`
+	_, err := q.Exec(ctx, query, svc.GetKind().String(), svc.GetEndpoint(), expiresAt)
+	return err
+}
+
 func setOptions(ctx context.Context, q querier, recordType string, options *databroker.Options) error {
 	capacity := pgtype.Int8{Status: pgtype.Null}
 	if options != nil && options.Capacity != nil {
@@ -301,6 +360,11 @@ func setOptions(ctx context.Context, q querier, recordType string, options *data
 
 func signalRecordChange(ctx context.Context, q querier) error {
 	_, err := q.Exec(ctx, `NOTIFY `+recordChangeNotifyName)
+	return err
+}
+
+func signalServiceChange(ctx context.Context, q querier) error {
+	_, err := q.Exec(ctx, `NOTIFY `+serviceChangeNotifyName)
 	return err
 }
 

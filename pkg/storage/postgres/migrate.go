@@ -114,6 +114,22 @@ var migrations = []func(context.Context, pgx.Tx) error{
 
 		return nil
 	},
+	3: func(ctx context.Context, tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+			CREATE TABLE `+schemaName+`.`+servicesTableName+` (
+				kind TEXT NOT NULL,
+				endpoint TEXT NOT NULL,
+				expires_at TIMESTAMPTZ NOT NULL,
+
+				PRIMARY KEY (kind, endpoint)
+			)
+		`)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	},
 }
 
 func migrate(ctx context.Context, tx pgx.Tx) (serverVersion uint64, err error) {
