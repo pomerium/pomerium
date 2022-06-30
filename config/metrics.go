@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"sync"
+	"time"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -13,6 +15,11 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 
 	"github.com/rs/zerolog"
+)
+
+const (
+	// defaultMetricsTimeout sets max time to collect and send aggregate pomerium metrics
+	defaultMetricsTimeout = time.Second * 30
 )
 
 // A MetricsManager manages metrics for a given configuration.
@@ -24,6 +31,7 @@ type MetricsManager struct {
 	basicAuth         string
 	envoyAdminAddress string
 	handler           http.Handler
+	endpoints         []MetricsScrapeEndpoint
 }
 
 // NewMetricsManager creates a new MetricsManager.
@@ -80,10 +88,7 @@ func (mgr *MetricsManager) updateInfo(ctx context.Context, cfg *Config) {
 }
 
 func (mgr *MetricsManager) updateServer(ctx context.Context, cfg *Config) {
-	if cfg.Options.MetricsAddr == mgr.addr &&
-		cfg.Options.MetricsBasicAuth == mgr.basicAuth &&
-		cfg.Options.InstallationID == mgr.installationID &&
-		cfg.Options.EnvoyAdminAddress == mgr.envoyAdminAddress {
+	if mgr.configUnchanged(cfg) {
 		return
 	}
 
@@ -98,13 +103,12 @@ func (mgr *MetricsManager) updateServer(ctx context.Context, cfg *Config) {
 		return
 	}
 
-	envoyURL, err := url.Parse("http://" + cfg.Options.EnvoyAdminAddress)
-	if err != nil {
-		log.Error(ctx).Err(err).Msg("metrics: invalid envoy admin address, disabling")
-		return
-	}
-
-	handler, err := metrics.PrometheusHandler(envoyURL, mgr.installationID)
+	mgr.endpoints = append(cfg.MetricsScrapeEndpoints,
+		MetricsScrapeEndpoint{
+			Name: "envoy",
+			URL:  url.URL{Scheme: "http", Host: cfg.Options.EnvoyAdminAddress, Path: "/stats/prometheus"},
+		})
+	handler, err := metrics.PrometheusHandler(toInternalEndpoints(mgr.endpoints), mgr.installationID, defaultMetricsTimeout)
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("metrics: failed to create prometheus handler")
 		return
@@ -115,4 +119,20 @@ func (mgr *MetricsManager) updateServer(ctx context.Context, cfg *Config) {
 	}
 
 	mgr.handler = handler
+}
+
+func (mgr *MetricsManager) configUnchanged(cfg *Config) bool {
+	return cfg.Options.MetricsAddr == mgr.addr &&
+		cfg.Options.MetricsBasicAuth == mgr.basicAuth &&
+		cfg.Options.InstallationID == mgr.installationID &&
+		cfg.Options.EnvoyAdminAddress == mgr.envoyAdminAddress &&
+		reflect.DeepEqual(mgr.endpoints, cfg.MetricsScrapeEndpoints)
+}
+
+func toInternalEndpoints(src []MetricsScrapeEndpoint) []metrics.ScrapeEndpoint {
+	dst := make([]metrics.ScrapeEndpoint, 0, len(src))
+	for _, e := range src {
+		dst = append(dst, metrics.ScrapeEndpoint(e))
+	}
+	return dst
 }

@@ -176,7 +176,7 @@ func setupAuthorize(ctx context.Context, src config.Source, controlPlane *contro
 	}
 	envoy_service_auth_v3.RegisterAuthorizationServer(controlPlane.GRPCServer, svc)
 
-	log.Info(context.TODO()).Msg("enabled authorize service")
+	log.Info(ctx).Msg("enabled authorize service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
 	return svc, nil
@@ -192,7 +192,7 @@ func setupDataBroker(ctx context.Context,
 		return nil, fmt.Errorf("error creating databroker service: %w", err)
 	}
 	svc.Register(controlPlane.GRPCServer)
-	log.Info(context.TODO()).Msg("enabled databroker service")
+	log.Info(ctx).Msg("enabled databroker service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
 	return svc, nil
@@ -219,7 +219,7 @@ func setupProxy(ctx context.Context, src config.Source, controlPlane *controlpla
 		return fmt.Errorf("error adding proxy service to control plane: %w", err)
 	}
 
-	log.Info(context.TODO()).Msg("enabled proxy service")
+	log.Info(ctx).Msg("enabled proxy service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
 
