@@ -5,11 +5,17 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"mime"
 	"net/http"
+	"net/url"
+	"path"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/pomerium/csrf"
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 // ServeFile serves a file.
@@ -48,6 +54,19 @@ func ServePage(w http.ResponseWriter, r *http.Request, page string, data map[str
 		return err
 	}
 
+	re, err := regexp.Compile(`(src|href)="(.*?)"`)
+	if err != nil {
+		return err
+	}
+
+	bs = re.ReplaceAllFunc(bs, func(b []byte) []byte {
+		parts := re.FindStringSubmatch(string(b))
+		if len(parts) < 3 {
+			return b
+		}
+		return []byte(parts[1] + `="` + embedRelativeFileURL(parts[2]) + `"`)
+	})
+
 	bs = bytes.Replace(bs,
 		[]byte("window.POMERIUM_DATA = {}"),
 		append([]byte("window.POMERIUM_DATA = "), jsonData...),
@@ -58,3 +77,30 @@ func ServePage(w http.ResponseWriter, r *http.Request, page string, data map[str
 }
 
 var startTime = time.Now()
+
+func embedRelativeFileURL(rawURL string) (dataURLOrOriginalURL string) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+
+	filePath := strings.Replace(u.Path, "/.pomerium/", "dist/", 1)
+	f, _, err := openFile(filePath)
+	if err != nil {
+		return rawURL
+	}
+	bs, err := io.ReadAll(f)
+	_ = f.Close()
+	if err != nil {
+		return rawURL
+	}
+
+	mediaType := mime.TypeByExtension(path.Ext(rawURL))
+	if mediaType == "" {
+		mediaType = "application/octet-stream"
+	}
+	if idx := strings.Index(mediaType, ";"); idx >= 0 {
+		mediaType = mediaType[:idx]
+	}
+	return urlutil.DataURL(mediaType, bs)
+}
