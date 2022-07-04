@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1656951047290,
+  "lastUpdate": 1656951073710,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -1180,6 +1180,38 @@ window.BENCHMARK_DATA = {
             "value": 8058140,
             "unit": "ns/op",
             "extra": "141 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "5b361dff916546e5e06c2b9adf958c44347d7e60",
+          "message": "chore(deps): bump github.com/stretchr/testify from 1.7.5 to 1.8.0",
+          "timestamp": "2022-07-01T11:15:44Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3462/commits/5b361dff916546e5e06c2b9adf958c44347d7e60"
+        },
+        "date": 1656951073260,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14469435,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8689174,
+            "unit": "ns/op",
+            "extra": "136 times\n2 procs"
           }
         ]
       }
