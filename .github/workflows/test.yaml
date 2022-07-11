@@ -20,7 +20,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      - uses: actions/setup-node@eeb10cff27034e7acf239c5d29f62154018672fd # pin@v3
+      - uses: actions/setup-node@5b949b50c3461bbcd5a540b150c368278160234a # pin@v3
         with:
           node-version: ${{ matrix.node-version }}
 
@@ -64,7 +64,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      - uses: actions/setup-node@eeb10cff27034e7acf239c5d29f62154018672fd # pin@v3
+      - uses: actions/setup-node@5b949b50c3461bbcd5a540b150c368278160234a # pin@v3
         with:
           node-version: ${{ matrix.node-version }}
 
@@ -122,7 +122,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      - uses: actions/setup-node@eeb10cff27034e7acf239c5d29f62154018672fd # pin@v3
+      - uses: actions/setup-node@5b949b50c3461bbcd5a540b150c368278160234a # pin@v3
         with:
           node-version: ${{ matrix.node-version }}
 
@@ -168,7 +168,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      - uses: actions/setup-node@eeb10cff27034e7acf239c5d29f62154018672fd # pin@v3
+      - uses: actions/setup-node@5b949b50c3461bbcd5a540b150c368278160234a # pin@v3
         with:
           node-version: ${{ matrix.node-version }}
 
