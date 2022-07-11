@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1656951702311,
+  "lastUpdate": 1657548533914,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -1276,6 +1276,42 @@ window.BENCHMARK_DATA = {
             "value": 9804119,
             "unit": "ns/op",
             "extra": "122 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6c573282eea8565f2917e2a29603e588627235e3",
+          "message": "userinfo: embed assets as data URLs for forward auth (#3460)",
+          "timestamp": "2022-07-11T08:04:24-06:00",
+          "tree_id": "4a5e4569d3ef592a5df39031de59f4d1924dfe9c",
+          "url": "https://github.com/pomerium/pomerium/commit/6c573282eea8565f2917e2a29603e588627235e3"
+        },
+        "date": 1657548533525,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15253262,
+            "unit": "ns/op",
+            "extra": "79 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 141570586,
+            "unit": "ns/op",
+            "extra": "8 times\n2 procs"
           }
         ]
       }
