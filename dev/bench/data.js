@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1657645935726,
+  "lastUpdate": 1657649715780,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -1912,6 +1912,42 @@ window.BENCHMARK_DATA = {
             "value": 9594941,
             "unit": "ns/op",
             "extra": "127 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "75081903cd210c067e357658d08bd21b3cb8a28c",
+          "message": "chore(deps): bump github.com/mholt/acmez from 1.0.2 to 1.0.3 (#3469)\n\nBumps [github.com/mholt/acmez](https://github.com/mholt/acmez) from 1.0.2 to 1.0.3.\r\n- [Release notes](https://github.com/mholt/acmez/releases)\r\n- [Commits](https://github.com/mholt/acmez/compare/v1.0.2...v1.0.3)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/mholt/acmez\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-07-12T12:11:59-06:00",
+          "tree_id": "90db2ff46cf4b77fb691d81c7862d9898451bae0",
+          "url": "https://github.com/pomerium/pomerium/commit/75081903cd210c067e357658d08bd21b3cb8a28c"
+        },
+        "date": 1657649714501,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17384237,
+            "unit": "ns/op",
+            "extra": "73 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10480403,
+            "unit": "ns/op",
+            "extra": "128 times\n2 procs"
           }
         ]
       }
