@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1657640872726,
+  "lastUpdate": 1657645935726,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -1880,6 +1880,38 @@ window.BENCHMARK_DATA = {
             "value": 9833376,
             "unit": "ns/op",
             "extra": "130 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "060859356a0ec8eba48bba9d4c842a0b92f7e5e4",
+          "message": "integration: use specific version of k3s",
+          "timestamp": "2022-07-11T19:42:26Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3475/commits/060859356a0ec8eba48bba9d4c842a0b92f7e5e4"
+        },
+        "date": 1657645934470,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17788977,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9594941,
+            "unit": "ns/op",
+            "extra": "127 times\n2 procs"
           }
         ]
       }
