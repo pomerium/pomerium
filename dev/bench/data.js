@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1657653362629,
+  "lastUpdate": 1657654846111,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -1980,6 +1980,42 @@ window.BENCHMARK_DATA = {
             "value": 8720374,
             "unit": "ns/op",
             "extra": "144 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "302299d202379ee71220b1ffed611deeb033086d",
+          "message": "integration: use specific version of k3s (#3475)",
+          "timestamp": "2022-07-12T13:37:59-06:00",
+          "tree_id": "591498e3de97bdb082e44311c0bcdcace0fe3033",
+          "url": "https://github.com/pomerium/pomerium/commit/302299d202379ee71220b1ffed611deeb033086d"
+        },
+        "date": 1657654845536,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15496392,
+            "unit": "ns/op",
+            "extra": "78 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9517940,
+            "unit": "ns/op",
+            "extra": "136 times\n2 procs"
           }
         ]
       }
