@@ -270,14 +270,8 @@ func (mgr *Manager) updateAutocert(ctx context.Context, cfg *config.Config) erro
 
 	for _, domain := range sourceHostnames(cfg) {
 		cert, err := mgr.obtainCert(ctx, domain, cm)
-		if err != nil && errors.Is(err, errObtainCertFailed) {
-			return fmt.Errorf("autocert: failed to obtain client certificate: %w", err)
-		}
 		if err == nil && cert.NeedsRenewal(cm) {
 			cert, err = mgr.renewCert(ctx, domain, cert, cm)
-		}
-		if err != nil && errors.Is(err, errRenewCertFailed) {
-			return fmt.Errorf("autocert: failed to renew client certificate: %w", err)
 		}
 		if err != nil {
 			log.Error(ctx).Err(err).Msg("autocert: failed to obtain client certificate")
