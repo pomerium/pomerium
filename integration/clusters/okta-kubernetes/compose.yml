@@ -22,7 +22,7 @@ services:
     environment:
       K3S_TOKEN: TOKEN
       K3S_URL: https://k3s-server:6443
-    image: rancher/k3s:${K3S_TAG:-latest}
+    image: rancher/k3s:${K3S_TAG:-v1.21.14-k3s1}
     networks:
       main:
         aliases:
@@ -999,7 +999,7 @@ services:
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
       sleep 30
-    image: rancher/k3s:${K3S_TAG:-latest}
+    image: rancher/k3s:${K3S_TAG:-v1.21.14-k3s1}
     networks:
       main:
         aliases:
@@ -1052,7 +1052,7 @@ services:
       - CMD
       - kubectl
       - cluster-info
-    image: rancher/k3s:${K3S_TAG:-latest}
+    image: rancher/k3s:${K3S_TAG:-v1.21.14-k3s1}
     networks:
       main:
         aliases:
