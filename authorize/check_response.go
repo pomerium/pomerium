@@ -93,32 +93,41 @@ func (a *Authorize) deniedResponse(
 	in *envoy_service_auth_v3.CheckRequest,
 	code int32, reason string, headers map[string]string,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
-	// create a http response writer recorder
-	w := httptest.NewRecorder()
-	r := getHTTPRequestFromCheckRequest(in)
+	respBody := []byte(reason)
+	respHeader := []*envoy_config_core_v3.HeaderValueOption{}
 
-	// build the user info / debug endpoint
-	debugEndpoint, _ := a.userInfoEndpointURL(in) // if there's an error, we just wont display it
+	forwardAuthURL, _ := a.currentOptions.Load().GetForwardAuthURL()
+	if forwardAuthURL == nil {
+		// create a http response writer recorder
+		w := httptest.NewRecorder()
+		r := getHTTPRequestFromCheckRequest(in)
 
-	// run the request through our go error handler
-	httpErr := httputil.HTTPError{
-		Status:    int(code),
-		Err:       errors.New(reason),
-		DebugURL:  debugEndpoint,
-		RequestID: requestid.FromContext(ctx),
+		// build the user info / debug endpoint
+		debugEndpoint, _ := a.userInfoEndpointURL(in) // if there's an error, we just wont display it
+
+		// run the request through our go error handler
+		httpErr := httputil.HTTPError{
+			Status:    int(code),
+			Err:       errors.New(reason),
+			DebugURL:  debugEndpoint,
+			RequestID: requestid.FromContext(ctx),
+		}
+		httpErr.ErrorResponse(w, r)
+
+		// transpose the go http response writer into a envoy response
+		resp := w.Result()
+		defer resp.Body.Close()
+		var err error
+		respBody, err = io.ReadAll(resp.Body)
+		if err != nil {
+			log.Error(ctx).Err(err).Msg("error executing error template")
+			return nil, err
+		}
+		// convert go headers to envoy headers
+		respHeader = append(respHeader, toEnvoyHeaders(resp.Header)...)
+	} else {
+		respHeader = append(respHeader, mkHeader("Content-Type", "text/plain", false))
 	}
-	httpErr.ErrorResponse(w, r)
-
-	// transpose the go http response writer into a envoy response
-	resp := w.Result()
-	defer resp.Body.Close()
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Error(ctx).Err(err).Msg("error executing error template")
-		return nil, err
-	}
-	// convert go headers to envoy headers
-	respHeader := toEnvoyHeaders(resp.Header)
 
 	// add any additional headers
 	for k, v := range headers {
