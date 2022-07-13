@@ -11,7 +11,6 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -44,7 +43,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	isForwardAuth := a.isForwardAuth(in)
 	if isForwardAuth {
 		// update the incoming http request's uri to match the forwarded URI
-		fwdAuthURI := getForwardAuthURL(hreq)
+		fwdAuthURI := urlutil.GetForwardAuthURL(hreq)
 		in.Attributes.Request.Http.Scheme = fwdAuthURI.Scheme
 		in.Attributes.Request.Http.Host = fwdAuthURI.Host
 		in.Attributes.Request.Http.Path = fwdAuthURI.EscapedPath()
@@ -101,26 +100,6 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	// otherwise, the result is denied using the allow reasons.
 	return a.handleResultDenied(ctx, in, req, res, isForwardAuthVerify, res.Allow.Reasons)
-}
-
-func getForwardAuthURL(r *http.Request) *url.URL {
-	urqQuery := r.URL.Query().Get("uri")
-	u, _ := urlutil.ParseAndValidateURL(urqQuery)
-	if u == nil {
-		u = &url.URL{
-			Scheme: r.Header.Get(httputil.HeaderForwardedProto),
-			Host:   r.Header.Get(httputil.HeaderForwardedHost),
-			Path:   r.Header.Get(httputil.HeaderForwardedURI),
-		}
-	}
-	originalURL := r.Header.Get(httputil.HeaderOriginalURL)
-	if originalURL != "" {
-		k, _ := urlutil.ParseAndValidateURL(originalURL)
-		if k != nil {
-			u = k
-		}
-	}
-	return u
 }
 
 // isForwardAuth returns if the current request is a forward auth route.
