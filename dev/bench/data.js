@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1657656469280,
+  "lastUpdate": 1657716860325,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -2052,6 +2052,38 @@ window.BENCHMARK_DATA = {
             "value": 8568840,
             "unit": "ns/op",
             "extra": "145 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "73b7a01a00ca7793c790d4d9782c2cc1befe4f2e",
+          "message": "authorize: show plain text error page for traefik and nginx",
+          "timestamp": "2022-07-11T19:42:26Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3477/commits/73b7a01a00ca7793c790d4d9782c2cc1befe4f2e"
+        },
+        "date": 1657716859657,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15542160,
+            "unit": "ns/op",
+            "extra": "76 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8874968,
+            "unit": "ns/op",
+            "extra": "129 times\n2 procs"
           }
         ]
       }
