@@ -104,7 +104,7 @@ func newChangedRecordStream(
 		recordType:    recordType,
 		recordVersion: recordVersion,
 		ticker:        time.NewTicker(watchPollInterval),
-		changed:       backend.onChange.Bind(),
+		changed:       backend.onRecordChange.Bind(),
 	}
 	stream.ctx, stream.cancel = contextutil.Merge(ctx, backend.closeCtx)
 	return stream
@@ -113,7 +113,7 @@ func newChangedRecordStream(
 func (stream *changedRecordStream) Close() error {
 	stream.cancel()
 	stream.ticker.Stop()
-	stream.backend.onChange.Unbind(stream.changed)
+	stream.backend.onRecordChange.Unbind(stream.changed)
 	return nil
 }
 

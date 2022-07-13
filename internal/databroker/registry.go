@@ -3,6 +3,7 @@ package databroker
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -11,6 +12,7 @@ import (
 	"github.com/pomerium/pomerium/internal/registry/redis"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 type registryWatchServer struct {
@@ -66,6 +68,11 @@ func (srv *Server) Watch(req *registrypb.ListRequest, stream registrypb.Registry
 }
 
 func (srv *Server) getRegistry() (registry.Interface, error) {
+	backend, err := srv.getBackend()
+	if err != nil {
+		return nil, err
+	}
+
 	// double-checked locking
 	srv.mu.RLock()
 	r := srv.registry
@@ -75,7 +82,7 @@ func (srv *Server) getRegistry() (registry.Interface, error) {
 		r = srv.registry
 		var err error
 		if r == nil {
-			r, err = srv.newRegistryLocked()
+			r, err = srv.newRegistryLocked(backend)
 			srv.registry = r
 		}
 		srv.mu.Unlock()
@@ -86,11 +93,21 @@ func (srv *Server) getRegistry() (registry.Interface, error) {
 	return r, nil
 }
 
-func (srv *Server) newRegistryLocked() (registry.Interface, error) {
+func (srv *Server) newRegistryLocked(backend storage.Backend) (registry.Interface, error) {
 	ctx := context.Background()
 
+	if hasRegistryServer, ok := backend.(interface {
+		RegistryServer() registrypb.RegistryServer
+	}); ok {
+		log.Info(ctx).Msg("using registry via storage")
+		return struct {
+			io.Closer
+			registrypb.RegistryServer
+		}{backend, hasRegistryServer.RegistryServer()}, nil
+	}
+
 	switch srv.cfg.storageType {
-	case config.StorageInMemoryName, config.StoragePostgresName:
+	case config.StorageInMemoryName:
 		log.Info(ctx).Msg("using in-memory registry")
 		return inmemory.New(ctx, srv.cfg.registryTTL), nil
 	case config.StorageRedisName:

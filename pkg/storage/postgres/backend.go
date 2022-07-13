@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -20,9 +21,10 @@ import (
 
 // Backend is a storage Backend implemented with Postgres.
 type Backend struct {
-	cfg      *config
-	dsn      string
-	onChange *signal.Signal
+	cfg             *config
+	dsn             string
+	onRecordChange  *signal.Signal
+	onServiceChange *signal.Signal
 
 	closeCtx context.Context
 	close    context.CancelFunc
@@ -35,11 +37,13 @@ type Backend struct {
 // New creates a new Backend.
 func New(dsn string, options ...Option) *Backend {
 	backend := &Backend{
-		cfg:      getConfig(options...),
-		dsn:      dsn,
-		onChange: signal.New(),
+		cfg:             getConfig(options...),
+		dsn:             dsn,
+		onRecordChange:  signal.New(),
+		onServiceChange: signal.New(),
 	}
 	backend.closeCtx, backend.close = context.WithCancel(context.Background())
+
 	go backend.doPeriodically(func(ctx context.Context) error {
 		_, pool, err := backend.init(ctx)
 		if err != nil {
@@ -48,32 +52,64 @@ func New(dsn string, options ...Option) *Backend {
 
 		return deleteChangesBefore(ctx, pool, time.Now().Add(-backend.cfg.expiry))
 	}, time.Minute)
+
 	go backend.doPeriodically(func(ctx context.Context) error {
-		_, pool, err := backend.init(backend.closeCtx)
+		_, pool, err := backend.init(ctx)
 		if err != nil {
 			return err
 		}
 
-		conn, err := pool.Acquire(ctx)
+		rowCount, err := deleteExpiredServices(ctx, pool, time.Now())
 		if err != nil {
 			return err
 		}
-		defer conn.Release()
-
-		_, err = conn.Exec(ctx, `LISTEN `+recordChangeNotifyName)
-		if err != nil {
-			return err
+		if rowCount > 0 {
+			err = signalServiceChange(ctx, pool)
+			if err != nil {
+				return err
+			}
 		}
-
-		_, err = conn.Conn().WaitForNotification(ctx)
-		if err != nil {
-			return err
-		}
-
-		backend.onChange.Broadcast(ctx)
 
 		return nil
-	}, time.Millisecond*100)
+	}, backend.cfg.registryTTL/2)
+
+	// listen for changes and broadcast them via signals
+	for _, row := range []struct {
+		signal  *signal.Signal
+		channel string
+	}{
+		{backend.onRecordChange, recordChangeNotifyName},
+		{backend.onServiceChange, serviceChangeNotifyName},
+	} {
+		sig, ch := row.signal, row.channel
+		go backend.doPeriodically(func(ctx context.Context) error {
+			_, pool, err := backend.init(backend.closeCtx)
+			if err != nil {
+				return err
+			}
+
+			conn, err := pool.Acquire(ctx)
+			if err != nil {
+				return err
+			}
+			defer conn.Release()
+
+			_, err = conn.Exec(ctx, `LISTEN `+ch)
+			if err != nil {
+				return err
+			}
+
+			_, err = conn.Conn().WaitForNotification(ctx)
+			if err != nil {
+				return err
+			}
+
+			sig.Broadcast(ctx)
+
+			return nil
+		}, time.Millisecond*100)
+	}
+
 	return backend
 }
 
@@ -327,7 +363,9 @@ func (backend *Backend) doPeriodically(f func(ctx context.Context) error, dur ti
 			case <-ticker.C:
 			}
 		} else {
-			log.Error(ctx).Err(err).Msg("storage/postgres")
+			if !errors.Is(err, context.Canceled) {
+				log.Error(ctx).Err(err).Msg("storage/postgres")
+			}
 			select {
 			case <-backend.closeCtx.Done():
 				return
