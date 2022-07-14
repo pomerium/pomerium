@@ -30,10 +30,10 @@ func GetForwardAuthURL(r *http.Request) *url.URL {
 		}
 		rawPath := r.Header.Get(HeaderForwardedURI)
 		if idx := strings.Index(rawPath, "?"); idx >= 0 {
-			u.RawPath = rawPath[:idx]
+			u.Path = rawPath[:idx]
 			u.RawQuery = rawPath[idx+1:]
 		} else {
-			u.RawPath = rawPath
+			u.Path = rawPath
 		}
 	}
 	originalURL := r.Header.Get(HeaderOriginalURL)

@@ -17,6 +17,6 @@ func TestGetForwardAuthURL(t *testing.T) {
 		req.Header.Set("X-Forwarded-Uri", "/example?a=b&c=d")
 
 		u := GetForwardAuthURL(req)
-		assert.Equal(t, "https://protected-host.tld?a=b&c=d", u.String())
+		assert.Equal(t, "https://protected-host.tld/example?a=b&c=d", u.String())
 	})
 }
