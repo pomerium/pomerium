@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1657812932273,
+  "lastUpdate": 1657902014262,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -2256,6 +2256,38 @@ window.BENCHMARK_DATA = {
             "value": 9411212,
             "unit": "ns/op",
             "extra": "124 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "f66820549e8667b5593500174b01c0c6f4b7a3ea",
+          "message": "authorize: fix device synchronization",
+          "timestamp": "2022-07-15T04:45:00Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3482/commits/f66820549e8667b5593500174b01c0c6f4b7a3ea"
+        },
+        "date": 1657902013875,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14505562,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9475168,
+            "unit": "ns/op",
+            "extra": "141 times\n2 procs"
           }
         ]
       }
