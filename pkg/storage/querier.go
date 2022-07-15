@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"strconv"
 	"sync"
 
 	"github.com/google/uuid"
@@ -19,11 +20,14 @@ import (
 
 // A Querier is a read-only subset of the client methods
 type Querier interface {
+	InvalidateCache(ctx context.Context, in *databroker.QueryRequest)
 	Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error)
 }
 
 // nilQuerier always returns NotFound.
 type nilQuerier struct{}
+
+func (nilQuerier) InvalidateCache(ctx context.Context, in *databroker.QueryRequest) {}
 
 func (nilQuerier) Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error) {
 	return nil, status.Error(codes.NotFound, "not found")
@@ -63,10 +67,17 @@ func NewStaticQuerier(msgs ...proto.Message) Querier {
 		if hasID, ok := msg.(interface{ GetId() string }); ok {
 			record.Id = hasID.GetId()
 		}
+		if hasVersion, ok := msg.(interface{ GetVersion() string }); ok {
+			if v, err := strconv.ParseUint(hasVersion.GetVersion(), 10, 64); err == nil {
+				record.Version = v
+			}
+		}
 		getter.records = append(getter.records, record)
 	}
 	return getter
 }
+
+func (q *staticQuerier) InvalidateCache(ctx context.Context, in *databroker.QueryRequest) {}
 
 // Query queries for records.
 func (q *staticQuerier) Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error) {
@@ -116,6 +127,8 @@ func NewQuerier(client databroker.DataBrokerServiceClient) Querier {
 	return &clientQuerier{client: client}
 }
 
+func (q *clientQuerier) InvalidateCache(ctx context.Context, in *databroker.QueryRequest) {}
+
 // Query queries for records.
 func (q *clientQuerier) Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error) {
 	return q.client.Query(ctx, in, opts...)
@@ -143,6 +156,11 @@ func NewTracingQuerier(q Querier) *TracingQuerier {
 	return &TracingQuerier{
 		underlying: q,
 	}
+}
+
+// InvalidateCache invalidates the cache.
+func (q *TracingQuerier) InvalidateCache(ctx context.Context, in *databroker.QueryRequest) {
+	q.underlying.InvalidateCache(ctx, in)
 }
 
 // Query queries for records.
@@ -180,6 +198,17 @@ func NewCachingQuerier(q Querier, cache Cache) Querier {
 		q:     q,
 		cache: cache,
 	}
+}
+
+func (q *cachingQuerier) InvalidateCache(ctx context.Context, in *databroker.QueryRequest) {
+	key, err := (&proto.MarshalOptions{
+		Deterministic: true,
+	}).Marshal(in)
+	if err != nil {
+		return
+	}
+	q.cache.Invalidate(key)
+	q.q.InvalidateCache(ctx, in)
 }
 
 func (q *cachingQuerier) Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error) {
