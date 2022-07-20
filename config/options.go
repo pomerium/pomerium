@@ -1237,7 +1237,7 @@ func (o *Options) Checksum() uint64 {
 	return hashutil.MustHash(o)
 }
 
-func (o Options) indexCerts(ctx context.Context) certsIndex {
+func (o *Options) indexCerts(ctx context.Context) certsIndex {
 	idx := make(certsIndex)
 
 	if o.CertFile != "" {
@@ -1248,9 +1248,7 @@ func (o Options) indexCerts(ctx context.Context) certsIndex {
 			idx.addCert(cert)
 		}
 	} else if o.Cert != "" {
-		if data, err := base64.StdEncoding.DecodeString(o.Cert); err != nil {
-			log.Error(ctx).Err(err).Msg("bad base64 for local cert: skipped")
-		} else if cert, err := cryptutil.ParsePEMCertificate(data); err != nil {
+		if cert, err := cryptutil.ParsePEMCertificateFromBase64(o.Cert); err != nil {
 			log.Error(ctx).Err(err).Msg("parsing local cert: skipped")
 		} else {
 			idx.addCert(cert)
@@ -1258,9 +1256,12 @@ func (o Options) indexCerts(ctx context.Context) certsIndex {
 	}
 
 	for _, c := range o.CertificateFiles {
-		cert, err := cryptutil.ParsePEMCertificateFromFile(c.CertFile)
+		cert, err := cryptutil.ParsePEMCertificateFromBase64(c.CertFile)
 		if err != nil {
-			log.Error(ctx).Err(err).Str("file", c.CertFile).Msg("parsing local cert: skipped")
+			cert, err = cryptutil.ParsePEMCertificateFromFile(c.CertFile)
+		}
+		if err != nil {
+			log.Error(ctx).Err(err).Msg("parsing local cert: skipped")
 		} else {
 			idx.addCert(cert)
 		}
@@ -1271,15 +1272,6 @@ func (o Options) indexCerts(ctx context.Context) certsIndex {
 func (o *Options) applyExternalCerts(ctx context.Context, certs []*config.Settings_Certificate) {
 	idx := o.indexCerts(ctx)
 	for _, c := range certs {
-		cert, err := cryptutil.ParsePEMCertificate(c.CertBytes)
-		if err != nil {
-			log.Error(ctx).Err(err).Msg("parsing cert from databroker: skipped")
-			continue
-		}
-		if overlaps, name := idx.matchCert(cert); overlaps {
-			log.Error(ctx).Err(err).Str("domain", name).Msg("overlaps with local certs: skipped")
-			continue
-		}
 		cfp := certificateFilePair{
 			CertFile: c.CertFile,
 			KeyFile:  c.KeyFile,
@@ -1290,6 +1282,20 @@ func (o *Options) applyExternalCerts(ctx context.Context, certs []*config.Settin
 		if cfp.KeyFile == "" {
 			cfp.KeyFile = base64.StdEncoding.EncodeToString(c.KeyBytes)
 		}
+
+		cert, err := cryptutil.ParsePEMCertificateFromBase64(cfp.CertFile)
+		if err != nil {
+			cert, err = cryptutil.ParsePEMCertificateFromFile(cfp.CertFile)
+		}
+		if err != nil {
+			log.Error(ctx).Err(err).Msg("parsing cert from databroker: skipped")
+			continue
+		}
+		if overlaps, name := idx.matchCert(cert); overlaps {
+			log.Error(ctx).Err(err).Str("domain", name).Msg("overlaps with local certs: skipped")
+			continue
+		}
+
 		o.CertificateFiles = append(o.CertificateFiles, cfp)
 	}
 }

@@ -219,7 +219,7 @@ func GenerateSelfSignedCertificate(domain string, configure ...func(*x509.Certif
 	return &cert, nil
 }
 
-// ParsePEMCertificate parses PEM encoded certificate block
+// ParsePEMCertificate parses a PEM encoded certificate block.
 func ParsePEMCertificate(raw []byte) (*x509.Certificate, error) {
 	data := raw
 	for {
@@ -242,7 +242,16 @@ func ParsePEMCertificate(raw []byte) (*x509.Certificate, error) {
 	return nil, fmt.Errorf("no certificate block found")
 }
 
-// ParsePEMCertificateFromFile decodes PEM certificate from file
+// ParsePEMCertificateFromBase64 parses a PEM encoded certificate block from a base64 encoded string.
+func ParsePEMCertificateFromBase64(encoded string) (*x509.Certificate, error) {
+	raw, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePEMCertificate(raw)
+}
+
+// ParsePEMCertificateFromFile decodes a PEM certificate from a file.
 func ParsePEMCertificateFromFile(file string) (*x509.Certificate, error) {
 	fd, err := os.Open(file)
 	if err != nil {
