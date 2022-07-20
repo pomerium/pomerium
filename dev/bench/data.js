@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1658270923109,
+  "lastUpdate": 1658346282207,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -2932,6 +2932,42 @@ window.BENCHMARK_DATA = {
             "value": 8374718,
             "unit": "ns/op",
             "extra": "145 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1afbc6e9c41066a1c2682b0894107587c4169cca",
+          "message": "options: fix overlapping certificate test (#3492)",
+          "timestamp": "2022-07-20T13:38:52-06:00",
+          "tree_id": "f5b9575652b0174bbd3988242f32b53f0b3bf12f",
+          "url": "https://github.com/pomerium/pomerium/commit/1afbc6e9c41066a1c2682b0894107587c4169cca"
+        },
+        "date": 1658346280881,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16367522,
+            "unit": "ns/op",
+            "extra": "62 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9822190,
+            "unit": "ns/op",
+            "extra": "123 times\n2 procs"
           }
         ]
       }
