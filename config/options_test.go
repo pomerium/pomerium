@@ -2,7 +2,9 @@ package config
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"net/url"
 	"os"
@@ -15,6 +17,9 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 var cmpOptIgnoreUnexported = cmpopts.IgnoreUnexported(Options{}, Policy{})
@@ -726,6 +731,37 @@ func TestOptions_GetAllRouteableHTTPDomains(t *testing.T) {
 		"from2.example.com",
 		"from2.example.com:443",
 	}, domains)
+}
+
+func TestOptions_ApplySettings(t *testing.T) {
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second)
+	defer clearTimeout()
+
+	t.Run("certificates", func(t *testing.T) {
+		options := NewDefaultOptions()
+		cert1, err := cryptutil.GenerateSelfSignedCertificate("example.com")
+		require.NoError(t, err)
+		options.CertificateFiles = append(options.CertificateFiles, certificateFilePair{
+			CertFile: base64.StdEncoding.EncodeToString(encodeCert(cert1)),
+		})
+		cert2, err := cryptutil.GenerateSelfSignedCertificate("example.com")
+		require.NoError(t, err)
+		cert3, err := cryptutil.GenerateSelfSignedCertificate("not.example.com")
+		require.NoError(t, err)
+
+		settings := &config.Settings{
+			Certificates: []*config.Settings_Certificate{
+				{CertBytes: encodeCert(cert2)},
+				{CertBytes: encodeCert(cert3)},
+			},
+		}
+		options.ApplySettings(ctx, settings)
+		assert.Len(t, options.CertificateFiles, 2, "should prevent adding duplicate certificates")
+	})
+}
+
+func encodeCert(cert *tls.Certificate) []byte {
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Certificate[0]})
 }
 
 func mustParseWeightedURLs(t *testing.T, urls ...string) []WeightedURL {
