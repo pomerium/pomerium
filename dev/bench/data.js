@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1658766134067,
+  "lastUpdate": 1658779623340,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -3096,6 +3096,42 @@ window.BENCHMARK_DATA = {
             "value": 12399591,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a7483bd035e10884b4a90c9ac1051154d2603f8d",
+          "message": "add lease name to the log (#3498)",
+          "timestamp": "2022-07-25T16:04:41-04:00",
+          "tree_id": "1892ae220d7dede83de1bd3588fee04ef65dbc80",
+          "url": "https://github.com/pomerium/pomerium/commit/a7483bd035e10884b4a90c9ac1051154d2603f8d"
+        },
+        "date": 1658779622909,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15587792,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9101392,
+            "unit": "ns/op",
+            "extra": "123 times\n2 procs"
           }
         ]
       }
