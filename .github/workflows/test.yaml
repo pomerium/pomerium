@@ -50,7 +50,6 @@ jobs:
         if: runner.os == 'Linux'
         run: make lint
       - name: test
-        if: runner.os != 'Linux'
         run: make test
 
   cover:
