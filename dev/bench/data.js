@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1658846397488,
+  "lastUpdate": 1658855048039,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -3360,6 +3360,42 @@ window.BENCHMARK_DATA = {
             "value": 7800983,
             "unit": "ns/op",
             "extra": "151 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0b48da1e2fcc2dc606f48b0de8a03055f2c08ad5",
+          "message": "databroker: support rotating shared secret (#3502)\n\n* databroker: support rotating shared secret\r\n\r\n* fix test\r\n\r\n* run tests on linux\r\n\r\n* fix tests\r\n\r\n* fix typo\r\n\r\n* increase timeout",
+          "timestamp": "2022-07-26T10:59:54-06:00",
+          "tree_id": "408f9fd5824159931823bf07915b480112cca65d",
+          "url": "https://github.com/pomerium/pomerium/commit/0b48da1e2fcc2dc606f48b0de8a03055f2c08ad5"
+        },
+        "date": 1658855047373,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16802057,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10069499,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
