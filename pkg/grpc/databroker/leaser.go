@@ -96,7 +96,7 @@ func (locker *Leaser) runOnce(ctx context.Context, resetBackoff func()) error {
 	if status.Code(err) == codes.AlreadyExists {
 		return nil
 	} else if err != nil {
-		log.Warn(ctx).Err(err).Msg("leaser: error acquiring lease")
+		log.Warn(ctx).Err(err).Str("lease_name", locker.leaseName).Msg("leaser: error acquiring lease")
 		return retryableError{err}
 	}
 	resetBackoff()
@@ -148,7 +148,7 @@ func (locker *Leaser) withLease(ctx context.Context, leaseID string) error {
 				// failed to renew lease
 				return nil
 			} else if err != nil {
-				log.Warn(ctx).Err(err).Msg("leaser: error renewing lease")
+				log.Warn(ctx).Err(err).Str("lease_name", locker.leaseName).Msg("leaser: error renewing lease")
 				return retryableError{err}
 			}
 		}
