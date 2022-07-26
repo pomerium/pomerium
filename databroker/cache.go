@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/directory"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/identity"
@@ -36,11 +37,10 @@ type DataBroker struct {
 	manager          *manager.Manager
 	eventsMgr        *events.Manager
 
-	localListener                net.Listener
-	localGRPCServer              *grpc.Server
-	localGRPCConnection          *grpc.ClientConn
-	dataBrokerStorageType        string // TODO remove in v0.11
-	deprecatedCacheClusterDomain string // TODO: remove in v0.11
+	localListener       net.Listener
+	localGRPCServer     *grpc.Server
+	localGRPCConnection *grpc.ClientConn
+	sharedKey           *atomicutil.Value[[]byte]
 
 	mu                sync.Mutex
 	directoryProvider directory.Provider
@@ -52,8 +52,6 @@ func New(cfg *config.Config, eventsMgr *events.Manager) (*DataBroker, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	sharedKey, _ := cfg.Options.GetSharedKey()
 
 	ui, si := grpcutil.AttachMetadataInterceptors(
 		metadata.Pairs(
@@ -69,11 +67,17 @@ func New(cfg *config.Config, eventsMgr *events.Manager) (*DataBroker, error) {
 		grpc.UnaryInterceptor(ui),
 	)
 
+	sharedKey, err := cfg.Options.GetSharedKey()
+	if err != nil {
+		return nil, err
+	}
+
+	sharedKeyValue := atomicutil.NewValue(sharedKey)
 	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(cfg.Options.Services)
 	clientDialOptions := []grpc.DialOption{
 		grpc.WithInsecure(),
-		grpc.WithChainUnaryInterceptor(clientStatsHandler.UnaryInterceptor, grpcutil.WithUnarySignedJWT(sharedKey)),
-		grpc.WithChainStreamInterceptor(grpcutil.WithStreamSignedJWT(sharedKey)),
+		grpc.WithChainUnaryInterceptor(clientStatsHandler.UnaryInterceptor, grpcutil.WithUnarySignedJWT(sharedKeyValue.Load)),
+		grpc.WithChainStreamInterceptor(grpcutil.WithStreamSignedJWT(sharedKeyValue.Load)),
 		grpc.WithStatsHandler(clientStatsHandler.Handler),
 	}
 
@@ -90,19 +94,14 @@ func New(cfg *config.Config, eventsMgr *events.Manager) (*DataBroker, error) {
 	}
 
 	dataBrokerServer := newDataBrokerServer(cfg)
-	dataBrokerURLs, err := cfg.Options.GetInternalDataBrokerURLs()
-	if err != nil {
-		return nil, err
-	}
 
 	c := &DataBroker{
-		dataBrokerServer:             dataBrokerServer,
-		localListener:                localListener,
-		localGRPCServer:              localGRPCServer,
-		localGRPCConnection:          localGRPCConnection,
-		deprecatedCacheClusterDomain: dataBrokerURLs[0].Hostname(),
-		dataBrokerStorageType:        cfg.Options.DataBrokerStorageType,
-		eventsMgr:                    eventsMgr,
+		dataBrokerServer:    dataBrokerServer,
+		localListener:       localListener,
+		localGRPCServer:     localGRPCServer,
+		localGRPCConnection: localGRPCConnection,
+		sharedKey:           sharedKeyValue,
+		eventsMgr:           eventsMgr,
 	}
 	c.Register(c.localGRPCServer)
 
@@ -152,6 +151,12 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 	if err := validate(cfg.Options); err != nil {
 		return fmt.Errorf("databroker: bad option: %w", err)
 	}
+
+	sharedKey, err := cfg.Options.GetSharedKey()
+	if err != nil {
+		return fmt.Errorf("databroker: invalid shared key: %w", err)
+	}
+	c.sharedKey.Store(sharedKey)
 
 	oauthOptions, err := cfg.Options.GetOauthOptions()
 	if err != nil {

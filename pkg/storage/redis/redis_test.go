@@ -79,12 +79,14 @@ func TestBackend(t *testing.T) {
 	}
 
 	t.Run("no-tls", func(t *testing.T) {
+		t.Parallel()
 		require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {
 			return handler(t, false, rawURL)
 		}))
 	})
 
 	t.Run("tls", func(t *testing.T) {
+		t.Parallel()
 		require.NoError(t, testutil.WithTestRedis(true, func(rawURL string) error {
 			return handler(t, true, rawURL)
 		}))
@@ -92,12 +94,14 @@ func TestBackend(t *testing.T) {
 
 	if runtime.GOOS == "linux" {
 		t.Run("cluster", func(t *testing.T) {
+			t.Parallel()
 			require.NoError(t, testutil.WithTestRedisCluster(func(rawURL string) error {
 				return handler(t, false, rawURL)
 			}))
 		})
 
 		t.Run("sentinel", func(t *testing.T) {
+			t.Parallel()
 			require.NoError(t, testutil.WithTestRedisSentinel(func(rawURL string) error {
 				return handler(t, false, rawURL)
 			}))
@@ -109,6 +113,8 @@ func TestChangeSignal(t *testing.T) {
 	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
 		t.Skip("Github action can not run docker on MacOS")
 	}
+
+	t.Parallel()
 
 	ctx := context.Background()
 	require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {
@@ -174,6 +180,8 @@ func TestExpiry(t *testing.T) {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
+	t.Parallel()
+
 	ctx := context.Background()
 	require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {
 		backend, err := New(rawURL, WithExpiry(0))
@@ -219,6 +227,8 @@ func TestCapacity(t *testing.T) {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
+	t.Parallel()
+
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
 	defer clearTimeout()
 
@@ -262,6 +272,8 @@ func TestLease(t *testing.T) {
 	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
 		t.Skip("Github action can not run docker on MacOS")
 	}
+
+	t.Parallel()
 
 	ctx := context.Background()
 	require.NoError(t, testutil.WithTestRedis(false, func(rawURL string) error {

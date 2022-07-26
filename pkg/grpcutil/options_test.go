@@ -74,8 +74,8 @@ func TestSignedJWT(t *testing.T) {
 	})
 	t.Run("authenticated", func(t *testing.T) {
 		cc, err := grpc.Dial(li.Addr().String(),
-			grpc.WithUnaryInterceptor(WithUnarySignedJWT(key)),
-			grpc.WithStreamInterceptor(WithStreamSignedJWT(key)),
+			grpc.WithUnaryInterceptor(WithUnarySignedJWT(func() []byte { return key })),
+			grpc.WithStreamInterceptor(WithStreamSignedJWT(func() []byte { return key })),
 			grpc.WithInsecure())
 		if !assert.NoError(t, err) {
 			return
