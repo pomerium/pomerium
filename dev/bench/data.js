@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1658864312229,
+  "lastUpdate": 1658867886529,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -3464,6 +3464,42 @@ window.BENCHMARK_DATA = {
             "value": 12828913,
             "unit": "ns/op",
             "extra": "98 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "89a105c8e6478196cb9dd40371749c339d274f10",
+          "message": "authorize: add request id to context (#3497)\n\n* authorize: add request id to context\r\n\r\n* fix context keys",
+          "timestamp": "2022-07-26T14:34:48-06:00",
+          "tree_id": "037260d01b6bbc55131988b9bbed215d5284b123",
+          "url": "https://github.com/pomerium/pomerium/commit/89a105c8e6478196cb9dd40371749c339d274f10"
+        },
+        "date": 1658867885257,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16933162,
+            "unit": "ns/op",
+            "extra": "64 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10395883,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
