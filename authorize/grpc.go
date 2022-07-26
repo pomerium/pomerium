@@ -13,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -39,6 +40,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	// convert the incoming envoy-style http request into a go-style http request
 	hreq := getHTTPRequestFromCheckRequest(in)
+	ctx = requestid.WithValue(ctx, requestid.FromHTTPHeader(hreq.Header))
 
 	isForwardAuth := a.isForwardAuth(in)
 	if isForwardAuth {

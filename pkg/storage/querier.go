@@ -33,11 +33,11 @@ func (nilQuerier) Query(ctx context.Context, in *databroker.QueryRequest, opts .
 	return nil, status.Error(codes.NotFound, "not found")
 }
 
-var querierKey struct{}
+type querierKey struct{}
 
 // GetQuerier gets the databroker Querier from the context.
 func GetQuerier(ctx context.Context) Querier {
-	q, ok := ctx.Value(querierKey).(Querier)
+	q, ok := ctx.Value(querierKey{}).(Querier)
 	if !ok {
 		q = nilQuerier{}
 	}
@@ -46,7 +46,7 @@ func GetQuerier(ctx context.Context) Querier {
 
 // WithQuerier sets the databroker Querier on a context.
 func WithQuerier(ctx context.Context, querier Querier) context.Context {
-	return context.WithValue(ctx, querierKey, querier)
+	return context.WithValue(ctx, querierKey{}, querier)
 }
 
 type staticQuerier struct {

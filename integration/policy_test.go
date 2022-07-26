@@ -322,13 +322,20 @@ func TestLoadBalancer(t *testing.T) {
 			if !assert.NoError(t, err) {
 				return distribution
 			}
+			defer res.Body.Close()
+
+			bs, err := io.ReadAll(res.Body)
+			if !assert.NoError(t, err) {
+				return distribution
+			}
 
 			var result struct {
 				Hostname string `json:"hostname"`
 			}
-			err = json.NewDecoder(res.Body).Decode(&result)
-			_ = res.Body.Close()
-			assert.NoError(t, err)
+			err = json.Unmarshal(bs, &result)
+			if !assert.NoError(t, err, "invalid json: %s", bs) {
+				return distribution
+			}
 			distribution[result.Hostname]++
 		}
 
