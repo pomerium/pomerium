@@ -63,8 +63,8 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 	}
 	streamClientInterceptors := []grpc.StreamClientInterceptor{}
 	if opts.SignedJWTKey != nil {
-		unaryClientInterceptors = append(unaryClientInterceptors, WithUnarySignedJWT(opts.SignedJWTKey))
-		streamClientInterceptors = append(streamClientInterceptors, WithStreamSignedJWT(opts.SignedJWTKey))
+		unaryClientInterceptors = append(unaryClientInterceptors, WithUnarySignedJWT(func() []byte { return opts.SignedJWTKey }))
+		streamClientInterceptors = append(streamClientInterceptors, WithStreamSignedJWT(func() []byte { return opts.SignedJWTKey }))
 	}
 
 	dialOptions := []grpc.DialOption{

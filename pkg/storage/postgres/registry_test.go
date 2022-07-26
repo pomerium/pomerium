@@ -7,7 +7,6 @@ import (
 	"os"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,7 +35,9 @@ func TestRegistry(t *testing.T) {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	t.Parallel()
+
+	ctx, clearTimeout := context.WithTimeout(context.Background(), maxWait)
 	defer clearTimeout()
 
 	require.NoError(t, testutil.WithTestPostgres(func(dsn string) error {

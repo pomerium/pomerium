@@ -16,28 +16,30 @@ jobs:
         platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # pin@v2
+      - uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a
         with:
           go-version: ${{ matrix.go-version }}
 
-      - uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93 # pin@v3
+      - uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93
         with:
           node-version: ${{ matrix.node-version }}
 
       - name: set env vars
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
+
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
         with:
           fetch-depth: 0
+
       - name: cache go binaries
-        uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129 # pin@v3
+        uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129
         id: cache-go-bin
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
           restore-keys: ${{ runner.os }}-go-bin
 
-      - uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129 # pin@v3
+      - uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129
         with:
           path: |
             ~/go/pkg/mod
@@ -45,12 +47,12 @@ jobs:
             ~/Library/Caches/go-build
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-go-
+
       - run: make deps-build
       - name: Lint
         if: runner.os == 'Linux'
         run: make lint
       - name: test
-        if: runner.os != 'Linux'
         run: make test
 
   cover:
@@ -60,15 +62,15 @@ jobs:
         go-version: [1.18.x]
         node-version: [16.x]
     steps:
-      - uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # pin@v2
+      - uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a
         with:
           go-version: ${{ matrix.go-version }}
 
-      - uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93 # pin@v3
+      - uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93
         with:
           node-version: ${{ matrix.node-version }}
 
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
         with:
           fetch-depth: 0
 
@@ -76,14 +78,14 @@ jobs:
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
       - name: cache go binaries
-        uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129 # pin@v3
+        uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129
         id: cache-go-bin
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
           restore-keys: ${{ runner.os }}-go-bin
 
-      - uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129 # pin@v3
+      - uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129
         with:
           path: |
             ~/go/pkg/mod
@@ -95,14 +97,14 @@ jobs:
       - name: cover
         run: make cover
 
-      - uses: jandelgado/gcov2lcov-action@c680c0f7c7442485f1749eb2a13e54a686e76eb5 # pin@v1.0.8
+      - uses: jandelgado/gcov2lcov-action@c680c0f7c7442485f1749eb2a13e54a686e76eb5
         name: convert coverage to lcov
         with:
           infile: coverage.txt
           outfile: coverage.lcov
 
       - name: upload to coveralls
-        uses: coverallsapp/github-action@9ba913c152ae4be1327bfb9085dc806cedb44057 # pin@1.1.3
+        uses: coverallsapp/github-action@9ba913c152ae4be1327bfb9085dc806cedb44057
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: coverage.lcov
@@ -118,20 +120,20 @@ jobs:
         idp: [auth0, azure, github, gitlab, google, oidc, okta, onelogin, ping]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # pin@v2
+      - uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a
         with:
           go-version: ${{ matrix.go-version }}
 
-      - uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93 # pin@v3
+      - uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93
         with:
           node-version: ${{ matrix.node-version }}
 
       - name: set env vars
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
         with:
           fetch-depth: 0
-      - uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129 # pin@v3
+      - uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129
         with:
           path: |
             ~/go/pkg
@@ -164,18 +166,18 @@ jobs:
         platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # pin@v2
+      - uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a
         with:
           go-version: ${{ matrix.go-version }}
 
-      - uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93 # pin@v3
+      - uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93
         with:
           node-version: ${{ matrix.node-version }}
 
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
         with:
           fetch-depth: 0
-      - uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129 # pin@v3
+      - uses: actions/cache@0865c47f36e68161719c5b124609996bb5c40129
         with:
           path: |
             ~/go/pkg/mod
@@ -191,7 +193,7 @@ jobs:
           make build
 
       - name: save binary
-        uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # pin@v2
+        uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8
         with:
           path: bin/pomerium*
           name: pomerium ${{ github.run_id }} ${{ matrix.platform }}
@@ -200,15 +202,15 @@ jobs:
   build-docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
         with:
           fetch-depth: 0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@dc7b9719a96d48369863986a06765841d7ea23f6 # pin@v1
+        uses: docker/setup-buildx-action@dc7b9719a96d48369863986a06765841d7ea23f6
 
       - name: Docker Build
-        uses: docker/build-push-action@1cb9d22b932e4832bb29793b7777ec860fc1cde0 # pin@v2
+        uses: docker/build-push-action@1cb9d22b932e4832bb29793b7777ec860fc1cde0
         with:
           context: .
           file: ./Dockerfile
@@ -218,16 +220,16 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # pin@v2
+      - uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a
         with:
           go-version: 1.18.x
-      - uses: actions/setup-python@c4e89fac7e8767b327bbad6cb4d859eda999cf08 # pin@v3
+      - uses: actions/setup-python@c4e89fac7e8767b327bbad6cb4d859eda999cf08
         with:
           python-version: "3.x"
-      - uses: pre-commit/action@876132a3c26aa072b09eab6c5395b4749eeb2435 # pin@release
+      - uses: pre-commit/action@876132a3c26aa072b09eab6c5395b4749eeb2435
         with:
           extra_args: --show-diff-on-failure --from-ref ${{
             github.event.pull_request.base.sha }} --to-ref ${{
@@ -244,14 +246,14 @@ jobs:
     needs:
       - build
     steps:
-      - uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # pin@v2
+      - uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a
         with:
           go-version: 1.18.x
 
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
 
       - name: retrieve binary
-        uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # pin@v2
+        uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741
         with:
           name: pomerium ${{ github.run_id }} ${{ matrix.platform }}
           path: bin/
@@ -260,6 +262,6 @@ jobs:
         run: make get-envoy
 
       - name: FOSSA Scan
-        uses: fossa-contrib/fossa-action@6cffaa064112e1cf9b5798c6224f9487dc1ec316 # pin@v1
+        uses: fossa-contrib/fossa-action@6cffaa064112e1cf9b5798c6224f9487dc1ec316
         with:
           fossa-api-key: 18f4ef488f514d06874b75f5809cea93

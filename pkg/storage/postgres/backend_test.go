@@ -20,12 +20,16 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
+const maxWait = time.Minute * 10
+
 func TestBackend(t *testing.T) {
 	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	t.Parallel()
+
+	ctx, clearTimeout := context.WithTimeout(context.Background(), maxWait)
 	defer clearTimeout()
 
 	require.NoError(t, testutil.WithTestPostgres(func(dsn string) error {

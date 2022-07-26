@@ -13,7 +13,7 @@ import (
 )
 
 // WithStreamSignedJWT returns a StreamClientInterceptor that adds a JWT to requests.
-func WithStreamSignedJWT(key []byte) grpc.StreamClientInterceptor {
+func WithStreamSignedJWT(getKey func() []byte) grpc.StreamClientInterceptor {
 	return func(
 		ctx context.Context,
 		desc *grpc.StreamDesc,
@@ -21,7 +21,7 @@ func WithStreamSignedJWT(key []byte) grpc.StreamClientInterceptor {
 		method string, streamer grpc.Streamer,
 		opts ...grpc.CallOption,
 	) (grpc.ClientStream, error) {
-		ctx, err := withSignedJWT(ctx, key)
+		ctx, err := withSignedJWT(ctx, getKey())
 		if err != nil {
 			return nil, err
 		}
@@ -31,9 +31,9 @@ func WithStreamSignedJWT(key []byte) grpc.StreamClientInterceptor {
 }
 
 // WithUnarySignedJWT returns a UnaryClientInterceptor that adds a JWT to requests.
-func WithUnarySignedJWT(key []byte) grpc.UnaryClientInterceptor {
+func WithUnarySignedJWT(getKey func() []byte) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		ctx, err := withSignedJWT(ctx, key)
+		ctx, err := withSignedJWT(ctx, getKey())
 		if err != nil {
 			return err
 		}
