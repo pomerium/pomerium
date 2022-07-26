@@ -36,6 +36,8 @@ func TestRegistry(t *testing.T) {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
+	t.Parallel()
+
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
 	defer clearTimeout()
 

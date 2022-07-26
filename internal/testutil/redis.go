@@ -18,7 +18,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
-const maxWait = time.Minute
+const maxWait = 20 * time.Minute
 
 // WithTestRedis creates a test a test redis instance using docker.
 func WithTestRedis(useTLS bool, handler func(rawURL string) error) error {
