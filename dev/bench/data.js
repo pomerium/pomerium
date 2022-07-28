@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1659039872826,
+  "lastUpdate": 1659040016532,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -3924,6 +3924,42 @@ window.BENCHMARK_DATA = {
             "value": 7921383,
             "unit": "ns/op",
             "extra": "162 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "27b5c2ede8a294072950ab039a4f7c992079da75",
+          "message": "chore(deps): bump debian from `1c34464` to `4567e1e` (#3508)\n\nBumps debian from `1c34464` to `4567e1e`.\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: debian\r\n  dependency-type: direct:production\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-07-28T13:50:51-06:00",
+          "tree_id": "eb4f3279412354ada4e16eb0d407c532dd1dcd9c",
+          "url": "https://github.com/pomerium/pomerium/commit/27b5c2ede8a294072950ab039a4f7c992079da75"
+        },
+        "date": 1659040016045,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14783144,
+            "unit": "ns/op",
+            "extra": "80 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8588411,
+            "unit": "ns/op",
+            "extra": "133 times\n2 procs"
           }
         ]
       }
