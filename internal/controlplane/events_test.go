@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/events"
@@ -73,17 +74,17 @@ func TestEvents(t *testing.T) {
 
 			srv := &Server{
 				haveSetCapacity: make(map[string]bool),
-			}
-			srv.currentConfig.Store(versionedConfig{
-				Config: &config.Config{
-					OutboundPort: outboundPort,
-					Options: &config.Options{
-						SharedKey:           cryptutil.NewBase64Key(),
-						DataBrokerURLString: "http://" + li.Addr().String(),
-						GRPCInsecure:        true,
+				currentConfig: atomicutil.NewValue(versionedConfig{
+					Config: &config.Config{
+						OutboundPort: outboundPort,
+						Options: &config.Options{
+							SharedKey:           cryptutil.NewBase64Key(),
+							DataBrokerURLString: "http://" + li.Addr().String(),
+							GRPCInsecure:        true,
+						},
 					},
-				},
-			})
+				}),
+			}
 			err := srv.storeEvent(ctx, new(events.EnvoyConfigurationEvent))
 			assert.NoError(t, err)
 			return err
