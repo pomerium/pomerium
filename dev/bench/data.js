@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1659036823895,
+  "lastUpdate": 1659036852875,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -3596,6 +3596,42 @@ window.BENCHMARK_DATA = {
             "value": 8860619,
             "unit": "ns/op",
             "extra": "132 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1379d0751f3f287ea5852cf2031145de949e684b",
+          "message": "depndabot: add docker support (#3507)",
+          "timestamp": "2022-07-28T13:30:48-06:00",
+          "tree_id": "43f87aa07cbd78c1f84808fc7e513c400bc227c5",
+          "url": "https://github.com/pomerium/pomerium/commit/1379d0751f3f287ea5852cf2031145de949e684b"
+        },
+        "date": 1659036851378,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18080525,
+            "unit": "ns/op",
+            "extra": "72 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10870608,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
