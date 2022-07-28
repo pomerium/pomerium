@@ -26,6 +26,7 @@ import (
 
 	"github.com/pomerium/pomerium/authenticate/handlers/webauthn"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
@@ -44,7 +45,7 @@ import (
 func testAuthenticate() *Authenticate {
 	redirectURL, _ := url.Parse("https://auth.example.com/oauth/callback")
 	var auth Authenticate
-	auth.state = newAtomicAuthenticateState(&authenticateState{
+	auth.state = atomicutil.NewValue(&authenticateState{
 		redirectURL:  redirectURL,
 		cookieSecret: cryptutil.NewKey(),
 	})
@@ -150,7 +151,7 @@ func TestAuthenticate_SignIn(t *testing.T) {
 				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
 					return tt.provider, nil
 				})),
-				state: newAtomicAuthenticateState(&authenticateState{
+				state: atomicutil.NewValue(&authenticateState{
 					sharedCipher:     sharedCipher,
 					sessionStore:     tt.session,
 					redirectURL:      uriParseHelper("https://some.example"),
@@ -306,7 +307,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
 					return tt.provider, nil
 				})),
-				state: newAtomicAuthenticateState(&authenticateState{
+				state: atomicutil.NewValue(&authenticateState{
 					sessionStore:     tt.sessionStore,
 					encryptedEncoder: mock.Encoder{},
 					sharedEncoder:    mock.Encoder{},
@@ -419,7 +420,7 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
 					return tt.provider, nil
 				})),
-				state: newAtomicAuthenticateState(&authenticateState{
+				state: atomicutil.NewValue(&authenticateState{
 					dataBrokerClient: mockDataBrokerServiceClient{
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 							return nil, fmt.Errorf("not implemented")
@@ -554,7 +555,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
 					return tt.provider, nil
 				})),
-				state: newAtomicAuthenticateState(&authenticateState{
+				state: atomicutil.NewValue(&authenticateState{
 					cookieSecret:     cryptutil.NewKey(),
 					redirectURL:      uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
 					sessionStore:     tt.session,
@@ -644,7 +645,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("GET", "https://authenticate.service.cluster.local/.pomerium/?pomerium_redirect_uri=https://www.example.com", nil)
 		var a Authenticate
-		a.state = newAtomicAuthenticateState(&authenticateState{
+		a.state = atomicutil.NewValue(&authenticateState{
 			cookieSecret: cryptutil.NewKey(),
 		})
 		a.options = config.NewAtomicOptions()
@@ -709,7 +710,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			})
 			a := &Authenticate{
 				options: o,
-				state: newAtomicAuthenticateState(&authenticateState{
+				state: atomicutil.NewValue(&authenticateState{
 					sessionStore:     tt.sessionStore,
 					encryptedEncoder: signer,
 					sharedEncoder:    signer,

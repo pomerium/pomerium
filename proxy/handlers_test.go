@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -538,7 +539,7 @@ func TestProxy_jwt(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	proxy := &Proxy{
-		state: newAtomicProxyState(&proxyState{}),
+		state: atomicutil.NewValue(&proxyState{}),
 	}
 	err := proxy.jwtAssertion(w, req)
 	if !assert.Error(t, err) {

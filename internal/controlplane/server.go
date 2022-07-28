@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
-	"sync/atomic"
 	"time"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
@@ -20,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
+	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/controlplane/xdsmgr"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
@@ -36,18 +36,6 @@ import (
 type versionedConfig struct {
 	*config.Config
 	version int64
-}
-
-type atomicVersionedConfig struct {
-	value atomic.Value
-}
-
-func (avo *atomicVersionedConfig) Load() versionedConfig {
-	return avo.value.Load().(versionedConfig)
-}
-
-func (avo *atomicVersionedConfig) Store(cfg versionedConfig) {
-	avo.value.Store(cfg)
 }
 
 // A Service can be mounted on the control plane.
@@ -67,14 +55,14 @@ type Server struct {
 	Builder         *envoyconfig.Builder
 	EventsMgr       *events.Manager
 
-	currentConfig atomicVersionedConfig
+	currentConfig *atomicutil.Value[versionedConfig]
 	name          string
 	xdsmgr        *xdsmgr.Manager
 	filemgr       *filemgr.Manager
 	metricsMgr    *config.MetricsManager
 	reproxy       *reproxy.Handler
 
-	httpRouter      atomic.Value
+	httpRouter      *atomicutil.Value[http.Handler]
 	authenticateSvc Service
 	proxySvc        Service
 
@@ -88,10 +76,11 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 		EventsMgr:       eventsMgr,
 		reproxy:         reproxy.New(),
 		haveSetCapacity: map[string]bool{},
+		currentConfig: atomicutil.NewValue(versionedConfig{
+			Config: cfg,
+		}),
+		httpRouter: atomicutil.NewValue(http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))),
 	}
-	srv.currentConfig.Store(versionedConfig{
-		Config: cfg,
-	})
 
 	var err error
 
@@ -227,7 +216,7 @@ func (srv *Server) Run(ctx context.Context) error {
 		Handler  http.Handler
 	}{
 		{"http", srv.HTTPListener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			srv.httpRouter.Load().(http.Handler).ServeHTTP(w, r)
+			srv.httpRouter.Load().ServeHTTP(w, r)
 		})},
 		{"debug", srv.DebugListener, srv.DebugRouter},
 		{"metrics", srv.MetricsListener, srv.MetricsRouter},

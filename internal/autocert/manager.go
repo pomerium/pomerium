@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"sort"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/caddyserver/certmagic"
@@ -18,6 +17,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
@@ -46,7 +46,7 @@ type Manager struct {
 	mu        sync.RWMutex
 	config    *config.Config
 	certmagic *certmagic.Config
-	acmeMgr   atomic.Value
+	acmeMgr   *atomicutil.Value[*certmagic.ACMEIssuer]
 	srv       *http.Server
 
 	*ocspCache
@@ -87,6 +87,7 @@ func newManager(ctx context.Context,
 	mgr := &Manager{
 		src:          src,
 		acmeTemplate: acmeTemplate,
+		acmeMgr:      atomicutil.NewValue(new(certmagic.ACMEIssuer)),
 		certmagic:    certmagicConfig,
 		ocspCache:    ocspRespCache,
 	}
@@ -324,12 +325,7 @@ func (mgr *Manager) updateServer(ctx context.Context, cfg *config.Config) {
 }
 
 func (mgr *Manager) handleHTTPChallenge(w http.ResponseWriter, r *http.Request) bool {
-	obj := mgr.acmeMgr.Load()
-	if obj == nil {
-		return false
-	}
-	acmeMgr := obj.(*certmagic.ACMEIssuer)
-	return acmeMgr.HandleHTTPChallenge(w, r)
+	return mgr.acmeMgr.Load().HandleHTTPChallenge(w, r)
 }
 
 // GetConfig gets the config.
