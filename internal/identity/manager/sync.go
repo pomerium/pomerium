@@ -3,11 +3,12 @@ package manager
 import (
 	"context"
 
+	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 type dataBrokerSyncer struct {
-	cfg *atomicConfig
+	cfg *atomicutil.Value[*config]
 
 	update chan<- updateRecordsMessage
 	clear  chan<- struct{}
@@ -17,7 +18,7 @@ type dataBrokerSyncer struct {
 
 func newDataBrokerSyncer(
 	ctx context.Context,
-	cfg *atomicConfig,
+	cfg *atomicutil.Value[*config],
 	update chan<- updateRecordsMessage,
 	clear chan<- struct{},
 ) *dataBrokerSyncer {

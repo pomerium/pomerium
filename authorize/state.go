@@ -3,7 +3,6 @@ package authorize
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 
 	googlegrpc "google.golang.org/grpc"
 
@@ -78,22 +77,4 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*autho
 	}
 
 	return state, nil
-}
-
-type atomicAuthorizeState struct {
-	value atomic.Value
-}
-
-func newAtomicAuthorizeState(state *authorizeState) *atomicAuthorizeState {
-	aas := new(atomicAuthorizeState)
-	aas.Store(state)
-	return aas
-}
-
-func (aas *atomicAuthorizeState) Load() *authorizeState {
-	return aas.value.Load().(*authorizeState)
-}
-
-func (aas *atomicAuthorizeState) Store(state *authorizeState) {
-	aas.value.Store(state)
 }

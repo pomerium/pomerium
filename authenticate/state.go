@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/url"
-	"sync/atomic"
 
 	"github.com/go-jose/go-jose/v3"
 
@@ -171,22 +170,4 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	)
 
 	return state, nil
-}
-
-type atomicAuthenticateState struct {
-	atomic.Value
-}
-
-func newAtomicAuthenticateState(state *authenticateState) *atomicAuthenticateState {
-	aas := new(atomicAuthenticateState)
-	aas.Store(state)
-	return aas
-}
-
-func (aas *atomicAuthenticateState) Load() *authenticateState {
-	return aas.Value.Load().(*authenticateState)
-}
-
-func (aas *atomicAuthenticateState) Store(state *authenticateState) {
-	aas.Value.Store(state)
 }

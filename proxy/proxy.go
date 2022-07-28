@@ -8,11 +8,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"sync/atomic"
 
 	"github.com/gorilla/mux"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
@@ -51,9 +51,9 @@ func ValidateOptions(o *config.Options) error {
 
 // Proxy stores all the information associated with proxying a request.
 type Proxy struct {
-	state          *atomicProxyState
-	currentOptions *config.AtomicOptions
-	currentRouter  atomic.Value
+	state          *atomicutil.Value[*proxyState]
+	currentOptions *atomicutil.Value[*config.Options]
+	currentRouter  *atomicutil.Value[*mux.Router]
 }
 
 // New takes a Proxy service from options and a validation function.
@@ -65,10 +65,10 @@ func New(cfg *config.Config) (*Proxy, error) {
 	}
 
 	p := &Proxy{
-		state:          newAtomicProxyState(state),
+		state:          atomicutil.NewValue(state),
 		currentOptions: config.NewAtomicOptions(),
+		currentRouter:  atomicutil.NewValue(httputil.NewRouter()),
 	}
-	p.currentRouter.Store(httputil.NewRouter())
 
 	metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
 		return int64(len(p.currentOptions.Load().GetAllPolicies()))
@@ -128,5 +128,5 @@ func (p *Proxy) setHandlers(opts *config.Options) error {
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	p.currentRouter.Load().(*mux.Router).ServeHTTP(w, r)
+	p.currentRouter.Load().ServeHTTP(w, r)
 }

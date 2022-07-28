@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 
+	"github.com/pomerium/pomerium/internal/atomicutil"
 	internal_databroker "github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -28,8 +29,7 @@ func init() {
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer()
 	internalSrv := internal_databroker.New()
-	srv := &dataBrokerServer{server: internalSrv}
-	srv.sharedKey.Store([]byte{})
+	srv := &dataBrokerServer{server: internalSrv, sharedKey: atomicutil.NewValue([]byte{})}
 	databroker.RegisterDataBrokerServiceServer(s, srv)
 
 	go func() {

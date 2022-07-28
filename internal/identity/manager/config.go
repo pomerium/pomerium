@@ -1,7 +1,6 @@
 package manager
 
 import (
-	"sync/atomic"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/directory"
@@ -105,22 +104,4 @@ func WithEventManager(mgr *events.Manager) Option {
 	return func(c *config) {
 		c.eventMgr = mgr
 	}
-}
-
-type atomicConfig struct {
-	value atomic.Value
-}
-
-func newAtomicConfig(cfg *config) *atomicConfig {
-	ac := new(atomicConfig)
-	ac.Store(cfg)
-	return ac
-}
-
-func (ac *atomicConfig) Load() *config {
-	return ac.value.Load().(*config)
-}
-
-func (ac *atomicConfig) Store(cfg *config) {
-	ac.value.Store(cfg)
 }

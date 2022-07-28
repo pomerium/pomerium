@@ -12,13 +12,13 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/null/v9"
 
+	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/directory/azure"
 	"github.com/pomerium/pomerium/internal/directory/github"
 	"github.com/pomerium/pomerium/internal/directory/gitlab"
@@ -1586,24 +1586,7 @@ func min(x, y int) int {
 	return y
 }
 
-// AtomicOptions are Options that can be access atomically.
-type AtomicOptions struct {
-	value atomic.Value
-}
-
 // NewAtomicOptions creates a new AtomicOptions.
-func NewAtomicOptions() *AtomicOptions {
-	ao := new(AtomicOptions)
-	ao.Store(new(Options))
-	return ao
-}
-
-// Load loads the options.
-func (a *AtomicOptions) Load() *Options {
-	return a.value.Load().(*Options)
-}
-
-// Store stores the options.
-func (a *AtomicOptions) Store(options *Options) {
-	a.value.Store(options)
+func NewAtomicOptions() *atomicutil.Value[*Options] {
+	return atomicutil.NewValue(new(Options))
 }

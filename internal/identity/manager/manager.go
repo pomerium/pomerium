@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/directory"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/identity/identity"
@@ -43,7 +44,7 @@ type (
 
 // A Manager refreshes identity information using session and user data.
 type Manager struct {
-	cfg *atomicConfig
+	cfg *atomicutil.Value[*config]
 
 	sessionScheduler *scheduler.Scheduler
 	userScheduler    *scheduler.Scheduler
@@ -62,7 +63,7 @@ func New(
 	options ...Option,
 ) *Manager {
 	mgr := &Manager{
-		cfg: newAtomicConfig(newConfig()),
+		cfg: atomicutil.NewValue(newConfig()),
 
 		sessionScheduler: scheduler.New(),
 		userScheduler:    scheduler.New(),

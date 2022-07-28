@@ -17,7 +17,16 @@ func NewValue[T any](init T) *Value[T] {
 
 // Load loads the value atomically.
 func (v *Value[T]) Load() T {
-	return v.value.Load().(T)
+	var def T
+	if v == nil {
+		return def
+	}
+
+	cur := v.value.Load()
+	if cur == nil {
+		return def
+	}
+	return cur.(T)
 }
 
 // Store stores the value atomically.

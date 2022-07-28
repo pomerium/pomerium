@@ -3,7 +3,6 @@ package proxy
 import (
 	"crypto/cipher"
 	"net/url"
-	"sync/atomic"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -93,22 +92,4 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	state.programmaticRedirectDomainWhitelist = cfg.Options.ProgrammaticRedirectDomainWhitelist
 
 	return state, nil
-}
-
-type atomicProxyState struct {
-	value atomic.Value
-}
-
-func newAtomicProxyState(state *proxyState) *atomicProxyState {
-	aps := new(atomicProxyState)
-	aps.Store(state)
-	return aps
-}
-
-func (aps *atomicProxyState) Load() *proxyState {
-	return aps.value.Load().(*proxyState)
-}
-
-func (aps *atomicProxyState) Store(state *proxyState) {
-	aps.value.Store(state)
 }

@@ -5,16 +5,17 @@ import (
 	"context"
 	"net/http"
 	"os"
-	"sync/atomic"
 
 	"github.com/rs/zerolog"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/pomerium/pomerium/internal/atomicutil"
 )
 
 var (
-	logger    atomic.Value
-	zapLogger atomic.Value
+	logger    = atomicutil.NewValue(new(zerolog.Logger))
+	zapLogger = atomicutil.NewValue(new(zap.Logger))
 	zapLevel  zap.AtomicLevel
 )
 
@@ -55,12 +56,12 @@ func SetLogger(l *zerolog.Logger) {
 
 // Logger returns the global logger.
 func Logger() *zerolog.Logger {
-	return logger.Load().(*zerolog.Logger)
+	return logger.Load()
 }
 
 // ZapLogger returns the global zap logger.
 func ZapLogger() *zap.Logger {
-	return zapLogger.Load().(*zap.Logger)
+	return zapLogger.Load()
 }
 
 // SetLevel sets the minimum global log level. Options are 'debug' 'info' 'warn' and 'error'.

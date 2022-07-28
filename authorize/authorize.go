@@ -13,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -24,9 +25,9 @@ import (
 
 // Authorize struct holds
 type Authorize struct {
-	state          *atomicAuthorizeState
+	state          *atomicutil.Value[*authorizeState]
 	store          *store.Store
-	currentOptions *config.AtomicOptions
+	currentOptions *atomicutil.Value[*config.Options]
 	accessTracker  *AccessTracker
 	globalCache    storage.Cache
 
@@ -49,7 +50,7 @@ func New(cfg *config.Config) (*Authorize, error) {
 	if err != nil {
 		return nil, err
 	}
-	a.state = newAtomicAuthorizeState(state)
+	a.state = atomicutil.NewValue(state)
 
 	return a, nil
 }
