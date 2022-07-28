@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1658893482000,
+  "lastUpdate": 1659032512965,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -3532,6 +3532,38 @@ window.BENCHMARK_DATA = {
             "value": 9773565,
             "unit": "ns/op",
             "extra": "118 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "826365dff824ca6bb956db39903e5a4b3fe934c8",
+          "message": "depndabot: add docker support",
+          "timestamp": "2022-07-28T06:20:56Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3507/commits/826365dff824ca6bb956db39903e5a4b3fe934c8"
+        },
+        "date": 1659032512251,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17561495,
+            "unit": "ns/op",
+            "extra": "70 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10210186,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
