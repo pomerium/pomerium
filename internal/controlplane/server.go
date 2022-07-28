@@ -62,7 +62,7 @@ type Server struct {
 	metricsMgr    *config.MetricsManager
 	reproxy       *reproxy.Handler
 
-	httpRouter      *atomicutil.Value[http.Handler]
+	httpRouter      *atomicutil.Value[*mux.Router]
 	authenticateSvc Service
 	proxySvc        Service
 
@@ -79,7 +79,7 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 		currentConfig: atomicutil.NewValue(versionedConfig{
 			Config: cfg,
 		}),
-		httpRouter: atomicutil.NewValue(http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))),
+		httpRouter: atomicutil.NewValue(mux.NewRouter()),
 	}
 
 	var err error
@@ -296,6 +296,6 @@ func (srv *Server) updateRouter(cfg *config.Config) error {
 	if srv.proxySvc != nil {
 		srv.proxySvc.Mount(httpRouter)
 	}
-	srv.httpRouter.Store(http.Handler(httpRouter))
+	srv.httpRouter.Store(httpRouter)
 	return nil
 }
