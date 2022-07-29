@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1659113758317,
+  "lastUpdate": 1659119734275,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -4340,6 +4340,42 @@ window.BENCHMARK_DATA = {
             "value": 7921457,
             "unit": "ns/op",
             "extra": "151 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b5ac7dbc76fb7b5f6927ef5ac4b2a18887f4d086",
+          "message": "sets: convert set types to generics (#3519)\n\n* sets: convert set types to generics\r\n\r\n* sets: use internal sets package",
+          "timestamp": "2022-07-29T12:32:17-06:00",
+          "tree_id": "792b61f8aa967964023e871dc4517816c740cd53",
+          "url": "https://github.com/pomerium/pomerium/commit/b5ac7dbc76fb7b5f6927ef5ac4b2a18887f4d086"
+        },
+        "date": 1659119732989,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16810535,
+            "unit": "ns/op",
+            "extra": "79 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10029923,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
