@@ -6,10 +6,12 @@ type Hash[T comparable] struct {
 }
 
 // NewHash creates a new Hash set.
-func NewHash[T comparable]() *Hash[T] {
-	return &Hash[T]{
+func NewHash[T comparable](initialValues ...T) *Hash[T] {
+	s := &Hash[T]{
 		m: make(map[T]struct{}),
 	}
+	s.Add(initialValues...)
+	return s
 }
 
 // Add adds a value to the set.

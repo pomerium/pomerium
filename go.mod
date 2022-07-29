@@ -53,7 +53,6 @@ require (
 	github.com/rjeczalik/notify v0.9.3-0.20201210012515-e2a77dcc14cf
 	github.com/rs/cors v1.8.2
 	github.com/rs/zerolog v1.27.0
-	github.com/scylladb/go-set v1.0.2
 	github.com/shirou/gopsutil/v3 v3.22.6
 	github.com/spf13/viper v1.12.0
 	github.com/stretchr/testify v1.8.0

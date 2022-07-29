@@ -10,28 +10,29 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/scylladb/go-set"
+
+	"github.com/pomerium/pomerium/internal/sets"
 )
 
 var (
-	standardSchemes = set.NewStringSet("redis", "rediss", "unix")
-	clusterSchemes  = set.NewStringSet(
+	standardSchemes = sets.NewHash("redis", "rediss", "unix")
+	clusterSchemes  = sets.NewHash(
 		"redis+cluster", "redis-cluster",
 		"rediss+cluster", "rediss-cluster",
 		"redis+clusters", "redis-clusters",
 	)
-	sentinelSchemes = set.NewStringSet(
+	sentinelSchemes = sets.NewHash(
 		"redis+sentinel", "redis-sentinel",
 		"rediss+sentinel", "rediss-sentinel",
 		"redis+sentinels", "redis-sentinels",
 	)
-	sentinelClusterSchemes = set.NewStringSet(
+	sentinelClusterSchemes = sets.NewHash(
 		"redis+sentinel+cluster", "redis-sentinel-cluster",
 		"rediss+sentinel+cluster", "rediss-sentinel-cluster",
 		"redis+sentinels+cluster", "redis-sentinels-cluster",
 		"redis+sentinel+clusters", "redis-sentinel-clusters",
 	)
-	tlsSchemes = set.NewStringSet(
+	tlsSchemes = sets.NewHash(
 		"rediss",
 		"rediss+cluster", "rediss-cluster",
 		"redis+clusters", "redis-clusters",
