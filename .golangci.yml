@@ -184,6 +184,9 @@ issues:
         - gosec
     - linters: [golint]
       text: "should have a package comment"
+    - text: "G112:"
+      linters:
+        - gosec
 
 # golangci.com configuration
 # https://github.com/golangci/golangci/wiki/Configuration

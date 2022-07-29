@@ -10,8 +10,8 @@ import (
 
 func TestMerge(t *testing.T) {
 	t.Run("value", func(t *testing.T) {
-		ctx1 := context.WithValue(context.Background(), "key1", "value1") //nolint
-		ctx2 := context.WithValue(context.Background(), "key2", "value2") //nolint
+		ctx1 := context.WithValue(context.Background(), "key1", "value1")
+		ctx2 := context.WithValue(context.Background(), "key2", "value2")
 		ctx3, _ := Merge(ctx1, ctx2)
 		assert.Equal(t, "value1", ctx3.Value("key1"))
 		assert.Equal(t, "value2", ctx3.Value("key2"))
