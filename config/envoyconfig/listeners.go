@@ -719,7 +719,7 @@ func (b *Builder) buildDownstreamValidationContext(ctx context.Context,
 }
 
 func getRouteableDomainsForTLSServerName(options *config.Options, addr string, tlsServerName string) ([]string, error) {
-	allDomains := sets.NewSortedString()
+	allDomains := sets.NewSorted[string]()
 
 	if addr == options.Addr {
 		domains, err := options.GetAllRouteableHTTPDomainsForTLSServerName(tlsServerName)
@@ -741,7 +741,7 @@ func getRouteableDomainsForTLSServerName(options *config.Options, addr string, t
 }
 
 func getAllRouteableDomains(options *config.Options, addr string) ([]string, error) {
-	allDomains := sets.NewSortedString()
+	allDomains := sets.NewSorted[string]()
 
 	if addr == options.Addr {
 		domains, err := options.GetAllRouteableHTTPDomains()
@@ -768,7 +768,7 @@ func getAllTLSDomains(options *config.Options, addr string) ([]string, error) {
 		return nil, err
 	}
 
-	domains := sets.NewSortedString()
+	domains := sets.NewSorted[string]()
 	for _, hp := range allDomains {
 		if d, _, err := net.SplitHostPort(hp); err == nil {
 			domains.Add(d)

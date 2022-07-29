@@ -58,8 +58,8 @@ func (tracker *AccessTracker) Run(ctx context.Context) {
 	ticker := time.NewTicker(tracker.debouncePeriod)
 	defer ticker.Stop()
 
-	sessionAccesses := sets.NewSizeLimitedStringSet(tracker.maxSize)
-	serviceAccountAccesses := sets.NewSizeLimitedStringSet(tracker.maxSize)
+	sessionAccesses := sets.NewSizeLimited[string](tracker.maxSize)
+	serviceAccountAccesses := sets.NewSizeLimited[string](tracker.maxSize)
 	runTrackSessionAccess := func(sessionID string) {
 		sessionAccesses.Add(sessionID)
 	}
@@ -95,8 +95,8 @@ func (tracker *AccessTracker) Run(ctx context.Context) {
 			return
 		}
 
-		sessionAccesses = sets.NewSizeLimitedStringSet(tracker.maxSize)
-		serviceAccountAccesses = sets.NewSizeLimitedStringSet(tracker.maxSize)
+		sessionAccesses = sets.NewSizeLimited[string](tracker.maxSize)
+		serviceAccountAccesses = sets.NewSizeLimited[string](tracker.maxSize)
 	}
 
 	for {
