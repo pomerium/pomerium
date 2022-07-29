@@ -1062,7 +1062,7 @@ func (o *Options) GetAllRouteableGRPCDomains() ([]string, error) {
 // GetAllRouteableGRPCDomainsForTLSServerName  returns all the possible gRPC domains handled by the Pomerium options
 // for the given TLS server name.
 func (o *Options) GetAllRouteableGRPCDomainsForTLSServerName(tlsServerName string) ([]string, error) {
-	domains := sets.NewSortedString()
+	domains := sets.NewSorted[string]()
 
 	// authorize urls
 	if IsAll(o.Services) {
@@ -1134,7 +1134,7 @@ func (o *Options) GetAllRouteableHTTPDomainsForTLSServerName(tlsServerName strin
 		return nil, err
 	}
 
-	domains := sets.NewSortedString()
+	domains := sets.NewSorted[string]()
 	if IsAuthenticate(o.Services) {
 		authenticateURL, err := o.GetInternalAuthenticateURL()
 		if err != nil {
