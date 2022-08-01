@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1659391502301,
+  "lastUpdate": 1659391782300,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -4604,6 +4604,42 @@ window.BENCHMARK_DATA = {
             "value": 7635105,
             "unit": "ns/op",
             "extra": "151 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "13b979e18d4aa25b7a503cea6fe79cf41c9782ae",
+          "message": "chore(deps): bump mikefarah/yq from 4.26.1 to 4.27.2 (#3526)\n\nBumps [mikefarah/yq](https://github.com/mikefarah/yq) from 4.26.1 to 4.27.2.\r\n- [Release notes](https://github.com/mikefarah/yq/releases)\r\n- [Changelog](https://github.com/mikefarah/yq/blob/master/release_notes.txt)\r\n- [Commits](https://github.com/mikefarah/yq/compare/c2c48bbe1d7a0e30293c2428a2dfc44298ffeeaf...1c7dc0e88aad311c89889bc5ce5d8f96931a1bd0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: mikefarah/yq\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-08-01T16:02:36-06:00",
+          "tree_id": "8e5497870936dc19a7fc56d8150163147b7da7fe",
+          "url": "https://github.com/pomerium/pomerium/commit/13b979e18d4aa25b7a503cea6fe79cf41c9782ae"
+        },
+        "date": 1659391781650,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14630723,
+            "unit": "ns/op",
+            "extra": "82 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9889605,
+            "unit": "ns/op",
+            "extra": "123 times\n2 procs"
           }
         ]
       }
