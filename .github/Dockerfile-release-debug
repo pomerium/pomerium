@@ -8,7 +8,7 @@ RUN rm /usr/share/ca-certificates/mozilla/DST_Root_CA_X3.crt && update-ca-certif
 FROM busybox:latest@sha256:caa382c432891547782ce7140fb3b7304613d3b0438834dce1cad68896ab110a as build
 RUN touch /config.yaml
 
-FROM gcr.io/distroless/base:latest@sha256:b0216a38315e7d4e14a70338f4bcfdf622bcd2ca2f3fcb48de446c4bb51f7243
+FROM gcr.io/distroless/base:debug@sha256:3a6219499a89088ff5d37ce8fd3e3a61fccb75ef05a4e0ba2092ea92d380f48f
 ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
 COPY pomerium /bin/
