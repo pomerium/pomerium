@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1659393793672,
+  "lastUpdate": 1659450614649,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -4844,6 +4844,42 @@ window.BENCHMARK_DATA = {
             "value": 9476098,
             "unit": "ns/op",
             "extra": "127 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1ead148cbc7ee3694a019fd741caeb68ac042c72",
+          "message": "docker: fix debug images (#3520)",
+          "timestamp": "2022-08-02T08:26:23-06:00",
+          "tree_id": "ab74fde5736313edd90f8e72732c6389b47fb83f",
+          "url": "https://github.com/pomerium/pomerium/commit/1ead148cbc7ee3694a019fd741caeb68ac042c72"
+        },
+        "date": 1659450612849,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11917707,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7659121,
+            "unit": "ns/op",
+            "extra": "156 times\n2 procs"
           }
         ]
       }
