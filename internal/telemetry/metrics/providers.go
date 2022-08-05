@@ -198,12 +198,12 @@ func ocExport(name string, exporter *ocprom.Exporter, r *http.Request, labels []
 		exporter.ServeHTTP(rec, r)
 
 		if rec.Code/100 != 2 {
-			return promProducerResult{name: name, err: errors.New(rec.Result().Status)}
+			return promProducerResult{name: name, err: errors.New(rec.Result().Status)} //nolint
 		}
 
 		return promProducerResult{
 			name:   name,
-			src:    rec.Result().Body,
+			src:    rec.Result().Body, //nolint
 			labels: labels,
 		}
 	}
@@ -225,7 +225,7 @@ func scrapeEndpoint(endpoint ScrapeEndpoint, labels []*io_prometheus_client.Labe
 			return promProducerResult{name: name, err: fmt.Errorf("make request: %w", err)}
 		}
 
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := http.DefaultClient.Do(req) //nolint
 		if err != nil {
 			return promProducerResult{name: name, err: fmt.Errorf("request: %w", err)}
 		}
