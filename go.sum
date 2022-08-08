@@ -1108,8 +1108,8 @@ github.com/mbilski/exhaustivestruct v1.2.0/go.mod h1:OeTBVxQWoEmB2J2JCHmXWPJ0aks
 github.com/mgechev/dots v0.0.0-20210922191527-e955255bf517/go.mod h1:KQ7+USdGKfpPjXk4Ga+5XxQM4Lm4e3gAogrreFAYpOg=
 github.com/mgechev/revive v1.2.1 h1:GjFml7ZsoR0IrQ2E2YIvWFNS5GPDV7xNwvA5GM1HZC4=
 github.com/mgechev/revive v1.2.1/go.mod h1:+Ro3wqY4vakcYNtkBWdZC7dBg1xSB6sp054wWwmeFm0=
-github.com/mholt/acmez v1.0.3 h1:mDgRxGYk6TKlfydYNMfX0HXXJh9i73YL+swPjYCADU8=
-github.com/mholt/acmez v1.0.3/go.mod h1:qFGLZ4u+ehWINeJZjzPlsnjJBCPAADWTcIqE/7DAYQY=
+github.com/mholt/acmez v1.0.4 h1:N3cE4Pek+dSolbsofIkAYz6H1d3pE+2G0os7QHslf80=
+github.com/mholt/acmez v1.0.4/go.mod h1:qFGLZ4u+ehWINeJZjzPlsnjJBCPAADWTcIqE/7DAYQY=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/miekg/dns v1.1.25/go.mod h1:bPDLeHnStXmXAq1m/Ch/hvfNHr14JKNPMBo3VZKjuso=
 github.com/miekg/dns v1.1.35/go.mod h1:KNUDUusw/aVsxyTYZM1oqvCicbwhgbNgztCETuNZ7xM=
