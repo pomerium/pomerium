@@ -123,7 +123,6 @@ func NewPolicyEvaluator(ctx context.Context, store *store.Store, configPolicy *c
 
 	// add any custom rego
 	for _, sp := range configPolicy.SubPolicies {
-		fmt.Println(sp)
 		for _, src := range sp.Rego {
 			if src == "" {
 				continue
