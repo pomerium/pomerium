@@ -437,7 +437,7 @@ func (srv *Server) getTLSConfigLocked(ctx context.Context) *tls.Config {
 	}
 	tlsConfig := &tls.Config{
 		RootCAs: caCertPool,
-		// nolint: gosec
+		//nolint: gosec
 		InsecureSkipVerify: srv.cfg.storageCertSkipVerify,
 	}
 	if srv.cfg.storageCertificate != nil {

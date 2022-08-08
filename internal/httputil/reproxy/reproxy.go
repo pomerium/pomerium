@@ -112,7 +112,7 @@ func (h *Handler) Middleware(next http.Handler) http.Handler {
 			return httputil.NewError(http.StatusNotFound, errors.New("policy destination not found"))
 		}
 		// regular rand is fine for this
-		dst := dsts[rand.Intn(len(dsts))] // nolint:gosec
+		dst := dsts[rand.Intn(len(dsts))] //nolint:gosec
 
 		// when SPDY is being used, disable HTTP/2 because the two can't be used together with the reverse proxy
 		// Issue #2126
