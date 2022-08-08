@@ -114,6 +114,7 @@ message Route {
 
   optional string idp_client_id = 55;
   optional string idp_client_secret = 56;
+  bool show_error_details = 59;
 }
 
 message Policy {
@@ -124,6 +125,9 @@ message Policy {
   repeated string allowed_domains = 5;
   map<string, google.protobuf.ListValue> allowed_idp_claims = 7;
   repeated string rego = 6;
+
+  string explanation = 8;
+  string remediation = 9;
 }
 
 message Settings {

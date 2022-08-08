@@ -12,6 +12,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/policy"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
@@ -27,6 +28,7 @@ type PolicyRequest struct {
 // PolicyResponse is the result of evaluating a policy.
 type PolicyResponse struct {
 	Allow, Deny RuleResult
+	Traces      []contextutil.PolicyEvaluationTrace
 }
 
 // NewPolicyResponse creates a new PolicyResponse.
@@ -89,7 +91,14 @@ func MergeRuleResultsWithOr(results ...RuleResult) RuleResult {
 
 type policyQuery struct {
 	rego.PreparedEvalQuery
-	checksum string
+	script      string
+	id          string
+	explanation string
+	remediation string
+}
+
+func (q policyQuery) checksum() string {
+	return fmt.Sprintf("%x", cryptutil.Hash("script", []byte(q.script)))
 }
 
 // A PolicyEvaluator evaluates policies.
@@ -108,30 +117,38 @@ func NewPolicyEvaluator(ctx context.Context, store *store.Store, configPolicy *c
 		return nil, err
 	}
 
-	scripts := []string{base}
+	e.queries = []policyQuery{{
+		script: base,
+	}}
 
 	// add any custom rego
 	for _, sp := range configPolicy.SubPolicies {
+		fmt.Println(sp)
 		for _, src := range sp.Rego {
 			if src == "" {
 				continue
 			}
 
-			scripts = append(scripts, src)
+			e.queries = append(e.queries, policyQuery{
+				script:      src,
+				id:          sp.ID,
+				explanation: sp.Explanation,
+				remediation: sp.Remediation,
+			})
 		}
 	}
 
 	// for each script, create a rego and prepare a query.
-	for _, script := range scripts {
+	for i := range e.queries {
 		log.Debug(ctx).
-			Str("script", script).
+			Str("script", e.queries[i].script).
 			Str("from", configPolicy.From).
 			Interface("to", configPolicy.To).
 			Msg("authorize: rego script for policy evaluation")
 
 		r := rego.New(
 			rego.Store(store),
-			rego.Module("pomerium.policy", script),
+			rego.Module("pomerium.policy", e.queries[i].script),
 			rego.Query("result = data.pomerium.policy"),
 			getGoogleCloudServerlessHeadersRegoOption,
 			store.GetDataBrokerRecordOption(),
@@ -142,7 +159,7 @@ func NewPolicyEvaluator(ctx context.Context, store *store.Store, configPolicy *c
 		if err != nil && strings.Contains(err.Error(), "package expected") {
 			r := rego.New(
 				rego.Store(store),
-				rego.Module("pomerium.policy", "package pomerium.policy\n\n"+script),
+				rego.Module("pomerium.policy", "package pomerium.policy\n\n"+e.queries[i].script),
 				rego.Query("result = data.pomerium.policy"),
 				getGoogleCloudServerlessHeadersRegoOption,
 				store.GetDataBrokerRecordOption(),
@@ -153,10 +170,7 @@ func NewPolicyEvaluator(ctx context.Context, store *store.Store, configPolicy *c
 			return nil, err
 		}
 
-		e.queries = append(e.queries, policyQuery{
-			PreparedEvalQuery: q,
-			checksum:          fmt.Sprintf("%x", cryptutil.Hash("script", []byte(script))),
-		})
+		e.queries[i].PreparedEvalQuery = q
 	}
 
 	return e, nil
@@ -173,6 +187,13 @@ func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *PolicyRequest) (*Po
 		}
 		res.Allow = MergeRuleResultsWithOr(res.Allow, o.Allow)
 		res.Deny = MergeRuleResultsWithOr(res.Deny, o.Deny)
+		res.Traces = append(res.Traces, contextutil.PolicyEvaluationTrace{
+			ID:          query.id,
+			Explanation: query.explanation,
+			Remediation: query.remediation,
+			Allow:       o.Allow.Value,
+			Deny:        o.Deny.Value,
+		})
 	}
 	return res, nil
 }
@@ -180,7 +201,7 @@ func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *PolicyRequest) (*Po
 func (e *PolicyEvaluator) evaluateQuery(ctx context.Context, req *PolicyRequest, query policyQuery) (*PolicyResponse, error) {
 	_, span := trace.StartSpan(ctx, "authorize.PolicyEvaluator.evaluateQuery")
 	defer span.End()
-	span.AddAttributes(octrace.StringAttribute("script_checksum", query.checksum))
+	span.AddAttributes(octrace.StringAttribute("script_checksum", query.checksum()))
 
 	rs, err := safeEval(ctx, query.PreparedEvalQuery, rego.EvalInput(req))
 	if err != nil {

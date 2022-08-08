@@ -174,6 +174,9 @@ type Policy struct {
 	// IDPClientSecret is the client secret used for the identity provider.
 	IDPClientSecret string `mapstructure:"idp_client_secret" yaml:"idp_client_secret,omitempty"`
 
+	// ShowErrorDetails indicates whether or not additional error details should be displayed.
+	ShowErrorDetails bool `mapstructure:"show_error_details" yaml:"show_error_details" json:"show_error_details"`
+
 	Policy *PPLPolicy `mapstructure:"policy" yaml:"policy,omitempty" json:"policy,omitempty"`
 }
 
@@ -193,6 +196,9 @@ type SubPolicy struct {
 	AllowedDomains   []string                 `mapstructure:"allowed_domains" yaml:"allowed_domains,omitempty" json:"allowed_domains,omitempty"`
 	AllowedIDPClaims identity.FlattenedClaims `mapstructure:"allowed_idp_claims" yaml:"allowed_idp_claims,omitempty" json:"allowed_idp_claims,omitempty"`
 	Rego             []string                 `mapstructure:"rego" yaml:"rego" json:"rego,omitempty"`
+
+	Explanation string `mapstructure:"explanation" yaml:"explanation" json:"explanation,omitempty"`
+	Remediation string `mapstructure:"remediation" yaml:"remediation" json:"remediation,omitempty"`
 }
 
 // PolicyRedirect is a route redirect action.
@@ -263,8 +269,9 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		KubernetesServiceAccountToken:    pb.GetKubernetesServiceAccountToken(),
 		SetResponseHeaders:               pb.GetSetResponseHeaders(),
 		EnableGoogleCloudServerlessAuthentication: pb.GetEnableGoogleCloudServerlessAuthentication(),
-		IDPClientID:     pb.GetIdpClientId(),
-		IDPClientSecret: pb.GetIdpClientSecret(),
+		IDPClientID:      pb.GetIdpClientId(),
+		IDPClientSecret:  pb.GetIdpClientSecret(),
+		ShowErrorDetails: pb.GetShowErrorDetails(),
 	}
 
 	if pb.Redirect.IsSet() {
@@ -312,6 +319,9 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			AllowedDomains:   sp.GetAllowedDomains(),
 			AllowedIDPClaims: identity.NewFlattenedClaimsFromPB(sp.GetAllowedIdpClaims()),
 			Rego:             sp.GetRego(),
+
+			Explanation: sp.GetExplanation(),
+			Remediation: sp.GetRemediation(),
 		})
 	}
 	return p, p.Validate()

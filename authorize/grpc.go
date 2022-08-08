@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -87,6 +88,11 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	defer func() {
 		a.logAuthorizeCheck(ctx, in, out, res, s, u)
 	}()
+
+	// if show error details is enabled, attach the policy evaluation traces
+	if req.Policy.ShowErrorDetails {
+		ctx = contextutil.WithPolicyEvaluationTraces(ctx, res.Traces)
+	}
 
 	isForwardAuthVerify := isForwardAuth && hreq.URL.Path == "/verify"
 

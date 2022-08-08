@@ -1,10 +1,12 @@
 package httputil
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
+	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/ui"
 )
 
@@ -40,26 +42,28 @@ func (e *HTTPError) Unwrap() error { return e.Err }
 // ErrorResponse replies to the request with the specified error message and HTTP code.
 // It does not otherwise end the request; the caller should ensure no further
 // writes are done to w.
-func (e *HTTPError) ErrorResponse(w http.ResponseWriter, r *http.Request) {
+func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	reqID := e.RequestID
 	if e.RequestID == "" {
 		// if empty, try to grab from the request id from the request context
 		reqID = requestid.FromContext(r.Context())
 	}
 	response := struct {
-		Status     int
-		Error      string
-		StatusText string   `json:"-"`
-		RequestID  string   `json:",omitempty"`
-		CanDebug   bool     `json:"-"`
-		DebugURL   *url.URL `json:",omitempty"`
+		Status                 int
+		Error                  string
+		StatusText             string                              `json:"-"`
+		RequestID              string                              `json:",omitempty"`
+		CanDebug               bool                                `json:"-"`
+		DebugURL               *url.URL                            `json:",omitempty"`
+		PolicyEvaluationTraces []contextutil.PolicyEvaluationTrace `json:"policy_evaluation_traces"`
 	}{
-		Status:     e.Status,
-		StatusText: StatusText(e.Status),
-		Error:      e.Error(),
-		RequestID:  reqID,
-		CanDebug:   e.Status/100 == 4 && (e.DebugURL != nil || reqID != ""),
-		DebugURL:   e.DebugURL,
+		Status:                 e.Status,
+		StatusText:             StatusText(e.Status),
+		Error:                  e.Error(),
+		RequestID:              reqID,
+		CanDebug:               e.Status/100 == 4 && (e.DebugURL != nil || reqID != ""),
+		DebugURL:               e.DebugURL,
+		PolicyEvaluationTraces: contextutil.GetPolicyEvaluationTraces(ctx),
 	}
 	// indicate to clients that the error originates from Pomerium, not the app
 	w.Header().Set(HeaderPomeriumResponse, "true")
@@ -70,11 +74,12 @@ func (e *HTTPError) ErrorResponse(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m := map[string]interface{}{
-		"canDebug":   response.CanDebug,
-		"error":      response.Error,
-		"requestId":  response.RequestID,
-		"status":     response.Status,
-		"statusText": response.StatusText,
+		"canDebug":               response.CanDebug,
+		"error":                  response.Error,
+		"requestId":              response.RequestID,
+		"status":                 response.Status,
+		"statusText":             response.StatusText,
+		"policyEvaluationTraces": response.PolicyEvaluationTraces,
 	}
 	if response.DebugURL != nil {
 		m["debugUrl"] = response.DebugURL.String()

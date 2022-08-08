@@ -61,6 +61,6 @@ func (f HandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if !errors.As(err, &e) {
 			e = &HTTPError{Status: http.StatusInternalServerError, Err: err}
 		}
-		e.ErrorResponse(w, r)
+		e.ErrorResponse(r.Context(), w, r)
 	}
 }

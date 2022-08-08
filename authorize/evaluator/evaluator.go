@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
@@ -72,6 +73,7 @@ type Result struct {
 	Allow   RuleResult
 	Deny    RuleResult
 	Headers http.Header
+	Traces  []contextutil.PolicyEvaluationTrace
 }
 
 // An Evaluator evaluates policies.
@@ -167,6 +169,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		Allow:   policyOutput.Allow,
 		Deny:    policyOutput.Deny,
 		Headers: headersOutput.Headers,
+		Traces:  policyOutput.Traces,
 	}
 	return res, nil
 }
