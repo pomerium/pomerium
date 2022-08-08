@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1659983206206,
+  "lastUpdate": 1659983307878,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -5720,6 +5720,42 @@ window.BENCHMARK_DATA = {
             "value": 10682278,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ebae91f408a1f094b1b14f20ff9afbda71a31e64",
+          "message": "chore(deps): bump github.com/peterbourgon/ff/v3 from 3.1.2 to 3.3.0 (#3540)\n\nBumps [github.com/peterbourgon/ff/v3](https://github.com/peterbourgon/ff) from 3.1.2 to 3.3.0.\r\n- [Release notes](https://github.com/peterbourgon/ff/releases)\r\n- [Commits](https://github.com/peterbourgon/ff/compare/v3.1.2...v3.3.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/peterbourgon/ff/v3\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-08-08T11:50:38-06:00",
+          "tree_id": "f75ef9fa437268bd4a404cb347d7b4dfc2e3b817",
+          "url": "https://github.com/pomerium/pomerium/commit/ebae91f408a1f094b1b14f20ff9afbda71a31e64"
+        },
+        "date": 1659983307420,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13731318,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8128694,
+            "unit": "ns/op",
+            "extra": "146 times\n2 procs"
           }
         ]
       }
