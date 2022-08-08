@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1659978201085,
+  "lastUpdate": 1659980822871,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -5376,6 +5376,42 @@ window.BENCHMARK_DATA = {
             "value": 9791991,
             "unit": "ns/op",
             "extra": "124 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f2d7598889b518f64be162a6aadff623eb750618",
+          "message": "chore(deps): bump golang from 1.18.4-buster to 1.19.0-buster (#3539)\n\nBumps golang from 1.18.4-buster to 1.19.0-buster.\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golang\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-08-08T11:43:21-06:00",
+          "tree_id": "312603e768cef2706fc0b893c5a9ea48cee1ac11",
+          "url": "https://github.com/pomerium/pomerium/commit/f2d7598889b518f64be162a6aadff623eb750618"
+        },
+        "date": 1659980822423,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13673257,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8783628,
+            "unit": "ns/op",
+            "extra": "147 times\n2 procs"
           }
         ]
       }
