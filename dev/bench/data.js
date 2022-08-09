@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1660069850940,
+  "lastUpdate": 1660078169152,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -5952,6 +5952,42 @@ window.BENCHMARK_DATA = {
             "value": 8198844,
             "unit": "ns/op",
             "extra": "142 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3c63b6c0285a557719da57947e0461cae4a2b2d6",
+          "message": "authorize: add policy error details for custom error messages (#3542)\n\n* authorize: add policy error details for custom error messages\r\n\r\n* remove fmt.Println\r\n\r\n* fix tests\r\n\r\n* add docs",
+          "timestamp": "2022-08-09T14:46:31-06:00",
+          "tree_id": "6915bd775938b6b1e8f72f1fb06acab9ec96df92",
+          "url": "https://github.com/pomerium/pomerium/commit/3c63b6c0285a557719da57947e0461cae4a2b2d6"
+        },
+        "date": 1660078168749,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14526038,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8980759,
+            "unit": "ns/op",
+            "extra": "133 times\n2 procs"
           }
         ]
       }
