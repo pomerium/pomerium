@@ -55,7 +55,7 @@ func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r 
 		RequestID              string                              `json:",omitempty"`
 		CanDebug               bool                                `json:"-"`
 		DebugURL               *url.URL                            `json:",omitempty"`
-		PolicyEvaluationTraces []contextutil.PolicyEvaluationTrace `json:"policy_evaluation_traces"`
+		PolicyEvaluationTraces []contextutil.PolicyEvaluationTrace `json:",omitempty"`
 	}{
 		Status:                 e.Status,
 		StatusText:             StatusText(e.Status),

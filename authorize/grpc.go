@@ -90,7 +90,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	}()
 
 	// if show error details is enabled, attach the policy evaluation traces
-	if req.Policy.ShowErrorDetails {
+	if req.Policy != nil && req.Policy.ShowErrorDetails {
 		ctx = contextutil.WithPolicyEvaluationTraces(ctx, res.Traces)
 	}
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -74,8 +75,9 @@ func TestPolicyEvaluator(t *testing.T) {
 			})
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
-			Allow: NewRuleResult(true, criteria.ReasonEmailOK),
-			Deny:  NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+			Allow:  NewRuleResult(true, criteria.ReasonEmailOK),
+			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+			Traces: []contextutil.PolicyEvaluationTrace{{Allow: true}},
 		}, output)
 	})
 	t.Run("invalid cert", func(t *testing.T) {
@@ -90,8 +92,9 @@ func TestPolicyEvaluator(t *testing.T) {
 			})
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
-			Allow: NewRuleResult(true, criteria.ReasonEmailOK),
-			Deny:  NewRuleResult(true, criteria.ReasonInvalidClientCertificate),
+			Allow:  NewRuleResult(true, criteria.ReasonEmailOK),
+			Deny:   NewRuleResult(true, criteria.ReasonInvalidClientCertificate),
+			Traces: []contextutil.PolicyEvaluationTrace{{Allow: true, Deny: true}},
 		}, output)
 	})
 	t.Run("forbidden", func(t *testing.T) {
@@ -106,8 +109,9 @@ func TestPolicyEvaluator(t *testing.T) {
 			})
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
-			Allow: NewRuleResult(false, criteria.ReasonEmailUnauthorized, criteria.ReasonNonPomeriumRoute, criteria.ReasonUserUnauthorized),
-			Deny:  NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+			Allow:  NewRuleResult(false, criteria.ReasonEmailUnauthorized, criteria.ReasonNonPomeriumRoute, criteria.ReasonUserUnauthorized),
+			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+			Traces: []contextutil.PolicyEvaluationTrace{{}},
 		}, output)
 	})
 	t.Run("ppl", func(t *testing.T) {
@@ -122,7 +126,7 @@ func TestPolicyEvaluator(t *testing.T) {
 				From: "https://from.example.com",
 				To:   config.WeightedURLs{{URL: *mustParseURL("https://to.example.com")}},
 				SubPolicies: []config.SubPolicy{
-					{Rego: []string{rego}},
+					{ID: "p1", Rego: []string{rego}},
 				},
 			}
 			output, err := eval(t,
@@ -136,8 +140,9 @@ func TestPolicyEvaluator(t *testing.T) {
 				})
 			require.NoError(t, err)
 			assert.Equal(t, &PolicyResponse{
-				Allow: NewRuleResult(true, criteria.ReasonAccept),
-				Deny:  NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+				Allow:  NewRuleResult(true, criteria.ReasonAccept),
+				Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+				Traces: []contextutil.PolicyEvaluationTrace{{}, {ID: "p1", Allow: true}},
 			}, output)
 		})
 		t.Run("deny", func(t *testing.T) {
@@ -151,7 +156,7 @@ func TestPolicyEvaluator(t *testing.T) {
 				From: "https://from.example.com",
 				To:   config.WeightedURLs{{URL: *mustParseURL("https://to.example.com")}},
 				SubPolicies: []config.SubPolicy{
-					{Rego: []string{rego}},
+					{ID: "p1", Rego: []string{rego}},
 				},
 			}
 			output, err := eval(t,
@@ -165,8 +170,9 @@ func TestPolicyEvaluator(t *testing.T) {
 				})
 			require.NoError(t, err)
 			assert.Equal(t, &PolicyResponse{
-				Allow: NewRuleResult(false, criteria.ReasonNonPomeriumRoute),
-				Deny:  NewRuleResult(true, criteria.ReasonAccept),
+				Allow:  NewRuleResult(false, criteria.ReasonNonPomeriumRoute),
+				Deny:   NewRuleResult(true, criteria.ReasonAccept),
+				Traces: []contextutil.PolicyEvaluationTrace{{}, {ID: "p1", Deny: true}},
 			}, output)
 		})
 		t.Run("client certificate", func(t *testing.T) {
@@ -181,7 +187,7 @@ func TestPolicyEvaluator(t *testing.T) {
 				From: "https://from.example.com",
 				To:   config.WeightedURLs{{URL: *mustParseURL("https://to.example.com")}},
 				SubPolicies: []config.SubPolicy{
-					{Rego: []string{rego}},
+					{ID: "p1", Rego: []string{rego}},
 				},
 			}
 			output, err := eval(t,
@@ -195,8 +201,9 @@ func TestPolicyEvaluator(t *testing.T) {
 				})
 			require.NoError(t, err)
 			assert.Equal(t, &PolicyResponse{
-				Allow: NewRuleResult(false, criteria.ReasonNonPomeriumRoute),
-				Deny:  NewRuleResult(true, criteria.ReasonAccept, criteria.ReasonInvalidClientCertificate),
+				Allow:  NewRuleResult(false, criteria.ReasonNonPomeriumRoute),
+				Deny:   NewRuleResult(true, criteria.ReasonAccept, criteria.ReasonInvalidClientCertificate),
+				Traces: []contextutil.PolicyEvaluationTrace{{Deny: true}, {ID: "p1", Deny: true}},
 			}, output)
 		})
 	})
@@ -212,7 +219,7 @@ func TestPolicyEvaluator(t *testing.T) {
 			From: "https://from.example.com",
 			To:   config.WeightedURLs{{URL: *mustParseURL("https://to.example.com")}},
 			SubPolicies: []config.SubPolicy{
-				{Rego: []string{`
+				{ID: "p1", Rego: []string{`
 					package pomerium.policy
 
 					allow {
@@ -233,8 +240,9 @@ func TestPolicyEvaluator(t *testing.T) {
 			})
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
-			Allow: NewRuleResult(true),
-			Deny:  NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+			Allow:  NewRuleResult(true),
+			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+			Traces: []contextutil.PolicyEvaluationTrace{{}, {ID: "p1", Allow: true}},
 		}, output)
 	})
 }
