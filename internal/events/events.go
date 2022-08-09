@@ -30,7 +30,7 @@ type (
 
 // re-exported protobuf constants
 const (
-	EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_ACK  = events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_ACK  // nolint
-	EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_NACK = events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_NACK // nolint
-	EnvoyConfigurationEvent_EVENT_DISCOVERY_RESPONSE     = events.EnvoyConfigurationEvent_EVENT_DISCOVERY_RESPONSE     // nolint
+	EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_ACK  = events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_ACK  //nolint
+	EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_NACK = events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_NACK //nolint
+	EnvoyConfigurationEvent_EVENT_DISCOVERY_RESPONSE     = events.EnvoyConfigurationEvent_EVENT_DISCOVERY_RESPONSE     //nolint
 )

@@ -108,7 +108,7 @@ func run(ctx context.Context, conn *grpc.ClientConn, to url.URL, domain string, 
 	changed := make([]int, o.nMod)
 	for i := 0; i < o.nIter; i++ {
 		for j := 0; j < o.nMod; j++ {
-			// nolint: gosec
+			//nolint: gosec
 			idx := rand.Intn(o.nRoutes)
 			changed[j] = idx
 			cfg.Routes[idx] = makeRoute(domain, to)
