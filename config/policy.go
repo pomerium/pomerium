@@ -197,7 +197,9 @@ type SubPolicy struct {
 	AllowedIDPClaims identity.FlattenedClaims `mapstructure:"allowed_idp_claims" yaml:"allowed_idp_claims,omitempty" json:"allowed_idp_claims,omitempty"`
 	Rego             []string                 `mapstructure:"rego" yaml:"rego" json:"rego,omitempty"`
 
+	// Explanation is the explanation for why a policy failed.
 	Explanation string `mapstructure:"explanation" yaml:"explanation" json:"explanation,omitempty"`
+	// Remediation are the steps a user needs to take to gain access.
 	Remediation string `mapstructure:"remediation" yaml:"remediation" json:"remediation,omitempty"`
 }
 
