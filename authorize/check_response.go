@@ -112,7 +112,7 @@ func (a *Authorize) deniedResponse(
 			DebugURL:  debugEndpoint,
 			RequestID: requestid.FromContext(ctx),
 		}
-		httpErr.ErrorResponse(w, r)
+		httpErr.ErrorResponse(ctx, w, r)
 
 		// transpose the go http response writer into a envoy response
 		resp := w.Result()
