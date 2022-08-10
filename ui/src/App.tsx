@@ -35,6 +35,20 @@ const App: FC = () => {
       body = <WebAuthnRegistrationPage data={data} />;
       break;
   }
+
+  const favicon = document.getElementById(
+    'favicon'
+  ) as HTMLAnchorElement | null;
+  if (favicon) {
+    favicon.href = data?.faviconUrl || '/.pomerium/favicon.ico';
+  }
+  const extraFaviconLinks = document.getElementsByClassName(
+    'pomerium_favicon'
+  ) as HTMLCollectionOf<HTMLAnchorElement> | null;
+  for (const link of extraFaviconLinks) {
+    link.style.display = data?.faviconUrl ? 'none' : '';
+  }
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
