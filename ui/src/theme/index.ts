@@ -6,8 +6,8 @@ import muiCreateTheme, {
   Theme as MuiTheme,
 } from "@mui/material/styles/createTheme";
 
-export const createTheme = (): MuiTheme =>
-  muiCreateTheme({
+export const createTheme = (primaryColor: string, secondaryColor: string): MuiTheme => {
+  return  muiCreateTheme({
     components: {
       MuiBackdrop: {
         styleOverrides: {
@@ -109,10 +109,10 @@ export const createTheme = (): MuiTheme =>
         paper: common.white,
       },
       primary: {
-        main: "#6F43E7",
+        main: primaryColor,
       },
       secondary: {
-        main: "#49AAA1",
+        main: secondaryColor,
       },
     },
     shadows: softShadows,
@@ -159,3 +159,4 @@ export const createTheme = (): MuiTheme =>
       },
     },
   });
+}

@@ -1,7 +1,7 @@
 import Box from "@mui/material/Box";
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider } from "@mui/material/styles";
-import React, { FC } from "react";
+import React, {FC, useLayoutEffect} from "react";
 
 import ErrorPage from "./components/ErrorPage";
 import Footer from "./components/Footer";
@@ -12,12 +12,13 @@ import UserInfoPage from "./components/UserInfoPage";
 import WebAuthnRegistrationPage from "./components/WebAuthnRegistrationPage";
 import { SubpageContextProvider } from "./context/Subpage";
 import { createTheme } from "./theme";
-import { PageData, UserInfoPageData } from "./types";
-
-const theme = createTheme();
+import { PageData } from "./types";
 
 const App: FC = () => {
   const data = (window["POMERIUM_DATA"] || {}) as PageData;
+  const primary = data?.primaryColor || "#6F43E7";
+  const secondary = data?.secondaryColor || "#49AAA1";
+  const theme = createTheme(primary, secondary);
   let body: React.ReactNode = <></>;
   switch (data?.page) {
     case "Error":
@@ -34,6 +35,22 @@ const App: FC = () => {
       body = <WebAuthnRegistrationPage data={data} />;
       break;
   }
+
+  useLayoutEffect(() => {
+    const favicon = document.getElementById(
+      'favicon'
+    ) as HTMLAnchorElement | null;
+    if (favicon) {
+      favicon.href = data?.faviconUrl || '/.pomerium/favicon.ico';
+    }
+    const extraFaviconLinks = document.getElementsByClassName(
+      'pomerium_favicon'
+    ) as HTMLCollectionOf<HTMLAnchorElement> | null;
+    for (const link of extraFaviconLinks) {
+      link.style.display = data?.faviconUrl ? 'none' : '';
+    }
+  }, [])
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />

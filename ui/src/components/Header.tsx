@@ -18,6 +18,7 @@ import styled from "@mui/material/styles/styled";
 import { get } from "lodash";
 import React, { FC, useState } from "react";
 import { ChevronLeft, ChevronRight, Menu as MenuIcon } from "react-feather";
+import LogoURL from "../static/logo_white.svg";
 
 const DrawerHeader = styled("div")(({ theme }) => ({
   display: "flex",
@@ -108,7 +109,7 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
           </>
         ) : (
           <a href="/.pomerium">
-            <Logo />
+            <Logo src={ data?.logoUrl || LogoURL }/>
           </a>
         )}
         <Box flexGrow={1} />

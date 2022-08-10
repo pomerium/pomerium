@@ -81,6 +81,10 @@ export type WebAuthnRequestOptions = {
 
 type BasePageData = {
   csrfToken?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  logoUrl?: string;
+  faviconUrl?: string;
 };
 
 export type ErrorPageData = BasePageData & {
