@@ -12,12 +12,13 @@ import UserInfoPage from "./components/UserInfoPage";
 import WebAuthnRegistrationPage from "./components/WebAuthnRegistrationPage";
 import { SubpageContextProvider } from "./context/Subpage";
 import { createTheme } from "./theme";
-import { PageData, UserInfoPageData } from "./types";
-
-const theme = createTheme();
+import { PageData } from "./types";
 
 const App: FC = () => {
   const data = (window["POMERIUM_DATA"] || {}) as PageData;
+  const primary = data?.primaryColor || "#6F43E7";
+  const secondary = data?.secondaryColor || "#49AAA1";
+  const theme = createTheme(primary, secondary);
   let body: React.ReactNode = <></>;
   switch (data?.page) {
     case "Error":
