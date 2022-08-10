@@ -1,7 +1,7 @@
 import Box from "@mui/material/Box";
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider } from "@mui/material/styles";
-import React, { FC } from "react";
+import React, {FC, useLayoutEffect} from "react";
 
 import ErrorPage from "./components/ErrorPage";
 import Footer from "./components/Footer";
@@ -36,18 +36,20 @@ const App: FC = () => {
       break;
   }
 
-  const favicon = document.getElementById(
-    'favicon'
-  ) as HTMLAnchorElement | null;
-  if (favicon) {
-    favicon.href = data?.faviconUrl || '/.pomerium/favicon.ico';
-  }
-  const extraFaviconLinks = document.getElementsByClassName(
-    'pomerium_favicon'
-  ) as HTMLCollectionOf<HTMLAnchorElement> | null;
-  for (const link of extraFaviconLinks) {
-    link.style.display = data?.faviconUrl ? 'none' : '';
-  }
+  useLayoutEffect(() => {
+    const favicon = document.getElementById(
+      'favicon'
+    ) as HTMLAnchorElement | null;
+    if (favicon) {
+      favicon.href = data?.faviconUrl || '/.pomerium/favicon.ico';
+    }
+    const extraFaviconLinks = document.getElementsByClassName(
+      'pomerium_favicon'
+    ) as HTMLCollectionOf<HTMLAnchorElement> | null;
+    for (const link of extraFaviconLinks) {
+      link.style.display = data?.faviconUrl ? 'none' : '';
+    }
+  }, [])
 
   return (
     <ThemeProvider theme={theme}>
