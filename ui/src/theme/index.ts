@@ -160,4 +160,3 @@ export const createTheme = (primaryColor: string, secondaryColor: string): MuiTh
     },
   });
 }
-
