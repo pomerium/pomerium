@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1660152845710,
+  "lastUpdate": 1660165257961,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -6084,6 +6084,38 @@ window.BENCHMARK_DATA = {
             "value": 7940596,
             "unit": "ns/op",
             "extra": "145 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "23d496e9e4b394ef7bc1f42e32d3457ee808495d",
+          "message": "envoyconfig: add authority header to outbound gRPC requests",
+          "timestamp": "2022-08-10T20:47:25Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3545/commits/23d496e9e4b394ef7bc1f42e32d3457ee808495d"
+        },
+        "date": 1660165257557,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14615313,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9336936,
+            "unit": "ns/op",
+            "extra": "123 times\n2 procs"
           }
         ]
       }
