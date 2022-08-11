@@ -8,6 +8,7 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import React, { FC } from "react";
+import Markdown from "markdown-to-jsx";
 
 export type ErrorPageProps = {
   data: ErrorPageData;
@@ -26,6 +27,13 @@ export const ErrorPage: FC<ErrorPageProps> = ({ data }) => {
               {data?.error || "Internal Server Error"}
             </Alert>
           </Box>
+          {!!data?.errorMessageFirstParagraph && (
+            <Box sx={{p: 4}}>
+              <Markdown>
+                {data.errorMessageFirstParagraph}
+              </Markdown>
+            </Box>
+          )}
           {data?.requestId ? (
             <SectionFooter>
               <Typography variant="caption">
