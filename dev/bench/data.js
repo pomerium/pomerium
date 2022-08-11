@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1660223584490,
+  "lastUpdate": 1660225685748,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -6148,6 +6148,42 @@ window.BENCHMARK_DATA = {
             "value": 8974404,
             "unit": "ns/op",
             "extra": "134 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "nhayfield@yahoo.com",
+            "name": "Nathan Hayfield",
+            "username": "nhayfield"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9fc43930bf4e62c04d081294e51b2646406e97b1",
+          "message": "add front end support for optional first paragraph of markdown on err… (#3546)\n\nadd front end support for optional first paragraph of markdown on error messgage",
+          "timestamp": "2022-08-11T15:45:08+02:00",
+          "tree_id": "59e04dfeed75a543ddcb4b8f032e123d98ed196e",
+          "url": "https://github.com/pomerium/pomerium/commit/9fc43930bf4e62c04d081294e51b2646406e97b1"
+        },
+        "date": 1660225684855,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13298793,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8207185,
+            "unit": "ns/op",
+            "extra": "141 times\n2 procs"
           }
         ]
       }
