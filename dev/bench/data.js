@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1660165257961,
+  "lastUpdate": 1660223584490,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -6116,6 +6116,38 @@ window.BENCHMARK_DATA = {
             "value": 9336936,
             "unit": "ns/op",
             "extra": "123 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "7d742b64bedc7c4f1df511987bebd1f052519d02",
+          "message": "add front end support for optional first paragraph of markdown on err…",
+          "timestamp": "2022-08-11T09:18:08Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3546/commits/7d742b64bedc7c4f1df511987bebd1f052519d02"
+        },
+        "date": 1660223583864,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13447593,
+            "unit": "ns/op",
+            "extra": "82 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8974404,
+            "unit": "ns/op",
+            "extra": "134 times\n2 procs"
           }
         ]
       }
