@@ -96,6 +96,7 @@ export type ErrorPageData = BasePageData & {
   requestId?: string;
   status?: number;
   statusText?: string;
+  errorMessageFirstParagraph?: string;
 };
 
 export type UserInfoData = {
