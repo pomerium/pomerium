@@ -35,7 +35,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/cache@f4278025ab0f432ce369118909e46deec636f50c # pin@v3
+      - uses: actions/cache@a7c34adf76222e77931dedbf4a45b2e4648ced19 # pin@v3
         with:
           path: |
             ~/go/pkg
