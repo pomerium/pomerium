@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1660582621678,
+  "lastUpdate": 1660595732842,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -6524,6 +6524,38 @@ window.BENCHMARK_DATA = {
             "value": 9773027,
             "unit": "ns/op",
             "extra": "129 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "6b3d5900b21032d7d43d5bdf33e514aafc0cd459",
+          "message": "controlplane: add well-known endpoint to the controlplane http handler",
+          "timestamp": "2022-08-15T17:22:46Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3555/commits/6b3d5900b21032d7d43d5bdf33e514aafc0cd459"
+        },
+        "date": 1660595732463,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14850925,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9103137,
+            "unit": "ns/op",
+            "extra": "133 times\n2 procs"
           }
         ]
       }
