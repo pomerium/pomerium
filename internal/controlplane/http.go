@@ -52,6 +52,9 @@ func (srv *Server) addHTTPMiddleware(root *mux.Router, cfg *config.Config) {
 	root.Handle("/.well-known/pomerium", httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		return wellKnownPomerium(w, r, cfg)
 	}))
+	root.Handle("/.well-known/pomerium/", httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		return wellKnownPomerium(w, r, cfg)
+	}))
 }
 
 func wellKnownPomerium(w http.ResponseWriter, r *http.Request, cfg *config.Config) error {
