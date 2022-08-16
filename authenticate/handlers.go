@@ -113,28 +113,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 }
 
 func (a *Authenticate) mountWellKnown(r *mux.Router) {
-	wk := r.PathPrefix("/.well-known/pomerium").Subrouter()
-	wk.Path("/jwks.json").Handler(httputil.HandlerFunc(a.jwks)).Methods(http.MethodGet)
-	wk.Path("/").Handler(httputil.HandlerFunc(a.wellKnown)).Methods(http.MethodGet)
-}
-
-// wellKnown returns a list of well known URLS for Pomerium.
-//
-// https://en.wikipedia.org/wiki/List_of_/.well-known/_services_offered_by_webservers
-func (a *Authenticate) wellKnown(w http.ResponseWriter, r *http.Request) error {
-	state := a.state.Load()
-	wellKnownURLS := struct {
-		OAuth2Callback        string `json:"authentication_callback_endpoint"` // RFC6749
-		JSONWebKeySetURL      string `json:"jwks_uri"`                         // RFC7517
-		FrontchannelLogoutURI string `json:"frontchannel_logout_uri"`          // https://openid.net/specs/openid-connect-frontchannel-1_0.html
-	}{
-		state.redirectURL.ResolveReference(&url.URL{Path: "/oauth2/callback"}).String(),
-		state.redirectURL.ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
-		state.redirectURL.ResolveReference(&url.URL{Path: "/.pomerium/sign_out"}).String(),
-	}
-	w.Header().Set("X-CSRF-Token", csrf.Token(r))
-	httputil.RenderJSON(w, http.StatusOK, wellKnownURLS)
-	return nil
+	r.Path("/.well-known/pomerium/jwks.json").Handler(httputil.HandlerFunc(a.jwks)).Methods(http.MethodGet)
 }
 
 // jwks returns the signing key(s) the client can use to validate signatures
