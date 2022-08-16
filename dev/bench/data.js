@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1660665734626,
+  "lastUpdate": 1660666039694,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -6688,6 +6688,42 @@ window.BENCHMARK_DATA = {
             "value": 7722434,
             "unit": "ns/op",
             "extra": "159 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "nhayfield@yahoo.com",
+            "name": "Nathan Hayfield",
+            "username": "nhayfield"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0e73bd31f7cca84c566695492b8351de670e88af",
+          "message": "add the traces error details (#3557)",
+          "timestamp": "2022-08-16T18:04:02+02:00",
+          "tree_id": "e91e3dd4f2ade7d225c7aed334e08ff950ff3c18",
+          "url": "https://github.com/pomerium/pomerium/commit/0e73bd31f7cca84c566695492b8351de670e88af"
+        },
+        "date": 1660666038402,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17196701,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10080080,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
