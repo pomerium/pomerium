@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1660665309773,
+  "lastUpdate": 1660665734626,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -6652,6 +6652,42 @@ window.BENCHMARK_DATA = {
             "value": 10687588,
             "unit": "ns/op",
             "extra": "134 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6140ee1d88e2a16f95ea9de869ad75aa0191e348",
+          "message": "controlplane: add well-known endpoint to the controlplane http handler (#3555)\n\n* controlplane: add well-known endpoint to the controlplane http handler\r\n\r\n* add support for trailing /\r\n\r\n* remove redundant test",
+          "timestamp": "2022-08-16T09:59:39-06:00",
+          "tree_id": "cfcbd7e9d62484cdf4341cddee23b64b0775a1f8",
+          "url": "https://github.com/pomerium/pomerium/commit/6140ee1d88e2a16f95ea9de869ad75aa0191e348"
+        },
+        "date": 1660665734203,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12061370,
+            "unit": "ns/op",
+            "extra": "97 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7722434,
+            "unit": "ns/op",
+            "extra": "159 times\n2 procs"
           }
         ]
       }
