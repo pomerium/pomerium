@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
@@ -145,6 +146,23 @@ func (src *FileOrEnvironmentSource) check(ctx context.Context) {
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("config_change_id", uuid.New().String())
 	})
+
+	// Wait for configure file update to complete
+	fi, _ := os.Stat(src.configFile)
+	if fi.Size() == 0 {
+		log.Info(ctx).Msg("Wait for configure file update to complete")
+
+		// spinlock
+		t := time.Now()
+		for {
+			time.Sleep(time.Millisecond * 200)
+			fi, _ = os.Stat(src.configFile)
+			if fi.Size() > 0 || time.Since(t) > time.Second {
+				break
+			}
+		}
+	}
+
 	log.Info(ctx).Msg("config: file updated, reconfiguring...")
 	src.mu.Lock()
 	cfg := src.config
