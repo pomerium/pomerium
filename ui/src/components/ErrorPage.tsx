@@ -1,4 +1,4 @@
-import { ErrorPageData } from "../types";
+import {ErrorPageData, PolicyEvaluationTrace} from "../types";
 import SectionFooter from "./SectionFooter";
 import Alert from "@mui/material/Alert";
 import AlertTitle from "@mui/material/AlertTitle";
@@ -9,11 +9,50 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import React, { FC } from "react";
 import Markdown from "markdown-to-jsx";
+import {ListItemProps, TableCell} from "@mui/material";
+import {CheckCircle, MinusCircle, XCircle} from "react-feather";
+import Table from "@mui/material/Table";
+import TableRow from "@mui/material/TableRow";
+import TableHead from "@mui/material/TableHead";
+
+type PolicyEvaluationTraceDetailsProps = {
+  trace: PolicyEvaluationTrace;
+} & ListItemProps;
+const PolicyEvaluationTraceDetails: FC<PolicyEvaluationTraceDetailsProps> = ({
+ trace,
+ ...props
+}) => {
+  return (
+    <TableRow>
+      <TableCell align={'center'}>
+        {trace.deny ? (
+          <XCircle color="red" />
+        ) : trace.allow ? (
+          <CheckCircle color="green" />
+        ) : (
+          <MinusCircle color="gray" />
+        )}
+      </TableCell>
+      <TableCell>
+        <Markdown>
+          {trace.explanation || trace.id}
+        </Markdown>
+      </TableCell>
+      <TableCell>
+        <Markdown>
+          {trace.deny || !trace.allow ? trace.remediation : ""}
+        </Markdown>
+      </TableCell>
+    </TableRow>
+  );
+};
 
 export type ErrorPageProps = {
   data: ErrorPageData;
 };
 export const ErrorPage: FC<ErrorPageProps> = ({ data }) => {
+  const traces =
+    data?.policyEvaluationTraces?.filter((trace) => !!trace.id) || [];
   return (
     <Container maxWidth={false}>
       <Paper sx={{ overflow: "hidden" }}>
@@ -33,6 +72,22 @@ export const ErrorPage: FC<ErrorPageProps> = ({ data }) => {
                 {data.errorMessageFirstParagraph}
               </Markdown>
             </Box>
+          )}
+          {traces?.length > 0 && (
+            <Container>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Outcome</TableCell>
+                    <TableCell>Explanation</TableCell>
+                    <TableCell>Remediation</TableCell>
+                  </TableRow>
+                </TableHead>
+                {traces.map((trace) => (
+                  <PolicyEvaluationTraceDetails trace={trace} key={trace.id} />
+                ))}
+              </Table>
+            </Container>
           )}
           {data?.requestId ? (
             <SectionFooter>

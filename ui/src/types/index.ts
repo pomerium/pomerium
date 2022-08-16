@@ -97,6 +97,7 @@ export type ErrorPageData = BasePageData & {
   status?: number;
   statusText?: string;
   errorMessageFirstParagraph?: string;
+  policyEvaluationTraces?: PolicyEvaluationTrace[];
 };
 
 export type UserInfoData = {
@@ -140,3 +141,11 @@ export type PageData =
   | SignOutConfirmPageData
   | UserInfoPageData
   | WebAuthnRegistrationPageData;
+
+export type PolicyEvaluationTrace = {
+  id?: string;
+  explanation?: string;
+  remediation?: string;
+  allow?: boolean;
+  deny?: boolean;
+};
