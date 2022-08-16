@@ -26,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/internal/directory/okta"
 	"github.com/pomerium/pomerium/internal/directory/onelogin"
 	"github.com/pomerium/pomerium/internal/hashutil"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sets"
@@ -298,6 +299,8 @@ type Options struct {
 	CodecType CodecType `mapstructure:"codec_type" yaml:"codec_type"`
 
 	AuditKey *PublicKeyEncryptionKeyOptions `mapstructure:"audit_key"`
+
+	BrandingOptions httputil.BrandingOptions
 }
 
 type certificateFilePair struct {
@@ -1544,6 +1547,7 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	if settings.ClientCrlFile != nil {
 		o.ClientCRLFile = settings.GetClientCrlFile()
 	}
+	o.BrandingOptions = settings
 }
 
 func dataDir() string {

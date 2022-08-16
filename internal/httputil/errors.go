@@ -20,6 +20,8 @@ type HTTPError struct {
 	DebugURL *url.URL
 	// The request ID.
 	RequestID string
+
+	BrandingOptions BrandingOptions
 }
 
 // NewError returns an error that contains a HTTP status and error.
@@ -73,7 +75,7 @@ func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r 
 		return
 	}
 
-	m := map[string]interface{}{
+	m := map[string]any{
 		"canDebug":               response.CanDebug,
 		"error":                  response.Error,
 		"requestId":              response.RequestID,
@@ -84,6 +86,7 @@ func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r 
 	if response.DebugURL != nil {
 		m["debugUrl"] = response.DebugURL.String()
 	}
+	AddBrandingOptionsToMap(m, e.BrandingOptions)
 
 	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 	w.WriteHeader(response.Status)

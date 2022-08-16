@@ -216,4 +216,11 @@ message Settings {
   optional pomerium.crypt.PublicKeyEncryptionKey audit_key = 72;
   optional envoy.extensions.filters.network.http_connection_manager.v3
       .HttpConnectionManager.CodecType codec_type = 73;
+  optional string primary_color = 85;
+  optional string secondary_color = 86;
+  optional string darkmode_primary_color = 87;
+  optional string darkmode_secondary_color = 88;
+  optional string logo_url = 89;
+  optional string favicon_url = 90;
+  optional string error_message_first_paragraph = 91;
 }

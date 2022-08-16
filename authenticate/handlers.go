@@ -568,6 +568,8 @@ func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, 
 		WebAuthnCreationOptions: creationOptions,
 		WebAuthnRequestOptions:  requestOptions,
 		WebAuthnURL:             urlutil.WebAuthnURL(r, authenticateURL, state.sharedKey, r.URL.Query()),
+
+		BrandingOptions: a.options.Load().BrandingOptions,
 	}, nil
 }
 
