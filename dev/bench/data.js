@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1660671246210,
+  "lastUpdate": 1660671769225,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -6754,6 +6754,42 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 7776408,
+            "unit": "ns/op",
+            "extra": "150 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "1544881+desimone@users.noreply.github.com",
+            "name": "bobby",
+            "username": "desimone"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c9421ec146dc2f63958011dfd3eb208100863448",
+          "message": "deployment: update RELEASING.md (#3503)\n\nupdate RELEASING.md\r\n\r\nSigned-off-by: Bobby DeSimone <bobbydesimone@gmail.com>\r\n\r\nSigned-off-by: Bobby DeSimone <bobbydesimone@gmail.com>",
+          "timestamp": "2022-08-16T10:40:03-07:00",
+          "tree_id": "c65c1e4194dfd14e06394c20c6d62a9302384c5a",
+          "url": "https://github.com/pomerium/pomerium/commit/c9421ec146dc2f63958011dfd3eb208100863448"
+        },
+        "date": 1660671768646,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12877306,
+            "unit": "ns/op",
+            "extra": "88 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7900883,
             "unit": "ns/op",
             "extra": "150 times\n2 procs"
           }
