@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1660679952199,
+  "lastUpdate": 1660683260325,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -6824,6 +6824,42 @@ window.BENCHMARK_DATA = {
             "value": 8717329,
             "unit": "ns/op",
             "extra": "141 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "46703b9419a01a2ded2e1d5b70ef1f149460098c",
+          "message": "config: add branding settings (#3558)",
+          "timestamp": "2022-08-16T14:51:47-06:00",
+          "tree_id": "30d4817de78c838f037ea0d0a07205d191fad484",
+          "url": "https://github.com/pomerium/pomerium/commit/46703b9419a01a2ded2e1d5b70ef1f149460098c"
+        },
+        "date": 1660683259918,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13425005,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8276083,
+            "unit": "ns/op",
+            "extra": "148 times\n2 procs"
           }
         ]
       }
