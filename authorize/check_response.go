@@ -107,10 +107,11 @@ func (a *Authorize) deniedResponse(
 
 		// run the request through our go error handler
 		httpErr := httputil.HTTPError{
-			Status:    int(code),
-			Err:       errors.New(reason),
-			DebugURL:  debugEndpoint,
-			RequestID: requestid.FromContext(ctx),
+			Status:          int(code),
+			Err:             errors.New(reason),
+			DebugURL:        debugEndpoint,
+			RequestID:       requestid.FromContext(ctx),
+			BrandingOptions: a.currentOptions.Load().BrandingOptions,
 		}
 		httpErr.ErrorResponse(ctx, w, r)
 

@@ -26,11 +26,13 @@ type UserInfoData struct {
 	WebAuthnCreationOptions *webauthn.PublicKeyCredentialCreationOptions
 	WebAuthnRequestOptions  *webauthn.PublicKeyCredentialRequestOptions
 	WebAuthnURL             string
+
+	BrandingOptions httputil.BrandingOptions
 }
 
 // ToJSON converts the data into a JSON map.
-func (data UserInfoData) ToJSON() map[string]interface{} {
-	m := map[string]interface{}{}
+func (data UserInfoData) ToJSON() map[string]any {
+	m := map[string]any{}
 	m["csrfToken"] = data.CSRFToken
 	var directoryGroups []json.RawMessage
 	for _, directoryGroup := range data.DirectoryGroups {
@@ -52,6 +54,7 @@ func (data UserInfoData) ToJSON() map[string]interface{} {
 	m["webAuthnCreationOptions"] = data.WebAuthnCreationOptions
 	m["webAuthnRequestOptions"] = data.WebAuthnRequestOptions
 	m["webAuthnUrl"] = data.WebAuthnURL
+	httputil.AddBrandingOptionsToMap(m, data.BrandingOptions)
 	return m
 }
 
