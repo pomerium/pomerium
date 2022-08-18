@@ -21,7 +21,39 @@ import (
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
+
+func TestAuthorize_handleResult(t *testing.T) {
+	opt := config.NewDefaultOptions()
+	opt.AuthenticateURLString = "https://authenticate.example.com"
+	opt.DataBrokerURLString = "https://databroker.example.com"
+	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
+	a, err := New(&config.Config{Options: opt})
+	require.NoError(t, err)
+
+	t.Run("user-unauthenticated", func(t *testing.T) {
+		res, err := a.handleResult(context.Background(),
+			&envoy_service_auth_v3.CheckRequest{},
+			&evaluator.Request{},
+			&evaluator.Result{
+				Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+			},
+			false)
+		assert.NoError(t, err)
+		assert.Equal(t, 302, res.GetDeniedResponse().GetStatus().GetCode())
+
+		res, err = a.handleResult(context.Background(),
+			&envoy_service_auth_v3.CheckRequest{},
+			&evaluator.Request{},
+			&evaluator.Result{
+				Deny: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+			},
+			false)
+		assert.NoError(t, err)
+		assert.Equal(t, 302, res.GetDeniedResponse().GetStatus().GetCode())
+	})
+}
 
 func TestAuthorize_okResponse(t *testing.T) {
 	opt := &config.Options{

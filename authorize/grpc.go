@@ -95,19 +95,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	}
 
 	isForwardAuthVerify := isForwardAuth && hreq.URL.Path == "/verify"
-
-	// if there's a deny, the result is denied using the deny reasons.
-	if res.Deny.Value {
-		return a.handleResultDenied(ctx, in, req, res, isForwardAuthVerify, res.Deny.Reasons)
-	}
-
-	// if there's an allow, the result is allowed.
-	if res.Allow.Value {
-		return a.handleResultAllowed(ctx, in, res)
-	}
-
-	// otherwise, the result is denied using the allow reasons.
-	return a.handleResultDenied(ctx, in, req, res, isForwardAuthVerify, res.Allow.Reasons)
+	return a.handleResult(ctx, in, req, res, isForwardAuthVerify)
 }
 
 // isForwardAuth returns if the current request is a forward auth route.
