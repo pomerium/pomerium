@@ -41,7 +41,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 			},
 			false)
 		assert.NoError(t, err)
-		assert.Equal(t, 302, res.GetDeniedResponse().GetStatus().GetCode())
+		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
 
 		res, err = a.handleResult(context.Background(),
 			&envoy_service_auth_v3.CheckRequest{},
@@ -51,7 +51,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 			},
 			false)
 		assert.NoError(t, err)
-		assert.Equal(t, 302, res.GetDeniedResponse().GetStatus().GetCode())
+		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
 }
 
