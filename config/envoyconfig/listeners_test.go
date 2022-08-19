@@ -51,7 +51,10 @@ func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 			"typedConfig": {
 				"@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager",
 				"httpFilters": [{
-					"name": "envoy.filters.http.router"
+					"name": "envoy.filters.http.router",
+					"typedConfig": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.router.v3.Router"
+					}
 				}],
 				"routeConfig": {
 					"name": "metrics",
@@ -144,7 +147,9 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 					"name": "envoy.filters.http.lua",
 					"typedConfig": {
 						"@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
-						"inlineCode": "local function starts_with(str, start)\n    return str:sub(1, #start) == start\nend\n\nfunction envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local metadata = request_handle:metadata()\n\n    local remove_impersonate_headers = metadata:get(\"remove_impersonate_headers\")\n    if remove_impersonate_headers then\n        local to_remove = {}\n        for k, v in pairs(headers) do\n            if starts_with(k, \"impersonate-extra-\") or k == \"impersonate-group\" or k == \"impersonate-user\" then\n                table.insert(to_remove, k)\n            end\n        end\n\n        for k, v in pairs(to_remove) do\n            headers:remove(v)\n        end\n    end\nend\n\nfunction envoy_on_response(response_handle)\nend\n"
+						"defaultSourceCode": {
+							"inlineString": "local function starts_with(str, start)\n    return str:sub(1, #start) == start\nend\n\nfunction envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local metadata = request_handle:metadata()\n\n    local remove_impersonate_headers = metadata:get(\"remove_impersonate_headers\")\n    if remove_impersonate_headers then\n        local to_remove = {}\n        for k, v in pairs(headers) do\n            if starts_with(k, \"impersonate-extra-\") or k == \"impersonate-group\" or k == \"impersonate-user\" then\n                table.insert(to_remove, k)\n            end\n        end\n\n        for k, v in pairs(to_remove) do\n            headers:remove(v)\n        end\n    end\nend\n\nfunction envoy_on_response(response_handle)\nend\n"
+						}
 					}
 				},
 				{
@@ -168,25 +173,34 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 					"name": "envoy.filters.http.lua",
 					"typedConfig": {
 						"@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
-						"inlineCode": "function envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local dynamic_meta = request_handle:streamInfo():dynamicMetadata()\n    if headers:get(\"x-pomerium-set-cookie\") ~= nil then\n        dynamic_meta:set(\"envoy.filters.http.lua\", \"pomerium_set_cookie\",\n                         headers:get(\"x-pomerium-set-cookie\"))\n        headers:remove(\"x-pomerium-set-cookie\")\n    end\nend\n\nfunction envoy_on_response(response_handle)\n    local headers = response_handle:headers()\n    local dynamic_meta = response_handle:streamInfo():dynamicMetadata()\n    local tbl = dynamic_meta:get(\"envoy.filters.http.lua\")\n    if tbl ~= nil and tbl[\"pomerium_set_cookie\"] ~= nil then\n        headers:add(\"set-cookie\", tbl[\"pomerium_set_cookie\"])\n    end\nend\n"
+						"defaultSourceCode": {
+							"inlineString": "function envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local dynamic_meta = request_handle:streamInfo():dynamicMetadata()\n    if headers:get(\"x-pomerium-set-cookie\") ~= nil then\n        dynamic_meta:set(\"envoy.filters.http.lua\", \"pomerium_set_cookie\",\n                         headers:get(\"x-pomerium-set-cookie\"))\n        headers:remove(\"x-pomerium-set-cookie\")\n    end\nend\n\nfunction envoy_on_response(response_handle)\n    local headers = response_handle:headers()\n    local dynamic_meta = response_handle:streamInfo():dynamicMetadata()\n    local tbl = dynamic_meta:get(\"envoy.filters.http.lua\")\n    if tbl ~= nil and tbl[\"pomerium_set_cookie\"] ~= nil then\n        headers:add(\"set-cookie\", tbl[\"pomerium_set_cookie\"])\n    end\nend\n"
+						}
 					}
 				},
 				{
 					"name": "envoy.filters.http.lua",
 					"typedConfig": {
 						"@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
-						"inlineCode": "function remove_pomerium_cookie(cookie_name, cookie)\n    -- lua doesn't support optional capture groups\n    -- so we replace twice to handle pomerium=xyz at the end of the string\n    cookie = cookie:gsub(cookie_name .. \"=[^;]+; \", \"\")\n    cookie = cookie:gsub(cookie_name .. \"=[^;]+\", \"\")\n    return cookie\nend\n\nfunction has_prefix(str, prefix)\n    return str ~= nil and str:sub(1, #prefix) == prefix\nend\n\nfunction envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local metadata = request_handle:metadata()\n\n    local remove_cookie_name = metadata:get(\"remove_pomerium_cookie\")\n    if remove_cookie_name then\n        local cookie = headers:get(\"cookie\")\n        if cookie ~= nil then\n            newcookie = remove_pomerium_cookie(remove_cookie_name, cookie)\n            headers:replace(\"cookie\", newcookie)\n        end\n    end\n\n    local remove_authorization = metadata:get(\"remove_pomerium_authorization\")\n    if remove_authorization then\n        local authorization = headers:get(\"authorization\")\n        local authorization_prefix = \"Pomerium \"\n        if has_prefix(authorization, authorization_prefix) then\n            headers:remove(\"authorization\")\n        end\n\n        headers:remove('x-pomerium-authorization')\n    end\nend\n\nfunction envoy_on_response(response_handle) end\n"
+						"defaultSourceCode": {
+							"inlineString": "function remove_pomerium_cookie(cookie_name, cookie)\n    -- lua doesn't support optional capture groups\n    -- so we replace twice to handle pomerium=xyz at the end of the string\n    cookie = cookie:gsub(cookie_name .. \"=[^;]+; \", \"\")\n    cookie = cookie:gsub(cookie_name .. \"=[^;]+\", \"\")\n    return cookie\nend\n\nfunction has_prefix(str, prefix)\n    return str ~= nil and str:sub(1, #prefix) == prefix\nend\n\nfunction envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local metadata = request_handle:metadata()\n\n    local remove_cookie_name = metadata:get(\"remove_pomerium_cookie\")\n    if remove_cookie_name then\n        local cookie = headers:get(\"cookie\")\n        if cookie ~= nil then\n            newcookie = remove_pomerium_cookie(remove_cookie_name, cookie)\n            headers:replace(\"cookie\", newcookie)\n        end\n    end\n\n    local remove_authorization = metadata:get(\"remove_pomerium_authorization\")\n    if remove_authorization then\n        local authorization = headers:get(\"authorization\")\n        local authorization_prefix = \"Pomerium \"\n        if has_prefix(authorization, authorization_prefix) then\n            headers:remove(\"authorization\")\n        end\n\n        headers:remove('x-pomerium-authorization')\n    end\nend\n\nfunction envoy_on_response(response_handle) end\n"
+						}
 					}
 				},
 				{
 					"name": "envoy.filters.http.lua",
 					"typedConfig": {
 						"@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
-						"inlineCode": "function replace_prefix(str, prefix, value)\n    return str:gsub(\"^\"..prefix, value)\nend\n\nfunction envoy_on_request(request_handle)\nend\n\nfunction envoy_on_response(response_handle)\n    local headers = response_handle:headers()\n    local metadata = response_handle:metadata()\n\n    -- should be in the form:\n    -- [{\n    --   \"header\":\"Location\",\n    --   \"prefix\":\"http://localhost:8000/two/\",\n    --   \"value\":\"http://frontend/one/\"\n    -- }]\n    local rewrite_response_headers = metadata:get(\"rewrite_response_headers\")\n    if rewrite_response_headers then\n        for _, obj in pairs(rewrite_response_headers) do\n            local hdr = headers:get(obj.header)\n            if hdr ~= nil then\n                local newhdr = replace_prefix(hdr, obj.prefix, obj.value)\n                headers:replace(obj.header, newhdr)\n            end\n        end\n    end\nend\n"
+						"defaultSourceCode": {
+							"inlineString": "function replace_prefix(str, prefix, value)\n    return str:gsub(\"^\"..prefix, value)\nend\n\nfunction envoy_on_request(request_handle)\nend\n\nfunction envoy_on_response(response_handle)\n    local headers = response_handle:headers()\n    local metadata = response_handle:metadata()\n\n    -- should be in the form:\n    -- [{\n    --   \"header\":\"Location\",\n    --   \"prefix\":\"http://localhost:8000/two/\",\n    --   \"value\":\"http://frontend/one/\"\n    -- }]\n    local rewrite_response_headers = metadata:get(\"rewrite_response_headers\")\n    if rewrite_response_headers then\n        for _, obj in pairs(rewrite_response_headers) do\n            local hdr = headers:get(obj.header)\n            if hdr ~= nil then\n                local newhdr = replace_prefix(hdr, obj.prefix, obj.value)\n                headers:replace(obj.header, newhdr)\n            end\n        end\n    end\nend\n"
+						}
 					}
 				},
 				{
-					"name": "envoy.filters.http.router"
+					"name": "envoy.filters.http.router",
+					"typedConfig": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.router.v3.Router"
+					}
 				}
 			],
 			"requestTimeout": "30s",

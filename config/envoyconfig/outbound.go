@@ -60,9 +60,9 @@ func (b *Builder) buildOutboundHTTPConnectionManager() (*envoy_config_listener_v
 		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
 			RouteConfig: rc,
 		},
-		HttpFilters: []*envoy_http_connection_manager.HttpFilter{{
-			Name: "envoy.filters.http.router",
-		}},
+		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
+			HTTPRouterFilter(),
+		},
 	})
 
 	return &envoy_config_listener_v3.Filter{
