@@ -27,6 +27,41 @@ import (
 	"github.com/pomerium/pomerium/pkg/webauthnutil"
 )
 
+func (a *Authorize) handleResult(
+	ctx context.Context,
+	in *envoy_service_auth_v3.CheckRequest,
+	request *evaluator.Request,
+	result *evaluator.Result,
+	isForwardAuthVerify bool,
+) (*envoy_service_auth_v3.CheckResponse, error) {
+	// when the user is unauthenticated it means they haven't
+	// logged in yet, so redirect to authenticate
+	if result.Allow.Reasons.Has(criteria.ReasonUserUnauthenticated) ||
+		result.Deny.Reasons.Has(criteria.ReasonUserUnauthenticated) {
+		return a.requireLoginResponse(ctx, in, request, isForwardAuthVerify)
+	}
+
+	// when the user's device is unauthenticated it means they haven't
+	// registered a webauthn device yet, so redirect to the webauthn flow
+	if result.Allow.Reasons.Has(criteria.ReasonDeviceUnauthenticated) ||
+		result.Deny.Reasons.Has(criteria.ReasonDeviceUnauthenticated) {
+		return a.requireWebAuthnResponse(ctx, in, request, result, isForwardAuthVerify)
+	}
+
+	// if there's a deny, the result is denied using the deny reasons.
+	if result.Deny.Value {
+		return a.handleResultDenied(ctx, in, request, result, isForwardAuthVerify, result.Deny.Reasons)
+	}
+
+	// if there's an allow, the result is allowed.
+	if result.Allow.Value {
+		return a.handleResultAllowed(ctx, in, result)
+	}
+
+	// otherwise, the result is denied using the allow reasons.
+	return a.handleResultDenied(ctx, in, request, result, isForwardAuthVerify, result.Allow.Reasons)
+}
+
 func (a *Authorize) handleResultAllowed(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
@@ -47,13 +82,7 @@ func (a *Authorize) handleResultDenied(
 	denyStatusText := http.StatusText(http.StatusForbidden)
 
 	switch {
-	case reasons.Has(criteria.ReasonUserUnauthenticated):
-		// when the user is unauthenticated it means they haven't
-		// logged in yet, so redirect to authenticate
-		return a.requireLoginResponse(ctx, in, request, isForwardAuthVerify)
 	case reasons.Has(criteria.ReasonDeviceUnauthenticated):
-		// when the user's device is unauthenticated it means they haven't
-		// registered a webauthn device yet, so redirect to the webauthn flow
 		return a.requireWebAuthnResponse(ctx, in, request, result, isForwardAuthVerify)
 	case reasons.Has(criteria.ReasonDeviceUnauthorized):
 		denyStatusCode = httputil.StatusDeviceUnauthorized
