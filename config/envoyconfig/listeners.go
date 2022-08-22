@@ -12,15 +12,12 @@ import (
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
-	envoy_extensions_filters_http_lua_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/lua/v3"
-	envoy_extensions_filters_listener_proxy_protocol_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/proxy_protocol/v3"
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
@@ -95,13 +92,7 @@ func (b *Builder) BuildListeners(ctx context.Context, cfg *config.Config) ([]*en
 func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
 	listenerFilters := []*envoy_config_listener_v3.ListenerFilter{}
 	if cfg.Options.UseProxyProtocol {
-		proxyCfg := marshalAny(&envoy_extensions_filters_listener_proxy_protocol_v3.ProxyProtocol{})
-		listenerFilters = append(listenerFilters, &envoy_config_listener_v3.ListenerFilter{
-			Name: "envoy.filters.listener.proxy_protocol",
-			ConfigType: &envoy_config_listener_v3.ListenerFilter_TypedConfig{
-				TypedConfig: proxyCfg,
-			},
-		})
+		listenerFilters = append(listenerFilters, ProxyProtocolFilter())
 	}
 
 	if cfg.Options.InsecureServer {
@@ -125,14 +116,7 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 		}}
 		return li, nil
 	}
-
-	tlsInspectorCfg := marshalAny(new(emptypb.Empty))
-	listenerFilters = append(listenerFilters, &envoy_config_listener_v3.ListenerFilter{
-		Name: "envoy.filters.listener.tls_inspector",
-		ConfigType: &envoy_config_listener_v3.ListenerFilter_TypedConfig{
-			TypedConfig: tlsInspectorCfg,
-		},
-	})
+	listenerFilters = append(listenerFilters, TLSInspectorFilter())
 
 	chains, err := b.buildFilterChains(cfg.Options, cfg.Options.Addr,
 		func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error) {
@@ -349,83 +333,17 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		grpcClientTimeout = durationpb.New(30 * time.Second)
 	}
 
-	extAuthZ := marshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthz{
-		StatusOnError: &envoy_type_v3.HttpStatus{
-			Code: envoy_type_v3.StatusCode_InternalServerError,
-		},
-		Services: &envoy_extensions_filters_http_ext_authz_v3.ExtAuthz_GrpcService{
-			GrpcService: &envoy_config_core_v3.GrpcService{
-				Timeout: grpcClientTimeout,
-				TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
-					EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
-						ClusterName: "pomerium-authorize",
-					},
-				},
-			},
-		},
-		IncludePeerCertificate: true,
-		TransportApiVersion:    envoy_config_core_v3.ApiVersion_V3,
-	})
-
-	extAuthzSetCookieLua := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
-		InlineCode: luascripts.ExtAuthzSetCookie,
-	})
-	cleanUpstreamLua := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
-		InlineCode: luascripts.CleanUpstream,
-	})
-	removeImpersonateHeadersLua := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
-		InlineCode: luascripts.RemoveImpersonateHeaders,
-	})
-	rewriteHeadersLua := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
-		InlineCode: luascripts.RewriteHeaders,
-	})
-
 	filters := []*envoy_http_connection_manager.HttpFilter{
-		{
-			Name: "envoy.filters.http.lua",
-			ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
-				TypedConfig: removeImpersonateHeadersLua,
-			},
-		},
-		{
-			Name: "envoy.filters.http.ext_authz",
-			ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
-				TypedConfig: extAuthZ,
-			},
-		},
-		{
-			Name: "envoy.filters.http.lua",
-			ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
-				TypedConfig: extAuthzSetCookieLua,
-			},
-		},
-		{
-			Name: "envoy.filters.http.lua",
-			ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
-				TypedConfig: cleanUpstreamLua,
-			},
-		},
-		{
-			Name: "envoy.filters.http.lua",
-			ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
-				TypedConfig: rewriteHeadersLua,
-			},
-		},
+		LuaFilter(luascripts.RemoveImpersonateHeaders),
+		ExtAuthzFilter(grpcClientTimeout),
+		LuaFilter(luascripts.ExtAuthzSetCookie),
+		LuaFilter(luascripts.CleanUpstream),
+		LuaFilter(luascripts.RewriteHeaders),
 	}
 	if tlsDomain != "" && tlsDomain != "*" {
-		fixMisdirectedLua := marshalAny(&envoy_extensions_filters_http_lua_v3.Lua{
-			InlineCode: fmt.Sprintf(luascripts.FixMisdirected, tlsDomain),
-		})
-		filters = append(filters, &envoy_http_connection_manager.HttpFilter{
-			Name: "envoy.filters.http.lua",
-			ConfigType: &envoy_http_connection_manager.HttpFilter_TypedConfig{
-				TypedConfig: fixMisdirectedLua,
-			},
-		})
+		filters = append(filters, LuaFilter(fmt.Sprintf(luascripts.FixMisdirected, tlsDomain)))
 	}
-	filters = append(filters, &envoy_http_connection_manager.HttpFilter{
-		Name: "envoy.filters.http.router",
-	})
+	filters = append(filters, HTTPRouterFilter())
 
 	var maxStreamDuration *durationpb.Duration
 	if options.WriteTimeout > 0 {
@@ -440,7 +358,8 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	if err != nil {
 		return nil, err
 	}
-	tc := marshalAny(&envoy_http_connection_manager.HttpConnectionManager{
+
+	return HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
 		AlwaysSetRequestIdInResponse: true,
 
 		CodecType:  options.GetCodecType().ToEnvoy(),
@@ -464,14 +383,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		SkipXffAppend:     options.SkipXffAppend,
 		XffNumTrustedHops: options.XffNumTrustedHops,
 		LocalReplyConfig:  b.buildLocalReplyConfig(options),
-	})
-
-	return &envoy_config_listener_v3.Filter{
-		Name: "envoy.filters.network.http_connection_manager",
-		ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{
-			TypedConfig: tc,
-		},
-	}, nil
+	}), nil
 }
 
 func (b *Builder) buildMetricsHTTPConnectionManagerFilter() (*envoy_config_listener_v3.Filter, error) {
@@ -496,23 +408,16 @@ func (b *Builder) buildMetricsHTTPConnectionManagerFilter() (*envoy_config_liste
 		return nil, err
 	}
 
-	tc := marshalAny(&envoy_http_connection_manager.HttpConnectionManager{
+	return HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "metrics",
 		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
 			RouteConfig: rc,
 		},
-		HttpFilters: []*envoy_http_connection_manager.HttpFilter{{
-			Name: "envoy.filters.http.router",
-		}},
-	})
-
-	return &envoy_config_listener_v3.Filter{
-		Name: "envoy.filters.network.http_connection_manager",
-		ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{
-			TypedConfig: tc,
+		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
+			HTTPRouterFilter(),
 		},
-	}, nil
+	}), nil
 }
 
 func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
@@ -558,15 +463,11 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 		return nil, err
 	}
 
-	tlsInspectorCfg := marshalAny(new(emptypb.Empty))
 	li := newEnvoyListener("grpc-ingress")
 	li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 443)
-	li.ListenerFilters = []*envoy_config_listener_v3.ListenerFilter{{
-		Name: "envoy.filters.listener.tls_inspector",
-		ConfigType: &envoy_config_listener_v3.ListenerFilter_TypedConfig{
-			TypedConfig: tlsInspectorCfg,
-		},
-	}}
+	li.ListenerFilters = []*envoy_config_listener_v3.ListenerFilter{
+		TLSInspectorFilter(),
+	}
 	li.FilterChains = chains
 	return li, nil
 }
@@ -601,7 +502,7 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() (*envoy_config_listener
 		return nil, err
 	}
 
-	tc := marshalAny(&envoy_http_connection_manager.HttpConnectionManager{
+	return HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "grpc_ingress",
 		// limit request first byte to last byte time
@@ -611,16 +512,10 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() (*envoy_config_listener
 		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
 			RouteConfig: rc,
 		},
-		HttpFilters: []*envoy_http_connection_manager.HttpFilter{{
-			Name: "envoy.filters.http.router",
-		}},
-	})
-	return &envoy_config_listener_v3.Filter{
-		Name: "envoy.filters.network.http_connection_manager",
-		ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{
-			TypedConfig: tc,
+		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
+			HTTPRouterFilter(),
 		},
-	}, nil
+	}), nil
 }
 
 func (b *Builder) buildRouteConfiguration(name string, virtualHosts []*envoy_config_route_v3.VirtualHost) (*envoy_config_route_v3.RouteConfiguration, error) {

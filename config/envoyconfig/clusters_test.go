@@ -475,7 +475,6 @@ func Test_buildCluster(t *testing.T) {
 								"address": {
 									"socketAddress": {
 										"address": "example.com",
-										"ipv4Compat": true,
 										"portValue": 80
 									}
 								}
@@ -485,7 +484,6 @@ func Test_buildCluster(t *testing.T) {
 								"address": {
 									"socketAddress": {
 										"address": "1.2.3.4",
-										"ipv4Compat": true,
 										"portValue": 80
 									}
 								}
@@ -631,7 +629,6 @@ func Test_buildCluster(t *testing.T) {
 								"address": {
 									"socketAddress": {
 										"address": "example.com",
-										"ipv4Compat": true,
 										"portValue": 443
 									}
 								}
@@ -648,7 +645,6 @@ func Test_buildCluster(t *testing.T) {
 								"address": {
 									"socketAddress": {
 										"address": "example.com",
-										"ipv4Compat": true,
 										"portValue": 443
 									}
 								}
@@ -702,7 +698,6 @@ func Test_buildCluster(t *testing.T) {
 								"address": {
 									"socketAddress": {
 										"address": "127.0.0.1",
-										"ipv4Compat": true,
 										"portValue": 80
 									}
 								}
@@ -712,7 +707,6 @@ func Test_buildCluster(t *testing.T) {
 								"address": {
 									"socketAddress": {
 										"address": "127.0.0.2",
-										"ipv4Compat": true,
 										"portValue": 80
 									}
 								}
@@ -759,7 +753,6 @@ func Test_buildCluster(t *testing.T) {
 								"address": {
 									"socketAddress": {
 										"address": "127.0.0.1",
-										"ipv4Compat": true,
 										"portValue": 8080
 									}
 								}
@@ -770,7 +763,6 @@ func Test_buildCluster(t *testing.T) {
 								"address": {
 									"socketAddress": {
 										"address": "127.0.0.2",
-										"ipv4Compat": true,
 										"portValue": 80
 									}
 								}
@@ -818,7 +810,6 @@ func Test_buildCluster(t *testing.T) {
 								"address": {
 									"socketAddress": {
 										"address": "127.0.0.1",
-										"ipv4Compat": true,
 										"portValue": 80
 									}
 								}
@@ -875,7 +866,6 @@ func Test_buildCluster(t *testing.T) {
 								"address": {
 									"socketAddress": {
 										"address": "example.com",
-										"ipv4Compat": true,
 										"portValue": 80
 									}
 								}
