@@ -7,7 +7,9 @@
 [![LICENSE](https://img.shields.io/github/license/pomerium/pomerium.svg)](https://github.com/pomerium/pomerium/blob/main/LICENSE)
 ![Docker Pulls](https://img.shields.io/docker/pulls/pomerium/pomerium)
 
-Pomerium brokers secure access to web apps at scale. It is an identity and context-aware proxy that enables secure access to internal applications without need for a client. Pomerium provides a standardized interface to add access control to applications regardless of whether the application itself has authorization or authentication baked-in. Pomerium gateways both internal and external requests, and can be used in situations where you'd typically reach for a VPN.
+Pomerium is an identity and context-aware proxy that brokers secure access to apps and services at scale. Pomerium provides a standardized interface to add access control to applications regardless of whether the application itself has authorization or authentication baked-in. 
+
+Pomerium can be used in situations where you'd typically reach for a VPN, but, unlike a VPN, does not require a client and uses identity and context, not network locality to determine access. 
 
 Pomerium can be used to:
 
