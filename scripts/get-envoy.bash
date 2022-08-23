@@ -5,7 +5,7 @@ PATH="$PATH:$(go env GOPATH)/bin"
 export PATH
 
 _project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/.."
-_envoy_version=1.21.3
+_envoy_version=1.23.0
 _dir="$_project_root/pkg/envoy/files"
 _target="${TARGET:-"$(go env GOOS)-$(go env GOARCH)"}"
 

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"strconv"
@@ -127,11 +128,17 @@ func buildAddress(hostport string, defaultPort int) *envoy_config_core_v3.Addres
 			host = "0.0.0.0"
 		}
 	}
+
+	is4in6 := false
+	if addr, err := netip.ParseAddr(host); err == nil {
+		is4in6 = addr.Is4In6()
+	}
+
 	return &envoy_config_core_v3.Address{
 		Address: &envoy_config_core_v3.Address_SocketAddress{SocketAddress: &envoy_config_core_v3.SocketAddress{
 			Address:       host,
 			PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{PortValue: uint32(port)},
-			Ipv4Compat:    true,
+			Ipv4Compat:    host == "::" || is4in6,
 		}},
 	}
 }
