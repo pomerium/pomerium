@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1661269795073,
+  "lastUpdate": 1661282568299,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -7960,6 +7960,38 @@ window.BENCHMARK_DATA = {
             "value": 9600482,
             "unit": "ns/op",
             "extra": "122 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "983e16f877c75ad1db9a6dc42dae1b5b883cb77c",
+          "message": "authenticate: fix branding for webauthn device registration page",
+          "timestamp": "2022-08-23T12:33:52Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3572/commits/983e16f877c75ad1db9a6dc42dae1b5b883cb77c"
+        },
+        "date": 1661282566995,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15131265,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8834644,
+            "unit": "ns/op",
+            "extra": "133 times\n2 procs"
           }
         ]
       }
