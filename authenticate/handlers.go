@@ -744,6 +744,7 @@ func (a *Authenticate) getWebauthnState(ctx context.Context) (*webauthn.State, e
 		SessionState:            ss,
 		SessionStore:            state.sessionStore,
 		RelyingParty:            state.webauthnRelyingParty,
+		BrandingOptions:         a.options.Load().BrandingOptions,
 	}, nil
 }
 

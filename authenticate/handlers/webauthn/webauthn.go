@@ -55,6 +55,7 @@ type State struct {
 	SessionState            *sessions.State
 	SessionStore            sessions.SessionStore
 	SharedKey               []byte
+	BrandingOptions         httputil.BrandingOptions
 }
 
 // A StateProvider provides state for the handler.
@@ -398,11 +399,13 @@ func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *Stat
 		return err
 	}
 
-	return ui.ServePage(w, r, "WebAuthnRegistration", map[string]interface{}{
+	m := map[string]interface{}{
 		"creationOptions": creationOptions,
 		"requestOptions":  requestOptions,
 		"selfUrl":         r.URL.String(),
-	})
+	}
+	httputil.AddBrandingOptionsToMap(m, state.BrandingOptions)
+	return ui.ServePage(w, r, "WebAuthnRegistration", m)
 }
 
 func (h *Handler) saveSessionAndRedirect(w http.ResponseWriter, r *http.Request, state *State, rawRedirectURI string) error {
