@@ -9,6 +9,7 @@ import (
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
 )
@@ -121,6 +122,10 @@ func (b *Builder) buildOutboundRoutes() []*envoy_config_route_v3.Route {
 					Route: &envoy_config_route_v3.RouteAction{
 						ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
 							Cluster: def.Cluster,
+						},
+						// rewrite the host header
+						HostRewriteSpecifier: &envoy_config_route_v3.RouteAction_AutoHostRewrite{
+							AutoHostRewrite: wrapperspb.Bool(true),
 						},
 						// disable the timeout to support grpc streaming
 						Timeout:     durationpb.New(0),
