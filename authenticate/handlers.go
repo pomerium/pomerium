@@ -113,7 +113,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 }
 
 func (a *Authenticate) mountWellKnown(r *mux.Router) {
-	r.Path("/.well-known/pomerium/jwks.json").Handler(httputil.HandlerFunc(a.jwks)).Methods(http.MethodGet)
+	r.Path("/.well-known/pomerium/jwks.json").Handler(cors.AllowAll().Handler(httputil.HandlerFunc(a.jwks))).Methods(http.MethodGet)
 }
 
 // jwks returns the signing key(s) the client can use to validate signatures
