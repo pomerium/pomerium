@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1661451315698,
+  "lastUpdate": 1661465500582,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -8096,6 +8096,42 @@ window.BENCHMARK_DATA = {
             "value": 8370060,
             "unit": "ns/op",
             "extra": "136 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5f51510e91d3282b386d5893ed4168bf793d8c6f",
+          "message": "authenticate: add CORS headers to jwks endpoint (#3574)",
+          "timestamp": "2022-08-25T16:09:11-06:00",
+          "tree_id": "1b1ac61ff1406a751f60115c7b290342598866bb",
+          "url": "https://github.com/pomerium/pomerium/commit/5f51510e91d3282b386d5893ed4168bf793d8c6f"
+        },
+        "date": 1661465500182,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14335371,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8138951,
+            "unit": "ns/op",
+            "extra": "142 times\n2 procs"
           }
         ]
       }
