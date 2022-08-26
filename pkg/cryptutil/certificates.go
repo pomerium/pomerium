@@ -166,7 +166,7 @@ func EncodePrivateKey(key *ecdsa.PrivateKey) ([]byte, error) {
 func GenerateSelfSignedCertificate(domain string, configure ...func(*x509.Certificate)) (*tls.Certificate, error) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil, fmt.Errorf("failed to geneate private key: %w", err)
+		return nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)

@@ -244,7 +244,7 @@ type Options struct {
 	// these requests with this switch
 	ForwardAuthURLString string `mapstructure:"forward_auth_url" yaml:"forward_auth_url,omitempty"`
 
-	// DataBrokerURLString is the routable destination of the databroker service's gRPC endpiont.
+	// DataBrokerURLString is the routable destination of the databroker service's gRPC endpoint.
 	DataBrokerURLString         string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
 	DataBrokerURLStrings        []string `mapstructure:"databroker_service_urls" yaml:"databroker_service_urls,omitempty"`
 	DataBrokerInternalURLString string   `mapstructure:"databroker_internal_service_url" yaml:"databroker_internal_service_url,omitempty"`

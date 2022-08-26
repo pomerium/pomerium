@@ -17,7 +17,7 @@ echo "=> create our random shared-secret and cookie-secret keys as envars"
 kubectl create secret generic shared-secret --from-literal=shared-secret=$(head -c32 /dev/urandom | base64)
 kubectl create secret generic cookie-secret --from-literal=cookie-secret=$(head -c32 /dev/urandom | base64)
 
-echo "=> initiliaze secrets for TLS wild card for service use"
+echo "=> initialize secrets for TLS wild card for service use"
 kubectl create secret generic certificate \
 	--from-literal=certificate=$(base64 -i "$HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer")
 kubectl create secret generic certificate-key \
