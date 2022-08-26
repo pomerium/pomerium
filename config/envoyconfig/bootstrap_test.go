@@ -13,11 +13,9 @@ import (
 func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
 	t.Run("valid", func(t *testing.T) {
-		adminCfg, err := b.BuildBootstrapAdmin(&config.Config{
-			Options: &config.Options{
-				EnvoyAdminAddress: "localhost:9901",
-			},
-		})
+		adminCfg, err := b.BuildBootstrapAdmin(config.New(&config.Options{
+			EnvoyAdminAddress: "localhost:9901",
+		}))
 		assert.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -31,11 +29,9 @@ func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 		`, adminCfg)
 	})
 	t.Run("bad address", func(t *testing.T) {
-		_, err := b.BuildBootstrapAdmin(&config.Config{
-			Options: &config.Options{
-				EnvoyAdminAddress: "xyz1234:zyx4321",
-			},
-		})
+		_, err := b.BuildBootstrapAdmin(config.New(&config.Options{
+			EnvoyAdminAddress: "xyz1234:zyx4321",
+		}))
 		assert.Error(t, err)
 	})
 }
@@ -111,11 +107,9 @@ func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 func TestBuilder_BuildBootstrapStatsConfig(t *testing.T) {
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
 	t.Run("valid", func(t *testing.T) {
-		statsCfg, err := b.BuildBootstrapStatsConfig(&config.Config{
-			Options: &config.Options{
-				Services: "all",
-			},
-		})
+		statsCfg, err := b.BuildBootstrapStatsConfig(config.New(&config.Options{
+			Services: "all",
+		}))
 		assert.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{

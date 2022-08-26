@@ -13,9 +13,13 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-func loadRawSession(req *http.Request, options *config.Options, encoder encoding.MarshalUnmarshaler) ([]byte, error) {
+func loadRawSession(
+	req *http.Request,
+	cfg *config.Config,
+	encoder encoding.MarshalUnmarshaler,
+) ([]byte, error) {
 	var loaders []sessions.SessionLoader
-	cookieStore, err := getCookieStore(options, encoder)
+	cookieStore, err := getCookieStore(cfg, encoder)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +41,10 @@ func loadRawSession(req *http.Request, options *config.Options, encoder encoding
 	return nil, sessions.ErrNoSessionFound
 }
 
-func loadSession(encoder encoding.MarshalUnmarshaler, rawJWT []byte) (*sessions.State, error) {
+func loadSession(
+	encoder encoding.MarshalUnmarshaler,
+	rawJWT []byte,
+) (*sessions.State, error) {
 	var s sessions.State
 	err := encoder.Unmarshal(rawJWT, &s)
 	if err != nil {
@@ -46,14 +53,17 @@ func loadSession(encoder encoding.MarshalUnmarshaler, rawJWT []byte) (*sessions.
 	return &s, nil
 }
 
-func getCookieStore(options *config.Options, encoder encoding.MarshalUnmarshaler) (sessions.SessionStore, error) {
+func getCookieStore(
+	cfg *config.Config,
+	encoder encoding.MarshalUnmarshaler,
+) (sessions.SessionStore, error) {
 	cookieStore, err := cookie.NewStore(func() cookie.Options {
 		return cookie.Options{
-			Name:     options.CookieName,
-			Domain:   options.CookieDomain,
-			Secure:   options.CookieSecure,
-			HTTPOnly: options.CookieHTTPOnly,
-			Expire:   options.CookieExpire,
+			Name:     cfg.Options.CookieName,
+			Domain:   cfg.Options.CookieDomain,
+			Secure:   cfg.Options.CookieSecure,
+			HTTPOnly: cfg.Options.CookieHTTPOnly,
+			Expire:   cfg.Options.CookieExpire,
 		}
 	}, encoder)
 	if err != nil {

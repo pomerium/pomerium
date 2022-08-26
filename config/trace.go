@@ -18,28 +18,28 @@ import (
 type TracingOptions = trace.TracingOptions
 
 // NewTracingOptions builds a new TracingOptions from core Options
-func NewTracingOptions(o *Options) (*TracingOptions, error) {
+func NewTracingOptions(cfg *Config) (*TracingOptions, error) {
 	tracingOpts := TracingOptions{
-		Provider:            o.TracingProvider,
-		Service:             telemetry.ServiceName(o.Services),
-		JaegerAgentEndpoint: o.TracingJaegerAgentEndpoint,
-		SampleRate:          o.TracingSampleRate,
+		Provider:            cfg.Options.TracingProvider,
+		Service:             telemetry.ServiceName(cfg.Options.Services),
+		JaegerAgentEndpoint: cfg.Options.TracingJaegerAgentEndpoint,
+		SampleRate:          cfg.Options.TracingSampleRate,
 	}
 
-	switch o.TracingProvider {
+	switch cfg.Options.TracingProvider {
 	case trace.DatadogTracingProviderName:
-		tracingOpts.DatadogAddress = o.TracingDatadogAddress
+		tracingOpts.DatadogAddress = cfg.Options.TracingDatadogAddress
 	case trace.JaegerTracingProviderName:
-		if o.TracingJaegerCollectorEndpoint != "" {
-			jaegerCollectorEndpoint, err := urlutil.ParseAndValidateURL(o.TracingJaegerCollectorEndpoint)
+		if cfg.Options.TracingJaegerCollectorEndpoint != "" {
+			jaegerCollectorEndpoint, err := urlutil.ParseAndValidateURL(cfg.Options.TracingJaegerCollectorEndpoint)
 			if err != nil {
 				return nil, fmt.Errorf("config: invalid jaeger endpoint url: %w", err)
 			}
 			tracingOpts.JaegerCollectorEndpoint = jaegerCollectorEndpoint
-			tracingOpts.JaegerAgentEndpoint = o.TracingJaegerAgentEndpoint
+			tracingOpts.JaegerAgentEndpoint = cfg.Options.TracingJaegerAgentEndpoint
 		}
 	case trace.ZipkinTracingProviderName:
-		zipkinEndpoint, err := urlutil.ParseAndValidateURL(o.ZipkinEndpoint)
+		zipkinEndpoint, err := urlutil.ParseAndValidateURL(cfg.Options.ZipkinEndpoint)
 		if err != nil {
 			return nil, fmt.Errorf("config: invalid zipkin endpoint url: %w", err)
 		}
@@ -47,7 +47,7 @@ func NewTracingOptions(o *Options) (*TracingOptions, error) {
 	case "":
 		return &TracingOptions{}, nil
 	default:
-		return nil, fmt.Errorf("config: provider %s unknown", o.TracingProvider)
+		return nil, fmt.Errorf("config: provider %s unknown", cfg.Options.TracingProvider)
 	}
 
 	return &tracingOpts, nil
@@ -88,7 +88,7 @@ func (mgr *TraceManager) OnConfigChange(ctx context.Context, cfg *Config) {
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 
-	traceOpts, err := NewTracingOptions(cfg.Options)
+	traceOpts, err := NewTracingOptions(cfg)
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("trace: failed to build tracing options")
 		return

@@ -113,7 +113,7 @@ func TestNew(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := New(&config.Config{Options: tt.opts})
+			_, err := New(config.New(tt.opts))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return

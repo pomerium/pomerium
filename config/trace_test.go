@@ -68,7 +68,7 @@ func Test_NewTracingOptions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewTracingOptions(tt.opts)
+			got, err := NewTracingOptions(&Config{Options: tt.opts})
 			assert.NotEqual(t, err == nil, tt.wantErr, "unexpected error value")
 			assert.Empty(t, cmp.Diff(tt.want, got))
 		})

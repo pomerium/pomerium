@@ -36,7 +36,7 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*autho
 
 	var err error
 
-	state.evaluator, err = newPolicyEvaluator(cfg.Options, store)
+	state.evaluator, err = newPolicyEvaluator(cfg, store)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: failed to update policy with options: %w", err)
 	}

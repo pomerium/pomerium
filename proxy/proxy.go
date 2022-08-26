@@ -51,9 +51,9 @@ func ValidateOptions(o *config.Options) error {
 
 // Proxy stores all the information associated with proxying a request.
 type Proxy struct {
-	state          *atomicutil.Value[*proxyState]
-	currentOptions *atomicutil.Value[*config.Options]
-	currentRouter  *atomicutil.Value[*mux.Router]
+	state         *atomicutil.Value[*proxyState]
+	currentConfig *atomicutil.Value[*config.Config]
+	currentRouter *atomicutil.Value[*mux.Router]
 }
 
 // New takes a Proxy service from options and a validation function.
@@ -65,13 +65,13 @@ func New(cfg *config.Config) (*Proxy, error) {
 	}
 
 	p := &Proxy{
-		state:          atomicutil.NewValue(state),
-		currentOptions: config.NewAtomicOptions(),
-		currentRouter:  atomicutil.NewValue(httputil.NewRouter()),
+		state:         atomicutil.NewValue(state),
+		currentConfig: atomicutil.NewValue(cfg),
+		currentRouter: atomicutil.NewValue(httputil.NewRouter()),
 	}
 
 	metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
-		return int64(len(p.currentOptions.Load().GetAllPolicies()))
+		return int64(len(p.currentConfig.Load().Options.GetAllPolicies()))
 	})
 
 	return p, nil
@@ -88,8 +88,8 @@ func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		return
 	}
 
-	p.currentOptions.Store(cfg.Options)
-	if err := p.setHandlers(cfg.Options); err != nil {
+	p.currentConfig.Store(cfg)
+	if err := p.setHandlers(cfg); err != nil {
 		log.Error(context.TODO()).Err(err).Msg("proxy: failed to update proxy handlers from configuration settings")
 	}
 	if state, err := newProxyStateFromConfig(cfg); err != nil {
@@ -99,8 +99,8 @@ func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	}
 }
 
-func (p *Proxy) setHandlers(opts *config.Options) error {
-	if len(opts.GetAllPolicies()) == 0 {
+func (p *Proxy) setHandlers(cfg *config.Config) error {
+	if len(cfg.Options.GetAllPolicies()) == 0 {
 		log.Warn(context.TODO()).Msg("proxy: configuration has no policies")
 	}
 	r := httputil.NewRouter()
@@ -113,7 +113,7 @@ func (p *Proxy) setHandlers(opts *config.Options) error {
 	// dashboard handlers are registered to all routes
 	r = p.registerDashboardHandlers(r)
 
-	forwardAuthURL, err := opts.GetForwardAuthURL()
+	forwardAuthURL, err := cfg.Options.GetForwardAuthURL()
 	if err != nil {
 		return err
 	}

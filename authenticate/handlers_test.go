@@ -49,10 +49,9 @@ func testAuthenticate() *Authenticate {
 		redirectURL:  redirectURL,
 		cookieSecret: cryptutil.NewKey(),
 	})
-	auth.options = config.NewAtomicOptions()
-	auth.options.Store(&config.Options{
+	auth.currentConfig = atomicutil.NewValue(config.New(&config.Options{
 		SharedKey: cryptutil.NewBase64Key(),
-	})
+	}))
 	return &auth
 }
 
@@ -148,7 +147,7 @@ func TestAuthenticate_SignIn(t *testing.T) {
 			sharedCipher, _ := cryptutil.NewAEADCipherFromBase64(cryptutil.NewBase64Key())
 
 			a := &Authenticate{
-				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
+				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(cfg *config.Config, idpID string) (identity.Authenticator, error) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{
@@ -168,10 +167,10 @@ func TestAuthenticate_SignIn(t *testing.T) {
 					},
 					directoryClient: new(mockDirectoryServiceClient),
 				}),
-
-				options: config.NewAtomicOptions(),
+				currentConfig: atomicutil.NewValue(config.New(&config.Options{
+					SharedKey: base64.StdEncoding.EncodeToString(cryptutil.NewKey()),
+				})),
 			}
-			a.options.Store(&config.Options{SharedKey: base64.StdEncoding.EncodeToString(cryptutil.NewKey())})
 			uri := &url.URL{Scheme: tt.scheme, Host: tt.host}
 
 			queryString := uri.Query()
@@ -304,7 +303,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			a := &Authenticate{
-				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
+				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(cfg *config.Config, idpID string) (identity.Authenticator, error) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{
@@ -325,12 +324,9 @@ func TestAuthenticate_SignOut(t *testing.T) {
 					},
 					directoryClient: new(mockDirectoryServiceClient),
 				}),
-				options: config.NewAtomicOptions(),
-			}
-			if tt.signoutRedirectURL != "" {
-				opts := a.options.Load()
-				opts.SignOutRedirectURLString = tt.signoutRedirectURL
-				a.options.Store(opts)
+				currentConfig: atomicutil.NewValue(config.New(&config.Options{
+					SignOutRedirectURLString: tt.signoutRedirectURL,
+				})),
 			}
 			u, _ := url.Parse("/sign_out")
 			params, _ := url.ParseQuery(u.RawQuery)
@@ -417,7 +413,7 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			}
 			authURL, _ := url.Parse(tt.authenticateURL)
 			a := &Authenticate{
-				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
+				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(cfg *config.Config, idpID string) (identity.Authenticator, error) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{
@@ -435,7 +431,7 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 					cookieCipher:     aead,
 					encryptedEncoder: signer,
 				}),
-				options: config.NewAtomicOptions(),
+				currentConfig: atomicutil.NewValue(config.New(nil)),
 			}
 			u, _ := url.Parse("/oauthGet")
 			params, _ := url.ParseQuery(u.RawQuery)
@@ -552,7 +548,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 				t.Fatal(err)
 			}
 			a := &Authenticate{
-				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
+				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(cfg *config.Config, idpID string) (identity.Authenticator, error) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{
@@ -573,7 +569,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 					},
 					directoryClient: new(mockDirectoryServiceClient),
 				}),
-				options: config.NewAtomicOptions(),
+				currentConfig: atomicutil.NewValue(config.New(nil)),
 			}
 			r := httptest.NewRequest("GET", "/", nil)
 			state, err := tt.session.LoadSession(r)
@@ -604,7 +600,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 func TestJwksEndpoint(t *testing.T) {
 	o := newTestOptions(t)
 	o.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUpCMFZkbko1VjEvbVlpYUlIWHhnd2Q0Yzd5YWRTeXMxb3Y0bzA1b0F3ekdvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFVUc1eENQMEpUVDFINklvbDhqS3VUSVBWTE0wNENnVzlQbEV5cE5SbVdsb29LRVhSOUhUMwpPYnp6aktZaWN6YjArMUt3VjJmTVRFMTh1dy82MXJVQ0JBPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
-	auth, err := New(&config.Config{Options: o})
+	auth, err := New(config.New(o))
 	if err != nil {
 		t.Fatal(err)
 		return
@@ -632,12 +628,11 @@ func TestAuthenticate_userInfo(t *testing.T) {
 		a.state = atomicutil.NewValue(&authenticateState{
 			cookieSecret: cryptutil.NewKey(),
 		})
-		a.options = config.NewAtomicOptions()
-		a.options.Store(&config.Options{
+		a.currentConfig = atomicutil.NewValue(config.New(&config.Options{
 			SharedKey:                     cryptutil.NewBase64Key(),
 			AuthenticateURLString:         "https://authenticate.example.com",
 			AuthenticateInternalURLString: "https://authenticate.service.cluster.local",
-		})
+		}))
 		err := a.userInfo(w, r)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusFound, w.Code)
@@ -687,13 +682,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			o := config.NewAtomicOptions()
-			o.Store(&config.Options{
-				AuthenticateURLString: "https://authenticate.localhost.pomerium.io",
-				SharedKey:             "SHARED KEY",
-			})
 			a := &Authenticate{
-				options: o,
 				state: atomicutil.NewValue(&authenticateState{
 					sessionStore:     tt.sessionStore,
 					encryptedEncoder: signer,
@@ -711,6 +700,10 @@ func TestAuthenticate_userInfo(t *testing.T) {
 					},
 					directoryClient: new(mockDirectoryServiceClient),
 				}),
+				currentConfig: atomicutil.NewValue(config.New(&config.Options{
+					AuthenticateURLString: "https://authenticate.localhost.pomerium.io",
+					SharedKey:             "SHARED KEY",
+				})),
 			}
 			a.webauthn = webauthn.New(a.getWebauthnState)
 			r := httptest.NewRequest(tt.method, tt.url.String(), nil)

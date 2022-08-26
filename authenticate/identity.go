@@ -7,8 +7,8 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-func defaultGetIdentityProvider(options *config.Options, idpID string) (identity.Authenticator, error) {
-	authenticateURL, err := options.GetAuthenticateURL()
+func defaultGetIdentityProvider(cfg *config.Config, idpID string) (identity.Authenticator, error) {
+	authenticateURL, err := cfg.Options.GetAuthenticateURL()
 	if err != nil {
 		return nil, err
 	}
@@ -17,9 +17,9 @@ func defaultGetIdentityProvider(options *config.Options, idpID string) (identity
 	if err != nil {
 		return nil, err
 	}
-	redirectURL.Path = options.AuthenticateCallbackPath
+	redirectURL.Path = cfg.Options.AuthenticateCallbackPath
 
-	idp, err := options.GetIdentityProviderForID(idpID)
+	idp, err := cfg.Options.GetIdentityProviderForID(idpID)
 	if err != nil {
 		return nil, err
 	}

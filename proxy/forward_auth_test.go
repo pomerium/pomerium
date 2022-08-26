@@ -80,11 +80,11 @@ func TestProxy_ForwardAuth(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(&config.Config{Options: tt.options})
+			p, err := New(config.New(tt.options))
 			if err != nil {
 				t.Fatal(err)
 			}
-			p.OnConfigChange(ctx, &config.Config{Options: tt.options})
+			p.OnConfigChange(ctx, config.New(tt.options))
 			state := p.state.Load()
 			state.sessionStore = tt.sessionStore
 			signer, err := jws.NewHS256Signer(nil)

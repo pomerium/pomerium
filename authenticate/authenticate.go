@@ -39,18 +39,18 @@ func ValidateOptions(o *config.Options) error {
 
 // Authenticate contains data required to run the authenticate service.
 type Authenticate struct {
-	cfg      *authenticateConfig
-	options  *atomicutil.Value[*config.Options]
-	state    *atomicutil.Value[*authenticateState]
-	webauthn *webauthn.Handler
+	cfg           *authenticateConfig
+	currentConfig *atomicutil.Value[*config.Config]
+	state         *atomicutil.Value[*authenticateState]
+	webauthn      *webauthn.Handler
 }
 
 // New validates and creates a new authenticate service from a set of Options.
 func New(cfg *config.Config, options ...Option) (*Authenticate, error) {
 	a := &Authenticate{
-		cfg:     getAuthenticateConfig(options...),
-		options: config.NewAtomicOptions(),
-		state:   atomicutil.NewValue(newAuthenticateState()),
+		cfg:           getAuthenticateConfig(options...),
+		currentConfig: atomicutil.NewValue(cfg),
+		state:         atomicutil.NewValue(newAuthenticateState()),
 	}
 	a.webauthn = webauthn.New(a.getWebauthnState)
 
@@ -69,7 +69,7 @@ func (a *Authenticate) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		return
 	}
 
-	a.options.Store(cfg.Options)
+	a.currentConfig.Store(cfg)
 	if state, err := newAuthenticateStateFromConfig(cfg); err != nil {
 		log.Error(ctx).Err(err).Msg("authenticate: failed to update state")
 	} else {

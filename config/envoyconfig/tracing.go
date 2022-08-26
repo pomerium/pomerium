@@ -14,8 +14,10 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
-func buildTracingCluster(options *config.Options) (*envoy_config_cluster_v3.Cluster, error) {
-	tracingOptions, err := config.NewTracingOptions(options)
+func buildTracingCluster(
+	cfg *config.Config,
+) (*envoy_config_cluster_v3.Cluster, error) {
+	tracingOptions, err := config.NewTracingOptions(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("envoyconfig: invalid tracing config: %w", err)
 	}
@@ -24,8 +26,8 @@ func buildTracingCluster(options *config.Options) (*envoy_config_cluster_v3.Clus
 	case trace.DatadogTracingProviderName:
 		addr, _ := parseAddress("127.0.0.1:8126")
 
-		if options.TracingDatadogAddress != "" {
-			addr, err = parseAddress(options.TracingDatadogAddress)
+		if cfg.Options.TracingDatadogAddress != "" {
+			addr, err = parseAddress(cfg.Options.TracingDatadogAddress)
 			if err != nil {
 				return nil, fmt.Errorf("envoyconfig: invalid tracing datadog address: %w", err)
 			}
@@ -94,8 +96,10 @@ func buildTracingCluster(options *config.Options) (*envoy_config_cluster_v3.Clus
 	}
 }
 
-func buildTracingHTTP(options *config.Options) (*envoy_config_trace_v3.Tracing_Http, error) {
-	tracingOptions, err := config.NewTracingOptions(options)
+func buildTracingHTTP(
+	cfg *config.Config,
+) (*envoy_config_trace_v3.Tracing_Http, error) {
+	tracingOptions, err := config.NewTracingOptions(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("invalid tracing config: %w", err)
 	}

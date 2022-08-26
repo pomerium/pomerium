@@ -84,7 +84,8 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			AuthenticateCallbackPath: "/oauth2/callback",
 			ForwardAuthURLString:     "https://forward-auth.example.com",
 		}
-		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
+		cfg := config.New(options)
+		routes, err := b.buildPomeriumHTTPRoutes(cfg, "authenticate.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
@@ -106,7 +107,8 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
 		}
-		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
+		cfg := config.New(options)
+		routes, err := b.buildPomeriumHTTPRoutes(cfg, "authenticate.example.com")
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, "null", routes)
 	})
@@ -122,8 +124,9 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 				To:   mustParseWeightedURLs(t, "https://to.example.com"),
 			}},
 		}
+		cfg := config.New(options)
 		_ = options.Policies[0].Validate()
-		routes, err := b.buildPomeriumHTTPRoutes(options, "from.example.com")
+		routes, err := b.buildPomeriumHTTPRoutes(cfg, "from.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
@@ -150,8 +153,9 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 				AllowPublicUnauthenticatedAccess: true,
 			}},
 		}
+		cfg := config.New(options)
 		_ = options.Policies[0].Validate()
-		routes, err := b.buildPomeriumHTTPRoutes(options, "from.example.com")
+		routes, err := b.buildPomeriumHTTPRoutes(cfg, "from.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
@@ -242,7 +246,7 @@ func TestTimeouts(t *testing.T) {
 
 	for _, tc := range testCases {
 		b := &Builder{filemgr: filemgr.NewManager()}
-		routes, err := b.buildPolicyRoutes(&config.Options{
+		routes, err := b.buildPolicyRoutes(config.New(&config.Options{
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
 			Policies: []config.Policy{
@@ -253,7 +257,7 @@ func TestTimeouts(t *testing.T) {
 					IdleTimeout:     getDuration(tc.idle),
 					AllowWebsockets: tc.allowWebsockets,
 				}},
-		}, "example.com")
+		}), "example.com")
 		if !assert.NoError(t, err, "%v", tc) || !assert.Len(t, routes, 1, tc) || !assert.NotNil(t, routes[0].GetRoute(), "%v", tc) {
 			continue
 		}
@@ -295,7 +299,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	ten := time.Second * 10
 
 	b := &Builder{filemgr: filemgr.NewManager()}
-	routes, err := b.buildPolicyRoutes(&config.Options{
+	routes, err := b.buildPolicyRoutes(config.New(&config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
 		Policies: []config.Policy{
@@ -357,7 +361,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				UpstreamTimeout:     &ten,
 			},
 		},
-	}, "example.com")
+	}), "example.com")
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, `
@@ -724,7 +728,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	`, routes)
 
 	t.Run("fronting-authenticate", func(t *testing.T) {
-		routes, err := b.buildPolicyRoutes(&config.Options{
+		routes, err := b.buildPolicyRoutes(config.New(&config.Options{
 			AuthenticateURLString:  "https://authenticate.example.com",
 			Services:               "proxy",
 			CookieName:             "pomerium",
@@ -735,7 +739,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					PassIdentityHeaders: true,
 				},
 			},
-		}, "authenticate.example.com")
+		}), "authenticate.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -791,7 +795,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	})
 
 	t.Run("tcp", func(t *testing.T) {
-		routes, err := b.buildPolicyRoutes(&config.Options{
+		routes, err := b.buildPolicyRoutes(config.New(&config.Options{
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
 			Policies: []config.Policy{
@@ -805,7 +809,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					UpstreamTimeout:     &ten,
 				},
 			},
-		}, "example.com:22")
+		}), "example.com:22")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -905,7 +909,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	})
 
 	t.Run("remove-pomerium-headers", func(t *testing.T) {
-		routes, err := b.buildPolicyRoutes(&config.Options{
+		routes, err := b.buildPolicyRoutes(config.New(&config.Options{
 			AuthenticateURLString:  "https://authenticate.example.com",
 			Services:               "proxy",
 			CookieName:             "pomerium",
@@ -918,7 +922,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					Source: &config.StringURL{URL: mustParseURL(t, "https://from.example.com")},
 				},
 			},
-		}, "from.example.com")
+		}), "from.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -980,7 +984,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 	}(getClusterID)
 	getClusterID = policyNameFunc()
 	b := &Builder{filemgr: filemgr.NewManager()}
-	routes, err := b.buildPolicyRoutes(&config.Options{
+	routes, err := b.buildPolicyRoutes(config.New(&config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
 		Policies: []config.Policy{
@@ -1022,7 +1026,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				HostPathRegexRewriteSubstitution: "\\1",
 			},
 		},
-	}, "example.com")
+	}), "example.com")
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, `

@@ -53,7 +53,10 @@ func init() {
 }
 
 // BuildListeners builds envoy listeners from the given config.
-func (b *Builder) BuildListeners(ctx context.Context, cfg *config.Config) ([]*envoy_config_listener_v3.Listener, error) {
+func (b *Builder) BuildListeners(
+	ctx context.Context,
+	cfg *config.Config,
+) ([]*envoy_config_listener_v3.Listener, error) {
 	var listeners []*envoy_config_listener_v3.Listener
 
 	if config.IsAuthenticate(cfg.Options.Services) || config.IsProxy(cfg.Options.Services) {
@@ -89,19 +92,22 @@ func (b *Builder) BuildListeners(ctx context.Context, cfg *config.Config) ([]*en
 	return listeners, nil
 }
 
-func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+func (b *Builder) buildMainListener(
+	ctx context.Context,
+	cfg *config.Config,
+) (*envoy_config_listener_v3.Listener, error) {
 	listenerFilters := []*envoy_config_listener_v3.ListenerFilter{}
 	if cfg.Options.UseProxyProtocol {
 		listenerFilters = append(listenerFilters, ProxyProtocolFilter())
 	}
 
 	if cfg.Options.InsecureServer {
-		allDomains, err := getAllRouteableDomains(cfg.Options, cfg.Options.Addr)
+		allDomains, err := getAllRouteableDomains(cfg, cfg.Options.Addr)
 		if err != nil {
 			return nil, err
 		}
 
-		filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, allDomains, "")
+		filter, err := b.buildMainHTTPConnectionManagerFilter(cfg, allDomains, "")
 		if err != nil {
 			return nil, err
 		}
@@ -118,9 +124,9 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 	}
 	listenerFilters = append(listenerFilters, TLSInspectorFilter())
 
-	chains, err := b.buildFilterChains(cfg.Options, cfg.Options.Addr,
+	chains, err := b.buildFilterChains(cfg, cfg.Options.Addr,
 		func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error) {
-			filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, httpDomains, tlsDomain)
+			filter, err := b.buildMainHTTPConnectionManagerFilter(cfg, httpDomains, tlsDomain)
 			if err != nil {
 				return nil, err
 			}
@@ -155,7 +161,9 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 	return li, nil
 }
 
-func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+func (b *Builder) buildMetricsListener(
+	cfg *config.Config,
+) (*envoy_config_listener_v3.Listener, error) {
 	filter, err := b.buildMetricsHTTPConnectionManagerFilter()
 	if err != nil {
 		return nil, err
@@ -235,22 +243,23 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 }
 
 func (b *Builder) buildFilterChains(
-	options *config.Options, addr string,
+	cfg *config.Config,
+	addr string,
 	callback func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error),
 ) ([]*envoy_config_listener_v3.FilterChain, error) {
-	allDomains, err := getAllRouteableDomains(options, addr)
+	allDomains, err := getAllRouteableDomains(cfg, addr)
 	if err != nil {
 		return nil, err
 	}
 
-	tlsDomains, err := getAllTLSDomains(options, addr)
+	tlsDomains, err := getAllTLSDomains(cfg, addr)
 	if err != nil {
 		return nil, err
 	}
 
 	var chains []*envoy_config_listener_v3.FilterChain
 	for _, domain := range tlsDomains {
-		routeableDomains, err := getRouteableDomainsForTLSServerName(options, addr, domain)
+		routeableDomains, err := getRouteableDomainsForTLSServerName(cfg, addr, domain)
 		if err != nil {
 			return nil, err
 		}
@@ -273,31 +282,31 @@ func (b *Builder) buildFilterChains(
 }
 
 func (b *Builder) buildMainHTTPConnectionManagerFilter(
-	options *config.Options,
+	cfg *config.Config,
 	domains []string,
 	tlsDomain string,
 ) (*envoy_config_listener_v3.Filter, error) {
-	authorizeURLs, err := options.GetInternalAuthorizeURLs()
+	authorizeURLs, err := cfg.Options.GetInternalAuthorizeURLs()
 	if err != nil {
 		return nil, err
 	}
 
-	dataBrokerURLs, err := options.GetInternalDataBrokerURLs()
+	dataBrokerURLs, err := cfg.Options.GetInternalDataBrokerURLs()
 	if err != nil {
 		return nil, err
 	}
 
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
 	for _, domain := range domains {
-		vh, err := b.buildVirtualHost(options, domain, domain)
+		vh, err := b.buildVirtualHost(cfg, domain, domain)
 		if err != nil {
 			return nil, err
 		}
 
-		if options.Addr == options.GetGRPCAddr() {
+		if cfg.Options.Addr == cfg.Options.GetGRPCAddr() {
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
-			if (config.IsAuthorize(options.Services) && hostsMatchDomain(authorizeURLs, domain)) ||
-				(config.IsDataBroker(options.Services) && hostsMatchDomain(dataBrokerURLs, domain)) {
+			if (config.IsAuthorize(cfg.Options.Services) && hostsMatchDomain(authorizeURLs, domain)) ||
+				(config.IsDataBroker(cfg.Options.Services) && hostsMatchDomain(dataBrokerURLs, domain)) {
 				rs, err := b.buildGRPCRoutes()
 				if err != nil {
 					return nil, err
@@ -307,8 +316,8 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		}
 
 		// if we're the proxy, add all the policy routes
-		if config.IsProxy(options.Services) {
-			rs, err := b.buildPolicyRoutes(options, domain)
+		if config.IsProxy(cfg.Options.Services) {
+			rs, err := b.buildPolicyRoutes(cfg, domain)
 			if err != nil {
 				return nil, err
 			}
@@ -320,15 +329,15 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		}
 	}
 
-	vh, err := b.buildVirtualHost(options, "catch-all", "*")
+	vh, err := b.buildVirtualHost(cfg, "catch-all", "*")
 	if err != nil {
 		return nil, err
 	}
 	virtualHosts = append(virtualHosts, vh)
 
 	var grpcClientTimeout *durationpb.Duration
-	if options.GRPCClientTimeout != 0 {
-		grpcClientTimeout = durationpb.New(options.GRPCClientTimeout)
+	if cfg.Options.GRPCClientTimeout != 0 {
+		grpcClientTimeout = durationpb.New(cfg.Options.GRPCClientTimeout)
 	} else {
 		grpcClientTimeout = durationpb.New(30 * time.Second)
 	}
@@ -346,15 +355,15 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	filters = append(filters, HTTPRouterFilter())
 
 	var maxStreamDuration *durationpb.Duration
-	if options.WriteTimeout > 0 {
-		maxStreamDuration = durationpb.New(options.WriteTimeout)
+	if cfg.Options.WriteTimeout > 0 {
+		maxStreamDuration = durationpb.New(cfg.Options.WriteTimeout)
 	}
 
 	rc, err := b.buildRouteConfiguration("main", virtualHosts)
 	if err != nil {
 		return nil, err
 	}
-	tracingProvider, err := buildTracingHTTP(options)
+	tracingProvider, err := buildTracingHTTP(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -362,27 +371,27 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	return HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
 		AlwaysSetRequestIdInResponse: true,
 
-		CodecType:  options.GetCodecType().ToEnvoy(),
+		CodecType:  cfg.Options.GetCodecType().ToEnvoy(),
 		StatPrefix: "ingress",
 		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
 			RouteConfig: rc,
 		},
 		HttpFilters: filters,
-		AccessLog:   buildAccessLogs(options),
+		AccessLog:   buildAccessLogs(cfg),
 		CommonHttpProtocolOptions: &envoy_config_core_v3.HttpProtocolOptions{
-			IdleTimeout:       durationpb.New(options.IdleTimeout),
+			IdleTimeout:       durationpb.New(cfg.Options.IdleTimeout),
 			MaxStreamDuration: maxStreamDuration,
 		},
-		RequestTimeout: durationpb.New(options.ReadTimeout),
+		RequestTimeout: durationpb.New(cfg.Options.ReadTimeout),
 		Tracing: &envoy_http_connection_manager.HttpConnectionManager_Tracing{
-			RandomSampling: &envoy_type_v3.Percent{Value: options.TracingSampleRate * 100},
+			RandomSampling: &envoy_type_v3.Percent{Value: cfg.Options.TracingSampleRate * 100},
 			Provider:       tracingProvider,
 		},
 		// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-for
 		UseRemoteAddress:  &wrappers.BoolValue{Value: true},
-		SkipXffAppend:     options.SkipXffAppend,
-		XffNumTrustedHops: options.XffNumTrustedHops,
-		LocalReplyConfig:  b.buildLocalReplyConfig(options),
+		SkipXffAppend:     cfg.Options.SkipXffAppend,
+		XffNumTrustedHops: cfg.Options.XffNumTrustedHops,
+		LocalReplyConfig:  b.buildLocalReplyConfig(cfg),
 	}), nil
 }
 
@@ -420,7 +429,10 @@ func (b *Builder) buildMetricsHTTPConnectionManagerFilter() (*envoy_config_liste
 	}), nil
 }
 
-func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+func (b *Builder) buildGRPCListener(
+	ctx context.Context,
+	cfg *config.Config,
+) (*envoy_config_listener_v3.Listener, error) {
 	filter, err := b.buildGRPCHTTPConnectionManagerFilter()
 	if err != nil {
 		return nil, err
@@ -437,7 +449,7 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 		return li, nil
 	}
 
-	chains, err := b.buildFilterChains(cfg.Options, cfg.Options.GRPCAddr,
+	chains, err := b.buildFilterChains(cfg, cfg.Options.GRPCAddr,
 		func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error) {
 			filterChain := &envoy_config_listener_v3.FilterChain{
 				Filters: []*envoy_config_listener_v3.Filter{filter},
@@ -518,7 +530,10 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() (*envoy_config_listener
 	}), nil
 }
 
-func (b *Builder) buildRouteConfiguration(name string, virtualHosts []*envoy_config_route_v3.VirtualHost) (*envoy_config_route_v3.RouteConfiguration, error) {
+func (b *Builder) buildRouteConfiguration(
+	name string,
+	virtualHosts []*envoy_config_route_v3.VirtualHost,
+) (*envoy_config_route_v3.RouteConfiguration, error) {
 	return &envoy_config_route_v3.RouteConfiguration{
 		Name:         name,
 		VirtualHosts: virtualHosts,
@@ -527,7 +542,8 @@ func (b *Builder) buildRouteConfiguration(name string, virtualHosts []*envoy_con
 	}, nil
 }
 
-func (b *Builder) buildDownstreamTLSContext(ctx context.Context,
+func (b *Builder) buildDownstreamTLSContext(
+	ctx context.Context,
 	cfg *config.Config,
 	domain string,
 ) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
@@ -570,7 +586,8 @@ func (b *Builder) buildDownstreamTLSContext(ctx context.Context,
 	}
 }
 
-func (b *Builder) buildDownstreamValidationContext(ctx context.Context,
+func (b *Builder) buildDownstreamValidationContext(
+	ctx context.Context,
 	cfg *config.Config,
 	domain string,
 ) *envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext {
@@ -580,7 +597,7 @@ func (b *Builder) buildDownstreamValidationContext(ctx context.Context,
 		needsClientCert = true
 	}
 	if !needsClientCert {
-		for _, p := range getPoliciesForDomain(cfg.Options, domain) {
+		for _, p := range getPoliciesForDomain(cfg, domain) {
 			if p.TLSDownstreamClientCA != "" {
 				needsClientCert = true
 				break
@@ -613,19 +630,23 @@ func (b *Builder) buildDownstreamValidationContext(ctx context.Context,
 	return vc
 }
 
-func getRouteableDomainsForTLSServerName(options *config.Options, addr string, tlsServerName string) ([]string, error) {
+func getRouteableDomainsForTLSServerName(
+	cfg *config.Config,
+	addr string,
+	tlsServerName string,
+) ([]string, error) {
 	allDomains := sets.NewSorted[string]()
 
-	if addr == options.Addr {
-		domains, err := options.GetAllRouteableHTTPDomainsForTLSServerName(tlsServerName)
+	if addr == cfg.Options.Addr {
+		domains, err := cfg.Options.GetAllRouteableHTTPDomainsForTLSServerName(tlsServerName)
 		if err != nil {
 			return nil, err
 		}
 		allDomains.Add(domains...)
 	}
 
-	if addr == options.GetGRPCAddr() {
-		domains, err := options.GetAllRouteableGRPCDomainsForTLSServerName(tlsServerName)
+	if addr == cfg.Options.GetGRPCAddr() {
+		domains, err := cfg.Options.GetAllRouteableGRPCDomainsForTLSServerName(tlsServerName)
 		if err != nil {
 			return nil, err
 		}
@@ -635,19 +656,22 @@ func getRouteableDomainsForTLSServerName(options *config.Options, addr string, t
 	return allDomains.ToSlice(), nil
 }
 
-func getAllRouteableDomains(options *config.Options, addr string) ([]string, error) {
+func getAllRouteableDomains(
+	cfg *config.Config,
+	addr string,
+) ([]string, error) {
 	allDomains := sets.NewSorted[string]()
 
-	if addr == options.Addr {
-		domains, err := options.GetAllRouteableHTTPDomains()
+	if addr == cfg.Options.Addr {
+		domains, err := cfg.Options.GetAllRouteableHTTPDomains()
 		if err != nil {
 			return nil, err
 		}
 		allDomains.Add(domains...)
 	}
 
-	if addr == options.GetGRPCAddr() {
-		domains, err := options.GetAllRouteableGRPCDomains()
+	if addr == cfg.Options.GetGRPCAddr() {
+		domains, err := cfg.Options.GetAllRouteableGRPCDomains()
 		if err != nil {
 			return nil, err
 		}
@@ -657,8 +681,11 @@ func getAllRouteableDomains(options *config.Options, addr string) ([]string, err
 	return allDomains.ToSlice(), nil
 }
 
-func getAllTLSDomains(options *config.Options, addr string) ([]string, error) {
-	allDomains, err := getAllRouteableDomains(options, addr)
+func getAllTLSDomains(
+	cfg *config.Config,
+	addr string,
+) ([]string, error) {
+	allDomains, err := getAllRouteableDomains(cfg, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -711,9 +738,12 @@ func hostMatchesDomain(u *url.URL, host string) bool {
 	return h1 == h2 && p1 == p2
 }
 
-func getPoliciesForDomain(options *config.Options, domain string) []config.Policy {
+func getPoliciesForDomain(
+	cfg *config.Config,
+	domain string,
+) []config.Policy {
 	var policies []config.Policy
-	for _, p := range options.GetAllPolicies() {
+	for _, p := range cfg.Options.GetAllPolicies() {
 		if p.Source != nil && p.Source.URL.Hostname() == domain {
 			policies = append(policies, p)
 		}

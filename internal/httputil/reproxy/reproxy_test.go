@@ -49,15 +49,13 @@ func TestMiddleware(t *testing.T) {
 		srv2 := httptest.NewServer(h.Middleware(next))
 		defer srv2.Close()
 
-		cfg := &config.Config{
-			Options: &config.Options{
-				SharedKey: cryptutil.NewBase64Key(),
-				Policies: []config.Policy{{
-					To:                            config.WeightedURLs{{URL: *u}},
-					KubernetesServiceAccountToken: "ABCD",
-				}},
-			},
-		}
+		cfg := config.New(&config.Options{
+			SharedKey: cryptutil.NewBase64Key(),
+			Policies: []config.Policy{{
+				To:                            config.WeightedURLs{{URL: *u}},
+				KubernetesServiceAccountToken: "ABCD",
+			}},
+		})
 		h.Update(context.Background(), cfg)
 
 		policyID, _ := cfg.Options.Policies[0].RouteID()

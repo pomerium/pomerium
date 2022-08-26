@@ -11,9 +11,9 @@ import (
 
 func TestBuildTracingCluster(t *testing.T) {
 	t.Run("datadog", func(t *testing.T) {
-		c, err := buildTracingCluster(&config.Options{
+		c, err := buildTracingCluster(config.New(&config.Options{
 			TracingProvider: "datadog",
-		})
+		}))
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -38,10 +38,10 @@ func TestBuildTracingCluster(t *testing.T) {
 			}
 		`, c)
 
-		c, err = buildTracingCluster(&config.Options{
+		c, err = buildTracingCluster(config.New(&config.Options{
 			TracingProvider:       "datadog",
 			TracingDatadogAddress: "example.com:8126",
-		})
+		}))
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -67,10 +67,10 @@ func TestBuildTracingCluster(t *testing.T) {
 		`, c)
 	})
 	t.Run("zipkin", func(t *testing.T) {
-		c, err := buildTracingCluster(&config.Options{
+		c, err := buildTracingCluster(config.New(&config.Options{
 			TracingProvider: "zipkin",
 			ZipkinEndpoint:  "https://example.com/api/v2/spans",
-		})
+		}))
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -99,9 +99,9 @@ func TestBuildTracingCluster(t *testing.T) {
 
 func TestBuildTracingHTTP(t *testing.T) {
 	t.Run("datadog", func(t *testing.T) {
-		h, err := buildTracingHTTP(&config.Options{
+		h, err := buildTracingHTTP(config.New(&config.Options{
 			TracingProvider: "datadog",
-		})
+		}))
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -115,10 +115,10 @@ func TestBuildTracingHTTP(t *testing.T) {
 		`, h)
 	})
 	t.Run("zipkin", func(t *testing.T) {
-		h, err := buildTracingHTTP(&config.Options{
+		h, err := buildTracingHTTP(config.New(&config.Options{
 			TracingProvider: "zipkin",
 			ZipkinEndpoint:  "https://example.com/api/v2/spans",
-		})
+		}))
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{

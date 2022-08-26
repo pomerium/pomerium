@@ -28,7 +28,7 @@ import (
 type Handler struct {
 	mu       sync.RWMutex
 	key      []byte
-	options  *config.Options
+	cfg      *config.Config
 	policies map[uint64]config.Policy
 }
 
@@ -83,7 +83,7 @@ func (h *Handler) Middleware(next http.Handler) http.Handler {
 		}
 
 		h.mu.RLock()
-		options := h.options
+		options := h.cfg.Options
 		policy, ok := h.policies[policyID]
 		h.mu.RUnlock()
 
@@ -132,7 +132,7 @@ func (h *Handler) Update(ctx context.Context, cfg *config.Config) {
 	defer h.mu.Unlock()
 
 	h.key, _ = cfg.Options.GetSharedKey()
-	h.options = cfg.Options
+	h.cfg = cfg
 	h.policies = make(map[uint64]config.Policy)
 	for _, p := range cfg.Options.GetAllPolicies() {
 		id, err := p.RouteID()

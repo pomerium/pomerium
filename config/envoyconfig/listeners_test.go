@@ -26,13 +26,11 @@ func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3350415a38414e4e4a4655424e55393430474147324651433949384e485341334b5157364f424b4c5856365a545937383735.pem")
 
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
-	li, err := b.buildMetricsListener(&config.Config{
-		Options: &config.Options{
-			MetricsAddr:           "127.0.0.1:9902",
-			MetricsCertificate:    aExampleComCert,
-			MetricsCertificateKey: aExampleComKey,
-		},
-	})
+	li, err := b.buildMetricsListener(config.New(&config.Options{
+		MetricsAddr:           "127.0.0.1:9902",
+		MetricsCertificate:    aExampleComCert,
+		MetricsCertificateKey: aExampleComKey,
+	}))
 	require.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `
 {
@@ -115,7 +113,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	options := config.NewDefaultOptions()
 	options.SkipXffAppend = true
 	options.XffNumTrustedHops = 1
-	filter, err := b.buildMainHTTPConnectionManagerFilter(options, []string{"example.com"}, "*")
+	filter, err := b.buildMainHTTPConnectionManagerFilter(config.New(options), []string{"example.com"}, "*")
 	require.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `{
 		"name": "envoy.filters.network.http_connection_manager",
@@ -544,10 +542,10 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3350415a38414e4e4a4655424e55393430474147324651433949384e485341334b5157364f424b4c5856365a545937383735.pem")
 
 	t.Run("no-validation", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), config.New(&config.Options{
 			Cert: aExampleComCert,
 			Key:  aExampleComKey,
-		}}, "a.example.com")
+		}), "a.example.com")
 
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {
@@ -577,11 +575,11 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("client-ca", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), config.New(&config.Options{
 			Cert:     aExampleComCert,
 			Key:      aExampleComKey,
 			ClientCA: "TEST",
-		}}, "a.example.com")
+		}), "a.example.com")
 
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {
@@ -614,7 +612,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("policy-client-ca", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), config.New(&config.Options{
 			Cert: aExampleComCert,
 			Key:  aExampleComKey,
 			Policies: []config.Policy{
@@ -623,7 +621,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 					TLSDownstreamClientCA: "TEST",
 				},
 			},
-		}}, "a.example.com")
+		}), "a.example.com")
 
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {
@@ -656,11 +654,11 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("http1", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), config.New(&config.Options{
 			Cert:      aExampleComCert,
 			Key:       aExampleComKey,
 			CodecType: config.CodecTypeHTTP1,
-		}}, "a.example.com")
+		}), "a.example.com")
 
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {
@@ -690,11 +688,11 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("http2", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), config.New(&config.Options{
 			Cert:      aExampleComCert,
 			Key:       aExampleComKey,
 			CodecType: config.CodecTypeHTTP2,
-		}}, "a.example.com")
+		}), "a.example.com")
 
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {
@@ -739,9 +737,10 @@ func Test_getAllDomains(t *testing.T) {
 			{Source: &config.StringURL{URL: mustParseURL(t, "https://c.example.com")}},
 		},
 	}
+	cfg := config.New(options)
 	t.Run("routable", func(t *testing.T) {
 		t.Run("http", func(t *testing.T) {
-			actual, err := getAllRouteableDomains(options, "127.0.0.1:9000")
+			actual, err := getAllRouteableDomains(cfg, "127.0.0.1:9000")
 			require.NoError(t, err)
 			expect := []string{
 				"a.example.com",
@@ -756,7 +755,7 @@ func Test_getAllDomains(t *testing.T) {
 			assert.Equal(t, expect, actual)
 		})
 		t.Run("grpc", func(t *testing.T) {
-			actual, err := getAllRouteableDomains(options, "127.0.0.1:9001")
+			actual, err := getAllRouteableDomains(cfg, "127.0.0.1:9001")
 			require.NoError(t, err)
 			expect := []string{
 				"authorize.example.com:9001",
@@ -765,9 +764,9 @@ func Test_getAllDomains(t *testing.T) {
 			assert.Equal(t, expect, actual)
 		})
 		t.Run("both", func(t *testing.T) {
-			newOptions := *options
-			newOptions.GRPCAddr = newOptions.Addr
-			actual, err := getAllRouteableDomains(&newOptions, "127.0.0.1:9000")
+			newCfg := cfg.Clone()
+			newCfg.Options.GRPCAddr = cfg.Options.Addr
+			actual, err := getAllRouteableDomains(newCfg, "127.0.0.1:9000")
 			require.NoError(t, err)
 			expect := []string{
 				"a.example.com",
@@ -786,7 +785,7 @@ func Test_getAllDomains(t *testing.T) {
 	})
 	t.Run("tls", func(t *testing.T) {
 		t.Run("http", func(t *testing.T) {
-			actual, err := getAllTLSDomains(options, "127.0.0.1:9000")
+			actual, err := getAllTLSDomains(cfg, "127.0.0.1:9000")
 			require.NoError(t, err)
 			expect := []string{
 				"a.example.com",
@@ -797,7 +796,7 @@ func Test_getAllDomains(t *testing.T) {
 			assert.Equal(t, expect, actual)
 		})
 		t.Run("grpc", func(t *testing.T) {
-			actual, err := getAllTLSDomains(options, "127.0.0.1:9001")
+			actual, err := getAllTLSDomains(cfg, "127.0.0.1:9001")
 			require.NoError(t, err)
 			expect := []string{
 				"authorize.example.com",
@@ -831,10 +830,10 @@ func Test_buildRouteConfiguration(t *testing.T) {
 func Test_requireProxyProtocol(t *testing.T) {
 	b := New("local-grpc", "local-http", "local-metrics", nil, nil)
 	t.Run("required", func(t *testing.T) {
-		li, err := b.buildMainListener(context.Background(), &config.Config{Options: &config.Options{
+		li, err := b.buildMainListener(context.Background(), config.New(&config.Options{
 			UseProxyProtocol: true,
 			InsecureServer:   true,
-		}})
+		}))
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `[
 			{
@@ -846,10 +845,10 @@ func Test_requireProxyProtocol(t *testing.T) {
 		]`, li.GetListenerFilters())
 	})
 	t.Run("not required", func(t *testing.T) {
-		li, err := b.buildMainListener(context.Background(), &config.Config{Options: &config.Options{
+		li, err := b.buildMainListener(context.Background(), config.New(&config.Options{
 			UseProxyProtocol: false,
 			InsecureServer:   true,
-		}})
+		}))
 		require.NoError(t, err)
 		assert.Len(t, li.GetListenerFilters(), 0)
 	})

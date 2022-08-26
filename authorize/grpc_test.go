@@ -47,17 +47,17 @@ yE+vPxsiUkvQHdO2fojCkY8jg70jxM+gu59tPDNbw3Uh/2Ij310FgTHsnGQMyA==
 -----END CERTIFICATE-----`
 
 func Test_getEvaluatorRequest(t *testing.T) {
-	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
+	a := &Authorize{currentConfig: atomicutil.NewValue(config.New(nil)), state: atomicutil.NewValue(new(authorizeState))}
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
 	a.state.Load().encoder = encoder
-	a.currentOptions.Store(&config.Options{
+	a.currentConfig.Store(config.New(&config.Options{
 		Policies: []config.Policy{{
 			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},
 		}},
-	})
+	}))
 
 	actual, err := a.getEvaluatorRequestFromCheckRequest(
 		&envoy_service_auth_v3.CheckRequest{
@@ -87,7 +87,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
-		Policy: &a.currentOptions.Load().Policies[0],
+		Policy: &a.currentConfig.Load().Options.Policies[0],
 		Session: evaluator.RequestSession{
 			ID: "SESSION_ID",
 		},
@@ -248,8 +248,10 @@ func Test_handleForwardAuth(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
-			a.currentOptions.Store(&config.Options{ForwardAuthURLString: tc.forwardAuthURL})
+			a := &Authorize{currentConfig: atomicutil.NewValue(config.New(nil)), state: atomicutil.NewValue(new(authorizeState))}
+			a.currentConfig.Store(config.New(&config.Options{
+				ForwardAuthURLString: tc.forwardAuthURL,
+			}))
 
 			got := a.isForwardAuth(tc.checkReq)
 
@@ -261,17 +263,17 @@ func Test_handleForwardAuth(t *testing.T) {
 }
 
 func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
-	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
+	a := &Authorize{currentConfig: atomicutil.NewValue(config.New(nil)), state: atomicutil.NewValue(new(authorizeState))}
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
 	a.state.Load().encoder = encoder
-	a.currentOptions.Store(&config.Options{
+	a.currentConfig.Store(config.New(&config.Options{
 		Policies: []config.Policy{{
 			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},
 		}},
-	})
+	}))
 
 	actual, err := a.getEvaluatorRequestFromCheckRequest(&envoy_service_auth_v3.CheckRequest{
 		Attributes: &envoy_service_auth_v3.AttributeContext{
@@ -296,7 +298,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 	}, nil)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
-		Policy:  &a.currentOptions.Load().Policies[0],
+		Policy:  &a.currentConfig.Load().Options.Policies[0],
 		Session: evaluator.RequestSession{},
 		HTTP: evaluator.NewRequestHTTP(
 			"GET",
@@ -332,11 +334,13 @@ func TestAuthorize_Check(t *testing.T) {
 	opt.AuthenticateURLString = "https://authenticate.example.com"
 	opt.DataBrokerURLString = "https://databroker.example.com"
 	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
-	a, err := New(&config.Config{Options: opt})
+	a, err := New(config.New(opt))
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.currentOptions.Store(&config.Options{ForwardAuthURLString: "https://forward-auth.example.com"})
+	a.currentConfig.Store(config.New(&config.Options{
+		ForwardAuthURLString: "https://forward-auth.example.com",
+	}))
 
 	cmpOpts := []cmp.Option{
 		cmpopts.IgnoreUnexported(envoy_service_auth_v3.CheckResponse{}),

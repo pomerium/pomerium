@@ -10,7 +10,7 @@ import (
 )
 
 func (b *Builder) buildVirtualHost(
-	options *config.Options,
+	cfg *config.Config,
 	name string,
 	domain string,
 ) (*envoy_config_route_v3.VirtualHost, error) {
@@ -20,15 +20,15 @@ func (b *Builder) buildVirtualHost(
 	}
 
 	// these routes match /.pomerium/... and similar paths
-	rs, err := b.buildPomeriumHTTPRoutes(options, domain)
+	rs, err := b.buildPomeriumHTTPRoutes(cfg, domain)
 	if err != nil {
 		return nil, err
 	}
 	vh.Routes = append(vh.Routes, rs...)
 
 	// if we're the proxy or authenticate service, add our global headers
-	if config.IsProxy(options.Services) || config.IsAuthenticate(options.Services) {
-		vh.ResponseHeadersToAdd = toEnvoyHeaders(options.GetSetResponseHeaders())
+	if config.IsProxy(cfg.Options.Services) || config.IsAuthenticate(cfg.Options.Services) {
+		vh.ResponseHeadersToAdd = toEnvoyHeaders(cfg.Options.GetSetResponseHeaders())
 	}
 
 	return vh, nil
@@ -37,13 +37,13 @@ func (b *Builder) buildVirtualHost(
 // buildLocalReplyConfig builds the local reply config: the config used to modify "local" replies, that is replies
 // coming directly from envoy
 func (b *Builder) buildLocalReplyConfig(
-	options *config.Options,
+	cfg *config.Config,
 ) *envoy_http_connection_manager.LocalReplyConfig {
 	// add global headers for HSTS headers (#2110)
 	var headers []*envoy_config_core_v3.HeaderValueOption
 	// if we're the proxy or authenticate service, add our global headers
-	if config.IsProxy(options.Services) || config.IsAuthenticate(options.Services) {
-		headers = toEnvoyHeaders(options.GetSetResponseHeaders())
+	if config.IsProxy(cfg.Options.Services) || config.IsAuthenticate(cfg.Options.Services) {
+		headers = toEnvoyHeaders(cfg.Options.GetSetResponseHeaders())
 	}
 
 	return &envoy_http_connection_manager.LocalReplyConfig{

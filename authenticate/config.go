@@ -6,7 +6,7 @@ import (
 )
 
 type authenticateConfig struct {
-	getIdentityProvider func(options *config.Options, idpID string) (identity.Authenticator, error)
+	getIdentityProvider func(cfg *config.Config, idpID string) (identity.Authenticator, error)
 }
 
 // An Option customizes the Authenticate config.
@@ -22,7 +22,7 @@ func getAuthenticateConfig(options ...Option) *authenticateConfig {
 }
 
 // WithGetIdentityProvider sets the getIdentityProvider function in the config.
-func WithGetIdentityProvider(getIdentityProvider func(options *config.Options, idpID string) (identity.Authenticator, error)) Option {
+func WithGetIdentityProvider(getIdentityProvider func(cfg *config.Config, idpID string) (identity.Authenticator, error)) Option {
 	return func(cfg *authenticateConfig) {
 		cfg.getIdentityProvider = getIdentityProvider
 	}

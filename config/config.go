@@ -31,6 +31,16 @@ type Config struct {
 	MetricsScrapeEndpoints []MetricsScrapeEndpoint
 }
 
+// New creates a new Config.
+func New(options *Options) *Config {
+	if options == nil {
+		options = NewDefaultOptions()
+	}
+	return &Config{
+		Options: options,
+	}
+}
+
 // Clone creates a clone of the config.
 func (cfg *Config) Clone() *Config {
 	newOptions := new(Options)

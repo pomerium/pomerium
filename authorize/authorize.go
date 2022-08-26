@@ -25,11 +25,11 @@ import (
 
 // Authorize struct holds
 type Authorize struct {
-	state          *atomicutil.Value[*authorizeState]
-	store          *store.Store
-	currentOptions *atomicutil.Value[*config.Options]
-	accessTracker  *AccessTracker
-	globalCache    storage.Cache
+	state         *atomicutil.Value[*authorizeState]
+	store         *store.Store
+	currentConfig *atomicutil.Value[*config.Config]
+	accessTracker *AccessTracker
+	globalCache   storage.Cache
 
 	// The stateLock prevents updating the evaluator store simultaneously with an evaluation.
 	// This should provide a consistent view of the data at a given server/record version and
@@ -40,9 +40,9 @@ type Authorize struct {
 // New validates and creates a new Authorize service from a set of config options.
 func New(cfg *config.Config) (*Authorize, error) {
 	a := &Authorize{
-		currentOptions: config.NewAtomicOptions(),
-		store:          store.New(),
-		globalCache:    storage.NewGlobalCache(time.Minute),
+		currentConfig: atomicutil.NewValue(cfg),
+		store:         store.New(),
+		globalCache:   storage.NewGlobalCache(time.Minute),
 	}
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 
@@ -86,42 +86,42 @@ func validateOptions(o *config.Options) error {
 }
 
 // newPolicyEvaluator returns an policy evaluator.
-func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Evaluator, error) {
+func newPolicyEvaluator(cfg *config.Config, store *store.Store) (*evaluator.Evaluator, error) {
 	metrics.AddPolicyCountCallback("pomerium-authorize", func() int64 {
-		return int64(len(opts.GetAllPolicies()))
+		return int64(len(cfg.Options.GetAllPolicies()))
 	})
 	ctx := context.Background()
 	_, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
 	defer span.End()
 
-	clientCA, err := opts.GetClientCA()
+	clientCA, err := cfg.Options.GetClientCA()
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid client CA: %w", err)
 	}
 
-	authenticateURL, err := opts.GetInternalAuthenticateURL()
+	authenticateURL, err := cfg.Options.GetInternalAuthenticateURL()
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid authenticate url: %w", err)
 	}
 
-	signingKey, err := opts.GetSigningKey()
+	signingKey, err := cfg.Options.GetSigningKey()
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid signing key: %w", err)
 	}
 
 	return evaluator.New(ctx, store,
-		evaluator.WithPolicies(opts.GetAllPolicies()),
+		evaluator.WithPolicies(cfg.Options.GetAllPolicies()),
 		evaluator.WithClientCA(clientCA),
 		evaluator.WithSigningKey(signingKey),
 		evaluator.WithAuthenticateURL(authenticateURL.String()),
-		evaluator.WithGoogleCloudServerlessAuthenticationServiceAccount(opts.GetGoogleCloudServerlessAuthenticationServiceAccount()),
-		evaluator.WithJWTClaimsHeaders(opts.JWTClaimsHeaders),
+		evaluator.WithGoogleCloudServerlessAuthenticationServiceAccount(cfg.Options.GetGoogleCloudServerlessAuthenticationServiceAccount()),
+		evaluator.WithJWTClaimsHeaders(cfg.Options.JWTClaimsHeaders),
 	)
 }
 
 // OnConfigChange updates internal structures based on config.Options
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
-	a.currentOptions.Store(cfg.Options)
+	a.currentConfig.Store(cfg)
 	if state, err := newAuthorizeStateFromConfig(cfg, a.store); err != nil {
 		log.Error(ctx).Err(err).Msg("authorize: error updating state")
 	} else {

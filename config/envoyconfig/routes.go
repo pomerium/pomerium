@@ -47,12 +47,15 @@ func (b *Builder) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
 	}}, nil
 }
 
-func (b *Builder) buildPomeriumHTTPRoutes(options *config.Options, domain string) ([]*envoy_config_route_v3.Route, error) {
+func (b *Builder) buildPomeriumHTTPRoutes(
+	cfg *config.Config,
+	domain string,
+) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
 
 	// if this is the pomerium proxy in front of the the authenticate service, don't add
 	// these routes since they will be handled by authenticate
-	isFrontingAuthenticate, err := isProxyFrontingAuthenticate(options, domain)
+	isFrontingAuthenticate, err := isProxyFrontingAuthenticate(cfg, domain)
 	if err != nil {
 		return nil, err
 	}
@@ -69,27 +72,27 @@ func (b *Builder) buildPomeriumHTTPRoutes(options *config.Options, domain string
 			b.buildControlPlanePrefixRoute("/.well-known/pomerium/", false),
 		)
 		// per #837, only add robots.txt if there are no unauthenticated routes
-		if !hasPublicPolicyMatchingURL(options, url.URL{Scheme: "https", Host: domain, Path: "/robots.txt"}) {
+		if !hasPublicPolicyMatchingURL(cfg, url.URL{Scheme: "https", Host: domain, Path: "/robots.txt"}) {
 			routes = append(routes, b.buildControlPlanePathRoute("/robots.txt", false))
 		}
 	}
 	// if we're handling authentication, add the oauth2 callback url
-	authenticateURL, err := options.GetInternalAuthenticateURL()
+	authenticateURL, err := cfg.Options.GetInternalAuthenticateURL()
 	if err != nil {
 		return nil, err
 	}
-	if config.IsAuthenticate(options.Services) && hostMatchesDomain(authenticateURL, domain) {
+	if config.IsAuthenticate(cfg.Options.Services) && hostMatchesDomain(authenticateURL, domain) {
 		routes = append(routes,
-			b.buildControlPlanePathRoute(options.AuthenticateCallbackPath, false),
+			b.buildControlPlanePathRoute(cfg.Options.AuthenticateCallbackPath, false),
 			b.buildControlPlanePathRoute("/", false),
 		)
 	}
 	// if we're the proxy and this is the forward-auth url
-	forwardAuthURL, err := options.GetForwardAuthURL()
+	forwardAuthURL, err := cfg.Options.GetForwardAuthURL()
 	if err != nil {
 		return nil, err
 	}
-	if config.IsProxy(options.Services) && hostMatchesDomain(forwardAuthURL, domain) {
+	if config.IsProxy(cfg.Options.Services) && hostMatchesDomain(forwardAuthURL, domain) {
 		// disable ext_authz and pass request to proxy handlers that enable authN flow
 		r, err := b.buildControlPlanePathAndQueryRoute("/verify", []string{urlutil.QueryForwardAuthURI, urlutil.QuerySessionEncrypted, urlutil.QueryRedirectURI})
 		if err != nil {
@@ -227,10 +230,13 @@ func getClusterStatsName(policy *config.Policy) string {
 	return ""
 }
 
-func (b *Builder) buildPolicyRoutes(options *config.Options, domain string) ([]*envoy_config_route_v3.Route, error) {
+func (b *Builder) buildPolicyRoutes(
+	cfg *config.Config,
+	domain string,
+) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
 
-	for i, p := range options.GetAllPolicies() {
+	for i, p := range cfg.Options.GetAllPolicies() {
 		policy := p
 		if !hostMatchesDomain(policy.Source.URL, domain) {
 			continue
@@ -242,7 +248,7 @@ func (b *Builder) buildPolicyRoutes(options *config.Options, domain string) ([]*
 			Match:                  match,
 			Metadata:               &envoy_config_core_v3.Metadata{},
 			RequestHeadersToAdd:    toEnvoyHeaders(policy.SetRequestHeaders),
-			RequestHeadersToRemove: getRequestHeadersToRemove(options, &policy),
+			RequestHeadersToRemove: getRequestHeadersToRemove(cfg, &policy),
 			ResponseHeadersToAdd:   toEnvoyHeaders(policy.SetResponseHeaders),
 		}
 		if policy.Redirect != nil {
@@ -252,7 +258,7 @@ func (b *Builder) buildPolicyRoutes(options *config.Options, domain string) ([]*
 			}
 			envoyRoute.Action = &envoy_config_route_v3.Route_Redirect{Redirect: action}
 		} else {
-			action, err := b.buildPolicyRouteRouteAction(options, &policy)
+			action, err := b.buildPolicyRouteRouteAction(cfg, &policy)
 			if err != nil {
 				return nil, err
 			}
@@ -264,7 +270,7 @@ func (b *Builder) buildPolicyRoutes(options *config.Options, domain string) ([]*
 		}
 
 		// disable authentication entirely when the proxy is fronting authenticate
-		isFrontingAuthenticate, err := isProxyFrontingAuthenticate(options, domain)
+		isFrontingAuthenticate, err := isProxyFrontingAuthenticate(cfg, domain)
 		if err != nil {
 			return nil, err
 		}
@@ -275,7 +281,7 @@ func (b *Builder) buildPolicyRoutes(options *config.Options, domain string) ([]*
 		} else {
 			luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
 				Kind: &structpb.Value_StringValue{
-					StringValue: options.CookieName,
+					StringValue: cfg.Options.CookieName,
 				},
 			}
 			luaMetadata["remove_pomerium_authorization"] = &structpb.Value{
@@ -350,13 +356,16 @@ func (b *Builder) buildPolicyRouteRedirectAction(r *config.PolicyRedirect) (*env
 	return action, nil
 }
 
-func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *config.Policy) (*envoy_config_route_v3.RouteAction, error) {
+func (b *Builder) buildPolicyRouteRouteAction(
+	cfg *config.Config,
+	policy *config.Policy,
+) (*envoy_config_route_v3.RouteAction, error) {
 	clusterName := getClusterID(policy)
 	// kubernetes requests are sent to the http control plane to be reproxied
 	if policy.IsForKubernetes() {
 		clusterName = httpCluster
 	}
-	routeTimeout := getRouteTimeout(options, policy)
+	routeTimeout := getRouteTimeout(cfg, policy)
 	idleTimeout := getRouteIdleTimeout(policy)
 	prefixRewrite, regexRewrite := getRewriteOptions(policy)
 	upgradeConfigs := []*envoy_config_route_v3.RouteAction_UpgradeConfig{
@@ -464,13 +473,16 @@ func mkRouteMatch(policy *config.Policy) *envoy_config_route_v3.RouteMatch {
 	return match
 }
 
-func getRequestHeadersToRemove(options *config.Options, policy *config.Policy) []string {
+func getRequestHeadersToRemove(
+	cfg *config.Config,
+	policy *config.Policy,
+) []string {
 	requestHeadersToRemove := policy.RemoveRequestHeaders
 	if !policy.PassIdentityHeaders {
 		requestHeadersToRemove = append(requestHeadersToRemove,
 			httputil.HeaderPomeriumJWTAssertion,
 			httputil.HeaderPomeriumJWTAssertionFor)
-		for headerName := range options.JWTClaimsHeaders {
+		for headerName := range cfg.Options.JWTClaimsHeaders {
 			requestHeadersToRemove = append(requestHeadersToRemove, headerName)
 		}
 	}
@@ -482,7 +494,10 @@ func getRequestHeadersToRemove(options *config.Options, policy *config.Policy) [
 	return requestHeadersToRemove
 }
 
-func getRouteTimeout(options *config.Options, policy *config.Policy) *durationpb.Duration {
+func getRouteTimeout(
+	cfg *config.Config,
+	policy *config.Policy,
+) *durationpb.Duration {
 	var routeTimeout *durationpb.Duration
 	if policy.UpstreamTimeout != nil {
 		routeTimeout = durationpb.New(*policy.UpstreamTimeout)
@@ -490,7 +505,7 @@ func getRouteTimeout(options *config.Options, policy *config.Policy) *durationpb
 		// a non-zero value would conflict with idleTimeout and/or websocket / tcp calls
 		routeTimeout = durationpb.New(0)
 	} else {
-		routeTimeout = durationpb.New(options.DefaultUpstreamTimeout)
+		routeTimeout = durationpb.New(cfg.Options.DefaultUpstreamTimeout)
 	}
 	return routeTimeout
 }
@@ -564,8 +579,11 @@ func setHostRewriteOptions(policy *config.Policy, action *envoy_config_route_v3.
 	}
 }
 
-func hasPublicPolicyMatchingURL(options *config.Options, requestURL url.URL) bool {
-	for _, policy := range options.GetAllPolicies() {
+func hasPublicPolicyMatchingURL(
+	cfg *config.Config,
+	requestURL url.URL,
+) bool {
+	for _, policy := range cfg.Options.GetAllPolicies() {
 		if policy.AllowPublicUnauthenticatedAccess && policy.Matches(requestURL) {
 			return true
 		}
@@ -573,13 +591,16 @@ func hasPublicPolicyMatchingURL(options *config.Options, requestURL url.URL) boo
 	return false
 }
 
-func isProxyFrontingAuthenticate(options *config.Options, domain string) (bool, error) {
-	authenticateURL, err := options.GetAuthenticateURL()
+func isProxyFrontingAuthenticate(
+	cfg *config.Config,
+	domain string,
+) (bool, error) {
+	authenticateURL, err := cfg.Options.GetAuthenticateURL()
 	if err != nil {
 		return false, err
 	}
 
-	if !config.IsAuthenticate(options.Services) && hostMatchesDomain(authenticateURL, domain) {
+	if !config.IsAuthenticate(cfg.Options.Services) && hostMatchesDomain(authenticateURL, domain) {
 		return true, nil
 	}
 

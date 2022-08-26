@@ -76,10 +76,10 @@ func newDefaultEnvoyClusterConfig() *envoy_config_cluster_v3.Cluster {
 	}
 }
 
-func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.AccessLog {
-	lvl := options.ProxyLogLevel
+func buildAccessLogs(cfg *config.Config) []*envoy_config_accesslog_v3.AccessLog {
+	lvl := cfg.Options.ProxyLogLevel
 	if lvl == "" {
-		lvl = options.LogLevel
+		lvl = cfg.Options.LogLevel
 	}
 	if lvl == "" {
 		lvl = "debug"

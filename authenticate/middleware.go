@@ -34,14 +34,14 @@ func (a *Authenticate) requireValidSignature(next httputil.HandlerFunc) http.Han
 }
 
 func (a *Authenticate) getExternalRequest(r *http.Request) *http.Request {
-	options := a.options.Load()
+	cfg := a.currentConfig.Load()
 
-	externalURL, err := options.GetAuthenticateURL()
+	externalURL, err := cfg.Options.GetAuthenticateURL()
 	if err != nil {
 		return r
 	}
 
-	internalURL, err := options.GetInternalAuthenticateURL()
+	internalURL, err := cfg.Options.GetInternalAuthenticateURL()
 	if err != nil {
 		return r
 	}

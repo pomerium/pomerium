@@ -236,8 +236,8 @@ func TestConfig(t *testing.T) {
 	}
 	_ = p1.Validate()
 
-	mgr, err := newManager(ctx, config.NewStaticSource(&config.Config{
-		Options: &config.Options{
+	mgr, err := newManager(ctx,
+		config.NewStaticSource(config.New(&config.Options{
 			AutocertOptions: config.AutocertOptions{
 				Enable:     true,
 				UseStaging: true,
@@ -247,11 +247,11 @@ func TestConfig(t *testing.T) {
 			},
 			HTTPRedirectAddr: addr,
 			Policies:         []config.Policy{p1},
-		},
-	}), certmagic.ACMEIssuer{
-		CA:     srv.URL + "/acme/directory",
-		TestCA: srv.URL + "/acme/directory",
-	}, time.Millisecond*100)
+		})),
+		certmagic.ACMEIssuer{
+			CA:     srv.URL + "/acme/directory",
+			TestCA: srv.URL + "/acme/directory",
+		}, time.Millisecond*100)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -304,16 +304,14 @@ func TestRedirect(t *testing.T) {
 	addr := li.Addr().String()
 	_ = li.Close()
 
-	src := config.NewStaticSource(&config.Config{
-		Options: &config.Options{
-			HTTPRedirectAddr: addr,
-			SetResponseHeaders: map[string]string{
-				"X-Frame-Options":           "SAMEORIGIN",
-				"X-XSS-Protection":          "1; mode=block",
-				"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-			},
+	src := config.NewStaticSource(config.New(&config.Options{
+		HTTPRedirectAddr: addr,
+		SetResponseHeaders: map[string]string{
+			"X-Frame-Options":           "SAMEORIGIN",
+			"X-XSS-Protection":          "1; mode=block",
+			"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 		},
-	})
+	}))
 	_, err = New(src)
 	if !assert.NoError(t, err) {
 		return

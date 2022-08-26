@@ -47,12 +47,12 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	r.StrictSlash(true)
 	r.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 	r.Use(func(h http.Handler) http.Handler {
-		options := a.options.Load()
+		cfg := a.currentConfig.Load()
 		state := a.state.Load()
-		csrfKey := fmt.Sprintf("%s_csrf", options.CookieName)
+		csrfKey := fmt.Sprintf("%s_csrf", cfg.Options.CookieName)
 		return csrf.Protect(
 			state.cookieSecret,
-			csrf.Secure(options.CookieSecure),
+			csrf.Secure(cfg.Options.CookieSecure),
 			csrf.Path("/"),
 			csrf.UnsafePaths(
 				[]string{
@@ -256,7 +256,7 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	// check for an HMAC'd URL. If none is found, show a confirmation page.
 	err := middleware.ValidateRequestURL(a.getExternalRequest(r), a.state.Load().sharedKey)
 	if err != nil {
-		authenticateURL, err := a.options.Load().GetAuthenticateURL()
+		authenticateURL, err := a.currentConfig.Load().Options.GetAuthenticateURL()
 		if err != nil {
 			return err
 		}
@@ -275,9 +275,9 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignOut")
 	defer span.End()
 
-	options := a.options.Load()
+	cfg := a.currentConfig.Load()
 
-	idp, err := a.cfg.getIdentityProvider(options, r.FormValue(urlutil.QueryIdentityProviderID))
+	idp, err := a.cfg.getIdentityProvider(cfg, r.FormValue(urlutil.QueryIdentityProviderID))
 	if err != nil {
 		return err
 	}
@@ -285,7 +285,7 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 	rawIDToken := a.revokeSession(ctx, w, r)
 
 	redirectString := ""
-	signOutURL, err := a.options.Load().GetSignOutRedirectURL()
+	signOutURL, err := cfg.Options.GetSignOutRedirectURL()
 	if err != nil {
 		return err
 	}
@@ -330,10 +330,10 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 		return httputil.NewError(http.StatusUnauthorized, err)
 	}
 
-	options := a.options.Load()
+	cfg := a.currentConfig.Load()
 	state := a.state.Load()
 
-	idp, err := a.cfg.getIdentityProvider(options, r.FormValue(urlutil.QueryIdentityProviderID))
+	idp, err := a.cfg.getIdentityProvider(cfg, r.FormValue(urlutil.QueryIdentityProviderID))
 	if err != nil {
 		return err
 	}
@@ -381,7 +381,7 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.getOAuthCallback")
 	defer span.End()
 
-	options := a.options.Load()
+	cfg := a.currentConfig.Load()
 	state := a.state.Load()
 
 	// Error Authentication Response: rfc6749#section-4.1.2.1 & OIDC#3.1.2.6
@@ -430,7 +430,7 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	}
 	idpID := redirectURL.Query().Get(urlutil.QueryIdentityProviderID)
 
-	idp, err := a.cfg.getIdentityProvider(options, idpID)
+	idp, err := a.cfg.getIdentityProvider(cfg, idpID)
 	if err != nil {
 		return nil, err
 	}
@@ -513,7 +513,7 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, error) {
 	state := a.state.Load()
 
-	authenticateURL, err := a.options.Load().GetAuthenticateURL()
+	authenticateURL, err := a.currentConfig.Load().Options.GetAuthenticateURL()
 	if err != nil {
 		return handlers.UserInfoData{}, err
 	}
@@ -569,7 +569,7 @@ func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, 
 		WebAuthnRequestOptions:  requestOptions,
 		WebAuthnURL:             urlutil.WebAuthnURL(r, authenticateURL, state.sharedKey, r.URL.Query()),
 
-		BrandingOptions: a.options.Load().BrandingOptions,
+		BrandingOptions: a.currentConfig.Load().Options.BrandingOptions,
 	}, nil
 }
 
@@ -581,14 +581,14 @@ func (a *Authenticate) saveSessionToDataBroker(
 	accessToken *oauth2.Token,
 ) error {
 	state := a.state.Load()
-	options := a.options.Load()
+	cfg := a.currentConfig.Load()
 
-	idp, err := a.cfg.getIdentityProvider(options, r.FormValue(urlutil.QueryIdentityProviderID))
+	idp, err := a.cfg.getIdentityProvider(cfg, r.FormValue(urlutil.QueryIdentityProviderID))
 	if err != nil {
 		return err
 	}
 
-	sessionExpiry := timestamppb.New(time.Now().Add(options.CookieExpire))
+	sessionExpiry := timestamppb.New(time.Now().Add(cfg.Options.CookieExpire))
 	idTokenIssuedAt := timestamppb.New(sessionState.IssuedAt.Time())
 
 	s := &session.Session{
@@ -648,13 +648,13 @@ func (a *Authenticate) saveSessionToDataBroker(
 // databroker. If successful, it returns the original `id_token` of the session, if failed, returns
 // and empty string.
 func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter, r *http.Request) string {
-	options := a.options.Load()
+	cfg := a.currentConfig.Load()
 	state := a.state.Load()
 
 	// clear the user's local session no matter what
 	defer state.sessionStore.ClearSession(w, r)
 
-	idp, err := a.cfg.getIdentityProvider(options, r.FormValue(urlutil.QueryIdentityProviderID))
+	idp, err := a.cfg.getIdentityProvider(cfg, r.FormValue(urlutil.QueryIdentityProviderID))
 	if err != nil {
 		return ""
 	}
@@ -708,6 +708,7 @@ func (a *Authenticate) getDirectoryUser(ctx context.Context, userID string) (*di
 
 func (a *Authenticate) getWebauthnState(ctx context.Context) (*webauthn.State, error) {
 	state := a.state.Load()
+	cfg := a.currentConfig.Load()
 
 	s, _, err := a.getCurrentSession(ctx)
 	if err != nil {
@@ -719,17 +720,17 @@ func (a *Authenticate) getWebauthnState(ctx context.Context) (*webauthn.State, e
 		return nil, err
 	}
 
-	authenticateURL, err := a.options.Load().GetAuthenticateURL()
+	authenticateURL, err := cfg.Options.GetAuthenticateURL()
 	if err != nil {
 		return nil, err
 	}
 
-	internalAuthenticateURL, err := a.options.Load().GetInternalAuthenticateURL()
+	internalAuthenticateURL, err := cfg.Options.GetInternalAuthenticateURL()
 	if err != nil {
 		return nil, err
 	}
 
-	pomeriumDomains, err := a.options.Load().GetAllRouteableHTTPDomains()
+	pomeriumDomains, err := cfg.Options.GetAllRouteableHTTPDomains()
 	if err != nil {
 		return nil, err
 	}
@@ -744,7 +745,7 @@ func (a *Authenticate) getWebauthnState(ctx context.Context) (*webauthn.State, e
 		SessionState:            ss,
 		SessionStore:            state.sessionStore,
 		RelyingParty:            state.webauthnRelyingParty,
-		BrandingOptions:         a.options.Load().BrandingOptions,
+		BrandingOptions:         cfg.Options.BrandingOptions,
 	}, nil
 }
 

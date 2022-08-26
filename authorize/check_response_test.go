@@ -29,7 +29,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 	opt.AuthenticateURLString = "https://authenticate.example.com"
 	opt.DataBrokerURLString = "https://databroker.example.com"
 	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
-	a, err := New(&config.Config{Options: opt})
+	a, err := New(config.New(opt))
 	require.NoError(t, err)
 
 	t.Run("user-unauthenticated", func(t *testing.T) {
@@ -67,12 +67,12 @@ func TestAuthorize_okResponse(t *testing.T) {
 		}},
 		JWTClaimsHeaders: config.NewJWTClaimHeaders("email"),
 	}
-	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
+	cfg := config.New(opt)
+	a := &Authorize{currentConfig: atomicutil.NewValue(cfg), state: atomicutil.NewValue(new(authorizeState))}
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
 	a.state.Load().encoder = encoder
-	a.currentOptions.Store(opt)
 	a.store = store.New()
-	pe, err := newPolicyEvaluator(opt, a.store)
+	pe, err := newPolicyEvaluator(cfg, a.store)
 	require.NoError(t, err)
 	a.state.Load().evaluator = pe
 
@@ -123,17 +123,17 @@ func TestAuthorize_okResponse(t *testing.T) {
 }
 
 func TestAuthorize_deniedResponse(t *testing.T) {
-	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
+	a := &Authorize{currentConfig: atomicutil.NewValue(config.New(nil)), state: atomicutil.NewValue(new(authorizeState))}
 	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
 	a.state.Load().encoder = encoder
-	a.currentOptions.Store(&config.Options{
+	a.currentConfig.Store(config.New(&config.Options{
 		Policies: []config.Policy{{
 			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},
 		}},
-	})
+	}))
 
 	tests := []struct {
 		name    string
@@ -190,7 +190,7 @@ func TestRequireLogin(t *testing.T) {
 	opt.AuthenticateURLString = "https://authenticate.example.com"
 	opt.DataBrokerURLString = "https://databroker.example.com"
 	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
-	a, err := New(&config.Config{Options: opt})
+	a, err := New(config.New(opt))
 	require.NoError(t, err)
 
 	t.Run("accept empty", func(t *testing.T) {

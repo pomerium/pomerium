@@ -14,7 +14,9 @@ import (
 	"github.com/pomerium/pomerium/config"
 )
 
-func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+func (b *Builder) buildOutboundListener(
+	cfg *config.Config,
+) (*envoy_config_listener_v3.Listener, error) {
 	outboundPort, err := strconv.Atoi(cfg.OutboundPort)
 	if err != nil {
 		return nil, fmt.Errorf("invalid outbound port %v: %w", cfg.OutboundPort, err)

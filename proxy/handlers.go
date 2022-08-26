@@ -58,7 +58,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) error {
 	state := p.state.Load()
 
 	var redirectURL *url.URL
-	signOutURL, err := p.currentOptions.Load().GetSignOutRedirectURL()
+	signOutURL, err := p.currentConfig.Load().Options.GetSignOutRedirectURL()
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}

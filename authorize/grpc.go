@@ -55,7 +55,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		}
 	}
 
-	rawJWT, _ := loadRawSession(hreq, a.currentOptions.Load(), state.encoder)
+	rawJWT, _ := loadRawSession(hreq, a.currentConfig.Load(), state.encoder)
 	sessionState, _ := loadSession(state.encoder, rawJWT)
 
 	var s sessionOrServiceAccount
@@ -100,9 +100,9 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 // isForwardAuth returns if the current request is a forward auth route.
 func (a *Authorize) isForwardAuth(req *envoy_service_auth_v3.CheckRequest) bool {
-	opts := a.currentOptions.Load()
+	cfg := a.currentConfig.Load()
 
-	forwardAuthURL, err := opts.GetForwardAuthURL()
+	forwardAuthURL, err := cfg.Options.GetForwardAuthURL()
 	if err != nil || forwardAuthURL == nil {
 		return false
 	}
@@ -136,9 +136,9 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 }
 
 func (a *Authorize) getMatchingPolicy(requestURL url.URL) *config.Policy {
-	options := a.currentOptions.Load()
+	cfg := a.currentConfig.Load()
 
-	for _, p := range options.GetAllPolicies() {
+	for _, p := range cfg.Options.GetAllPolicies() {
 		if p.Matches(requestURL) {
 			return &p
 		}

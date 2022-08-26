@@ -47,7 +47,7 @@ func TestProxy_Signout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	proxy, err := New(&config.Config{Options: opts})
+	proxy, err := New(config.New(opts))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestProxy_userInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	proxy, err := New(&config.Config{Options: opts})
+	proxy, err := New(config.New(opts))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestProxy_SignOut(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			opts := testOptions(t)
-			p, err := New(&config.Config{Options: opts})
+			p, err := New(config.New(opts))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -236,11 +236,11 @@ func TestProxy_Callback(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(&config.Config{Options: tt.options})
+			p, err := New(config.New(tt.options))
 			if err != nil {
 				t.Fatal(err)
 			}
-			p.OnConfigChange(context.Background(), &config.Config{Options: tt.options})
+			p.OnConfigChange(context.Background(), config.New(tt.options))
 			state := p.state.Load()
 			state.encoder = tt.cipher
 			state.sessionStore = tt.sessionStore
@@ -350,7 +350,7 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(&config.Config{Options: tt.options})
+			p, err := New(config.New(tt.options))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -482,11 +482,11 @@ func TestProxy_ProgrammaticCallback(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(&config.Config{Options: tt.options})
+			p, err := New(config.New(tt.options))
 			if err != nil {
 				t.Fatal(err)
 			}
-			p.OnConfigChange(context.Background(), &config.Config{Options: tt.options})
+			p.OnConfigChange(context.Background(), config.New(tt.options))
 			state := p.state.Load()
 			state.encoder = tt.cipher
 			state.sessionStore = tt.sessionStore
