@@ -80,6 +80,7 @@ func Run(ctx context.Context, src config.Source) error {
 		Str("outbound-port", src.GetConfig().OutboundPort).
 		Str("metrics-port", src.GetConfig().MetricsPort).
 		Str("debug-port", src.GetConfig().DebugPort).
+		Str("acme-tls-alpn-port", src.GetConfig().ACMETLSALPNPort).
 		Msg("server started")
 
 	// create envoy server

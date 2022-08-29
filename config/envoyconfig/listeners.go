@@ -249,6 +249,7 @@ func (b *Builder) buildFilterChains(
 	}
 
 	var chains []*envoy_config_listener_v3.FilterChain
+	chains = append(chains, b.buildACMETLSALPNFilterChain())
 	for _, domain := range tlsDomains {
 		routeableDomains, err := getRouteableDomainsForTLSServerName(options, addr, domain)
 		if err != nil {
