@@ -52,7 +52,7 @@ jobs:
         run: gcloud auth configure-docker
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@68acf3b1adf004ac9c2f0a4259e85c5f66e99bef # pin@v2
+        uses: goreleaser/goreleaser-action@ff11ca24a9b39f2d36796d1fbd7a4e39c182630a # pin@v2
         with:
           version: v0.184.0
           args: release --config .github/goreleaser.yaml
