@@ -331,10 +331,6 @@ func (mgr *Manager) updateServer(ctx context.Context, cfg *config.Config) {
 func (mgr *Manager) updateACMETLSALPNServer(ctx context.Context, cfg *config.Config) {
 	addr := net.JoinHostPort("127.0.0.1", cfg.ACMETLSALPNPort)
 	if mgr.acmeTLSALPNListener != nil {
-		if mgr.acmeTLSALPNListener.Addr().String() == addr {
-			return
-		}
-
 		_ = mgr.acmeTLSALPNListener.Close()
 		mgr.acmeTLSALPNListener = nil
 	}
