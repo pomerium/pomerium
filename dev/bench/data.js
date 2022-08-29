@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1661796251089,
+  "lastUpdate": 1661796279629,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -8900,6 +8900,42 @@ window.BENCHMARK_DATA = {
             "value": 9470570,
             "unit": "ns/op",
             "extra": "130 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "86ed7fa67434f312ea4bc4f2c5d33ebc314f5530",
+          "message": "chore(deps): bump golang from `a7a23f1` to `d84495e` (#3589)\n\nBumps golang from `a7a23f1` to `d84495e`.\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golang\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-08-29T10:44:45-06:00",
+          "tree_id": "b04b0d68ee1c61663086c843c3ad7bcf8066772c",
+          "url": "https://github.com/pomerium/pomerium/commit/86ed7fa67434f312ea4bc4f2c5d33ebc314f5530"
+        },
+        "date": 1661796278063,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16842452,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10866409,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
