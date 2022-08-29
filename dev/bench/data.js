@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1661796719911,
+  "lastUpdate": 1661809739324,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -9004,6 +9004,38 @@ window.BENCHMARK_DATA = {
             "value": 7835731,
             "unit": "ns/op",
             "extra": "151 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "ac23a6d915914e821d2e5e0bc8bd9e00f1b0d962",
+          "message": "autocert: add support for ACME TLS-ALPN",
+          "timestamp": "2022-08-26T16:26:12Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3590/commits/ac23a6d915914e821d2e5e0bc8bd9e00f1b0d962"
+        },
+        "date": 1661809738887,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13929677,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8419602,
+            "unit": "ns/op",
+            "extra": "145 times\n2 procs"
           }
         ]
       }
