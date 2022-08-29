@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1661794397931,
+  "lastUpdate": 1661794687754,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -8632,6 +8632,42 @@ window.BENCHMARK_DATA = {
             "value": 8119065,
             "unit": "ns/op",
             "extra": "151 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "da3e48f48eacb88d049ca961b41c0a1c0f7a286a",
+          "message": "chore(deps): bump contrib.go.opencensus.io/exporter/prometheus from 0.4.1 to 0.4.2 (#3586)\n\nchore(deps): bump contrib.go.opencensus.io/exporter/prometheus\r\n\r\nBumps [contrib.go.opencensus.io/exporter/prometheus](https://github.com/census-ecosystem/opencensus-go-exporter-prometheus) from 0.4.1 to 0.4.2.\r\n- [Release notes](https://github.com/census-ecosystem/opencensus-go-exporter-prometheus/releases)\r\n- [Commits](https://github.com/census-ecosystem/opencensus-go-exporter-prometheus/compare/v0.4.1...v0.4.2)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: contrib.go.opencensus.io/exporter/prometheus\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-08-29T10:24:40-06:00",
+          "tree_id": "df96ed30bc9f617c400f11dadefb2be8231adb80",
+          "url": "https://github.com/pomerium/pomerium/commit/da3e48f48eacb88d049ca961b41c0a1c0f7a286a"
+        },
+        "date": 1661794687341,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13221502,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8377245,
+            "unit": "ns/op",
+            "extra": "148 times\n2 procs"
           }
         ]
       }
