@@ -116,12 +116,12 @@ func NewFileOrEnvironmentSource(
 		EnvoyVersion: envoyVersion,
 	}
 
-	ports, err := netutil.AllocatePorts(5)
+	ports, err := netutil.AllocatePorts(6)
 	if err != nil {
 		return nil, fmt.Errorf("allocating ports: %w", err)
 	}
 
-	cfg.AllocatePorts(*(*[5]string)(ports))
+	cfg.AllocatePorts(*(*[6]string)(ports))
 
 	metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
 

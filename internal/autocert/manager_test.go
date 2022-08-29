@@ -395,6 +395,7 @@ func Test_configureCertificateAuthority(t *testing.T) {
 				expected: &certmagic.ACMEIssuer{
 					Agreed: true,
 					CA:     certmagic.DefaultACME.CA,
+					Email:  " ",
 					TestCA: certmagic.DefaultACME.TestCA,
 				},
 				wantErr: false,
@@ -411,6 +412,7 @@ func Test_configureCertificateAuthority(t *testing.T) {
 				expected: &certmagic.ACMEIssuer{
 					Agreed: true,
 					CA:     certmagic.DefaultACME.TestCA,
+					Email:  " ",
 					TestCA: certmagic.DefaultACME.TestCA,
 				},
 				wantErr: false,

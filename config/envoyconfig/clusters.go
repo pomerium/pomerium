@@ -80,6 +80,7 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 	}
 
 	clusters := []*envoy_config_cluster_v3.Cluster{
+		b.buildACMETLSALPNCluster(cfg),
 		controlGRPC,
 		controlHTTP,
 		controlMetrics,
