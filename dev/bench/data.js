@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1661794687754,
+  "lastUpdate": 1661794908963,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -8668,6 +8668,38 @@ window.BENCHMARK_DATA = {
             "value": 8377245,
             "unit": "ns/op",
             "extra": "148 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "60abafa6a48619f294d86fd55cdcf2d6aa4c4486",
+          "message": "chore(deps): bump github.com/rs/zerolog from 1.27.0 to 1.28.0",
+          "timestamp": "2022-08-26T16:26:12Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3587/commits/60abafa6a48619f294d86fd55cdcf2d6aa4c4486"
+        },
+        "date": 1661794908220,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16388130,
+            "unit": "ns/op",
+            "extra": "73 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10209671,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
