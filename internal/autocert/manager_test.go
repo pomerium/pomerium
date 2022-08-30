@@ -262,12 +262,15 @@ func TestConfig(t *testing.T) {
 	var initialOCSPStaple []byte
 	var certValidTime *time.Time
 	mgr.OnConfigChange(ctx, func(ctx context.Context, cfg *config.Config) {
-		log.Info(ctx).Msg("OnConfigChange")
+		if len(cfg.AutoCertificates) == 0 {
+			return
+		}
+
 		cert := cfg.AutoCertificates[0]
 		if initialOCSPStaple == nil {
 			initialOCSPStaple = cert.OCSPStaple
 		} else {
-			if bytes.Compare(initialOCSPStaple, cert.OCSPStaple) != 0 {
+			if !bytes.Equal(initialOCSPStaple, cert.OCSPStaple) {
 				log.Info(ctx).Msg("OCSP updated")
 				ocspUpdated <- true
 			}
