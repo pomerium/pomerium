@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1661875533638,
+  "lastUpdate": 1661882526214,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -9140,6 +9140,38 @@ window.BENCHMARK_DATA = {
             "value": 9469310,
             "unit": "ns/op",
             "extra": "123 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "bfb218a79a489d8c2291b9ad34827f9853535ffc",
+          "message": "envoyconfig: add virtual host domains for certificates in addition to routes",
+          "timestamp": "2022-08-30T08:20:56Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3593/commits/bfb218a79a489d8c2291b9ad34827f9853535ffc"
+        },
+        "date": 1661882525740,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16973092,
+            "unit": "ns/op",
+            "extra": "79 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11021463,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
