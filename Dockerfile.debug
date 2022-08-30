@@ -19,7 +19,7 @@ WORKDIR /go/src/github.com/pomerium/pomerium
 RUN apt-get update \
     && apt-get -y --no-install-recommends install zip
 
-# cache depedency downloads
+# cache dependency downloads
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .

@@ -25,7 +25,7 @@ func SetHeaders(headers map[string]string) func(next http.Handler) http.Handler 
 }
 
 // ValidateSignature ensures the request is valid and has been signed with
-// the correspdoning client secret key
+// the corresponding client secret key
 func ValidateSignature(sharedKey []byte) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {

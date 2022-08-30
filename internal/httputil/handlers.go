@@ -51,7 +51,7 @@ func RenderJSON(w http.ResponseWriter, code int, v interface{}) {
 // with the appropriate signature, HandlerFunc(f) is a
 // Handler that calls f.
 //
-// adapted from std library to suppport error wrapping
+// adapted from std library to support error wrapping
 type HandlerFunc func(http.ResponseWriter, *http.Request) error
 
 // ServeHTTP calls f(w, r) error.
