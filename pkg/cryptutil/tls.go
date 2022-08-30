@@ -63,6 +63,29 @@ func GetCertificateForDomain(certificates []tls.Certificate, domain string) (*tl
 	return GenerateSelfSignedCertificate(domain)
 }
 
+// GetCertificateDomains gets all the certificate's matching domain names.
+func GetCertificateDomains(cert *tls.Certificate) []string {
+	if cert == nil || len(cert.Certificate) == 0 {
+		return nil
+	}
+
+	xcert, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return nil
+	}
+
+	var domains []string
+	if xcert.Subject.CommonName != "" {
+		domains = append(domains, xcert.Subject.CommonName)
+	}
+	for _, dnsName := range xcert.DNSNames {
+		if dnsName != "" {
+			domains = append(domains, dnsName)
+		}
+	}
+	return domains
+}
+
 func matchesDomain(cert *tls.Certificate, domain string) bool {
 	if cert == nil || len(cert.Certificate) == 0 {
 		return false
