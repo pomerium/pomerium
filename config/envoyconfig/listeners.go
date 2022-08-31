@@ -342,6 +342,8 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		LuaFilter(luascripts.CleanUpstream),
 		LuaFilter(luascripts.RewriteHeaders),
 	}
+	// only return 421s for non-wildcard domains because the lua script doesn't understand how to
+	// parse wildcards properly
 	if tlsDomain != "" && !strings.Contains(tlsDomain, "*") {
 		filters = append(filters, LuaFilter(fmt.Sprintf(luascripts.FixMisdirected, tlsDomain)))
 	}

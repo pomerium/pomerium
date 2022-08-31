@@ -730,7 +730,8 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 func Test_getAllDomains(t *testing.T) {
 	cert, err := cryptutil.GenerateSelfSignedCertificate("*.unknown.example.com")
 	require.NoError(t, err)
-	certPEM, keyPEM := cryptutil.EncodeCertificate(cert)
+	certPEM, keyPEM, err := cryptutil.EncodeCertificate(cert)
+	require.NoError(t, err)
 
 	options := &config.Options{
 		Addr:                  "127.0.0.1:9000",

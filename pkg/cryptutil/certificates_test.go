@@ -165,3 +165,18 @@ func TestPrivateKeyMarshaling(t *testing.T) {
 		t.Fatal("private key encoding did not match")
 	}
 }
+
+func TestEncodeCertificate(t *testing.T) {
+	t.Run("nil", func(t *testing.T) {
+		cert, key, err := EncodeCertificate(nil)
+		assert.NoError(t, err)
+		assert.Nil(t, cert)
+		assert.Nil(t, key)
+	})
+	t.Run("empty certificate", func(t *testing.T) {
+		cert, key, err := EncodeCertificate(&tls.Certificate{})
+		assert.NoError(t, err)
+		assert.Nil(t, cert)
+		assert.Nil(t, key)
+	})
+}

@@ -219,16 +219,19 @@ func GenerateSelfSignedCertificate(domain string, configure ...func(*x509.Certif
 	return &cert, nil
 }
 
-// EncodeCertificate encodes a TLS certificate into PEM compatible byte slices. 
-// Returns `nil`, `nil` if there is an error marshalling the PKCS8 private key. 
-func EncodeCertificate(cert *tls.Certificate) (pemCertificateBytes, pemKeyBytes []byte) {
+// EncodeCertificate encodes a TLS certificate into PEM compatible byte slices.
+// Returns `nil`, `nil` if there is an error marshaling the PKCS8 private key.
+func EncodeCertificate(cert *tls.Certificate) (pemCertificateBytes, pemKeyBytes []byte, err error) {
+	if cert == nil || len(cert.Certificate) == 0 {
+		return nil, nil, nil
+	}
 	publicKeyBytes := cert.Certificate[0]
 	privateKeyBytes, err := x509.MarshalPKCS8PrivateKey(cert.PrivateKey)
 	if err != nil {
-		return
+		return nil, nil, err
 	}
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: publicKeyBytes}),
-		pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privateKeyBytes})
+		pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privateKeyBytes}), nil
 }
 
 // ParsePEMCertificate parses a PEM encoded certificate block.
