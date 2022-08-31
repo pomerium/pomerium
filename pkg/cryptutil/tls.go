@@ -64,6 +64,7 @@ func GetCertificateForDomain(certificates []tls.Certificate, domain string) (*tl
 }
 
 // GetCertificateDomains gets all the certificate's matching domain names.
+// Will return `nil` if certificate is nil, empty, or x509 parsing fails. 
 func GetCertificateDomains(cert *tls.Certificate) []string {
 	if cert == nil || len(cert.Certificate) == 0 {
 		return nil
