@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1661900120613,
+  "lastUpdate": 1661959202762,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -9208,6 +9208,38 @@ window.BENCHMARK_DATA = {
             "value": 12822817,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "8be36ead90944fb142ef62dcd2eec731b5b4457d",
+          "message": "postgres: remove not null constraint on data column of record changes table",
+          "timestamp": "2022-08-30T08:20:56Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3594/commits/8be36ead90944fb142ef62dcd2eec731b5b4457d"
+        },
+        "date": 1661959201882,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14857851,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9224394,
+            "unit": "ns/op",
+            "extra": "135 times\n2 procs"
           }
         ]
       }
