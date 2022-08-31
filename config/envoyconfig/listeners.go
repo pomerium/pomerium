@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"strings"
 	"time"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -118,7 +119,7 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 	}
 	listenerFilters = append(listenerFilters, TLSInspectorFilter())
 
-	chains, err := b.buildFilterChains(cfg.Options, cfg.Options.Addr,
+	chains, err := b.buildFilterChains(cfg, cfg.Options.Addr,
 		func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error) {
 			filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, httpDomains, tlsDomain)
 			if err != nil {
@@ -235,15 +236,15 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 }
 
 func (b *Builder) buildFilterChains(
-	options *config.Options, addr string,
+	cfg *config.Config, addr string,
 	callback func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error),
 ) ([]*envoy_config_listener_v3.FilterChain, error) {
-	allDomains, err := getAllRouteableDomains(options, addr)
+	allDomains, err := getAllRouteableDomains(cfg.Options, addr)
 	if err != nil {
 		return nil, err
 	}
 
-	tlsDomains, err := getAllTLSDomains(options, addr)
+	tlsDomains, err := getAllTLSDomains(cfg, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +252,7 @@ func (b *Builder) buildFilterChains(
 	var chains []*envoy_config_listener_v3.FilterChain
 	chains = append(chains, b.buildACMETLSALPNFilterChain())
 	for _, domain := range tlsDomains {
-		routeableDomains, err := getRouteableDomainsForTLSServerName(options, addr, domain)
+		routeableDomains, err := getRouteableDomainsForTLSServerName(cfg.Options, addr, domain)
 		if err != nil {
 			return nil, err
 		}
@@ -341,7 +342,9 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		LuaFilter(luascripts.CleanUpstream),
 		LuaFilter(luascripts.RewriteHeaders),
 	}
-	if tlsDomain != "" && tlsDomain != "*" {
+	// only return 421s for non-wildcard domains because the lua script doesn't understand how to
+	// parse wildcards properly
+	if tlsDomain != "" && !strings.Contains(tlsDomain, "*") {
 		filters = append(filters, LuaFilter(fmt.Sprintf(luascripts.FixMisdirected, tlsDomain)))
 	}
 	filters = append(filters, HTTPRouterFilter())
@@ -438,7 +441,7 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 		return li, nil
 	}
 
-	chains, err := b.buildFilterChains(cfg.Options, cfg.Options.GRPCAddr,
+	chains, err := b.buildFilterChains(cfg, cfg.Options.GRPCAddr,
 		func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error) {
 			filterChain := &envoy_config_listener_v3.FilterChain{
 				Filters: []*envoy_config_listener_v3.Filter{filter},
@@ -658,18 +661,28 @@ func getAllRouteableDomains(options *config.Options, addr string) ([]string, err
 	return allDomains.ToSlice(), nil
 }
 
-func getAllTLSDomains(options *config.Options, addr string) ([]string, error) {
-	allDomains, err := getAllRouteableDomains(options, addr)
+func getAllTLSDomains(cfg *config.Config, addr string) ([]string, error) {
+	domains := sets.NewSorted[string]()
+
+	routeableDomains, err := getAllRouteableDomains(cfg.Options, addr)
 	if err != nil {
 		return nil, err
 	}
-
-	domains := sets.NewSorted[string]()
-	for _, hp := range allDomains {
+	for _, hp := range routeableDomains {
 		if d, _, err := net.SplitHostPort(hp); err == nil {
 			domains.Add(d)
 		} else {
 			domains.Add(hp)
+		}
+	}
+
+	certs, err := cfg.AllCertificates()
+	if err != nil {
+		return nil, err
+	}
+	for i := range certs {
+		for _, domain := range cryptutil.GetCertificateDomains(&certs[i]) {
+			domains.Add(domain)
 		}
 	}
 

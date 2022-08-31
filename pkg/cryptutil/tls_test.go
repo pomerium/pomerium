@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetCertificateForDomain(t *testing.T) {
@@ -61,4 +62,10 @@ func TestGetCertificateForDomain(t *testing.T) {
 		}
 		assert.NotNil(t, found)
 	})
+}
+
+func TestGetCertificateDomains(t *testing.T) {
+	cert, err := GenerateSelfSignedCertificate("www.example.com")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"www.example.com"}, GetCertificateDomains(cert))
 }

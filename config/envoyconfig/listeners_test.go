@@ -2,6 +2,7 @@ package envoyconfig
 
 import (
 	"context"
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 const (
@@ -726,6 +728,11 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 }
 
 func Test_getAllDomains(t *testing.T) {
+	cert, err := cryptutil.GenerateSelfSignedCertificate("*.unknown.example.com")
+	require.NoError(t, err)
+	certPEM, keyPEM, err := cryptutil.EncodeCertificate(cert)
+	require.NoError(t, err)
+
 	options := &config.Options{
 		Addr:                  "127.0.0.1:9000",
 		GRPCAddr:              "127.0.0.1:9001",
@@ -738,6 +745,8 @@ func Test_getAllDomains(t *testing.T) {
 			{Source: &config.StringURL{URL: mustParseURL(t, "https://b.example.com")}},
 			{Source: &config.StringURL{URL: mustParseURL(t, "https://c.example.com")}},
 		},
+		Cert: base64.StdEncoding.EncodeToString(certPEM),
+		Key:  base64.StdEncoding.EncodeToString(keyPEM),
 	}
 	t.Run("routable", func(t *testing.T) {
 		t.Run("http", func(t *testing.T) {
@@ -786,9 +795,10 @@ func Test_getAllDomains(t *testing.T) {
 	})
 	t.Run("tls", func(t *testing.T) {
 		t.Run("http", func(t *testing.T) {
-			actual, err := getAllTLSDomains(options, "127.0.0.1:9000")
+			actual, err := getAllTLSDomains(&config.Config{Options: options}, "127.0.0.1:9000")
 			require.NoError(t, err)
 			expect := []string{
+				"*.unknown.example.com",
 				"a.example.com",
 				"authenticate.example.com",
 				"b.example.com",
@@ -797,9 +807,10 @@ func Test_getAllDomains(t *testing.T) {
 			assert.Equal(t, expect, actual)
 		})
 		t.Run("grpc", func(t *testing.T) {
-			actual, err := getAllTLSDomains(options, "127.0.0.1:9001")
+			actual, err := getAllTLSDomains(&config.Config{Options: options}, "127.0.0.1:9001")
 			require.NoError(t, err)
 			expect := []string{
+				"*.unknown.example.com",
 				"authorize.example.com",
 				"cache.example.com",
 			}
