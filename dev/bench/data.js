@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1661963111472,
+  "lastUpdate": 1661963876485,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -9404,6 +9404,42 @@ window.BENCHMARK_DATA = {
             "value": 11014993,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "33794ff3165e00808136d5b184b1d1ca949a871c",
+          "message": "envoyconfig: add virtual host domains for certificates in addition to routes (#3593)\n\n* envoyconfig: add virtual host domains for certificates in addition to routes\r\n\r\n* Update pkg/cryptutil/certificates.go\r\n\r\nCo-authored-by: bobby <1544881+desimone@users.noreply.github.com>\r\n\r\n* Update pkg/cryptutil/tls.go\r\n\r\nCo-authored-by: bobby <1544881+desimone@users.noreply.github.com>\r\n\r\n* comments\r\n\r\nCo-authored-by: bobby <1544881+desimone@users.noreply.github.com>",
+          "timestamp": "2022-08-31T10:35:45-06:00",
+          "tree_id": "912a5005a0f3f89a4f88e985181b253523bea747",
+          "url": "https://github.com/pomerium/pomerium/commit/33794ff3165e00808136d5b184b1d1ca949a871c"
+        },
+        "date": 1661963876120,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13639833,
+            "unit": "ns/op",
+            "extra": "81 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8375438,
+            "unit": "ns/op",
+            "extra": "138 times\n2 procs"
           }
         ]
       }
