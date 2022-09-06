@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1662494820528,
+  "lastUpdate": 1662495828843,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -9804,6 +9804,42 @@ window.BENCHMARK_DATA = {
             "value": 8665700,
             "unit": "ns/op",
             "extra": "140 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f989dabf303d4800850dd9bf3e4008e048f99624",
+          "message": "chore(deps): bump github.com/coreos/go-oidc/v3 from 3.2.0 to 3.3.0 (#3605)\n\nBumps [github.com/coreos/go-oidc/v3](https://github.com/coreos/go-oidc) from 3.2.0 to 3.3.0.\r\n- [Release notes](https://github.com/coreos/go-oidc/releases)\r\n- [Commits](https://github.com/coreos/go-oidc/compare/v3.2.0...v3.3.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/coreos/go-oidc/v3\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-09-06T14:20:12-06:00",
+          "tree_id": "fa4d69b3c79281752bf5dcf3838390a07b458d17",
+          "url": "https://github.com/pomerium/pomerium/commit/f989dabf303d4800850dd9bf3e4008e048f99624"
+        },
+        "date": 1662495828472,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12786136,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7825807,
+            "unit": "ns/op",
+            "extra": "154 times\n2 procs"
           }
         ]
       }
