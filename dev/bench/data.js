@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1662398030566,
+  "lastUpdate": 1662494533246,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -9732,6 +9732,42 @@ window.BENCHMARK_DATA = {
             "value": 7804591,
             "unit": "ns/op",
             "extra": "151 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "882f4e5175f2d66ae366f10d3620d2a5e3564e9d",
+          "message": "chore(deps): bump github.com/caddyserver/certmagic from 0.16.3 to 0.17.0 (#3604)\n\nBumps [github.com/caddyserver/certmagic](https://github.com/caddyserver/certmagic) from 0.16.3 to 0.17.0.\r\n- [Release notes](https://github.com/caddyserver/certmagic/releases)\r\n- [Commits](https://github.com/caddyserver/certmagic/compare/v0.16.3...v0.17.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/caddyserver/certmagic\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-09-06T13:57:42-06:00",
+          "tree_id": "6b5892edba69ab02e0828432656d322d1b4c7c5b",
+          "url": "https://github.com/pomerium/pomerium/commit/882f4e5175f2d66ae366f10d3620d2a5e3564e9d"
+        },
+        "date": 1662494531783,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16829153,
+            "unit": "ns/op",
+            "extra": "80 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10380311,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
