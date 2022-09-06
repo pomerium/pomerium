@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1662494533246,
+  "lastUpdate": 1662494820528,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -9768,6 +9768,42 @@ window.BENCHMARK_DATA = {
             "value": 10380311,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b4686641749105d5e007f8decc323d404a3c2a1b",
+          "message": "chore(deps): bump github.com/jackc/pgx/v4 from 4.17.1 to 4.17.2 (#3603)\n\nBumps [github.com/jackc/pgx/v4](https://github.com/jackc/pgx) from 4.17.1 to 4.17.2.\r\n- [Release notes](https://github.com/jackc/pgx/releases)\r\n- [Changelog](https://github.com/jackc/pgx/blob/master/CHANGELOG.md)\r\n- [Commits](https://github.com/jackc/pgx/compare/v4.17.1...v4.17.2)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/jackc/pgx/v4\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-09-06T13:58:00-06:00",
+          "tree_id": "a028c1bae951a28392e338eb768fa391ccbe44fc",
+          "url": "https://github.com/pomerium/pomerium/commit/b4686641749105d5e007f8decc323d404a3c2a1b"
+        },
+        "date": 1662494820142,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14627963,
+            "unit": "ns/op",
+            "extra": "92 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8665700,
+            "unit": "ns/op",
+            "extra": "140 times\n2 procs"
           }
         ]
       }
