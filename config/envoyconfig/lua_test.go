@@ -43,61 +43,6 @@ func TestLuaCleanUpstream(t *testing.T) {
 	}, headers)
 }
 
-func TestLuaFixMisdirected(t *testing.T) {
-	t.Run("request", func(t *testing.T) {
-		L := lua.NewState()
-		defer L.Close()
-
-		bs, err := luaFS.ReadFile("luascripts/fix-misdirected.lua")
-		require.NoError(t, err)
-
-		err = L.DoString(string(bs))
-		require.NoError(t, err)
-
-		headers := map[string]string{
-			":authority": "TEST",
-		}
-		metadata := map[string]interface{}{}
-		dynamicMetadata := map[string]map[string]interface{}{}
-		handle := newLuaResponseHandle(L, headers, metadata, dynamicMetadata)
-
-		err = L.CallByParam(lua.P{
-			Fn:      L.GetGlobal("envoy_on_request"),
-			NRet:    0,
-			Protect: true,
-		}, handle)
-		require.NoError(t, err)
-
-		assert.Equal(t, map[string]map[string]interface{}{
-			"envoy.filters.http.lua": {
-				"request.authority": "TEST",
-			},
-		}, dynamicMetadata)
-	})
-	t.Run("empty metadata", func(t *testing.T) {
-		L := lua.NewState()
-		defer L.Close()
-
-		bs, err := luaFS.ReadFile("luascripts/fix-misdirected.lua")
-		require.NoError(t, err)
-
-		err = L.DoString(string(bs))
-		require.NoError(t, err)
-
-		headers := map[string]string{}
-		metadata := map[string]interface{}{}
-		dynamicMetadata := map[string]map[string]interface{}{}
-		handle := newLuaResponseHandle(L, headers, metadata, dynamicMetadata)
-
-		err = L.CallByParam(lua.P{
-			Fn:      L.GetGlobal("envoy_on_response"),
-			NRet:    0,
-			Protect: true,
-		}, handle)
-		require.NoError(t, err)
-	})
-}
-
 func TestLuaRewriteHeaders(t *testing.T) {
 	L := lua.NewState()
 	defer L.Close()
