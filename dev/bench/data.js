@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1662496164361,
+  "lastUpdate": 1662566297724,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -9908,6 +9908,42 @@ window.BENCHMARK_DATA = {
             "value": 9296420,
             "unit": "ns/op",
             "extra": "128 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8d7db85737c5874423c6bf5584fbb904ba0290a2",
+          "message": "envoyconfig: add all routes to all filter chains (#3596)",
+          "timestamp": "2022-09-07T09:55:03-06:00",
+          "tree_id": "851375b57faec8bea43b77895d45bdb13c48eb4d",
+          "url": "https://github.com/pomerium/pomerium/commit/8d7db85737c5874423c6bf5584fbb904ba0290a2"
+        },
+        "date": 1662566297057,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15528913,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8961282,
+            "unit": "ns/op",
+            "extra": "130 times\n2 procs"
           }
         ]
       }
