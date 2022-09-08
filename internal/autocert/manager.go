@@ -3,9 +3,11 @@ package autocert
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"sort"
 	"sync"
@@ -43,11 +45,12 @@ type Manager struct {
 	src          config.Source
 	acmeTemplate certmagic.ACMEIssuer
 
-	mu        sync.RWMutex
-	config    *config.Config
-	certmagic *certmagic.Config
-	acmeMgr   *atomicutil.Value[*certmagic.ACMEIssuer]
-	srv       *http.Server
+	mu                  sync.RWMutex
+	config              *config.Config
+	certmagic           *certmagic.Config
+	acmeMgr             *atomicutil.Value[*certmagic.ACMEIssuer]
+	srv                 *http.Server
+	acmeTLSALPNListener net.Listener
 
 	*ocspCache
 
@@ -152,7 +155,6 @@ func (mgr *Manager) getCertMagicConfig(ctx context.Context, cfg *config.Config) 
 	if err != nil {
 		return nil, err
 	}
-	acmeMgr.DisableTLSALPNChallenge = true
 	mgr.certmagic.Issuers = []certmagic.Issuer{acmeMgr}
 	mgr.acmeMgr.Store(acmeMgr)
 
@@ -207,6 +209,7 @@ func (mgr *Manager) renewConfigCerts(ctx context.Context) error {
 
 	cfg = mgr.src.GetConfig().Clone()
 	mgr.updateServer(ctx, cfg)
+	mgr.updateACMETLSALPNServer(ctx, cfg)
 	if err := mgr.updateAutocert(ctx, cfg); err != nil {
 		return err
 	}
@@ -224,6 +227,7 @@ func (mgr *Manager) update(ctx context.Context, cfg *config.Config) error {
 	defer func() { mgr.config = cfg }()
 
 	mgr.updateServer(ctx, cfg)
+	mgr.updateACMETLSALPNServer(ctx, cfg)
 	return mgr.updateAutocert(ctx, cfg)
 }
 
@@ -324,6 +328,34 @@ func (mgr *Manager) updateServer(ctx context.Context, cfg *config.Config) {
 	mgr.srv = hsrv
 }
 
+func (mgr *Manager) updateACMETLSALPNServer(ctx context.Context, cfg *config.Config) {
+	addr := net.JoinHostPort("127.0.0.1", cfg.ACMETLSALPNPort)
+	if mgr.acmeTLSALPNListener != nil {
+		_ = mgr.acmeTLSALPNListener.Close()
+		mgr.acmeTLSALPNListener = nil
+	}
+
+	tlsConfig := mgr.certmagic.TLSConfig()
+	ln, err := tls.Listen("tcp", addr, tlsConfig)
+	if err != nil {
+		log.Error(ctx).Err(err).Msg("failed to run acme tls alpn server")
+		return
+	}
+	mgr.acmeTLSALPNListener = ln
+
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if errors.Is(err, net.ErrClosed) {
+				return
+			} else if err != nil {
+				continue
+			}
+			_ = conn.Close()
+		}
+	}()
+}
+
 func (mgr *Manager) handleHTTPChallenge(w http.ResponseWriter, r *http.Request) bool {
 	return mgr.acmeMgr.Load().HandleHTTPChallenge(w, r)
 }
@@ -347,6 +379,8 @@ func configureCertificateAuthority(acmeMgr *certmagic.ACMEIssuer, opts config.Au
 	}
 	if opts.Email != "" {
 		acmeMgr.Email = opts.Email
+	} else {
+		acmeMgr.Email = " " // intentionally set to a space so that certmagic doesn't prompt for an email address
 	}
 	return nil
 }

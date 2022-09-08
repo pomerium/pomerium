@@ -46,7 +46,7 @@ func (s *Sorted[T]) ForEach(callback func(element T) bool) {
 	})
 }
 
-// Has returns true if the elment is in the set.
+// Has returns true if the element is in the set.
 func (s *Sorted[T]) Has(element T) bool {
 	return s.b.Has(element)
 }

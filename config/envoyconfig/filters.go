@@ -9,6 +9,7 @@ import (
 	envoy_extensions_filters_listener_proxy_protocol_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/proxy_protocol/v3"
 	envoy_extensions_filters_listener_tls_inspector_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/tls_inspector/v3"
 	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	envoy_extensions_filters_network_tcp_proxy_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/tcp_proxy/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
 
@@ -85,6 +86,21 @@ func ProxyProtocolFilter() *envoy_config_listener_v3.ListenerFilter {
 		Name: "envoy.filters.listener.proxy_protocol",
 		ConfigType: &envoy_config_listener_v3.ListenerFilter_TypedConfig{
 			TypedConfig: protoutil.NewAny(&envoy_extensions_filters_listener_proxy_protocol_v3.ProxyProtocol{}),
+		},
+	}
+}
+
+// TCPProxyFilter creates a new TCP Proxy filter.
+func TCPProxyFilter(clusterName string) *envoy_config_listener_v3.Filter {
+	return &envoy_config_listener_v3.Filter{
+		Name: "tcp_proxy",
+		ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{
+			TypedConfig: protoutil.NewAny(&envoy_extensions_filters_network_tcp_proxy_v3.TcpProxy{
+				StatPrefix: "acme_tls_alpn",
+				ClusterSpecifier: &envoy_extensions_filters_network_tcp_proxy_v3.TcpProxy_Cluster{
+					Cluster: clusterName,
+				},
+			}),
 		},
 	}
 }

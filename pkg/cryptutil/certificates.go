@@ -166,7 +166,7 @@ func EncodePrivateKey(key *ecdsa.PrivateKey) ([]byte, error) {
 func GenerateSelfSignedCertificate(domain string, configure ...func(*x509.Certificate)) (*tls.Certificate, error) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil, fmt.Errorf("failed to geneate private key: %w", err)
+		return nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
@@ -217,6 +217,21 @@ func GenerateSelfSignedCertificate(domain string, configure ...func(*x509.Certif
 	}
 
 	return &cert, nil
+}
+
+// EncodeCertificate encodes a TLS certificate into PEM compatible byte slices.
+// Returns `nil`, `nil` if there is an error marshaling the PKCS8 private key.
+func EncodeCertificate(cert *tls.Certificate) (pemCertificateBytes, pemKeyBytes []byte, err error) {
+	if cert == nil || len(cert.Certificate) == 0 {
+		return nil, nil, nil
+	}
+	publicKeyBytes := cert.Certificate[0]
+	privateKeyBytes, err := x509.MarshalPKCS8PrivateKey(cert.PrivateKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: publicKeyBytes}),
+		pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privateKeyBytes}), nil
 }
 
 // ParsePEMCertificate parses a PEM encoded certificate block.

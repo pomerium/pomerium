@@ -26,6 +26,8 @@ type Config struct {
 	MetricsPort string
 	// DebugPort is the port the debug listener is running on.
 	DebugPort string
+	// ACMETLSPort is the port that handles the ACME TLS-ALPN challenge.
+	ACMETLSALPNPort string
 
 	// MetricsScrapeEndpoints additional metrics endpoints to scrape and provide part of metrics
 	MetricsScrapeEndpoints []MetricsScrapeEndpoint
@@ -56,11 +58,12 @@ func (cfg *Config) Clone() *Config {
 		AutoCertificates: cfg.AutoCertificates,
 		EnvoyVersion:     cfg.EnvoyVersion,
 
-		GRPCPort:     cfg.GRPCPort,
-		HTTPPort:     cfg.HTTPPort,
-		OutboundPort: cfg.OutboundPort,
-		MetricsPort:  cfg.MetricsPort,
-		DebugPort:    cfg.DebugPort,
+		GRPCPort:        cfg.GRPCPort,
+		HTTPPort:        cfg.HTTPPort,
+		OutboundPort:    cfg.OutboundPort,
+		MetricsPort:     cfg.MetricsPort,
+		DebugPort:       cfg.DebugPort,
+		ACMETLSALPNPort: cfg.ACMETLSALPNPort,
 
 		MetricsScrapeEndpoints: endpoints,
 	}
@@ -85,10 +88,11 @@ func (cfg *Config) Checksum() uint64 {
 }
 
 // AllocatePorts populates
-func (cfg *Config) AllocatePorts(ports [5]string) {
+func (cfg *Config) AllocatePorts(ports [6]string) {
 	cfg.GRPCPort = ports[0]
 	cfg.HTTPPort = ports[1]
 	cfg.OutboundPort = ports[2]
 	cfg.MetricsPort = ports[3]
 	cfg.DebugPort = ports[4]
+	cfg.ACMETLSALPNPort = ports[5]
 }

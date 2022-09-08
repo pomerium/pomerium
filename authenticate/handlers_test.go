@@ -394,7 +394,7 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 		{"bad timing - too soon", http.MethodGet, time.Now().Add(1 * time.Hour).Unix(), "", "", "", "", "code", "https://corp.pomerium.io", "https://authenticate.pomerium.io", &mstore.Store{}, identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, "https://corp.pomerium.io", http.StatusBadRequest},
 		{"bad timing - expired", http.MethodGet, time.Now().Add(-1 * time.Hour).Unix(), "", "", "", "", "code", "https://corp.pomerium.io", "https://authenticate.pomerium.io", &mstore.Store{}, identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, "https://corp.pomerium.io", http.StatusBadRequest},
 		{"bad base64", http.MethodGet, time.Now().Unix(), "", "", "^", "", "code", "https://corp.pomerium.io", "https://authenticate.pomerium.io", &mstore.Store{}, identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, "https://corp.pomerium.io", http.StatusBadRequest},
-		{"too many seperators", http.MethodGet, time.Now().Unix(), "", "", "|ok|now|what", "", "code", "https://corp.pomerium.io", "https://authenticate.pomerium.io", &mstore.Store{}, identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, "https://corp.pomerium.io", http.StatusBadRequest},
+		{"too many separators", http.MethodGet, time.Now().Unix(), "", "", "|ok|now|what", "", "code", "https://corp.pomerium.io", "https://authenticate.pomerium.io", &mstore.Store{}, identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, "https://corp.pomerium.io", http.StatusBadRequest},
 		{"bad hmac", http.MethodGet, time.Now().Unix(), "", "NOTMAC", "", "", "code", "https://corp.pomerium.io", "https://authenticate.pomerium.io", &mstore.Store{}, identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, "https://corp.pomerium.io", http.StatusBadRequest},
 		{"bad hmac", http.MethodGet, time.Now().Unix(), base64.URLEncoding.EncodeToString([]byte("malformed_state")), "", "", "", "code", "https://corp.pomerium.io", "https://authenticate.pomerium.io", &mstore.Store{}, identity.MockProvider{AuthenticateResponse: oauth2.Token{}}, "https://corp.pomerium.io", http.StatusBadRequest},
 	}
@@ -474,6 +474,8 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
+	idp, _ := new(config.Options).GetIdentityProviderForID("")
+
 	tests := []struct {
 		name    string
 		headers map[string]string
@@ -487,7 +489,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		{
 			"good",
 			nil,
-			&mstore.Store{Session: &sessions.State{ID: "xyz"}},
+			&mstore.Store{Session: &sessions.State{IdentityProviderID: idp.GetId(), ID: "xyz"}},
 			nil,
 			identity.MockProvider{RefreshResponse: oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}},
 			http.StatusOK,
@@ -495,7 +497,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		{
 			"invalid session",
 			nil,
-			&mstore.Store{Session: &sessions.State{ID: "xyz"}},
+			&mstore.Store{Session: &sessions.State{IdentityProviderID: idp.GetId(), ID: "xyz"}},
 			errors.New("hi"),
 			identity.MockProvider{},
 			http.StatusFound,
@@ -503,7 +505,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		{
 			"good refresh expired",
 			nil,
-			&mstore.Store{Session: &sessions.State{ID: "xyz"}},
+			&mstore.Store{Session: &sessions.State{IdentityProviderID: idp.GetId(), ID: "xyz"}},
 			nil,
 			identity.MockProvider{RefreshResponse: oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}},
 			http.StatusOK,
@@ -511,7 +513,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		{
 			"expired,refresh error",
 			nil,
-			&mstore.Store{Session: &sessions.State{ID: "xyz"}},
+			&mstore.Store{Session: &sessions.State{IdentityProviderID: idp.GetId(), ID: "xyz"}},
 			sessions.ErrExpired,
 			identity.MockProvider{RefreshError: errors.New("error")},
 			http.StatusFound,
@@ -519,7 +521,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		{
 			"expired,save error",
 			nil,
-			&mstore.Store{SaveError: errors.New("error"), Session: &sessions.State{ID: "xyz"}},
+			&mstore.Store{SaveError: errors.New("error"), Session: &sessions.State{IdentityProviderID: idp.GetId(), ID: "xyz"}},
 			sessions.ErrExpired,
 			identity.MockProvider{RefreshResponse: oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}},
 			http.StatusFound,
@@ -527,7 +529,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		{
 			"expired XHR,refresh error",
 			map[string]string{"X-Requested-With": "XmlHttpRequest"},
-			&mstore.Store{Session: &sessions.State{ID: "xyz"}},
+			&mstore.Store{Session: &sessions.State{IdentityProviderID: idp.GetId(), ID: "xyz"}},
 			sessions.ErrExpired,
 			identity.MockProvider{RefreshError: errors.New("error")},
 			http.StatusUnauthorized,

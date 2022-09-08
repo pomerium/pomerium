@@ -107,7 +107,7 @@ func (b *Builder) buildMainListener(
 			return nil, err
 		}
 
-		filter, err := b.buildMainHTTPConnectionManagerFilter(cfg, allDomains, "")
+		filter, err := b.buildMainHTTPConnectionManagerFilter(cfg, allDomains)
 		if err != nil {
 			return nil, err
 		}
@@ -126,7 +126,7 @@ func (b *Builder) buildMainListener(
 
 	chains, err := b.buildFilterChains(cfg, cfg.Options.Addr,
 		func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error) {
-			filter, err := b.buildMainHTTPConnectionManagerFilter(cfg, httpDomains, tlsDomain)
+			filter, err := b.buildMainHTTPConnectionManagerFilter(cfg, httpDomains)
 			if err != nil {
 				return nil, err
 			}
@@ -243,8 +243,7 @@ func (b *Builder) buildMetricsListener(
 }
 
 func (b *Builder) buildFilterChains(
-	cfg *config.Config,
-	addr string,
+	cfg *config.Config, addr string,
 	callback func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error),
 ) ([]*envoy_config_listener_v3.FilterChain, error) {
 	allDomains, err := getAllRouteableDomains(cfg, addr)
@@ -258,14 +257,9 @@ func (b *Builder) buildFilterChains(
 	}
 
 	var chains []*envoy_config_listener_v3.FilterChain
+	chains = append(chains, b.buildACMETLSALPNFilterChain())
 	for _, domain := range tlsDomains {
-		routeableDomains, err := getRouteableDomainsForTLSServerName(cfg, addr, domain)
-		if err != nil {
-			return nil, err
-		}
-
-		// first we match on SNI
-		chain, err := callback(domain, routeableDomains)
+		chain, err := callback(domain, allDomains)
 		if err != nil {
 			return nil, err
 		}
@@ -284,7 +278,6 @@ func (b *Builder) buildFilterChains(
 func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	cfg *config.Config,
 	domains []string,
-	tlsDomain string,
 ) (*envoy_config_listener_v3.Filter, error) {
 	authorizeURLs, err := cfg.Options.GetInternalAuthorizeURLs()
 	if err != nil {
@@ -348,9 +341,6 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		LuaFilter(luascripts.ExtAuthzSetCookie),
 		LuaFilter(luascripts.CleanUpstream),
 		LuaFilter(luascripts.RewriteHeaders),
-	}
-	if tlsDomain != "" && tlsDomain != "*" {
-		filters = append(filters, LuaFilter(fmt.Sprintf(luascripts.FixMisdirected, tlsDomain)))
 	}
 	filters = append(filters, HTTPRouterFilter())
 
@@ -630,36 +620,7 @@ func (b *Builder) buildDownstreamValidationContext(
 	return vc
 }
 
-func getRouteableDomainsForTLSServerName(
-	cfg *config.Config,
-	addr string,
-	tlsServerName string,
-) ([]string, error) {
-	allDomains := sets.NewSorted[string]()
-
-	if addr == cfg.Options.Addr {
-		domains, err := cfg.Options.GetAllRouteableHTTPDomainsForTLSServerName(tlsServerName)
-		if err != nil {
-			return nil, err
-		}
-		allDomains.Add(domains...)
-	}
-
-	if addr == cfg.Options.GetGRPCAddr() {
-		domains, err := cfg.Options.GetAllRouteableGRPCDomainsForTLSServerName(tlsServerName)
-		if err != nil {
-			return nil, err
-		}
-		allDomains.Add(domains...)
-	}
-
-	return allDomains.ToSlice(), nil
-}
-
-func getAllRouteableDomains(
-	cfg *config.Config,
-	addr string,
-) ([]string, error) {
+func getAllRouteableDomains(cfg *config.Config, addr string) ([]string, error) {
 	allDomains := sets.NewSorted[string]()
 
 	if addr == cfg.Options.Addr {
@@ -681,21 +642,28 @@ func getAllRouteableDomains(
 	return allDomains.ToSlice(), nil
 }
 
-func getAllTLSDomains(
-	cfg *config.Config,
-	addr string,
-) ([]string, error) {
-	allDomains, err := getAllRouteableDomains(cfg, addr)
+func getAllTLSDomains(cfg *config.Config, addr string) ([]string, error) {
+	domains := sets.NewSorted[string]()
+
+	routeableDomains, err := getAllRouteableDomains(cfg, addr)
 	if err != nil {
 		return nil, err
 	}
-
-	domains := sets.NewSorted[string]()
-	for _, hp := range allDomains {
+	for _, hp := range routeableDomains {
 		if d, _, err := net.SplitHostPort(hp); err == nil {
 			domains.Add(d)
 		} else {
 			domains.Add(hp)
+		}
+	}
+
+	certs, err := cfg.AllCertificates()
+	if err != nil {
+		return nil, err
+	}
+	for i := range certs {
+		for _, domain := range cryptutil.GetCertificateDomains(&certs[i]) {
+			domains.Add(domain)
 		}
 	}
 
