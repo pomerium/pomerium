@@ -286,8 +286,12 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 	defer span.End()
 
 	cfg := a.currentConfig.Load()
+	idp, err := cfg.Options.GetIdentityProviderForID(r.FormValue(urlutil.QueryIdentityProviderID))
+	if err != nil {
+		return err
+	}
 
-	authenticator, err := a.cfg.getIdentityProvider(cfg, r.FormValue(urlutil.QueryIdentityProviderID))
+	authenticator, err := a.cfg.getIdentityProvider(cfg, idp.GetId())
 	if err != nil {
 		return err
 	}
@@ -342,7 +346,6 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 
 	state := a.state.Load()
 	cfg := a.currentConfig.Load()
-
 	idp, err := cfg.Options.GetIdentityProviderForID(r.FormValue(urlutil.QueryIdentityProviderID))
 	if err != nil {
 		return err
@@ -444,7 +447,7 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		return nil, httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	idp, err := cfg.Options.GetIdentityProviderForID(r.FormValue(urlutil.QueryIdentityProviderID))
+	idp, err := cfg.Options.GetIdentityProviderForID(redirectURL.Query().Get(urlutil.QueryIdentityProviderID))
 	if err != nil {
 		return nil, err
 	}
@@ -601,8 +604,12 @@ func (a *Authenticate) saveSessionToDataBroker(
 ) error {
 	state := a.state.Load()
 	cfg := a.currentConfig.Load()
+	idp, err := cfg.Options.GetIdentityProviderForID(r.FormValue(urlutil.QueryIdentityProviderID))
+	if err != nil {
+		return err
+	}
 
-	authenticator, err := a.cfg.getIdentityProvider(cfg, r.FormValue(urlutil.QueryIdentityProviderID))
+	authenticator, err := a.cfg.getIdentityProvider(cfg, idp.GetId())
 	if err != nil {
 		return err
 	}
