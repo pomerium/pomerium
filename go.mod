@@ -14,7 +14,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/client9/misspell v0.3.4
 	github.com/coreos/go-oidc/v3 v3.3.0
-	github.com/docker/docker v20.10.17+incompatible
+	github.com/docker/docker v20.10.18+incompatible
 	github.com/envoyproxy/go-control-plane v0.10.3-0.20220819153403-8a9be01c9575
 	github.com/envoyproxy/protoc-gen-validate v0.6.7
 	github.com/go-chi/chi/v5 v5.0.7
@@ -68,7 +68,7 @@ require (
 	golang.org/x/net v0.0.0-20220826154423-83b083e8dc8b
 	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
-	google.golang.org/api v0.94.0
+	google.golang.org/api v0.95.0
 	google.golang.org/genproto v0.0.0-20220624142145-8cd45d7dbd1f
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.28.1
