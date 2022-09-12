@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1663001016501,
+  "lastUpdate": 1663013649580,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -10300,6 +10300,42 @@ window.BENCHMARK_DATA = {
             "value": 9545987,
             "unit": "ns/op",
             "extra": "136 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "603ef6889a530181870be34d46a1353dbf02cf95",
+          "message": "chore(deps): bump golang from 1.19.0-buster to 1.19.1-buster (#3617)\n\nBumps golang from 1.19.0-buster to 1.19.1-buster.\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golang\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-09-12T14:10:18-06:00",
+          "tree_id": "b450010e03d9d5aea059f67eb28e71ae6bf93edf",
+          "url": "https://github.com/pomerium/pomerium/commit/603ef6889a530181870be34d46a1353dbf02cf95"
+        },
+        "date": 1663013648925,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13034775,
+            "unit": "ns/op",
+            "extra": "94 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7854941,
+            "unit": "ns/op",
+            "extra": "153 times\n2 procs"
           }
         ]
       }
