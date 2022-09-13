@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1663109866232,
+  "lastUpdate": 1663110168862,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -10744,6 +10744,42 @@ window.BENCHMARK_DATA = {
             "value": 10016327,
             "unit": "ns/op",
             "extra": "123 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "33e4829a86b7f0604fa6dc57e35579ab5e3ffe29",
+          "message": "chore(deps): bump github.com/open-policy-agent/opa from 0.43.0 to 0.44.0 (#3620)\n\nBumps [github.com/open-policy-agent/opa](https://github.com/open-policy-agent/opa) from 0.43.0 to 0.44.0.\r\n- [Release notes](https://github.com/open-policy-agent/opa/releases)\r\n- [Changelog](https://github.com/open-policy-agent/opa/blob/main/CHANGELOG.md)\r\n- [Commits](https://github.com/open-policy-agent/opa/compare/v0.43.0...v0.44.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/open-policy-agent/opa\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-09-13T15:54:39-07:00",
+          "tree_id": "ba06da6ad19a2dd74737cd20c11585dea79ce185",
+          "url": "https://github.com/pomerium/pomerium/commit/33e4829a86b7f0604fa6dc57e35579ab5e3ffe29"
+        },
+        "date": 1663110168442,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17339506,
+            "unit": "ns/op",
+            "extra": "68 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11469541,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
