@@ -82,7 +82,6 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			Services:                 "all",
 			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
-			ForwardAuthURLString:     "https://forward-auth.example.com",
 		}
 		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
 		require.NoError(t, err)
@@ -116,7 +115,6 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			Services:                 "all",
 			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
-			ForwardAuthURLString:     "https://forward-auth.example.com",
 			Policies: []config.Policy{{
 				From: "https://from.example.com",
 				To:   mustParseWeightedURLs(t, "https://to.example.com"),
@@ -143,7 +141,6 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			Services:                 "all",
 			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
-			ForwardAuthURLString:     "https://forward-auth.example.com",
 			Policies: []config.Policy{{
 				From:                             "https://from.example.com",
 				To:                               mustParseWeightedURLs(t, "https://to.example.com"),

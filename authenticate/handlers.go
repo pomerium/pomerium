@@ -214,11 +214,6 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		jwtAudience = append(jwtAudience, callbackURL.Host)
 	}
 
-	// add an additional claim for the forward-auth host, if set
-	if fwdAuth := r.FormValue(urlutil.QueryForwardAuth); fwdAuth != "" {
-		jwtAudience = append(jwtAudience, fwdAuth)
-	}
-
 	s, err := a.getSessionFromCtx(ctx)
 	if err != nil {
 		state.sessionStore.ClearSession(w, r)

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -35,7 +34,7 @@ func TestProxy_RobotsTxt(t *testing.T) {
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
-	expected := fmt.Sprintf("User-agent: *\nDisallow: /")
+	expected := "User-agent: *\nDisallow: /"
 	if rr.Body.String() != expected {
 		t.Errorf("handler returned wrong body: got %v want %v", rr.Body.String(), expected)
 	}

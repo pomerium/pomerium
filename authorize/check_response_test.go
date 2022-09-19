@@ -38,8 +38,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 			&evaluator.Request{},
 			&evaluator.Result{
 				Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
-			},
-			false)
+			})
 		assert.NoError(t, err)
 		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
 
@@ -48,8 +47,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 			&evaluator.Request{},
 			&evaluator.Result{
 				Deny: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
-			},
-			false)
+			})
 		assert.NoError(t, err)
 		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
@@ -196,8 +194,7 @@ func TestRequireLogin(t *testing.T) {
 	t.Run("accept empty", func(t *testing.T) {
 		res, err := a.requireLoginResponse(context.Background(),
 			&envoy_service_auth_v3.CheckRequest{},
-			&evaluator.Request{},
-			false)
+			&evaluator.Request{})
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
@@ -214,8 +211,7 @@ func TestRequireLogin(t *testing.T) {
 					},
 				},
 			},
-			&evaluator.Request{},
-			false)
+			&evaluator.Request{})
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
@@ -232,8 +228,7 @@ func TestRequireLogin(t *testing.T) {
 					},
 				},
 			},
-			&evaluator.Request{},
-			false)
+			&evaluator.Request{})
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})

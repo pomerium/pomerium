@@ -39,7 +39,6 @@ func (srv *Server) addHTTPMiddleware(root *mux.Router, cfg *config.Config) {
 			Msg("http-request")
 	}))
 	root.Use(handlers.RecoveryHandler())
-	root.Use(log.HeadersHandler(httputil.HeadersXForwarded))
 	root.Use(log.RemoteAddrHandler("ip"))
 	root.Use(log.UserAgentHandler("user_agent"))
 	root.Use(log.RefererHandler("referer"))

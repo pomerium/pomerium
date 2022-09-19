@@ -10,12 +10,10 @@ const (
 	QueryEnrollmentToken    = "pomerium_enrollment_token" //nolint
 	QueryIdentityProviderID = "pomerium_idp_id"
 	QueryIsProgrammatic     = "pomerium_programmatic"
-	QueryForwardAuth        = "pomerium_forward_auth"
 	QueryPomeriumJWT        = "pomerium_jwt"
 	QuerySession            = "pomerium_session"
 	QuerySessionEncrypted   = "pomerium_session_encrypted"
 	QueryRedirectURI        = "pomerium_redirect_uri"
-	QueryForwardAuthURI     = "uri"
 )
 
 // URL signature based query params used for verifying the authenticity of a URL.
