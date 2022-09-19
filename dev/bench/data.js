@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1663603872786,
+  "lastUpdate": 1663604282562,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -10944,6 +10944,38 @@ window.BENCHMARK_DATA = {
             "value": 7908381,
             "unit": "ns/op",
             "extra": "152 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "bc44ed7c3a761009dcbe99c9942b59405d89aebd",
+          "message": "chore(deps): bump github.com/envoyproxy/protoc-gen-validate from 0.6.7 to 0.6.8",
+          "timestamp": "2022-09-19T08:09:21Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3624/commits/bc44ed7c3a761009dcbe99c9942b59405d89aebd"
+        },
+        "date": 1663604281684,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13884884,
+            "unit": "ns/op",
+            "extra": "97 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8220610,
+            "unit": "ns/op",
+            "extra": "140 times\n2 procs"
           }
         ]
       }
