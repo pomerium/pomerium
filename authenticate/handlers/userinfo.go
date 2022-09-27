@@ -6,7 +6,6 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
-	"github.com/pomerium/pomerium/internal/directory"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -16,12 +15,10 @@ import (
 
 // UserInfoData is the data for the UserInfo page.
 type UserInfoData struct {
-	CSRFToken       string
-	DirectoryGroups []*directory.Group
-	DirectoryUser   *directory.User
-	IsImpersonated  bool
-	Session         *session.Session
-	User            *user.User
+	CSRFToken      string
+	IsImpersonated bool
+	Session        *session.Session
+	User           *user.User
 
 	WebAuthnCreationOptions *webauthn.PublicKeyCredentialCreationOptions
 	WebAuthnRequestOptions  *webauthn.PublicKeyCredentialRequestOptions
@@ -34,16 +31,6 @@ type UserInfoData struct {
 func (data UserInfoData) ToJSON() map[string]any {
 	m := map[string]any{}
 	m["csrfToken"] = data.CSRFToken
-	var directoryGroups []json.RawMessage
-	for _, directoryGroup := range data.DirectoryGroups {
-		if bs, err := protojson.Marshal(directoryGroup); err == nil {
-			directoryGroups = append(directoryGroups, json.RawMessage(bs))
-		}
-	}
-	m["directoryGroups"] = directoryGroups
-	if bs, err := protojson.Marshal(data.DirectoryUser); err == nil {
-		m["directoryUser"] = json.RawMessage(bs)
-	}
 	m["isImpersonated"] = data.IsImpersonated
 	if bs, err := protojson.Marshal(data.Session); err == nil {
 		m["session"] = json.RawMessage(bs)

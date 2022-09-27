@@ -16,7 +16,6 @@ func TestPolicy_ToPPL(t *testing.T) {
 		CORSAllowPreflight:               true,
 		AllowAnyAuthenticatedUser:        true,
 		AllowedDomains:                   []string{"a.example.com", "b.example.com"},
-		AllowedGroups:                    []string{"group1", "group2"},
 		AllowedUsers:                     []string{"user1", "user2"},
 		AllowedIDPClaims: map[string][]interface{}{
 			"family_name": {"Smith", "Jones"},
@@ -24,7 +23,6 @@ func TestPolicy_ToPPL(t *testing.T) {
 		SubPolicies: []SubPolicy{
 			{
 				AllowedDomains: []string{"c.example.com", "d.example.com"},
-				AllowedGroups:  []string{"group3", "group4"},
 				AllowedUsers:   []string{"user3", "user4"},
 				AllowedIDPClaims: map[string][]interface{}{
 					"given_name": {"John"},
@@ -32,7 +30,6 @@ func TestPolicy_ToPPL(t *testing.T) {
 			},
 			{
 				AllowedDomains: []string{"e.example.com"},
-				AllowedGroups:  []string{"group5"},
 				AllowedUsers:   []string{"user5"},
 				AllowedIDPClaims: map[string][]interface{}{
 					"timezone": {"EST"},
@@ -167,161 +164,6 @@ domain_4 = [true, {"domain-ok"}] {
 }
 
 else = [false, {"domain-unauthorized"}] {
-	session := get_session(input.session.id)
-	session.id != ""
-}
-
-else = [false, {"user-unauthenticated"}] {
-	true
-}
-
-groups_0 = [true, {"groups-ok"}] {
-	session := get_session(input.session.id)
-	directory_user := get_directory_user(session)
-	group_ids := get_group_ids(session, directory_user)
-	group_names := [directory_group.name |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.name != null
-	]
-	group_emails := [directory_group.email |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.email != null
-	]
-	groups = array.concat(group_ids, array.concat(group_names, group_emails))
-	count([true | some v; v = groups[_0]; v == "group1"]) > 0
-}
-
-else = [false, {"groups-unauthorized"}] {
-	session := get_session(input.session.id)
-	session.id != ""
-}
-
-else = [false, {"user-unauthenticated"}] {
-	true
-}
-
-groups_1 = [true, {"groups-ok"}] {
-	session := get_session(input.session.id)
-	directory_user := get_directory_user(session)
-	group_ids := get_group_ids(session, directory_user)
-	group_names := [directory_group.name |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.name != null
-	]
-	group_emails := [directory_group.email |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.email != null
-	]
-	groups = array.concat(group_ids, array.concat(group_names, group_emails))
-	count([true | some v; v = groups[_0]; v == "group2"]) > 0
-}
-
-else = [false, {"groups-unauthorized"}] {
-	session := get_session(input.session.id)
-	session.id != ""
-}
-
-else = [false, {"user-unauthenticated"}] {
-	true
-}
-
-groups_2 = [true, {"groups-ok"}] {
-	session := get_session(input.session.id)
-	directory_user := get_directory_user(session)
-	group_ids := get_group_ids(session, directory_user)
-	group_names := [directory_group.name |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.name != null
-	]
-	group_emails := [directory_group.email |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.email != null
-	]
-	groups = array.concat(group_ids, array.concat(group_names, group_emails))
-	count([true | some v; v = groups[_0]; v == "group3"]) > 0
-}
-
-else = [false, {"groups-unauthorized"}] {
-	session := get_session(input.session.id)
-	session.id != ""
-}
-
-else = [false, {"user-unauthenticated"}] {
-	true
-}
-
-groups_3 = [true, {"groups-ok"}] {
-	session := get_session(input.session.id)
-	directory_user := get_directory_user(session)
-	group_ids := get_group_ids(session, directory_user)
-	group_names := [directory_group.name |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.name != null
-	]
-	group_emails := [directory_group.email |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.email != null
-	]
-	groups = array.concat(group_ids, array.concat(group_names, group_emails))
-	count([true | some v; v = groups[_0]; v == "group4"]) > 0
-}
-
-else = [false, {"groups-unauthorized"}] {
-	session := get_session(input.session.id)
-	session.id != ""
-}
-
-else = [false, {"user-unauthenticated"}] {
-	true
-}
-
-groups_4 = [true, {"groups-ok"}] {
-	session := get_session(input.session.id)
-	directory_user := get_directory_user(session)
-	group_ids := get_group_ids(session, directory_user)
-	group_names := [directory_group.name |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.name != null
-	]
-	group_emails := [directory_group.email |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.email != null
-	]
-	groups = array.concat(group_ids, array.concat(group_names, group_emails))
-	count([true | some v; v = groups[_0]; v == "group5"]) > 0
-}
-
-else = [false, {"groups-unauthorized"}] {
 	session := get_session(input.session.id)
 	session.id != ""
 }
@@ -570,7 +412,7 @@ else = [false, {"user-unauthenticated"}] {
 }
 
 or_0 = v {
-	results := [pomerium_routes_0, accept_0, cors_preflight_0, authenticated_user_0, domain_0, domain_1, domain_2, domain_3, domain_4, groups_0, groups_1, groups_2, groups_3, groups_4, claim_0, claim_1, claim_2, claim_3, user_0, email_0, user_1, email_1, user_2, email_2, user_3, email_3, user_4, email_4]
+	results := [pomerium_routes_0, accept_0, cors_preflight_0, authenticated_user_0, domain_0, domain_1, domain_2, domain_3, domain_4, claim_0, claim_1, claim_2, claim_3, user_0, email_0, user_1, email_1, user_2, email_2, user_3, email_3, user_4, email_4]
 	normalized := [normalize_criterion_result(x) | x := results[i]]
 	v := merge_with_or(normalized)
 }
@@ -715,38 +557,11 @@ else = {} {
 	true
 }
 
-get_directory_user(session) = v {
-	v = get_databroker_record("type.googleapis.com/directory.User", session.user_id)
-	v != null
-}
-
-else = "" {
-	true
-}
-
-get_directory_group(id) = v {
-	v = get_databroker_record("type.googleapis.com/directory.Group", id)
-	v != null
-}
-
-else = {} {
-	true
-}
-
 get_user_email(session, user) = v {
 	v = user.email
 }
 
 else = "" {
-	true
-}
-
-get_group_ids(session, directory_user) = v {
-	v = directory_user.group_ids
-	v != null
-}
-
-else = [] {
 	true
 }
 

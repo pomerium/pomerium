@@ -3,7 +3,6 @@ package manager
 import (
 	"time"
 
-	"github.com/pomerium/pomerium/internal/directory"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
@@ -17,7 +16,6 @@ var (
 
 type config struct {
 	authenticator                 Authenticator
-	directory                     directory.Provider
 	dataBrokerClient              databroker.DataBrokerServiceClient
 	groupRefreshInterval          time.Duration
 	groupRefreshTimeout           time.Duration
@@ -47,13 +45,6 @@ type Option func(*config)
 func WithAuthenticator(authenticator Authenticator) Option {
 	return func(cfg *config) {
 		cfg.authenticator = authenticator
-	}
-}
-
-// WithDirectoryProvider sets the directory provider in the config.
-func WithDirectoryProvider(directoryProvider directory.Provider) Option {
-	return func(cfg *config) {
-		cfg.directory = directoryProvider
 	}
 }
 

@@ -14,14 +14,11 @@ import (
 
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/authenticate/handlers/webauthn"
@@ -38,7 +35,6 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
@@ -165,7 +161,6 @@ func TestAuthenticate_SignIn(t *testing.T) {
 							}, nil
 						},
 					},
-					directoryClient: new(mockDirectoryServiceClient),
 				}),
 
 				options: config.NewAtomicOptions(),
@@ -321,7 +316,6 @@ func TestAuthenticate_SignOut(t *testing.T) {
 							return nil, nil
 						},
 					},
-					directoryClient: new(mockDirectoryServiceClient),
 				}),
 				options: config.NewAtomicOptions(),
 			}
@@ -423,10 +417,9 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 							return nil, nil
 						},
 					},
-					directoryClient: new(mockDirectoryServiceClient),
-					redirectURL:     authURL,
-					sessionStore:    tt.session,
-					cookieCipher:    aead,
+					redirectURL:  authURL,
+					sessionStore: tt.session,
+					cookieCipher: aead,
 				}),
 				options: config.NewAtomicOptions(),
 			}
@@ -565,7 +558,6 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 							}, nil
 						},
 					},
-					directoryClient: new(mockDirectoryServiceClient),
 				}),
 				options: config.NewAtomicOptions(),
 			}
@@ -702,7 +694,6 @@ func TestAuthenticate_userInfo(t *testing.T) {
 							}, nil
 						},
 					},
-					directoryClient: new(mockDirectoryServiceClient),
 				}),
 			}
 			a.webauthn = webauthn.New(a.getWebauthnState)
@@ -742,19 +733,6 @@ func (m mockDataBrokerServiceClient) Get(ctx context.Context, in *databroker.Get
 
 func (m mockDataBrokerServiceClient) Put(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
 	return m.put(ctx, in, opts...)
-}
-
-type mockDirectoryServiceClient struct {
-	directory.DirectoryServiceClient
-
-	refreshUser func(ctx context.Context, in *directory.RefreshUserRequest, opts ...grpc.CallOption) (*empty.Empty, error)
-}
-
-func (m mockDirectoryServiceClient) RefreshUser(ctx context.Context, in *directory.RefreshUserRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if m.refreshUser != nil {
-		return m.refreshUser(ctx, in, opts...)
-	}
-	return nil, status.Error(codes.Unimplemented, "")
 }
 
 func mustParseURL(rawurl string) *url.URL {

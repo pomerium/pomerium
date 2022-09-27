@@ -55,7 +55,7 @@ message Route {
   RouteRedirect redirect = 34;
 
   repeated string allowed_users = 4 [ deprecated = true ];
-  repeated string allowed_groups = 5 [ deprecated = true ];
+  // repeated string allowed_groups = 5 [ deprecated = true ];
   repeated string allowed_domains = 6 [ deprecated = true ];
   map<string, google.protobuf.ListValue> allowed_idp_claims = 32
       [ deprecated = true ];
@@ -121,7 +121,7 @@ message Policy {
   string id = 1;
   string name = 2;
   repeated string allowed_users = 3;
-  repeated string allowed_groups = 4;
+  // repeated string allowed_groups = 4;
   repeated string allowed_domains = 5;
   map<string, google.protobuf.ListValue> allowed_idp_claims = 7;
   repeated string rego = 6;

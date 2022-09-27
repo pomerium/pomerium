@@ -19,12 +19,6 @@ import (
 	"github.com/volatiletech/null/v9"
 
 	"github.com/pomerium/pomerium/internal/atomicutil"
-	"github.com/pomerium/pomerium/internal/directory/azure"
-	"github.com/pomerium/pomerium/internal/directory/github"
-	"github.com/pomerium/pomerium/internal/directory/gitlab"
-	"github.com/pomerium/pomerium/internal/directory/google"
-	"github.com/pomerium/pomerium/internal/directory/okta"
-	"github.com/pomerium/pomerium/internal/directory/onelogin"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
@@ -39,11 +33,6 @@ import (
 
 // DisableHeaderKey is the key used to check whether to disable setting header
 const DisableHeaderKey = "disable"
-
-const (
-	idpCustomScopesDocLink = "https://www.pomerium.com/docs/reference/identity-provider-scopes"
-	idpCustomScopesWarnMsg = "config: using custom scopes may result in undefined behavior, see: " + idpCustomScopesDocLink
-)
 
 // DefaultAlternativeAddr is the address used is two services are competing over
 // the same listener. Typically this is invisible to the end user (e.g. localhost)
@@ -692,31 +681,12 @@ func (o *Options) Validate() error {
 		}
 	}
 
-	// if no service account was defined, there should not be any policies that
-	// assert group membership (except for azure which can be derived from the client
-	// id, secret and provider url)
-	if o.ServiceAccount == "" && o.Provider != "azure" {
-		for _, p := range o.GetAllPolicies() {
-			if len(p.AllowedGroups) != 0 {
-				return fmt.Errorf("config: `allowed_groups` requires `idp_service_account`")
-			}
-		}
-	}
-
 	// strip quotes from redirect address (#811)
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
 
 	if !o.InsecureServer && !hasCert && !o.AutocertOptions.Enable {
 		log.Warn(ctx).Msg("neither `autocert`, " +
 			"`insecure_server` or manually provided certificates were provided, server will be using a self-signed certificate")
-	}
-
-	switch o.Provider {
-	case azure.Name, github.Name, gitlab.Name, google.Name, okta.Name, onelogin.Name:
-		if len(o.Scopes) > 0 {
-			log.Warn(ctx).Msg(idpCustomScopesWarnMsg)
-		}
-	default:
 	}
 
 	if err := ValidateDNSLookupFamily(o.DNSLookupFamily); err != nil {
