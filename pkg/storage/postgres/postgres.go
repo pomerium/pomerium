@@ -203,7 +203,7 @@ func listRecords(ctx context.Context, q querier, expr storage.FilterExpression, 
 		query += "WHERE "
 		err := addFilterExpressionToQuery(&query, &args, expr)
 		if err != nil {
-			return nil, fmt.Errorf("postgres: failed to add filter to query: %w", err)
+			return nil, fmt.Errorf("postgres: error adding filter to query: %w", err)
 		}
 	}
 	query += `
@@ -213,7 +213,7 @@ func listRecords(ctx context.Context, q querier, expr storage.FilterExpression, 
 	`
 	rows, err := q.Query(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("postgres: failed to execute query: %w", err)
+		return nil, fmt.Errorf("postgres: error querying data: %w", err)
 	}
 	defer rows.Close()
 
@@ -225,16 +225,13 @@ func listRecords(ctx context.Context, q querier, expr storage.FilterExpression, 
 		var modifiedAt pgtype.Timestamptz
 		err = rows.Scan(&recordType, &id, &version, &data, &modifiedAt)
 		if err != nil {
-			return nil, fmt.Errorf("postgres: failed to scan row: %w", err)
+			return nil, fmt.Errorf("postgres: error scanning: %w", err)
 		}
 
 		var any anypb.Any
 		err = protojson.Unmarshal(data.Bytes, &any)
-		if isUnknownType(err) {
-			// ignore records with an unknown type
-			continue
-		} else if err != nil {
-			return nil, fmt.Errorf("postgres: failed to unmarshal data: %w", err)
+		if err != nil {
+			return nil, fmt.Errorf("postgres: error unmarshaling data: %w", err)
 		}
 
 		records = append(records, &databroker.Record{
@@ -247,7 +244,7 @@ func listRecords(ctx context.Context, q querier, expr storage.FilterExpression, 
 	}
 	err = rows.Err()
 	if err != nil {
-		return nil, fmt.Errorf("postgres: error iterating over rows: %w", err)
+		return nil, fmt.Errorf("postgres: error iterating over rows %w", err)
 	}
 
 	return records, nil
