@@ -366,7 +366,6 @@ func (mgr *Manager) onUpdateUser(_ context.Context, record *databroker.Record, u
 
 	u, _ := mgr.users.Get(user.GetId())
 	u.lastRefresh = mgr.cfg.Load().now()
-	u.refreshInterval = mgr.cfg.Load().groupRefreshInterval
 	u.User = user
 	mgr.users.ReplaceOrInsert(u)
 	mgr.userScheduler.Add(u.NextRefresh(), u.GetId())

@@ -59,7 +59,7 @@ user = u {
 }
 
 directory_user = du {
-	du = get_databroker_record("type.googleapis.com/directory.User", session.user_id)
+	du = get_databroker_record("pomerium.io/DirectoryUser", session.user_id)
 	du != null
 } else = {} {
 	true
@@ -273,11 +273,11 @@ identity_headers := {key: values |
 }
 
 get_databroker_group_names(ids) = gs {
-	gs := [name | id := ids[i]; group := get_databroker_record("type.googleapis.com/directory.Group", id); name := group.name]
+	gs := [name | id := ids[i]; group := get_databroker_record("pomerium.io/DirectoryGroup", id); name := group.name]
 }
 
 get_databroker_group_emails(ids) = gs {
-	gs := [email | id := ids[i]; group := get_databroker_record("type.googleapis.com/directory.Group", id); email := group.email]
+	gs := [email | id := ids[i]; group := get_databroker_record("pomerium.io/DirectoryGroup", id); email := group.email]
 }
 
 get_header_string_value(obj) = s {

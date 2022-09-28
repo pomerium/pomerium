@@ -9,7 +9,7 @@ message Provider {
   string client_secret = 3;
   string type = 4;
   repeated string scopes = 5;
-  string service_account = 6;
+  // string service_account = 6;
   string url = 7;
   map<string, string> request_params = 8;
 }

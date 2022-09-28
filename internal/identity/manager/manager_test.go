@@ -46,7 +46,6 @@ func TestManager_onUpdateRecords(t *testing.T) {
 
 	mgr := New(
 		WithDataBrokerClient(mock_databroker.NewMockDataBrokerServiceClient(ctrl)),
-		WithGroupRefreshInterval(time.Hour),
 		WithNow(func() time.Time {
 			return now
 		}),
@@ -63,7 +62,7 @@ func TestManager_onUpdateRecords(t *testing.T) {
 	}
 	if _, ok := mgr.users.Get("user1"); assert.True(t, ok) {
 		tm, id := mgr.userScheduler.Next()
-		assert.Equal(t, now.Add(time.Hour), tm)
+		assert.Equal(t, now.Add(userRefreshInterval), tm)
 		assert.Equal(t, "user1", id)
 	}
 }
@@ -100,7 +99,6 @@ func TestManager_reportErrors(t *testing.T) {
 		WithEventManager(evtMgr),
 		WithDataBrokerClient(client),
 		WithAuthenticator(mockAuthenticator{}),
-		WithGroupRefreshInterval(time.Second),
 	)
 
 	mgr.onUpdateRecords(ctx, updateRecordsMessage{

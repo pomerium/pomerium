@@ -8,8 +8,6 @@ import (
 )
 
 var (
-	defaultGroupRefreshInterval          = 15 * time.Minute
-	defaultGroupRefreshTimeout           = 10 * time.Minute
 	defaultSessionRefreshGracePeriod     = 1 * time.Minute
 	defaultSessionRefreshCoolOffDuration = 10 * time.Second
 )
@@ -17,8 +15,6 @@ var (
 type config struct {
 	authenticator                 Authenticator
 	dataBrokerClient              databroker.DataBrokerServiceClient
-	groupRefreshInterval          time.Duration
-	groupRefreshTimeout           time.Duration
 	sessionRefreshGracePeriod     time.Duration
 	sessionRefreshCoolOffDuration time.Duration
 	now                           func() time.Time
@@ -27,8 +23,6 @@ type config struct {
 
 func newConfig(options ...Option) *config {
 	cfg := new(config)
-	WithGroupRefreshInterval(defaultGroupRefreshInterval)(cfg)
-	WithGroupRefreshTimeout(defaultGroupRefreshTimeout)(cfg)
 	WithSessionRefreshGracePeriod(defaultSessionRefreshGracePeriod)(cfg)
 	WithSessionRefreshCoolOffDuration(defaultSessionRefreshCoolOffDuration)(cfg)
 	WithNow(time.Now)(cfg)
@@ -52,20 +46,6 @@ func WithAuthenticator(authenticator Authenticator) Option {
 func WithDataBrokerClient(dataBrokerClient databroker.DataBrokerServiceClient) Option {
 	return func(cfg *config) {
 		cfg.dataBrokerClient = dataBrokerClient
-	}
-}
-
-// WithGroupRefreshInterval sets the group refresh interval used by the manager.
-func WithGroupRefreshInterval(interval time.Duration) Option {
-	return func(cfg *config) {
-		cfg.groupRefreshInterval = interval
-	}
-}
-
-// WithGroupRefreshTimeout sets the group refresh timeout used by the manager.
-func WithGroupRefreshTimeout(timeout time.Duration) Option {
-	return func(cfg *config) {
-		cfg.groupRefreshTimeout = timeout
 	}
 }
 

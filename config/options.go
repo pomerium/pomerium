@@ -139,11 +139,6 @@ type Options struct {
 	Provider         string   `mapstructure:"idp_provider" yaml:"idp_provider,omitempty"`
 	ProviderURL      string   `mapstructure:"idp_provider_url" yaml:"idp_provider_url,omitempty"`
 	Scopes           []string `mapstructure:"idp_scopes" yaml:"idp_scopes,omitempty"`
-	ServiceAccount   string   `mapstructure:"idp_service_account" yaml:"idp_service_account,omitempty"`
-	// Identity provider refresh directory interval/timeout settings.
-	RefreshDirectoryTimeout  time.Duration `mapstructure:"idp_refresh_directory_timeout" yaml:"idp_refresh_directory_timeout,omitempty"`
-	RefreshDirectoryInterval time.Duration `mapstructure:"idp_refresh_directory_interval" yaml:"idp_refresh_directory_interval,omitempty"`
-	QPS                      float64       `mapstructure:"idp_qps" yaml:"idp_qps"`
 
 	// RequestParams are custom request params added to the signin request as
 	// part of an Oauth2 code flow.
@@ -322,9 +317,6 @@ var defaultOptions = Options{
 	GRPCClientDNSRoundRobin:  true,
 	AuthenticateCallbackPath: "/oauth2/callback",
 	TracingSampleRate:        0.0001,
-	RefreshDirectoryInterval: 10 * time.Minute,
-	RefreshDirectoryTimeout:  1 * time.Minute,
-	QPS:                      1.0,
 
 	AutocertOptions: AutocertOptions{
 		Folder: dataDir(),
@@ -876,13 +868,12 @@ func (o *Options) GetOauthOptions() (oauth.Options, error) {
 		return oauth.Options{}, err
 	}
 	return oauth.Options{
-		RedirectURL:    redirectURL,
-		ProviderName:   o.Provider,
-		ProviderURL:    o.ProviderURL,
-		ClientID:       o.ClientID,
-		ClientSecret:   clientSecret,
-		Scopes:         o.Scopes,
-		ServiceAccount: o.ServiceAccount,
+		RedirectURL:  redirectURL,
+		ProviderName: o.Provider,
+		ProviderURL:  o.ProviderURL,
+		ClientID:     o.ClientID,
+		ClientSecret: clientSecret,
+		Scopes:       o.Scopes,
 	}, nil
 }
 
@@ -993,9 +984,6 @@ func (o *Options) GetSharedKey() ([]byte, error) {
 
 // GetGoogleCloudServerlessAuthenticationServiceAccount gets the GoogleCloudServerlessAuthenticationServiceAccount.
 func (o *Options) GetGoogleCloudServerlessAuthenticationServiceAccount() string {
-	if o.GoogleCloudServerlessAuthenticationServiceAccount == "" && o.Provider == "google" {
-		return o.ServiceAccount
-	}
 	return o.GoogleCloudServerlessAuthenticationServiceAccount
 }
 
@@ -1005,14 +993,6 @@ func (o *Options) GetSetResponseHeaders() map[string]string {
 		return map[string]string{}
 	}
 	return o.SetResponseHeaders
-}
-
-// GetQPS gets the QPS.
-func (o *Options) GetQPS() float64 {
-	if o.QPS < 1 {
-		return 1
-	}
-	return o.QPS
 }
 
 // GetCodecType gets a codec type.
@@ -1356,15 +1336,6 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	}
 	if len(settings.Scopes) > 0 {
 		o.Scopes = settings.Scopes
-	}
-	if settings.IdpServiceAccount != nil {
-		o.ServiceAccount = settings.GetIdpServiceAccount()
-	}
-	if settings.IdpRefreshDirectoryTimeout != nil {
-		o.RefreshDirectoryTimeout = settings.GetIdpRefreshDirectoryTimeout().AsDuration()
-	}
-	if settings.IdpRefreshDirectoryInterval != nil {
-		o.RefreshDirectoryInterval = settings.GetIdpRefreshDirectoryInterval().AsDuration()
 	}
 	if settings.RequestParams != nil && len(settings.RequestParams) > 0 {
 		o.RequestParams = settings.RequestParams

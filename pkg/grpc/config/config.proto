@@ -166,9 +166,9 @@ message Settings {
   optional string idp_provider = 24;
   optional string idp_provider_url = 25;
   repeated string scopes = 26;
-  optional string idp_service_account = 27;
-  optional google.protobuf.Duration idp_refresh_directory_timeout = 28;
-  optional google.protobuf.Duration idp_refresh_directory_interval = 29;
+  // optional string idp_service_account = 27;
+  // optional google.protobuf.Duration idp_refresh_directory_timeout = 28;
+  // optional google.protobuf.Duration idp_refresh_directory_interval = 29;
   map<string, string> request_params = 30;
   repeated string authorize_service_urls = 32;
   optional string authorize_internal_service_url = 83;
