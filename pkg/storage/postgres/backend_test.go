@@ -163,6 +163,24 @@ func TestBackend(t *testing.T) {
 			assert.NoError(t, stream.Err())
 		})
 
+		t.Run("unknown type", func(t *testing.T) {
+			_, err := backend.pool.Exec(ctx, `
+				INSERT INTO `+schemaName+"."+recordsTableName+` (type, id, version, data)
+				VALUES ('unknown', '1', 1000, '{"@type":"UNKNOWN","value":{}}')
+			`)
+			assert.NoError(t, err)
+
+			_, err = backend.Get(ctx, "unknown", "1")
+			assert.ErrorIs(t, err, storage.ErrNotFound)
+
+			_, _, stream, err := backend.SyncLatest(ctx, "unknown-test", nil)
+			if assert.NoError(t, err) {
+				_, err := storage.RecordStreamToList(stream)
+				assert.NoError(t, err)
+				stream.Close()
+			}
+		})
+
 		return nil
 	}))
 }
