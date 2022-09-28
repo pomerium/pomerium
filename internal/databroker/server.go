@@ -305,12 +305,12 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 
 	backend, err := srv.getBackend()
 	if err != nil {
-		return fmt.Errorf("databroker: failed to get Sync backend: %w", err)
+		return err
 	}
 
 	recordStream, err := backend.Sync(ctx, req.GetType(), req.GetServerVersion(), req.GetRecordVersion())
 	if err != nil {
-		return fmt.Errorf("databroker: failed to get Sync record stream: %w", err)
+		return err
 	}
 	defer func() { _ = recordStream.Close() }()
 
@@ -319,7 +319,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 			Record: recordStream.Record(),
 		})
 		if err != nil {
-			return fmt.Errorf("databroker: failed to send Sync record: %w", err)
+			return err
 		}
 	}
 
@@ -341,12 +341,12 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 
 	backend, err := srv.getBackend()
 	if err != nil {
-		return fmt.Errorf("databroker: failed to get SyncLatest backend: %w", err)
+		return err
 	}
 
 	serverVersion, recordVersion, recordStream, err := backend.SyncLatest(ctx, req.GetType(), nil)
 	if err != nil {
-		return fmt.Errorf("databroker: failed to get SyncLatest record stream: %w", err)
+		return err
 	}
 
 	for recordStream.Next(false) {
@@ -358,12 +358,12 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 				},
 			})
 			if err != nil {
-				return fmt.Errorf("databroker: failed to send SyncLatest record: %w", err)
+				return err
 			}
 		}
 	}
 	if recordStream.Err() != nil {
-		return fmt.Errorf("databroker: SyncLatest stream failed: %w", recordStream.Err())
+		return err
 	}
 
 	// always send the server version last in case there are no records
