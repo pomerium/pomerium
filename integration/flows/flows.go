@@ -103,22 +103,23 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 
 		apiLogin.Path = cfg.apiPath
 		req, err := http.NewRequestWithContext(ctx, "GET", apiLogin.String(), nil)
-		req.Header.Set("Accept", "application/json")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("via-api: invalid request: %w", err)
 		}
+		req.Header.Set("Accept", "application/json")
+
 		res, err := client.Do(req)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("via-api: error making request: %w", err)
 		}
 		defer res.Body.Close()
 		bodyBytes, err := io.ReadAll(res.Body)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("via-api: error reading response body: %w", err)
 		}
 		url, err = url.Parse(string(bodyBytes))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("via-api: error parsing response body: %w", err)
 		}
 	}
 

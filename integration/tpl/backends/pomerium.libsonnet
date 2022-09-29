@@ -192,8 +192,9 @@ function(mode, idp, dns_suffix='') {
         environment: environment,
       }, ['authenticate.localhost.pomerium.io', 'forward-authenticate.localhost.pomerium.io']) +
       ComposeService(name + '-ready', {
-        image: 'jwilder/dockerize:0.6.1',
+        image: 'powerman/dockerize:0.16.3',
         command: [
+          '-skip-tls-verify',
           '-wait',
           if mode == 'nginx' then
             'http://' + name + ':80/healthz'
