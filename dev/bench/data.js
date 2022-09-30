@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1664563264285,
+  "lastUpdate": 1664572054234,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -12080,6 +12080,38 @@ window.BENCHMARK_DATA = {
             "value": 9429413,
             "unit": "ns/op",
             "extra": "127 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "af7f841b71870ed259b1cb66edb02113a4d8ed44",
+          "message": "ppl: support special characters in claim keys",
+          "timestamp": "2022-09-30T02:04:48Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3639/commits/af7f841b71870ed259b1cb66edb02113a4d8ed44"
+        },
+        "date": 1664572053782,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 19297435,
+            "unit": "ns/op",
+            "extra": "68 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11801793,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
