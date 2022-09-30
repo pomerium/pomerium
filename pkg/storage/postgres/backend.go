@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"sync"
 	"time"
 
@@ -320,7 +321,7 @@ func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *p
 		return serverVersion, pool, nil
 	}
 
-	config, err := pgxpool.ParseConfig(backend.dsn)
+	config, err := ParseConfig(backend.dsn)
 	if err != nil {
 		return serverVersion, nil, err
 	}
@@ -373,4 +374,24 @@ func (backend *Backend) doPeriodically(f func(ctx context.Context) error, dur ti
 			}
 		}
 	}
+}
+
+// ParseConfig parses a DSN into a pgxpool.Config.
+func ParseConfig(dsn string) (*pgxpool.Config, error) {
+	config, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, err
+	}
+	config.ConnConfig.LookupFunc = lookup
+	return config, nil
+}
+
+func lookup(ctx context.Context, host string) (addrs []string, err error) {
+	addrs, err = net.DefaultResolver.LookupHost(ctx, host)
+	// ignore no such host errors
+	if e := new(net.DNSError); errors.As(err, &e) && e.IsNotFound {
+		addrs = nil
+		err = nil
+	}
+	return addrs, err
 }
