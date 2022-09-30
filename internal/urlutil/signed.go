@@ -22,8 +22,7 @@ type SignedURL struct {
 
 // NewSignedURL creates a new copy of a URL that can be signed with a shared key.
 //
-// N.B. It is the user's responsibility to make sure the key is 256 bits and
-// 		the url is not nil.
+// N.B. It is the user's responsibility to make sure the key is 256 bits and the url is not nil.
 func NewSignedURL(key []byte, uri *url.URL) *SignedURL {
 	return &SignedURL{uri: *uri, key: key, timeNow: time.Now} // uri is copied
 }

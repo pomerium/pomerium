@@ -1,3 +1,4 @@
+// Package main contains the pomerium-integration-tests command.
 package main
 
 import (
@@ -78,12 +79,12 @@ func runGenerateConfiguration(ctx context.Context) error {
 		}
 		asYAML, _ := yaml.JSONToYAML([]byte(contents))
 
-		err = os.MkdirAll(filepath.Dir(dstPath), 0755)
+		err = os.MkdirAll(filepath.Dir(dstPath), 0o755)
 		if err != nil {
 			return fmt.Errorf("error creating directory (path=%s): %w", dstPath, err)
 		}
 
-		err = os.WriteFile(dstPath, asYAML, 0600)
+		err = os.WriteFile(dstPath, asYAML, 0o600)
 		if err != nil {
 			return fmt.Errorf("error writing file (path=%s): %w", dstPath, err)
 		}

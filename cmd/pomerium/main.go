@@ -1,3 +1,4 @@
+// Package main contains pomerium.
 package main
 
 import (

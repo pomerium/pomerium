@@ -100,27 +100,26 @@ func NewClientFromURL(rawURL string, tlsConfig *tls.Config) (redis.UniversalClie
 
 // ParseClusterURL parses a redis-cluster URL. Format is:
 //
-//    redis+cluster://[username:password@]host:port[,host2:port2,...]/[?param1=value1[&param2=value=2&...]]
+//	redis+cluster://[username:password@]host:port[,host2:port2,...]/[?param1=value1[&param2=value=2&...]]
 //
 // Additionally TLS is supported with rediss+cluster, or redis+clusters. Supported query params:
 //
-//    max_redirects: int
-//    read_only: bool
-//    route_by_latency: bool
-//    route_randomly: bool
-//    max_retries: int
-//    min_retry_backoff: duration
-//    max_retry_backoff: duration
-//    dial_timeout: duration
-//    read_timeout: duration
-//    write_timeout: duration
-//    pool_size: int
-//    min_idle_conns: int
-//    max_conn_age: duration
-//    pool_timeout: duration
-//    idle_timeout: duration
-//    idle_check_frequency: duration
-//
+//	max_redirects: int
+//	read_only: bool
+//	route_by_latency: bool
+//	route_randomly: bool
+//	max_retries: int
+//	min_retry_backoff: duration
+//	max_retry_backoff: duration
+//	dial_timeout: duration
+//	read_timeout: duration
+//	write_timeout: duration
+//	pool_size: int
+//	min_idle_conns: int
+//	max_conn_age: duration
+//	pool_timeout: duration
+//	idle_timeout: duration
+//	idle_check_frequency: duration
 func ParseClusterURL(rawurl string) (*redis.ClusterOptions, error) {
 	u, err := url.Parse(rawurl)
 	if err != nil {

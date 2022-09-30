@@ -1,3 +1,4 @@
+// Package main contains main.
 package main
 
 import (
@@ -189,7 +190,8 @@ func saveConfig(ctx context.Context, client databroker.DataBrokerServiceClient, 
 			Type: any.GetTypeUrl(),
 			Id:   "test_config",
 			Data: any,
-		}}})
+		}},
+	})
 	if err != nil {
 		return err
 	}

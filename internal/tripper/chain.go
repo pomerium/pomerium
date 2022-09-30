@@ -22,17 +22,17 @@ func NewChain(constructors ...Constructor) Chain {
 }
 
 // Then chains the trippers and returns the final http.RoundTripper.
-//     NewChain(m1, m2, m3).Then(h)
+//	NewChain(m1, m2, m3).Then(h)
 // is equivalent to:
-//     m1(m2(m3(h)))
+//	m1(m2(m3(h)))
 // When the request comes in, it will be passed to m1, then m2, then m3
 // and finally, the given roundtripper
 // (assuming every tripper calls the following one).
 //
 // A chain can be safely reused by calling Then() several times.
-//     stdStack := tripper.NewChain(ratelimitTripper, csrfTripper)
-//     tracePipe = stdStack.Then(traceTripper)
-//     authPipe = stdStack.Then(authTripper)
+//	stdStack := tripper.NewChain(ratelimitTripper, csrfTripper)
+//	tracePipe = stdStack.Then(traceTripper)
+//	authPipe = stdStack.Then(authTripper)
 // Note that constructors are called on every call to Then()
 // and thus several instances of the same tripper will be created
 // when a chain is reused in this way.

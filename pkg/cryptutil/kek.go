@@ -13,18 +13,17 @@ import (
 // A KeyEncryptionKey (KEK) is used to implement *envelope encryption*, similar to how data is stored at rest with
 // AWS or Google Cloud:
 //
-//   - AWS: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#enveloping
-//   - Google Cloud: https://cloud.google.com/kms/docs/envelope-encryption
+//	- AWS: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#enveloping
+//	- Google Cloud: https://cloud.google.com/kms/docs/envelope-encryption
 //
 // Data is encrypted with a data encryption key (DEK) and that key is stored next to the data encrypted with the KEK.
 // Finally the KEK id is also stored with the data.
 //
 // To decrypt the data you first retrieve the KEK, second decrypt the DEK, and finally decrypt the data using the DEK.
 //
-//   - Our KEKs are asymmetric Curve25519 keys. We use the *public* key to encrypt the DEK so only the *private* key can
-//     decrypt it.
-//   - Our DEKs are symmetric XChaCha20Poly1305 keys.
-//
+//	- Our KEKs are asymmetric Curve25519 keys. We use the *public* key to encrypt the DEK so only the *private* key can
+//	  decrypt it.
+//	- Our DEKs are symmetric XChaCha20Poly1305 keys.
 type KeyEncryptionKey interface {
 	ID() string
 	KeyBytes() []byte

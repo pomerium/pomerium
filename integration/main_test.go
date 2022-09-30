@@ -1,3 +1,4 @@
+// Package main contains integration tests.
 package main
 
 import (

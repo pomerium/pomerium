@@ -10,9 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// A keypair for NIST P-256 / secp256r1
+// A keypair for NIST P-256 / secp256r1.
+//
 // Generated using:
-//   openssl ecparam -genkey -name prime256v1 -outform PEM
+//	openssl ecparam -genkey -name prime256v1 -outform PEM
 var pemECPrivateKeyP256 = `-----BEGIN EC PARAMETERS-----
 BggqhkjOPQMBBw==
 -----END EC PARAMETERS-----
