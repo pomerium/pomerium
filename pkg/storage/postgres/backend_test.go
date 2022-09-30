@@ -166,3 +166,17 @@ func TestBackend(t *testing.T) {
 		return nil
 	}))
 }
+
+func TestLookup(t *testing.T) {
+	t.Parallel()
+
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	t.Cleanup(clearTimeout)
+
+	cfg, err := ParseConfig("host=localhost")
+	assert.NoError(t, err)
+
+	addrs, err := cfg.ConnConfig.LookupFunc(ctx, "test.unknown")
+	assert.NoError(t, err)
+	assert.Empty(t, addrs)
+}
