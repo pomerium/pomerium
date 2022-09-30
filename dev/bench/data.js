@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1664561051406,
+  "lastUpdate": 1664561299532,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -12016,6 +12016,38 @@ window.BENCHMARK_DATA = {
             "value": 8780612,
             "unit": "ns/op",
             "extra": "138 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "a4b26fac44a7485184f3888361f9b6bc50fc61e9",
+          "message": "postgres: return an empty list of addresses on dns errors",
+          "timestamp": "2022-09-30T02:04:48Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3638/commits/a4b26fac44a7485184f3888361f9b6bc50fc61e9"
+        },
+        "date": 1664561298863,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15912157,
+            "unit": "ns/op",
+            "extra": "72 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 59938004,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
