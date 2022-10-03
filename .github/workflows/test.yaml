@@ -117,7 +117,6 @@ jobs:
         node-version: [16.x]
         platform: [ubuntu-latest]
         deployment: [kubernetes, multi, nginx, single, traefik]
-        idp: [auth0, azure, github, gitlab, google, oidc, okta, onelogin, ping]
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f
@@ -150,12 +149,12 @@ jobs:
       - name: start cluster
         run: |
           export POMERIUM_TAG=dev
-          cd ./integration/clusters/${{matrix.idp}}-${{matrix.deployment}}
+          cd ./integration/clusters/${{matrix.deployment}}
           docker-compose up -d
 
       - name: integration tests
         run: |
-          (cd ./integration/clusters/${{matrix.idp}}-${{matrix.deployment}} && docker-compose logs -f &)
+          (cd ./integration/clusters/${{matrix.deployment}} && docker-compose logs -f &)
           go test -v ./integration/...
 
   build:

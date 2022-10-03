@@ -52,7 +52,7 @@ jobs:
       - name: start cluster
         run: |
           export POMERIUM_TAG=dev
-          cd ./integration/clusters/google-single
+          cd ./integration/clusters/single
           docker-compose up -d
 
       - name: integration tests
