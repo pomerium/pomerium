@@ -751,6 +751,12 @@ else = [] {
 }
 
 object_get(obj, key, def) = value {
+	undefined := "10a0fd35-0f1a-4e5b-97ce-631e89e1bafa"
+	value = object.get(obj, key, undefined)
+	value != undefined
+}
+
+else = value {
 	segments := split(replace(key, ".", "/"), "/")
 	count(segments) == 2
 	o1 := object.get(obj, segments[0], {})
