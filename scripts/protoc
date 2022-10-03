@@ -2,7 +2,7 @@
 set -euo pipefail
 
 _dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-_protoc_version="3.14.0"
+_protoc_version="21.7"
 _protoc_path="/tmp/pomerium-protoc/protoc-$_protoc_version"
 _protoc_3pp_path="/tmp/pomerium-protoc-3pp"
 _os="linux"
