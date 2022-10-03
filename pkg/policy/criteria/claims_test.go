@@ -86,4 +86,28 @@ allow:
 		require.Equal(t, A{true, A{ReasonClaimOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
 	})
+	t.Run("special keys", func(t *testing.T) {
+		res, err := evaluate(t, `
+allow:
+  and:
+    - claim/example.com/key: value
+`,
+			[]dataBrokerRecord{
+				&session.Session{
+					Id:     "SESSION_ID",
+					UserId: "USER_ID",
+					Claims: map[string]*structpb.ListValue{
+						"example.com/key": {Values: []*structpb.Value{structpb.NewStringValue("value")}},
+					},
+				},
+				&user.User{
+					Id:    "USER_ID",
+					Email: "test@example.com",
+				},
+			},
+			Input{Session: InputSession{ID: "SESSION_ID"}})
+		require.NoError(t, err)
+		require.Equal(t, A{true, A{ReasonClaimOK}, M{}}, res["allow"])
+		require.Equal(t, A{false, A{}}, res["deny"])
+	})
 }
