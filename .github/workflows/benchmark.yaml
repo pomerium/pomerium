@@ -20,22 +20,22 @@ jobs:
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # pin@v2
+      - uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f
         with:
           go-version: ${{ matrix.go-version }}
 
-      - uses: actions/setup-node@969bd2663942d722d85b6a8626225850c2f7be4b # pin@v3
+      - uses: actions/setup-node@969bd2663942d722d85b6a8626225850c2f7be4b
         with:
           node-version: ${{ matrix.node-version }}
 
       - name: set env vars
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
-      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # pin@v3
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           fetch-depth: 0
 
-      - uses: actions/cache@56461b9eb0f8438fd15c7a9968e3c9ebb18ceff1 # pin@v3
+      - uses: actions/cache@56461b9eb0f8438fd15c7a9968e3c9ebb18ceff1
         with:
           path: |
             ~/go/pkg
