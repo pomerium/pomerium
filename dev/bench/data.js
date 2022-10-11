@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1665495005644,
+  "lastUpdate": 1665495045528,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -13144,6 +13144,42 @@ window.BENCHMARK_DATA = {
             "value": 7960697,
             "unit": "ns/op",
             "extra": "148 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "56461d4a28ee0cf30132d994307f12f344e81a97",
+          "message": "chore(deps): bump distroless/base from `4689543` to `6ef742b` (#3654)\n\nBumps distroless/base from `4689543` to `6ef742b`.\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: distroless/base\r\n  dependency-type: direct:production\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-10-11T07:26:53-06:00",
+          "tree_id": "d1dcfb45f03bc203b4e92c187e8a7235e2a6a163",
+          "url": "https://github.com/pomerium/pomerium/commit/56461d4a28ee0cf30132d994307f12f344e81a97"
+        },
+        "date": 1665495045065,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14885885,
+            "unit": "ns/op",
+            "extra": "80 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9134652,
+            "unit": "ns/op",
+            "extra": "133 times\n2 procs"
           }
         ]
       }
