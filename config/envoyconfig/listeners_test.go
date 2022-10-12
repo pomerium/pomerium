@@ -139,7 +139,6 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 				}
 			}],
 			"alwaysSetRequestIdInResponse": true,
-			"codecType": "HTTP1",
 			"commonHttpProtocolOptions": {
 				"idleTimeout": "300s"
 			},
