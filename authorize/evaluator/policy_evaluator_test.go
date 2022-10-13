@@ -4,11 +4,13 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
@@ -243,6 +245,53 @@ func TestPolicyEvaluator(t *testing.T) {
 			Allow:  NewRuleResult(true),
 			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
 			Traces: []contextutil.PolicyEvaluationTrace{{}, {ID: "p1", Allow: true}},
+		}, output)
+	})
+	t.Run("service account", func(t *testing.T) {
+		output, err := eval(t,
+			p1,
+			[]proto.Message{
+				u1,
+				&user.ServiceAccount{
+					Id:     "sa1",
+					UserId: "u1",
+				},
+			},
+			&PolicyRequest{
+				HTTP:    RequestHTTP{Method: "GET", URL: "https://from.example.com/path"},
+				Session: RequestSession{ID: "sa1"},
+
+				IsValidClientCertificate: true,
+			})
+		require.NoError(t, err)
+		assert.Equal(t, &PolicyResponse{
+			Allow:  NewRuleResult(true, criteria.ReasonEmailOK),
+			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+			Traces: []contextutil.PolicyEvaluationTrace{{Allow: true}},
+		}, output)
+	})
+	t.Run("expired service account", func(t *testing.T) {
+		output, err := eval(t,
+			p1,
+			[]proto.Message{
+				u1,
+				&user.ServiceAccount{
+					Id:        "sa1",
+					UserId:    "u1",
+					ExpiresAt: timestamppb.New(time.Now().Add(-time.Second)),
+				},
+			},
+			&PolicyRequest{
+				HTTP:    RequestHTTP{Method: "GET", URL: "https://from.example.com/path"},
+				Session: RequestSession{ID: "sa1"},
+
+				IsValidClientCertificate: true,
+			})
+		require.NoError(t, err)
+		assert.Equal(t, &PolicyResponse{
+			Allow:  NewRuleResult(false, criteria.ReasonNonPomeriumRoute, criteria.ReasonUserUnauthenticated),
+			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+			Traces: []contextutil.PolicyEvaluationTrace{{Allow: false}},
 		}, output)
 	})
 }

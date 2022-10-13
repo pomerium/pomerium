@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/go-jose/go-jose/v3"
 	"github.com/open-policy-agent/opa/ast"
@@ -13,6 +14,7 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/types"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -131,10 +133,16 @@ func (s *Store) GetDataBrokerRecordOption() func(*rego.Rego) {
 
 		msg, _ := res.GetRecords()[0].GetData().UnmarshalNew()
 		if msg == nil {
-			if msg == nil {
+			return ast.NullTerm(), nil
+		}
+
+		// exclude expired records
+		if hasExpiresAt, ok := msg.(interface{ GetExpiresAt() *timestamppb.Timestamp }); ok && hasExpiresAt.GetExpiresAt() != nil {
+			if hasExpiresAt.GetExpiresAt().AsTime().Before(time.Now()) {
 				return ast.NullTerm(), nil
 			}
 		}
+
 		obj := toMap(msg)
 
 		regoValue, err := ast.InterfaceToValue(obj)
