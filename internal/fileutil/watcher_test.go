@@ -83,7 +83,7 @@ func TestWatcherSymlink(t *testing.T) {
 
 	select {
 	case <-ch:
-	case <-time.After(time.Second):
+	case <-time.After(10 * time.Second):
 		t.Error("expected change signal when symlink is changed")
 	}
 }
