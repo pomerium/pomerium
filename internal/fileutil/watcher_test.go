@@ -70,7 +70,7 @@ func TestWatcherSymlink(t *testing.T) {
 	ch := w.Bind()
 	t.Cleanup(func() { w.Unbind(ch) })
 
-	assert.NoError(t, os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{9, 10, 11, 12}, 0o666))
+	assert.NoError(t, os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{9, 10, 11}, 0o666))
 
 	select {
 	case <-ch:
