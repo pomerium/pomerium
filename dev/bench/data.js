@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1665612117101,
+  "lastUpdate": 1665675094242,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -13732,6 +13732,42 @@ window.BENCHMARK_DATA = {
             "value": 8789427,
             "unit": "ns/op",
             "extra": "130 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "47e3176ea454cf88fa540213dbea6221392a0c6a",
+          "message": "authorize: enforce service account expiration (#3661)",
+          "timestamp": "2022-10-13T09:28:42-06:00",
+          "tree_id": "66a7d8ec7e50e99d34bc9e8bb305b385255044be",
+          "url": "https://github.com/pomerium/pomerium/commit/47e3176ea454cf88fa540213dbea6221392a0c6a"
+        },
+        "date": 1665675093552,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16561504,
+            "unit": "ns/op",
+            "extra": "66 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10494927,
+            "unit": "ns/op",
+            "extra": "123 times\n2 procs"
           }
         ]
       }
