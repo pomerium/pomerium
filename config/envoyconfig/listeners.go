@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sets"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -74,6 +75,14 @@ func (b *Builder) BuildListeners(ctx context.Context, cfg *config.Config) ([]*en
 
 	if cfg.Options.MetricsAddr != "" {
 		li, err := b.buildMetricsListener(cfg)
+		if err != nil {
+			return nil, err
+		}
+		listeners = append(listeners, li)
+	}
+
+	if cfg.Options.EnvoyAdminAddress != "" {
+		li, err := b.buildEnvoyAdminListener(ctx, cfg)
 		if err != nil {
 			return nil, err
 		}
@@ -381,19 +390,35 @@ func (b *Builder) buildMetricsHTTPConnectionManagerFilter() (*envoy_config_liste
 	rc, err := b.buildRouteConfiguration("metrics", []*envoy_config_route_v3.VirtualHost{{
 		Name:    "metrics",
 		Domains: []string{"*"},
-		Routes: []*envoy_config_route_v3.Route{{
-			Name: "metrics",
-			Match: &envoy_config_route_v3.RouteMatch{
-				PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/"},
-			},
-			Action: &envoy_config_route_v3.Route_Route{
-				Route: &envoy_config_route_v3.RouteAction{
-					ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
-						Cluster: "pomerium-control-plane-metrics",
+		Routes: []*envoy_config_route_v3.Route{
+			{
+				Name: "envoy-metrics",
+				Match: &envoy_config_route_v3.RouteMatch{
+					PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: metrics.EnvoyMetricsPath},
+				},
+				Action: &envoy_config_route_v3.Route_Route{
+					Route: &envoy_config_route_v3.RouteAction{
+						ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+							Cluster: envoyAdminClusterName,
+						},
+						PrefixRewrite: "/stats/prometheus",
 					},
 				},
 			},
-		}},
+			{
+				Name: "metrics",
+				Match: &envoy_config_route_v3.RouteMatch{
+					PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/"},
+				},
+				Action: &envoy_config_route_v3.Route_Route{
+					Route: &envoy_config_route_v3.RouteAction{
+						ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+							Cluster: "pomerium-control-plane-metrics",
+						},
+					},
+				},
+			},
+		},
 	}})
 	if err != nil {
 		return nil, err
