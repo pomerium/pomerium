@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666106254508,
+  "lastUpdate": 1666106256449,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -14556,6 +14556,42 @@ window.BENCHMARK_DATA = {
             "value": 10790462,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "860f7b5e697142d452b0b9068a386060ef170088",
+          "message": "chore(deps): bump github.com/openzipkin/zipkin-go from 0.4.0 to 0.4.1 (#3668)\n\nBumps [github.com/openzipkin/zipkin-go](https://github.com/openzipkin/zipkin-go) from 0.4.0 to 0.4.1.\r\n- [Release notes](https://github.com/openzipkin/zipkin-go/releases)\r\n- [Commits](https://github.com/openzipkin/zipkin-go/compare/v0.4.0...v0.4.1)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/openzipkin/zipkin-go\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-10-18T09:07:44-06:00",
+          "tree_id": "80334434350e741d8e1df96071f4bff4acf5e22e",
+          "url": "https://github.com/pomerium/pomerium/commit/860f7b5e697142d452b0b9068a386060ef170088"
+        },
+        "date": 1666106255801,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13496381,
+            "unit": "ns/op",
+            "extra": "86 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7873160,
+            "unit": "ns/op",
+            "extra": "150 times\n2 procs"
           }
         ]
       }
