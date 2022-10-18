@@ -63,15 +63,27 @@ func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 					"virtualHosts": [{
 						"name": "metrics",
 						"domains": ["*"],
-						"routes": [{
-							"name": "metrics",
-							"match": {
-								"prefix": "/"
+						"routes": [
+							{
+								"name": "envoy-metrics",
+								"match": {
+									"prefix": "/metrics/envoy"
+								},
+								"route": {
+									"cluster": "pomerium-envoy-admin",
+									"prefixRewrite": "/stats/prometheus"
+								}
 							},
-							"route": {
-								"cluster": "pomerium-control-plane-metrics"
+							{
+								"name": "metrics",
+								"match": {
+									"prefix": "/"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-metrics"
+								}
 							}
-						}]
+						]
 					}]
 				},
 				"statPrefix": "metrics"

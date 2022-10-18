@@ -25,6 +25,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/metrics"
 )
 
+// EnvoyMetricsPath is the path on the metrics listener that retrieves envoy metrics.
+const EnvoyMetricsPath = "/metrics/envoy"
+
 // ScrapeEndpoint external endpoints to scrape and decorate
 type ScrapeEndpoint struct {
 	// Name is the logical name of the endpoint
@@ -208,6 +211,7 @@ func ocExport(name string, exporter *ocprom.Exporter, r *http.Request, labels []
 		}
 	}
 }
+
 func scrapeEndpoints(endpoints []ScrapeEndpoint, labels []*io_prometheus_client.LabelPair) []promProducerFn {
 	out := make([]promProducerFn, 0, len(endpoints))
 	for _, endpoint := range endpoints {

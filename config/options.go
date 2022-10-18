@@ -345,7 +345,6 @@ var defaultOptions = Options{
 	XffNumTrustedHops:                   0,
 	EnvoyAdminAccessLogPath:             os.DevNull,
 	EnvoyAdminProfilePath:               os.DevNull,
-	EnvoyAdminAddress:                   "127.0.0.1:9901",
 	ProgrammaticRedirectDomainWhitelist: []string{"localhost"},
 }
 
