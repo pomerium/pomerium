@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y ca-certificates
 # Remove expired root (https://github.com/pomerium/pomerium/issues/2653)
 RUN rm /usr/share/ca-certificates/mozilla/DST_Root_CA_X3.crt && update-ca-certificates
 
-FROM gcr.io/distroless/base:debug@sha256:6ef742b9373ebe1ae90c91116b66276811bcd3ae4c9ec6456e41ed187cd3d6a8
+FROM gcr.io/distroless/base:debug@sha256:9681f07e699fa65958ef9b902399d618cb6a4638868d468cf730a2bafd8f3dcc
 ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
