@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666112094462,
+  "lastUpdate": 1666112115664,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -14828,6 +14828,42 @@ window.BENCHMARK_DATA = {
             "value": 10846218,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fa746da2c0eead87de94f9a6601b19726eb9892e",
+          "message": "chore(deps): bump docker/setup-qemu-action from 2.0.0 to 2.1.0 (#3675)\n\nBumps [docker/setup-qemu-action](https://github.com/docker/setup-qemu-action) from 2.0.0 to 2.1.0.\r\n- [Release notes](https://github.com/docker/setup-qemu-action/releases)\r\n- [Commits](https://github.com/docker/setup-qemu-action/compare/8b122486cedac8393e77aa9734c3528886e4a1a8...e81a89b1732b9c48d79cd809d8d81d79c4647a18)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: docker/setup-qemu-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-10-18T10:51:54-06:00",
+          "tree_id": "c21e8bb52d9855c85ca05c1f380dcf96bb185b60",
+          "url": "https://github.com/pomerium/pomerium/commit/fa746da2c0eead87de94f9a6601b19726eb9892e"
+        },
+        "date": 1666112112898,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 19699375,
+            "unit": "ns/op",
+            "extra": "61 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12655058,
+            "unit": "ns/op",
+            "extra": "94 times\n2 procs"
           }
         ]
       }
