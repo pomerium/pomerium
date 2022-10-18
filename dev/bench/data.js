@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666105833979,
+  "lastUpdate": 1666105847019,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -14352,6 +14352,42 @@ window.BENCHMARK_DATA = {
             "value": 12920686,
             "unit": "ns/op",
             "extra": "88 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "95dd50e9c0b3111d1594c42626e008ac0075863f",
+          "message": "chore(deps): bump google-github-actions/setup-gcloud from 0.6.0 to 0.6.2 (#3674)\n\nBumps [google-github-actions/setup-gcloud](https://github.com/google-github-actions/setup-gcloud) from 0.6.0 to 0.6.2.\r\n- [Release notes](https://github.com/google-github-actions/setup-gcloud/releases)\r\n- [Changelog](https://github.com/google-github-actions/setup-gcloud/blob/main/CHANGELOG.md)\r\n- [Commits](https://github.com/google-github-actions/setup-gcloud/compare/877d4953d2c70a0ba7ef3290ae968eb24af233bb...ee9693ff89cdf73862b8a13988f6a71070e8fc58)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: google-github-actions/setup-gcloud\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-10-18T09:06:00-06:00",
+          "tree_id": "91a7d8943f2c9df17843f116162d5466589faef5",
+          "url": "https://github.com/pomerium/pomerium/commit/95dd50e9c0b3111d1594c42626e008ac0075863f"
+        },
+        "date": 1666105845414,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15581960,
+            "unit": "ns/op",
+            "extra": "79 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9269309,
+            "unit": "ns/op",
+            "extra": "129 times\n2 procs"
           }
         ]
       }
