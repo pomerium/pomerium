@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666112975274,
+  "lastUpdate": 1666132122118,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -15168,6 +15168,42 @@ window.BENCHMARK_DATA = {
             "value": 8904588,
             "unit": "ns/op",
             "extra": "134 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "daed2d260c1399c1134fb0563fc8b8860e75d3e3",
+          "message": "config: disable envoy admin by default, expose stats via envoy route (#3677)",
+          "timestamp": "2022-10-18T16:25:03-06:00",
+          "tree_id": "bd806718aec9a5a8d17ffd064e3028fd48153110",
+          "url": "https://github.com/pomerium/pomerium/commit/daed2d260c1399c1134fb0563fc8b8860e75d3e3"
+        },
+        "date": 1666132120623,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 20823909,
+            "unit": "ns/op",
+            "extra": "56 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12265574,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
           }
         ]
       }
