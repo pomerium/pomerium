@@ -3,10 +3,12 @@ package envoyconfig
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	envoy_config_bootstrap_v3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_config_metrics_v3 "github.com/envoyproxy/go-control-plane/envoy/config/metrics/v3"
 	envoy_extensions_access_loggers_file_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/file/v3"
@@ -17,15 +19,25 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry"
 )
 
+var (
+	envoyAdminAddressPath = filepath.Join(os.TempDir(), "pomerium-envoy-admin.sock")
+	envoyAdminAddressMode = 0o600
+	envoyAdminClusterName = "pomerium-envoy-admin"
+)
+
 // BuildBootstrapAdmin builds the admin config for the envoy bootstrap.
 func (b *Builder) BuildBootstrapAdmin(cfg *config.Config) (admin *envoy_config_bootstrap_v3.Admin, err error) {
 	admin = &envoy_config_bootstrap_v3.Admin{
 		ProfilePath: cfg.Options.EnvoyAdminProfilePath,
 	}
 
-	admin.Address, err = parseAddress(cfg.Options.EnvoyAdminAddress)
-	if err != nil {
-		return nil, fmt.Errorf("envoyconfig: invalid envoy admin address: %w", err)
+	admin.Address = &envoy_config_core_v3.Address{
+		Address: &envoy_config_core_v3.Address_Pipe{
+			Pipe: &envoy_config_core_v3.Pipe{
+				Path: envoyAdminAddressPath,
+				Mode: uint32(envoyAdminAddressMode),
+			},
+		},
 	}
 
 	if cfg.Options.EnvoyAdminAccessLogPath != os.DevNull && cfg.Options.EnvoyAdminAccessLogPath != "" {
