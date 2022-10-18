@@ -65,10 +65,10 @@ require (
 	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.0.0-20221010152910-d6f0a8c073c2
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e
-	golang.org/x/net v0.0.0-20221004154528-8021a29435af
-	golang.org/x/oauth2 v0.0.0-20220822191816-0ebed06d0094
-	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
-	google.golang.org/api v0.98.0
+	golang.org/x/net v0.0.0-20221012135044-0b7e1fb9d458
+	golang.org/x/oauth2 v0.0.0-20221006150949-b44042a4b9c1
+	golang.org/x/sync v0.0.0-20220929204114-8fcdb60fdcc0
+	google.golang.org/api v0.99.0
 	google.golang.org/genproto v0.0.0-20221010155953-15ba04fc1c0e
 	google.golang.org/grpc v1.50.0
 	google.golang.org/protobuf v1.28.1
@@ -79,7 +79,7 @@ require (
 
 require (
 	4d63.com/gochecknoglobals v0.1.0 // indirect
-	cloud.google.com/go/compute v1.7.0 // indirect
+	cloud.google.com/go/compute v1.10.0 // indirect
 	github.com/Antonboom/errname v0.1.7 // indirect
 	github.com/Antonboom/nilnil v0.1.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
@@ -157,8 +157,8 @@ require (
 	github.com/golangci/unconvert v0.0.0-20180507085042-28b1c447d1f4 // indirect
 	github.com/google/go-tpm v0.3.2 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.1.0 // indirect
-	github.com/googleapis/gax-go/v2 v2.4.0 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.2.0 // indirect
+	github.com/googleapis/gax-go/v2 v2.5.1 // indirect
 	github.com/gordonklaus/ineffassign v0.0.0-20210914165742-4cc7213b9bc8 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/gostaticanalysis/analysisutil v0.7.1 // indirect
