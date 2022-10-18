@@ -79,6 +79,11 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		authorizeCluster.OutlierDetection = grpcAuthorizeOutlierDetection()
 	}
 
+	envoyAdminCluster, err := b.buildEnvoyAdminCluster(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	clusters := []*envoy_config_cluster_v3.Cluster{
 		b.buildACMETLSALPNCluster(cfg),
 		controlGRPC,
@@ -86,6 +91,7 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		controlMetrics,
 		authorizeCluster,
 		databrokerCluster,
+		envoyAdminCluster,
 	}
 
 	tracingCluster, err := buildTracingCluster(cfg.Options)

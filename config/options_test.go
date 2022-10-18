@@ -316,7 +316,6 @@ func TestOptionsFromViper(t *testing.T) {
 				DataBrokerStorageType:    "memory",
 				EnvoyAdminAccessLogPath:  os.DevNull,
 				EnvoyAdminProfilePath:    os.DevNull,
-				EnvoyAdminAddress:        "127.0.0.1:9901",
 			},
 			false,
 		},
@@ -337,7 +336,6 @@ func TestOptionsFromViper(t *testing.T) {
 				DataBrokerStorageType:    "memory",
 				EnvoyAdminAccessLogPath:  os.DevNull,
 				EnvoyAdminProfilePath:    os.DevNull,
-				EnvoyAdminAddress:        "127.0.0.1:9901",
 			},
 			false,
 		},
@@ -414,7 +412,7 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 		cleanup  func()
 	}
 
-	var tests = map[string]func(t *testing.T) test{
+	tests := map[string]func(t *testing.T) test{
 		"ok/simple": func(t *testing.T) test {
 			envs := map[string]string{
 				"AUTOCERT":             "true",
@@ -689,6 +687,7 @@ func TestOptions_GetOauthOptions(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, u.Hostname(), oauthOptions.RedirectURL.Hostname())
 }
+
 func TestOptions_GetAllRouteableGRPCDomains(t *testing.T) {
 	opts := &Options{
 		AuthenticateURLString: "https://authenticate.example.com",
