@@ -47,7 +47,6 @@ linters:
   disable-all: true
   enable:
     - bodyclose
-    - deadcode
     - depguard
     - dogsled
     - errcheck
@@ -63,37 +62,11 @@ linters:
     - nakedret
     - nolintlint
     - revive
-    - rowserrcheck
     - staticcheck
-    - structcheck
     - stylecheck
     - typecheck
     - unconvert
     - unused
-    - varcheck
-    # - asciicheck
-    # - dupl
-    # - exhaustive
-    # - funlen
-    # - gochecknoglobals
-    # - gochecknoinits
-    # - gocognit
-    # - goconst
-    # - gocritic
-    # - gocyclo
-    # - godot
-    # - godox
-    # - goerr113
-    # - gomnd
-    # - interfacer
-    # - maligned
-    # - nestif
-    # - noctx
-    # - prealloc
-    # - scopelint
-    # - testpackage
-    # - whitespace
-    # - wsl
 
 issues:
   exclude-use-default: false
@@ -187,8 +160,3 @@ issues:
     - text: "G112:"
       linters:
         - gosec
-
-# golangci.com configuration
-# https://github.com/golangci/golangci/wiki/Configuration
-service:
-  golangci-lint-version: 1.34.x # use the fixed version to not introduce new linters unexpectedly
