@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666194265094,
+  "lastUpdate": 1666209273812,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -15404,6 +15404,42 @@ window.BENCHMARK_DATA = {
             "value": 10237785,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "61506c11b542ca5ce8c387ac127df43e712d1d9a",
+          "message": "lint: remove deprecated linters (#3686)",
+          "timestamp": "2022-10-19T13:52:03-06:00",
+          "tree_id": "1305d0e8e5503314a60f73fac834a52f2e4cbf3d",
+          "url": "https://github.com/pomerium/pomerium/commit/61506c11b542ca5ce8c387ac127df43e712d1d9a"
+        },
+        "date": 1666209273437,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14101245,
+            "unit": "ns/op",
+            "extra": "88 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9640972,
+            "unit": "ns/op",
+            "extra": "129 times\n2 procs"
           }
         ]
       }
