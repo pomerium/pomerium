@@ -1,5 +1,4 @@
 // Package pomerium houses the main pomerium CLI command.
-//
 package pomerium
 
 import (

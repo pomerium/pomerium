@@ -51,10 +51,10 @@ func newDeltaCollection(p *Provider) *deltaCollection {
 //
 // It involves 4 steps:
 //
-//   1. an initial request to /v1.0/groups/delta
-//   2. one or more requests to /v1.0/groups/delta?$skiptoken=..., which comes from the @odata.nextLink
-//   3. a final response with @odata.deltaLink
-//   4. on the next call to sync, starting at @odata.deltaLink
+//  1. an initial request to /v1.0/groups/delta
+//  2. one or more requests to /v1.0/groups/delta?$skiptoken=..., which comes from the @odata.nextLink
+//  3. a final response with @odata.deltaLink
+//  4. on the next call to sync, starting at @odata.deltaLink
 //
 // Only the changed groups/members are returned. Removed groups/members have an @removed property.
 func (dc *deltaCollection) Sync(ctx context.Context) error {

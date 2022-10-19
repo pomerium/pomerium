@@ -65,8 +65,7 @@ func (claims Claims) Claims(v interface{}) error {
 
 // Flatten flattens the claims to a FlattenedClaims map. For example:
 //
-//   { "a": { "b": { "c": 12345 } } } => { "a.b.c": [12345] }
-//
+//	{ "a": { "b": { "c": 12345 } } } => { "a.b.c": [12345] }
 func (claims Claims) Flatten() FlattenedClaims {
 	flattened := make(FlattenedClaims)
 	for k, v := range claims {

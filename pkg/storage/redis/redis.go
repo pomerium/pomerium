@@ -49,13 +49,13 @@ var (
 //
 // What's stored:
 //
-// - last_version: an integer recordVersion number
-// - last_version_ch: a PubSub channel for recordVersion number updates
-// - records: a Hash of records. The hash key is {recordType}/{recordID}, the hash value the protobuf record.
-// - changes: a Sorted Set of all the changes. The score is the recordVersion number, the member the protobuf record.
-// - options: a Hash of options. The hash key is {recordType}, the hash value the protobuf options.
-// - changes.{recordType}: a Sorted Set of the changes for a record type. The score is the current time,
-//   the value the record id.
+//   - last_version: an integer recordVersion number
+//   - last_version_ch: a PubSub channel for recordVersion number updates
+//   - records: a Hash of records. The hash key is {recordType}/{recordID}, the hash value the protobuf record.
+//   - changes: a Sorted Set of all the changes. The score is the recordVersion number, the member the protobuf record.
+//   - options: a Hash of options. The hash key is {recordType}, the hash value the protobuf options.
+//   - changes.{recordType}: a Sorted Set of the changes for a record type. The score is the current time,
+//     the value the record id.
 //
 // Records stored in these keys are typically encrypted.
 type Backend struct {

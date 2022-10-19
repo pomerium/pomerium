@@ -29,8 +29,9 @@ var defaultScopes = []string{oidc.ScopeOpenID, "profile", "email"}
 // having the user select which Google account they'd like to use.
 //
 // For more details, please see google's documentation:
-// 	https://developers.google.com/identity/protocols/oauth2/web-server#offline
-// 	https://developers.google.com/identity/protocols/oauth2/openid-connect#authenticationuriparameters
+//
+//	https://developers.google.com/identity/protocols/oauth2/web-server#offline
+//	https://developers.google.com/identity/protocols/oauth2/openid-connect#authenticationuriparameters
 var defaultAuthCodeOptions = map[string]string{"prompt": "select_account consent", "access_type": "offline"}
 
 // Provider is a Google implementation of the Authenticator interface.
