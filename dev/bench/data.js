@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666132123580,
+  "lastUpdate": 1666192668219,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -15236,6 +15236,42 @@ window.BENCHMARK_DATA = {
             "value": 8013995,
             "unit": "ns/op",
             "extra": "148 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d147846e64e3a9adb7e1597bf7b7a7f33dce71fd",
+          "message": "fileutil: update watcher to use fsnotify and polling (#3663)\n\n* fileutil: update watcher to use fsnotify and polling\r\n\r\n* raise timeout\r\n\r\n* maybe fix",
+          "timestamp": "2022-10-19T09:13:08-06:00",
+          "tree_id": "3505b63980ed56d3d1bc6dfd60c89722f9328a8d",
+          "url": "https://github.com/pomerium/pomerium/commit/d147846e64e3a9adb7e1597bf7b7a7f33dce71fd"
+        },
+        "date": 1666192667653,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12438730,
+            "unit": "ns/op",
+            "extra": "92 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7448605,
+            "unit": "ns/op",
+            "extra": "157 times\n2 procs"
           }
         ]
       }
