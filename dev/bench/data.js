@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666193348131,
+  "lastUpdate": 1666194031455,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -15336,6 +15336,42 @@ window.BENCHMARK_DATA = {
             "value": 9895524,
             "unit": "ns/op",
             "extra": "121 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ec495bb682bee1479b0766a6840b59da11c7b2dc",
+          "message": "chore(deps): bump github.com/golangci/golangci-lint from 1.48.0 to 1.50.0 (#3667)\n\n* chore(deps): bump github.com/golangci/golangci-lint\r\n\r\nBumps [github.com/golangci/golangci-lint](https://github.com/golangci/golangci-lint) from 1.48.0 to 1.50.0.\r\n- [Release notes](https://github.com/golangci/golangci-lint/releases)\r\n- [Changelog](https://github.com/golangci/golangci-lint/blob/master/CHANGELOG.md)\r\n- [Commits](https://github.com/golangci/golangci-lint/compare/v1.48.0...v1.50.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/golangci/golangci-lint\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\n* lint\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Caleb Doxsey <cdoxsey@pomerium.com>",
+          "timestamp": "2022-10-19T09:36:59-06:00",
+          "tree_id": "0f0b9d4ce84c95d4ee15bf7245a6873158ad5900",
+          "url": "https://github.com/pomerium/pomerium/commit/ec495bb682bee1479b0766a6840b59da11c7b2dc"
+        },
+        "date": 1666194030041,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15581544,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9428403,
+            "unit": "ns/op",
+            "extra": "123 times\n2 procs"
           }
         ]
       }
