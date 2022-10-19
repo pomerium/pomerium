@@ -24,7 +24,6 @@ import (
 //   - Our KEKs are asymmetric Curve25519 keys. We use the *public* key to encrypt the DEK so only the *private* key can
 //     decrypt it.
 //   - Our DEKs are symmetric XChaCha20Poly1305 keys.
-//
 type KeyEncryptionKey interface {
 	ID() string
 	KeyBytes() []byte

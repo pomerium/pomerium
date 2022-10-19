@@ -139,7 +139,9 @@ func (o Object) Clone() Value {
 }
 
 // Falsy returns true if the value is considered Javascript falsy:
-//   https://developer.mozilla.org/en-US/docs/Glossary/Falsy.
+//
+//	https://developer.mozilla.org/en-US/docs/Glossary/Falsy.
+//
 // If the field is not found in the object it is *not* falsy.
 func (o Object) Falsy(field string) bool {
 	v, ok := o[field]

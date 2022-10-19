@@ -59,7 +59,6 @@ func NewLeasers(leaseName string, ttl time.Duration, client DataBrokerServiceCli
 //
 // 1. ctx is canceled
 // 2. a non-cancel error is returned from handler
-//
 func (locker *Leaser) Run(ctx context.Context) error {
 	retryTicker := time.NewTicker(locker.ttl / 2)
 	defer retryTicker.Stop()

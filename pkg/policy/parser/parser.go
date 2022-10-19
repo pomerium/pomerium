@@ -15,63 +15,62 @@
 //
 // An example policy:
 //
-//    allow:
-//      and:
-//      - domain: example.com
-//      - group: admin
-//    deny:
-//      or:
-//      - user: user1@example.com
-//      - user: user2@example.com
+//	allow:
+//	  and:
+//	  - domain: example.com
+//	  - group: admin
+//	deny:
+//	  or:
+//	  - user: user1@example.com
+//	  - user: user2@example.com
 //
 // The JSON Schema for the language:
 //
-//    {
-//      "$ref": "#/definitions/policy",
-//      "definitions": {
-//        "policy": {
-//          "anyOf": [
-//            { "$ref": "#/definitions/rules" },
-//            {
-//              "type": "array",
-//              "items": { "$ref": "#/definitions/rules" }
-//            }
-//          ]
-//        },
-//        "rules": {
-//          "type": "object",
-//          "properties": {
-//            "allow": { "$ref": "#/definitions/rule_body" },
-//            "deny": { "$ref": "#/definitions/rule_body" }
-//          }
-//        },
-//        "rule_body": {
-//          "type": "object",
-//          "properties": {
-//            "and": {
-//              "type": "array",
-//              "items": { "$ref": "#/definitions/criteria" }
-//            },
-//            "not": {
-//              "type": "array",
-//              "items": { "$ref": "#/definitions/criteria" }
-//            },
-//            "or": {
-//              "type": "array",
-//              "items": { "$ref": "#/definitions/criteria" }
-//            }
-//          },
-//          "additionalProperties": false
-//        },
-//        "criteria": {
-//          "type": "object",
-//          "additionalProperties": true,
-//          "minProperties": 1,
-//          "maxProperties": 1
-//        }
-//      }
-//    }
-//
+//	{
+//	  "$ref": "#/definitions/policy",
+//	  "definitions": {
+//	    "policy": {
+//	      "anyOf": [
+//	        { "$ref": "#/definitions/rules" },
+//	        {
+//	          "type": "array",
+//	          "items": { "$ref": "#/definitions/rules" }
+//	        }
+//	      ]
+//	    },
+//	    "rules": {
+//	      "type": "object",
+//	      "properties": {
+//	        "allow": { "$ref": "#/definitions/rule_body" },
+//	        "deny": { "$ref": "#/definitions/rule_body" }
+//	      }
+//	    },
+//	    "rule_body": {
+//	      "type": "object",
+//	      "properties": {
+//	        "and": {
+//	          "type": "array",
+//	          "items": { "$ref": "#/definitions/criteria" }
+//	        },
+//	        "not": {
+//	          "type": "array",
+//	          "items": { "$ref": "#/definitions/criteria" }
+//	        },
+//	        "or": {
+//	          "type": "array",
+//	          "items": { "$ref": "#/definitions/criteria" }
+//	        }
+//	      },
+//	      "additionalProperties": false
+//	    },
+//	    "criteria": {
+//	      "type": "object",
+//	      "additionalProperties": true,
+//	      "minProperties": 1,
+//	      "maxProperties": 1
+//	    }
+//	  }
+//	}
 package parser
 
 import (
@@ -83,8 +82,7 @@ import (
 )
 
 // A Parser parses raw policy definitions into a Policy.
-type Parser struct {
-}
+type Parser struct{}
 
 // New creates a new Parser.
 func New() *Parser {
