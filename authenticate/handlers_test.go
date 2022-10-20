@@ -152,11 +152,10 @@ func TestAuthenticate_SignIn(t *testing.T) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{
-					sharedCipher:     sharedCipher,
-					sessionStore:     tt.session,
-					redirectURL:      uriParseHelper("https://some.example"),
-					sharedEncoder:    tt.encoder,
-					encryptedEncoder: tt.encoder,
+					sharedCipher:  sharedCipher,
+					sessionStore:  tt.session,
+					redirectURL:   uriParseHelper("https://some.example"),
+					sharedEncoder: tt.encoder,
 					dataBrokerClient: mockDataBrokerServiceClient{
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 							return &databroker.GetResponse{
@@ -308,9 +307,8 @@ func TestAuthenticate_SignOut(t *testing.T) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{
-					sessionStore:     tt.sessionStore,
-					encryptedEncoder: mock.Encoder{},
-					sharedEncoder:    mock.Encoder{},
+					sessionStore:  tt.sessionStore,
+					sharedEncoder: mock.Encoder{},
 					dataBrokerClient: mockDataBrokerServiceClient{
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 							return &databroker.GetResponse{
@@ -411,10 +409,6 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			signer, err := jws.NewHS256Signer(nil)
-			if err != nil {
-				t.Fatal(err)
-			}
 			authURL, _ := url.Parse(tt.authenticateURL)
 			a := &Authenticate{
 				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
@@ -429,11 +423,10 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 							return nil, nil
 						},
 					},
-					directoryClient:  new(mockDirectoryServiceClient),
-					redirectURL:      authURL,
-					sessionStore:     tt.session,
-					cookieCipher:     aead,
-					encryptedEncoder: signer,
+					directoryClient: new(mockDirectoryServiceClient),
+					redirectURL:     authURL,
+					sessionStore:    tt.session,
+					cookieCipher:    aead,
 				}),
 				options: config.NewAtomicOptions(),
 			}
@@ -558,12 +551,11 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{
-					cookieSecret:     cryptutil.NewKey(),
-					redirectURL:      uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
-					sessionStore:     tt.session,
-					cookieCipher:     aead,
-					encryptedEncoder: signer,
-					sharedEncoder:    signer,
+					cookieSecret:  cryptutil.NewKey(),
+					redirectURL:   uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
+					sessionStore:  tt.session,
+					cookieCipher:  aead,
+					sharedEncoder: signer,
 					dataBrokerClient: mockDataBrokerServiceClient{
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 							return &databroker.GetResponse{
@@ -697,9 +689,8 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			a := &Authenticate{
 				options: o,
 				state: atomicutil.NewValue(&authenticateState{
-					sessionStore:     tt.sessionStore,
-					encryptedEncoder: signer,
-					sharedEncoder:    signer,
+					sessionStore:  tt.sessionStore,
+					sharedEncoder: signer,
 					dataBrokerClient: mockDataBrokerServiceClient{
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 							return &databroker.GetResponse{

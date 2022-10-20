@@ -11,11 +11,9 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
-	"github.com/pomerium/pomerium/internal/encoding/ecjson"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
-	"github.com/pomerium/pomerium/internal/sessions/header"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
@@ -40,8 +38,6 @@ type authenticateState struct {
 	cookieSecret []byte
 	// cookieCipher is the cipher to use to encrypt/decrypt session data
 	cookieCipher cipher.AEAD
-	// encryptedEncoder is the encoder used to marshal and unmarshal session data
-	encryptedEncoder encoding.MarshalUnmarshaler
 	// sessionStore is the session store used to persist a user's session
 	sessionStore sessions.SessionStore
 	// sessionLoaders are a collection of session loaders to attempt to pull
@@ -110,10 +106,6 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 		return nil, err
 	}
 
-	state.encryptedEncoder = ecjson.New(state.cookieCipher)
-
-	headerStore := header.NewStore(state.encryptedEncoder)
-
 	cookieStore, err := cookie.NewStore(func() cookie.Options {
 		return cookie.Options{
 			Name:     cfg.Options.CookieName,
@@ -128,7 +120,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	}
 
 	state.sessionStore = cookieStore
-	state.sessionLoaders = []sessions.SessionLoader{headerStore, cookieStore}
+	state.sessionLoaders = []sessions.SessionLoader{cookieStore}
 	state.jwk = new(jose.JSONWebKeySet)
 	signingKey, err := cfg.Options.GetSigningKey()
 	if err != nil {
