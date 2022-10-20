@@ -285,6 +285,9 @@ func (srv *Server) EnableProxy(svc Service) error {
 func (srv *Server) updateRouter(cfg *config.Config) error {
 	httpRouter := mux.NewRouter()
 	srv.addHTTPMiddleware(httpRouter, cfg)
+	if err := srv.mountCommonEndpoints(httpRouter, cfg); err != nil {
+		return err
+	}
 	if srv.authenticateSvc != nil {
 		authenticateURL, err := cfg.Options.GetInternalAuthenticateURL()
 		if err != nil {
