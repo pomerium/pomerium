@@ -11,7 +11,7 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: [1.18.x]
+        go-version: [1.19.x]
         node-version: [16.x]
         platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.18.x]
+        go-version: [1.19.x]
         node-version: [16.x]
     steps:
       - uses: actions/setup-go@c4a742cab115ed795e34d4513e2cf7d472deb55f
@@ -113,7 +113,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [1.18.x]
+        go-version: [1.19.x]
         node-version: [16.x]
         platform: [ubuntu-latest]
         deployment: [kubernetes, multi, nginx, single, traefik]
@@ -160,7 +160,7 @@ jobs:
   build:
     strategy:
       matrix:
-        go-version: [1.18.x]
+        go-version: [1.19.x]
         node-version: [16.x]
         platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
@@ -224,7 +224,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@c4a742cab115ed795e34d4513e2cf7d472deb55f
         with:
-          go-version: 1.18.x
+          go-version: 1.19.x
       - uses: actions/setup-python@13ae5bb136fac2878aff31522b9efb785519f984
         with:
           python-version: "3.x"
@@ -240,14 +240,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.18.x]
+        go-version: [1.19.x]
         platform: [ubuntu-latest]
     needs:
       - build
     steps:
       - uses: actions/setup-go@c4a742cab115ed795e34d4513e2cf7d472deb55f
         with:
-          go-version: 1.18.x
+          go-version: 1.19.x
 
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
 
