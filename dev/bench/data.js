@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666644713842,
+  "lastUpdate": 1666644782848,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -16196,6 +16196,42 @@ window.BENCHMARK_DATA = {
             "value": 8510227,
             "unit": "ns/op",
             "extra": "139 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "aaf3546246d1394318b2dd310a6323a9427af088",
+          "message": "chore(deps): bump github.com/docker/docker from 20.10.19+incompatible to 20.10.20+incompatible (#3694)\n\nchore(deps): bump github.com/docker/docker\r\n\r\nBumps [github.com/docker/docker](https://github.com/docker/docker) from 20.10.19+incompatible to 20.10.20+incompatible.\r\n- [Release notes](https://github.com/docker/docker/releases)\r\n- [Changelog](https://github.com/moby/moby/blob/master/CHANGELOG.md)\r\n- [Commits](https://github.com/docker/docker/compare/v20.10.19...v20.10.20)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/docker/docker\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-10-24T14:47:47-06:00",
+          "tree_id": "f8b72a247beebc5358c813f9a3e567044ed7c00d",
+          "url": "https://github.com/pomerium/pomerium/commit/aaf3546246d1394318b2dd310a6323a9427af088"
+        },
+        "date": 1666644781888,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15860460,
+            "unit": "ns/op",
+            "extra": "80 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10481843,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
