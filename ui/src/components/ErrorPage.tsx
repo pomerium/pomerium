@@ -1,30 +1,31 @@
-import {ErrorPageData, PolicyEvaluationTrace} from "../types";
-import SectionFooter from "./SectionFooter";
+import { ListItemProps, TableCell } from "@mui/material";
 import Alert from "@mui/material/Alert";
 import AlertTitle from "@mui/material/AlertTitle";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
-import React, { FC } from "react";
-import Markdown from "markdown-to-jsx";
-import {ListItemProps, TableCell} from "@mui/material";
-import {CheckCircle, MinusCircle, XCircle} from "react-feather";
 import Table from "@mui/material/Table";
-import TableRow from "@mui/material/TableRow";
 import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import Typography from "@mui/material/Typography";
+import Markdown from "markdown-to-jsx";
+import React, { FC } from "react";
+import { CheckCircle, MinusCircle, XCircle } from "react-feather";
+
+import { ErrorPageData, PolicyEvaluationTrace } from "../types";
+import SectionFooter from "./SectionFooter";
 
 type PolicyEvaluationTraceDetailsProps = {
   trace: PolicyEvaluationTrace;
 } & ListItemProps;
 const PolicyEvaluationTraceDetails: FC<PolicyEvaluationTraceDetailsProps> = ({
- trace,
- ...props
+  trace,
+  ...props
 }) => {
   return (
     <TableRow>
-      <TableCell align={'center'}>
+      <TableCell align={"center"}>
         {trace.deny ? (
           <XCircle color="red" />
         ) : trace.allow ? (
@@ -34,9 +35,7 @@ const PolicyEvaluationTraceDetails: FC<PolicyEvaluationTraceDetailsProps> = ({
         )}
       </TableCell>
       <TableCell>
-        <Markdown>
-          {trace.explanation || trace.id}
-        </Markdown>
+        <Markdown>{trace.explanation || trace.id}</Markdown>
       </TableCell>
       <TableCell>
         <Markdown>
@@ -63,14 +62,11 @@ export const ErrorPage: FC<ErrorPageProps> = ({ data }) => {
                 {data?.status || 500}{" "}
                 {data?.statusText || "Internal Server Error"}
               </AlertTitle>
-              {data?.error || "Internal Server Error"}
             </Alert>
           </Box>
           {!!data?.errorMessageFirstParagraph && (
-            <Box sx={{p: 4}}>
-              <Markdown>
-                {data.errorMessageFirstParagraph}
-              </Markdown>
+            <Box sx={{ p: 4 }}>
+              <Markdown>{data.errorMessageFirstParagraph}</Markdown>
             </Box>
           )}
           {traces?.length > 0 && (

@@ -294,7 +294,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			identity.MockProvider{LogOutResponse: (*uriParseHelper("https://microsoft.com"))},
 			&mstore.Store{Encrypted: true, Session: &sessions.State{}},
 			http.StatusOK,
-			"{\"Status\":200,\"Error\":\"OK: user logged out\"}\n",
+			"{\"Status\":200}\n",
 		},
 	}
 	for _, tt := range tests {
