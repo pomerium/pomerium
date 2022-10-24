@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666645526836,
+  "lastUpdate": 1666645827726,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -16476,6 +16476,42 @@ window.BENCHMARK_DATA = {
             "value": 8481480,
             "unit": "ns/op",
             "extra": "136 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9482dba0499c2593d3c292e4c11edf7400c806dc",
+          "message": "chore(deps): bump github.com/golangci/golangci-lint from 1.50.0 to 1.50.1 (#3697)\n\nchore(deps): bump github.com/golangci/golangci-lint\r\n\r\nBumps [github.com/golangci/golangci-lint](https://github.com/golangci/golangci-lint) from 1.50.0 to 1.50.1.\r\n- [Release notes](https://github.com/golangci/golangci-lint/releases)\r\n- [Changelog](https://github.com/golangci/golangci-lint/blob/master/CHANGELOG.md)\r\n- [Commits](https://github.com/golangci/golangci-lint/compare/v1.50.0...v1.50.1)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/golangci/golangci-lint\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-10-24T14:49:58-06:00",
+          "tree_id": "637eb63ff074fdd8af7821441b5e5098478e5047",
+          "url": "https://github.com/pomerium/pomerium/commit/9482dba0499c2593d3c292e4c11edf7400c806dc"
+        },
+        "date": 1666645826958,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16879355,
+            "unit": "ns/op",
+            "extra": "75 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10809710,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
