@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666721708929,
+  "lastUpdate": 1666723266279,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -16648,6 +16648,42 @@ window.BENCHMARK_DATA = {
             "value": 10213270,
             "unit": "ns/op",
             "extra": "121 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3f7a482815325bcb1bffe0c3b6dca6075f96e27f",
+          "message": "envoyconfig: fix databroker health checks (#3706)",
+          "timestamp": "2022-10-25T12:37:46-06:00",
+          "tree_id": "28437d52593b7befb1fcaa1d979866abb0d7d9ec",
+          "url": "https://github.com/pomerium/pomerium/commit/3f7a482815325bcb1bffe0c3b6dca6075f96e27f"
+        },
+        "date": 1666723265385,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 19183138,
+            "unit": "ns/op",
+            "extra": "66 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11082470,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
