@@ -42,7 +42,7 @@ type authenticateState struct {
 	sessionStore sessions.SessionStore
 	// sessionLoaders are a collection of session loaders to attempt to pull
 	// a user's session state from
-	sessionLoaders []sessions.SessionLoader
+	sessionLoader sessions.SessionLoader
 
 	jwk *jose.JSONWebKeySet
 
@@ -120,7 +120,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	}
 
 	state.sessionStore = cookieStore
-	state.sessionLoaders = []sessions.SessionLoader{cookieStore}
+	state.sessionLoader = cookieStore
 	state.jwk = new(jose.JSONWebKeySet)
 	signingKey, err := cfg.Options.GetSigningKey()
 	if err != nil {

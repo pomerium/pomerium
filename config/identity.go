@@ -1,14 +1,16 @@
 package config
 
 import (
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/grpc/identity"
 )
 
 // GetIdentityProviderForID returns the identity provider associated with the given IDP id.
 // If none is found the default provider is returned.
 func (o *Options) GetIdentityProviderForID(idpID string) (*identity.Provider, error) {
-	for _, policy := range o.GetAllPolicies() {
-		idp, err := o.GetIdentityProviderForPolicy(&policy) //nolint
+	for _, p := range o.GetAllPolicies() {
+		p := p
+		idp, err := o.GetIdentityProviderForPolicy(&p)
 		if err != nil {
 			return nil, err
 		}
@@ -47,4 +49,20 @@ func (o *Options) GetIdentityProviderForPolicy(policy *Policy) (*identity.Provid
 	}
 	idp.Id = idp.Hash()
 	return idp, nil
+}
+
+// GetIdentityProviderForRequestURL gets the identity provider associated with the given request URL.
+func (o *Options) GetIdentityProviderForRequestURL(requestURL string) (*identity.Provider, error) {
+	u, err := urlutil.ParseAndValidateURL(requestURL)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, p := range o.GetAllPolicies() {
+		p := p
+		if p.Matches(*u) {
+			return o.GetIdentityProviderForPolicy(&p)
+		}
+	}
+	return o.GetIdentityProviderForPolicy(nil)
 }

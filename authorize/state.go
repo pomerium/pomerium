@@ -25,6 +25,7 @@ type authorizeState struct {
 	dataBrokerClientConnection *googlegrpc.ClientConn
 	dataBrokerClient           databroker.DataBrokerServiceClient
 	auditEncryptor             *protoutil.Encryptor
+	sessionStore               *config.SessionStore
 }
 
 func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*authorizeState, error) {
@@ -74,6 +75,11 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*autho
 	}
 	if auditKey != nil {
 		state.auditEncryptor = protoutil.NewEncryptor(auditKey)
+	}
+
+	state.sessionStore, err = config.NewSessionStore(cfg.Options)
+	if err != nil {
+		return nil, fmt.Errorf("authorize: invalid session store: %w", err)
 	}
 
 	return state, nil
