@@ -32,12 +32,12 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 			From:            "https://p1.example.com",
 			To:              mustParseWeightedURLs(t, "https://p1"),
 			IDPClientID:     "client_id_1",
-			IDPClientSecret: "client_secret_2",
+			IDPClientSecret: "client_secret_1",
 		},
 		Policy{
 			From:            "https://p2.example.com",
 			To:              mustParseWeightedURLs(t, "https://p2"),
-			IDPClientID:     "client_id_1",
+			IDPClientID:     "client_id_2",
 			IDPClientSecret: "client_secret_2",
 		})
 	require.NoError(t, options.Validate())
@@ -53,7 +53,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, idp2)
 
-	idp3, err := options.GetIdentityProviderForPolicy(&options.Policies[0])
+	idp3, err := options.GetIdentityProviderForPolicy(&options.Policies[1])
 	require.NoError(t, err)
 	require.NotNil(t, idp3)
 
