@@ -331,14 +331,14 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
 			map[string]string{urlutil.QueryRedirectURI: "localhost"},
 			http.StatusBadRequest,
-			"{\"Status\":400,\"Error\":\"Bad Request: localhost url does contain a valid scheme\"}\n",
+			"{\"Status\":400}\n",
 		},
 		{
 			"bad redirect_uri not whitelisted",
 			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
 			map[string]string{urlutil.QueryRedirectURI: "https://example.com"},
 			http.StatusBadRequest,
-			"{\"Status\":400,\"Error\":\"Bad Request: invalid redirect uri\"}\n",
+			"{\"Status\":400}\n",
 		},
 		{
 			"bad http method",
