@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666731331319,
+  "lastUpdate": 1666736608053,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -16748,6 +16748,42 @@ window.BENCHMARK_DATA = {
             "value": 8173776,
             "unit": "ns/op",
             "extra": "150 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "30bdae3d9e3d81722efdfac92daa667ec24876e7",
+          "message": "sessions: check idp id to detect provider changes to force session invalidation (#3707)\n\n* sessions: check idp id to detect provider changes to force session invalidation\r\n\r\n* remove dead code\r\n\r\n* fix test",
+          "timestamp": "2022-10-25T16:20:32-06:00",
+          "tree_id": "9cfa310f244fbf34b62a5628ff97cce3c6d3e879",
+          "url": "https://github.com/pomerium/pomerium/commit/30bdae3d9e3d81722efdfac92daa667ec24876e7"
+        },
+        "date": 1666736607114,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12738185,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7865541,
+            "unit": "ns/op",
+            "extra": "153 times\n2 procs"
           }
         ]
       }
