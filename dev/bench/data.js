@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666706621894,
+  "lastUpdate": 1666707010147,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -16546,6 +16546,42 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 10006284,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b68dc1ff4f4196e69fae6c35f91f51a3f9126bc7",
+          "message": "controlplane: move jwks.json endpoint to control plane (#3691)",
+          "timestamp": "2022-10-25T08:01:33-06:00",
+          "tree_id": "12e784b9e22474c01abd4d3de2da0664340704eb",
+          "url": "https://github.com/pomerium/pomerium/commit/b68dc1ff4f4196e69fae6c35f91f51a3f9126bc7"
+        },
+        "date": 1666707009376,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17540257,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10290455,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
           }
