@@ -19,7 +19,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
-	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
@@ -68,8 +67,6 @@ func TestAuthorize_okResponse(t *testing.T) {
 		JWTClaimsHeaders: config.NewJWTClaimHeaders("email"),
 	}
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
-	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
-	a.state.Load().encoder = encoder
 	a.currentOptions.Store(opt)
 	a.store = store.New()
 	pe, err := newPolicyEvaluator(opt, a.store)
@@ -124,8 +121,6 @@ func TestAuthorize_okResponse(t *testing.T) {
 
 func TestAuthorize_deniedResponse(t *testing.T) {
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
-	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
-	a.state.Load().encoder = encoder
 	a.currentOptions.Store(&config.Options{
 		Policies: []config.Policy{{
 			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
