@@ -111,9 +111,9 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	cr.Path("/").Handler(a.requireValidSignature(a.Callback)).Methods(http.MethodGet)
 }
 
-// RetrieveSession is the middleware used retrieve session by the sessionLoaders
+// RetrieveSession is the middleware used retrieve session by the sessionLoader
 func (a *Authenticate) RetrieveSession(next http.Handler) http.Handler {
-	return sessions.RetrieveSession(a.state.Load().sessionLoaders...)(next)
+	return sessions.RetrieveSession(a.state.Load().sessionLoader)(next)
 }
 
 // VerifySession is the middleware used to enforce a valid authentication

@@ -55,8 +55,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		}
 	}
 
-	rawJWT, _ := loadRawSession(hreq, a.currentOptions.Load(), state.encoder)
-	sessionState, _ := loadSession(state.encoder, rawJWT)
+	sessionState, _ := state.sessionStore.LoadSessionState(hreq)
 
 	var s sessionOrServiceAccount
 	var u *user.User

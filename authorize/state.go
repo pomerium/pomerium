@@ -9,8 +9,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/encoding"
-	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -21,10 +19,10 @@ var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
 type authorizeState struct {
 	sharedKey                  []byte
 	evaluator                  *evaluator.Evaluator
-	encoder                    encoding.MarshalUnmarshaler
 	dataBrokerClientConnection *googlegrpc.ClientConn
 	dataBrokerClient           databroker.DataBrokerServiceClient
 	auditEncryptor             *protoutil.Encryptor
+	sessionStore               *config.SessionStore
 }
 
 func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*authorizeState, error) {
@@ -42,11 +40,6 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*autho
 	}
 
 	state.sharedKey, err = cfg.Options.GetSharedKey()
-	if err != nil {
-		return nil, err
-	}
-
-	state.encoder, err = jws.NewHS256Signer(state.sharedKey)
 	if err != nil {
 		return nil, err
 	}
@@ -74,6 +67,11 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*autho
 	}
 	if auditKey != nil {
 		state.auditEncryptor = protoutil.NewEncryptor(auditKey)
+	}
+
+	state.sessionStore, err = config.NewSessionStore(cfg.Options)
+	if err != nil {
+		return nil, fmt.Errorf("authorize: invalid session store: %w", err)
 	}
 
 	return state, nil
