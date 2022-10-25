@@ -595,27 +595,6 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 	}
 }
 
-func TestJwksEndpoint(t *testing.T) {
-	o := newTestOptions(t)
-	o.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUpCMFZkbko1VjEvbVlpYUlIWHhnd2Q0Yzd5YWRTeXMxb3Y0bzA1b0F3ekdvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFVUc1eENQMEpUVDFINklvbDhqS3VUSVBWTE0wNENnVzlQbEV5cE5SbVdsb29LRVhSOUhUMwpPYnp6aktZaWN6YjArMUt3VjJmTVRFMTh1dy82MXJVQ0JBPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
-	auth, err := New(&config.Config{Options: o})
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-	h := auth.Handler()
-	if h == nil {
-		t.Error("handler cannot be nil")
-	}
-	req := httptest.NewRequest("GET", "/.well-known/pomerium/jwks.json", nil)
-	req.Header.Set("Accept", "application/json")
-	rr := httptest.NewRecorder()
-	h.ServeHTTP(rr, req)
-	body := rr.Body.String()
-	expected := "{\"keys\":[{\"use\":\"sig\",\"kty\":\"EC\",\"kid\":\"5b419ade1895fec2d2def6cd33b1b9a018df60db231dc5ecb85cbed6d942813c\",\"crv\":\"P-256\",\"alg\":\"ES256\",\"x\":\"UG5xCP0JTT1H6Iol8jKuTIPVLM04CgW9PlEypNRmWlo\",\"y\":\"KChF0fR09zm884ymInM29PtSsFdnzExNfLsP-ta1AgQ\"}]}\n"
-	assert.Equal(t, expected, body)
-}
-
 func TestAuthenticate_userInfo(t *testing.T) {
 	t.Parallel()
 

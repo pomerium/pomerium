@@ -74,7 +74,6 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	r.Path("/oauth2/callback").Handler(httputil.HandlerFunc(a.OAuthCallback)).Methods(http.MethodGet)
 
 	a.mountDashboard(r)
-	a.mountWellKnown(r)
 }
 
 func (a *Authenticate) mountDashboard(r *mux.Router) {
@@ -110,19 +109,6 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 
 	cr := sr.PathPrefix("/callback").Subrouter()
 	cr.Path("/").Handler(a.requireValidSignature(a.Callback)).Methods(http.MethodGet)
-}
-
-func (a *Authenticate) mountWellKnown(r *mux.Router) {
-	r.Path("/.well-known/pomerium/jwks.json").Handler(cors.AllowAll().Handler(httputil.HandlerFunc(a.jwks))).Methods(http.MethodGet)
-}
-
-// jwks returns the signing key(s) the client can use to validate signatures
-// from the authorization server.
-//
-// https://tools.ietf.org/html/rfc8414
-func (a *Authenticate) jwks(w http.ResponseWriter, r *http.Request) error {
-	httputil.RenderJSON(w, http.StatusOK, a.state.Load().jwk)
-	return nil
 }
 
 // RetrieveSession is the middleware used retrieve session by the sessionLoaders
