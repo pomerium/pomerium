@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666791790602,
+  "lastUpdate": 1666821537085,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -16852,6 +16852,38 @@ window.BENCHMARK_DATA = {
             "value": 8624942,
             "unit": "ns/op",
             "extra": "141 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "8e5569854138b501d006dcd480695fa280b941d1",
+          "message": "config: allow blank identity providers when loading sessions for service account support",
+          "timestamp": "2022-10-25T02:01:47Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3709/commits/8e5569854138b501d006dcd480695fa280b941d1"
+        },
+        "date": 1666821536521,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11520588,
+            "unit": "ns/op",
+            "extra": "98 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6790239,
+            "unit": "ns/op",
+            "extra": "188 times\n2 procs"
           }
         ]
       }
