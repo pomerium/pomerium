@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666788342591,
+  "lastUpdate": 1666791790602,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -16816,6 +16816,42 @@ window.BENCHMARK_DATA = {
             "value": 8675591,
             "unit": "ns/op",
             "extra": "127 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1b596115e9616146285762639facb6dc889510a3",
+          "message": "postgres: increase record batch size (#3708)",
+          "timestamp": "2022-10-26T07:40:13-06:00",
+          "tree_id": "75e88ac38227d8dec2b82ab228f4691d1d310981",
+          "url": "https://github.com/pomerium/pomerium/commit/1b596115e9616146285762639facb6dc889510a3"
+        },
+        "date": 1666791790193,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13399615,
+            "unit": "ns/op",
+            "extra": "97 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8624942,
+            "unit": "ns/op",
+            "extra": "141 times\n2 procs"
           }
         ]
       }
