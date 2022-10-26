@@ -69,14 +69,16 @@ func (store *SessionStore) LoadSessionState(r *http.Request) (*sessions.State, e
 	}
 
 	// confirm that the identity provider id matches the state
-	idp, err := store.options.GetIdentityProviderForRequestURL(urlutil.GetAbsoluteURL(r).String())
-	if err != nil {
-		return nil, err
-	}
+	if state.IdentityProviderID != "" {
+		idp, err := store.options.GetIdentityProviderForRequestURL(urlutil.GetAbsoluteURL(r).String())
+		if err != nil {
+			return nil, err
+		}
 
-	if idp.GetId() != state.IdentityProviderID {
-		return nil, fmt.Errorf("unexpected session state identity provider id: %s != %s",
-			idp.GetId(), state.IdentityProviderID)
+		if idp.GetId() != state.IdentityProviderID {
+			return nil, fmt.Errorf("unexpected session state identity provider id: %s != %s",
+				idp.GetId(), state.IdentityProviderID)
+		}
 	}
 
 	return &state, nil
