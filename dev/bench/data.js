@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666736608053,
+  "lastUpdate": 1666788342591,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -16784,6 +16784,38 @@ window.BENCHMARK_DATA = {
             "value": 7865541,
             "unit": "ns/op",
             "extra": "153 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "8ae9f45ce0e12e6c2115f2f4331a17a07e786bdd",
+          "message": "postgres: increase record batch size",
+          "timestamp": "2022-10-25T02:01:47Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3708/commits/8ae9f45ce0e12e6c2115f2f4331a17a07e786bdd"
+        },
+        "date": 1666788342166,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16091075,
+            "unit": "ns/op",
+            "extra": "75 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8675591,
+            "unit": "ns/op",
+            "extra": "127 times\n2 procs"
           }
         ]
       }
