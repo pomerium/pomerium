@@ -11,7 +11,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
-const recordBatchSize = 64
+const recordBatchSize = 4 * 1024
 
 type recordStream struct {
 	backend *Backend
