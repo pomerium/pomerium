@@ -125,4 +125,20 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, s)
 	})
+	t.Run("blank idp", func(t *testing.T) {
+		rawJWS := makeJWS(t, &sessions.State{
+			Issuer: "authenticate.example.com",
+			ID:     "example",
+		})
+
+		r, err := http.NewRequest(http.MethodGet, "https://p2.example.com", nil)
+		require.NoError(t, err)
+		r.Header.Set(httputil.HeaderPomeriumAuthorization, rawJWS)
+		s, err := store.LoadSessionState(r)
+		assert.NoError(t, err)
+		assert.Empty(t, cmp.Diff(&sessions.State{
+			Issuer: "authenticate.example.com",
+			ID:     "example",
+		}, s))
+	})
 }
