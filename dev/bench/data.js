@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666881291732,
+  "lastUpdate": 1666899543159,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -16920,6 +16920,38 @@ window.BENCHMARK_DATA = {
             "value": 8420277,
             "unit": "ns/op",
             "extra": "154 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "8d9a335ed8def805a0a8f2cd58669ce55f3d89b0",
+          "message": "device: add generic methods for working with user+session devices",
+          "timestamp": "2022-10-27T13:41:10Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3710/commits/8d9a335ed8def805a0a8f2cd58669ce55f3d89b0"
+        },
+        "date": 1666899542715,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14311036,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9026127,
+            "unit": "ns/op",
+            "extra": "129 times\n2 procs"
           }
         ]
       }
