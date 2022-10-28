@@ -8,6 +8,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 // Get gets a user from the databroker.
@@ -46,4 +47,19 @@ func (x *User) GetClaim(claim string) []interface{} {
 		vs = append(vs, sv.AsInterface())
 	}
 	return vs
+}
+
+// AddDeviceCredentialID adds a device credential id to the list of device credential ids.
+func (x *User) AddDeviceCredentialID(deviceCredentialID string) {
+	x.DeviceCredentialIds = slices.Unique(append(x.DeviceCredentialIds, deviceCredentialID))
+}
+
+// HasDeviceCredentialID returns true if the user has the device credential id.
+func (x *User) HasDeviceCredentialID(deviceCredentialID string) bool {
+	return slices.Contains(x.DeviceCredentialIds, deviceCredentialID)
+}
+
+// RemoveDeviceCredentialID removes the device credential id from the list of device credential ids.
+func (x *User) RemoveDeviceCredentialID(deviceCredentialID string) {
+	x.DeviceCredentialIds = slices.Remove(x.DeviceCredentialIds, deviceCredentialID)
 }
