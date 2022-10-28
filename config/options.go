@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
@@ -403,10 +404,15 @@ func optionsFromViper(configFile string) (*Options, error) {
 	return o, nil
 }
 
+var (
+	// policy's embedded protobuf structs are decoded by separate hook and are unknown to mapstructure
+	routesEmbeddedFieldsRe = regexp.MustCompile(`(routes|policy)\[\.*`)
+)
+
 func checkUnusedConfigFields(configFile string, unused []string) {
 	keys := make([]string, 0, len(unused))
 	for _, k := range unused {
-		if !strings.HasPrefix(k, "policy[") { // policy's embedded protobuf structs are decoded by separate hook and are unknown to mapstructure
+		if !routesEmbeddedFieldsRe.MatchString(k) {
 			keys = append(keys, k)
 		}
 	}
