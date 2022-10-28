@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666968247671,
+  "lastUpdate": 1666978761157,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -16988,6 +16988,38 @@ window.BENCHMARK_DATA = {
             "value": 9052579,
             "unit": "ns/op",
             "extra": "135 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "50a38277563d0f03722662246496016eae58e97b",
+          "message": "fix unused key warnings in routes",
+          "timestamp": "2022-10-28T10:27:27Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3711/commits/50a38277563d0f03722662246496016eae58e97b"
+        },
+        "date": 1666978759708,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17022029,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9456955,
+            "unit": "ns/op",
+            "extra": "122 times\n2 procs"
           }
         ]
       }
