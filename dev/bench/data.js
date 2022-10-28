@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1666978761157,
+  "lastUpdate": 1666983736361,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -17020,6 +17020,42 @@ window.BENCHMARK_DATA = {
             "value": 9456955,
             "unit": "ns/op",
             "extra": "122 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d8f4355f66e90c66e8a339c41d4baf713a07fdfc",
+          "message": "fix unused key warnings in routes (#3711)",
+          "timestamp": "2022-10-28T14:59:43-04:00",
+          "tree_id": "66a56671b65366cc487ad256a14d156425d2dc6c",
+          "url": "https://github.com/pomerium/pomerium/commit/d8f4355f66e90c66e8a339c41d4baf713a07fdfc"
+        },
+        "date": 1666983735948,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13237244,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8644286,
+            "unit": "ns/op",
+            "extra": "146 times\n2 procs"
           }
         ]
       }
