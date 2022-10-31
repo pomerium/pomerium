@@ -26,7 +26,7 @@ require (
 	github.com/golangci/golangci-lint v1.50.1
 	github.com/google/btree v1.1.2
 	github.com/google/go-cmp v0.5.9
-	github.com/google/go-jsonnet v0.18.0
+	github.com/google/go-jsonnet v0.19.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
