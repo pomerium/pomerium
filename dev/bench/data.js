@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1667233044089,
+  "lastUpdate": 1667233091375,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -17216,6 +17216,38 @@ window.BENCHMARK_DATA = {
             "value": 7952605,
             "unit": "ns/op",
             "extra": "136 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "5735425f8c446557c285a8f1fc4c4dc78dbfc50b",
+          "message": "chore(deps): bump stefanzweifel/git-auto-commit-action from 4.15.2 to 4.15.3",
+          "timestamp": "2022-10-31T03:07:40Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3716/commits/5735425f8c446557c285a8f1fc4c4dc78dbfc50b"
+        },
+        "date": 1667233089692,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16489152,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10142012,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
