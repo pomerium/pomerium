@@ -14,10 +14,10 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/client9/misspell v0.3.4
 	github.com/coreos/go-oidc/v3 v3.4.0
-	github.com/docker/docker v20.10.20+incompatible
+	github.com/docker/docker v20.10.21+incompatible
 	github.com/envoyproxy/go-control-plane v0.10.3-0.20220819153403-8a9be01c9575
 	github.com/envoyproxy/protoc-gen-validate v0.6.13
-	github.com/fsnotify/fsnotify v1.5.4
+	github.com/fsnotify/fsnotify v1.6.0
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-jose/go-jose/v3 v3.0.0
 	github.com/go-redis/redis/v8 v8.11.5
@@ -26,7 +26,7 @@ require (
 	github.com/golangci/golangci-lint v1.50.1
 	github.com/google/btree v1.1.2
 	github.com/google/go-cmp v0.5.9
-	github.com/google/go-jsonnet v0.18.0
+	github.com/google/go-jsonnet v0.19.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
@@ -67,9 +67,9 @@ require (
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e
 	golang.org/x/net v0.1.0
 	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783
-	golang.org/x/sync v0.0.0-20220929204114-8fcdb60fdcc0
-	google.golang.org/api v0.100.0
-	google.golang.org/genproto v0.0.0-20221014213838-99cd37c6964a
+	golang.org/x/sync v0.1.0
+	google.golang.org/api v0.101.0
+	google.golang.org/genproto v0.0.0-20221018160656-63c7b68cfc55
 	google.golang.org/grpc v1.50.1
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/auth0.v5 v5.21.1
