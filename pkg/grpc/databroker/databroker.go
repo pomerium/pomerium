@@ -84,7 +84,7 @@ loop:
 		case err == io.EOF:
 			break loop
 		case err != nil:
-			return nil, 0, 0, err
+			return nil, 0, 0, fmt.Errorf("error receiving record: %w", err)
 		}
 
 		switch res := res.GetResponse().(type) {

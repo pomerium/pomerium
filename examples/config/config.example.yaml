@@ -40,8 +40,6 @@ authenticate_service_url: https://authenticate.localhost.pomerium.io
 # idp_provider_url: "https://REPLACEME.us.auth0.com"
 # idp_client_id: "REPLACEME" # from the application the users login to
 # idp_client_secret: "REPLACEME" # from the application the users login to
-# the following is optional and only needed if you want role (Auth0 calls groups roles) data
-# idp_service_account: "REPLACEME" # built from the machine-to-machine application which talks to the Auth0 Management API
 
 # Azure
 # idp_provider: "azure"
@@ -54,10 +52,6 @@ authenticate_service_url: https://authenticate.localhost.pomerium.io
 # idp_client_id: "REPLACEME
 # idp_client_secret: "REPLACEME
 
-# IF GSUITE and you want to get user groups you will need to set a service account
-# see identity provider docs for gooogle for more info :
-# idp_service_account: $(echo '{"impersonate_user": "user@example.com"}' | base64)
-
 # OKTA
 # idp_provider: "okta"
 # idp_client_id: "REPLACEME"
@@ -69,9 +63,6 @@ authenticate_service_url: https://authenticate.localhost.pomerium.io
 # idp_client_id: "REPLACEME"
 # idp_client_secret: "REPLACEME"
 # idp_provider_url: "https://openid-connect.onelogin.com/oidc" #optional, defaults to `https://openid-connect.onelogin.com/oidc`
-
-# For Group data you must set an IDP_SERVICE_ACCOUNT
-# idp_service_account: YOUR_SERVICE_ACCOUNT
 
 # Proxied routes and per-route policies are defined in a routes block
 routes:

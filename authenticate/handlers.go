@@ -30,7 +30,6 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
@@ -544,34 +543,13 @@ func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, 
 			Id: pbSession.GetUserId(),
 		}
 	}
-	pbDirectoryUser, err := a.getDirectoryUser(r.Context(), pbSession.GetUserId())
-	if err != nil {
-		pbDirectoryUser = &directory.User{
-			Id: pbSession.GetUserId(),
-		}
-	}
-	var groups []*directory.Group
-	for _, groupID := range pbDirectoryUser.GetGroupIds() {
-		pbDirectoryGroup, err := directory.GetGroup(r.Context(), state.dataBrokerClient, groupID)
-		if err != nil {
-			pbDirectoryGroup = &directory.Group{
-				Id:    groupID,
-				Name:  groupID,
-				Email: groupID,
-			}
-		}
-		groups = append(groups, pbDirectoryGroup)
-	}
-
 	creationOptions, requestOptions, _ := a.webauthn.GetOptions(r.Context())
 
 	return handlers.UserInfoData{
-		CSRFToken:       csrf.Token(r),
-		DirectoryGroups: groups,
-		DirectoryUser:   pbDirectoryUser,
-		IsImpersonated:  isImpersonated,
-		Session:         pbSession,
-		User:            pbUser,
+		CSRFToken:      csrf.Token(r),
+		IsImpersonated: isImpersonated,
+		Session:        pbSession,
+		User:           pbUser,
 
 		WebAuthnCreationOptions: creationOptions,
 		WebAuthnRequestOptions:  requestOptions,
@@ -645,14 +623,6 @@ func (a *Authenticate) saveSessionToDataBroker(
 	sessionState.DatabrokerServerVersion = res.GetServerVersion()
 	sessionState.DatabrokerRecordVersion = res.GetRecord().GetVersion()
 
-	_, err = state.directoryClient.RefreshUser(ctx, &directory.RefreshUserRequest{
-		UserId:      s.UserId,
-		AccessToken: accessToken.AccessToken,
-	})
-	if err != nil {
-		log.Error(ctx).Err(err).Msg("directory: failed to refresh user data")
-	}
-
 	return nil
 }
 
@@ -716,11 +686,6 @@ func (a *Authenticate) getCurrentSession(ctx context.Context) (s *session.Sessio
 func (a *Authenticate) getUser(ctx context.Context, userID string) (*user.User, error) {
 	client := a.state.Load().dataBrokerClient
 	return user.Get(ctx, client, userID)
-}
-
-func (a *Authenticate) getDirectoryUser(ctx context.Context, userID string) (*directory.User, error) {
-	client := a.state.Load().dataBrokerClient
-	return directory.GetUser(ctx, client, userID)
 }
 
 func (a *Authenticate) getWebauthnState(ctx context.Context) (*webauthn.State, error) {

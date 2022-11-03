@@ -106,7 +106,7 @@ func Test_PolicyRouteID(t *testing.T) {
 		{
 			"same",
 			&Policy{From: "https://pomerium.io", To: mustParseWeightedURLs(t, "http://localhost"), AllowedUsers: []string{"foo@bar.com"}},
-			&Policy{From: "https://pomerium.io", To: mustParseWeightedURLs(t, "http://localhost"), AllowedGroups: []string{"allusers"}},
+			&Policy{From: "https://pomerium.io", To: mustParseWeightedURLs(t, "http://localhost")},
 			true,
 		},
 		{

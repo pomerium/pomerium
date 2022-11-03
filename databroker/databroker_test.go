@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -89,7 +90,7 @@ func TestServerSync(t *testing.T) {
 		require.NoError(t, err)
 		_, err = client.Recv()
 		require.Error(t, err)
-		require.Equal(t, codes.Aborted, status.Code(err))
+		assert.Equal(t, codes.Aborted.String(), status.Code(err).String())
 	})
 }
 

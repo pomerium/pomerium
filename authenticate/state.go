@@ -18,7 +18,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/webauthnutil"
 	"github.com/pomerium/webauthn"
 )
@@ -47,7 +46,6 @@ type authenticateState struct {
 	jwk *jose.JSONWebKeySet
 
 	dataBrokerClient databroker.DataBrokerServiceClient
-	directoryClient  directory.DirectoryServiceClient
 
 	webauthnRelyingParty *webauthn.RelyingParty
 }
@@ -154,7 +152,6 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	}
 
 	state.dataBrokerClient = databroker.NewDataBrokerServiceClient(dataBrokerConn)
-	state.directoryClient = directory.NewDirectoryServiceClient(dataBrokerConn)
 
 	state.webauthnRelyingParty = webauthn.NewRelyingParty(
 		authenticateURL.String(),

@@ -363,7 +363,7 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 		}
 	}
 	if recordStream.Err() != nil {
-		return recordStream.Err()
+		return err
 	}
 
 	// always send the server version last in case there are no records

@@ -22,7 +22,6 @@ services:
       # - IDP_PROVIDER_URL=https://beyondperimeter.okta.com
       # - IDP_CLIENT_ID=REPLACE_ME
       # - IDP_CLIENT_SECRET=REPLACE_ME
-      # - IDP_SERVICE_ACCOUNT=REPLACE_ME
       # NOTE! Generate new secret keys! e.g. `head -c32 /dev/urandom | base64`
       # Generated secret keys must match between services
       - SHARED_SECRET=aDducXQzK2tPY3R4TmdqTGhaYS80eGYxcTUvWWJDb2M=

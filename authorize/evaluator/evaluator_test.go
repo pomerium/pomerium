@@ -14,7 +14,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
@@ -76,10 +75,6 @@ func TestEvaluator(t *testing.T) {
 		{
 			To:             config.WeightedURLs{{URL: *mustParseURL("https://to7.example.com")}},
 			AllowedDomains: []string{"example.com"},
-		},
-		{
-			To:            config.WeightedURLs{{URL: *mustParseURL("https://to8.example.com")}},
-			AllowedGroups: []string{"group1@example.com"},
 		},
 		{
 			To:                        config.WeightedURLs{{URL: *mustParseURL("https://to9.example.com")}},
@@ -375,39 +370,6 @@ func TestEvaluator(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, res.Allow.Value)
 	})
-	t.Run("groups", func(t *testing.T) {
-		res, err := eval(t, options, []proto.Message{
-			&session.Session{
-				Id:     "session1",
-				UserId: "user1",
-			},
-			&user.User{
-				Id:    "user1",
-				Email: "a@example.com",
-			},
-			&directory.User{
-				Id:       "user1",
-				GroupIds: []string{"group1"},
-			},
-			&directory.Group{
-				Id:    "group1",
-				Name:  "group1name",
-				Email: "group1@example.com",
-			},
-		}, &Request{
-			Policy: &policies[7],
-			Session: RequestSession{
-				ID: "session1",
-			},
-			HTTP: RequestHTTP{
-				Method:            "GET",
-				URL:               "https://from.example.com",
-				ClientCertificate: testValidCert,
-			},
-		})
-		require.NoError(t, err)
-		assert.True(t, res.Allow.Value)
-	})
 	t.Run("any authenticated user", func(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{
 			&session.Session{
@@ -473,7 +435,7 @@ func TestEvaluator(t *testing.T) {
 	})
 	t.Run("http method", func(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{}, &Request{
-			Policy: &policies[9],
+			Policy: &policies[8],
 			HTTP: NewRequestHTTP(
 				"GET",
 				*mustParseURL("https://from.example.com/"),
@@ -487,7 +449,7 @@ func TestEvaluator(t *testing.T) {
 	})
 	t.Run("http path", func(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{}, &Request{
-			Policy: &policies[10],
+			Policy: &policies[9],
 			HTTP: NewRequestHTTP(
 				"POST",
 				*mustParseURL("https://from.example.com/test"),

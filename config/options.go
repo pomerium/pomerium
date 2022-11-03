@@ -20,12 +20,6 @@ import (
 	"github.com/volatiletech/null/v9"
 
 	"github.com/pomerium/pomerium/internal/atomicutil"
-	"github.com/pomerium/pomerium/internal/directory/azure"
-	"github.com/pomerium/pomerium/internal/directory/github"
-	"github.com/pomerium/pomerium/internal/directory/gitlab"
-	"github.com/pomerium/pomerium/internal/directory/google"
-	"github.com/pomerium/pomerium/internal/directory/okta"
-	"github.com/pomerium/pomerium/internal/directory/onelogin"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
@@ -40,11 +34,6 @@ import (
 
 // DisableHeaderKey is the key used to check whether to disable setting header
 const DisableHeaderKey = "disable"
-
-const (
-	idpCustomScopesDocLink = "https://www.pomerium.com/docs/reference/identity-provider-scopes"
-	idpCustomScopesWarnMsg = "config: using custom scopes may result in undefined behavior, see: " + idpCustomScopesDocLink
-)
 
 // DefaultAlternativeAddr is the address used is two services are competing over
 // the same listener. Typically this is invisible to the end user (e.g. localhost)
@@ -151,11 +140,6 @@ type Options struct {
 	Provider         string   `mapstructure:"idp_provider" yaml:"idp_provider,omitempty"`
 	ProviderURL      string   `mapstructure:"idp_provider_url" yaml:"idp_provider_url,omitempty"`
 	Scopes           []string `mapstructure:"idp_scopes" yaml:"idp_scopes,omitempty"`
-	ServiceAccount   string   `mapstructure:"idp_service_account" yaml:"idp_service_account,omitempty"`
-	// Identity provider refresh directory interval/timeout settings.
-	RefreshDirectoryTimeout  time.Duration `mapstructure:"idp_refresh_directory_timeout" yaml:"idp_refresh_directory_timeout,omitempty"`
-	RefreshDirectoryInterval time.Duration `mapstructure:"idp_refresh_directory_interval" yaml:"idp_refresh_directory_interval,omitempty"`
-	QPS                      float64       `mapstructure:"idp_qps" yaml:"idp_qps"`
 
 	// RequestParams are custom request params added to the signin request as
 	// part of an Oauth2 code flow.
@@ -334,9 +318,6 @@ var defaultOptions = Options{
 	GRPCClientDNSRoundRobin:  true,
 	AuthenticateCallbackPath: "/oauth2/callback",
 	TracingSampleRate:        0.0001,
-	RefreshDirectoryInterval: 10 * time.Minute,
-	RefreshDirectoryTimeout:  1 * time.Minute,
-	QPS:                      1.0,
 
 	AutocertOptions: AutocertOptions{
 		Folder: dataDir(),
@@ -698,31 +679,12 @@ func (o *Options) Validate() error {
 		}
 	}
 
-	// if no service account was defined, there should not be any policies that
-	// assert group membership (except for azure which can be derived from the client
-	// id, secret and provider url)
-	if o.ServiceAccount == "" && o.Provider != "azure" {
-		for _, p := range o.GetAllPolicies() {
-			if len(p.AllowedGroups) != 0 {
-				return fmt.Errorf("config: `allowed_groups` requires `idp_service_account`")
-			}
-		}
-	}
-
 	// strip quotes from redirect address (#811)
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
 
 	if !o.InsecureServer && !hasCert && !o.AutocertOptions.Enable {
 		log.Warn(ctx).Msg("neither `autocert`, " +
 			"`insecure_server` or manually provided certificates were provided, server will be using a self-signed certificate")
-	}
-
-	switch o.Provider {
-	case azure.Name, github.Name, gitlab.Name, google.Name, okta.Name, onelogin.Name:
-		if len(o.Scopes) > 0 {
-			log.Warn(ctx).Msg(idpCustomScopesWarnMsg)
-		}
-	default:
 	}
 
 	if err := ValidateDNSLookupFamily(o.DNSLookupFamily); err != nil {
@@ -912,13 +874,12 @@ func (o *Options) GetOauthOptions() (oauth.Options, error) {
 		return oauth.Options{}, err
 	}
 	return oauth.Options{
-		RedirectURL:    redirectURL,
-		ProviderName:   o.Provider,
-		ProviderURL:    o.ProviderURL,
-		ClientID:       o.ClientID,
-		ClientSecret:   clientSecret,
-		Scopes:         o.Scopes,
-		ServiceAccount: o.ServiceAccount,
+		RedirectURL:  redirectURL,
+		ProviderName: o.Provider,
+		ProviderURL:  o.ProviderURL,
+		ClientID:     o.ClientID,
+		ClientSecret: clientSecret,
+		Scopes:       o.Scopes,
 	}, nil
 }
 
@@ -1029,9 +990,6 @@ func (o *Options) GetSharedKey() ([]byte, error) {
 
 // GetGoogleCloudServerlessAuthenticationServiceAccount gets the GoogleCloudServerlessAuthenticationServiceAccount.
 func (o *Options) GetGoogleCloudServerlessAuthenticationServiceAccount() string {
-	if o.GoogleCloudServerlessAuthenticationServiceAccount == "" && o.Provider == "google" {
-		return o.ServiceAccount
-	}
 	return o.GoogleCloudServerlessAuthenticationServiceAccount
 }
 
@@ -1041,14 +999,6 @@ func (o *Options) GetSetResponseHeaders() map[string]string {
 		return map[string]string{}
 	}
 	return o.SetResponseHeaders
-}
-
-// GetQPS gets the QPS.
-func (o *Options) GetQPS() float64 {
-	if o.QPS < 1 {
-		return 1
-	}
-	return o.QPS
 }
 
 // GetCodecType gets a codec type.
@@ -1392,15 +1342,6 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	}
 	if len(settings.Scopes) > 0 {
 		o.Scopes = settings.Scopes
-	}
-	if settings.IdpServiceAccount != nil {
-		o.ServiceAccount = settings.GetIdpServiceAccount()
-	}
-	if settings.IdpRefreshDirectoryTimeout != nil {
-		o.RefreshDirectoryTimeout = settings.GetIdpRefreshDirectoryTimeout().AsDuration()
-	}
-	if settings.IdpRefreshDirectoryInterval != nil {
-		o.RefreshDirectoryInterval = settings.GetIdpRefreshDirectoryInterval().AsDuration()
 	}
 	if settings.RequestParams != nil && len(settings.RequestParams) > 0 {
 		o.RequestParams = settings.RequestParams
