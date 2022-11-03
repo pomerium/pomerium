@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1667496023710,
+  "lastUpdate": 1667497009868,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -17760,6 +17760,42 @@ window.BENCHMARK_DATA = {
             "value": 8021904,
             "unit": "ns/op",
             "extra": "140 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c17881987536a8d865dc3747a726d9f17b5b2e8c",
+          "message": "move directory providers (#3633)\n\n* remove directory providers and support for groups\r\n\r\n* idp: remove directory providers\r\n\r\n* better error messages\r\n\r\n* fix errors\r\n\r\n* restore postgres\r\n\r\n* fix test",
+          "timestamp": "2022-11-03T11:33:56-06:00",
+          "tree_id": "c70ffa5b71dae862ccfaa2da1aa2ec3dbbc43c5e",
+          "url": "https://github.com/pomerium/pomerium/commit/c17881987536a8d865dc3747a726d9f17b5b2e8c"
+        },
+        "date": 1667497009256,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14578805,
+            "unit": "ns/op",
+            "extra": "80 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8442537,
+            "unit": "ns/op",
+            "extra": "138 times\n2 procs"
           }
         ]
       }
