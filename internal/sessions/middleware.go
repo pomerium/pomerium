@@ -2,7 +2,6 @@ package sessions
 
 import (
 	"context"
-	"errors"
 	"net/http"
 )
 
@@ -14,37 +13,22 @@ var (
 
 // RetrieveSession takes a slice of session loaders and tries to find a valid
 // session in the order they were supplied and is added to the request's context
-func RetrieveSession(s ...SessionLoader) func(http.Handler) http.Handler {
+func RetrieveSession(s SessionLoader) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return retrieve(s...)(next)
+		return retrieve(s)(next)
 	}
 }
 
-func retrieve(s ...SessionLoader) func(http.Handler) http.Handler {
+func retrieve(s SessionLoader) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			jwt, err := retrieveFromRequest(r, s...)
+			jwt, err := s.LoadSession(r)
 			ctx = NewContext(ctx, jwt, err)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 		return http.HandlerFunc(hfn)
 	}
-}
-
-// retrieveFromRequest extracts sessions state from the request by calling
-// token find functions in the order they where provided.
-func retrieveFromRequest(r *http.Request, sessions ...SessionLoader) (string, error) {
-	for _, s := range sessions {
-		jwt, err := s.LoadSession(r)
-		if err != nil && !errors.Is(err, ErrNoSessionFound) {
-			return "", err
-		} else if err == nil {
-			return jwt, nil
-		}
-	}
-
-	return "", ErrNoSessionFound
 }
 
 // NewContext sets context values for the user session state and error.

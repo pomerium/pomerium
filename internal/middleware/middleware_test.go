@@ -55,7 +55,7 @@ func TestValidateSignature(t *testing.T) {
 		wantBody   string
 	}{
 		{"good", []byte("secret"), []byte("secret"), http.StatusOK, http.StatusText(http.StatusOK)},
-		{"secret mistmatch", []byte("secret"), []byte("hunter42"), http.StatusBadRequest, "{\"Status\":400,\"Error\":\"Bad Request: internal/urlutil: hmac failed\"}\n"},
+		{"secret mistmatch", []byte("secret"), []byte("hunter42"), http.StatusBadRequest, "{\"Status\":400}\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -19,7 +19,7 @@ func TestHTTPError_ErrorResponse(t *testing.T) {
 		wantStatus int
 		wantBody   string
 	}{
-		{"404 json", http.StatusNotFound, errors.New("route not known"), "application/json", http.StatusNotFound, "{\"Status\":404,\"Error\":\"Not Found: route not known\"}\n"},
+		{"404 json", http.StatusNotFound, errors.New("route not known"), "application/json", http.StatusNotFound, "{\"Status\":404}\n"},
 		{"404 html", http.StatusNotFound, errors.New("route not known"), "", http.StatusNotFound, ""},
 	}
 	for _, tt := range tests {

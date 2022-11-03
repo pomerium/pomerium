@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/ui"
@@ -52,7 +53,6 @@ func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r 
 	}
 	response := struct {
 		Status                 int
-		Error                  string
 		StatusText             string                              `json:"-"`
 		RequestID              string                              `json:",omitempty"`
 		CanDebug               bool                                `json:"-"`
@@ -61,7 +61,6 @@ func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r 
 	}{
 		Status:                 e.Status,
 		StatusText:             StatusText(e.Status),
-		Error:                  e.Error(),
 		RequestID:              reqID,
 		CanDebug:               e.Status/100 == 4 && (e.DebugURL != nil || reqID != ""),
 		DebugURL:               e.DebugURL,
@@ -70,6 +69,13 @@ func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r 
 	// indicate to clients that the error originates from Pomerium, not the app
 	w.Header().Set(HeaderPomeriumResponse, "true")
 
+	log.Error(ctx).
+		Err(e.Err).
+		Int("status", e.Status).
+		Str("status-text", StatusText(e.Status)).
+		Str("request-id", reqID).
+		Msg("httputil: error")
+
 	if r.Header.Get("Accept") == "application/json" {
 		RenderJSON(w, e.Status, response)
 		return
@@ -77,7 +83,6 @@ func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r 
 
 	m := map[string]any{
 		"canDebug":               response.CanDebug,
-		"error":                  response.Error,
 		"requestId":              response.RequestID,
 		"status":                 response.Status,
 		"statusText":             response.StatusText,

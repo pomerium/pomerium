@@ -324,7 +324,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request, state *
 	}
 
 	// save the user
-	u.DeviceCredentialIds = append(u.DeviceCredentialIds, deviceCredential.GetId())
+	u.AddDeviceCredentialID(deviceCredential.GetId())
 	_, err = databroker.Put(ctx, state.Client, u)
 	if err != nil {
 		return err
@@ -356,7 +356,7 @@ func (h *Handler) handleUnregister(w http.ResponseWriter, r *http.Request, state
 	}
 
 	// ensure we only allow removing a device credential the user owns
-	if !containsString(u.GetDeviceCredentialIds(), deviceCredentialID) {
+	if !u.HasDeviceCredentialID(deviceCredentialID) {
 		return errInvalidDeviceCredential
 	}
 
@@ -373,14 +373,14 @@ func (h *Handler) handleUnregister(w http.ResponseWriter, r *http.Request, state
 	}
 
 	// remove the credential from the user
-	u.DeviceCredentialIds = removeString(u.DeviceCredentialIds, deviceCredentialID)
+	u.RemoveDeviceCredentialID(deviceCredentialID)
 	_, err = databroker.Put(ctx, state.Client, u)
 	if err != nil {
 		return err
 	}
 
 	// remove the credential from the session
-	state.Session.DeviceCredentials = removeSessionDeviceCredential(state.Session.DeviceCredentials, deviceCredentialID)
+	state.Session.RemoveDeviceCredentialID(deviceCredentialID)
 	return h.saveSessionAndRedirect(w, r, state, urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{
 		Path: "/.pomerium",
 	}).String())

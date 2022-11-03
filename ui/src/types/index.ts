@@ -92,7 +92,6 @@ export type ErrorPageData = BasePageData & {
 
   canDebug?: boolean;
   debugUrl?: string;
-  error?: string;
   requestId?: string;
   status?: number;
   statusText?: string;
