@@ -120,7 +120,7 @@ func New(ctx context.Context, store *store.Store, options ...Option) (*Evaluator
 
 // Evaluate evaluates the rego for the given policy and generates the identity headers.
 func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error) {
-	_, span := trace.StartSpan(ctx, "authorize.Evaluator.Evaluate")
+	ctx, span := trace.StartSpan(ctx, "authorize.Evaluator.Evaluate")
 	defer span.End()
 
 	if req.Policy == nil {
