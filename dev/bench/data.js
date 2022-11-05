@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1667603584488,
+  "lastUpdate": 1667622468348,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -17996,6 +17996,42 @@ window.BENCHMARK_DATA = {
             "value": 10070806,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "74a7daed4f0927b90e59256d9b5b131941c4703b",
+          "message": "add config option check logging (#3722)",
+          "timestamp": "2022-11-05T00:25:09-04:00",
+          "tree_id": "1a96b73e36fea22ed1f185402ae038f8ab5df88f",
+          "url": "https://github.com/pomerium/pomerium/commit/74a7daed4f0927b90e59256d9b5b131941c4703b"
+        },
+        "date": 1667622467899,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15329354,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8510568,
+            "unit": "ns/op",
+            "extra": "144 times\n2 procs"
           }
         ]
       }
