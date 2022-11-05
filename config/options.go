@@ -11,11 +11,11 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/null/v9"
 
@@ -374,7 +374,9 @@ func optionsFromViper(configFile string) (*Options, error) {
 	if err := v.Unmarshal(o, ViperPolicyHooks, func(c *mapstructure.DecoderConfig) { c.Metadata = &metadata }); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
-	checkUnusedConfigFields(configFile, metadata.Unused)
+	if err := checkConfigKeysErrors(configFile, metadata.Unused); err != nil {
+		return nil, err
+	}
 
 	// This is necessary because v.Unmarshal will overwrite .viper field.
 	o.viper = v
@@ -385,22 +387,28 @@ func optionsFromViper(configFile string) (*Options, error) {
 	return o, nil
 }
 
-var (
-	// policy's embedded protobuf structs are decoded by separate hook and are unknown to mapstructure
-	routesEmbeddedFieldsRe = regexp.MustCompile(`(routes|policy)\[\.*`)
-)
+func checkConfigKeysErrors(configFile string, unused []string) error {
+	checks := CheckUnknownConfigFields(unused)
+	ctx := context.Background()
+	errInvalidConfigKeys := errors.New("some configuration options are no longer supported, please check logs for details")
+	var err error
 
-func checkUnusedConfigFields(configFile string, unused []string) {
-	keys := make([]string, 0, len(unused))
-	for _, k := range unused {
-		if !routesEmbeddedFieldsRe.MatchString(k) {
-			keys = append(keys, k)
+	for _, check := range checks {
+		var evt *zerolog.Event
+		switch check.KeyAction {
+		case KeyActionError:
+			evt = log.Error(ctx)
+			err = errInvalidConfigKeys
+		default:
+			evt = log.Warn(ctx)
 		}
+		evt.Str("config_file", configFile).Str("key", check.Key)
+		if check.DocsURL != "" {
+			evt = evt.Str("help", check.DocsURL)
+		}
+		evt.Msg(string(check.FieldCheckMsg))
 	}
-	if len(keys) == 0 {
-		return
-	}
-	log.Warn(context.Background()).Str("config_file", configFile).Strs("keys", keys).Msg("config contained unknown keys that were ignored")
+	return err
 }
 
 // parsePolicy initializes policy to the options from either base64 environmental
