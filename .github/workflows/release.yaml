@@ -127,7 +127,7 @@ jobs:
           cmd: yq eval '.pomerium.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i projects/pomerium-demo/pomerium-demo/values.yaml
 
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@0049e3fa4059ca715255fbbcb7dea4516f02ce0a
+        uses: stefanzweifel/git-auto-commit-action@0b007fbd1180b8e3a3668b21c6517392fe8f26eb
         with:
           commit_message: |
             Bump test environment pomerium/pomerium
