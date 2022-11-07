@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1667837387683,
+  "lastUpdate": 1667840240442,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -18288,6 +18288,42 @@ window.BENCHMARK_DATA = {
             "value": 7538937,
             "unit": "ns/op",
             "extra": "158 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ed2481aa5f8c678f282948c6f5d4c5567a6333d8",
+          "message": "chore(deps): bump stefanzweifel/git-auto-commit-action from 4.15.3 to 4.15.4 (#3726)\n\nchore(deps): bump stefanzweifel/git-auto-commit-action\r\n\r\nBumps [stefanzweifel/git-auto-commit-action](https://github.com/stefanzweifel/git-auto-commit-action) from 4.15.3 to 4.15.4.\r\n- [Release notes](https://github.com/stefanzweifel/git-auto-commit-action/releases)\r\n- [Changelog](https://github.com/stefanzweifel/git-auto-commit-action/blob/master/CHANGELOG.md)\r\n- [Commits](https://github.com/stefanzweifel/git-auto-commit-action/compare/0049e3fa4059ca715255fbbcb7dea4516f02ce0a...0b007fbd1180b8e3a3668b21c6517392fe8f26eb)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: stefanzweifel/git-auto-commit-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-11-07T11:54:38-05:00",
+          "tree_id": "6671e7f651f3fc30267b71c6f1f25eb64b26cf68",
+          "url": "https://github.com/pomerium/pomerium/commit/ed2481aa5f8c678f282948c6f5d4c5567a6333d8"
+        },
+        "date": 1667840240013,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13386367,
+            "unit": "ns/op",
+            "extra": "75 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7534070,
+            "unit": "ns/op",
+            "extra": "159 times\n2 procs"
           }
         ]
       }
