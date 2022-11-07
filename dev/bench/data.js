@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1667840947140,
+  "lastUpdate": 1667849996442,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -18596,6 +18596,42 @@ window.BENCHMARK_DATA = {
             "value": 7527082,
             "unit": "ns/op",
             "extra": "156 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "786c3b9f904c592e3f5a74c8f0482208358fc9c0",
+          "message": "chore(deps): bump go.opencensus.io from 0.23.0 to 0.24.0 (#3727)\n\nBumps [go.opencensus.io](https://github.com/census-instrumentation/opencensus-go) from 0.23.0 to 0.24.0.\r\n- [Release notes](https://github.com/census-instrumentation/opencensus-go/releases)\r\n- [Commits](https://github.com/census-instrumentation/opencensus-go/compare/v0.23.0...v0.24.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: go.opencensus.io\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-11-07T14:36:35-05:00",
+          "tree_id": "3d888b4687d487eb68bcd5652697ac8cce005ee7",
+          "url": "https://github.com/pomerium/pomerium/commit/786c3b9f904c592e3f5a74c8f0482208358fc9c0"
+        },
+        "date": 1667849995818,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13108086,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7802736,
+            "unit": "ns/op",
+            "extra": "150 times\n2 procs"
           }
         ]
       }
