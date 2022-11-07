@@ -54,7 +54,7 @@ require (
 	github.com/rs/cors v1.8.2
 	github.com/rs/zerolog v1.28.0
 	github.com/shirou/gopsutil/v3 v3.22.9
-	github.com/spf13/viper v1.13.0
+	github.com/spf13/viper v1.14.0
 	github.com/stretchr/testify v1.8.1
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f
 	github.com/volatiletech/null/v9 v9.0.0
@@ -66,8 +66,8 @@ require (
 	golang.org/x/net v0.1.0
 	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783
 	golang.org/x/sync v0.1.0
-	google.golang.org/api v0.101.0
-	google.golang.org/genproto v0.0.0-20221018160656-63c7b68cfc55
+	google.golang.org/api v0.102.0
+	google.golang.org/genproto v0.0.0-20221024183307-1bc688fe9f3e
 	google.golang.org/grpc v1.50.1
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -77,7 +77,8 @@ require (
 
 require (
 	4d63.com/gochecknoglobals v0.1.0 // indirect
-	cloud.google.com/go/compute v1.10.0 // indirect
+	cloud.google.com/go/compute v1.12.1 // indirect
+	cloud.google.com/go/compute/metadata v0.2.1 // indirect
 	github.com/Abirdcfly/dupword v0.0.7 // indirect
 	github.com/Antonboom/errname v0.1.7 // indirect
 	github.com/Antonboom/nilnil v0.1.1 // indirect
@@ -276,9 +277,9 @@ require (
 	github.com/yeya24/promlinter v0.2.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	gitlab.com/bosi/decorder v0.2.3 // indirect
-	go.uber.org/atomic v1.7.0 // indirect
+	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/goleak v1.1.12 // indirect
-	go.uber.org/multierr v1.6.0 // indirect
+	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20220827204233-334a2380cb91 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.6.0 // indirect
