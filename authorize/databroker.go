@@ -90,12 +90,11 @@ func (a *Authorize) getDataBrokerSessionOrServiceAccount(
 func (a *Authorize) getDataBrokerUser(
 	ctx context.Context,
 	userID string,
-	dataBrokerRecordVersion uint64,
 ) (*user.User, error) {
 	ctx, span := trace.StartSpan(ctx, "authorize.getDataBrokerUser")
 	defer span.End()
 
-	record, err := getDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(user.User)), userID, dataBrokerRecordVersion)
+	record, err := getDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(user.User)), userID, 0)
 	if err != nil {
 		return nil, err
 	}
