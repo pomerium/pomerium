@@ -103,6 +103,7 @@ export type UserInfoData = {
   csrfToken: string;
   directoryGroups?: Group[];
   directoryUser?: DirectoryUser;
+  isEnterprise?: boolean;
   session?: Session;
   user?: User;
   webAuthnCreationOptions?: WebAuthnCreationOptions;
