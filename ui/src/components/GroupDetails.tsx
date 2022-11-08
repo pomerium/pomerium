@@ -44,7 +44,7 @@ export const GroupDetails: FC<GroupDetailsProps> = ({
         </TableContainer>
       ) : (
         <Alert severity="info">
-          Groups are available in{" "}
+          Groups via directory sync are available in{" "}
           <a href="https://www.pomerium.com/enterprise-sales/">
             Pomerium Enterprise
           </a>
