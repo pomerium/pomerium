@@ -67,7 +67,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		}
 	}
 	if sessionState != nil && s != nil {
-		u, _ = a.getDataBrokerUser(ctx, s.GetUserId(), sessionState.DatabrokerRecordVersion) // ignore any missing user error
+		u, _ = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
 	}
 
 	req, err := a.getEvaluatorRequestFromCheckRequest(in, sessionState)
