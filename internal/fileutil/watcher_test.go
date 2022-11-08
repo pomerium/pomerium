@@ -6,18 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestWatcher(t *testing.T) {
-	tmpdir := filepath.Join(os.TempDir(), uuid.New().String())
-	err := os.MkdirAll(tmpdir, 0o755)
-	if !assert.NoError(t, err) {
-		return
-	}
+	tmpdir := t.TempDir()
 
-	err = os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2, 3, 4}, 0o666)
+	err := os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2, 3, 4}, 0o666)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -44,14 +39,9 @@ func TestWatcher(t *testing.T) {
 func TestWatcherSymlink(t *testing.T) {
 	t.Parallel()
 
-	tmpdir := filepath.Join(os.TempDir(), uuid.New().String())
-	err := os.MkdirAll(tmpdir, 0o755)
-	if !assert.NoError(t, err) {
-		return
-	}
-	t.Cleanup(func() { os.RemoveAll(tmpdir) })
+	tmpdir := t.TempDir()
 
-	err = os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2, 3, 4}, 0o666)
+	err := os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2, 3, 4}, 0o666)
 	if !assert.NoError(t, err) {
 		return
 	}
