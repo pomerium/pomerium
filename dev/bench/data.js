@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1667921242885,
+  "lastUpdate": 1667924360200,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -18736,6 +18736,42 @@ window.BENCHMARK_DATA = {
             "value": 10033427,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "engzerjun@gmail.com",
+            "name": "Eng Zer Jun",
+            "username": "Juneezee"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "45ce6f693a5fd16459dcd21d668ca0cf34044d16",
+          "message": "test: use `T.TempDir` to create temporary test directory (#3725)\n\nPrior to this commit, temporary directories in tests were created using\r\n`filepath.Join` and `os.MkdirAll`.\r\n\r\nThis commit replaces `os.MkdirAll` with `t.TempDir` in tests. The\r\ndirectory created by `t.TempDir` is automatically removed when the test\r\nand all its subtests complete.\r\n\r\nReference: https://pkg.go.dev/testing#T.TempDir\r\nSigned-off-by: Eng Zer Jun <engzerjun@gmail.com>\r\n\r\nSigned-off-by: Eng Zer Jun <engzerjun@gmail.com>",
+          "timestamp": "2022-11-08T09:16:32-07:00",
+          "tree_id": "bdd61548ed57c87bd68165a56d3f66dc720b11bc",
+          "url": "https://github.com/pomerium/pomerium/commit/45ce6f693a5fd16459dcd21d668ca0cf34044d16"
+        },
+        "date": 1667924359755,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10552315,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7652280,
+            "unit": "ns/op",
+            "extra": "153 times\n2 procs"
           }
         ]
       }
