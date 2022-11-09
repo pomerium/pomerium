@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/csrf"
+	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/authenticate/handlers"
 	"github.com/pomerium/pomerium/authenticate/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -545,7 +546,7 @@ func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, 
 	}
 	creationOptions, requestOptions, _ := a.webauthn.GetOptions(r.Context())
 
-	return handlers.UserInfoData{
+	data := handlers.UserInfoData{
 		CSRFToken:      csrf.Token(r),
 		IsImpersonated: isImpersonated,
 		Session:        pbSession,
@@ -556,7 +557,33 @@ func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, 
 		WebAuthnURL:             urlutil.WebAuthnURL(r, authenticateURL, state.sharedKey, r.URL.Query()),
 
 		BrandingOptions: a.options.Load().BrandingOptions,
-	}, nil
+	}
+	a.fillEnterpriseUserInfoData(r.Context(), &data, pbSession.GetUserId())
+	return data, nil
+}
+
+func (a *Authenticate) fillEnterpriseUserInfoData(
+	ctx context.Context,
+	dst *handlers.UserInfoData,
+	userID string,
+) {
+	client := a.state.Load().dataBrokerClient
+
+	res, _ := client.Get(ctx, &databroker.GetRequest{Type: "type.googleapis.com/pomerium.config.Config", Id: "dashboard"})
+	dst.IsEnterprise = res.GetRecord() != nil
+	if !dst.IsEnterprise {
+		return
+	}
+
+	dst.DirectoryUser, _ = databroker.GetViaJSON[directory.User](ctx, client, directory.UserRecordType, userID)
+	if dst.DirectoryUser != nil {
+		for _, groupID := range dst.DirectoryUser.GroupIDs {
+			directoryGroup, _ := databroker.GetViaJSON[directory.Group](ctx, client, directory.GroupRecordType, groupID)
+			if directoryGroup != nil {
+				dst.DirectoryGroups = append(dst.DirectoryGroups, directoryGroup)
+			}
+		}
+	}
 }
 
 func (a *Authenticate) saveSessionToDataBroker(

@@ -789,6 +789,8 @@ github.com/polyfloyd/go-errorlint v1.0.5 h1:AHB5JRCjlmelh9RrLxT9sgzpalIwwq4hqE8E
 github.com/polyfloyd/go-errorlint v1.0.5/go.mod h1:APVvOesVSAnne5SClsPxPdfvZTVDojXh1/G3qb5wjGI=
 github.com/pomerium/csrf v1.7.0 h1:Qp4t6oyEod3svQtKfJZs589mdUTWKVf7q0PgCKYCshY=
 github.com/pomerium/csrf v1.7.0/go.mod h1:hAPZV47mEj2T9xFs+ysbum4l7SF1IdrryYaY6PdoIqw=
+github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524 h1:3YQY1sb54tEEbr0L73rjHkpLB0IB6qh3zl1+XQbMLis=
+github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524/go.mod h1:7fGbUYJnU8RcxZJvUvhukOIBv1G7LWDAHMfDxAf5+Y0=
 github.com/pomerium/webauthn v0.0.0-20211014213840-422c7ce1077f h1:442shkoI4Oh4RHdzFaGma1t9Ji/T+8pfCxQQzmY5kj8=
 github.com/pomerium/webauthn v0.0.0-20211014213840-422c7ce1077f/go.mod h1:wgH3ualWdXu/qwbhOoSQedXzco+38Iz7qKKGCJcKPXg=
 github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c h1:ncq/mPwQF4JjgDlrVEn3C11VoGHZN7m8qihwgMEtzYw=

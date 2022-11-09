@@ -6,6 +6,7 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
+	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -19,6 +20,10 @@ type UserInfoData struct {
 	IsImpersonated bool
 	Session        *session.Session
 	User           *user.User
+
+	IsEnterprise    bool
+	DirectoryUser   *directory.User
+	DirectoryGroups []*directory.Group
 
 	WebAuthnCreationOptions *webauthn.PublicKeyCredentialCreationOptions
 	WebAuthnRequestOptions  *webauthn.PublicKeyCredentialRequestOptions
@@ -37,6 +42,13 @@ func (data UserInfoData) ToJSON() map[string]any {
 	}
 	if bs, err := protojson.Marshal(data.User); err == nil {
 		m["user"] = json.RawMessage(bs)
+	}
+	m["isEnterprise"] = data.IsEnterprise
+	if data.DirectoryUser != nil {
+		m["directoryUser"] = data.DirectoryUser
+	}
+	if len(data.DirectoryGroups) > 0 {
+		m["directoryGroups"] = data.DirectoryGroups
 	}
 	m["webAuthnCreationOptions"] = data.WebAuthnCreationOptions
 	m["webAuthnRequestOptions"] = data.WebAuthnRequestOptions
