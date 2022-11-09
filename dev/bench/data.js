@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1668005276659,
+  "lastUpdate": 1668015237945,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -18872,6 +18872,38 @@ window.BENCHMARK_DATA = {
             "value": 10069701,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "7d99c30290b5900299dd6b0d6c1bb0f838f95df6",
+          "message": "controlplane: fix /.well-known/pomerium missing CORS headers",
+          "timestamp": "2022-11-09T14:38:27Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3738/commits/7d99c30290b5900299dd6b0d6c1bb0f838f95df6"
+        },
+        "date": 1668015236995,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13584369,
+            "unit": "ns/op",
+            "extra": "80 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9770490,
+            "unit": "ns/op",
+            "extra": "123 times\n2 procs"
           }
         ]
       }
