@@ -10,6 +10,7 @@ import (
 	"net/url"
 
 	"github.com/go-jose/go-jose/v3"
+	"github.com/rs/cors"
 
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -74,7 +75,7 @@ func (f HandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // JWKSHandler returns the /.well-known/pomerium/jwks.json handler.
 func JWKSHandler(rawSigningKey string) http.Handler {
-	return HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+	return cors.AllowAll().Handler(HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		var jwks jose.JSONWebKeySet
 		if rawSigningKey != "" {
 			decodedCert, err := base64.StdEncoding.DecodeString(rawSigningKey)
@@ -89,12 +90,12 @@ func JWKSHandler(rawSigningKey string) http.Handler {
 		}
 		RenderJSON(w, http.StatusOK, jwks)
 		return nil
-	})
+	}))
 }
 
 // WellKnownPomeriumHandler returns the /.well-known/pomerium handler.
 func WellKnownPomeriumHandler(authenticateURL *url.URL) http.Handler {
-	return HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+	return cors.AllowAll().Handler(HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		wellKnownURLs := struct {
 			OAuth2Callback        string `json:"authentication_callback_endpoint"` // RFC6749
 			JSONWebKeySetURL      string `json:"jwks_uri"`                         // RFC7517
@@ -107,5 +108,5 @@ func WellKnownPomeriumHandler(authenticateURL *url.URL) http.Handler {
 		w.Header().Set("X-CSRF-Token", csrf.Token(r))
 		RenderJSON(w, http.StatusOK, wellKnownURLs)
 		return nil
-	})
+	}))
 }
