@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1667944979523,
+  "lastUpdate": 1668005276659,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -18836,6 +18836,42 @@ window.BENCHMARK_DATA = {
             "value": 7694822,
             "unit": "ns/op",
             "extra": "159 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2b319822a4697ecf7b372701076d6fac2ba8e419",
+          "message": "authenticate: update user info dashboard to show group info for enterprise (#3736)\n\n* authenticate: update user info dashboard to show group info for enterprise\r\n\r\n* Update ui/src/components/GroupDetails.tsx\r\n\r\nCo-authored-by: bobby <1544881+desimone@users.noreply.github.com>\r\n\r\nCo-authored-by: bobby <1544881+desimone@users.noreply.github.com>",
+          "timestamp": "2022-11-09T07:44:35-07:00",
+          "tree_id": "3a3f0c677cab98ab26a7624f6cae42c53bca5242",
+          "url": "https://github.com/pomerium/pomerium/commit/2b319822a4697ecf7b372701076d6fac2ba8e419"
+        },
+        "date": 1668005276194,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13780360,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10069701,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
