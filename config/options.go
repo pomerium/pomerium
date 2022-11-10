@@ -296,19 +296,14 @@ type certificateFilePair struct {
 
 // DefaultOptions are the default configuration options for pomerium
 var defaultOptions = Options{
-	Debug:                  false,
-	LogLevel:               "info",
-	Services:               "all",
-	CookieHTTPOnly:         true,
-	CookieSecure:           true,
-	CookieExpire:           14 * time.Hour,
-	CookieName:             "_pomerium",
-	DefaultUpstreamTimeout: 30 * time.Second,
-	SetResponseHeaders: map[string]string{
-		"X-Frame-Options":           "SAMEORIGIN",
-		"X-XSS-Protection":          "1; mode=block",
-		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-	},
+	Debug:                    false,
+	LogLevel:                 "info",
+	Services:                 "all",
+	CookieHTTPOnly:           true,
+	CookieSecure:             true,
+	CookieExpire:             14 * time.Hour,
+	CookieName:               "_pomerium",
+	DefaultUpstreamTimeout:   30 * time.Second,
 	Addr:                     ":443",
 	ReadTimeout:              30 * time.Second,
 	WriteTimeout:             0, // support streaming by default
@@ -328,6 +323,12 @@ var defaultOptions = Options{
 	EnvoyAdminAccessLogPath:             os.DevNull,
 	EnvoyAdminProfilePath:               os.DevNull,
 	ProgrammaticRedirectDomainWhitelist: []string{"localhost"},
+}
+
+var defaultSetResponseHeaders = map[string]string{
+	"X-Frame-Options":           "SAMEORIGIN",
+	"X-XSS-Protection":          "1; mode=block",
+	"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
@@ -1002,11 +1003,21 @@ func (o *Options) GetGoogleCloudServerlessAuthenticationServiceAccount() string 
 }
 
 // GetSetResponseHeaders gets the SetResponseHeaders.
-func (o *Options) GetSetResponseHeaders() map[string]string {
-	if _, ok := o.SetResponseHeaders[DisableHeaderKey]; ok {
-		return map[string]string{}
+func (o *Options) GetSetResponseHeaders(requireStrictTransportSecurity bool) map[string]string {
+	hdrs := o.SetResponseHeaders
+	if hdrs == nil {
+		hdrs = make(map[string]string)
+		for k, v := range defaultSetResponseHeaders {
+			hdrs[k] = v
+		}
 	}
-	return o.SetResponseHeaders
+	if _, ok := o.SetResponseHeaders[DisableHeaderKey]; ok {
+		hdrs = make(map[string]string)
+	}
+	if !requireStrictTransportSecurity {
+		delete(hdrs, "Strict-Transport-Security")
+	}
+	return hdrs
 }
 
 // GetCodecType gets a codec type.

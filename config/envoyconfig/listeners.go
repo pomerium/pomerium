@@ -110,7 +110,7 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 			return nil, err
 		}
 
-		filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, allDomains)
+		filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, allDomains, false)
 		if err != nil {
 			return nil, err
 		}
@@ -129,7 +129,9 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 
 	chains, err := b.buildFilterChains(cfg, cfg.Options.Addr,
 		func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error) {
-			filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, httpDomains)
+			allCertificates, _ := cfg.AllCertificates()
+			requireStrictTransportSecurity := cryptutil.HasCertificateForDomain(allCertificates, tlsDomain)
+			filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, httpDomains, requireStrictTransportSecurity)
 			if err != nil {
 				return nil, err
 			}
@@ -279,6 +281,7 @@ func (b *Builder) buildFilterChains(
 func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	options *config.Options,
 	domains []string,
+	requireStrictTransportSecurity bool,
 ) (*envoy_config_listener_v3.Filter, error) {
 	authorizeURLs, err := options.GetInternalAuthorizeURLs()
 	if err != nil {
@@ -292,7 +295,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
 	for _, domain := range domains {
-		vh, err := b.buildVirtualHost(options, domain, domain)
+		vh, err := b.buildVirtualHost(options, domain, domain, requireStrictTransportSecurity)
 		if err != nil {
 			return nil, err
 		}
@@ -323,7 +326,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		}
 	}
 
-	vh, err := b.buildVirtualHost(options, "catch-all", "*")
+	vh, err := b.buildVirtualHost(options, "catch-all", "*", requireStrictTransportSecurity)
 	if err != nil {
 		return nil, err
 	}
@@ -382,7 +385,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		UseRemoteAddress:  &wrappers.BoolValue{Value: true},
 		SkipXffAppend:     options.SkipXffAppend,
 		XffNumTrustedHops: options.XffNumTrustedHops,
-		LocalReplyConfig:  b.buildLocalReplyConfig(options),
+		LocalReplyConfig:  b.buildLocalReplyConfig(options, requireStrictTransportSecurity),
 	}), nil
 }
 
