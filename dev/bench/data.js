@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1668033483528,
+  "lastUpdate": 1668050771904,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -18972,6 +18972,42 @@ window.BENCHMARK_DATA = {
             "value": 11660813,
             "unit": "ns/op",
             "extra": "94 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "01445a8c00f93b6b5d774cb23072f6011d3785c6",
+          "message": "bump Envoy to 1.23.2 (#3739)",
+          "timestamp": "2022-11-09T22:23:17-05:00",
+          "tree_id": "38285a9096872e4fc48ebffdf27106091b6c0e94",
+          "url": "https://github.com/pomerium/pomerium/commit/01445a8c00f93b6b5d774cb23072f6011d3785c6"
+        },
+        "date": 1668050771477,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12586325,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8632510,
+            "unit": "ns/op",
+            "extra": "141 times\n2 procs"
           }
         ]
       }
