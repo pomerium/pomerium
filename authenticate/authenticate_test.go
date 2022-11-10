@@ -32,8 +32,6 @@ func TestOptions_Validate(t *testing.T) {
 	emptyClientID.ClientID = ""
 	emptyClientSecret := newTestOptions(t)
 	emptyClientSecret.ClientSecret = ""
-	emptyCookieSecret := newTestOptions(t)
-	emptyCookieSecret.CookieSecret = ""
 	invalidCookieSecret := newTestOptions(t)
 	invalidCookieSecret.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw^"
 	shortCookieLength := newTestOptions(t)
@@ -53,7 +51,6 @@ func TestOptions_Validate(t *testing.T) {
 	}{
 		{"minimum options", good, false},
 		{"nil options", &config.Options{}, true},
-		{"no cookie secret", emptyCookieSecret, true},
 		{"invalid cookie secret", invalidCookieSecret, true},
 		{"short cookie secret", shortCookieLength, true},
 		{"no shared secret", badSharedKey, true},

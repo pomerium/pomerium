@@ -53,11 +53,6 @@ func Test_Validate(t *testing.T) {
 	badSignoutRedirectURL := testOptions()
 	badSignoutRedirectURL.SignOutRedirectURLString = "--"
 
-	missingSharedSecretWithPersistence := testOptions()
-	missingSharedSecretWithPersistence.SharedKey = ""
-	missingSharedSecretWithPersistence.DataBrokerStorageType = StorageRedisName
-	missingSharedSecretWithPersistence.DataBrokerStorageConnectionString = "redis://somehost:6379"
-
 	tests := []struct {
 		name     string
 		testOpts *Options
@@ -71,7 +66,6 @@ func Test_Validate(t *testing.T) {
 		{"invalid databroker storage type", invalidStorageType, true},
 		{"missing databroker storage dsn", missingStorageDSN, true},
 		{"invalid signout redirect url", badSignoutRedirectURL, true},
-		{"no shared key with databroker persistence", missingSharedSecretWithPersistence, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
