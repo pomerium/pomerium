@@ -776,6 +776,36 @@ func TestOptions_GetSetResponseHeaders(t *testing.T) {
 	})
 }
 
+func TestOptions_GetSharedKey(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		o := NewDefaultOptions()
+		bs, err := o.GetSharedKey()
+		assert.NoError(t, err)
+		assert.Equal(t, randomSharedKey, base64.StdEncoding.EncodeToString(bs))
+	})
+	t.Run("missing", func(t *testing.T) {
+		o := NewDefaultOptions()
+		o.Services = ServiceProxy
+		_, err := o.GetSharedKey()
+		assert.Error(t, err)
+	})
+}
+
+func TestOptions_GetCookieSecret(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		o := NewDefaultOptions()
+		bs, err := o.GetCookieSecret()
+		assert.NoError(t, err)
+		assert.Equal(t, randomSharedKey, base64.StdEncoding.EncodeToString(bs))
+	})
+	t.Run("missing", func(t *testing.T) {
+		o := NewDefaultOptions()
+		o.Services = ServiceProxy
+		_, err := o.GetCookieSecret()
+		assert.Error(t, err)
+	})
+}
+
 func encodeCert(cert *tls.Certificate) []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Certificate[0]})
 }
