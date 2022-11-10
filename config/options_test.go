@@ -305,14 +305,9 @@ func TestOptionsFromViper(t *testing.T) {
 				InsecureServer:           true,
 				CookieHTTPOnly:           true,
 				AuthenticateCallbackPath: "/oauth2/callback",
-				SetResponseHeaders: map[string]string{
-					"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-					"X-Frame-Options":           "SAMEORIGIN",
-					"X-XSS-Protection":          "1; mode=block",
-				},
-				DataBrokerStorageType:   "memory",
-				EnvoyAdminAccessLogPath: os.DevNull,
-				EnvoyAdminProfilePath:   os.DevNull,
+				DataBrokerStorageType:    "memory",
+				EnvoyAdminAccessLogPath:  os.DevNull,
+				EnvoyAdminProfilePath:    os.DevNull,
 			},
 			false,
 		},
@@ -755,6 +750,29 @@ func TestOptions_ApplySettings(t *testing.T) {
 		}
 		options.ApplySettings(ctx, settings)
 		assert.Len(t, options.CertificateFiles, 2, "should prevent adding duplicate certificates")
+	})
+}
+
+func TestOptions_GetSetResponseHeaders(t *testing.T) {
+	t.Run("lax", func(t *testing.T) {
+		options := NewDefaultOptions()
+		assert.Equal(t, map[string]string{
+			"X-Frame-Options":  "SAMEORIGIN",
+			"X-XSS-Protection": "1; mode=block",
+		}, options.GetSetResponseHeaders(false))
+	})
+	t.Run("strict", func(t *testing.T) {
+		options := NewDefaultOptions()
+		assert.Equal(t, map[string]string{
+			"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+			"X-Frame-Options":           "SAMEORIGIN",
+			"X-XSS-Protection":          "1; mode=block",
+		}, options.GetSetResponseHeaders(true))
+	})
+	t.Run("disable", func(t *testing.T) {
+		options := NewDefaultOptions()
+		options.SetResponseHeaders = map[string]string{DisableHeaderKey: "1", "x-other": "xyz"}
+		assert.Equal(t, map[string]string{}, options.GetSetResponseHeaders(true))
 	})
 }
 

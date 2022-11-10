@@ -63,6 +63,16 @@ func GetCertificateForDomain(certificates []tls.Certificate, domain string) (*tl
 	return GenerateSelfSignedCertificate(domain)
 }
 
+// HasCertificateForDomain returns true if a TLS certificate matches the given domain.
+func HasCertificateForDomain(certificates []tls.Certificate, domain string) bool {
+	for i := range certificates {
+		if matchesDomain(&certificates[i], domain) {
+			return true
+		}
+	}
+	return false
+}
+
 // GetCertificateDomains gets all the certificate's matching domain names.
 // Will return an empty slice if certificate is nil, empty, or x509 parsing fails.
 func GetCertificateDomains(cert *tls.Certificate) []string {

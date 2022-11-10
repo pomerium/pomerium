@@ -129,7 +129,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	options := config.NewDefaultOptions()
 	options.SkipXffAppend = true
 	options.XffNumTrustedHops = 1
-	filter, err := b.buildMainHTTPConnectionManagerFilter(options, []string{"example.com"})
+	filter, err := b.buildMainHTTPConnectionManagerFilter(options, []string{"example.com"}, true)
 	require.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `{
 		"name": "envoy.filters.network.http_connection_manager",
