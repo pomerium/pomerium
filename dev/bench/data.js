@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1668115675618,
+  "lastUpdate": 1668121450084,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -19104,6 +19104,42 @@ window.BENCHMARK_DATA = {
             "value": 7777803,
             "unit": "ns/op",
             "extra": "159 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2c9087f5e7c6a0d7eb70e23536c6545d7fa65616",
+          "message": "config: disable Strict-Transport-Security when using a self-signed certificate (#3743)",
+          "timestamp": "2022-11-10T16:01:06-07:00",
+          "tree_id": "e31c4dbc22441371ad6d750c5c4dc19c96a83cde",
+          "url": "https://github.com/pomerium/pomerium/commit/2c9087f5e7c6a0d7eb70e23536c6545d7fa65616"
+        },
+        "date": 1668121449291,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11947000,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9042644,
+            "unit": "ns/op",
+            "extra": "138 times\n2 procs"
           }
         ]
       }
