@@ -1190,6 +1190,7 @@ func (o *Options) GetCookieSecret() ([]byte, error) {
 	}
 
 	if IsAll(o.Services) && cookieSecret == "" {
+		log.WarnCookieSecret()
 		cookieSecret = randomSharedKey
 	}
 	if cookieSecret == "" {

@@ -100,7 +100,7 @@ func getUpstreamProtocolForPolicy(ctx context.Context, policy *config.Policy) up
 	upstreamProtocol := upstreamProtocolAuto
 	if policy.AllowWebsockets {
 		// #2388, force http/1 when using web sockets
-		log.Info(ctx).Msg("envoyconfig: forcing http/1.1 due to web socket support")
+		log.WarnWebSocketHTTP1_1(getClusterID(policy))
 		upstreamProtocol = upstreamProtocolHTTP1
 	}
 	return upstreamProtocol
