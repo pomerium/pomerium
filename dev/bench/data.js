@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1668198665895,
+  "lastUpdate": 1668201485582,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -19236,6 +19236,42 @@ window.BENCHMARK_DATA = {
             "value": 9188311,
             "unit": "ns/op",
             "extra": "123 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9413123c0f95990e50e66684704111f51a23e26c",
+          "message": "config: generate cookie secret if not set in all-in-one mode (#3742)\n\n* config: generate cookie secret if not set in all-in-one mode\r\n\r\n* fix tests\r\n\r\n* config: add warning about cookie_secret\r\n\r\n* breakup lines",
+          "timestamp": "2022-11-11T14:14:30-07:00",
+          "tree_id": "73034a8e4ab5d49e55ffe041876a4d8f82c2fc7d",
+          "url": "https://github.com/pomerium/pomerium/commit/9413123c0f95990e50e66684704111f51a23e26c"
+        },
+        "date": 1668201484773,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13560338,
+            "unit": "ns/op",
+            "extra": "94 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9317530,
+            "unit": "ns/op",
+            "extra": "126 times\n2 procs"
           }
         ]
       }
