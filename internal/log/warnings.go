@@ -13,7 +13,9 @@ var warnCookieSecretOnce sync.Once
 func WarnCookieSecret() {
 	warnCookieSecretOnce.Do(func() {
 		Warn(context.Background()).
-			Msg("using a generated COOKIE_SECRET. Set the COOKIE_SECRET to avoid users being logged out on restart. https://www.pomerium.com/docs/reference/cookie-secret")
+			Msg("using a generated COOKIE_SECRET. " +
+				"Set the COOKIE_SECRET to avoid users being logged out on restart. " +
+				"https://www.pomerium.com/docs/reference/cookie-secret")
 	})
 }
 
