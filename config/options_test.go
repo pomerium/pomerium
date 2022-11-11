@@ -53,11 +53,6 @@ func Test_Validate(t *testing.T) {
 	badSignoutRedirectURL := testOptions()
 	badSignoutRedirectURL.SignOutRedirectURLString = "--"
 
-	missingSharedSecretWithPersistence := testOptions()
-	missingSharedSecretWithPersistence.SharedKey = ""
-	missingSharedSecretWithPersistence.DataBrokerStorageType = StorageRedisName
-	missingSharedSecretWithPersistence.DataBrokerStorageConnectionString = "redis://somehost:6379"
-
 	tests := []struct {
 		name     string
 		testOpts *Options
@@ -71,7 +66,6 @@ func Test_Validate(t *testing.T) {
 		{"invalid databroker storage type", invalidStorageType, true},
 		{"missing databroker storage dsn", missingStorageDSN, true},
 		{"invalid signout redirect url", badSignoutRedirectURL, true},
-		{"no shared key with databroker persistence", missingSharedSecretWithPersistence, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -773,6 +767,36 @@ func TestOptions_GetSetResponseHeaders(t *testing.T) {
 		options := NewDefaultOptions()
 		options.SetResponseHeaders = map[string]string{DisableHeaderKey: "1", "x-other": "xyz"}
 		assert.Equal(t, map[string]string{}, options.GetSetResponseHeaders(true))
+	})
+}
+
+func TestOptions_GetSharedKey(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		o := NewDefaultOptions()
+		bs, err := o.GetSharedKey()
+		assert.NoError(t, err)
+		assert.Equal(t, randomSharedKey, base64.StdEncoding.EncodeToString(bs))
+	})
+	t.Run("missing", func(t *testing.T) {
+		o := NewDefaultOptions()
+		o.Services = ServiceProxy
+		_, err := o.GetSharedKey()
+		assert.Error(t, err)
+	})
+}
+
+func TestOptions_GetCookieSecret(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		o := NewDefaultOptions()
+		bs, err := o.GetCookieSecret()
+		assert.NoError(t, err)
+		assert.Equal(t, randomSharedKey, base64.StdEncoding.EncodeToString(bs))
+	})
+	t.Run("missing", func(t *testing.T) {
+		o := NewDefaultOptions()
+		o.Services = ServiceProxy
+		_, err := o.GetCookieSecret()
+		assert.Error(t, err)
 	})
 }
 

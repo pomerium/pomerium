@@ -41,8 +41,6 @@ func TestOptions_Validate(t *testing.T) {
 	badAuthURL.AuthenticateURLString = "BAD_URL"
 	authenticateBadScheme := testOptions(t)
 	authenticateBadScheme.AuthenticateURLString = "authenticate.corp.beyondperimeter.com"
-	emptyCookieSecret := testOptions(t)
-	emptyCookieSecret.CookieSecret = ""
 	invalidCookieSecret := testOptions(t)
 	invalidCookieSecret.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw^"
 	shortCookieLength := testOptions(t)
@@ -62,7 +60,6 @@ func TestOptions_Validate(t *testing.T) {
 	}{
 		{"good - minimum options", good, false},
 		{"nil options", &config.Options{}, true},
-		{"no cookie secret", emptyCookieSecret, true},
 		{"invalid cookie secret", invalidCookieSecret, true},
 		{"short cookie secret", shortCookieLength, true},
 		{"no shared secret", badSharedKey, true},

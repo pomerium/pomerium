@@ -985,7 +985,7 @@ func (o *Options) GetSharedKey() ([]byte, error) {
 		sharedKey = string(bs)
 	}
 	// mutual auth between services on the same host can be generated at runtime
-	if IsAll(o.Services) && o.SharedKey == "" && o.DataBrokerStorageType == StorageInMemoryName {
+	if IsAll(o.Services) && sharedKey == "" {
 		sharedKey = randomSharedKey
 	}
 	if sharedKey == "" {
@@ -1188,6 +1188,15 @@ func (o *Options) GetCookieSecret() ([]byte, error) {
 		}
 		cookieSecret = string(bs)
 	}
+
+	if IsAll(o.Services) && cookieSecret == "" {
+		log.WarnCookieSecret()
+		cookieSecret = randomSharedKey
+	}
+	if cookieSecret == "" {
+		return nil, errors.New("empty cookie secret")
+	}
+
 	return base64.StdEncoding.DecodeString(cookieSecret)
 }
 
