@@ -54,7 +54,7 @@ require (
 	github.com/prometheus/procfs v0.8.0
 	github.com/rs/cors v1.8.2
 	github.com/rs/zerolog v1.28.0
-	github.com/shirou/gopsutil/v3 v3.22.9
+	github.com/shirou/gopsutil/v3 v3.22.10
 	github.com/spf13/viper v1.14.0
 	github.com/stretchr/testify v1.8.1
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f
