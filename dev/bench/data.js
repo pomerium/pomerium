@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1668441989004,
+  "lastUpdate": 1668442047118,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -19336,6 +19336,38 @@ window.BENCHMARK_DATA = {
             "value": 10297743,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "dd54c04408606149c0ce6ea3d23de55d3a69636c",
+          "message": "chore(deps): bump github.com/shirou/gopsutil/v3 from 3.22.9 to 3.22.10",
+          "timestamp": "2022-11-14T05:02:43Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3747/commits/dd54c04408606149c0ce6ea3d23de55d3a69636c"
+        },
+        "date": 1668442045053,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14538703,
+            "unit": "ns/op",
+            "extra": "96 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9262538,
+            "unit": "ns/op",
+            "extra": "122 times\n2 procs"
           }
         ]
       }
