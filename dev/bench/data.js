@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1668442295039,
+  "lastUpdate": 1668442296573,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -19496,6 +19496,38 @@ window.BENCHMARK_DATA = {
             "value": 8055260,
             "unit": "ns/op",
             "extra": "144 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "74b4cfad5f78b6005f9d10e3f9b3f2e7af19045e",
+          "message": "chore(deps): bump google-github-actions/setup-gcloud from 0.6.2 to 1.0.1",
+          "timestamp": "2022-11-14T05:02:43Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3750/commits/74b4cfad5f78b6005f9d10e3f9b3f2e7af19045e"
+        },
+        "date": 1668442293559,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16571699,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10229036,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
