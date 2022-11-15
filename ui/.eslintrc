@@ -1,0 +1,60 @@
+{
+  "env": {
+    "es6": true,
+    "browser": true,
+    "node": true
+  },
+  "ignorePatterns": ["**/*_pb.js", "**/*_pb.d.ts"],
+  "settings": {
+    "import/resolver": {
+      "node": {
+        "paths": ["src"],
+        "extensions": [".js", ".jsx", ".ts", ".tsx", ".mdx"]
+      }
+    }
+  },
+  "overrides": [
+    {
+      "files": ["*.test.ts", "*.test.tsx"],
+      "env": {
+        "jest": true
+      },
+      "plugins": ["jest"]
+    },
+    {
+      "files": ["*.js"],
+      "parser": "@babel/eslint-parser"
+    },
+    {
+      "files": ["*.ts", "*.tsx"],
+      "parser": "@typescript-eslint/parser",
+
+      "parserOptions": {
+        "ecmaVersion": 2020,
+        "sourceType": "module",
+        "ecmaFeatures": {
+          "jsx": true // Allows for the parsing of JSX
+        }
+      },
+      "settings": {
+        "react": {
+          "version": "detect" // Tells eslint-plugin-react to automatically detect the version of React to use
+        }
+      },
+      "plugins": ["@typescript-eslint", "react"],
+      "extends": [
+        "eslint:recommended",
+        "plugin:react/recommended",
+        "plugin:@typescript-eslint/recommended",
+        "prettier"
+      ],
+      "rules": {
+        "react/prop-types": "off",
+        "react/no-unescaped-entities": "off",
+        "react/no-children-prop": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/ban-ts-ignore": "off"
+      }
+    }
+  ]
+}

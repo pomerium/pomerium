@@ -1,0 +1,43 @@
+name: Lint
+permissions:
+  contents: read
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+
+jobs:
+  golangci-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f
+        with:
+          go-version: 1.19.x
+          cache: true
+
+      - uses: golangci/golangci-lint-action@0ad9a0988b3973e851ab0a07adf248ec2e100376
+        with:
+          version: v1.49
+
+  eslint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@8c91899e586c5b171469028077307d293428b516
+        with:
+          node-version: 16.x
+
+      - uses: bahmutov/npm-install@4a274d026feb3c5c4273ac7bbe74c90a7e07cd08
+        with:
+          working-directory: ui
+
+      - run: yarn lint
+        working-directory: ui
