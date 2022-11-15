@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1668543442027,
+  "lastUpdate": 1668544135500,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -19904,6 +19904,42 @@ window.BENCHMARK_DATA = {
             "value": 9411681,
             "unit": "ns/op",
             "extra": "130 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6b5096b0fe89987cf0032c05db751d4ec10c19e4",
+          "message": "ci: fix google (#3754)",
+          "timestamp": "2022-11-15T13:25:58-07:00",
+          "tree_id": "fae20c58caf543b71d4282b31dc9e58228911002",
+          "url": "https://github.com/pomerium/pomerium/commit/6b5096b0fe89987cf0032c05db751d4ec10c19e4"
+        },
+        "date": 1668544134802,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12552614,
+            "unit": "ns/op",
+            "extra": "99 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9257614,
+            "unit": "ns/op",
+            "extra": "141 times\n2 procs"
           }
         ]
       }
