@@ -1,4 +1,3 @@
-import { ListItemProps, TableCell } from "@mui/material";
 import Alert from "@mui/material/Alert";
 import AlertTitle from "@mui/material/AlertTitle";
 import Box from "@mui/material/Box";
@@ -6,6 +5,7 @@ import Container from "@mui/material/Container";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Table from "@mui/material/Table";
+import TableCell from "@mui/material/TableCell";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
@@ -18,10 +18,9 @@ import SectionFooter from "./SectionFooter";
 
 type PolicyEvaluationTraceDetailsProps = {
   trace: PolicyEvaluationTrace;
-} & ListItemProps;
+};
 const PolicyEvaluationTraceDetails: FC<PolicyEvaluationTraceDetailsProps> = ({
   trace,
-  ...props
 }) => {
   return (
     <TableRow>

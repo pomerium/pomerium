@@ -4,7 +4,7 @@
     "browser": true,
     "node": true
   },
-  "ignorePatterns": ["**/*_pb.js", "**/*_pb.d.ts"],
+  "ignorePatterns": ["**/*_pb.js", "**/*_pb.d.ts", "dist"],
   "settings": {
     "import/resolver": {
       "node": {

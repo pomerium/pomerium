@@ -7,7 +7,9 @@ export interface SubpageContextValue {
 
 export const SubpageContext = createContext<SubpageContextValue>({
   subpage: "User",
-  setSubpage: (_: string) => {},
+  setSubpage: () => {
+    // do nothing
+  },
 });
 
 export type SubpageContextProviderProps = {

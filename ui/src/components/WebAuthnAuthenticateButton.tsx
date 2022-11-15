@@ -1,4 +1,4 @@
-import React, { FC, useRef, useState } from "react";
+import React, { FC } from "react";
 
 import { WebAuthnRequestOptions } from "../types";
 import { decode, encodeUrl } from "../util/base64";
