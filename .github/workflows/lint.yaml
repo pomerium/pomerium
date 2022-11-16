@@ -32,3 +32,14 @@ jobs:
         with:
           fail_on_error: true
           workdir: ui
+
+  hadolint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+        with:
+          fetch-depth: 0
+
+      - uses: reviewdog/action-hadolint@1b070701bee7438c450558821fe54b0b5888ad3d
+        with:
+          fail_on_error: true
