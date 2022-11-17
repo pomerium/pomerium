@@ -58,6 +58,7 @@ export type WebAuthnCreationOptions = {
   pubKeyCredParams: PublicKeyCredentialParameters[];
   rp: {
     name: string;
+    id: string;
   };
   timeout: number;
   user: {
@@ -75,6 +76,7 @@ export type WebAuthnRequestOptions = {
   challenge: string;
   timeout: number;
   userVerification: UserVerificationRequirement;
+  rpId: string;
 };
 
 // page data

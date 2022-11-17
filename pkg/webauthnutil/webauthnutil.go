@@ -2,14 +2,30 @@
 package webauthnutil
 
 import (
+	"net"
 	"net/http"
+	"strings"
 
-	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/webauthn"
 )
 
 // GetRelyingParty gets a RelyingParty for the given request and databroker client.
 func GetRelyingParty(r *http.Request, client databroker.DataBrokerServiceClient) *webauthn.RelyingParty {
-	return webauthn.NewRelyingParty(urlutil.GetOrigin(r), NewCredentialStorage(client))
+	return webauthn.NewRelyingParty(
+		"https://"+GetEffectiveDomain(r),
+		NewCredentialStorage(client),
+	)
+}
+
+// GetEffectiveDomain returns the effective domain for an HTTP request.
+func GetEffectiveDomain(r *http.Request) string {
+	h, _, err := net.SplitHostPort(r.Host)
+	if err != nil {
+		h = r.Host
+	}
+	if idx := strings.Index(h, "."); idx >= 0 {
+		h = h[idx+1:]
+	}
+	return h
 }
