@@ -92,6 +92,14 @@ func GetAbsoluteURL(r *http.Request) *url.URL {
 	return u
 }
 
+// GetOrigin gets the Origin header for a request, or builds the origin based on the request host.
+func GetOrigin(r *http.Request) string {
+	if v := r.Header.Get("Origin"); v != "" {
+		return v
+	}
+	return "https://" + r.Host
+}
+
 // GetDomainsForURL returns the available domains for given url.
 //
 // For standard HTTP (80)/HTTPS (443) ports, it returns `example.com` and `example.com:<port>`.

@@ -18,8 +18,8 @@ import (
 
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/datasource/pkg/directory"
-	"github.com/pomerium/pomerium/authenticate/handlers"
-	"github.com/pomerium/pomerium/authenticate/handlers/webauthn"
+	"github.com/pomerium/pomerium/internal/handlers"
+	"github.com/pomerium/pomerium/internal/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/manager"
@@ -33,6 +33,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/webauthnutil"
 )
 
 // Handler returns the authenticate service's handler chain.
@@ -544,7 +545,7 @@ func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, 
 			Id: pbSession.GetUserId(),
 		}
 	}
-	creationOptions, requestOptions, _ := a.webauthn.GetOptions(r.Context())
+	creationOptions, requestOptions, _ := a.webauthn.GetOptions(r)
 
 	data := handlers.UserInfoData{
 		CSRFToken:      csrf.Token(r),
@@ -715,15 +716,15 @@ func (a *Authenticate) getUser(ctx context.Context, userID string) (*user.User, 
 	return user.Get(ctx, client, userID)
 }
 
-func (a *Authenticate) getWebauthnState(ctx context.Context) (*webauthn.State, error) {
+func (a *Authenticate) getWebauthnState(r *http.Request) (*webauthn.State, error) {
 	state := a.state.Load()
 
-	s, _, err := a.getCurrentSession(ctx)
+	s, _, err := a.getCurrentSession(r.Context())
 	if err != nil {
 		return nil, err
 	}
 
-	ss, err := a.getSessionFromCtx(ctx)
+	ss, err := a.getSessionFromCtx(r.Context())
 	if err != nil {
 		return nil, err
 	}
@@ -752,7 +753,7 @@ func (a *Authenticate) getWebauthnState(ctx context.Context) (*webauthn.State, e
 		Session:                 s,
 		SessionState:            ss,
 		SessionStore:            state.sessionStore,
-		RelyingParty:            state.webauthnRelyingParty,
+		RelyingParty:            webauthnutil.GetRelyingParty(r, state.dataBrokerClient),
 		BrandingOptions:         a.options.Load().BrandingOptions,
 	}, nil
 }

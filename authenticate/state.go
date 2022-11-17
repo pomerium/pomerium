@@ -18,8 +18,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/webauthnutil"
-	"github.com/pomerium/webauthn"
 )
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
@@ -46,8 +44,6 @@ type authenticateState struct {
 	jwk *jose.JSONWebKeySet
 
 	dataBrokerClient databroker.DataBrokerServiceClient
-
-	webauthnRelyingParty *webauthn.RelyingParty
 }
 
 func newAuthenticateState() *authenticateState {
@@ -152,11 +148,6 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	}
 
 	state.dataBrokerClient = databroker.NewDataBrokerServiceClient(dataBrokerConn)
-
-	state.webauthnRelyingParty = webauthn.NewRelyingParty(
-		authenticateURL.String(),
-		webauthnutil.NewCredentialStorage(state.dataBrokerClient),
-	)
 
 	return state, nil
 }

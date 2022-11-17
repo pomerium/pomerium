@@ -7,10 +7,11 @@ import (
 	"time"
 
 	"github.com/CAFxX/httpcompression"
-	"github.com/gorilla/handlers"
+	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -37,7 +38,7 @@ func (srv *Server) addHTTPMiddleware(root *mux.Router, cfg *config.Config) {
 			Str("path", r.URL.String()).
 			Msg("http-request")
 	}))
-	root.Use(handlers.RecoveryHandler())
+	root.Use(gorillahandlers.RecoveryHandler())
 	root.Use(log.HeadersHandler(httputil.HeadersXForwarded))
 	root.Use(log.RemoteAddrHandler("ip"))
 	root.Use(log.UserAgentHandler("user_agent"))
@@ -59,10 +60,10 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 		return fmt.Errorf("invalid signing key: %w", err)
 	}
 
-	root.HandleFunc("/healthz", httputil.HealthCheck)
-	root.HandleFunc("/ping", httputil.HealthCheck)
-	root.Handle("/.well-known/pomerium", httputil.WellKnownPomeriumHandler(authenticateURL))
-	root.Handle("/.well-known/pomerium/", httputil.WellKnownPomeriumHandler(authenticateURL))
-	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(httputil.JWKSHandler(rawSigningKey))
+	root.HandleFunc("/healthz", handlers.HealthCheck)
+	root.HandleFunc("/ping", handlers.HealthCheck)
+	root.Handle("/.well-known/pomerium", handlers.WellKnownPomerium(authenticateURL))
+	root.Handle("/.well-known/pomerium/", handlers.WellKnownPomerium(authenticateURL))
+	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(handlers.JWKSHandler(rawSigningKey))
 	return nil
 }

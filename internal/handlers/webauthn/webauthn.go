@@ -59,7 +59,7 @@ type State struct {
 }
 
 // A StateProvider provides state for the handler.
-type StateProvider = func(context.Context) (*State, error)
+type StateProvider = func(*http.Request) (*State, error)
 
 // Handler is the WebAuthn device handler.
 type Handler struct {
@@ -74,17 +74,17 @@ func New(getState StateProvider) *Handler {
 }
 
 // GetOptions returns the creation and request options for WebAuthn.
-func (h *Handler) GetOptions(ctx context.Context) (
+func (h *Handler) GetOptions(r *http.Request) (
 	creationOptions *webauthn.PublicKeyCredentialCreationOptions,
 	requestOptions *webauthn.PublicKeyCredentialRequestOptions,
 	err error,
 ) {
-	state, err := h.getState(ctx)
+	state, err := h.getState(r)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return h.getOptions(ctx, state, webauthnutil.DefaultDeviceType)
+	return h.getOptions(r.Context(), state, webauthnutil.DefaultDeviceType)
 }
 
 // ServeHTTP serves the HTTP handler.
@@ -118,7 +118,7 @@ func (h *Handler) getOptions(ctx context.Context, state *State, deviceTypeParam 
 }
 
 func (h *Handler) handle(w http.ResponseWriter, r *http.Request) error {
-	s, err := h.getState(r.Context())
+	s, err := h.getState(r)
 	if err != nil {
 		return err
 	}
