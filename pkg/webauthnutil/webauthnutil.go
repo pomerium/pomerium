@@ -4,7 +4,8 @@ package webauthnutil
 import (
 	"net"
 	"net/http"
-	"strings"
+
+	"golang.org/x/net/publicsuffix"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/webauthn"
@@ -24,8 +25,8 @@ func GetEffectiveDomain(r *http.Request) string {
 	if err != nil {
 		h = r.Host
 	}
-	if idx := strings.Index(h, "."); idx >= 0 {
-		h = h[idx+1:]
+	if tld, err := publicsuffix.EffectiveTLDPlusOne(h); err == nil {
+		return tld
 	}
 	return h
 }

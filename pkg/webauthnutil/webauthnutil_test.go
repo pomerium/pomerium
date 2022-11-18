@@ -16,7 +16,8 @@ func TestGetEffectiveDomain(t *testing.T) {
 	}{
 		{"https://www.example.com/some/path", "example.com"},
 		{"https://www.example.com:8080/some/path", "example.com"},
-		{"https://www.subdomain.example.com/some/path", "subdomain.example.com"},
+		{"https://www.subdomain.example.com/some/path", "example.com"},
+		{"https://example.com/some/path", "example.com"},
 	} {
 		tc := tc
 		t.Run(tc.expect, func(t *testing.T) {
