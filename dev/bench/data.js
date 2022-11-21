@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1669054106960,
+  "lastUpdate": 1669054184409,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -20596,6 +20596,42 @@ window.BENCHMARK_DATA = {
             "value": 8201976,
             "unit": "ns/op",
             "extra": "144 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "81053ac8eff3fd64deabc70ec9e0c9efefff4f05",
+          "message": "chore(deps): bump github.com/cenkalti/backoff/v4 from 4.1.3 to 4.2.0 (#3756)\n\nBumps [github.com/cenkalti/backoff/v4](https://github.com/cenkalti/backoff) from 4.1.3 to 4.2.0.\r\n- [Release notes](https://github.com/cenkalti/backoff/releases)\r\n- [Commits](https://github.com/cenkalti/backoff/compare/v4.1.3...v4.2.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/cenkalti/backoff/v4\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-11-21T11:06:31-07:00",
+          "tree_id": "0e245f718f0a18908ccf63e017de2644a6947e5f",
+          "url": "https://github.com/pomerium/pomerium/commit/81053ac8eff3fd64deabc70ec9e0c9efefff4f05"
+        },
+        "date": 1669054183448,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13606208,
+            "unit": "ns/op",
+            "extra": "98 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8345284,
+            "unit": "ns/op",
+            "extra": "130 times\n2 procs"
           }
         ]
       }
