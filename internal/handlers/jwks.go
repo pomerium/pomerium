@@ -19,7 +19,7 @@ func JWKSHandler(rawSigningKey string) http.Handler {
 		if rawSigningKey != "" {
 			decodedCert, err := base64.StdEncoding.DecodeString(rawSigningKey)
 			if err != nil {
-				return httputil.NewError(http.StatusInternalServerError, errors.New("bad signing key"))
+				return httputil.NewError(http.StatusInternalServerError, errors.New("bad base64 encoding for signing key"))
 			}
 			jwk, err := cryptutil.PublicJWKFromBytes(decodedCert)
 			if err != nil {
