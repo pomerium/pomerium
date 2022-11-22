@@ -59,7 +59,7 @@ func DecryptURLValues(
 
 	message, err := Open(receiverPrivateKey, senderPublicKey, sealed)
 	if err != nil {
-		return senderPublicKey, nil, fmt.Errorf("hpke: invalid query parameter: %w", err)
+		return senderPublicKey, nil, fmt.Errorf("hpke: failed to open sealed message: %w", err)
 	}
 
 	decrypted, err := url.ParseQuery(string(message))
