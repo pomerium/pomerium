@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1669137982885,
+  "lastUpdate": 1669138128054,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -20822,6 +20822,42 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 7889612,
+            "unit": "ns/op",
+            "extra": "154 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c1a522cd8206bdc682d1780779d3a0bedc40d50c",
+          "message": "proxy: add userinfo and webauthn endpoints (#3755)\n\n* proxy: add userinfo and webauthn endpoints\r\n\r\n* use TLD for RP id\r\n\r\n* use EffectiveTLDPlusOne\r\n\r\n* upgrade webauthn\r\n\r\n* fix test\r\n\r\n* Update internal/handlers/jwks.go\r\n\r\nCo-authored-by: bobby <1544881+desimone@users.noreply.github.com>\r\n\r\nCo-authored-by: bobby <1544881+desimone@users.noreply.github.com>",
+          "timestamp": "2022-11-22T10:26:35-07:00",
+          "tree_id": "6b209491222cf73496535a0b01c185c44d239fef",
+          "url": "https://github.com/pomerium/pomerium/commit/c1a522cd8206bdc682d1780779d3a0bedc40d50c"
+        },
+        "date": 1669138127645,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11284841,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7859558,
             "unit": "ns/op",
             "extra": "154 times\n2 procs"
           }
