@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1669137489341,
+  "lastUpdate": 1669137494898,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -20728,6 +20728,38 @@ window.BENCHMARK_DATA = {
             "value": 8380341,
             "unit": "ns/op",
             "extra": "142 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "b49fe1ce4909b5234d6ad0051d686bc4a8dda436",
+          "message": "hpke: add hpke package",
+          "timestamp": "2022-11-22T14:55:04Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3761/commits/b49fe1ce4909b5234d6ad0051d686bc4a8dda436"
+        },
+        "date": 1669137494236,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14178535,
+            "unit": "ns/op",
+            "extra": "93 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10494399,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
