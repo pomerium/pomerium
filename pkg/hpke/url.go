@@ -26,7 +26,7 @@ func EncryptURLValues(
 
 	sealed, err := Seal(senderPrivateKey, receiverPublicKey, []byte(values.Encode()))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("hpke: failed to seal URL values %w",err)
 	}
 
 	return url.Values{
