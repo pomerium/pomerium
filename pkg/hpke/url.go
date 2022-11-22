@@ -54,7 +54,7 @@ func DecryptURLValues(
 
 	sealed, err := decode(encrypted.Get(ParamQuery))
 	if err != nil {
-		return senderPublicKey, nil, fmt.Errorf("hpke: invalid query parameter: %w", err)
+		return senderPublicKey, nil, fmt.Errorf("hpke: failed decoding query parameter: %w", err)
 	}
 
 	message, err := Open(receiverPrivateKey, senderPublicKey, sealed)
