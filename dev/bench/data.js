@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1669138935603,
+  "lastUpdate": 1669138940659,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -20896,6 +20896,42 @@ window.BENCHMARK_DATA = {
             "value": 7491555,
             "unit": "ns/op",
             "extra": "151 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9e5eaa92c28ba01410f42fdd42b4d4186cb2e927",
+          "message": "hpke: add hpke package (#3761)\n\n* hpke: add hpke package\r\n\r\n* Update pkg/hpke/url.go\r\n\r\nCo-authored-by: bobby <1544881+desimone@users.noreply.github.com>\r\n\r\n* Update pkg/hpke/url.go\r\n\r\nCo-authored-by: bobby <1544881+desimone@users.noreply.github.com>\r\n\r\n* Update pkg/hpke/url.go\r\n\r\nCo-authored-by: bobby <1544881+desimone@users.noreply.github.com>\r\n\r\n* gofmt\r\n\r\nCo-authored-by: bobby <1544881+desimone@users.noreply.github.com>",
+          "timestamp": "2022-11-22T10:39:41-07:00",
+          "tree_id": "12514951076c4b5875b586a4e7a53910c380cfa7",
+          "url": "https://github.com/pomerium/pomerium/commit/9e5eaa92c28ba01410f42fdd42b4d4186cb2e927"
+        },
+        "date": 1669138939660,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11561970,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7704253,
+            "unit": "ns/op",
+            "extra": "148 times\n2 procs"
           }
         ]
       }
