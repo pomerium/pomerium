@@ -34,6 +34,7 @@ func TestServerHTTP(t *testing.T) {
 	}
 	cfg.Options.AuthenticateURLString = "https://authenticate.localhost.pomerium.io"
 	cfg.Options.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUpCMFZkbko1VjEvbVlpYUlIWHhnd2Q0Yzd5YWRTeXMxb3Y0bzA1b0F3ekdvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFVUc1eENQMEpUVDFINklvbDhqS3VUSVBWTE0wNENnVzlQbEV5cE5SbVdsb29LRVhSOUhUMwpPYnp6aktZaWN6YjArMUt3VjJmTVRFMTh1dy82MXJVQ0JBPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
+	cfg.Options.SharedKey = "JDNjY2ITDlARvNaQXjc2Djk+GA6xeCy4KiozmZfdbTs="
 
 	src := config.NewStaticSource(cfg)
 	srv, err := NewServer(cfg, config.NewMetricsManager(ctx, src), events.New())
@@ -66,15 +67,23 @@ func TestServerHTTP(t *testing.T) {
 		require.NoError(t, err)
 
 		expect := map[string]any{
-			"keys": []any{map[string]any{
-				"alg": "ES256",
-				"crv": "P-256",
-				"kid": "5b419ade1895fec2d2def6cd33b1b9a018df60db231dc5ecb85cbed6d942813c",
-				"kty": "EC",
-				"use": "sig",
-				"x":   "UG5xCP0JTT1H6Iol8jKuTIPVLM04CgW9PlEypNRmWlo",
-				"y":   "KChF0fR09zm884ymInM29PtSsFdnzExNfLsP-ta1AgQ",
-			}},
+			"keys": []any{
+				map[string]any{
+					"alg": "ES256",
+					"crv": "P-256",
+					"kid": "5b419ade1895fec2d2def6cd33b1b9a018df60db231dc5ecb85cbed6d942813c",
+					"kty": "EC",
+					"use": "sig",
+					"x":   "UG5xCP0JTT1H6Iol8jKuTIPVLM04CgW9PlEypNRmWlo",
+					"y":   "KChF0fR09zm884ymInM29PtSsFdnzExNfLsP-ta1AgQ",
+				},
+				map[string]any{
+					"kty": "OKP",
+					"kid": "pomerium/hpke",
+					"crv": "X25519",
+					"x":   "T0cbNrJbO9in-FgowKAP-HX6Ci8q50gopOt52sdheHg",
+				},
+			},
 		}
 		assert.Equal(t, expect, actual)
 	})

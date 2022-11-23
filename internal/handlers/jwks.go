@@ -1,9 +1,15 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"hash/fnv"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/rs/cors"
 
@@ -32,7 +38,21 @@ func JWKSHandler(
 			jwks.Keys = append(jwks.Keys, *jwk)
 		}
 		jwks.Keys = append(jwks.Keys, additionalKeys...)
-		httputil.RenderJSON(w, http.StatusOK, jwks)
+
+		bs, err := json.Marshal(jwks)
+		if err != nil {
+			return err
+		}
+
+		hasher := fnv.New64()
+		_, _ = hasher.Write(bs)
+		h := hasher.Sum64()
+
+		w.Header().Set("Cache-Control", "max-age=60")
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Length", strconv.Itoa(len(bs)))
+		w.Header().Set("ETag", fmt.Sprintf(`"%x"`, h))
+		http.ServeContent(w, r, "jwks.json", time.Time{}, bytes.NewReader(bs))
 		return nil
 	}))
 }
