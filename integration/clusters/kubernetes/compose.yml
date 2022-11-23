@@ -5,24 +5,27 @@ services:
     entrypoint:
     - sh
     - -c
-    - |
-      set -x
-      # the dev image is only available locally, so load it first
-      if [ "${POMERIUM_TAG:-main}" = "dev" ]; then
-        sh -c '
-          while true ; do
-            ctr --connect-timeout=1s --timeout=60s images import /k3s-tmp/pomerium-dev.tar && break
-            sleep 1
-          done
-        ' &
-      fi
-      k3s "$$@"
+    - "set -x\n\n# the dev image is only available locally, so load it first\nif [
+      \"${POMERIUM_TAG:-main}\" = \"dev\" ]; then\n  sh -c '\n    while true ; do\n
+      \     ctr --connect-timeout=1s --timeout=60s images import /k3s-tmp/pomerium-dev.tar
+      && break\n      sleep 1\n    done\n  ' &\nfi\n\n#########################################################################################################################################\n#
+      DISCLAIMER\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t#\n#
+      Copied from https://github.com/moby/moby/blob/ed89041433a031cafc0a0f19cfe573c31688d377/hack/dind#L28-L37\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t#\n#
+      Permission granted by Akihiro Suda <akihiro.suda.cz@hco.ntt.co.jp> (https://github.com/k3d-io/k3d/issues/493#issuecomment-827405962)\t#\n#
+      Moby License Apache 2.0: https://github.com/moby/moby/blob/ed89041433a031cafc0a0f19cfe573c31688d377/LICENSE\t\t\t\t\t\t\t\t\t\t\t\t\t\t#\n#########################################################################################################################################\nif
+      [ -f /sys/fs/cgroup/cgroup.controllers ]; then\n  echo \"[$(date -Iseconds)]
+      [CgroupV2 Fix] Evacuating Root Cgroup ...\"\n  # move the processes from the
+      root group to the /init group,\n  # otherwise writing subtree_control fails
+      with EBUSY.\n  mkdir -p /sys/fs/cgroup/init\n  busybox xargs -rn1 < /sys/fs/cgroup/cgroup.procs
+      > /sys/fs/cgroup/init/cgroup.procs || :\n  # enable controllers\n  sed -e 's/
+      / +/g' -e 's/^/+/' <\"/sys/fs/cgroup/cgroup.controllers\" >\"/sys/fs/cgroup/cgroup.subtree_control\"\n
+      \ echo \"[$(date -Iseconds)] [CgroupV2 Fix] Done\"\nfi\n\nk3s \"$$@\"\n"
     - k3s
     - agent
     environment:
       K3S_TOKEN: TOKEN
       K3S_URL: https://k3s-server:6443
-    image: rancher/k3s:${K3S_TAG:-v1.21.14-k3s1}
+    image: rancher/k3s:${K3S_TAG:-v1.22.16-k3s1}
     networks:
       main:
         aliases:
@@ -999,7 +1002,7 @@ services:
       END_OF_MANIFEST
       kubectl apply -f /tmp/manifest.json
       sleep 30
-    image: rancher/k3s:${K3S_TAG:-v1.21.14-k3s1}
+    image: rancher/k3s:${K3S_TAG:-v1.22.16-k3s1}
     networks:
       main:
         aliases:
@@ -1023,18 +1026,21 @@ services:
     entrypoint:
     - sh
     - -c
-    - |
-      set -x
-      # the dev image is only available locally, so load it first
-      if [ "${POMERIUM_TAG:-main}" = "dev" ]; then
-        sh -c '
-          while true ; do
-            ctr --connect-timeout=1s --timeout=60s images import /k3s-tmp/pomerium-dev.tar && break
-            sleep 1
-          done
-        ' &
-      fi
-      k3s "$$@"
+    - "set -x\n\n# the dev image is only available locally, so load it first\nif [
+      \"${POMERIUM_TAG:-main}\" = \"dev\" ]; then\n  sh -c '\n    while true ; do\n
+      \     ctr --connect-timeout=1s --timeout=60s images import /k3s-tmp/pomerium-dev.tar
+      && break\n      sleep 1\n    done\n  ' &\nfi\n\n#########################################################################################################################################\n#
+      DISCLAIMER\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t#\n#
+      Copied from https://github.com/moby/moby/blob/ed89041433a031cafc0a0f19cfe573c31688d377/hack/dind#L28-L37\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t#\n#
+      Permission granted by Akihiro Suda <akihiro.suda.cz@hco.ntt.co.jp> (https://github.com/k3d-io/k3d/issues/493#issuecomment-827405962)\t#\n#
+      Moby License Apache 2.0: https://github.com/moby/moby/blob/ed89041433a031cafc0a0f19cfe573c31688d377/LICENSE\t\t\t\t\t\t\t\t\t\t\t\t\t\t#\n#########################################################################################################################################\nif
+      [ -f /sys/fs/cgroup/cgroup.controllers ]; then\n  echo \"[$(date -Iseconds)]
+      [CgroupV2 Fix] Evacuating Root Cgroup ...\"\n  # move the processes from the
+      root group to the /init group,\n  # otherwise writing subtree_control fails
+      with EBUSY.\n  mkdir -p /sys/fs/cgroup/init\n  busybox xargs -rn1 < /sys/fs/cgroup/cgroup.procs
+      > /sys/fs/cgroup/init/cgroup.procs || :\n  # enable controllers\n  sed -e 's/
+      / +/g' -e 's/^/+/' <\"/sys/fs/cgroup/cgroup.controllers\" >\"/sys/fs/cgroup/cgroup.subtree_control\"\n
+      \ echo \"[$(date -Iseconds)] [CgroupV2 Fix] Done\"\nfi\n\nk3s \"$$@\"\n"
     - k3s
     - server
     - --disable
@@ -1047,12 +1053,7 @@ services:
       K3S_KUBECONFIG_MODE: "666"
       K3S_KUBECONFIG_OUTPUT: /k3s-tmp/kubeconfig.yaml
       K3S_TOKEN: TOKEN
-    healthcheck:
-      test:
-      - CMD
-      - kubectl
-      - cluster-info
-    image: rancher/k3s:${K3S_TAG:-v1.21.14-k3s1}
+    image: rancher/k3s:${K3S_TAG:-v1.22.16-k3s1}
     networks:
       main:
         aliases:
