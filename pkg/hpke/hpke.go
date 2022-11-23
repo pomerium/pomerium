@@ -4,6 +4,7 @@ package hpke
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 
 	"github.com/cloudflare/circl/hpke"
@@ -58,11 +59,30 @@ func PrivateKeyFromString(raw string) (PrivateKey, error) {
 
 // PublicKey returns the public key for the private key.
 func (key PrivateKey) PublicKey() PublicKey {
+	if key.key == nil {
+		return PublicKey{}
+	}
+
 	return PublicKey{key: key.key.Public()}
+}
+
+// MarshalJSON returns the JSON Web Key representation of the private key.
+func (key PrivateKey) MarshalJSON() ([]byte, error) {
+	return json.Marshal(JWK{
+		Type:  jwkType,
+		ID:    jwkID,
+		Curve: jwkCurve,
+		X:     key.PublicKey().String(),
+		D:     key.String(),
+	})
 }
 
 // String converts the private key into a string.
 func (key PrivateKey) String() string {
+	if key.key == nil {
+		return ""
+	}
+
 	bs, err := key.key.MarshalBinary()
 	if err != nil {
 		// this should not happen
@@ -92,8 +112,32 @@ func PublicKeyFromString(raw string) (PublicKey, error) {
 	return PublicKey{key: key}, nil
 }
 
+// Equals returns true if the two keys are equivalent.
+func (key PublicKey) Equals(other PublicKey) bool {
+	if key.key == nil && other.key == nil {
+		return true
+	} else if key.key == nil || other.key == nil {
+		return false
+	}
+	return key.key.Equal(other.key)
+}
+
+// MarshalJSON returns the JSON Web Key representation of the public key.
+func (key PublicKey) MarshalJSON() ([]byte, error) {
+	return json.Marshal(JWK{
+		Type:  jwkType,
+		ID:    jwkID,
+		Curve: jwkCurve,
+		X:     key.String(),
+	})
+}
+
 // String converts a public key into a string.
 func (key PublicKey) String() string {
+	if key.key == nil {
+		return ""
+	}
+
 	bs, err := key.key.MarshalBinary()
 	if err != nil {
 		// this should not happen

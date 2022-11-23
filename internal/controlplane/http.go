@@ -60,10 +60,16 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 		return fmt.Errorf("invalid signing key: %w", err)
 	}
 
+	hpkePrivateKey, err := cfg.Options.GetHPKEPrivateKey()
+	if err != nil {
+		return fmt.Errorf("invalid hpke private key: %w", err)
+	}
+	hpkePublicKey := hpkePrivateKey.PublicKey()
+
 	root.HandleFunc("/healthz", handlers.HealthCheck)
 	root.HandleFunc("/ping", handlers.HealthCheck)
 	root.Handle("/.well-known/pomerium", handlers.WellKnownPomerium(authenticateURL))
 	root.Handle("/.well-known/pomerium/", handlers.WellKnownPomerium(authenticateURL))
-	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(handlers.JWKSHandler(rawSigningKey))
+	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(handlers.JWKSHandler(rawSigningKey, hpkePublicKey))
 	return nil
 }

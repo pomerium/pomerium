@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/go-jose/go-jose/v3"
 	"github.com/rs/cors"
 
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -13,9 +12,14 @@ import (
 )
 
 // JWKSHandler returns the /.well-known/pomerium/jwks.json handler.
-func JWKSHandler(rawSigningKey string) http.Handler {
+func JWKSHandler(
+	rawSigningKey string,
+	additionalKeys ...any,
+) http.Handler {
 	return cors.AllowAll().Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		var jwks jose.JSONWebKeySet
+		var jwks struct {
+			Keys []any `json:"keys"`
+		}
 		if rawSigningKey != "" {
 			decodedCert, err := base64.StdEncoding.DecodeString(rawSigningKey)
 			if err != nil {
@@ -27,6 +31,7 @@ func JWKSHandler(rawSigningKey string) http.Handler {
 			}
 			jwks.Keys = append(jwks.Keys, *jwk)
 		}
+		jwks.Keys = append(jwks.Keys, additionalKeys...)
 		httputil.RenderJSON(w, http.StatusOK, jwks)
 		return nil
 	}))

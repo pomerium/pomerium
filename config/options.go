@@ -30,6 +30,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
 // DisableHeaderKey is the key used to check whether to disable setting header
@@ -995,6 +996,16 @@ func (o *Options) GetSharedKey() ([]byte, error) {
 		return nil, errors.New("shared secret contains whitespace")
 	}
 	return base64.StdEncoding.DecodeString(sharedKey)
+}
+
+// GetHPKEPrivateKey gets the hpke.PrivateKey dervived from the shared key.
+func (o *Options) GetHPKEPrivateKey() (hpke.PrivateKey, error) {
+	sharedKey, err := o.GetSharedKey()
+	if err != nil {
+		return hpke.PrivateKey{}, err
+	}
+
+	return hpke.DerivePrivateKey(sharedKey), nil
 }
 
 // GetGoogleCloudServerlessAuthenticationServiceAccount gets the GoogleCloudServerlessAuthenticationServiceAccount.
