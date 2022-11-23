@@ -47,7 +47,7 @@ func FetchPublicKeyFromJWKS(ctx context.Context, client *http.Client, endpoint s
 
 	bs, err := io.ReadAll(io.LimitReader(res.Body, defaultMaxBodySize))
 	if err != nil {
-		return PublicKey{}, fmt.Errorf("hpke: error reading jwks endpoint: %d", res.StatusCode)
+		return PublicKey{}, fmt.Errorf("hpke: error reading jwks endpoint: %w", err)
 	}
 
 	var jwks struct {
