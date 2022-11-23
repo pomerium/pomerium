@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1669229420589,
+  "lastUpdate": 1669230196309,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -21160,6 +21160,38 @@ window.BENCHMARK_DATA = {
             "value": 8914216,
             "unit": "ns/op",
             "extra": "133 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "69b814351a4f3b19f7100c6a42fc83c52a32a91f",
+          "message": "ci: fix kubernetes integration test",
+          "timestamp": "2022-11-23T09:23:07Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3766/commits/69b814351a4f3b19f7100c6a42fc83c52a32a91f"
+        },
+        "date": 1669230195881,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10876118,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7752319,
+            "unit": "ns/op",
+            "extra": "159 times\n2 procs"
           }
         ]
       }
