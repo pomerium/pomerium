@@ -13,6 +13,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
+	"github.com/pomerium/pomerium/internal/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
@@ -54,6 +55,7 @@ type Proxy struct {
 	state          *atomicutil.Value[*proxyState]
 	currentOptions *atomicutil.Value[*config.Options]
 	currentRouter  *atomicutil.Value[*mux.Router]
+	webauthn       *webauthn.Handler
 }
 
 // New takes a Proxy service from options and a validation function.
@@ -69,6 +71,7 @@ func New(cfg *config.Config) (*Proxy, error) {
 		currentOptions: config.NewAtomicOptions(),
 		currentRouter:  atomicutil.NewValue(httputil.NewRouter()),
 	}
+	p.webauthn = webauthn.New(p.getWebauthnState)
 
 	metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
 		return int64(len(p.currentOptions.Load().GetAllPolicies()))

@@ -87,12 +87,22 @@ func (a *Authorize) getDataBrokerSessionOrServiceAccount(
 	return s, nil
 }
 
-func (a *Authorize) getDataBrokerUser(ctx context.Context, userID string) (u *user.User, err error) {
+func (a *Authorize) getDataBrokerUser(
+	ctx context.Context,
+	userID string,
+) (*user.User, error) {
 	ctx, span := trace.StartSpan(ctx, "authorize.getDataBrokerUser")
 	defer span.End()
 
-	client := a.state.Load().dataBrokerClient
+	record, err := getDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(user.User)), userID, 0)
+	if err != nil {
+		return nil, err
+	}
 
-	u, err = user.Get(ctx, client, userID)
-	return u, err
+	var u user.User
+	err = record.GetData().UnmarshalTo(&u)
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
 }

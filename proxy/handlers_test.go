@@ -63,29 +63,6 @@ func TestProxy_Signout(t *testing.T) {
 	}
 }
 
-func TestProxy_userInfo(t *testing.T) {
-	opts := testOptions(t)
-	err := ValidateOptions(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	proxy, err := New(&config.Config{Options: opts})
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := httptest.NewRequest(http.MethodGet, "/.pomerium/sign_out", nil)
-	rr := httptest.NewRecorder()
-	proxy.userInfo(rr, req)
-	if status := rr.Code; status != http.StatusFound {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusFound)
-	}
-	body := rr.Body.String()
-	want := proxy.state.Load().authenticateURL.String()
-	if !strings.Contains(body, want) {
-		t.Errorf("handler returned unexpected body: got %v want %s ", body, want)
-	}
-}
-
 func TestProxy_SignOut(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -330,14 +307,14 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
 			map[string]string{urlutil.QueryRedirectURI: "localhost"},
 			http.StatusBadRequest,
-			"{\"Status\":400,\"Error\":\"Bad Request: localhost url does contain a valid scheme\"}\n",
+			"{\"Status\":400}\n",
 		},
 		{
 			"bad redirect_uri not whitelisted",
 			opts, http.MethodGet, "https", "corp.example.example", "/.pomerium/api/v1/login", nil,
 			map[string]string{urlutil.QueryRedirectURI: "https://example.com"},
 			http.StatusBadRequest,
-			"{\"Status\":400,\"Error\":\"Bad Request: invalid redirect uri\"}\n",
+			"{\"Status\":400}\n",
 		},
 		{
 			"bad http method",

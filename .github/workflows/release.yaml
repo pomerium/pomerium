@@ -20,39 +20,43 @@ jobs:
       tag: ${{ steps.tagName.outputs.tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
 
       - name: Unshallow
         run: git fetch --prune --unshallow
 
       - name: Set up Node.js
-        uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93 # pin@v3
+        uses: actions/setup-node@8c91899e586c5b171469028077307d293428b516
         with:
           node-version: 16.x
 
       - name: Set up Go
-        uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # pin@v2
+        uses: actions/setup-go@c4a742cab115ed795e34d4513e2cf7d472deb55f
         with:
-          go-version: 1.18.x
+          go-version: 1.19.x
 
       - name: Set up Docker
         run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
-      - uses: azure/docker-login@81744f9799e7eaa418697cb168452a2882ae844a # pin@v1
+      - uses: azure/docker-login@81744f9799e7eaa418697cb168452a2882ae844a
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - uses: google-github-actions/setup-gcloud@877d4953d2c70a0ba7ef3290ae968eb24af233bb # pin@v0
+      - name: gcloud authenticate
+        uses: google-github-actions/auth@ef5d53e30bbcd8d0836f4288f5e50ff3e086997d
         with:
-          project_id: pomerium-io
-          service_account_key: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          project_id: ${{ secrets.GCP_PRODUCTION_PROJECT_ID }}
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: gcloud sdk
+        uses: google-github-actions/setup-gcloud@d51b5346f85640ec2aa2fa057354d2b82c2fcbce
 
       - name: Gcloud login
         run: gcloud auth configure-docker
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@ff11ca24a9b39f2d36796d1fbd7a4e39c182630a # pin@v2
+        uses: goreleaser/goreleaser-action@b508e2e3ef3b19d4e4146d4f8fb3ba9db644a757
         with:
           version: v0.184.0
           args: release --config .github/goreleaser.yaml
@@ -116,18 +120,18 @@ jobs:
     needs: goreleaser
     steps:
       - name: Checkout Gitops Repo
-        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           repository: pomerium/gitops-argocd
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump test environment
-        uses: mikefarah/yq@9b6961875e10b058aeb482f263f26ca0f6b18eb8 # pin@v4.23.1
+        uses: mikefarah/yq@ce9701ca3a1ac2779ff5f3857d04ee003acda066
         with:
           cmd: yq eval '.pomerium.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i projects/pomerium-demo/pomerium-demo/values.yaml
 
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@49620cd3ed21ee620a48530e81dba0d139c9cb80 # pin@v4
+        uses: stefanzweifel/git-auto-commit-action@0b007fbd1180b8e3a3668b21c6517392fe8f26eb
         with:
           commit_message: |
             Bump test environment pomerium/pomerium

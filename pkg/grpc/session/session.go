@@ -12,6 +12,7 @@ import (
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 // Delete deletes a session from the databroker.
@@ -77,4 +78,11 @@ func (x *Session) SetRawIDToken(rawIDToken string) {
 		x.IdToken = new(IDToken)
 	}
 	x.IdToken.Raw = rawIDToken
+}
+
+// RemoveDeviceCredentialID removes a device credential id.
+func (x *Session) RemoveDeviceCredentialID(deviceCredentialID string) {
+	x.DeviceCredentials = slices.Filter(x.DeviceCredentials, func(el *Session_DeviceCredential) bool {
+		return el.GetId() != deviceCredentialID
+	})
 }

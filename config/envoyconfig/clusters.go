@@ -67,7 +67,7 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 	}
 	if len(authorizeURLs) > 1 {
 		authorizeCluster.HealthChecks = grpcHealthChecks("pomerium-authorize")
-		authorizeCluster.OutlierDetection = grpcAuthorizeOutlierDetection()
+		authorizeCluster.OutlierDetection = grpcOutlierDetection()
 	}
 
 	databrokerCluster, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-databroker", databrokerURLs, upstreamProtocolHTTP2)
@@ -75,8 +75,13 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		return nil, err
 	}
 	if len(databrokerURLs) > 1 {
-		authorizeCluster.HealthChecks = grpcHealthChecks("pomerium-databroker")
-		authorizeCluster.OutlierDetection = grpcAuthorizeOutlierDetection()
+		databrokerCluster.HealthChecks = grpcHealthChecks("pomerium-databroker")
+		databrokerCluster.OutlierDetection = grpcOutlierDetection()
+	}
+
+	envoyAdminCluster, err := b.buildEnvoyAdminCluster(ctx, cfg)
+	if err != nil {
+		return nil, err
 	}
 
 	clusters := []*envoy_config_cluster_v3.Cluster{
@@ -86,6 +91,7 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		controlMetrics,
 		authorizeCluster,
 		databrokerCluster,
+		envoyAdminCluster,
 	}
 
 	tracingCluster, err := buildTracingCluster(cfg.Options)
@@ -400,8 +406,8 @@ func (b *Builder) buildCluster(
 	return cluster.Validate()
 }
 
-// grpcAuthorizeOutlierDetection defines slightly more aggressive malfunction detection for authorize endpoints
-func grpcAuthorizeOutlierDetection() *envoy_config_cluster_v3.OutlierDetection {
+// grpcOutlierDetection defines slightly more aggressive malfunction detection for grpc endpoints
+func grpcOutlierDetection() *envoy_config_cluster_v3.OutlierDetection {
 	return &envoy_config_cluster_v3.OutlierDetection{
 		Consecutive_5Xx:                       wrapperspb.UInt32(5),
 		Interval:                              durationpb.New(time.Second * 10),

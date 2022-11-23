@@ -17,8 +17,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/csrf"
-	"github.com/pomerium/pomerium/authenticate/handlers"
-	"github.com/pomerium/pomerium/authenticate/handlers/webauthn"
+	"github.com/pomerium/datasource/pkg/directory"
+	"github.com/pomerium/pomerium/internal/handlers"
+	"github.com/pomerium/pomerium/internal/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/manager"
@@ -30,9 +31,9 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/webauthnutil"
 )
 
 // Handler returns the authenticate service's handler chain.
@@ -74,7 +75,6 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	r.Path("/oauth2/callback").Handler(httputil.HandlerFunc(a.OAuthCallback)).Methods(http.MethodGet)
 
 	a.mountDashboard(r)
-	a.mountWellKnown(r)
 }
 
 func (a *Authenticate) mountDashboard(r *mux.Router) {
@@ -112,22 +112,9 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	cr.Path("/").Handler(a.requireValidSignature(a.Callback)).Methods(http.MethodGet)
 }
 
-func (a *Authenticate) mountWellKnown(r *mux.Router) {
-	r.Path("/.well-known/pomerium/jwks.json").Handler(cors.AllowAll().Handler(httputil.HandlerFunc(a.jwks))).Methods(http.MethodGet)
-}
-
-// jwks returns the signing key(s) the client can use to validate signatures
-// from the authorization server.
-//
-// https://tools.ietf.org/html/rfc8414
-func (a *Authenticate) jwks(w http.ResponseWriter, r *http.Request) error {
-	httputil.RenderJSON(w, http.StatusOK, a.state.Load().jwk)
-	return nil
-}
-
-// RetrieveSession is the middleware used retrieve session by the sessionLoaders
+// RetrieveSession is the middleware used retrieve session by the sessionLoader
 func (a *Authenticate) RetrieveSession(next http.Handler) http.Handler {
-	return sessions.RetrieveSession(a.state.Load().sessionLoaders...)(next)
+	return sessions.RetrieveSession(a.state.Load().sessionLoader)(next)
 }
 
 // VerifySession is the middleware used to enforce a valid authentication
@@ -553,41 +540,46 @@ func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, 
 			Id: pbSession.GetUserId(),
 		}
 	}
-	pbDirectoryUser, err := a.getDirectoryUser(r.Context(), pbSession.GetUserId())
-	if err != nil {
-		pbDirectoryUser = &directory.User{
-			Id: pbSession.GetUserId(),
-		}
-	}
-	var groups []*directory.Group
-	for _, groupID := range pbDirectoryUser.GetGroupIds() {
-		pbDirectoryGroup, err := directory.GetGroup(r.Context(), state.dataBrokerClient, groupID)
-		if err != nil {
-			pbDirectoryGroup = &directory.Group{
-				Id:    groupID,
-				Name:  groupID,
-				Email: groupID,
-			}
-		}
-		groups = append(groups, pbDirectoryGroup)
-	}
+	creationOptions, requestOptions, _ := a.webauthn.GetOptions(r)
 
-	creationOptions, requestOptions, _ := a.webauthn.GetOptions(r.Context())
-
-	return handlers.UserInfoData{
-		CSRFToken:       csrf.Token(r),
-		DirectoryGroups: groups,
-		DirectoryUser:   pbDirectoryUser,
-		IsImpersonated:  isImpersonated,
-		Session:         pbSession,
-		User:            pbUser,
+	data := handlers.UserInfoData{
+		CSRFToken:      csrf.Token(r),
+		IsImpersonated: isImpersonated,
+		Session:        pbSession,
+		User:           pbUser,
 
 		WebAuthnCreationOptions: creationOptions,
 		WebAuthnRequestOptions:  requestOptions,
 		WebAuthnURL:             urlutil.WebAuthnURL(r, authenticateURL, state.sharedKey, r.URL.Query()),
 
 		BrandingOptions: a.options.Load().BrandingOptions,
-	}, nil
+	}
+	a.fillEnterpriseUserInfoData(r.Context(), &data, pbSession.GetUserId())
+	return data, nil
+}
+
+func (a *Authenticate) fillEnterpriseUserInfoData(
+	ctx context.Context,
+	dst *handlers.UserInfoData,
+	userID string,
+) {
+	client := a.state.Load().dataBrokerClient
+
+	res, _ := client.Get(ctx, &databroker.GetRequest{Type: "type.googleapis.com/pomerium.config.Config", Id: "dashboard"})
+	dst.IsEnterprise = res.GetRecord() != nil
+	if !dst.IsEnterprise {
+		return
+	}
+
+	dst.DirectoryUser, _ = databroker.GetViaJSON[directory.User](ctx, client, directory.UserRecordType, userID)
+	if dst.DirectoryUser != nil {
+		for _, groupID := range dst.DirectoryUser.GroupIDs {
+			directoryGroup, _ := databroker.GetViaJSON[directory.Group](ctx, client, directory.GroupRecordType, groupID)
+			if directoryGroup != nil {
+				dst.DirectoryGroups = append(dst.DirectoryGroups, directoryGroup)
+			}
+		}
+	}
 }
 
 func (a *Authenticate) saveSessionToDataBroker(
@@ -654,14 +646,6 @@ func (a *Authenticate) saveSessionToDataBroker(
 	sessionState.DatabrokerServerVersion = res.GetServerVersion()
 	sessionState.DatabrokerRecordVersion = res.GetRecord().GetVersion()
 
-	_, err = state.directoryClient.RefreshUser(ctx, &directory.RefreshUserRequest{
-		UserId:      s.UserId,
-		AccessToken: accessToken.AccessToken,
-	})
-	if err != nil {
-		log.Error(ctx).Err(err).Msg("directory: failed to refresh user data")
-	}
-
 	return nil
 }
 
@@ -727,20 +711,15 @@ func (a *Authenticate) getUser(ctx context.Context, userID string) (*user.User, 
 	return user.Get(ctx, client, userID)
 }
 
-func (a *Authenticate) getDirectoryUser(ctx context.Context, userID string) (*directory.User, error) {
-	client := a.state.Load().dataBrokerClient
-	return directory.GetUser(ctx, client, userID)
-}
-
-func (a *Authenticate) getWebauthnState(ctx context.Context) (*webauthn.State, error) {
+func (a *Authenticate) getWebauthnState(r *http.Request) (*webauthn.State, error) {
 	state := a.state.Load()
 
-	s, _, err := a.getCurrentSession(ctx)
+	s, _, err := a.getCurrentSession(r.Context())
 	if err != nil {
 		return nil, err
 	}
 
-	ss, err := a.getSessionFromCtx(ctx)
+	ss, err := a.getSessionFromCtx(r.Context())
 	if err != nil {
 		return nil, err
 	}
@@ -769,7 +748,7 @@ func (a *Authenticate) getWebauthnState(ctx context.Context) (*webauthn.State, e
 		Session:                 s,
 		SessionState:            ss,
 		SessionStore:            state.sessionStore,
-		RelyingParty:            state.webauthnRelyingParty,
+		RelyingParty:            webauthnutil.GetRelyingParty(r, state.dataBrokerClient),
 		BrandingOptions:         a.options.Load().BrandingOptions,
 	}, nil
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
-	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
@@ -44,8 +43,6 @@ yE+vPxsiUkvQHdO2fojCkY8jg70jxM+gu59tPDNbw3Uh/2Ij310FgTHsnGQMyA==
 
 func Test_getEvaluatorRequest(t *testing.T) {
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
-	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
-	a.state.Load().encoder = encoder
 	a.currentOptions.Store(&config.Options{
 		Policies: []config.Policy{{
 			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
@@ -103,8 +100,6 @@ func Test_getEvaluatorRequest(t *testing.T) {
 
 func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
-	encoder, _ := jws.NewHS256Signer([]byte{0, 0, 0, 0})
-	a.state.Load().encoder = encoder
 	a.currentOptions.Store(&config.Options{
 		Policies: []config.Policy{{
 			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},

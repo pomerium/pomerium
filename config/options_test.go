@@ -53,11 +53,6 @@ func Test_Validate(t *testing.T) {
 	badSignoutRedirectURL := testOptions()
 	badSignoutRedirectURL.SignOutRedirectURLString = "--"
 
-	missingSharedSecretWithPersistence := testOptions()
-	missingSharedSecretWithPersistence.SharedKey = ""
-	missingSharedSecretWithPersistence.DataBrokerStorageType = StorageRedisName
-	missingSharedSecretWithPersistence.DataBrokerStorageConnectionString = "redis://somehost:6379"
-
 	tests := []struct {
 		name     string
 		testOpts *Options
@@ -71,7 +66,6 @@ func Test_Validate(t *testing.T) {
 		{"invalid databroker storage type", invalidStorageType, true},
 		{"missing databroker storage dsn", missingStorageDSN, true},
 		{"invalid signout redirect url", badSignoutRedirectURL, true},
-		{"no shared key with databroker persistence", missingSharedSecretWithPersistence, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -305,18 +299,9 @@ func TestOptionsFromViper(t *testing.T) {
 				InsecureServer:           true,
 				CookieHTTPOnly:           true,
 				AuthenticateCallbackPath: "/oauth2/callback",
-				SetResponseHeaders: map[string]string{
-					"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-					"X-Frame-Options":           "SAMEORIGIN",
-					"X-XSS-Protection":          "1; mode=block",
-				},
-				RefreshDirectoryTimeout:  1 * time.Minute,
-				RefreshDirectoryInterval: 10 * time.Minute,
-				QPS:                      1.0,
 				DataBrokerStorageType:    "memory",
 				EnvoyAdminAccessLogPath:  os.DevNull,
 				EnvoyAdminProfilePath:    os.DevNull,
-				EnvoyAdminAddress:        "127.0.0.1:9901",
 			},
 			false,
 		},
@@ -331,20 +316,15 @@ func TestOptionsFromViper(t *testing.T) {
 				CookieHTTPOnly:           true,
 				InsecureServer:           true,
 				SetResponseHeaders:       map[string]string{"disable": "true"},
-				RefreshDirectoryTimeout:  1 * time.Minute,
-				RefreshDirectoryInterval: 10 * time.Minute,
-				QPS:                      1.0,
 				DataBrokerStorageType:    "memory",
 				EnvoyAdminAccessLogPath:  os.DevNull,
 				EnvoyAdminProfilePath:    os.DevNull,
-				EnvoyAdminAddress:        "127.0.0.1:9901",
 			},
 			false,
 		},
 		{"bad url", []byte(`{"policy":[{"from": "https://","to":"https://to.example"}]}`), nil, true},
 		{"bad policy", []byte(`{"policy":[{"allow_public_unauthenticated_access": "dog","to":"https://to.example"}]}`), nil, true},
 		{"bad file", []byte(`{''''}`), nil, true},
-		{"allowed_groups without idp_service_account should fail", []byte(`{"autocert_dir":"","insecure_server":true,"policy":[{"from": "https://from.example","to":"https://to.example","allowed_groups": "['group1']"}]}`), nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -412,7 +392,7 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 		cleanup  func()
 	}
 
-	var tests = map[string]func(t *testing.T) test{
+	tests := map[string]func(t *testing.T) test{
 		"ok/simple": func(t *testing.T) test {
 			envs := map[string]string{
 				"AUTOCERT":             "true",
@@ -684,6 +664,7 @@ func TestOptions_GetOauthOptions(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, u.Hostname(), oauthOptions.RedirectURL.Hostname())
 }
+
 func TestOptions_GetAllRouteableGRPCDomains(t *testing.T) {
 	opts := &Options{
 		AuthenticateURLString: "https://authenticate.example.com",
@@ -758,6 +739,59 @@ func TestOptions_ApplySettings(t *testing.T) {
 		}
 		options.ApplySettings(ctx, settings)
 		assert.Len(t, options.CertificateFiles, 2, "should prevent adding duplicate certificates")
+	})
+}
+
+func TestOptions_GetSetResponseHeaders(t *testing.T) {
+	t.Run("lax", func(t *testing.T) {
+		options := NewDefaultOptions()
+		assert.Equal(t, map[string]string{
+			"X-Frame-Options":  "SAMEORIGIN",
+			"X-XSS-Protection": "1; mode=block",
+		}, options.GetSetResponseHeaders(false))
+	})
+	t.Run("strict", func(t *testing.T) {
+		options := NewDefaultOptions()
+		assert.Equal(t, map[string]string{
+			"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+			"X-Frame-Options":           "SAMEORIGIN",
+			"X-XSS-Protection":          "1; mode=block",
+		}, options.GetSetResponseHeaders(true))
+	})
+	t.Run("disable", func(t *testing.T) {
+		options := NewDefaultOptions()
+		options.SetResponseHeaders = map[string]string{DisableHeaderKey: "1", "x-other": "xyz"}
+		assert.Equal(t, map[string]string{}, options.GetSetResponseHeaders(true))
+	})
+}
+
+func TestOptions_GetSharedKey(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		o := NewDefaultOptions()
+		bs, err := o.GetSharedKey()
+		assert.NoError(t, err)
+		assert.Equal(t, randomSharedKey, base64.StdEncoding.EncodeToString(bs))
+	})
+	t.Run("missing", func(t *testing.T) {
+		o := NewDefaultOptions()
+		o.Services = ServiceProxy
+		_, err := o.GetSharedKey()
+		assert.Error(t, err)
+	})
+}
+
+func TestOptions_GetCookieSecret(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		o := NewDefaultOptions()
+		bs, err := o.GetCookieSecret()
+		assert.NoError(t, err)
+		assert.Equal(t, randomSharedKey, base64.StdEncoding.EncodeToString(bs))
+	})
+	t.Run("missing", func(t *testing.T) {
+		o := NewDefaultOptions()
+		o.Services = ServiceProxy
+		_, err := o.GetCookieSecret()
+		assert.Error(t, err)
 	})
 }
 

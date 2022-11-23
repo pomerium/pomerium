@@ -2,17 +2,16 @@
 package controlplane
 
 import (
+	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/CAFxX/httpcompression"
-	"github.com/gorilla/handlers"
+	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
-	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
@@ -38,7 +37,7 @@ func (srv *Server) addHTTPMiddleware(root *mux.Router, cfg *config.Config) {
 			Str("path", r.URL.String()).
 			Msg("http-request")
 	}))
-	root.Use(handlers.RecoveryHandler())
+	root.Use(gorillahandlers.RecoveryHandler())
 	root.Use(log.RemoteAddrHandler("ip"))
 	root.Use(log.UserAgentHandler("user_agent"))
 	root.Use(log.RefererHandler("referer"))
@@ -46,32 +45,29 @@ func (srv *Server) addHTTPMiddleware(root *mux.Router, cfg *config.Config) {
 	root.Use(telemetry.HTTPStatsHandler(func() string {
 		return srv.currentConfig.Load().Options.InstallationID
 	}, srv.name))
-	root.HandleFunc("/healthz", httputil.HealthCheck)
-	root.HandleFunc("/ping", httputil.HealthCheck)
-	root.Handle("/.well-known/pomerium", httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		return wellKnownPomerium(w, r, cfg)
-	}))
-	root.Handle("/.well-known/pomerium/", httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		return wellKnownPomerium(w, r, cfg)
-	}))
 }
 
-func wellKnownPomerium(w http.ResponseWriter, r *http.Request, cfg *config.Config) error {
+func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) error {
 	authenticateURL, err := cfg.Options.GetAuthenticateURL()
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid authenticate URL: %w", err)
 	}
 
-	wellKnownURLs := struct {
-		OAuth2Callback        string `json:"authentication_callback_endpoint"` // RFC6749
-		JSONWebKeySetURL      string `json:"jwks_uri"`                         // RFC7517
-		FrontchannelLogoutURI string `json:"frontchannel_logout_uri"`          // https://openid.net/specs/openid-connect-frontchannel-1_0.html
-	}{
-		authenticateURL.ResolveReference(&url.URL{Path: "/oauth2/callback"}).String(),
-		authenticateURL.ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
-		authenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/sign_out"}).String(),
+	rawSigningKey, err := cfg.Options.GetSigningKey()
+	if err != nil {
+		return fmt.Errorf("invalid signing key: %w", err)
 	}
-	w.Header().Set("X-CSRF-Token", csrf.Token(r))
-	httputil.RenderJSON(w, http.StatusOK, wellKnownURLs)
+
+	hpkePrivateKey, err := cfg.Options.GetHPKEPrivateKey()
+	if err != nil {
+		return fmt.Errorf("invalid hpke private key: %w", err)
+	}
+	hpkePublicKey := hpkePrivateKey.PublicKey()
+
+	root.HandleFunc("/healthz", handlers.HealthCheck)
+	root.HandleFunc("/ping", handlers.HealthCheck)
+	root.Handle("/.well-known/pomerium", handlers.WellKnownPomerium(authenticateURL))
+	root.Handle("/.well-known/pomerium/", handlers.WellKnownPomerium(authenticateURL))
+	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(handlers.JWKSHandler(rawSigningKey, hpkePublicKey))
 	return nil
 }

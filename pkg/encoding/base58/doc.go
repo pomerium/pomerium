@@ -8,7 +8,7 @@
 Package base58 provides an API for working with modified base58 and Base58Check
 encodings.
 
-Modified Base58 Encoding
+# Modified Base58 Encoding
 
 Standard base58 encoding is similar to standard base64 encoding except, as the
 name implies, it uses a 58 character alphabet which results in an alphanumeric

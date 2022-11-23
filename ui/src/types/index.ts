@@ -58,6 +58,7 @@ export type WebAuthnCreationOptions = {
   pubKeyCredParams: PublicKeyCredentialParameters[];
   rp: {
     name: string;
+    id: string;
   };
   timeout: number;
   user: {
@@ -75,6 +76,7 @@ export type WebAuthnRequestOptions = {
   challenge: string;
   timeout: number;
   userVerification: UserVerificationRequirement;
+  rpId: string;
 };
 
 // page data
@@ -92,7 +94,6 @@ export type ErrorPageData = BasePageData & {
 
   canDebug?: boolean;
   debugUrl?: string;
-  error?: string;
   requestId?: string;
   status?: number;
   statusText?: string;
@@ -104,6 +105,7 @@ export type UserInfoData = {
   csrfToken: string;
   directoryGroups?: Group[];
   directoryUser?: DirectoryUser;
+  isEnterprise?: boolean;
   session?: Session;
   user?: User;
   webAuthnCreationOptions?: WebAuthnCreationOptions;

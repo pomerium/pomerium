@@ -13,7 +13,7 @@ RUN make yarn
 COPY ./ui/ ./ui/
 RUN make build-ui
 
-FROM golang:1.19.1-buster@sha256:4b2498de3f543907f4954584ce12558fc3cf80844907f3e7b9f7e98c3223b949 as build
+FROM golang:1.19.3-buster@sha256:0092b239c5b5dc572729d8fd3c1842513ed1222502f86be65cbb875c5b9b1e8a as build
 WORKDIR /go/src/github.com/pomerium/pomerium
 
 RUN apt-get update \
@@ -30,12 +30,12 @@ RUN make build-go NAME=pomerium
 RUN touch /config.yaml
 
 # build our own root trust store from current stable
-FROM debian:stable@sha256:6005bd93656b222ca2895928e9d3b2457ab3f551fdace1a07cbe4d386719ec99 as casource
+FROM debian:stable@sha256:9583740c100697a7dd186b80198a66ad24927e03437414559f90e0ed2639346e as casource
 RUN apt-get update && apt-get install -y ca-certificates
 # Remove expired root (https://github.com/pomerium/pomerium/issues/2653)
 RUN rm /usr/share/ca-certificates/mozilla/DST_Root_CA_X3.crt && update-ca-certificates
 
-FROM gcr.io/distroless/base:debug@sha256:8a7afd5bc2228ca2e6d1186bf964295d99650a9c664ad22e75b02bf4a027aca7
+FROM gcr.io/distroless/base:debug@sha256:cd1bf874ac029cfca6d6a8221f79bb435c5223a3d3eb717e045ca5b0163f2a6c
 ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/

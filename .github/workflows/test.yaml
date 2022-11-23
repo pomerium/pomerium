@@ -11,35 +11,35 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: [1.18.x]
+        go-version: [1.19.x]
         node-version: [16.x]
         platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f
+      - uses: actions/setup-go@c4a742cab115ed795e34d4513e2cf7d472deb55f
         with:
           go-version: ${{ matrix.go-version }}
 
-      - uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93
+      - uses: actions/setup-node@8c91899e586c5b171469028077307d293428b516
         with:
           node-version: ${{ matrix.node-version }}
 
       - name: set env vars
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           fetch-depth: 0
 
       - name: cache go binaries
-        uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77
+        uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
         id: cache-go-bin
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
           restore-keys: ${{ runner.os }}-go-bin
 
-      - uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77
+      - uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
         with:
           path: |
             ~/go/pkg/mod
@@ -59,18 +59,18 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.18.x]
+        go-version: [1.19.x]
         node-version: [16.x]
     steps:
-      - uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f
+      - uses: actions/setup-go@c4a742cab115ed795e34d4513e2cf7d472deb55f
         with:
           go-version: ${{ matrix.go-version }}
 
-      - uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93
+      - uses: actions/setup-node@8c91899e586c5b171469028077307d293428b516
         with:
           node-version: ${{ matrix.node-version }}
 
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           fetch-depth: 0
 
@@ -78,14 +78,14 @@ jobs:
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
       - name: cache go binaries
-        uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77
+        uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
         id: cache-go-bin
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
           restore-keys: ${{ runner.os }}-go-bin
 
-      - uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77
+      - uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
         with:
           path: |
             ~/go/pkg/mod
@@ -113,27 +113,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [1.18.x]
+        go-version: [1.19.x]
         node-version: [16.x]
         platform: [ubuntu-latest]
         deployment: [kubernetes, multi, single]
-        idp: [auth0, azure, github, gitlab, google, oidc, okta, onelogin, ping]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f
+      - uses: actions/setup-go@c4a742cab115ed795e34d4513e2cf7d472deb55f
         with:
           go-version: ${{ matrix.go-version }}
 
-      - uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93
+      - uses: actions/setup-node@8c91899e586c5b171469028077307d293428b516
         with:
           node-version: ${{ matrix.node-version }}
 
       - name: set env vars
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           fetch-depth: 0
-      - uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77
+      - uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
         with:
           path: |
             ~/go/pkg
@@ -150,34 +149,34 @@ jobs:
       - name: start cluster
         run: |
           export POMERIUM_TAG=dev
-          cd ./integration/clusters/${{matrix.idp}}-${{matrix.deployment}}
+          cd ./integration/clusters/${{matrix.deployment}}
           docker-compose up -d
 
       - name: integration tests
         run: |
-          (cd ./integration/clusters/${{matrix.idp}}-${{matrix.deployment}} && docker-compose logs -f &)
+          (cd ./integration/clusters/${{matrix.deployment}} && docker-compose logs -f &)
           go test -v ./integration/...
 
   build:
     strategy:
       matrix:
-        go-version: [1.18.x]
+        go-version: [1.19.x]
         node-version: [16.x]
         platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f
+      - uses: actions/setup-go@c4a742cab115ed795e34d4513e2cf7d472deb55f
         with:
           go-version: ${{ matrix.go-version }}
 
-      - uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93
+      - uses: actions/setup-node@8c91899e586c5b171469028077307d293428b516
         with:
           node-version: ${{ matrix.node-version }}
 
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           fetch-depth: 0
-      - uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77
+      - uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
         with:
           path: |
             ~/go/pkg/mod
@@ -193,7 +192,7 @@ jobs:
           make build
 
       - name: save binary
-        uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8
+        uses: actions/upload-artifact@83fd05a356d7e2593de66fc9913b3002723633cb
         with:
           path: bin/pomerium*
           name: pomerium ${{ github.run_id }} ${{ matrix.platform }}
@@ -202,15 +201,15 @@ jobs:
   build-docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           fetch-depth: 0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@dc7b9719a96d48369863986a06765841d7ea23f6
+        uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325
 
       - name: Docker Build
-        uses: docker/build-push-action@c84f38281176d4c9cdb1626ffafcd6b3911b5d94
+        uses: docker/build-push-action@c56af957549030174b10d6867f20e78cfd7debc5
         with:
           context: .
           file: ./Dockerfile
@@ -220,13 +219,13 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f
+      - uses: actions/setup-go@c4a742cab115ed795e34d4513e2cf7d472deb55f
         with:
-          go-version: 1.18.x
-      - uses: actions/setup-python@b55428b1882923874294fa556849718a1d7f2ca5
+          go-version: 1.19.x
+      - uses: actions/setup-python@13ae5bb136fac2878aff31522b9efb785519f984
         with:
           python-version: "3.x"
       - uses: pre-commit/action@646c83fcd040023954eafda54b4db0192ce70507
@@ -241,19 +240,19 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.18.x]
+        go-version: [1.19.x]
         platform: [ubuntu-latest]
     needs:
       - build
     steps:
-      - uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f
+      - uses: actions/setup-go@c4a742cab115ed795e34d4513e2cf7d472deb55f
         with:
-          go-version: 1.18.x
+          go-version: 1.19.x
 
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
 
       - name: retrieve binary
-        uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741
+        uses: actions/download-artifact@9782bd6a9848b53b110e712e20e42d89988822b7
         with:
           name: pomerium ${{ github.run_id }} ${{ matrix.platform }}
           path: bin/

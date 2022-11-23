@@ -91,9 +91,8 @@ func RulesFromArray(a Array) ([]Rule, error) {
 //
 // One form is supported:
 //
-// 1. An object where the keys are the actions and the values are an object with "and", "or", or "not" fields:
-//    `{ "allow": { "and": [ {"groups": "group1"} ] } }`
-//
+//  1. An object where the keys are the actions and the values are an object with "and", "or", or "not" fields:
+//     `{ "allow": { "and": [ {"groups": "group1"} ] } }`
 func RulesFromObject(o Object) ([]Rule, error) {
 	var rules []Rule
 	for k, v := range o {
@@ -237,9 +236,8 @@ func CriteriaFromArray(a Array) ([]Criterion, error) {
 //
 // One form is supported:
 //
-// 1. An object where the keys are the names with a sub path and the values are the corresponding
-//    data for each Criterion: `{ "groups": "group1" }`
-//
+//  1. An object where the keys are the names with a sub path and the values are the corresponding
+//     data for each Criterion: `{ "groups": "group1" }`
 func CriterionFromObject(o Object) (*Criterion, error) {
 	if len(o) != 1 {
 		return nil, fmt.Errorf("each criteria may only contain a single key and value")

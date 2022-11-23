@@ -14,22 +14,19 @@ import (
 
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/pomerium/pomerium/authenticate/handlers/webauthn"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
+	"github.com/pomerium/pomerium/internal/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
@@ -38,7 +35,6 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
@@ -151,11 +147,10 @@ func TestAuthenticate_SignIn(t *testing.T) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{
-					sharedCipher:     sharedCipher,
-					sessionStore:     tt.session,
-					redirectURL:      uriParseHelper("https://some.example"),
-					sharedEncoder:    tt.encoder,
-					encryptedEncoder: tt.encoder,
+					sharedCipher:  sharedCipher,
+					sessionStore:  tt.session,
+					redirectURL:   uriParseHelper("https://some.example"),
+					sharedEncoder: tt.encoder,
 					dataBrokerClient: mockDataBrokerServiceClient{
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 							return &databroker.GetResponse{
@@ -165,7 +160,6 @@ func TestAuthenticate_SignIn(t *testing.T) {
 							}, nil
 						},
 					},
-					directoryClient: new(mockDirectoryServiceClient),
 				}),
 
 				options: config.NewAtomicOptions(),
@@ -294,7 +288,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			identity.MockProvider{LogOutResponse: (*uriParseHelper("https://microsoft.com"))},
 			&mstore.Store{Encrypted: true, Session: &sessions.State{}},
 			http.StatusOK,
-			"{\"Status\":200,\"Error\":\"OK: user logged out\"}\n",
+			"{\"Status\":200}\n",
 		},
 	}
 	for _, tt := range tests {
@@ -307,9 +301,8 @@ func TestAuthenticate_SignOut(t *testing.T) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{
-					sessionStore:     tt.sessionStore,
-					encryptedEncoder: mock.Encoder{},
-					sharedEncoder:    mock.Encoder{},
+					sessionStore:  tt.sessionStore,
+					sharedEncoder: mock.Encoder{},
 					dataBrokerClient: mockDataBrokerServiceClient{
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 							return &databroker.GetResponse{
@@ -322,7 +315,6 @@ func TestAuthenticate_SignOut(t *testing.T) {
 							return nil, nil
 						},
 					},
-					directoryClient: new(mockDirectoryServiceClient),
 				}),
 				options: config.NewAtomicOptions(),
 			}
@@ -410,10 +402,6 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			signer, err := jws.NewHS256Signer(nil)
-			if err != nil {
-				t.Fatal(err)
-			}
 			authURL, _ := url.Parse(tt.authenticateURL)
 			a := &Authenticate{
 				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
@@ -428,11 +416,9 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 							return nil, nil
 						},
 					},
-					directoryClient:  new(mockDirectoryServiceClient),
-					redirectURL:      authURL,
-					sessionStore:     tt.session,
-					cookieCipher:     aead,
-					encryptedEncoder: signer,
+					redirectURL:  authURL,
+					sessionStore: tt.session,
+					cookieCipher: aead,
 				}),
 				options: config.NewAtomicOptions(),
 			}
@@ -557,12 +543,11 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{
-					cookieSecret:     cryptutil.NewKey(),
-					redirectURL:      uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
-					sessionStore:     tt.session,
-					cookieCipher:     aead,
-					encryptedEncoder: signer,
-					sharedEncoder:    signer,
+					cookieSecret:  cryptutil.NewKey(),
+					redirectURL:   uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
+					sessionStore:  tt.session,
+					cookieCipher:  aead,
+					sharedEncoder: signer,
 					dataBrokerClient: mockDataBrokerServiceClient{
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 							return &databroker.GetResponse{
@@ -572,7 +557,6 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 							}, nil
 						},
 					},
-					directoryClient: new(mockDirectoryServiceClient),
 				}),
 				options: config.NewAtomicOptions(),
 			}
@@ -600,27 +584,6 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestJwksEndpoint(t *testing.T) {
-	o := newTestOptions(t)
-	o.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUpCMFZkbko1VjEvbVlpYUlIWHhnd2Q0Yzd5YWRTeXMxb3Y0bzA1b0F3ekdvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFVUc1eENQMEpUVDFINklvbDhqS3VUSVBWTE0wNENnVzlQbEV5cE5SbVdsb29LRVhSOUhUMwpPYnp6aktZaWN6YjArMUt3VjJmTVRFMTh1dy82MXJVQ0JBPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
-	auth, err := New(&config.Config{Options: o})
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-	h := auth.Handler()
-	if h == nil {
-		t.Error("handler cannot be nil")
-	}
-	req := httptest.NewRequest("GET", "/.well-known/pomerium/jwks.json", nil)
-	req.Header.Set("Accept", "application/json")
-	rr := httptest.NewRecorder()
-	h.ServeHTTP(rr, req)
-	body := rr.Body.String()
-	expected := "{\"keys\":[{\"use\":\"sig\",\"kty\":\"EC\",\"kid\":\"5b419ade1895fec2d2def6cd33b1b9a018df60db231dc5ecb85cbed6d942813c\",\"crv\":\"P-256\",\"alg\":\"ES256\",\"x\":\"UG5xCP0JTT1H6Iol8jKuTIPVLM04CgW9PlEypNRmWlo\",\"y\":\"KChF0fR09zm884ymInM29PtSsFdnzExNfLsP-ta1AgQ\"}]}\n"
-	assert.Equal(t, expected, body)
 }
 
 func TestAuthenticate_userInfo(t *testing.T) {
@@ -696,9 +659,8 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			a := &Authenticate{
 				options: o,
 				state: atomicutil.NewValue(&authenticateState{
-					sessionStore:     tt.sessionStore,
-					encryptedEncoder: signer,
-					sharedEncoder:    signer,
+					sessionStore:  tt.sessionStore,
+					sharedEncoder: signer,
 					dataBrokerClient: mockDataBrokerServiceClient{
 						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 							return &databroker.GetResponse{
@@ -710,7 +672,6 @@ func TestAuthenticate_userInfo(t *testing.T) {
 							}, nil
 						},
 					},
-					directoryClient: new(mockDirectoryServiceClient),
 				}),
 			}
 			a.webauthn = webauthn.New(a.getWebauthnState)
@@ -750,19 +711,6 @@ func (m mockDataBrokerServiceClient) Get(ctx context.Context, in *databroker.Get
 
 func (m mockDataBrokerServiceClient) Put(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
 	return m.put(ctx, in, opts...)
-}
-
-type mockDirectoryServiceClient struct {
-	directory.DirectoryServiceClient
-
-	refreshUser func(ctx context.Context, in *directory.RefreshUserRequest, opts ...grpc.CallOption) (*empty.Empty, error)
-}
-
-func (m mockDirectoryServiceClient) RefreshUser(ctx context.Context, in *directory.RefreshUserRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if m.refreshUser != nil {
-		return m.refreshUser(ctx, in, opts...)
-	}
-	return nil, status.Error(codes.Unimplemented, "")
 }
 
 func mustParseURL(rawurl string) *url.URL {

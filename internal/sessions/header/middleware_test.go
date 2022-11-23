@@ -7,11 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pomerium/pomerium/internal/encoding/ecjson"
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-
-	"github.com/google/go-cmp/cmp"
 )
 
 func testAuthorizer(next http.Handler) http.Handler {
@@ -63,11 +64,9 @@ func TestVerifier(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cipher, err := cryptutil.NewAEADCipherFromBase64(cryptutil.NewBase64Key())
-			encoder := ecjson.New(cipher)
-			if err != nil {
-				t.Fatal(err)
-			}
+			key := cryptutil.NewKey()
+			encoder, err := jws.NewHS256Signer(key)
+			require.NoError(t, err)
 			encSession, err := encoder.Marshal(&tt.state)
 			if err != nil {
 				t.Fatal(err)

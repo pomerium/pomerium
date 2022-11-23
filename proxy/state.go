@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	"crypto/cipher"
 	"net/url"
 
@@ -9,10 +10,12 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
-	"github.com/pomerium/pomerium/internal/sessions/header"
-	"github.com/pomerium/pomerium/internal/sessions/queryparam"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
+
+var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
 
 type proxyState struct {
 	sharedKey    []byte
@@ -26,8 +29,9 @@ type proxyState struct {
 	encoder         encoding.MarshalUnmarshaler
 	cookieSecret    []byte
 	sessionStore    sessions.SessionStore
-	sessionLoaders  []sessions.SessionLoader
 	jwtClaimHeaders config.JWTClaimHeaders
+
+	dataBrokerClient databroker.DataBrokerServiceClient
 
 	programmaticRedirectDomainWhitelist []string
 }
@@ -39,6 +43,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	}
 
 	state := new(proxyState)
+
 	state.sharedKey, err = cfg.Options.GetSharedKey()
 	if err != nil {
 		return nil, err
@@ -84,11 +89,19 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	if err != nil {
 		return nil, err
 	}
-	state.sessionLoaders = []sessions.SessionLoader{
-		state.sessionStore,
-		header.NewStore(state.encoder),
-		queryparam.NewStore(state.encoder, "pomerium_session"),
+
+	dataBrokerConn, err := outboundGRPCConnection.Get(context.Background(), &grpc.OutboundOptions{
+		OutboundPort:   cfg.OutboundPort,
+		InstallationID: cfg.Options.InstallationID,
+		ServiceName:    cfg.Options.Services,
+		SignedJWTKey:   state.sharedKey,
+	})
+	if err != nil {
+		return nil, err
 	}
+
+	state.dataBrokerClient = databroker.NewDataBrokerServiceClient(dataBrokerConn)
+
 	state.programmaticRedirectDomainWhitelist = cfg.Options.ProgrammaticRedirectDomainWhitelist
 
 	return state, nil

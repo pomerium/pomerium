@@ -55,12 +55,20 @@ func GetCertificateForDomain(certificates []tls.Certificate, domain string) (*tl
 		}
 	}
 
-	log.Error(context.Background()).
-		Str("domain", domain).
-		Msg("cryptutil: no TLS certificate found for domain, using self-signed certificate")
+	log.WarnNoTLSCertificate(domain)
 
 	// finally fall back to a generated, self-signed certificate
 	return GenerateSelfSignedCertificate(domain)
+}
+
+// HasCertificateForDomain returns true if a TLS certificate matches the given domain.
+func HasCertificateForDomain(certificates []tls.Certificate, domain string) bool {
+	for i := range certificates {
+		if matchesDomain(&certificates[i], domain) {
+			return true
+		}
+	}
+	return false
 }
 
 // GetCertificateDomains gets all the certificate's matching domain names.

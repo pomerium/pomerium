@@ -74,42 +74,6 @@ get_device_enrollment(device_credential) = v {
 `)
 }
 
-// GetDirectoryUser returns the directory user for the given session.
-func GetDirectoryUser() *ast.Rule {
-	return ast.MustParseRule(`
-get_directory_user(session) = v {
-	v = get_databroker_record("type.googleapis.com/directory.User", session.user_id)
-	v != null
-} else = "" {
-	true
-}
-`)
-}
-
-// GetDirectoryGroup returns the directory group for the given id.
-func GetDirectoryGroup() *ast.Rule {
-	return ast.MustParseRule(`
-get_directory_group(id) = v {
-	v = get_databroker_record("type.googleapis.com/directory.Group", id)
-	v != null
-} else = {} {
-	true
-}
-`)
-}
-
-// GetGroupIDs returns the group ids for the given session or directory user.
-func GetGroupIDs() *ast.Rule {
-	return ast.MustParseRule(`
-get_group_ids(session, directory_user) = v {
-	v = directory_user.group_ids
-	v != null
-} else = [] {
-	true
-}
-`)
-}
-
 // MergeWithAnd merges criterion results using `and`.
 func MergeWithAnd() *ast.Rule {
 	return ast.MustParseRule(`
@@ -176,7 +140,12 @@ func ObjectGet() *ast.Rule {
 	return ast.MustParseRule(`
 # object_get is like object.get, but supports converting "/" in keys to separate lookups
 # rego doesn't support recursion, so we hard code a limited number of /'s
+
 object_get(obj, key, def) = value {
+	undefined := "10a0fd35-0f1a-4e5b-97ce-631e89e1bafa"
+	value = object.get(obj, key, undefined)
+	value != undefined
+} else = value {
 	segments := split(replace(key, ".", "/"), "/")
 	count(segments) == 2
 	o1 := object.get(obj, segments[0], {})

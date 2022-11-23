@@ -84,7 +84,10 @@ const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
         {subpage === "User" && <SessionDetails session={data?.session} />}
 
         {subpage === "Groups Info" && (
-          <GroupDetails groups={data?.directoryGroups} />
+          <GroupDetails
+            isEnterprise={data?.isEnterprise}
+            groups={data?.directoryGroups}
+          />
         )}
 
         {subpage === "Devices Info" && (

@@ -22,21 +22,13 @@ func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 		testutil.AssertProtoJSONEqual(t, `
 			{
 				"address": {
-					"socketAddress": {
-						"address": "127.0.0.1",
-						"portValue": 9901
+					"pipe": {
+						"mode": 384,
+						"path": "`+envoyAdminAddressPath+`"
 					}
 				}
 			}
 		`, adminCfg)
-	})
-	t.Run("bad address", func(t *testing.T) {
-		_, err := b.BuildBootstrapAdmin(&config.Config{
-			Options: &config.Options{
-				EnvoyAdminAddress: "xyz1234:zyx4321",
-			},
-		})
-		assert.Error(t, err)
 	})
 }
 

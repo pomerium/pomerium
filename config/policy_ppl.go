@@ -47,15 +47,6 @@ func (p *Policy) ToPPL() *parser.Policy {
 				},
 			})
 	}
-	for _, ag := range p.AllAllowedGroups() {
-		allowRule.Or = append(allowRule.Or,
-			parser.Criterion{
-				Name: "groups",
-				Data: parser.Object{
-					"has": parser.String(ag),
-				},
-			})
-	}
 	for _, aic := range p.AllAllowedIDPClaims() {
 		var ks []string
 		for k := range aic {

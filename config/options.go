@@ -15,16 +15,11 @@ import (
 	"time"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/null/v9"
 
 	"github.com/pomerium/pomerium/internal/atomicutil"
-	"github.com/pomerium/pomerium/internal/directory/azure"
-	"github.com/pomerium/pomerium/internal/directory/github"
-	"github.com/pomerium/pomerium/internal/directory/gitlab"
-	"github.com/pomerium/pomerium/internal/directory/google"
-	"github.com/pomerium/pomerium/internal/directory/okta"
-	"github.com/pomerium/pomerium/internal/directory/onelogin"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
@@ -35,15 +30,11 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
 // DisableHeaderKey is the key used to check whether to disable setting header
 const DisableHeaderKey = "disable"
-
-const (
-	idpCustomScopesDocLink = "https://www.pomerium.com/docs/reference/identity-provider-scopes"
-	idpCustomScopesWarnMsg = "config: using custom scopes may result in undefined behavior, see: " + idpCustomScopesDocLink
-)
 
 // DefaultAlternativeAddr is the address used is two services are competing over
 // the same listener. Typically this is invisible to the end user (e.g. localhost)
@@ -150,11 +141,6 @@ type Options struct {
 	Provider         string   `mapstructure:"idp_provider" yaml:"idp_provider,omitempty"`
 	ProviderURL      string   `mapstructure:"idp_provider_url" yaml:"idp_provider_url,omitempty"`
 	Scopes           []string `mapstructure:"idp_scopes" yaml:"idp_scopes,omitempty"`
-	ServiceAccount   string   `mapstructure:"idp_service_account" yaml:"idp_service_account,omitempty"`
-	// Identity provider refresh directory interval/timeout settings.
-	RefreshDirectoryTimeout  time.Duration `mapstructure:"idp_refresh_directory_timeout" yaml:"idp_refresh_directory_timeout,omitempty"`
-	RefreshDirectoryInterval time.Duration `mapstructure:"idp_refresh_directory_interval" yaml:"idp_refresh_directory_interval,omitempty"`
-	QPS                      float64       `mapstructure:"idp_qps" yaml:"idp_qps"`
 
 	// RequestParams are custom request params added to the signin request as
 	// part of an Oauth2 code flow.
@@ -303,19 +289,14 @@ type certificateFilePair struct {
 
 // DefaultOptions are the default configuration options for pomerium
 var defaultOptions = Options{
-	Debug:                  false,
-	LogLevel:               "info",
-	Services:               "all",
-	CookieHTTPOnly:         true,
-	CookieSecure:           true,
-	CookieExpire:           14 * time.Hour,
-	CookieName:             "_pomerium",
-	DefaultUpstreamTimeout: 30 * time.Second,
-	SetResponseHeaders: map[string]string{
-		"X-Frame-Options":           "SAMEORIGIN",
-		"X-XSS-Protection":          "1; mode=block",
-		"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-	},
+	Debug:                    false,
+	LogLevel:                 "info",
+	Services:                 "all",
+	CookieHTTPOnly:           true,
+	CookieSecure:             true,
+	CookieExpire:             14 * time.Hour,
+	CookieName:               "_pomerium",
+	DefaultUpstreamTimeout:   30 * time.Second,
 	Addr:                     ":443",
 	ReadTimeout:              30 * time.Second,
 	WriteTimeout:             0, // support streaming by default
@@ -325,9 +306,6 @@ var defaultOptions = Options{
 	GRPCClientDNSRoundRobin:  true,
 	AuthenticateCallbackPath: "/oauth2/callback",
 	TracingSampleRate:        0.0001,
-	RefreshDirectoryInterval: 10 * time.Minute,
-	RefreshDirectoryTimeout:  1 * time.Minute,
-	QPS:                      1.0,
 
 	AutocertOptions: AutocertOptions{
 		Folder: dataDir(),
@@ -337,8 +315,13 @@ var defaultOptions = Options{
 	XffNumTrustedHops:                   0,
 	EnvoyAdminAccessLogPath:             os.DevNull,
 	EnvoyAdminProfilePath:               os.DevNull,
-	EnvoyAdminAddress:                   "127.0.0.1:9901",
 	ProgrammaticRedirectDomainWhitelist: []string{"localhost"},
+}
+
+var defaultSetResponseHeaders = map[string]string{
+	"X-Frame-Options":           "SAMEORIGIN",
+	"X-XSS-Protection":          "1; mode=block",
+	"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 }
 
 // NewDefaultOptions returns a copy the default options. It's the caller's
@@ -385,7 +368,9 @@ func optionsFromViper(configFile string) (*Options, error) {
 	if err := v.Unmarshal(o, ViperPolicyHooks, func(c *mapstructure.DecoderConfig) { c.Metadata = &metadata }); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
-	checkUnusedConfigFields(configFile, metadata.Unused)
+	if err := checkConfigKeysErrors(configFile, metadata.Unused); err != nil {
+		return nil, err
+	}
 
 	// This is necessary because v.Unmarshal will overwrite .viper field.
 	o.viper = v
@@ -396,17 +381,28 @@ func optionsFromViper(configFile string) (*Options, error) {
 	return o, nil
 }
 
-func checkUnusedConfigFields(configFile string, unused []string) {
-	keys := make([]string, 0, len(unused))
-	for _, k := range unused {
-		if !strings.HasPrefix(k, "policy[") { // policy's embedded protobuf structs are decoded by separate hook and are unknown to mapstructure
-			keys = append(keys, k)
+func checkConfigKeysErrors(configFile string, unused []string) error {
+	checks := CheckUnknownConfigFields(unused)
+	ctx := context.Background()
+	errInvalidConfigKeys := errors.New("some configuration options are no longer supported, please check logs for details")
+	var err error
+
+	for _, check := range checks {
+		var evt *zerolog.Event
+		switch check.KeyAction {
+		case KeyActionError:
+			evt = log.Error(ctx)
+			err = errInvalidConfigKeys
+		default:
+			evt = log.Warn(ctx)
 		}
+		evt.Str("config_file", configFile).Str("key", check.Key)
+		if check.DocsURL != "" {
+			evt = evt.Str("help", check.DocsURL)
+		}
+		evt.Msg(string(check.FieldCheckMsg))
 	}
-	if len(keys) == 0 {
-		return
-	}
-	log.Warn(context.Background()).Str("config_file", configFile).Strs("keys", keys).Msg("config contained unknown keys that were ignored")
+	return err
 }
 
 // parsePolicy initializes policy to the options from either base64 environmental
@@ -678,31 +674,12 @@ func (o *Options) Validate() error {
 		}
 	}
 
-	// if no service account was defined, there should not be any policies that
-	// assert group membership (except for azure which can be derived from the client
-	// id, secret and provider url)
-	if o.ServiceAccount == "" && o.Provider != "azure" {
-		for _, p := range o.GetAllPolicies() {
-			if len(p.AllowedGroups) != 0 {
-				return fmt.Errorf("config: `allowed_groups` requires `idp_service_account`")
-			}
-		}
-	}
-
 	// strip quotes from redirect address (#811)
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
 
 	if !o.InsecureServer && !hasCert && !o.AutocertOptions.Enable {
 		log.Warn(ctx).Msg("neither `autocert`, " +
 			"`insecure_server` or manually provided certificates were provided, server will be using a self-signed certificate")
-	}
-
-	switch o.Provider {
-	case azure.Name, github.Name, gitlab.Name, google.Name, okta.Name, onelogin.Name:
-		if len(o.Scopes) > 0 {
-			log.Warn(ctx).Msg(idpCustomScopesWarnMsg)
-		}
-	default:
 	}
 
 	if err := ValidateDNSLookupFamily(o.DNSLookupFamily); err != nil {
@@ -883,13 +860,12 @@ func (o *Options) GetOauthOptions() (oauth.Options, error) {
 		return oauth.Options{}, err
 	}
 	return oauth.Options{
-		RedirectURL:    redirectURL,
-		ProviderName:   o.Provider,
-		ProviderURL:    o.ProviderURL,
-		ClientID:       o.ClientID,
-		ClientSecret:   clientSecret,
-		Scopes:         o.Scopes,
-		ServiceAccount: o.ServiceAccount,
+		RedirectURL:  redirectURL,
+		ProviderName: o.Provider,
+		ProviderURL:  o.ProviderURL,
+		ClientID:     o.ClientID,
+		ClientSecret: clientSecret,
+		Scopes:       o.Scopes,
 	}, nil
 }
 
@@ -986,7 +962,7 @@ func (o *Options) GetSharedKey() ([]byte, error) {
 		sharedKey = string(bs)
 	}
 	// mutual auth between services on the same host can be generated at runtime
-	if IsAll(o.Services) && o.SharedKey == "" && o.DataBrokerStorageType == StorageInMemoryName {
+	if IsAll(o.Services) && sharedKey == "" {
 		sharedKey = randomSharedKey
 	}
 	if sharedKey == "" {
@@ -998,36 +974,42 @@ func (o *Options) GetSharedKey() ([]byte, error) {
 	return base64.StdEncoding.DecodeString(sharedKey)
 }
 
+// GetHPKEPrivateKey gets the hpke.PrivateKey dervived from the shared key.
+func (o *Options) GetHPKEPrivateKey() (*hpke.PrivateKey, error) {
+	sharedKey, err := o.GetSharedKey()
+	if err != nil {
+		return nil, err
+	}
+
+	return hpke.DerivePrivateKey(sharedKey), nil
+}
+
 // GetGoogleCloudServerlessAuthenticationServiceAccount gets the GoogleCloudServerlessAuthenticationServiceAccount.
 func (o *Options) GetGoogleCloudServerlessAuthenticationServiceAccount() string {
-	if o.GoogleCloudServerlessAuthenticationServiceAccount == "" && o.Provider == "google" {
-		return o.ServiceAccount
-	}
 	return o.GoogleCloudServerlessAuthenticationServiceAccount
 }
 
 // GetSetResponseHeaders gets the SetResponseHeaders.
-func (o *Options) GetSetResponseHeaders() map[string]string {
+func (o *Options) GetSetResponseHeaders(requireStrictTransportSecurity bool) map[string]string {
+	hdrs := o.SetResponseHeaders
+	if hdrs == nil {
+		hdrs = make(map[string]string)
+		for k, v := range defaultSetResponseHeaders {
+			hdrs[k] = v
+		}
+	}
 	if _, ok := o.SetResponseHeaders[DisableHeaderKey]; ok {
-		return map[string]string{}
+		hdrs = make(map[string]string)
 	}
-	return o.SetResponseHeaders
-}
-
-// GetQPS gets the QPS.
-func (o *Options) GetQPS() float64 {
-	if o.QPS < 1 {
-		return 1
+	if !requireStrictTransportSecurity {
+		delete(hdrs, "Strict-Transport-Security")
 	}
-	return o.QPS
+	return hdrs
 }
 
 // GetCodecType gets a codec type.
 func (o *Options) GetCodecType() CodecType {
 	if o.CodecType == CodecTypeUnset {
-		if IsAll(o.Services) {
-			return CodecTypeHTTP1
-		}
 		return CodecTypeAuto
 	}
 	return o.CodecType
@@ -1181,6 +1163,15 @@ func (o *Options) GetCookieSecret() ([]byte, error) {
 		}
 		cookieSecret = string(bs)
 	}
+
+	if IsAll(o.Services) && cookieSecret == "" {
+		log.WarnCookieSecret()
+		cookieSecret = randomSharedKey
+	}
+	if cookieSecret == "" {
+		return nil, errors.New("empty cookie secret")
+	}
+
 	return base64.StdEncoding.DecodeString(cookieSecret)
 }
 
@@ -1354,15 +1345,6 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	}
 	if len(settings.Scopes) > 0 {
 		o.Scopes = settings.Scopes
-	}
-	if settings.IdpServiceAccount != nil {
-		o.ServiceAccount = settings.GetIdpServiceAccount()
-	}
-	if settings.IdpRefreshDirectoryTimeout != nil {
-		o.RefreshDirectoryTimeout = settings.GetIdpRefreshDirectoryTimeout().AsDuration()
-	}
-	if settings.IdpRefreshDirectoryInterval != nil {
-		o.RefreshDirectoryInterval = settings.GetIdpRefreshDirectoryInterval().AsDuration()
 	}
 	if settings.RequestParams != nil && len(settings.RequestParams) > 0 {
 		o.RequestParams = settings.RequestParams

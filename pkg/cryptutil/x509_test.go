@@ -9,8 +9,9 @@ import (
 )
 
 // generated using:
-//   openssl genpkey -algorithm x25519 -out priv.pem
-//   openssl pkey -in priv.pem -out pub.pem -pubout
+//
+//	openssl genpkey -algorithm x25519 -out priv.pem
+//	openssl pkey -in priv.pem -out pub.pem -pubout
 var (
 	rawPrivateX25519Key = []byte(`-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VuBCIEIKALoNgzCksH0v0Bc7Ghl8vGin4MAIKpmtZSmaMN0Vtb

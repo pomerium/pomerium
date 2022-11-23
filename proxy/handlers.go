@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -22,9 +23,11 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 	h.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 
 	// special pomerium endpoints for users to view their session
-	h.Path("/").HandlerFunc(p.userInfo).Methods(http.MethodGet)
-	h.Path("/sign_out").Handler(httputil.HandlerFunc(p.SignOut)).Methods(http.MethodGet, http.MethodPost)
+	h.Path("/").Handler(httputil.HandlerFunc(p.userInfo)).Methods(http.MethodGet)
+	h.Path("/device-enrolled").Handler(httputil.HandlerFunc(p.deviceEnrolled))
 	h.Path("/jwt").Handler(httputil.HandlerFunc(p.jwtAssertion)).Methods(http.MethodGet)
+	h.Path("/sign_out").Handler(httputil.HandlerFunc(p.SignOut)).Methods(http.MethodGet, http.MethodPost)
+	h.Path("/webauthn").Handler(p.webauthn)
 
 	// called following authenticate auth flow to grab a new or existing session
 	// the route specific cookie is returned in a signed query params
@@ -81,21 +84,22 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (p *Proxy) userInfo(w http.ResponseWriter, r *http.Request) {
-	state := p.state.Load()
-
-	redirectURL := urlutil.GetAbsoluteURL(r).String()
-	if ref := r.Header.Get(httputil.HeaderReferrer); ref != "" {
-		redirectURL = ref
+func (p *Proxy) userInfo(w http.ResponseWriter, r *http.Request) error {
+	data, err := p.getUserInfoData(r)
+	if err != nil {
+		return err
 	}
+	handlers.UserInfo(data).ServeHTTP(w, r)
+	return nil
+}
 
-	uri := state.authenticateDashboardURL.ResolveReference(&url.URL{
-		RawQuery: url.Values{
-			urlutil.QueryRedirectURI: {redirectURL},
-		}.Encode(),
-	})
-	uri = urlutil.NewSignedURL(state.sharedKey, uri).Sign()
-	httputil.Redirect(w, r, uri.String(), http.StatusFound)
+func (p *Proxy) deviceEnrolled(w http.ResponseWriter, r *http.Request) error {
+	data, err := p.getUserInfoData(r)
+	if err != nil {
+		return err
+	}
+	handlers.DeviceEnrolled(data).ServeHTTP(w, r)
+	return nil
 }
 
 // Callback handles the result of a successful call to the authenticate service

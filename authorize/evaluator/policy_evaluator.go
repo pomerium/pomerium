@@ -198,7 +198,7 @@ func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *PolicyRequest) (*Po
 }
 
 func (e *PolicyEvaluator) evaluateQuery(ctx context.Context, req *PolicyRequest, query policyQuery) (*PolicyResponse, error) {
-	_, span := trace.StartSpan(ctx, "authorize.PolicyEvaluator.evaluateQuery")
+	ctx, span := trace.StartSpan(ctx, "authorize.PolicyEvaluator.evaluateQuery")
 	defer span.End()
 	span.AddAttributes(octrace.StringAttribute("script_checksum", query.checksum()))
 

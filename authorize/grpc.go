@@ -43,8 +43,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	hreq := getHTTPRequestFromCheckRequest(in)
 	ctx = requestid.WithValue(ctx, requestid.FromHTTPHeader(hreq.Header))
 
-	rawJWT, _ := loadRawSession(hreq, a.currentOptions.Load(), state.encoder)
-	sessionState, _ := loadSession(state.encoder, rawJWT)
+	sessionState, _ := state.sessionStore.LoadSessionState(hreq)
 
 	var s sessionOrServiceAccount
 	var u *user.User
@@ -55,7 +54,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 			sessionState = nil
 		}
 	}
-	if s != nil {
+	if sessionState != nil && s != nil {
 		u, _ = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
 	}
 

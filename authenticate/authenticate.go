@@ -7,9 +7,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/pomerium/pomerium/authenticate/handlers/webauthn"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
+	"github.com/pomerium/pomerium/internal/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )

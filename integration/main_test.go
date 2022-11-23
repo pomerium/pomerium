@@ -1,3 +1,4 @@
+// Package main contains the pomerium integration tests
 package main
 
 import (
@@ -152,10 +153,9 @@ func setIDPAndClusterType(ctx context.Context) {
 	}
 	for _, container := range containers {
 		for _, name := range container.Names {
-			parts := regexp.MustCompile(`^/(\w+?)-(\w+?)_pomerium.*$`).FindStringSubmatch(name)
-			if len(parts) == 3 {
-				IDP = parts[1]
-				ClusterType = parts[2]
+			parts := regexp.MustCompile(`^/(\w+?)[-_]pomerium.*$`).FindStringSubmatch(name)
+			if len(parts) == 2 {
+				ClusterType = parts[1]
 			}
 		}
 	}

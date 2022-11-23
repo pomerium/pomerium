@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sets"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -80,6 +81,14 @@ func (b *Builder) BuildListeners(ctx context.Context, cfg *config.Config) ([]*en
 		listeners = append(listeners, li)
 	}
 
+	if cfg.Options.EnvoyAdminAddress != "" {
+		li, err := b.buildEnvoyAdminListener(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		listeners = append(listeners, li)
+	}
+
 	li, err := b.buildOutboundListener(cfg)
 	if err != nil {
 		return nil, err
@@ -101,7 +110,7 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 			return nil, err
 		}
 
-		filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, allDomains)
+		filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, allDomains, false)
 		if err != nil {
 			return nil, err
 		}
@@ -120,7 +129,9 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 
 	chains, err := b.buildFilterChains(cfg, cfg.Options.Addr,
 		func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error) {
-			filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, httpDomains)
+			allCertificates, _ := cfg.AllCertificates()
+			requireStrictTransportSecurity := cryptutil.HasCertificateForDomain(allCertificates, tlsDomain)
+			filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, httpDomains, requireStrictTransportSecurity)
 			if err != nil {
 				return nil, err
 			}
@@ -270,6 +281,7 @@ func (b *Builder) buildFilterChains(
 func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	options *config.Options,
 	domains []string,
+	requireStrictTransportSecurity bool,
 ) (*envoy_config_listener_v3.Filter, error) {
 	authorizeURLs, err := options.GetInternalAuthorizeURLs()
 	if err != nil {
@@ -283,7 +295,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
 	for _, domain := range domains {
-		vh, err := b.buildVirtualHost(options, domain, domain)
+		vh, err := b.buildVirtualHost(options, domain, domain, requireStrictTransportSecurity)
 		if err != nil {
 			return nil, err
 		}
@@ -314,7 +326,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		}
 	}
 
-	vh, err := b.buildVirtualHost(options, "catch-all", "*")
+	vh, err := b.buildVirtualHost(options, "catch-all", "*", requireStrictTransportSecurity)
 	if err != nil {
 		return nil, err
 	}
@@ -373,7 +385,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		UseRemoteAddress:  &wrappers.BoolValue{Value: true},
 		SkipXffAppend:     options.SkipXffAppend,
 		XffNumTrustedHops: options.XffNumTrustedHops,
-		LocalReplyConfig:  b.buildLocalReplyConfig(options),
+		LocalReplyConfig:  b.buildLocalReplyConfig(options, requireStrictTransportSecurity),
 	}), nil
 }
 
@@ -381,19 +393,35 @@ func (b *Builder) buildMetricsHTTPConnectionManagerFilter() (*envoy_config_liste
 	rc, err := b.buildRouteConfiguration("metrics", []*envoy_config_route_v3.VirtualHost{{
 		Name:    "metrics",
 		Domains: []string{"*"},
-		Routes: []*envoy_config_route_v3.Route{{
-			Name: "metrics",
-			Match: &envoy_config_route_v3.RouteMatch{
-				PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/"},
-			},
-			Action: &envoy_config_route_v3.Route_Route{
-				Route: &envoy_config_route_v3.RouteAction{
-					ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
-						Cluster: "pomerium-control-plane-metrics",
+		Routes: []*envoy_config_route_v3.Route{
+			{
+				Name: "envoy-metrics",
+				Match: &envoy_config_route_v3.RouteMatch{
+					PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: metrics.EnvoyMetricsPath},
+				},
+				Action: &envoy_config_route_v3.Route_Route{
+					Route: &envoy_config_route_v3.RouteAction{
+						ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+							Cluster: envoyAdminClusterName,
+						},
+						PrefixRewrite: "/stats/prometheus",
 					},
 				},
 			},
-		}},
+			{
+				Name: "metrics",
+				Match: &envoy_config_route_v3.RouteMatch{
+					PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/"},
+				},
+				Action: &envoy_config_route_v3.Route_Route{
+					Route: &envoy_config_route_v3.RouteAction{
+						ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+							Cluster: "pomerium-control-plane-metrics",
+						},
+					},
+				},
+			},
+		},
 	}})
 	if err != nil {
 		return nil, err

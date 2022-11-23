@@ -1,6 +1,5 @@
 # See detailed configuration settings : https://www.pomerium.com/docs/reference/
 
-
 # this is the domain the identity provider will callback after a user authenticates
 authenticate_service_url: https://authenticate.localhost.pomerium.io
 
@@ -20,7 +19,6 @@ certificate_key_file: /pomerium/privkey.pem
 idp_provider: google
 idp_client_id: REPLACE_ME
 idp_client_secret: REPLACE_ME
-#idp_service_account: REPLACE_ME # Required by some identity providers for directory sync
 
 # Generate 256 bit random keys  e.g. `head -c32 /dev/urandom | base64`
 cookie_secret: V2JBZk0zWGtsL29UcFUvWjVDWWQ2UHExNXJ0b2VhcDI=

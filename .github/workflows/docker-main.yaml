@@ -15,18 +15,18 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           fetch-depth: 0
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@8b122486cedac8393e77aa9734c3528886e4a1a8 # pin@v1
+        uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@dc7b9719a96d48369863986a06765841d7ea23f6 # pin@v1
+        uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325
 
       - name: Login to DockerHub
-        uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b # pin@v1
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -47,7 +47,7 @@ jobs:
           echo ::set-output name=sha-tag::${SHA_TAG}
 
       - name: Docker Publish - Main
-        uses: docker/build-push-action@c84f38281176d4c9cdb1626ffafcd6b3911b5d94 # pin@v2
+        uses: docker/build-push-action@c56af957549030174b10d6867f20e78cfd7debc5
         with:
           context: .
           file: ./Dockerfile
@@ -60,7 +60,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Docker Publish - Debug
-        uses: docker/build-push-action@c84f38281176d4c9cdb1626ffafcd6b3911b5d94 # pin@v2
+        uses: docker/build-push-action@c56af957549030174b10d6867f20e78cfd7debc5
         with:
           context: .
           file: ./Dockerfile.debug
@@ -77,20 +77,20 @@ jobs:
     needs: publish
     steps:
       - name: Checkout Gitops Repo
-        uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           repository: pomerium/gitops-argocd
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump psql environment
-        uses: mikefarah/yq@9b6961875e10b058aeb482f263f26ca0f6b18eb8 # pin@v4.23.1
+        uses: mikefarah/yq@ce9701ca3a1ac2779ff5f3857d04ee003acda066
         with:
           cmd:
             yq eval '.pomerium.image.tag = "${{ needs.publish.outputs.sha-tag }}"' -i
             projects/pomerium-master-postgres/pomerium/values.yaml
 
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@49620cd3ed21ee620a48530e81dba0d139c9cb80 # pin@v4
+        uses: stefanzweifel/git-auto-commit-action@0b007fbd1180b8e3a3668b21c6517392fe8f26eb
         with:
           commit_message: |
             Bump test environment pomerium/pomerium

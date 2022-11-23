@@ -13,6 +13,7 @@ func (b *Builder) buildVirtualHost(
 	options *config.Options,
 	name string,
 	domain string,
+	requireStrictTransportSecurity bool,
 ) (*envoy_config_route_v3.VirtualHost, error) {
 	vh := &envoy_config_route_v3.VirtualHost{
 		Name:    name,
@@ -28,7 +29,7 @@ func (b *Builder) buildVirtualHost(
 
 	// if we're the proxy or authenticate service, add our global headers
 	if config.IsProxy(options.Services) || config.IsAuthenticate(options.Services) {
-		vh.ResponseHeadersToAdd = toEnvoyHeaders(options.GetSetResponseHeaders())
+		vh.ResponseHeadersToAdd = toEnvoyHeaders(options.GetSetResponseHeaders(requireStrictTransportSecurity))
 	}
 
 	return vh, nil
@@ -38,12 +39,13 @@ func (b *Builder) buildVirtualHost(
 // coming directly from envoy
 func (b *Builder) buildLocalReplyConfig(
 	options *config.Options,
+	requireStrictTransportSecurity bool,
 ) *envoy_http_connection_manager.LocalReplyConfig {
 	// add global headers for HSTS headers (#2110)
 	var headers []*envoy_config_core_v3.HeaderValueOption
 	// if we're the proxy or authenticate service, add our global headers
 	if config.IsProxy(options.Services) || config.IsAuthenticate(options.Services) {
-		headers = toEnvoyHeaders(options.GetSetResponseHeaders())
+		headers = toEnvoyHeaders(options.GetSetResponseHeaders(requireStrictTransportSecurity))
 	}
 
 	return &envoy_http_connection_manager.LocalReplyConfig{

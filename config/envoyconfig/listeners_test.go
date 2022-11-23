@@ -63,15 +63,27 @@ func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 					"virtualHosts": [{
 						"name": "metrics",
 						"domains": ["*"],
-						"routes": [{
-							"name": "metrics",
-							"match": {
-								"prefix": "/"
+						"routes": [
+							{
+								"name": "envoy-metrics",
+								"match": {
+									"prefix": "/metrics/envoy"
+								},
+								"route": {
+									"cluster": "pomerium-envoy-admin",
+									"prefixRewrite": "/stats/prometheus"
+								}
 							},
-							"route": {
-								"cluster": "pomerium-control-plane-metrics"
+							{
+								"name": "metrics",
+								"match": {
+									"prefix": "/"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-metrics"
+								}
 							}
-						}]
+						]
 					}]
 				},
 				"statPrefix": "metrics"
@@ -117,7 +129,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	options := config.NewDefaultOptions()
 	options.SkipXffAppend = true
 	options.XffNumTrustedHops = 1
-	filter, err := b.buildMainHTTPConnectionManagerFilter(options, []string{"example.com"})
+	filter, err := b.buildMainHTTPConnectionManagerFilter(options, []string{"example.com"}, true)
 	require.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `{
 		"name": "envoy.filters.network.http_connection_manager",
@@ -139,7 +151,6 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 				}
 			}],
 			"alwaysSetRequestIdInResponse": true,
-			"codecType": "HTTP1",
 			"commonHttpProtocolOptions": {
 				"idleTimeout": "300s"
 			},

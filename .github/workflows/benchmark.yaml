@@ -15,27 +15,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [1.18.x]
+        go-version: [1.19.x]
         node-version: [16.x]
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/setup-go@268d8c0ca0432bb2cf416faae41297df9d262d7f # pin@v2
+      - uses: actions/setup-go@c4a742cab115ed795e34d4513e2cf7d472deb55f
         with:
           go-version: ${{ matrix.go-version }}
 
-      - uses: actions/setup-node@2fddd8803e2f5c9604345a0b591c3020ee971a93 # pin@v3
+      - uses: actions/setup-node@8c91899e586c5b171469028077307d293428b516
         with:
           node-version: ${{ matrix.node-version }}
 
       - name: set env vars
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
-      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # pin@v3
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
         with:
           fetch-depth: 0
 
-      - uses: actions/cache@fd5de65bc895cf536527842281bea11763fefd77 # pin@v3
+      - uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
         with:
           path: |
             ~/go/pkg
@@ -52,7 +52,7 @@ jobs:
       - name: start cluster
         run: |
           export POMERIUM_TAG=dev
-          cd ./integration/clusters/google-single
+          cd ./integration/clusters/single
           docker-compose up -d
 
       - name: integration tests

@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-jose/go-jose/v3"
 	"github.com/open-policy-agent/opa/rego"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
@@ -120,7 +121,7 @@ func New(ctx context.Context, store *store.Store, options ...Option) (*Evaluator
 
 // Evaluate evaluates the rego for the given policy and generates the identity headers.
 func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error) {
-	_, span := trace.StartSpan(ctx, "authorize.Evaluator.Evaluate")
+	ctx, span := trace.StartSpan(ctx, "authorize.Evaluator.Evaluate")
 	defer span.End()
 
 	if req.Policy == nil {
@@ -147,18 +148,29 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return nil, fmt.Errorf("authorize: error validating client certificate: %w", err)
 	}
 
-	policyOutput, err := policyEvaluator.Evaluate(ctx, &PolicyRequest{
-		HTTP:                     req.HTTP,
-		Session:                  req.Session,
-		IsValidClientCertificate: isValidClientCertificate,
-	})
-	if err != nil {
-		return nil, err
-	}
+	eg, ectx := errgroup.WithContext(ctx)
 
-	headersReq := NewHeadersRequestFromPolicy(req.Policy)
-	headersReq.Session = req.Session
-	headersOutput, err := e.headersEvaluators.Evaluate(ctx, headersReq)
+	var policyOutput *PolicyResponse
+	eg.Go(func() error {
+		var err error
+		policyOutput, err = policyEvaluator.Evaluate(ectx, &PolicyRequest{
+			HTTP:                     req.HTTP,
+			Session:                  req.Session,
+			IsValidClientCertificate: isValidClientCertificate,
+		})
+		return err
+	})
+
+	var headersOutput *HeadersResponse
+	eg.Go(func() error {
+		headersReq := NewHeadersRequestFromPolicy(req.Policy)
+		headersReq.Session = req.Session
+		var err error
+		headersOutput, err = e.headersEvaluators.Evaluate(ectx, headersReq)
+		return err
+	})
+
+	err = eg.Wait()
 	if err != nil {
 		return nil, err
 	}

@@ -24,14 +24,13 @@ const (
 
 // A MetricsManager manages metrics for a given configuration.
 type MetricsManager struct {
-	mu                sync.RWMutex
-	installationID    string
-	serviceName       string
-	addr              string
-	basicAuth         string
-	envoyAdminAddress string
-	handler           http.Handler
-	endpoints         []MetricsScrapeEndpoint
+	mu             sync.RWMutex
+	installationID string
+	serviceName    string
+	addr           string
+	basicAuth      string
+	handler        http.Handler
+	endpoints      []MetricsScrapeEndpoint
 }
 
 // NewMetricsManager creates a new MetricsManager.
@@ -95,7 +94,6 @@ func (mgr *MetricsManager) updateServer(ctx context.Context, cfg *Config) {
 	mgr.addr = cfg.Options.MetricsAddr
 	mgr.basicAuth = cfg.Options.MetricsBasicAuth
 	mgr.installationID = cfg.Options.InstallationID
-	mgr.envoyAdminAddress = cfg.Options.EnvoyAdminAddress
 	mgr.handler = nil
 
 	if mgr.addr == "" {
@@ -106,7 +104,7 @@ func (mgr *MetricsManager) updateServer(ctx context.Context, cfg *Config) {
 	mgr.endpoints = append(cfg.MetricsScrapeEndpoints,
 		MetricsScrapeEndpoint{
 			Name: "envoy",
-			URL:  url.URL{Scheme: "http", Host: cfg.Options.EnvoyAdminAddress, Path: "/stats/prometheus"},
+			URL:  url.URL{Scheme: "http", Host: cfg.Options.MetricsAddr, Path: "/metrics/envoy"},
 		})
 	handler, err := metrics.PrometheusHandler(toInternalEndpoints(mgr.endpoints), mgr.installationID, defaultMetricsTimeout)
 	if err != nil {
@@ -125,7 +123,6 @@ func (mgr *MetricsManager) configUnchanged(cfg *Config) bool {
 	return cfg.Options.MetricsAddr == mgr.addr &&
 		cfg.Options.MetricsBasicAuth == mgr.basicAuth &&
 		cfg.Options.InstallationID == mgr.installationID &&
-		cfg.Options.EnvoyAdminAddress == mgr.envoyAdminAddress &&
 		reflect.DeepEqual(mgr.endpoints, cfg.MetricsScrapeEndpoints)
 }
 
