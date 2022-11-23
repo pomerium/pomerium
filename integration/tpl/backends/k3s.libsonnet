@@ -74,6 +74,15 @@ function(idp, manifests) {
           'k3s-tmp:/k3s-tmp',
         ],
       }) +
+      utils.ComposeService('k3s-server-ready', {
+        image: 'jwilder/dockerize:0.6.1',
+        command: [
+          '-wait',
+          'tcp://k3s-server:6443',
+          '-timeout',
+          '10m',
+        ],
+      }) +
       utils.ComposeService('k3s-agent', {
         image: 'rancher/k3s:${K3S_TAG:-' + k3s_tag + '}',
         entrypoint: Command() + ['agent'],
@@ -98,8 +107,8 @@ function(idp, manifests) {
       utils.ComposeService('k3s-init', {
         image: 'rancher/k3s:${K3S_TAG:-' + k3s_tag + '}',
         depends_on: {
-          'k3s-server': {
-            condition: 'service_healthy',
+          'k3s-server-ready': {
+            condition: 'service_completed_successfully',
           },
         },
         entrypoint: [

@@ -41,8 +41,8 @@ services:
     - k3s-tmp:/k3s-tmp
   k3s-init:
     depends_on:
-      k3s-server:
-        condition: service_healthy
+      k3s-server-ready:
+        condition: service_completed_successfully
     entrypoint:
     - sh
     - -c
@@ -1074,6 +1074,17 @@ services:
       nproc: 65535
     volumes:
     - k3s-tmp:/k3s-tmp
+  k3s-server-ready:
+    command:
+    - -wait
+    - tcp://k3s-server:6443
+    - -timeout
+    - 10m
+    image: jwilder/dockerize:0.6.1
+    networks:
+      main:
+        aliases:
+        - k3s-server-ready
 volumes:
   k3s-tmp:
     driver_opts:
