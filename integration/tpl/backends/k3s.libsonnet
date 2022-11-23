@@ -30,7 +30,7 @@ local InstallManifest(manifest) =
     'kubectl wait --for=condition=available deployment/' + manifest.metadata.name,
   ] else []);
 
-local k3s_tag = 'v1.21.14-k3s1';
+local k3s_tag = 'v1.22.16+k3s1';
 
 function(idp, manifests) {
   compose: {
@@ -60,9 +60,6 @@ function(idp, manifests) {
           K3S_TOKEN: 'TOKEN',
           K3S_KUBECONFIG_OUTPUT: '/k3s-tmp/kubeconfig.yaml',
           K3S_KUBECONFIG_MODE: '666',
-        },
-        healthcheck: {
-          test: ['CMD', 'kubectl', 'cluster-info'],
         },
         ports: [
           '6443:6443/tcp',
