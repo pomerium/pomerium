@@ -999,10 +999,10 @@ func (o *Options) GetSharedKey() ([]byte, error) {
 }
 
 // GetHPKEPrivateKey gets the hpke.PrivateKey dervived from the shared key.
-func (o *Options) GetHPKEPrivateKey() (hpke.PrivateKey, error) {
+func (o *Options) GetHPKEPrivateKey() (*hpke.PrivateKey, error) {
 	sharedKey, err := o.GetSharedKey()
 	if err != nil {
-		return hpke.PrivateKey{}, err
+		return nil, err
 	}
 
 	return hpke.DerivePrivateKey(sharedKey), nil
