@@ -199,6 +199,7 @@ type Selector struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Filter:
+	//
 	//	*Selector_All
 	//	*Selector_Tag
 	//	*Selector_IdFilter_
@@ -828,6 +829,7 @@ type Connection struct {
 	// the URL of the pomerium server to connect to
 	PomeriumUrl *string `protobuf:"bytes,4,opt,name=pomerium_url,json=pomeriumUrl,proto3,oneof" json:"pomerium_url,omitempty"`
 	// Types that are assignable to TlsOptions:
+	//
 	//	*Connection_DisableTlsVerification
 	//	*Connection_CaCert
 	TlsOptions isConnection_TlsOptions `protobuf_oneof:"tls_options"`

@@ -163,7 +163,7 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 		return nil, err
 	}
 
-	srv.xdsmgr = xdsmgr.NewManager(res, eventsMgr)
+	srv.xdsmgr = xdsmgr.NewManager(res)
 	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv.GRPCServer, srv.xdsmgr)
 
 	return srv, nil

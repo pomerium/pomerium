@@ -144,6 +144,7 @@ type RouteRewriteHeader struct {
 
 	Header string `protobuf:"bytes,1,opt,name=header,proto3" json:"header,omitempty"`
 	// Types that are assignable to Matcher:
+	//
 	//	*RouteRewriteHeader_Prefix
 	Matcher isRouteRewriteHeader_Matcher `protobuf_oneof:"matcher"`
 	Value   string                       `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
