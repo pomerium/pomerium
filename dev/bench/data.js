@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1669168180952,
+  "lastUpdate": 1669169403595,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -20964,6 +20964,38 @@ window.BENCHMARK_DATA = {
             "value": 7382422,
             "unit": "ns/op",
             "extra": "158 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "b99c5bd20af9c125d956cce009136d13028a10a7",
+          "message": "hpke: add HPKE key to JWKS endpoint",
+          "timestamp": "2022-11-22T14:55:04Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3762/commits/b99c5bd20af9c125d956cce009136d13028a10a7"
+        },
+        "date": 1669169403060,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10914267,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7616923,
+            "unit": "ns/op",
+            "extra": "152 times\n2 procs"
           }
         ]
       }
