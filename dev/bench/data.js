@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1669218123000,
+  "lastUpdate": 1669218629007,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -21060,6 +21060,42 @@ window.BENCHMARK_DATA = {
             "value": 7578653,
             "unit": "ns/op",
             "extra": "153 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ba07afc24558bc3bd7e2f692835ea953751a28f3",
+          "message": "hpke: add HPKE key to JWKS endpoint (#3762)\n\n* hpke: add HPKE key to JWKS endpoint\r\n\r\n* fix test, add http caching headers\r\n\r\n* fix error message\r\n\r\n* use pointers",
+          "timestamp": "2022-11-23T08:45:59-07:00",
+          "tree_id": "7e267032617c90f03cf162fb472faacbb2425bac",
+          "url": "https://github.com/pomerium/pomerium/commit/ba07afc24558bc3bd7e2f692835ea953751a28f3"
+        },
+        "date": 1669218628513,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11550660,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 49335643,
+            "unit": "ns/op",
+            "extra": "122 times\n2 procs"
           }
         ]
       }
