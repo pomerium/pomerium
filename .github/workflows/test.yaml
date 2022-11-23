@@ -116,7 +116,7 @@ jobs:
         go-version: [1.19.x]
         node-version: [16.x]
         platform: [ubuntu-latest]
-        deployment: [kubernetes, multi, nginx, single, traefik]
+        deployment: [kubernetes, multi, single]
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/setup-go@c4a742cab115ed795e34d4513e2cf7d472deb55f

@@ -43,18 +43,6 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	hreq := getHTTPRequestFromCheckRequest(in)
 	ctx = requestid.WithValue(ctx, requestid.FromHTTPHeader(hreq.Header))
 
-	isForwardAuth := a.isForwardAuth(in)
-	if isForwardAuth {
-		// update the incoming http request's uri to match the forwarded URI
-		fwdAuthURI := urlutil.GetForwardAuthURL(hreq)
-		in.Attributes.Request.Http.Scheme = fwdAuthURI.Scheme
-		in.Attributes.Request.Http.Host = fwdAuthURI.Host
-		in.Attributes.Request.Http.Path = fwdAuthURI.EscapedPath()
-		if fwdAuthURI.RawQuery != "" {
-			in.Attributes.Request.Http.Path += "?" + fwdAuthURI.RawQuery
-		}
-	}
-
 	sessionState, _ := state.sessionStore.LoadSessionState(hreq)
 
 	var s sessionOrServiceAccount
@@ -93,22 +81,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		ctx = contextutil.WithPolicyEvaluationTraces(ctx, res.Traces)
 	}
 
-	isForwardAuthVerify := isForwardAuth && hreq.URL.Path == "/verify"
-	return a.handleResult(ctx, in, req, res, isForwardAuthVerify)
-}
-
-// isForwardAuth returns if the current request is a forward auth route.
-func (a *Authorize) isForwardAuth(req *envoy_service_auth_v3.CheckRequest) bool {
-	opts := a.currentOptions.Load()
-
-	forwardAuthURL, err := opts.GetForwardAuthURL()
-	if err != nil || forwardAuthURL == nil {
-		return false
-	}
-
-	checkURL := getCheckRequestURL(req)
-
-	return urlutil.StripPort(checkURL.Host) == urlutil.StripPort(forwardAuthURL.Host)
+	return a.handleResult(ctx, in, req, res)
 }
 
 func (a *Authorize) getEvaluatorRequestFromCheckRequest(

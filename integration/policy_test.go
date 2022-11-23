@@ -53,11 +53,6 @@ func TestQueryStringParams(t *testing.T) {
 }
 
 func TestCORS(t *testing.T) {
-	if ClusterType == "traefik" || ClusterType == "nginx" {
-		t.Skip()
-		return
-	}
-
 	ctx := context.Background()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
@@ -97,11 +92,6 @@ func TestCORS(t *testing.T) {
 }
 
 func TestPreserveHostHeader(t *testing.T) {
-	if ClusterType == "traefik" || ClusterType == "nginx" {
-		t.Skip()
-		return
-	}
-
 	ctx := context.Background()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
@@ -159,11 +149,6 @@ func TestPreserveHostHeader(t *testing.T) {
 }
 
 func TestSetRequestHeaders(t *testing.T) {
-	if ClusterType == "traefik" || ClusterType == "nginx" {
-		t.Skip()
-		return
-	}
-
 	ctx := context.Background()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
@@ -221,11 +206,6 @@ func TestRemoveRequestHeaders(t *testing.T) {
 }
 
 func TestWebsocket(t *testing.T) {
-	if ClusterType == "traefik" || ClusterType == "nginx" {
-		t.Skip()
-		return
-	}
-
 	ctx := context.Background()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
@@ -290,11 +270,6 @@ func TestGoogleCloudRun(t *testing.T) {
 }
 
 func TestLoadBalancer(t *testing.T) {
-	if ClusterType == "traefik" || ClusterType == "nginx" {
-		t.Skip()
-		return
-	}
-
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Minute*10)
 	defer clearTimeout()
 

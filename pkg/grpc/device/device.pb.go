@@ -332,6 +332,7 @@ type Type struct {
 	Id   string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	// Types that are assignable to Specifier:
+	//
 	//	*Type_Webauthn
 	Specifier isType_Specifier `protobuf_oneof:"specifier"`
 }
@@ -521,6 +522,7 @@ type Credential struct {
 	EnrollmentId string `protobuf:"bytes,3,opt,name=enrollment_id,json=enrollmentId,proto3" json:"enrollment_id,omitempty"`
 	UserId       string `protobuf:"bytes,4,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	// Types that are assignable to Specifier:
+	//
 	//	*Credential_Webauthn
 	Specifier isCredential_Specifier `protobuf_oneof:"specifier"`
 }

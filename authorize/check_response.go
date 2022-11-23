@@ -32,25 +32,24 @@ func (a *Authorize) handleResult(
 	in *envoy_service_auth_v3.CheckRequest,
 	request *evaluator.Request,
 	result *evaluator.Result,
-	isForwardAuthVerify bool,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
 	// when the user is unauthenticated it means they haven't
 	// logged in yet, so redirect to authenticate
 	if result.Allow.Reasons.Has(criteria.ReasonUserUnauthenticated) ||
 		result.Deny.Reasons.Has(criteria.ReasonUserUnauthenticated) {
-		return a.requireLoginResponse(ctx, in, request, isForwardAuthVerify)
+		return a.requireLoginResponse(ctx, in, request)
 	}
 
 	// when the user's device is unauthenticated it means they haven't
 	// registered a webauthn device yet, so redirect to the webauthn flow
 	if result.Allow.Reasons.Has(criteria.ReasonDeviceUnauthenticated) ||
 		result.Deny.Reasons.Has(criteria.ReasonDeviceUnauthenticated) {
-		return a.requireWebAuthnResponse(ctx, in, request, result, isForwardAuthVerify)
+		return a.requireWebAuthnResponse(ctx, in, request, result)
 	}
 
 	// if there's a deny, the result is denied using the deny reasons.
 	if result.Deny.Value {
-		return a.handleResultDenied(ctx, in, request, result, isForwardAuthVerify, result.Deny.Reasons)
+		return a.handleResultDenied(ctx, in, request, result, result.Deny.Reasons)
 	}
 
 	// if there's an allow, the result is allowed.
@@ -59,7 +58,7 @@ func (a *Authorize) handleResult(
 	}
 
 	// otherwise, the result is denied using the allow reasons.
-	return a.handleResultDenied(ctx, in, request, result, isForwardAuthVerify, result.Allow.Reasons)
+	return a.handleResultDenied(ctx, in, request, result, result.Allow.Reasons)
 }
 
 func (a *Authorize) handleResultAllowed(
@@ -75,7 +74,6 @@ func (a *Authorize) handleResultDenied(
 	in *envoy_service_auth_v3.CheckRequest,
 	request *evaluator.Request,
 	result *evaluator.Result,
-	isForwardAuthVerify bool,
 	reasons criteria.Reasons,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
 	denyStatusCode := int32(http.StatusForbidden)
@@ -83,7 +81,7 @@ func (a *Authorize) handleResultDenied(
 
 	switch {
 	case reasons.Has(criteria.ReasonDeviceUnauthenticated):
-		return a.requireWebAuthnResponse(ctx, in, request, result, isForwardAuthVerify)
+		return a.requireWebAuthnResponse(ctx, in, request, result)
 	case reasons.Has(criteria.ReasonDeviceUnauthorized):
 		denyStatusCode = httputil.StatusDeviceUnauthorized
 		denyStatusText = httputil.DetailsText(httputil.StatusDeviceUnauthorized)
@@ -122,42 +120,36 @@ func (a *Authorize) deniedResponse(
 	in *envoy_service_auth_v3.CheckRequest,
 	code int32, reason string, headers map[string]string,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
-	respBody := []byte(reason)
 	respHeader := []*envoy_config_core_v3.HeaderValueOption{}
 
-	forwardAuthURL, _ := a.currentOptions.Load().GetForwardAuthURL()
-	if forwardAuthURL == nil {
-		// create a http response writer recorder
-		w := httptest.NewRecorder()
-		r := getHTTPRequestFromCheckRequest(in)
+	// create a http response writer recorder
+	w := httptest.NewRecorder()
+	r := getHTTPRequestFromCheckRequest(in)
 
-		// build the user info / debug endpoint
-		debugEndpoint, _ := a.userInfoEndpointURL(in) // if there's an error, we just wont display it
+	// build the user info / debug endpoint
+	debugEndpoint, _ := a.userInfoEndpointURL(in) // if there's an error, we just wont display it
 
-		// run the request through our go error handler
-		httpErr := httputil.HTTPError{
-			Status:          int(code),
-			Err:             errors.New(reason),
-			DebugURL:        debugEndpoint,
-			RequestID:       requestid.FromContext(ctx),
-			BrandingOptions: a.currentOptions.Load().BrandingOptions,
-		}
-		httpErr.ErrorResponse(ctx, w, r)
-
-		// transpose the go http response writer into a envoy response
-		resp := w.Result()
-		defer resp.Body.Close()
-		var err error
-		respBody, err = io.ReadAll(resp.Body)
-		if err != nil {
-			log.Error(ctx).Err(err).Msg("error executing error template")
-			return nil, err
-		}
-		// convert go headers to envoy headers
-		respHeader = append(respHeader, toEnvoyHeaders(resp.Header)...)
-	} else {
-		respHeader = append(respHeader, mkHeader("Content-Type", "text/plain", false))
+	// run the request through our go error handler
+	httpErr := httputil.HTTPError{
+		Status:          int(code),
+		Err:             errors.New(reason),
+		DebugURL:        debugEndpoint,
+		RequestID:       requestid.FromContext(ctx),
+		BrandingOptions: a.currentOptions.Load().BrandingOptions,
 	}
+	httpErr.ErrorResponse(ctx, w, r)
+
+	// transpose the go http response writer into a envoy response
+	resp := w.Result()
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Error(ctx).Err(err).Msg("error executing error template")
+		return nil, err
+	}
+	// convert go headers to envoy headers
+	respHeader = append(respHeader, toEnvoyHeaders(resp.Header)...)
 
 	// add any additional headers
 	for k, v := range headers {
@@ -182,7 +174,6 @@ func (a *Authorize) requireLoginResponse(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
 	request *evaluator.Request,
-	isForwardAuthVerify bool,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
 	opts := a.currentOptions.Load()
 	state := a.state.Load()
@@ -191,7 +182,7 @@ func (a *Authorize) requireLoginResponse(
 		return nil, err
 	}
 
-	if !a.shouldRedirect(in) || isForwardAuthVerify {
+	if !a.shouldRedirect(in) {
 		return a.deniedResponse(ctx, in, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), nil)
 	}
 
@@ -223,7 +214,6 @@ func (a *Authorize) requireWebAuthnResponse(
 	in *envoy_service_auth_v3.CheckRequest,
 	request *evaluator.Request,
 	result *evaluator.Result,
-	isForwardAuthVerify bool,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
 	opts := a.currentOptions.Load()
 	state := a.state.Load()
@@ -232,7 +222,7 @@ func (a *Authorize) requireWebAuthnResponse(
 		return nil, err
 	}
 
-	if !a.shouldRedirect(in) || isForwardAuthVerify {
+	if !a.shouldRedirect(in) {
 		return a.deniedResponse(ctx, in, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), nil)
 	}
 

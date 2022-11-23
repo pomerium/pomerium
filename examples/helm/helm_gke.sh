@@ -28,8 +28,8 @@ echo "=> install pomerium with helm"
 helm install \
 	pomerium \
 	pomerium/pomerium \
-	--set ingress.secret.cert="$(base64 -i $HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer)" \
-	--set ingress.secret.key="$(base64 -i $HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key)" \
+	--set ingress.secret.cert="$(base64 -i "$HOME"/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer)" \
+	--set ingress.secret.key="$(base64 -i "$HOME"/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key)" \
 	--values docs/configuration/examples/kubernetes/values.yaml
 
 # When done, clean up by deleting the cluster!
