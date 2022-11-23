@@ -4,6 +4,7 @@ package hpke
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 
 	"github.com/cloudflare/circl/hpke"
@@ -25,44 +26,63 @@ type PrivateKey struct {
 }
 
 // DerivePrivateKey derives a private key from a seed. The same seed will always result in the same private key.
-func DerivePrivateKey(seed []byte) PrivateKey {
+func DerivePrivateKey(seed []byte) *PrivateKey {
 	pk := kdfID.Extract(seed, nil)
 	data := kdfID.Expand(pk, kdfExpandInfo, uint(kemID.Scheme().SeedSize()))
 	_, key := kemID.Scheme().DeriveKeyPair(data)
-	return PrivateKey{key: key}
+	return &PrivateKey{key: key}
 }
 
 // GeneratePrivateKey generates an HPKE private key.
-func GeneratePrivateKey() (PrivateKey, error) {
+func GeneratePrivateKey() (*PrivateKey, error) {
 	_, privateKey, err := kemID.Scheme().GenerateKeyPair()
 	if err != nil {
-		return PrivateKey{}, err
+		return nil, err
 	}
-	return PrivateKey{key: privateKey}, nil
+	return &PrivateKey{key: privateKey}, nil
 }
 
 // PrivateKeyFromString takes a string and returns a PrivateKey.
-func PrivateKeyFromString(raw string) (PrivateKey, error) {
+func PrivateKeyFromString(raw string) (*PrivateKey, error) {
 	bs, err := decode(raw)
 	if err != nil {
-		return PrivateKey{}, err
+		return nil, err
 	}
 
 	key, err := kemID.Scheme().UnmarshalBinaryPrivateKey(bs)
 	if err != nil {
-		return PrivateKey{}, err
+		return nil, err
 	}
 
-	return PrivateKey{key: key}, nil
+	return &PrivateKey{key: key}, nil
 }
 
 // PublicKey returns the public key for the private key.
-func (key PrivateKey) PublicKey() PublicKey {
-	return PublicKey{key: key.key.Public()}
+func (key *PrivateKey) PublicKey() *PublicKey {
+	if key == nil || key.key == nil {
+		return nil
+	}
+
+	return &PublicKey{key: key.key.Public()}
+}
+
+// MarshalJSON returns the JSON Web Key representation of the private key.
+func (key *PrivateKey) MarshalJSON() ([]byte, error) {
+	return json.Marshal(JWK{
+		Type:  jwkType,
+		ID:    jwkID,
+		Curve: jwkCurve,
+		X:     key.PublicKey().String(),
+		D:     key.String(),
+	})
 }
 
 // String converts the private key into a string.
-func (key PrivateKey) String() string {
+func (key *PrivateKey) String() string {
+	if key == nil || key.key == nil {
+		return ""
+	}
+
 	bs, err := key.key.MarshalBinary()
 	if err != nil {
 		// this should not happen
@@ -78,22 +98,52 @@ type PublicKey struct {
 }
 
 // PublicKeyFromString converts a string into a public key.
-func PublicKeyFromString(raw string) (PublicKey, error) {
+func PublicKeyFromString(raw string) (*PublicKey, error) {
 	bs, err := decode(raw)
 	if err != nil {
-		return PublicKey{}, err
+		return nil, err
 	}
 
 	key, err := kemID.Scheme().UnmarshalBinaryPublicKey(bs)
 	if err != nil {
-		return PublicKey{}, err
+		return nil, err
 	}
 
-	return PublicKey{key: key}, nil
+	return &PublicKey{key: key}, nil
+}
+
+// Equals returns true if the two keys are equivalent.
+func (key *PublicKey) Equals(other *PublicKey) bool {
+	if key == nil && other == nil {
+		return true
+	} else if key == nil || other == nil {
+		return false
+	}
+
+	if key.key == nil && other.key == nil {
+		return true
+	} else if key.key == nil || other.key == nil {
+		return false
+	}
+	return key.key.Equal(other.key)
+}
+
+// MarshalJSON returns the JSON Web Key representation of the public key.
+func (key *PublicKey) MarshalJSON() ([]byte, error) {
+	return json.Marshal(JWK{
+		Type:  jwkType,
+		ID:    jwkID,
+		Curve: jwkCurve,
+		X:     key.String(),
+	})
 }
 
 // String converts a public key into a string.
-func (key PublicKey) String() string {
+func (key *PublicKey) String() string {
+	if key == nil || key.key == nil {
+		return ""
+	}
+
 	bs, err := key.key.MarshalBinary()
 	if err != nil {
 		// this should not happen
@@ -105,10 +155,17 @@ func (key PublicKey) String() string {
 
 // Seal seales a message using HPKE.
 func Seal(
-	senderPrivateKey PrivateKey,
-	receiverPublicKey PublicKey,
+	senderPrivateKey *PrivateKey,
+	receiverPublicKey *PublicKey,
 	message []byte,
 ) (sealed []byte, err error) {
+	if senderPrivateKey == nil {
+		return nil, fmt.Errorf("hpke: sender private key cannot be nil")
+	}
+	if receiverPublicKey == nil {
+		return nil, fmt.Errorf("hpke: receiver public key cannot be nil")
+	}
+
 	sender, err := suite.NewSender(receiverPublicKey.key, nil)
 	if err != nil {
 		return nil, fmt.Errorf("hpke: error creating sender: %w", err)
@@ -129,10 +186,17 @@ func Seal(
 
 // Open opens a message using HPKE.
 func Open(
-	receiverPrivateKey PrivateKey,
-	senderPublicKey PublicKey,
+	receiverPrivateKey *PrivateKey,
+	senderPublicKey *PublicKey,
 	sealed []byte,
 ) (message []byte, err error) {
+	if receiverPrivateKey == nil {
+		return nil, fmt.Errorf("hpke: receiver private key cannot be nil")
+	}
+	if senderPublicKey == nil {
+		return nil, fmt.Errorf("hpke: sender public key cannot be nil")
+	}
+
 	encSize := kemID.Scheme().SharedKeySize()
 	if len(sealed) < encSize {
 		return nil, fmt.Errorf("hpke: invalid sealed message")
