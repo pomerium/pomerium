@@ -222,14 +222,6 @@ type Options struct {
 	GRPCClientTimeout       time.Duration `mapstructure:"grpc_client_timeout" yaml:"grpc_client_timeout,omitempty"`
 	GRPCClientDNSRoundRobin bool          `mapstructure:"grpc_client_dns_roundrobin" yaml:"grpc_client_dns_roundrobin,omitempty"`
 
-	// ForwardAuthEndpoint allows for a given route to be used as a forward-auth
-	// endpoint instead of a reverse proxy. Some third-party proxies that do not
-	// have rich access control capabilities (nginx, envoy, ambassador, traefik)
-	// allow you to delegate and authenticate each request to your website
-	// with an external server or service. Pomerium can be configured to accept
-	// these requests with this switch
-	ForwardAuthURLString string `mapstructure:"forward_auth_url" yaml:"forward_auth_url,omitempty"`
-
 	// DataBrokerURLString is the routable destination of the databroker service's gRPC endpoint.
 	DataBrokerURLString         string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
 	DataBrokerURLStrings        []string `mapstructure:"databroker_service_urls" yaml:"databroker_service_urls,omitempty"`
@@ -602,13 +594,6 @@ func (o *Options) Validate() error {
 		}
 	}
 
-	if o.ForwardAuthURLString != "" {
-		_, err := urlutil.ParseAndValidateURL(o.ForwardAuthURLString)
-		if err != nil {
-			return fmt.Errorf("config: bad forward-auth-url %s : %w", o.ForwardAuthURLString, err)
-		}
-	}
-
 	if o.PolicyFile != "" {
 		return errors.New("config: policy file setting is deprecated")
 	}
@@ -821,15 +806,6 @@ func (o *Options) getURLs(strs ...string) ([]*url.URL, error) {
 		urls = append(urls, u)
 	}
 	return urls, nil
-}
-
-// GetForwardAuthURL returns the ForwardAuthURL.
-func (o *Options) GetForwardAuthURL() (*url.URL, error) {
-	rawurl := o.ForwardAuthURLString
-	if rawurl == "" {
-		return nil, nil
-	}
-	return urlutil.ParseAndValidateURL(rawurl)
 }
 
 // GetGRPCAddr gets the gRPC address.
@@ -1114,11 +1090,6 @@ func (o *Options) GetAllRouteableHTTPDomains() ([]string, error) {
 // GetAllRouteableHTTPDomainsForTLSServerName returns all the possible HTTP domains handled by the Pomerium options
 // for the given TLS server name.
 func (o *Options) GetAllRouteableHTTPDomainsForTLSServerName(tlsServerName string) ([]string, error) {
-	forwardAuthURL, err := o.GetForwardAuthURL()
-	if err != nil {
-		return nil, err
-	}
-
 	domains := sets.NewSorted[string]()
 	if IsAuthenticate(o.Services) {
 		authenticateURL, err := o.GetInternalAuthenticateURL()
@@ -1159,13 +1130,6 @@ func (o *Options) GetAllRouteableHTTPDomainsForTLSServerName(tlsServerName strin
 						urlutil.StripPort(h) == tlsServerName {
 						domains.Add(h)
 					}
-				}
-			}
-		}
-		if forwardAuthURL != nil {
-			for _, h := range urlutil.GetDomainsForURL(*forwardAuthURL) {
-				if tlsServerName == "" || urlutil.StripPort(h) == tlsServerName {
-					domains.Add(h)
 				}
 			}
 		}
@@ -1456,9 +1420,6 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	}
 	if settings.GrpcInsecure != nil {
 		o.GRPCInsecure = settings.GetGrpcInsecure()
-	}
-	if settings.ForwardAuthUrl != nil {
-		o.ForwardAuthURLString = settings.GetForwardAuthUrl()
 	}
 	if len(settings.DatabrokerServiceUrls) > 0 {
 		o.DataBrokerURLStrings = settings.GetDatabrokerServiceUrls()

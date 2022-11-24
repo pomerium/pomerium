@@ -158,8 +158,7 @@ func Test_UpdateOptions(t *testing.T) {
 	corsPreflight.Policies = []config.Policy{{To: toFoo, From: "http://bar.example", CORSAllowPreflight: true}}
 	disableAuth := testOptions(t)
 	disableAuth.Policies = []config.Policy{{To: toFoo, From: "http://bar.example", AllowPublicUnauthenticatedAccess: true}}
-	fwdAuth := testOptions(t)
-	fwdAuth.ForwardAuthURLString = "https://corp.example.example"
+
 	reqHeaders := testOptions(t)
 	reqHeaders.Policies = []config.Policy{{To: toFoo, From: "http://bar.example", SetRequestHeaders: map[string]string{"x": "y"}}}
 	preserveHostHeader := testOptions(t)
@@ -185,7 +184,6 @@ func Test_UpdateOptions(t *testing.T) {
 		{"no websockets, custom timeout", good, customTimeout, "https://corp.example.example", false, true},
 		{"enable cors preflight", good, corsPreflight, "https://corp.example.example", false, true},
 		{"disable auth", good, disableAuth, "https://corp.example.example", false, true},
-		{"enable forward auth", good, fwdAuth, "https://corp.example.example", false, true},
 		{"set request headers", good, reqHeaders, "https://corp.example.example", false, true},
 		{"preserve host headers", preserveHostHeader, preserveHostHeader, "https://corp.example.example", false, true},
 	}

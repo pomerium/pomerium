@@ -361,8 +361,6 @@ func Test_NewOptionsFromConfigEnvVar(t *testing.T) {
 		{"no certs no insecure mode set", map[string]string{"SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
 		{"good disable headers ", map[string]string{"HEADERS": "disable:true", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
 		{"bad whitespace in secret", map[string]string{"INSECURE_SERVER": "true", "SERVICES": "authenticate", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=\n"}, true},
-		{"good forward auth url", map[string]string{"FORWARD_AUTH_URL": "https://databroker.example", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
-		{"bad forward auth url", map[string]string{"FORWARD_AUTH_URL": "databroker.example", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
 		{"same addr and grpc addr", map[string]string{"SERVICES": "databroker", "ADDRESS": "0", "GRPC_ADDRESS": "0", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
 		{"bad cert files", map[string]string{"INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", "CERTIFICATES": "./test-data/example-cert.pem"}, true},
 		{"good cert file", map[string]string{"CERTIFICATE_FILE": "./testdata/example-cert.pem", "CERTIFICATE_KEY_FILE": "./testdata/example-key.pem", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
@@ -631,7 +629,6 @@ func TestOptions_DefaultURL(t *testing.T) {
 		AuthenticateURLString: "https://authenticate.example.com",
 		AuthorizeURLString:    "https://authorize.example.com",
 		DataBrokerURLString:   "https://databroker.example.com",
-		ForwardAuthURLString:  "https://forwardauth.example.com",
 	}
 	tests := []struct {
 		name           string
@@ -641,11 +638,9 @@ func TestOptions_DefaultURL(t *testing.T) {
 		{"default authenticate url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
 		{"default authorize url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
 		{"default databroker url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
-		{"default forward auth url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
 		{"good authenticate url", opts.GetAuthenticateURL, "https://authenticate.example.com"},
 		{"good authorize url", firstURL(opts.GetAuthorizeURLs), "https://authorize.example.com"},
 		{"good databroker url", firstURL(opts.GetDataBrokerURLs), "https://databroker.example.com"},
-		{"good forward auth url", opts.GetForwardAuthURL, "https://forwardauth.example.com"},
 	}
 
 	for _, tc := range tests {

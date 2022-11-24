@@ -42,46 +42,6 @@ var HeadersContentSecurityPolicy = map[string]string{
 	"Referrer-Policy":         "Same-origin",
 }
 
-// Forward headers contains information from the client-facing side of proxy
-// servers that is altered or lost when a proxy is involved in the path of the
-// request.
-//
-// https://tools.ietf.org/html/rfc7239
-// https://en.wikipedia.org/wiki/X-Forwarded-For
-const (
-	HeaderForwardedFor    = "X-Forwarded-For"
-	HeaderForwardedHost   = "X-Forwarded-Host"
-	HeaderForwardedMethod = "X-Forwarded-Method" // traefik
-	HeaderForwardedPort   = "X-Forwarded-Port"
-	HeaderForwardedProto  = "X-Forwarded-Proto"
-	HeaderForwardedServer = "X-Forwarded-Server"
-	HeaderForwardedURI    = "X-Forwarded-Uri"   // traefik
-	HeaderOriginalMethod  = "X-Original-Method" // nginx
-	HeaderOriginalURL     = "X-Original-Url"    // nginx
-	HeaderRealIP          = "X-Real-Ip"
-	HeaderSentFrom        = "X-Sent-From"
-)
-
-// HeadersXForwarded is the slice of the header keys used to contain information
-// from the client-facing side of proxy servers that is altered or lost when a
-// proxy is involved in the path of the request.
-//
-// https://tools.ietf.org/html/rfc7239
-// https://en.wikipedia.org/wiki/X-Forwarded-For
-var HeadersXForwarded = []string{
-	HeaderForwardedFor,
-	HeaderForwardedHost,
-	HeaderForwardedMethod,
-	HeaderForwardedPort,
-	HeaderForwardedProto,
-	HeaderForwardedServer,
-	HeaderForwardedURI,
-	HeaderOriginalMethod,
-	HeaderOriginalURL,
-	HeaderRealIP,
-	HeaderSentFrom,
-}
-
 // PomeriumJWTHeaderName returns the header name set by pomerium for given JWT claim field.
 func PomeriumJWTHeaderName(claim string) string {
 	return "x-pomerium-claim-" + claim

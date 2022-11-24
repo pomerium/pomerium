@@ -48,11 +48,6 @@ func TestDashboard(t *testing.T) {
 }
 
 func TestHealth(t *testing.T) {
-	if ClusterType == "traefik" || ClusterType == "nginx" {
-		t.Skip()
-		return
-	}
-
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
 	defer clearTimeout()
 

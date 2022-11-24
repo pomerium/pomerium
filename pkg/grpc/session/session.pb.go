@@ -315,6 +315,7 @@ type Session_DeviceCredential struct {
 
 	TypeId string `protobuf:"bytes,1,opt,name=type_id,json=typeId,proto3" json:"type_id,omitempty"`
 	// Types that are assignable to Credential:
+	//
 	//	*Session_DeviceCredential_Unavailable
 	//	*Session_DeviceCredential_Id
 	Credential isSession_DeviceCredential_Credential `protobuf_oneof:"credential"`

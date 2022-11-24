@@ -841,6 +841,7 @@ type SyncLatestResponse struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Response:
+	//
 	//	*SyncLatestResponse_Record
 	//	*SyncLatestResponse_Versions
 	Response isSyncLatestResponse_Response `protobuf_oneof:"response"`
