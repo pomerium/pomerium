@@ -13,7 +13,6 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
-	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/tniswong/go.rfcx/rfc7231"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
@@ -101,7 +100,7 @@ func (a *Authorize) handleResultDenied(
 func (a *Authorize) okResponse(headers http.Header) *envoy_service_auth_v3.CheckResponse {
 	var requestHeaders []*envoy_config_core_v3.HeaderValueOption
 	for k, vs := range headers {
-		requestHeaders = append(requestHeaders, mkHeader(k, strings.Join(vs, ","), false))
+		requestHeaders = append(requestHeaders, mkHeader(k, strings.Join(vs, ",")))
 	}
 	// ensure request headers are sorted by key for deterministic output
 	sort.Slice(requestHeaders, func(i, j int) bool {
@@ -156,12 +155,12 @@ func (a *Authorize) deniedResponse(
 		// convert go headers to envoy headers
 		respHeader = append(respHeader, toEnvoyHeaders(resp.Header)...)
 	} else {
-		respHeader = append(respHeader, mkHeader("Content-Type", "text/plain", false))
+		respHeader = append(respHeader, mkHeader("Content-Type", "text/plain"))
 	}
 
 	// add any additional headers
 	for k, v := range headers {
-		respHeader = append(respHeader, mkHeader(k, v, false))
+		respHeader = append(respHeader, mkHeader(k, v))
 	}
 
 	return &envoy_service_auth_v3.CheckResponse{
@@ -266,15 +265,13 @@ func (a *Authorize) requireWebAuthnResponse(
 	})
 }
 
-func mkHeader(k, v string, shouldAppend bool) *envoy_config_core_v3.HeaderValueOption {
+func mkHeader(k, v string) *envoy_config_core_v3.HeaderValueOption {
 	return &envoy_config_core_v3.HeaderValueOption{
 		Header: &envoy_config_core_v3.HeaderValue{
 			Key:   k,
 			Value: v,
 		},
-		Append: &wrappers.BoolValue{
-			Value: shouldAppend,
-		},
+		AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
 	}
 }
 
@@ -287,7 +284,7 @@ func toEnvoyHeaders(headers http.Header) []*envoy_config_core_v3.HeaderValueOpti
 
 	envoyHeaders := make([]*envoy_config_core_v3.HeaderValueOption, 0, len(headers))
 	for _, k := range ks {
-		envoyHeaders = append(envoyHeaders, mkHeader(k, headers.Get(k), false))
+		envoyHeaders = append(envoyHeaders, mkHeader(k, headers.Get(k)))
 	}
 	return envoyHeaders
 }
