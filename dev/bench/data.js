@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1669653483658,
+  "lastUpdate": 1669663555269,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -21592,6 +21592,38 @@ window.BENCHMARK_DATA = {
             "value": 9630701,
             "unit": "ns/op",
             "extra": "120 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "15d69424d99370cfd12b72c65e3afb34f570a3d7",
+          "message": "config: add option for tls renogotiation",
+          "timestamp": "2022-11-28T16:23:00Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3773/commits/15d69424d99370cfd12b72c65e3afb34f570a3d7"
+        },
+        "date": 1669663554777,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11351204,
+            "unit": "ns/op",
+            "extra": "104 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7950839,
+            "unit": "ns/op",
+            "extra": "150 times\n2 procs"
           }
         ]
       }
