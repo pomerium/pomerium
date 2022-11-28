@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1669651679846,
+  "lastUpdate": 1669652798108,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -21420,6 +21420,42 @@ window.BENCHMARK_DATA = {
             "value": 9998719,
             "unit": "ns/op",
             "extra": "126 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "424bdb4e62d49bdea87c8f9a0670b29300d55419",
+          "message": "chore(deps): bump azure/docker-login from 81744f9799e7eaa418697cb168452a2882ae844a to 1.0.1 (#3770)\n\nchore(deps): bump azure/docker-login\r\n\r\nBumps [azure/docker-login](https://github.com/azure/docker-login) from 81744f9799e7eaa418697cb168452a2882ae844a to 1.0.1. This release includes the previously tagged commit.\r\n- [Release notes](https://github.com/azure/docker-login/releases)\r\n- [Commits](https://github.com/azure/docker-login/compare/81744f9799e7eaa418697cb168452a2882ae844a...83efeb77770c98b620c73055fbb59b2847e17dc0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: azure/docker-login\r\n  dependency-type: direct:production\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-11-28T09:20:47-07:00",
+          "tree_id": "b66d5199f4b13f68d3d87acb5ffd133e22f70b3d",
+          "url": "https://github.com/pomerium/pomerium/commit/424bdb4e62d49bdea87c8f9a0670b29300d55419"
+        },
+        "date": 1669652797209,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14785719,
+            "unit": "ns/op",
+            "extra": "86 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10489255,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
