@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1669663555269,
+  "lastUpdate": 1669671500543,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -21624,6 +21624,42 @@ window.BENCHMARK_DATA = {
             "value": 7950839,
             "unit": "ns/op",
             "extra": "150 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cef6b355ae62ab09a175f32c16824201839fd194",
+          "message": "config: add option for tls renegotiation (#3773)\n\nconfig: add option for tls renogotiation",
+          "timestamp": "2022-11-28T14:34:06-07:00",
+          "tree_id": "5b97a2fbd3b42d051f99aa7de71bd9ed22dbfda4",
+          "url": "https://github.com/pomerium/pomerium/commit/cef6b355ae62ab09a175f32c16824201839fd194"
+        },
+        "date": 1669671500134,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12762172,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9848021,
+            "unit": "ns/op",
+            "extra": "140 times\n2 procs"
           }
         ]
       }
