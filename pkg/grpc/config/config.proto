@@ -90,6 +90,8 @@ message Route {
   string tls_downstream_client_ca = 38;
   string tls_downstream_client_ca_file = 39;
 
+  bool tls_upstream_allow_renegotiation = 60;
+
   map<string, string> set_request_headers = 22;
   repeated string remove_request_headers = 23;
   map<string, string> set_response_headers = 41;
