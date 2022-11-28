@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1669653292850,
+  "lastUpdate": 1669653365018,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -21488,6 +21488,42 @@ window.BENCHMARK_DATA = {
             "value": 7974663,
             "unit": "ns/op",
             "extra": "146 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1d252f43eebf5f353e35f7daebfcdfacdf76d915",
+          "message": "storage: ignore removed fields when deserializing the data (#3768)\n\nignore removed fields when deserializing the data",
+          "timestamp": "2022-11-28T09:31:57-07:00",
+          "tree_id": "ddbe7f855882ba0cccd56da0ee498a3dba44715a",
+          "url": "https://github.com/pomerium/pomerium/commit/1d252f43eebf5f353e35f7daebfcdfacdf76d915"
+        },
+        "date": 1669653364471,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10993964,
+            "unit": "ns/op",
+            "extra": "105 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7949677,
+            "unit": "ns/op",
+            "extra": "145 times\n2 procs"
           }
         ]
       }
