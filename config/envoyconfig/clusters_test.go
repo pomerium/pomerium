@@ -429,6 +429,61 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 			}
 		`, ts)
 	})
+	t.Run("allow renegotiation", func(t *testing.T) {
+		ts, err := b.buildPolicyTransportSocket(ctx, o1, &config.Policy{
+			To:                            mustParseWeightedURLs(t, "https://example.com"),
+			TLSUpstreamAllowRenegotiation: true,
+		}, *mustParseURL(t, "https://example.com"))
+		require.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `
+			{
+				"name": "tls",
+				"typedConfig": {
+					"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
+					"allowRenegotiation": true,
+					"commonTlsContext": {
+						"alpnProtocols": ["h2", "http/1.1"],
+						"tlsParams": {
+							"cipherSuites": [
+								"ECDHE-ECDSA-AES256-GCM-SHA384",
+								"ECDHE-RSA-AES256-GCM-SHA384",
+								"ECDHE-ECDSA-AES128-GCM-SHA256",
+								"ECDHE-RSA-AES128-GCM-SHA256",
+								"ECDHE-ECDSA-CHACHA20-POLY1305",
+								"ECDHE-RSA-CHACHA20-POLY1305",
+								"ECDHE-ECDSA-AES128-SHA",
+								"ECDHE-RSA-AES128-SHA",
+								"AES128-GCM-SHA256",
+								"AES128-SHA",
+								"ECDHE-ECDSA-AES256-SHA",
+								"ECDHE-RSA-AES256-SHA",
+								"AES256-GCM-SHA384",
+								"AES256-SHA"
+							],
+							"ecdhCurves": [
+								"X25519",
+								"P-256",
+								"P-384",
+								"P-521"
+							]
+						},
+						"validationContext": {
+							"matchTypedSubjectAltNames": [{
+								"sanType": "DNS",
+								"matcher": {
+									"exact": "example.com"
+								}
+							}],
+							"trustedCa": {
+								"filename": "`+rootCA+`"
+							}
+						}
+					},
+					"sni": "example.com"
+				}
+			}
+		`, ts)
+	})
 }
 
 func Test_buildCluster(t *testing.T) {
