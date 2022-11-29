@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1669671500543,
+  "lastUpdate": 1669682953010,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -21660,6 +21660,38 @@ window.BENCHMARK_DATA = {
             "value": 9848021,
             "unit": "ns/op",
             "extra": "140 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "67689ba608c9f8d84c6b33931be4f1f9eee905b4",
+          "message": "autocert: support storing certificates in the databroker",
+          "timestamp": "2022-11-28T16:23:00Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3774/commits/67689ba608c9f8d84c6b33931be4f1f9eee905b4"
+        },
+        "date": 1669682952582,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13257323,
+            "unit": "ns/op",
+            "extra": "98 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9081170,
+            "unit": "ns/op",
+            "extra": "123 times\n2 procs"
           }
         ]
       }
