@@ -24,7 +24,30 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
+
+var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
+
+func getDatabrokerServiceClient(cfg *config.Config) (databroker.DataBrokerServiceClient, error) {
+	sharedKey, err := cfg.Options.GetSharedKey()
+	if err != nil {
+		return nil, err
+	}
+
+	dataBrokerConn, err := outboundGRPCConnection.Get(context.Background(), &grpc.OutboundOptions{
+		OutboundPort:   cfg.OutboundPort,
+		InstallationID: cfg.Options.InstallationID,
+		ServiceName:    cfg.Options.Services,
+		SignedJWTKey:   sharedKey,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return databroker.NewDataBrokerServiceClient(dataBrokerConn), nil
+}
 
 var (
 	errObtainCertFailed = errors.New("obtain cert failed")
@@ -51,6 +74,7 @@ type Manager struct {
 	acmeMgr             *atomicutil.Value[*certmagic.ACMEIssuer]
 	srv                 *http.Server
 	acmeTLSALPNListener net.Listener
+	dataBrokerClient    atomicutil.Value[databroker.DataBrokerServiceClient]
 
 	*ocspCache
 
@@ -76,24 +100,26 @@ func newManager(ctx context.Context,
 		return nil, err
 	}
 
-	certmagicConfig := certmagic.NewDefault()
-	// set certmagic default storage cache, otherwise cert renewal loop will be based off
-	// certmagic's own default location
-	certmagicConfig.Storage = &certmagic.FileStorage{
-		Path: src.GetConfig().Options.AutocertOptions.Folder,
-	}
-
 	logger := log.ZapLogger().With(zap.String("service", "autocert"))
-	certmagicConfig.Logger = logger
 	acmeTemplate.Logger = logger
 
 	mgr := &Manager{
 		src:          src,
 		acmeTemplate: acmeTemplate,
 		acmeMgr:      atomicutil.NewValue(new(certmagic.ACMEIssuer)),
-		certmagic:    certmagicConfig,
 		ocspCache:    ocspRespCache,
 	}
+
+	dataBrokerClient, err := getDatabrokerServiceClient(src.GetConfig())
+	if err != nil {
+		return nil, err
+	}
+	mgr.dataBrokerClient.Store(dataBrokerClient)
+
+	mgr.certmagic = certmagic.NewDefault()
+	mgr.certmagic.Storage = newDataBrokerStorage(&mgr.dataBrokerClient)
+	mgr.certmagic.Logger = logger
+
 	err = mgr.update(ctx, src.GetConfig())
 	if err != nil {
 		return nil, err
@@ -131,7 +157,6 @@ func newManager(ctx context.Context,
 func (mgr *Manager) getCertMagicConfig(ctx context.Context, cfg *config.Config) (*certmagic.Config, error) {
 	mgr.certmagic.MustStaple = cfg.Options.AutocertOptions.MustStaple
 	mgr.certmagic.OnDemand = nil // disable on-demand
-	mgr.certmagic.Storage = &certmagic.FileStorage{Path: cfg.Options.AutocertOptions.Folder}
 	certs, err := cfg.AllCertificates()
 	if err != nil {
 		return nil, err
@@ -228,7 +253,17 @@ func (mgr *Manager) update(ctx context.Context, cfg *config.Config) error {
 
 	mgr.updateServer(ctx, cfg)
 	mgr.updateACMETLSALPNServer(ctx, cfg)
-	return mgr.updateAutocert(ctx, cfg)
+	if err := mgr.updateAutocert(ctx, cfg); err != nil {
+		return err
+	}
+
+	dataBrokerClient, err := getDatabrokerServiceClient(cfg)
+	if err != nil {
+		return err
+	}
+	mgr.dataBrokerClient.Store(dataBrokerClient)
+
+	return nil
 }
 
 // obtainCert obtains a certificate for given domain, use cached manager if cert exists there.
