@@ -1,4 +1,4 @@
-package hpke
+package hpke_test
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/internal/handlers"
+	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
 func TestFetchPublicKeyFromJWKS(t *testing.T) {
@@ -19,7 +20,7 @@ func TestFetchPublicKeyFromJWKS(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
 	t.Cleanup(clearTimeout)
 
-	hpkePrivateKey, err := GeneratePrivateKey()
+	hpkePrivateKey, err := hpke.GeneratePrivateKey()
 	require.NoError(t, err)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -27,7 +28,7 @@ func TestFetchPublicKeyFromJWKS(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	publicKey, err := FetchPublicKeyFromJWKS(ctx, http.DefaultClient, srv.URL)
+	publicKey, err := hpke.FetchPublicKeyFromJWKS(ctx, http.DefaultClient, srv.URL)
 	assert.NoError(t, err)
 	assert.Equal(t, hpkePrivateKey.PublicKey().String(), publicKey.String())
 }
