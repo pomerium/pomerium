@@ -119,6 +119,9 @@ type Policy struct {
 	TLSDownstreamClientCA     string `mapstructure:"tls_downstream_client_ca" yaml:"tls_downstream_client_ca,omitempty"`
 	TLSDownstreamClientCAFile string `mapstructure:"tls_downstream_client_ca_file" yaml:"tls_downstream_client_ca_file,omitempty"`
 
+	// TLSUpstreamAllowRenegotiation allows server-initiated TLS renegotiation.
+	TLSUpstreamAllowRenegotiation bool `mapstructure:"tls_upstream_allow_renegotiation" yaml:"allow_renegotiation,omitempty"`
+
 	// SetAuthorizationHeader sets the authorization request header based on the user's identity. Supported modes are
 	// `pass_through`, `access_token` and `id_token`.
 	SetAuthorizationHeader string `mapstructure:"set_authorization_header" yaml:"set_authorization_header,omitempty"`

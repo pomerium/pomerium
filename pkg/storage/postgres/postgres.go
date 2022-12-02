@@ -19,6 +19,7 @@ import (
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/registry"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -124,8 +125,7 @@ func getNextChangedRecord(ctx context.Context, q querier, recordType string, aft
 		}
 		afterRecordVersion = version
 
-		var any anypb.Any
-		err = protojson.Unmarshal(data.Bytes, &any)
+		any, err := protoutil.UnmarshalAnyJSON(data.Bytes)
 		if isUnknownType(err) {
 			// ignore
 			continue
@@ -137,7 +137,7 @@ func getNextChangedRecord(ctx context.Context, q querier, recordType string, aft
 			Version:    version,
 			Type:       recordType,
 			Id:         recordID,
-			Data:       &any,
+			Data:       any,
 			ModifiedAt: timestamppbFromTimestamptz(modifiedAt),
 			DeletedAt:  timestamppbFromTimestamptz(deletedAt),
 		}, nil
@@ -176,8 +176,7 @@ func getRecord(ctx context.Context, q querier, recordType, recordID string) (*da
 		return nil, fmt.Errorf("postgres: failed to execute query: %w", err)
 	}
 
-	var any anypb.Any
-	err = protojson.Unmarshal(data.Bytes, &any)
+	any, err := protoutil.UnmarshalAnyJSON(data.Bytes)
 	if isUnknownType(err) {
 		return nil, storage.ErrNotFound
 	} else if err != nil {
@@ -188,7 +187,7 @@ func getRecord(ctx context.Context, q querier, recordType, recordID string) (*da
 		Version:    version,
 		Type:       recordType,
 		Id:         recordID,
-		Data:       &any,
+		Data:       any,
 		ModifiedAt: timestamppbFromTimestamptz(modifiedAt),
 	}, nil
 }
@@ -228,8 +227,7 @@ func listRecords(ctx context.Context, q querier, expr storage.FilterExpression, 
 			return nil, fmt.Errorf("postgres: failed to scan row: %w", err)
 		}
 
-		var any anypb.Any
-		err = protojson.Unmarshal(data.Bytes, &any)
+		any, err := protoutil.UnmarshalAnyJSON(data.Bytes)
 		if isUnknownType(err) {
 			// ignore records with an unknown type
 			continue
@@ -241,7 +239,7 @@ func listRecords(ctx context.Context, q querier, expr storage.FilterExpression, 
 			Version:    version,
 			Type:       recordType,
 			Id:         id,
-			Data:       &any,
+			Data:       any,
 			ModifiedAt: timestamppbFromTimestamptz(modifiedAt),
 		})
 	}

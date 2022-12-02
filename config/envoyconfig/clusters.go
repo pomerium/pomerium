@@ -307,7 +307,8 @@ func (b *Builder) buildPolicyTransportSocket(
 				ValidationContext: vc,
 			},
 		},
-		Sni: sni,
+		Sni:                sni,
+		AllowRenegotiation: policy.TLSUpstreamAllowRenegotiation,
 	}
 	if policy.ClientCertificate != nil {
 		tlsContext.CommonTlsContext.TlsCertificates = append(tlsContext.CommonTlsContext.TlsCertificates,

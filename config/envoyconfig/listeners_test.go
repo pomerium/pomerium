@@ -223,21 +223,21 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 						"name": "example.com",
 						"domains": ["example.com"],
 						"responseHeadersToAdd": [{
-							"append": false,
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
 							"header": {
 								"key": "Strict-Transport-Security",
 								"value": "max-age=31536000; includeSubDomains; preload"
 							}
 						},
 						{
-							"append": false,
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
 							"header": {
 								"key": "X-Frame-Options",
 								"value": "SAMEORIGIN"
 							}
 						},
 						{
-							"append": false,
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
 							"header": {
 								"key": "X-XSS-Protection",
 								"value": "1; mode=block"
@@ -364,21 +364,21 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 						"name": "catch-all",
 						"domains": ["*"],
 						"responseHeadersToAdd": [{
-							"append": false,
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
 							"header": {
 								"key": "Strict-Transport-Security",
 								"value": "max-age=31536000; includeSubDomains; preload"
 							}
 						},
 						{
-							"append": false,
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
 							"header": {
 								"key": "X-Frame-Options",
 								"value": "SAMEORIGIN"
 							}
 						},
 						{
-							"append": false,
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
 							"header": {
 								"key": "X-XSS-Protection",
 								"value": "1; mode=block"
@@ -521,21 +521,21 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 						},
 						"headersToAdd":[
 							{
-								"append":false,
+								"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
 								"header":{
 									"key":"Strict-Transport-Security",
 									"value":"max-age=31536000; includeSubDomains; preload"
 								}
 							},
 							{
-								"append":false,
+								"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
 								"header":{
 									"key":"X-Frame-Options",
 									"value":"SAMEORIGIN"
 								}
 							},
 							{
-								"append":false,
+								"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
 								"header":{
 									"key":"X-XSS-Protection",
 									"value":"1; mode=block"

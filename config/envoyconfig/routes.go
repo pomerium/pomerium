@@ -222,7 +222,7 @@ func (b *Builder) buildPolicyRoutes(options *config.Options, domain string) ([]*
 							Key:   hdr[0],
 							Value: hdr[1],
 						},
-						Append: wrapperspb.Bool(false),
+						AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
 					})
 			}
 		}
@@ -343,7 +343,7 @@ func mkEnvoyHeader(k, v string) *envoy_config_core_v3.HeaderValueOption {
 			Key:   k,
 			Value: v,
 		},
-		Append: &wrappers.BoolValue{Value: false},
+		AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
 	}
 }
 

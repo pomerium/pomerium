@@ -485,7 +485,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					]
 				},
 				"requestHeadersToAdd": [{
-					"append": false,
+					"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
 					"header": {
 						"key": "HEADER-KEY",
 						"value": "HEADER-VALUE"
