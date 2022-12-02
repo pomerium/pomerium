@@ -14,6 +14,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -94,9 +95,10 @@ func storeIdentityProfile(w http.ResponseWriter, aead cipher.AEAD, profile *iden
 		panic(fmt.Errorf("error marshaling message: %w", err))
 	}
 	encrypted := cryptutil.Encrypt(aead, decrypted, nil)
-	cookieChunker.SetCookie(w, &http.Cookie{
+	err = cookieChunker.SetCookie(w, &http.Cookie{
 		Name:  urlutil.QueryIdentityProfile,
 		Value: base64.RawURLEncoding.EncodeToString(encrypted),
 		Path:  "/",
 	})
+	log.Error(context.Background()).Err(err).Send()
 }
