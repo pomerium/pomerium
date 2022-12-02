@@ -3,6 +3,7 @@ package authorize
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	googlegrpc "google.golang.org/grpc"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -23,6 +25,8 @@ type authorizeState struct {
 	dataBrokerClient           databroker.DataBrokerServiceClient
 	auditEncryptor             *protoutil.Encryptor
 	sessionStore               *config.SessionStore
+	hpkePrivateKey             *hpke.PrivateKey
+	authenticateKeyFetcher     hpke.KeyFetcher
 }
 
 func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*authorizeState, error) {
@@ -73,6 +77,16 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*autho
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid session store: %w", err)
 	}
+
+	authenticateURL, err := cfg.Options.GetAuthenticateURL()
+	if err != nil {
+		return nil, fmt.Errorf("authorize: invalid authenticate service url: %w", err)
+	}
+
+	state.hpkePrivateKey = hpke.DerivePrivateKey(sharedKey)
+	state.authenticateKeyFetcher = hpke.NewKeyFetcher(authenticateURL.ResolveReference(&url.URL{
+		Path: "/.well-known/pomerium/jwks.json",
+	}).String())
 
 	return state, nil
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
@@ -26,10 +27,12 @@ type proxyState struct {
 	authenticateSigninURL    *url.URL
 	authenticateRefreshURL   *url.URL
 
-	encoder         encoding.MarshalUnmarshaler
-	cookieSecret    []byte
-	sessionStore    sessions.SessionStore
-	jwtClaimHeaders config.JWTClaimHeaders
+	encoder                encoding.MarshalUnmarshaler
+	cookieSecret           []byte
+	sessionStore           sessions.SessionStore
+	jwtClaimHeaders        config.JWTClaimHeaders
+	hpkePrivateKey         *hpke.PrivateKey
+	authenticateKeyFetcher hpke.KeyFetcher
 
 	dataBrokerClient databroker.DataBrokerServiceClient
 
@@ -44,10 +47,23 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 
 	state := new(proxyState)
 
+	authenticateURL, err := cfg.Options.GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
+
 	state.sharedKey, err = cfg.Options.GetSharedKey()
 	if err != nil {
 		return nil, err
 	}
+
+	state.hpkePrivateKey, err = cfg.Options.GetHPKEPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	state.authenticateKeyFetcher = hpke.NewKeyFetcher(authenticateURL.ResolveReference(&url.URL{
+		Path: "/.well-known/pomerium/jwks.json",
+	}).String())
 
 	state.sharedCipher, err = cryptutil.NewAEADCipher(state.sharedKey)
 	if err != nil {
