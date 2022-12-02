@@ -11,7 +11,6 @@ import (
 	"github.com/gorilla/mux"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -208,16 +207,7 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 		return httputil.NewError(http.StatusBadRequest, errors.New("invalid redirect uri"))
 	}
 
-	var policy *config.Policy
-	for _, p := range options.GetAllPolicies() {
-		p := p
-		if p.Matches(*redirectURI) {
-			policy = &p
-			break
-		}
-	}
-
-	idp, err := options.GetIdentityProviderForPolicy(policy)
+	idp, err := options.GetIdentityProviderForRequestURL(urlutil.GetAbsoluteURL(r).String())
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}
