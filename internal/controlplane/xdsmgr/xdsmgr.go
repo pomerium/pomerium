@@ -10,7 +10,7 @@ import (
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/google/uuid"
-	lru "github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -42,7 +42,7 @@ type Manager struct {
 	nonce     string
 	resources map[string][]*envoy_service_discovery_v3.Resource
 
-	nonceToConfig *lru.Cache
+	nonceToConfig *lru.Cache[string, uint64]
 
 	hostname string
 
@@ -51,7 +51,7 @@ type Manager struct {
 
 // NewManager creates a new Manager.
 func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource, evt *events.Manager) *Manager {
-	nonceToConfig, _ := lru.New(maxNonceCacheSize) // the only error they return is when size is negative, which never happens
+	nonceToConfig, _ := lru.New[string, uint64](maxNonceCacheSize) // the only error they return is when size is negative, which never happens
 
 	return &Manager{
 		signal: signal.New(),
@@ -256,19 +256,16 @@ func (mgr *Manager) Update(ctx context.Context, resources map[string][]*envoy_se
 	mgr.mu.Lock()
 	mgr.nonce = nonce
 	mgr.resources = resources
-	mgr.nonceToConfig.Add(nonce, ctx.Value(contextkeys.UpdateRecordsVersion))
+	v, _ := ctx.Value(contextkeys.UpdateRecordsVersion).(uint64)
+	mgr.nonceToConfig.Add(nonce, v)
 	mgr.mu.Unlock()
 
 	mgr.signal.Broadcast(ctx)
 }
 
 func (mgr *Manager) nonceToConfigVersion(nonce string) (ver uint64) {
-	val, ok := mgr.nonceToConfig.Get(nonce)
-	if !ok {
-		return 0
-	}
-	ver, _ = val.(uint64)
-	return ver
+	v, _ := mgr.nonceToConfig.Get(nonce)
+	return v
 }
 
 func (mgr *Manager) nackEvent(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
