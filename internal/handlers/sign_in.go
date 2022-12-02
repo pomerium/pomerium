@@ -37,7 +37,7 @@ func BuildCallbackURL(
 		if err != nil {
 			return "", fmt.Errorf("error copying %s: %w", urlutil.QueryRedirectURI, err)
 		}
-		callbackURL.Path = "/.pomerium/callback"
+		callbackURL.Path = "/.pomerium/callback/"
 		callbackURL.RawQuery = ""
 	}
 
