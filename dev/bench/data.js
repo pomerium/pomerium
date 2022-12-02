@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1669997799473,
+  "lastUpdate": 1669998611705,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -21984,6 +21984,42 @@ window.BENCHMARK_DATA = {
             "value": 8061238,
             "unit": "ns/op",
             "extra": "153 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1848a9737fa5487214ecd987f74af114b6915f27",
+          "message": "upgrade to golang-lru v2 (#3771)",
+          "timestamp": "2022-12-02T09:25:52-07:00",
+          "tree_id": "20d76899dc2351882fab3b71c6a52d171fdbe417",
+          "url": "https://github.com/pomerium/pomerium/commit/1848a9737fa5487214ecd987f74af114b6915f27"
+        },
+        "date": 1669998611056,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12170892,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8542082,
+            "unit": "ns/op",
+            "extra": "140 times\n2 procs"
           }
         ]
       }
