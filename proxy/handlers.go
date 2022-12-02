@@ -181,7 +181,7 @@ func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// if programmatic, encode the session jwt as a query param
-	if isProgrammatic := r.FormValue(urlutil.QueryIsProgrammatic); isProgrammatic == "true" {
+	if isProgrammatic := values.Get(urlutil.QueryIsProgrammatic); isProgrammatic == "true" {
 		q := redirectURI.Query()
 		q.Set(urlutil.QueryPomeriumJWT, string(rawJWT))
 		redirectURI.RawQuery = q.Encode()

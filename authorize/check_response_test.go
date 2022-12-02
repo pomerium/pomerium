@@ -3,6 +3,7 @@ package authorize
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 
@@ -19,15 +20,23 @@ import (
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
+	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
 
 func TestAuthorize_handleResult(t *testing.T) {
 	opt := config.NewDefaultOptions()
-	opt.AuthenticateURLString = "https://authenticate.example.com"
 	opt.DataBrokerURLString = "https://databroker.example.com"
 	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
+
+	htpkePrivateKey, err := opt.GetHPKEPrivateKey()
+	require.NoError(t, err)
+
+	authnSrv := httptest.NewServer(handlers.JWKSHandler(opt.SigningKey, htpkePrivateKey.PublicKey()))
+	t.Cleanup(authnSrv.Close)
+	opt.AuthenticateURLString = authnSrv.URL
+
 	a, err := New(&config.Config{Options: opt})
 	require.NoError(t, err)
 
@@ -179,10 +188,20 @@ func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
 }
 
 func TestRequireLogin(t *testing.T) {
+	t.Parallel()
+
 	opt := config.NewDefaultOptions()
-	opt.AuthenticateURLString = "https://authenticate.example.com"
 	opt.DataBrokerURLString = "https://databroker.example.com"
 	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
+	opt.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUJlMFRxbXJkSXBZWE03c3pSRERWYndXOS83RWJHVWhTdFFJalhsVHNXM1BvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFb0xaRDI2bEdYREhRQmhhZkdlbEVmRDdlNmYzaURjWVJPVjdUbFlIdHF1Y1BFL2hId2dmYQpNY3FBUEZsRmpueUpySXJhYTFlQ2xZRTJ6UktTQk5kNXBRPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
+
+	htpkePrivateKey, err := opt.GetHPKEPrivateKey()
+	require.NoError(t, err)
+
+	authnSrv := httptest.NewServer(handlers.JWKSHandler(opt.SigningKey, htpkePrivateKey.PublicKey()))
+	t.Cleanup(authnSrv.Close)
+	opt.AuthenticateURLString = authnSrv.URL
+
 	a, err := New(&config.Config{Options: opt})
 	require.NoError(t, err)
 
