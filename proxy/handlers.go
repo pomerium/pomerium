@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"google.golang.org/protobuf/encoding/protojson"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -196,6 +197,7 @@ func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) error {
 // using the authenticate service.
 func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error {
 	state := p.state.Load()
+	options := p.currentOptions.Load()
 
 	redirectURI, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
 	if err != nil {
@@ -206,6 +208,25 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 		return httputil.NewError(http.StatusBadRequest, errors.New("invalid redirect uri"))
 	}
 
+	var policy *config.Policy
+	for _, p := range options.GetAllPolicies() {
+		p := p
+		if p.Matches(*redirectURI) {
+			policy = &p
+			break
+		}
+	}
+
+	idp, err := options.GetIdentityProviderForPolicy(policy)
+	if err != nil {
+		return httputil.NewError(http.StatusInternalServerError, err)
+	}
+
+	hpkeAuthenticateKey, err := state.authenticateKeyFetcher.FetchPublicKey(r.Context())
+	if err != nil {
+		return httputil.NewError(http.StatusInternalServerError, err)
+	}
+
 	signinURL := *state.authenticateSigninURL
 	callbackURI := urlutil.GetAbsoluteURL(r)
 	callbackURI.Path = dashboardPath + "/callback/"
@@ -214,11 +235,15 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	q.Set(urlutil.QueryRedirectURI, redirectURI.String())
 	q.Set(urlutil.QueryIsProgrammatic, "true")
 	signinURL.RawQuery = q.Encode()
-	response := urlutil.NewSignedURL(state.sharedKey, &signinURL).String()
+
+	rawURL, err := handlers.BuildSignInURL(state.hpkePrivateKey, hpkeAuthenticateKey, &signinURL, redirectURI, idp.GetId())
+	if err != nil {
+		return httputil.NewError(http.StatusInternalServerError, err)
+	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_, _ = io.WriteString(w, response)
+	_, _ = io.WriteString(w, rawURL)
 	return nil
 }
 
