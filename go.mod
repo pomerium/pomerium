@@ -11,7 +11,7 @@ require (
 	github.com/VictoriaMetrics/fastcache v1.12.0
 	github.com/caddyserver/certmagic v0.17.2
 	github.com/cenkalti/backoff/v4 v4.2.0
-	github.com/cespare/xxhash/v2 v2.1.2
+	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/client9/misspell v0.3.4
 	github.com/coreos/go-oidc/v3 v3.4.0
 	github.com/docker/docker v20.10.21+incompatible
