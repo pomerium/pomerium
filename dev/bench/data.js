@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1670256367495,
+  "lastUpdate": 1670256368869,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -22324,6 +22324,38 @@ window.BENCHMARK_DATA = {
             "value": 11100508,
             "unit": "ns/op",
             "extra": "112 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "907041941e7ccd0a22916f5127672d7748ff444a",
+          "message": "chore(deps): bump github.com/cespare/xxhash/v2 from 2.1.2 to 2.2.0",
+          "timestamp": "2022-12-05T14:06:37Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3786/commits/907041941e7ccd0a22916f5127672d7748ff444a"
+        },
+        "date": 1670256368164,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11678967,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8582567,
+            "unit": "ns/op",
+            "extra": "141 times\n2 procs"
           }
         ]
       }
