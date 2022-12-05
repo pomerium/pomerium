@@ -55,7 +55,7 @@ require (
 	github.com/prometheus/procfs v0.8.0
 	github.com/rs/cors v1.8.2
 	github.com/rs/zerolog v1.28.0
-	github.com/shirou/gopsutil/v3 v3.22.10
+	github.com/shirou/gopsutil/v3 v3.22.11
 	github.com/spf13/viper v1.14.0
 	github.com/stretchr/testify v1.8.1
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f
@@ -263,8 +263,8 @@ require (
 	github.com/timakin/bodyclose v0.0.0-20210704033933-f49887972144 // indirect
 	github.com/timonwong/loggercheck v0.9.3 // indirect
 	github.com/tinylib/msgp v1.1.2 // indirect
-	github.com/tklauser/go-sysconf v0.3.10 // indirect
-	github.com/tklauser/numcpus v0.4.0 // indirect
+	github.com/tklauser/go-sysconf v0.3.11 // indirect
+	github.com/tklauser/numcpus v0.6.0 // indirect
 	github.com/tomarrell/wrapcheck/v2 v2.7.0 // indirect
 	github.com/tommy-muehle/go-mnd/v2 v2.5.1 // indirect
 	github.com/uber/jaeger-client-go v2.25.0+incompatible // indirect
