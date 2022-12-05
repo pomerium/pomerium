@@ -61,9 +61,7 @@ pomerium_routes_0 = [true, {"pomerium-route"}] {
 	contains(input.http.url, "/.pomerium/")
 }
 
-else = [false, {"non-pomerium-route"}] {
-	true
-}
+else = [false, {"non-pomerium-route"}]
 
 accept_0 = [true, {"accept"}]
 
@@ -73,9 +71,7 @@ cors_preflight_0 = [true, {"cors-request"}] {
 	count(object.get(input.http.headers, "Origin", [])) > 0
 }
 
-else = [false, {"non-cors-request"}] {
-	true
-}
+else = [false, {"non-cors-request"}]
 
 authenticated_user_0 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
@@ -88,9 +84,7 @@ else = [false, {"user-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 domain_0 = [true, {"domain-ok"}] {
 	session := get_session(input.session.id)
@@ -104,9 +98,7 @@ else = [false, {"domain-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 domain_1 = [true, {"domain-ok"}] {
 	session := get_session(input.session.id)
@@ -120,9 +112,7 @@ else = [false, {"domain-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 domain_2 = [true, {"domain-ok"}] {
 	session := get_session(input.session.id)
@@ -136,9 +126,7 @@ else = [false, {"domain-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 domain_3 = [true, {"domain-ok"}] {
 	session := get_session(input.session.id)
@@ -152,9 +140,7 @@ else = [false, {"domain-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 domain_4 = [true, {"domain-ok"}] {
 	session := get_session(input.session.id)
@@ -168,9 +154,7 @@ else = [false, {"domain-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 claim_0 = [true, {"claim-ok"}] {
 	rule_data := "Smith"
@@ -189,9 +173,7 @@ else = [false, {"claim-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 claim_1 = [true, {"claim-ok"}] {
 	rule_data := "Jones"
@@ -210,9 +192,7 @@ else = [false, {"claim-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 claim_2 = [true, {"claim-ok"}] {
 	rule_data := "John"
@@ -231,9 +211,7 @@ else = [false, {"claim-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 claim_3 = [true, {"claim-ok"}] {
 	rule_data := "EST"
@@ -252,9 +230,7 @@ else = [false, {"claim-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 user_0 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
@@ -267,9 +243,7 @@ else = [false, {"user-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 email_0 = [true, {"email-ok"}] {
 	session := get_session(input.session.id)
@@ -283,9 +257,7 @@ else = [false, {"email-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 user_1 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
@@ -298,9 +270,7 @@ else = [false, {"user-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 email_1 = [true, {"email-ok"}] {
 	session := get_session(input.session.id)
@@ -314,9 +284,7 @@ else = [false, {"email-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 user_2 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
@@ -329,9 +297,7 @@ else = [false, {"user-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 email_2 = [true, {"email-ok"}] {
 	session := get_session(input.session.id)
@@ -345,9 +311,7 @@ else = [false, {"email-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 user_3 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
@@ -360,9 +324,7 @@ else = [false, {"user-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 email_3 = [true, {"email-ok"}] {
 	session := get_session(input.session.id)
@@ -376,9 +338,7 @@ else = [false, {"email-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 user_4 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
@@ -391,9 +351,7 @@ else = [false, {"user-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 email_4 = [true, {"email-ok"}] {
 	session := get_session(input.session.id)
@@ -407,9 +365,7 @@ else = [false, {"email-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 or_0 = v {
 	results := [pomerium_routes_0, accept_0, cors_preflight_0, authenticated_user_0, domain_0, domain_1, domain_2, domain_3, domain_4, claim_0, claim_1, claim_2, claim_3, user_0, email_0, user_1, email_1, user_2, email_2, user_3, email_3, user_4, email_4]
@@ -428,9 +384,7 @@ else = [false, {"user-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 or_1 = v {
 	results := [user_5]
@@ -449,9 +403,7 @@ invalid_client_certificate_0 = [true, {"invalid-client-certificate"}] {
 	not input.is_valid_client_certificate
 }
 
-else = [false, {"valid-client-certificate-or-none-required"}] {
-	true
-}
+else = [false, {"valid-client-certificate-or-none-required"}]
 
 or_2 = v {
 	results := [invalid_client_certificate_0]
@@ -544,26 +496,20 @@ else = v {
 	object.get(v, "impersonate_session_id", "") == ""
 }
 
-else = {} {
-	true
-}
+else = {}
 
 get_user(session) = v {
 	v = get_databroker_record("type.googleapis.com/user.User", session.user_id)
 	v != null
 }
 
-else = {} {
-	true
-}
+else = {}
 
 get_user_email(session, user) = v {
 	v = user.email
 }
 
-else = "" {
-	true
-}
+else = ""
 
 object_get(obj, key, def) = value {
 	undefined := "10a0fd35-0f1a-4e5b-97ce-631e89e1bafa"
