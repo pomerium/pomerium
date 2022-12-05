@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1670273051639,
+  "lastUpdate": 1670278185135,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -22904,6 +22904,42 @@ window.BENCHMARK_DATA = {
             "value": 7796103,
             "unit": "ns/op",
             "extra": "156 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8d1235a5cc80e3da0aaec8c4b4401104bf3fc3e0",
+          "message": "chore(deps): bump github.com/open-policy-agent/opa from 0.46.1 to 0.47.0 (#3782)\n\n* chore(deps): bump github.com/open-policy-agent/opa from 0.46.1 to 0.47.0\r\n\r\nBumps [github.com/open-policy-agent/opa](https://github.com/open-policy-agent/opa) from 0.46.1 to 0.47.0.\r\n- [Release notes](https://github.com/open-policy-agent/opa/releases)\r\n- [Changelog](https://github.com/open-policy-agent/opa/blob/main/CHANGELOG.md)\r\n- [Commits](https://github.com/open-policy-agent/opa/compare/v0.46.1...v0.47.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/open-policy-agent/opa\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\n* fix test\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Caleb Doxsey <cdoxsey@pomerium.com>",
+          "timestamp": "2022-12-05T15:07:14-07:00",
+          "tree_id": "39f394d4f10272a7869824ec11933a05c84ae05c",
+          "url": "https://github.com/pomerium/pomerium/commit/8d1235a5cc80e3da0aaec8c4b4401104bf3fc3e0"
+        },
+        "date": 1670278184717,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11322723,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7682230,
+            "unit": "ns/op",
+            "extra": "153 times\n2 procs"
           }
         ]
       }
