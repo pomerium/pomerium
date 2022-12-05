@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1670257180043,
+  "lastUpdate": 1670257690421,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -22696,6 +22696,42 @@ window.BENCHMARK_DATA = {
             "value": 8737838,
             "unit": "ns/op",
             "extra": "132 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "21286dd6b342a16a8ffc56dd199f4720c2c13867",
+          "message": "chore(deps): bump github.com/cespare/xxhash/v2 from 2.1.2 to 2.2.0 (#3786)\n\nBumps [github.com/cespare/xxhash/v2](https://github.com/cespare/xxhash) from 2.1.2 to 2.2.0.\r\n- [Release notes](https://github.com/cespare/xxhash/releases)\r\n- [Commits](https://github.com/cespare/xxhash/compare/v2.1.2...v2.2.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/cespare/xxhash/v2\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-12-05T09:10:36-07:00",
+          "tree_id": "7460aaee5f9a5b4493b521dafcf5c3951e7a5a52",
+          "url": "https://github.com/pomerium/pomerium/commit/21286dd6b342a16a8ffc56dd199f4720c2c13867"
+        },
+        "date": 1670257689991,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12609631,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8979013,
+            "unit": "ns/op",
+            "extra": "134 times\n2 procs"
           }
         ]
       }
