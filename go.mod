@@ -35,7 +35,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru/v2 v2.0.1
 	github.com/jackc/pgconn v1.13.0
-	github.com/jackc/pgtype v1.12.0
+	github.com/jackc/pgtype v1.13.0
 	github.com/jackc/pgx/v4 v4.17.2
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/mholt/acmez v1.0.4
