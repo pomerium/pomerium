@@ -21,6 +21,7 @@ func TestHTTPError_ErrorResponse(t *testing.T) {
 	}{
 		{"404 json", http.StatusNotFound, errors.New("route not known"), "application/json", http.StatusNotFound, "{\"Status\":404}\n"},
 		{"404 html", http.StatusNotFound, errors.New("route not known"), "", http.StatusNotFound, ""},
+		{"302 found", http.StatusFound, errors.New("redirect"), "", http.StatusFound, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
