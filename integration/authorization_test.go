@@ -25,7 +25,7 @@ func TestAuthorization(t *testing.T) {
 			}
 
 			t.Run("public", func(t *testing.T) {
-				client := getClient()
+				client := getClient(t)
 
 				req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io", nil)
 				if err != nil {
@@ -43,7 +43,7 @@ func TestAuthorization(t *testing.T) {
 
 			t.Run("domains", func(t *testing.T) {
 				t.Run("allowed", func(t *testing.T) {
-					client := getClient()
+					client := getClient(t)
 					res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-domain"),
 						withAPI, flows.WithEmail("user1@dogs.test"))
 					if assert.NoError(t, err) {
@@ -51,7 +51,7 @@ func TestAuthorization(t *testing.T) {
 					}
 				})
 				t.Run("not allowed", func(t *testing.T) {
-					client := getClient()
+					client := getClient(t)
 					res, err := flows.Authenticate(ctx, client, mustParseURL("https://httpdetails.localhost.pomerium.io/by-domain"),
 						withAPI, flows.WithEmail("user1@cats.test"))
 					if assert.NoError(t, err) {

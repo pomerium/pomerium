@@ -222,7 +222,6 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	callbackURI.Path = dashboardPath + "/callback/"
 	q := signinURL.Query()
 	q.Set(urlutil.QueryCallbackURI, callbackURI.String())
-	q.Set(urlutil.QueryRedirectURI, redirectURI.String())
 	q.Set(urlutil.QueryIsProgrammatic, "true")
 	signinURL.RawQuery = q.Encode()
 

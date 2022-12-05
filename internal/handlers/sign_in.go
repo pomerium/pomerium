@@ -72,9 +72,8 @@ func BuildSignInURL(
 	redirectURL *url.URL,
 	idpID string,
 ) (string, error) {
-	signInURL := authenticateURL.ResolveReference(&url.URL{
-		Path: "/.pomerium/sign_in",
-	})
+	signInURL := *authenticateURL
+	signInURL.Path = "/.pomerium/sign_in"
 
 	q := signInURL.Query()
 	q.Set(urlutil.QueryRedirectURI, redirectURL.String())
