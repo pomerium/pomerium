@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1670258007145,
+  "lastUpdate": 1670266941481,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -22840,6 +22840,38 @@ window.BENCHMARK_DATA = {
             "value": 10944313,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "e850b3c957dcd7e804c8981cb02603d71ae8b210",
+          "message": "authenticate: implement hpke-based login flow",
+          "timestamp": "2022-12-05T14:06:37Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3779/commits/e850b3c957dcd7e804c8981cb02603d71ae8b210"
+        },
+        "date": 1670266941060,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15866307,
+            "unit": "ns/op",
+            "extra": "76 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9341141,
+            "unit": "ns/op",
+            "extra": "123 times\n2 procs"
           }
         ]
       }
