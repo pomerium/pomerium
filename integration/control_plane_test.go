@@ -21,7 +21,7 @@ func TestDashboard(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		res, err := getClient().Do(req)
+		res, err := getClient(t).Do(req)
 		if !assert.NoError(t, err, "unexpected http error") {
 			return
 		}
@@ -37,7 +37,7 @@ func TestDashboard(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		res, err := getClient().Do(req)
+		res, err := getClient(t).Do(req)
 		if !assert.NoError(t, err, "unexpected http error") {
 			return
 		}
@@ -69,7 +69,7 @@ func TestHealth(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				res, err := getClient().Do(req)
+				res, err := getClient(t).Do(req)
 				if !assert.NoError(t, err, "unexpected http error") {
 					return
 				}

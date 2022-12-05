@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
@@ -174,34 +175,42 @@ func (a *Authorize) requireLoginResponse(
 	in *envoy_service_auth_v3.CheckRequest,
 	request *evaluator.Request,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
-	opts := a.currentOptions.Load()
+	options := a.currentOptions.Load()
 	state := a.state.Load()
-	authenticateURL, err := opts.GetAuthenticateURL()
-	if err != nil {
-		return nil, err
-	}
 
 	if !a.shouldRedirect(in) {
 		return a.deniedResponse(ctx, in, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), nil)
 	}
 
-	signinURL := authenticateURL.ResolveReference(&url.URL{
-		Path: "/.pomerium/sign_in",
-	})
-	q := signinURL.Query()
+	authenticateURL, err := options.GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
+
+	idp, err := options.GetIdentityProviderForPolicy(request.Policy)
+	if err != nil {
+		return nil, err
+	}
+
+	authenticateHPKEPublicKey, err := state.authenticateKeyFetcher.FetchPublicKey(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	// always assume https scheme
 	checkRequestURL := getCheckRequestURL(in)
 	checkRequestURL.Scheme = "https"
 
-	q.Set(urlutil.QueryRedirectURI, checkRequestURL.String())
-	idp, err := opts.GetIdentityProviderForPolicy(request.Policy)
+	redirectTo, err := handlers.BuildSignInURL(
+		state.hpkePrivateKey,
+		authenticateHPKEPublicKey,
+		authenticateURL,
+		&checkRequestURL,
+		idp.GetId(),
+	)
 	if err != nil {
 		return nil, err
 	}
-	q.Set(urlutil.QueryIdentityProviderID, idp.GetId())
-	signinURL.RawQuery = q.Encode()
-	redirectTo := urlutil.NewSignedURL(state.sharedKey, signinURL).String()
 
 	return a.deniedResponse(ctx, in, http.StatusFound, "Login", map[string]string{
 		"Location": redirectTo,

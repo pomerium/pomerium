@@ -9,13 +9,15 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/handlers"
 
 	"github.com/stretchr/testify/require"
 )
 
 func testOptions(t *testing.T) *config.Options {
+	t.Helper()
+
 	opts := config.NewDefaultOptions()
-	opts.AuthenticateURLString = "https://authenticate.example"
 
 	to, err := config.ParseWeightedUrls("https://example.example")
 	require.NoError(t, err)
@@ -27,6 +29,13 @@ func testOptions(t *testing.T) *config.Options {
 	opts.Services = config.ServiceAll
 	opts.SharedKey = "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
 	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
+
+	htpkePrivateKey, err := opts.GetHPKEPrivateKey()
+	require.NoError(t, err)
+
+	authnSrv := httptest.NewServer(handlers.JWKSHandler(opts.SigningKey, htpkePrivateKey.PublicKey()))
+	t.Cleanup(authnSrv.Close)
+	opts.AuthenticateURLString = authnSrv.URL
 
 	require.NoError(t, opts.Validate())
 
