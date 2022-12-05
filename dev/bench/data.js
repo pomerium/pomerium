@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1670278185135,
+  "lastUpdate": 1670279626454,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -22940,6 +22940,42 @@ window.BENCHMARK_DATA = {
             "value": 7682230,
             "unit": "ns/op",
             "extra": "153 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "57217af7dde6d2e00707b26a9457200a5be0293e",
+          "message": "authenticate: implement hpke-based login flow (#3779)\n\n* urlutil: add time validation functions\r\n\r\n* authenticate: implement hpke-based login flow\r\n\r\n* fix import cycle\r\n\r\n* fix tests\r\n\r\n* log error\r\n\r\n* fix callback url\r\n\r\n* add idp param\r\n\r\n* fix test\r\n\r\n* fix test",
+          "timestamp": "2022-12-05T15:31:07-07:00",
+          "tree_id": "275b5b4c8022948b39ad6500e297f5888bac6820",
+          "url": "https://github.com/pomerium/pomerium/commit/57217af7dde6d2e00707b26a9457200a5be0293e"
+        },
+        "date": 1670279625777,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16178100,
+            "unit": "ns/op",
+            "extra": "79 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9694343,
+            "unit": "ns/op",
+            "extra": "120 times\n2 procs"
           }
         ]
       }
