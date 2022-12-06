@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1670353285767,
+  "lastUpdate": 1670356184268,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -23008,6 +23008,42 @@ window.BENCHMARK_DATA = {
             "value": 8635145,
             "unit": "ns/op",
             "extra": "146 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ce1b8701da4c15fc527b494c872711c87e4b152a",
+          "message": "events: remove xds configuraton update (#3792)",
+          "timestamp": "2022-12-06T14:46:45-05:00",
+          "tree_id": "c3b15c40aadbfa7d47b516c1e5e33c1a4cae1f7a",
+          "url": "https://github.com/pomerium/pomerium/commit/ce1b8701da4c15fc527b494c872711c87e4b152a"
+        },
+        "date": 1670356183408,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17075097,
+            "unit": "ns/op",
+            "extra": "70 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10360113,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
