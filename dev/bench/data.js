@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1670279626454,
+  "lastUpdate": 1670353285767,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -22976,6 +22976,38 @@ window.BENCHMARK_DATA = {
             "value": 9694343,
             "unit": "ns/op",
             "extra": "120 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "1cca6b6626d600ccff0a1058c5d704d71e4081f4",
+          "message": "events: remove xds configuraton update",
+          "timestamp": "2022-12-06T18:37:35Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3792/commits/1cca6b6626d600ccff0a1058c5d704d71e4081f4"
+        },
+        "date": 1670353284873,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13011641,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8635145,
+            "unit": "ns/op",
+            "extra": "146 times\n2 procs"
           }
         ]
       }
