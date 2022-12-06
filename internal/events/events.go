@@ -22,15 +22,6 @@ type EventSink func(Event)
 type EventSinkHandle string
 
 type (
-	// EnvoyConfigurationEvent re-exports events.EnvoyConfigurationEvent.
-	EnvoyConfigurationEvent = events.EnvoyConfigurationEvent
 	// LastError re-exports events.LastError.
 	LastError = events.LastError
-)
-
-// re-exported protobuf constants
-const (
-	EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_ACK  = events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_ACK  //nolint
-	EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_NACK = events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_NACK //nolint
-	EnvoyConfigurationEvent_EVENT_DISCOVERY_RESPONSE     = events.EnvoyConfigurationEvent_EVENT_DISCOVERY_RESPONSE     //nolint
 )

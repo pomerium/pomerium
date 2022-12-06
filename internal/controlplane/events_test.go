@@ -85,13 +85,13 @@ func TestEvents(t *testing.T) {
 					},
 				}),
 			}
-			err := srv.storeEvent(ctx, new(events.EnvoyConfigurationEvent))
+			err := srv.storeEvent(ctx, new(events.LastError))
 			assert.NoError(t, err)
 			return err
 		})
 		_ = eg.Wait()
 
 		assert.Equal(t, uint64(maxEvents), setOptionsRequest.GetOptions().GetCapacity())
-		assert.Equal(t, "type.googleapis.com/pomerium.events.EnvoyConfigurationEvent", putRequest.GetRecord().GetType())
+		assert.Equal(t, "type.googleapis.com/pomerium.events.LastError", putRequest.GetRecord().GetType())
 	})
 }
