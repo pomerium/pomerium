@@ -116,16 +116,6 @@ func (p *Proxy) setHandlers(opts *config.Options) error {
 	// dashboard handlers are registered to all routes
 	r = p.registerDashboardHandlers(r)
 
-	forwardAuthURL, err := opts.GetForwardAuthURL()
-	if err != nil {
-		return err
-	}
-	if forwardAuthURL != nil {
-		// if a forward auth endpoint is set, register its handlers
-		h := r.Host(forwardAuthURL.Hostname()).Subrouter()
-		h.PathPrefix("/").Handler(p.registerFwdAuthHandlers())
-	}
-
 	p.currentRouter.Store(r)
 	return nil
 }

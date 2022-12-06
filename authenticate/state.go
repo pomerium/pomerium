@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
@@ -39,7 +40,8 @@ type authenticateState struct {
 	sessionStore sessions.SessionStore
 	// sessionLoaders are a collection of session loaders to attempt to pull
 	// a user's session state from
-	sessionLoader sessions.SessionLoader
+	sessionLoader  sessions.SessionLoader
+	hpkePrivateKey *hpke.PrivateKey
 
 	jwk *jose.JSONWebKeySet
 
@@ -136,6 +138,8 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	if err != nil {
 		return nil, err
 	}
+
+	state.hpkePrivateKey = hpke.DerivePrivateKey(sharedKey)
 
 	dataBrokerConn, err := outboundGRPCConnection.Get(context.Background(), &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,

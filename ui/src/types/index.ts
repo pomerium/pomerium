@@ -13,6 +13,13 @@ export type Group = {
   name: string;
 };
 
+export type Profile = {
+  providerId: string;
+  idToken: string;
+  oauthToken: string;
+  claims: Record<string, unknown>;
+};
+
 export type Session = {
   audience: string[];
   claims: Claims;
@@ -108,6 +115,7 @@ export type UserInfoData = {
   isEnterprise?: boolean;
   session?: Session;
   user?: User;
+  profile?: Profile;
   webAuthnCreationOptions?: WebAuthnCreationOptions;
   webAuthnRequestOptions?: WebAuthnRequestOptions;
   webAuthnUrl?: string;

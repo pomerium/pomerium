@@ -13,12 +13,12 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
-	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/tniswong/go.rfcx/rfc7231"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
@@ -32,25 +32,24 @@ func (a *Authorize) handleResult(
 	in *envoy_service_auth_v3.CheckRequest,
 	request *evaluator.Request,
 	result *evaluator.Result,
-	isForwardAuthVerify bool,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
 	// when the user is unauthenticated it means they haven't
 	// logged in yet, so redirect to authenticate
 	if result.Allow.Reasons.Has(criteria.ReasonUserUnauthenticated) ||
 		result.Deny.Reasons.Has(criteria.ReasonUserUnauthenticated) {
-		return a.requireLoginResponse(ctx, in, request, isForwardAuthVerify)
+		return a.requireLoginResponse(ctx, in, request)
 	}
 
 	// when the user's device is unauthenticated it means they haven't
 	// registered a webauthn device yet, so redirect to the webauthn flow
 	if result.Allow.Reasons.Has(criteria.ReasonDeviceUnauthenticated) ||
 		result.Deny.Reasons.Has(criteria.ReasonDeviceUnauthenticated) {
-		return a.requireWebAuthnResponse(ctx, in, request, result, isForwardAuthVerify)
+		return a.requireWebAuthnResponse(ctx, in, request, result)
 	}
 
 	// if there's a deny, the result is denied using the deny reasons.
 	if result.Deny.Value {
-		return a.handleResultDenied(ctx, in, request, result, isForwardAuthVerify, result.Deny.Reasons)
+		return a.handleResultDenied(ctx, in, request, result, result.Deny.Reasons)
 	}
 
 	// if there's an allow, the result is allowed.
@@ -59,7 +58,7 @@ func (a *Authorize) handleResult(
 	}
 
 	// otherwise, the result is denied using the allow reasons.
-	return a.handleResultDenied(ctx, in, request, result, isForwardAuthVerify, result.Allow.Reasons)
+	return a.handleResultDenied(ctx, in, request, result, result.Allow.Reasons)
 }
 
 func (a *Authorize) handleResultAllowed(
@@ -75,7 +74,6 @@ func (a *Authorize) handleResultDenied(
 	in *envoy_service_auth_v3.CheckRequest,
 	request *evaluator.Request,
 	result *evaluator.Result,
-	isForwardAuthVerify bool,
 	reasons criteria.Reasons,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
 	denyStatusCode := int32(http.StatusForbidden)
@@ -83,7 +81,7 @@ func (a *Authorize) handleResultDenied(
 
 	switch {
 	case reasons.Has(criteria.ReasonDeviceUnauthenticated):
-		return a.requireWebAuthnResponse(ctx, in, request, result, isForwardAuthVerify)
+		return a.requireWebAuthnResponse(ctx, in, request, result)
 	case reasons.Has(criteria.ReasonDeviceUnauthorized):
 		denyStatusCode = httputil.StatusDeviceUnauthorized
 		denyStatusText = httputil.DetailsText(httputil.StatusDeviceUnauthorized)
@@ -101,7 +99,7 @@ func (a *Authorize) handleResultDenied(
 func (a *Authorize) okResponse(headers http.Header) *envoy_service_auth_v3.CheckResponse {
 	var requestHeaders []*envoy_config_core_v3.HeaderValueOption
 	for k, vs := range headers {
-		requestHeaders = append(requestHeaders, mkHeader(k, strings.Join(vs, ","), false))
+		requestHeaders = append(requestHeaders, mkHeader(k, strings.Join(vs, ",")))
 	}
 	// ensure request headers are sorted by key for deterministic output
 	sort.Slice(requestHeaders, func(i, j int) bool {
@@ -122,46 +120,40 @@ func (a *Authorize) deniedResponse(
 	in *envoy_service_auth_v3.CheckRequest,
 	code int32, reason string, headers map[string]string,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
-	respBody := []byte(reason)
 	respHeader := []*envoy_config_core_v3.HeaderValueOption{}
 
-	forwardAuthURL, _ := a.currentOptions.Load().GetForwardAuthURL()
-	if forwardAuthURL == nil {
-		// create a http response writer recorder
-		w := httptest.NewRecorder()
-		r := getHTTPRequestFromCheckRequest(in)
+	// create a http response writer recorder
+	w := httptest.NewRecorder()
+	r := getHTTPRequestFromCheckRequest(in)
 
-		// build the user info / debug endpoint
-		debugEndpoint, _ := a.userInfoEndpointURL(in) // if there's an error, we just wont display it
+	// build the user info / debug endpoint
+	debugEndpoint, _ := a.userInfoEndpointURL(in) // if there's an error, we just wont display it
 
-		// run the request through our go error handler
-		httpErr := httputil.HTTPError{
-			Status:          int(code),
-			Err:             errors.New(reason),
-			DebugURL:        debugEndpoint,
-			RequestID:       requestid.FromContext(ctx),
-			BrandingOptions: a.currentOptions.Load().BrandingOptions,
-		}
-		httpErr.ErrorResponse(ctx, w, r)
-
-		// transpose the go http response writer into a envoy response
-		resp := w.Result()
-		defer resp.Body.Close()
-		var err error
-		respBody, err = io.ReadAll(resp.Body)
-		if err != nil {
-			log.Error(ctx).Err(err).Msg("error executing error template")
-			return nil, err
-		}
-		// convert go headers to envoy headers
-		respHeader = append(respHeader, toEnvoyHeaders(resp.Header)...)
-	} else {
-		respHeader = append(respHeader, mkHeader("Content-Type", "text/plain", false))
+	// run the request through our go error handler
+	httpErr := httputil.HTTPError{
+		Status:          int(code),
+		Err:             errors.New(reason),
+		DebugURL:        debugEndpoint,
+		RequestID:       requestid.FromContext(ctx),
+		BrandingOptions: a.currentOptions.Load().BrandingOptions,
 	}
+	httpErr.ErrorResponse(ctx, w, r)
+
+	// transpose the go http response writer into a envoy response
+	resp := w.Result()
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Error(ctx).Err(err).Msg("error executing error template")
+		return nil, err
+	}
+	// convert go headers to envoy headers
+	respHeader = append(respHeader, toEnvoyHeaders(resp.Header)...)
 
 	// add any additional headers
 	for k, v := range headers {
-		respHeader = append(respHeader, mkHeader(k, v, false))
+		respHeader = append(respHeader, mkHeader(k, v))
 	}
 
 	return &envoy_service_auth_v3.CheckResponse{
@@ -182,36 +174,43 @@ func (a *Authorize) requireLoginResponse(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
 	request *evaluator.Request,
-	isForwardAuthVerify bool,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
-	opts := a.currentOptions.Load()
+	options := a.currentOptions.Load()
 	state := a.state.Load()
-	authenticateURL, err := opts.GetAuthenticateURL()
+
+	if !a.shouldRedirect(in) {
+		return a.deniedResponse(ctx, in, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), nil)
+	}
+
+	authenticateURL, err := options.GetAuthenticateURL()
 	if err != nil {
 		return nil, err
 	}
 
-	if !a.shouldRedirect(in) || isForwardAuthVerify {
-		return a.deniedResponse(ctx, in, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), nil)
+	idp, err := options.GetIdentityProviderForPolicy(request.Policy)
+	if err != nil {
+		return nil, err
 	}
 
-	signinURL := authenticateURL.ResolveReference(&url.URL{
-		Path: "/.pomerium/sign_in",
-	})
-	q := signinURL.Query()
+	authenticateHPKEPublicKey, err := state.authenticateKeyFetcher.FetchPublicKey(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	// always assume https scheme
 	checkRequestURL := getCheckRequestURL(in)
 	checkRequestURL.Scheme = "https"
 
-	q.Set(urlutil.QueryRedirectURI, checkRequestURL.String())
-	idp, err := opts.GetIdentityProviderForPolicy(request.Policy)
+	redirectTo, err := handlers.BuildSignInURL(
+		state.hpkePrivateKey,
+		authenticateHPKEPublicKey,
+		authenticateURL,
+		&checkRequestURL,
+		idp.GetId(),
+	)
 	if err != nil {
 		return nil, err
 	}
-	q.Set(urlutil.QueryIdentityProviderID, idp.GetId())
-	signinURL.RawQuery = q.Encode()
-	redirectTo := urlutil.NewSignedURL(state.sharedKey, signinURL).String()
 
 	return a.deniedResponse(ctx, in, http.StatusFound, "Login", map[string]string{
 		"Location": redirectTo,
@@ -223,7 +222,6 @@ func (a *Authorize) requireWebAuthnResponse(
 	in *envoy_service_auth_v3.CheckRequest,
 	request *evaluator.Request,
 	result *evaluator.Result,
-	isForwardAuthVerify bool,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
 	opts := a.currentOptions.Load()
 	state := a.state.Load()
@@ -232,7 +230,7 @@ func (a *Authorize) requireWebAuthnResponse(
 		return nil, err
 	}
 
-	if !a.shouldRedirect(in) || isForwardAuthVerify {
+	if !a.shouldRedirect(in) {
 		return a.deniedResponse(ctx, in, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), nil)
 	}
 
@@ -266,15 +264,13 @@ func (a *Authorize) requireWebAuthnResponse(
 	})
 }
 
-func mkHeader(k, v string, shouldAppend bool) *envoy_config_core_v3.HeaderValueOption {
+func mkHeader(k, v string) *envoy_config_core_v3.HeaderValueOption {
 	return &envoy_config_core_v3.HeaderValueOption{
 		Header: &envoy_config_core_v3.HeaderValue{
 			Key:   k,
 			Value: v,
 		},
-		Append: &wrappers.BoolValue{
-			Value: shouldAppend,
-		},
+		AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
 	}
 }
 
@@ -287,7 +283,7 @@ func toEnvoyHeaders(headers http.Header) []*envoy_config_core_v3.HeaderValueOpti
 
 	envoyHeaders := make([]*envoy_config_core_v3.HeaderValueOption, 0, len(headers))
 	for _, k := range ks {
-		envoyHeaders = append(envoyHeaders, mkHeader(k, headers.Get(k), false))
+		envoyHeaders = append(envoyHeaders, mkHeader(k, headers.Get(k)))
 	}
 	return envoyHeaders
 }

@@ -69,12 +69,14 @@ func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r 
 	// indicate to clients that the error originates from Pomerium, not the app
 	w.Header().Set(HeaderPomeriumResponse, "true")
 
-	log.Error(ctx).
-		Err(e.Err).
-		Int("status", e.Status).
-		Str("status-text", StatusText(e.Status)).
-		Str("request-id", reqID).
-		Msg("httputil: error")
+	if e.Status >= 400 {
+		log.Error(ctx).
+			Err(e.Err).
+			Int("status", e.Status).
+			Str("status-text", StatusText(e.Status)).
+			Str("request-id", reqID).
+			Msg("httputil: error")
+	}
 
 	if r.Header.Get("Accept") == "application/json" {
 		RenderJSON(w, e.Status, response)

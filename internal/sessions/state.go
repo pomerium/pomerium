@@ -60,7 +60,7 @@ func (s *State) WithNewIssuer(issuer string, audience []string) State {
 }
 
 // UserID returns the corresponding user ID for a session.
-func (s *State) UserID(provider string) string {
+func (s *State) UserID() string {
 	if s.OID != "" {
 		return s.OID
 	}

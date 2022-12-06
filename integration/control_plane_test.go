@@ -21,7 +21,7 @@ func TestDashboard(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		res, err := getClient().Do(req)
+		res, err := getClient(t).Do(req)
 		if !assert.NoError(t, err, "unexpected http error") {
 			return
 		}
@@ -37,7 +37,7 @@ func TestDashboard(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		res, err := getClient().Do(req)
+		res, err := getClient(t).Do(req)
 		if !assert.NoError(t, err, "unexpected http error") {
 			return
 		}
@@ -48,11 +48,6 @@ func TestDashboard(t *testing.T) {
 }
 
 func TestHealth(t *testing.T) {
-	if ClusterType == "traefik" || ClusterType == "nginx" {
-		t.Skip()
-		return
-	}
-
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
 	defer clearTimeout()
 
@@ -74,7 +69,7 @@ func TestHealth(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				res, err := getClient().Do(req)
+				res, err := getClient(t).Do(req)
 				if !assert.NoError(t, err, "unexpected http error") {
 					return
 				}

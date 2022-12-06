@@ -23,7 +23,6 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
-	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
 	"github.com/pomerium/pomerium/internal/handlers/webauthn"
@@ -105,88 +104,6 @@ func TestAuthenticate_Handler(t *testing.T) {
 	body = resp.Header.Get("vary")
 	if body == "" {
 		t.Errorf("handler returned unexpected body: got %v want %v", body, expected)
-	}
-}
-
-func TestAuthenticate_SignIn(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name string
-
-		scheme string
-		host   string
-		qp     map[string]string
-
-		session  sessions.SessionStore
-		provider identity.MockProvider
-		encoder  encoding.MarshalUnmarshaler
-		wantCode int
-	}{
-		{"good", "https", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/"}, &mstore.Store{Session: &sessions.State{}}, identity.MockProvider{}, &mock.Encoder{}, http.StatusFound},
-		{"good alternate port", "https", "corp.example.example:8443", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/"}, &mstore.Store{Session: &sessions.State{}}, identity.MockProvider{}, &mock.Encoder{}, http.StatusFound},
-		{"session not valid", "https", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/"}, &mstore.Store{Session: &sessions.State{}}, identity.MockProvider{}, &mock.Encoder{}, http.StatusFound},
-		{"bad redirect uri query", "", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "^^^"}, &mstore.Store{Session: &sessions.State{}}, identity.MockProvider{}, &mock.Encoder{}, http.StatusBadRequest},
-		{"bad marshal", "https", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/"}, &mstore.Store{Session: &sessions.State{}}, identity.MockProvider{}, &mock.Encoder{MarshalError: errors.New("error")}, http.StatusBadRequest},
-		{"session error", "https", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/"}, &mstore.Store{LoadError: errors.New("error")}, identity.MockProvider{}, &mock.Encoder{}, http.StatusBadRequest},
-		{"good with different programmatic redirect", "https", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/", urlutil.QueryCallbackURI: "https://some.example"}, &mstore.Store{Session: &sessions.State{}}, identity.MockProvider{}, &mock.Encoder{}, http.StatusFound},
-		{"encrypted encoder error", "https", "corp.example.example", map[string]string{urlutil.QueryRedirectURI: "https://dst.some.example/", urlutil.QueryCallbackURI: "https://some.example"}, &mstore.Store{Session: &sessions.State{}}, identity.MockProvider{}, &mock.Encoder{MarshalError: errors.New("error")}, http.StatusBadRequest},
-		{"good with callback uri set", "https", "corp.example.example", map[string]string{urlutil.QueryCallbackURI: "https://some.example/", urlutil.QueryRedirectURI: "https://dst.some.example/"}, &mstore.Store{Session: &sessions.State{}}, identity.MockProvider{}, &mock.Encoder{}, http.StatusFound},
-		{"bad callback uri set", "https", "corp.example.example", map[string]string{urlutil.QueryCallbackURI: "^", urlutil.QueryRedirectURI: "https://dst.some.example/"}, &mstore.Store{Session: &sessions.State{}}, identity.MockProvider{}, &mock.Encoder{}, http.StatusBadRequest},
-		{"good programmatic request", "https", "corp.example.example", map[string]string{urlutil.QueryIsProgrammatic: "true", urlutil.QueryRedirectURI: "https://dst.some.example/"}, &mstore.Store{Session: &sessions.State{}}, identity.MockProvider{}, &mock.Encoder{}, http.StatusFound},
-		{"good additional audience", "https", "corp.example.example", map[string]string{urlutil.QueryForwardAuth: "x.y.z", urlutil.QueryRedirectURI: "https://dst.some.example/"}, &mstore.Store{Session: &sessions.State{}}, identity.MockProvider{}, &mock.Encoder{}, http.StatusFound},
-	}
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
-
-			sharedCipher, _ := cryptutil.NewAEADCipherFromBase64(cryptutil.NewBase64Key())
-
-			a := &Authenticate{
-				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
-					return tt.provider, nil
-				})),
-				state: atomicutil.NewValue(&authenticateState{
-					sharedCipher:  sharedCipher,
-					sessionStore:  tt.session,
-					redirectURL:   uriParseHelper("https://some.example"),
-					sharedEncoder: tt.encoder,
-					dataBrokerClient: mockDataBrokerServiceClient{
-						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
-							return &databroker.GetResponse{
-								Record: databroker.NewRecord(&session.Session{
-									Id: "SESSION_ID",
-								}),
-							}, nil
-						},
-					},
-				}),
-
-				options: config.NewAtomicOptions(),
-			}
-			a.options.Store(&config.Options{SharedKey: base64.StdEncoding.EncodeToString(cryptutil.NewKey())})
-			uri := &url.URL{Scheme: tt.scheme, Host: tt.host}
-
-			queryString := uri.Query()
-			for k, v := range tt.qp {
-				queryString.Set(k, v)
-			}
-			uri.RawQuery = queryString.Encode()
-			r := httptest.NewRequest(http.MethodGet, uri.String(), nil)
-			r.Header.Set("Accept", "application/json")
-			state, err := tt.session.LoadSession(r)
-			ctx := r.Context()
-			ctx = sessions.NewContext(ctx, state, err)
-			r = r.WithContext(ctx)
-
-			w := httptest.NewRecorder()
-			httputil.HandlerFunc(a.SignIn).ServeHTTP(w, r)
-			if status := w.Code; status != tt.wantCode {
-				t.Errorf("handler returned wrong status code: got %v want %v %s", status, tt.wantCode, uri)
-				t.Errorf("\n%+v", w.Body)
-			}
-		})
 	}
 }
 
@@ -477,28 +394,12 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		wantStatus int
 	}{
 		{
-			"good",
-			nil,
-			&mstore.Store{Session: &sessions.State{IdentityProviderID: idp.GetId(), ID: "xyz"}},
-			nil,
-			identity.MockProvider{RefreshResponse: oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}},
-			http.StatusOK,
-		},
-		{
 			"invalid session",
 			nil,
 			&mstore.Store{Session: &sessions.State{IdentityProviderID: idp.GetId(), ID: "xyz"}},
 			errors.New("hi"),
 			identity.MockProvider{},
 			http.StatusFound,
-		},
-		{
-			"good refresh expired",
-			nil,
-			&mstore.Store{Session: &sessions.State{IdentityProviderID: idp.GetId(), ID: "xyz"}},
-			nil,
-			identity.MockProvider{RefreshResponse: oauth2.Token{Expiry: time.Now().Add(10 * time.Minute)}},
-			http.StatusOK,
 		},
 		{
 			"expired,refresh error",

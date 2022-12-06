@@ -13,8 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
-	"golang.org/x/oauth2"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/datasource/pkg/directory"
@@ -33,6 +31,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/webauthnutil"
 )
 
@@ -95,7 +94,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Use(a.RetrieveSession)
 	sr.Use(a.VerifySession)
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
-	sr.Path("/sign_in").Handler(a.requireValidSignature(a.SignIn))
+	sr.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
 	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
 	sr.Path("/webauthn").Handler(a.webauthn)
 	sr.Path("/device-enrolled").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
@@ -149,15 +148,12 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
-		if state.dataBrokerClient == nil {
-			return errors.New("authenticate: databroker client cannot be nil")
-		}
-		if _, err = session.Get(ctx, state.dataBrokerClient, sessionState.ID); err != nil {
+		_, err = loadIdentityProfile(r, state.cookieCipher)
+		if err != nil {
 			log.FromRequest(r).Info().
 				Err(err).
 				Str("idp_id", idp.GetId()).
-				Str("id", sessionState.ID).
-				Msg("authenticate: session not found in databroker")
+				Msg("authenticate: identity profile load error")
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
@@ -180,30 +176,18 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	state := a.state.Load()
 	options := a.options.Load()
-	idp, err := options.GetIdentityProviderForID(r.FormValue(urlutil.QueryIdentityProviderID))
+
+	if err := r.ParseForm(); err != nil {
+		return httputil.NewError(http.StatusBadRequest, err)
+	}
+	proxyPublicKey, requestParams, err := hpke.DecryptURLValues(state.hpkePrivateKey, r.Form)
 	if err != nil {
 		return err
 	}
 
-	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
+	idp, err := options.GetIdentityProviderForID(requestParams.Get(urlutil.QueryIdentityProviderID))
 	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-
-	jwtAudience := []string{state.redirectURL.Host, redirectURL.Host}
-
-	// if the callback is explicitly set, set it and add an additional audience
-	if callbackStr := r.FormValue(urlutil.QueryCallbackURI); callbackStr != "" {
-		callbackURL, err := urlutil.ParseAndValidateURL(callbackStr)
-		if err != nil {
-			return httputil.NewError(http.StatusBadRequest, err)
-		}
-		jwtAudience = append(jwtAudience, callbackURL.Host)
-	}
-
-	// add an additional claim for the forward-auth host, if set
-	if fwdAuth := r.FormValue(urlutil.QueryForwardAuth); fwdAuth != "" {
-		jwtAudience = append(jwtAudience, fwdAuth)
+		return err
 	}
 
 	s, err := a.getSessionFromCtx(ctx)
@@ -217,33 +201,22 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		s = sessions.NewState(idp.GetId())
 	}
 
-	newSession := s.WithNewIssuer(state.redirectURL.Host, jwtAudience)
-
 	// re-persist the session, useful when session was evicted from session
 	if err := state.sessionStore.SaveSession(w, r, s); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	// sign the route session, as a JWT
-	signedJWT, err := state.sharedEncoder.Marshal(newSession)
+	profile, err := loadIdentityProfile(r, state.cookieCipher)
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	// encrypt our route-scoped JWT to avoid accidental logging of queryparams
-	encryptedJWT := cryptutil.Encrypt(a.state.Load().sharedCipher, signedJWT, nil)
-	// base64 our encrypted payload for URL-friendlyness
-	encodedJWT := base64.URLEncoding.EncodeToString(encryptedJWT)
-
-	callbackURL, err := urlutil.GetCallbackURL(r, encodedJWT)
+	redirectTo, err := handlers.BuildCallbackURL(state.hpkePrivateKey, proxyPublicKey, requestParams, profile)
 	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
+		return httputil.NewError(http.StatusInternalServerError, err)
 	}
 
-	// build our hmac-d redirect URL with our session, pointing back to the
-	// proxy's callback URL which is responsible for setting our new route-session
-	uri := urlutil.NewSignedURL(state.sharedKey, callbackURL)
-	httputil.Redirect(w, r, uri.String(), http.StatusFound)
+	httputil.Redirect(w, r, redirectTo, http.StatusFound)
 	return nil
 }
 
@@ -465,10 +438,11 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// save the session and access token to the databroker
-	err = a.saveSessionToDataBroker(ctx, r, &newState, claims, accessToken)
+	profile, err := a.buildIdentityProfile(ctx, r, &newState, claims, accessToken)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, err)
 	}
+	storeIdentityProfile(w, state.cookieCipher, profile)
 
 	// ...  and the user state to local storage.
 	if err := state.sessionStore.SaveSession(w, r, &newState); err != nil {
@@ -547,11 +521,14 @@ func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, 
 	}
 	creationOptions, requestOptions, _ := a.webauthn.GetOptions(r)
 
+	profile, _ := loadIdentityProfile(r, state.cookieCipher)
+
 	data := handlers.UserInfoData{
 		CSRFToken:      csrf.Token(r),
 		IsImpersonated: isImpersonated,
 		Session:        pbSession,
 		User:           pbUser,
+		Profile:        profile,
 
 		WebAuthnCreationOptions: creationOptions,
 		WebAuthnRequestOptions:  requestOptions,
@@ -585,73 +562,6 @@ func (a *Authenticate) fillEnterpriseUserInfoData(
 			}
 		}
 	}
-}
-
-func (a *Authenticate) saveSessionToDataBroker(
-	ctx context.Context,
-	r *http.Request,
-	sessionState *sessions.State,
-	claims identity.SessionClaims,
-	accessToken *oauth2.Token,
-) error {
-	state := a.state.Load()
-	options := a.options.Load()
-	idp, err := options.GetIdentityProviderForID(r.FormValue(urlutil.QueryIdentityProviderID))
-	if err != nil {
-		return err
-	}
-
-	authenticator, err := a.cfg.getIdentityProvider(options, idp.GetId())
-	if err != nil {
-		return err
-	}
-
-	sessionExpiry := timestamppb.New(time.Now().Add(options.CookieExpire))
-	idTokenIssuedAt := timestamppb.New(sessionState.IssuedAt.Time())
-
-	s := &session.Session{
-		Id:         sessionState.ID,
-		UserId:     sessionState.UserID(authenticator.Name()),
-		IssuedAt:   timestamppb.Now(),
-		AccessedAt: timestamppb.Now(),
-		ExpiresAt:  sessionExpiry,
-		IdToken: &session.IDToken{
-			Issuer:    sessionState.Issuer, // todo(bdd): the issuer is not authN but the downstream IdP from the claims
-			Subject:   sessionState.Subject,
-			ExpiresAt: sessionExpiry,
-			IssuedAt:  idTokenIssuedAt,
-		},
-		OauthToken: manager.ToOAuthToken(accessToken),
-		Audience:   sessionState.Audience,
-	}
-	s.SetRawIDToken(claims.RawIDToken)
-	s.AddClaims(claims.Flatten())
-
-	var managerUser manager.User
-	managerUser.User, _ = user.Get(ctx, state.dataBrokerClient, s.GetUserId())
-	if managerUser.User == nil {
-		// if no user exists yet, create a new one
-		managerUser.User = &user.User{
-			Id: s.GetUserId(),
-		}
-	}
-	err = authenticator.UpdateUserInfo(ctx, accessToken, &managerUser)
-	if err != nil {
-		return fmt.Errorf("authenticate: error retrieving user info: %w", err)
-	}
-	_, err = databroker.Put(ctx, state.dataBrokerClient, managerUser.User)
-	if err != nil {
-		return fmt.Errorf("authenticate: error saving user: %w", err)
-	}
-
-	res, err := session.Put(ctx, state.dataBrokerClient, s)
-	if err != nil {
-		return fmt.Errorf("authenticate: error saving session: %w", err)
-	}
-	sessionState.DatabrokerServerVersion = res.GetServerVersion()
-	sessionState.DatabrokerRecordVersion = res.GetRecord().GetVersion()
-
-	return nil
 }
 
 // revokeSession always clears the local session and tries to revoke the associated session stored in the

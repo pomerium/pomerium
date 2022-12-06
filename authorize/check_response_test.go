@@ -3,6 +3,7 @@ package authorize
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 
@@ -19,15 +20,23 @@ import (
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
+	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
 
 func TestAuthorize_handleResult(t *testing.T) {
 	opt := config.NewDefaultOptions()
-	opt.AuthenticateURLString = "https://authenticate.example.com"
 	opt.DataBrokerURLString = "https://databroker.example.com"
 	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
+
+	htpkePrivateKey, err := opt.GetHPKEPrivateKey()
+	require.NoError(t, err)
+
+	authnSrv := httptest.NewServer(handlers.JWKSHandler(opt.SigningKey, htpkePrivateKey.PublicKey()))
+	t.Cleanup(authnSrv.Close)
+	opt.AuthenticateURLString = authnSrv.URL
+
 	a, err := New(&config.Config{Options: opt})
 	require.NoError(t, err)
 
@@ -37,8 +46,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 			&evaluator.Request{},
 			&evaluator.Result{
 				Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
-			},
-			false)
+			})
 		assert.NoError(t, err)
 		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
 
@@ -47,8 +55,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 			&evaluator.Request{},
 			&evaluator.Result{
 				Deny: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
-			},
-			false)
+			})
 		assert.NoError(t, err)
 		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
@@ -152,8 +159,8 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 							Code: envoy_type_v3.StatusCode(codes.InvalidArgument),
 						},
 						Headers: []*envoy_config_core_v3.HeaderValueOption{
-							mkHeader("Content-Type", "text/html; charset=UTF-8", false),
-							mkHeader("X-Pomerium-Intercepted-Response", "true", false),
+							mkHeader("Content-Type", "text/html; charset=UTF-8"),
+							mkHeader("X-Pomerium-Intercepted-Response", "true"),
 						},
 						Body: "Access Denied",
 					},
@@ -181,18 +188,27 @@ func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
 }
 
 func TestRequireLogin(t *testing.T) {
+	t.Parallel()
+
 	opt := config.NewDefaultOptions()
-	opt.AuthenticateURLString = "https://authenticate.example.com"
 	opt.DataBrokerURLString = "https://databroker.example.com"
 	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
+	opt.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUJlMFRxbXJkSXBZWE03c3pSRERWYndXOS83RWJHVWhTdFFJalhsVHNXM1BvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFb0xaRDI2bEdYREhRQmhhZkdlbEVmRDdlNmYzaURjWVJPVjdUbFlIdHF1Y1BFL2hId2dmYQpNY3FBUEZsRmpueUpySXJhYTFlQ2xZRTJ6UktTQk5kNXBRPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
+
+	htpkePrivateKey, err := opt.GetHPKEPrivateKey()
+	require.NoError(t, err)
+
+	authnSrv := httptest.NewServer(handlers.JWKSHandler(opt.SigningKey, htpkePrivateKey.PublicKey()))
+	t.Cleanup(authnSrv.Close)
+	opt.AuthenticateURLString = authnSrv.URL
+
 	a, err := New(&config.Config{Options: opt})
 	require.NoError(t, err)
 
 	t.Run("accept empty", func(t *testing.T) {
 		res, err := a.requireLoginResponse(context.Background(),
 			&envoy_service_auth_v3.CheckRequest{},
-			&evaluator.Request{},
-			false)
+			&evaluator.Request{})
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
@@ -209,8 +225,7 @@ func TestRequireLogin(t *testing.T) {
 					},
 				},
 			},
-			&evaluator.Request{},
-			false)
+			&evaluator.Request{})
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
@@ -227,8 +242,7 @@ func TestRequireLogin(t *testing.T) {
 					},
 				},
 			},
-			&evaluator.Request{},
-			false)
+			&evaluator.Request{})
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})

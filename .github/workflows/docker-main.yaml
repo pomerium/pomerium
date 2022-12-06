@@ -83,14 +83,14 @@ jobs:
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump psql environment
-        uses: mikefarah/yq@ce9701ca3a1ac2779ff5f3857d04ee003acda066
+        uses: mikefarah/yq@42e7c3cdf08ccd664875d7ac685c7414b61962be
         with:
           cmd:
             yq eval '.pomerium.image.tag = "${{ needs.publish.outputs.sha-tag }}"' -i
             projects/pomerium-master-postgres/pomerium/values.yaml
 
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@0b007fbd1180b8e3a3668b21c6517392fe8f26eb
+        uses: stefanzweifel/git-auto-commit-action@3ea6ae190baf489ba007f7c92608f33ce20ef04a
         with:
           commit_message: |
             Bump test environment pomerium/pomerium

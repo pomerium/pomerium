@@ -31,7 +31,7 @@ func TestQueryStringParams(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res, err := getClient().Do(req)
+	res, err := getClient(t).Do(req)
 	if !assert.NoError(t, err, "unexpected http error") {
 		return
 	}
@@ -53,11 +53,6 @@ func TestQueryStringParams(t *testing.T) {
 }
 
 func TestCORS(t *testing.T) {
-	if ClusterType == "traefik" || ClusterType == "nginx" {
-		t.Skip()
-		return
-	}
-
 	ctx := context.Background()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
@@ -70,7 +65,7 @@ func TestCORS(t *testing.T) {
 		req.Header.Set("Access-Control-Request-Method", "GET")
 		req.Header.Set("Origin", "https://httpdetails.localhost.pomerium.io")
 
-		res, err := getClient().Do(req)
+		res, err := getClient(t).Do(req)
 		if !assert.NoError(t, err, "unexpected http error") {
 			return
 		}
@@ -86,7 +81,7 @@ func TestCORS(t *testing.T) {
 		req.Header.Set("Access-Control-Request-Method", "GET")
 		req.Header.Set("Origin", "https://httpdetails.localhost.pomerium.io")
 
-		res, err := getClient().Do(req)
+		res, err := getClient(t).Do(req)
 		if !assert.NoError(t, err, "unexpected http error") {
 			return
 		}
@@ -97,11 +92,6 @@ func TestCORS(t *testing.T) {
 }
 
 func TestPreserveHostHeader(t *testing.T) {
-	if ClusterType == "traefik" || ClusterType == "nginx" {
-		t.Skip()
-		return
-	}
-
 	ctx := context.Background()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
@@ -112,7 +102,7 @@ func TestPreserveHostHeader(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		res, err := getClient().Do(req)
+		res, err := getClient(t).Do(req)
 		if !assert.NoError(t, err, "unexpected http error") {
 			return
 		}
@@ -137,7 +127,7 @@ func TestPreserveHostHeader(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		res, err := getClient().Do(req)
+		res, err := getClient(t).Do(req)
 		if !assert.NoError(t, err, "unexpected http error") {
 			return
 		}
@@ -159,11 +149,6 @@ func TestPreserveHostHeader(t *testing.T) {
 }
 
 func TestSetRequestHeaders(t *testing.T) {
-	if ClusterType == "traefik" || ClusterType == "nginx" {
-		t.Skip()
-		return
-	}
-
 	ctx := context.Background()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
@@ -173,7 +158,7 @@ func TestSetRequestHeaders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res, err := getClient().Do(req)
+	res, err := getClient(t).Do(req)
 	if !assert.NoError(t, err, "unexpected http error") {
 		return
 	}
@@ -202,7 +187,7 @@ func TestRemoveRequestHeaders(t *testing.T) {
 	}
 	req.Header.Add("X-Custom-Request-Header-To-Remove", "foo")
 
-	res, err := getClient().Do(req)
+	res, err := getClient(t).Do(req)
 	if !assert.NoError(t, err, "unexpected http error") {
 		return
 	}
@@ -221,11 +206,6 @@ func TestRemoveRequestHeaders(t *testing.T) {
 }
 
 func TestWebsocket(t *testing.T) {
-	if ClusterType == "traefik" || ClusterType == "nginx" {
-		t.Skip()
-		return
-	}
-
 	ctx := context.Background()
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
@@ -270,7 +250,7 @@ func TestGoogleCloudRun(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res, err := getClient().Do(req)
+	res, err := getClient(t).Do(req)
 	if !assert.NoError(t, err, "unexpected http error") {
 		return
 	}
@@ -290,16 +270,11 @@ func TestGoogleCloudRun(t *testing.T) {
 }
 
 func TestLoadBalancer(t *testing.T) {
-	if ClusterType == "traefik" || ClusterType == "nginx" {
-		t.Skip()
-		return
-	}
-
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Minute*10)
 	defer clearTimeout()
 
 	getDistribution := func(t *testing.T, path string) map[string]float64 {
-		client := getClient()
+		client := getClient(t)
 		distribution := map[string]float64{}
 
 		res, err := flows.Authenticate(ctx, client,

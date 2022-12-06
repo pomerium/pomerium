@@ -8,6 +8,7 @@ import (
 
 	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/ui"
@@ -20,6 +21,7 @@ type UserInfoData struct {
 	IsImpersonated bool
 	Session        *session.Session
 	User           *user.User
+	Profile        *identity.Profile
 
 	IsEnterprise    bool
 	DirectoryUser   *directory.User
@@ -42,6 +44,9 @@ func (data UserInfoData) ToJSON() map[string]any {
 	}
 	if bs, err := protojson.Marshal(data.User); err == nil {
 		m["user"] = json.RawMessage(bs)
+	}
+	if bs, err := protojson.Marshal(data.Profile); err == nil {
+		m["profile"] = json.RawMessage(bs)
 	}
 	m["isEnterprise"] = data.IsEnterprise
 	if data.DirectoryUser != nil {
