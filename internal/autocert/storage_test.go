@@ -2,6 +2,8 @@ package autocert
 
 import (
 	"context"
+	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -13,6 +15,10 @@ import (
 )
 
 func TestStorage(t *testing.T) {
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
+
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(clearTimeout)
 
