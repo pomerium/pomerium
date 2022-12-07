@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1670372830651,
+  "lastUpdate": 1670373012337,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -23076,6 +23076,38 @@ window.BENCHMARK_DATA = {
             "value": 8420592,
             "unit": "ns/op",
             "extra": "139 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "f4b5e853a942a11d42a83f9e9558f5f1e470af6c",
+          "message": "autocert: add support for storage in s3",
+          "timestamp": "2022-12-06T18:37:35Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3793/commits/f4b5e853a942a11d42a83f9e9558f5f1e470af6c"
+        },
+        "date": 1670373011467,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13565243,
+            "unit": "ns/op",
+            "extra": "90 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8519825,
+            "unit": "ns/op",
+            "extra": "138 times\n2 procs"
           }
         ]
       }
