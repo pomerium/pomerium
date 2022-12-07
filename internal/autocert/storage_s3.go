@@ -3,73 +3,37 @@ package autocert
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"sort"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/caddyserver/certmagic"
-	"github.com/google/uuid"
 )
-
-const (
-	s3lockDuration     = time.Second * 30
-	s3lockPollInterval = time.Second
-)
-
-type s3lock struct {
-	ID      string
-	Expires time.Time
-}
 
 type s3Storage struct {
 	client *s3.Client
 	bucket string
 	prefix string
+
+	*locker
 }
 
-func (s *s3Storage) Lock(ctx context.Context, name string) error {
-	lockID := uuid.NewString()
-
-	for {
-		lock, err := s.getLock(ctx, name)
-		if err != nil {
-			return err
-		}
-
-		if lock != nil {
-			if lock.ID == lockID {
-				return nil
-			} else if lock.Expires.Before(time.Now()) {
-				// ignore the existing lock and take it ourselves
-			} else {
-				// wait
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-time.After(s3lockPollInterval):
-				}
-				continue
-			}
-		}
-
-		// take the lock
-		lock = &s3lock{ID: lockID, Expires: time.Now().Add(s3lockDuration)}
-		err = s.putLock(ctx, name, lock)
-		if err != nil {
-			return err
-		}
+func newS3Storage(client *s3.Client, bucket, prefix string) *s3Storage {
+	s := &s3Storage{
+		client: client,
+		bucket: bucket,
+		prefix: prefix,
 	}
-}
-
-func (s *s3Storage) Unlock(ctx context.Context, name string) error {
-	return s.deleteLock(ctx, name)
+	s.locker = &locker{
+		store:  s.Store,
+		load:   s.Load,
+		delete: s.Delete,
+	}
+	return s
 }
 
 func (s *s3Storage) Store(ctx context.Context, key string, value []byte) error {
@@ -157,53 +121,4 @@ func (s *s3Storage) Stat(ctx context.Context, key string) (certmagic.KeyInfo, er
 		Size:       output.ContentLength,
 		IsTerminal: true,
 	}, nil
-}
-
-func (s *s3Storage) getLock(ctx context.Context, name string) (*s3lock, error) {
-	key := fmt.Sprintf("locks/%s", name)
-
-	output, err := s.client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(key),
-	})
-	var nsk *types.NoSuchKey
-	if err != nil && errors.As(err, &nsk) {
-		return nil, nil
-	} else if err != nil {
-		return nil, err
-	}
-	defer output.Body.Close()
-
-	var lock s3lock
-	err = json.NewDecoder(output.Body).Decode(&lock)
-	if err != nil {
-		return nil, err
-	}
-
-	return &lock, nil
-}
-
-func (s *s3Storage) putLock(ctx context.Context, name string, lock *s3lock) error {
-	key := fmt.Sprintf("locks/%s", name)
-
-	bs, err := json.Marshal(lock)
-	if err != nil {
-		return err
-	}
-	_, err = s.client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(key),
-		Body:   bytes.NewReader(bs),
-	})
-	return err
-}
-
-func (s *s3Storage) deleteLock(ctx context.Context, name string) error {
-	key := fmt.Sprintf("locks/%s", name)
-
-	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(key),
-	})
-	return err
 }

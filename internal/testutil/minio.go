@@ -80,7 +80,7 @@ func tailLogs(ctx context.Context, t *testing.T, pool *dockertest.Pool, resource
 	go func() {
 		s := bufio.NewScanner(pr)
 		for s.Scan() {
-			t.Logf("minio: %s", s.Text())
+			t.Logf("%s: %s", resource.Container.Config.Image, s.Text())
 		}
 	}()
 	defer pw.Close()
