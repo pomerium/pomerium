@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1670517958697,
+  "lastUpdate": 1670518296402,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -23176,6 +23176,38 @@ window.BENCHMARK_DATA = {
             "value": 10790520,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "ebeae906de585c73dab761295aa4ea0d7b661b62",
+          "message": "autocert: add support for storage in gcs",
+          "timestamp": "2022-12-08T11:17:14Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3794/commits/ebeae906de585c73dab761295aa4ea0d7b661b62"
+        },
+        "date": 1670518295719,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14640577,
+            "unit": "ns/op",
+            "extra": "78 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8497957,
+            "unit": "ns/op",
+            "extra": "132 times\n2 procs"
           }
         ]
       }
