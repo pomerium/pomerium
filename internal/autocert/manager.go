@@ -79,8 +79,9 @@ func newManager(ctx context.Context,
 	certmagicConfig := certmagic.NewDefault()
 	// set certmagic default storage cache, otherwise cert renewal loop will be based off
 	// certmagic's own default location
-	certmagicConfig.Storage = &certmagic.FileStorage{
-		Path: src.GetConfig().Options.AutocertOptions.Folder,
+	certmagicConfig.Storage, err = GetCertMagicStorage(ctx, src.GetConfig().Options.AutocertOptions.Folder)
+	if err != nil {
+		return nil, err
 	}
 
 	logger := log.ZapLogger().With(zap.String("service", "autocert"))
@@ -131,7 +132,11 @@ func newManager(ctx context.Context,
 func (mgr *Manager) getCertMagicConfig(ctx context.Context, cfg *config.Config) (*certmagic.Config, error) {
 	mgr.certmagic.MustStaple = cfg.Options.AutocertOptions.MustStaple
 	mgr.certmagic.OnDemand = nil // disable on-demand
-	mgr.certmagic.Storage = &certmagic.FileStorage{Path: cfg.Options.AutocertOptions.Folder}
+	var err error
+	mgr.certmagic.Storage, err = GetCertMagicStorage(ctx, cfg.Options.AutocertOptions.Folder)
+	if err != nil {
+		return nil, err
+	}
 	certs, err := cfg.AllCertificates()
 	if err != nil {
 		return nil, err
