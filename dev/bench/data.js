@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1670378236331,
+  "lastUpdate": 1670517958697,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -23140,6 +23140,42 @@ window.BENCHMARK_DATA = {
             "value": 8484687,
             "unit": "ns/op",
             "extra": "136 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6c3ed201dadfd16a28a45035b70ce00ac697f1f1",
+          "message": "autocert: add support for storage in s3 (#3793)\n\n* autocert: add support for storage in s3\r\n\r\n* go mod tidy\r\n\r\n* skip on mac",
+          "timestamp": "2022-12-08T09:42:20-07:00",
+          "tree_id": "7dfb60eef2ad476e6de65f1cd570eac9f51156be",
+          "url": "https://github.com/pomerium/pomerium/commit/6c3ed201dadfd16a28a45035b70ce00ac697f1f1"
+        },
+        "date": 1670517957715,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18529482,
+            "unit": "ns/op",
+            "extra": "60 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10790520,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
