@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1670864454077,
+  "lastUpdate": 1670864472093,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -23600,6 +23600,42 @@ window.BENCHMARK_DATA = {
             "value": 7745843,
             "unit": "ns/op",
             "extra": "150 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "254fd1aa88abfd8eef1106d8abc4542742fc7fa5",
+          "message": "chore(deps): bump alpine from `b95359c` to `8914eb5` (#3802)\n\nBumps alpine from `b95359c` to `8914eb5`.\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: alpine\r\n  dependency-type: direct:production\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2022-12-12T09:58:33-07:00",
+          "tree_id": "cabe20e117504620fd5c92c35f009bdbee76e4d6",
+          "url": "https://github.com/pomerium/pomerium/commit/254fd1aa88abfd8eef1106d8abc4542742fc7fa5"
+        },
+        "date": 1670864471286,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15110453,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9277763,
+            "unit": "ns/op",
+            "extra": "128 times\n2 procs"
           }
         ]
       }
