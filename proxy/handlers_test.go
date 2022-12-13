@@ -547,13 +547,14 @@ func TestProxy_jwt(t *testing.T) {
 	}
 
 	// with upstream request headers being set
+	rawJWT := "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTY3MDg4OTI0MSwiZXhwIjoxNjcwODkyODQxfQ.YoROB12_-a8VxikPqrYOA576pLYoLFeGwXAOWCGpXgM"
 	req, _ = http.NewRequest("GET", "https://www.example.com/.pomerium/jwt", nil)
 	w = httptest.NewRecorder()
-	req.Header.Set(httputil.HeaderPomeriumJWTAssertion, "MOCK_JWT")
+	req.Header.Set(httputil.HeaderPomeriumJWTAssertion, rawJWT)
 	err = proxy.jwtAssertion(w, req)
 	if !assert.NoError(t, err) {
 		return
 	}
 	assert.Equal(t, "application/jwt", w.Header().Get("Content-Type"))
-	assert.Equal(t, w.Body.String(), "MOCK_JWT")
+	assert.Equal(t, w.Body.String(), rawJWT)
 }
