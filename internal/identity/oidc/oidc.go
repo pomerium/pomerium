@@ -176,16 +176,16 @@ func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interf
 // Group membership is also refreshed.
 // https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokens
 func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.State) (*oauth2.Token, error) {
+	oa, err := p.GetOauthConfig()
+	if err != nil {
+		return nil, err
+	}
+
 	if t == nil {
 		return nil, ErrMissingAccessToken
 	}
 	if t.RefreshToken == "" {
 		return nil, ErrMissingRefreshToken
-	}
-
-	oa, err := p.GetOauthConfig()
-	if err != nil {
-		return nil, err
 	}
 
 	newToken, err := oa.TokenSource(ctx, t).Token()
@@ -230,16 +230,16 @@ func (p *Provider) getIDToken(ctx context.Context, t *oauth2.Token) (*go_oidc.ID
 //
 // https://tools.ietf.org/html/rfc7009#section-2.1
 func (p *Provider) Revoke(ctx context.Context, t *oauth2.Token) error {
+	oa, err := p.GetOauthConfig()
+	if err != nil {
+		return err
+	}
+
 	if p.RevocationURL == "" {
 		return ErrRevokeNotImplemented
 	}
 	if t == nil {
 		return ErrMissingAccessToken
-	}
-
-	oa, err := p.GetOauthConfig()
-	if err != nil {
-		return err
 	}
 
 	params := url.Values{}
@@ -263,6 +263,10 @@ func (p *Provider) Revoke(ctx context.Context, t *oauth2.Token) error {
 // session to be initiated.
 // https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPInitiated
 func (p *Provider) LogOut() (*url.URL, error) {
+	_, err := p.GetProvider()
+	if err != nil {
+		return nil, err
+	}
 	if p.EndSessionURL == "" {
 		return nil, ErrSignoutNotImplemented
 	}
