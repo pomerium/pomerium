@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1670945205273,
+  "lastUpdate": 1670964733230,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -24148,6 +24148,42 @@ window.BENCHMARK_DATA = {
             "value": 8257049,
             "unit": "ns/op",
             "extra": "139 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b375dc48962b4c55e949f3be3fb5c6da82eecf10",
+          "message": "jwt: require logged in user to return .pomerium/jwt (#3807)\n\n* jwt: require logged in user to return .pomerium/jwt\r\n\r\n* fix test\r\n\r\n* update test",
+          "timestamp": "2022-12-13T13:49:36-07:00",
+          "tree_id": "dd0d8ce3f9bf29cc4717d67666d997299a498fce",
+          "url": "https://github.com/pomerium/pomerium/commit/b375dc48962b4c55e949f3be3fb5c6da82eecf10"
+        },
+        "date": 1670964732569,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11755186,
+            "unit": "ns/op",
+            "extra": "93 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8538067,
+            "unit": "ns/op",
+            "extra": "141 times\n2 procs"
           }
         ]
       }
