@@ -59,6 +59,7 @@ default deny = [false, set()]
 
 pomerium_routes_0 = [true, {"pomerium-route"}] {
 	contains(input.http.url, "/.pomerium/")
+	not contains(input.http.url, "/.pomerium/jwt")
 }
 
 else = [false, {"non-pomerium-route"}]

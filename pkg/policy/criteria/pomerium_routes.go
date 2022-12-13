@@ -11,6 +11,9 @@ var pomeriumRoutesBody = ast.Body{
 	ast.MustParseExpr(`
 		contains(input.http.url, "/.pomerium/")
 	`),
+	ast.MustParseExpr(`
+		not contains(input.http.url, "/.pomerium/jwt")
+	`),
 }
 
 type pomeriumRoutesCriterion struct {
