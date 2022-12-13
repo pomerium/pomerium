@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1670964872772,
+  "lastUpdate": 1670972630047,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -24216,6 +24216,38 @@ window.BENCHMARK_DATA = {
             "value": 9137790,
             "unit": "ns/op",
             "extra": "132 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "af1845841a39ddc980963a406cf4fb0f9d792922",
+          "message": "oidc: fix token revocation",
+          "timestamp": "2022-12-13T09:39:23Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3810/commits/af1845841a39ddc980963a406cf4fb0f9d792922"
+        },
+        "date": 1670972629178,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17448502,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10599137,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
