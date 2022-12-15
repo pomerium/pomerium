@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/CAFxX/httpcompression"
-	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 )
@@ -37,7 +37,7 @@ func (srv *Server) addHTTPMiddleware(root *mux.Router, cfg *config.Config) {
 			Str("path", r.URL.String()).
 			Msg("http-request")
 	}))
-	root.Use(gorillahandlers.RecoveryHandler())
+	root.Use(middleware.Recovery)
 	root.Use(log.RemoteAddrHandler("ip"))
 	root.Use(log.UserAgentHandler("user_agent"))
 	root.Use(log.RefererHandler("referer"))

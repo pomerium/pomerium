@@ -30,7 +30,6 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-jsonnet v0.19.1
 	github.com/google/uuid v1.3.0
-	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
@@ -162,7 +161,6 @@ require (
 	github.com/ettle/strcase v0.1.1 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fatih/structtag v1.2.0 // indirect
-	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/firefart/nonamedreturns v1.0.4 // indirect
 	github.com/fxamacker/cbor/v2 v2.4.0 // indirect
 	github.com/fzipp/gocyclo v0.6.0 // indirect
