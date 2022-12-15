@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1670972630047,
+  "lastUpdate": 1671127966110,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -24248,6 +24248,38 @@ window.BENCHMARK_DATA = {
             "value": 10599137,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "e63d824cd419615cb31778c04d5bf9076c430a4f",
+          "message": "controlplane: remove gorilla handlers dependency",
+          "timestamp": "2022-12-15T15:40:30Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3813/commits/e63d824cd419615cb31778c04d5bf9076c430a4f"
+        },
+        "date": 1671127965579,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14019030,
+            "unit": "ns/op",
+            "extra": "90 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8214679,
+            "unit": "ns/op",
+            "extra": "142 times\n2 procs"
           }
         ]
       }
