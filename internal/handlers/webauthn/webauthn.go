@@ -46,7 +46,6 @@ type State struct {
 	AuthenticateURL         *url.URL
 	InternalAuthenticateURL *url.URL
 	Client                  databroker.DataBrokerServiceClient
-	PomeriumDomains         []string
 	RelyingParty            *webauthn.RelyingParty
 	Session                 *session.Session
 	SessionState            *sessions.State
