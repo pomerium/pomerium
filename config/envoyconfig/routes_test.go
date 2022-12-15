@@ -88,6 +88,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 
 		testutil.AssertProtoJSONEqual(t, `[
 			`+routeString("path", "/.pomerium/jwt", true)+`,
+			`+routeString("path", "/.pomerium/webauthn", true)+`,
 			`+routeString("path", "/ping", false)+`,
 			`+routeString("path", "/healthz", false)+`,
 			`+routeString("path", "/.pomerium", false)+`,
@@ -126,6 +127,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 
 		testutil.AssertProtoJSONEqual(t, `[
 			`+routeString("path", "/.pomerium/jwt", true)+`,
+			`+routeString("path", "/.pomerium/webauthn", true)+`,
 			`+routeString("path", "/ping", false)+`,
 			`+routeString("path", "/healthz", false)+`,
 			`+routeString("path", "/.pomerium", false)+`,
@@ -153,6 +155,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 
 		testutil.AssertProtoJSONEqual(t, `[
 			`+routeString("path", "/.pomerium/jwt", true)+`,
+			`+routeString("path", "/.pomerium/webauthn", true)+`,
 			`+routeString("path", "/ping", false)+`,
 			`+routeString("path", "/healthz", false)+`,
 			`+routeString("path", "/.pomerium", false)+`,
@@ -249,7 +252,8 @@ func TestTimeouts(t *testing.T) {
 					UpstreamTimeout: getDuration(tc.upstream),
 					IdleTimeout:     getDuration(tc.idle),
 					AllowWebsockets: tc.allowWebsockets,
-				}},
+				},
+			},
 		}, "example.com")
 		if !assert.NoError(t, err, "%v", tc) || !assert.Len(t, routes, 1, tc) || !assert.NotNil(t, routes[0].GetRoute(), "%v", tc) {
 			continue

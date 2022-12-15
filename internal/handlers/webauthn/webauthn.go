@@ -4,7 +4,6 @@ package webauthn
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,12 +15,10 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/device"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -423,39 +420,7 @@ func (h *Handler) saveSessionAndRedirect(w http.ResponseWriter, r *http.Request,
 		return err
 	}
 
-	// if the redirect URL is for a URL we don't control, just do a plain redirect
-	if !isURLForPomerium(state.PomeriumDomains, rawRedirectURI) {
-		httputil.Redirect(w, r, rawRedirectURI, http.StatusFound)
-		return nil
-	}
-
-	// sign+encrypt the session JWT
-	encoder, err := jws.NewHS256Signer(state.SharedKey)
-	if err != nil {
-		return err
-	}
-
-	signedJWT, err := encoder.Marshal(state.SessionState)
-	if err != nil {
-		return err
-	}
-
-	cipher, err := cryptutil.NewAEADCipher(state.SharedKey)
-	if err != nil {
-		return err
-	}
-
-	encryptedJWT := cryptutil.Encrypt(cipher, signedJWT, nil)
-	encodedJWT := base64.URLEncoding.EncodeToString(encryptedJWT)
-
-	// redirect to the proxy callback URL with the session
-	callbackURL, err := urlutil.GetCallbackURLForRedirectURI(r, encodedJWT, rawRedirectURI)
-	if err != nil {
-		return err
-	}
-
-	signedCallbackURL := urlutil.NewSignedURL(state.SharedKey, callbackURL)
-	httputil.Redirect(w, r, signedCallbackURL.String(), http.StatusFound)
+	httputil.Redirect(w, r, rawRedirectURI, http.StatusFound)
 	return nil
 }
 
