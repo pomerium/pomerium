@@ -498,18 +498,3 @@ func getOrCreateDeviceEnrollment(
 	}
 	return deviceEnrollment, nil
 }
-
-func isURLForPomerium(pomeriumDomains []string, rawURI string) bool {
-	uri, err := urlutil.ParseAndValidateURL(rawURI)
-	if err != nil {
-		return false
-	}
-
-	for _, domain := range pomeriumDomains {
-		if urlutil.StripPort(domain) == urlutil.StripPort(uri.Host) {
-			return true
-		}
-	}
-
-	return false
-}
