@@ -60,6 +60,7 @@ func (b *Builder) buildPomeriumHTTPRoutes(options *config.Options, domain string
 		routes = append(routes,
 			// enable ext_authz
 			b.buildControlPlanePathRoute("/.pomerium/jwt", true),
+			b.buildControlPlanePathRoute("/.pomerium/webauthn", true),
 			// disable ext_authz and passthrough to proxy handlers
 			b.buildControlPlanePathRoute("/ping", false),
 			b.buildControlPlanePathRoute("/healthz", false),

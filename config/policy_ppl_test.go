@@ -58,8 +58,19 @@ default allow = [false, set()]
 default deny = [false, set()]
 
 pomerium_routes_0 = [true, {"pomerium-route"}] {
+	session := get_session(input.session.id)
+	session.id != ""
+	contains(input.http.url, "/.pomerium/")
+}
+
+else = [true, {"pomerium-route"}] {
 	contains(input.http.url, "/.pomerium/")
 	not contains(input.http.url, "/.pomerium/jwt")
+	not contains(input.http.url, "/.pomerium/webauthn")
+}
+
+else = [false, {"user-unauthenticated"}] {
+	contains(input.http.url, "/.pomerium/")
 }
 
 else = [false, {"non-pomerium-route"}]

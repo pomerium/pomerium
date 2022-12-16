@@ -254,6 +254,15 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 								}
 							},
 							{
+								"name": "pomerium-path-/.pomerium/webauthn",
+								"match": {
+									"path": "/.pomerium/webauthn"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								}
+							},
+							{
 								"name": "pomerium-path-/ping",
 								"match": {
 									"path": "/ping"
@@ -389,6 +398,15 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 								"name": "pomerium-path-/.pomerium/jwt",
 								"match": {
 									"path": "/.pomerium/jwt"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								}
+							},
+							{
+								"name": "pomerium-path-/.pomerium/webauthn",
+								"match": {
+									"path": "/.pomerium/webauthn"
 								},
 								"route": {
 									"cluster": "pomerium-control-plane-http"
