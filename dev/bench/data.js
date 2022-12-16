@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1671222405093,
+  "lastUpdate": 1671222428589,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -24616,6 +24616,42 @@ window.BENCHMARK_DATA = {
             "value": 60071753,
             "unit": "ns/op",
             "extra": "96 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c3b9adff2039ca525b5c15de28455ab0d2e5f1c8",
+          "message": "oidc: fix token revocation (#3810)",
+          "timestamp": "2022-12-16T13:24:40-07:00",
+          "tree_id": "c2adca902712cda6baf336a0af4b943bc7af783d",
+          "url": "https://github.com/pomerium/pomerium/commit/c3b9adff2039ca525b5c15de28455ab0d2e5f1c8"
+        },
+        "date": 1671222428101,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11968425,
+            "unit": "ns/op",
+            "extra": "99 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7666494,
+            "unit": "ns/op",
+            "extra": "154 times\n2 procs"
           }
         ]
       }
