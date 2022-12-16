@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1671213545662,
+  "lastUpdate": 1671213703942,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -24512,6 +24512,42 @@ window.BENCHMARK_DATA = {
             "value": 9500943,
             "unit": "ns/op",
             "extra": "129 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c86ca6f76f0e680d74ad7b5ba8619e1329cd419b",
+          "message": "webauthn: require session when accessing /.pomerium/webauthn (#3814)\n\n* webauthn: require session when accessing /.pomerium/webauthn\r\n\r\n* remove dead code\r\n\r\n* remove unusued PomeriumDomains field",
+          "timestamp": "2022-12-16T10:59:21-07:00",
+          "tree_id": "9de0fbdd77c1fab583738dd5eb23747fc3daeb75",
+          "url": "https://github.com/pomerium/pomerium/commit/c86ca6f76f0e680d74ad7b5ba8619e1329cd419b"
+        },
+        "date": 1671213703320,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13702903,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8461814,
+            "unit": "ns/op",
+            "extra": "134 times\n2 procs"
           }
         ]
       }
