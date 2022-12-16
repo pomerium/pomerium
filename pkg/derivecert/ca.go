@@ -87,7 +87,7 @@ func (ca *CA) NewServerCert(domains []string) (*PEM, error) {
 		return nil, fmt.Errorf("generate key: %w", err)
 	}
 
-	tmpl, err := serverCertTemplate(domains, time.Hour*24)
+	tmpl, err := serverCertTemplate(domains)
 	if err != nil {
 		return nil, fmt.Errorf("cert template: %w", err)
 	}
@@ -127,7 +127,7 @@ func caCertTemplate(psk []byte) (*x509.Certificate, error) {
 	}, nil
 }
 
-func serverCertTemplate(domains []string, validity time.Duration) (*x509.Certificate, error) {
+func serverCertTemplate(domains []string) (*x509.Certificate, error) {
 	serial, err := newSerial()
 	if err != nil {
 		return nil, err
