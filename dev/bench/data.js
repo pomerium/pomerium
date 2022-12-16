@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1671216167163,
+  "lastUpdate": 1671222405093,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -24580,6 +24580,42 @@ window.BENCHMARK_DATA = {
             "value": 10791382,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2602b9192deb0f2c98884ce7ff085e2528f38ee6",
+          "message": "autocert: use atomic pointer to allow nil (#3816)",
+          "timestamp": "2022-12-16T13:24:13-07:00",
+          "tree_id": "b152b9f8953fb08a979534632d37899031043783",
+          "url": "https://github.com/pomerium/pomerium/commit/2602b9192deb0f2c98884ce7ff085e2528f38ee6"
+        },
+        "date": 1671222404668,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12671934,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 60071753,
+            "unit": "ns/op",
+            "extra": "96 times\n2 procs"
           }
         ]
       }
