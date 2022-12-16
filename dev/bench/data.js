@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1671222499492,
+  "lastUpdate": 1671224908294,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -24716,6 +24716,38 @@ window.BENCHMARK_DATA = {
             "value": 8982443,
             "unit": "ns/op",
             "extra": "129 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "aa90bf19a02df1cac9750b760c7f0b8878ef8bd8",
+          "message": "dashboard: fix missing avatar and logout menu",
+          "timestamp": "2022-12-16T00:45:23Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3819/commits/aa90bf19a02df1cac9750b760c7f0b8878ef8bd8"
+        },
+        "date": 1671224907681,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11956523,
+            "unit": "ns/op",
+            "extra": "99 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8059996,
+            "unit": "ns/op",
+            "extra": "148 times\n2 procs"
           }
         ]
       }
