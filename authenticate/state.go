@@ -1,7 +1,6 @@
 package authenticate
 
 import (
-	"context"
 	"crypto/cipher"
 	"encoding/base64"
 	"fmt"
@@ -16,12 +15,8 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/hpke"
 )
-
-var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
 
 type authenticateState struct {
 	redirectURL *url.URL
@@ -44,8 +39,6 @@ type authenticateState struct {
 	hpkePrivateKey *hpke.PrivateKey
 
 	jwk *jose.JSONWebKeySet
-
-	dataBrokerClient databroker.DataBrokerServiceClient
 }
 
 func newAuthenticateState() *authenticateState {
@@ -140,18 +133,6 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	}
 
 	state.hpkePrivateKey = hpke.DerivePrivateKey(sharedKey)
-
-	dataBrokerConn, err := outboundGRPCConnection.Get(context.Background(), &grpc.OutboundOptions{
-		OutboundPort:   cfg.OutboundPort,
-		InstallationID: cfg.Options.InstallationID,
-		ServiceName:    cfg.Options.Services,
-		SignedJWTKey:   sharedKey,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	state.dataBrokerClient = databroker.NewDataBrokerServiceClient(dataBrokerConn)
 
 	return state, nil
 }
