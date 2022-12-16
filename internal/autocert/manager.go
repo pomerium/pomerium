@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/caddyserver/certmagic"
@@ -19,7 +20,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
@@ -48,7 +48,7 @@ type Manager struct {
 	mu                  sync.RWMutex
 	config              *config.Config
 	certmagic           *certmagic.Config
-	acmeMgr             *atomicutil.Value[*certmagic.ACMEIssuer]
+	acmeMgr             atomic.Pointer[certmagic.ACMEIssuer]
 	srv                 *http.Server
 	acmeTLSALPNListener net.Listener
 
@@ -90,7 +90,6 @@ func newManager(ctx context.Context,
 	mgr := &Manager{
 		src:          src,
 		acmeTemplate: acmeTemplate,
-		acmeMgr:      atomicutil.NewValue(new(certmagic.ACMEIssuer)),
 		certmagic:    certmagicConfig,
 		ocspCache:    ocspRespCache,
 	}
@@ -265,6 +264,7 @@ func (mgr *Manager) renewCert(ctx context.Context, domain string, cert certmagic
 
 func (mgr *Manager) updateAutocert(ctx context.Context, cfg *config.Config) error {
 	if !cfg.Options.AutocertOptions.Enable {
+		mgr.acmeMgr.Store(nil)
 		return nil
 	}
 
