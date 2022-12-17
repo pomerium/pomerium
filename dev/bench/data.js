@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1671293195909,
+  "lastUpdate": 1671293257290,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -24816,6 +24816,42 @@ window.BENCHMARK_DATA = {
             "value": 8223835,
             "unit": "ns/op",
             "extra": "144 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "539fd51579396f5509c72eabf21619028af72ddb",
+          "message": "authenticate: remove databroker dependency (#3820)",
+          "timestamp": "2022-12-17T09:03:46-07:00",
+          "tree_id": "225c414a031f32864ed0ae407913a48d3c5c8aa2",
+          "url": "https://github.com/pomerium/pomerium/commit/539fd51579396f5509c72eabf21619028af72ddb"
+        },
+        "date": 1671293256836,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14482040,
+            "unit": "ns/op",
+            "extra": "94 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8656055,
+            "unit": "ns/op",
+            "extra": "141 times\n2 procs"
           }
         ]
       }
