@@ -19,13 +19,11 @@ import (
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
-	"github.com/pomerium/pomerium/internal/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
@@ -34,7 +32,6 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 func testAuthenticate() *Authenticate {
@@ -221,18 +218,6 @@ func TestAuthenticate_SignOut(t *testing.T) {
 				state: atomicutil.NewValue(&authenticateState{
 					sessionStore:  tt.sessionStore,
 					sharedEncoder: mock.Encoder{},
-					dataBrokerClient: mockDataBrokerServiceClient{
-						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
-							return &databroker.GetResponse{
-								Record: databroker.NewRecord(&session.Session{
-									Id: "SESSION_ID",
-								}),
-							}, nil
-						},
-						put: func(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
-							return nil, nil
-						},
-					},
 				}),
 				options: config.NewAtomicOptions(),
 			}
@@ -326,14 +311,6 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{
-					dataBrokerClient: mockDataBrokerServiceClient{
-						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
-							return nil, fmt.Errorf("not implemented")
-						},
-						put: func(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
-							return nil, nil
-						},
-					},
 					redirectURL:  authURL,
 					sessionStore: tt.session,
 					cookieCipher: aead,
@@ -450,15 +427,6 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 					sessionStore:  tt.session,
 					cookieCipher:  aead,
 					sharedEncoder: signer,
-					dataBrokerClient: mockDataBrokerServiceClient{
-						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
-							return &databroker.GetResponse{
-								Record: databroker.NewRecord(&session.Session{
-									Id: "SESSION_ID",
-								}),
-							}, nil
-						},
-					},
 				}),
 				options: config.NewAtomicOptions(),
 			}
@@ -563,20 +531,8 @@ func TestAuthenticate_userInfo(t *testing.T) {
 				state: atomicutil.NewValue(&authenticateState{
 					sessionStore:  tt.sessionStore,
 					sharedEncoder: signer,
-					dataBrokerClient: mockDataBrokerServiceClient{
-						get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
-							return &databroker.GetResponse{
-								Record: databroker.NewRecord(&session.Session{
-									Id:      "SESSION_ID",
-									UserId:  "USER_ID",
-									IdToken: &session.IDToken{IssuedAt: timestamppb.New(now)},
-								}),
-							}, nil
-						},
-					},
 				}),
 			}
-			a.webauthn = webauthn.New(a.getWebauthnState)
 			r := httptest.NewRequest(tt.method, tt.url.String(), nil)
 			state, err := tt.sessionStore.LoadSession(r)
 			if err != nil {

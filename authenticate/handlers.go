@@ -3,6 +3,7 @@ package authenticate
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,14 +14,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"golang.org/x/oauth2"
 
 	"github.com/pomerium/csrf"
-	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/internal/handlers"
-	"github.com/pomerium/pomerium/internal/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
-	"github.com/pomerium/pomerium/internal/identity/manager"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -28,11 +27,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/hpke"
-	"github.com/pomerium/pomerium/pkg/webauthnutil"
 )
 
 // Handler returns the authenticate service's handler chain.
@@ -96,7 +91,6 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
 	sr.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
 	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
-	sr.Path("/webauthn").Handler(a.webauthn)
 	sr.Path("/device-enrolled").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		userInfoData, err := a.getUserInfoData(r)
 		if err != nil {
@@ -496,72 +490,20 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, error) {
 	state := a.state.Load()
 
-	authenticateURL, err := a.options.Load().GetAuthenticateURL()
-	if err != nil {
-		return handlers.UserInfoData{}, err
-	}
-
 	s, err := a.getSessionFromCtx(r.Context())
 	if err != nil {
 		s.ID = uuid.New().String()
 	}
 
-	pbSession, isImpersonated, err := a.getCurrentSession(r.Context())
-	if err != nil {
-		pbSession = &session.Session{
-			Id: s.ID,
-		}
-	}
-
-	pbUser, err := a.getUser(r.Context(), pbSession.GetUserId())
-	if err != nil {
-		pbUser = &user.User{
-			Id: pbSession.GetUserId(),
-		}
-	}
-	creationOptions, requestOptions, _ := a.webauthn.GetOptions(r)
-
 	profile, _ := loadIdentityProfile(r, state.cookieCipher)
 
 	data := handlers.UserInfoData{
-		CSRFToken:      csrf.Token(r),
-		IsImpersonated: isImpersonated,
-		Session:        pbSession,
-		User:           pbUser,
-		Profile:        profile,
-
-		WebAuthnCreationOptions: creationOptions,
-		WebAuthnRequestOptions:  requestOptions,
-		WebAuthnURL:             urlutil.WebAuthnURL(r, authenticateURL, state.sharedKey, r.URL.Query()),
+		CSRFToken: csrf.Token(r),
+		Profile:   profile,
 
 		BrandingOptions: a.options.Load().BrandingOptions,
 	}
-	a.fillEnterpriseUserInfoData(r.Context(), &data, pbSession.GetUserId())
 	return data, nil
-}
-
-func (a *Authenticate) fillEnterpriseUserInfoData(
-	ctx context.Context,
-	dst *handlers.UserInfoData,
-	userID string,
-) {
-	client := a.state.Load().dataBrokerClient
-
-	res, _ := client.Get(ctx, &databroker.GetRequest{Type: "type.googleapis.com/pomerium.config.Config", Id: "dashboard"})
-	dst.IsEnterprise = res.GetRecord() != nil
-	if !dst.IsEnterprise {
-		return
-	}
-
-	dst.DirectoryUser, _ = databroker.GetViaJSON[directory.User](ctx, client, directory.UserRecordType, userID)
-	if dst.DirectoryUser != nil {
-		for _, groupID := range dst.DirectoryUser.GroupIDs {
-			directoryGroup, _ := databroker.GetViaJSON[directory.Group](ctx, client, directory.GroupRecordType, groupID)
-			if directoryGroup != nil {
-				dst.DirectoryGroups = append(dst.DirectoryGroups, directoryGroup)
-			}
-		}
-	}
 }
 
 // revokeSession always clears the local session and tries to revoke the associated session stored in the
@@ -584,82 +526,18 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 		return ""
 	}
 
-	var rawIDToken string
-	sessionState, err := a.getSessionFromCtx(ctx)
+	profile, err := loadIdentityProfile(r, a.state.Load().cookieCipher)
 	if err != nil {
-		return rawIDToken
+		return ""
 	}
 
-	if s, _ := session.Get(ctx, state.dataBrokerClient, sessionState.ID); s != nil && s.OauthToken != nil {
-		rawIDToken = s.GetIdToken().GetRaw()
-		if err := authenticator.Revoke(ctx, manager.FromOAuthToken(s.OauthToken)); err != nil {
-			log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to revoke access token")
-		}
-	}
-	if err := session.Delete(ctx, state.dataBrokerClient, sessionState.ID); err != nil {
-		log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to delete session from session store")
+	oauthToken := new(oauth2.Token)
+	_ = json.Unmarshal(profile.GetOauthToken(), oauthToken)
+	if err := authenticator.Revoke(ctx, oauthToken); err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to revoke access token")
 	}
 
-	return rawIDToken
-}
-
-func (a *Authenticate) getCurrentSession(ctx context.Context) (s *session.Session, isImpersonated bool, err error) {
-	client := a.state.Load().dataBrokerClient
-
-	sessionState, err := a.getSessionFromCtx(ctx)
-	if err != nil {
-		return nil, false, err
-	}
-
-	isImpersonated = false
-	s, err = session.Get(ctx, client, sessionState.ID)
-	if s.GetImpersonateSessionId() != "" {
-		s, err = session.Get(ctx, client, s.GetImpersonateSessionId())
-		isImpersonated = true
-	}
-
-	return s, isImpersonated, err
-}
-
-func (a *Authenticate) getUser(ctx context.Context, userID string) (*user.User, error) {
-	client := a.state.Load().dataBrokerClient
-	return user.Get(ctx, client, userID)
-}
-
-func (a *Authenticate) getWebauthnState(r *http.Request) (*webauthn.State, error) {
-	state := a.state.Load()
-
-	s, _, err := a.getCurrentSession(r.Context())
-	if err != nil {
-		return nil, err
-	}
-
-	ss, err := a.getSessionFromCtx(r.Context())
-	if err != nil {
-		return nil, err
-	}
-
-	authenticateURL, err := a.options.Load().GetAuthenticateURL()
-	if err != nil {
-		return nil, err
-	}
-
-	internalAuthenticateURL, err := a.options.Load().GetInternalAuthenticateURL()
-	if err != nil {
-		return nil, err
-	}
-
-	return &webauthn.State{
-		AuthenticateURL:         authenticateURL,
-		InternalAuthenticateURL: internalAuthenticateURL,
-		SharedKey:               state.sharedKey,
-		Client:                  state.dataBrokerClient,
-		Session:                 s,
-		SessionState:            ss,
-		SessionStore:            state.sessionStore,
-		RelyingParty:            webauthnutil.GetRelyingParty(r, state.dataBrokerClient),
-		BrandingOptions:         a.options.Load().BrandingOptions,
-	}, nil
+	return string(profile.GetIdToken())
 }
 
 // Callback handles the result of a successful call to the authenticate service
