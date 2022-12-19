@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1671473454689,
+  "lastUpdate": 1671479429989,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -25188,6 +25188,42 @@ window.BENCHMARK_DATA = {
             "value": 8895921,
             "unit": "ns/op",
             "extra": "145 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c048af75233cf935989b6455adf84ee2c5585c1e",
+          "message": "postgres: upgrade to pgx v5 (#3826)",
+          "timestamp": "2022-12-19T12:47:35-07:00",
+          "tree_id": "da597e92911a4ef90dfa5c1ec42b88c9a9acadef",
+          "url": "https://github.com/pomerium/pomerium/commit/c048af75233cf935989b6455adf84ee2c5585c1e"
+        },
+        "date": 1671479429335,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12472989,
+            "unit": "ns/op",
+            "extra": "81 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 58971972,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
