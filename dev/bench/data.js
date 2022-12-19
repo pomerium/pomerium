@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1671466642357,
+  "lastUpdate": 1671473454689,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -25156,6 +25156,38 @@ window.BENCHMARK_DATA = {
             "value": 8601831,
             "unit": "ns/op",
             "extra": "132 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "9258713ea43dc4eb30e9f1575d791c5ea2a6f4ea",
+          "message": "postgres: upgrade to pgx v5",
+          "timestamp": "2022-12-19T16:20:24Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3826/commits/9258713ea43dc4eb30e9f1575d791c5ea2a6f4ea"
+        },
+        "date": 1671473454240,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12199667,
+            "unit": "ns/op",
+            "extra": "82 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8895921,
+            "unit": "ns/op",
+            "extra": "145 times\n2 procs"
           }
         ]
       }
