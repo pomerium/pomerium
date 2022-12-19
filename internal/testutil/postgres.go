@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 	"github.com/ory/dockertest/v3"
 
 	"github.com/pomerium/pomerium/internal/log"
