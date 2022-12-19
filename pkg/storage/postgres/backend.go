@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -326,17 +325,25 @@ func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *p
 		return serverVersion, nil, err
 	}
 
-	pool, err = pgxpool.ConnectConfig(context.Background(), config)
+	pool, err = pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		return serverVersion, nil, err
 	}
 
-	err = pool.BeginFunc(ctx, func(tx pgx.Tx) error {
-		var err error
-		serverVersion, err = migrate(ctx, tx)
-		return err
-	})
+	tx, err := pool.Begin(ctx)
 	if err != nil {
+		return serverVersion, nil, err
+	}
+
+	serverVersion, err = migrate(ctx, tx)
+	if err != nil {
+		_ = tx.Rollback(ctx)
+		return serverVersion, nil, err
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		_ = tx.Rollback(ctx)
 		return serverVersion, nil, err
 	}
 
