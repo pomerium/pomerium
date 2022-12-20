@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,23 +18,21 @@ import (
 
 // JWKSHandler returns the /.well-known/pomerium/jwks.json handler.
 func JWKSHandler(
-	rawSigningKey string,
+	signingKey []byte,
 	additionalKeys ...any,
 ) http.Handler {
 	return cors.AllowAll().Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		var jwks struct {
 			Keys []any `json:"keys"`
 		}
-		if rawSigningKey != "" {
-			decodedCert, err := base64.StdEncoding.DecodeString(rawSigningKey)
-			if err != nil {
-				return httputil.NewError(http.StatusInternalServerError, errors.New("bad base64 encoding for signing key"))
-			}
-			jwk, err := cryptutil.PublicJWKFromBytes(decodedCert)
+		if len(signingKey) > 0 {
+			ks, err := cryptutil.PublicJWKsFromBytes(signingKey)
 			if err != nil {
 				return httputil.NewError(http.StatusInternalServerError, errors.New("bad signing key"))
 			}
-			jwks.Keys = append(jwks.Keys, *jwk)
+			for _, k := range ks {
+				jwks.Keys = append(jwks.Keys, *k)
+			}
 		}
 		jwks.Keys = append(jwks.Keys, additionalKeys...)
 

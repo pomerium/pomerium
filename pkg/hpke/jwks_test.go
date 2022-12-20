@@ -24,7 +24,7 @@ func TestFetchPublicKeyFromJWKS(t *testing.T) {
 	require.NoError(t, err)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handlers.JWKSHandler("", hpkePrivateKey.PublicKey()).ServeHTTP(w, r)
+		handlers.JWKSHandler(nil, hpkePrivateKey.PublicKey()).ServeHTTP(w, r)
 	}))
 	t.Cleanup(srv.Close)
 

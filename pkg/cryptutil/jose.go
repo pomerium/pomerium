@@ -15,35 +15,64 @@ import (
 
 // PrivateJWKFromBytes returns a jose JSON Web _Private_ Key from bytes.
 func PrivateJWKFromBytes(data []byte) (*jose.JSONWebKey, error) {
-	return loadKey(data, loadPrivateKey)
+	jwks, err := loadKeys(data, loadPrivateKey)
+	if err != nil {
+		return nil, err
+	} else if len(jwks) == 0 {
+		return nil, fmt.Errorf("invalid pem data")
+	}
+	return jwks[0], nil
+}
+
+// PrivateJWKsFromBytes returns jose JSON Web _Private_ Keys from bytes.
+func PrivateJWKsFromBytes(data []byte) ([]*jose.JSONWebKey, error) {
+	return loadKeys(data, loadPrivateKey)
 }
 
 // PublicJWKFromBytes returns a jose JSON Web _Public_ Key from bytes.
 func PublicJWKFromBytes(data []byte) (*jose.JSONWebKey, error) {
-	return loadKey(data, loadPublicKey)
-}
-
-func loadKey(data []byte, unmarshal func([]byte) (interface{}, error)) (*jose.JSONWebKey, error) {
-	block, _ := pem.Decode(data)
-	if block == nil {
-		return nil, fmt.Errorf("file contained no PEM encoded data")
-	}
-	priv, err := unmarshal(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("unmarshal key: %w", err)
-	}
-	alg, err := SignatureAlgorithmForKey(priv)
+	jwks, err := loadKeys(data, loadPublicKey)
 	if err != nil {
 		return nil, err
+	} else if len(jwks) == 0 {
+		return nil, fmt.Errorf("invalid pem data")
 	}
+	return jwks[0], nil
+}
 
-	key := &jose.JSONWebKey{Key: priv, Use: "sig", Algorithm: string(alg)}
-	thumbprint, err := key.Thumbprint(crypto.SHA256)
-	if err != nil {
-		return nil, fmt.Errorf("computing thumbprint: %w", err)
+// PublicJWKsFromBytes returns jose JSON Web _Public_ Keys from bytes.
+func PublicJWKsFromBytes(data []byte) ([]*jose.JSONWebKey, error) {
+	return loadKeys(data, loadPublicKey)
+}
+
+func loadKeys(data []byte, unmarshal func([]byte) (any, error)) ([]*jose.JSONWebKey, error) {
+	var jwks []*jose.JSONWebKey
+	for {
+		var block *pem.Block
+		block, data = pem.Decode(data)
+		if block == nil {
+			break
+		}
+
+		key, err := unmarshal(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshal key: %w", err)
+		}
+
+		alg, err := SignatureAlgorithmForKey(key)
+		if err != nil {
+			return nil, err
+		}
+
+		jwk := &jose.JSONWebKey{Key: key, Use: "sig", Algorithm: string(alg)}
+		thumbprint, err := jwk.Thumbprint(crypto.SHA256)
+		if err != nil {
+			return nil, fmt.Errorf("computing thumbprint: %w", err)
+		}
+		jwk.KeyID = hex.EncodeToString(thumbprint)
+		jwks = append(jwks, jwk)
 	}
-	key.KeyID = hex.EncodeToString(thumbprint)
-	return key, nil
+	return jwks, nil
 }
 
 func loadPrivateKey(b []byte) (interface{}, error) {

@@ -33,7 +33,10 @@ func testOptions(t *testing.T) *config.Options {
 	htpkePrivateKey, err := opts.GetHPKEPrivateKey()
 	require.NoError(t, err)
 
-	authnSrv := httptest.NewServer(handlers.JWKSHandler(opts.SigningKey, htpkePrivateKey.PublicKey()))
+	signingKey, err := opts.GetSigningKey()
+	require.NoError(t, err)
+
+	authnSrv := httptest.NewServer(handlers.JWKSHandler(signingKey, htpkePrivateKey.PublicKey()))
 	t.Cleanup(authnSrv.Close)
 	opts.AuthenticateURLString = authnSrv.URL
 

@@ -2,7 +2,6 @@ package authenticate
 
 import (
 	"crypto/cipher"
-	"encoding/base64"
 	"fmt"
 	"net/url"
 
@@ -115,16 +114,14 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 	if err != nil {
 		return nil, err
 	}
-	if signingKey != "" {
-		decodedCert, err := base64.StdEncoding.DecodeString(cfg.Options.SigningKey)
-		if err != nil {
-			return nil, fmt.Errorf("authenticate: failed to decode signing key: %w", err)
-		}
-		jwk, err := cryptutil.PublicJWKFromBytes(decodedCert)
+	if len(signingKey) > 0 {
+		ks, err := cryptutil.PublicJWKsFromBytes(signingKey)
 		if err != nil {
 			return nil, fmt.Errorf("authenticate: failed to convert jwks: %w", err)
 		}
-		state.jwk.Keys = append(state.jwk.Keys, *jwk)
+		for _, k := range ks {
+			state.jwk.Keys = append(state.jwk.Keys, *k)
+		}
 	}
 
 	sharedKey, err := cfg.Options.GetSharedKey()

@@ -1176,18 +1176,27 @@ func (o *Options) GetCookieSecret() ([]byte, error) {
 }
 
 // GetSigningKey gets the signing key.
-func (o *Options) GetSigningKey() (string, error) {
+func (o *Options) GetSigningKey() ([]byte, error) {
 	if o == nil {
-		return "", nil
+		return nil, nil
 	}
+
+	rawSigningKey := o.SigningKey
 	if o.SigningKeyFile != "" {
 		bs, err := os.ReadFile(o.SigningKeyFile)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		return string(bs), nil
+		rawSigningKey = string(bs)
 	}
-	return o.SigningKey, nil
+
+	rawSigningKey = strings.TrimSpace(rawSigningKey)
+
+	if bs, err := base64.StdEncoding.DecodeString(rawSigningKey); err == nil {
+		return bs, nil
+	}
+
+	return []byte(rawSigningKey), nil
 }
 
 // Checksum returns the checksum of the current options struct
