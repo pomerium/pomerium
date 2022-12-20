@@ -67,6 +67,10 @@ func TestProxy_SignOut(t *testing.T) {
 			if status := w.Code; status != tt.wantStatus {
 				t.Errorf("status code: got %v want %v", status, tt.wantStatus)
 			}
+			u, err := urlutil.ParseAndValidateURL(w.HeaderMap.Get("Location"))
+			if assert.NoError(t, err) {
+				assert.Equal(t, "/.pomerium/sign_out", u.Path)
+			}
 		})
 	}
 }

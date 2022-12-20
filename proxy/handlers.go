@@ -75,7 +75,9 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) error {
 		redirectURL = uri
 	}
 
-	dashboardURL := *state.authenticateDashboardURL
+	dashboardURL := state.authenticateDashboardURL.ResolveReference(&url.URL{
+		Path: "/.pomerium/sign_out",
+	})
 	q := dashboardURL.Query()
 	if redirectURL != nil {
 		q.Set(urlutil.QueryRedirectURI, redirectURL.String())
@@ -83,7 +85,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) error {
 	dashboardURL.RawQuery = q.Encode()
 
 	state.sessionStore.ClearSession(w, r)
-	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, &dashboardURL).String(), http.StatusFound)
+	httputil.Redirect(w, r, urlutil.NewSignedURL(state.sharedKey, dashboardURL).String(), http.StatusFound)
 	return nil
 }
 
