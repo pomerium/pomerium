@@ -78,18 +78,19 @@ func loadKeys(data []byte, unmarshal func([]byte) (any, error)) ([]*jose.JSONWeb
 func loadPrivateKey(b []byte) (interface{}, error) {
 	var wrappedErr error
 	var err error
+	var key any
 
-	if key, err := x509.ParseECPrivateKey(b); err == nil {
+	if key, err = x509.ParseECPrivateKey(b); err == nil {
 		return key, nil
 	}
 	wrappedErr = multierror.Append(wrappedErr, err)
 
-	if key, err := x509.ParsePKCS1PrivateKey(b); err == nil {
+	if key, err = x509.ParsePKCS1PrivateKey(b); err == nil {
 		return key, nil
 	}
 	wrappedErr = multierror.Append(wrappedErr, err)
 
-	if key, err := x509.ParsePKCS8PrivateKey(b); err == nil {
+	if key, err = x509.ParsePKCS8PrivateKey(b); err == nil {
 		return key, nil
 	}
 	wrappedErr = multierror.Append(wrappedErr, err)
@@ -101,8 +102,9 @@ func loadPrivateKey(b []byte) (interface{}, error) {
 func loadPublicKey(b []byte) (interface{}, error) {
 	var wrappedErr error
 	var err error
+	var key any
 
-	if key, err := loadPrivateKey(b); err == nil {
+	if key, err = loadPrivateKey(b); err == nil {
 		switch k := key.(type) {
 		case *rsa.PrivateKey:
 			return k.Public(), nil
@@ -114,12 +116,12 @@ func loadPublicKey(b []byte) (interface{}, error) {
 	}
 	wrappedErr = multierror.Append(wrappedErr, err)
 
-	if key, err := x509.ParsePKIXPublicKey(b); err == nil {
+	if key, err = x509.ParsePKIXPublicKey(b); err == nil {
 		return key, nil
 	}
 	wrappedErr = multierror.Append(wrappedErr, err)
 
-	if key, err := x509.ParseCertificate(b); err == nil {
+	if key, err = x509.ParseCertificate(b); err == nil {
 		return key, nil
 	}
 	wrappedErr = multierror.Append(wrappedErr, err)
