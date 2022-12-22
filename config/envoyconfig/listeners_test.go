@@ -990,7 +990,7 @@ func Test_getAllDomains(t *testing.T) {
 	}
 	t.Run("routable", func(t *testing.T) {
 		t.Run("http", func(t *testing.T) {
-			actual, err := getAllRouteableDomains(options, "127.0.0.1:9000")
+			actual, err := getAllRouteableHosts(options, "127.0.0.1:9000")
 			require.NoError(t, err)
 			expect := []string{
 				"a.example.com",
@@ -1005,7 +1005,7 @@ func Test_getAllDomains(t *testing.T) {
 			assert.Equal(t, expect, actual)
 		})
 		t.Run("grpc", func(t *testing.T) {
-			actual, err := getAllRouteableDomains(options, "127.0.0.1:9001")
+			actual, err := getAllRouteableHosts(options, "127.0.0.1:9001")
 			require.NoError(t, err)
 			expect := []string{
 				"authorize.example.com:9001",
@@ -1016,7 +1016,7 @@ func Test_getAllDomains(t *testing.T) {
 		t.Run("both", func(t *testing.T) {
 			newOptions := *options
 			newOptions.GRPCAddr = newOptions.Addr
-			actual, err := getAllRouteableDomains(&newOptions, "127.0.0.1:9000")
+			actual, err := getAllRouteableHosts(&newOptions, "127.0.0.1:9000")
 			require.NoError(t, err)
 			expect := []string{
 				"a.example.com",
