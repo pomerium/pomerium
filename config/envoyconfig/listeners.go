@@ -251,22 +251,22 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		return nil, err
 	}
 
-	allDomains, err := getAllRouteableDomains(options, options.Addr)
+	allHosts, err := getAllRouteableHosts(options, options.Addr)
 	if err != nil {
 		return nil, err
 	}
 
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
-	for _, domain := range allDomains {
-		vh, err := b.buildVirtualHost(options, domain, domain, requireStrictTransportSecurity)
+	for _, host := range allHosts {
+		vh, err := b.buildVirtualHost(options, host, host, requireStrictTransportSecurity)
 		if err != nil {
 			return nil, err
 		}
 
 		if options.Addr == options.GetGRPCAddr() {
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
-			if (config.IsAuthorize(options.Services) && hostsMatchDomain(authorizeURLs, domain)) ||
-				(config.IsDataBroker(options.Services) && hostsMatchDomain(dataBrokerURLs, domain)) {
+			if (config.IsAuthorize(options.Services) && hostsMatchDomain(authorizeURLs, host)) ||
+				(config.IsDataBroker(options.Services) && hostsMatchDomain(dataBrokerURLs, host)) {
 				rs, err := b.buildGRPCRoutes()
 				if err != nil {
 					return nil, err
@@ -277,7 +277,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 
 		// if we're the proxy, add all the policy routes
 		if config.IsProxy(options.Services) {
-			rs, err := b.buildPolicyRoutes(options, domain)
+			rs, err := b.buildPolicyRoutes(options, host)
 			if err != nil {
 				return nil, err
 			}
@@ -593,39 +593,39 @@ func (b *Builder) buildDownstreamValidationContext(ctx context.Context,
 	return vc
 }
 
-func getAllRouteableDomains(options *config.Options, addr string) ([]string, error) {
-	allDomains := sets.NewSorted[string]()
+func getAllRouteableHosts(options *config.Options, addr string) ([]string, error) {
+	allHosts := sets.NewSorted[string]()
 
 	if addr == options.Addr {
-		domains, err := options.GetAllRouteableHTTPDomains()
+		hosts, err := options.GetAllRouteableHTTPHosts()
 		if err != nil {
 			return nil, err
 		}
-		allDomains.Add(domains...)
+		allHosts.Add(hosts...)
 	}
 
 	if addr == options.GetGRPCAddr() {
-		domains, err := options.GetAllRouteableGRPCDomains()
+		hosts, err := options.GetAllRouteableGRPCHosts()
 		if err != nil {
 			return nil, err
 		}
-		allDomains.Add(domains...)
+		allHosts.Add(hosts...)
 	}
 
-	return allDomains.ToSlice(), nil
+	return allHosts.ToSlice(), nil
 }
 
 func getAllServerNames(cfg *config.Config, addr string) ([]string, error) {
 	serverNames := sets.NewSorted[string]()
 	serverNames.Add("*")
 
-	routeableDomains, err := getAllRouteableDomains(cfg.Options, addr)
+	routeableHosts, err := getAllRouteableHosts(cfg.Options, addr)
 	if err != nil {
 		return nil, err
 	}
-	for _, hp := range routeableDomains {
-		if d, _, err := net.SplitHostPort(hp); err == nil {
-			serverNames.Add(d)
+	for _, hp := range routeableHosts {
+		if h, _, err := net.SplitHostPort(hp); err == nil {
+			serverNames.Add(h)
 		} else {
 			serverNames.Add(hp)
 		}

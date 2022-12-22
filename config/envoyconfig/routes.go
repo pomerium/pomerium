@@ -47,12 +47,12 @@ func (b *Builder) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
 	}}, nil
 }
 
-func (b *Builder) buildPomeriumHTTPRoutes(options *config.Options, domain string) ([]*envoy_config_route_v3.Route, error) {
+func (b *Builder) buildPomeriumHTTPRoutes(options *config.Options, host string) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
 
 	// if this is the pomerium proxy in front of the the authenticate service, don't add
 	// these routes since they will be handled by authenticate
-	isFrontingAuthenticate, err := isProxyFrontingAuthenticate(options, domain)
+	isFrontingAuthenticate, err := isProxyFrontingAuthenticate(options, host)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (b *Builder) buildPomeriumHTTPRoutes(options *config.Options, domain string
 			b.buildControlPlanePrefixRoute("/.well-known/pomerium/", false),
 		)
 		// per #837, only add robots.txt if there are no unauthenticated routes
-		if !hasPublicPolicyMatchingURL(options, url.URL{Scheme: "https", Host: domain, Path: "/robots.txt"}) {
+		if !hasPublicPolicyMatchingURL(options, url.URL{Scheme: "https", Host: host, Path: "/robots.txt"}) {
 			routes = append(routes, b.buildControlPlanePathRoute("/robots.txt", false))
 		}
 	}
@@ -79,7 +79,7 @@ func (b *Builder) buildPomeriumHTTPRoutes(options *config.Options, domain string
 	if err != nil {
 		return nil, err
 	}
-	if config.IsAuthenticate(options.Services) && hostMatchesDomain(authenticateURL, domain) {
+	if config.IsAuthenticate(options.Services) && hostMatchesDomain(authenticateURL, host) {
 		routes = append(routes,
 			b.buildControlPlanePathRoute(options.AuthenticateCallbackPath, false),
 			b.buildControlPlanePathRoute("/", false),

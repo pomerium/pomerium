@@ -1015,15 +1015,9 @@ func (o *Options) GetCodecType() CodecType {
 	return o.CodecType
 }
 
-// GetAllRouteableGRPCDomains returns all the possible gRPC domains handled by the Pomerium options.
-func (o *Options) GetAllRouteableGRPCDomains() ([]string, error) {
-	return o.GetAllRouteableGRPCDomainsForTLSServerName("")
-}
-
-// GetAllRouteableGRPCDomainsForTLSServerName  returns all the possible gRPC domains handled by the Pomerium options
-// for the given TLS server name.
-func (o *Options) GetAllRouteableGRPCDomainsForTLSServerName(tlsServerName string) ([]string, error) {
-	domains := sets.NewSorted[string]()
+// GetAllRouteableGRPCHosts returns all the possible gRPC hosts handled by the Pomerium options.
+func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
+	hosts := sets.NewSorted[string]()
 
 	// authorize urls
 	if IsAll(o.Services) {
@@ -1032,11 +1026,7 @@ func (o *Options) GetAllRouteableGRPCDomainsForTLSServerName(tlsServerName strin
 			return nil, err
 		}
 		for _, u := range authorizeURLs {
-			for _, h := range urlutil.GetDomainsForURL(*u) {
-				if tlsServerName == "" || urlutil.StripPort(h) == tlsServerName {
-					domains.Add(h)
-				}
-			}
+			hosts.Add(urlutil.GetDomainsForURL(*u)...)
 		}
 	} else if IsAuthorize(o.Services) {
 		authorizeURLs, err := o.GetInternalAuthorizeURLs()
@@ -1044,11 +1034,7 @@ func (o *Options) GetAllRouteableGRPCDomainsForTLSServerName(tlsServerName strin
 			return nil, err
 		}
 		for _, u := range authorizeURLs {
-			for _, h := range urlutil.GetDomainsForURL(*u) {
-				if tlsServerName == "" || urlutil.StripPort(h) == tlsServerName {
-					domains.Add(h)
-				}
-			}
+			hosts.Add(urlutil.GetDomainsForURL(*u)...)
 		}
 	}
 
@@ -1059,11 +1045,7 @@ func (o *Options) GetAllRouteableGRPCDomainsForTLSServerName(tlsServerName strin
 			return nil, err
 		}
 		for _, u := range dataBrokerURLs {
-			for _, h := range urlutil.GetDomainsForURL(*u) {
-				if tlsServerName == "" || urlutil.StripPort(h) == tlsServerName {
-					domains.Add(h)
-				}
-			}
+			hosts.Add(urlutil.GetDomainsForURL(*u)...)
 		}
 	} else if IsDataBroker(o.Services) {
 		dataBrokerURLs, err := o.GetInternalDataBrokerURLs()
@@ -1071,71 +1053,42 @@ func (o *Options) GetAllRouteableGRPCDomainsForTLSServerName(tlsServerName strin
 			return nil, err
 		}
 		for _, u := range dataBrokerURLs {
-			for _, h := range urlutil.GetDomainsForURL(*u) {
-				if tlsServerName == "" || urlutil.StripPort(h) == tlsServerName {
-					domains.Add(h)
-				}
-			}
+			hosts.Add(urlutil.GetDomainsForURL(*u)...)
 		}
 	}
 
-	return domains.ToSlice(), nil
+	return hosts.ToSlice(), nil
 }
 
-// GetAllRouteableHTTPDomains returns all the possible HTTP domains handled by the Pomerium options.
-func (o *Options) GetAllRouteableHTTPDomains() ([]string, error) {
-	return o.GetAllRouteableHTTPDomainsForTLSServerName("")
-}
-
-// GetAllRouteableHTTPDomainsForTLSServerName returns all the possible HTTP domains handled by the Pomerium options
-// for the given TLS server name.
-func (o *Options) GetAllRouteableHTTPDomainsForTLSServerName(tlsServerName string) ([]string, error) {
-	domains := sets.NewSorted[string]()
+// GetAllRouteableHTTPHosts returns all the possible HTTP hosts handled by the Pomerium options.
+func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
+	hosts := sets.NewSorted[string]()
 	if IsAuthenticate(o.Services) {
 		authenticateURL, err := o.GetInternalAuthenticateURL()
 		if err != nil {
 			return nil, err
 		}
-		for _, h := range urlutil.GetDomainsForURL(*authenticateURL) {
-			if tlsServerName == "" || urlutil.StripPort(h) == tlsServerName {
-				domains.Add(h)
-			}
-		}
+		hosts.Add(urlutil.GetDomainsForURL(*authenticateURL)...)
 
 		authenticateURL, err = o.GetAuthenticateURL()
 		if err != nil {
 			return nil, err
 		}
-		for _, h := range urlutil.GetDomainsForURL(*authenticateURL) {
-			if tlsServerName == "" || urlutil.StripPort(h) == tlsServerName {
-				domains.Add(h)
-			}
-		}
+		hosts.Add(urlutil.GetDomainsForURL(*authenticateURL)...)
 	}
 
 	// policy urls
 	if IsProxy(o.Services) {
 		for _, policy := range o.GetAllPolicies() {
-			for _, h := range urlutil.GetDomainsForURL(*policy.Source.URL) {
-				if tlsServerName == "" ||
-					policy.TLSDownstreamServerName == tlsServerName ||
-					urlutil.StripPort(h) == tlsServerName {
-					domains.Add(h)
-				}
-			}
+			hosts.Add(urlutil.GetDomainsForURL(*policy.Source.URL)...)
 			if policy.TLSDownstreamServerName != "" {
 				tlsURL := policy.Source.URL.ResolveReference(&url.URL{Host: policy.TLSDownstreamServerName})
-				for _, h := range urlutil.GetDomainsForURL(*tlsURL) {
-					if tlsServerName == "" ||
-						urlutil.StripPort(h) == tlsServerName {
-						domains.Add(h)
-					}
-				}
+				hosts.Add(urlutil.GetDomainsForURL(*tlsURL)...)
 			}
 		}
 	}
 
-	return domains.ToSlice(), nil
+	return hosts.ToSlice(), nil
 }
 
 // GetClientSecret gets the client secret.
