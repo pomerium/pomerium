@@ -166,3 +166,9 @@ func TestJoin(t *testing.T) {
 	assert.Equal(t, "/x/y/z/", Join("/x", "/y/z/"))
 	assert.Equal(t, "/x/y/z/", Join("/x/", "/y/z/"))
 }
+
+func TestMatchesServerName(t *testing.T) {
+	t.Run("wildcard", func(t *testing.T) {
+		assert.True(t, MatchesServerName(MustParseAndValidateURL("https://domain.example.com"), "*.example.com"))
+	})
+}

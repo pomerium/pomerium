@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/caddyserver/certmagic"
 )
 
 const (
@@ -159,4 +161,9 @@ func GetExternalRequest(internalURL, externalURL *url.URL, r *http.Request) *htt
 		er.Host = externalURL.Host
 	}
 	return er
+}
+
+// MatchesServerName returnes true if the url's host matches the given server name.
+func MatchesServerName(u url.URL, serverName string) bool {
+	return certmagic.MatchWildcard(u.Hostname(), serverName)
 }

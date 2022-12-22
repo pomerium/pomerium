@@ -25,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sets"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -509,23 +510,23 @@ func (b *Builder) buildRouteConfiguration(name string, virtualHosts []*envoy_con
 
 func (b *Builder) buildDownstreamTLSContext(ctx context.Context,
 	cfg *config.Config,
-	domain string,
+	serverName string,
 ) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
 	certs, err := cfg.AllCertificates()
 	if err != nil {
-		log.Warn(ctx).Str("domain", domain).Err(err).Msg("failed to get all certificates from config")
+		log.Warn(ctx).Str("domain", serverName).Err(err).Msg("failed to get all certificates from config")
 		return nil
 	}
 
-	cert, err := cryptutil.GetCertificateForServerName(certs, domain)
+	cert, err := cryptutil.GetCertificateForServerName(certs, serverName)
 	if err != nil {
-		log.Warn(ctx).Str("domain", domain).Err(err).Msg("failed to get certificate for domain")
+		log.Warn(ctx).Str("domain", serverName).Err(err).Msg("failed to get certificate for domain")
 		return nil
 	}
 
 	err = validateCertificate(cert)
 	if err != nil {
-		log.Warn(ctx).Str("domain", domain).Err(err).Msg("invalid certificate for domain")
+		log.Warn(ctx).Str("domain", serverName).Err(err).Msg("invalid certificate for domain")
 		return nil
 	}
 
@@ -545,14 +546,14 @@ func (b *Builder) buildDownstreamTLSContext(ctx context.Context,
 			TlsParams:             tlsParams,
 			TlsCertificates:       []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{envoyCert},
 			AlpnProtocols:         alpnProtocols,
-			ValidationContextType: b.buildDownstreamValidationContext(ctx, cfg, domain),
+			ValidationContextType: b.buildDownstreamValidationContext(ctx, cfg, serverName),
 		},
 	}
 }
 
 func (b *Builder) buildDownstreamValidationContext(ctx context.Context,
 	cfg *config.Config,
-	domain string,
+	serverName string,
 ) *envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext {
 	needsClientCert := false
 
@@ -560,7 +561,7 @@ func (b *Builder) buildDownstreamValidationContext(ctx context.Context,
 		needsClientCert = true
 	}
 	if !needsClientCert {
-		for _, p := range getPoliciesForDomain(cfg.Options, domain) {
+		for _, p := range getPoliciesForServerName(cfg.Options, serverName) {
 			if p.TLSDownstreamClientCA != "" {
 				needsClientCert = true
 				break
@@ -680,10 +681,10 @@ func urlMatchesHost(u *url.URL, host string) bool {
 	return h1 == h2 && p1 == p2
 }
 
-func getPoliciesForDomain(options *config.Options, domain string) []config.Policy {
+func getPoliciesForServerName(options *config.Options, serverName string) []config.Policy {
 	var policies []config.Policy
 	for _, p := range options.GetAllPolicies() {
-		if p.Source != nil && p.Source.URL.Hostname() == domain {
+		if p.Source != nil && urlutil.MatchesServerName(*p.Source.URL, serverName) {
 			policies = append(policies, p)
 		}
 	}
