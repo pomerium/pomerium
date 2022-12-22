@@ -99,51 +99,50 @@ func (b *Builder) BuildListeners(ctx context.Context, cfg *config.Config) ([]*en
 }
 
 func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
-	listenerFilters := []*envoy_config_listener_v3.ListenerFilter{}
+	li := newEnvoyListener("http-ingress")
 	if cfg.Options.UseProxyProtocol {
-		listenerFilters = append(listenerFilters, ProxyProtocolFilter())
+		li.ListenerFilters = append(li.ListenerFilters, ProxyProtocolFilter())
 	}
 
 	if cfg.Options.InsecureServer {
-		allDomains, err := getAllRouteableDomains(cfg.Options, cfg.Options.Addr)
-		if err != nil {
-			return nil, err
-		}
-
-		filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, allDomains, false)
-		if err != nil {
-			return nil, err
-		}
-
-		li := newEnvoyListener("http-ingress")
 		li.Address = buildAddress(cfg.Options.Addr, 80)
-		li.ListenerFilters = listenerFilters
+
+		filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, false)
+		if err != nil {
+			return nil, err
+		}
+
 		li.FilterChains = []*envoy_config_listener_v3.FilterChain{{
 			Filters: []*envoy_config_listener_v3.Filter{
 				filter,
 			},
 		}}
-		return li, nil
-	}
-	listenerFilters = append(listenerFilters, TLSInspectorFilter())
+	} else {
+		li.Address = buildAddress(cfg.Options.Addr, 443)
+		li.ListenerFilters = append(li.ListenerFilters, TLSInspectorFilter())
 
-	chains, err := b.buildFilterChains(cfg, cfg.Options.Addr,
-		func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error) {
-			allCertificates, _ := cfg.AllCertificates()
-			requireStrictTransportSecurity := cryptutil.HasCertificateForDomain(allCertificates, tlsDomain)
-			filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, httpDomains, requireStrictTransportSecurity)
+		allCertificates, _ := cfg.AllCertificates()
+
+		serverNames, err := getAllServerNames(cfg, cfg.Options.Addr)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, serverName := range serverNames {
+			requireStrictTransportSecurity := cryptutil.HasCertificateForDomain(allCertificates, serverName)
+			filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, requireStrictTransportSecurity)
 			if err != nil {
 				return nil, err
 			}
 			filterChain := &envoy_config_listener_v3.FilterChain{
 				Filters: []*envoy_config_listener_v3.Filter{filter},
 			}
-			if tlsDomain != "*" {
+			if serverName != "*" {
 				filterChain.FilterChainMatch = &envoy_config_listener_v3.FilterChainMatch{
-					ServerNames: []string{tlsDomain},
+					ServerNames: []string{serverName},
 				}
 			}
-			tlsContext := b.buildDownstreamTLSContext(ctx, cfg, tlsDomain)
+			tlsContext := b.buildDownstreamTLSContext(ctx, cfg, serverName)
 			if tlsContext != nil {
 				tlsConfig := marshalAny(tlsContext)
 				filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
@@ -153,16 +152,9 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 					},
 				}
 			}
-			return filterChain, nil
-		})
-	if err != nil {
-		return nil, err
+			li.FilterChains = append(li.FilterChains, filterChain)
+		}
 	}
-
-	li := newEnvoyListener("https-ingress")
-	li.Address = buildAddress(cfg.Options.Addr, 443)
-	li.ListenerFilters = listenerFilters
-	li.FilterChains = chains
 	return li, nil
 }
 
@@ -245,42 +237,8 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 	return li, nil
 }
 
-func (b *Builder) buildFilterChains(
-	cfg *config.Config, addr string,
-	callback func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error),
-) ([]*envoy_config_listener_v3.FilterChain, error) {
-	allDomains, err := getAllRouteableDomains(cfg.Options, addr)
-	if err != nil {
-		return nil, err
-	}
-
-	tlsDomains, err := getAllTLSDomains(cfg, addr)
-	if err != nil {
-		return nil, err
-	}
-
-	var chains []*envoy_config_listener_v3.FilterChain
-	chains = append(chains, b.buildACMETLSALPNFilterChain())
-	for _, domain := range tlsDomains {
-		chain, err := callback(domain, allDomains)
-		if err != nil {
-			return nil, err
-		}
-		chains = append(chains, chain)
-	}
-
-	// if there are no SNI matches we match on HTTP host
-	chain, err := callback("*", allDomains)
-	if err != nil {
-		return nil, err
-	}
-	chains = append(chains, chain)
-	return chains, nil
-}
-
 func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	options *config.Options,
-	domains []string,
 	requireStrictTransportSecurity bool,
 ) (*envoy_config_listener_v3.Filter, error) {
 	authorizeURLs, err := options.GetInternalAuthorizeURLs()
@@ -293,8 +251,13 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		return nil, err
 	}
 
+	allDomains, err := getAllRouteableDomains(options, options.Addr)
+	if err != nil {
+		return nil, err
+	}
+
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
-	for _, domain := range domains {
+	for _, domain := range allDomains {
 		vh, err := b.buildVirtualHost(options, domain, domain, requireStrictTransportSecurity)
 		if err != nil {
 			return nil, err
@@ -445,28 +408,35 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 		return nil, err
 	}
 
+	li := newEnvoyListener("grpc-ingress")
 	if cfg.Options.GetGRPCInsecure() {
-		li := newEnvoyListener("grpc-ingress")
 		li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 80)
 		li.FilterChains = []*envoy_config_listener_v3.FilterChain{{
 			Filters: []*envoy_config_listener_v3.Filter{
 				filter,
 			},
 		}}
-		return li, nil
-	}
+	} else {
+		li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 443)
+		li.ListenerFilters = []*envoy_config_listener_v3.ListenerFilter{
+			TLSInspectorFilter(),
+		}
 
-	chains, err := b.buildFilterChains(cfg, cfg.Options.GRPCAddr,
-		func(tlsDomain string, httpDomains []string) (*envoy_config_listener_v3.FilterChain, error) {
+		serverNames, err := getAllServerNames(cfg, cfg.Options.GRPCAddr)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, serverName := range serverNames {
 			filterChain := &envoy_config_listener_v3.FilterChain{
 				Filters: []*envoy_config_listener_v3.Filter{filter},
 			}
-			if tlsDomain != "*" {
+			if serverName != "*" {
 				filterChain.FilterChainMatch = &envoy_config_listener_v3.FilterChainMatch{
-					ServerNames: []string{tlsDomain},
+					ServerNames: []string{serverName},
 				}
 			}
-			tlsContext := b.buildDownstreamTLSContext(ctx, cfg, tlsDomain)
+			tlsContext := b.buildDownstreamTLSContext(ctx, cfg, serverName)
 			if tlsContext != nil {
 				tlsConfig := marshalAny(tlsContext)
 				filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
@@ -476,18 +446,9 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 					},
 				}
 			}
-			return filterChain, nil
-		})
-	if err != nil {
-		return nil, err
+			li.FilterChains = append(li.FilterChains, filterChain)
+		}
 	}
-
-	li := newEnvoyListener("grpc-ingress")
-	li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 443)
-	li.ListenerFilters = []*envoy_config_listener_v3.ListenerFilter{
-		TLSInspectorFilter(),
-	}
-	li.FilterChains = chains
 	return li, nil
 }
 
@@ -654,8 +615,9 @@ func getAllRouteableDomains(options *config.Options, addr string) ([]string, err
 	return allDomains.ToSlice(), nil
 }
 
-func getAllTLSDomains(cfg *config.Config, addr string) ([]string, error) {
-	domains := sets.NewSorted[string]()
+func getAllServerNames(cfg *config.Config, addr string) ([]string, error) {
+	serverNames := sets.NewSorted[string]()
+	serverNames.Add("*")
 
 	routeableDomains, err := getAllRouteableDomains(cfg.Options, addr)
 	if err != nil {
@@ -663,9 +625,9 @@ func getAllTLSDomains(cfg *config.Config, addr string) ([]string, error) {
 	}
 	for _, hp := range routeableDomains {
 		if d, _, err := net.SplitHostPort(hp); err == nil {
-			domains.Add(d)
+			serverNames.Add(d)
 		} else {
-			domains.Add(hp)
+			serverNames.Add(hp)
 		}
 	}
 
@@ -675,11 +637,11 @@ func getAllTLSDomains(cfg *config.Config, addr string) ([]string, error) {
 	}
 	for i := range certs {
 		for _, domain := range cryptutil.GetCertificateDomains(&certs[i]) {
-			domains.Add(domain)
+			serverNames.Add(domain)
 		}
 	}
 
-	return domains.ToSlice(), nil
+	return serverNames.ToSlice(), nil
 }
 
 func hostsMatchDomain(urls []*url.URL, host string) bool {
