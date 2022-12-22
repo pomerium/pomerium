@@ -33,7 +33,10 @@ func TestAuthorize_handleResult(t *testing.T) {
 	htpkePrivateKey, err := opt.GetHPKEPrivateKey()
 	require.NoError(t, err)
 
-	authnSrv := httptest.NewServer(handlers.JWKSHandler(opt.SigningKey, htpkePrivateKey.PublicKey()))
+	signingKey, err := opt.GetSigningKey()
+	require.NoError(t, err)
+
+	authnSrv := httptest.NewServer(handlers.JWKSHandler(signingKey, htpkePrivateKey.PublicKey()))
 	t.Cleanup(authnSrv.Close)
 	opt.AuthenticateURLString = authnSrv.URL
 
@@ -198,7 +201,10 @@ func TestRequireLogin(t *testing.T) {
 	htpkePrivateKey, err := opt.GetHPKEPrivateKey()
 	require.NoError(t, err)
 
-	authnSrv := httptest.NewServer(handlers.JWKSHandler(opt.SigningKey, htpkePrivateKey.PublicKey()))
+	signingKey, err := opt.GetSigningKey()
+	require.NoError(t, err)
+
+	authnSrv := httptest.NewServer(handlers.JWKSHandler(signingKey, htpkePrivateKey.PublicKey()))
 	t.Cleanup(authnSrv.Close)
 	opt.AuthenticateURLString = authnSrv.URL
 

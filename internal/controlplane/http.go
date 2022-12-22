@@ -53,7 +53,7 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 		return fmt.Errorf("invalid authenticate URL: %w", err)
 	}
 
-	rawSigningKey, err := cfg.Options.GetSigningKey()
+	signingKey, err := cfg.Options.GetSigningKey()
 	if err != nil {
 		return fmt.Errorf("invalid signing key: %w", err)
 	}
@@ -68,6 +68,6 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 	root.HandleFunc("/ping", handlers.HealthCheck)
 	root.Handle("/.well-known/pomerium", handlers.WellKnownPomerium(authenticateURL))
 	root.Handle("/.well-known/pomerium/", handlers.WellKnownPomerium(authenticateURL))
-	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(handlers.JWKSHandler(rawSigningKey, hpkePublicKey))
+	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(handlers.JWKSHandler(signingKey, hpkePublicKey))
 	return nil
 }

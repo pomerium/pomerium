@@ -223,7 +223,7 @@ func (e *Evaluator) updateStore(cfg *evaluatorConfig) error {
 func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
 	var decodedCert []byte
 	// if we don't have a signing key, generate one
-	if cfg.signingKey == "" {
+	if len(cfg.signingKey) == 0 {
 		key, err := cryptutil.NewSigningKey()
 		if err != nil {
 			return nil, fmt.Errorf("couldn't generate signing key: %w", err)
@@ -233,11 +233,7 @@ func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
 			return nil, fmt.Errorf("bad signing key: %w", err)
 		}
 	} else {
-		var err error
-		decodedCert, err = base64.StdEncoding.DecodeString(cfg.signingKey)
-		if err != nil {
-			return nil, fmt.Errorf("bad signing key: %w", err)
-		}
+		decodedCert = cfg.signingKey
 	}
 
 	jwk, err := cryptutil.PrivateJWKFromBytes(decodedCert)

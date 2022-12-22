@@ -19,13 +19,19 @@ import (
 func TestJWKSHandler(t *testing.T) {
 	t.Parallel()
 
-	signingKey, err := cryptutil.NewSigningKey()
+	signingKey1, err := cryptutil.NewSigningKey()
+	require.NoError(t, err)
+	signingKey2, err := cryptutil.NewSigningKey()
 	require.NoError(t, err)
 
-	rawSigningKey, err := cryptutil.EncodePrivateKey(signingKey)
+	rawSigningKey1, err := cryptutil.EncodePrivateKey(signingKey1)
+	require.NoError(t, err)
+	rawSigningKey2, err := cryptutil.EncodePrivateKey(signingKey2)
 	require.NoError(t, err)
 
-	jwkSigningKey, err := cryptutil.PublicJWKFromBytes(rawSigningKey)
+	jwkSigningKey1, err := cryptutil.PublicJWKFromBytes(rawSigningKey1)
+	require.NoError(t, err)
+	jwkSigningKey2, err := cryptutil.PublicJWKFromBytes(rawSigningKey2)
 	require.NoError(t, err)
 
 	hpkePrivateKey, err := hpke.GeneratePrivateKey()
@@ -36,24 +42,36 @@ func TestJWKSHandler(t *testing.T) {
 		r := httptest.NewRequest(http.MethodOptions, "/", nil)
 		r.Header.Set("Origin", "https://www.example.com")
 		r.Header.Set("Access-Control-Request-Method", "GET")
-		handlers.JWKSHandler("", hpkePrivateKey.PublicKey()).ServeHTTP(w, r)
+		handlers.JWKSHandler(nil, hpkePrivateKey.PublicKey()).ServeHTTP(w, r)
 		assert.Equal(t, http.StatusNoContent, w.Result().StatusCode)
 	})
 	t.Run("keys", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		handlers.JWKSHandler(base64.StdEncoding.EncodeToString(rawSigningKey), hpkePrivateKey.PublicKey()).ServeHTTP(w, r)
+		handlers.JWKSHandler(
+			append(rawSigningKey1, rawSigningKey2...),
+			hpkePrivateKey.PublicKey(),
+		).ServeHTTP(w, r)
 
 		var expect any = map[string]any{
 			"keys": []any{
 				map[string]any{
 					"kty": "EC",
-					"kid": jwkSigningKey.KeyID,
+					"kid": jwkSigningKey1.KeyID,
 					"crv": "P-256",
 					"alg": "ES256",
 					"use": "sig",
-					"x":   base64.RawURLEncoding.EncodeToString(jwkSigningKey.Key.(*ecdsa.PublicKey).X.Bytes()),
-					"y":   base64.RawURLEncoding.EncodeToString(jwkSigningKey.Key.(*ecdsa.PublicKey).Y.Bytes()),
+					"x":   base64.RawURLEncoding.EncodeToString(jwkSigningKey1.Key.(*ecdsa.PublicKey).X.Bytes()),
+					"y":   base64.RawURLEncoding.EncodeToString(jwkSigningKey1.Key.(*ecdsa.PublicKey).Y.Bytes()),
+				},
+				map[string]any{
+					"kty": "EC",
+					"kid": jwkSigningKey2.KeyID,
+					"crv": "P-256",
+					"alg": "ES256",
+					"use": "sig",
+					"x":   base64.RawURLEncoding.EncodeToString(jwkSigningKey2.Key.(*ecdsa.PublicKey).X.Bytes()),
+					"y":   base64.RawURLEncoding.EncodeToString(jwkSigningKey2.Key.(*ecdsa.PublicKey).Y.Bytes()),
 				},
 				map[string]any{
 					"kty": "OKP",
