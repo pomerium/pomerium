@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1671561079797,
+  "lastUpdate": 1671726828067,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -25356,6 +25356,42 @@ window.BENCHMARK_DATA = {
             "value": 10988400,
             "unit": "ns/op",
             "extra": "110 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3e892a8533d5c75958582f6ca2ea01fcbed45018",
+          "message": "options: support multiple signing keys (#3828)\n\n* options: support multiple signing keys\r\n\r\n* fix controlplane method, errors",
+          "timestamp": "2022-12-22T09:31:09-07:00",
+          "tree_id": "3e7c4494bc0e3c6713d3fc5f682b08da894f7ccf",
+          "url": "https://github.com/pomerium/pomerium/commit/3e892a8533d5c75958582f6ca2ea01fcbed45018"
+        },
+        "date": 1671726827607,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16637546,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10277763,
+            "unit": "ns/op",
+            "extra": "118 times\n2 procs"
           }
         ]
       }
