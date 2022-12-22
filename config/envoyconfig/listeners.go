@@ -129,7 +129,7 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 		}
 
 		for _, serverName := range serverNames {
-			requireStrictTransportSecurity := cryptutil.HasCertificateForDomain(allCertificates, serverName)
+			requireStrictTransportSecurity := cryptutil.HasCertificateForServerName(allCertificates, serverName)
 			filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, requireStrictTransportSecurity)
 			if err != nil {
 				return nil, err
@@ -517,7 +517,7 @@ func (b *Builder) buildDownstreamTLSContext(ctx context.Context,
 		return nil
 	}
 
-	cert, err := cryptutil.GetCertificateForDomain(certs, domain)
+	cert, err := cryptutil.GetCertificateForServerName(certs, domain)
 	if err != nil {
 		log.Warn(ctx).Str("domain", domain).Err(err).Msg("failed to get certificate for domain")
 		return nil
@@ -636,7 +636,7 @@ func getAllServerNames(cfg *config.Config, addr string) ([]string, error) {
 		return nil, err
 	}
 	for i := range certs {
-		for _, domain := range cryptutil.GetCertificateDomains(&certs[i]) {
+		for _, domain := range cryptutil.GetCertificateServerNames(&certs[i]) {
 			serverNames.Add(domain)
 		}
 	}
