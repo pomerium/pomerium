@@ -1061,14 +1061,31 @@ func Test_getAllDomains(t *testing.T) {
 	})
 }
 
-func Test_hostMatchesDomain(t *testing.T) {
-	assert.True(t, hostMatchesDomain(mustParseURL(t, "http://example.com"), "example.com"))
-	assert.True(t, hostMatchesDomain(mustParseURL(t, "http://example.com"), "example.com:80"))
-	assert.True(t, hostMatchesDomain(mustParseURL(t, "https://example.com"), "example.com:443"))
-	assert.True(t, hostMatchesDomain(mustParseURL(t, "https://example.com:443"), "example.com:443"))
-	assert.True(t, hostMatchesDomain(mustParseURL(t, "https://example.com:443"), "example.com"))
-	assert.False(t, hostMatchesDomain(mustParseURL(t, "http://example.com:81"), "example.com"))
-	assert.False(t, hostMatchesDomain(mustParseURL(t, "http://example.com:81"), "example.com:80"))
+func Test_urlMatchesHost(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		sourceURL string
+		host      string
+		matches   bool
+	}{
+		{"no port", "http://example.com", "example.com", true},
+		{"host http port", "http://example.com", "example.com:80", true},
+		{"host https port", "https://example.com", "example.com:443", true},
+		{"with port", "https://example.com:443", "example.com:443", true},
+		{"url port", "https://example.com:443", "example.com", true},
+		{"non standard port", "http://example.com:81", "example.com", false},
+		{"non standard host port", "http://example.com:81", "example.com:80", false},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.matches, urlMatchesHost(mustParseURL(t, tc.sourceURL), tc.host),
+				"urlMatchesHost(%s,%s)", tc.sourceURL, tc.host)
+		})
+	}
 }
 
 func Test_buildRouteConfiguration(t *testing.T) {

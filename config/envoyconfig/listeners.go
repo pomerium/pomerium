@@ -265,8 +265,8 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 
 		if options.Addr == options.GetGRPCAddr() {
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
-			if (config.IsAuthorize(options.Services) && hostsMatchDomain(authorizeURLs, host)) ||
-				(config.IsDataBroker(options.Services) && hostsMatchDomain(dataBrokerURLs, host)) {
+			if (config.IsAuthorize(options.Services) && urlsMatchHost(authorizeURLs, host)) ||
+				(config.IsDataBroker(options.Services) && urlsMatchHost(dataBrokerURLs, host)) {
 				rs, err := b.buildGRPCRoutes()
 				if err != nil {
 					return nil, err
@@ -644,16 +644,16 @@ func getAllServerNames(cfg *config.Config, addr string) ([]string, error) {
 	return serverNames.ToSlice(), nil
 }
 
-func hostsMatchDomain(urls []*url.URL, host string) bool {
+func urlsMatchHost(urls []*url.URL, host string) bool {
 	for _, u := range urls {
-		if hostMatchesDomain(u, host) {
+		if urlMatchesHost(u, host) {
 			return true
 		}
 	}
 	return false
 }
 
-func hostMatchesDomain(u *url.URL, host string) bool {
+func urlMatchesHost(u *url.URL, host string) bool {
 	if u == nil {
 		return false
 	}
