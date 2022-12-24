@@ -84,9 +84,15 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*autho
 	}
 
 	state.hpkePrivateKey = hpke.DerivePrivateKey(sharedKey)
-	state.authenticateKeyFetcher = hpke.NewKeyFetcher(authenticateURL.ResolveReference(&url.URL{
+
+	jwksURL := authenticateURL.ResolveReference(&url.URL{
 		Path: "/.well-known/pomerium/jwks.json",
-	}).String())
+	}).String()
+	transport, err := config.GetTLSClientTransport(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("authorize: get tls client config: %w", err)
+	}
+	state.authenticateKeyFetcher = hpke.NewKeyFetcher(jwksURL, transport)
 
 	return state, nil
 }

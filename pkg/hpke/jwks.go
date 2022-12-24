@@ -81,9 +81,12 @@ func (fetcher *jwksKeyFetcher) FetchPublicKey(ctx context.Context) (*PublicKey, 
 }
 
 // NewKeyFetcher returns a new KeyFetcher which fetches keys using an in-memory HTTP cache.
-func NewKeyFetcher(endpoint string) KeyFetcher {
+func NewKeyFetcher(endpoint string, transport http.RoundTripper) KeyFetcher {
 	return &jwksKeyFetcher{
-		client:   httpcache.NewMemoryCacheTransport().Client(),
+		client: (&httpcache.Transport{
+			Transport: transport,
+			Cache:     httpcache.NewMemoryCache(),
+		}).Client(),
 		endpoint: endpoint,
 	}
 }

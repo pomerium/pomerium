@@ -42,7 +42,12 @@ func NewHTTPTransport(src Source) *http.Transport {
 			Config: tlsConfig,
 		}
 		lock.Unlock()
-		return d.DialContext(ctx, network, addr)
+		log.Info(ctx).Str("network", network).Str("addr", addr).Msg("DIALING...")
+		conn, err := d.DialContext(ctx, network, addr)
+		if err != nil {
+			log.Error(ctx).Err(err).Str("network", network).Str("addr", addr).Msg("DIAL")
+		}
+		return conn, err
 	}
 	transport.ForceAttemptHTTP2 = true
 	return transport
@@ -116,4 +121,16 @@ func NewPolicyHTTPTransport(options *Options, policy *Policy, disableHTTP2 bool)
 		transport.TLSClientConfig = &tlsClientConfig
 	}
 	return c.Then(transport)
+}
+
+// GetTLSClientTransport returns http transport accounting for custom CAs from config
+func GetTLSClientTransport(cfg *Config) (*http.Transport, error) {
+	tlsConfig, err := cfg.GetTLSClientConfig()
+	if err != nil {
+		return nil, err
+	}
+	return &http.Transport{
+		TLSClientConfig:   tlsConfig,
+		ForceAttemptHTTP2: true,
+	}, nil
 }
