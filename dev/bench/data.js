@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1671726828067,
+  "lastUpdate": 1671851875571,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -25392,6 +25392,38 @@ window.BENCHMARK_DATA = {
             "value": 10277763,
             "unit": "ns/op",
             "extra": "118 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "bfadf123d53fcfad0e73f11fc381b110b06b0dfe",
+          "message": "use tlsClientConfig instead of custom dialer",
+          "timestamp": "2022-12-23T12:02:47Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3830/commits/bfadf123d53fcfad0e73f11fc381b110b06b0dfe"
+        },
+        "date": 1671851874793,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12634907,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7991444,
+            "unit": "ns/op",
+            "extra": "147 times\n2 procs"
           }
         ]
       }
