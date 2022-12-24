@@ -42,12 +42,7 @@ func NewHTTPTransport(src Source) *http.Transport {
 			Config: tlsConfig,
 		}
 		lock.Unlock()
-		log.Info(ctx).Str("network", network).Str("addr", addr).Msg("DIALING...")
-		conn, err := d.DialContext(ctx, network, addr)
-		if err != nil {
-			log.Error(ctx).Err(err).Str("network", network).Str("addr", addr).Msg("DIAL")
-		}
-		return conn, err
+		return d.DialContext(ctx, network, addr)
 	}
 	transport.ForceAttemptHTTP2 = true
 	return transport
