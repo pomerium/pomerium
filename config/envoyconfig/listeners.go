@@ -633,11 +633,7 @@ func getAllServerNames(cfg *config.Config, addr string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		for _, sn := range sns {
-			if !cryptutil.HasCertificateForServerName(certs, sn) {
-				serverNames.Add(sn)
-			}
-		}
+		serverNames.Add(sns...)
 	}
 
 	if addr == cfg.Options.GetGRPCAddr() {
@@ -645,11 +641,7 @@ func getAllServerNames(cfg *config.Config, addr string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		for _, sn := range sns {
-			if !cryptutil.HasCertificateForServerName(certs, sn) {
-				serverNames.Add(sn)
-			}
-		}
+		serverNames.Add(sns...)
 	}
 
 	return serverNames.ToSlice(), nil

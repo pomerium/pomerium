@@ -1049,6 +1049,7 @@ func Test_getAllDomains(t *testing.T) {
 				"authenticate.example.com",
 				"b.example.com",
 				"c.example.com",
+				"d.unknown.example.com",
 			}
 			assert.Equal(t, expect, actual)
 		})
