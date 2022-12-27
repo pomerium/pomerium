@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1672071818999,
+  "lastUpdate": 1672157902092,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -25872,6 +25872,38 @@ window.BENCHMARK_DATA = {
             "value": 8171290,
             "unit": "ns/op",
             "extra": "145 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "b2fc5854ecb506a4f859ed2607ba9f23077826e1",
+          "message": "envoyconfig: clean up filter chain construction",
+          "timestamp": "2022-12-26T13:39:58Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3844/commits/b2fc5854ecb506a4f859ed2607ba9f23077826e1"
+        },
+        "date": 1672157901666,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14646212,
+            "unit": "ns/op",
+            "extra": "88 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9332336,
+            "unit": "ns/op",
+            "extra": "126 times\n2 procs"
           }
         ]
       }
