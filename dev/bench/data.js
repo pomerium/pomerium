@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1672161287666,
+  "lastUpdate": 1672161445272,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -26432,6 +26432,42 @@ window.BENCHMARK_DATA = {
             "value": 9976094,
             "unit": "ns/op",
             "extra": "122 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a49f86d0232c10feead5504607d49b40dbf841b6",
+          "message": "use tlsClientConfig instead of custom dialer (#3830)\n\n* use tlsClientConfig instead of custom dialer\r\n\r\n* rm debug log",
+          "timestamp": "2022-12-27T09:55:36-07:00",
+          "tree_id": "619afc72f27af45ea8ef005814e3964eb986a3e1",
+          "url": "https://github.com/pomerium/pomerium/commit/a49f86d0232c10feead5504607d49b40dbf841b6"
+        },
+        "date": 1672161444447,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13120901,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8845086,
+            "unit": "ns/op",
+            "extra": "136 times\n2 procs"
           }
         ]
       }
