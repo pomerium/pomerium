@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetCertificateForDomain(t *testing.T) {
-	gen := func(t *testing.T, domain string) *tls.Certificate {
-		cert, err := GenerateSelfSignedCertificate(domain)
-		if !assert.NoError(t, err, "error generating certificate for: %s", domain) {
+func TestGetCertificateForServerName(t *testing.T) {
+	gen := func(t *testing.T, serverName string) *tls.Certificate {
+		cert, err := GenerateSelfSignedCertificate(serverName)
+		if !assert.NoError(t, err, "error generating certificate for: %s", serverName) {
 			t.FailNow()
 		}
 		return cert
@@ -23,7 +23,7 @@ func TestGetCertificateForDomain(t *testing.T) {
 			*gen(t, "b.example.com"),
 		}
 
-		found, err := GetCertificateForDomain(certs, "b.example.com")
+		found, err := GetCertificateForServerName(certs, "b.example.com")
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -35,7 +35,7 @@ func TestGetCertificateForDomain(t *testing.T) {
 			*gen(t, "*.example.com"),
 		}
 
-		found, err := GetCertificateForDomain(certs, "b.example.com")
+		found, err := GetCertificateForServerName(certs, "b.example.com")
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -46,7 +46,7 @@ func TestGetCertificateForDomain(t *testing.T) {
 			*gen(t, "a.example.com"),
 		}
 
-		found, err := GetCertificateForDomain(certs, "b.example.com")
+		found, err := GetCertificateForServerName(certs, "b.example.com")
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -56,7 +56,7 @@ func TestGetCertificateForDomain(t *testing.T) {
 	t.Run("generate", func(t *testing.T) {
 		certs := []tls.Certificate{}
 
-		found, err := GetCertificateForDomain(certs, "b.example.com")
+		found, err := GetCertificateForServerName(certs, "b.example.com")
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -64,8 +64,8 @@ func TestGetCertificateForDomain(t *testing.T) {
 	})
 }
 
-func TestGetCertificateDomains(t *testing.T) {
+func TestGetCertificateServerNames(t *testing.T) {
 	cert, err := GenerateSelfSignedCertificate("www.example.com")
 	require.NoError(t, err)
-	assert.Equal(t, []string{"www.example.com"}, GetCertificateDomains(cert))
+	assert.Equal(t, []string{"www.example.com"}, GetCertificateServerNames(cert))
 }

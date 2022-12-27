@@ -666,14 +666,14 @@ func TestOptions_GetOauthOptions(t *testing.T) {
 	assert.Equal(t, u.Hostname(), oauthOptions.RedirectURL.Hostname())
 }
 
-func TestOptions_GetAllRouteableGRPCDomains(t *testing.T) {
+func TestOptions_GetAllRouteableGRPCHosts(t *testing.T) {
 	opts := &Options{
 		AuthenticateURLString: "https://authenticate.example.com",
 		AuthorizeURLString:    "https://authorize.example.com",
 		DataBrokerURLString:   "https://databroker.example.com",
 		Services:              "all",
 	}
-	domains, err := opts.GetAllRouteableGRPCDomains()
+	hosts, err := opts.GetAllRouteableGRPCHosts()
 	assert.NoError(t, err)
 
 	assert.Equal(t, []string{
@@ -681,10 +681,10 @@ func TestOptions_GetAllRouteableGRPCDomains(t *testing.T) {
 		"authorize.example.com:443",
 		"databroker.example.com",
 		"databroker.example.com:443",
-	}, domains)
+	}, hosts)
 }
 
-func TestOptions_GetAllRouteableHTTPDomains(t *testing.T) {
+func TestOptions_GetAllRouteableHTTPHosts(t *testing.T) {
 	p1 := Policy{From: "https://from1.example.com"}
 	p1.Validate()
 	p2 := Policy{From: "https://from2.example.com"}
@@ -699,7 +699,7 @@ func TestOptions_GetAllRouteableHTTPDomains(t *testing.T) {
 		Policies:              []Policy{p1, p2, p3},
 		Services:              "all",
 	}
-	domains, err := opts.GetAllRouteableHTTPDomains()
+	hosts, err := opts.GetAllRouteableHTTPHosts()
 	assert.NoError(t, err)
 
 	assert.Equal(t, []string{
@@ -713,7 +713,7 @@ func TestOptions_GetAllRouteableHTTPDomains(t *testing.T) {
 		"from2.example.com:443",
 		"from3.example.com",
 		"from3.example.com:443",
-	}, domains)
+	}, hosts)
 }
 
 func TestOptions_ApplySettings(t *testing.T) {

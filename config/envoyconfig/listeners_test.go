@@ -129,7 +129,8 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	options := config.NewDefaultOptions()
 	options.SkipXffAppend = true
 	options.XffNumTrustedHops = 1
-	filter, err := b.buildMainHTTPConnectionManagerFilter(options, []string{"example.com"}, true)
+	options.AuthenticateURLString = "https://authenticate.example.com"
+	filter, err := b.buildMainHTTPConnectionManagerFilter(options, true)
 	require.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `{
 		"name": "envoy.filters.network.http_connection_manager",
@@ -220,8 +221,8 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 				"name": "main",
 				"virtualHosts": [
 					{
-						"name": "example.com",
-						"domains": ["example.com"],
+						"name": "authenticate.example.com",
+						"domains": ["authenticate.example.com"],
 						"responseHeadersToAdd": [{
 							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
 							"header": {
@@ -356,6 +357,216 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 								"name": "pomerium-path-/robots.txt",
 								"match": {
 									"path": "/robots.txt"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								},
+								"typedPerFilterConfig": {
+									"envoy.filters.http.ext_authz": {
+										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+										"disabled": true
+									}
+								}
+							},
+							{
+								"name": "pomerium-path-/oauth2/callback",
+								"match": {
+									"path": "/oauth2/callback"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								},
+								"typedPerFilterConfig": {
+									"envoy.filters.http.ext_authz": {
+										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+										"disabled": true
+									}
+								}
+							},
+							{
+								"name": "pomerium-path-/",
+								"match": {
+									"path": "/"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								},
+								"typedPerFilterConfig": {
+									"envoy.filters.http.ext_authz": {
+										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+										"disabled": true
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "authenticate.example.com:443",
+						"domains": ["authenticate.example.com:443"],
+						"responseHeadersToAdd": [{
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+							"header": {
+								"key": "Strict-Transport-Security",
+								"value": "max-age=31536000; includeSubDomains; preload"
+							}
+						},
+						{
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+							"header": {
+								"key": "X-Frame-Options",
+								"value": "SAMEORIGIN"
+							}
+						},
+						{
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+							"header": {
+								"key": "X-XSS-Protection",
+								"value": "1; mode=block"
+							}
+						}],
+						"routes": [
+							{
+								"name": "pomerium-path-/.pomerium/jwt",
+								"match": {
+									"path": "/.pomerium/jwt"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								}
+							},
+							{
+								"name": "pomerium-path-/.pomerium/webauthn",
+								"match": {
+									"path": "/.pomerium/webauthn"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								}
+							},
+							{
+								"name": "pomerium-path-/ping",
+								"match": {
+									"path": "/ping"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								},
+								"typedPerFilterConfig": {
+									"envoy.filters.http.ext_authz": {
+										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+										"disabled": true
+									}
+								}
+							},
+							{
+								"name": "pomerium-path-/healthz",
+								"match": {
+									"path": "/healthz"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								},
+								"typedPerFilterConfig": {
+									"envoy.filters.http.ext_authz": {
+										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+										"disabled": true
+									}
+								}
+							},
+							{
+								"name": "pomerium-path-/.pomerium",
+								"match": {
+									"path": "/.pomerium"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								},
+								"typedPerFilterConfig": {
+									"envoy.filters.http.ext_authz": {
+										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+										"disabled": true
+									}
+								}
+							},
+							{
+								"name": "pomerium-prefix-/.pomerium/",
+								"match": {
+									"prefix": "/.pomerium/"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								},
+								"typedPerFilterConfig": {
+									"envoy.filters.http.ext_authz": {
+										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+										"disabled": true
+									}
+								}
+							},
+							{
+								"name": "pomerium-path-/.well-known/pomerium",
+								"match": {
+									"path": "/.well-known/pomerium"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								},
+								"typedPerFilterConfig": {
+									"envoy.filters.http.ext_authz": {
+										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+										"disabled": true
+									}
+								}
+							},
+							{
+								"name": "pomerium-prefix-/.well-known/pomerium/",
+								"match": {
+									"prefix": "/.well-known/pomerium/"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								},
+								"typedPerFilterConfig": {
+									"envoy.filters.http.ext_authz": {
+										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+										"disabled": true
+									}
+								}
+							},
+							{
+								"name": "pomerium-path-/robots.txt",
+								"match": {
+									"path": "/robots.txt"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								},
+								"typedPerFilterConfig": {
+									"envoy.filters.http.ext_authz": {
+										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+										"disabled": true
+									}
+								}
+							},
+							{
+								"name": "pomerium-path-/oauth2/callback",
+								"match": {
+									"path": "/oauth2/callback"
+								},
+								"route": {
+									"cluster": "pomerium-control-plane-http"
+								},
+								"typedPerFilterConfig": {
+									"envoy.filters.http.ext_authz": {
+										"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+										"disabled": true
+									}
+								}
+							},
+							{
+								"name": "pomerium-path-/",
+								"match": {
+									"path": "/"
 								},
 								"route": {
 									"cluster": "pomerium-control-plane-http"
@@ -779,7 +990,7 @@ func Test_getAllDomains(t *testing.T) {
 	}
 	t.Run("routable", func(t *testing.T) {
 		t.Run("http", func(t *testing.T) {
-			actual, err := getAllRouteableDomains(options, "127.0.0.1:9000")
+			actual, err := getAllRouteableHosts(options, "127.0.0.1:9000")
 			require.NoError(t, err)
 			expect := []string{
 				"a.example.com",
@@ -794,7 +1005,7 @@ func Test_getAllDomains(t *testing.T) {
 			assert.Equal(t, expect, actual)
 		})
 		t.Run("grpc", func(t *testing.T) {
-			actual, err := getAllRouteableDomains(options, "127.0.0.1:9001")
+			actual, err := getAllRouteableHosts(options, "127.0.0.1:9001")
 			require.NoError(t, err)
 			expect := []string{
 				"authorize.example.com:9001",
@@ -805,7 +1016,7 @@ func Test_getAllDomains(t *testing.T) {
 		t.Run("both", func(t *testing.T) {
 			newOptions := *options
 			newOptions.GRPCAddr = newOptions.Addr
-			actual, err := getAllRouteableDomains(&newOptions, "127.0.0.1:9000")
+			actual, err := getAllRouteableHosts(&newOptions, "127.0.0.1:9000")
 			require.NoError(t, err)
 			expect := []string{
 				"a.example.com",
@@ -824,9 +1035,10 @@ func Test_getAllDomains(t *testing.T) {
 	})
 	t.Run("tls", func(t *testing.T) {
 		t.Run("http", func(t *testing.T) {
-			actual, err := getAllTLSDomains(&config.Config{Options: options}, "127.0.0.1:9000")
+			actual, err := getAllServerNames(&config.Config{Options: options}, "127.0.0.1:9000")
 			require.NoError(t, err)
 			expect := []string{
+				"*",
 				"*.unknown.example.com",
 				"a.example.com",
 				"authenticate.example.com",
@@ -836,9 +1048,10 @@ func Test_getAllDomains(t *testing.T) {
 			assert.Equal(t, expect, actual)
 		})
 		t.Run("grpc", func(t *testing.T) {
-			actual, err := getAllTLSDomains(&config.Config{Options: options}, "127.0.0.1:9001")
+			actual, err := getAllServerNames(&config.Config{Options: options}, "127.0.0.1:9001")
 			require.NoError(t, err)
 			expect := []string{
+				"*",
 				"*.unknown.example.com",
 				"authorize.example.com",
 				"cache.example.com",
@@ -848,14 +1061,31 @@ func Test_getAllDomains(t *testing.T) {
 	})
 }
 
-func Test_hostMatchesDomain(t *testing.T) {
-	assert.True(t, hostMatchesDomain(mustParseURL(t, "http://example.com"), "example.com"))
-	assert.True(t, hostMatchesDomain(mustParseURL(t, "http://example.com"), "example.com:80"))
-	assert.True(t, hostMatchesDomain(mustParseURL(t, "https://example.com"), "example.com:443"))
-	assert.True(t, hostMatchesDomain(mustParseURL(t, "https://example.com:443"), "example.com:443"))
-	assert.True(t, hostMatchesDomain(mustParseURL(t, "https://example.com:443"), "example.com"))
-	assert.False(t, hostMatchesDomain(mustParseURL(t, "http://example.com:81"), "example.com"))
-	assert.False(t, hostMatchesDomain(mustParseURL(t, "http://example.com:81"), "example.com:80"))
+func Test_urlMatchesHost(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		sourceURL string
+		host      string
+		matches   bool
+	}{
+		{"no port", "http://example.com", "example.com", true},
+		{"host http port", "http://example.com", "example.com:80", true},
+		{"host https port", "https://example.com", "example.com:443", true},
+		{"with port", "https://example.com:443", "example.com:443", true},
+		{"url port", "https://example.com:443", "example.com", true},
+		{"non standard port", "http://example.com:81", "example.com", false},
+		{"non standard host port", "http://example.com:81", "example.com:80", false},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.matches, urlMatchesHost(mustParseURL(t, tc.sourceURL), tc.host),
+				"urlMatchesHost(%s,%s)", tc.sourceURL, tc.host)
+		})
+	}
 }
 
 func Test_buildRouteConfiguration(t *testing.T) {

@@ -44,36 +44,36 @@ func GetCertPool(ca, caFile string) (*x509.CertPool, error) {
 	return rootCAs, nil
 }
 
-// GetCertificateForDomain returns the tls Certificate which matches the given domain name.
+// GetCertificateForServerName returns the tls Certificate which matches the given server name.
 // It should handle both exact matches and wildcard matches. If none of those match, the first certificate will be used.
 // Finally if there are no matching certificates one will be generated.
-func GetCertificateForDomain(certificates []tls.Certificate, domain string) (*tls.Certificate, error) {
+func GetCertificateForServerName(certificates []tls.Certificate, serverName string) (*tls.Certificate, error) {
 	// first try a direct name match
 	for i := range certificates {
-		if matchesDomain(&certificates[i], domain) {
+		if matchesServerName(&certificates[i], serverName) {
 			return &certificates[i], nil
 		}
 	}
 
-	log.WarnNoTLSCertificate(domain)
+	log.WarnNoTLSCertificate(serverName)
 
 	// finally fall back to a generated, self-signed certificate
-	return GenerateSelfSignedCertificate(domain)
+	return GenerateSelfSignedCertificate(serverName)
 }
 
-// HasCertificateForDomain returns true if a TLS certificate matches the given domain.
-func HasCertificateForDomain(certificates []tls.Certificate, domain string) bool {
+// HasCertificateForServerName returns true if a TLS certificate matches the given server name.
+func HasCertificateForServerName(certificates []tls.Certificate, serverName string) bool {
 	for i := range certificates {
-		if matchesDomain(&certificates[i], domain) {
+		if matchesServerName(&certificates[i], serverName) {
 			return true
 		}
 	}
 	return false
 }
 
-// GetCertificateDomains gets all the certificate's matching domain names.
+// GetCertificateServerNames gets all the certificate's server names.
 // Will return an empty slice if certificate is nil, empty, or x509 parsing fails.
-func GetCertificateDomains(cert *tls.Certificate) []string {
+func GetCertificateServerNames(cert *tls.Certificate) []string {
 	if cert == nil || len(cert.Certificate) == 0 {
 		return nil
 	}
@@ -83,19 +83,19 @@ func GetCertificateDomains(cert *tls.Certificate) []string {
 		return nil
 	}
 
-	var domains []string
+	var serverNames []string
 	if xcert.Subject.CommonName != "" {
-		domains = append(domains, xcert.Subject.CommonName)
+		serverNames = append(serverNames, xcert.Subject.CommonName)
 	}
 	for _, dnsName := range xcert.DNSNames {
 		if dnsName != "" {
-			domains = append(domains, dnsName)
+			serverNames = append(serverNames, dnsName)
 		}
 	}
-	return domains
+	return serverNames
 }
 
-func matchesDomain(cert *tls.Certificate, domain string) bool {
+func matchesServerName(cert *tls.Certificate, serverName string) bool {
 	if cert == nil || len(cert.Certificate) == 0 {
 		return false
 	}
@@ -105,12 +105,12 @@ func matchesDomain(cert *tls.Certificate, domain string) bool {
 		return false
 	}
 
-	if certmagic.MatchWildcard(domain, xcert.Subject.CommonName) {
+	if certmagic.MatchWildcard(serverName, xcert.Subject.CommonName) {
 		return true
 	}
 
 	for _, san := range xcert.DNSNames {
-		if certmagic.MatchWildcard(domain, san) {
+		if certmagic.MatchWildcard(serverName, san) {
 			return true
 		}
 	}
