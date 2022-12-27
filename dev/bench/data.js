@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1672161445272,
+  "lastUpdate": 1672161824138,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -26468,6 +26468,42 @@ window.BENCHMARK_DATA = {
             "value": 8845086,
             "unit": "ns/op",
             "extra": "136 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "67e12101fab3301ffc8c372ab5565ee559cc1687",
+          "message": "envoyconfig: clean up filter chain construction (#3844)\n\n* cleanup filter chain construction\r\n\r\n* rename domains to server names\r\n\r\n* rename to hosts\r\n\r\n* fix tests\r\n\r\n* update function name\r\n\r\n* improved domaain matching",
+          "timestamp": "2022-12-27T10:07:26-07:00",
+          "tree_id": "ec05095621f37945b24407327084bbc51811eace",
+          "url": "https://github.com/pomerium/pomerium/commit/67e12101fab3301ffc8c372ab5565ee559cc1687"
+        },
+        "date": 1672161823704,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12936381,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7858141,
+            "unit": "ns/op",
+            "extra": "153 times\n2 procs"
           }
         ]
       }
