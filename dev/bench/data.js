@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1672167209818,
+  "lastUpdate": 1672170790986,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -26536,6 +26536,42 @@ window.BENCHMARK_DATA = {
             "value": 7929121,
             "unit": "ns/op",
             "extra": "147 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "271b0787a8a22e42804f7e8451f02f4547d29921",
+          "message": "config: add support for extended TCP route URLs (#3845)\n\n* config: add support for extended TCP route URLs\r\n\r\n* nevermind, add duplicate names",
+          "timestamp": "2022-12-27T12:50:33-07:00",
+          "tree_id": "28e905f3e8753c8d016c72790f6f1d3d1d42e4ac",
+          "url": "https://github.com/pomerium/pomerium/commit/271b0787a8a22e42804f7e8451f02f4547d29921"
+        },
+        "date": 1672170790360,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13462173,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8301648,
+            "unit": "ns/op",
+            "extra": "145 times\n2 procs"
           }
         ]
       }
