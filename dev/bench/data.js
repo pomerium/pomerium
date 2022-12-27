@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1672161824138,
+  "lastUpdate": 1672167209818,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -26504,6 +26504,38 @@ window.BENCHMARK_DATA = {
             "value": 7858141,
             "unit": "ns/op",
             "extra": "153 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "fc8de331ae0a616da247feb3ba4e0c848ab6a90f",
+          "message": "config: add support for extended TCP route URLs",
+          "timestamp": "2022-12-26T13:39:58Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3845/commits/fc8de331ae0a616da247feb3ba4e0c848ab6a90f"
+        },
+        "date": 1672167209135,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12978883,
+            "unit": "ns/op",
+            "extra": "98 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7929121,
+            "unit": "ns/op",
+            "extra": "147 times\n2 procs"
           }
         ]
       }
