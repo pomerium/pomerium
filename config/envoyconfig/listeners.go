@@ -620,26 +620,28 @@ func getAllServerNames(cfg *config.Config, addr string) ([]string, error) {
 	serverNames := sets.NewSorted[string]()
 	serverNames.Add("*")
 
-	routeableHosts, err := getAllRouteableHosts(cfg.Options, addr)
-	if err != nil {
-		return nil, err
-	}
-	for _, hp := range routeableHosts {
-		if h, _, err := net.SplitHostPort(hp); err == nil {
-			serverNames.Add(h)
-		} else {
-			serverNames.Add(hp)
-		}
-	}
-
 	certs, err := cfg.AllCertificates()
 	if err != nil {
 		return nil, err
 	}
 	for i := range certs {
-		for _, domain := range cryptutil.GetCertificateServerNames(&certs[i]) {
-			serverNames.Add(domain)
+		serverNames.Add(cryptutil.GetCertificateServerNames(&certs[i])...)
+	}
+
+	if addr == cfg.Options.Addr {
+		sns, err := cfg.Options.GetAllRouteableHTTPServerNames()
+		if err != nil {
+			return nil, err
 		}
+		serverNames.Add(sns...)
+	}
+
+	if addr == cfg.Options.GetGRPCAddr() {
+		sns, err := cfg.Options.GetAllRouteableGRPCServerNames()
+		if err != nil {
+			return nil, err
+		}
+		serverNames.Add(sns...)
 	}
 
 	return serverNames.ToSlice(), nil
@@ -655,30 +657,12 @@ func urlsMatchHost(urls []*url.URL, host string) bool {
 }
 
 func urlMatchesHost(u *url.URL, host string) bool {
-	if u == nil {
-		return false
+	for _, h := range urlutil.GetDomainsForURL(u) {
+		if h == host {
+			return true
+		}
 	}
-
-	var defaultPort string
-	if u.Scheme == "http" {
-		defaultPort = "80"
-	} else {
-		defaultPort = "443"
-	}
-
-	h1, p1, err := net.SplitHostPort(u.Host)
-	if err != nil {
-		h1 = u.Host
-		p1 = defaultPort
-	}
-
-	h2, p2, err := net.SplitHostPort(host)
-	if err != nil {
-		h2 = host
-		p2 = defaultPort
-	}
-
-	return h1 == h2 && p1 == p2
+	return false
 }
 
 func getPoliciesForServerName(options *config.Options, serverName string) []config.Policy {

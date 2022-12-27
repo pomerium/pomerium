@@ -984,6 +984,7 @@ func Test_getAllDomains(t *testing.T) {
 			{Source: &config.StringURL{URL: mustParseURL(t, "http://a.example.com")}},
 			{Source: &config.StringURL{URL: mustParseURL(t, "https://b.example.com")}},
 			{Source: &config.StringURL{URL: mustParseURL(t, "https://c.example.com")}},
+			{Source: &config.StringURL{URL: mustParseURL(t, "https://d.unknown.example.com")}},
 		},
 		Cert: base64.StdEncoding.EncodeToString(certPEM),
 		Key:  base64.StdEncoding.EncodeToString(keyPEM),
@@ -1001,6 +1002,8 @@ func Test_getAllDomains(t *testing.T) {
 				"b.example.com:443",
 				"c.example.com",
 				"c.example.com:443",
+				"d.unknown.example.com",
+				"d.unknown.example.com:443",
 			}
 			assert.Equal(t, expect, actual)
 		})
@@ -1029,6 +1032,8 @@ func Test_getAllDomains(t *testing.T) {
 				"c.example.com",
 				"c.example.com:443",
 				"cache.example.com:9001",
+				"d.unknown.example.com",
+				"d.unknown.example.com:443",
 			}
 			assert.Equal(t, expect, actual)
 		})
@@ -1044,6 +1049,7 @@ func Test_getAllDomains(t *testing.T) {
 				"authenticate.example.com",
 				"b.example.com",
 				"c.example.com",
+				"d.unknown.example.com",
 			}
 			assert.Equal(t, expect, actual)
 		})

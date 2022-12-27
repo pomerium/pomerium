@@ -599,7 +599,12 @@ func (p *Policy) Matches(requestURL url.URL) bool {
 		return false
 	}
 
-	if p.Source.Host != requestURL.Host {
+	// make sure one of the host domains matches the incoming url
+	found := false
+	for _, host := range urlutil.GetDomainsForURL(p.Source.URL) {
+		found = found || host == requestURL.Host
+	}
+	if !found {
 		return false
 	}
 
