@@ -3,6 +3,7 @@ package proxy
 import (
 	"context"
 	"crypto/cipher"
+	"fmt"
 	"net/url"
 
 	"github.com/pomerium/pomerium/config"
@@ -61,9 +62,15 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	if err != nil {
 		return nil, err
 	}
-	state.authenticateKeyFetcher = hpke.NewKeyFetcher(authenticateURL.ResolveReference(&url.URL{
+
+	jwksURL := authenticateURL.ResolveReference(&url.URL{
 		Path: "/.well-known/pomerium/jwks.json",
-	}).String())
+	}).String()
+	transport, err := config.GetTLSClientTransport(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("authorize: get tls client config: %w", err)
+	}
+	state.authenticateKeyFetcher = hpke.NewKeyFetcher(jwksURL, transport)
 
 	state.sharedCipher, err = cryptutil.NewAEADCipher(state.sharedKey)
 	if err != nil {

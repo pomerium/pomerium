@@ -5,6 +5,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 // MetricsScrapeEndpoint defines additional metrics endpoints that would be scraped and exposed by pomerium
@@ -85,4 +86,16 @@ func (cfg *Config) AllocatePorts(ports [6]string) {
 	cfg.MetricsPort = ports[3]
 	cfg.DebugPort = ports[4]
 	cfg.ACMETLSALPNPort = ports[5]
+}
+
+// GetTLSClientConfig returns TLS configuration that accounts for additional CA entries
+func (cfg *Config) GetTLSClientConfig() (*tls.Config, error) {
+	roots, err := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile)
+	if err != nil {
+		return nil, err
+	}
+	return &tls.Config{
+		RootCAs:    roots,
+		MinVersion: tls.VersionTLS12,
+	}, nil
 }
