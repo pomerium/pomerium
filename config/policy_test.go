@@ -269,4 +269,13 @@ func TestPolicy_Matches(t *testing.T) {
 		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/admin/foo`)))
 		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/admin/bar`)))
 	})
+	t.Run("tcp", func(t *testing.T) {
+		p := &Policy{
+			From: "tcp+https://proxy.example.com/redis.example.com:6379",
+			To:   mustParseWeightedURLs(t, "tcp://localhost:6379"),
+		}
+		assert.NoError(t, p.Validate())
+
+		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://redis.example.com:6379`)))
+	})
 }
