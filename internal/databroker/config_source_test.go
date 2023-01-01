@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -38,7 +39,7 @@ func TestConfigSource(t *testing.T) {
 	base := config.NewDefaultOptions()
 	base.DataBrokerURLString = "http://" + li.Addr().String()
 	base.InsecureServer = true
-	base.GRPCInsecure = true
+	base.GRPCInsecure = proto.Bool(true)
 	base.Policies = append(base.Policies, config.Policy{
 		From: "https://pomerium.io", To: config.WeightedURLs{
 			{URL: *u},

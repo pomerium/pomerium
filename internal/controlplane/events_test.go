@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
@@ -80,7 +81,7 @@ func TestEvents(t *testing.T) {
 						Options: &config.Options{
 							SharedKey:           cryptutil.NewBase64Key(),
 							DataBrokerURLString: "http://" + li.Addr().String(),
-							GRPCInsecure:        true,
+							GRPCInsecure:        proto.Bool(true),
 						},
 					},
 				}),
