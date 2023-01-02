@@ -22,7 +22,7 @@ import (
 )
 
 // Check implements the envoy auth server gRPC endpoint.
-func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRequest) (out *envoy_service_auth_v3.CheckResponse, err error) {
+func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRequest) (*envoy_service_auth_v3.CheckResponse, error) {
 	ctx, span := trace.StartSpan(ctx, "authorize.grpc.Check")
 	defer span.End()
 
@@ -47,6 +47,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	var s sessionOrServiceAccount
 	var u *user.User
+	var err error
 	if sessionState != nil {
 		s, err = a.getDataBrokerSessionOrServiceAccount(ctx, sessionState.ID, sessionState.DatabrokerRecordVersion)
 		if err != nil {
@@ -72,16 +73,18 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		log.Error(ctx).Err(err).Msg("error during OPA evaluation")
 		return nil, err
 	}
-	defer func() {
-		a.logAuthorizeCheck(ctx, in, out, res, s, u)
-	}()
 
 	// if show error details is enabled, attach the policy evaluation traces
 	if req.Policy != nil && req.Policy.ShowErrorDetails {
 		ctx = contextutil.WithPolicyEvaluationTraces(ctx, res.Traces)
 	}
 
-	return a.handleResult(ctx, in, req, res)
+	resp, err := a.handleResult(ctx, in, req, res)
+	if err != nil {
+		log.Error(ctx).Err(err).Str("request-id", requestid.FromContext(ctx)).Msg("grpc check ext_authz_error")
+	}
+	a.logAuthorizeCheck(ctx, in, resp, res, s, u)
+	return resp, err
 }
 
 func (a *Authorize) getEvaluatorRequestFromCheckRequest(
