@@ -25,10 +25,10 @@ import (
 
 // BuildClusters builds envoy clusters from the given config.
 func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*envoy_config_cluster_v3.Cluster, error) {
-	grpcURL := &url.URL{
+	grpcURLs := []*url.URL{{
 		Scheme: "http",
 		Host:   b.localGRPCAddress,
-	}
+	}}
 	httpURL := &url.URL{
 		Scheme: "http",
 		Host:   b.localHTTPAddress,
@@ -37,16 +37,21 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		Scheme: "http",
 		Host:   b.localMetricsAddress,
 	}
-	authorizeURLs, err := cfg.Options.GetInternalAuthorizeURLs()
-	if err != nil {
-		return nil, err
-	}
-	databrokerURLs, err := cfg.Options.GetDataBrokerURLs()
-	if err != nil {
-		return nil, err
+
+	authorizeURLs, databrokerURLs := grpcURLs, grpcURLs
+	if !config.IsAll(cfg.Options.Services) {
+		var err error
+		authorizeURLs, err = cfg.Options.GetInternalAuthorizeURLs()
+		if err != nil {
+			return nil, err
+		}
+		databrokerURLs, err = cfg.Options.GetDataBrokerURLs()
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	controlGRPC, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-control-plane-grpc", []*url.URL{grpcURL}, upstreamProtocolHTTP2)
+	controlGRPC, err := b.buildInternalCluster(ctx, cfg.Options, "pomerium-control-plane-grpc", grpcURLs, upstreamProtocolHTTP2)
 	if err != nil {
 		return nil, err
 	}

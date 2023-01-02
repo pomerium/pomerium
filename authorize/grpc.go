@@ -23,8 +23,6 @@ import (
 
 // Check implements the envoy auth server gRPC endpoint.
 func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRequest) (*envoy_service_auth_v3.CheckResponse, error) {
-	log.Info(ctx).Msg("grpc check ext_authz BEGIN")
-
 	ctx, span := trace.StartSpan(ctx, "authorize.grpc.Check")
 	defer span.End()
 
@@ -84,8 +82,6 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	resp, err := a.handleResult(ctx, in, req, res)
 	if err != nil {
 		log.Error(ctx).Err(err).Str("request-id", requestid.FromContext(ctx)).Msg("grpc check ext_authz_error")
-	} else {
-		log.Info(ctx).Msg("grpc check ext_authz")
 	}
 	a.logAuthorizeCheck(ctx, in, resp, res, s, u)
 	return resp, err
