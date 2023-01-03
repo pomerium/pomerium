@@ -18,6 +18,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/null/v9"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -217,7 +218,7 @@ type Options struct {
 
 	// GRPCInsecure disables transport security.
 	// If running in all-in-one mode, defaults to true.
-	GRPCInsecure bool `mapstructure:"grpc_insecure" yaml:"grpc_insecure,omitempty"`
+	GRPCInsecure *bool `mapstructure:"grpc_insecure" yaml:"grpc_insecure,omitempty"`
 
 	GRPCClientTimeout       time.Duration `mapstructure:"grpc_client_timeout" yaml:"grpc_client_timeout,omitempty"`
 	GRPCClientDNSRoundRobin bool          `mapstructure:"grpc_client_dns_roundrobin" yaml:"grpc_client_dns_roundrobin,omitempty"`
@@ -819,10 +820,13 @@ func (o *Options) GetGRPCAddr() string {
 
 // GetGRPCInsecure gets whether or not gRPC is insecure.
 func (o *Options) GetGRPCInsecure() bool {
+	if o.GRPCInsecure != nil {
+		return *o.GRPCInsecure
+	}
 	if IsAll(o.Services) {
 		return true
 	}
-	return o.GRPCInsecure
+	return false
 }
 
 // GetSignOutRedirectURL gets the SignOutRedirectURL.
@@ -1457,7 +1461,7 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 		o.GRPCAddr = settings.GetGrpcAddress()
 	}
 	if settings.GrpcInsecure != nil {
-		o.GRPCInsecure = settings.GetGrpcInsecure()
+		o.GRPCInsecure = proto.Bool(settings.GetGrpcInsecure())
 	}
 	if len(settings.DatabrokerServiceUrls) > 0 {
 		o.DataBrokerURLStrings = settings.GetDatabrokerServiceUrls()
