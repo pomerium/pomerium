@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1672675805458,
+  "lastUpdate": 1672760799277,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -26796,6 +26796,42 @@ window.BENCHMARK_DATA = {
             "value": 10567326,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5a66a9a992c7c75a03532dee2dd0d36441eb5aee",
+          "message": "chore(deps): bump actions/cache from 3.0.11 to 3.2.2 (#3851)\n\nBumps [actions/cache](https://github.com/actions/cache) from 3.0.11 to 3.2.2.\r\n- [Release notes](https://github.com/actions/cache/releases)\r\n- [Changelog](https://github.com/actions/cache/blob/main/RELEASES.md)\r\n- [Commits](https://github.com/actions/cache/compare/9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7...4723a57e26efda3a62cbde1812113b730952852d)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: actions/cache\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-01-03T08:41:57-07:00",
+          "tree_id": "07f0b26d9015dbd5dec2f87bc7a01ab6d52ce1a6",
+          "url": "https://github.com/pomerium/pomerium/commit/5a66a9a992c7c75a03532dee2dd0d36441eb5aee"
+        },
+        "date": 1672760798751,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14048592,
+            "unit": "ns/op",
+            "extra": "76 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8270943,
+            "unit": "ns/op",
+            "extra": "151 times\n2 procs"
           }
         ]
       }
