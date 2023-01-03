@@ -10,7 +10,7 @@ require (
 	github.com/DataDog/opencensus-go-exporter-datadog v0.0.0-20200406135749-5c268882acf0
 	github.com/VictoriaMetrics/fastcache v1.12.0
 	github.com/aws/aws-sdk-go-v2 v1.17.3
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.29.5
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.29.6
 	github.com/caddyserver/certmagic v0.17.2
 	github.com/cenkalti/backoff/v4 v4.2.0
 	github.com/cespare/xxhash/v2 v2.2.0
@@ -51,7 +51,7 @@ require (
 	github.com/prometheus/client_golang v1.14.0
 	github.com/prometheus/client_model v0.3.0
 	github.com/prometheus/common v0.39.0
-	github.com/prometheus/procfs v0.8.0
+	github.com/prometheus/procfs v0.9.0
 	github.com/rs/cors v1.8.2
 	github.com/rs/zerolog v1.28.0
 	github.com/shirou/gopsutil/v3 v3.22.11
@@ -85,11 +85,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.27 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.21 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.28 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.0.17 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.0.18 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.9.11 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.1.21 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.1.22 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.21 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.13.20 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.13.21 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.11.28 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.13.11 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.17.7 // indirect

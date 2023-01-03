@@ -32,14 +32,14 @@ jobs:
           fetch-depth: 0
 
       - name: cache go binaries
-        uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
+        uses: actions/cache@4723a57e26efda3a62cbde1812113b730952852d
         id: cache-go-bin
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
           restore-keys: ${{ runner.os }}-go-bin
 
-      - uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
+      - uses: actions/cache@4723a57e26efda3a62cbde1812113b730952852d
         with:
           path: |
             ~/go/pkg/mod
@@ -78,14 +78,14 @@ jobs:
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
       - name: cache go binaries
-        uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
+        uses: actions/cache@4723a57e26efda3a62cbde1812113b730952852d
         id: cache-go-bin
         with:
           path: ~/go/bin
           key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
           restore-keys: ${{ runner.os }}-go-bin
 
-      - uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
+      - uses: actions/cache@4723a57e26efda3a62cbde1812113b730952852d
         with:
           path: |
             ~/go/pkg/mod
@@ -132,7 +132,7 @@ jobs:
       - uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b
         with:
           fetch-depth: 0
-      - uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
+      - uses: actions/cache@4723a57e26efda3a62cbde1812113b730952852d
         with:
           path: |
             ~/go/pkg
@@ -176,7 +176,7 @@ jobs:
       - uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b
         with:
           fetch-depth: 0
-      - uses: actions/cache@9b0c1fce7a93df8e3bb8926b0d6e9d89e92f20a7
+      - uses: actions/cache@4723a57e26efda3a62cbde1812113b730952852d
         with:
           path: |
             ~/go/pkg/mod
