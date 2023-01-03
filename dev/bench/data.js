@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1672764200988,
+  "lastUpdate": 1672764213868,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -27176,6 +27176,42 @@ window.BENCHMARK_DATA = {
             "value": 9995120,
             "unit": "ns/op",
             "extra": "123 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "618b8217838a38b3f77c920cdb68865a257b8c6e",
+          "message": "chore(deps): bump github.com/rs/cors from 1.8.2 to 1.8.3 (#3848)\n\nBumps [github.com/rs/cors](https://github.com/rs/cors) from 1.8.2 to 1.8.3.\r\n- [Release notes](https://github.com/rs/cors/releases)\r\n- [Commits](https://github.com/rs/cors/compare/v1.8.2...v1.8.3)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/rs/cors\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-01-03T09:40:57-07:00",
+          "tree_id": "d08c1247f545fe761af7d98b064e5df7e8fab9ee",
+          "url": "https://github.com/pomerium/pomerium/commit/618b8217838a38b3f77c920cdb68865a257b8c6e"
+        },
+        "date": 1672764212884,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13528982,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8677407,
+            "unit": "ns/op",
+            "extra": "134 times\n2 procs"
           }
         ]
       }
