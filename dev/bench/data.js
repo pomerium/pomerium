@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1672760957611,
+  "lastUpdate": 1672762076533,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -27072,6 +27072,42 @@ window.BENCHMARK_DATA = {
             "value": 8647856,
             "unit": "ns/op",
             "extra": "136 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e728991bf11ba791cbb4f8df16bd19fca677128f",
+          "message": "authorize: log check() error (#3846)",
+          "timestamp": "2023-01-03T11:05:25-05:00",
+          "tree_id": "a163575265b4f71b24fbf145cc89d0197439427d",
+          "url": "https://github.com/pomerium/pomerium/commit/e728991bf11ba791cbb4f8df16bd19fca677128f"
+        },
+        "date": 1672762075728,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14177609,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10397071,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
