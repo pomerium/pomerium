@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1672765329240,
+  "lastUpdate": 1672768085453,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -27244,6 +27244,42 @@ window.BENCHMARK_DATA = {
             "value": 7998056,
             "unit": "ns/op",
             "extra": "142 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e019885218f88f2f7f312b950cd3827b828bc679",
+          "message": "mTLS: allow gRPC TLS for all in one (#3854)\n\n* make grpc_insecure an optional bool\r\n\r\n* use internal addresses for all in one databroker and tls",
+          "timestamp": "2023-01-03T12:45:04-05:00",
+          "tree_id": "ac6046b7c71bcc37f2e34ecb8212a1f447ef13ba",
+          "url": "https://github.com/pomerium/pomerium/commit/e019885218f88f2f7f312b950cd3827b828bc679"
+        },
+        "date": 1672768084535,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17433789,
+            "unit": "ns/op",
+            "extra": "66 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10703463,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
