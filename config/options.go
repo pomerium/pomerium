@@ -162,6 +162,10 @@ type Options struct {
 	CA                      string `mapstructure:"certificate_authority" yaml:"certificate_authority,omitempty"`
 	CAFile                  string `mapstructure:"certificate_authority_file" yaml:"certificate_authority_file,omitempty"`
 
+	// DeriveInternalDomainCert is an option that would derive certificate authority
+	// and domain certificates from the shared key and use them for internal communication
+	DeriveInternalDomainCert *string `mapstructure:"derive_tls" yaml:"derive_tls,omitempty"`
+
 	// SigningKey is the private key used to add a JWT-signature to upstream requests.
 	// https://www.pomerium.com/docs/topics/getting-users-identity.html
 	SigningKey     string `mapstructure:"signing_key" yaml:"signing_key,omitempty"`
@@ -726,6 +730,14 @@ func (o *Options) Validate() error {
 	}
 
 	return nil
+}
+
+// GetDeriveInternalDomain returns an optional internal domain name to use for gRPC endpoint
+func (o *Options) GetDeriveInternalDomain() string {
+	if o.DeriveInternalDomainCert == nil {
+		return ""
+	}
+	return *o.DeriveInternalDomainCert
 }
 
 // GetAuthenticateURL returns the AuthenticateURL in the options or 127.0.0.1.
