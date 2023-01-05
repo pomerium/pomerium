@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1672949150122,
+  "lastUpdate": 1672951825820,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -27344,6 +27344,42 @@ window.BENCHMARK_DATA = {
             "value": 8070772,
             "unit": "ns/op",
             "extra": "150 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "78fc4853db78432cf3806e1633b7c55581df12f8",
+          "message": "identity: fix expired session deletion (#3855)",
+          "timestamp": "2023-01-05T13:48:10-07:00",
+          "tree_id": "6c39f14d213e0e5f9a07fbab1fb140699676c777",
+          "url": "https://github.com/pomerium/pomerium/commit/78fc4853db78432cf3806e1633b7c55581df12f8"
+        },
+        "date": 1672951825364,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15120630,
+            "unit": "ns/op",
+            "extra": "80 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9261078,
+            "unit": "ns/op",
+            "extra": "127 times\n2 procs"
           }
         ]
       }
