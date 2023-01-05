@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -32,6 +31,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
@@ -211,36 +211,25 @@ func getRootCertificateAuthority() (string, error) {
 	return rootCABundle.value, nil
 }
 
-func getCombinedCertificateAuthority(customCA, customCAFile string) ([]byte, error) {
+func getCombinedCertificateAuthority(cfg *config.Config) ([]byte, error) {
 	rootFile, err := getRootCertificateAuthority()
 	if err != nil {
 		return nil, err
 	}
 
-	combined, err := os.ReadFile(rootFile)
-	if err != nil {
+	var buf bytes.Buffer
+	if err := fileutil.CopyFileUpTo(&buf, rootFile, 5<<20); err != nil {
 		return nil, fmt.Errorf("error reading root certificates: %w", err)
 	}
+	buf.WriteRune('\n')
 
-	if customCA != "" {
-		bs, err := base64.StdEncoding.DecodeString(customCA)
-		if err != nil {
-			return nil, err
-		}
-		combined = append(combined, '\n')
-		combined = append(combined, bs...)
+	all, err := cfg.AllCertificateAuthoritiesPEM()
+	if err != nil {
+		return nil, fmt.Errorf("get all CA: %w", err)
 	}
+	buf.Write(all)
 
-	if customCAFile != "" {
-		bs, err := os.ReadFile(customCAFile)
-		if err != nil {
-			return nil, err
-		}
-		combined = append(combined, '\n')
-		combined = append(combined, bs...)
-	}
-
-	return combined, nil
+	return buf.Bytes(), nil
 }
 
 func marshalAny(msg proto.Message) *anypb.Any {

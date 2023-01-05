@@ -1,8 +1,15 @@
 package fileutil
 
 import (
+	"bytes"
+	"fmt"
+	"os"
+	"path"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsReadableFile(t *testing.T) {
@@ -42,6 +49,32 @@ func TestGetwd(t *testing.T) {
 			if got := Getwd(); strings.Contains(tt.want, got) {
 				t.Errorf("Getwd() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func TestReadFileUpTo(t *testing.T) {
+	d := t.TempDir()
+	input := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}
+	fname := path.Join(d, "test")
+	require.NoError(t, os.WriteFile(fname, input, 0600))
+
+	for _, tc := range []struct {
+		size        int
+		expectError bool
+	}{
+		{len(input) - 1, true},
+		{len(input), false},
+		{len(input) + 1, false},
+	} {
+		t.Run(fmt.Sprint(tc), func(t *testing.T) {
+			out, err := ReadFileUpTo(fname, int64(tc.size))
+			if tc.expectError {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.True(t, bytes.Equal(input, out))
 		})
 	}
 }

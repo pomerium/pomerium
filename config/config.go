@@ -1,8 +1,11 @@
 package config
 
 import (
+	"bytes"
 	"crypto/tls"
+	"encoding/base64"
 
+	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -16,6 +19,12 @@ type Config struct {
 	Options          *Options
 	AutoCertificates []tls.Certificate
 	EnvoyVersion     string
+
+	// DerivedCertificates are TLS certificates derived from the shared secret
+	DerivedCertificates []tls.Certificate
+	// DerivedCAPEM is a PEM-encoded certificate authority
+	// derived from the shared secret
+	DerivedCAPEM []byte
 
 	// GRPCPort is the port the gRPC server is running on.
 	GRPCPort string
@@ -57,7 +66,37 @@ func (cfg *Config) Clone() *Config {
 		ACMETLSALPNPort: cfg.ACMETLSALPNPort,
 
 		MetricsScrapeEndpoints: endpoints,
+
+		DerivedCertificates: cfg.DerivedCertificates,
+		DerivedCAPEM:        cfg.DerivedCAPEM,
 	}
+}
+
+// AllCertificateAuthoritiesPEM returns all CAs as PEM bundle bytes
+func (cfg *Config) AllCertificateAuthoritiesPEM() ([]byte, error) {
+	var combined bytes.Buffer
+	if cfg.Options.CA != "" {
+		bs, err := base64.StdEncoding.DecodeString(cfg.Options.CA)
+		if err != nil {
+			return nil, err
+		}
+		_, _ = combined.Write(bs)
+		_, _ = combined.WriteRune('\n')
+	}
+
+	if cfg.Options.CAFile != "" {
+		if err := fileutil.CopyFileUpTo(&combined, cfg.Options.CAFile, 5<<20); err != nil {
+			return nil, err
+		}
+		_, _ = combined.WriteRune('\n')
+	}
+
+	if cfg.DerivedCAPEM != nil {
+		_, _ = combined.Write(cfg.DerivedCAPEM)
+		_, _ = combined.WriteRune('\n')
+	}
+
+	return combined.Bytes(), nil
 }
 
 // AllCertificates returns all the certificates in the config.
@@ -70,6 +109,7 @@ func (cfg *Config) AllCertificates() ([]tls.Certificate, error) {
 	var certs []tls.Certificate
 	certs = append(certs, optionCertificates...)
 	certs = append(certs, cfg.AutoCertificates...)
+	certs = append(certs, cfg.DerivedCertificates...)
 	return certs, nil
 }
 

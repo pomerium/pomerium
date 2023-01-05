@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/version"
+	derivecert_config "github.com/pomerium/pomerium/pkg/derivecert/config"
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/proxy"
@@ -35,6 +36,10 @@ func Run(ctx context.Context, src config.Source) error {
 		Str("version", version.FullVersion()).
 		Msg("cmd/pomerium")
 
+	src, err := config.NewLayeredSource(ctx, src, derivecert_config.NewBuilder())
+	if err != nil {
+		return err
+	}
 	src = databroker.NewConfigSource(ctx, src)
 	logMgr := config.NewLogManager(ctx, src)
 	defer logMgr.Close()
@@ -42,7 +47,7 @@ func Run(ctx context.Context, src config.Source) error {
 	// trigger changes when underlying files are changed
 	src = config.NewFileWatcherSource(src)
 
-	src, err := autocert.New(src)
+	src, err = autocert.New(src)
 	if err != nil {
 		return err
 	}
@@ -57,8 +62,10 @@ func Run(ctx context.Context, src config.Source) error {
 
 	eventsMgr := events.New()
 
+	cfg := src.GetConfig()
+
 	// setup the control plane
-	controlPlane, err := controlplane.NewServer(src.GetConfig(), metricsMgr, eventsMgr)
+	controlPlane, err := controlplane.NewServer(cfg, metricsMgr, eventsMgr)
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}
