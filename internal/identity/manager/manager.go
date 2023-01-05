@@ -10,6 +10,8 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/atomicutil"
@@ -200,7 +202,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 			Str("user_id", userID).
 			Str("session_id", sessionID).
 			Msg("deleting expired session")
-		mgr.deleteSession(ctx, s.Session)
+		mgr.deleteSession(ctx, userID, sessionID)
 		return
 	}
 
@@ -226,7 +228,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to refresh oauth2 token, deleting session")
-		mgr.deleteSession(ctx, s.Session)
+		mgr.deleteSession(ctx, userID, sessionID)
 		return
 	}
 	s.OauthToken = ToOAuthToken(newToken)
@@ -245,7 +247,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to update user info, deleting session")
-		mgr.deleteSession(ctx, s.Session)
+		mgr.deleteSession(ctx, userID, sessionID)
 		return
 	}
 
@@ -298,7 +300,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 				Str("user_id", s.GetUserId()).
 				Str("session_id", s.GetId()).
 				Msg("failed to update user info, deleting session")
-			mgr.deleteSession(ctx, s.Session)
+			mgr.deleteSession(ctx, userID, s.GetId())
 			continue
 		}
 
@@ -371,12 +373,35 @@ func (mgr *Manager) onUpdateUser(_ context.Context, record *databroker.Record, u
 	mgr.userScheduler.Add(u.NextRefresh(), u.GetId())
 }
 
-func (mgr *Manager) deleteSession(ctx context.Context, pbSession *session.Session) {
-	err := session.Delete(ctx, mgr.cfg.Load().dataBrokerClient, pbSession.GetId())
+func (mgr *Manager) deleteSession(ctx context.Context, userID, sessionID string) {
+	mgr.sessionScheduler.Remove(toSessionSchedulerKey(userID, sessionID))
+	mgr.sessions.Delete(userID, sessionID)
+
+	client := mgr.cfg.Load().dataBrokerClient
+	res, err := client.Get(ctx, &databroker.GetRequest{
+		Type: grpcutil.GetTypeURL(new(session.Session)),
+		Id:   sessionID,
+	})
+	if status.Code(err) == codes.NotFound {
+		return
+	} else if err != nil {
+		log.Error(ctx).Err(err).
+			Str("session_id", sessionID).
+			Msg("failed to delete session")
+		return
+	}
+
+	record := res.GetRecord()
+	record.DeletedAt = timestamppb.Now()
+
+	_, err = client.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{record},
+	})
 	if err != nil {
 		log.Error(ctx).Err(err).
-			Str("session_id", pbSession.GetId()).
+			Str("session_id", sessionID).
 			Msg("failed to delete session")
+		return
 	}
 }
 
