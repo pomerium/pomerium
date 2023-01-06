@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1672954709561,
+  "lastUpdate": 1673024314301,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -27448,6 +27448,38 @@ window.BENCHMARK_DATA = {
             "value": 8153132,
             "unit": "ns/op",
             "extra": "148 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "0c70fd3a1f9121ed148a95b98fca6e414956ceda",
+          "message": "hpke: fix hpke key fetcher when using self-signed certificates",
+          "timestamp": "2023-01-06T04:02:54Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3858/commits/0c70fd3a1f9121ed148a95b98fca6e414956ceda"
+        },
+        "date": 1673024313895,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11574150,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7773483,
+            "unit": "ns/op",
+            "extra": "150 times\n2 procs"
           }
         ]
       }
