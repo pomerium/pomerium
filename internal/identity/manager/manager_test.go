@@ -93,7 +93,17 @@ func TestManager_reportErrors(t *testing.T) {
 		}, time.Second, time.Millisecond*20, msg)
 	}
 
+	s := &session.Session{
+		Id:     "session1",
+		UserId: "user1",
+		OauthToken: &session.OAuthToken{
+			ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
+		},
+		ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
+	}
+
 	client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
+	client.EXPECT().Get(gomock.Any(), gomock.Any()).AnyTimes().Return(&databroker.GetResponse{Record: databroker.NewRecord(s)}, nil)
 	client.EXPECT().Put(gomock.Any(), gomock.Any()).AnyTimes()
 	mgr := New(
 		WithEventManager(evtMgr),
@@ -103,15 +113,20 @@ func TestManager_reportErrors(t *testing.T) {
 
 	mgr.onUpdateRecords(ctx, updateRecordsMessage{
 		records: []*databroker.Record{
-			mkRecord(&session.Session{Id: "session1", UserId: "user1", OauthToken: &session.OAuthToken{
-				ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
-			}, ExpiresAt: timestamppb.New(time.Now().Add(time.Hour))}),
+			mkRecord(s),
 			mkRecord(&user.User{Id: "user1", Name: "user 1", Email: "user1@example.com"}),
 		},
 	})
 
 	mgr.refreshUser(ctx, "user1")
 	expectMsg(metrics_ids.IdentityManagerLastUserRefreshError, "update user info")
+
+	mgr.onUpdateRecords(ctx, updateRecordsMessage{
+		records: []*databroker.Record{
+			mkRecord(s),
+			mkRecord(&user.User{Id: "user1", Name: "user 1", Email: "user1@example.com"}),
+		},
+	})
 
 	mgr.refreshSession(ctx, "user1", "session1")
 	expectMsg(metrics_ids.IdentityManagerLastSessionRefreshError, "update session")
