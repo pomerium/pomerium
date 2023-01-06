@@ -189,6 +189,23 @@ func (cfg *Config) GetCertificateForServerName(serverName string) (*tls.Certific
 	return cryptutil.GenerateSelfSignedCertificate(serverName)
 }
 
+// WillHaveCertificateForServerName returns true if there will be a certificate for the given server name.
+func (cfg *Config) WillHaveCertificateForServerName(serverName string) (bool, error) {
+	certificates, err := cfg.AllCertificates()
+	if err != nil {
+		return false, err
+	}
+
+	// first try a direct name match
+	for i := range certificates {
+		if cryptutil.MatchesServerName(&certificates[i], serverName) {
+			return true, nil
+		}
+	}
+
+	return cfg.Options.DeriveInternalDomainCert != nil, nil
+}
+
 // GetCertificatePool gets the certificate pool for the config.
 func (cfg *Config) GetCertificatePool() (*x509.CertPool, error) {
 	pool, err := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile)

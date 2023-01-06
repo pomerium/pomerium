@@ -9,6 +9,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -66,9 +67,16 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	jwksURL := authenticateURL.ResolveReference(&url.URL{
 		Path: "/.well-known/pomerium/jwks.json",
 	}).String()
-	transport, err := config.GetTLSClientTransport(cfg)
+	transport := httputil.GetInsecureTransport()
+	ok, err := cfg.WillHaveCertificateForServerName(authenticateURL.Hostname())
 	if err != nil {
-		return nil, fmt.Errorf("authorize: get tls client config: %w", err)
+		return nil, fmt.Errorf("proxy: error determining if authenticate service will have a certificate name: %w", err)
+	}
+	if ok {
+		transport, err = config.GetTLSClientTransport(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("proxy: get tls client config: %w", err)
+		}
 	}
 	state.authenticateKeyFetcher = hpke.NewKeyFetcher(jwksURL, transport)
 
