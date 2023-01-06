@@ -512,13 +512,7 @@ func (b *Builder) buildDownstreamTLSContext(ctx context.Context,
 	cfg *config.Config,
 	serverName string,
 ) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
-	certs, err := cfg.AllCertificates()
-	if err != nil {
-		log.Warn(ctx).Str("domain", serverName).Err(err).Msg("failed to get all certificates from config")
-		return nil
-	}
-
-	cert, err := cryptutil.GetCertificateForServerName(certs, serverName)
+	cert, err := cfg.GetCertificateForServerName(serverName)
 	if err != nil {
 		log.Warn(ctx).Str("domain", serverName).Err(err).Msg("failed to get certificate for domain")
 		return nil

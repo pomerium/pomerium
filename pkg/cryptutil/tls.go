@@ -44,27 +44,10 @@ func GetCertPool(ca, caFile string) (*x509.CertPool, error) {
 	return rootCAs, nil
 }
 
-// GetCertificateForServerName returns the tls Certificate which matches the given server name.
-// It should handle both exact matches and wildcard matches. If none of those match, the first certificate will be used.
-// Finally if there are no matching certificates one will be generated.
-func GetCertificateForServerName(certificates []tls.Certificate, serverName string) (*tls.Certificate, error) {
-	// first try a direct name match
-	for i := range certificates {
-		if matchesServerName(&certificates[i], serverName) {
-			return &certificates[i], nil
-		}
-	}
-
-	log.WarnNoTLSCertificate(serverName)
-
-	// finally fall back to a generated, self-signed certificate
-	return GenerateSelfSignedCertificate(serverName)
-}
-
 // HasCertificateForServerName returns true if a TLS certificate matches the given server name.
 func HasCertificateForServerName(certificates []tls.Certificate, serverName string) bool {
 	for i := range certificates {
-		if matchesServerName(&certificates[i], serverName) {
+		if MatchesServerName(&certificates[i], serverName) {
 			return true
 		}
 	}
@@ -95,7 +78,8 @@ func GetCertificateServerNames(cert *tls.Certificate) []string {
 	return serverNames
 }
 
-func matchesServerName(cert *tls.Certificate, serverName string) bool {
+// MatchesServerName returns true if the certificate matches the server name.
+func MatchesServerName(cert *tls.Certificate, serverName string) bool {
 	if cert == nil || len(cert.Certificate) == 0 {
 		return false
 	}

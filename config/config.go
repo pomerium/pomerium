@@ -3,12 +3,16 @@ package config
 import (
 	"bytes"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
+	"fmt"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/derivecert"
 )
 
 // MetricsScrapeEndpoint defines additional metrics endpoints that would be scraped and exposed by pomerium
@@ -130,7 +134,7 @@ func (cfg *Config) AllocatePorts(ports [6]string) {
 
 // GetTLSClientConfig returns TLS configuration that accounts for additional CA entries
 func (cfg *Config) GetTLSClientConfig() (*tls.Config, error) {
-	roots, err := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile)
+	roots, err := cfg.GetCertificatePool()
 	if err != nil {
 		return nil, err
 	}
@@ -138,4 +142,80 @@ func (cfg *Config) GetTLSClientConfig() (*tls.Config, error) {
 		RootCAs:    roots,
 		MinVersion: tls.VersionTLS12,
 	}, nil
+}
+
+// GetCertificateForServerName gets the certificate for the server name. If no certificate is found and there
+// is a derived CA one will be generated using that CA. If no derived CA is defined a self-signed certificate
+// will be generated.
+func (cfg *Config) GetCertificateForServerName(serverName string) (*tls.Certificate, error) {
+	certificates, err := cfg.AllCertificates()
+	if err != nil {
+		return nil, err
+	}
+
+	// first try a direct name match
+	for i := range certificates {
+		if cryptutil.MatchesServerName(&certificates[i], serverName) {
+			return &certificates[i], nil
+		}
+	}
+
+	log.WarnNoTLSCertificate(serverName)
+
+	if cfg.Options.DeriveInternalDomainCert != nil {
+		sharedKey, err := cfg.Options.GetSharedKey()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate cert, invalid shared key: %w", err)
+		}
+
+		ca, err := derivecert.NewCA(sharedKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate cert, invalid derived CA: %w", err)
+		}
+
+		pem, err := ca.NewServerCert([]string{serverName})
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate cert, error creating server certificate: %w", err)
+		}
+
+		cert, err := pem.TLS()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate cert, error converting generated certificate into TLS certificate: %w", err)
+		}
+		return &cert, nil
+	}
+
+	// finally fall back to a generated, self-signed certificate
+	return cryptutil.GenerateSelfSignedCertificate(serverName)
+}
+
+// GetCertificatePool gets the certificate pool for the config.
+func (cfg *Config) GetCertificatePool() (*x509.CertPool, error) {
+	pool, err := cryptutil.GetCertPool(cfg.Options.CA, cfg.Options.CAFile)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.Options.DeriveInternalDomainCert != nil {
+		sharedKey, err := cfg.Options.GetSharedKey()
+		if err != nil {
+			return nil, fmt.Errorf("failed to derive CA, invalid shared key: %w", err)
+		}
+
+		ca, err := derivecert.NewCA(sharedKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to derive CA: %w", err)
+		}
+
+		pem, err := ca.PEM()
+		if err != nil {
+			return nil, fmt.Errorf("failed to derive CA PEM: %w", err)
+		}
+
+		if !pool.AppendCertsFromPEM(pem.Cert) {
+			return nil, fmt.Errorf("failed to derive CA PEM, error appending to pool")
+		}
+	}
+
+	return pool, nil
 }
