@@ -10,6 +10,7 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/hpke"
@@ -88,11 +89,7 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*autho
 	jwksURL := authenticateURL.ResolveReference(&url.URL{
 		Path: "/.well-known/pomerium/jwks.json",
 	}).String()
-	transport, err := config.GetTLSClientTransport(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("authorize: get tls client config: %w", err)
-	}
-	state.authenticateKeyFetcher = hpke.NewKeyFetcher(jwksURL, transport)
+	state.authenticateKeyFetcher = hpke.NewKeyFetcher(jwksURL, httputil.GetInsecureTransport())
 
 	return state, nil
 }
