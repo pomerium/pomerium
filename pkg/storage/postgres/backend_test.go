@@ -173,10 +173,11 @@ func TestBackend(t *testing.T) {
 			_, err = backend.Get(ctx, "unknown", "1")
 			assert.ErrorIs(t, err, storage.ErrNotFound)
 
-			_, _, stream, err := backend.SyncLatest(ctx, "unknown-test", nil)
+			_, _, stream, err := backend.SyncLatest(ctx, "unknown", nil)
 			if assert.NoError(t, err) {
-				_, err := storage.RecordStreamToList(stream)
+				records, err := storage.RecordStreamToList(stream)
 				assert.NoError(t, err)
+				assert.Len(t, records, 1)
 				stream.Close()
 			}
 		})
