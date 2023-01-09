@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1673283926680,
+  "lastUpdate": 1673283934124,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -28556,6 +28556,42 @@ window.BENCHMARK_DATA = {
             "value": 10578874,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9677e18bbdc5d7c90c7cb5355bf4d203e0282c96",
+          "message": "chore(deps): bump luxon from 2.3.0 to 2.5.2 in /ui (#3862)\n\nBumps [luxon](https://github.com/moment/luxon) from 2.3.0 to 2.5.2.\r\n- [Release notes](https://github.com/moment/luxon/releases)\r\n- [Changelog](https://github.com/moment/luxon/blob/master/CHANGELOG.md)\r\n- [Commits](https://github.com/moment/luxon/compare/2.3.0...2.5.2)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: luxon\r\n  dependency-type: direct:production\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-01-09T09:54:44-07:00",
+          "tree_id": "efd6adbed46aac0281dcf970a454a52b13bc5369",
+          "url": "https://github.com/pomerium/pomerium/commit/9677e18bbdc5d7c90c7cb5355bf4d203e0282c96"
+        },
+        "date": 1673283932965,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15981463,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10461643,
+            "unit": "ns/op",
+            "extra": "96 times\n2 procs"
           }
         ]
       }
