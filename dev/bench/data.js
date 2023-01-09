@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1673301468938,
+  "lastUpdate": 1673302400145,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -28624,6 +28624,42 @@ window.BENCHMARK_DATA = {
             "value": 7967803,
             "unit": "ns/op",
             "extra": "146 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "92b50683ff34210a6cb6dff5c0e203f74ae1d5d4",
+          "message": "postgres: return unknown records instead of skipping them (#3876)",
+          "timestamp": "2023-01-09T15:10:52-07:00",
+          "tree_id": "7bcc478b1e81fb6d37f8b337634603e3585a15ad",
+          "url": "https://github.com/pomerium/pomerium/commit/92b50683ff34210a6cb6dff5c0e203f74ae1d5d4"
+        },
+        "date": 1673302399695,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15771104,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8782311,
+            "unit": "ns/op",
+            "extra": "124 times\n2 procs"
           }
         ]
       }
