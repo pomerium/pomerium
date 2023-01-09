@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1673281161164,
+  "lastUpdate": 1673281190715,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -27968,6 +27968,42 @@ window.BENCHMARK_DATA = {
             "value": 8513170,
             "unit": "ns/op",
             "extra": "124 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "52b78a44fc94053b4c45f48adc258cf19e7bb2d5",
+          "message": "chore(deps): bump github.com/coreos/go-oidc/v3 from 3.4.0 to 3.5.0 (#3868)\n\nBumps [github.com/coreos/go-oidc/v3](https://github.com/coreos/go-oidc) from 3.4.0 to 3.5.0.\r\n- [Release notes](https://github.com/coreos/go-oidc/releases)\r\n- [Commits](https://github.com/coreos/go-oidc/compare/v3.4.0...v3.5.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/coreos/go-oidc/v3\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-01-09T09:03:29-07:00",
+          "tree_id": "531fecf7029b4a48ee47f5cd6d758adc33ac41a1",
+          "url": "https://github.com/pomerium/pomerium/commit/52b78a44fc94053b4c45f48adc258cf19e7bb2d5"
+        },
+        "date": 1673281189570,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15255611,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9224231,
+            "unit": "ns/op",
+            "extra": "122 times\n2 procs"
           }
         ]
       }
