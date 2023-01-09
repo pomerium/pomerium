@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1673281848367,
+  "lastUpdate": 1673281887904,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -28132,6 +28132,42 @@ window.BENCHMARK_DATA = {
             "value": 10405002,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "32a18811af9f2dc3e8ff8a67f0db2ee88c65f2d4",
+          "message": "chore(deps): bump golang.org/x/crypto from 0.4.0 to 0.5.0 (#3873)\n\nBumps [golang.org/x/crypto](https://github.com/golang/crypto) from 0.4.0 to 0.5.0.\r\n- [Release notes](https://github.com/golang/crypto/releases)\r\n- [Commits](https://github.com/golang/crypto/compare/v0.4.0...v0.5.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golang.org/x/crypto\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-01-09T09:09:50-07:00",
+          "tree_id": "c93f43c865fd41adc0e85c8525275529dcf50f6c",
+          "url": "https://github.com/pomerium/pomerium/commit/32a18811af9f2dc3e8ff8a67f0db2ee88c65f2d4"
+        },
+        "date": 1673281886851,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 20784371,
+            "unit": "ns/op",
+            "extra": "58 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 13009017,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
           }
         ]
       }
