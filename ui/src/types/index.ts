@@ -104,6 +104,7 @@ export type ErrorPageData = BasePageData & {
   requestId?: string;
   status?: number;
   statusText?: string;
+  description?: string;
   errorMessageFirstParagraph?: string;
   policyEvaluationTraces?: PolicyEvaluationTrace[];
 };

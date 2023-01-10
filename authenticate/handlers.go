@@ -382,11 +382,6 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("state malformed, size: %d", len(statePayload)))
 	}
 
-	// verify that the returned timestamp is valid
-	if err := cryptutil.ValidTimestamp(statePayload[1]); err != nil {
-		return nil, httputil.NewError(http.StatusBadRequest, err)
-	}
-
 	// Use our AEAD construct to enforce secrecy and authenticity:
 	// mac: to validate the nonce again, and above timestamp
 	// decrypt: to prevent leaking 'redirect_uri' to IdP or logs
@@ -399,6 +394,17 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	redirectURL, err := urlutil.ParseAndValidateURL(string(redirectString))
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)
+	}
+
+	// verify that the returned timestamp is valid
+	if err := cryptutil.ValidTimestamp(statePayload[1]); err != nil {
+		return nil, httputil.NewError(http.StatusBadRequest, err).WithDescription(fmt.Sprintf(`
+The request expired. This may be because a login attempt took too long, or because the server's clock is out of sync.
+
+Try again by following this link: [%s](%s).
+
+Or contact your administrator.
+`, redirectURL.String(), redirectURL.String()))
 	}
 
 	idp, err := options.GetIdentityProviderForID(redirectURL.Query().Get(urlutil.QueryIdentityProviderID))
