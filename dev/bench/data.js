@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1673466018844,
+  "lastUpdate": 1673470403274,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -28924,6 +28924,42 @@ window.BENCHMARK_DATA = {
             "value": 9590836,
             "unit": "ns/op",
             "extra": "127 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "da46b4a47d2d3eb9f6d8ec6eed366b7a4c1f5a3b",
+          "message": "config: use insecure skip verify if derived certificates are not used (#3861)",
+          "timestamp": "2023-01-11T13:50:51-07:00",
+          "tree_id": "eef1036636609f10e6b9f267456fabb071e7cace",
+          "url": "https://github.com/pomerium/pomerium/commit/da46b4a47d2d3eb9f6d8ec6eed366b7a4c1f5a3b"
+        },
+        "date": 1673470402835,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14378759,
+            "unit": "ns/op",
+            "extra": "70 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 43597780,
+            "unit": "ns/op",
+            "extra": "141 times\n2 procs"
           }
         ]
       }
