@@ -458,7 +458,6 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() (*envoy_config_listener
 		"envoy.service.auth.v3.Authorization",
 		"databroker.DataBrokerService",
 		"registry.Registry",
-		"grpc.reflection.v1alpha.ServerReflection",
 		"grpc.health.v1.Health",
 	}
 	routes := make([]*envoy_config_route_v3.Route, 0, len(allow))
