@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1673407962433,
+  "lastUpdate": 1673448970911,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -28820,6 +28820,42 @@ window.BENCHMARK_DATA = {
             "value": 8259294,
             "unit": "ns/op",
             "extra": "146 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bfcd15435f91b6b87ba03c2f45832e4f4141adc7",
+          "message": "authenticate: add additional error details for hmac errors (#3878)",
+          "timestamp": "2023-01-11T07:53:11-07:00",
+          "tree_id": "a287c9d47c77c48b2c3baadcbc6720dcf4ac5523",
+          "url": "https://github.com/pomerium/pomerium/commit/bfcd15435f91b6b87ba03c2f45832e4f4141adc7"
+        },
+        "date": 1673448970434,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17217136,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10234812,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
