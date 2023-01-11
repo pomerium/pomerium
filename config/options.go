@@ -1469,7 +1469,8 @@ func setOptional[T any](dst **T, src *T) {
 	if src == nil {
 		return
 	}
-	*dst = &(*src)
+	v := *src
+	*dst = &v
 }
 
 func setSlice[T any](dst *[]T, src []T) {
@@ -1480,7 +1481,7 @@ func setSlice[T any](dst *[]T, src []T) {
 }
 
 func setMap[TKey comparable, TValue any, TMap ~map[TKey]TValue](dst *TMap, src map[TKey]TValue) {
-	if src == nil || len(src) == 0 {
+	if len(src) == 0 {
 		return
 	}
 	*dst = src
