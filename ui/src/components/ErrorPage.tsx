@@ -62,6 +62,11 @@ export const ErrorPage: FC<ErrorPageProps> = ({ data }) => {
                 {data?.status || 500}{" "}
                 {data?.statusText || "Internal Server Error"}
               </AlertTitle>
+              {data?.description ? (
+                <Markdown>{data.description}</Markdown>
+              ) : (
+                <></>
+              )}
             </Alert>
           </Box>
           {!!data?.errorMessageFirstParagraph && (
