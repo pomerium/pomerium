@@ -454,13 +454,18 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 }
 
 func (b *Builder) buildGRPCHTTPConnectionManagerFilter() (*envoy_config_listener_v3.Filter, error) {
-	rc, err := b.buildRouteConfiguration("grpc", []*envoy_config_route_v3.VirtualHost{{
-		Name:    "grpc",
-		Domains: []string{"*"},
-		Routes: []*envoy_config_route_v3.Route{{
+	allow := []string{
+		"envoy.service.auth.v3.Authorization",
+		"databroker.DataBrokerService",
+		"registry.Registry",
+		"grpc.health.v1.Health",
+	}
+	routes := make([]*envoy_config_route_v3.Route, 0, len(allow))
+	for _, svc := range allow {
+		routes = append(routes, &envoy_config_route_v3.Route{
 			Name: "grpc",
 			Match: &envoy_config_route_v3.RouteMatch{
-				PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/"},
+				PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: fmt.Sprintf("/%s/", svc)},
 				Grpc:          &envoy_config_route_v3.RouteMatch_GrpcRouteMatchOptions{},
 			},
 			Action: &envoy_config_route_v3.Route_Route{
@@ -477,7 +482,12 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() (*envoy_config_listener
 					},
 				},
 			},
-		}},
+		})
+	}
+	rc, err := b.buildRouteConfiguration("grpc", []*envoy_config_route_v3.VirtualHost{{
+		Name:    "grpc",
+		Domains: []string{"*"},
+		Routes:  routes,
 	}})
 	if err != nil {
 		return nil, err
