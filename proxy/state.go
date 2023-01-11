@@ -48,7 +48,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 
 	state := new(proxyState)
 
-	authenticateURL, err := cfg.Options.GetAuthenticateURL()
+	authenticateURL, err := cfg.Options.GetInternalAuthenticateURL()
 	if err != nil {
 		return nil, err
 	}

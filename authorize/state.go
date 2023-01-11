@@ -78,7 +78,7 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*autho
 		return nil, fmt.Errorf("authorize: invalid session store: %w", err)
 	}
 
-	authenticateURL, err := cfg.Options.GetAuthenticateURL()
+	authenticateURL, err := cfg.Options.GetInternalAuthenticateURL()
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid authenticate service url: %w", err)
 	}
