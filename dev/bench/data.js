@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1673448970911,
+  "lastUpdate": 1673458855303,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -28856,6 +28856,42 @@ window.BENCHMARK_DATA = {
             "value": 10234812,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "04a82813f3e884bc1fe161ad87ec60ffa2cc9e9e",
+          "message": "explicitly list gRPC services accessible via the gRPC listener (#3879)",
+          "timestamp": "2023-01-11T12:38:34-05:00",
+          "tree_id": "c65fa94dcff77e96d77f7ac1c3a81f4b84a05070",
+          "url": "https://github.com/pomerium/pomerium/commit/04a82813f3e884bc1fe161ad87ec60ffa2cc9e9e"
+        },
+        "date": 1673458854845,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14868197,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8418099,
+            "unit": "ns/op",
+            "extra": "135 times\n2 procs"
           }
         ]
       }
