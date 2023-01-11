@@ -1286,21 +1286,11 @@ func (o *Options) indexCerts(ctx context.Context) certsIndex {
 func (o *Options) applyExternalCerts(ctx context.Context, certs []*config.Settings_Certificate) {
 	idx := o.indexCerts(ctx)
 	for _, c := range certs {
-		cfp := certificateFilePair{
-			CertFile: c.CertFile,
-			KeyFile:  c.KeyFile,
-		}
-		if cfp.CertFile == "" {
-			cfp.CertFile = base64.StdEncoding.EncodeToString(c.CertBytes)
-		}
-		if cfp.KeyFile == "" {
-			cfp.KeyFile = base64.StdEncoding.EncodeToString(c.KeyBytes)
-		}
+		cfp := certificateFilePair{}
+		cfp.CertFile = base64.StdEncoding.EncodeToString(c.CertBytes)
+		cfp.KeyFile = base64.StdEncoding.EncodeToString(c.KeyBytes)
 
 		cert, err := cryptutil.ParsePEMCertificateFromBase64(cfp.CertFile)
-		if err != nil {
-			cert, err = cryptutil.ParsePEMCertificateFromFile(cfp.CertFile)
-		}
 		if err != nil {
 			log.Error(ctx).Err(err).Msg("parsing cert from databroker: skipped")
 			continue
@@ -1325,7 +1315,6 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	set(&o.LogLevel, settings.LogLevel)
 	set(&o.ProxyLogLevel, settings.ProxyLogLevel)
 	set(&o.SharedKey, settings.SharedSecret)
-	set(&o.SharedSecretFile, settings.SharedSecretFile)
 	set(&o.Services, settings.Services)
 	set(&o.Addr, settings.Address)
 	set(&o.InsecureServer, settings.InsecureServer)
@@ -1341,14 +1330,12 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	set(&o.AuthenticateCallbackPath, settings.AuthenticateCallbackPath)
 	set(&o.CookieName, settings.CookieName)
 	set(&o.CookieSecret, settings.CookieSecret)
-	set(&o.CookieSecretFile, settings.CookieSecretFile)
 	set(&o.CookieDomain, settings.CookieDomain)
 	set(&o.CookieSecure, settings.CookieSecure)
 	set(&o.CookieHTTPOnly, settings.CookieHttpOnly)
 	setDuration(&o.CookieExpire, settings.CookieExpire)
 	set(&o.ClientID, settings.IdpClientId)
 	set(&o.ClientSecret, settings.IdpClientSecret)
-	set(&o.ClientSecretFile, settings.IdpClientSecretFile)
 	set(&o.Provider, settings.IdpProvider)
 	set(&o.ProviderURL, settings.IdpProviderUrl)
 	setSlice(&o.Scopes, settings.Scopes)
@@ -1357,10 +1344,8 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	set(&o.AuthorizeInternalURLString, settings.AuthorizeInternalServiceUrl)
 	set(&o.OverrideCertificateName, settings.OverrideCertificateName)
 	set(&o.CA, settings.CertificateAuthority)
-	set(&o.CAFile, settings.CertificateAuthorityFile)
 	setOptional(&o.DeriveInternalDomainCert, settings.DeriveTls)
 	set(&o.SigningKey, settings.SigningKey)
-	set(&o.SigningKeyFile, settings.SigningKeyFile)
 	setMap(&o.SetResponseHeaders, settings.SetResponseHeaders)
 	setMap(&o.JWTClaimsHeaders, settings.JwtClaimsHeaders)
 	setDuration(&o.DefaultUpstreamTimeout, settings.DefaultUpstreamTimeout)
@@ -1368,7 +1353,6 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	set(&o.MetricsBasicAuth, settings.MetricsBasicAuth)
 	setCertificate(&o.MetricsCertificate, &o.MetricsCertificateKey, &o.MetricsCertificateFile, &o.MetricsCertificateKeyFile, settings.MetricsCertificate)
 	set(&o.MetricsClientCA, settings.MetricsClientCa)
-	set(&o.MetricsClientCAFile, settings.MetricsClientCaFile)
 	set(&o.TracingProvider, settings.TracingProvider)
 	set(&o.TracingSampleRate, settings.TracingSampleRate)
 	set(&o.TracingDatadogAddress, settings.TracingDatadogAddress)
@@ -1383,12 +1367,8 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	set(&o.DataBrokerInternalURLString, settings.DatabrokerInternalServiceUrl)
 	set(&o.DataBrokerStorageType, settings.DatabrokerStorageType)
 	set(&o.DataBrokerStorageConnectionString, settings.DatabrokerStorageConnectionString)
-	set(&o.DataBrokerStorageCertFile, settings.DatabrokerStorageCertFile)
-	set(&o.DataBrokerStorageCertKeyFile, settings.DatabrokerStorageKeyFile)
-	set(&o.DataBrokerStorageCAFile, settings.DatabrokerStorageCaFile)
 	set(&o.DataBrokerStorageCertSkipVerify, settings.DatabrokerStorageTlsSkipVerify)
 	set(&o.ClientCA, settings.ClientCa)
-	set(&o.ClientCAFile, settings.ClientCaFile)
 	set(&o.GoogleCloudServerlessAuthenticationServiceAccount, settings.GoogleCloudServerlessAuthenticationServiceAccount)
 	set(&o.UseProxyProtocol, settings.UseProxyProtocol)
 	set(&o.AutocertOptions.Enable, settings.Autocert)
@@ -1400,14 +1380,12 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	set(&o.AutocertOptions.MustStaple, settings.AutocertMustStaple)
 	set(&o.AutocertOptions.Folder, settings.AutocertDir)
 	set(&o.AutocertOptions.TrustedCA, settings.AutocertTrustedCa)
-	set(&o.AutocertOptions.TrustedCAFile, settings.AutocertTrustedCaFile)
 	set(&o.SkipXffAppend, settings.SkipXffAppend)
 	set(&o.XffNumTrustedHops, settings.XffNumTrustedHops)
 	setSlice(&o.ProgrammaticRedirectDomainWhitelist, settings.ProgrammaticRedirectDomainWhitelist)
 	setAuditKey(&o.AuditKey, settings.AuditKey)
 	setCodecType(&o.CodecType, settings.CodecType)
 	set(&o.ClientCRL, settings.ClientCrl)
-	set(&o.ClientCRLFile, settings.ClientCrlFile)
 	o.BrandingOptions = settings
 }
 

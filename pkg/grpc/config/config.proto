@@ -134,8 +134,6 @@ message Policy {
 
 message Settings {
   message Certificate {
-    string cert_file = 1;
-    string key_file = 2;
     bytes cert_bytes = 3;
     bytes key_bytes = 4;
   }
@@ -145,7 +143,6 @@ message Settings {
   optional string log_level = 3;
   optional string proxy_log_level = 4;
   optional string shared_secret = 5;
-  optional string shared_secret_file = 92;
   optional string services = 6;
   optional string address = 7;
   optional bool insecure_server = 8;
@@ -161,14 +158,12 @@ message Settings {
   optional string authenticate_callback_path = 15;
   optional string cookie_name = 16;
   optional string cookie_secret = 17;
-  optional string cookie_secret_file = 94;
   optional string cookie_domain = 18;
   optional bool cookie_secure = 19;
   optional bool cookie_http_only = 20;
   optional google.protobuf.Duration cookie_expire = 21;
   optional string idp_client_id = 22;
   optional string idp_client_secret = 23;
-  optional string idp_client_secret_file = 95;
   optional string idp_provider = 24;
   optional string idp_provider_url = 25;
   repeated string scopes = 26;
@@ -180,10 +175,8 @@ message Settings {
   optional string authorize_internal_service_url = 83;
   optional string override_certificate_name = 33;
   optional string certificate_authority = 34;
-  optional string certificate_authority_file = 35;
   optional string derive_tls = 96;
   optional string signing_key = 36;
-  optional string signing_key_file = 97;
   map<string, string> set_response_headers = 69;
   // repeated string jwt_claims_headers = 37;
   map<string, string> jwt_claims_headers = 63;
@@ -192,7 +185,6 @@ message Settings {
   optional string metrics_basic_auth = 64;
   optional Certificate metrics_certificate = 65;
   optional string metrics_client_ca = 66;
-  optional string metrics_client_ca_file = 67;
   optional string tracing_provider = 41;
   optional double tracing_sample_rate = 42;
   optional string tracing_datadog_address = 98;
@@ -208,14 +200,9 @@ message Settings {
   optional string databroker_internal_service_url = 84;
   optional string databroker_storage_type = 101;
   optional string databroker_storage_connection_string = 102;
-  optional string databroker_storage_cert_file = 103;
-  optional string databroker_storage_key_file = 104;
-  optional string databroker_storage_ca_file = 105;
   optional bool databroker_storage_tls_skip_verify = 106;
   optional string client_ca = 53;
-  optional string client_ca_file = 54;
   optional string client_crl = 74;
-  optional string client_crl_file = 75;
   optional string google_cloud_serverless_authentication_service_account = 55;
   optional bool use_proxy_protocol = 107;
   optional bool autocert = 56;
@@ -227,7 +214,6 @@ message Settings {
   optional bool autocert_must_staple = 58;
   optional string autocert_dir = 59;
   optional string autocert_trusted_ca = 80;
-  optional string autocert_trusted_ca_file = 81;
   optional bool skip_xff_append = 61;
   optional uint32 xff_num_trusted_hops = 70;
   optional string envoy_admin_access_log_path = 108;
