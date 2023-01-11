@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1673405878783,
+  "lastUpdate": 1673407962433,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -28788,6 +28788,38 @@ window.BENCHMARK_DATA = {
             "value": 7855584,
             "unit": "ns/op",
             "extra": "153 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "4ee7506e4b02403f2c1ef5a4e15628551225aa6b",
+          "message": "make hpke key fetcher consider authenticate internal service url",
+          "timestamp": "2023-01-10T07:58:58Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3880/commits/4ee7506e4b02403f2c1ef5a4e15628551225aa6b"
+        },
+        "date": 1673407961639,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13062398,
+            "unit": "ns/op",
+            "extra": "86 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8259294,
+            "unit": "ns/op",
+            "extra": "146 times\n2 procs"
           }
         ]
       }
