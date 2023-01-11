@@ -1351,7 +1351,7 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	setDuration(&o.DefaultUpstreamTimeout, settings.DefaultUpstreamTimeout)
 	set(&o.MetricsAddr, settings.MetricsAddress)
 	set(&o.MetricsBasicAuth, settings.MetricsBasicAuth)
-	setCertificate(&o.MetricsCertificate, &o.MetricsCertificateKey, &o.MetricsCertificateFile, &o.MetricsCertificateKeyFile, settings.MetricsCertificate)
+	setCertificate(&o.MetricsCertificate, &o.MetricsCertificateKey, settings.MetricsCertificate)
 	set(&o.MetricsClientCA, settings.MetricsClientCa)
 	set(&o.TracingProvider, settings.TracingProvider)
 	set(&o.TracingSampleRate, settings.TracingSampleRate)
@@ -1489,8 +1489,6 @@ func setMap[TKey comparable, TValue any, TMap ~map[TKey]TValue](dst *TMap, src m
 func setCertificate(
 	dstCertificate *string,
 	dstCertificateKey *string,
-	dstCertificateFile *string,
-	dstCertificateKeyFile *string,
 	src *config.Settings_Certificate,
 ) {
 	if src == nil {
@@ -1501,11 +1499,5 @@ func setCertificate(
 	}
 	if len(src.GetKeyBytes()) > 0 {
 		*dstCertificateKey = base64.StdEncoding.EncodeToString(src.GetKeyBytes())
-	}
-	if src.GetCertFile() != "" {
-		*dstCertificateFile = src.GetCertFile()
-	}
-	if src.GetKeyFile() != "" {
-		*dstCertificateKeyFile = src.GetKeyFile()
 	}
 }
