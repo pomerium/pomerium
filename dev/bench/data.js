@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1673479277270,
+  "lastUpdate": 1673546254647,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -29024,6 +29024,42 @@ window.BENCHMARK_DATA = {
             "value": 9140175,
             "unit": "ns/op",
             "extra": "120 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1e6a483ce9f6d1d15e55d56fb302c7eb7eb0bc42",
+          "message": "config: add missing options (#3882)\n\n* config: add missing options\r\n\r\n* remove _file options from protobuf\r\n\r\n* fix\r\n\r\n* lint",
+          "timestamp": "2023-01-12T10:55:12-07:00",
+          "tree_id": "c9aa469318f9e944657d1adbf969c86932b21411",
+          "url": "https://github.com/pomerium/pomerium/commit/1e6a483ce9f6d1d15e55d56fb302c7eb7eb0bc42"
+        },
+        "date": 1673546254178,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13147454,
+            "unit": "ns/op",
+            "extra": "88 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8205173,
+            "unit": "ns/op",
+            "extra": "144 times\n2 procs"
           }
         ]
       }
