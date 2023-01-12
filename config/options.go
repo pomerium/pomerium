@@ -14,11 +14,12 @@ import (
 	"strings"
 	"time"
 
+	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/null/v9"
-	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -31,6 +32,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/grpc/crypt"
 	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
@@ -1284,21 +1286,11 @@ func (o *Options) indexCerts(ctx context.Context) certsIndex {
 func (o *Options) applyExternalCerts(ctx context.Context, certs []*config.Settings_Certificate) {
 	idx := o.indexCerts(ctx)
 	for _, c := range certs {
-		cfp := certificateFilePair{
-			CertFile: c.CertFile,
-			KeyFile:  c.KeyFile,
-		}
-		if cfp.CertFile == "" {
-			cfp.CertFile = base64.StdEncoding.EncodeToString(c.CertBytes)
-		}
-		if cfp.KeyFile == "" {
-			cfp.KeyFile = base64.StdEncoding.EncodeToString(c.KeyBytes)
-		}
+		cfp := certificateFilePair{}
+		cfp.CertFile = base64.StdEncoding.EncodeToString(c.CertBytes)
+		cfp.KeyFile = base64.StdEncoding.EncodeToString(c.KeyBytes)
 
 		cert, err := cryptutil.ParsePEMCertificateFromBase64(cfp.CertFile)
-		if err != nil {
-			cert, err = cryptutil.ParsePEMCertificateFromFile(cfp.CertFile)
-		}
 		if err != nil {
 			log.Error(ctx).Err(err).Msg("parsing cert from databroker: skipped")
 			continue
@@ -1318,232 +1310,82 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 		return
 	}
 
-	if settings.InstallationId != nil {
-		o.InstallationID = settings.GetInstallationId()
-	}
-	if settings.Debug != nil {
-		o.Debug = settings.GetDebug()
-	}
-	if settings.LogLevel != nil {
-		o.LogLevel = settings.GetLogLevel()
-	}
-	if settings.ProxyLogLevel != nil {
-		o.ProxyLogLevel = settings.GetProxyLogLevel()
-	}
-	if settings.SharedSecret != nil {
-		o.SharedKey = settings.GetSharedSecret()
-	}
-	if settings.Services != nil {
-		o.Services = settings.GetServices()
-	}
-	if settings.Address != nil {
-		o.Addr = settings.GetAddress()
-	}
-	if settings.InsecureServer != nil {
-		o.InsecureServer = settings.GetInsecureServer()
-	}
-	if settings.DnsLookupFamily != nil {
-		o.DNSLookupFamily = settings.GetDnsLookupFamily()
-	}
+	set(&o.InstallationID, settings.InstallationId)
+	set(&o.Debug, settings.Debug)
+	set(&o.LogLevel, settings.LogLevel)
+	set(&o.ProxyLogLevel, settings.ProxyLogLevel)
+	set(&o.SharedKey, settings.SharedSecret)
+	set(&o.Services, settings.Services)
+	set(&o.Addr, settings.Address)
+	set(&o.InsecureServer, settings.InsecureServer)
+	set(&o.DNSLookupFamily, settings.DnsLookupFamily)
 	o.applyExternalCerts(ctx, settings.GetCertificates())
-	if settings.HttpRedirectAddr != nil {
-		o.HTTPRedirectAddr = settings.GetHttpRedirectAddr()
-	}
-	if settings.TimeoutRead != nil {
-		o.ReadTimeout = settings.GetTimeoutRead().AsDuration()
-	}
-	if settings.TimeoutWrite != nil {
-		o.WriteTimeout = settings.GetTimeoutWrite().AsDuration()
-	}
-	if settings.TimeoutIdle != nil {
-		o.IdleTimeout = settings.GetTimeoutIdle().AsDuration()
-	}
-	if settings.AuthenticateServiceUrl != nil {
-		o.AuthenticateURLString = settings.GetAuthenticateServiceUrl()
-	}
-	if settings.AuthenticateInternalServiceUrl != nil {
-		o.AuthenticateInternalURLString = settings.GetAuthenticateInternalServiceUrl()
-	}
-	if settings.AuthenticateCallbackPath != nil {
-		o.AuthenticateCallbackPath = settings.GetAuthenticateCallbackPath()
-	}
-	if settings.CookieName != nil {
-		o.CookieName = settings.GetCookieName()
-	}
-	if settings.CookieSecret != nil {
-		o.CookieSecret = settings.GetCookieSecret()
-	}
-	if settings.CookieDomain != nil {
-		o.CookieDomain = settings.GetCookieDomain()
-	}
-	if settings.CookieSecure != nil {
-		o.CookieSecure = settings.GetCookieSecure()
-	}
-	if settings.CookieHttpOnly != nil {
-		o.CookieHTTPOnly = settings.GetCookieHttpOnly()
-	}
-	if settings.CookieExpire != nil {
-		o.CookieExpire = settings.GetCookieExpire().AsDuration()
-	}
-	if settings.IdpClientId != nil {
-		o.ClientID = settings.GetIdpClientId()
-	}
-	if settings.IdpClientSecret != nil {
-		o.ClientSecret = settings.GetIdpClientSecret()
-	}
-	if settings.IdpProvider != nil {
-		o.Provider = settings.GetIdpProvider()
-	}
-	if settings.IdpProviderUrl != nil {
-		o.ProviderURL = settings.GetIdpProviderUrl()
-	}
-	if len(settings.Scopes) > 0 {
-		o.Scopes = settings.Scopes
-	}
-	if settings.RequestParams != nil && len(settings.RequestParams) > 0 {
-		o.RequestParams = settings.RequestParams
-	}
-	if len(settings.AuthorizeServiceUrls) > 0 {
-		o.AuthorizeURLStrings = settings.GetAuthorizeServiceUrls()
-	}
-	if settings.AuthorizeInternalServiceUrl != nil {
-		o.AuthorizeInternalURLString = settings.GetAuthorizeInternalServiceUrl()
-	}
-	if settings.OverrideCertificateName != nil {
-		o.OverrideCertificateName = settings.GetOverrideCertificateName()
-	}
-	if settings.CertificateAuthority != nil {
-		o.CA = settings.GetCertificateAuthority()
-	}
-	if settings.CertificateAuthorityFile != nil {
-		o.CAFile = settings.GetCertificateAuthorityFile()
-	}
-	if settings.SigningKey != nil {
-		o.SigningKey = settings.GetSigningKey()
-	}
-	if settings.SetResponseHeaders != nil && len(settings.SetResponseHeaders) > 0 {
-		o.SetResponseHeaders = settings.SetResponseHeaders
-	}
-	if len(settings.JwtClaimsHeaders) > 0 {
-		o.JWTClaimsHeaders = settings.GetJwtClaimsHeaders()
-	}
-	if settings.DefaultUpstreamTimeout != nil {
-		o.DefaultUpstreamTimeout = settings.GetDefaultUpstreamTimeout().AsDuration()
-	}
-	if settings.MetricsAddress != nil {
-		o.MetricsAddr = settings.GetMetricsAddress()
-	}
-	if settings.MetricsBasicAuth != nil {
-		o.MetricsBasicAuth = settings.GetMetricsBasicAuth()
-	}
-	if len(settings.GetMetricsCertificate().GetCertBytes()) > 0 {
-		o.MetricsCertificate = base64.StdEncoding.EncodeToString(settings.GetMetricsCertificate().GetCertBytes())
-	}
-	if len(settings.GetMetricsCertificate().GetKeyBytes()) > 0 {
-		o.MetricsCertificateKey = base64.StdEncoding.EncodeToString(settings.GetMetricsCertificate().GetKeyBytes())
-	}
-	if settings.GetMetricsCertificate().GetCertFile() != "" {
-		o.MetricsCertificateFile = settings.GetMetricsCertificate().GetCertFile()
-	}
-	if settings.GetMetricsCertificate().GetKeyFile() != "" {
-		o.MetricsCertificateKeyFile = settings.GetMetricsCertificate().GetKeyFile()
-	}
-	if settings.GetMetricsClientCa() != "" {
-		o.MetricsClientCA = settings.GetMetricsClientCa()
-	}
-	if settings.GetMetricsClientCaFile() != "" {
-		o.MetricsClientCAFile = settings.GetMetricsClientCaFile()
-	}
-	if settings.TracingProvider != nil {
-		o.TracingProvider = settings.GetTracingProvider()
-	}
-	if settings.TracingSampleRate != nil {
-		o.TracingSampleRate = settings.GetTracingSampleRate()
-	}
-	if settings.TracingJaegerCollectorEndpoint != nil {
-		o.TracingJaegerCollectorEndpoint = settings.GetTracingJaegerCollectorEndpoint()
-	}
-	if settings.TracingJaegerAgentEndpoint != nil {
-		o.TracingJaegerAgentEndpoint = settings.GetTracingJaegerAgentEndpoint()
-	}
-	if settings.TracingZipkinEndpoint != nil {
-		o.ZipkinEndpoint = settings.GetTracingZipkinEndpoint()
-	}
-	if settings.GrpcAddress != nil {
-		o.GRPCAddr = settings.GetGrpcAddress()
-	}
-	if settings.GrpcInsecure != nil {
-		o.GRPCInsecure = proto.Bool(settings.GetGrpcInsecure())
-	}
-	if len(settings.DatabrokerServiceUrls) > 0 {
-		o.DataBrokerURLStrings = settings.GetDatabrokerServiceUrls()
-	}
-	if settings.DatabrokerInternalServiceUrl != nil {
-		o.DataBrokerInternalURLString = settings.GetDatabrokerInternalServiceUrl()
-	}
-	if settings.ClientCa != nil {
-		o.ClientCA = settings.GetClientCa()
-	}
-	if settings.ClientCaFile != nil {
-		o.ClientCAFile = settings.GetClientCaFile()
-	}
-	if settings.GoogleCloudServerlessAuthenticationServiceAccount != nil {
-		o.GoogleCloudServerlessAuthenticationServiceAccount = settings.GetGoogleCloudServerlessAuthenticationServiceAccount()
-	}
-	if settings.Autocert != nil {
-		o.AutocertOptions.Enable = settings.GetAutocert()
-	}
-	if settings.AutocertCa != nil {
-		o.AutocertOptions.CA = settings.GetAutocertCa()
-	}
-	if settings.AutocertEmail != nil {
-		o.AutocertOptions.Email = settings.GetAutocertEmail()
-	}
-	if settings.AutocertEabKeyId != nil {
-		o.AutocertOptions.EABKeyID = settings.GetAutocertEabKeyId()
-	}
-	if settings.AutocertEabMacKey != nil {
-		o.AutocertOptions.EABMACKey = settings.GetAutocertEabMacKey()
-	}
-	if settings.AutocertUseStaging != nil {
-		o.AutocertOptions.UseStaging = settings.GetAutocertUseStaging()
-	}
-	if settings.AutocertMustStaple != nil {
-		o.AutocertOptions.MustStaple = settings.GetAutocertMustStaple()
-	}
-	if settings.AutocertDir != nil {
-		o.AutocertOptions.Folder = settings.GetAutocertDir()
-	}
-	if settings.AutocertTrustedCa != nil {
-		o.AutocertOptions.TrustedCA = settings.GetAutocertTrustedCa()
-	}
-	if settings.AutocertTrustedCaFile != nil {
-		o.AutocertOptions.TrustedCAFile = settings.GetAutocertTrustedCaFile()
-	}
-	if settings.SkipXffAppend != nil {
-		o.SkipXffAppend = settings.GetSkipXffAppend()
-	}
-	if settings.XffNumTrustedHops != nil {
-		o.XffNumTrustedHops = settings.GetXffNumTrustedHops()
-	}
-	if len(settings.ProgrammaticRedirectDomainWhitelist) > 0 {
-		o.ProgrammaticRedirectDomainWhitelist = settings.GetProgrammaticRedirectDomainWhitelist()
-	}
-	if settings.AuditKey != nil {
-		o.AuditKey = &PublicKeyEncryptionKeyOptions{
-			ID:   settings.AuditKey.GetId(),
-			Data: base64.StdEncoding.EncodeToString(settings.AuditKey.GetData()),
-		}
-	}
-	if settings.CodecType != nil {
-		o.CodecType = CodecTypeFromEnvoy(settings.GetCodecType())
-	}
-	if settings.ClientCrl != nil {
-		o.ClientCRL = settings.GetClientCrl()
-	}
-	if settings.ClientCrlFile != nil {
-		o.ClientCRLFile = settings.GetClientCrlFile()
-	}
+	set(&o.HTTPRedirectAddr, settings.HttpRedirectAddr)
+	setDuration(&o.ReadTimeout, settings.TimeoutRead)
+	setDuration(&o.WriteTimeout, settings.TimeoutWrite)
+	setDuration(&o.IdleTimeout, settings.TimeoutIdle)
+	set(&o.AuthenticateURLString, settings.AuthenticateServiceUrl)
+	set(&o.AuthenticateInternalURLString, settings.AuthenticateInternalServiceUrl)
+	set(&o.SignOutRedirectURLString, settings.SignoutRedirectUrl)
+	set(&o.AuthenticateCallbackPath, settings.AuthenticateCallbackPath)
+	set(&o.CookieName, settings.CookieName)
+	set(&o.CookieSecret, settings.CookieSecret)
+	set(&o.CookieDomain, settings.CookieDomain)
+	set(&o.CookieSecure, settings.CookieSecure)
+	set(&o.CookieHTTPOnly, settings.CookieHttpOnly)
+	setDuration(&o.CookieExpire, settings.CookieExpire)
+	set(&o.ClientID, settings.IdpClientId)
+	set(&o.ClientSecret, settings.IdpClientSecret)
+	set(&o.Provider, settings.IdpProvider)
+	set(&o.ProviderURL, settings.IdpProviderUrl)
+	setSlice(&o.Scopes, settings.Scopes)
+	setMap(&o.RequestParams, settings.RequestParams)
+	setSlice(&o.AuthorizeURLStrings, settings.AuthorizeServiceUrls)
+	set(&o.AuthorizeInternalURLString, settings.AuthorizeInternalServiceUrl)
+	set(&o.OverrideCertificateName, settings.OverrideCertificateName)
+	set(&o.CA, settings.CertificateAuthority)
+	setOptional(&o.DeriveInternalDomainCert, settings.DeriveTls)
+	set(&o.SigningKey, settings.SigningKey)
+	setMap(&o.SetResponseHeaders, settings.SetResponseHeaders)
+	setMap(&o.JWTClaimsHeaders, settings.JwtClaimsHeaders)
+	setDuration(&o.DefaultUpstreamTimeout, settings.DefaultUpstreamTimeout)
+	set(&o.MetricsAddr, settings.MetricsAddress)
+	set(&o.MetricsBasicAuth, settings.MetricsBasicAuth)
+	setCertificate(&o.MetricsCertificate, &o.MetricsCertificateKey, settings.MetricsCertificate)
+	set(&o.MetricsClientCA, settings.MetricsClientCa)
+	set(&o.TracingProvider, settings.TracingProvider)
+	set(&o.TracingSampleRate, settings.TracingSampleRate)
+	set(&o.TracingDatadogAddress, settings.TracingDatadogAddress)
+	set(&o.TracingJaegerCollectorEndpoint, settings.TracingJaegerCollectorEndpoint)
+	set(&o.TracingJaegerAgentEndpoint, settings.TracingJaegerAgentEndpoint)
+	set(&o.ZipkinEndpoint, settings.TracingZipkinEndpoint)
+	set(&o.GRPCAddr, settings.GrpcAddress)
+	setOptional(&o.GRPCInsecure, settings.GrpcInsecure)
+	setDuration(&o.GRPCClientTimeout, settings.GrpcClientTimeout)
+	set(&o.GRPCClientDNSRoundRobin, settings.GrpcClientDnsRoundrobin)
+	setSlice(&o.DataBrokerURLStrings, settings.DatabrokerServiceUrls)
+	set(&o.DataBrokerInternalURLString, settings.DatabrokerInternalServiceUrl)
+	set(&o.DataBrokerStorageType, settings.DatabrokerStorageType)
+	set(&o.DataBrokerStorageConnectionString, settings.DatabrokerStorageConnectionString)
+	set(&o.DataBrokerStorageCertSkipVerify, settings.DatabrokerStorageTlsSkipVerify)
+	set(&o.ClientCA, settings.ClientCa)
+	set(&o.GoogleCloudServerlessAuthenticationServiceAccount, settings.GoogleCloudServerlessAuthenticationServiceAccount)
+	set(&o.UseProxyProtocol, settings.UseProxyProtocol)
+	set(&o.AutocertOptions.Enable, settings.Autocert)
+	set(&o.AutocertOptions.CA, settings.AutocertCa)
+	set(&o.AutocertOptions.Email, settings.AutocertEmail)
+	set(&o.AutocertOptions.EABKeyID, settings.AutocertEabKeyId)
+	set(&o.AutocertOptions.EABMACKey, settings.AutocertEabMacKey)
+	set(&o.AutocertOptions.UseStaging, settings.AutocertUseStaging)
+	set(&o.AutocertOptions.MustStaple, settings.AutocertMustStaple)
+	set(&o.AutocertOptions.Folder, settings.AutocertDir)
+	set(&o.AutocertOptions.TrustedCA, settings.AutocertTrustedCa)
+	set(&o.SkipXffAppend, settings.SkipXffAppend)
+	set(&o.XffNumTrustedHops, settings.XffNumTrustedHops)
+	setSlice(&o.ProgrammaticRedirectDomainWhitelist, settings.ProgrammaticRedirectDomainWhitelist)
+	setAuditKey(&o.AuditKey, settings.AuditKey)
+	setCodecType(&o.CodecType, settings.CodecType)
+	set(&o.ClientCRL, settings.ClientCrl)
 	o.BrandingOptions = settings
 }
 
@@ -1590,4 +1432,73 @@ func min(x, y int) int {
 // NewAtomicOptions creates a new AtomicOptions.
 func NewAtomicOptions() *atomicutil.Value[*Options] {
 	return atomicutil.NewValue(new(Options))
+}
+
+func set[T any](dst, src *T) {
+	if src == nil {
+		return
+	}
+	*dst = *src
+}
+
+func setAuditKey(dst **PublicKeyEncryptionKeyOptions, src *crypt.PublicKeyEncryptionKey) {
+	if src == nil {
+		return
+	}
+	*dst = &PublicKeyEncryptionKeyOptions{
+		ID:   src.GetId(),
+		Data: base64.StdEncoding.EncodeToString(src.GetData()),
+	}
+}
+
+func setCodecType(dst *CodecType, src *envoy_http_connection_manager.HttpConnectionManager_CodecType) {
+	if src == nil {
+		return
+	}
+	*dst = CodecTypeFromEnvoy(*src)
+}
+
+func setDuration(dst *time.Duration, src *durationpb.Duration) {
+	if src == nil {
+		return
+	}
+	*dst = src.AsDuration()
+}
+
+func setOptional[T any](dst **T, src *T) {
+	if src == nil {
+		return
+	}
+	v := *src
+	*dst = &v
+}
+
+func setSlice[T any](dst *[]T, src []T) {
+	if len(src) == 0 {
+		return
+	}
+	*dst = src
+}
+
+func setMap[TKey comparable, TValue any, TMap ~map[TKey]TValue](dst *TMap, src map[TKey]TValue) {
+	if len(src) == 0 {
+		return
+	}
+	*dst = src
+}
+
+func setCertificate(
+	dstCertificate *string,
+	dstCertificateKey *string,
+	src *config.Settings_Certificate,
+) {
+	if src == nil {
+		return
+	}
+	if len(src.GetCertBytes()) > 0 {
+		*dstCertificate = base64.StdEncoding.EncodeToString(src.GetCertBytes())
+	}
+	if len(src.GetKeyBytes()) > 0 {
+		*dstCertificateKey = base64.StdEncoding.EncodeToString(src.GetKeyBytes())
+	}
 }
