@@ -14,6 +14,7 @@ for _target in darwin-amd64 darwin-arm64 linux-amd64 linux-arm64; do
   curl \
     --silent \
     --fail \
+    --show-error \
     --compressed \
     --location \
     --time-cond "$_dir/envoy-$_target" \
@@ -23,6 +24,7 @@ for _target in darwin-amd64 darwin-arm64 linux-amd64 linux-arm64; do
   curl \
     --silent \
     --fail \
+    --show-error \
     --compressed \
     --location \
     --time-cond "$_dir/envoy-$_target.sha256" \
