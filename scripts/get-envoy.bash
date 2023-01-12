@@ -18,7 +18,7 @@ for _target in darwin-amd64 darwin-arm64 linux-amd64 linux-arm64; do
     --location \
     --time-cond "$_dir/envoy-$_target" \
     --output "$_dir/envoy-$_target" \
-    "$_url"
+    "$_url" &
 
   curl \
     --silent \
@@ -27,7 +27,9 @@ for _target in darwin-amd64 darwin-arm64 linux-amd64 linux-arm64; do
     --location \
     --time-cond "$_dir/envoy-$_target.sha256" \
     --output "$_dir/envoy-$_target.sha256" \
-    "$_url.sha256"
+    "$_url.sha256" &
 
   echo "$_envoy_version" >"$_dir/envoy-$_target.version"
 done
+
+wait
