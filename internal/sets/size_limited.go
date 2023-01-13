@@ -1,8 +1,11 @@
 package sets
 
+import "sync"
+
 // A SizeLimited is a Set which is limited to a given size. Once
 // the capacity is reached an element will be removed at random.
 type SizeLimited[T comparable] struct {
+	mu       sync.RWMutex
 	m        map[T]struct{}
 	capacity int
 }
@@ -17,6 +20,8 @@ func NewSizeLimited[T comparable](capacity int) *SizeLimited[T] {
 
 // Add adds an element to the set.
 func (s *SizeLimited[T]) Add(element T) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.m[element] = struct{}{}
 	for len(s.m) > s.capacity {
 		for k := range s.m {
@@ -28,6 +33,8 @@ func (s *SizeLimited[T]) Add(element T) {
 
 // ForEach iterates over all the elements in the set.
 func (s *SizeLimited[T]) ForEach(callback func(element T) bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	for k := range s.m {
 		if !callback(k) {
 			return
