@@ -37,7 +37,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.1
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/mholt/acmez v1.0.4
-	github.com/minio/minio-go/v7 v7.0.46
+	github.com/minio/minio-go/v7 v7.0.47
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/natefinch/atomic v0.0.0-20200526193002-18c0533a5b09
