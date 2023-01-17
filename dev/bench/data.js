@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1673923911044,
+  "lastUpdate": 1673975591999,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -29948,6 +29948,42 @@ window.BENCHMARK_DATA = {
             "value": 8020521,
             "unit": "ns/op",
             "extra": "144 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "52549836f093ec3ab90737a6f26f8f3641c412d8",
+          "message": "chore(deps): bump alpine from `8914eb5` to `f271e74` (#3901)\n\nBumps alpine from `8914eb5` to `f271e74`.\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: alpine\r\n  dependency-type: direct:production\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Denis Mishin <dmishin@pomerium.com>",
+          "timestamp": "2023-01-17T10:10:48-07:00",
+          "tree_id": "148dbb0244f8375a0ae3294b9d723771781139bb",
+          "url": "https://github.com/pomerium/pomerium/commit/52549836f093ec3ab90737a6f26f8f3641c412d8"
+        },
+        "date": 1673975591516,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12567943,
+            "unit": "ns/op",
+            "extra": "93 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7677381,
+            "unit": "ns/op",
+            "extra": "159 times\n2 procs"
           }
         ]
       }
