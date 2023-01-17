@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1673914801343,
+  "lastUpdate": 1673914812733,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -29644,6 +29644,42 @@ window.BENCHMARK_DATA = {
             "value": 7833402,
             "unit": "ns/op",
             "extra": "151 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "206b73f4caf8b30779a6c5eff37306e48f8b4202",
+          "message": "chore(deps): bump golang from 1.19.4-buster to 1.19.5-buster (#3902)\n\nBumps golang from 1.19.4-buster to 1.19.5-buster.\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golang\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Denis Mishin <dmishin@pomerium.com>",
+          "timestamp": "2023-01-16T19:16:34-05:00",
+          "tree_id": "deececc21749d899554c92a388df946e60f32125",
+          "url": "https://github.com/pomerium/pomerium/commit/206b73f4caf8b30779a6c5eff37306e48f8b4202"
+        },
+        "date": 1673914812214,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13062057,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7878881,
+            "unit": "ns/op",
+            "extra": "142 times\n2 procs"
           }
         ]
       }
