@@ -67,8 +67,8 @@ require (
 	golang.org/x/net v0.5.0
 	golang.org/x/oauth2 v0.4.0
 	golang.org/x/sync v0.1.0
-	google.golang.org/api v0.105.0
-	google.golang.org/genproto v0.0.0-20221206210731-b1a01be3a5f6
+	google.golang.org/api v0.107.0
+	google.golang.org/genproto v0.0.0-20221227171554-f9683d7f8bef
 	google.golang.org/grpc v1.52.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -110,8 +110,8 @@ require (
 
 require (
 	4d63.com/gochecknoglobals v0.1.0 // indirect
-	cloud.google.com/go/compute v1.13.0 // indirect
-	cloud.google.com/go/compute/metadata v0.2.2 // indirect
+	cloud.google.com/go/compute v1.14.0 // indirect
+	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/storage v1.28.1
 	github.com/Abirdcfly/dupword v0.0.7 // indirect
 	github.com/Antonboom/errname v0.1.7 // indirect
@@ -191,7 +191,7 @@ require (
 	github.com/golangci/unconvert v0.0.0-20180507085042-28b1c447d1f4 // indirect
 	github.com/google/go-tpm v0.3.3 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.2.0 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.2.1 // indirect
 	github.com/gordonklaus/ineffassign v0.0.0-20210914165742-4cc7213b9bc8 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/gostaticanalysis/analysisutil v0.7.1 // indirect
