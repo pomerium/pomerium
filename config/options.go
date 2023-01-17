@@ -166,7 +166,7 @@ type Options struct {
 
 	// DeriveInternalDomainCert is an option that would derive certificate authority
 	// and domain certificates from the shared key and use them for internal communication
-	DeriveInternalDomainCert *string `mapstructure:"derive_tls" yaml:"derive_tls,omitempty"`
+	DeriveInternalDomainCert *string `mapstructure:"tls_derive" yaml:"tls_derive,omitempty"`
 
 	// SigningKey is the private key used to add a JWT-signature to upstream requests.
 	// https://www.pomerium.com/docs/topics/getting-users-identity.html
