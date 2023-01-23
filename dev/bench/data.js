@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1674508184177,
+  "lastUpdate": 1674508205426,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -30564,6 +30564,42 @@ window.BENCHMARK_DATA = {
             "value": 8093036,
             "unit": "ns/op",
             "extra": "156 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "04c281ee7524fd474d0881c9e91abd548ca1891f",
+          "message": "chore(deps): bump github.com/spf13/viper from 1.14.0 to 1.15.0 (#3910)\n\nBumps [github.com/spf13/viper](https://github.com/spf13/viper) from 1.14.0 to 1.15.0.\r\n- [Release notes](https://github.com/spf13/viper/releases)\r\n- [Commits](https://github.com/spf13/viper/compare/v1.14.0...v1.15.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/spf13/viper\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-01-23T16:04:25-05:00",
+          "tree_id": "dd298051c0675eaad6bd6db8647b30f605f15a74",
+          "url": "https://github.com/pomerium/pomerium/commit/04c281ee7524fd474d0881c9e91abd548ca1891f"
+        },
+        "date": 1674508204589,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15779680,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10666988,
+            "unit": "ns/op",
+            "extra": "126 times\n2 procs"
           }
         ]
       }
