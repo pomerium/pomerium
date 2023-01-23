@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1674017205963,
+  "lastUpdate": 1674490053424,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -30368,6 +30368,38 @@ window.BENCHMARK_DATA = {
             "value": 8291407,
             "unit": "ns/op",
             "extra": "150 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "4bb8e80306baa91ba50c93136d810926521a1774",
+          "message": "chore(deps): bump github.com/spf13/viper from 1.14.0 to 1.15.0",
+          "timestamp": "2023-01-23T09:24:40Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3910/commits/4bb8e80306baa91ba50c93136d810926521a1774"
+        },
+        "date": 1674490052737,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12791707,
+            "unit": "ns/op",
+            "extra": "99 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8278157,
+            "unit": "ns/op",
+            "extra": "148 times\n2 procs"
           }
         ]
       }
