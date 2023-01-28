@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1674925821027,
+  "lastUpdate": 1674925861563,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -30800,6 +30800,42 @@ window.BENCHMARK_DATA = {
             "value": 7605819,
             "unit": "ns/op",
             "extra": "154 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "57010b7b8a2cf4f77d7536e0ad60b60ac6b6f5c4",
+          "message": "bump goreleaser to v4.1.1 (#3918)",
+          "timestamp": "2023-01-28T09:07:47-08:00",
+          "tree_id": "6548171737aed5b0ca1e62d1b6c66a2196acbbcb",
+          "url": "https://github.com/pomerium/pomerium/commit/57010b7b8a2cf4f77d7536e0ad60b60ac6b6f5c4"
+        },
+        "date": 1674925860450,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18076619,
+            "unit": "ns/op",
+            "extra": "67 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10553845,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
