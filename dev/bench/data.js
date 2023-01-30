@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1675097859055,
+  "lastUpdate": 1675097910322,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -31412,6 +31412,42 @@ window.BENCHMARK_DATA = {
             "value": 7946902,
             "unit": "ns/op",
             "extra": "146 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b7597116213d631fc7407e0568f19c9a997168a7",
+          "message": "chore(deps): bump tibdex/github-app-token from 1.7.0 to 1.8.0 (#3922)\n\nBumps [tibdex/github-app-token](https://github.com/tibdex/github-app-token) from 1.7.0 to 1.8.0.\r\n- [Release notes](https://github.com/tibdex/github-app-token/releases)\r\n- [Commits](https://github.com/tibdex/github-app-token/compare/021a2405c7f990db57f5eae5397423dcc554159c...b62528385c34dbc9f38e5f4225ac829252d1ea92)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: tibdex/github-app-token\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-01-30T09:55:42-07:00",
+          "tree_id": "a2497c1aad087736d5579bd94beb7e80fcff7b8a",
+          "url": "https://github.com/pomerium/pomerium/commit/b7597116213d631fc7407e0568f19c9a997168a7"
+        },
+        "date": 1675097909576,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11746034,
+            "unit": "ns/op",
+            "extra": "93 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7979267,
+            "unit": "ns/op",
+            "extra": "147 times\n2 procs"
           }
         ]
       }
