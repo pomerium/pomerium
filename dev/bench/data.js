@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1675097526547,
+  "lastUpdate": 1675097535898,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -31340,6 +31340,42 @@ window.BENCHMARK_DATA = {
             "value": 7619071,
             "unit": "ns/op",
             "extra": "159 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "89c4be7c538490be868d04149acec1e65dcc3275",
+          "message": "chore(deps): bump google.golang.org/grpc from 1.52.0 to 1.52.3 (#3926)\n\nBumps [google.golang.org/grpc](https://github.com/grpc/grpc-go) from 1.52.0 to 1.52.3.\r\n- [Release notes](https://github.com/grpc/grpc-go/releases)\r\n- [Commits](https://github.com/grpc/grpc-go/compare/v1.52.0...v1.52.3)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: google.golang.org/grpc\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-01-30T09:49:03-07:00",
+          "tree_id": "91c8f9927b5abea7fc1a43cc4572f582fa2cf402",
+          "url": "https://github.com/pomerium/pomerium/commit/89c4be7c538490be868d04149acec1e65dcc3275"
+        },
+        "date": 1675097534638,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16189782,
+            "unit": "ns/op",
+            "extra": "82 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10277768,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
