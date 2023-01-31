@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1675183415362,
+  "lastUpdate": 1675183452161,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -31616,6 +31616,38 @@ window.BENCHMARK_DATA = {
             "value": 8241881,
             "unit": "ns/op",
             "extra": "141 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "ed9c3e2aa3db0f31ac7f25fa8b1c7835f463ceb5",
+          "message": "identity: fix nil reference error when there is no authenticator",
+          "timestamp": "2023-01-30T23:53:23Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3933/commits/ed9c3e2aa3db0f31ac7f25fa8b1c7835f463ceb5"
+        },
+        "date": 1675183451585,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12178667,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7603718,
+            "unit": "ns/op",
+            "extra": "156 times\n2 procs"
           }
         ]
       }
