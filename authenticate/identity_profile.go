@@ -31,12 +31,9 @@ func (a *Authenticate) buildIdentityProfile(
 	oauthToken *oauth2.Token,
 ) (*identitypb.Profile, error) {
 	options := a.options.Load()
-	idp, err := options.GetIdentityProviderForID(r.FormValue(urlutil.QueryIdentityProviderID))
-	if err != nil {
-		return nil, fmt.Errorf("authenticate: error getting identity provider for id: %w", err)
-	}
+	idpID := r.FormValue(urlutil.QueryIdentityProviderID)
 
-	authenticator, err := a.cfg.getIdentityProvider(options, idp.GetId())
+	authenticator, err := a.cfg.getIdentityProvider(options, idpID)
 	if err != nil {
 		return nil, fmt.Errorf("authenticate: error getting identity provider authenticator: %w", err)
 	}
@@ -57,7 +54,7 @@ func (a *Authenticate) buildIdentityProfile(
 	}
 
 	return &identitypb.Profile{
-		ProviderId: idp.GetId(),
+		ProviderId: idpID,
 		IdToken:    rawIDToken,
 		OauthToken: rawOAuthToken,
 		Claims:     rawClaims,
