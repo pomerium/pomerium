@@ -2,8 +2,10 @@ package handlers_test
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"encoding/base64"
 	"encoding/json"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,9 +21,10 @@ import (
 func TestJWKSHandler(t *testing.T) {
 	t.Parallel()
 
-	signingKey1, err := cryptutil.NewSigningKey()
+	rnd := rand.New(rand.NewSource(1))
+	signingKey1, err := ecdsa.GenerateKey(elliptic.P256(), rnd)
 	require.NoError(t, err)
-	signingKey2, err := cryptutil.NewSigningKey()
+	signingKey2, err := ecdsa.GenerateKey(elliptic.P256(), rnd)
 	require.NoError(t, err)
 
 	rawSigningKey1, err := cryptutil.EncodePrivateKey(signingKey1)
