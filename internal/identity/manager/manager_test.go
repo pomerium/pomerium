@@ -9,6 +9,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -34,6 +36,31 @@ func (mock mockAuthenticator) Revoke(_ context.Context, _ *oauth2.Token) error {
 
 func (mock mockAuthenticator) UpdateUserInfo(_ context.Context, _ *oauth2.Token, _ any) error {
 	return errors.New("update user info")
+}
+
+func TestManager_refresh(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
+	t.Cleanup(clearTimeout)
+
+	client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
+	mgr := New(WithDataBrokerClient(client))
+	mgr.onUpdateRecords(ctx, updateRecordsMessage{
+		records: []*databroker.Record{
+			databroker.NewRecord(&session.Session{
+				Id:         "s1",
+				UserId:     "u1",
+				OauthToken: &session.OAuthToken{},
+				ExpiresAt:  timestamppb.New(time.Now().Add(time.Second * 10)),
+			}),
+			databroker.NewRecord(&user.User{
+				Id: "u1",
+			}),
+		},
+	})
+	client.EXPECT().Get(gomock.Any(), gomock.Any()).Return(nil, status.Error(codes.NotFound, "not found"))
+	mgr.refreshSession(ctx, "u1", "s1")
+	mgr.refreshUser(ctx, "u1")
 }
 
 func TestManager_onUpdateRecords(t *testing.T) {
