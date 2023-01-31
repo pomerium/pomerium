@@ -187,6 +187,16 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 		Str("session_id", sessionID).
 		Msg("refreshing session")
 
+	authenticator := mgr.cfg.Load().authenticator
+	if authenticator == nil {
+		log.Info(ctx).
+			Str("user_id", userID).
+			Str("session_id", sessionID).
+			Msg("no authenticator defined, deleting session")
+		mgr.deleteSession(ctx, userID, sessionID)
+		return
+	}
+
 	s, ok := mgr.sessions.Get(userID, sessionID)
 	if !ok {
 		log.Warn(ctx).
@@ -214,7 +224,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 		return
 	}
 
-	newToken, err := mgr.cfg.Load().authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), &s)
+	newToken, err := authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), &s)
 	metrics.RecordIdentityManagerSessionRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastSessionRefreshError, err)
 	if isTemporaryError(err) {
@@ -233,7 +243,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 	}
 	s.OauthToken = ToOAuthToken(newToken)
 
-	err = mgr.cfg.Load().authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), &s)
+	err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), &s)
 	metrics.RecordIdentityManagerUserRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 	if isTemporaryError(err) {
@@ -268,6 +278,11 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 		Str("user_id", userID).
 		Msg("refreshing user")
 
+	authenticator := mgr.cfg.Load().authenticator
+	if authenticator == nil {
+		return
+	}
+
 	u, ok := mgr.users.Get(userID)
 	if !ok {
 		log.Warn(ctx).
@@ -286,7 +301,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 			continue
 		}
 
-		err := mgr.cfg.Load().authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), &u)
+		err := authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), &u)
 		metrics.RecordIdentityManagerUserRefresh(ctx, err)
 		mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 		if isTemporaryError(err) {
