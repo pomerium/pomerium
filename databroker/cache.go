@@ -164,11 +164,13 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 		manager.WithEventManager(c.eventsMgr),
 	}
 
-	authenticator, err := identity.NewAuthenticator(oauthOptions)
-	if err != nil {
-		log.Error(ctx).Err(err).Msg("databroker: failed to create authenticator")
-	} else {
-		options = append(options, manager.WithAuthenticator(authenticator))
+	if cfg.Options.Provider != "" {
+		authenticator, err := identity.NewAuthenticator(oauthOptions)
+		if err != nil {
+			log.Error(ctx).Err(err).Msg("databroker: failed to create authenticator")
+		} else {
+			options = append(options, manager.WithAuthenticator(authenticator))
+		}
 	}
 
 	if c.manager == nil {
