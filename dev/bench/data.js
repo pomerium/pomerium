@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1675455514300,
+  "lastUpdate": 1675455564750,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -31944,6 +31944,42 @@ window.BENCHMARK_DATA = {
             "value": 7959757,
             "unit": "ns/op",
             "extra": "152 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7895bf431f7b1cf9b7067eaa1a81dc216565e1da",
+          "message": "databroker: add list types method (#3937)\n\n* databroker: add list types method\r\n\r\n* fix test\r\n\r\n* Update pkg/storage/redis/redis.go\r\n\r\nCo-authored-by: Denis Mishin <dmishin@pomerium.com>\r\n\r\n---------\r\n\r\nCo-authored-by: Denis Mishin <dmishin@pomerium.com>",
+          "timestamp": "2023-02-03T13:16:28-07:00",
+          "tree_id": "3d9b60b0e0c6c7b58020bbd02bad146f013047f8",
+          "url": "https://github.com/pomerium/pomerium/commit/7895bf431f7b1cf9b7067eaa1a81dc216565e1da"
+        },
+        "date": 1675455563747,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16939924,
+            "unit": "ns/op",
+            "extra": "64 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10807014,
+            "unit": "ns/op",
+            "extra": "122 times\n2 procs"
           }
         ]
       }
