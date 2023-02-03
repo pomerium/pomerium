@@ -30,10 +30,9 @@ RUN make build-debug NAME=pomerium
 RUN touch /config.yaml
 RUN go install github.com/go-delve/delve/cmd/dlv@latest
 
-FROM alpine:latest@sha256:f271e74b17ced29b915d351685fd4644785c6d1559dd1f2d4189a5e851ef753a
+FROM debian:latest@sha256:640e07a7971e0c13eb14214421cf3d75407e0965b84430e08ec90c336537a2cf
 ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
-RUN apk add --no-cache ca-certificates libc6-compat gcompat
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
 COPY --from=build /config.yaml /pomerium/config.yaml
 COPY --from=build /go/bin/dlv /bin
