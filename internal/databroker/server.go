@@ -128,7 +128,8 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 	}, nil
 }
 
-func (srv *Server) ListTypes(ctx context.Context) (*databroker.ListTypesResponse, error) {
+// ListTypes lists all the record types.
+func (srv *Server) ListTypes(ctx context.Context, req *emptypb.Empty) (*databroker.ListTypesResponse, error) {
 	ctx, span := trace.StartSpan(ctx, "databroker.grpc.ListTypes")
 	defer span.End()
 	log.Info(ctx).Msg("list types")

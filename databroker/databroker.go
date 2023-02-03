@@ -76,7 +76,7 @@ func (srv *dataBrokerServer) ListTypes(ctx context.Context, req *emptypb.Empty) 
 	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
 		return nil, err
 	}
-	return srv.server.ListTypes(ctx)
+	return srv.server.ListTypes(ctx, req)
 }
 
 func (srv *dataBrokerServer) Query(ctx context.Context, req *databrokerpb.QueryRequest) (*databrokerpb.QueryResponse, error) {
