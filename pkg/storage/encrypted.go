@@ -89,6 +89,10 @@ func (e *encryptedBackend) Lease(ctx context.Context, leaseName, leaseID string,
 	return e.underlying.Lease(ctx, leaseName, leaseID, ttl)
 }
 
+func (e *encryptedBackend) ListTypes(ctx context.Context) ([]string, error) {
+	return e.underlying.ListTypes(ctx)
+}
+
 func (e *encryptedBackend) Put(ctx context.Context, records []*databroker.Record) (uint64, error) {
 	encryptedRecords := make([]*databroker.Record, len(records))
 	for i, record := range records {

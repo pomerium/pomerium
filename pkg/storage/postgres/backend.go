@@ -181,6 +181,19 @@ func (backend *Backend) Lease(
 	return leaseHolderID == leaseID, nil
 }
 
+// ListTypes lists the record types.
+func (backend *Backend) ListTypes(ctx context.Context) ([]string, error) {
+	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
+	defer cancel()
+
+	_, conn, err := backend.init(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return listTypes(ctx, conn)
+}
+
 // Put puts a record into Postgres.
 func (backend *Backend) Put(
 	ctx context.Context,

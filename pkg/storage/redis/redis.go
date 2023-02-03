@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -29,15 +30,16 @@ const (
 
 	// we rely on transactions in redis, so all redis-cluster keys need to be
 	// on the same node. Using a `hash tag` gives us this capability.
-	serverVersionKey = redisutil.KeyPrefix + "server_version"
-	lastVersionKey   = redisutil.KeyPrefix + "last_version"
-	lastVersionChKey = redisutil.KeyPrefix + "last_version_ch"
-	recordHashKey    = redisutil.KeyPrefix + "records"
-	changesSetKey    = redisutil.KeyPrefix + "changes"
-	optionsKey       = redisutil.KeyPrefix + "options"
+	serverVersionKey  = redisutil.KeyPrefix + "server_version"
+	lastVersionKey    = redisutil.KeyPrefix + "last_version"
+	lastVersionChKey  = redisutil.KeyPrefix + "last_version_ch"
+	recordHashKey     = redisutil.KeyPrefix + "records"
+	recordTypesSetKey = redisutil.KeyPrefix + "record_types"
+	changesSetKey     = redisutil.KeyPrefix + "changes"
+	optionsKey        = redisutil.KeyPrefix + "options"
 
 	recordTypeChangesKeyTpl = redisutil.KeyPrefix + "changes.%s"
-	leaseKeyTpl             = "{pomerium_v3}.lease.%s"
+	leaseKeyTpl             = redisutil.KeyPrefix + "lease.%s"
 )
 
 // custom errors
@@ -192,6 +194,21 @@ func (backend *Backend) Lease(ctx context.Context, leaseName, leaseID string, tt
 	return acquired, err
 }
 
+// ListTypes lists all the known record types.
+func (backend *Backend) ListTypes(ctx context.Context) (types []string, err error) {
+	ctx, span := trace.StartSpan(ctx, "databroker.redis.ListTypes")
+	defer span.End()
+	defer func(start time.Time) { recordOperation(ctx, start, "listTypes", err) }(time.Now())
+
+	cmd := backend.client.SMembers(ctx, recordTypesSetKey)
+	types, err = cmd.Result()
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(types)
+	return types, err
+}
+
 // Put puts a record into redis.
 func (backend *Backend) Put(ctx context.Context, records []*databroker.Record) (serverVersion uint64, err error) {
 	ctx, span := trace.StartSpan(ctx, "databroker.redis.Put")
@@ -310,6 +327,7 @@ func (backend *Backend) put(ctx context.Context, records []*databroker.Record) e
 					Score:  float64(version) + float64(i),
 					Member: bs,
 				})
+				p.SAdd(ctx, recordTypesSetKey, record.GetType())
 			}
 			return nil
 		})

@@ -113,6 +113,26 @@ func (mr *MockDataBrokerServiceClientMockRecorder) Get(ctx, in interface{}, opts
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockDataBrokerServiceClient)(nil).Get), varargs...)
 }
 
+// ListTypes mocks base method.
+func (m *MockDataBrokerServiceClient) ListTypes(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*databroker.ListTypesResponse, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{ctx, in}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "ListTypes", varargs...)
+	ret0, _ := ret[0].(*databroker.ListTypesResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListTypes indicates an expected call of ListTypes.
+func (mr *MockDataBrokerServiceClientMockRecorder) ListTypes(ctx, in interface{}, opts ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{ctx, in}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTypes", reflect.TypeOf((*MockDataBrokerServiceClient)(nil).ListTypes), varargs...)
+}
+
 // Put mocks base method.
 func (m *MockDataBrokerServiceClient) Put(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
 	m.ctrl.T.Helper()
@@ -550,6 +570,21 @@ func (m *MockDataBrokerServiceServer) Get(arg0 context.Context, arg1 *databroker
 func (mr *MockDataBrokerServiceServerMockRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockDataBrokerServiceServer)(nil).Get), arg0, arg1)
+}
+
+// ListTypes mocks base method.
+func (m *MockDataBrokerServiceServer) ListTypes(arg0 context.Context, arg1 *emptypb.Empty) (*databroker.ListTypesResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListTypes", arg0, arg1)
+	ret0, _ := ret[0].(*databroker.ListTypesResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListTypes indicates an expected call of ListTypes.
+func (mr *MockDataBrokerServiceServerMockRecorder) ListTypes(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListTypes", reflect.TypeOf((*MockDataBrokerServiceServer)(nil).ListTypes), arg0, arg1)
 }
 
 // Put mocks base method.

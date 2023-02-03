@@ -182,6 +182,12 @@ func TestBackend(t *testing.T) {
 			}
 		})
 
+		t.Run("list types", func(t *testing.T) {
+			types, err := backend.ListTypes(ctx)
+			assert.NoError(t, err)
+			assert.Equal(t, []string{"capacity-test", "latest-test", "sync-test", "test-1", "unknown"}, types)
+		})
+
 		return nil
 	}))
 }
