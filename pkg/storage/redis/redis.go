@@ -206,7 +206,7 @@ func (backend *Backend) ListTypes(ctx context.Context) (types []string, err erro
 		return nil, err
 	}
 	sort.Strings(types)
-	return types, err
+	return types, nil
 }
 
 // Put puts a record into redis.
