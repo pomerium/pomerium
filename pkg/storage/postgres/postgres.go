@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -282,6 +283,36 @@ func listServices(ctx context.Context, q querier) ([]*registry.Service, error) {
 	}
 
 	return services, nil
+}
+
+func listTypes(ctx context.Context, q querier) ([]string, error) {
+	query := `
+		SELECT DISTINCT type
+		FROM ` + schemaName + `.` + recordsTableName + `
+	`
+	rows, err := q.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: failed to execute query: %w", err)
+	}
+	defer rows.Close()
+
+	var types []string
+	for rows.Next() {
+		var recordType string
+		err = rows.Scan(&recordType)
+		if err != nil {
+			return nil, fmt.Errorf("postgres: failed to scan row: %w", err)
+		}
+
+		types = append(types, recordType)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("postgres: error iterating over rows: %w", err)
+	}
+
+	sort.Strings(types)
+	return types, nil
 }
 
 func maybeAcquireLease(ctx context.Context, q querier, leaseName, leaseID string, ttl time.Duration) (leaseHolderID string, err error) {

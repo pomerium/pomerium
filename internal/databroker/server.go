@@ -128,6 +128,23 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 	}, nil
 }
 
+// ListTypes lists all the record types.
+func (srv *Server) ListTypes(ctx context.Context, req *emptypb.Empty) (*databroker.ListTypesResponse, error) {
+	ctx, span := trace.StartSpan(ctx, "databroker.grpc.ListTypes")
+	defer span.End()
+	log.Info(ctx).Msg("list types")
+
+	db, err := srv.getBackend()
+	if err != nil {
+		return nil, err
+	}
+	types, err := db.ListTypes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &databroker.ListTypesResponse{Types: types}, nil
+}
+
 // Query queries for records.
 func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*databroker.QueryResponse, error) {
 	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Query")
