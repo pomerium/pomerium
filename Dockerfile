@@ -30,7 +30,7 @@ RUN make build-go NAME=pomerium
 RUN touch /config.yaml
 
 # build our own root trust store from current stable
-FROM debian:stable@sha256:12931ad2bfd4a9609cf8ef7898f113d67dce8058f0c27f01c90ef7bdd5a61bfb as casource
+FROM debian:stable@sha256:50cf570e91e0443e36d8312ba7fe67a58652f7fac730f08402f4f4cdc65155dd as casource
 RUN apt-get update && apt-get install -y ca-certificates
 # Remove expired root (https://github.com/pomerium/pomerium/issues/2653)
 RUN rm /usr/share/ca-certificates/mozilla/DST_Root_CA_X3.crt && update-ca-certificates
