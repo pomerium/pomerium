@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1675699601318,
+  "lastUpdate": 1675699613785,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -32140,6 +32140,38 @@ window.BENCHMARK_DATA = {
             "value": 9230247,
             "unit": "ns/op",
             "extra": "128 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "5f42c5c43b6d447751159dbcf469256c6ee01084",
+          "message": "chore(deps): bump github.com/golangci/golangci-lint from 1.50.1 to 1.51.1",
+          "timestamp": "2023-02-06T03:56:09Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3945/commits/5f42c5c43b6d447751159dbcf469256c6ee01084"
+        },
+        "date": 1675699613162,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13434881,
+            "unit": "ns/op",
+            "extra": "90 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7861592,
+            "unit": "ns/op",
+            "extra": "146 times\n2 procs"
           }
         ]
       }
