@@ -2,6 +2,7 @@ package envoyconfig
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"net"
@@ -99,6 +100,34 @@ func (b *Builder) BuildListeners(ctx context.Context, cfg *config.Config) ([]*en
 	return listeners, nil
 }
 
+func getAllCertificates(cfg *config.Config) ([]tls.Certificate, error) {
+	allCertificates, err := cfg.AllCertificates()
+	if err != nil {
+		return nil, fmt.Errorf("error collecting all certificates: %w", err)
+	}
+	wc, err := cfg.GetCertificateForServerName("*")
+	if err != nil {
+		return nil, fmt.Errorf("error getting wildcard certificate: %w", err)
+	}
+
+	// wildcard certificate must be first so that it is used as the default certificate
+	// when no SNI matches
+	return append([]tls.Certificate{*wc}, allCertificates...), nil
+}
+
+func (b *Builder) buildTLSSocket(ctx context.Context, cfg *config.Config, certs []tls.Certificate) (*envoy_config_core_v3.TransportSocket, error) {
+	tlsContext, err := b.buildDownstreamTLSContextMulti(ctx, cfg, certs)
+	if err != nil {
+		return nil, err
+	}
+	return &envoy_config_core_v3.TransportSocket{
+		Name: "tls",
+		ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+			TypedConfig: marshalAny(tlsContext),
+		},
+	}, nil
+}
+
 func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
 	li := newEnvoyListener("http-ingress")
 	if cfg.Options.UseProxyProtocol {
@@ -108,7 +137,7 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 	if cfg.Options.InsecureServer {
 		li.Address = buildAddress(cfg.Options.Addr, 80)
 
-		filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, false)
+		filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options)
 		if err != nil {
 			return nil, err
 		}
@@ -122,39 +151,25 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 		li.Address = buildAddress(cfg.Options.Addr, 443)
 		li.ListenerFilters = append(li.ListenerFilters, TLSInspectorFilter())
 
-		allCertificates, _ := cfg.AllCertificates()
-
-		serverNames, err := getAllServerNames(cfg, cfg.Options.Addr)
+		allCertificates, err := getAllCertificates(cfg)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, serverName := range serverNames {
-			requireStrictTransportSecurity := cryptutil.HasCertificateForServerName(allCertificates, serverName)
-			filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, requireStrictTransportSecurity)
-			if err != nil {
-				return nil, err
-			}
-			filterChain := &envoy_config_listener_v3.FilterChain{
-				Filters: []*envoy_config_listener_v3.Filter{filter},
-			}
-			if serverName != "*" {
-				filterChain.FilterChainMatch = &envoy_config_listener_v3.FilterChainMatch{
-					ServerNames: []string{serverName},
-				}
-			}
-			tlsContext := b.buildDownstreamTLSContext(ctx, cfg, serverName)
-			if tlsContext != nil {
-				tlsConfig := marshalAny(tlsContext)
-				filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
-					Name: "tls",
-					ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
-						TypedConfig: tlsConfig,
-					},
-				}
-			}
-			li.FilterChains = append(li.FilterChains, filterChain)
+		filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, allCertificates...)
+		if err != nil {
+			return nil, err
 		}
+		filterChain := &envoy_config_listener_v3.FilterChain{
+			Filters: []*envoy_config_listener_v3.Filter{filter},
+		}
+		li.FilterChains = append(li.FilterChains, filterChain)
+
+		sock, err := b.buildTLSSocket(ctx, cfg, allCertificates)
+		if err != nil {
+			return nil, fmt.Errorf("error building TLS socket: %w", err)
+		}
+		filterChain.TransportSocket = sock
 	}
 	return li, nil
 }
@@ -240,7 +255,7 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 
 func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	options *config.Options,
-	requireStrictTransportSecurity bool,
+	certs ...tls.Certificate,
 ) (*envoy_config_listener_v3.Filter, error) {
 	authorizeURLs, err := options.GetInternalAuthorizeURLs()
 	if err != nil {
@@ -259,6 +274,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
 	for _, host := range allHosts {
+		requireStrictTransportSecurity := cryptutil.HasCertificateForServerName(certs, host)
 		vh, err := b.buildVirtualHost(options, host, host, requireStrictTransportSecurity)
 		if err != nil {
 			return nil, err
@@ -290,7 +306,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		}
 	}
 
-	vh, err := b.buildVirtualHost(options, "catch-all", "*", requireStrictTransportSecurity)
+	vh, err := b.buildVirtualHost(options, "catch-all", "*", false)
 	if err != nil {
 		return nil, err
 	}
@@ -349,7 +365,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		UseRemoteAddress:  &wrappers.BoolValue{Value: true},
 		SkipXffAppend:     options.SkipXffAppend,
 		XffNumTrustedHops: options.XffNumTrustedHops,
-		LocalReplyConfig:  b.buildLocalReplyConfig(options, requireStrictTransportSecurity),
+		LocalReplyConfig:  b.buildLocalReplyConfig(options, true),
 	}), nil
 }
 
@@ -423,32 +439,21 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 			TLSInspectorFilter(),
 		}
 
-		serverNames, err := getAllServerNames(cfg, cfg.Options.GRPCAddr)
+		allCertificates, err := getAllCertificates(cfg)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, serverName := range serverNames {
-			filterChain := &envoy_config_listener_v3.FilterChain{
-				Filters: []*envoy_config_listener_v3.Filter{filter},
-			}
-			if serverName != "*" {
-				filterChain.FilterChainMatch = &envoy_config_listener_v3.FilterChainMatch{
-					ServerNames: []string{serverName},
-				}
-			}
-			tlsContext := b.buildDownstreamTLSContext(ctx, cfg, serverName)
-			if tlsContext != nil {
-				tlsConfig := marshalAny(tlsContext)
-				filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
-					Name: "tls",
-					ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
-						TypedConfig: tlsConfig,
-					},
-				}
-			}
-			li.FilterChains = append(li.FilterChains, filterChain)
+		sock, err := b.buildTLSSocket(ctx, cfg, allCertificates)
+		if err != nil {
+			return nil, fmt.Errorf("error building TLS socket: %w", err)
 		}
+
+		filterChain := &envoy_config_listener_v3.FilterChain{
+			Filters:         []*envoy_config_listener_v3.Filter{filter},
+			TransportSocket: sock,
+		}
+		li.FilterChains = append(li.FilterChains, filterChain)
 	}
 	return li, nil
 }
@@ -518,65 +523,46 @@ func (b *Builder) buildRouteConfiguration(name string, virtualHosts []*envoy_con
 	}, nil
 }
 
-func (b *Builder) buildDownstreamTLSContext(ctx context.Context,
+func (b *Builder) buildDownstreamTLSContextMulti(
+	ctx context.Context,
 	cfg *config.Config,
-	serverName string,
-) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
-	cert, err := cfg.GetCertificateForServerName(serverName)
-	if err != nil {
-		log.Warn(ctx).Str("domain", serverName).Err(err).Msg("failed to get certificate for domain")
-		return nil
+	certs []tls.Certificate) (
+	*envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext,
+	error,
+) {
+	envoyCerts := make([]*envoy_extensions_transport_sockets_tls_v3.TlsCertificate, 0, len(certs))
+	for i := range certs {
+		cert := &certs[i]
+		if err := validateCertificate(cert); err != nil {
+			return nil, fmt.Errorf("invalid certificate for domain %s: %w", cert.Leaf.Subject.CommonName, err)
+		}
+		envoyCert := b.envoyTLSCertificateFromGoTLSCertificate(ctx, cert)
+		envoyCerts = append(envoyCerts, envoyCert)
 	}
-
-	err = validateCertificate(cert)
-	if err != nil {
-		log.Warn(ctx).Str("domain", serverName).Err(err).Msg("invalid certificate for domain")
-		return nil
-	}
-
-	var alpnProtocols []string
-	switch cfg.Options.GetCodecType() {
-	case config.CodecTypeHTTP1:
-		alpnProtocols = []string{"http/1.1"}
-	case config.CodecTypeHTTP2:
-		alpnProtocols = []string{"h2"}
-	default:
-		alpnProtocols = []string{"h2", "http/1.1"}
-	}
-
-	envoyCert := b.envoyTLSCertificateFromGoTLSCertificate(ctx, cert)
 	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			TlsParams:             tlsParams,
-			TlsCertificates:       []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{envoyCert},
-			AlpnProtocols:         alpnProtocols,
-			ValidationContextType: b.buildDownstreamValidationContext(ctx, cfg, serverName),
-		},
+			TlsCertificates:       envoyCerts,
+			AlpnProtocols:         getALPNProtos(cfg.Options),
+			ValidationContextType: b.buildDownstreamValidationContext(ctx, cfg),
+		}}, nil
+}
+
+func getALPNProtos(opts *config.Options) []string {
+	switch opts.GetCodecType() {
+	case config.CodecTypeHTTP1:
+		return []string{"http/1.1"}
+	case config.CodecTypeHTTP2:
+		return []string{"h2"}
+	default:
+		return []string{"h2", "http/1.1"}
 	}
 }
 
-func (b *Builder) buildDownstreamValidationContext(ctx context.Context,
+func (b *Builder) buildDownstreamValidationContext(
+	ctx context.Context,
 	cfg *config.Config,
-	serverName string,
 ) *envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext {
-	needsClientCert := false
-
-	if ca, _ := cfg.Options.GetClientCA(); len(ca) > 0 {
-		needsClientCert = true
-	}
-	if !needsClientCert {
-		for _, p := range getPoliciesForServerName(cfg.Options, serverName) {
-			if p.TLSDownstreamClientCA != "" {
-				needsClientCert = true
-				break
-			}
-		}
-	}
-
-	if !needsClientCert {
-		return nil
-	}
-
 	// trusted_ca is left blank because we verify the client certificate in the authorize service
 	vc := &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
 		ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
@@ -667,16 +653,6 @@ func urlMatchesHost(u *url.URL, host string) bool {
 		}
 	}
 	return false
-}
-
-func getPoliciesForServerName(options *config.Options, serverName string) []config.Policy {
-	var policies []config.Policy
-	for _, p := range options.GetAllPolicies() {
-		if p.Source != nil && urlutil.MatchesServerName(*p.Source.URL, serverName) {
-			policies = append(policies, p)
-		}
-	}
-	return policies
 }
 
 // newEnvoyListener creates envoy listener with certain default values
