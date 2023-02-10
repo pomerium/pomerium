@@ -676,6 +676,7 @@ func Test_buildCluster(t *testing.T) {
 						}
 					}
 				},
+				"dnsLookupFamily": "V4_PREFERRED",
 				"loadAssignment": {
 					"clusterName": "example",
 					"endpoints": [{
@@ -745,6 +746,7 @@ func Test_buildCluster(t *testing.T) {
 						}
 					}
 				},
+				"dnsLookupFamily": "V4_PREFERRED",
 				"loadAssignment": {
 					"clusterName": "example",
 					"endpoints": [{
@@ -800,6 +802,7 @@ func Test_buildCluster(t *testing.T) {
 						}
 					}
 				},
+				"dnsLookupFamily": "V4_PREFERRED",
 				"loadAssignment": {
 					"clusterName": "example",
 					"endpoints": [{
@@ -857,6 +860,7 @@ func Test_buildCluster(t *testing.T) {
 						}
 					}
 				},
+				"dnsLookupFamily": "V4_PREFERRED",
 				"loadAssignment": {
 					"clusterName": "example",
 					"endpoints": [{

@@ -83,7 +83,7 @@ type Options struct {
 	InsecureServer bool `mapstructure:"insecure_server" yaml:"insecure_server,omitempty"`
 
 	// DNSLookupFamily is the DNS IP address resolution policy.
-	// If this setting is not specified, the value defaults to AUTO.
+	// If this setting is not specified, the value defaults to V4_PREFERRED.
 	DNSLookupFamily string `mapstructure:"dns_lookup_family" yaml:"dns_lookup_family,omitempty"`
 
 	CertificateFiles []certificateFilePair `mapstructure:"certificates" yaml:"certificates,omitempty"`
