@@ -190,10 +190,7 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 		return nil, err
 	}
 
-	if cluster.DnsLookupFamily == envoy_config_cluster_v3.Cluster_AUTO {
-		cluster.DnsLookupFamily = config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
-	}
-
+	cluster.DnsLookupFamily = config.GetEnvoyDNSLookupFamily(options.DNSLookupFamily)
 	if policy.EnableGoogleCloudServerlessAuthentication {
 		cluster.DnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
 	}
