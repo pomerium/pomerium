@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1675916412030,
+  "lastUpdate": 1676061886674,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -32816,6 +32816,38 @@ window.BENCHMARK_DATA = {
             "value": 8547309,
             "unit": "ns/op",
             "extra": "122 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "e8ad0331d01c824afa71803fbd29f625aa4d89dd",
+          "message": "envoyconfig: preserve case of HTTP headers when using HTTP/1",
+          "timestamp": "2023-02-10T10:11:15Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3956/commits/e8ad0331d01c824afa71803fbd29f625aa4d89dd"
+        },
+        "date": 1676061885999,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12612500,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7943377,
+            "unit": "ns/op",
+            "extra": "144 times\n2 procs"
           }
         ]
       }
