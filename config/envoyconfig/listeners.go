@@ -340,7 +340,8 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 			IdleTimeout:       durationpb.New(options.IdleTimeout),
 			MaxStreamDuration: maxStreamDuration,
 		},
-		RequestTimeout: durationpb.New(options.ReadTimeout),
+		HttpProtocolOptions: http1ProtocolOptions,
+		RequestTimeout:      durationpb.New(options.ReadTimeout),
 		Tracing: &envoy_http_connection_manager.HttpConnectionManager_Tracing{
 			RandomSampling: &envoy_type_v3.Percent{Value: options.TracingSampleRate * 100},
 			Provider:       tracingProvider,
