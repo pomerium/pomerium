@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1676061886674,
+  "lastUpdate": 1676063947001,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -32848,6 +32848,38 @@ window.BENCHMARK_DATA = {
             "value": 7943377,
             "unit": "ns/op",
             "extra": "144 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "9073e7f4982a0f94d3d9e83f1c77c78c93794837",
+          "message": "config: add additional dns lookup families, default to V4_PREFERRED",
+          "timestamp": "2023-02-10T10:11:15Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3957/commits/9073e7f4982a0f94d3d9e83f1c77c78c93794837"
+        },
+        "date": 1676063946608,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12542709,
+            "unit": "ns/op",
+            "extra": "92 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7973551,
+            "unit": "ns/op",
+            "extra": "147 times\n2 procs"
           }
         ]
       }
