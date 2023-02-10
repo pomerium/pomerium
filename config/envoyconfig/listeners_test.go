@@ -742,6 +742,16 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 			"useRemoteAddress": true,
 			"skipXffAppend": true,
 			"xffNumTrustedHops": 1,
+			"httpProtocolOptions": {
+				"headerKeyFormat": {
+					"statefulFormatter": {
+						"name": "preserve_case",
+						"typedConfig": {
+							"@type": "type.googleapis.com/envoy.extensions.http.header_formatters.preserve_case.v3.PreserveCaseFormatterConfig"
+						}
+					}
+				}
+			},
 			"localReplyConfig":{
 				"mappers":[
 					{
