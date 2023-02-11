@@ -11,6 +11,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/identity/identity"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
+	"github.com/pomerium/pomerium/internal/identity/oauth/apple"
 	"github.com/pomerium/pomerium/internal/identity/oauth/github"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/identity/oidc/auth0"
@@ -37,6 +38,8 @@ type Authenticator interface {
 func NewAuthenticator(o oauth.Options) (a Authenticator, err error) {
 	ctx := context.Background()
 	switch o.ProviderName {
+	case apple.Name:
+		a, err = apple.New(ctx, &o)
 	case auth0.Name:
 		a, err = auth0.New(ctx, &o)
 	case azure.Name:
