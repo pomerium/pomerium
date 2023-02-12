@@ -84,6 +84,16 @@
         }
       }
     ],
+    "httpProtocolOptions": {
+      "headerKeyFormat": {
+        "statefulFormatter": {
+          "name": "preserve_case",
+          "typedConfig": {
+            "@type": "type.googleapis.com/envoy.extensions.http.header_formatters.preserve_case.v3.PreserveCaseFormatterConfig"
+          }
+        }
+      }
+    },
     "localReplyConfig": {
       "mappers": [
         {
@@ -91,13 +101,6 @@
             "responseFlagFilter": {}
           },
           "headersToAdd": [
-            {
-              "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
-              "header": {
-                "key": "Strict-Transport-Security",
-                "value": "max-age=31536000; includeSubDomains; preload"
-              }
-            },
             {
               "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
               "header": {
