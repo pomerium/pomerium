@@ -261,6 +261,6 @@ jobs:
         run: make get-envoy
 
       - name: FOSSA Scan
-        uses: fossa-contrib/fossa-action@6cffaa064112e1cf9b5798c6224f9487dc1ec316
+        uses: fossa-contrib/fossa-action@6728dc6fe9a068c648d080c33829ffbe56565023
         with:
           fossa-api-key: 18f4ef488f514d06874b75f5809cea93
