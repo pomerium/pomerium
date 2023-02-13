@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1676173751928,
+  "lastUpdate": 1676307650827,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -33088,6 +33088,38 @@ window.BENCHMARK_DATA = {
             "value": 9378136,
             "unit": "ns/op",
             "extra": "129 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "02c898e395caa7d20558c39420034b971cb2a6a4",
+          "message": "chore(deps): bump fossa-contrib/fossa-action from 1.2.0 to 2.0.0",
+          "timestamp": "2023-02-11T22:47:15Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3961/commits/02c898e395caa7d20558c39420034b971cb2a6a4"
+        },
+        "date": 1676307650402,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11630113,
+            "unit": "ns/op",
+            "extra": "86 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7783894,
+            "unit": "ns/op",
+            "extra": "151 times\n2 procs"
           }
         ]
       }
