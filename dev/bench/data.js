@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1676320219373,
+  "lastUpdate": 1676320264970,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -33728,6 +33728,42 @@ window.BENCHMARK_DATA = {
             "value": 8151498,
             "unit": "ns/op",
             "extra": "145 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ac4a29ad46b521876a89480302b829829f7789e9",
+          "message": "chore(deps): bump fossa-contrib/fossa-action from 1.2.0 to 2.0.0 (#3961)\n\nBumps [fossa-contrib/fossa-action](https://github.com/fossa-contrib/fossa-action) from 1.2.0 to 2.0.0.\r\n- [Release notes](https://github.com/fossa-contrib/fossa-action/releases)\r\n- [Changelog](https://github.com/fossa-contrib/fossa-action/blob/master/CHANGELOG.md)\r\n- [Commits](https://github.com/fossa-contrib/fossa-action/compare/6cffaa064112e1cf9b5798c6224f9487dc1ec316...6728dc6fe9a068c648d080c33829ffbe56565023)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: fossa-contrib/fossa-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-major\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-02-13T13:28:24-07:00",
+          "tree_id": "e025d3da34caaa0256f8b8476a8f53282032247b",
+          "url": "https://github.com/pomerium/pomerium/commit/ac4a29ad46b521876a89480302b829829f7789e9"
+        },
+        "date": 1676320263894,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15516235,
+            "unit": "ns/op",
+            "extra": "66 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9068222,
+            "unit": "ns/op",
+            "extra": "127 times\n2 procs"
           }
         ]
       }
