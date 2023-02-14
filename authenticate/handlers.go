@@ -56,7 +56,10 @@ func (a *Authenticate) Mount(r *mux.Router) {
 			csrf.FormValueName("state"), // rfc6749#section-10.12
 			csrf.CookieName(csrfKey),
 			csrf.FieldName(csrfKey),
-			csrf.SameSite(csrf.SameSiteLaxMode),
+			// csrf.SameSiteLaxMode will cause browsers to reset
+			// the session on POST. This breaks Appleid being able
+			// to verify the csrf token.
+			csrf.SameSite(csrf.SameSiteNoneMode),
 			csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
 		)(h)
 	})
@@ -66,7 +69,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 
 	r.Path("/robots.txt").HandlerFunc(a.RobotsTxt).Methods(http.MethodGet)
 	// Identity Provider (IdP) endpoints
-	r.Path("/oauth2/callback").Handler(httputil.HandlerFunc(a.OAuthCallback)).Methods(http.MethodGet)
+	r.Path("/oauth2/callback").Handler(httputil.HandlerFunc(a.OAuthCallback)).Methods(http.MethodGet, http.MethodPost)
 
 	a.mountDashboard(r)
 }
