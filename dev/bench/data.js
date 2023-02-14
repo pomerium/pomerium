@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1676336591452,
+  "lastUpdate": 1676406480585,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -33800,6 +33800,38 @@ window.BENCHMARK_DATA = {
             "value": 9537603,
             "unit": "ns/op",
             "extra": "134 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "31ed22920fbee1a6ca9bda16fb646d17767343e3",
+          "message": "apple: fix userinfo",
+          "timestamp": "2023-02-14T15:10:59Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3974/commits/31ed22920fbee1a6ca9bda16fb646d17767343e3"
+        },
+        "date": 1676406480005,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12673492,
+            "unit": "ns/op",
+            "extra": "86 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7804309,
+            "unit": "ns/op",
+            "extra": "150 times\n2 procs"
           }
         ]
       }
