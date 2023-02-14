@@ -147,7 +147,7 @@ func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.Stat
 	return newToken, nil
 }
 
-// Revoke method will remove all the github grants the user
+// Revoke method will remove all the Apple grants the user
 // gave pomerium application during authorization.
 //
 // https://developer.github.com/v3/apps/oauth_applications/#delete-an-app-authorization
