@@ -123,7 +123,7 @@ func (p *Provider) LogOut() (*url.URL, error) {
 	return nil, oidc.ErrSignoutNotImplemented
 }
 
-// Refresh is a no-op for github, because github sessions never expire.
+// Refresh renews a user's session.
 func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.State) (*oauth2.Token, error) {
 	if t == nil {
 		return nil, oidc.ErrMissingAccessToken
