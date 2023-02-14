@@ -173,7 +173,7 @@ func (p *Provider) Revoke(ctx context.Context, t *oauth2.Token) error {
 	return nil
 }
 
-// UpdateUserInfo will get the user information from github and also retrieve the user's team(s)
+// UpdateUserInfo will get the user information from Apple and also retrieve the user's team(s)
 //
 // https://developer.github.com/v3/users/#get-the-authenticated-user
 func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error {
