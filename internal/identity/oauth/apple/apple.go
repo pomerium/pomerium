@@ -35,7 +35,7 @@ var defaultAuthCodeOptions = map[string]string{
 const (
 	defaultProviderURL = "https://appleid.apple.com"
 	// ignore G101 linting issue as this is clearly a false positive
-	tokenURL        = "/auth/token" //nolint:golint
+	tokenURL        = "/auth/token" //nolint: gosec
 	authURL         = "/auth/authorize"
 	refreshDeadline = time.Minute * 60
 	revocationURL   = "/auth/revoke"
