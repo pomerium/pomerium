@@ -5,8 +5,6 @@ package apple
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,7 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/exp/maps"
 	"golang.org/x/oauth2"
+
+	"github.com/go-jose/go-jose/v3/jwt"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity/identity"
@@ -27,46 +28,52 @@ import (
 // Name identifies the apple identity provider.
 const Name = "apple"
 
-var defaultScopes = []string{"name", "email"}
-var defaultAuthCodeOptions = map[string]string{
-	"response_mode": "form_post",
-}
-
 const (
 	defaultProviderURL = "https://appleid.apple.com"
-	// ignore G101 linting issue as this is clearly a false positive
-	tokenURL        = "/auth/token" //nolint: gosec
-	authURL         = "/auth/authorize"
-	refreshDeadline = time.Minute * 60
-	revocationURL   = "/auth/revoke"
+	tokenURL           = "/auth/token" //nolint: gosec
+	authURL            = "/auth/authorize"
+	refreshDeadline    = time.Minute * 60
+	revocationURL      = "/auth/revoke"
+)
+
+var (
+	defaultScopes          = []string{"name", "email"}
+	defaultAuthCodeOptions = map[string]string{
+		"response_mode": "form_post",
+	}
 )
 
 // Provider is an Apple implementation of the Authenticator interface.
 type Provider struct {
-	Oauth *oauth2.Config
+	oauth           *oauth2.Config
+	authCodeOptions map[string]string
 }
 
 // New instantiates an OpenID Connect (OIDC) provider for Apple.
 func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
-	p := Provider{}
-	if o.ProviderURL == "" {
-		o.ProviderURL = defaultProviderURL
+	options := *o
+	if options.ProviderURL == "" {
+		options.ProviderURL = defaultProviderURL
+	}
+	if len(options.Scopes) == 0 {
+		options.Scopes = defaultScopes
 	}
 
-	if len(o.Scopes) == 0 {
-		o.Scopes = defaultScopes
-	}
+	p := Provider{}
+	p.authCodeOptions = make(map[string]string)
+	maps.Copy(p.authCodeOptions, defaultAuthCodeOptions)
+	maps.Copy(p.authCodeOptions, options.AuthCodeOptions)
 
 	// Apple expects the AuthStyle to use Params instead of Headers
-	// So we have to do out own oauth2 config
-	p.Oauth = &oauth2.Config{
-		ClientID:     o.ClientID,
-		ClientSecret: o.ClientSecret,
-		Scopes:       o.Scopes,
-		RedirectURL:  o.RedirectURL.String(),
+	// So we have to do our own oauth2 config
+	p.oauth = &oauth2.Config{
+		ClientID:     options.ClientID,
+		ClientSecret: options.ClientSecret,
+		Scopes:       options.Scopes,
+		RedirectURL:  options.RedirectURL.String(),
 		Endpoint: oauth2.Endpoint{
-			AuthURL:   urlutil.Join(o.ProviderURL, authURL),
-			TokenURL:  urlutil.Join(o.ProviderURL, tokenURL),
+			AuthURL:   urlutil.Join(options.ProviderURL, authURL),
+			TokenURL:  urlutil.Join(options.ProviderURL, tokenURL),
 			AuthStyle: oauth2.AuthStyleInParams,
 		},
 	}
@@ -88,16 +95,13 @@ func (p *Provider) Name() string {
 // See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
 func (p *Provider) GetSignInURL(state string) (string, error) {
 	opts := []oauth2.AuthCodeOption{}
-	for k, v := range defaultAuthCodeOptions {
+	for k, v := range p.authCodeOptions {
 		opts = append(opts, oauth2.SetAuthURLParam(k, v))
 	}
-	authURL := p.Oauth.AuthCodeURL(state, opts...)
+	authURL := p.oauth.AuthCodeURL(state, opts...)
 
 	// Apple is very picky here and we need to use %20 instead of +
-	// in order for all Apples device to correctly detect and use
-	// native auth when available.
-	// authURL = strings.Replace(authURL, "response_type=code", "response_type=code%20id_token", -1)
-	authURL = strings.Replace(authURL, "scope=name+email", "scope=name%20email", -1)
+	authURL = strings.ReplaceAll(authURL, "+", "%20")
 
 	return authURL, nil
 }
@@ -105,9 +109,13 @@ func (p *Provider) GetSignInURL(state string) (string, error) {
 // Authenticate converts an authorization code returned from the identity
 // provider into a token which is then converted into a user session.
 func (p *Provider) Authenticate(ctx context.Context, code string, v identity.State) (*oauth2.Token, error) {
-	oauth2Token, err := p.Oauth.Exchange(ctx, code)
+	oauth2Token, err := p.oauth.Exchange(ctx, code)
 	if err != nil {
-		return nil, fmt.Errorf("identity/oidc: token exchange failed: %w", err)
+		return nil, fmt.Errorf("identity/apple: token exchange failed: %w", err)
+	}
+
+	if rawIDToken, ok := oauth2Token.Extra("id_token").(string); ok {
+		v.SetRawIDToken(rawIDToken)
 	}
 
 	err = p.UpdateUserInfo(ctx, oauth2Token, v)
@@ -132,13 +140,15 @@ func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.Stat
 		return nil, oidc.ErrMissingRefreshToken
 	}
 
-	newToken, err := p.Oauth.TokenSource(ctx, t).Token()
+	newToken, err := p.oauth.TokenSource(ctx, t).Token()
 	if err != nil {
-		return nil, fmt.Errorf("identity/oidc: refresh failed: %w", err)
+		return nil, fmt.Errorf("identity/apple: refresh failed: %w", err)
 	}
 
-	// Many identity providers _will not_ return `id_token` on refresh
-	// https://github.com/FusionAuth/fusionauth-issues/issues/110#issuecomment-481526544
+	if rawIDToken, ok := newToken.Extra("id_token").(string); ok {
+		v.SetRawIDToken(rawIDToken)
+	}
+
 	err = p.UpdateUserInfo(ctx, newToken, v)
 	if err != nil {
 		return nil, err
@@ -147,10 +157,7 @@ func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.Stat
 	return newToken, nil
 }
 
-// Revoke method will remove all the Apple grants the user
-// gave pomerium application during authorization.
-//
-// https://developer.github.com/v3/apps/oauth_applications/#delete-an-app-authorization
+// Revoke method will remove all the Apple grants the user gave pomerium application during authorization.
 func (p *Provider) Revoke(ctx context.Context, t *oauth2.Token) error {
 	if t == nil {
 		return oidc.ErrMissingAccessToken
@@ -159,42 +166,28 @@ func (p *Provider) Revoke(ctx context.Context, t *oauth2.Token) error {
 	params := url.Values{}
 	params.Add("token", t.AccessToken)
 	params.Add("token_type_hint", "access_token")
-	// Some providers like okta / onelogin require "client authentication"
-	// https://developer.okta.com/docs/reference/api/oidc/#client-secret
-	// https://developers.onelogin.com/openid-connect/api/revoke-session
-	params.Add("client_id", p.Oauth.ClientID)
-	params.Add("client_secret", p.Oauth.ClientSecret)
+	params.Add("client_id", p.oauth.ClientID)
+	params.Add("client_secret", p.oauth.ClientSecret)
 
 	err := httputil.Do(ctx, http.MethodPost, revocationURL, version.UserAgent(), nil, params, nil)
 	if err != nil && errors.Is(err, httputil.ErrTokenRevoked) {
-		return fmt.Errorf("internal/oidc: unexpected revoke error: %w", err)
+		return fmt.Errorf("identity/apple: unexpected revoke error: %w", err)
 	}
 
 	return nil
 }
 
-// UpdateUserInfo will get the user information from Apple and also retrieve the user's team(s)
-//
-// https://developer.github.com/v3/users/#get-the-authenticated-user
+// UpdateUserInfo gets claims from the oauth token.
 func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error {
 	rawIDToken, ok := t.Extra("id_token").(string)
 	if !ok {
-		return oidc.ErrMissingIDToken
+		return nil
 	}
 
-	v.(identity.State).SetRawIDToken(rawIDToken)
-
-	attributes := strings.Split(rawIDToken, ".")[1]
-
-	rawDecodedText, err := base64.RawStdEncoding.DecodeString(attributes)
+	idToken, err := jwt.ParseSigned(rawIDToken)
 	if err != nil {
 		return err
 	}
 
-	err = json.Unmarshal(rawDecodedText, v)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return idToken.UnsafeClaimsWithoutVerification(v)
 }
