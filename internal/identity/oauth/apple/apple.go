@@ -41,7 +41,7 @@ const (
 	revocationURL   = "/auth/revoke"
 )
 
-// Provider is a Gitlab implementation of the Authenticator interface.
+// Provider is an Apple implementation of the Authenticator interface.
 type Provider struct {
 	Oauth *oauth2.Config
 }
