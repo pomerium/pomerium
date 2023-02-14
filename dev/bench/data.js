@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1676320264970,
+  "lastUpdate": 1676336591452,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -33764,6 +33764,42 @@ window.BENCHMARK_DATA = {
             "value": 9068222,
             "unit": "ns/op",
             "extra": "127 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mnestor@users.noreply.github.com",
+            "name": "Mike Nestor",
+            "username": "mnestor"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1d4474f7c5c8c3b62330aeb67ca777b2ad43ad7d",
+          "message": "Appleid (#3959)\n\n* appleid oauth works but probably not implemented the best\r\n\r\nchore(deps): bump golang from 1.19.5-buster to 1.20.0-buster (#3949)\r\n\r\nBumps golang from 1.19.5-buster to 1.20.0-buster.\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golang\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Denis Mishin <dmishin@pomerium.com>\r\n\r\nimplemented correct expiration, refresh and revoke\r\n\r\nchore(deps): bump golang from 1.19.5-buster to 1.20.0-buster (#3949)\r\n\r\nBumps golang from 1.19.5-buster to 1.20.0-buster.\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golang\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Denis Mishin <dmishin@pomerium.com>\r\n\r\nfixed lint issues and maybe ignored G101\r\n\r\n* Update internal/identity/oauth/apple/apple.go\r\n\r\nCo-authored-by: Caleb Doxsey <caleb@doxsey.net>\r\n\r\n* Update internal/identity/oauth/apple/apple.go\r\n\r\nCo-authored-by: Caleb Doxsey <caleb@doxsey.net>\r\n\r\n* Update internal/identity/oauth/apple/apple.go\r\n\r\nCo-authored-by: Caleb Doxsey <caleb@doxsey.net>\r\n\r\n* Update internal/identity/oauth/apple/apple.go\r\n\r\nCo-authored-by: Caleb Doxsey <caleb@doxsey.net>\r\n\r\n* Update internal/identity/oauth/apple/apple.go\r\n\r\nCo-authored-by: Caleb Doxsey <caleb@doxsey.net>\r\n\r\n* Update internal/identity/oauth/apple/apple.go\r\n\r\nCo-authored-by: Caleb Doxsey <caleb@doxsey.net>\r\n\r\n---------\r\n\r\nCo-authored-by: Caleb Doxsey <caleb@doxsey.net>",
+          "timestamp": "2023-02-13T18:01:00-07:00",
+          "tree_id": "ea52679ea770f1894839966a21741ed74e7fee39",
+          "url": "https://github.com/pomerium/pomerium/commit/1d4474f7c5c8c3b62330aeb67ca777b2ad43ad7d"
+        },
+        "date": 1676336590826,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12917734,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9537603,
+            "unit": "ns/op",
+            "extra": "134 times\n2 procs"
           }
         ]
       }
