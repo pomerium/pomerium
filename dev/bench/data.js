@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1676406625590,
+  "lastUpdate": 1676411754435,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -33868,6 +33868,42 @@ window.BENCHMARK_DATA = {
             "value": 8695733,
             "unit": "ns/op",
             "extra": "136 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f2a5bda1621d3adbd7c209b6e5e1a830506c4c64",
+          "message": "apple: fix userinfo (#3974)",
+          "timestamp": "2023-02-14T14:53:15-07:00",
+          "tree_id": "e7d15f2dc3441abadbb5f5780906562fde674f21",
+          "url": "https://github.com/pomerium/pomerium/commit/f2a5bda1621d3adbd7c209b6e5e1a830506c4c64"
+        },
+        "date": 1676411753726,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16717340,
+            "unit": "ns/op",
+            "extra": "62 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10681447,
+            "unit": "ns/op",
+            "extra": "96 times\n2 procs"
           }
         ]
       }
