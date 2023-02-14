@@ -118,7 +118,7 @@ func (p *Provider) Authenticate(ctx context.Context, code string, v identity.Sta
 	return oauth2Token, nil
 }
 
-// LogOut is not implemented by github.
+// LogOut is not implemented by Apple.
 func (p *Provider) LogOut() (*url.URL, error) {
 	return nil, oidc.ErrSignoutNotImplemented
 }
