@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1676499765745,
+  "lastUpdate": 1676501049745,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -34000,6 +34000,38 @@ window.BENCHMARK_DATA = {
             "value": 8428591,
             "unit": "ns/op",
             "extra": "139 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "13a63a5bb91419b700ab3b1cf6c205265a912859",
+          "message": "lua: fix rewrite response headers to handle dashes in URLs",
+          "timestamp": "2023-02-15T17:47:36Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3980/commits/13a63a5bb91419b700ab3b1cf6c205265a912859"
+        },
+        "date": 1676501048844,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 19400865,
+            "unit": "ns/op",
+            "extra": "66 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12223849,
+            "unit": "ns/op",
+            "extra": "97 times\n2 procs"
           }
         ]
       }
