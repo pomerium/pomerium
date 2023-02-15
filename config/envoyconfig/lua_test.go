@@ -54,13 +54,13 @@ func TestLuaRewriteHeaders(t *testing.T) {
 	require.NoError(t, err)
 
 	headers := map[string]string{
-		"Location": "https://localhost:8080/two/some/uri/",
+		"Location": "https://domain-with-dashes:8080/two/some/uri/",
 	}
 	metadata := map[string]interface{}{
 		"rewrite_response_headers": []interface{}{
 			map[string]interface{}{
 				"header": "Location",
-				"prefix": "https://localhost:8080/two/",
+				"prefix": "https://domain-with-dashes:8080/two/",
 				"value":  "https://frontend/one/",
 			},
 			map[string]interface{}{
