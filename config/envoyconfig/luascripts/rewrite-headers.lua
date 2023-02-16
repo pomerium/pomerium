@@ -1,5 +1,8 @@
 function replace_prefix(str, prefix, value)
-    return str:gsub("^"..prefix, value)
+    if str:sub(0, prefix:len()) == prefix then
+        return value..str:sub(prefix:len()+1)
+    end
+    return str
 end
 
 function envoy_on_request(request_handle)
