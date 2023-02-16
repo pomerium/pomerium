@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1676572027754,
+  "lastUpdate": 1676584804742,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -34232,6 +34232,42 @@ window.BENCHMARK_DATA = {
             "value": 9366374,
             "unit": "ns/op",
             "extra": "124 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b5094654fc3aca4411c0ea8ed5a7a9538e87a9fa",
+          "message": "webauthn: only return known device credentials that match the given type (#3981)",
+          "timestamp": "2023-02-16T14:57:03-07:00",
+          "tree_id": "a440cacf954fadde14b426db1bb549156967e661",
+          "url": "https://github.com/pomerium/pomerium/commit/b5094654fc3aca4411c0ea8ed5a7a9538e87a9fa"
+        },
+        "date": 1676584803439,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15651122,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10175400,
+            "unit": "ns/op",
+            "extra": "117 times\n2 procs"
           }
         ]
       }
