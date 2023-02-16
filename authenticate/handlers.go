@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
+	"github.com/pomerium/pomerium/internal/identity/oauth/apple"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -45,8 +46,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 		options := a.options.Load()
 		state := a.state.Load()
 		csrfKey := fmt.Sprintf("%s_csrf", options.CookieName)
-		return csrf.Protect(
-			state.cookieSecret,
+		csrfOptions := []csrf.Option{
 			csrf.Secure(options.CookieSecure),
 			csrf.Path("/"),
 			csrf.UnsafePaths(
@@ -56,12 +56,19 @@ func (a *Authenticate) Mount(r *mux.Router) {
 			csrf.FormValueName("state"), // rfc6749#section-10.12
 			csrf.CookieName(csrfKey),
 			csrf.FieldName(csrfKey),
+			csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
+		}
+
+		if options.Provider == apple.Name {
 			// csrf.SameSiteLaxMode will cause browsers to reset
 			// the session on POST. This breaks Appleid being able
 			// to verify the csrf token.
-			csrf.SameSite(csrf.SameSiteNoneMode),
-			csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
-		)(h)
+			csrfOptions = append(csrfOptions, csrf.SameSite(csrf.SameSiteNoneMode))
+		} else {
+			csrfOptions = append(csrfOptions, csrf.SameSite(csrf.SameSiteLaxMode))
+		}
+
+		return csrf.Protect(state.cookieSecret, csrfOptions...)(h)
 	})
 
 	// redirect / to /.pomerium/
