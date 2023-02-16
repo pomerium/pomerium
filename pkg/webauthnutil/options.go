@@ -12,6 +12,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/device"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 const (
@@ -156,7 +157,10 @@ func newRequestOptions(
 		options,
 		deviceType.GetWebauthn().GetOptions().GetAuthenticatorSelection().UserVerification,
 	)
-	for _, knownDeviceCredential := range knownDeviceCredentials {
+	knownDeviceCredentialsForType := slices.Filter(knownDeviceCredentials, func(c *device.Credential) bool {
+		return c.GetTypeId() == deviceType.GetId()
+	})
+	for _, knownDeviceCredential := range knownDeviceCredentialsForType {
 		if publicKey := knownDeviceCredential.GetWebauthn(); publicKey != nil {
 			options.AllowCredentials = append(options.AllowCredentials, webauthn.PublicKeyCredentialDescriptor{
 				Type: webauthn.PublicKeyCredentialTypePublicKey,
