@@ -81,8 +81,11 @@ func TestGenerateRequestOptions(t *testing.T) {
 	t.Run(DefaultDeviceType, func(t *testing.T) {
 		key := []byte{1, 2, 3}
 		options := GenerateRequestOptions(r, key, predefinedDeviceTypes[DefaultDeviceType], []*device.Credential{
-			{Id: "device1", Specifier: &device.Credential_Webauthn{Webauthn: &device.Credential_WebAuthn{
+			{Id: "device1", TypeId: DefaultDeviceType, Specifier: &device.Credential_Webauthn{Webauthn: &device.Credential_WebAuthn{
 				Id: []byte{4, 5, 6},
+			}}},
+			{Id: "device2", TypeId: "some-other-type", Specifier: &device.Credential_Webauthn{Webauthn: &device.Credential_WebAuthn{
+				Id: []byte{7, 8, 9},
 			}}},
 		})
 		options.Challenge = nil
