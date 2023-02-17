@@ -225,24 +225,16 @@ func (a *Authorize) requireWebAuthnResponse(
 ) (*envoy_service_auth_v3.CheckResponse, error) {
 	opts := a.currentOptions.Load()
 	state := a.state.Load()
-	authenticateURL, err := opts.GetAuthenticateURL()
-	if err != nil {
-		return nil, err
-	}
 
 	if !a.shouldRedirect(in) {
 		return a.deniedResponse(ctx, in, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), nil)
 	}
 
-	signinURL := authenticateURL.ResolveReference(&url.URL{
-		Path: "/.pomerium/webauthn",
-	})
-	q := signinURL.Query()
-
 	// always assume https scheme
 	checkRequestURL := getCheckRequestURL(in)
 	checkRequestURL.Scheme = "https"
 
+	q := url.Values{}
 	if deviceType, ok := result.Allow.AdditionalData["device_type"].(string); ok {
 		q.Set(urlutil.QueryDeviceType, deviceType)
 	} else if deviceType, ok := result.Deny.AdditionalData["device_type"].(string); ok {
@@ -256,11 +248,9 @@ func (a *Authorize) requireWebAuthnResponse(
 		return nil, err
 	}
 	q.Set(urlutil.QueryIdentityProviderID, idp.GetId())
-	signinURL.RawQuery = q.Encode()
-	redirectTo := urlutil.NewSignedURL(state.sharedKey, signinURL).String()
-
+	signinURL := urlutil.WebAuthnURL(getHTTPRequestFromCheckRequest(in), &checkRequestURL, state.sharedKey, q)
 	return a.deniedResponse(ctx, in, http.StatusFound, "Login", map[string]string{
-		"Location": redirectTo,
+		"Location": signinURL,
 	})
 }
 
