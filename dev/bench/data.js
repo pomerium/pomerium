@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1676672473861,
+  "lastUpdate": 1676676093383,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -34464,6 +34464,38 @@ window.BENCHMARK_DATA = {
             "value": 9190135,
             "unit": "ns/op",
             "extra": "129 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "bc25d6fd5194fc8e81935e31801f017b9317b796",
+          "message": "authenticate: jwks: use local bypass to fetch keys",
+          "timestamp": "2023-02-17T22:10:00Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3990/commits/bc25d6fd5194fc8e81935e31801f017b9317b796"
+        },
+        "date": 1676676092973,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13494716,
+            "unit": "ns/op",
+            "extra": "99 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8319507,
+            "unit": "ns/op",
+            "extra": "144 times\n2 procs"
           }
         ]
       }
