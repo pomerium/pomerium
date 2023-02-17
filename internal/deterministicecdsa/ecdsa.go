@@ -125,7 +125,7 @@ func Sign(rand io.Reader, priv *ecdsa.PrivateKey, hash []byte) (r, s *big.Int, e
 	c := priv.PublicKey.Curve
 	N := c.Params().N
 
-	var k, kInv *big.Int
+	var k, kInv *big.Int //nolint
 	for {
 		for {
 			k, err = randFieldElement(c, rand)
@@ -152,5 +152,5 @@ func Sign(rand io.Reader, priv *ecdsa.PrivateKey, hash []byte) (r, s *big.Int, e
 		}
 	}
 
-	return
+	return //nolint
 }
