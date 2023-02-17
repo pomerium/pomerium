@@ -19,33 +19,35 @@ func TestCA(t *testing.T) {
 	_, err := rand.Read(psk)
 	require.NoError(t, err)
 
-	ca1, err := derivecert.NewCA(psk)
-	require.NoError(t, err)
-	ca2, err := derivecert.NewCA(psk)
-	require.NoError(t, err)
+	for i := 0; i < 100; i++ {
+		ca1, err := derivecert.NewCA(psk)
+		require.NoError(t, err)
+		ca2, err := derivecert.NewCA(psk)
+		require.NoError(t, err)
 
-	ca1PEM, err := ca2.PEM()
-	require.NoError(t, err)
-	ca2PEM, err := ca2.PEM()
-	require.NoError(t, err)
+		ca1PEM, err := ca2.PEM()
+		require.NoError(t, err)
+		ca2PEM, err := ca2.PEM()
+		require.NoError(t, err)
 
-	assert.Equal(t, ca1PEM.Key, ca2PEM.Key)
+		assert.Equal(t, ca1PEM.Key, ca2PEM.Key)
 
-	serverPEM, err := ca1.NewServerCert([]string{"myserver.com"})
-	require.NoError(t, err)
+		serverPEM, err := ca1.NewServerCert([]string{"myserver.com"})
+		require.NoError(t, err)
 
-	_, serverCert, err := serverPEM.KeyCert()
-	require.NoError(t, err)
+		_, serverCert, err := serverPEM.KeyCert()
+		require.NoError(t, err)
 
-	pool := x509.NewCertPool()
-	require.True(t, pool.AppendCertsFromPEM(ca2PEM.Cert))
+		pool := x509.NewCertPool()
+		require.True(t, pool.AppendCertsFromPEM(ca2PEM.Cert))
 
-	opts := x509.VerifyOptions{
-		Roots:         pool,
-		DNSName:       "myserver.com",
-		Intermediates: x509.NewCertPool(),
+		opts := x509.VerifyOptions{
+			Roots:         pool,
+			DNSName:       "myserver.com",
+			Intermediates: x509.NewCertPool(),
+		}
+
+		_, err = serverCert.Verify(opts)
+		require.NoError(t, err)
 	}
-
-	_, err = serverCert.Verify(opts)
-	require.NoError(t, err)
 }

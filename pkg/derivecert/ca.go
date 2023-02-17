@@ -2,21 +2,19 @@ package derivecert
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
-	"io"
 	"math/big"
 	"time"
 
-	"golang.org/x/crypto/hkdf"
+	"github.com/pomerium/pomerium/internal/deterministicecdsa"
 )
 
 // CA is certificate authority
 type CA struct {
+	psk []byte
 	// key is signing key
 	key *ecdsa.PrivateKey
 	// cert is a CA certificate
@@ -45,9 +43,9 @@ var (
 // and provides a better alternative to plaintext communication,
 // but is not a replacement for proper mTLS.
 func NewCA(psk []byte) (*CA, error) {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), pskRandReader(psk))
+	key, err := deriveKey(newReader(readerTypeCAPrivateKey, psk))
 	if err != nil {
-		return nil, fmt.Errorf("generating key: %w", err)
+		return nil, fmt.Errorf("derive key: %w", err)
 	}
 
 	cert, err := caCertTemplate(psk)
@@ -55,7 +53,11 @@ func NewCA(psk []byte) (*CA, error) {
 		return nil, err
 	}
 
-	der, err := x509.CreateCertificate(pskRandReader(psk), cert, cert, &key.PublicKey, key)
+	der, err := x509.CreateCertificate(
+		newReader(readerTypeCACertificate, psk),
+		cert, cert,
+		key.Public(), deterministicecdsa.WrapPrivateKey(key),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("create cert: %w", err)
 	}
@@ -64,7 +66,7 @@ func NewCA(psk []byte) (*CA, error) {
 		return nil, fmt.Errorf("parse cert: %w", err)
 	}
 
-	ca := &CA{key, cert}
+	ca := &CA{psk, key, cert}
 
 	return ca, nil
 }
@@ -82,17 +84,21 @@ func CAFromPEM(p PEM) (*CA, string, error) {
 
 // NewServerCert generates certificate for the given domain name(s)
 func (ca *CA) NewServerCert(domains []string) (*PEM, error) {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	key, err := deriveKey(newReader(readerTypeServerPrivateKey, ca.psk, domains...))
 	if err != nil {
-		return nil, fmt.Errorf("generate key: %w", err)
+		return nil, fmt.Errorf("derive key: %w", err)
 	}
 
-	tmpl, err := serverCertTemplate(domains)
+	tmpl, err := serverCertTemplate(ca.psk, domains)
 	if err != nil {
 		return nil, fmt.Errorf("cert template: %w", err)
 	}
 
-	cert, err := x509.CreateCertificate(rand.Reader, tmpl, ca.cert, key.Public(), ca.key)
+	cert, err := x509.CreateCertificate(
+		newReader(readerTypeServerCertificate, ca.psk, domains...),
+		tmpl, ca.cert,
+		key.Public(), deterministicecdsa.WrapPrivateKey(ca.key),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("create cert: %w", err)
 	}
@@ -105,12 +111,8 @@ func (ca *CA) PEM() (*PEM, error) {
 	return ToPEM(ca.key, ca.cert.Raw)
 }
 
-func pskRandReader(psk []byte) io.Reader {
-	return hkdf.New(sha256.New, psk, nil, nil)
-}
-
 func caCertTemplate(psk []byte) (*x509.Certificate, error) {
-	serial, err := newSerial()
+	serial, err := newSerial(psk)
 	if err != nil {
 		return nil, err
 	}
@@ -127,18 +129,18 @@ func caCertTemplate(psk []byte) (*x509.Certificate, error) {
 	}, nil
 }
 
-func serverCertTemplate(domains []string) (*x509.Certificate, error) {
-	serial, err := newSerial()
+func serverCertTemplate(psk []byte, domains []string) (*x509.Certificate, error) {
+	serial, err := newSerial(psk, domains...)
 	if err != nil {
 		return nil, err
 	}
 
 	return &x509.Certificate{
 		SerialNumber: serial,
-		Subject:      pkix.Name{Organization: []string{"Pomerium"}, CommonName: "Pomerium PSK domain cert"},
+		Subject:      pkix.Name{Organization: []string{"Pomerium"}},
 		NotBefore:    notBefore,
 		NotAfter:     notAfter,
-		KeyUsage:     x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
+		KeyUsage:     x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		DNSNames:     domains,
 	}, nil
@@ -149,9 +151,9 @@ func (ca *CA) Key() *ecdsa.PrivateKey {
 	return ca.key
 }
 
-func newSerial() (*big.Int, error) {
+func newSerial(psk []byte, domains ...string) (*big.Int, error) {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	serialNumber, err := rand.Int(newReader(readerTypeSerialNumber, psk, domains...), serialNumberLimit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate serial number: %w", err)
 	}
