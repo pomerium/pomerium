@@ -18,7 +18,7 @@ type PEM struct {
 func ToPEM(key *ecdsa.PrivateKey, certDer []byte) (*PEM, error) {
 	b, err := x509.MarshalECPrivateKey(key)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal ECDSA private key: %w", err)
+		return nil, fmt.Errorf("unable to marshal ecdsa private key: %w", err)
 	}
 	return &PEM{
 		Key:  pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: b}),
