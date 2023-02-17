@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1676584849332,
+  "lastUpdate": 1676642505479,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -34332,6 +34332,42 @@ window.BENCHMARK_DATA = {
             "value": 7753195,
             "unit": "ns/op",
             "extra": "145 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6b3e34c39fb30622c9f044d5be026d79fca19392",
+          "message": "fix webauthn url (#3983)",
+          "timestamp": "2023-02-17T06:58:43-07:00",
+          "tree_id": "e30ca02700a7896531c27377481a412280fb55da",
+          "url": "https://github.com/pomerium/pomerium/commit/6b3e34c39fb30622c9f044d5be026d79fca19392"
+        },
+        "date": 1676642504585,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17850255,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11129281,
+            "unit": "ns/op",
+            "extra": "98 times\n2 procs"
           }
         ]
       }
