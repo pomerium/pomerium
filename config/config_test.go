@@ -11,7 +11,7 @@ import (
 
 func TestConfig_GetCertificateForServerName(t *testing.T) {
 	gen := func(t *testing.T, serverName string) *tls.Certificate {
-		cert, err := cryptutil.GenerateSelfSignedCertificate(serverName)
+		cert, err := cryptutil.GenerateCertificate(nil, serverName)
 		if !assert.NoError(t, err, "error generating certificate for: %s", serverName) {
 			t.FailNow()
 		}

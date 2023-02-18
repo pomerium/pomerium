@@ -722,14 +722,14 @@ func TestOptions_ApplySettings(t *testing.T) {
 
 	t.Run("certificates", func(t *testing.T) {
 		options := NewDefaultOptions()
-		cert1, err := cryptutil.GenerateSelfSignedCertificate("example.com")
+		cert1, err := cryptutil.GenerateCertificate(nil, "example.com")
 		require.NoError(t, err)
 		options.CertificateFiles = append(options.CertificateFiles, certificateFilePair{
 			CertFile: base64.StdEncoding.EncodeToString(encodeCert(cert1)),
 		})
-		cert2, err := cryptutil.GenerateSelfSignedCertificate("example.com")
+		cert2, err := cryptutil.GenerateCertificate(nil, "example.com")
 		require.NoError(t, err)
-		cert3, err := cryptutil.GenerateSelfSignedCertificate("not.example.com")
+		cert3, err := cryptutil.GenerateCertificate(nil, "not.example.com")
 		require.NoError(t, err)
 
 		settings := &config.Settings{

@@ -211,7 +211,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 }
 
 func Test_getAllDomains(t *testing.T) {
-	cert, err := cryptutil.GenerateSelfSignedCertificate("*.unknown.example.com")
+	cert, err := cryptutil.GenerateCertificate(nil, "*.unknown.example.com")
 	require.NoError(t, err)
 	certPEM, keyPEM, err := cryptutil.EncodeCertificate(cert)
 	require.NoError(t, err)

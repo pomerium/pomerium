@@ -185,8 +185,13 @@ func (cfg *Config) GetCertificateForServerName(serverName string) (*tls.Certific
 		return &cert, nil
 	}
 
+	sharedKey, err := cfg.Options.GetSharedKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate cert, invalid shared key: %w", err)
+	}
+
 	// finally fall back to a generated, self-signed certificate
-	return cryptutil.GenerateSelfSignedCertificate(serverName)
+	return cryptutil.GenerateCertificate(sharedKey, serverName)
 }
 
 // WillHaveCertificateForServerName returns true if there will be a certificate for the given server name.

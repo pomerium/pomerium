@@ -8,7 +8,7 @@ import (
 )
 
 func TestGetCertificateServerNames(t *testing.T) {
-	cert, err := GenerateSelfSignedCertificate("www.example.com")
+	cert, err := GenerateCertificate(nil, "www.example.com")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"www.example.com"}, GetCertificateServerNames(cert))
 }
