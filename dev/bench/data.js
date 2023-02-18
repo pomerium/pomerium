@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1676678590022,
+  "lastUpdate": 1676685582773,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -34564,6 +34564,38 @@ window.BENCHMARK_DATA = {
             "value": 10197875,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "91fca06397c43b44b155f3ca03bdcc312f1bcde1",
+          "message": "cryptutil: generate certificates from deriveca",
+          "timestamp": "2023-02-17T22:10:00Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3992/commits/91fca06397c43b44b155f3ca03bdcc312f1bcde1"
+        },
+        "date": 1676685582393,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13360574,
+            "unit": "ns/op",
+            "extra": "98 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7984966,
+            "unit": "ns/op",
+            "extra": "150 times\n2 procs"
           }
         ]
       }
