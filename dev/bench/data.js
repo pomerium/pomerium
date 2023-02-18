@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1676676093383,
+  "lastUpdate": 1676678538291,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -34496,6 +34496,38 @@ window.BENCHMARK_DATA = {
             "value": 8319507,
             "unit": "ns/op",
             "extra": "144 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "d6541bd351c983bd903852f3086bb3607423320b",
+          "message": "derivecert: fix ecdsa code to be deterministic",
+          "timestamp": "2023-02-17T22:10:00Z",
+          "url": "https://github.com/pomerium/pomerium/pull/3991/commits/d6541bd351c983bd903852f3086bb3607423320b"
+        },
+        "date": 1676678537341,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13672443,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8061827,
+            "unit": "ns/op",
+            "extra": "142 times\n2 procs"
           }
         ]
       }
