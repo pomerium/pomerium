@@ -83,7 +83,7 @@ jobs:
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump psql environment
-        uses: mikefarah/yq@dd6cf3df146f3e2c0f8c765a6ef9e35780ad8cc1
+        uses: mikefarah/yq@9949a237245595739c363f0c165e7d8df32b0d85
         with:
           cmd:
             yq eval '.pomerium.image.tag = "${{ needs.publish.outputs.sha-tag }}"' -i
