@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
-	"net"
 	"net/http"
 	"net/url"
 
@@ -255,14 +254,7 @@ func (cfg *Config) GetAuthenticateKeyFetcher() (hpke.KeyFetcher, error) {
 }
 
 func (cfg *Config) resolveAuthenticateURL() (*url.URL, *http.Transport, error) {
-	if IsAll(cfg.Options.Services) {
-		return &url.URL{
-			Scheme: "http",
-			Host:   net.JoinHostPort("127.0.0.1", cfg.HTTPPort),
-		}, httputil.GetInsecureTransport(), nil
-	}
-
-	authenticateURL, err := cfg.Options.GetAuthenticateURL()
+	authenticateURL, err := cfg.Options.GetInternalAuthenticateURL()
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid authenticate service url: %w", err)
 	}
