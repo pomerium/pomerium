@@ -3,14 +3,12 @@ package authorize
 import (
 	"context"
 	"fmt"
-	"net/url"
 
 	googlegrpc "google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/hpke"
@@ -79,28 +77,11 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*autho
 		return nil, fmt.Errorf("authorize: invalid session store: %w", err)
 	}
 
-	authenticateURL, err := cfg.Options.GetAuthenticateURL()
-	if err != nil {
-		return nil, fmt.Errorf("authorize: invalid authenticate service url: %w", err)
-	}
-
 	state.hpkePrivateKey = hpke.DerivePrivateKey(sharedKey)
-
-	jwksURL := authenticateURL.ResolveReference(&url.URL{
-		Path: "/.well-known/pomerium/jwks.json",
-	}).String()
-	transport := httputil.GetInsecureTransport()
-	ok, err := cfg.WillHaveCertificateForServerName(authenticateURL.Hostname())
+	state.authenticateKeyFetcher, err = cfg.GetAuthenticateKeyFetcher()
 	if err != nil {
-		return nil, fmt.Errorf("authorize: error determining if authenticate service will have a certificate name: %w", err)
+		return nil, fmt.Errorf("authorize: get authenticate JWKS key fetcher: %w", err)
 	}
-	if ok {
-		transport, err = config.GetTLSClientTransport(cfg)
-		if err != nil {
-			return nil, fmt.Errorf("authorize: get tls client config: %w", err)
-		}
-	}
-	state.authenticateKeyFetcher = hpke.NewKeyFetcher(jwksURL, transport)
 
 	return state, nil
 }
