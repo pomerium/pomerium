@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1677080763939,
+  "lastUpdate": 1677084462048,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -35268,6 +35268,42 @@ window.BENCHMARK_DATA = {
             "value": 7853943,
             "unit": "ns/op",
             "extra": "145 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "62ca7ffaa25db2521f2506b6ba803d8730a0586f",
+          "message": "authenticate: fix authenticate_internal_service_url for all in one (#4003)",
+          "timestamp": "2023-02-22T10:42:27-05:00",
+          "tree_id": "5dcc3a2903ea0fb27cfb20344a1463ddc8d04a67",
+          "url": "https://github.com/pomerium/pomerium/commit/62ca7ffaa25db2521f2506b6ba803d8730a0586f"
+        },
+        "date": 1677084461025,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14015131,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9018232,
+            "unit": "ns/op",
+            "extra": "136 times\n2 procs"
           }
         ]
       }
