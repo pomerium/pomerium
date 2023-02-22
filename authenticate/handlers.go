@@ -96,11 +96,16 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 		AllowedHeaders:   []string{"*"},
 	})
 	sr.Use(c.Handler)
+
+	// routes that don't need a session:
+	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
+
+	// routes that need a session:
+	sr = sr.NewRoute().Subrouter()
 	sr.Use(a.RetrieveSession)
 	sr.Use(a.VerifySession)
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
 	sr.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
-	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
 	sr.Path("/device-enrolled").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		userInfoData, err := a.getUserInfoData(r)
 		if err != nil {
