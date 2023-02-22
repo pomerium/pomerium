@@ -75,7 +75,8 @@ func (b *Builder) buildPomeriumHTTPRoutes(options *config.Options, host string) 
 		}
 	}
 	// if we're handling authentication, add the oauth2 callback url
-	authenticateURL, err := options.GetInternalAuthenticateURL()
+	// as the callback url is from the IdP, it is expected only on the public authenticate URL endpoint
+	authenticateURL, err := options.GetAuthenticateURL()
 	if err != nil {
 		return nil, err
 	}

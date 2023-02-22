@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"net/url"
 	"time"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
@@ -289,12 +290,20 @@ func (srv *Server) updateRouter(cfg *config.Config) error {
 		return err
 	}
 	if srv.authenticateSvc != nil {
-		authenticateURL, err := cfg.Options.GetInternalAuthenticateURL()
-		if err != nil {
-			return err
+		seen := make(map[string]struct{})
+		// mount auth handler for both internal and external endpoints
+		for _, fn := range []func() (*url.URL, error){cfg.Options.GetAuthenticateURL, cfg.Options.GetInternalAuthenticateURL} {
+			authenticateURL, err := fn()
+			if err != nil {
+				return err
+			}
+			authenticateHost := urlutil.StripPort(authenticateURL.Host)
+			if _, ok := seen[authenticateHost]; ok {
+				continue
+			}
+			seen[authenticateHost] = struct{}{}
+			srv.authenticateSvc.Mount(httpRouter.Host(authenticateHost).Subrouter())
 		}
-		authenticateHost := urlutil.StripPort(authenticateURL.Host)
-		srv.authenticateSvc.Mount(httpRouter.Host(authenticateHost).Subrouter())
 	}
 	if srv.proxySvc != nil {
 		srv.proxySvc.Mount(httpRouter)
