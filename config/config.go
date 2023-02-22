@@ -6,13 +6,17 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"net/http"
+	"net/url"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/derivecert"
+	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
 // MetricsScrapeEndpoint defines additional metrics endpoints that would be scraped and exposed by pomerium
@@ -235,4 +239,37 @@ func (cfg *Config) GetCertificatePool() (*x509.CertPool, error) {
 	}
 
 	return pool, nil
+}
+
+// GetAuthenticateKeyFetcher returns a key fetcher for the authenticate service
+func (cfg *Config) GetAuthenticateKeyFetcher() (hpke.KeyFetcher, error) {
+	authenticateURL, transport, err := cfg.resolveAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
+	jwksURL := authenticateURL.ResolveReference(&url.URL{
+		Path: "/.well-known/pomerium/jwks.json",
+	}).String()
+	return hpke.NewKeyFetcher(jwksURL, transport), nil
+}
+
+func (cfg *Config) resolveAuthenticateURL() (*url.URL, *http.Transport, error) {
+	authenticateURL, err := cfg.Options.GetInternalAuthenticateURL()
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid authenticate service url: %w", err)
+	}
+	ok, err := cfg.WillHaveCertificateForServerName(authenticateURL.Hostname())
+	if err != nil {
+		return nil, nil, fmt.Errorf("error determining if authenticate service will have a certificate name: %w", err)
+	}
+	if !ok {
+		return authenticateURL, httputil.GetInsecureTransport(), nil
+	}
+
+	transport, err := GetTLSClientTransport(cfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("get tls client config: %w", err)
+	}
+
+	return authenticateURL, transport, nil
 }
