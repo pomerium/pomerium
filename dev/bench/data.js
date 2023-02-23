@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1677127575749,
+  "lastUpdate": 1677164764406,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -35468,6 +35468,42 @@ window.BENCHMARK_DATA = {
             "value": 10157259,
             "unit": "ns/op",
             "extra": "120 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "df54a0c603f8295b92dc584e93640701f1ac860f",
+          "message": "authenticate: fix callback handler for split mode (#4008)\n\nfix auth handler for split mode",
+          "timestamp": "2023-02-23T10:01:24-05:00",
+          "tree_id": "23f27fbc92b0492cd40c0632c40402f8eea048be",
+          "url": "https://github.com/pomerium/pomerium/commit/df54a0c603f8295b92dc584e93640701f1ac860f"
+        },
+        "date": 1677164763933,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12693872,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8735994,
+            "unit": "ns/op",
+            "extra": "138 times\n2 procs"
           }
         ]
       }
