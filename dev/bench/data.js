@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1677166550766,
+  "lastUpdate": 1677166611739,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -35600,6 +35600,42 @@ window.BENCHMARK_DATA = {
             "value": 8226803,
             "unit": "ns/op",
             "extra": "142 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "00c047b11426a6a1837fe9e9aac17af3f31d1cfa",
+          "message": "authenticate: fix identity provider id in encrypted query string (#4006)\n\nCo-authored-by: Denis Mishin <dmishin@pomerium.com>",
+          "timestamp": "2023-02-23T08:30:50-07:00",
+          "tree_id": "326eba88faa3bf98fde08c15c12350851bf55d21",
+          "url": "https://github.com/pomerium/pomerium/commit/00c047b11426a6a1837fe9e9aac17af3f31d1cfa"
+        },
+        "date": 1677166610660,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17358498,
+            "unit": "ns/op",
+            "extra": "76 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10514577,
+            "unit": "ns/op",
+            "extra": "121 times\n2 procs"
           }
         ]
       }
