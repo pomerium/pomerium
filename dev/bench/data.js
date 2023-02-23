@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1677164764406,
+  "lastUpdate": 1677164850766,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -35504,6 +35504,38 @@ window.BENCHMARK_DATA = {
             "value": 8735994,
             "unit": "ns/op",
             "extra": "138 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "12031593e7cb70bfbf2471536642032407374276",
+          "message": "authenticate: fix callback handler for split mode",
+          "timestamp": "2023-02-23T02:50:34Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4010/commits/12031593e7cb70bfbf2471536642032407374276"
+        },
+        "date": 1677164849870,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17832553,
+            "unit": "ns/op",
+            "extra": "75 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11197646,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
