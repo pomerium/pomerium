@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1677164850766,
+  "lastUpdate": 1677165111715,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -35536,6 +35536,38 @@ window.BENCHMARK_DATA = {
             "value": 11197646,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "96bdff5fbb5a024cda9d7dd346b6bae4f317d0ca",
+          "message": "authenticate: fix identity provider id in encrypted query string",
+          "timestamp": "2023-02-23T02:50:34Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4006/commits/96bdff5fbb5a024cda9d7dd346b6bae4f317d0ca"
+        },
+        "date": 1677165110684,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14153040,
+            "unit": "ns/op",
+            "extra": "97 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9107541,
+            "unit": "ns/op",
+            "extra": "134 times\n2 procs"
           }
         ]
       }
