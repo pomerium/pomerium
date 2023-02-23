@@ -83,7 +83,7 @@ func CAFromPEM(p PEM) (*CA, string, error) {
 }
 
 // NewServerCert generates certificate for the given domain name(s)
-func (ca *CA) NewServerCert(domains []string) (*PEM, error) {
+func (ca *CA) NewServerCert(domains []string, configure ...func(*x509.Certificate)) (*PEM, error) {
 	key, err := deriveKey(newReader(readerTypeServerPrivateKey, ca.psk, domains...))
 	if err != nil {
 		return nil, fmt.Errorf("derive key: %w", err)
@@ -92,6 +92,9 @@ func (ca *CA) NewServerCert(domains []string) (*PEM, error) {
 	tmpl, err := serverCertTemplate(ca.psk, domains)
 	if err != nil {
 		return nil, fmt.Errorf("cert template: %w", err)
+	}
+	for _, f := range configure {
+		f(tmpl)
 	}
 
 	cert, err := x509.CreateCertificate(

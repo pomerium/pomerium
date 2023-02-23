@@ -46,7 +46,7 @@ func TestBuildSubjectNameIndication(t *testing.T) {
 }
 
 func TestValidateCertificate(t *testing.T) {
-	cert, err := cryptutil.GenerateSelfSignedCertificate("example.com", func(tpl *x509.Certificate) {
+	cert, err := cryptutil.GenerateCertificate(nil, "example.com", func(tpl *x509.Certificate) {
 		// set the must staple flag on the cert
 		tpl.ExtraExtensions = append(tpl.ExtraExtensions, pkix.Extension{
 			Id: oidMustStaple,

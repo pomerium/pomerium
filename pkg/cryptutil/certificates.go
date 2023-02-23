@@ -2,8 +2,6 @@ package cryptutil
 
 import (
 	"crypto/ecdsa"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -12,10 +10,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/big"
-	"net"
 	"os"
-	"time"
+
+	"github.com/pomerium/pomerium/pkg/derivecert"
 )
 
 const (
@@ -160,63 +157,24 @@ func EncodePrivateKey(key *ecdsa.PrivateKey) ([]byte, error) {
 	return pem.EncodeToMemory(keyBlock), nil
 }
 
-// GenerateSelfSignedCertificate generates a self-signed TLS certificate.
-//
-// mostly copied from https://golang.org/src/crypto/tls/generate_cert.go
-func GenerateSelfSignedCertificate(domain string, configure ...func(*x509.Certificate)) (*tls.Certificate, error) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+// GenerateCertificate generates a TLS certificate derived from a shared key.
+func GenerateCertificate(sharedKey []byte, domain string, configure ...func(*x509.Certificate)) (*tls.Certificate, error) {
+	ca, err := derivecert.NewCA(sharedKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate private key: %w", err)
+		return nil, fmt.Errorf("cryptutil: failed to generate certificate, error deriving CA: %w", err)
 	}
 
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	pem, err := ca.NewServerCert([]string{domain}, configure...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate serial number: %w", err)
+		return nil, fmt.Errorf("cryptutil: failed to generate certificate, error creating server certificate: %w", err)
 	}
 
-	template := &x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			Organization: []string{"Pomerium"},
-		},
-		NotBefore:             time.Now().Add(-time.Minute * 10),
-		NotAfter:              time.Now().Add(time.Hour * 24 * 365),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-	}
-	if ip := net.ParseIP(domain); ip != nil {
-		template.IPAddresses = append(template.IPAddresses, ip)
-	} else {
-		template.DNSNames = append(template.DNSNames, domain)
-	}
-	for _, f := range configure {
-		f(template)
-	}
-
-	publicKeyBytes, err := x509.CreateCertificate(rand.Reader,
-		template, template,
-		privateKey.Public(), privateKey,
-	)
+	tlsCert, err := pem.TLS()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create certificate: %w", err)
+		return nil, fmt.Errorf("cryptutil: failed to generate certificate, error converting server certificate to TLS certificate: %w", err)
 	}
 
-	privateKeyBytes, err := x509.MarshalPKCS8PrivateKey(privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal private key: %w", err)
-	}
-
-	cert, err := tls.X509KeyPair(
-		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: publicKeyBytes}),
-		pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privateKeyBytes}),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert x509 bytes into tls certificate: %w", err)
-	}
-
-	return &cert, nil
+	return &tlsCert, nil
 }
 
 // EncodeCertificate encodes a TLS certificate into PEM compatible byte slices.
