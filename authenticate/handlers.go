@@ -133,7 +133,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 		defer span.End()
 
 		state := a.state.Load()
-		idpID := r.FormValue(urlutil.QueryIdentityProviderID)
+		idpID := a.getIdentityProviderIDForRequest(r)
 
 		sessionState, err := a.getSessionFromCtx(ctx)
 		if err != nil {
@@ -247,7 +247,7 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 	defer span.End()
 
 	options := a.options.Load()
-	idpID := r.FormValue(urlutil.QueryIdentityProviderID)
+	idpID := a.getIdentityProviderIDForRequest(r)
 
 	authenticator, err := a.cfg.getIdentityProvider(options, idpID)
 	if err != nil {
@@ -304,7 +304,7 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 
 	state := a.state.Load()
 	options := a.options.Load()
-	idpID := r.FormValue(urlutil.QueryIdentityProviderID)
+	idpID := a.getIdentityProviderIDForRequest(r)
 
 	authenticator, err := a.cfg.getIdentityProvider(options, idpID)
 	if err != nil {
@@ -408,7 +408,7 @@ Or contact your administrator.
 `, redirectURL.String(), redirectURL.String()))
 	}
 
-	idpID := redirectURL.Query().Get(urlutil.QueryIdentityProviderID)
+	idpID := a.getIdentityProviderIDForURLValues(redirectURL.Query())
 
 	authenticator, err := a.cfg.getIdentityProvider(options, idpID)
 	if err != nil {
@@ -587,4 +587,25 @@ func (a *Authenticate) saveCallbackSession(w http.ResponseWriter, r *http.Reques
 		return nil, fmt.Errorf("proxy: callback session save failure: %w", err)
 	}
 	return rawJWT, nil
+}
+
+func (a *Authenticate) getIdentityProviderIDForRequest(r *http.Request) string {
+	if err := r.ParseForm(); err != nil {
+		return ""
+	}
+	return a.getIdentityProviderIDForURLValues(r.Form)
+}
+
+func (a *Authenticate) getIdentityProviderIDForURLValues(vs url.Values) string {
+	state := a.state.Load()
+	idpID := ""
+	if _, requestParams, err := hpke.DecryptURLValues(state.hpkePrivateKey, vs); err == nil {
+		if idpID == "" {
+			idpID = requestParams.Get(urlutil.QueryIdentityProviderID)
+		}
+	}
+	if idpID == "" {
+		idpID = vs.Get(urlutil.QueryIdentityProviderID)
+	}
+	return idpID
 }
