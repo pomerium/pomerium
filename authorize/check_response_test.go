@@ -62,6 +62,36 @@ func TestAuthorize_handleResult(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
+	t.Run("device-unauthenticated", func(t *testing.T) {
+		res, err := a.handleResult(context.Background(),
+			&envoy_service_auth_v3.CheckRequest{},
+			&evaluator.Request{},
+			&evaluator.Result{
+				Allow: evaluator.NewRuleResult(false, criteria.ReasonDeviceUnauthenticated),
+			})
+		assert.NoError(t, err)
+		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
+
+		t.Run("webauthn path", func(t *testing.T) {
+			res, err := a.handleResult(context.Background(),
+				&envoy_service_auth_v3.CheckRequest{
+					Attributes: &envoy_service_auth_v3.AttributeContext{
+						Request: &envoy_service_auth_v3.AttributeContext_Request{
+							Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+								Path: "/.pomerium/webauthn",
+							},
+						},
+					},
+				},
+				&evaluator.Request{},
+				&evaluator.Result{
+					Allow: evaluator.NewRuleResult(true, criteria.ReasonPomeriumRoute),
+					Deny:  evaluator.NewRuleResult(false, criteria.ReasonDeviceUnauthenticated),
+				})
+			assert.NoError(t, err)
+			assert.NotNil(t, res.GetOkResponse())
+		})
+	})
 }
 
 func TestAuthorize_okResponse(t *testing.T) {
