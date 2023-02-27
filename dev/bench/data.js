@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1677517489284,
+  "lastUpdate": 1677517492381,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -36040,6 +36040,38 @@ window.BENCHMARK_DATA = {
             "value": 7912374,
             "unit": "ns/op",
             "extra": "152 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "db7ce1e2b9d7ef3d6f03047485cad1ebe272dc72",
+          "message": "chore(deps): bump github.com/yuin/gopher-lua from 0.0.0-20200816102855-ee81675732da to 1.1.0",
+          "timestamp": "2023-02-27T16:25:48Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4022/commits/db7ce1e2b9d7ef3d6f03047485cad1ebe272dc72"
+        },
+        "date": 1677517491741,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13029990,
+            "unit": "ns/op",
+            "extra": "86 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7971717,
+            "unit": "ns/op",
+            "extra": "144 times\n2 procs"
           }
         ]
       }
