@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 func policyNameFunc() func(*config.Policy) string {
@@ -88,7 +89,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 
 		testutil.AssertProtoJSONEqual(t, `[
 			`+routeString("path", "/.pomerium/jwt", true)+`,
-			`+routeString("path", "/.pomerium/webauthn", true)+`,
+			`+routeString("path", urlutil.WebAuthnURLPath, true)+`,
 			`+routeString("path", "/ping", false)+`,
 			`+routeString("path", "/healthz", false)+`,
 			`+routeString("path", "/.pomerium", false)+`,
@@ -127,7 +128,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 
 		testutil.AssertProtoJSONEqual(t, `[
 			`+routeString("path", "/.pomerium/jwt", true)+`,
-			`+routeString("path", "/.pomerium/webauthn", true)+`,
+			`+routeString("path", urlutil.WebAuthnURLPath, true)+`,
 			`+routeString("path", "/ping", false)+`,
 			`+routeString("path", "/healthz", false)+`,
 			`+routeString("path", "/.pomerium", false)+`,
@@ -155,7 +156,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 
 		testutil.AssertProtoJSONEqual(t, `[
 			`+routeString("path", "/.pomerium/jwt", true)+`,
-			`+routeString("path", "/.pomerium/webauthn", true)+`,
+			`+routeString("path", urlutil.WebAuthnURLPath, true)+`,
 			`+routeString("path", "/ping", false)+`,
 			`+routeString("path", "/healthz", false)+`,
 			`+routeString("path", "/.pomerium", false)+`,

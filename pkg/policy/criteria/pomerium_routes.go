@@ -3,6 +3,7 @@ package criteria
 import (
 	"github.com/open-policy-agent/opa/ast"
 
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/policy/generator"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/policy/rules"
@@ -34,7 +35,7 @@ func (c pomeriumRoutesCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Ru
 	r2.Body = ast.Body{
 		ast.MustParseExpr(`contains(input.http.url, "/.pomerium/")`),
 		ast.MustParseExpr(`not contains(input.http.url, "/.pomerium/jwt")`),
-		ast.MustParseExpr(`not contains(input.http.url, "/.pomerium/webauthn")`),
+		ast.MustParseExpr(`not contains(input.http.url, "` + urlutil.WebAuthnURLPath + `")`),
 	}
 	r1.Else = r2
 
