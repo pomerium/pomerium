@@ -288,7 +288,6 @@ func (backend *Backend) SyncLatest(
 	recordVersion, err = backend.client.Get(ctx, lastVersionKey).Uint64()
 	if errors.Is(err, redis.Nil) {
 		// this happens if there are no records
-		err = nil
 	} else if err != nil {
 		return serverVersion, recordVersion, nil, err
 	}
