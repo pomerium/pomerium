@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1677517484985,
+  "lastUpdate": 1677517489284,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -36008,6 +36008,38 @@ window.BENCHMARK_DATA = {
             "value": 58236329,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "ee7c9e55569fed1f79b7a60927c439a48542e251",
+          "message": "chore(deps): bump github.com/natefinch/atomic from 0.0.0-20200526193002-18c0533a5b09 to 1.0.1",
+          "timestamp": "2023-02-27T16:25:48Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4021/commits/ee7c9e55569fed1f79b7a60927c439a48542e251"
+        },
+        "date": 1677517488193,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13250265,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7912374,
+            "unit": "ns/op",
+            "extra": "152 times\n2 procs"
           }
         ]
       }
