@@ -41,7 +41,7 @@ require (
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/natefinch/atomic v1.0.1
-	github.com/open-policy-agent/opa v0.48.0
+	github.com/open-policy-agent/opa v0.49.2
 	github.com/openzipkin/zipkin-go v0.4.1
 	github.com/ory/dockertest/v3 v3.9.1
 	github.com/peterbourgon/ff/v3 v3.3.0
@@ -104,6 +104,7 @@ require (
 	github.com/minio/sha256-simd v1.0.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/nunnatsa/ginkgolinter v0.8.1 // indirect
 	github.com/rs/xid v1.4.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
