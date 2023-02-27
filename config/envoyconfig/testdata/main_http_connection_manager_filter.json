@@ -127,28 +127,28 @@
         {
           "domains": ["authenticate.example.com"],
           "name": "authenticate.example.com",
-          "responseHeadersToAdd": [
-            {
-              "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
-              "header": {
-                "key": "X-Frame-Options",
-                "value": "SAMEORIGIN"
-              }
-            },
-            {
-              "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
-              "header": {
-                "key": "X-XSS-Protection",
-                "value": "1; mode=block"
-              }
-            }
-          ],
           "routes": [
             {
               "match": {
                 "path": "/.pomerium/jwt"
               },
               "name": "pomerium-path-/.pomerium/jwt",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               }
@@ -158,6 +158,22 @@
                 "path": "/.pomerium/webauthn"
               },
               "name": "pomerium-path-/.pomerium/webauthn",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               }
@@ -167,6 +183,22 @@
                 "path": "/ping"
               },
               "name": "pomerium-path-/ping",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -182,6 +214,22 @@
                 "path": "/healthz"
               },
               "name": "pomerium-path-/healthz",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -197,6 +245,22 @@
                 "path": "/.pomerium"
               },
               "name": "pomerium-path-/.pomerium",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -212,6 +276,22 @@
                 "prefix": "/.pomerium/"
               },
               "name": "pomerium-prefix-/.pomerium/",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -227,6 +307,22 @@
                 "path": "/.well-known/pomerium"
               },
               "name": "pomerium-path-/.well-known/pomerium",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -242,6 +338,22 @@
                 "prefix": "/.well-known/pomerium/"
               },
               "name": "pomerium-prefix-/.well-known/pomerium/",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -257,6 +369,22 @@
                 "path": "/robots.txt"
               },
               "name": "pomerium-path-/robots.txt",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -272,6 +400,22 @@
                 "path": "/oauth2/callback"
               },
               "name": "pomerium-path-/oauth2/callback",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -287,6 +431,22 @@
                 "path": "/"
               },
               "name": "pomerium-path-/",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -302,28 +462,28 @@
         {
           "domains": ["authenticate.example.com:443"],
           "name": "authenticate.example.com:443",
-          "responseHeadersToAdd": [
-            {
-              "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
-              "header": {
-                "key": "X-Frame-Options",
-                "value": "SAMEORIGIN"
-              }
-            },
-            {
-              "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
-              "header": {
-                "key": "X-XSS-Protection",
-                "value": "1; mode=block"
-              }
-            }
-          ],
           "routes": [
             {
               "match": {
                 "path": "/.pomerium/jwt"
               },
               "name": "pomerium-path-/.pomerium/jwt",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               }
@@ -333,6 +493,22 @@
                 "path": "/.pomerium/webauthn"
               },
               "name": "pomerium-path-/.pomerium/webauthn",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               }
@@ -342,6 +518,22 @@
                 "path": "/ping"
               },
               "name": "pomerium-path-/ping",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -357,6 +549,22 @@
                 "path": "/healthz"
               },
               "name": "pomerium-path-/healthz",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -372,6 +580,22 @@
                 "path": "/.pomerium"
               },
               "name": "pomerium-path-/.pomerium",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -387,6 +611,22 @@
                 "prefix": "/.pomerium/"
               },
               "name": "pomerium-prefix-/.pomerium/",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -402,6 +642,22 @@
                 "path": "/.well-known/pomerium"
               },
               "name": "pomerium-path-/.well-known/pomerium",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -417,6 +673,22 @@
                 "prefix": "/.well-known/pomerium/"
               },
               "name": "pomerium-prefix-/.well-known/pomerium/",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -432,6 +704,22 @@
                 "path": "/robots.txt"
               },
               "name": "pomerium-path-/robots.txt",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -447,6 +735,22 @@
                 "path": "/oauth2/callback"
               },
               "name": "pomerium-path-/oauth2/callback",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -462,6 +766,22 @@
                 "path": "/"
               },
               "name": "pomerium-path-/",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -477,28 +797,28 @@
         {
           "domains": ["*"],
           "name": "catch-all",
-          "responseHeadersToAdd": [
-            {
-              "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
-              "header": {
-                "key": "X-Frame-Options",
-                "value": "SAMEORIGIN"
-              }
-            },
-            {
-              "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
-              "header": {
-                "key": "X-XSS-Protection",
-                "value": "1; mode=block"
-              }
-            }
-          ],
           "routes": [
             {
               "match": {
                 "path": "/.pomerium/jwt"
               },
               "name": "pomerium-path-/.pomerium/jwt",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               }
@@ -508,6 +828,22 @@
                 "path": "/.pomerium/webauthn"
               },
               "name": "pomerium-path-/.pomerium/webauthn",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               }
@@ -517,6 +853,22 @@
                 "path": "/ping"
               },
               "name": "pomerium-path-/ping",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -532,6 +884,22 @@
                 "path": "/healthz"
               },
               "name": "pomerium-path-/healthz",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -547,6 +915,22 @@
                 "path": "/.pomerium"
               },
               "name": "pomerium-path-/.pomerium",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -562,6 +946,22 @@
                 "prefix": "/.pomerium/"
               },
               "name": "pomerium-prefix-/.pomerium/",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -577,6 +977,22 @@
                 "path": "/.well-known/pomerium"
               },
               "name": "pomerium-path-/.well-known/pomerium",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -592,6 +1008,22 @@
                 "prefix": "/.well-known/pomerium/"
               },
               "name": "pomerium-prefix-/.well-known/pomerium/",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },
@@ -607,6 +1039,22 @@
                 "path": "/robots.txt"
               },
               "name": "pomerium-path-/robots.txt",
+              "responseHeadersToAdd": [
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-Frame-Options",
+                    "value": "SAMEORIGIN"
+                  }
+                },
+                {
+                  "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                  "header": {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                  }
+                }
+              ],
               "route": {
                 "cluster": "pomerium-control-plane-http"
               },

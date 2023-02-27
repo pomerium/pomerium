@@ -294,7 +294,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 
 		// if we're the proxy, add all the policy routes
 		if config.IsProxy(options.Services) {
-			rs, err := b.buildPolicyRoutes(options, host)
+			rs, err := b.buildPolicyRoutes(options, host, requireStrictTransportSecurity)
 			if err != nil {
 				return nil, err
 			}
@@ -546,7 +546,8 @@ func (b *Builder) buildDownstreamTLSContextMulti(
 			TlsCertificates:       envoyCerts,
 			AlpnProtocols:         getALPNProtos(cfg.Options),
 			ValidationContextType: b.buildDownstreamValidationContext(ctx, cfg),
-		}}, nil
+		},
+	}, nil
 }
 
 func getALPNProtos(opts *config.Options) []string {
