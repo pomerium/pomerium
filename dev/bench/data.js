@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1677519589978,
+  "lastUpdate": 1677519628588,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -36308,6 +36308,42 @@ window.BENCHMARK_DATA = {
             "value": 7787854,
             "unit": "ns/op",
             "extra": "157 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d62170a336bb71048567ad3f02de2bba95bc9286",
+          "message": "chore(deps): bump github.com/yuin/gopher-lua from 0.0.0-20200816102855-ee81675732da to 1.1.0 (#4022)\n\nchore(deps): bump github.com/yuin/gopher-lua\r\n\r\nBumps [github.com/yuin/gopher-lua](https://github.com/yuin/gopher-lua) from 0.0.0-20200816102855-ee81675732da to 1.1.0.\r\n- [Release notes](https://github.com/yuin/gopher-lua/releases)\r\n- [Commits](https://github.com/yuin/gopher-lua/commits/v1.1.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/yuin/gopher-lua\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-major\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-02-27T10:38:07-07:00",
+          "tree_id": "e047c0a08592c862d90803601075aece704b1c59",
+          "url": "https://github.com/pomerium/pomerium/commit/d62170a336bb71048567ad3f02de2bba95bc9286"
+        },
+        "date": 1677519628035,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13401068,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8008361,
+            "unit": "ns/op",
+            "extra": "142 times\n2 procs"
           }
         ]
       }
