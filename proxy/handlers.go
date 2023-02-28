@@ -228,7 +228,7 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	q.Set(urlutil.QueryIsProgrammatic, "true")
 	signinURL.RawQuery = q.Encode()
 
-	rawURL, err := handlers.BuildSignInURL(state.hpkePrivateKey, hpkeAuthenticateKey, &signinURL, redirectURI, idp.GetId())
+	rawURL, err := urlutil.SignInURL(state.hpkePrivateKey, hpkeAuthenticateKey, &signinURL, redirectURI, idp.GetId())
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}
