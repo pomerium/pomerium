@@ -1021,19 +1021,21 @@ func (o *Options) GetSetResponseHeadersForPolicy(policy *Policy, requireStrictTr
 			hdrs[k] = v
 		}
 	}
+	if _, ok := hdrs[DisableHeaderKey]; ok {
+		hdrs = make(map[string]string)
+	}
 
 	if policy != nil && policy.SetResponseHeaders != nil {
 		for k, v := range policy.SetResponseHeaders {
 			hdrs[k] = v
 		}
 	}
+	if _, ok := hdrs[DisableHeaderKey]; ok {
+		hdrs = make(map[string]string)
+	}
 
 	if !requireStrictTransportSecurity {
 		delete(hdrs, "Strict-Transport-Security")
-	}
-
-	if _, ok := hdrs[DisableHeaderKey]; ok {
-		hdrs = make(map[string]string)
 	}
 
 	return hdrs

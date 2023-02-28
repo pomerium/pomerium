@@ -766,6 +766,17 @@ func TestOptions_GetSetResponseHeaders(t *testing.T) {
 	})
 }
 
+func TestOptions_GetSetResponseHeadersForPolicy(t *testing.T) {
+	t.Run("disable but set in policy", func(t *testing.T) {
+		options := NewDefaultOptions()
+		options.SetResponseHeaders = map[string]string{DisableHeaderKey: "1"}
+		policy := &Policy{
+			SetResponseHeaders: map[string]string{"x": "y"},
+		}
+		assert.Equal(t, map[string]string{"x": "y"}, options.GetSetResponseHeadersForPolicy(policy, true))
+	})
+}
+
 func TestOptions_GetSharedKey(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		o := NewDefaultOptions()
