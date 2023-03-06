@@ -14,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/derivecert"
 	"github.com/pomerium/pomerium/pkg/hpke"
@@ -253,7 +254,7 @@ func (cfg *Config) GetAuthenticateKeyFetcher() (hpke.KeyFetcher, error) {
 		return nil, err
 	}
 	jwksURL := authenticateURL.ResolveReference(&url.URL{
-		Path: "/.well-known/pomerium/jwks.json",
+		Path: urlutil.HPKEPublicKeyPath,
 	}).String()
 	return hpke.NewKeyFetcher(jwksURL, transport), nil
 }

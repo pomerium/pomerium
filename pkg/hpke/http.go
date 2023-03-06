@@ -2,7 +2,6 @@ package hpke
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -28,42 +27,28 @@ type JWK struct {
 	D     string `json:"d,omitempty"`
 }
 
-// FetchPublicKeyFromJWKS fetches the HPKE public key from the JWKS endpoint.
-func FetchPublicKeyFromJWKS(ctx context.Context, client *http.Client, endpoint string) (*PublicKey, error) {
+// FetchPublicKey fetches the HPKE public key from the hpke-public-key endpoint.
+func FetchPublicKey(ctx context.Context, client *http.Client, endpoint string) (*PublicKey, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return nil, fmt.Errorf("hpke: error building jwks http request: %w", err)
+		return nil, fmt.Errorf("hpke: error building hpke-public-key http request: %w", err)
 	}
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("hpke: error requesting jwks endpoint: %w", err)
+		return nil, fmt.Errorf("hpke: error requesting hpke-public-key endpoint: %w", err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode/100 != 2 {
-		return nil, fmt.Errorf("hpke: error requesting jwks endpoint, invalid status code: %d", res.StatusCode)
+		return nil, fmt.Errorf("hpke: error requesting hpke-public-key endpoint, invalid status code: %d", res.StatusCode)
 	}
 
 	bs, err := io.ReadAll(io.LimitReader(res.Body, defaultMaxBodySize))
 	if err != nil {
-		return nil, fmt.Errorf("hpke: error reading jwks endpoint: %w", err)
+		return nil, fmt.Errorf("hpke: error reading hpke-public-key endpoint: %w", err)
 	}
-
-	var jwks struct {
-		Keys []JWK `json:"keys"`
-	}
-	err = json.Unmarshal(bs, &jwks)
-	if err != nil {
-		return nil, fmt.Errorf("hpke: error unmarshaling jwks endpoint: %w", err)
-	}
-
-	for _, key := range jwks.Keys {
-		if key.ID == jwkID && key.Type == jwkType && key.Curve == jwkCurve {
-			return PublicKeyFromString(key.X)
-		}
-	}
-	return nil, fmt.Errorf("hpke key not found in JWKS endpoint")
+	return PublicKeyFromBytes(bs)
 }
 
 // A KeyFetcher fetches public keys.
@@ -71,18 +56,18 @@ type KeyFetcher interface {
 	FetchPublicKey(ctx context.Context) (*PublicKey, error)
 }
 
-type jwksKeyFetcher struct {
+type fetcher struct {
 	client   *http.Client
 	endpoint string
 }
 
-func (fetcher *jwksKeyFetcher) FetchPublicKey(ctx context.Context) (*PublicKey, error) {
-	return FetchPublicKeyFromJWKS(ctx, fetcher.client, fetcher.endpoint)
+func (fetcher *fetcher) FetchPublicKey(ctx context.Context) (*PublicKey, error) {
+	return FetchPublicKey(ctx, fetcher.client, fetcher.endpoint)
 }
 
 // NewKeyFetcher returns a new KeyFetcher which fetches keys using an in-memory HTTP cache.
 func NewKeyFetcher(endpoint string, transport http.RoundTripper) KeyFetcher {
-	return &jwksKeyFetcher{
+	return &fetcher{
 		client: (&httpcache.Transport{
 			Transport: transport,
 			Cache:     httpcache.NewMemoryCache(),
