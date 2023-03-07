@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1678142147704,
+  "lastUpdate": 1678213128690,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -37348,6 +37348,38 @@ window.BENCHMARK_DATA = {
             "value": 10669533,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "bc6c022227b8d074759b66e1f950e6817f62bd24",
+          "message": "Update grafana.ini.yml",
+          "timestamp": "2023-03-07T16:11:10Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4045/commits/bc6c022227b8d074759b66e1f950e6817f62bd24"
+        },
+        "date": 1678213128004,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13812607,
+            "unit": "ns/op",
+            "extra": "76 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8407451,
+            "unit": "ns/op",
+            "extra": "141 times\n2 procs"
           }
         ]
       }
