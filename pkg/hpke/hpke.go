@@ -97,6 +97,16 @@ type PublicKey struct {
 	key kem.PublicKey
 }
 
+// PublicKeyFromBytes converts raw bytes into a public key.
+func PublicKeyFromBytes(raw []byte) (*PublicKey, error) {
+	key, err := kemID.Scheme().UnmarshalBinaryPublicKey(raw)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PublicKey{key: key}, nil
+}
+
 // PublicKeyFromString converts a string into a public key.
 func PublicKeyFromString(raw string) (*PublicKey, error) {
 	bs, err := decode(raw)
@@ -126,6 +136,20 @@ func (key *PublicKey) Equals(other *PublicKey) bool {
 		return false
 	}
 	return key.key.Equal(other.key)
+}
+
+// Bytes returns the public key as raw bytes.
+func (key *PublicKey) Bytes() []byte {
+	if key == nil || key.key == nil {
+		return nil
+	}
+
+	bs, err := key.key.MarshalBinary()
+	if err != nil {
+		// this should not happen
+		panic(fmt.Sprintf("failed to marshal public HPKE key: %v", err))
+	}
+	return bs
 }
 
 // MarshalJSON returns the JSON Web Key representation of the public key.
