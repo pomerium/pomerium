@@ -36,11 +36,6 @@ func New() *Store {
 	}
 }
 
-// UpdateIssuer updates the issuer in the store. The issuer is used as part of JWT construction.
-func (s *Store) UpdateIssuer(issuer string) {
-	s.write("/issuer", issuer)
-}
-
 // UpdateGoogleCloudServerlessAuthenticationServiceAccount updates the google cloud serverless authentication
 // service account in the store.
 func (s *Store) UpdateGoogleCloudServerlessAuthenticationServiceAccount(serviceAccount string) {

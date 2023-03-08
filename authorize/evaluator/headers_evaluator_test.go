@@ -31,8 +31,8 @@ func TestNewHeadersRequestFromPolicy(t *testing.T) {
 	})
 	assert.Equal(t, &HeadersRequest{
 		EnableGoogleCloudServerlessAuthentication: true,
-		FromAudience: "from.example.com",
-		ToAudience:   "https://to.example.com",
+		Issuer:     "from.example.com",
+		ToAudience: "https://to.example.com",
 	}, req)
 }
 
@@ -53,7 +53,6 @@ func TestHeadersEvaluator(t *testing.T) {
 		ctx := context.Background()
 		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
 		store := store.New()
-		store.UpdateIssuer("authenticate.example.com")
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
 		e, err := NewHeadersEvaluator(ctx, store)
@@ -72,8 +71,8 @@ func TestHeadersEvaluator(t *testing.T) {
 				}},
 			},
 			&HeadersRequest{
-				FromAudience: "from.example.com",
-				ToAudience:   "to.example.com",
+				Issuer:     "from.example.com",
+				ToAudience: "to.example.com",
 				Session: RequestSession{
 					ID: "s1",
 				},
@@ -87,6 +86,8 @@ func TestHeadersEvaluator(t *testing.T) {
 		err = rawJWT.Claims(publicJWK, &claims)
 		require.NoError(t, err)
 
+		assert.Equal(t, claims["iss"], "from.example.com")
+		assert.Equal(t, claims["aud"], "from.example.com")
 		assert.Equal(t, claims["exp"], math.Round(claims["exp"].(float64)))
 		assert.LessOrEqual(t, claims["exp"], float64(time.Now().Add(time.Minute*6).Unix()),
 			"JWT should expire within 5 minutes, but got: %v", claims["exp"])
@@ -104,7 +105,7 @@ func TestHeadersEvaluator(t *testing.T) {
 				}},
 			},
 			&HeadersRequest{
-				FromAudience:    "from.example.com",
+				Issuer:          "from.example.com",
 				ToAudience:      "to.example.com",
 				Session:         RequestSession{ID: "s1"},
 				PassAccessToken: true,
@@ -122,10 +123,10 @@ func TestHeadersEvaluator(t *testing.T) {
 				}},
 			},
 			&HeadersRequest{
-				FromAudience: "from.example.com",
-				ToAudience:   "to.example.com",
-				Session:      RequestSession{ID: "s1"},
-				PassIDToken:  true,
+				Issuer:      "from.example.com",
+				ToAudience:  "to.example.com",
+				Session:     RequestSession{ID: "s1"},
+				PassIDToken: true,
 			})
 		require.NoError(t, err)
 

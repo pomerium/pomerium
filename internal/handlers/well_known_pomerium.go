@@ -8,6 +8,7 @@ import (
 
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 // WellKnownPomerium returns the /.well-known/pomerium handler.
@@ -19,8 +20,8 @@ func WellKnownPomerium(authenticateURL *url.URL) http.Handler {
 			FrontchannelLogoutURI string `json:"frontchannel_logout_uri"`          // https://openid.net/specs/openid-connect-frontchannel-1_0.html
 		}{
 			authenticateURL.ResolveReference(&url.URL{Path: "/oauth2/callback"}).String(),
-			authenticateURL.ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
-			authenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/sign_out"}).String(),
+			urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
+			urlutil.GetAbsoluteURL(r).ResolveReference(&url.URL{Path: "/.pomerium/sign_out"}).String(),
 		}
 		w.Header().Set("X-CSRF-Token", csrf.Token(r))
 		httputil.RenderJSON(w, http.StatusOK, wellKnownURLs)

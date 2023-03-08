@@ -35,7 +35,6 @@ func TestPolicyEvaluator(t *testing.T) {
 		ctx := context.Background()
 		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
 		store := store.New()
-		store.UpdateIssuer("authenticate.example.com")
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
 		e, err := NewPolicyEvaluator(ctx, store, policy)

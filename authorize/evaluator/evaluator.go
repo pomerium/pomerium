@@ -17,7 +17,6 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
@@ -204,12 +203,6 @@ func (e *Evaluator) updateStore(cfg *evaluatorConfig) error {
 		return fmt.Errorf("authorize: couldn't create signer: %w", err)
 	}
 
-	authenticateURL, err := urlutil.ParseAndValidateURL(cfg.authenticateURL)
-	if err != nil {
-		return fmt.Errorf("authorize: invalid authenticate URL: %w", err)
-	}
-
-	e.store.UpdateIssuer(authenticateURL.Host)
 	e.store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(
 		cfg.googleCloudServerlessAuthenticationServiceAccount,
 	)
