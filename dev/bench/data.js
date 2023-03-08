@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1678292518959,
+  "lastUpdate": 1678304576132,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -37548,6 +37548,42 @@ window.BENCHMARK_DATA = {
             "value": 7669761,
             "unit": "ns/op",
             "extra": "153 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1dee325b72257bc8ccc2845d56db081b65db5001",
+          "message": "authorize: move sign out and jwks urls to route, update issuer for JWT (#4046)\n\n* authorize: move sign out and jwks urls to route, update issuer for JWT\r\n\r\n* fix test",
+          "timestamp": "2023-03-08T12:40:15-07:00",
+          "tree_id": "0b1128eb6ae83eece66195b12880ad883f6e23c3",
+          "url": "https://github.com/pomerium/pomerium/commit/1dee325b72257bc8ccc2845d56db081b65db5001"
+        },
+        "date": 1678304575192,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14333975,
+            "unit": "ns/op",
+            "extra": "79 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8483264,
+            "unit": "ns/op",
+            "extra": "134 times\n2 procs"
           }
         ]
       }
