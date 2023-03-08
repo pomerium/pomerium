@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1678292467097,
+  "lastUpdate": 1678292518959,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -37516,6 +37516,38 @@ window.BENCHMARK_DATA = {
             "value": 8523893,
             "unit": "ns/op",
             "extra": "150 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "0ea636015e55cec7fba14ead87bb4cd2b4a78b2a",
+          "message": "hpke: move published public keys to a new endpoint",
+          "timestamp": "2023-03-08T07:35:41Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4048/commits/0ea636015e55cec7fba14ead87bb4cd2b4a78b2a"
+        },
+        "date": 1678292518394,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12450491,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7669761,
+            "unit": "ns/op",
+            "extra": "153 times\n2 procs"
           }
         ]
       }
