@@ -53,8 +53,8 @@ func TestServerHTTP(t *testing.T) {
 
 		expect := map[string]any{
 			"authentication_callback_endpoint": "https://authenticate.localhost.pomerium.io/oauth2/callback",
-			"frontchannel_logout_uri":          "https://authenticate.localhost.pomerium.io/.pomerium/sign_out",
-			"jwks_uri":                         "https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json",
+			"frontchannel_logout_uri":          fmt.Sprintf("https://localhost:%s/.pomerium/sign_out", src.GetConfig().HTTPPort),
+			"jwks_uri":                         fmt.Sprintf("https://localhost:%s/.well-known/pomerium/jwks.json", src.GetConfig().HTTPPort),
 		}
 		assert.Equal(t, expect, actual)
 	})
