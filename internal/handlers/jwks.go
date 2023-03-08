@@ -17,10 +17,7 @@ import (
 )
 
 // JWKSHandler returns the /.well-known/pomerium/jwks.json handler.
-func JWKSHandler(
-	signingKey []byte,
-	additionalKeys ...any,
-) http.Handler {
+func JWKSHandler(signingKey []byte) http.Handler {
 	return cors.AllowAll().Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		var jwks struct {
 			Keys []any `json:"keys"`
@@ -34,7 +31,6 @@ func JWKSHandler(
 				jwks.Keys = append(jwks.Keys, *k)
 			}
 		}
-		jwks.Keys = append(jwks.Keys, additionalKeys...)
 
 		bs, err := json.Marshal(jwks)
 		if err != nil {
