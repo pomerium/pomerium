@@ -1,6 +1,7 @@
 package authenticate
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 
@@ -61,7 +62,8 @@ func (a *Authenticate) logAuthenticateEvent(r *http.Request, profile *identity.P
 		log.Warn(ctx).Err(err).Msg("log authenticate event: failed to decrypt request params")
 	}
 
-	evt := log.Info(ctx).
+	evt := log.Info(context.Background()).
+		Str("ip", httputil.GetClientIP(r)).
 		Str("pomerium_version", params.Get(urlutil.QueryVersion)).
 		Str("pomerium_request_uuid", params.Get(urlutil.QueryRequestUUID)).
 		Str("pomerium_pub", pub.String())
