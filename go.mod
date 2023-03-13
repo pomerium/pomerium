@@ -24,7 +24,7 @@ require (
 	github.com/go-jose/go-jose/v3 v3.0.0
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang/mock v1.6.0
-	github.com/golang/protobuf v1.5.2
+	github.com/golang/protobuf v1.5.3
 	github.com/golangci/golangci-lint v1.51.2
 	github.com/google/btree v1.1.2
 	github.com/google/go-cmp v0.5.9
@@ -41,7 +41,7 @@ require (
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/natefinch/atomic v1.0.1
-	github.com/open-policy-agent/opa v0.49.2
+	github.com/open-policy-agent/opa v0.50.0
 	github.com/openzipkin/zipkin-go v0.4.1
 	github.com/ory/dockertest/v3 v3.9.1
 	github.com/peterbourgon/ff/v3 v3.3.0
@@ -312,7 +312,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
 	gitlab.com/bosi/decorder v0.2.3 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
-	go.uber.org/goleak v1.1.12 // indirect
+	go.uber.org/goleak v1.2.1 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20230203172020-98cc5a0785f9 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
