@@ -9,7 +9,7 @@ require (
 	github.com/CAFxX/httpcompression v0.0.8
 	github.com/DataDog/opencensus-go-exporter-datadog v0.0.0-20200406135749-5c268882acf0
 	github.com/VictoriaMetrics/fastcache v1.12.0
-	github.com/aws/aws-sdk-go-v2 v1.17.5
+	github.com/aws/aws-sdk-go-v2 v1.17.6
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.30.5
 	github.com/caddyserver/certmagic v0.17.2
 	github.com/cenkalti/backoff/v4 v4.2.0
