@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1678907174654,
+  "lastUpdate": 1678907203519,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -38344,6 +38344,38 @@ window.BENCHMARK_DATA = {
             "value": 10655575,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "58731d2a3d4d52f177ce3ddafb70ca42584c2aa8",
+          "message": "chore(deps): bump github.com/VictoriaMetrics/fastcache from 1.12.0 to 1.12.1",
+          "timestamp": "2023-03-15T16:15:03Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4057/commits/58731d2a3d4d52f177ce3ddafb70ca42584c2aa8"
+        },
+        "date": 1678907202898,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13817660,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8444746,
+            "unit": "ns/op",
+            "extra": "142 times\n2 procs"
           }
         ]
       }
