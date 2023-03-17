@@ -51,6 +51,8 @@ func New(cfg *config.Config, options ...Option) (*Authenticate, error) {
 		state:   atomicutil.NewValue(newAuthenticateState()),
 	}
 
+	a.options.Store(cfg.Options)
+
 	state, err := newAuthenticateStateFromConfig(cfg)
 	if err != nil {
 		return nil, err
