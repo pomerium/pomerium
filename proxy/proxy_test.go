@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/handlers"
+	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
 
 	"github.com/stretchr/testify/require"
 )
@@ -33,7 +33,7 @@ func testOptions(t *testing.T) *config.Options {
 	hpkePrivateKey, err := opts.GetHPKEPrivateKey()
 	require.NoError(t, err)
 
-	authnSrv := httptest.NewServer(handlers.HPKEPublicKeyHandler(hpkePrivateKey.PublicKey()))
+	authnSrv := httptest.NewServer(hpke_handlers.HPKEPublicKeyHandler(hpkePrivateKey.PublicKey()))
 	t.Cleanup(authnSrv.Close)
 	opts.AuthenticateURLString = authnSrv.URL
 

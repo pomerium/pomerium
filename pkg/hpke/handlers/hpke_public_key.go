@@ -1,3 +1,4 @@
+// Package handlers provides http handlers for HPKE.
 package handlers
 
 import (
@@ -11,8 +12,12 @@ import (
 	"github.com/rs/cors"
 
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/hpke"
 )
+
+// HPKEPublicKeyPath is the path to the HPKE public key.
+const HPKEPublicKeyPath = urlutil.HPKEPublicKeyPath
 
 // HPKEPublicKeyHandler returns a handler which returns the HPKE public key.
 func HPKEPublicKeyHandler(publicKey *hpke.PublicKey) http.Handler {

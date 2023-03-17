@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/pkg/hpke"
+	"github.com/pomerium/pomerium/pkg/hpke/handlers"
 )
 
 func TestHPKEPublicKeyHandler(t *testing.T) {
