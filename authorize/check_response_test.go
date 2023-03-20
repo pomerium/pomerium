@@ -20,8 +20,8 @@ import (
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
-	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/testutil"
+	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
 
@@ -33,7 +33,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 	hpkePrivateKey, err := opt.GetHPKEPrivateKey()
 	require.NoError(t, err)
 
-	authnSrv := httptest.NewServer(handlers.HPKEPublicKeyHandler(hpkePrivateKey.PublicKey()))
+	authnSrv := httptest.NewServer(hpke_handlers.HPKEPublicKeyHandler(hpkePrivateKey.PublicKey()))
 	t.Cleanup(authnSrv.Close)
 	opt.AuthenticateURLString = authnSrv.URL
 
@@ -228,7 +228,7 @@ func TestRequireLogin(t *testing.T) {
 	hpkePrivateKey, err := opt.GetHPKEPrivateKey()
 	require.NoError(t, err)
 
-	authnSrv := httptest.NewServer(handlers.HPKEPublicKeyHandler(hpkePrivateKey.PublicKey()))
+	authnSrv := httptest.NewServer(hpke_handlers.HPKEPublicKeyHandler(hpkePrivateKey.PublicKey()))
 	t.Cleanup(authnSrv.Close)
 	opt.AuthenticateURLString = authnSrv.URL
 

@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/pkg/hpke"
+	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
 )
 
 func TestFetchPublicKeyFromJWKS(t *testing.T) {
@@ -24,7 +24,7 @@ func TestFetchPublicKeyFromJWKS(t *testing.T) {
 	require.NoError(t, err)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handlers.HPKEPublicKeyHandler(hpkePrivateKey.PublicKey()).ServeHTTP(w, r)
+		hpke_handlers.HPKEPublicKeyHandler(hpkePrivateKey.PublicKey()).ServeHTTP(w, r)
 	}))
 	t.Cleanup(srv.Close)
 
