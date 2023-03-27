@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1679958314045,
+  "lastUpdate": 1679958463471,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -39752,6 +39752,42 @@ window.BENCHMARK_DATA = {
             "value": 10680254,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bf2dc876ef807baee5a0d902ea55b79a9a64292c",
+          "message": "chore(deps): bump github.com/aws/aws-sdk-go-v2/config from 1.18.18 to 1.18.19 (#4080)\n\nchore(deps): bump github.com/aws/aws-sdk-go-v2/config\r\n\r\nBumps [github.com/aws/aws-sdk-go-v2/config](https://github.com/aws/aws-sdk-go-v2) from 1.18.18 to 1.18.19.\r\n- [Release notes](https://github.com/aws/aws-sdk-go-v2/releases)\r\n- [Changelog](https://github.com/aws/aws-sdk-go-v2/blob/main/CHANGELOG.md)\r\n- [Commits](https://github.com/aws/aws-sdk-go-v2/compare/config/v1.18.18...config/v1.18.19)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/aws/aws-sdk-go-v2/config\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-03-27T17:05:16-06:00",
+          "tree_id": "608e51f23139f5064870143faac4051bb22ae1c7",
+          "url": "https://github.com/pomerium/pomerium/commit/bf2dc876ef807baee5a0d902ea55b79a9a64292c"
+        },
+        "date": 1679958463025,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13678526,
+            "unit": "ns/op",
+            "extra": "94 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8082876,
+            "unit": "ns/op",
+            "extra": "147 times\n2 procs"
           }
         ]
       }
