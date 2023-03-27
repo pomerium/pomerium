@@ -20,7 +20,7 @@ jobs:
       tag: ${{ steps.tagName.outputs.tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f
+        uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3
 
       - name: Unshallow
         run: git fetch --prune --unshallow
@@ -120,7 +120,7 @@ jobs:
     needs: goreleaser
     steps:
       - name: Checkout Gitops Repo
-        uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f
+        uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3
         with:
           repository: pomerium/gitops-argocd
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
