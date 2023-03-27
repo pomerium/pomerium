@@ -37,7 +37,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.2
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/mholt/acmez v1.1.0
-	github.com/minio/minio-go/v7 v7.0.47
+	github.com/minio/minio-go/v7 v7.0.50
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/natefinch/atomic v1.0.1
@@ -95,7 +95,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.18.6 // indirect
 	github.com/aws/smithy-go v1.13.5 // indirect
-	github.com/dustin/go-humanize v1.0.1-0.20200219035652-afde56e7acac // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/googleapis/gax-go/v2 v2.7.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -220,8 +220,8 @@ require (
 	github.com/kisielk/errcheck v1.6.3 // indirect
 	github.com/kisielk/gotool v1.0.0 // indirect
 	github.com/kkHAIKE/contextcheck v1.1.3 // indirect
-	github.com/klauspost/compress v1.15.11 // indirect
-	github.com/klauspost/cpuid/v2 v2.1.1 // indirect
+	github.com/klauspost/compress v1.16.0 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
 	github.com/kulti/thelper v0.6.3 // indirect
 	github.com/kunwardeep/paralleltest v1.0.6 // indirect
 	github.com/kyoh86/exportloopref v0.1.11 // indirect
