@@ -212,6 +212,10 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
+	if a.cfg.profileTrimFn != nil {
+		a.cfg.profileTrimFn(profile)
+	}
+
 	redirectTo, err := urlutil.CallbackURL(state.hpkePrivateKey, proxyPublicKey, requestParams, profile)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
