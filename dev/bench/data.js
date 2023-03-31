@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1680111485860,
+  "lastUpdate": 1680277891708,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -39924,6 +39924,42 @@ window.BENCHMARK_DATA = {
             "value": 8066299,
             "unit": "ns/op",
             "extra": "140 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "860a881fe0dda80295664cc53a9fabbcf5d53be2",
+          "message": "authenticate: have an option to trim the contents of the callback (#4090)",
+          "timestamp": "2023-03-31T11:48:31-04:00",
+          "tree_id": "072c03388873fca5eae24008498d264ad34ba1a1",
+          "url": "https://github.com/pomerium/pomerium/commit/860a881fe0dda80295664cc53a9fabbcf5d53be2"
+        },
+        "date": 1680277890843,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15518115,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10991446,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
