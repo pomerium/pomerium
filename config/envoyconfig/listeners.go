@@ -257,61 +257,6 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	options *config.Options,
 	certs ...tls.Certificate,
 ) (*envoy_config_listener_v3.Filter, error) {
-	authorizeURLs, err := options.GetInternalAuthorizeURLs()
-	if err != nil {
-		return nil, err
-	}
-
-	dataBrokerURLs, err := options.GetInternalDataBrokerURLs()
-	if err != nil {
-		return nil, err
-	}
-
-	allHosts, err := getAllRouteableHosts(options, options.Addr)
-	if err != nil {
-		return nil, err
-	}
-
-	var virtualHosts []*envoy_config_route_v3.VirtualHost
-	for _, host := range allHosts {
-		requireStrictTransportSecurity := cryptutil.HasCertificateForServerName(certs, host)
-		vh, err := b.buildVirtualHost(options, host, host, requireStrictTransportSecurity)
-		if err != nil {
-			return nil, err
-		}
-
-		if options.Addr == options.GetGRPCAddr() {
-			// if this is a gRPC service domain and we're supposed to handle that, add those routes
-			if (config.IsAuthorize(options.Services) && urlsMatchHost(authorizeURLs, host)) ||
-				(config.IsDataBroker(options.Services) && urlsMatchHost(dataBrokerURLs, host)) {
-				rs, err := b.buildGRPCRoutes()
-				if err != nil {
-					return nil, err
-				}
-				vh.Routes = append(vh.Routes, rs...)
-			}
-		}
-
-		// if we're the proxy, add all the policy routes
-		if config.IsProxy(options.Services) {
-			rs, err := b.buildPolicyRoutes(options, host)
-			if err != nil {
-				return nil, err
-			}
-			vh.Routes = append(vh.Routes, rs...)
-		}
-
-		if len(vh.Routes) > 0 {
-			virtualHosts = append(virtualHosts, vh)
-		}
-	}
-
-	vh, err := b.buildVirtualHost(options, "catch-all", "*", false)
-	if err != nil {
-		return nil, err
-	}
-	virtualHosts = append(virtualHosts, vh)
-
 	var grpcClientTimeout *durationpb.Duration
 	if options.GRPCClientTimeout != 0 {
 		grpcClientTimeout = durationpb.New(options.GRPCClientTimeout)
@@ -333,10 +278,6 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		maxStreamDuration = durationpb.New(options.WriteTimeout)
 	}
 
-	rc, err := b.buildRouteConfiguration("main", virtualHosts)
-	if err != nil {
-		return nil, err
-	}
 	tracingProvider, err := buildTracingHTTP(options)
 	if err != nil {
 		return nil, err
@@ -347,8 +288,14 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 
 		CodecType:  options.GetCodecType().ToEnvoy(),
 		StatPrefix: "ingress",
-		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
-			RouteConfig: rc,
+		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_Rds{
+			Rds: &envoy_http_connection_manager.Rds{
+				ConfigSource: &envoy_config_core_v3.ConfigSource{
+					ResourceApiVersion:    envoy_config_core_v3.ApiVersion_V3,
+					ConfigSourceSpecifier: &envoy_config_core_v3.ConfigSource_Ads{},
+				},
+				RouteConfigName: "main",
+			},
 		},
 		HttpFilters: filters,
 		AccessLog:   buildAccessLogs(options),
@@ -546,7 +493,8 @@ func (b *Builder) buildDownstreamTLSContextMulti(
 			TlsCertificates:       envoyCerts,
 			AlpnProtocols:         getALPNProtos(cfg.Options),
 			ValidationContextType: b.buildDownstreamValidationContext(ctx, cfg),
-		}}, nil
+		},
+	}, nil
 }
 
 func getALPNProtos(opts *config.Options) []string {
