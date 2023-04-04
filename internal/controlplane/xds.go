@@ -25,11 +25,10 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		return nil, err
 	}
 	for _, cluster := range clusters {
-		any := protoutil.NewAny(cluster)
 		resources[clusterTypeURL] = append(resources[clusterTypeURL], &envoy_service_discovery_v3.Resource{
 			Name:     cluster.Name,
 			Version:  hex.EncodeToString(cryptutil.HashProto(cluster)),
-			Resource: any,
+			Resource: protoutil.NewAny(cluster),
 		})
 	}
 
@@ -38,11 +37,10 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		return nil, err
 	}
 	for _, listener := range listeners {
-		any := protoutil.NewAny(listener)
 		resources[listenerTypeURL] = append(resources[listenerTypeURL], &envoy_service_discovery_v3.Resource{
 			Name:     listener.Name,
 			Version:  hex.EncodeToString(cryptutil.HashProto(listener)),
-			Resource: any,
+			Resource: protoutil.NewAny(listener),
 		})
 	}
 
