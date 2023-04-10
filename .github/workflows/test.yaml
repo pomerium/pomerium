@@ -104,7 +104,7 @@ jobs:
           outfile: coverage.lcov
 
       - name: upload to coveralls
-        uses: coverallsapp/github-action@67662d24394fd74bffcf7b462d1b432814159afd
+        uses: coverallsapp/github-action@045a25193560dc194e405657f552faeb6b9433aa
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: coverage.lcov
