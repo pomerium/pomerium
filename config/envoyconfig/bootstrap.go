@@ -166,7 +166,7 @@ func (b *Builder) BuildBootstrapStaticResources(
 			return nil, fmt.Errorf("error building clusters: %w", err)
 		}
 
-		staticResources.Listeners, err = b.BuildListeners(ctx, cfg)
+		staticResources.Listeners, err = b.BuildListeners(ctx, cfg, fullyStatic)
 		if err != nil {
 			return nil, fmt.Errorf("error building listeners: %w", err)
 		}
