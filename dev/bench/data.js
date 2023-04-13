@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1681149318361,
+  "lastUpdate": 1681427592743,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -40728,6 +40728,38 @@ window.BENCHMARK_DATA = {
             "value": 8410629,
             "unit": "ns/op",
             "extra": "141 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "7ec38e9547522d083ce24384a5a5414e51f542fd",
+          "message": "support loading route configuration via rds",
+          "timestamp": "2023-04-12T07:53:41Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4098/commits/7ec38e9547522d083ce24384a5a5414e51f542fd"
+        },
+        "date": 1681427591864,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16353822,
+            "unit": "ns/op",
+            "extra": "73 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10586649,
+            "unit": "ns/op",
+            "extra": "97 times\n2 procs"
           }
         ]
       }
