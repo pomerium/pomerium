@@ -1,6 +1,7 @@
 package envoyconfig
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -24,6 +25,47 @@ var (
 	envoyAdminAddressMode = 0o600
 	envoyAdminClusterName = "pomerium-envoy-admin"
 )
+
+// BuildBootstrap builds the bootstrap config.
+func (b *Builder) BuildBootstrap(
+	ctx context.Context,
+	cfg *config.Config,
+	fullyStatic bool,
+) (bootstrap *envoy_config_bootstrap_v3.Bootstrap, err error) {
+	bootstrap = new(envoy_config_bootstrap_v3.Bootstrap)
+
+	bootstrap.Admin, err = b.BuildBootstrapAdmin(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("error building bootstrap admin: %w", err)
+	}
+
+	bootstrap.DynamicResources, err = b.BuildBootstrapDynamicResources(cfg, fullyStatic)
+	if err != nil {
+		return nil, fmt.Errorf("error building bootstrap dynamic resources: %w", err)
+	}
+
+	bootstrap.LayeredRuntime, err = b.BuildBootstrapLayeredRuntime()
+	if err != nil {
+		return nil, fmt.Errorf("error building bootstrap layered runtime: %w", err)
+	}
+
+	bootstrap.Node = &envoy_config_core_v3.Node{
+		Id:      telemetry.ServiceName(cfg.Options.Services),
+		Cluster: telemetry.ServiceName(cfg.Options.Services),
+	}
+
+	bootstrap.StaticResources, err = b.BuildBootstrapStaticResources(ctx, cfg, fullyStatic)
+	if err != nil {
+		return nil, fmt.Errorf("error building bootstrap static resources: %w", err)
+	}
+
+	bootstrap.StatsConfig, err = b.BuildBootstrapStatsConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return bootstrap, nil
+}
 
 // BuildBootstrapAdmin builds the admin config for the envoy bootstrap.
 func (b *Builder) BuildBootstrapAdmin(cfg *config.Config) (admin *envoy_config_bootstrap_v3.Admin, err error) {
@@ -53,6 +95,39 @@ func (b *Builder) BuildBootstrapAdmin(cfg *config.Config) (admin *envoy_config_b
 	return admin, nil
 }
 
+// BuildBootstrapDynamicResources builds the dynamic resources for the envoy bootstrap.
+func (b *Builder) BuildBootstrapDynamicResources(
+	cfg *config.Config,
+	fullyStatic bool,
+) (dynamicResources *envoy_config_bootstrap_v3.Bootstrap_DynamicResources, err error) {
+	if fullyStatic {
+		return nil, nil
+	}
+	return &envoy_config_bootstrap_v3.Bootstrap_DynamicResources{
+		AdsConfig: &envoy_config_core_v3.ApiConfigSource{
+			ApiType:             envoy_config_core_v3.ApiConfigSource_ApiType(envoy_config_core_v3.ApiConfigSource_ApiType_value["DELTA_GRPC"]),
+			TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
+			GrpcServices: []*envoy_config_core_v3.GrpcService{
+				{
+					TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
+						EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
+							ClusterName: "pomerium-control-plane-grpc",
+						},
+					},
+				},
+			},
+		},
+		LdsConfig: &envoy_config_core_v3.ConfigSource{
+			ResourceApiVersion:    envoy_config_core_v3.ApiVersion_V3,
+			ConfigSourceSpecifier: &envoy_config_core_v3.ConfigSource_Ads{},
+		},
+		CdsConfig: &envoy_config_core_v3.ConfigSource{
+			ResourceApiVersion:    envoy_config_core_v3.ApiVersion_V3,
+			ConfigSourceSpecifier: &envoy_config_core_v3.ConfigSource_Ads{},
+		},
+	}, nil
+}
+
 // BuildBootstrapLayeredRuntime builds the layered runtime for the envoy bootstrap.
 func (b *Builder) BuildBootstrapLayeredRuntime() (*envoy_config_bootstrap_v3.LayeredRuntime, error) {
 	layer, err := structpb.NewStruct(map[string]interface{}{
@@ -78,7 +153,27 @@ func (b *Builder) BuildBootstrapLayeredRuntime() (*envoy_config_bootstrap_v3.Lay
 
 // BuildBootstrapStaticResources builds the static resources for the envoy bootstrap. It includes the control plane
 // cluster.
-func (b *Builder) BuildBootstrapStaticResources() (*envoy_config_bootstrap_v3.Bootstrap_StaticResources, error) {
+func (b *Builder) BuildBootstrapStaticResources(
+	ctx context.Context,
+	cfg *config.Config,
+	fullyStatic bool,
+) (staticResources *envoy_config_bootstrap_v3.Bootstrap_StaticResources, err error) {
+	staticResources = new(envoy_config_bootstrap_v3.Bootstrap_StaticResources)
+
+	if fullyStatic {
+		staticResources.Clusters, err = b.BuildClusters(ctx, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("error building clusters: %w", err)
+		}
+
+		staticResources.Listeners, err = b.BuildListeners(ctx, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("error building listeners: %w", err)
+		}
+
+		return staticResources, nil
+	}
+
 	grpcAddr, err := parseAddress(b.localGRPCAddress)
 	if err != nil {
 		return nil, fmt.Errorf("envoyconfig: invalid local gRPC address: %w", err)
@@ -114,13 +209,9 @@ func (b *Builder) BuildBootstrapStaticResources() (*envoy_config_bootstrap_v3.Bo
 		TypedExtensionProtocolOptions: buildTypedExtensionProtocolOptions(nil, upstreamProtocolHTTP2),
 	}
 
-	staticCfg := &envoy_config_bootstrap_v3.Bootstrap_StaticResources{
-		Clusters: []*envoy_config_cluster_v3.Cluster{
-			controlPlaneCluster,
-		},
-	}
+	staticResources.Clusters = append(staticResources.Clusters, controlPlaneCluster)
 
-	return staticCfg, nil
+	return staticResources, nil
 }
 
 // BuildBootstrapStatsConfig builds a the stats config the envoy bootstrap.
