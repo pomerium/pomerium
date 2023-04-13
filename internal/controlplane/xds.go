@@ -32,7 +32,7 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		})
 	}
 
-	listeners, err := srv.Builder.BuildListeners(ctx, cfg.Config)
+	listeners, err := srv.Builder.BuildListeners(ctx, cfg.Config, false)
 	if err != nil {
 		return nil, err
 	}
