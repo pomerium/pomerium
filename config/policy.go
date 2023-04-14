@@ -25,8 +25,9 @@ import (
 
 // Policy contains route specific configuration and access settings.
 type Policy struct {
-	From string       `mapstructure:"from" yaml:"from"`
-	To   WeightedURLs `mapstructure:"to" yaml:"to"`
+	From      string       `mapstructure:"from" yaml:"from"`
+	FromRegex string       `mapstructure:"from_regex" yaml:"from_regex"`
+	To        WeightedURLs `mapstructure:"to" yaml:"to"`
 
 	// LbWeights are optional load balancing weights applied to endpoints specified in To
 	// this field exists for compatibility with mapstructure
@@ -228,6 +229,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 
 	p := &Policy{
 		From:                             pb.GetFrom(),
+		FromRegex:                        pb.GetFromRegex(),
 		AllowedUsers:                     pb.GetAllowedUsers(),
 		AllowedDomains:                   pb.GetAllowedDomains(),
 		AllowedIDPClaims:                 identity.NewFlattenedClaimsFromPB(pb.GetAllowedIdpClaims()),
@@ -352,6 +354,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	pb := &configpb.Route{
 		Name:                             fmt.Sprint(p.RouteID()),
 		From:                             p.From,
+		FromRegex:                        p.FromRegex,
 		AllowedUsers:                     p.AllowedUsers,
 		AllowedDomains:                   p.AllowedDomains,
 		AllowedIdpClaims:                 p.AllowedIDPClaims.ToPB(),
@@ -432,19 +435,28 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 // Validate checks the validity of a policy.
 func (p *Policy) Validate() error {
 	var err error
-	source, err := urlutil.ParseAndValidateURL(p.From)
-	if err != nil {
-		return fmt.Errorf("config: policy bad source url %w", err)
-	}
+	if p.From != "" {
+		source, err := urlutil.ParseAndValidateURL(p.From)
+		if err != nil {
+			return fmt.Errorf("config: policy bad source url %w", err)
+		}
 
-	// Make sure there's no path set on the from url
-	if (source.Scheme == "http" || source.Scheme == "https") && !(source.Path == "" || source.Path == "/") {
-		return fmt.Errorf("config: policy source url (%s) contains a path, but it should be set using the path field instead",
-			source.String())
-	}
-	if source.Scheme == "http" {
-		log.Warn(context.Background()).Msgf("config: policy source url (%s) uses HTTP but only HTTPS is supported",
-			source.String())
+		// Make sure there's no path set on the from url
+		if (source.Scheme == "http" || source.Scheme == "https") && !(source.Path == "" || source.Path == "/") {
+			return fmt.Errorf("config: policy source url (%s) contains a path, but it should be set using the path field instead",
+				source.String())
+		}
+		if source.Scheme == "http" {
+			log.Warn(context.Background()).Msgf("config: policy source url (%s) uses HTTP but only HTTPS is supported",
+				source.String())
+		}
+	} else if p.FromRegex != "" {
+		_, err = regexp.Compile(p.FromRegex)
+		if err != nil {
+			return fmt.Errorf("config: invalid policy from_regex (%s): %w", p.FromRegex, err)
+		}
+	} else {
+		return fmt.Errorf("config: policy must specify from or from_regex")
 	}
 
 	if len(p.To) == 0 && p.Redirect == nil {
@@ -553,10 +565,11 @@ func (p *Policy) Checksum() uint64 {
 // RouteID returns a unique identifier for a route
 func (p *Policy) RouteID() (uint64, error) {
 	id := routeID{
-		From:   p.From,
-		Prefix: p.Prefix,
-		Path:   p.Path,
-		Regex:  p.Regex,
+		From:      p.From,
+		FromRegex: p.FromRegex,
+		Prefix:    p.Prefix,
+		Path:      p.Path,
+		Regex:     p.Regex,
 	}
 
 	if len(p.To) > 0 {
@@ -589,8 +602,14 @@ func (p *Policy) String() string {
 
 // Matches returns true if the policy would match the given URL.
 func (p *Policy) Matches(requestURL url.URL) bool {
-	if !FromMatchesURL(p.From, requestURL) {
-		return false
+	if p.FromRegex != "" {
+		if !FromRegexMatchesURL(p.FromRegex, requestURL) {
+			return false
+		}
+	} else {
+		if !FromMatchesURL(p.From, requestURL) {
+			return false
+		}
 	}
 
 	if p.Prefix != "" {
@@ -660,10 +679,11 @@ func (p *Policy) GetSetAuthorizationHeader() configpb.Route_AuthorizationHeaderM
 }
 
 type routeID struct {
-	From     string
-	To       []string
-	Prefix   string
-	Path     string
-	Regex    string
-	Redirect *PolicyRedirect
+	From      string
+	FromRegex string
+	To        []string
+	Prefix    string
+	Path      string
+	Regex     string
+	Redirect  *PolicyRedirect
 }

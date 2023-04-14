@@ -178,81 +178,94 @@ func (b *Builder) buildPolicyRoutes(options *config.Options, host string) ([]*en
 			continue
 		}
 
-		match := mkRouteMatch(&policy)
-		envoyRoute := &envoy_config_route_v3.Route{
-			Name:                   fmt.Sprintf("policy-%d", i),
-			Match:                  match,
-			Metadata:               &envoy_config_core_v3.Metadata{},
-			RequestHeadersToAdd:    toEnvoyHeaders(policy.SetRequestHeaders),
-			RequestHeadersToRemove: getRequestHeadersToRemove(options, &policy),
-			ResponseHeadersToAdd:   toEnvoyHeaders(policy.SetResponseHeaders),
-		}
-		if policy.Redirect != nil {
-			action, err := b.buildPolicyRouteRedirectAction(policy.Redirect)
-			if err != nil {
-				return nil, err
-			}
-			envoyRoute.Action = &envoy_config_route_v3.Route_Redirect{Redirect: action}
-		} else {
-			action, err := b.buildPolicyRouteRouteAction(options, &policy)
-			if err != nil {
-				return nil, err
-			}
-			envoyRoute.Action = &envoy_config_route_v3.Route_Route{Route: action}
-		}
-
-		luaMetadata := map[string]*structpb.Value{
-			"rewrite_response_headers": getRewriteHeadersMetadata(policy.RewriteResponseHeaders),
-		}
-
-		// disable authentication entirely when the proxy is fronting authenticate
-		isFrontingAuthenticate, err := isProxyFrontingAuthenticate(options, host)
+		envoyRoute, err := b.buildPolicyRoute(options, &policy, fmt.Sprintf("policy-%d", i))
 		if err != nil {
 			return nil, err
-		}
-		if isFrontingAuthenticate {
-			envoyRoute.TypedPerFilterConfig = map[string]*any.Any{
-				"envoy.filters.http.ext_authz": disableExtAuthz,
-			}
-		} else {
-			luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
-				Kind: &structpb.Value_StringValue{
-					StringValue: options.CookieName,
-				},
-			}
-			luaMetadata["remove_pomerium_authorization"] = &structpb.Value{
-				Kind: &structpb.Value_BoolValue{
-					BoolValue: true,
-				},
-			}
-			luaMetadata["remove_impersonate_headers"] = &structpb.Value{
-				Kind: &structpb.Value_BoolValue{
-					BoolValue: policy.IsForKubernetes(),
-				},
-			}
-		}
-
-		if policy.IsForKubernetes() {
-			policyID, _ := policy.RouteID()
-			for _, hdr := range b.reproxy.GetPolicyIDHeaders(policyID) {
-				envoyRoute.RequestHeadersToAdd = append(envoyRoute.RequestHeadersToAdd,
-					&envoy_config_core_v3.HeaderValueOption{
-						Header: &envoy_config_core_v3.HeaderValue{
-							Key:   hdr[0],
-							Value: hdr[1],
-						},
-						AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
-					})
-			}
-		}
-
-		envoyRoute.Metadata.FilterMetadata = map[string]*structpb.Struct{
-			"envoy.filters.http.lua": {Fields: luaMetadata},
 		}
 
 		routes = append(routes, envoyRoute)
 	}
 	return routes, nil
+}
+
+func (b *Builder) buildPolicyRoute(options *config.Options, policy *config.Policy, name string) (*envoy_config_route_v3.Route, error) {
+	match := mkRouteMatch(policy)
+	envoyRoute := &envoy_config_route_v3.Route{
+		Name:                   name,
+		Match:                  match,
+		Metadata:               &envoy_config_core_v3.Metadata{},
+		RequestHeadersToAdd:    toEnvoyHeaders(policy.SetRequestHeaders),
+		RequestHeadersToRemove: getRequestHeadersToRemove(options, policy),
+		ResponseHeadersToAdd:   toEnvoyHeaders(policy.SetResponseHeaders),
+	}
+	if policy.Redirect != nil {
+		action, err := b.buildPolicyRouteRedirectAction(policy.Redirect)
+		if err != nil {
+			return nil, err
+		}
+		envoyRoute.Action = &envoy_config_route_v3.Route_Redirect{Redirect: action}
+	} else {
+		action, err := b.buildPolicyRouteRouteAction(options, policy)
+		if err != nil {
+			return nil, err
+		}
+		envoyRoute.Action = &envoy_config_route_v3.Route_Route{Route: action}
+	}
+
+	luaMetadata := map[string]*structpb.Value{
+		"rewrite_response_headers": getRewriteHeadersMetadata(policy.RewriteResponseHeaders),
+	}
+
+	// disable authentication entirely when the proxy is fronting authenticate
+	isFrontingAuthenticate := false
+	for _, fromHost := range config.FromDomains(policy.From) {
+		var err error
+		isFrontingAuthenticate, err = isProxyFrontingAuthenticate(options, fromHost)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if isFrontingAuthenticate {
+		envoyRoute.TypedPerFilterConfig = map[string]*any.Any{
+			"envoy.filters.http.ext_authz": disableExtAuthz,
+		}
+	} else {
+		luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
+			Kind: &structpb.Value_StringValue{
+				StringValue: options.CookieName,
+			},
+		}
+		luaMetadata["remove_pomerium_authorization"] = &structpb.Value{
+			Kind: &structpb.Value_BoolValue{
+				BoolValue: true,
+			},
+		}
+		luaMetadata["remove_impersonate_headers"] = &structpb.Value{
+			Kind: &structpb.Value_BoolValue{
+				BoolValue: policy.IsForKubernetes(),
+			},
+		}
+	}
+
+	if policy.IsForKubernetes() {
+		policyID, _ := policy.RouteID()
+		for _, hdr := range b.reproxy.GetPolicyIDHeaders(policyID) {
+			envoyRoute.RequestHeadersToAdd = append(envoyRoute.RequestHeadersToAdd,
+				&envoy_config_core_v3.HeaderValueOption{
+					Header: &envoy_config_core_v3.HeaderValue{
+						Key:   hdr[0],
+						Value: hdr[1],
+					},
+					AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
+				})
+		}
+	}
+
+	envoyRoute.Metadata.FilterMetadata = map[string]*structpb.Struct{
+		"envoy.filters.http.lua": {Fields: luaMetadata},
+	}
+
+	return envoyRoute, nil
 }
 
 func (b *Builder) buildPolicyRouteRedirectAction(r *config.PolicyRedirect) (*envoy_config_route_v3.RedirectAction, error) {
@@ -382,6 +395,25 @@ func toEnvoyHeaders(headers map[string]string) []*envoy_config_core_v3.HeaderVal
 
 func mkRouteMatch(policy *config.Policy) *envoy_config_route_v3.RouteMatch {
 	match := &envoy_config_route_v3.RouteMatch{}
+
+	if policy.FromRegex != "" {
+		match.Headers = append(match.Headers, &envoy_config_route_v3.HeaderMatcher{
+			Name: ":authority",
+			HeaderMatchSpecifier: &envoy_config_route_v3.HeaderMatcher_StringMatch{
+				StringMatch: &envoy_type_matcher_v3.StringMatcher{
+					MatchPattern: &envoy_type_matcher_v3.StringMatcher_SafeRegex{
+						SafeRegex: &envoy_type_matcher_v3.RegexMatcher{
+							EngineType: &envoy_type_matcher_v3.RegexMatcher_GoogleRe2{
+								GoogleRe2: &envoy_type_matcher_v3.RegexMatcher_GoogleRE2{},
+							},
+							Regex: policy.FromRegex,
+						},
+					},
+				},
+			},
+		})
+	}
+
 	switch {
 	case config.FromIsTCP(policy.From):
 		match.PathSpecifier = &envoy_config_route_v3.RouteMatch_ConnectMatcher_{

@@ -162,7 +162,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 
 	var headersOutput *HeadersResponse
 	eg.Go(func() error {
-		headersReq := NewHeadersRequestFromPolicy(req.Policy)
+		headersReq := NewHeadersRequestFromPolicy(req.Policy, req.HTTP)
 		headersReq.Session = req.Session
 		var err error
 		headersOutput, err = e.headersEvaluators.Evaluate(ectx, headersReq)

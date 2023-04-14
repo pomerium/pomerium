@@ -20,20 +20,45 @@ import (
 )
 
 func TestNewHeadersRequestFromPolicy(t *testing.T) {
-	req := NewHeadersRequestFromPolicy(&config.Policy{
-		EnableGoogleCloudServerlessAuthentication: true,
-		From: "https://from.example.com",
-		To: config.WeightedURLs{
-			{
-				URL: *mustParseURL("http://to.example.com"),
+	t.Parallel()
+	t.Run("from", func(t *testing.T) {
+		t.Parallel()
+
+		req := NewHeadersRequestFromPolicy(&config.Policy{
+			EnableGoogleCloudServerlessAuthentication: true,
+			From: "https://from.example.com",
+			To: config.WeightedURLs{
+				{
+					URL: *mustParseURL("http://to.example.com"),
+				},
 			},
-		},
+		}, RequestHTTP{})
+		assert.Equal(t, &HeadersRequest{
+			EnableGoogleCloudServerlessAuthentication: true,
+			Issuer:     "from.example.com",
+			ToAudience: "https://to.example.com",
+		}, req)
 	})
-	assert.Equal(t, &HeadersRequest{
-		EnableGoogleCloudServerlessAuthentication: true,
-		Issuer:     "from.example.com",
-		ToAudience: "https://to.example.com",
-	}, req)
+	t.Run("from_regex", func(t *testing.T) {
+		t.Parallel()
+
+		req := NewHeadersRequestFromPolicy(&config.Policy{
+			EnableGoogleCloudServerlessAuthentication: true,
+			FromRegex: "from.example.com",
+			To: config.WeightedURLs{
+				{
+					URL: *mustParseURL("http://to.example.com"),
+				},
+			},
+		}, RequestHTTP{
+			URL: "https://from.example.com",
+		})
+		assert.Equal(t, &HeadersRequest{
+			EnableGoogleCloudServerlessAuthentication: true,
+			Issuer:     "from.example.com",
+			ToAudience: "https://to.example.com",
+		}, req)
+	})
 }
 
 func TestHeadersEvaluator(t *testing.T) {

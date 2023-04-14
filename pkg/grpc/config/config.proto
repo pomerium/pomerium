@@ -43,6 +43,7 @@ message Route {
   string name = 1;
 
   string from = 2;
+  string from_regex = 61;
   repeated string to = 3;
 
   // https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/endpoint/v3/endpoint_components.proto#envoy-v3-api-msg-config-endpoint-v3-lbendpoint

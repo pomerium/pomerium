@@ -29,12 +29,14 @@ type HeadersRequest struct {
 }
 
 // NewHeadersRequestFromPolicy creates a new HeadersRequest from a policy.
-func NewHeadersRequestFromPolicy(policy *config.Policy) *HeadersRequest {
+func NewHeadersRequestFromPolicy(policy *config.Policy, requestHTTP RequestHTTP) *HeadersRequest {
 	input := new(HeadersRequest)
 	input.EnableGoogleCloudServerlessAuthentication = policy.EnableGoogleCloudServerlessAuthentication
 	input.EnableRoutingKey = policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
 		policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_MAGLEV
 	if u, err := urlutil.ParseAndValidateURL(policy.From); err == nil {
+		input.Issuer = u.Hostname()
+	} else if u, err := urlutil.ParseAndValidateURL(requestHTTP.URL); err == nil {
 		input.Issuer = u.Hostname()
 	}
 	input.KubernetesServiceAccountToken = policy.KubernetesServiceAccountToken

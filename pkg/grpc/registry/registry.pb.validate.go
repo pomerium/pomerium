@@ -59,7 +59,7 @@ func (m *Service) validate(all bool) error {
 	if _, ok := _Service_Kind_NotInLookup[m.GetKind()]; ok {
 		err := ServiceValidationError{
 			field:  "Kind",
-			reason: "value must not be in list [0]",
+			reason: "value must not be in list [UNDEFINED_DO_NOT_USE]",
 		}
 		if !all {
 			return err

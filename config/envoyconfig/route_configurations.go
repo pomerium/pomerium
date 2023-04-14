@@ -3,6 +3,7 @@ package envoyconfig
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 
@@ -93,6 +94,16 @@ func (b *Builder) buildMainRouteConfiguration(
 	vh, err := b.buildVirtualHost(cfg.Options, "catch-all", "*", false)
 	if err != nil {
 		return nil, err
+	}
+	for i, p := range cfg.Options.GetAllPolicies() {
+		policy := p
+		if policy.FromRegex != "" {
+			route, err := b.buildPolicyRoute(cfg.Options, &policy, fmt.Sprintf("policy-%d", i))
+			if err != nil {
+				return nil, err
+			}
+			vh.Routes = append(vh.Routes, route)
+		}
 	}
 	virtualHosts = append(virtualHosts, vh)
 
