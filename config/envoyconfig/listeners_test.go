@@ -125,7 +125,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
 			Policies: []config.Policy{
 				{
-					Source:                &config.StringURL{URL: mustParseURL(t, "https://a.example.com:1234")},
+					From:                  "https://a.example.com:1234",
 					TLSDownstreamClientCA: "TEST",
 				},
 			},
@@ -224,10 +224,10 @@ func Test_getAllDomains(t *testing.T) {
 		AuthorizeURLString:    "https://authorize.example.com:9001",
 		DataBrokerURLString:   "https://cache.example.com:9001",
 		Policies: []config.Policy{
-			{Source: &config.StringURL{URL: mustParseURL(t, "http://a.example.com")}},
-			{Source: &config.StringURL{URL: mustParseURL(t, "https://b.example.com")}},
-			{Source: &config.StringURL{URL: mustParseURL(t, "https://c.example.com")}},
-			{Source: &config.StringURL{URL: mustParseURL(t, "https://d.unknown.example.com")}},
+			{From: "http://a.example.com"},
+			{From: "https://b.example.com"},
+			{From: "https://c.example.com"},
+			{From: "https://d.unknown.example.com"},
 		},
 		Cert: base64.StdEncoding.EncodeToString(certPEM),
 		Key:  base64.StdEncoding.EncodeToString(keyPEM),

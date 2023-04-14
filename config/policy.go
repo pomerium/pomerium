@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -40,8 +39,6 @@ type Policy struct {
 	AllowedUsers     []string                 `mapstructure:"allowed_users" yaml:"allowed_users,omitempty" json:"allowed_users,omitempty"`
 	AllowedDomains   []string                 `mapstructure:"allowed_domains" yaml:"allowed_domains,omitempty" json:"allowed_domains,omitempty"`
 	AllowedIDPClaims identity.FlattenedClaims `mapstructure:"allowed_idp_claims" yaml:"allowed_idp_claims,omitempty" json:"allowed_idp_claims,omitempty"`
-
-	Source *StringURL `yaml:",omitempty" json:"source,omitempty" hash:"ignore"`
 
 	// Additional route matching options
 	Prefix        string `mapstructure:"prefix" yaml:"prefix,omitempty" json:"prefix,omitempty"`
@@ -450,8 +447,6 @@ func (p *Policy) Validate() error {
 			source.String())
 	}
 
-	p.Source = &StringURL{source}
-
 	if len(p.To) == 0 && p.Redirect == nil {
 		return errEitherToOrRedirectRequired
 	}
@@ -558,7 +553,7 @@ func (p *Policy) Checksum() uint64 {
 // RouteID returns a unique identifier for a route
 func (p *Policy) RouteID() (uint64, error) {
 	id := routeID{
-		Source: p.Source,
+		From:   p.From,
 		Prefix: p.Prefix,
 		Path:   p.Path,
 		Regex:  p.Regex,
@@ -589,22 +584,12 @@ func (p *Policy) String() string {
 		to = strings.Join(dsts, ",")
 	}
 
-	return fmt.Sprintf("%s → %s", p.Source.String(), to)
+	return fmt.Sprintf("%s → %s", p.From, to)
 }
 
 // Matches returns true if the policy would match the given URL.
 func (p *Policy) Matches(requestURL url.URL) bool {
-	// handle nils by always returning false
-	if p.Source == nil {
-		return false
-	}
-
-	// make sure one of the host domains matches the incoming url
-	found := false
-	for _, host := range urlutil.GetDomainsForURL(p.Source.URL) {
-		found = found || host == requestURL.Host
-	}
-	if !found {
+	if !FromMatchesURL(p.From, requestURL) {
 		return false
 	}
 
@@ -674,25 +659,8 @@ func (p *Policy) GetSetAuthorizationHeader() configpb.Route_AuthorizationHeaderM
 	return mode
 }
 
-// StringURL stores a URL as a string in json.
-type StringURL struct {
-	*url.URL
-}
-
-func (su *StringURL) String() string {
-	if su == nil || su.URL == nil {
-		return "?"
-	}
-	return su.URL.String()
-}
-
-// MarshalJSON returns the URLs host as json.
-func (su *StringURL) MarshalJSON() ([]byte, error) {
-	return json.Marshal(su.String())
-}
-
 type routeID struct {
-	Source   *StringURL
+	From     string
 	To       []string
 	Prefix   string
 	Path     string

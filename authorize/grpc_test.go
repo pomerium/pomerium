@@ -45,7 +45,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
 	a.currentOptions.Store(&config.Options{
 		Policies: []config.Policy{{
-			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
+			From: "https://example.com",
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},
@@ -102,7 +102,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
 	a.currentOptions.Store(&config.Options{
 		Policies: []config.Policy{{
-			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
+			From: "https://example.com",
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},

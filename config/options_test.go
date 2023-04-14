@@ -207,7 +207,6 @@ func Test_parsePolicyFile(t *testing.T) {
 	}
 
 	source := "https://pomerium.io"
-	sourceURL, _ := url.ParseRequestURI(source)
 
 	to, err := ParseWeightedURL("https://httpbin.org")
 	require.NoError(t, err)
@@ -222,9 +221,8 @@ func Test_parsePolicyFile(t *testing.T) {
 			"simple json",
 			[]byte(fmt.Sprintf(`{"policy":[{"from": "%s","to":"%s"}]}`, source, to.URL.String())),
 			[]Policy{{
-				From:   source,
-				To:     []WeightedURL{*to},
-				Source: &StringURL{sourceURL},
+				From: source,
+				To:   []WeightedURL{*to},
 			}},
 			false,
 		},
@@ -280,7 +278,7 @@ func Test_Checksum(t *testing.T) {
 func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
 		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "DataBrokerURLStrings", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin", "TracingSampleRate", "ProgrammaticRedirectDomainWhitelist"),
-		cmpopts.IgnoreFields(Policy{}, "Source", "EnvoyOpts"),
+		cmpopts.IgnoreFields(Policy{}, "EnvoyOpts"),
 		cmpOptIgnoreUnexported,
 	}
 

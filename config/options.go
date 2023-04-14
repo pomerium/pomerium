@@ -1143,9 +1143,14 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 	// policy urls
 	if IsProxy(o.Services) {
 		for _, policy := range o.GetAllPolicies() {
-			hosts.Add(urlutil.GetDomainsForURL(policy.Source.URL)...)
+			fromURL, err := urlutil.ParseAndValidateURL(policy.From)
+			if err != nil {
+				continue
+			}
+
+			hosts.Add(urlutil.GetDomainsForURL(fromURL)...)
 			if policy.TLSDownstreamServerName != "" {
-				tlsURL := policy.Source.URL.ResolveReference(&url.URL{Host: policy.TLSDownstreamServerName})
+				tlsURL := fromURL.ResolveReference(&url.URL{Host: policy.TLSDownstreamServerName})
 				hosts.Add(urlutil.GetDomainsForURL(tlsURL)...)
 			}
 		}
@@ -1174,9 +1179,14 @@ func (o *Options) GetAllRouteableHTTPServerNames() ([]string, error) {
 	// policy urls
 	if IsProxy(o.Services) {
 		for _, policy := range o.GetAllPolicies() {
-			serverNames.Add(urlutil.GetServerNamesForURL(policy.Source.URL)...)
+			fromURL, err := urlutil.ParseAndValidateURL(policy.From)
+			if err != nil {
+				continue
+			}
+
+			serverNames.Add(urlutil.GetServerNamesForURL(fromURL)...)
 			if policy.TLSDownstreamServerName != "" {
-				tlsURL := policy.Source.URL.ResolveReference(&url.URL{Host: policy.TLSDownstreamServerName})
+				tlsURL := fromURL.ResolveReference(&url.URL{Host: policy.TLSDownstreamServerName})
 				serverNames.Add(urlutil.GetServerNamesForURL(tlsURL)...)
 			}
 		}

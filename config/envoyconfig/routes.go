@@ -174,7 +174,7 @@ func (b *Builder) buildPolicyRoutes(options *config.Options, host string) ([]*en
 
 	for i, p := range options.GetAllPolicies() {
 		policy := p
-		if !urlMatchesHost(policy.Source.URL, host) {
+		if !config.FromMatchesHost(policy.From, host) {
 			continue
 		}
 
@@ -311,7 +311,7 @@ func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *c
 			Enabled:     &wrappers.BoolValue{Value: policy.AllowSPDY},
 		},
 	}
-	if urlutil.IsTCP(policy.Source.URL) {
+	if config.FromIsTCP(policy.From) {
 		upgradeConfigs = append(upgradeConfigs, &envoy_config_route_v3.RouteAction_UpgradeConfig{
 			UpgradeType:   "CONNECT",
 			Enabled:       &wrappers.BoolValue{Value: true},
@@ -383,7 +383,7 @@ func toEnvoyHeaders(headers map[string]string) []*envoy_config_core_v3.HeaderVal
 func mkRouteMatch(policy *config.Policy) *envoy_config_route_v3.RouteMatch {
 	match := &envoy_config_route_v3.RouteMatch{}
 	switch {
-	case urlutil.IsTCP(policy.Source.URL):
+	case config.FromIsTCP(policy.From):
 		match.PathSpecifier = &envoy_config_route_v3.RouteMatch_ConnectMatcher_{
 			ConnectMatcher: &envoy_config_route_v3.RouteMatch_ConnectMatcher{},
 		}
@@ -449,7 +449,7 @@ func getRouteIdleTimeout(policy *config.Policy) *durationpb.Duration {
 
 func shouldDisableStreamIdleTimeout(policy *config.Policy) bool {
 	return policy.AllowWebsockets ||
-		urlutil.IsTCP(policy.Source.URL) ||
+		config.FromIsTCP(policy.From) ||
 		policy.IsForKubernetes() // disable for kubernetes so that tailing logs works (#2182)
 }
 
