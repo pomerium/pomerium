@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1681760576028,
+  "lastUpdate": 1681760942500,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -41256,6 +41256,42 @@ window.BENCHMARK_DATA = {
             "value": 8409488,
             "unit": "ns/op",
             "extra": "144 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8429cfa286d588b91a8d69da91aee8af1e5caecd",
+          "message": "chore(deps): bump github.com/ory/dockertest/v3 from 3.9.1 to 3.10.0 (#4111)\n\nBumps [github.com/ory/dockertest/v3](https://github.com/ory/dockertest) from 3.9.1 to 3.10.0.\r\n- [Release notes](https://github.com/ory/dockertest/releases)\r\n- [Commits](https://github.com/ory/dockertest/compare/v3.9.1...v3.10.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/ory/dockertest/v3\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-04-17T13:46:09-06:00",
+          "tree_id": "02d4fb177c12a6dffed1d2a6c991e9e652d2c03d",
+          "url": "https://github.com/pomerium/pomerium/commit/8429cfa286d588b91a8d69da91aee8af1e5caecd"
+        },
+        "date": 1681760941725,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15531210,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9906978,
+            "unit": "ns/op",
+            "extra": "124 times\n2 procs"
           }
         ]
       }
