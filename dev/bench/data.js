@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1681750984270,
+  "lastUpdate": 1681751012660,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -40920,6 +40920,38 @@ window.BENCHMARK_DATA = {
             "value": 10502922,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "4d4053d6ed67ba675e8c2d761448f01e4c85abde",
+          "message": "chore(deps): bump github.com/ory/dockertest/v3 from 3.9.1 to 3.10.0",
+          "timestamp": "2023-04-17T12:11:23Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4111/commits/4d4053d6ed67ba675e8c2d761448f01e4c85abde"
+        },
+        "date": 1681751011733,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13300310,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8572529,
+            "unit": "ns/op",
+            "extra": "140 times\n2 procs"
           }
         ]
       }
