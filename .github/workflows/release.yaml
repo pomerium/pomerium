@@ -33,7 +33,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9
         with:
-          go-version: 1.19.x
+          go-version: 1.20.x
 
       - name: Set up Docker
         run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
