@@ -1,0 +1,24 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "handlers",
+    srcs = ["hpke_public_key.go"],
+    importpath = "github.com/pomerium/pomerium/pkg/hpke/handlers",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/httputil",
+        "//internal/urlutil",
+        "//pkg/hpke",
+        "@com_github_rs_cors//:cors",
+    ],
+)
+
+go_test(
+    name = "handlers_test",
+    srcs = ["hpke_public_key_test.go"],
+    deps = [
+        ":handlers",
+        "//pkg/hpke",
+        "@com_github_stretchr_testify//assert",
+    ],
+)

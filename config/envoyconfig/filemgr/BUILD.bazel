@@ -1,0 +1,28 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "filemgr",
+    srcs = [
+        "config.go",
+        "filemgr.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/config/envoyconfig/filemgr",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/log",
+        "//pkg/cryptutil",
+        "@com_github_envoyproxy_go_control_plane//envoy/config/core/v3:core",
+        "@com_github_google_uuid//:uuid",
+        "@com_github_martinlindhe_base36//:base36",
+    ],
+)
+
+go_test(
+    name = "filemgr_test",
+    srcs = ["filemgr_test.go"],
+    embed = [":filemgr"],
+    deps = [
+        "@com_github_envoyproxy_go_control_plane//envoy/config/core/v3:core",
+        "@com_github_stretchr_testify//assert",
+    ],
+)

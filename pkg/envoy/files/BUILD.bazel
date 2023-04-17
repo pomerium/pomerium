@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "files",
+    srcs = [
+        "files.go",
+        "files_darwin_amd64.go",
+        "files_darwin_arm64.go",
+        "files_linux_amd64.go",
+        "files_linux_arm64.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/pkg/envoy/files",
+    visibility = ["//visibility:public"],
+)

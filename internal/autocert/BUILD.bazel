@@ -1,0 +1,58 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "autocert",
+    srcs = [
+        "manager.go",
+        "ocsp.go",
+        "storage.go",
+        "storage_gcs.go",
+        "storage_locker.go",
+        "storage_s3.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/autocert",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//config",
+        "//internal/httputil",
+        "//internal/log",
+        "//internal/telemetry/metrics",
+        "//pkg/cryptutil",
+        "@com_github_aws_aws_sdk_go_v2//aws",
+        "@com_github_aws_aws_sdk_go_v2_config//:config",
+        "@com_github_aws_aws_sdk_go_v2_service_s3//:s3",
+        "@com_github_aws_aws_sdk_go_v2_service_s3//types",
+        "@com_github_caddyserver_certmagic//:certmagic",
+        "@com_github_google_uuid//:uuid",
+        "@com_github_hashicorp_golang_lru_v2//:golang-lru",
+        "@com_github_mholt_acmez//acme",
+        "@com_github_rs_zerolog//:zerolog",
+        "@com_google_cloud_go_storage//:storage",
+        "@org_golang_google_api//iterator",
+        "@org_uber_go_zap//:zap",
+    ],
+)
+
+go_test(
+    name = "autocert_test",
+    srcs = [
+        "manager_test.go",
+        "ocsp_test.go",
+        "storage_test.go",
+    ],
+    embed = [":autocert"],
+    deps = [
+        "//config",
+        "//internal/log",
+        "//internal/testutil",
+        "@com_github_caddyserver_certmagic//:certmagic",
+        "@com_github_go_chi_chi_v5//:chi",
+        "@com_github_go_chi_chi_v5//middleware",
+        "@com_github_google_go_cmp//cmp",
+        "@com_github_google_go_cmp//cmp/cmpopts",
+        "@com_github_mholt_acmez//acme",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+        "@org_golang_x_crypto//ocsp",
+    ],
+)

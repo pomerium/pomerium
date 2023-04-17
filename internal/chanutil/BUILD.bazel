@@ -1,0 +1,22 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "chanutil",
+    srcs = [
+        "batch.go",
+        "chanutil.go",
+        "merge.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/chanutil",
+    visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "chanutil_test",
+    srcs = [
+        "batch_test.go",
+        "merge_test.go",
+    ],
+    embed = [":chanutil"],
+    deps = ["@com_github_stretchr_testify//assert"],
+)

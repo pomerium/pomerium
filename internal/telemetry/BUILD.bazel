@@ -1,0 +1,40 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "telemetry",
+    srcs = [
+        "doc.go",
+        "grpc.go",
+        "http.go",
+        "util.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/telemetry",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/telemetry/metrics",
+        "@io_opencensus_go//plugin/ocgrpc",
+        "@io_opencensus_go//plugin/ochttp/propagation/b3",
+        "@io_opencensus_go//trace",
+        "@io_opencensus_go//trace/propagation",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//metadata",
+        "@org_golang_google_grpc//stats",
+    ],
+)
+
+go_test(
+    name = "telemetry_test",
+    srcs = [
+        "grpc_test.go",
+        "util_test.go",
+    ],
+    embed = [":telemetry"],
+    deps = [
+        "@com_github_stretchr_testify//assert",
+        "@io_opencensus_go//plugin/ocgrpc",
+        "@io_opencensus_go//plugin/ochttp/propagation/b3",
+        "@io_opencensus_go//trace",
+        "@org_golang_google_grpc//metadata",
+        "@org_golang_google_grpc//stats",
+    ],
+)

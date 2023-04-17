@@ -1,0 +1,60 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "storage",
+    srcs = [
+        "cache.go",
+        "encrypted.go",
+        "filter.go",
+        "index.go",
+        "querier.go",
+        "storage.go",
+        "stream.go",
+        "stream_filter.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/pkg/storage",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/log",
+        "//pkg/cryptutil",
+        "//pkg/grpc/databroker",
+        "//pkg/protoutil",
+        "@com_github_google_uuid//:uuid",
+        "@com_github_victoriametrics_fastcache//:fastcache",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//reflect/protoreflect",
+        "@org_golang_google_protobuf//types/known/anypb",
+        "@org_golang_google_protobuf//types/known/structpb",
+        "@org_golang_google_protobuf//types/known/timestamppb",
+        "@org_golang_google_protobuf//types/known/wrapperspb",
+        "@org_golang_x_sync//singleflight",
+    ],
+)
+
+go_test(
+    name = "storage_test",
+    srcs = [
+        "cache_test.go",
+        "encrypted_test.go",
+        "filter_test.go",
+        "index_test.go",
+        "storage_test.go",
+        "stream_filter_test.go",
+    ],
+    embed = [":storage"],
+    deps = [
+        "//pkg/cryptutil",
+        "//pkg/grpc/databroker",
+        "//pkg/grpc/user",
+        "//pkg/protoutil",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+        "@org_golang_google_protobuf//types/known/anypb",
+        "@org_golang_google_protobuf//types/known/structpb",
+        "@org_golang_google_protobuf//types/known/timestamppb",
+        "@org_golang_google_protobuf//types/known/wrapperspb",
+    ],
+)

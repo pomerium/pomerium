@@ -1,0 +1,25 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "config",
+    srcs = ["builder.go"],
+    importpath = "github.com/pomerium/pomerium/pkg/derivecert/config",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//config",
+        "//pkg/derivecert",
+    ],
+)
+
+go_test(
+    name = "config_test",
+    srcs = ["builder_test.go"],
+    deps = [
+        ":config",
+        "//config",
+        "//pkg/cryptutil",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+        "@org_golang_google_protobuf//proto",
+    ],
+)

@@ -1,0 +1,43 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "grpcutil",
+    srcs = [
+        "client.go",
+        "grpcutil.go",
+        "options.go",
+        "version.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/pkg/grpcutil",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/cryptutil",
+        "@com_github_go_jose_go_jose_v3//:go-jose",
+        "@com_github_go_jose_go_jose_v3//jwt",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//credentials",
+        "@org_golang_google_grpc//metadata",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_protobuf//proto",
+    ],
+)
+
+go_test(
+    name = "grpcutil_test",
+    srcs = [
+        "grpcutil_test.go",
+        "options_test.go",
+    ],
+    embed = [":grpcutil"],
+    deps = [
+        "//pkg/cryptutil",
+        "@com_github_stretchr_testify//assert",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//metadata",
+        "@org_golang_google_grpc//reflection",
+        "@org_golang_google_grpc//reflection/grpc_reflection_v1alpha",
+        "@org_golang_google_grpc//status",
+    ],
+)

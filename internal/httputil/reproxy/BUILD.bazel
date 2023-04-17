@@ -1,0 +1,26 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "reproxy",
+    srcs = ["reproxy.go"],
+    importpath = "github.com/pomerium/pomerium/internal/httputil/reproxy",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//config",
+        "//internal/httputil",
+        "//internal/log",
+        "//pkg/cryptutil",
+    ],
+)
+
+go_test(
+    name = "reproxy_test",
+    srcs = ["reproxy_test.go"],
+    embed = [":reproxy"],
+    deps = [
+        "//config",
+        "//pkg/cryptutil",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)

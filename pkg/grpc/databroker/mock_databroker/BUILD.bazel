@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "mock_databroker",
+    srcs = [
+        "databroker.pb.go",
+        "leaser.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/pkg/grpc/databroker/mock_databroker",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/grpc/databroker",
+        "@com_github_golang_mock//gomock",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//metadata",
+        "@org_golang_google_protobuf//types/known/emptypb",
+    ],
+)

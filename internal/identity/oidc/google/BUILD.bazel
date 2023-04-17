@@ -1,0 +1,13 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "google",
+    srcs = ["google.go"],
+    importpath = "github.com/pomerium/pomerium/internal/identity/oidc/google",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/identity/oauth",
+        "//internal/identity/oidc",
+        "@com_github_coreos_go_oidc_v3//oidc",
+    ],
+)

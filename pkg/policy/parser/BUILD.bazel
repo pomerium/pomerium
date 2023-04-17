@@ -1,0 +1,29 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "parser",
+    srcs = [
+        "grammar.go",
+        "json.go",
+        "parser.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/pkg/policy/parser",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_open_policy_agent_opa//ast",
+        "@in_gopkg_yaml_v3//:yaml_v3",
+    ],
+)
+
+go_test(
+    name = "parser_test",
+    srcs = [
+        "json_test.go",
+        "parser_test.go",
+    ],
+    embed = [":parser"],
+    deps = [
+        "@com_github_open_policy_agent_opa//ast",
+        "@com_github_stretchr_testify//assert",
+    ],
+)

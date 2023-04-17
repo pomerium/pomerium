@@ -1,0 +1,9 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "opa",
+    srcs = ["opa.go"],
+    embedsrcs = ["policy/headers.rego"],
+    importpath = "github.com/pomerium/pomerium/authorize/evaluator/opa",
+    visibility = ["//visibility:public"],
+)

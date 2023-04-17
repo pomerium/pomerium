@@ -1,0 +1,40 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
+
+proto_library(
+    name = "device_proto",
+    srcs = ["device.proto"],
+    visibility = ["//visibility:public"],
+    deps = ["@com_google_protobuf//:timestamp_proto"],
+)
+
+go_proto_library(
+    name = "device_go_proto",
+    importpath = "github.com/pomerium/pomerium/pkg/grpc/device",
+    proto = ":device_proto",
+    visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "device",
+    srcs = ["device.go"],
+    embed = [":device_go_proto"],
+    importpath = "github.com/pomerium/pomerium/pkg/grpc/device",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/encoding/base58",
+        "//pkg/grpc/databroker",
+        "//pkg/protoutil",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_protobuf//types/known/timestamppb",
+    ],
+)
+
+go_test(
+    name = "device_test",
+    srcs = ["device_test.go"],
+    embed = [":device"],
+    deps = ["@com_github_stretchr_testify//assert"],
+)

@@ -1,0 +1,21 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "xdserr",
+    srcs = [
+        "config.go",
+        "echo.go",
+        "health.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/tests/xdserr",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/log",
+        "//pkg/grpc/config",
+        "@com_github_envoyproxy_go_control_plane//envoy/admin/v3:admin",
+        "@org_golang_google_protobuf//encoding/protojson",
+        "@org_golang_google_protobuf//types/known/anypb",
+        "@org_golang_google_protobuf//types/known/emptypb",
+        "@org_golang_x_sync//errgroup",
+    ],
+)

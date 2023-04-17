@@ -1,0 +1,33 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "sessions",
+    srcs = [
+        "errors.go",
+        "middleware.go",
+        "state.go",
+        "store.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/sessions",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "@com_github_go_jose_go_jose_v3//jwt",
+        "@com_github_google_uuid//:uuid",
+    ],
+)
+
+go_test(
+    name = "sessions_test",
+    srcs = [
+        "middleware_test.go",
+        "state_test.go",
+    ],
+    embed = [":sessions"],
+    deps = [
+        "//internal/encoding/jws",
+        "//internal/sessions/mock",
+        "//pkg/cryptutil",
+        "@com_github_go_jose_go_jose_v3//jwt",
+        "@com_github_google_go_cmp//cmp",
+    ],
+)

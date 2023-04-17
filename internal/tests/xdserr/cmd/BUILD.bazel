@@ -1,0 +1,31 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "cmd_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/pomerium/pomerium/internal/tests/xdserr/cmd",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//internal/log",
+        "//internal/tests/xdserr",
+        "//pkg/grpc/config",
+        "//pkg/grpc/databroker",
+        "//pkg/grpcutil",
+        "//pkg/protoutil",
+        "@com_github_envoyproxy_go_control_plane//envoy/api/v2:api",
+        "@com_github_envoyproxy_go_control_plane//envoy/extensions/access_loggers/grpc/v3:grpc",
+        "@com_github_envoyproxy_go_control_plane//envoy/extensions/filters/http/ext_authz/v3:ext_authz",
+        "@com_github_envoyproxy_go_control_plane//envoy/extensions/filters/http/lua/v3:lua",
+        "@com_github_envoyproxy_go_control_plane//envoy/extensions/filters/network/http_connection_manager/v3:http_connection_manager",
+        "@com_github_envoyproxy_go_control_plane//envoy/extensions/upstreams/http/v3:http",
+        "@com_github_google_uuid//:uuid",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_x_sync//errgroup",
+    ],
+)
+
+go_binary(
+    name = "cmd",
+    embed = [":cmd_lib"],
+    visibility = ["//:__subpackages__"],
+)

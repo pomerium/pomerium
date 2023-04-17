@@ -1,0 +1,54 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "httputil",
+    srcs = [
+        "branding.go",
+        "client.go",
+        "cookie.go",
+        "docs.go",
+        "errors.go",
+        "handlers.go",
+        "headers.go",
+        "httputil.go",
+        "options.go",
+        "router.go",
+        "server.go",
+        "transport.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/httputil",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/log",
+        "//internal/telemetry/metrics",
+        "//internal/telemetry/requestid",
+        "//internal/tripper",
+        "//internal/urlutil",
+        "//pkg/contextutil",
+        "//ui",
+        "@com_github_gorilla_mux//:mux",
+        "@com_github_pomerium_csrf//:csrf",
+        "@com_github_rs_zerolog//:zerolog",
+    ],
+)
+
+go_test(
+    name = "httputil_test",
+    srcs = [
+        "client_test.go",
+        "cookie_test.go",
+        "errors_test.go",
+        "handlers_test.go",
+        "httputil_test.go",
+        "router_test.go",
+        "server_test.go",
+    ],
+    embed = [":httputil"],
+    deps = [
+        "//internal/telemetry/requestid",
+        "@com_github_google_go_cmp//cmp",
+        "@com_github_gorilla_mux//:mux",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)

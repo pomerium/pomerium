@@ -1,0 +1,28 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "middleware",
+    srcs = [
+        "doc.go",
+        "middleware.go",
+        "recovery.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/middleware",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/httputil",
+        "//internal/log",
+        "//internal/telemetry/trace",
+        "//internal/urlutil",
+    ],
+)
+
+go_test(
+    name = "middleware_test",
+    srcs = ["middleware_test.go"],
+    embed = [":middleware"],
+    deps = [
+        "//internal/urlutil",
+        "@com_github_google_go_cmp//cmp",
+    ],
+)

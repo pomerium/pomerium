@@ -1,0 +1,13 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "jws",
+    srcs = ["jws.go"],
+    importpath = "github.com/pomerium/pomerium/internal/encoding/jws",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/encoding",
+        "@com_github_go_jose_go_jose_v3//:go-jose",
+        "@com_github_go_jose_go_jose_v3//jwt",
+    ],
+)

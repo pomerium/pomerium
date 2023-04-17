@@ -1,0 +1,58 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "webauthnutil",
+    srcs = [
+        "credential_storage.go",
+        "device_type.go",
+        "enrollment_token.go",
+        "options.go",
+        "user.go",
+        "webauthnutil.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/pkg/webauthnutil",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/urlutil",
+        "//pkg/cryptutil",
+        "//pkg/encoding/base58",
+        "//pkg/grpc/databroker",
+        "//pkg/grpc/device",
+        "//pkg/grpc/user",
+        "//pkg/slices",
+        "@com_github_google_uuid//:uuid",
+        "@com_github_pomerium_webauthn//:webauthn",
+        "@com_github_pomerium_webauthn//cose",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_x_net//publicsuffix",
+    ],
+)
+
+go_test(
+    name = "webauthnutil_test",
+    srcs = [
+        "credential_storage_test.go",
+        "device_type_test.go",
+        "enrollment_token_test.go",
+        "options_test.go",
+        "user_test.go",
+        "webauthnutil_test.go",
+    ],
+    embed = [":webauthnutil"],
+    deps = [
+        "//pkg/grpc/databroker",
+        "//pkg/grpc/device",
+        "//pkg/grpc/user",
+        "@com_github_google_uuid//:uuid",
+        "@com_github_pomerium_webauthn//:webauthn",
+        "@com_github_pomerium_webauthn//cose",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_protobuf//types/known/anypb",
+    ],
+)

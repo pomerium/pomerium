@@ -1,0 +1,47 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "envoy",
+    srcs = [
+        "envoy.go",
+        "envoy_darwin.go",
+        "envoy_linux.go",
+        "envoy_other.go",
+        "extract.go",
+        "misc.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/pkg/envoy",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//config",
+        "//config/envoyconfig",
+        "//internal/log",
+        "//internal/telemetry",
+        "//pkg/envoy/files",
+        "@com_github_cenkalti_backoff_v4//:backoff",
+        "@com_github_envoyproxy_go_control_plane//envoy/config/bootstrap/v3:bootstrap",
+        "@com_github_envoyproxy_go_control_plane//envoy/config/core/v3:core",
+        "@com_github_google_go_cmp//cmp",
+        "@com_github_natefinch_atomic//:atomic",
+        "@com_github_rs_zerolog//:zerolog",
+        "@com_github_shirou_gopsutil_v3//process",
+        "@org_golang_google_protobuf//encoding/protojson",
+    ] + select({
+        "@io_bazel_rules_go//go/platform:android": [
+            "//internal/telemetry/metrics",
+            "@io_opencensus_go//stats/view",
+        ],
+        "@io_bazel_rules_go//go/platform:linux": [
+            "//internal/telemetry/metrics",
+            "@io_opencensus_go//stats/view",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+go_test(
+    name = "envoy_test",
+    srcs = ["envoy_test.go"],
+    embed = [":envoy"],
+    deps = ["@com_github_rs_zerolog//:zerolog"],
+)

@@ -1,0 +1,37 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "integration_lib",
+    srcs = ["stats.go"],
+    importpath = "github.com/pomerium/pomerium/integration",
+    visibility = ["//visibility:private"],
+)
+
+go_binary(
+    name = "integration",
+    embed = [":integration_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "integration_test",
+    srcs = [
+        "authorization_test.go",
+        "benchmark_test.go",
+        "control_plane_test.go",
+        "main_test.go",
+        "policy_test.go",
+    ],
+    embed = [":integration_lib"],
+    deps = [
+        "//integration/flows",
+        "@com_github_docker_docker//api/types",
+        "@com_github_docker_docker//client",
+        "@com_github_gorilla_websocket//:websocket",
+        "@com_github_rs_zerolog//:zerolog",
+        "@com_github_rs_zerolog//log",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+        "@org_golang_x_net//publicsuffix",
+    ],
+)

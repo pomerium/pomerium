@@ -1,0 +1,59 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "databroker",
+    srcs = [
+        "cache.go",
+        "databroker.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/databroker",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//config",
+        "//internal/atomicutil",
+        "//internal/databroker",
+        "//internal/events",
+        "//internal/identity",
+        "//internal/identity/manager",
+        "//internal/log",
+        "//internal/telemetry",
+        "//internal/version",
+        "//pkg/cryptutil",
+        "//pkg/envoy/files",
+        "//pkg/grpc/databroker",
+        "//pkg/grpc/registry",
+        "//pkg/grpcutil",
+        "@com_github_rs_zerolog//:zerolog",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//metadata",
+        "@org_golang_google_protobuf//types/known/emptypb",
+        "@org_golang_x_sync//errgroup",
+    ],
+)
+
+go_test(
+    name = "databroker_test",
+    srcs = [
+        "cache_test.go",
+        "databroker_test.go",
+    ],
+    embed = [":databroker"],
+    deps = [
+        "//config",
+        "//internal/atomicutil",
+        "//internal/databroker",
+        "//internal/events",
+        "//internal/log",
+        "//pkg/cryptutil",
+        "//pkg/grpc/databroker",
+        "//pkg/grpc/session",
+        "//pkg/grpc/user",
+        "//pkg/protoutil",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_grpc//test/bufconn",
+    ],
+)

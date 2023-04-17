@@ -1,0 +1,30 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "queryparam",
+    srcs = ["query_store.go"],
+    importpath = "github.com/pomerium/pomerium/internal/sessions/queryparam",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/encoding",
+        "//internal/sessions",
+    ],
+)
+
+go_test(
+    name = "queryparam_test",
+    srcs = [
+        "middleware_test.go",
+        "query_store_test.go",
+    ],
+    embed = [":queryparam"],
+    deps = [
+        "//internal/encoding",
+        "//internal/encoding/jws",
+        "//internal/encoding/mock",
+        "//internal/sessions",
+        "//pkg/cryptutil",
+        "@com_github_google_go_cmp//cmp",
+        "@com_github_stretchr_testify//require",
+    ],
+)
