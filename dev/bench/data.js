@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1681751106520,
+  "lastUpdate": 1681752273112,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -41080,6 +41080,42 @@ window.BENCHMARK_DATA = {
             "value": 10435579,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f63945c0ade332e9fa7596be34005c5d9d67d2ec",
+          "message": "support loading route configuration via rds (#4098)\n\n* support loading route configuration via rds\r\n\r\n* fix any shadowing\r\n\r\n* fix test\r\n\r\n* add fully static option\r\n\r\n* support dynamically defined rds\r\n\r\n* fix build\r\n\r\n* downgrade opa",
+          "timestamp": "2023-04-17T11:20:12-06:00",
+          "tree_id": "296b0e10e419c34cb8ce9dbf2f8ce87ec03ee579",
+          "url": "https://github.com/pomerium/pomerium/commit/f63945c0ade332e9fa7596be34005c5d9d67d2ec"
+        },
+        "date": 1681752272624,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13061831,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7750559,
+            "unit": "ns/op",
+            "extra": "140 times\n2 procs"
           }
         ]
       }
