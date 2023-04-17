@@ -30,7 +30,7 @@ RUN make build-debug NAME=pomerium
 RUN touch /config.yaml
 RUN go install github.com/go-delve/delve/cmd/dlv@latest
 
-FROM debian:latest@sha256:d4bbca2152d6376b59f3dd85a73e6fa041693f8a5f2919c47d4f718fc1a2878f
+FROM debian:latest@sha256:0a78ed641b76252739e28ebbbe8cdbd80dc367fba4502565ca839e5803cfd86e
 ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
