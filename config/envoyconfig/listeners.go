@@ -56,11 +56,15 @@ func init() {
 }
 
 // BuildListeners builds envoy listeners from the given config.
-func (b *Builder) BuildListeners(ctx context.Context, cfg *config.Config) ([]*envoy_config_listener_v3.Listener, error) {
+func (b *Builder) BuildListeners(
+	ctx context.Context,
+	cfg *config.Config,
+	fullyStatic bool,
+) ([]*envoy_config_listener_v3.Listener, error) {
 	var listeners []*envoy_config_listener_v3.Listener
 
 	if config.IsAuthenticate(cfg.Options.Services) || config.IsProxy(cfg.Options.Services) {
-		li, err := b.buildMainListener(ctx, cfg)
+		li, err := b.buildMainListener(ctx, cfg, fullyStatic)
 		if err != nil {
 			return nil, err
 		}
@@ -128,7 +132,11 @@ func (b *Builder) buildTLSSocket(ctx context.Context, cfg *config.Config, certs 
 	}, nil
 }
 
-func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+func (b *Builder) buildMainListener(
+	ctx context.Context,
+	cfg *config.Config,
+	fullyStatic bool,
+) (*envoy_config_listener_v3.Listener, error) {
 	li := newEnvoyListener("http-ingress")
 	if cfg.Options.UseProxyProtocol {
 		li.ListenerFilters = append(li.ListenerFilters, ProxyProtocolFilter())
@@ -137,7 +145,7 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 	if cfg.Options.InsecureServer {
 		li.Address = buildAddress(cfg.Options.Addr, 80)
 
-		filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options)
+		filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
 		if err != nil {
 			return nil, err
 		}
@@ -156,7 +164,7 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 			return nil, err
 		}
 
-		filter, err := b.buildMainHTTPConnectionManagerFilter(cfg.Options, allCertificates...)
+		filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
 		if err != nil {
 			return nil, err
 		}
@@ -254,67 +262,13 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 }
 
 func (b *Builder) buildMainHTTPConnectionManagerFilter(
-	options *config.Options,
-	certs ...tls.Certificate,
+	ctx context.Context,
+	cfg *config.Config,
+	fullyStatic bool,
 ) (*envoy_config_listener_v3.Filter, error) {
-	authorizeURLs, err := options.GetInternalAuthorizeURLs()
-	if err != nil {
-		return nil, err
-	}
-
-	dataBrokerURLs, err := options.GetInternalDataBrokerURLs()
-	if err != nil {
-		return nil, err
-	}
-
-	allHosts, err := getAllRouteableHosts(options, options.Addr)
-	if err != nil {
-		return nil, err
-	}
-
-	var virtualHosts []*envoy_config_route_v3.VirtualHost
-	for _, host := range allHosts {
-		requireStrictTransportSecurity := cryptutil.HasCertificateForServerName(certs, host)
-		vh, err := b.buildVirtualHost(options, host, host, requireStrictTransportSecurity)
-		if err != nil {
-			return nil, err
-		}
-
-		if options.Addr == options.GetGRPCAddr() {
-			// if this is a gRPC service domain and we're supposed to handle that, add those routes
-			if (config.IsAuthorize(options.Services) && urlsMatchHost(authorizeURLs, host)) ||
-				(config.IsDataBroker(options.Services) && urlsMatchHost(dataBrokerURLs, host)) {
-				rs, err := b.buildGRPCRoutes()
-				if err != nil {
-					return nil, err
-				}
-				vh.Routes = append(vh.Routes, rs...)
-			}
-		}
-
-		// if we're the proxy, add all the policy routes
-		if config.IsProxy(options.Services) {
-			rs, err := b.buildPolicyRoutes(options, host)
-			if err != nil {
-				return nil, err
-			}
-			vh.Routes = append(vh.Routes, rs...)
-		}
-
-		if len(vh.Routes) > 0 {
-			virtualHosts = append(virtualHosts, vh)
-		}
-	}
-
-	vh, err := b.buildVirtualHost(options, "catch-all", "*", false)
-	if err != nil {
-		return nil, err
-	}
-	virtualHosts = append(virtualHosts, vh)
-
 	var grpcClientTimeout *durationpb.Duration
-	if options.GRPCClientTimeout != 0 {
-		grpcClientTimeout = durationpb.New(options.GRPCClientTimeout)
+	if cfg.Options.GRPCClientTimeout != 0 {
+		grpcClientTimeout = durationpb.New(cfg.Options.GRPCClientTimeout)
 	} else {
 		grpcClientTimeout = durationpb.New(30 * time.Second)
 	}
@@ -329,45 +283,59 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	filters = append(filters, HTTPRouterFilter())
 
 	var maxStreamDuration *durationpb.Duration
-	if options.WriteTimeout > 0 {
-		maxStreamDuration = durationpb.New(options.WriteTimeout)
+	if cfg.Options.WriteTimeout > 0 {
+		maxStreamDuration = durationpb.New(cfg.Options.WriteTimeout)
 	}
 
-	rc, err := b.buildRouteConfiguration("main", virtualHosts)
-	if err != nil {
-		return nil, err
-	}
-	tracingProvider, err := buildTracingHTTP(options)
+	tracingProvider, err := buildTracingHTTP(cfg.Options)
 	if err != nil {
 		return nil, err
 	}
 
-	return HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
+	mgr := &envoy_http_connection_manager.HttpConnectionManager{
 		AlwaysSetRequestIdInResponse: true,
-
-		CodecType:  options.GetCodecType().ToEnvoy(),
-		StatPrefix: "ingress",
-		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
-			RouteConfig: rc,
-		},
-		HttpFilters: filters,
-		AccessLog:   buildAccessLogs(options),
+		CodecType:                    cfg.Options.GetCodecType().ToEnvoy(),
+		StatPrefix:                   "ingress",
+		HttpFilters:                  filters,
+		AccessLog:                    buildAccessLogs(cfg.Options),
 		CommonHttpProtocolOptions: &envoy_config_core_v3.HttpProtocolOptions{
-			IdleTimeout:       durationpb.New(options.IdleTimeout),
+			IdleTimeout:       durationpb.New(cfg.Options.IdleTimeout),
 			MaxStreamDuration: maxStreamDuration,
 		},
 		HttpProtocolOptions: http1ProtocolOptions,
-		RequestTimeout:      durationpb.New(options.ReadTimeout),
+		RequestTimeout:      durationpb.New(cfg.Options.ReadTimeout),
 		Tracing: &envoy_http_connection_manager.HttpConnectionManager_Tracing{
-			RandomSampling: &envoy_type_v3.Percent{Value: options.TracingSampleRate * 100},
+			RandomSampling: &envoy_type_v3.Percent{Value: cfg.Options.TracingSampleRate * 100},
 			Provider:       tracingProvider,
 		},
 		// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-for
 		UseRemoteAddress:  &wrappers.BoolValue{Value: true},
-		SkipXffAppend:     options.SkipXffAppend,
-		XffNumTrustedHops: options.XffNumTrustedHops,
-		LocalReplyConfig:  b.buildLocalReplyConfig(options, false),
-	}), nil
+		SkipXffAppend:     cfg.Options.SkipXffAppend,
+		XffNumTrustedHops: cfg.Options.XffNumTrustedHops,
+		LocalReplyConfig:  b.buildLocalReplyConfig(cfg.Options, false),
+	}
+
+	if fullyStatic {
+		routeConfiguration, err := b.buildMainRouteConfiguration(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		mgr.RouteSpecifier = &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
+			RouteConfig: routeConfiguration,
+		}
+	} else {
+		mgr.RouteSpecifier = &envoy_http_connection_manager.HttpConnectionManager_Rds{
+			Rds: &envoy_http_connection_manager.Rds{
+				ConfigSource: &envoy_config_core_v3.ConfigSource{
+					ResourceApiVersion:    envoy_config_core_v3.ApiVersion_V3,
+					ConfigSourceSpecifier: &envoy_config_core_v3.ConfigSource_Ads{},
+				},
+				RouteConfigName: "main",
+			},
+		}
+	}
+
+	return HTTPConnectionManagerFilter(mgr), nil
 }
 
 func (b *Builder) buildMetricsHTTPConnectionManagerFilter() (*envoy_config_listener_v3.Filter, error) {
@@ -546,7 +514,8 @@ func (b *Builder) buildDownstreamTLSContextMulti(
 			TlsCertificates:       envoyCerts,
 			AlpnProtocols:         getALPNProtos(cfg.Options),
 			ValidationContextType: b.buildDownstreamValidationContext(ctx, cfg),
-		}}, nil
+		},
+	}, nil
 }
 
 func getALPNProtos(opts *config.Options) []string {
