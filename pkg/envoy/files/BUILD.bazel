@@ -1,5 +1,14 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
+genrule(
+    name = "copy_resources",
+    srcs = ["@envoy_darwin_amd64//file"],
+    outs = [ "envoy-darwin-amd64" ],
+    cmd = "cp $(SRCS) $(@D)",
+    local = 1,
+    output_to_bindir = 1,
+)
+
 go_library(
     name = "files",
     srcs = [
@@ -9,6 +18,10 @@ go_library(
         "files_linux_amd64.go",
         "files_linux_arm64.go",
     ],
+    embedsrcs = glob(["envoy-*"]),
     importpath = "github.com/pomerium/pomerium/pkg/envoy/files",
     visibility = ["//visibility:public"],
+    deps = [
+        
+    ]
 )

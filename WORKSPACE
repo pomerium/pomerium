@@ -111,3 +111,18 @@ go_dependencies()
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
 
 gazelle_dependencies()
+
+load(
+    "@com_github_google_go_jsonnet//bazel:repositories.bzl",
+    "jsonnet_go_repositories",
+)
+jsonnet_go_repositories()
+
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+http_file(
+  name = "envoy_darwin_amd64",
+  sha256 = "41b738e1f8629b13fc7c416764f5ca4ce087ad9024aa6993303fb484b854a1fe",
+  downloaded_file_path = "envoy-darwin-amd64",
+  urls = ["https://github.com/pomerium/envoy-binaries/releases/download/v1.25.0/envoy-darwin-amd64"],
+)

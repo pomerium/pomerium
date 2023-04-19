@@ -1,18 +1,5 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 
-go_library(
-    name = "integration_lib",
-    srcs = ["stats.go"],
-    importpath = "github.com/pomerium/pomerium/integration",
-    visibility = ["//visibility:private"],
-)
-
-go_binary(
-    name = "integration",
-    embed = [":integration_lib"],
-    visibility = ["//visibility:public"],
-)
-
 go_test(
     name = "integration_test",
     srcs = [
@@ -21,8 +8,8 @@ go_test(
         "control_plane_test.go",
         "main_test.go",
         "policy_test.go",
+        "stats.go",
     ],
-    embed = [":integration_lib"],
     deps = [
         "//integration/flows",
         "@com_github_docker_docker//api/types",

@@ -20,7 +20,7 @@ go_proto_library(
     importpath = "github.com/pomerium/pomerium/pkg/grpc/registry",
     proto = ":registry_proto",
     visibility = ["//visibility:public"],
-    deps = ["@protoc-gen-validate//validate:go_default_library"],
+    deps = ["@com_github_envoyproxy_protoc_gen_validate//validate:validate_go"],
 )
 
 go_library(

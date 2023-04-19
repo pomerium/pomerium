@@ -1,4 +1,5 @@
 load("@bazel_gazelle//:deps.bzl", "go_repository")
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
 def go_dependencies():
     go_repository(
@@ -1072,11 +1073,12 @@ def go_dependencies():
         sum = "h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=",
         version = "v0.5.9",
     )
-    go_repository(
+    # gazelle:repository go_repository name=com_github_google_go_jsonnet importpath=github.com/google/go-jsonnet
+    git_repository(
         name = "com_github_google_go_jsonnet",
-        importpath = "github.com/google/go-jsonnet",
-        sum = "h1:MORxkrG0elylUqh36R4AcSPX0oZQa9hvI3lroN+kDhs=",
-        version = "v0.19.1",
+        remote = "https://github.com/google/go-jsonnet",
+        tag = "v0.19.1",
+        init_submodules = True,
     )
     go_repository(
         name = "com_github_google_go_tpm",
@@ -1232,8 +1234,8 @@ def go_dependencies():
     go_repository(
         name = "com_github_grpc_ecosystem_grpc_gateway",
         importpath = "github.com/grpc-ecosystem/grpc-gateway",
-        sum = "h1:bM6ZAFZmc/wPFaRDi0d5L7hGEZEx/2u+Tmr2evNHDiI=",
-        version = "v1.9.0",
+        sum = "",
+        version = "v2.15.2",
     )
     go_repository(
         name = "com_github_grpc_ecosystem_grpc_gateway_v2",
