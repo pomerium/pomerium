@@ -1,0 +1,45 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "redis",
+    srcs = [
+        "observe.go",
+        "option.go",
+        "redis.go",
+        "stream.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/pkg/storage/redis",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//config",
+        "//internal/log",
+        "//internal/redisutil",
+        "//internal/signal",
+        "//internal/telemetry/metrics",
+        "//internal/telemetry/trace",
+        "//pkg/cryptutil",
+        "//pkg/grpc/databroker",
+        "//pkg/storage",
+        "@com_github_cenkalti_backoff_v4//:backoff",
+        "@com_github_go_redis_redis_v8//:redis",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//types/known/timestamppb",
+    ],
+)
+
+go_test(
+    name = "redis_test",
+    srcs = ["redis_test.go"],
+    embed = [":redis"],
+    deps = [
+        "//internal/testutil",
+        "//pkg/grpc/databroker",
+        "//pkg/storage",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//types/known/anypb",
+        "@org_golang_google_protobuf//types/known/timestamppb",
+        "@org_golang_x_sync//errgroup",
+    ],
+)

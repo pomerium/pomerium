@@ -1,0 +1,30 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "trace",
+    srcs = [
+        "datadog.go",
+        "doc.go",
+        "jaeger.go",
+        "trace.go",
+        "zipkin.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/telemetry/trace",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/log",
+        "@com_github_datadog_opencensus_go_exporter_datadog//:opencensus-go-exporter-datadog",
+        "@com_github_openzipkin_zipkin_go//:zipkin-go",
+        "@com_github_openzipkin_zipkin_go//reporter",
+        "@com_github_openzipkin_zipkin_go//reporter/http",
+        "@io_opencensus_go//trace",
+        "@io_opencensus_go_contrib_exporter_jaeger//:jaeger",
+        "@io_opencensus_go_contrib_exporter_zipkin//:zipkin",
+    ],
+)
+
+go_test(
+    name = "trace_test",
+    srcs = ["trace_test.go"],
+    embed = [":trace"],
+)

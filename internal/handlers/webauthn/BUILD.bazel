@@ -1,0 +1,25 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "webauthn",
+    srcs = ["webauthn.go"],
+    importpath = "github.com/pomerium/pomerium/internal/handlers/webauthn",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/httputil",
+        "//internal/middleware",
+        "//internal/sessions",
+        "//internal/urlutil",
+        "//pkg/grpc/databroker",
+        "//pkg/grpc/device",
+        "//pkg/grpc/session",
+        "//pkg/grpc/user",
+        "//pkg/webauthnutil",
+        "//ui",
+        "@com_github_google_uuid//:uuid",
+        "@com_github_pomerium_webauthn//:webauthn",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_protobuf//types/known/timestamppb",
+    ],
+)

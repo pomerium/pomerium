@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "base58",
+    srcs = [
+        "alphabet.go",
+        "base58.go",
+        "doc.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/pkg/encoding/base58",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "base58_test",
+    srcs = ["base58_test.go"],
+    deps = [":base58"],
+)

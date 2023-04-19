@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "atomicutil",
+    srcs = ["value.go"],
+    importpath = "github.com/pomerium/pomerium/internal/atomicutil",
+    visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "atomicutil_test",
+    srcs = ["value_test.go"],
+    embed = [":atomicutil"],
+    deps = ["@com_github_stretchr_testify//assert"],
+)

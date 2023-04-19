@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "hashutil",
+    srcs = ["hashutil.go"],
+    importpath = "github.com/pomerium/pomerium/internal/hashutil",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "@com_github_cespare_xxhash_v2//:xxhash",
+        "@com_github_mitchellh_hashstructure_v2//:hashstructure",
+    ],
+)
+
+go_test(
+    name = "hashutil_test",
+    srcs = ["hashutil_test.go"],
+    embed = [":hashutil"],
+    deps = ["@com_github_stretchr_testify//assert"],
+)

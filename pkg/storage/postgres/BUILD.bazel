@@ -1,0 +1,62 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "postgres",
+    srcs = [
+        "backend.go",
+        "filter.go",
+        "migrate.go",
+        "option.go",
+        "postgres.go",
+        "registry.go",
+        "stream.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/pkg/storage/postgres",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/log",
+        "//internal/sets",
+        "//internal/signal",
+        "//pkg/contextutil",
+        "//pkg/cryptutil",
+        "//pkg/grpc/databroker",
+        "//pkg/grpc/registry",
+        "//pkg/protoutil",
+        "//pkg/storage",
+        "@com_github_cenkalti_backoff_v4//:backoff",
+        "@com_github_golang_protobuf//proto:go_default_library",
+        "@com_github_jackc_pgx_v5//:pgx",
+        "@com_github_jackc_pgx_v5//pgconn",
+        "@com_github_jackc_pgx_v5//pgtype",
+        "@com_github_jackc_pgx_v5//pgxpool",
+        "@org_golang_google_protobuf//encoding/protojson",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//reflect/protoregistry",
+        "@org_golang_google_protobuf//types/known/anypb",
+        "@org_golang_google_protobuf//types/known/durationpb",
+        "@org_golang_google_protobuf//types/known/timestamppb",
+    ],
+)
+
+go_test(
+    name = "postgres_test",
+    srcs = [
+        "backend_test.go",
+        "filter_test.go",
+        "registry_test.go",
+    ],
+    embed = [":postgres"],
+    deps = [
+        "//internal/testutil",
+        "//pkg/grpc/databroker",
+        "//pkg/grpc/registry",
+        "//pkg/protoutil",
+        "//pkg/storage",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//types/known/structpb",
+        "@org_golang_google_protobuf//types/known/timestamppb",
+        "@org_golang_x_sync//errgroup",
+    ],
+)

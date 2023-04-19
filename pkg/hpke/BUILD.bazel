@@ -1,0 +1,32 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "hpke",
+    srcs = [
+        "hpke.go",
+        "http.go",
+        "url.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/pkg/hpke",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_cloudflare_circl//hpke",
+        "@com_github_cloudflare_circl//kem",
+        "@com_github_gregjones_httpcache//:httpcache",
+    ],
+)
+
+go_test(
+    name = "hpke_test",
+    srcs = [
+        "hpke_test.go",
+        "http_test.go",
+        "url_test.go",
+    ],
+    embed = [":hpke"],
+    deps = [
+        "//pkg/hpke/handlers",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)

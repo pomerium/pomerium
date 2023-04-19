@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "ping",
+    srcs = ["ping.go"],
+    importpath = "github.com/pomerium/pomerium/internal/identity/oidc/ping",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/identity/oauth",
+        "//internal/identity/oidc",
+    ],
+)

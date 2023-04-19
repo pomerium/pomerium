@@ -1,0 +1,30 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "testutil",
+    srcs = [
+        "gcs.go",
+        "minio.go",
+        "postgres.go",
+        "redis.go",
+        "testutil.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/testutil",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/log",
+        "//pkg/cryptutil",
+        "@com_github_go_redis_redis_v8//:redis",
+        "@com_github_golang_protobuf//proto:go_default_library",
+        "@com_github_google_go_cmp//cmp",
+        "@com_github_jackc_pgx_v5//:pgx",
+        "@com_github_minio_minio_go_v7//:minio-go",
+        "@com_github_minio_minio_go_v7//pkg/credentials",
+        "@com_github_ory_dockertest_v3//:dockertest",
+        "@com_github_ory_dockertest_v3//docker",
+        "@com_github_stretchr_testify//assert",
+        "@com_google_cloud_go_storage//:storage",
+        "@org_golang_google_protobuf//encoding/protojson",
+        "@org_golang_google_protobuf//testing/protocmp",
+    ],
+)

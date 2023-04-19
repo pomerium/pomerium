@@ -1,0 +1,37 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "identity",
+    srcs = [
+        "claims.go",
+        "mock_provider.go",
+        "providers.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/identity",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/identity/identity",
+        "//internal/identity/oauth",
+        "//internal/identity/oauth/apple",
+        "//internal/identity/oauth/github",
+        "//internal/identity/oidc",
+        "//internal/identity/oidc/auth0",
+        "//internal/identity/oidc/azure",
+        "//internal/identity/oidc/gitlab",
+        "//internal/identity/oidc/google",
+        "//internal/identity/oidc/okta",
+        "//internal/identity/oidc/onelogin",
+        "//internal/identity/oidc/ping",
+        "//pkg/protoutil",
+        "@org_golang_google_protobuf//types/known/anypb",
+        "@org_golang_google_protobuf//types/known/structpb",
+        "@org_golang_x_oauth2//:oauth2",
+    ],
+)
+
+go_test(
+    name = "identity_test",
+    srcs = ["claims_test.go"],
+    embed = [":identity"],
+    deps = ["@com_github_stretchr_testify//assert"],
+)

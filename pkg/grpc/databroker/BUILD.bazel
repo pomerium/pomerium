@@ -1,0 +1,78 @@
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
+
+proto_library(
+    name = "databroker_proto",
+    srcs = ["databroker.proto"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_google_protobuf//:any_proto",
+        "@com_google_protobuf//:duration_proto",
+        "@com_google_protobuf//:empty_proto",
+        "@com_google_protobuf//:struct_proto",
+        "@com_google_protobuf//:timestamp_proto",
+    ],
+)
+
+go_proto_library(
+    name = "databroker_go_proto",
+    compilers = ["@io_bazel_rules_go//proto:go_grpc"],
+    importpath = "github.com/pomerium/pomerium/pkg/grpc/databroker",
+    proto = ":databroker_proto",
+    visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "databroker",
+    srcs = [
+        "databroker.go",
+        "fast_forward.go",
+        "leaser.go",
+        "syncer.go",
+    ],
+    embed = [":databroker_go_proto"],
+    importpath = "github.com/pomerium/pomerium/pkg/grpc/databroker",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/contextkeys",
+        "//internal/log",
+        "//pkg/grpcutil",
+        "//pkg/protoutil",
+        "@com_github_cenkalti_backoff_v4//:backoff",
+        "@com_github_rs_zerolog//:zerolog",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_protobuf//encoding/protojson",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//types/known/durationpb",
+        "@org_golang_google_protobuf//types/known/structpb",
+        "@org_golang_x_sync//errgroup",
+    ],
+)
+
+go_test(
+    name = "databroker_test",
+    srcs = [
+        "databroker_test.go",
+        "fast_forward_test.go",
+        "leaser_test.go",
+        "syncer_test.go",
+    ],
+    embed = [":databroker"],
+    deps = [
+        "//internal/testutil",
+        "//pkg/grpc/databroker/mock_databroker",
+        "//pkg/protoutil",
+        "@com_github_golang_mock//gomock",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_grpc//test/bufconn",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//types/known/durationpb",
+        "@org_golang_google_protobuf//types/known/structpb",
+    ],
+)

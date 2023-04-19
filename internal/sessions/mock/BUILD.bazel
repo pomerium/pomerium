@@ -1,0 +1,23 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "mock",
+    srcs = ["mock_store.go"],
+    importpath = "github.com/pomerium/pomerium/internal/sessions/mock",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/encoding",
+        "//internal/encoding/jws",
+        "//internal/sessions",
+    ],
+)
+
+go_test(
+    name = "mock_test",
+    srcs = ["mock_store_test.go"],
+    embed = [":mock"],
+    deps = [
+        "//internal/sessions",
+        "@com_github_stretchr_testify//assert",
+    ],
+)

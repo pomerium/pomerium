@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "auth0",
+    srcs = ["auth0.go"],
+    importpath = "github.com/pomerium/pomerium/internal/identity/oidc/auth0",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/identity/oauth",
+        "//internal/identity/oidc",
+    ],
+)

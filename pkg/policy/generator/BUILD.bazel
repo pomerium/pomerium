@@ -1,0 +1,30 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "generator",
+    srcs = [
+        "conditionals.go",
+        "criterion.go",
+        "generator.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/pkg/policy/generator",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/policy/parser",
+        "//pkg/policy/rules",
+        "@com_github_open_policy_agent_opa//ast",
+    ],
+)
+
+go_test(
+    name = "generator_test",
+    srcs = ["generator_test.go"],
+    embed = [":generator"],
+    deps = [
+        "//pkg/policy/parser",
+        "@com_github_open_policy_agent_opa//ast",
+        "@com_github_open_policy_agent_opa//format",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)

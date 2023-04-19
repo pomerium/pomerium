@@ -1,0 +1,46 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "handlers",
+    srcs = [
+        "device-enrolled.go",
+        "handlers.go",
+        "health_check.go",
+        "jwks.go",
+        "signout.go",
+        "userinfo.go",
+        "well_known_pomerium.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/handlers",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/httputil",
+        "//internal/urlutil",
+        "//pkg/cryptutil",
+        "//pkg/grpc/identity",
+        "//pkg/grpc/session",
+        "//pkg/grpc/user",
+        "//ui",
+        "@com_github_pomerium_csrf//:csrf",
+        "@com_github_pomerium_datasource//pkg/directory",
+        "@com_github_pomerium_webauthn//:webauthn",
+        "@com_github_rs_cors//:cors",
+        "@org_golang_google_protobuf//encoding/protojson",
+    ],
+)
+
+go_test(
+    name = "handlers_test",
+    srcs = [
+        "health_check_test.go",
+        "jwks_test.go",
+        "well_known_pomerium_test.go",
+    ],
+    embed = [":handlers"],
+    deps = [
+        "//internal/deterministicecdsa",
+        "//pkg/cryptutil",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)

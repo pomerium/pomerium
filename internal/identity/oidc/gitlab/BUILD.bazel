@@ -1,0 +1,13 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "gitlab",
+    srcs = ["gitlab.go"],
+    importpath = "github.com/pomerium/pomerium/internal/identity/oidc/gitlab",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/identity/oauth",
+        "//internal/identity/oidc",
+        "@com_github_coreos_go_oidc_v3//oidc",
+    ],
+)

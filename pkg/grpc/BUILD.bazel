@@ -1,0 +1,32 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "grpc",
+    srcs = [
+        "client.go",
+        "docs.go",
+        "health.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/pkg/grpc",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/log",
+        "//internal/telemetry",
+        "//internal/telemetry/requestid",
+        "//pkg/grpcutil",
+        "@com_github_google_go_cmp//cmp",
+        "@org_golang_google_grpc//:go_default_library",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//connectivity",
+        "@org_golang_google_grpc//health/grpc_health_v1",
+        "@org_golang_google_grpc//status",
+    ],
+)
+
+go_test(
+    name = "grpc_test",
+    srcs = ["client_test.go"],
+    data = glob(["testdata/**"]),
+    embed = [":grpc"],
+    deps = ["@org_golang_google_grpc//:go_default_library"],
+)

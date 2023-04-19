@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "mutual-tls_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/pomerium/pomerium/examples/mutual-tls",
+    visibility = ["//visibility:private"],
+)
+
+go_binary(
+    name = "mutual-tls",
+    embed = [":mutual-tls_lib"],
+    visibility = ["//visibility:public"],
+)

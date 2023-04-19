@@ -1,0 +1,31 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "registry",
+    srcs = [
+        "constants.go",
+        "hostname.go",
+        "registry.go",
+        "reporter.go",
+        "server.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/registry",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//config",
+        "//internal/log",
+        "//pkg/grpc",
+        "//pkg/grpc/registry",
+        "@com_github_cenkalti_backoff_v4//:backoff",
+    ],
+)
+
+go_test(
+    name = "registry_test",
+    srcs = ["reporter_test.go"],
+    embed = [":registry"],
+    deps = [
+        "//config",
+        "@com_github_stretchr_testify//assert",
+    ],
+)

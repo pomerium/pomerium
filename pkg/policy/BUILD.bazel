@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "policy",
+    srcs = ["policy.go"],
+    importpath = "github.com/pomerium/pomerium/pkg/policy",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/policy/criteria",
+        "//pkg/policy/generator",
+        "//pkg/policy/parser",
+        "@com_github_open_policy_agent_opa//format",
+    ],
+)

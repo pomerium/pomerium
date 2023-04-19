@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "ui",
+    srcs = [
+        "embed.go",
+        "embed_local.go",
+    ],
+    embedsrcs = [
+        "dist/apple-touch-icon.png",
+        "dist/favicon-16x16.png",
+        "dist/favicon-32x32.png",
+        "dist/favicon.ico",
+        "dist/index.html",
+    ],
+    importpath = "github.com/pomerium/pomerium/ui",
+    visibility = ["//visibility:public"],
+    deps = ["@com_github_pomerium_csrf//:csrf"],
+)

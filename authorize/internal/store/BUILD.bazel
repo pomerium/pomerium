@@ -1,0 +1,24 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "store",
+    srcs = ["store.go"],
+    importpath = "github.com/pomerium/pomerium/authorize/internal/store",
+    visibility = ["//authorize:__subpackages__"],
+    deps = [
+        "//config",
+        "//internal/log",
+        "//internal/telemetry/trace",
+        "//pkg/grpc/databroker",
+        "//pkg/storage",
+        "@com_github_go_jose_go_jose_v3//:go-jose",
+        "@com_github_open_policy_agent_opa//ast",
+        "@com_github_open_policy_agent_opa//rego",
+        "@com_github_open_policy_agent_opa//storage",
+        "@com_github_open_policy_agent_opa//storage/inmem",
+        "@com_github_open_policy_agent_opa//types",
+        "@io_opencensus_go//trace",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//types/known/timestamppb",
+    ],
+)

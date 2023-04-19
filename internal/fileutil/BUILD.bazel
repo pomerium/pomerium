@@ -1,0 +1,32 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "fileutil",
+    srcs = [
+        "fileutil.go",
+        "watcher.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/fileutil",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/chanutil",
+        "//internal/log",
+        "//internal/signal",
+        "@com_github_fsnotify_fsnotify//:fsnotify",
+        "@com_github_rs_zerolog//:zerolog",
+        "@dev_namespacelabs_go_filenotify//:go-filenotify",
+    ],
+)
+
+go_test(
+    name = "fileutil_test",
+    srcs = [
+        "fileutil_test.go",
+        "watcher_test.go",
+    ],
+    embed = [":fileutil"],
+    deps = [
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)

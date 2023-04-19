@@ -1,0 +1,30 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "header",
+    srcs = ["header_store.go"],
+    importpath = "github.com/pomerium/pomerium/internal/sessions/header",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/encoding",
+        "//internal/httputil",
+        "//internal/sessions",
+    ],
+)
+
+go_test(
+    name = "header_test",
+    srcs = [
+        "header_store_test.go",
+        "middleware_test.go",
+    ],
+    embed = [":header"],
+    deps = [
+        "//internal/encoding/jws",
+        "//internal/sessions",
+        "//pkg/cryptutil",
+        "@com_github_google_go_cmp//cmp",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)

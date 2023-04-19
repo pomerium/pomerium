@@ -1,0 +1,27 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "pomerium",
+    srcs = ["pomerium.go"],
+    importpath = "github.com/pomerium/pomerium/pkg/cmd/pomerium",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//authenticate",
+        "//authorize",
+        "//config",
+        "//databroker",
+        "//internal/autocert",
+        "//internal/controlplane",
+        "//internal/databroker",
+        "//internal/events",
+        "//internal/log",
+        "//internal/registry",
+        "//internal/version",
+        "//pkg/derivecert/config",
+        "//pkg/envoy",
+        "//pkg/envoy/files",
+        "//proxy",
+        "@com_github_envoyproxy_go_control_plane//envoy/service/auth/v3:auth",
+        "@org_golang_x_sync//errgroup",
+    ],
+)

@@ -1,0 +1,44 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "urlutil",
+    srcs = [
+        "errors.go",
+        "known.go",
+        "proxy.go",
+        "query_params.go",
+        "signed.go",
+        "time.go",
+        "url.go",
+        "whitelist.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/urlutil",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/version",
+        "//pkg/cryptutil",
+        "//pkg/grpc/identity",
+        "//pkg/hpke",
+        "@com_github_caddyserver_certmagic//:certmagic",
+        "@org_golang_google_protobuf//encoding/protojson",
+    ],
+)
+
+go_test(
+    name = "urlutil_test",
+    srcs = [
+        "known_test.go",
+        "signed_test.go",
+        "time_test.go",
+        "url_test.go",
+        "whitelist_test.go",
+    ],
+    embed = [":urlutil"],
+    deps = [
+        "//pkg/grpc/identity",
+        "//pkg/hpke",
+        "@com_github_google_go_cmp//cmp",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)

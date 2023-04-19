@@ -1,0 +1,38 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "oidc",
+    srcs = [
+        "config.go",
+        "errors.go",
+        "oidc.go",
+        "userinfo.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/identity/oidc",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/httputil",
+        "//internal/identity/identity",
+        "//internal/identity/oauth",
+        "//internal/urlutil",
+        "//internal/version",
+        "@com_github_coreos_go_oidc_v3//oidc",
+        "@org_golang_x_oauth2//:oauth2",
+    ],
+)
+
+go_test(
+    name = "oidc_test",
+    srcs = [
+        "oidc_test.go",
+        "userinfo_test.go",
+    ],
+    embed = [":oidc"],
+    deps = [
+        "//internal/identity/oauth",
+        "@com_github_coreos_go_oidc_v3//oidc",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+        "@org_golang_x_oauth2//:oauth2",
+    ],
+)

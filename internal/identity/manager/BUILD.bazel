@@ -1,0 +1,62 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "manager",
+    srcs = [
+        "config.go",
+        "data.go",
+        "manager.go",
+        "misc.go",
+        "sync.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/identity/manager",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/atomicutil",
+        "//internal/events",
+        "//internal/identity",
+        "//internal/identity/identity",
+        "//internal/log",
+        "//internal/scheduler",
+        "//internal/telemetry/metrics",
+        "//pkg/grpc/databroker",
+        "//pkg/grpc/session",
+        "//pkg/grpc/user",
+        "//pkg/grpcutil",
+        "//pkg/metrics",
+        "@com_github_google_btree//:btree",
+        "@com_github_rs_zerolog//:zerolog",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_protobuf//types/known/timestamppb",
+        "@org_golang_x_oauth2//:oauth2",
+        "@org_golang_x_sync//errgroup",
+    ],
+)
+
+go_test(
+    name = "manager_test",
+    srcs = [
+        "data_test.go",
+        "manager_test.go",
+    ],
+    embed = [":manager"],
+    deps = [
+        "//internal/events",
+        "//internal/identity/identity",
+        "//pkg/grpc/databroker",
+        "//pkg/grpc/databroker/mock_databroker",
+        "//pkg/grpc/session",
+        "//pkg/grpc/user",
+        "//pkg/metrics",
+        "//pkg/protoutil",
+        "@com_github_golang_mock//gomock",
+        "@com_github_stretchr_testify//assert",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//types/known/structpb",
+        "@org_golang_google_protobuf//types/known/timestamppb",
+        "@org_golang_x_oauth2//:oauth2",
+    ],
+)

@@ -1,0 +1,27 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "derivecert",
+    srcs = [
+        "ca.go",
+        "derivecert.go",
+        "notrand.go",
+        "pem.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/pkg/derivecert",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/deterministicecdsa",
+        "@org_golang_x_crypto//hkdf",
+    ],
+)
+
+go_test(
+    name = "derivecert_test",
+    srcs = ["ca_test.go"],
+    deps = [
+        ":derivecert",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)

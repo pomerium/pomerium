@@ -1,0 +1,25 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "redisutil",
+    srcs = [
+        "client.go",
+        "redisutil.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/redisutil",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/sets",
+        "@com_github_go_redis_redis_v8//:redis",
+    ],
+)
+
+go_test(
+    name = "redisutil_test",
+    srcs = ["client_test.go"],
+    embed = [":redisutil"],
+    deps = [
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+    ],
+)

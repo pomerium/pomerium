@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "deterministicecdsa",
+    srcs = ["ecdsa.go"],
+    importpath = "github.com/pomerium/pomerium/internal/deterministicecdsa",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "@org_golang_x_crypto//cryptobyte",
+        "@org_golang_x_crypto//cryptobyte/asn1",
+    ],
+)

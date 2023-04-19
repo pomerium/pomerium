@@ -1,0 +1,35 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "log",
+    srcs = [
+        "log.go",
+        "middleware.go",
+        "warnings.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/internal/log",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/atomicutil",
+        "//internal/middleware/responsewriter",
+        "//internal/syncutil",
+        "//internal/telemetry/requestid",
+        "@com_github_rs_zerolog//:zerolog",
+        "@org_uber_go_zap//:zap",
+        "@org_uber_go_zap//zapcore",
+    ],
+)
+
+go_test(
+    name = "log_test",
+    srcs = [
+        "log_test.go",
+        "middleware_test.go",
+    ],
+    embed = [":log"],
+    deps = [
+        "//internal/telemetry/requestid",
+        "@com_github_google_go_cmp//cmp",
+        "@com_github_rs_zerolog//:zerolog",
+    ],
+)

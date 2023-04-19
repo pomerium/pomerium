@@ -1,0 +1,18 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "contextutil",
+    srcs = [
+        "contextutil.go",
+        "policy.go",
+    ],
+    importpath = "github.com/pomerium/pomerium/pkg/contextutil",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "contextutil_test",
+    srcs = ["contextutil_test.go"],
+    embed = [":contextutil"],
+    deps = ["@com_github_stretchr_testify//assert"],
+)

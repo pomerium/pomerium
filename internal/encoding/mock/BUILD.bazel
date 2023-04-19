@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "mock",
+    srcs = ["mock_encoder.go"],
+    importpath = "github.com/pomerium/pomerium/internal/encoding/mock",
+    visibility = ["//:__subpackages__"],
+    deps = ["//internal/encoding"],
+)
+
+go_test(
+    name = "mock_test",
+    srcs = ["mock_encoder_test.go"],
+    embed = [":mock"],
+)

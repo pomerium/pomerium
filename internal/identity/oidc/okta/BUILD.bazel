@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "okta",
+    srcs = ["okta.go"],
+    importpath = "github.com/pomerium/pomerium/internal/identity/oidc/okta",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/identity/oauth",
+        "//internal/identity/oidc",
+    ],
+)
