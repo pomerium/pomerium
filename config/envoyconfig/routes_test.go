@@ -61,6 +61,22 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 				"match": {
 					"` + typ + `": "` + name + `"
 				},
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
+				],
 				"route": {
 					"cluster": "pomerium-control-plane-http"
 				}
@@ -84,7 +100,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
 		}
-		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
+		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com", false)
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
@@ -107,7 +123,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
 		}
-		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
+		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com", false)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, "null", routes)
 	})
@@ -123,7 +139,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			}},
 		}
 		_ = options.Policies[0].Validate()
-		routes, err := b.buildPomeriumHTTPRoutes(options, "from.example.com")
+		routes, err := b.buildPomeriumHTTPRoutes(options, "from.example.com", false)
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
@@ -151,7 +167,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			}},
 		}
 		_ = options.Policies[0].Validate()
-		routes, err := b.buildPomeriumHTTPRoutes(options, "from.example.com")
+		routes, err := b.buildPomeriumHTTPRoutes(options, "from.example.com", false)
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
@@ -168,14 +184,31 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 }
 
 func Test_buildControlPlanePathRoute(t *testing.T) {
+	options := config.NewDefaultOptions()
 	b := &Builder{filemgr: filemgr.NewManager()}
-	route := b.buildControlPlanePathRoute("/hello/world", false)
+	route := b.buildControlPlanePathRoute(options, "/hello/world", false, false)
 	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-path-/hello/world",
 			"match": {
 				"path": "/hello/world"
 			},
+			"responseHeadersToAdd": [
+				{
+					"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+					"header": {
+					  "key": "X-Frame-Options",
+					  "value": "SAMEORIGIN"
+					}
+				},
+				{
+					"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+					"header": {
+					  "key": "X-XSS-Protection",
+					  "value": "1; mode=block"
+					}
+				}
+			],
 			"route": {
 				"cluster": "pomerium-control-plane-http"
 			},
@@ -190,14 +223,31 @@ func Test_buildControlPlanePathRoute(t *testing.T) {
 }
 
 func Test_buildControlPlanePrefixRoute(t *testing.T) {
+	options := config.NewDefaultOptions()
 	b := &Builder{filemgr: filemgr.NewManager()}
-	route := b.buildControlPlanePrefixRoute("/hello/world/", false)
+	route := b.buildControlPlanePrefixRoute(options, "/hello/world/", false, false)
 	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-prefix-/hello/world/",
 			"match": {
 				"prefix": "/hello/world/"
 			},
+			"responseHeadersToAdd": [
+				{
+					"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+					"header": {
+					  "key": "X-Frame-Options",
+					  "value": "SAMEORIGIN"
+					}
+				},
+				{
+					"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+					"header": {
+					  "key": "X-XSS-Protection",
+					  "value": "1; mode=block"
+					}
+				}
+			],
 			"route": {
 				"cluster": "pomerium-control-plane-http"
 			},
@@ -255,7 +305,7 @@ func TestTimeouts(t *testing.T) {
 					AllowWebsockets: tc.allowWebsockets,
 				},
 			},
-		}, "example.com")
+		}, "example.com", false)
 		if !assert.NoError(t, err, "%v", tc) || !assert.Len(t, routes, 1, tc) || !assert.NotNil(t, routes[0].GetRoute(), "%v", tc) {
 			continue
 		}
@@ -359,7 +409,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				UpstreamTimeout:     &ten,
 			},
 		},
-	}, "example.com")
+	}, "example.com", false)
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, `
@@ -405,6 +455,22 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
 				]
 			},
 			{
@@ -449,6 +515,22 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
 				]
 			},
 			{
@@ -499,6 +581,22 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
 				]
 			},
 			{
@@ -545,6 +643,22 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
 				]
 			},
 			{
@@ -589,6 +703,22 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"HEADER-KEY",
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
 				]
 			},
 			{
@@ -632,6 +762,22 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
 				]
 			},
 			{
@@ -676,6 +822,22 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
 				]
 			},
 			{
@@ -720,6 +882,22 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
 				]
 			}
 		]
@@ -737,7 +915,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					PassIdentityHeaders: true,
 				},
 			},
-		}, "authenticate.example.com")
+		}, "authenticate.example.com", false)
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -781,6 +959,22 @@ func Test_buildPolicyRoutes(t *testing.T) {
         	           	"x-pomerium-reproxy-policy",
         	           	"x-pomerium-reproxy-policy-hmac"
 					],
+					"responseHeadersToAdd": [
+						{
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+							"header": {
+							  "key": "X-Frame-Options",
+							  "value": "SAMEORIGIN"
+							}
+						},
+						{
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+							"header": {
+							  "key": "X-XSS-Protection",
+							  "value": "1; mode=block"
+							}
+						}
+					],
 					"typedPerFilterConfig": {
 						"envoy.filters.http.ext_authz": {
 							"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
@@ -807,7 +1001,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					UpstreamTimeout:     &ten,
 				},
 			},
-		}, "example.com:22")
+		}, "example.com:22", false)
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -855,6 +1049,22 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
 				]
 			},
 			{
@@ -900,6 +1110,22 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
 				]
 			}
 		]
@@ -920,7 +1146,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					Source: &config.StringURL{URL: mustParseURL(t, "https://from.example.com")},
 				},
 			},
-		}, "from.example.com")
+		}, "from.example.com", false)
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -969,6 +1195,22 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"x-email",
 						"x-pomerium-reproxy-policy",
 						"x-pomerium-reproxy-policy-hmac"
+					],
+					"responseHeadersToAdd": [
+						{
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+							"header": {
+							  "key": "X-Frame-Options",
+							  "value": "SAMEORIGIN"
+							}
+						},
+						{
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+							"header": {
+							  "key": "X-XSS-Protection",
+							  "value": "1; mode=block"
+							}
+						}
 					]
 				}
 			]
@@ -1024,7 +1266,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				HostPathRegexRewriteSubstitution: "\\1",
 			},
 		},
-	}, "example.com")
+	}, "example.com", false)
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, `
@@ -1071,6 +1313,22 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
 				]
 			},
 			{
@@ -1115,6 +1373,22 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
 				]
 			},
 			{
@@ -1165,6 +1439,22 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
 				]
 			},
 			{
@@ -1209,6 +1499,22 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
 				]
 			},
 			{
@@ -1253,6 +1559,22 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
 				]
 			},
 			{
@@ -1303,6 +1625,22 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
 				]
 			}
 		]

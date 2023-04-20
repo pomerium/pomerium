@@ -47,7 +47,11 @@ func (b *Builder) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
 	}}, nil
 }
 
-func (b *Builder) buildPomeriumHTTPRoutes(options *config.Options, host string) ([]*envoy_config_route_v3.Route, error) {
+func (b *Builder) buildPomeriumHTTPRoutes(
+	options *config.Options,
+	host string,
+	requireStrictTransportSecurity bool,
+) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
 
 	// if this is the pomerium proxy in front of the the authenticate service, don't add
@@ -59,23 +63,23 @@ func (b *Builder) buildPomeriumHTTPRoutes(options *config.Options, host string) 
 	if !isFrontingAuthenticate {
 		routes = append(routes,
 			// enable ext_authz
-			b.buildControlPlanePathRoute("/.pomerium/jwt", true),
-			b.buildControlPlanePathRoute(urlutil.WebAuthnURLPath, true),
+			b.buildControlPlanePathRoute(options, "/.pomerium/jwt", true, requireStrictTransportSecurity),
+			b.buildControlPlanePathRoute(options, urlutil.WebAuthnURLPath, true, requireStrictTransportSecurity),
 			// disable ext_authz and passthrough to proxy handlers
-			b.buildControlPlanePathRoute("/ping", false),
-			b.buildControlPlanePathRoute("/healthz", false),
-			b.buildControlPlanePathRoute("/.pomerium", false),
-			b.buildControlPlanePrefixRoute("/.pomerium/", false),
-			b.buildControlPlanePathRoute("/.well-known/pomerium", false),
-			b.buildControlPlanePrefixRoute("/.well-known/pomerium/", false),
+			b.buildControlPlanePathRoute(options, "/ping", false, requireStrictTransportSecurity),
+			b.buildControlPlanePathRoute(options, "/healthz", false, requireStrictTransportSecurity),
+			b.buildControlPlanePathRoute(options, "/.pomerium", false, requireStrictTransportSecurity),
+			b.buildControlPlanePrefixRoute(options, "/.pomerium/", false, requireStrictTransportSecurity),
+			b.buildControlPlanePathRoute(options, "/.well-known/pomerium", false, requireStrictTransportSecurity),
+			b.buildControlPlanePrefixRoute(options, "/.well-known/pomerium/", false, requireStrictTransportSecurity),
 		)
 		// per #837, only add robots.txt if there are no unauthenticated routes
 		if !hasPublicPolicyMatchingURL(options, url.URL{Scheme: "https", Host: host, Path: "/robots.txt"}) {
-			routes = append(routes, b.buildControlPlanePathRoute("/robots.txt", false))
+			routes = append(routes, b.buildControlPlanePathRoute(options, "/robots.txt", false, requireStrictTransportSecurity))
 		}
 	}
 
-	authRoutes, err := b.buildPomeriumAuthenticateHTTPRoutes(options, host)
+	authRoutes, err := b.buildPomeriumAuthenticateHTTPRoutes(options, host, requireStrictTransportSecurity)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +87,11 @@ func (b *Builder) buildPomeriumHTTPRoutes(options *config.Options, host string) 
 	return routes, nil
 }
 
-func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(options *config.Options, host string) ([]*envoy_config_route_v3.Route, error) {
+func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(
+	options *config.Options,
+	host string,
+	requireStrictTransportSecurity bool,
+) ([]*envoy_config_route_v3.Route, error) {
 	if !config.IsAuthenticate(options.Services) {
 		return nil, nil
 	}
@@ -98,15 +106,20 @@ func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(options *config.Options, h
 		}
 		if urlMatchesHost(u, host) {
 			return []*envoy_config_route_v3.Route{
-				b.buildControlPlanePathRoute(options.AuthenticateCallbackPath, false),
-				b.buildControlPlanePathRoute("/", false),
+				b.buildControlPlanePathRoute(options, options.AuthenticateCallbackPath, false, requireStrictTransportSecurity),
+				b.buildControlPlanePathRoute(options, "/", false, requireStrictTransportSecurity),
 			}, nil
 		}
 	}
 	return nil, nil
 }
 
-func (b *Builder) buildControlPlanePathRoute(path string, protected bool) *envoy_config_route_v3.Route {
+func (b *Builder) buildControlPlanePathRoute(
+	options *config.Options,
+	path string,
+	protected bool,
+	requireStrictTransportSecurity bool,
+) *envoy_config_route_v3.Route {
 	r := &envoy_config_route_v3.Route{
 		Name: "pomerium-path-" + path,
 		Match: &envoy_config_route_v3.RouteMatch{
@@ -119,6 +132,7 @@ func (b *Builder) buildControlPlanePathRoute(path string, protected bool) *envoy
 				},
 			},
 		},
+		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders(requireStrictTransportSecurity)),
 	}
 	if !protected {
 		r.TypedPerFilterConfig = map[string]*any.Any{
@@ -128,7 +142,12 @@ func (b *Builder) buildControlPlanePathRoute(path string, protected bool) *envoy
 	return r
 }
 
-func (b *Builder) buildControlPlanePrefixRoute(prefix string, protected bool) *envoy_config_route_v3.Route {
+func (b *Builder) buildControlPlanePrefixRoute(
+	options *config.Options,
+	prefix string,
+	protected bool,
+	requireStrictTransportSecurity bool,
+) *envoy_config_route_v3.Route {
 	r := &envoy_config_route_v3.Route{
 		Name: "pomerium-prefix-" + prefix,
 		Match: &envoy_config_route_v3.RouteMatch{
@@ -141,6 +160,7 @@ func (b *Builder) buildControlPlanePrefixRoute(prefix string, protected bool) *e
 				},
 			},
 		},
+		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders(requireStrictTransportSecurity)),
 	}
 	if !protected {
 		r.TypedPerFilterConfig = map[string]*any.Any{
@@ -169,7 +189,11 @@ func getClusterStatsName(policy *config.Policy) string {
 	return ""
 }
 
-func (b *Builder) buildPolicyRoutes(options *config.Options, host string) ([]*envoy_config_route_v3.Route, error) {
+func (b *Builder) buildPolicyRoutes(
+	options *config.Options,
+	host string,
+	requireStrictTransportSecurity bool,
+) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
 
 	for i, p := range options.GetAllPolicies() {
@@ -185,7 +209,7 @@ func (b *Builder) buildPolicyRoutes(options *config.Options, host string) ([]*en
 			Metadata:               &envoy_config_core_v3.Metadata{},
 			RequestHeadersToAdd:    toEnvoyHeaders(policy.SetRequestHeaders),
 			RequestHeadersToRemove: getRequestHeadersToRemove(options, &policy),
-			ResponseHeadersToAdd:   toEnvoyHeaders(policy.SetResponseHeaders),
+			ResponseHeadersToAdd:   toEnvoyHeaders(options.GetSetResponseHeadersForPolicy(&policy, requireStrictTransportSecurity)),
 		}
 		if policy.Redirect != nil {
 			action, err := b.buildPolicyRouteRedirectAction(policy.Redirect)

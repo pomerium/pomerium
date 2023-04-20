@@ -21,16 +21,11 @@ func (b *Builder) buildVirtualHost(
 	}
 
 	// these routes match /.pomerium/... and similar paths
-	rs, err := b.buildPomeriumHTTPRoutes(options, host)
+	rs, err := b.buildPomeriumHTTPRoutes(options, host, requireStrictTransportSecurity)
 	if err != nil {
 		return nil, err
 	}
 	vh.Routes = append(vh.Routes, rs...)
-
-	// if we're the proxy or authenticate service, add our global headers
-	if config.IsProxy(options.Services) || config.IsAuthenticate(options.Services) {
-		vh.ResponseHeadersToAdd = toEnvoyHeaders(options.GetSetResponseHeaders(requireStrictTransportSecurity))
-	}
 
 	return vh, nil
 }

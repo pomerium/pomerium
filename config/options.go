@@ -1009,6 +1009,11 @@ func (o *Options) GetGoogleCloudServerlessAuthenticationServiceAccount() string 
 
 // GetSetResponseHeaders gets the SetResponseHeaders.
 func (o *Options) GetSetResponseHeaders(requireStrictTransportSecurity bool) map[string]string {
+	return o.GetSetResponseHeadersForPolicy(nil, requireStrictTransportSecurity)
+}
+
+// GetSetResponseHeadersForPolicy gets the SetResponseHeaders for a policy.
+func (o *Options) GetSetResponseHeadersForPolicy(policy *Policy, requireStrictTransportSecurity bool) map[string]string {
 	hdrs := o.SetResponseHeaders
 	if hdrs == nil {
 		hdrs = make(map[string]string)
@@ -1016,12 +1021,23 @@ func (o *Options) GetSetResponseHeaders(requireStrictTransportSecurity bool) map
 			hdrs[k] = v
 		}
 	}
-	if _, ok := o.SetResponseHeaders[DisableHeaderKey]; ok {
+	if _, ok := hdrs[DisableHeaderKey]; ok {
 		hdrs = make(map[string]string)
 	}
+
+	if policy != nil && policy.SetResponseHeaders != nil {
+		for k, v := range policy.SetResponseHeaders {
+			hdrs[k] = v
+		}
+	}
+	if _, ok := hdrs[DisableHeaderKey]; ok {
+		hdrs = make(map[string]string)
+	}
+
 	if !requireStrictTransportSecurity {
 		delete(hdrs, "Strict-Transport-Security")
 	}
+
 	return hdrs
 }
 
