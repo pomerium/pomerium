@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1682008315990,
+  "lastUpdate": 1682032329936,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -41532,6 +41532,42 @@ window.BENCHMARK_DATA = {
             "value": 9615180,
             "unit": "ns/op",
             "extra": "124 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "681cf6fa27a9ac89f856687f2de58b57b3f3d248",
+          "message": "config: fix set_response_headers (#4026)\n\n* config: fix set_response_headers\r\n\r\n* fix disabling to support route headers when global headers are disabled",
+          "timestamp": "2023-04-20T17:07:23-06:00",
+          "tree_id": "f2315ace6ee2dd26fc4fca9ce5092e87cac64fbd",
+          "url": "https://github.com/pomerium/pomerium/commit/681cf6fa27a9ac89f856687f2de58b57b3f3d248"
+        },
+        "date": 1682032329508,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13882680,
+            "unit": "ns/op",
+            "extra": "80 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9018895,
+            "unit": "ns/op",
+            "extra": "134 times\n2 procs"
           }
         ]
       }
