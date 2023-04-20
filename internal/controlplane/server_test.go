@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
 
@@ -52,8 +53,8 @@ func TestServerHTTP(t *testing.T) {
 
 		expect := map[string]any{
 			"authentication_callback_endpoint": "https://authenticate.localhost.pomerium.io/oauth2/callback",
-			"frontchannel_logout_uri":          "https://authenticate.localhost.pomerium.io/.pomerium/sign_out",
-			"jwks_uri":                         "https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json",
+			"frontchannel_logout_uri":          fmt.Sprintf("https://localhost:%s/.pomerium/sign_out", src.GetConfig().HTTPPort),
+			"jwks_uri":                         fmt.Sprintf("https://localhost:%s/.well-known/pomerium/jwks.json", src.GetConfig().HTTPPort),
 		}
 		assert.Equal(t, expect, actual)
 	})
@@ -77,14 +78,22 @@ func TestServerHTTP(t *testing.T) {
 					"x":   "UG5xCP0JTT1H6Iol8jKuTIPVLM04CgW9PlEypNRmWlo",
 					"y":   "KChF0fR09zm884ymInM29PtSsFdnzExNfLsP-ta1AgQ",
 				},
-				map[string]any{
-					"kty": "OKP",
-					"kid": "pomerium/hpke",
-					"crv": "X25519",
-					"x":   "T0cbNrJbO9in-FgowKAP-HX6Ci8q50gopOt52sdheHg",
-				},
 			},
 		}
 		assert.Equal(t, expect, actual)
+	})
+	t.Run("hpke-public-key", func(t *testing.T) {
+		res, err := http.Get(fmt.Sprintf("http://localhost:%s/.well-known/pomerium/hpke-public-key", src.GetConfig().HTTPPort))
+		require.NoError(t, err)
+		defer res.Body.Close()
+
+		bs, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		assert.Equal(t, []byte{
+			0x4f, 0x47, 0x1b, 0x36, 0xb2, 0x5b, 0x3b, 0xd8,
+			0xa7, 0xf8, 0x58, 0x28, 0xc0, 0xa0, 0x0f, 0xf8,
+			0x75, 0xfa, 0x0a, 0x2f, 0x2a, 0xe7, 0x48, 0x28,
+			0xa4, 0xeb, 0x79, 0xda, 0xc7, 0x61, 0x78, 0x78,
+		}, bs)
 	})
 }

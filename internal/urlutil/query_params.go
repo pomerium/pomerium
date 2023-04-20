@@ -18,6 +18,7 @@ const (
 	QuerySession            = "pomerium_session"
 	QuerySessionEncrypted   = "pomerium_session_encrypted"
 	QuerySessionState       = "pomerium_session_state"
+	QueryVersion            = "pomerium_version"
 )
 
 // URL signature based query params used for verifying the authenticity of a URL.

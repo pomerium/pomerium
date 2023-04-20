@@ -20,7 +20,7 @@ import (
 type HeadersRequest struct {
 	EnableGoogleCloudServerlessAuthentication bool           `json:"enable_google_cloud_serverless_authentication"`
 	EnableRoutingKey                          bool           `json:"enable_routing_key"`
-	FromAudience                              string         `json:"from_audience"`
+	Issuer                                    string         `json:"issuer"`
 	KubernetesServiceAccountToken             string         `json:"kubernetes_service_account_token"`
 	ToAudience                                string         `json:"to_audience"`
 	Session                                   RequestSession `json:"session"`
@@ -35,7 +35,7 @@ func NewHeadersRequestFromPolicy(policy *config.Policy) *HeadersRequest {
 	input.EnableRoutingKey = policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
 		policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_MAGLEV
 	if u, err := urlutil.ParseAndValidateURL(policy.From); err == nil {
-		input.FromAudience = u.Hostname()
+		input.Issuer = u.Hostname()
 	}
 	input.KubernetesServiceAccountToken = policy.KubernetesServiceAccountToken
 	for _, wu := range policy.To {

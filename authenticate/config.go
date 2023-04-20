@@ -3,10 +3,12 @@ package authenticate
 import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/identity"
+	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 )
 
 type authenticateConfig struct {
 	getIdentityProvider func(options *config.Options, idpID string) (identity.Authenticator, error)
+	profileTrimFn       func(*identitypb.Profile)
 }
 
 // An Option customizes the Authenticate config.
@@ -25,5 +27,12 @@ func getAuthenticateConfig(options ...Option) *authenticateConfig {
 func WithGetIdentityProvider(getIdentityProvider func(options *config.Options, idpID string) (identity.Authenticator, error)) Option {
 	return func(cfg *authenticateConfig) {
 		cfg.getIdentityProvider = getIdentityProvider
+	}
+}
+
+// WithProfileTrimFn sets the profileTrimFn function in the config
+func WithProfileTrimFn(profileTrimFn func(*identitypb.Profile)) Option {
+	return func(cfg *authenticateConfig) {
+		cfg.profileTrimFn = profileTrimFn
 	}
 }

@@ -15,6 +15,8 @@ import (
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
+	"github.com/pomerium/pomerium/internal/urlutil"
+	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
 )
 
 func (srv *Server) addHTTPMiddleware(root *mux.Router, cfg *config.Config) {
@@ -68,6 +70,7 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 	root.HandleFunc("/ping", handlers.HealthCheck)
 	root.Handle("/.well-known/pomerium", handlers.WellKnownPomerium(authenticateURL))
 	root.Handle("/.well-known/pomerium/", handlers.WellKnownPomerium(authenticateURL))
-	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(handlers.JWKSHandler(signingKey, hpkePublicKey))
+	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(handlers.JWKSHandler(signingKey))
+	root.Path(urlutil.HPKEPublicKeyPath).Methods(http.MethodGet).Handler(hpke_handlers.HPKEPublicKeyHandler(hpkePublicKey))
 	return nil
 }

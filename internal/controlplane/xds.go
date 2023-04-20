@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	clusterTypeURL  = "type.googleapis.com/envoy.config.cluster.v3.Cluster"
-	listenerTypeURL = "type.googleapis.com/envoy.config.listener.v3.Listener"
+	clusterTypeURL            = "type.googleapis.com/envoy.config.cluster.v3.Cluster"
+	listenerTypeURL           = "type.googleapis.com/envoy.config.listener.v3.Listener"
+	routeConfigurationTypeURL = "type.googleapis.com/envoy.config.route.v3.RouteConfiguration"
 )
 
 func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*envoy_service_discovery_v3.Resource, error) {
@@ -24,25 +25,36 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		return nil, err
 	}
 	for _, cluster := range clusters {
-		any := protoutil.NewAny(cluster)
 		resources[clusterTypeURL] = append(resources[clusterTypeURL], &envoy_service_discovery_v3.Resource{
 			Name:     cluster.Name,
 			Version:  hex.EncodeToString(cryptutil.HashProto(cluster)),
-			Resource: any,
+			Resource: protoutil.NewAny(cluster),
 		})
 	}
 
-	listeners, err := srv.Builder.BuildListeners(ctx, cfg.Config)
+	listeners, err := srv.Builder.BuildListeners(ctx, cfg.Config, false)
 	if err != nil {
 		return nil, err
 	}
 	for _, listener := range listeners {
-		any := protoutil.NewAny(listener)
 		resources[listenerTypeURL] = append(resources[listenerTypeURL], &envoy_service_discovery_v3.Resource{
 			Name:     listener.Name,
 			Version:  hex.EncodeToString(cryptutil.HashProto(listener)),
-			Resource: any,
+			Resource: protoutil.NewAny(listener),
 		})
 	}
+
+	routeConfigurations, err := srv.Builder.BuildRouteConfigurations(ctx, cfg.Config)
+	if err != nil {
+		return nil, err
+	}
+	for _, routeConfiguration := range routeConfigurations {
+		resources[routeConfigurationTypeURL] = append(resources[routeConfigurationTypeURL], &envoy_service_discovery_v3.Resource{
+			Name:     routeConfiguration.Name,
+			Version:  hex.EncodeToString(cryptutil.HashProto(routeConfiguration)),
+			Resource: protoutil.NewAny(routeConfiguration),
+		})
+	}
+
 	return resources, nil
 }

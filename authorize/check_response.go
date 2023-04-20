@@ -18,7 +18,6 @@ import (
 	"google.golang.org/grpc/codes"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
-	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
@@ -201,7 +200,7 @@ func (a *Authorize) requireLoginResponse(
 	checkRequestURL := getCheckRequestURL(in)
 	checkRequestURL.Scheme = "https"
 
-	redirectTo, err := handlers.BuildSignInURL(
+	redirectTo, err := urlutil.SignInURL(
 		state.hpkePrivateKey,
 		authenticateHPKEPublicKey,
 		authenticateURL,

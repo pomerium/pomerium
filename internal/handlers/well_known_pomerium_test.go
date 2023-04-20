@@ -21,4 +21,15 @@ func TestWellKnownPomeriumHandler(t *testing.T) {
 		WellKnownPomerium(authenticateURL).ServeHTTP(w, r)
 		assert.Equal(t, http.StatusNoContent, w.Result().StatusCode)
 	})
+	t.Run("links", func(t *testing.T) {
+		authenticateURL, _ := url.Parse("https://authenticate.example.com")
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "https://route.example.com", nil)
+		WellKnownPomerium(authenticateURL).ServeHTTP(w, r)
+		assert.JSONEq(t, `{
+			"authentication_callback_endpoint": "https://authenticate.example.com/oauth2/callback",
+			"frontchannel_logout_uri": "https://route.example.com/.pomerium/sign_out",
+			"jwks_uri": "https://route.example.com/.well-known/pomerium/jwks.json"
+		}`, w.Body.String())
+	})
 }

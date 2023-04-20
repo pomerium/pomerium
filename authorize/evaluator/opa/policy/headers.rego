@@ -3,7 +3,7 @@ package pomerium.headers
 # input:
 #   enable_google_cloud_serverless_authentication: boolean
 #   enable_routing_key: boolean
-#   from_audience: string
+#   issuer: string
 #   kubernetes_service_account_token: string
 #   session:
 #     id: string
@@ -12,7 +12,6 @@ package pomerium.headers
 #   pass_id_token: boolean
 #
 # data:
-#   issuer: string
 #   jwt_claim_headers: map[string]string
 #   signing_key:
 #     alg: string
@@ -81,12 +80,16 @@ jwt_headers = {
 }
 
 jwt_payload_aud = v {
-	v := input.from_audience
+	v := input.issuer
 } else = "" {
 	true
 }
 
-jwt_payload_iss = data.issuer
+jwt_payload_iss = v {
+	v := input.issuer
+} else = "" {
+	true
+}
 
 jwt_payload_jti = v {
 	v = session.id
