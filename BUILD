@@ -1,16 +1,11 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@bazel_gazelle//:def.bzl", "gazelle")
 
 package(default_visibility = ["//visibility:public"])
 
-load("@bazel_gazelle//:def.bzl", "gazelle")
-
-# gazelle:prefix github.com/pomerium/pomerium
-gazelle(name = "gazelle")
-
-go_library(
+alias (
     name = "pomerium",
-    srcs = ["pomerium.go"],
-    importpath = "github.com/pomerium/pomerium",
+    actual = "//cmd/pomerium:pomerium"
 )
 
 gazelle(
