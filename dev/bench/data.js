@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1682090197084,
+  "lastUpdate": 1682091986469,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -41600,6 +41600,38 @@ window.BENCHMARK_DATA = {
             "value": 10847177,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "65e0fcb667a6c521b078e2a1039d1f5328234742",
+          "message": "tls: wildcard catch-all cert must be at the end of cert list",
+          "timestamp": "2023-04-21T06:36:22Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4119/commits/65e0fcb667a6c521b078e2a1039d1f5328234742"
+        },
+        "date": 1682091986005,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14537106,
+            "unit": "ns/op",
+            "extra": "88 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8349834,
+            "unit": "ns/op",
+            "extra": "126 times\n2 procs"
           }
         ]
       }
