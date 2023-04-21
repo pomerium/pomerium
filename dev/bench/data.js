@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1682092500948,
+  "lastUpdate": 1682095393932,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -41696,6 +41696,42 @@ window.BENCHMARK_DATA = {
             "value": 8445751,
             "unit": "ns/op",
             "extra": "141 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "34c1e44c7e0166228269f69e72d0dba85cabab52",
+          "message": "tls: wildcard catch-all cert must be at the end of cert list (#4119)",
+          "timestamp": "2023-04-21T12:37:32-04:00",
+          "tree_id": "30662cefdba7f5b30751ba1d034b4c6d5886cbab",
+          "url": "https://github.com/pomerium/pomerium/commit/34c1e44c7e0166228269f69e72d0dba85cabab52"
+        },
+        "date": 1682095393201,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17709624,
+            "unit": "ns/op",
+            "extra": "72 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10293530,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
