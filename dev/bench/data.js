@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1682095393932,
+  "lastUpdate": 1682119802163,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -41732,6 +41732,42 @@ window.BENCHMARK_DATA = {
             "value": 10293530,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bbed421cd879a526c01dcd5de3ef8a63e3b8d6b4",
+          "message": "config: remove source, remove deadcode, fix linting issues (#4118)\n\n* remove source, remove deadcode, fix linting issues\r\n\r\n* use github action for lint\r\n\r\n* fix missing envoy",
+          "timestamp": "2023-04-21T17:25:11-06:00",
+          "tree_id": "7211129a0d4d2994856fb1d4167326a78e475fbd",
+          "url": "https://github.com/pomerium/pomerium/commit/bbed421cd879a526c01dcd5de3ef8a63e3b8d6b4"
+        },
+        "date": 1682119801059,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13435687,
+            "unit": "ns/op",
+            "extra": "90 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8482175,
+            "unit": "ns/op",
+            "extra": "138 times\n2 procs"
           }
         ]
       }
