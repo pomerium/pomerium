@@ -1,27 +1,41 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
-load("//bazel:envoy.bzl", "ENVOY_VERSION", "ENVOY_LINUX_AMD64_SHA")
+load("//bazel:envoy.bzl", "ENVOY_VERSION", 
+                        "ENVOY_LINUX_AMD64_SHA", 
+                        "ENVOY_LINUX_ARM64_SHA", 
+                        "ENVOY_DARWIN_AMD64_SHA", 
+                        "ENVOY_DARWIN_ARM64_SHA")
 
 #TODO other platform / arch gen rules
 genrule(
-    name = "envoy_linux_amd64_gen",
-    srcs = ["@envoy_linux_amd64//file"],
-    outs = ["envoy-linux-amd64"],
+    name = "envoy_binary_gen",
+    srcs = select({
+            "@io_bazel_rules_go//go/platform:linux_amd64": ["@envoy_linux_amd64//file"],
+            "@io_bazel_rules_go//go/platform:linux_arm64": ["@envoy_linux_arm64//file"],
+            "@io_bazel_rules_go//go/platform:darwin_amd64": ["@envoy_darwin_amd64//file"],
+            "@io_bazel_rules_go//go/platform:darwin_arm64": ["@envoy_darwin_arm64//file"],
+    }),
+    outs = ["envoy"],
     cmd = "cp $< $@",
     stamp = 1,
 )
 
 genrule(
-    name = "envoy_linux_amd64_version_gen",
-    outs = ["envoy-linux-amd64.version"],
+    name = "envoy_binary_version_gen",
+    outs = ["envoy.version"],
     cmd = "echo {} > $@".format(ENVOY_VERSION),
     stamp = 1,
 )
 
 genrule(
-    name = "envoy_linux_amd64_sha_gen",
-    outs = ["envoy-linux-amd64.sha256"],
-    cmd = "echo {} > $@".format(ENVOY_LINUX_AMD64_SHA),
+    name = "envoy_binary_sha_gen",
+    outs = ["envoy.sha256"],
+    cmd = select({
+        "@io_bazel_rules_go//go/platform:linux_amd64": "echo {} > $@".format(ENVOY_LINUX_AMD64_SHA),
+        "@io_bazel_rules_go//go/platform:linux_arm64": "echo {} > $@".format(ENVOY_LINUX_ARM64_SHA),
+        "@io_bazel_rules_go//go/platform:darwin_amd64": "echo {} > $@".format(ENVOY_DARWIN_AMD64_SHA),
+        "@io_bazel_rules_go//go/platform:darwin_arm64": "echo {} > $@".format(ENVOY_DARWIN_ARM64_SHA),
+    }),
     stamp = 1,
 )
 
@@ -29,16 +43,11 @@ go_library(
     name = "files",
     srcs = [
         "files.go",
-        "files_darwin_amd64.go",
-        "files_darwin_arm64.go",
-        "files_linux_amd64.go",
-        "files_linux_arm64.go",
     ],
     embedsrcs = [
-        ":envoy_linux_amd64_gen",
-        ":envoy_linux_amd64_version_gen",
-        ":envoy_linux_amd64_sha_gen",
-        
+        ":envoy_binary_gen",
+        ":envoy_binary_version_gen",
+        ":envoy_binary_sha_gen",
     ],
     importpath = "github.com/pomerium/pomerium/pkg/envoy/files",
     visibility = ["//visibility:public"],
