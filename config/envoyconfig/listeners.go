@@ -114,9 +114,7 @@ func getAllCertificates(cfg *config.Config) ([]tls.Certificate, error) {
 		return nil, fmt.Errorf("error getting wildcard certificate: %w", err)
 	}
 
-	// wildcard certificate must be first so that it is used as the default certificate
-	// when no SNI matches
-	return append([]tls.Certificate{*wc}, allCertificates...), nil
+	return append(allCertificates, *wc), nil
 }
 
 func (b *Builder) buildTLSSocket(ctx context.Context, cfg *config.Config, certs []tls.Certificate) (*envoy_config_core_v3.TransportSocket, error) {
