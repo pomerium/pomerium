@@ -43,24 +43,11 @@ generate-mocks: ## Generate mocks
 	@echo "==> $@"
 	@go run github.com/golang/mock/mockgen -destination internal/directory/auth0/mock_auth0/mock.go github.com/pomerium/pomerium/internal/directory/auth0 RoleManager
 
-#TODO move to bazel
-.PHONY: get-envoy
-get-envoy: ## Fetch envoy binaries
-	@echo "==> $@"
-	@./scripts/get-envoy.bash
-
-.PHONY: deps-build
-deps-build: get-envoy ## Install build dependencies
-	@echo "==> $@"
 
 .PHONY: deps-release
-deps-release: get-envoy ## Install release dependencies
+deps-release: ## Install release dependencies
 	@echo "==> $@"
-	@cd /tmp; GO111MODULE=on $(GO) install github.com/goreleaser/goreleaser@${GORELEASER_VERSION}
-
-.PHONY: build-deps
-build-deps: deps-build deps-release
-	@echo "==> $@"
+	#@cd /tmp; GO111MODULE=on $(GO) install github.com/goreleaser/goreleaser@${GORELEASER_VERSION}
 
 .PHONY: tag
 tag: ## Create a new git tag to prepare to build a release
@@ -77,16 +64,15 @@ build: build-ui build-go
 	@echo "==> $@"
 
 .PHONY: build-debug
-build-debug: build-deps ## Builds binaries appropriate for debugging
+build-debug: ## Builds binaries appropriate for debugging
 	@echo "==> $@"
-	@CGO_ENABLED=0 GO111MODULE=on $(GO) build -gcflags="all=-N -l" -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
+	@CGO_ENABLED=0 GO111MODULE=on bazel build //:pomerium -c dbg
 
 .PHONY: build-go
-build-go: build-deps
+build-go:
 	@echo "==> $@"
-	@CGO_ENABLED=0 GO111MODULE=on CGO_LDFLAGS=${GO_LDFLAGS} bazel build //:pomerium
-	#@CGO_ENABLED=0 GO111MODULE=on $(GO) build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(BINDIR)/$(NAME) ./cmd/"$(NAME)"
-
+	@CGO_ENABLED=0 GO111MODULE=on bazel build //:pomerium
+	
 .PHONY: build-ui
 build-ui: yarn
 	@echo "==> $@"
@@ -98,12 +84,12 @@ lint: ## Verifies `golint` passes.
 	@$(GO) run github.com/golangci/golangci-lint/cmd/golangci-lint run ./...
 
 .PHONY: test
-test: get-envoy ## Runs the go tests.
+test:  ## Runs the go tests.
 	@echo "==> $@"
 	@$(GO) test -race -tags "$(BUILDTAGS)" $(shell $(GO) list ./... | grep -v vendor | grep -v github.com/pomerium/pomerium/integration)
 
 .PHONY: cover
-cover: get-envoy ## Runs go test with coverage
+cover:  ## Runs go test with coverage
 	@echo "==> $@"
 	$(GO) test -race -coverprofile=coverage.txt -tags "$(BUILDTAGS)" $(shell $(GO) list ./... | grep -v vendor | grep -v github.com/pomerium/pomerium/integration)
 	@sed -i.bak '/\.pb\.go\:/d' coverage.txt

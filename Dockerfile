@@ -13,15 +13,10 @@ RUN make yarn
 COPY ./ui/ ./ui/
 RUN make build-ui
 
-FROM golang:1.20.3-buster@sha256:413cd9e04db86fee3f5c667de293f37d9199b74880771c37dcfeb165cefaf424 as build
+FROM gcr.io/bazel-public/bazel:latest as build
+USER root
 WORKDIR /go/src/github.com/pomerium/pomerium
 
-RUN apt-get update \
-    && apt-get -y --no-install-recommends install zip
-
-# cache dependency downloads
-COPY go.mod go.sum ./
-RUN go mod download
 COPY . .
 COPY --from=ui /build/ui/dist ./ui/dist
 
@@ -38,7 +33,7 @@ RUN rm /usr/share/ca-certificates/mozilla/DST_Root_CA_X3.crt && update-ca-certif
 FROM gcr.io/distroless/base:debug@sha256:357bc96a42d8db2e4710d8ae6257da3a66b1243affc03932438710a53a8d1ac6
 ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
-COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
+COPY --from=build /go/src/github.com/pomerium/pomerium/bazel-bin/cmd/pomerium/pomerium_/pomerium /bin/
 COPY --from=build /config.yaml /pomerium/config.yaml
 COPY --from=casource /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 ENTRYPOINT [ "/bin/pomerium" ]

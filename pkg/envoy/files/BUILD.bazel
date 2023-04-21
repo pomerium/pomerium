@@ -1,12 +1,28 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("//bazel:envoy.bzl", "ENVOY_VERSION", "ENVOY_LINUX_AMD64_SHA")
+
+#TODO other platform / arch gen rules
+genrule(
+    name = "envoy_linux_amd64_gen",
+    srcs = ["@envoy_linux_amd64//file"],
+    outs = ["envoy-linux-amd64"],
+    cmd = "cp $< $@",
+    stamp = 1,
+)
 
 genrule(
-    name = "copy_resources",
-    srcs = ["@envoy_darwin_amd64//file"],
-    outs = [ "envoy-darwin-amd64" ],
-    cmd = "cp $(SRCS) $(@D)",
-    local = 1,
-    output_to_bindir = 1,
+    name = "envoy_linux_amd64_version_gen",
+    outs = ["envoy-linux-amd64.version"],
+    cmd = "echo {} > $@".format(ENVOY_VERSION),
+    stamp = 1,
+)
+
+genrule(
+    name = "envoy_linux_amd64_sha_gen",
+    outs = ["envoy-linux-amd64.sha256"],
+    cmd = "echo {} > $@".format(ENVOY_LINUX_AMD64_SHA),
+    stamp = 1,
 )
 
 go_library(
@@ -18,10 +34,14 @@ go_library(
         "files_linux_amd64.go",
         "files_linux_arm64.go",
     ],
-    embedsrcs = glob(["envoy-*"]),
+    embedsrcs = [
+        ":envoy_linux_amd64_gen",
+        ":envoy_linux_amd64_version_gen",
+        ":envoy_linux_amd64_sha_gen",
+        
+    ],
     importpath = "github.com/pomerium/pomerium/pkg/envoy/files",
     visibility = ["//visibility:public"],
     deps = [
-        
     ]
 )

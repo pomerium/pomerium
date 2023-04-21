@@ -126,3 +126,6 @@ http_file(
   downloaded_file_path = "envoy-darwin-amd64",
   urls = ["https://github.com/pomerium/envoy-binaries/releases/download/v1.25.0/envoy-darwin-amd64"],
 )
+
+load("//bazel:envoy.bzl", "envoy_binaries")
+envoy_binaries()
