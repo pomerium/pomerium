@@ -22,7 +22,7 @@ func TestGetDeviceType(t *testing.T) {
 			get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
 				assert.Equal(t, "type.googleapis.com/pomerium.device.Type", in.GetType())
 				assert.Equal(t, "any", in.GetId())
-				any, _ := anypb.New(&device.Type{
+				data, _ := anypb.New(&device.Type{
 					Id:   "any",
 					Name: "Example",
 				})
@@ -30,7 +30,7 @@ func TestGetDeviceType(t *testing.T) {
 					Record: &databroker.Record{
 						Type: in.GetType(),
 						Id:   in.GetId(),
-						Data: any,
+						Data: data,
 					},
 				}, nil
 			},

@@ -46,10 +46,15 @@ linters-settings:
 linters:
   disable-all: true
   enable:
+    - asasalint
     - bodyclose
     - depguard
     - dogsled
     - errcheck
+    - errorlint
+    - exportloopref
+    - gci
+    - gocheckcompilerdirectives
     - gofmt
     - goimports
     - goprintffuncname
@@ -58,15 +63,18 @@ linters:
     - govet
     - ineffassign
     - lll
+    - loggercheck
     - misspell
     - nakedret
     - nolintlint
     - revive
     - staticcheck
     - stylecheck
+    - tenv
     - typecheck
     - unconvert
     - unused
+    - usestdlibvars
 
 issues:
   exclude-use-default: false
@@ -96,6 +104,7 @@ issues:
     - (Expect directory permissions to be 0750 or less|Expect file permissions to be 0600 or less)
     # gosec: False positive is triggered by 'src, err := os.ReadFile(filename)'
     - Potential file inclusion via variable
+    - empty-block
 
     ##
     ## Custom

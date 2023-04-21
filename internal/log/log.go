@@ -161,7 +161,7 @@ func Panic() *zerolog.Event {
 // zerolog.Disabled will still disable events produced by this method.
 //
 // You must call Msg on the returned event in order to send the event.
-func Log(ctx context.Context) *zerolog.Event {
+func Log(_ context.Context) *zerolog.Event {
 	return Logger().Log()
 }
 

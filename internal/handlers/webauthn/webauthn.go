@@ -128,7 +128,7 @@ func (h *Handler) handle(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	switch {
-	case r.Method == "GET":
+	case r.Method == http.MethodGet:
 		return h.handleView(w, r, s)
 	case r.FormValue("action") == "authenticate":
 		return h.handleAuthenticate(w, r, s)

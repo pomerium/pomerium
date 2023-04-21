@@ -224,7 +224,7 @@ func scrapeEndpoint(endpoint ScrapeEndpoint, labels []*io_prometheus_client.Labe
 	return func(ctx context.Context) promProducerResult {
 		name := fmt.Sprintf("%s %s", endpoint.Name, endpoint.URL.String())
 
-		req, err := http.NewRequestWithContext(ctx, "GET", endpoint.URL.String(), nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.URL.String(), nil)
 		if err != nil {
 			return promProducerResult{name: name, err: fmt.Errorf("make request: %w", err)}
 		}

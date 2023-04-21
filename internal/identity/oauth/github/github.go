@@ -56,7 +56,7 @@ type Provider struct {
 }
 
 // New instantiates an OAuth2 provider for Github.
-func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
+func New(_ context.Context, o *oauth.Options) (*Provider, error) {
 	p := Provider{}
 	if o.ProviderURL == "" {
 		o.ProviderURL = defaultProviderURL
@@ -92,7 +92,7 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 func (p *Provider) Authenticate(ctx context.Context, code string, v identity.State) (*oauth2.Token, error) {
 	oauth2Token, err := p.Oauth.Exchange(ctx, code)
 	if err != nil {
-		return nil, fmt.Errorf("github: token exchange failed %v", err)
+		return nil, fmt.Errorf("github: token exchange failed %w", err)
 	}
 
 	// github tokens never expire
@@ -124,7 +124,7 @@ func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interf
 }
 
 // Refresh is a no-op for github, because github sessions never expire.
-func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.State) (*oauth2.Token, error) {
+func (p *Provider) Refresh(_ context.Context, t *oauth2.Token, _ identity.State) (*oauth2.Token, error) {
 	t.Expiry = time.Now().Add(refreshDeadline)
 	return t, nil
 }

@@ -27,7 +27,6 @@ import (
 	"github.com/pomerium/pomerium/internal/sets"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 const listenerBufferLimit uint32 = 32 * 1024
@@ -572,37 +571,6 @@ func getAllRouteableHosts(options *config.Options, addr string) ([]string, error
 	}
 
 	return allHosts.ToSlice(), nil
-}
-
-func getAllServerNames(cfg *config.Config, addr string) ([]string, error) {
-	serverNames := sets.NewSorted[string]()
-	serverNames.Add("*")
-
-	certs, err := cfg.AllCertificates()
-	if err != nil {
-		return nil, err
-	}
-	for i := range certs {
-		serverNames.Add(cryptutil.GetCertificateServerNames(&certs[i])...)
-	}
-
-	if addr == cfg.Options.Addr {
-		sns, err := cfg.Options.GetAllRouteableHTTPServerNames()
-		if err != nil {
-			return nil, err
-		}
-		serverNames.Add(sns...)
-	}
-
-	if addr == cfg.Options.GetGRPCAddr() {
-		sns, err := cfg.Options.GetAllRouteableGRPCServerNames()
-		if err != nil {
-			return nil, err
-		}
-		serverNames.Add(sns...)
-	}
-
-	return serverNames.ToSlice(), nil
 }
 
 func urlsMatchHost(urls []*url.URL, host string) bool {

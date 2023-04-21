@@ -97,7 +97,7 @@ func (b *Builder) BuildBootstrapAdmin(cfg *config.Config) (admin *envoy_config_b
 
 // BuildBootstrapDynamicResources builds the dynamic resources for the envoy bootstrap.
 func (b *Builder) BuildBootstrapDynamicResources(
-	cfg *config.Config,
+	_ *config.Config,
 	fullyStatic bool,
 ) (dynamicResources *envoy_config_bootstrap_v3.Bootstrap_DynamicResources, err error) {
 	if fullyStatic {

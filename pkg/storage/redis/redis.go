@@ -123,7 +123,7 @@ func (backend *Backend) Get(ctx context.Context, recordType, id string) (_ *data
 	key, field := getHashKey(recordType, id)
 	cmd := backend.client.HGet(ctx, key, field)
 	raw, err := cmd.Result()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		return nil, storage.ErrNotFound
 	} else if err != nil {
 		return nil, err
@@ -141,7 +141,7 @@ func (backend *Backend) Get(ctx context.Context, recordType, id string) (_ *data
 // GetOptions gets the options for the given record type.
 func (backend *Backend) GetOptions(ctx context.Context, recordType string) (*databroker.Options, error) {
 	raw, err := backend.client.HGet(ctx, optionsKey, recordType).Result()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		// treat no options as an empty set of options
 		return new(databroker.Options), nil
 	} else if err != nil {

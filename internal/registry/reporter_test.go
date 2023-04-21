@@ -3,9 +3,9 @@ package registry
 import (
 	"testing"
 
-	"github.com/pomerium/pomerium/config"
-
 	"github.com/stretchr/testify/assert"
+
+	"github.com/pomerium/pomerium/config"
 )
 
 func TestMetricsURL(t *testing.T) {

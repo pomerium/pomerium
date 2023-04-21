@@ -160,11 +160,11 @@ func TestManager_reportErrors(t *testing.T) {
 }
 
 func mkRecord(msg recordable) *databroker.Record {
-	any := protoutil.NewAny(msg)
+	data := protoutil.NewAny(msg)
 	return &databroker.Record{
-		Type: any.GetTypeUrl(),
+		Type: data.GetTypeUrl(),
 		Id:   msg.GetId(),
-		Data: any,
+		Data: data,
 	}
 }
 

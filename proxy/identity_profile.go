@@ -62,7 +62,7 @@ func populateSessionFromProfile(s *session.Session, p *identitypb.Profile, ss *s
 	}
 }
 
-func populateUserFromProfile(u *user.User, p *identitypb.Profile, ss *sessions.State) {
+func populateUserFromProfile(u *user.User, p *identitypb.Profile, _ *sessions.State) {
 	claims := p.GetClaims().AsMap()
 	if v, ok := claims["name"]; ok {
 		u.Name = fmt.Sprint(v)

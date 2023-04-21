@@ -84,7 +84,7 @@ func TestPolicy_String(t *testing.T) {
 			if got := p.String(); got != tt.want {
 				t.Errorf("Policy.String() = %v, want %v", got, tt.want)
 			}
-			out, err := json.Marshal(p.Source)
+			out, err := json.Marshal(p.From)
 			if err != nil {
 				t.Fatal(err)
 			}

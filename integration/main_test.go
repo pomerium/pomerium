@@ -111,7 +111,7 @@ func waitForHealthy(ctx context.Context) error {
 		reqCtx, clearTimeout := context.WithTimeout(ctx, time.Second)
 		defer clearTimeout()
 
-		req, err := http.NewRequestWithContext(reqCtx, "GET", endpoint, nil)
+		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, endpoint, nil)
 		if err != nil {
 			return err
 		}

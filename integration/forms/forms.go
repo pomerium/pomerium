@@ -30,7 +30,7 @@ func Parse(r io.Reader) []Form {
 	var visit func(*html.Node)
 	visit = func(node *html.Node) {
 		if node.Type == html.ElementNode && node.Data == "form" {
-			currentForm = &Form{Action: "", Method: "GET", Inputs: make(map[string]string)}
+			currentForm = &Form{Action: "", Method: http.MethodGet, Inputs: make(map[string]string)}
 			for _, attr := range node.Attr {
 				switch attr.Key {
 				case "action":

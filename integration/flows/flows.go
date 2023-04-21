@@ -92,7 +92,7 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 		apiLogin.RawQuery = q.Encode()
 
 		apiLogin.Path = cfg.apiPath
-		req, err := http.NewRequestWithContext(ctx, "GET", apiLogin.String(), nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiLogin.String(), nil)
 		if err != nil {
 			return nil, fmt.Errorf("via-api: invalid request: %w", err)
 		}
@@ -113,7 +113,7 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 		}
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +234,7 @@ func requestFromRedirectResponse(ctx context.Context, res *http.Response, req *h
 		return nil, fmt.Errorf("error parsing location: %w", err)
 	}
 	location = req.URL.ResolveReference(location)
-	newreq, err := http.NewRequestWithContext(ctx, "GET", location.String(), nil)
+	newreq, err := http.NewRequestWithContext(ctx, http.MethodGet, location.String(), nil)
 	if err != nil {
 		return nil, err
 	}

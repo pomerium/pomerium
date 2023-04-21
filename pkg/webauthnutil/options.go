@@ -6,13 +6,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/pomerium/webauthn"
-	"github.com/pomerium/webauthn/cose"
-
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/device"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/slices"
+	"github.com/pomerium/webauthn"
+	"github.com/pomerium/webauthn/cose"
 )
 
 const (

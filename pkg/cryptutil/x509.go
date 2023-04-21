@@ -42,7 +42,7 @@ func MarshalPKCS8PrivateKey(key interface{}) ([]byte, error) {
 		}
 		curvePrivateKey, err := asn1.Marshal(kek.KeyBytes())
 		if err != nil {
-			return nil, fmt.Errorf("cryptutil: failed to marshal private key: %v", err)
+			return nil, fmt.Errorf("cryptutil: failed to marshal private key: %w", err)
 		}
 		privKey.PrivateKey = curvePrivateKey
 		return asn1.Marshal(privKey)
@@ -86,7 +86,7 @@ func ParsePKCS8PrivateKey(der []byte) (interface{}, error) {
 	if privKey.Algo.Algorithm.Equal(oidPublicKeyX25519) {
 		var bs []byte
 		if _, err := asn1.Unmarshal(privKey.PrivateKey, &bs); err != nil {
-			return nil, fmt.Errorf("cryptutil: invalid X25519 private key: %v", err)
+			return nil, fmt.Errorf("cryptutil: invalid X25519 private key: %w", err)
 		}
 		return NewPrivateKeyEncryptionKey(bs)
 	}

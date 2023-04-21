@@ -53,14 +53,14 @@ func (qp *Store) LoadSession(r *http.Request) (string, error) {
 }
 
 // ClearSession clears the session cookie from a request's query param key `pomerium_session`.
-func (qp *Store) ClearSession(w http.ResponseWriter, r *http.Request) {
+func (qp *Store) ClearSession(_ http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 	params.Del(qp.queryParamKey)
 	r.URL.RawQuery = params.Encode()
 }
 
 // SaveSession sets a session to a request's query param key `pomerium_session`
-func (qp *Store) SaveSession(w http.ResponseWriter, r *http.Request, x interface{}) error {
+func (qp *Store) SaveSession(_ http.ResponseWriter, r *http.Request, x interface{}) error {
 	data, err := qp.encoder.Marshal(x)
 	if err != nil {
 		return err

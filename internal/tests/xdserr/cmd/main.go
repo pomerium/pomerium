@@ -169,7 +169,7 @@ func saveAndLogConfig(ctx context.Context, client databroker.DataBrokerServiceCl
 	return nil
 }
 
-func waitHealthy(ctx context.Context, client *http.Client, routes []*config.Route) error {
+func waitHealthy(ctx context.Context, _ *http.Client, routes []*config.Route) error {
 	now := time.Now()
 	if err := xdserr.WaitForHealthy(ctx, httpClient, routes); err != nil {
 		return err
@@ -184,12 +184,12 @@ func waitHealthy(ctx context.Context, client *http.Client, routes []*config.Rout
 }
 
 func saveConfig(ctx context.Context, client databroker.DataBrokerServiceClient, cfg *config.Config) error {
-	any := protoutil.NewAny(cfg)
+	data := protoutil.NewAny(cfg)
 	r, err := client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Type: any.GetTypeUrl(),
+			Type: data.GetTypeUrl(),
 			Id:   "test_config",
-			Data: any,
+			Data: data,
 		}},
 	})
 	if err != nil {

@@ -10,7 +10,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 )
 
-func (b *Builder) buildEnvoyAdminCluster(ctx context.Context, cfg *config.Config) (*envoy_config_cluster_v3.Cluster, error) {
+func (b *Builder) buildEnvoyAdminCluster(_ context.Context, _ *config.Config) (*envoy_config_cluster_v3.Cluster, error) {
 	return &envoy_config_cluster_v3.Cluster{
 		Name:           envoyAdminClusterName,
 		ConnectTimeout: defaultConnectionTimeout,

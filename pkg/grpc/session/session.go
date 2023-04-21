@@ -17,12 +17,12 @@ import (
 
 // Delete deletes a session from the databroker.
 func Delete(ctx context.Context, client databroker.DataBrokerServiceClient, sessionID string) error {
-	any := protoutil.NewAny(new(Session))
+	data := protoutil.NewAny(new(Session))
 	_, err := client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Type:      any.GetTypeUrl(),
+			Type:      data.GetTypeUrl(),
 			Id:        sessionID,
-			Data:      any,
+			Data:      data,
 			DeletedAt: timestamppb.Now(),
 		}},
 	})
@@ -31,9 +31,9 @@ func Delete(ctx context.Context, client databroker.DataBrokerServiceClient, sess
 
 // Get gets a session from the databroker.
 func Get(ctx context.Context, client databroker.DataBrokerServiceClient, sessionID string) (*Session, error) {
-	any := protoutil.NewAny(new(Session))
+	data := protoutil.NewAny(new(Session))
 	res, err := client.Get(ctx, &databroker.GetRequest{
-		Type: any.GetTypeUrl(),
+		Type: data.GetTypeUrl(),
 		Id:   sessionID,
 	})
 	if err != nil {
@@ -51,12 +51,12 @@ func Get(ctx context.Context, client databroker.DataBrokerServiceClient, session
 // Put sets a session in the databroker.
 func Put(ctx context.Context, client databroker.DataBrokerServiceClient, s *Session) (*databroker.PutResponse, error) {
 	s = proto.Clone(s).(*Session)
-	any := protoutil.NewAny(s)
+	data := protoutil.NewAny(s)
 	res, err := client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Type: any.GetTypeUrl(),
+			Type: data.GetTypeUrl(),
 			Id:   s.Id,
-			Data: any,
+			Data: data,
 		}},
 	})
 	return res, err

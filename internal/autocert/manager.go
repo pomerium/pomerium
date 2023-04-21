@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -438,11 +439,12 @@ func sourceHostnames(cfg *config.Config) []string {
 
 	dedupe := map[string]struct{}{}
 	for _, p := range policies {
-		dedupe[p.Source.Hostname()] = struct{}{}
+		if u, _ := urlutil.ParseAndValidateURL(p.From); u != nil {
+			dedupe[u.Hostname()] = struct{}{}
+		}
 	}
 	if cfg.Options.AuthenticateURLString != "" {
-		u, _ := cfg.Options.GetAuthenticateURL()
-		if u != nil {
+		if u, _ := cfg.Options.GetAuthenticateURL(); u != nil {
 			dedupe[u.Hostname()] = struct{}{}
 		}
 	}

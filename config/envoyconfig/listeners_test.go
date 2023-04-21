@@ -125,7 +125,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
 			Policies: []config.Policy{
 				{
-					Source:                &config.StringURL{URL: mustParseURL(t, "https://a.example.com:1234")},
+					From:                  "https://a.example.com:1234",
 					TLSDownstreamClientCA: "TEST",
 				},
 			},
@@ -224,10 +224,10 @@ func Test_getAllDomains(t *testing.T) {
 		AuthorizeURLString:    "https://authorize.example.com:9001",
 		DataBrokerURLString:   "https://cache.example.com:9001",
 		Policies: []config.Policy{
-			{Source: &config.StringURL{URL: mustParseURL(t, "http://a.example.com")}},
-			{Source: &config.StringURL{URL: mustParseURL(t, "https://b.example.com")}},
-			{Source: &config.StringURL{URL: mustParseURL(t, "https://c.example.com")}},
-			{Source: &config.StringURL{URL: mustParseURL(t, "https://d.unknown.example.com")}},
+			{From: "http://a.example.com"},
+			{From: "https://b.example.com"},
+			{From: "https://c.example.com"},
+			{From: "https://d.unknown.example.com"},
 		},
 		Cert: base64.StdEncoding.EncodeToString(certPEM),
 		Key:  base64.StdEncoding.EncodeToString(keyPEM),
@@ -277,33 +277,6 @@ func Test_getAllDomains(t *testing.T) {
 				"cache.example.com:9001",
 				"d.unknown.example.com",
 				"d.unknown.example.com:443",
-			}
-			assert.Equal(t, expect, actual)
-		})
-	})
-	t.Run("tls", func(t *testing.T) {
-		t.Run("http", func(t *testing.T) {
-			actual, err := getAllServerNames(&config.Config{Options: options}, "127.0.0.1:9000")
-			require.NoError(t, err)
-			expect := []string{
-				"*",
-				"*.unknown.example.com",
-				"a.example.com",
-				"authenticate.example.com",
-				"b.example.com",
-				"c.example.com",
-				"d.unknown.example.com",
-			}
-			assert.Equal(t, expect, actual)
-		})
-		t.Run("grpc", func(t *testing.T) {
-			actual, err := getAllServerNames(&config.Config{Options: options}, "127.0.0.1:9001")
-			require.NoError(t, err)
-			expect := []string{
-				"*",
-				"*.unknown.example.com",
-				"authorize.example.com",
-				"cache.example.com",
 			}
 			assert.Equal(t, expect, actual)
 		})

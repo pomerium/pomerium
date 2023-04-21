@@ -26,7 +26,7 @@ func TestQueryStringParams(t *testing.T) {
 		"q2": {"x?y?z"},
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/?"+qs.Encode(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpdetails.localhost.pomerium.io/?"+qs.Encode(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,11 +58,11 @@ func TestCORS(t *testing.T) {
 	defer clearTimeout()
 
 	t.Run("enabled", func(t *testing.T) {
-		req, err := http.NewRequestWithContext(ctx, "OPTIONS", "https://httpdetails.localhost.pomerium.io/cors-enabled", nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodOptions, "https://httpdetails.localhost.pomerium.io/cors-enabled", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
-		req.Header.Set("Access-Control-Request-Method", "GET")
+		req.Header.Set("Access-Control-Request-Method", http.MethodGet)
 		req.Header.Set("Origin", "https://httpdetails.localhost.pomerium.io")
 
 		res, err := getClient(t).Do(req)
@@ -74,11 +74,11 @@ func TestCORS(t *testing.T) {
 		assert.Equal(t, http.StatusOK, res.StatusCode, "unexpected status code")
 	})
 	t.Run("disabled", func(t *testing.T) {
-		req, err := http.NewRequestWithContext(ctx, "OPTIONS", "https://httpdetails.localhost.pomerium.io/cors-disabled", nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodOptions, "https://httpdetails.localhost.pomerium.io/cors-disabled", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
-		req.Header.Set("Access-Control-Request-Method", "GET")
+		req.Header.Set("Access-Control-Request-Method", http.MethodGet)
 		req.Header.Set("Origin", "https://httpdetails.localhost.pomerium.io")
 
 		res, err := getClient(t).Do(req)
@@ -97,7 +97,7 @@ func TestPreserveHostHeader(t *testing.T) {
 	defer clearTimeout()
 
 	t.Run("enabled", func(t *testing.T) {
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/preserve-host-header-enabled", nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpdetails.localhost.pomerium.io/preserve-host-header-enabled", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -122,7 +122,7 @@ func TestPreserveHostHeader(t *testing.T) {
 			"destination host should be preserved in %v", result)
 	})
 	t.Run("disabled", func(t *testing.T) {
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/preserve-host-header-disabled", nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpdetails.localhost.pomerium.io/preserve-host-header-disabled", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -153,7 +153,7 @@ func TestSetRequestHeaders(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpdetails.localhost.pomerium.io/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +181,7 @@ func TestRemoveRequestHeaders(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpdetails.localhost.pomerium.io/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +245,7 @@ func TestGoogleCloudRun(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://cloudrun.localhost.pomerium.io/", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://cloudrun.localhost.pomerium.io/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +287,7 @@ func TestLoadBalancer(t *testing.T) {
 		_ = res.Body.Close()
 
 		for i := 0; i < 100; i++ {
-			req, err := http.NewRequestWithContext(ctx, "GET",
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 				"https://httpdetails.localhost.pomerium.io/"+path, nil)
 			if !assert.NoError(t, err) {
 				return distribution

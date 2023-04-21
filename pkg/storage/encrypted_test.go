@@ -47,20 +47,20 @@ func TestEncryptedBackend(t *testing.T) {
 		return
 	}
 
-	any := protoutil.NewAny(wrapperspb.String("HELLO WORLD"))
+	data := protoutil.NewAny(wrapperspb.String("HELLO WORLD"))
 
 	rec := &databroker.Record{
 		Type: "",
 		Id:   "TEST-1",
-		Data: any,
+		Data: data,
 	}
 	_, err = e.Put(ctx, []*databroker.Record{rec})
 	if !assert.NoError(t, err) {
 		return
 	}
 	if assert.NotNil(t, m["TEST-1"], "key should be set") {
-		assert.NotEqual(t, any.TypeUrl, m["TEST-1"].TypeUrl, "encrypted data should be a bytes type")
-		assert.NotEqual(t, any.Value, m["TEST-1"].Value, "value should be encrypted")
+		assert.NotEqual(t, data.TypeUrl, m["TEST-1"].TypeUrl, "encrypted data should be a bytes type")
+		assert.NotEqual(t, data.Value, m["TEST-1"].Value, "value should be encrypted")
 		assert.NotNil(t, rec.ModifiedAt)
 		assert.NotZero(t, rec.Version)
 	}
@@ -69,7 +69,7 @@ func TestEncryptedBackend(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	assert.Equal(t, any.TypeUrl, record.Data.TypeUrl, "type should be preserved")
-	assert.Equal(t, any.Value, record.Data.Value, "value should be preserved")
-	assert.NotEqual(t, any.TypeUrl, record.Type, "record type should be preserved")
+	assert.Equal(t, data.TypeUrl, record.Data.TypeUrl, "type should be preserved")
+	assert.Equal(t, data.Value, record.Data.Value, "value should be preserved")
+	assert.NotEqual(t, data.TypeUrl, record.Type, "record type should be preserved")
 }

@@ -41,7 +41,7 @@ func TestCallbackURL(t *testing.T) {
 
 func TestRedirectURI(t *testing.T) {
 	t.Run("query", func(t *testing.T) {
-		r, err := http.NewRequest("GET", "https://www.example.com?"+(url.Values{
+		r, err := http.NewRequest(http.MethodGet, "https://www.example.com?"+(url.Values{
 			QueryRedirectURI: {"https://www.example.com/redirect"},
 		}).Encode(), nil)
 		require.NoError(t, err)
@@ -51,7 +51,7 @@ func TestRedirectURI(t *testing.T) {
 		assert.Equal(t, "https://www.example.com/redirect", redirectURI)
 	})
 	t.Run("form", func(t *testing.T) {
-		r, err := http.NewRequest("POST", "https://www.example.com", strings.NewReader((url.Values{
+		r, err := http.NewRequest(http.MethodPost, "https://www.example.com", strings.NewReader((url.Values{
 			QueryRedirectURI: {"https://www.example.com/redirect"},
 		}).Encode()))
 		require.NoError(t, err)
@@ -62,7 +62,7 @@ func TestRedirectURI(t *testing.T) {
 		assert.Equal(t, "https://www.example.com/redirect", redirectURI)
 	})
 	t.Run("cookie", func(t *testing.T) {
-		r, err := http.NewRequest("GET", "https://www.example.com", nil)
+		r, err := http.NewRequest(http.MethodGet, "https://www.example.com", nil)
 		require.NoError(t, err)
 		r.AddCookie(&http.Cookie{
 			Name:  QueryRedirectURI,
@@ -102,7 +102,7 @@ func TestSignInURL(t *testing.T) {
 func TestSignOutURL(t *testing.T) {
 	t.Parallel()
 
-	r := httptest.NewRequest("GET", "https://route.example.com?"+(url.Values{
+	r := httptest.NewRequest(http.MethodGet, "https://route.example.com?"+(url.Values{
 		QueryRedirectURI: {"https://www.example.com/redirect"},
 	}).Encode(), nil)
 	authenticateURL := MustParseAndValidateURL("https://authenticate.example.com")

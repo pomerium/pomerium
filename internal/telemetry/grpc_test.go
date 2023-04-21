@@ -18,7 +18,7 @@ type mockTagHandler struct {
 
 type mockCtxTag string
 
-func (m *mockTagHandler) TagRPC(ctx context.Context, tagInfo *grpcstats.RPCTagInfo) context.Context {
+func (m *mockTagHandler) TagRPC(ctx context.Context, _ *grpcstats.RPCTagInfo) context.Context {
 	m.called = true
 	return context.WithValue(ctx, mockCtxTag("added"), "true")
 }

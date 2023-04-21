@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/pomerium/pomerium/config"
 	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
-
-	"github.com/stretchr/testify/require"
 )
 
 func testOptions(t *testing.T) *config.Options {
@@ -204,7 +204,7 @@ func Test_UpdateOptions(t *testing.T) {
 			}
 
 			p.OnConfigChange(context.Background(), &config.Config{Options: tt.updatedOptions})
-			r := httptest.NewRequest("GET", tt.host, nil)
+			r := httptest.NewRequest(http.MethodGet, tt.host, nil)
 			w := httptest.NewRecorder()
 			p.ServeHTTP(w, r)
 			if tt.wantRoute && w.Code != http.StatusNotFound {

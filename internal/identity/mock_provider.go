@@ -33,18 +33,18 @@ func (mp MockProvider) Refresh(context.Context, *oauth2.Token, identity.State) (
 }
 
 // Revoke is a mocked providers function.
-func (mp MockProvider) Revoke(ctx context.Context, s *oauth2.Token) error {
+func (mp MockProvider) Revoke(_ context.Context, _ *oauth2.Token) error {
 	return mp.RevokeError
 }
 
 // GetSignInURL is a mocked providers function.
-func (mp MockProvider) GetSignInURL(s string) (string, error) { return mp.GetSignInURLResponse, nil }
+func (mp MockProvider) GetSignInURL(_ string) (string, error) { return mp.GetSignInURLResponse, nil }
 
 // LogOut is a mocked providers function.
 func (mp MockProvider) LogOut() (*url.URL, error) { return &mp.LogOutResponse, mp.LogOutError }
 
 // UpdateUserInfo is a mocked providers function.
-func (mp MockProvider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error {
+func (mp MockProvider) UpdateUserInfo(_ context.Context, _ *oauth2.Token, _ interface{}) error {
 	return mp.UpdateUserInfoError
 }
 

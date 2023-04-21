@@ -116,7 +116,7 @@ func buildUpstreamALPN(upstreamProtocol upstreamProtocolConfig) []string {
 	}
 }
 
-func getUpstreamProtocolForPolicy(ctx context.Context, policy *config.Policy) upstreamProtocolConfig {
+func getUpstreamProtocolForPolicy(_ context.Context, policy *config.Policy) upstreamProtocolConfig {
 	upstreamProtocol := upstreamProtocolAuto
 	if policy.AllowWebsockets {
 		// #2388, force http/1 when using web sockets

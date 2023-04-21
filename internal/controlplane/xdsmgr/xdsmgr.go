@@ -212,7 +212,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 
 // StreamAggregatedResources is not implemented.
 func (mgr *Manager) StreamAggregatedResources(
-	stream envoy_service_discovery_v3.AggregatedDiscoveryService_StreamAggregatedResourcesServer,
+	_ envoy_service_discovery_v3.AggregatedDiscoveryService_StreamAggregatedResourcesServer,
 ) error {
 	return status.Errorf(codes.Unimplemented, "method StreamAggregatedResources not implemented")
 }

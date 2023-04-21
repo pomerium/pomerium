@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -133,13 +134,13 @@ func TestStore_SaveSession(t *testing.T) {
 				decoder: tt.decoder,
 			}
 
-			r := httptest.NewRequest("GET", "/", nil)
+			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			w := httptest.NewRecorder()
 
 			if err := s.SaveSession(w, r, tt.State); (err != nil) != tt.wantErr {
 				t.Errorf("Store.SaveSession() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			r = httptest.NewRequest("GET", "/", nil)
+			r = httptest.NewRequest(http.MethodGet, "/", nil)
 			for _, cookie := range w.Result().Cookies() {
 				r.AddCookie(cookie)
 			}

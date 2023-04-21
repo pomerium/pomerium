@@ -27,7 +27,7 @@ func TestAuthorization(t *testing.T) {
 			t.Run("public", func(t *testing.T) {
 				client := getClient(t)
 
-				req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io", nil)
+				req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpdetails.localhost.pomerium.io", nil)
 				if err != nil {
 					t.Fatal(err)
 				}

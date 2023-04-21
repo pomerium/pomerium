@@ -102,7 +102,7 @@ func WrapPrivateKey(privateKey *ecdsa.PrivateKey) crypto.PrivateKey {
 // This method implements crypto.Signer, which is an interface to support keys
 // where the private part is kept in, for example, a hardware module. Common
 // uses can use the SignASN1 function in this package directly.
-func (priv deterministicPrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+func (priv deterministicPrivateKey) Sign(rand io.Reader, digest []byte, _ crypto.SignerOpts) ([]byte, error) {
 	r, s, err := Sign(rand, priv.PrivateKey, digest)
 	if err != nil {
 		return nil, err

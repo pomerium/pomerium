@@ -20,7 +20,7 @@ func TestHPKEPublicKeyHandler(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodOptions, "/", nil)
 		r.Header.Set("Origin", "https://www.example.com")
-		r.Header.Set("Access-Control-Request-Method", "GET")
+		r.Header.Set("Access-Control-Request-Method", http.MethodGet)
 		handlers.HPKEPublicKeyHandler(k1.PublicKey()).ServeHTTP(w, r)
 		assert.Equal(t, http.StatusNoContent, w.Result().StatusCode)
 	})

@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"context"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -69,7 +70,7 @@ func TestPolicyEvaluator(t *testing.T) {
 			p1,
 			[]proto.Message{s1, u1, s2, u2},
 			&PolicyRequest{
-				HTTP:    RequestHTTP{Method: "GET", URL: "https://from.example.com/path"},
+				HTTP:    RequestHTTP{Method: http.MethodGet, URL: "https://from.example.com/path"},
 				Session: RequestSession{ID: "s1"},
 
 				IsValidClientCertificate: true,
@@ -86,7 +87,7 @@ func TestPolicyEvaluator(t *testing.T) {
 			p1,
 			[]proto.Message{s1, u1, s2, u2},
 			&PolicyRequest{
-				HTTP:    RequestHTTP{Method: "GET", URL: "https://from.example.com/path"},
+				HTTP:    RequestHTTP{Method: http.MethodGet, URL: "https://from.example.com/path"},
 				Session: RequestSession{ID: "s1"},
 
 				IsValidClientCertificate: false,
@@ -103,7 +104,7 @@ func TestPolicyEvaluator(t *testing.T) {
 			p1,
 			[]proto.Message{s1, u1, s2, u2},
 			&PolicyRequest{
-				HTTP:    RequestHTTP{Method: "GET", URL: "https://from.example.com/path"},
+				HTTP:    RequestHTTP{Method: http.MethodGet, URL: "https://from.example.com/path"},
 				Session: RequestSession{ID: "s2"},
 
 				IsValidClientCertificate: true,
@@ -134,7 +135,7 @@ func TestPolicyEvaluator(t *testing.T) {
 				p,
 				[]proto.Message{s1, u1, s2, u2},
 				&PolicyRequest{
-					HTTP:    RequestHTTP{Method: "GET", URL: "https://from.example.com/path"},
+					HTTP:    RequestHTTP{Method: http.MethodGet, URL: "https://from.example.com/path"},
 					Session: RequestSession{ID: "s1"},
 
 					IsValidClientCertificate: true,
@@ -164,7 +165,7 @@ func TestPolicyEvaluator(t *testing.T) {
 				p,
 				[]proto.Message{s1, u1, s2, u2},
 				&PolicyRequest{
-					HTTP:    RequestHTTP{Method: "GET", URL: "https://from.example.com/path"},
+					HTTP:    RequestHTTP{Method: http.MethodGet, URL: "https://from.example.com/path"},
 					Session: RequestSession{ID: "s1"},
 
 					IsValidClientCertificate: true,
@@ -195,7 +196,7 @@ func TestPolicyEvaluator(t *testing.T) {
 				p,
 				[]proto.Message{s1, u1, s2, u2},
 				&PolicyRequest{
-					HTTP:    RequestHTTP{Method: "GET", URL: "https://from.example.com/path"},
+					HTTP:    RequestHTTP{Method: http.MethodGet, URL: "https://from.example.com/path"},
 					Session: RequestSession{ID: "s1"},
 
 					IsValidClientCertificate: false,
@@ -234,7 +235,7 @@ func TestPolicyEvaluator(t *testing.T) {
 			p,
 			[]proto.Message{s1, u1, s2, u2, r1},
 			&PolicyRequest{
-				HTTP:    RequestHTTP{Method: "GET", URL: "https://from.example.com/path"},
+				HTTP:    RequestHTTP{Method: http.MethodGet, URL: "https://from.example.com/path"},
 				Session: RequestSession{ID: "s1"},
 
 				IsValidClientCertificate: true,
@@ -257,7 +258,7 @@ func TestPolicyEvaluator(t *testing.T) {
 				},
 			},
 			&PolicyRequest{
-				HTTP:    RequestHTTP{Method: "GET", URL: "https://from.example.com/path"},
+				HTTP:    RequestHTTP{Method: http.MethodGet, URL: "https://from.example.com/path"},
 				Session: RequestSession{ID: "sa1"},
 
 				IsValidClientCertificate: true,
@@ -281,7 +282,7 @@ func TestPolicyEvaluator(t *testing.T) {
 				},
 			},
 			&PolicyRequest{
-				HTTP:    RequestHTTP{Method: "GET", URL: "https://from.example.com/path"},
+				HTTP:    RequestHTTP{Method: http.MethodGet, URL: "https://from.example.com/path"},
 				Session: RequestSession{ID: "sa1"},
 
 				IsValidClientCertificate: true,

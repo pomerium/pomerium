@@ -223,13 +223,13 @@ func (s *syncerHandler) GetDataBrokerServiceClient() databroker.DataBrokerServic
 	return s.client
 }
 
-func (s *syncerHandler) ClearRecords(ctx context.Context) {
+func (s *syncerHandler) ClearRecords(_ context.Context) {
 	s.src.mu.Lock()
 	s.src.dbConfigs = map[string]dbConfig{}
 	s.src.mu.Unlock()
 }
 
-func (s *syncerHandler) UpdateRecords(ctx context.Context, serverVersion uint64, records []*databroker.Record) {
+func (s *syncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*databroker.Record) {
 	if len(records) == 0 {
 		return
 	}

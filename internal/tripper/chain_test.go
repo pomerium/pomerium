@@ -12,7 +12,7 @@ type mockTransport struct {
 	id string
 }
 
-func (t *mockTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+func (t *mockTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
 	w := httptest.NewRecorder()
 
 	w.WriteString(t.id)
@@ -46,7 +46,7 @@ func TestNew(t *testing.T) {
 	chain := NewChain(m1, m2)
 
 	resp, _ := chain.Then(t1).
-		RoundTrip(httptest.NewRequest("GET", "/", nil))
+		RoundTrip(httptest.NewRequest(http.MethodGet, "/", nil))
 
 	if len(chain.constructors) != 2 {
 		t.Errorf("Wrong number of constructors in chain")
@@ -64,7 +64,7 @@ func TestThenNoMiddleware(t *testing.T) {
 	want := "t"
 
 	resp, _ := chain.Then(t1).
-		RoundTrip(httptest.NewRequest("GET", "/", nil))
+		RoundTrip(httptest.NewRequest(http.MethodGet, "/", nil))
 
 	b, _ := io.ReadAll(resp.Body)
 	if string(b) != want {
@@ -89,7 +89,7 @@ func TestAppend(t *testing.T) {
 	want := "t,c2,c1"
 
 	resp, _ := chain.Then(t1).
-		RoundTrip(httptest.NewRequest("GET", "/", nil))
+		RoundTrip(httptest.NewRequest(http.MethodGet, "/", nil))
 
 	if len(chain.constructors) != 2 {
 		t.Errorf("Wrong number of constructors in chain")
@@ -112,7 +112,7 @@ func TestAppendImmutability(t *testing.T) {
 	}
 
 	resp, _ := chain.Then(t1).
-		RoundTrip(httptest.NewRequest("GET", "/", nil))
+		RoundTrip(httptest.NewRequest(http.MethodGet, "/", nil))
 
 	b, _ := io.ReadAll(resp.Body)
 	if string(b) != want {

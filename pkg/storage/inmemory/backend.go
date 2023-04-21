@@ -189,7 +189,7 @@ func (backend *Backend) Lease(_ context.Context, leaseName, leaseID string, ttl 
 }
 
 // ListTypes lists the record types.
-func (backend *Backend) ListTypes(ctx context.Context) ([]string, error) {
+func (backend *Backend) ListTypes(_ context.Context) ([]string, error) {
 	backend.mu.Lock()
 	keys := maps.Keys(backend.lookup)
 	backend.mu.Unlock()

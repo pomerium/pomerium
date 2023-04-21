@@ -31,7 +31,7 @@ func newDataBrokerServer(cfg *config.Config) *dataBrokerServer {
 }
 
 // OnConfigChange updates the underlying databroker server whenever configuration is changed.
-func (srv *dataBrokerServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
+func (srv *dataBrokerServer) OnConfigChange(_ context.Context, cfg *config.Config) {
 	srv.server.UpdateConfig(srv.getOptions(cfg)...)
 	srv.setKey(cfg)
 }

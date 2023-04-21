@@ -27,9 +27,9 @@ type Querier interface {
 // nilQuerier always returns NotFound.
 type nilQuerier struct{}
 
-func (nilQuerier) InvalidateCache(ctx context.Context, in *databroker.QueryRequest) {}
+func (nilQuerier) InvalidateCache(_ context.Context, _ *databroker.QueryRequest) {}
 
-func (nilQuerier) Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error) {
+func (nilQuerier) Query(_ context.Context, _ *databroker.QueryRequest, _ ...grpc.CallOption) (*databroker.QueryResponse, error) {
 	return nil, status.Error(codes.NotFound, "not found")
 }
 
@@ -57,13 +57,13 @@ type staticQuerier struct {
 func NewStaticQuerier(msgs ...proto.Message) Querier {
 	getter := &staticQuerier{}
 	for _, msg := range msgs {
-		any := protoutil.NewAny(msg)
+		data := protoutil.NewAny(msg)
 		record := new(databroker.Record)
 		record.ModifiedAt = timestamppb.Now()
 		record.Version = cryptutil.NewRandomUInt64()
 		record.Id = uuid.New().String()
-		record.Data = any
-		record.Type = any.TypeUrl
+		record.Data = data
+		record.Type = data.TypeUrl
 		if hasID, ok := msg.(interface{ GetId() string }); ok {
 			record.Id = hasID.GetId()
 		}
@@ -77,10 +77,10 @@ func NewStaticQuerier(msgs ...proto.Message) Querier {
 	return getter
 }
 
-func (q *staticQuerier) InvalidateCache(ctx context.Context, in *databroker.QueryRequest) {}
+func (q *staticQuerier) InvalidateCache(_ context.Context, _ *databroker.QueryRequest) {}
 
 // Query queries for records.
-func (q *staticQuerier) Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error) {
+func (q *staticQuerier) Query(_ context.Context, in *databroker.QueryRequest, _ ...grpc.CallOption) (*databroker.QueryResponse, error) {
 	expr, err := FilterExpressionFromStruct(in.GetFilter())
 	if err != nil {
 		return nil, err
@@ -127,7 +127,7 @@ func NewQuerier(client databroker.DataBrokerServiceClient) Querier {
 	return &clientQuerier{client: client}
 }
 
-func (q *clientQuerier) InvalidateCache(ctx context.Context, in *databroker.QueryRequest) {}
+func (q *clientQuerier) InvalidateCache(_ context.Context, _ *databroker.QueryRequest) {}
 
 // Query queries for records.
 func (q *clientQuerier) Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error) {

@@ -36,7 +36,7 @@ func main() {
 	}
 }
 
-func runGenerateConfiguration(ctx context.Context) error {
+func runGenerateConfiguration(_ context.Context) error {
 	log.Info().Msg("generating configuration")
 
 	root := filepath.Join(".", "integration")

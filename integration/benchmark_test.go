@@ -20,7 +20,7 @@ func BenchmarkLoggedInUserAccess(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/by-domain", nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpdetails.localhost.pomerium.io/by-domain", nil)
 		require.NoError(b, err)
 		res, err := client.Do(req)
 		require.NoError(b, err)
@@ -34,7 +34,7 @@ func BenchmarkLoggedOutUserAccess(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://httpdetails.localhost.pomerium.io/by-domain", nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpdetails.localhost.pomerium.io/by-domain", nil)
 		require.NoError(b, err)
 		res, err := client.Do(req)
 		require.NoError(b, err)

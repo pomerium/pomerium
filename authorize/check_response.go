@@ -61,8 +61,8 @@ func (a *Authorize) handleResult(
 }
 
 func (a *Authorize) handleResultAllowed(
-	ctx context.Context,
-	in *envoy_service_auth_v3.CheckRequest,
+	_ context.Context,
+	_ *envoy_service_auth_v3.CheckRequest,
 	result *evaluator.Result,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
 	return a.okResponse(result.Headers), nil

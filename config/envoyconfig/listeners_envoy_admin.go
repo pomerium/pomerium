@@ -11,7 +11,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 )
 
-func (b *Builder) buildEnvoyAdminListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+func (b *Builder) buildEnvoyAdminListener(_ context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
 	filter, err := b.buildEnvoyAdminHTTPConnectionManagerFilter()
 	if err != nil {
 		return nil, err

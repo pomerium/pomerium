@@ -22,16 +22,16 @@ const maxEvents = 50
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
 
 func (srv *Server) storeEvent(ctx context.Context, evt proto.Message) error {
-	any := protoutil.NewAny(evt)
+	data := protoutil.NewAny(evt)
 
 	client, err := srv.getDataBrokerClient(ctx)
 	if err != nil {
 		return err
 	}
 
-	if !srv.haveSetCapacity[any.GetTypeUrl()] {
+	if !srv.haveSetCapacity[data.GetTypeUrl()] {
 		_, err = client.SetOptions(ctx, &databrokerpb.SetOptionsRequest{
-			Type: any.GetTypeUrl(),
+			Type: data.GetTypeUrl(),
 			Options: &databrokerpb.Options{
 				Capacity: proto.Uint64(maxEvents),
 			},
@@ -39,7 +39,7 @@ func (srv *Server) storeEvent(ctx context.Context, evt proto.Message) error {
 		if err != nil {
 			return err
 		}
-		srv.haveSetCapacity[any.GetTypeUrl()] = true
+		srv.haveSetCapacity[data.GetTypeUrl()] = true
 	}
 
 	var id string
@@ -51,9 +51,9 @@ func (srv *Server) storeEvent(ctx context.Context, evt proto.Message) error {
 
 	_, err = client.Put(ctx, &databrokerpb.PutRequest{
 		Records: []*databrokerpb.Record{{
-			Type: any.GetTypeUrl(),
+			Type: data.GetTypeUrl(),
 			Id:   id,
-			Data: any,
+			Data: data,
 		}},
 	})
 	if err != nil {
