@@ -3,6 +3,7 @@
 .*.yaml
 .*.json
 .*.rego
+*.jq
 pem
 env
 coverage.txt
