@@ -29,7 +29,7 @@ func (b *Builder) BuildRouteConfigurations(
 }
 
 func (b *Builder) buildMainRouteConfiguration(
-	ctx context.Context,
+	_ context.Context,
 	cfg *config.Config,
 ) (*envoy_config_route_v3.RouteConfiguration, error) {
 	var certs []tls.Certificate

@@ -17,7 +17,7 @@ type dataBrokerSyncer struct {
 }
 
 func newDataBrokerSyncer(
-	ctx context.Context,
+	_ context.Context,
 	cfg *atomicutil.Value[*config],
 	update chan<- updateRecordsMessage,
 	clear chan<- struct{},
@@ -47,7 +47,7 @@ func (syncer *dataBrokerSyncer) GetDataBrokerServiceClient() databroker.DataBrok
 	return syncer.cfg.Load().dataBrokerClient
 }
 
-func (syncer *dataBrokerSyncer) UpdateRecords(ctx context.Context, serverVersion uint64, records []*databroker.Record) {
+func (syncer *dataBrokerSyncer) UpdateRecords(ctx context.Context, _ uint64, records []*databroker.Record) {
 	select {
 	case <-ctx.Done():
 	case syncer.update <- updateRecordsMessage{records: records}:

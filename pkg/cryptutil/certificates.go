@@ -128,10 +128,9 @@ func DecodePrivateKey(encodedKey []byte) (*ecdsa.PrivateKey, error) {
 
 		if block.Type == "EC PRIVATE KEY" {
 			break
-		} else {
-			skippedTypes = append(skippedTypes, block.Type)
-			continue
 		}
+
+		skippedTypes = append(skippedTypes, block.Type)
 	}
 
 	privKey, err := x509.ParseECPrivateKey(block.Bytes)

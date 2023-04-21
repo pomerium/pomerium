@@ -9,7 +9,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func echo(w http.ResponseWriter, r *http.Request) {
+func echo(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(w, "pong")
 }
 

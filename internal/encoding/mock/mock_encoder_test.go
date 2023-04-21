@@ -13,14 +13,14 @@ func TestMockEncoder(t *testing.T) {
 		UnmarshalError:  e,
 	}
 	s, err := mc.Marshal("test")
-	if err != e {
+	if errors.Is(err, e) {
 		t.Error("unexpected Marshal error")
 	}
 	if string(s) != "MarshalResponse" {
 		t.Error("unexpected MarshalResponse error")
 	}
 	err = mc.Unmarshal([]byte("s"), "s")
-	if err != e {
+	if errors.Is(err, e) {
 		t.Error("unexpected Unmarshal error")
 	}
 }

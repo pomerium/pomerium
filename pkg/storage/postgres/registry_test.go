@@ -115,7 +115,7 @@ func TestRegistry(t *testing.T) {
 }
 
 func TestUnmarshalJSONUnknownFields(t *testing.T) {
-	any, err := protoutil.UnmarshalAnyJSON([]byte(`
+	data, err := protoutil.UnmarshalAnyJSON([]byte(`
 	{
 		"@type": "type.googleapis.com/registry.Service",
 		"kind": "AUTHENTICATE",
@@ -125,7 +125,7 @@ func TestUnmarshalJSONUnknownFields(t *testing.T) {
 	`))
 	require.NoError(t, err)
 	var val registry.Service
-	require.NoError(t, any.UnmarshalTo(&val))
+	require.NoError(t, data.UnmarshalTo(&val))
 	assert.Equal(t, registry.ServiceKind_AUTHENTICATE, val.Kind)
 	assert.Equal(t, "endpoint", val.Endpoint)
 }

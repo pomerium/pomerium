@@ -19,7 +19,7 @@ import (
 	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
 )
 
-func (srv *Server) addHTTPMiddleware(root *mux.Router, cfg *config.Config) {
+func (srv *Server) addHTTPMiddleware(root *mux.Router, _ *config.Config) {
 	compressor, err := httpcompression.DefaultAdapter()
 	if err != nil {
 		panic(err)

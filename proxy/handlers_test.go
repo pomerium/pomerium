@@ -7,13 +7,13 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
-
-	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestProxy_RobotsTxt(t *testing.T) {
@@ -174,7 +174,7 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 
 func TestProxy_jwt(t *testing.T) {
 	// without upstream headers being set
-	req, _ := http.NewRequest("GET", "https://www.example.com/.pomerium/jwt", nil)
+	req, _ := http.NewRequest(http.MethodGet, "https://www.example.com/.pomerium/jwt", nil)
 	w := httptest.NewRecorder()
 
 	proxy := &Proxy{
@@ -187,7 +187,7 @@ func TestProxy_jwt(t *testing.T) {
 
 	// with upstream request headers being set
 	rawJWT := "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTY3MDg4OTI0MSwiZXhwIjoxNjcwODkyODQxfQ.YoROB12_-a8VxikPqrYOA576pLYoLFeGwXAOWCGpXgM"
-	req, _ = http.NewRequest("GET", "https://www.example.com/.pomerium/jwt", nil)
+	req, _ = http.NewRequest(http.MethodGet, "https://www.example.com/.pomerium/jwt", nil)
 	w = httptest.NewRecorder()
 	req.Header.Set(httputil.HeaderPomeriumJWTAssertion, rawJWT)
 	err = proxy.jwtAssertion(w, req)

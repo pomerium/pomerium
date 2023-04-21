@@ -59,25 +59,25 @@ func TestServer_Get(t *testing.T) {
 
 		s := new(session.Session)
 		s.Id = "1"
-		any := protoutil.NewAny(s)
+		data := protoutil.NewAny(s)
 		_, err := srv.Put(context.Background(), &databroker.PutRequest{
 			Records: []*databroker.Record{{
-				Type: any.TypeUrl,
+				Type: data.TypeUrl,
 				Id:   s.Id,
-				Data: any,
+				Data: data,
 			}},
 		})
 		assert.NoError(t, err)
 		_, err = srv.Put(context.Background(), &databroker.PutRequest{
 			Records: []*databroker.Record{{
-				Type:      any.TypeUrl,
+				Type:      data.TypeUrl,
 				Id:        s.Id,
 				DeletedAt: timestamppb.Now(),
 			}},
 		})
 		assert.NoError(t, err)
 		_, err = srv.Get(context.Background(), &databroker.GetRequest{
-			Type: any.TypeUrl,
+			Type: data.TypeUrl,
 			Id:   s.Id,
 		})
 		assert.Error(t, err)
@@ -91,17 +91,17 @@ func TestServer_Options(t *testing.T) {
 
 	s := new(session.Session)
 	s.Id = "1"
-	any := protoutil.NewAny(s)
+	data := protoutil.NewAny(s)
 	_, err := srv.Put(context.Background(), &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Type: any.TypeUrl,
+			Type: data.TypeUrl,
 			Id:   s.Id,
-			Data: any,
+			Data: data,
 		}},
 	})
 	assert.NoError(t, err)
 	_, err = srv.SetOptions(context.Background(), &databroker.SetOptionsRequest{
-		Type: any.TypeUrl,
+		Type: data.TypeUrl,
 		Options: &databroker.Options{
 			Capacity: proto.Uint64(1),
 		},
@@ -141,12 +141,12 @@ func TestServer_Query(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		s := new(session.Session)
 		s.Id = fmt.Sprint(i)
-		any := protoutil.NewAny(s)
+		data := protoutil.NewAny(s)
 		_, err := srv.Put(context.Background(), &databroker.PutRequest{
 			Records: []*databroker.Record{{
-				Type: any.TypeUrl,
+				Type: data.TypeUrl,
 				Id:   s.Id,
-				Data: any,
+				Data: data,
 			}},
 		})
 		assert.NoError(t, err)
@@ -192,12 +192,12 @@ func TestServer_Sync(t *testing.T) {
 
 	s := new(session.Session)
 	s.Id = "1"
-	any := protoutil.NewAny(s)
+	data := protoutil.NewAny(s)
 	_, err := srv.Put(context.Background(), &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Type: any.TypeUrl,
+			Type: data.TypeUrl,
 			Id:   s.Id,
-			Data: any,
+			Data: data,
 		}},
 	})
 	assert.NoError(t, err)
@@ -251,9 +251,9 @@ func TestServer_Sync(t *testing.T) {
 
 		_, err = srv.Put(context.Background(), &databroker.PutRequest{
 			Records: []*databroker.Record{{
-				Type: any.TypeUrl,
+				Type: data.TypeUrl,
 				Id:   s.Id,
-				Data: any,
+				Data: data,
 			}},
 		})
 		assert.NoError(t, err)
@@ -276,12 +276,12 @@ func TestServerInvalidStorage(t *testing.T) {
 
 	s := new(session.Session)
 	s.Id = "1"
-	any := protoutil.NewAny(s)
+	data := protoutil.NewAny(s)
 	_, err := srv.Put(context.Background(), &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Type: any.TypeUrl,
+			Type: data.TypeUrl,
 			Id:   s.Id,
-			Data: any,
+			Data: data,
 		}},
 	})
 	_ = assert.Error(t, err) && assert.Contains(t, err.Error(), "unsupported storage type")
@@ -297,12 +297,12 @@ func TestServerRedis(t *testing.T) {
 
 		s := new(session.Session)
 		s.Id = "1"
-		any := protoutil.NewAny(s)
+		data := protoutil.NewAny(s)
 		_, err := srv.Put(context.Background(), &databroker.PutRequest{
 			Records: []*databroker.Record{{
-				Type: any.TypeUrl,
+				Type: data.TypeUrl,
 				Id:   s.Id,
-				Data: any,
+				Data: data,
 			}},
 		})
 		assert.NoError(t, err)
@@ -328,7 +328,7 @@ func TestServerRedis(t *testing.T) {
 
 			client := databroker.NewDataBrokerServiceClient(cc)
 			stream, err := client.SyncLatest(ctx, &databroker.SyncLatestRequest{
-				Type: any.TypeUrl,
+				Type: data.TypeUrl,
 			})
 			if err != nil {
 				return err

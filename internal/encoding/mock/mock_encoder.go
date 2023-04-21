@@ -19,11 +19,11 @@ type Encoder struct {
 }
 
 // Marshal is a mock implementation of Encoder.
-func (mc Encoder) Marshal(i interface{}) ([]byte, error) {
+func (mc Encoder) Marshal(_ any) ([]byte, error) {
 	return mc.MarshalResponse, mc.MarshalError
 }
 
 // Unmarshal is a mock implementation of Encoder.
-func (mc Encoder) Unmarshal(s []byte, i interface{}) error {
+func (mc Encoder) Unmarshal(_ []byte, _ any) error {
 	return mc.UnmarshalError
 }

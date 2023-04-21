@@ -233,12 +233,12 @@ func getCombinedCertificateAuthority(cfg *config.Config) ([]byte, error) {
 }
 
 func marshalAny(msg proto.Message) *anypb.Any {
-	any := new(anypb.Any)
-	_ = anypb.MarshalFrom(any, msg, proto.MarshalOptions{
+	data := new(anypb.Any)
+	_ = anypb.MarshalFrom(data, msg, proto.MarshalOptions{
 		AllowPartial:  true,
 		Deterministic: true,
 	})
-	return any
+	return data
 }
 
 // parseAddress parses a string address into an envoy address.

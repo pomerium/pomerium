@@ -4,6 +4,7 @@ package databroker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
@@ -111,7 +112,7 @@ loop:
 	for {
 		res, err := stream.Recv()
 		switch {
-		case err == io.EOF:
+		case errors.Is(err, io.EOF):
 			break loop
 		case err != nil:
 			return nil, 0, 0, fmt.Errorf("error receiving record: %w", err)

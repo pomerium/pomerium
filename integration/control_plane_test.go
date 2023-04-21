@@ -16,7 +16,7 @@ func TestDashboard(t *testing.T) {
 	defer clearTimeout()
 
 	t.Run("user dashboard", func(t *testing.T) {
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://authenticate.localhost.pomerium.io/.pomerium/", nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://authenticate.localhost.pomerium.io/.pomerium/", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -32,7 +32,7 @@ func TestDashboard(t *testing.T) {
 		assert.Equal(t, http.StatusFound, res.StatusCode, "unexpected status code: %s", body)
 	})
 	t.Run("dashboard strict slash redirect", func(t *testing.T) {
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://authenticate.localhost.pomerium.io/.pomerium", nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://authenticate.localhost.pomerium.io/.pomerium", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -64,7 +64,7 @@ func TestHealth(t *testing.T) {
 			endpoint := endpoint
 			routeToCheck := fmt.Sprintf("%s/%s", route, endpoint)
 			t.Run(routeToCheck, func(t *testing.T) {
-				req, err := http.NewRequestWithContext(ctx, "GET", routeToCheck, nil)
+				req, err := http.NewRequestWithContext(ctx, http.MethodGet, routeToCheck, nil)
 				if err != nil {
 					t.Fatal(err)
 				}

@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"runtime"
@@ -40,7 +41,7 @@ func TestProcessCollector(t *testing.T) {
 		"pomerium_example_process_virtual_memory_max_bytes",
 	}
 	assert.Eventually(t, func() bool {
-		req := httptest.NewRequest("GET", "http://test.local/metrics", nil)
+		req := httptest.NewRequest(http.MethodGet, "http://test.local/metrics", nil)
 		rec := httptest.NewRecorder()
 		exp.ServeHTTP(rec, req)
 		str := rec.Body.String()

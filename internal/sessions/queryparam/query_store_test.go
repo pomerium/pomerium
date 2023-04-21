@@ -2,6 +2,7 @@ package queryparam
 
 import (
 	"errors"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
@@ -30,7 +31,7 @@ func TestNewQueryParamStore(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := NewStore(tt.enc, tt.qp)
 
-			r := httptest.NewRequest("GET", "/", nil)
+			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			w := httptest.NewRecorder()
 
 			if err := got.SaveSession(w, r, tt.State); (err != nil) != tt.wantErr {

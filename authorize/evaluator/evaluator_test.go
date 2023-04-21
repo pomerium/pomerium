@@ -87,7 +87,7 @@ func TestEvaluator(t *testing.T) {
 						Action: parser.ActionAllow,
 						Or: []parser.Criterion{{
 							Name: "http_method", Data: parser.Object{
-								"is": parser.String("GET"),
+								"is": parser.String(http.MethodGet),
 							},
 						}},
 					}},
@@ -152,7 +152,7 @@ func TestEvaluator(t *testing.T) {
 					ID: "session1",
 				},
 				HTTP: RequestHTTP{
-					Method:            "GET",
+					Method:            http.MethodGet,
 					URL:               "https://from.example.com",
 					ClientCertificate: testValidCert,
 				},
@@ -177,7 +177,7 @@ func TestEvaluator(t *testing.T) {
 						ID: "session1",
 					},
 					HTTP: RequestHTTP{
-						Method:            "GET",
+						Method:            http.MethodGet,
 						URL:               "https://from.example.com",
 						ClientCertificate: testValidCert,
 					},
@@ -204,7 +204,7 @@ func TestEvaluator(t *testing.T) {
 					ID: "session1",
 				},
 				HTTP: RequestHTTP{
-					Method:            "GET",
+					Method:            http.MethodGet,
 					URL:               "https://from.example.com",
 					ClientCertificate: testValidCert,
 				},
@@ -228,7 +228,7 @@ func TestEvaluator(t *testing.T) {
 					ID: "session1",
 				},
 				HTTP: RequestHTTP{
-					Method:            "GET",
+					Method:            http.MethodGet,
 					URL:               "https://from.example.com",
 					ClientCertificate: testValidCert,
 				},
@@ -252,7 +252,7 @@ func TestEvaluator(t *testing.T) {
 					ID: "session1",
 				},
 				HTTP: RequestHTTP{
-					Method:            "GET",
+					Method:            http.MethodGet,
 					URL:               "https://from.example.com",
 					ClientCertificate: testValidCert,
 				},
@@ -283,7 +283,7 @@ func TestEvaluator(t *testing.T) {
 					ID: "session2",
 				},
 				HTTP: RequestHTTP{
-					Method:            "GET",
+					Method:            http.MethodGet,
 					URL:               "https://from.example.com",
 					ClientCertificate: testValidCert,
 				},
@@ -308,7 +308,7 @@ func TestEvaluator(t *testing.T) {
 				ID: "session1",
 			},
 			HTTP: RequestHTTP{
-				Method:            "GET",
+				Method:            http.MethodGet,
 				URL:               "https://from.example.com",
 				ClientCertificate: testValidCert,
 			},
@@ -332,7 +332,7 @@ func TestEvaluator(t *testing.T) {
 				ID: "session1",
 			},
 			HTTP: RequestHTTP{
-				Method:            "GET",
+				Method:            http.MethodGet,
 				URL:               "https://from.example.com",
 				ClientCertificate: testValidCert,
 			},
@@ -361,7 +361,7 @@ func TestEvaluator(t *testing.T) {
 				ID: "session1",
 			},
 			HTTP: RequestHTTP{
-				Method:            "GET",
+				Method:            http.MethodGet,
 				URL:               "https://from.example.com",
 				ClientCertificate: testValidCert,
 			},
@@ -384,7 +384,7 @@ func TestEvaluator(t *testing.T) {
 				ID: "session1",
 			},
 			HTTP: RequestHTTP{
-				Method:            "GET",
+				Method:            http.MethodGet,
 				URL:               "https://from.example.com",
 				ClientCertificate: testValidCert,
 			},
@@ -421,7 +421,7 @@ func TestEvaluator(t *testing.T) {
 					ID: "session1",
 				},
 				HTTP: RequestHTTP{
-					Method:            "GET",
+					Method:            http.MethodGet,
 					URL:               "https://from.example.com",
 					ClientCertificate: testValidCert,
 					Headers:           tc.src,
@@ -436,7 +436,7 @@ func TestEvaluator(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{}, &Request{
 			Policy: &policies[8],
 			HTTP: NewRequestHTTP(
-				"GET",
+				http.MethodGet,
 				*mustParseURL("https://from.example.com/"),
 				nil,
 				testValidCert,

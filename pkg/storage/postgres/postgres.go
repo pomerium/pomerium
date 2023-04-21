@@ -124,9 +124,9 @@ func getNextChangedRecord(ctx context.Context, q querier, recordType string, aft
 		return nil, fmt.Errorf("error querying next changed record: %w", err)
 	}
 
-	any, err := protoutil.UnmarshalAnyJSON(data)
+	a, err := protoutil.UnmarshalAnyJSON(data)
 	if isUnknownType(err) {
-		any = protoutil.ToAny(protoutil.ToStruct(map[string]string{
+		a = protoutil.ToAny(protoutil.ToStruct(map[string]string{
 			"id": recordID,
 		}))
 	} else if err != nil {
@@ -137,7 +137,7 @@ func getNextChangedRecord(ctx context.Context, q querier, recordType string, aft
 		Version:    version,
 		Type:       recordType,
 		Id:         recordID,
-		Data:       any,
+		Data:       a,
 		ModifiedAt: timestamppbFromTimestamptz(modifiedAt),
 		DeletedAt:  timestamppbFromTimestamptz(deletedAt),
 	}, nil
@@ -175,7 +175,7 @@ func getRecord(ctx context.Context, q querier, recordType, recordID string) (*da
 		return nil, fmt.Errorf("postgres: failed to execute query: %w", err)
 	}
 
-	any, err := protoutil.UnmarshalAnyJSON(data)
+	a, err := protoutil.UnmarshalAnyJSON(data)
 	if isUnknownType(err) {
 		return nil, storage.ErrNotFound
 	} else if err != nil {
@@ -186,7 +186,7 @@ func getRecord(ctx context.Context, q querier, recordType, recordID string) (*da
 		Version:    version,
 		Type:       recordType,
 		Id:         recordID,
-		Data:       any,
+		Data:       a,
 		ModifiedAt: timestamppbFromTimestamptz(modifiedAt),
 	}, nil
 }
@@ -226,9 +226,9 @@ func listRecords(ctx context.Context, q querier, expr storage.FilterExpression, 
 			return nil, fmt.Errorf("postgres: failed to scan row: %w", err)
 		}
 
-		any, err := protoutil.UnmarshalAnyJSON(data)
+		a, err := protoutil.UnmarshalAnyJSON(data)
 		if isUnknownType(err) {
-			any = protoutil.ToAny(protoutil.ToStruct(map[string]string{
+			a = protoutil.ToAny(protoutil.ToStruct(map[string]string{
 				"id": id,
 			}))
 		} else if err != nil {
@@ -239,7 +239,7 @@ func listRecords(ctx context.Context, q querier, expr storage.FilterExpression, 
 			Version:    version,
 			Type:       recordType,
 			Id:         id,
-			Data:       any,
+			Data:       a,
 			ModifiedAt: timestamppbFromTimestamptz(modifiedAt),
 		})
 	}

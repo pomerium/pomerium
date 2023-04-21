@@ -131,7 +131,7 @@ const (
 )
 
 // WebAuthnURL returns the /.pomerium/webauthn URL.
-func WebAuthnURL(r *http.Request, authenticateURL *url.URL, key []byte, values url.Values) string {
+func WebAuthnURL(_ *http.Request, authenticateURL *url.URL, key []byte, values url.Values) string {
 	u := authenticateURL.ResolveReference(&url.URL{
 		Path: WebAuthnURLPath,
 		RawQuery: buildURLValues(values, url.Values{

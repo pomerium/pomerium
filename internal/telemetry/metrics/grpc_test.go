@@ -19,7 +19,7 @@ type testInvoker struct {
 	statsHandler stats.Handler
 }
 
-func (t testInvoker) UnaryInvoke(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
+func (t testInvoker) UnaryInvoke(ctx context.Context, method string, _, reply any, _ *grpc.ClientConn, _ ...grpc.CallOption) error {
 	r := reply.(*wrapperspb.StringValue)
 	r.Value = "hello"
 

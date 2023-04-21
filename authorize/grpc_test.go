@@ -2,6 +2,7 @@ package authorize
 
 import (
 	"context"
+	"net/http"
 	"net/url"
 	"testing"
 
@@ -45,7 +46,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
 	a.currentOptions.Store(&config.Options{
 		Policies: []config.Policy{{
-			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
+			From: "https://example.com",
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},
@@ -61,7 +62,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 				Request: &envoy_service_auth_v3.AttributeContext_Request{
 					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 						Id:     "id-1234",
-						Method: "GET",
+						Method: http.MethodGet,
 						Headers: map[string]string{
 							"accept":            "text/html",
 							"x-forwarded-proto": "https",
@@ -85,7 +86,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 			ID: "SESSION_ID",
 		},
 		HTTP: evaluator.NewRequestHTTP(
-			"GET",
+			http.MethodGet,
 			mustParseURL("http://example.com/some/path?qs=1"),
 			map[string]string{
 				"Accept":            "text/html",
@@ -102,7 +103,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
 	a.currentOptions.Store(&config.Options{
 		Policies: []config.Policy{{
-			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
+			From: "https://example.com",
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},
@@ -117,7 +118,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 			Request: &envoy_service_auth_v3.AttributeContext_Request{
 				Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 					Id:     "id-1234",
-					Method: "GET",
+					Method: http.MethodGet,
 					Headers: map[string]string{
 						"accept":            "text/html",
 						"x-forwarded-proto": "https",
@@ -135,7 +136,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 		Policy:  &a.currentOptions.Load().Policies[0],
 		Session: evaluator.RequestSession{},
 		HTTP: evaluator.NewRequestHTTP(
-			"GET",
+			http.MethodGet,
 			mustParseURL("http://example.com/some/path?qs=1"),
 			map[string]string{
 				"Accept":            "text/html",

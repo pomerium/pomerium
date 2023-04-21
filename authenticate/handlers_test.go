@@ -50,7 +50,7 @@ func testAuthenticate() *Authenticate {
 
 func TestAuthenticate_RobotsTxt(t *testing.T) {
 	auth := testAuthenticate()
-	req, err := http.NewRequest("GET", "/robots.txt", nil)
+	req, err := http.NewRequest(http.MethodGet, "/robots.txt", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestAuthenticate_Handler(t *testing.T) {
 	if h == nil {
 		t.Error("handler cannot be nil")
 	}
-	req := httptest.NewRequest("GET", "/robots.txt", nil)
+	req := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
 	req.Header.Set("Accept", "application/json")
 
 	rr := httptest.NewRecorder()
@@ -88,7 +88,7 @@ func TestAuthenticate_Handler(t *testing.T) {
 	// cors preflight
 	req = httptest.NewRequest(http.MethodOptions, "/.pomerium/sign_in", nil)
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Access-Control-Request-Method", "GET")
+	req.Header.Set("Access-Control-Request-Method", http.MethodGet)
 	req.Header.Set("Access-Control-Request-Headers", "X-Requested-With")
 	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
@@ -430,7 +430,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 				}),
 				options: config.NewAtomicOptions(),
 			}
-			r := httptest.NewRequest("GET", "/", nil)
+			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			state, err := tt.session.LoadSession(r)
 			if err != nil {
 				t.Fatal(err)
@@ -461,7 +461,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 
 	t.Run("cookie-redirect-uri", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest("GET", "https://authenticate.service.cluster.local/.pomerium/?pomerium_redirect_uri=https://www.example.com", nil)
+		r := httptest.NewRequest(http.MethodGet, "https://authenticate.service.cluster.local/.pomerium/?pomerium_redirect_uri=https://www.example.com", nil)
 		var a Authenticate
 		a.state = atomicutil.NewValue(&authenticateState{
 			cookieSecret: cryptutil.NewKey(),

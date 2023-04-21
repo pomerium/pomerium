@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -95,8 +94,8 @@ func TestAuthorize_okResponse(t *testing.T) {
 	opt := &config.Options{
 		AuthenticateURLString: "https://authenticate.example.com",
 		Policies: []config.Policy{{
-			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
-			To:     mustParseWeightedURLs(t, "https://to.example.com"),
+			From: "https://example.com",
+			To:   mustParseWeightedURLs(t, "https://to.example.com"),
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},
@@ -160,7 +159,7 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
 	a.currentOptions.Store(&config.Options{
 		Policies: []config.Policy{{
-			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
+			From: "https://example.com",
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},

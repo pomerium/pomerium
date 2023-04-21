@@ -26,7 +26,7 @@ var cookieChunker = httputil.NewCookieChunker()
 func (a *Authenticate) buildIdentityProfile(
 	ctx context.Context,
 	r *http.Request,
-	sessionState *sessions.State,
+	_ *sessions.State,
 	claims identity.SessionClaims,
 	oauthToken *oauth2.Token,
 ) (*identitypb.Profile, error) {

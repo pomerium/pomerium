@@ -10,12 +10,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
-
-	"golang.org/x/exp/maps"
-	"golang.org/x/oauth2"
 
 	"github.com/go-jose/go-jose/v3/jwt"
+	"golang.org/x/exp/maps"
+	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity/identity"
@@ -32,7 +30,6 @@ const (
 	defaultProviderURL = "https://appleid.apple.com"
 	tokenURL           = "/auth/token" //nolint: gosec
 	authURL            = "/auth/authorize"
-	refreshDeadline    = time.Minute * 60
 	revocationURL      = "/auth/revoke"
 )
 
@@ -50,7 +47,7 @@ type Provider struct {
 }
 
 // New instantiates an OpenID Connect (OIDC) provider for Apple.
-func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
+func New(_ context.Context, o *oauth.Options) (*Provider, error) {
 	options := *o
 	if options.ProviderURL == "" {
 		options.ProviderURL = defaultProviderURL
@@ -178,7 +175,7 @@ func (p *Provider) Revoke(ctx context.Context, t *oauth2.Token) error {
 }
 
 // UpdateUserInfo gets claims from the oauth token.
-func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error {
+func (p *Provider) UpdateUserInfo(_ context.Context, t *oauth2.Token, v interface{}) error {
 	rawIDToken, ok := t.Extra("id_token").(string)
 	if !ok {
 		return nil

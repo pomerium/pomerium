@@ -145,11 +145,6 @@ func GetDomainsForURL(u *url.URL) []string {
 	return []string{u.Hostname(), net.JoinHostPort(u.Hostname(), defaultPort)}
 }
 
-// IsTCP returns whether or not the given URL is for TCP via HTTP Connect.
-func IsTCP(u *url.URL) bool {
-	return u.Scheme == "tcp+http" || u.Scheme == "tcp+https"
-}
-
 // Join joins elements of a URL with '/'.
 func Join(elements ...string) string {
 	var builder strings.Builder

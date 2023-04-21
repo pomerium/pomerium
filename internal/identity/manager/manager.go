@@ -448,7 +448,8 @@ func isTemporaryError(err error) bool {
 	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 		return true
 	}
-	if e, ok := err.(interface{ Temporary() bool }); ok && e.Temporary() {
+	var hasTemporary interface{ Temporary() bool }
+	if errors.As(err, &hasTemporary) && hasTemporary.Temporary() {
 		return true
 	}
 	return false

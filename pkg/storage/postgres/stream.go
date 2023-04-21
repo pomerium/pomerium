@@ -42,7 +42,7 @@ func (stream *recordStream) Close() error {
 	return nil
 }
 
-func (stream *recordStream) Next(block bool) bool {
+func (stream *recordStream) Next(_ bool) bool {
 	if stream.err != nil {
 		return false
 	}

@@ -62,7 +62,7 @@ func TestMiddleware(t *testing.T) {
 
 		policyID, _ := cfg.Options.Policies[0].RouteID()
 
-		req, err := http.NewRequest("GET", srv2.URL, nil)
+		req, err := http.NewRequest(http.MethodGet, srv2.URL, nil)
 		require.NoError(t, err)
 		for _, hdr := range h.GetPolicyIDHeaders(policyID) {
 			req.Header.Set(hdr[0], hdr[1])

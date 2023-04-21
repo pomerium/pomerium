@@ -86,7 +86,7 @@ func (p *Proxy) Mount(r *mux.Router) {
 }
 
 // OnConfigChange updates internal structures based on config.Options
-func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
+func (p *Proxy) OnConfigChange(_ context.Context, cfg *config.Config) {
 	if p == nil {
 		return
 	}

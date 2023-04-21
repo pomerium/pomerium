@@ -298,7 +298,7 @@ func TestTimeouts(t *testing.T) {
 			DefaultUpstreamTimeout: time.Second * 3,
 			Policies: []config.Policy{
 				{
-					Source:          &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+					From:            "https://example.com",
 					Path:            "/test",
 					UpstreamTimeout: getDuration(tc.upstream),
 					IdleTimeout:     getDuration(tc.idle),
@@ -352,48 +352,48 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		DefaultUpstreamTimeout: time.Second * 3,
 		Policies: []config.Policy{
 			{
-				Source:              &config.StringURL{URL: mustParseURL(t, "https://ignore.example.com")},
+				From:                "https://ignore.example.com",
 				PassIdentityHeaders: true,
 			},
 			{
-				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				From:                "https://example.com",
 				PassIdentityHeaders: true,
 			},
 			{
-				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				From:                "https://example.com",
 				Path:                "/some/path",
 				AllowWebsockets:     true,
 				PreserveHostHeader:  true,
 				PassIdentityHeaders: true,
 			},
 			{
-				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				From:                "https://example.com",
 				Prefix:              "/some/prefix/",
 				SetRequestHeaders:   map[string]string{"HEADER-KEY": "HEADER-VALUE"},
 				UpstreamTimeout:     &oneMinute,
 				PassIdentityHeaders: true,
 			},
 			{
-				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				From:                "https://example.com",
 				Regex:               `^/[a]+$`,
 				PassIdentityHeaders: true,
 			},
 			{
-				Source:               &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				From:                 "https://example.com",
 				Prefix:               "/some/prefix/",
 				RemoveRequestHeaders: []string{"HEADER-KEY"},
 				UpstreamTimeout:      &oneMinute,
 				PassIdentityHeaders:  true,
 			},
 			{
-				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				From:                "https://example.com",
 				Path:                "/some/path",
 				AllowSPDY:           true,
 				PreserveHostHeader:  true,
 				PassIdentityHeaders: true,
 			},
 			{
-				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				From:                "https://example.com",
 				Path:                "/some/path",
 				AllowSPDY:           true,
 				AllowWebsockets:     true,
@@ -401,7 +401,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				PassIdentityHeaders: true,
 			},
 			{
-				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				From:                "https://example.com",
 				Path:                "/websocket-timeout",
 				AllowWebsockets:     true,
 				PreserveHostHeader:  true,
@@ -911,7 +911,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			DefaultUpstreamTimeout: time.Second * 3,
 			Policies: []config.Policy{
 				{
-					Source:              &config.StringURL{URL: mustParseURL(t, "https://authenticate.example.com")},
+					From:                "https://authenticate.example.com",
 					PassIdentityHeaders: true,
 				},
 			},
@@ -992,11 +992,11 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			DefaultUpstreamTimeout: time.Second * 3,
 			Policies: []config.Policy{
 				{
-					Source:              &config.StringURL{URL: mustParseURL(t, "tcp+https://example.com:22")},
+					From:                "tcp+https://example.com:22",
 					PassIdentityHeaders: true,
 				},
 				{
-					Source:              &config.StringURL{URL: mustParseURL(t, "tcp+https://example.com:22")},
+					From:                "tcp+https://example.com:22",
 					PassIdentityHeaders: true,
 					UpstreamTimeout:     &ten,
 				},
@@ -1143,7 +1143,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			Policies: []config.Policy{
 				{
-					Source: &config.StringURL{URL: mustParseURL(t, "https://from.example.com")},
+					From: "https://from.example.com",
 				},
 			},
 		}, "from.example.com", false)
@@ -1229,37 +1229,37 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 		DefaultUpstreamTimeout: time.Second * 3,
 		Policies: []config.Policy{
 			{
-				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				From:                "https://example.com",
 				To:                  mustParseWeightedURLs(t, "https://foo.example.com/bar"),
 				PassIdentityHeaders: true,
 			},
 			{
-				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				From:                "https://example.com",
 				To:                  mustParseWeightedURLs(t, "https://foo.example.com/bar"),
 				PassIdentityHeaders: true,
 				PrefixRewrite:       "/foo",
 			},
 			{
-				Source:                   &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				From:                     "https://example.com",
 				To:                       mustParseWeightedURLs(t, "https://foo.example.com/bar"),
 				PassIdentityHeaders:      true,
 				RegexRewritePattern:      "^/service/([^/]+)(/.*)$",
 				RegexRewriteSubstitution: "\\2/instance/\\1",
 			},
 			{
-				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				From:                "https://example.com",
 				To:                  mustParseWeightedURLs(t, "https://foo.example.com/bar"),
 				PassIdentityHeaders: true,
 				HostRewrite:         "literal.example.com",
 			},
 			{
-				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				From:                "https://example.com",
 				To:                  mustParseWeightedURLs(t, "https://foo.example.com/bar"),
 				PassIdentityHeaders: true,
 				HostRewriteHeader:   "HOST_HEADER",
 			},
 			{
-				Source:                           &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				From:                             "https://example.com",
 				To:                               mustParseWeightedURLs(t, "https://foo.example.com/bar"),
 				PassIdentityHeaders:              true,
 				HostPathRegexRewritePattern:      "^/(.+)/.+$",

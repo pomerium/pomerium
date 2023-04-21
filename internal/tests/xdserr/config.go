@@ -43,20 +43,20 @@ func DumpConfig(ctx context.Context, adminURL string) (*adminv3.RoutesConfigDump
 		return nil, err
 	}
 
-	any, _ := anypb.New(&emptypb.Empty{})
-	fmt.Println(protojson.Format(any))
+	a, _ := anypb.New(&emptypb.Empty{})
+	fmt.Println(protojson.Format(a))
 	opts := &protojson.UnmarshalOptions{
 		AllowPartial:   true,
 		DiscardUnknown: true,
 	}
 	for i, data := range cfg.Configs {
-		any := new(anypb.Any)
-		if err = opts.Unmarshal(data, any); err != nil {
+		a := new(anypb.Any)
+		if err = opts.Unmarshal(data, a); err != nil {
 			log.Error(ctx).Err(err).Int("config", i).
-				//RawJSON("data", data).
+				// RawJSON("data", data).
 				Msg("decode")
 		} else {
-			log.Info(ctx).Msg(any.TypeUrl)
+			log.Info(ctx).Msg(a.TypeUrl)
 		}
 	}
 	return nil, err

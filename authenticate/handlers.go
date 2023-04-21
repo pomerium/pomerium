@@ -168,7 +168,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 }
 
 // RobotsTxt handles the /robots.txt route.
-func (a *Authenticate) RobotsTxt(w http.ResponseWriter, r *http.Request) {
+func (a *Authenticate) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "User-agent: *\nDisallow: /")

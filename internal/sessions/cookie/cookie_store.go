@@ -96,7 +96,7 @@ func (cs *Store) makeCookie(value string) *http.Cookie {
 }
 
 // ClearSession clears the session cookie from a request
-func (cs *Store) ClearSession(w http.ResponseWriter, r *http.Request) {
+func (cs *Store) ClearSession(w http.ResponseWriter, _ *http.Request) {
 	c := cs.makeCookie("")
 	c.MaxAge = -1
 	c.Expires = timeNow().Add(-time.Hour)
@@ -130,7 +130,7 @@ func (cs *Store) LoadSession(r *http.Request) (string, error) {
 			return jwt, nil
 		}
 	}
-	return "", fmt.Errorf("%w: %s", sessions.ErrMalformed, err)
+	return "", fmt.Errorf("%w: %w", sessions.ErrMalformed, err)
 }
 
 // SaveSession saves a session state to a request's cookie store.

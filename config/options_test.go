@@ -87,9 +87,9 @@ func Test_bindEnvs(t *testing.T) {
 	defer os.Unsetenv("POMERIUM_DEBUG")
 	defer os.Unsetenv("POLICY")
 	defer os.Unsetenv("HEADERS")
-	os.Setenv("POMERIUM_DEBUG", "true")
-	os.Setenv("POLICY", "LSBmcm9tOiBodHRwczovL2h0dHBiaW4ubG9jYWxob3N0LnBvbWVyaXVtLmlvCiAgdG86IAogICAgLSBodHRwOi8vbG9jYWxob3N0OjgwODEsMQo=")
-	os.Setenv("HEADERS", `{"X-Custom-1":"foo", "X-Custom-2":"bar"}`)
+	t.Setenv("POMERIUM_DEBUG", "true")
+	t.Setenv("POLICY", "LSBmcm9tOiBodHRwczovL2h0dHBiaW4ubG9jYWxob3N0LnBvbWVyaXVtLmlvCiAgdG86IAogICAgLSBodHRwOi8vbG9jYWxob3N0OjgwODEsMQo=")
+	t.Setenv("HEADERS", `{"X-Custom-1":"foo", "X-Custom-2":"bar"}`)
 	err := bindEnvs(o, v)
 	if err != nil {
 		t.Fatalf("failed to bind options to env vars: %s", err)
@@ -207,7 +207,6 @@ func Test_parsePolicyFile(t *testing.T) {
 	}
 
 	source := "https://pomerium.io"
-	sourceURL, _ := url.ParseRequestURI(source)
 
 	to, err := ParseWeightedURL("https://httpbin.org")
 	require.NoError(t, err)
@@ -222,9 +221,8 @@ func Test_parsePolicyFile(t *testing.T) {
 			"simple json",
 			[]byte(fmt.Sprintf(`{"policy":[{"from": "%s","to":"%s"}]}`, source, to.URL.String())),
 			[]Policy{{
-				From:   source,
-				To:     []WeightedURL{*to},
-				Source: &StringURL{sourceURL},
+				From: source,
+				To:   []WeightedURL{*to},
 			}},
 			false,
 		},
@@ -280,7 +278,7 @@ func Test_Checksum(t *testing.T) {
 func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
 		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "DataBrokerURLStrings", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin", "TracingSampleRate", "ProgrammaticRedirectDomainWhitelist"),
-		cmpopts.IgnoreFields(Policy{}, "Source", "EnvoyOpts"),
+		cmpopts.IgnoreFields(Policy{}, "EnvoyOpts"),
 		cmpOptIgnoreUnexported,
 	}
 

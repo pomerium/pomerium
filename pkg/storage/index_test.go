@@ -52,11 +52,11 @@ func TestGetRecordIndex(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
-		any := protoutil.NewAny(v)
+		data := protoutil.NewAny(v)
 		assert.Equal(t, &structpb.Struct{
 			Fields: map[string]*structpb.Value{
 				"cidr": structpb.NewStringValue("192.168.0.0/16"),
 			},
-		}, GetRecordIndex(any))
+		}, GetRecordIndex(data))
 	})
 }
