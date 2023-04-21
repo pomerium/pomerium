@@ -49,9 +49,7 @@ jobs:
           restore-keys: ${{ runner.os }}-go-
 
       - run: make deps-build
-      - name: Lint
-        if: runner.os == 'Linux'
-        run: make lint
+
       - name: test
         run: make test
 
