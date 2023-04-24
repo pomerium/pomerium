@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -530,7 +529,7 @@ func mkRouteMatchForHost(
 						EngineType: &envoy_type_matcher_v3.RegexMatcher_GoogleRe2{
 							GoogleRe2: &envoy_type_matcher_v3.RegexMatcher_GoogleRE2{},
 						},
-						Regex: wildcardToRegex(host),
+						Regex: config.WildcardToRegex(host),
 					},
 				},
 			},
@@ -674,20 +673,4 @@ func getRewriteHeadersMetadata(headers []config.RewriteHeader) *structpb.Value {
 	_ = json.Unmarshal(bs, &obj)
 	v, _ := structpb.NewValue(obj)
 	return v
-}
-
-// wildcardToRegex converts a wildcard string into a regular expression
-func wildcardToRegex(wildcard string) string {
-	var b strings.Builder
-	for {
-		idx := strings.IndexByte(wildcard, '*')
-		if idx < 0 {
-			break
-		}
-		b.WriteString(regexp.QuoteMeta(wildcard[:idx]))
-		b.WriteString("(.*)")
-		wildcard = wildcard[idx+1:]
-	}
-	b.WriteString(regexp.QuoteMeta(wildcard))
-	return b.String()
 }

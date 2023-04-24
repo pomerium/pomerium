@@ -12,7 +12,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	"github.com/pomerium/pomerium/internal/urlutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
@@ -29,14 +28,12 @@ type HeadersRequest struct {
 }
 
 // NewHeadersRequestFromPolicy creates a new HeadersRequest from a policy.
-func NewHeadersRequestFromPolicy(policy *config.Policy) *HeadersRequest {
+func NewHeadersRequestFromPolicy(policy *config.Policy, hostname string) *HeadersRequest {
 	input := new(HeadersRequest)
 	input.EnableGoogleCloudServerlessAuthentication = policy.EnableGoogleCloudServerlessAuthentication
 	input.EnableRoutingKey = policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
 		policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_MAGLEV
-	if u, err := urlutil.ParseAndValidateURL(policy.From); err == nil {
-		input.Issuer = u.Hostname()
-	}
+	input.Issuer = hostname
 	input.KubernetesServiceAccountToken = policy.KubernetesServiceAccountToken
 	for _, wu := range policy.To {
 		input.ToAudience = "https://" + wu.URL.Hostname()
