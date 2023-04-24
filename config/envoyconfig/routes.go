@@ -499,9 +499,6 @@ func mkRouteMatch(policy *config.Policy) *envoy_config_route_v3.RouteMatch {
 	case policy.Regex != "":
 		match.PathSpecifier = &envoy_config_route_v3.RouteMatch_SafeRegex{
 			SafeRegex: &envoy_type_matcher_v3.RegexMatcher{
-				EngineType: &envoy_type_matcher_v3.RegexMatcher_GoogleRe2{
-					GoogleRe2: &envoy_type_matcher_v3.RegexMatcher_GoogleRE2{},
-				},
 				Regex: policy.Regex,
 			},
 		}
@@ -526,9 +523,6 @@ func mkRouteMatchForHost(
 			StringMatch: &envoy_type_matcher_v3.StringMatcher{
 				MatchPattern: &envoy_type_matcher_v3.StringMatcher_SafeRegex{
 					SafeRegex: &envoy_type_matcher_v3.RegexMatcher{
-						EngineType: &envoy_type_matcher_v3.RegexMatcher_GoogleRe2{
-							GoogleRe2: &envoy_type_matcher_v3.RegexMatcher_GoogleRE2{},
-						},
 						Regex: config.WildcardToRegex(host),
 					},
 				},
@@ -591,9 +585,6 @@ func getRewriteOptions(policy *config.Policy) (prefixRewrite string, regexRewrit
 	} else if policy.RegexRewritePattern != "" {
 		regexRewrite = &envoy_type_matcher_v3.RegexMatchAndSubstitute{
 			Pattern: &envoy_type_matcher_v3.RegexMatcher{
-				EngineType: &envoy_type_matcher_v3.RegexMatcher_GoogleRe2{
-					GoogleRe2: &envoy_type_matcher_v3.RegexMatcher_GoogleRE2{},
-				},
 				Regex: policy.RegexRewritePattern,
 			},
 			Substitution: policy.RegexRewriteSubstitution,
@@ -619,9 +610,6 @@ func setHostRewriteOptions(policy *config.Policy, action *envoy_config_route_v3.
 		action.HostRewriteSpecifier = &envoy_config_route_v3.RouteAction_HostRewritePathRegex{
 			HostRewritePathRegex: &envoy_type_matcher_v3.RegexMatchAndSubstitute{
 				Pattern: &envoy_type_matcher_v3.RegexMatcher{
-					EngineType: &envoy_type_matcher_v3.RegexMatcher_GoogleRe2{
-						GoogleRe2: &envoy_type_matcher_v3.RegexMatcher_GoogleRE2{},
-					},
 					Regex: policy.HostPathRegexRewritePattern,
 				},
 				Substitution: policy.HostPathRegexRewriteSubstitution,
