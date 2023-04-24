@@ -606,7 +606,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"name": "policy-4",
 				"match": {
 					"safeRegex": {
-						"googleRe2": {},
 						"regex": "^/[a]+$"
 					}
 				},
@@ -1417,7 +1416,6 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"autoHostRewrite": true,
 					"regexRewrite": {
 						"pattern": {
-							"googleRe2": {},
 							"regex": "^/service/([^/]+)(/.*)$"
 						},
 						"substitution": "\\2/instance/\\1"
@@ -1602,7 +1600,6 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				"route": {
 					"hostRewritePathRegex": {
 						"pattern": {
-							"googleRe2": {},
 							"regex": "^/(.+)/.+$"
 						},
 						"substitution": "\\1"

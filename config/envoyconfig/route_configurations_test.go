@@ -53,7 +53,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 						"name": "policy-0",
 						"match": {
 							"headers": [
-								{ "name": ":authority", "stringMatch": { "safeRegex": { "googleRe2": {}, "regex": "(.*)\\.example\\.com" } }}
+								{ "name": ":authority", "stringMatch": { "safeRegex": { "regex": "^(.*)\\.example\\.com$" } }}
 							],
 							"prefix": "/"
 						},
@@ -95,7 +95,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 						"name": "policy-0",
 						"match": {
 							"headers": [
-								{ "name": ":authority", "stringMatch": { "safeRegex": { "googleRe2": {}, "regex": "(.*)\\.example\\.com:443" } }}
+								{ "name": ":authority", "stringMatch": { "safeRegex": { "regex": "^(.*)\\.example\\.com:443$" } }}
 							],
 							"prefix": "/"
 						},
