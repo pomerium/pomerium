@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"strings"
 	"time"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -570,7 +571,13 @@ func getAllRouteableHosts(options *config.Options, addr string) ([]string, error
 		allHosts.Add(hosts...)
 	}
 
-	return allHosts.ToSlice(), nil
+	var filtered []string
+	for _, host := range allHosts.ToSlice() {
+		if !strings.Contains(host, "*") {
+			filtered = append(filtered, host)
+		}
+	}
+	return filtered, nil
 }
 
 func urlsMatchHost(urls []*url.URL, host string) bool {
