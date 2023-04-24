@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1682369673219,
+  "lastUpdate": 1682370926304,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -42120,6 +42120,38 @@ window.BENCHMARK_DATA = {
             "value": 8749890,
             "unit": "ns/op",
             "extra": "135 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "37624193f230bcab508372c36c89aa62c4d6b1bb",
+          "message": "config: add support for wildcard from addresses",
+          "timestamp": "2023-04-24T15:19:59Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4131/commits/37624193f230bcab508372c36c89aa62c4d6b1bb"
+        },
+        "date": 1682370925586,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 20824529,
+            "unit": "ns/op",
+            "extra": "60 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12683138,
+            "unit": "ns/op",
+            "extra": "92 times\n2 procs"
           }
         ]
       }
