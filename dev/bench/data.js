@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1682443725489,
+  "lastUpdate": 1682451228689,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -42504,6 +42504,38 @@ window.BENCHMARK_DATA = {
             "value": 8845699,
             "unit": "ns/op",
             "extra": "133 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "175ecfdb0f95a93f84a99b1efc8c76a0112534bd",
+          "message": "autocert: fix certmagic cache logging",
+          "timestamp": "2023-04-25T02:04:43Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4134/commits/175ecfdb0f95a93f84a99b1efc8c76a0112534bd"
+        },
+        "date": 1682451227991,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14298223,
+            "unit": "ns/op",
+            "extra": "73 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10792223,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
