@@ -4,8 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"runtime"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/internal/version"
@@ -20,6 +24,15 @@ const HPKEPublicKeyPath = "/.well-known/pomerium/hpke-public-key"
 const DefaultDeviceType = "any"
 
 const signInExpiry = time.Minute * 5
+
+var (
+	pomeriumRuntime = os.Getenv("POMERIUM_RUNTIME")
+	pomeriumArch    = fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
+)
+
+func versionStr() string {
+	return strings.Join([]string{version.FullVersion(), pomeriumArch, pomeriumRuntime}, " ")
+}
 
 // CallbackURL builds the callback URL using an HPKE encrypted query string.
 func CallbackURL(
@@ -59,7 +72,7 @@ func CallbackURL(
 		return "", fmt.Errorf("error marshaling identity profile: %w", err)
 	}
 	callbackParams.Set(QueryIdentityProfile, string(rawProfile))
-	callbackParams.Set(QueryVersion, version.FullVersion())
+	callbackParams.Set(QueryVersion, versionStr())
 
 	BuildTimeParameters(callbackParams, signInExpiry)
 
@@ -99,7 +112,8 @@ func SignInURL(
 	q := signInURL.Query()
 	q.Set(QueryRedirectURI, redirectURL.String())
 	q.Set(QueryIdentityProviderID, idpID)
-	q.Set(QueryVersion, version.FullVersion())
+	q.Set(QueryVersion, versionStr())
+	q.Set(QueryRequestUUID, uuid.NewString())
 	BuildTimeParameters(q, signInExpiry)
 	q, err := hpke.EncryptURLValues(senderPrivateKey, authenticatePublicKey, q)
 	if err != nil {
@@ -119,7 +133,7 @@ func SignOutURL(r *http.Request, authenticateURL *url.URL, key []byte) string {
 	if redirectURI, ok := RedirectURL(r); ok {
 		q.Set(QueryRedirectURI, redirectURI)
 	}
-	q.Set(QueryVersion, version.FullVersion())
+	q.Set(QueryVersion, versionStr())
 	u.RawQuery = q.Encode()
 	return NewSignedURL(key, u).Sign().String()
 }

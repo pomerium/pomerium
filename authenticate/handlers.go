@@ -216,6 +216,8 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		a.cfg.profileTrimFn(profile)
 	}
 
+	a.logAuthenticateEvent(r, profile)
+
 	redirectTo, err := urlutil.CallbackURL(state.hpkePrivateKey, proxyPublicKey, requestParams, profile)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
@@ -314,6 +316,8 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return err
 	}
+
+	a.logAuthenticateEvent(r, nil)
 
 	state.sessionStore.ClearSession(w, r)
 	redirectURL := state.redirectURL.ResolveReference(r.URL)
