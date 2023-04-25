@@ -78,24 +78,31 @@ func newManager(ctx context.Context,
 		return nil, err
 	}
 
-	certmagicConfig := certmagic.NewDefault()
-	// set certmagic default storage cache, otherwise cert renewal loop will be based off
-	// certmagic's own default location
-	certmagicConfig.Storage, err = GetCertMagicStorage(ctx, src.GetConfig().Options.AutocertOptions.Folder)
-	if err != nil {
-		return nil, err
-	}
-
 	logger := log.ZapLogger().With(zap.String("service", "autocert"))
-	certmagicConfig.Logger = logger
 	acmeTemplate.Logger = logger
 
 	mgr := &Manager{
 		src:          src,
 		acmeTemplate: acmeTemplate,
-		certmagic:    certmagicConfig,
 		ocspCache:    ocspRespCache,
 	}
+
+	// set certmagic default storage cache, otherwise cert renewal loop will be based off
+	// certmagic's own default location
+	certmagicStorage, err := GetCertMagicStorage(ctx, src.GetConfig().Options.AutocertOptions.Folder)
+	if err != nil {
+		return nil, err
+	}
+	mgr.certmagic = certmagic.New(certmagic.NewCache(certmagic.CacheOptions{
+		GetConfigForCert: func(c certmagic.Certificate) (*certmagic.Config, error) {
+			return mgr.certmagic, nil
+		},
+		Logger: logger,
+	}), certmagic.Config{
+		Logger:  logger,
+		Storage: certmagicStorage,
+	})
+
 	err = mgr.update(ctx, src.GetConfig())
 	if err != nil {
 		return nil, err
