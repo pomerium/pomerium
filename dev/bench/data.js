@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1682382961267,
+  "lastUpdate": 1682383057352,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -42400,6 +42400,42 @@ window.BENCHMARK_DATA = {
             "value": 11090593,
             "unit": "ns/op",
             "extra": "104 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "64aa3afa3e2487e80131d44d70e71357baf3cf7a",
+          "message": "chore(deps): bump google-github-actions/auth from 1.0.0 to 1.1.0 (#4121)\n\nBumps [google-github-actions/auth](https://github.com/google-github-actions/auth) from 1.0.0 to 1.1.0.\r\n- [Release notes](https://github.com/google-github-actions/auth/releases)\r\n- [Changelog](https://github.com/google-github-actions/auth/blob/main/CHANGELOG.md)\r\n- [Commits](https://github.com/google-github-actions/auth/compare/ef5d53e30bbcd8d0836f4288f5e50ff3e086997d...e8df18b60c5dd38ba618c121b779307266153fbf)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: google-github-actions/auth\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-04-24T18:30:56-06:00",
+          "tree_id": "af58487644cd0d7275410539ac23552cc8099258",
+          "url": "https://github.com/pomerium/pomerium/commit/64aa3afa3e2487e80131d44d70e71357baf3cf7a"
+        },
+        "date": 1682383056373,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14579555,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9773946,
+            "unit": "ns/op",
+            "extra": "120 times\n2 procs"
           }
         ]
       }
