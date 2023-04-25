@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1682451228689,
+  "lastUpdate": 1682451454453,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -42536,6 +42536,42 @@ window.BENCHMARK_DATA = {
             "value": 10792223,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "18bc86d63284c64cd9c2d1e257b1c53198cb5d39",
+          "message": "config: add support for wildcard from addresses (#4131)\n\n* config: add support for wildcards\r\n\r\n* update policy matching, header generation\r\n\r\n* remove deprecated field\r\n\r\n* fix test",
+          "timestamp": "2023-04-25T13:34:38-06:00",
+          "tree_id": "6f7f470d388d1a6a7c79770aa0db0072143805eb",
+          "url": "https://github.com/pomerium/pomerium/commit/18bc86d63284c64cd9c2d1e257b1c53198cb5d39"
+        },
+        "date": 1682451453750,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18131608,
+            "unit": "ns/op",
+            "extra": "57 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12379820,
+            "unit": "ns/op",
+            "extra": "111 times\n2 procs"
           }
         ]
       }
