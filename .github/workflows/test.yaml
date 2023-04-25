@@ -223,7 +223,7 @@ jobs:
       - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9
         with:
           go-version: 1.20.x
-      - uses: actions/setup-python@d27e3f3d7c64b4bbf8e4abfb9b63b83e846e0435
+      - uses: actions/setup-python@57ded4d7d5e986d7296eab16560982c6dd7c923b
         with:
           python-version: "3.x"
       - uses: pre-commit/action@646c83fcd040023954eafda54b4db0192ce70507
