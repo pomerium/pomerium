@@ -22,13 +22,13 @@ import (
 func TestNewHeadersRequestFromPolicy(t *testing.T) {
 	req := NewHeadersRequestFromPolicy(&config.Policy{
 		EnableGoogleCloudServerlessAuthentication: true,
-		From: "https://from.example.com",
+		From: "https://*.example.com",
 		To: config.WeightedURLs{
 			{
 				URL: *mustParseURL("http://to.example.com"),
 			},
 		},
-	})
+	}, "from.example.com")
 	assert.Equal(t, &HeadersRequest{
 		EnableGoogleCloudServerlessAuthentication: true,
 		Issuer:     "from.example.com",

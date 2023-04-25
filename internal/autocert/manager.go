@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -439,7 +440,7 @@ func sourceHostnames(cfg *config.Config) []string {
 
 	dedupe := map[string]struct{}{}
 	for _, p := range policies {
-		if u, _ := urlutil.ParseAndValidateURL(p.From); u != nil {
+		if u, _ := urlutil.ParseAndValidateURL(p.From); u != nil && !strings.Contains(u.Host, "*") {
 			dedupe[u.Hostname()] = struct{}{}
 		}
 	}

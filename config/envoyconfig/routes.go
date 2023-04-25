@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
+	"strings"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
@@ -18,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 const (
@@ -189,14 +191,12 @@ func getClusterStatsName(policy *config.Policy) string {
 	return ""
 }
 
-func (b *Builder) buildPolicyRoutes(
-	options *config.Options,
+func (b *Builder) buildRoutesForPoliciesWithHost(
+	cfg *config.Config,
 	host string,
-	requireStrictTransportSecurity bool,
 ) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
-
-	for i, p := range options.GetAllPolicies() {
+	for i, p := range cfg.Options.GetAllPolicies() {
 		policy := p
 		fromURL, err := urlutil.ParseAndValidateURL(policy.From)
 		if err != nil {
@@ -207,81 +207,160 @@ func (b *Builder) buildPolicyRoutes(
 			continue
 		}
 
-		match := mkRouteMatch(&policy)
-		envoyRoute := &envoy_config_route_v3.Route{
-			Name:                   fmt.Sprintf("policy-%d", i),
-			Match:                  match,
-			Metadata:               &envoy_config_core_v3.Metadata{},
-			RequestHeadersToAdd:    toEnvoyHeaders(policy.SetRequestHeaders),
-			RequestHeadersToRemove: getRequestHeadersToRemove(options, &policy),
-			ResponseHeadersToAdd:   toEnvoyHeaders(options.GetSetResponseHeadersForPolicy(&policy, requireStrictTransportSecurity)),
-		}
-		if policy.Redirect != nil {
-			action, err := b.buildPolicyRouteRedirectAction(policy.Redirect)
-			if err != nil {
-				return nil, err
-			}
-			envoyRoute.Action = &envoy_config_route_v3.Route_Redirect{Redirect: action}
-		} else {
-			action, err := b.buildPolicyRouteRouteAction(options, &policy)
-			if err != nil {
-				return nil, err
-			}
-			envoyRoute.Action = &envoy_config_route_v3.Route_Route{Route: action}
-		}
-
-		luaMetadata := map[string]*structpb.Value{
-			"rewrite_response_headers": getRewriteHeadersMetadata(policy.RewriteResponseHeaders),
-		}
-
-		// disable authentication entirely when the proxy is fronting authenticate
-		isFrontingAuthenticate, err := isProxyFrontingAuthenticate(options, host)
+		policyRoutes, err := b.buildRoutesForPolicy(cfg, &policy, fmt.Sprintf("policy-%d", i))
 		if err != nil {
 			return nil, err
 		}
-		if isFrontingAuthenticate {
-			envoyRoute.TypedPerFilterConfig = map[string]*any.Any{
-				"envoy.filters.http.ext_authz": disableExtAuthz,
-			}
-		} else {
-			luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
-				Kind: &structpb.Value_StringValue{
-					StringValue: options.CookieName,
-				},
-			}
-			luaMetadata["remove_pomerium_authorization"] = &structpb.Value{
-				Kind: &structpb.Value_BoolValue{
-					BoolValue: true,
-				},
-			}
-			luaMetadata["remove_impersonate_headers"] = &structpb.Value{
-				Kind: &structpb.Value_BoolValue{
-					BoolValue: policy.IsForKubernetes(),
-				},
-			}
-		}
 
-		if policy.IsForKubernetes() {
-			policyID, _ := policy.RouteID()
-			for _, hdr := range b.reproxy.GetPolicyIDHeaders(policyID) {
-				envoyRoute.RequestHeadersToAdd = append(envoyRoute.RequestHeadersToAdd,
-					&envoy_config_core_v3.HeaderValueOption{
-						Header: &envoy_config_core_v3.HeaderValue{
-							Key:   hdr[0],
-							Value: hdr[1],
-						},
-						AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
-					})
-			}
-		}
-
-		envoyRoute.Metadata.FilterMetadata = map[string]*structpb.Struct{
-			"envoy.filters.http.lua": {Fields: luaMetadata},
-		}
-
-		routes = append(routes, envoyRoute)
+		routes = append(routes, policyRoutes...)
 	}
 	return routes, nil
+}
+
+func (b *Builder) buildRoutesForPoliciesWithCatchAll(
+	cfg *config.Config,
+) ([]*envoy_config_route_v3.Route, error) {
+	var routes []*envoy_config_route_v3.Route
+	for i, p := range cfg.Options.GetAllPolicies() {
+		policy := p
+		fromURL, err := urlutil.ParseAndValidateURL(policy.From)
+		if err != nil {
+			return nil, err
+		}
+
+		if !strings.Contains(fromURL.Host, "*") {
+			continue
+		}
+
+		policyRoutes, err := b.buildRoutesForPolicy(cfg, &policy, fmt.Sprintf("policy-%d", i))
+		if err != nil {
+			return nil, err
+		}
+
+		routes = append(routes, policyRoutes...)
+	}
+	return routes, nil
+}
+
+func (b *Builder) buildRoutesForPolicy(
+	cfg *config.Config,
+	policy *config.Policy,
+	name string,
+) ([]*envoy_config_route_v3.Route, error) {
+	fromURL, err := urlutil.ParseAndValidateURL(policy.From)
+	if err != nil {
+		return nil, err
+	}
+
+	var routes []*envoy_config_route_v3.Route
+	if strings.Contains(fromURL.Host, "*") {
+		// we have to match '*.example.com' and '*.example.com:443', so there are two routes
+		for _, host := range urlutil.GetDomainsForURL(fromURL) {
+			route, err := b.buildRouteForPolicyAndMatch(cfg, policy, name, mkRouteMatchForHost(policy, host))
+			if err != nil {
+				return nil, err
+			}
+			routes = append(routes, route)
+		}
+	} else {
+		route, err := b.buildRouteForPolicyAndMatch(cfg, policy, name, mkRouteMatch(policy))
+		if err != nil {
+			return nil, err
+		}
+		routes = append(routes, route)
+	}
+	return routes, nil
+}
+
+func (b *Builder) buildRouteForPolicyAndMatch(
+	cfg *config.Config,
+	policy *config.Policy,
+	name string,
+	match *envoy_config_route_v3.RouteMatch,
+) (*envoy_config_route_v3.Route, error) {
+	fromURL, err := urlutil.ParseAndValidateURL(policy.From)
+	if err != nil {
+		return nil, err
+	}
+
+	certs, err := getAllCertificates(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	requireStrictTransportSecurity := cryptutil.HasCertificateForServerName(certs, fromURL.Hostname())
+
+	route := &envoy_config_route_v3.Route{
+		Name:                   name,
+		Match:                  match,
+		Metadata:               &envoy_config_core_v3.Metadata{},
+		RequestHeadersToAdd:    toEnvoyHeaders(policy.SetRequestHeaders),
+		RequestHeadersToRemove: getRequestHeadersToRemove(cfg.Options, policy),
+		ResponseHeadersToAdd:   toEnvoyHeaders(cfg.Options.GetSetResponseHeadersForPolicy(policy, requireStrictTransportSecurity)),
+	}
+	if policy.Redirect != nil {
+		action, err := b.buildPolicyRouteRedirectAction(policy.Redirect)
+		if err != nil {
+			return nil, err
+		}
+		route.Action = &envoy_config_route_v3.Route_Redirect{Redirect: action}
+	} else {
+		action, err := b.buildPolicyRouteRouteAction(cfg.Options, policy)
+		if err != nil {
+			return nil, err
+		}
+		route.Action = &envoy_config_route_v3.Route_Route{Route: action}
+	}
+
+	luaMetadata := map[string]*structpb.Value{
+		"rewrite_response_headers": getRewriteHeadersMetadata(policy.RewriteResponseHeaders),
+	}
+
+	// disable authentication entirely when the proxy is fronting authenticate
+	isFrontingAuthenticate, err := isProxyFrontingAuthenticate(cfg.Options, fromURL.Hostname())
+	if err != nil {
+		return nil, err
+	}
+	if isFrontingAuthenticate {
+		route.TypedPerFilterConfig = map[string]*any.Any{
+			"envoy.filters.http.ext_authz": disableExtAuthz,
+		}
+	} else {
+		luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
+			Kind: &structpb.Value_StringValue{
+				StringValue: cfg.Options.CookieName,
+			},
+		}
+		luaMetadata["remove_pomerium_authorization"] = &structpb.Value{
+			Kind: &structpb.Value_BoolValue{
+				BoolValue: true,
+			},
+		}
+		luaMetadata["remove_impersonate_headers"] = &structpb.Value{
+			Kind: &structpb.Value_BoolValue{
+				BoolValue: policy.IsForKubernetes(),
+			},
+		}
+	}
+
+	if policy.IsForKubernetes() {
+		policyID, _ := policy.RouteID()
+		for _, hdr := range b.reproxy.GetPolicyIDHeaders(policyID) {
+			route.RequestHeadersToAdd = append(route.RequestHeadersToAdd,
+				&envoy_config_core_v3.HeaderValueOption{
+					Header: &envoy_config_core_v3.HeaderValue{
+						Key:   hdr[0],
+						Value: hdr[1],
+					},
+					AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
+				})
+		}
+	}
+
+	route.Metadata.FilterMetadata = map[string]*structpb.Struct{
+		"envoy.filters.http.lua": {Fields: luaMetadata},
+	}
+	return route, nil
 }
 
 func (b *Builder) buildPolicyRouteRedirectAction(r *config.PolicyRedirect) (*envoy_config_route_v3.RedirectAction, error) {
@@ -420,9 +499,6 @@ func mkRouteMatch(policy *config.Policy) *envoy_config_route_v3.RouteMatch {
 	case policy.Regex != "":
 		match.PathSpecifier = &envoy_config_route_v3.RouteMatch_SafeRegex{
 			SafeRegex: &envoy_type_matcher_v3.RegexMatcher{
-				EngineType: &envoy_type_matcher_v3.RegexMatcher_GoogleRe2{
-					GoogleRe2: &envoy_type_matcher_v3.RegexMatcher_GoogleRE2{},
-				},
 				Regex: policy.Regex,
 			},
 		}
@@ -433,6 +509,26 @@ func mkRouteMatch(policy *config.Policy) *envoy_config_route_v3.RouteMatch {
 	default:
 		match.PathSpecifier = &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/"}
 	}
+	return match
+}
+
+func mkRouteMatchForHost(
+	policy *config.Policy,
+	host string,
+) *envoy_config_route_v3.RouteMatch {
+	match := mkRouteMatch(policy)
+	match.Headers = append(match.Headers, &envoy_config_route_v3.HeaderMatcher{
+		Name: ":authority",
+		HeaderMatchSpecifier: &envoy_config_route_v3.HeaderMatcher_StringMatch{
+			StringMatch: &envoy_type_matcher_v3.StringMatcher{
+				MatchPattern: &envoy_type_matcher_v3.StringMatcher_SafeRegex{
+					SafeRegex: &envoy_type_matcher_v3.RegexMatcher{
+						Regex: config.WildcardToRegex(host),
+					},
+				},
+			},
+		},
+	})
 	return match
 }
 
@@ -489,9 +585,6 @@ func getRewriteOptions(policy *config.Policy) (prefixRewrite string, regexRewrit
 	} else if policy.RegexRewritePattern != "" {
 		regexRewrite = &envoy_type_matcher_v3.RegexMatchAndSubstitute{
 			Pattern: &envoy_type_matcher_v3.RegexMatcher{
-				EngineType: &envoy_type_matcher_v3.RegexMatcher_GoogleRe2{
-					GoogleRe2: &envoy_type_matcher_v3.RegexMatcher_GoogleRE2{},
-				},
 				Regex: policy.RegexRewritePattern,
 			},
 			Substitution: policy.RegexRewriteSubstitution,
@@ -517,9 +610,6 @@ func setHostRewriteOptions(policy *config.Policy, action *envoy_config_route_v3.
 		action.HostRewriteSpecifier = &envoy_config_route_v3.RouteAction_HostRewritePathRegex{
 			HostRewritePathRegex: &envoy_type_matcher_v3.RegexMatchAndSubstitute{
 				Pattern: &envoy_type_matcher_v3.RegexMatcher{
-					EngineType: &envoy_type_matcher_v3.RegexMatcher_GoogleRe2{
-						GoogleRe2: &envoy_type_matcher_v3.RegexMatcher_GoogleRE2{},
-					},
 					Regex: policy.HostPathRegexRewritePattern,
 				},
 				Substitution: policy.HostPathRegexRewriteSubstitution,

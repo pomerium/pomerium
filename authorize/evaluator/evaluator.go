@@ -38,6 +38,7 @@ type Request struct {
 // RequestHTTP is the HTTP field in the request.
 type RequestHTTP struct {
 	Method            string            `json:"method"`
+	Hostname          string            `json:"hostname"`
 	Path              string            `json:"path"`
 	URL               string            `json:"url"`
 	Headers           map[string]string `json:"headers"`
@@ -55,6 +56,7 @@ func NewRequestHTTP(
 ) RequestHTTP {
 	return RequestHTTP{
 		Method:            method,
+		Hostname:          requestURL.Hostname(),
 		Path:              requestURL.Path,
 		URL:               requestURL.String(),
 		Headers:           headers,
@@ -162,7 +164,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 
 	var headersOutput *HeadersResponse
 	eg.Go(func() error {
-		headersReq := NewHeadersRequestFromPolicy(req.Policy)
+		headersReq := NewHeadersRequestFromPolicy(req.Policy, req.HTTP.Hostname)
 		headersReq.Session = req.Session
 		var err error
 		headersOutput, err = e.headersEvaluators.Evaluate(ectx, headersReq)

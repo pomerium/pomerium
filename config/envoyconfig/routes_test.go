@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 func policyNameFunc() func(*config.Policy) string {
@@ -293,9 +294,10 @@ func TestTimeouts(t *testing.T) {
 
 	for _, tc := range testCases {
 		b := &Builder{filemgr: filemgr.NewManager()}
-		routes, err := b.buildPolicyRoutes(&config.Options{
+		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
+			SharedKey:              cryptutil.NewBase64Key(),
 			Policies: []config.Policy{
 				{
 					From:            "https://example.com",
@@ -305,7 +307,7 @@ func TestTimeouts(t *testing.T) {
 					AllowWebsockets: tc.allowWebsockets,
 				},
 			},
-		}, "example.com", false)
+		}}, "example.com")
 		if !assert.NoError(t, err, "%v", tc) || !assert.Len(t, routes, 1, tc) || !assert.NotNil(t, routes[0].GetRoute(), "%v", tc) {
 			continue
 		}
@@ -347,9 +349,10 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	ten := time.Second * 10
 
 	b := &Builder{filemgr: filemgr.NewManager()}
-	routes, err := b.buildPolicyRoutes(&config.Options{
+	routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
+		SharedKey:              cryptutil.NewBase64Key(),
 		Policies: []config.Policy{
 			{
 				From:                "https://ignore.example.com",
@@ -409,7 +412,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				UpstreamTimeout:     &ten,
 			},
 		},
-	}, "example.com", false)
+	}}, "example.com")
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, `
@@ -603,7 +606,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"name": "policy-4",
 				"match": {
 					"safeRegex": {
-						"googleRe2": {},
 						"regex": "^/[a]+$"
 					}
 				},
@@ -904,18 +906,19 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	`, routes)
 
 	t.Run("fronting-authenticate", func(t *testing.T) {
-		routes, err := b.buildPolicyRoutes(&config.Options{
+		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
 			AuthenticateURLString:  "https://authenticate.example.com",
 			Services:               "proxy",
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
+			SharedKey:              cryptutil.NewBase64Key(),
 			Policies: []config.Policy{
 				{
 					From:                "https://authenticate.example.com",
 					PassIdentityHeaders: true,
 				},
 			},
-		}, "authenticate.example.com", false)
+		}}, "authenticate.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -987,9 +990,10 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	})
 
 	t.Run("tcp", func(t *testing.T) {
-		routes, err := b.buildPolicyRoutes(&config.Options{
+		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
+			SharedKey:              cryptutil.NewBase64Key(),
 			Policies: []config.Policy{
 				{
 					From:                "tcp+https://example.com:22",
@@ -1001,7 +1005,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					UpstreamTimeout:     &ten,
 				},
 			},
-		}, "example.com:22", false)
+		}}, "example.com:22")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -1133,11 +1137,12 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	})
 
 	t.Run("remove-pomerium-headers", func(t *testing.T) {
-		routes, err := b.buildPolicyRoutes(&config.Options{
+		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
 			AuthenticateURLString:  "https://authenticate.example.com",
 			Services:               "proxy",
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
+			SharedKey:              cryptutil.NewBase64Key(),
 			JWTClaimsHeaders: map[string]string{
 				"x-email": "email",
 			},
@@ -1146,7 +1151,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					From: "https://from.example.com",
 				},
 			},
-		}, "from.example.com", false)
+		}}, "from.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -1224,9 +1229,10 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 	}(getClusterID)
 	getClusterID = policyNameFunc()
 	b := &Builder{filemgr: filemgr.NewManager()}
-	routes, err := b.buildPolicyRoutes(&config.Options{
+	routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
+		SharedKey:              cryptutil.NewBase64Key(),
 		Policies: []config.Policy{
 			{
 				From:                "https://example.com",
@@ -1266,7 +1272,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				HostPathRegexRewriteSubstitution: "\\1",
 			},
 		},
-	}, "example.com", false)
+	}}, "example.com")
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, `
@@ -1410,7 +1416,6 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 					"autoHostRewrite": true,
 					"regexRewrite": {
 						"pattern": {
-							"googleRe2": {},
 							"regex": "^/service/([^/]+)(/.*)$"
 						},
 						"substitution": "\\2/instance/\\1"
@@ -1595,7 +1600,6 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				"route": {
 					"hostRewritePathRegex": {
 						"pattern": {
-							"googleRe2": {},
 							"regex": "^/(.+)/.+$"
 						},
 						"substitution": "\\1"
