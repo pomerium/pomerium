@@ -53,7 +53,7 @@ require (
 	github.com/prometheus/procfs v0.9.0
 	github.com/rs/cors v1.8.3
 	github.com/rs/zerolog v1.29.0
-	github.com/shirou/gopsutil/v3 v3.23.2
+	github.com/shirou/gopsutil/v3 v3.23.3
 	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.2
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f
@@ -109,6 +109,7 @@ require (
 	github.com/onsi/gomega v1.26.0 // indirect
 	github.com/rs/xid v1.4.0 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
+	github.com/shoenig/go-m1cpu v0.1.4 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 )
 
