@@ -457,6 +457,10 @@ func sourceHostnames(cfg *config.Config) []string {
 		}
 	}
 
+	// remove any hosted authenticate URLs
+	delete(dedupe, "authenticate.pomerium.app")
+	delete(dedupe, "authenticate.staging.pomerium.app")
+
 	var h []string
 	for k := range dedupe {
 		h = append(h, k)
