@@ -1,6 +1,8 @@
 package authenticate
 
 import (
+	"context"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/identity"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
@@ -9,6 +11,7 @@ import (
 type authenticateConfig struct {
 	getIdentityProvider func(options *config.Options, idpID string) (identity.Authenticator, error)
 	profileTrimFn       func(*identitypb.Profile)
+	authEventFn         AuthEventFn
 }
 
 // An Option customizes the Authenticate config.
@@ -17,6 +20,8 @@ type Option func(*authenticateConfig)
 func getAuthenticateConfig(options ...Option) *authenticateConfig {
 	cfg := new(authenticateConfig)
 	WithGetIdentityProvider(defaultGetIdentityProvider)(cfg)
+	WithOnAuthenticationEventHook(func(_ context.Context, _ AuthEvent) {})(cfg)
+
 	for _, option := range options {
 		option(cfg)
 	}
@@ -34,5 +39,12 @@ func WithGetIdentityProvider(getIdentityProvider func(options *config.Options, i
 func WithProfileTrimFn(profileTrimFn func(*identitypb.Profile)) Option {
 	return func(cfg *authenticateConfig) {
 		cfg.profileTrimFn = profileTrimFn
+	}
+}
+
+// WithOnAuthenticationEventHook sets the authEventFn function in the config
+func WithOnAuthenticationEventHook(fn AuthEventFn) Option {
+	return func(cfg *authenticateConfig) {
+		cfg.authEventFn = fn
 	}
 }
