@@ -297,6 +297,7 @@ func TestOptionsFromViper(t *testing.T) {
 				CookieSecure:             true,
 				InsecureServer:           true,
 				CookieHTTPOnly:           true,
+				AuthenticateURLString:    "https://authenticate.pomerium.app",
 				AuthenticateCallbackPath: "/oauth2/callback",
 				DataBrokerStorageType:    "memory",
 				EnvoyAdminAccessLogPath:  os.DevNull,
@@ -310,6 +311,7 @@ func TestOptionsFromViper(t *testing.T) {
 			&Options{
 				Policies:                 []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
 				CookieName:               "_pomerium",
+				AuthenticateURLString:    "https://authenticate.pomerium.app",
 				AuthenticateCallbackPath: "/oauth2/callback",
 				CookieSecure:             true,
 				CookieHTTPOnly:           true,

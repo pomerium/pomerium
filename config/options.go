@@ -311,6 +311,7 @@ var defaultOptions = Options{
 	GRPCAddr:                 ":443",
 	GRPCClientTimeout:        10 * time.Second, // Try to withstand transient service failures for a single request
 	GRPCClientDNSRoundRobin:  true,
+	AuthenticateURLString:    "https://authenticate.pomerium.app",
 	AuthenticateCallbackPath: "/oauth2/callback",
 	TracingSampleRate:        0.0001,
 
