@@ -36,6 +36,8 @@ type AuthEvent struct {
 	PubKey string
 	// UID is the IdP user ID of the user
 	UID *string
+	// Email is the email of the user
+	Email *string
 	// Domain is the domain of the request (for sign in complete events)
 	Domain *string
 }
@@ -44,6 +46,10 @@ type AuthEvent struct {
 type AuthEventFn func(context.Context, AuthEvent)
 
 func (a *Authenticate) logAuthenticateEvent(r *http.Request, profile *identity.Profile) {
+	if a.cfg.authEventFn == nil {
+		return
+	}
+
 	state := a.state.Load()
 	ctx := r.Context()
 	pub, params, err := hpke.DecryptURLValues(state.hpkePrivateKey, r.Form)
@@ -58,9 +64,14 @@ func (a *Authenticate) logAuthenticateEvent(r *http.Request, profile *identity.P
 		PubKey:      pub.String(),
 	}
 
-	if uid := getUserID(profile); uid != "" {
-		uid := getUserID(profile)
-		evt.UID = &uid
+	if uid := getUserClaim(profile, "sub"); uid != nil {
+		evt.UID = uid
+	}
+	if email := getUserClaim(profile, "email"); email != nil {
+		evt.Email = email
+	}
+
+	if evt.UID != nil {
 		evt.Event = AuthEventSignInComplete
 	} else {
 		evt.Event = AuthEventSignInRequest
@@ -71,17 +82,20 @@ func (a *Authenticate) logAuthenticateEvent(r *http.Request, profile *identity.P
 		evt.Domain = &domain
 	}
 
-	if a.cfg.authEventFn != nil {
-		a.cfg.authEventFn(ctx, evt)
-	}
+	a.cfg.authEventFn(ctx, evt)
 }
 
-func getUserID(profile *identity.Profile) string {
+func getUserClaim(profile *identity.Profile, field string) *string {
 	if profile == nil {
-		return ""
+		return nil
 	}
 	if profile.Claims == nil {
-		return ""
+		return nil
 	}
-	return profile.Claims.Fields["sub"].GetStringValue()
+	val, ok := profile.Claims.Fields[field]
+	if !ok || val == nil {
+		return nil
+	}
+	txt := val.GetStringValue()
+	return &txt
 }
