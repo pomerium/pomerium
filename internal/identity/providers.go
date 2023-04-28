@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/identity/oidc/auth0"
 	"github.com/pomerium/pomerium/internal/identity/oidc/azure"
+	"github.com/pomerium/pomerium/internal/identity/oidc/cognito"
 	"github.com/pomerium/pomerium/internal/identity/oidc/gitlab"
 	"github.com/pomerium/pomerium/internal/identity/oidc/google"
 	"github.com/pomerium/pomerium/internal/identity/oidc/okta"
@@ -58,6 +59,8 @@ func NewAuthenticator(o oauth.Options) (a Authenticator, err error) {
 		a, err = onelogin.New(ctx, &o)
 	case ping.Name:
 		a, err = ping.New(ctx, &o)
+	case cognito.Name:
+		a, err = cognito.New(ctx, &o)
 	case "":
 		return nil, fmt.Errorf("identity: provider is not defined")
 	default:
