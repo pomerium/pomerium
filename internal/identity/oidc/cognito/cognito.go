@@ -13,17 +13,15 @@ import (
 
 var defaultScopes = []string{"openid", "email", "profile"}
 
-const (
-	// Name identifies the Auth0 identity provider
-	Name = "cognito"
-)
+// Name identifies the Cognito identity provider
+const Name = "cognito"
 
 // Provider is an Cognito implementation of the Authenticator interface.
 type Provider struct {
 	*pom_oidc.Provider
 }
 
-// New instantiates an OpenID Connect (OIDC) provider for Auth0.
+// New instantiates an OpenID Connect (OIDC) provider for AWS Cognito.
 func New(ctx context.Context, opts *oauth.Options) (*Provider, error) {
 	var p Provider
 
