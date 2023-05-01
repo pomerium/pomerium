@@ -1,8 +1,6 @@
 package authenticate
 
 import (
-	"context"
-
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/identity"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
@@ -20,8 +18,6 @@ type Option func(*authenticateConfig)
 func getAuthenticateConfig(options ...Option) *authenticateConfig {
 	cfg := new(authenticateConfig)
 	WithGetIdentityProvider(defaultGetIdentityProvider)(cfg)
-	WithOnAuthenticationEventHook(func(_ context.Context, _ AuthEvent) {})(cfg)
-
 	for _, option := range options {
 		option(cfg)
 	}
