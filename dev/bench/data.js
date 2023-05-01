@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1682968826756,
+  "lastUpdate": 1682973089910,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -43196,6 +43196,42 @@ window.BENCHMARK_DATA = {
             "value": 8784097,
             "unit": "ns/op",
             "extra": "127 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "1544881+desimone@users.noreply.github.com",
+            "name": "bobby",
+            "username": "desimone"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "46b73582e596d4425fe77258283ab2486fea2624",
+          "message": "Update SECURITY.md (#4144)\n\nPlease see our security policy as described: https://www.pomerium.com/docs/internals/security",
+          "timestamp": "2023-05-01T15:17:50-04:00",
+          "tree_id": "c1c621b1fc52f298a601545a9ee40dfc8ff42b47",
+          "url": "https://github.com/pomerium/pomerium/commit/46b73582e596d4425fe77258283ab2486fea2624"
+        },
+        "date": 1682973089457,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14690877,
+            "unit": "ns/op",
+            "extra": "75 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9403170,
+            "unit": "ns/op",
+            "extra": "123 times\n2 procs"
           }
         ]
       }
