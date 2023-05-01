@@ -9,6 +9,7 @@ import (
 type authenticateConfig struct {
 	getIdentityProvider func(options *config.Options, idpID string) (identity.Authenticator, error)
 	profileTrimFn       func(*identitypb.Profile)
+	authEventFn         AuthEventFn
 }
 
 // An Option customizes the Authenticate config.
@@ -34,5 +35,12 @@ func WithGetIdentityProvider(getIdentityProvider func(options *config.Options, i
 func WithProfileTrimFn(profileTrimFn func(*identitypb.Profile)) Option {
 	return func(cfg *authenticateConfig) {
 		cfg.profileTrimFn = profileTrimFn
+	}
+}
+
+// WithOnAuthenticationEventHook sets the authEventFn function in the config
+func WithOnAuthenticationEventHook(fn AuthEventFn) Option {
+	return func(cfg *authenticateConfig) {
+		cfg.authEventFn = fn
 	}
 }
