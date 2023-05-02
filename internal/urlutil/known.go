@@ -40,6 +40,7 @@ func CallbackURL(
 	proxyPublicKey *hpke.PublicKey,
 	requestParams url.Values,
 	profile *identity.Profile,
+	encryptURLValues hpke.EncryptURLValuesFunc,
 ) (string, error) {
 	redirectURL, err := ParseAndValidateURL(requestParams.Get(QueryRedirectURI))
 	if err != nil {
@@ -76,7 +77,7 @@ func CallbackURL(
 
 	BuildTimeParameters(callbackParams, signInExpiry)
 
-	callbackParams, err = hpke.EncryptURLValues(authenticatePrivateKey, proxyPublicKey, callbackParams)
+	callbackParams, err = encryptURLValues(authenticatePrivateKey, proxyPublicKey, callbackParams)
 	if err != nil {
 		return "", fmt.Errorf("error encrypting callback params: %w", err)
 	}
@@ -115,7 +116,7 @@ func SignInURL(
 	q.Set(QueryVersion, versionStr())
 	q.Set(QueryRequestUUID, uuid.NewString())
 	BuildTimeParameters(q, signInExpiry)
-	q, err := hpke.EncryptURLValues(senderPrivateKey, authenticatePublicKey, q)
+	q, err := hpke.EncryptURLValuesV2(senderPrivateKey, authenticatePublicKey, q)
 	if err != nil {
 		return "", err
 	}

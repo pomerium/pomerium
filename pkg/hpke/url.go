@@ -18,27 +18,24 @@ const (
 
 // IsEncryptedURL returns true if the url.Values contain an HPKE encrypted query.
 func IsEncryptedURL(values url.Values) bool {
-	return isEncryptedURLV1(values) || isEncryptedURLV2(values)
+	return IsEncryptedURLV1(values) || IsEncryptedURLV2(values)
 }
 
-func isEncryptedURLV1(values url.Values) bool {
+// IsEncryptedURLV1 returns true if the url.Values contain a V1 HPKE encrypted query.
+func IsEncryptedURLV1(values url.Values) bool {
 	return values.Has(paramSenderPublicKey) && values.Has(paramQuery)
 }
 
-func isEncryptedURLV2(values url.Values) bool {
+// // IsEncryptedURLV2 returns true if the url.Values contains a V2 HPKE encrypted query.
+func IsEncryptedURLV2(values url.Values) bool {
 	return values.Has(paramSenderPublicKeyV2) && values.Has(paramQueryV2)
 }
 
-// EncryptURLValues encrypts URL values using the Seal method.
-func EncryptURLValues(
-	senderPrivateKey *PrivateKey,
-	receiverPublicKey *PublicKey,
-	values url.Values,
-) (encrypted url.Values, err error) {
-	return encryptURLValuesV2(senderPrivateKey, receiverPublicKey, values)
-}
+// An EncryptURLValuesFunc is a function that encrypts url values.
+type EncryptURLValuesFunc func(senderPrivateKey *PrivateKey, receiverPublicKey *PublicKey, values url.Values) (encrypted url.Values, err error)
 
-func encryptURLValuesV1(
+// EncryptURLValuesV1 encrypts URL values using the Seal method.
+func EncryptURLValuesV1(
 	senderPrivateKey *PrivateKey,
 	receiverPublicKey *PublicKey,
 	values url.Values,
@@ -58,7 +55,8 @@ func encryptURLValuesV1(
 	}, nil
 }
 
-func encryptURLValuesV2(
+// EncryptURLValuesV2 encrypts URL values using the Seal method and compresses the query string.
+func EncryptURLValuesV2(
 	senderPrivateKey *PrivateKey,
 	receiverPublicKey *PublicKey,
 	values url.Values,
@@ -85,7 +83,7 @@ func DecryptURLValues(
 ) (senderPublicKey *PublicKey, values url.Values, err error) {
 	var decrypted url.Values
 	switch {
-	case isEncryptedURLV1(encrypted):
+	case IsEncryptedURLV1(encrypted):
 		senderPublicKey, err = PublicKeyFromString(encrypted.Get(paramSenderPublicKey))
 		if err != nil {
 			return nil, nil, fmt.Errorf("hpke: invalid sender public key parameter: %w", err)
@@ -105,7 +103,7 @@ func DecryptURLValues(
 		if err != nil {
 			return nil, nil, fmt.Errorf("hpke: invalid query parameter: %w", err)
 		}
-	case isEncryptedURLV2(encrypted):
+	case IsEncryptedURLV2(encrypted):
 		senderPublicKey, err = PublicKeyFromString(encrypted.Get(paramSenderPublicKeyV2))
 		if err != nil {
 			return nil, nil, fmt.Errorf("hpke: invalid sender public key parameter: %w", err)

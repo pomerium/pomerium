@@ -20,7 +20,7 @@ func TestEncryptURLValues(t *testing.T) {
 	t.Run("v1", func(t *testing.T) {
 		t.Parallel()
 
-		encrypted, err := encryptURLValuesV1(k1, k2.PublicKey(), url.Values{
+		encrypted, err := EncryptURLValuesV1(k1, k2.PublicKey(), url.Values{
 			"a": {"b", "c"},
 			"x": {"y", "z"},
 		})
@@ -44,7 +44,7 @@ func TestEncryptURLValues(t *testing.T) {
 	t.Run("v2", func(t *testing.T) {
 		t.Parallel()
 
-		encrypted, err := encryptURLValuesV2(k1, k2.PublicKey(), url.Values{
+		encrypted, err := EncryptURLValuesV2(k1, k2.PublicKey(), url.Values{
 			"a": {"b", "c"},
 			"x": {"y", "z"},
 		})
@@ -69,7 +69,7 @@ func TestEncryptURLValues(t *testing.T) {
 	t.Run("compresses", func(t *testing.T) {
 		t.Parallel()
 
-		encrypted, err := EncryptURLValues(k1, k2.PublicKey(), url.Values{
+		encrypted, err := EncryptURLValuesV2(k1, k2.PublicKey(), url.Values{
 			"a": {strings.Repeat("b", 1024*128)},
 		})
 		assert.NoError(t, err)
