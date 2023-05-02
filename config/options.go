@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -21,10 +22,12 @@ import (
 	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/types/known/durationpb"
 
+	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
+	"github.com/pomerium/pomerium/internal/identity/oauth/apple"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sets"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -135,6 +138,7 @@ type Options struct {
 	CookieSecure     bool          `mapstructure:"cookie_secure" yaml:"cookie_secure,omitempty"`
 	CookieHTTPOnly   bool          `mapstructure:"cookie_http_only" yaml:"cookie_http_only,omitempty"`
 	CookieExpire     time.Duration `mapstructure:"cookie_expire" yaml:"cookie_expire,omitempty"`
+	CookieSameSite   string        `mapstructure:"cookie_same_site" yaml:"cookie_same_site,omitempty"`
 
 	// Identity provider configuration variables as specified by RFC6749
 	// https://openid.net/specs/openid-connect-basic-1_0.html#RFC6749
@@ -732,6 +736,10 @@ func (o *Options) Validate() error {
 		return err
 	}
 
+	if err := ValidateCookieSameSite(o.CookieSameSite); err != nil {
+		return fmt.Errorf("config: invalid cookie_same_site: %w", err)
+	}
+
 	return nil
 }
 
@@ -1168,6 +1176,41 @@ func (o *Options) GetCookieSecret() ([]byte, error) {
 	return base64.StdEncoding.DecodeString(cookieSecret)
 }
 
+// GetCookieSameSite gets the cookie same site option.
+func (o *Options) GetCookieSameSite() http.SameSite {
+	str := strings.ToLower(o.CookieSameSite)
+	switch str {
+	case "strict":
+		return http.SameSiteStrictMode
+	case "lax":
+		return http.SameSiteLaxMode
+	case "none":
+		return http.SameSiteNoneMode
+	}
+	return http.SameSiteDefaultMode
+}
+
+// GetCSRFSameSite gets the csrf same site option.
+func (o *Options) GetCSRFSameSite() csrf.SameSiteMode {
+	if o.Provider == apple.Name {
+		// csrf.SameSiteLaxMode will cause browsers to reset
+		// the session on POST. This breaks Appleid being able
+		// to verify the csrf token.
+		return csrf.SameSiteNoneMode
+	}
+
+	str := strings.ToLower(o.CookieSameSite)
+	switch str {
+	case "strict":
+		return csrf.SameSiteStrictMode
+	case "lax":
+		return csrf.SameSiteLaxMode
+	case "none":
+		return csrf.SameSiteNoneMode
+	}
+	return csrf.SameSiteDefaultMode
+}
+
 // GetSigningKey gets the signing key.
 func (o *Options) GetSigningKey() ([]byte, error) {
 	if o == nil {
@@ -1190,6 +1233,18 @@ func (o *Options) GetSigningKey() ([]byte, error) {
 	}
 
 	return []byte(rawSigningKey), nil
+}
+
+// NewCookie creates a new Cookie.
+func (o *Options) NewCookie() *http.Cookie {
+	return &http.Cookie{
+		Name:     o.CookieName,
+		Domain:   o.CookieDomain,
+		Expires:  time.Now().Add(o.CookieExpire),
+		Secure:   o.CookieSecure,
+		SameSite: o.GetCookieSameSite(),
+		HttpOnly: o.CookieHTTPOnly,
+	}
 }
 
 // Checksum returns the checksum of the current options struct
@@ -1280,6 +1335,7 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	set(&o.CookieSecure, settings.CookieSecure)
 	set(&o.CookieHTTPOnly, settings.CookieHttpOnly)
 	setDuration(&o.CookieExpire, settings.CookieExpire)
+	set(&o.CookieSameSite, settings.CookieSameSite)
 	set(&o.ClientID, settings.IdpClientId)
 	set(&o.ClientSecret, settings.IdpClientSecret)
 	set(&o.Provider, settings.IdpProvider)

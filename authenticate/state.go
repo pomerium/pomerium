@@ -101,6 +101,7 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 			Secure:   cfg.Options.CookieSecure,
 			HTTPOnly: cfg.Options.CookieHTTPOnly,
 			Expire:   cfg.Options.CookieExpire,
+			SameSite: cfg.Options.GetCookieSameSite(),
 		}
 	}, state.sharedEncoder)
 	if err != nil {

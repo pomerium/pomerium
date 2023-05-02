@@ -98,6 +98,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 			Secure:   cfg.Options.CookieSecure,
 			HTTPOnly: cfg.Options.CookieHTTPOnly,
 			Expire:   cfg.Options.CookieExpire,
+			SameSite: cfg.Options.GetCookieSameSite(),
 		}
 	}, state.encoder)
 	if err != nil {
