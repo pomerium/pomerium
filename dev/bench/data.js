@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683043577612,
+  "lastUpdate": 1683058493157,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -43472,6 +43472,42 @@ window.BENCHMARK_DATA = {
             "value": 10100919,
             "unit": "ns/op",
             "extra": "124 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "facf9ab0937bdb6bf1e868971c39c42e2e96d1cf",
+          "message": "hpke: compress query string (#4147)\n\n* hpke: compress query string\r\n\r\n* only use v2 in authenticate if v2 was used for the initial request\r\n\r\n* fix comment",
+          "timestamp": "2023-05-02T14:12:34-06:00",
+          "tree_id": "f437283eea540bdc1c5b7724d4123e50bcf79177",
+          "url": "https://github.com/pomerium/pomerium/commit/facf9ab0937bdb6bf1e868971c39c42e2e96d1cf"
+        },
+        "date": 1683058492715,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13446588,
+            "unit": "ns/op",
+            "extra": "88 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8822207,
+            "unit": "ns/op",
+            "extra": "135 times\n2 procs"
           }
         ]
       }
