@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683000563423,
+  "lastUpdate": 1683036678549,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -43372,6 +43372,42 @@ window.BENCHMARK_DATA = {
             "value": 8321793,
             "unit": "ns/op",
             "extra": "139 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "1544881+desimone@users.noreply.github.com",
+            "name": "bobby",
+            "username": "desimone"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "69713d38af67ce1dc042c6a04348994dc8bda748",
+          "message": "Update README.md (#4146)",
+          "timestamp": "2023-05-02T08:08:49-06:00",
+          "tree_id": "c9fa4f5f43ef87b281a71e9212bbe99184199281",
+          "url": "https://github.com/pomerium/pomerium/commit/69713d38af67ce1dc042c6a04348994dc8bda748"
+        },
+        "date": 1683036677984,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16049848,
+            "unit": "ns/op",
+            "extra": "64 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10571634,
+            "unit": "ns/op",
+            "extra": "114 times\n2 procs"
           }
         ]
       }
