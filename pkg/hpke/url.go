@@ -26,7 +26,7 @@ func IsEncryptedURLV1(values url.Values) bool {
 	return values.Has(paramSenderPublicKey) && values.Has(paramQuery)
 }
 
-// // IsEncryptedURLV2 returns true if the url.Values contains a V2 HPKE encrypted query.
+// IsEncryptedURLV2 returns true if the url.Values contains a V2 HPKE encrypted query.
 func IsEncryptedURLV2(values url.Values) bool {
 	return values.Has(paramSenderPublicKeyV2) && values.Has(paramQueryV2)
 }
