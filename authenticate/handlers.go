@@ -218,7 +218,12 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	a.logAuthenticateEvent(r, profile)
 
-	redirectTo, err := urlutil.CallbackURL(state.hpkePrivateKey, proxyPublicKey, requestParams, profile)
+	encryptURLValues := hpke.EncryptURLValuesV1
+	if hpke.IsEncryptedURLV2(r.Form) {
+		encryptURLValues = hpke.EncryptURLValuesV2
+	}
+
+	redirectTo, err := urlutil.CallbackURL(state.hpkePrivateKey, proxyPublicKey, requestParams, profile, encryptURLValues)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}

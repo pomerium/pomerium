@@ -23,7 +23,7 @@ func TestCallbackURL(t *testing.T) {
 		QueryRedirectURI: {"https://redirect.example.com"},
 	}, &identity.Profile{
 		ProviderId: "IDP-1",
-	})
+	}, hpke.EncryptURLValuesV1)
 	require.NoError(t, err)
 
 	signInURL, err := ParseAndValidateURL(rawSignInURL)
