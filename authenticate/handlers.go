@@ -20,7 +20,6 @@ import (
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
-	"github.com/pomerium/pomerium/internal/identity/oauth/apple"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -57,17 +56,8 @@ func (a *Authenticate) Mount(r *mux.Router) {
 			csrf.CookieName(csrfKey),
 			csrf.FieldName(csrfKey),
 			csrf.ErrorHandler(httputil.HandlerFunc(httputil.CSRFFailureHandler)),
+			csrf.SameSite(options.GetCSRFSameSite()),
 		}
-
-		if options.Provider == apple.Name {
-			// csrf.SameSiteLaxMode will cause browsers to reset
-			// the session on POST. This breaks Appleid being able
-			// to verify the csrf token.
-			csrfOptions = append(csrfOptions, csrf.SameSite(csrf.SameSiteNoneMode))
-		} else {
-			csrfOptions = append(csrfOptions, csrf.SameSite(csrf.SameSiteLaxMode))
-		}
-
 		return csrf.Protect(state.cookieSecret, csrfOptions...)(h)
 	})
 
@@ -153,7 +143,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
-		_, err = loadIdentityProfile(r, state.cookieCipher)
+		_, err = a.loadIdentityProfile(r, state.cookieCipher)
 		if err != nil {
 			log.FromRequest(r).Info().
 				Err(err).
@@ -207,7 +197,7 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
 
-	profile, err := loadIdentityProfile(r, state.cookieCipher)
+	profile, err := a.loadIdentityProfile(r, state.cookieCipher)
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
@@ -453,7 +443,7 @@ Or contact your administrator.
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, err)
 	}
-	storeIdentityProfile(w, state.cookieCipher, profile)
+	a.storeIdentityProfile(w, state.cookieCipher, profile)
 
 	// ...  and the user state to local storage.
 	if err := state.sessionStore.SaveSession(w, r, &newState); err != nil {
@@ -482,15 +472,18 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 	r = r.WithContext(ctx)
 	r = a.getExternalRequest(r)
 
+	options := a.options.Load()
+
 	// if we came in with a redirect URI, save it to a cookie so it doesn't expire with the HMAC
 	if redirectURI := r.FormValue(urlutil.QueryRedirectURI); redirectURI != "" {
 		u := urlutil.GetAbsoluteURL(r)
 		u.RawQuery = ""
 
-		http.SetCookie(w, &http.Cookie{
-			Name:  urlutil.QueryRedirectURI,
-			Value: redirectURI,
-		})
+		cookie := options.NewCookie()
+		cookie.Name = urlutil.QueryRedirectURI
+		cookie.Value = redirectURI
+
+		http.SetCookie(w, cookie)
 		http.Redirect(w, r, u.String(), http.StatusFound)
 		return nil
 	}
@@ -512,7 +505,7 @@ func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, 
 		s.ID = uuid.New().String()
 	}
 
-	profile, _ := loadIdentityProfile(r, state.cookieCipher)
+	profile, _ := a.loadIdentityProfile(r, state.cookieCipher)
 
 	data := handlers.UserInfoData{
 		CSRFToken: csrf.Token(r),
@@ -540,7 +533,7 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 		return ""
 	}
 
-	profile, err := loadIdentityProfile(r, a.state.Load().cookieCipher)
+	profile, err := a.loadIdentityProfile(r, a.state.Load().cookieCipher)
 	if err != nil {
 		return ""
 	}

@@ -43,6 +43,7 @@ func NewSessionStore(options *Options) (*SessionStore, error) {
 			Secure:   options.CookieSecure,
 			HTTPOnly: options.CookieHTTPOnly,
 			Expire:   options.CookieExpire,
+			SameSite: options.GetCookieSameSite(),
 		}
 	}, store.encoder)
 	if err != nil {

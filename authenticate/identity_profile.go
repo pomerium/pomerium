@@ -61,7 +61,7 @@ func (a *Authenticate) buildIdentityProfile(
 	}, nil
 }
 
-func loadIdentityProfile(r *http.Request, aead cipher.AEAD) (*identitypb.Profile, error) {
+func (a *Authenticate) loadIdentityProfile(r *http.Request, aead cipher.AEAD) (*identitypb.Profile, error) {
 	cookie, err := cookieChunker.LoadCookie(r, urlutil.QueryIdentityProfile)
 	if err != nil {
 		return nil, fmt.Errorf("authenticate: error loading identity profile cookie: %w", err)
@@ -85,17 +85,19 @@ func loadIdentityProfile(r *http.Request, aead cipher.AEAD) (*identitypb.Profile
 	return &profile, nil
 }
 
-func storeIdentityProfile(w http.ResponseWriter, aead cipher.AEAD, profile *identitypb.Profile) {
+func (a *Authenticate) storeIdentityProfile(w http.ResponseWriter, aead cipher.AEAD, profile *identitypb.Profile) {
+	options := a.options.Load()
+
 	decrypted, err := protojson.Marshal(profile)
 	if err != nil {
 		// this shouldn't happen
 		panic(fmt.Errorf("error marshaling message: %w", err))
 	}
 	encrypted := cryptutil.Encrypt(aead, decrypted, nil)
-	err = cookieChunker.SetCookie(w, &http.Cookie{
-		Name:  urlutil.QueryIdentityProfile,
-		Value: base64.RawURLEncoding.EncodeToString(encrypted),
-		Path:  "/",
-	})
+	cookie := options.NewCookie()
+	cookie.Name = urlutil.QueryIdentityProfile
+	cookie.Value = base64.RawURLEncoding.EncodeToString(encrypted)
+	cookie.Path = "/"
+	err = cookieChunker.SetCookie(w, cookie)
 	log.Error(context.Background()).Err(err).Send()
 }

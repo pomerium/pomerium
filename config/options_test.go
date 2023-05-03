@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -19,6 +20,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pomerium/csrf"
+	"github.com/pomerium/pomerium/internal/identity/oauth/apple"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
 )
@@ -909,6 +912,63 @@ func TestOptions_GetCookieSecret(t *testing.T) {
 		_, err := o.GetCookieSecret()
 		assert.Error(t, err)
 	})
+}
+
+func TestOptions_GetCookieSameSite(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		input    string
+		expected http.SameSite
+	}{
+		{"", http.SameSiteDefaultMode},
+		{"Lax", http.SameSiteLaxMode},
+		{"lax", http.SameSiteLaxMode},
+		{"Strict", http.SameSiteStrictMode},
+		{"strict", http.SameSiteStrictMode},
+		{"None", http.SameSiteNoneMode},
+		{"none", http.SameSiteNoneMode},
+		{"UnKnOwN", http.SameSiteDefaultMode},
+	} {
+		tc := tc
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+
+			o := NewDefaultOptions()
+			o.CookieSameSite = tc.input
+			assert.Equal(t, tc.expected, o.GetCookieSameSite())
+		})
+	}
+}
+
+func TestOptions_GetCSRFSameSite(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		cookieSameSite string
+		provider       string
+		expected       csrf.SameSiteMode
+	}{
+		{"", "", csrf.SameSiteDefaultMode},
+		{"Lax", "", csrf.SameSiteLaxMode},
+		{"lax", "", csrf.SameSiteLaxMode},
+		{"Strict", "", csrf.SameSiteStrictMode},
+		{"strict", "", csrf.SameSiteStrictMode},
+		{"None", "", csrf.SameSiteNoneMode},
+		{"none", "", csrf.SameSiteNoneMode},
+		{"UnKnOwN", "", csrf.SameSiteDefaultMode},
+		{"", apple.Name, csrf.SameSiteNoneMode},
+	} {
+		tc := tc
+		t.Run(tc.cookieSameSite, func(t *testing.T) {
+			t.Parallel()
+
+			o := NewDefaultOptions()
+			o.CookieSameSite = tc.cookieSameSite
+			o.Provider = tc.provider
+			assert.Equal(t, tc.expected, o.GetCSRFSameSite())
+		})
+	}
 }
 
 func encodeCert(cert *tls.Certificate) []byte {
