@@ -531,6 +531,19 @@ func (b *Builder) buildDownstreamValidationContext(
 	ctx context.Context,
 	cfg *config.Config,
 ) *envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext {
+	needsClientCert := false
+	if ca, _ := cfg.Options.GetClientCA(); len(ca) > 0 {
+		needsClientCert = true
+	}
+	for _, p := range cfg.Options.GetAllPolicies() {
+		if p.TLSDownstreamClientCA != "" || p.TLSDownstreamClientCAFile != "" {
+			needsClientCert = true
+		}
+	}
+	if !needsClientCert {
+		return nil
+	}
+
 	// trusted_ca is left blank because we verify the client certificate in the authorize service
 	vc := &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
 		ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
