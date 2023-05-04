@@ -89,10 +89,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 					],
 					"tlsMinimumProtocolVersion": "TLSv1_2"
 				},
-				"alpnProtocols": ["h2", "http/1.1"],
-				"validationContext": {
-					"trustChainVerification": "ACCEPT_UNTRUSTED"
-				}
+				"alpnProtocols": ["h2", "http/1.1"]
 			}
 		}`, downstreamTLSContext)
 	})
@@ -173,10 +170,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 					],
 					"tlsMinimumProtocolVersion": "TLSv1_2"
 				},
-				"alpnProtocols": ["http/1.1"],
-				"validationContext": {
-					"trustChainVerification": "ACCEPT_UNTRUSTED"
-				}
+				"alpnProtocols": ["http/1.1"]
 			}
 		}`, downstreamTLSContext)
 	})
@@ -201,10 +195,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 					],
 					"tlsMinimumProtocolVersion": "TLSv1_2"
 				},
-				"alpnProtocols": ["h2"],
-				"validationContext": {
-					"trustChainVerification": "ACCEPT_UNTRUSTED"
-				}
+				"alpnProtocols": ["h2"]
 			}
 		}`, downstreamTLSContext)
 	})
