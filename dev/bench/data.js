@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683146341223,
+  "lastUpdate": 1683233515860,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -43576,6 +43576,38 @@ window.BENCHMARK_DATA = {
             "value": 8598617,
             "unit": "ns/op",
             "extra": "134 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "26ac7069acf0834bc3277da49fe1c9c3369d56b4",
+          "message": "envoyconfig: disable validation context when no client certificates are required",
+          "timestamp": "2023-05-04T14:35:54Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4151/commits/26ac7069acf0834bc3277da49fe1c9c3369d56b4"
+        },
+        "date": 1683233515145,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16167133,
+            "unit": "ns/op",
+            "extra": "72 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10375844,
+            "unit": "ns/op",
+            "extra": "116 times\n2 procs"
           }
         ]
       }
