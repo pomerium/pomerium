@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683564023214,
+  "lastUpdate": 1683564046285,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -44180,6 +44180,42 @@ window.BENCHMARK_DATA = {
             "value": 8354523,
             "unit": "ns/op",
             "extra": "139 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1f371ed77d0b79e8d3106fea52e6edb8535b1d8d",
+          "message": "chore(deps): bump github.com/cenkalti/backoff/v4 from 4.2.0 to 4.2.1 (#4156)\n\nBumps [github.com/cenkalti/backoff/v4](https://github.com/cenkalti/backoff) from 4.2.0 to 4.2.1.\r\n- [Commits](https://github.com/cenkalti/backoff/compare/v4.2.0...v4.2.1)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/cenkalti/backoff/v4\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-05-08T10:35:31-06:00",
+          "tree_id": "98e71c756006bdceae47c49476ff40b082b4c945",
+          "url": "https://github.com/pomerium/pomerium/commit/1f371ed77d0b79e8d3106fea52e6edb8535b1d8d"
+        },
+        "date": 1683564045017,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 19830546,
+            "unit": "ns/op",
+            "extra": "58 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12532647,
+            "unit": "ns/op",
+            "extra": "86 times\n2 procs"
           }
         ]
       }
