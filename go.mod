@@ -18,7 +18,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.5.0
 	github.com/docker/docker v23.0.5+incompatible
 	github.com/envoyproxy/go-control-plane v0.11.0
-	github.com/envoyproxy/protoc-gen-validate v0.10.1
+	github.com/envoyproxy/protoc-gen-validate v1.0.0
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/go-jose/go-jose/v3 v3.0.0
@@ -100,7 +100,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/lib/pq v1.10.7 // indirect
-	github.com/lyft/protoc-gen-star/v2 v2.0.1 // indirect
+	github.com/lyft/protoc-gen-star/v2 v2.0.3 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -197,10 +197,10 @@ require (
 	go.uber.org/goleak v1.2.1 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
-	golang.org/x/mod v0.9.0 // indirect
+	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/sys v0.7.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
-	golang.org/x/tools v0.7.0 // indirect
+	golang.org/x/tools v0.8.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/DataDog/dd-trace-go.v1 v1.22.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
