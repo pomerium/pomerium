@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683236143232,
+  "lastUpdate": 1683562249076,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -43676,6 +43676,38 @@ window.BENCHMARK_DATA = {
             "value": 11894988,
             "unit": "ns/op",
             "extra": "93 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "9261d55b44cef6f4159e7e72525d0b0efb791026",
+          "message": "chore(deps): bump github.com/cenkalti/backoff/v4 from 4.2.0 to 4.2.1",
+          "timestamp": "2023-05-08T10:49:14Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4156/commits/9261d55b44cef6f4159e7e72525d0b0efb791026"
+        },
+        "date": 1683562248375,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13858021,
+            "unit": "ns/op",
+            "extra": "81 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8874167,
+            "unit": "ns/op",
+            "extra": "134 times\n2 procs"
           }
         ]
       }
