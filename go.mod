@@ -127,7 +127,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.18.21
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
-	github.com/cloudflare/circl v1.3.2
+	github.com/cloudflare/circl v1.3.3
 	github.com/cncf/xds/go v0.0.0-20230105202645-06c439db220b // indirect
 	github.com/containerd/continuity v0.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
