@@ -2,9 +2,12 @@ package config
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
@@ -62,5 +65,30 @@ func TestConfig_GetCertificateForServerName(t *testing.T) {
 			return
 		}
 		assert.NotNil(t, found)
+	})
+	t.Run("generate for specific name", func(t *testing.T) {
+		cfg := &Config{Options: NewDefaultOptions()}
+		cfg.Options.DeriveInternalDomainCert = proto.String("databroker.int.example.com")
+
+		ok, err := cfg.WillHaveCertificateForServerName("databroker.int.example.com")
+		require.NoError(t, err)
+		assert.True(t, ok)
+
+		found, err := cfg.GetCertificateForServerName("databroker.int.example.com")
+		require.NoError(t, err)
+		assert.True(t, cryptutil.MatchesServerName(found, "databroker.int.example.com"))
+
+		certPool, err := cfg.GetCertificatePool()
+		require.NoError(t, err)
+
+		xc, err := x509.ParseCertificate(found.Certificate[0])
+		require.NoError(t, err)
+
+		_, err = xc.Verify(x509.VerifyOptions{
+			DNSName:   "databroker.int.example.com",
+			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+			Roots:     certPool,
+		})
+		require.NoError(t, err)
 	})
 }
