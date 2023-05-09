@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683668215117,
+  "lastUpdate": 1683668310701,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -44684,6 +44684,42 @@ window.BENCHMARK_DATA = {
             "value": 14472371,
             "unit": "ns/op",
             "extra": "74 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "31a65441d07c8e69ac42ab9ac528a2985d49e41b",
+          "message": "chore(deps): bump golang.org/x/sync from 0.1.0 to 0.2.0 (#4163)\n\nBumps [golang.org/x/sync](https://github.com/golang/sync) from 0.1.0 to 0.2.0.\r\n- [Commits](https://github.com/golang/sync/compare/v0.1.0...v0.2.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golang.org/x/sync\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-05-09T15:32:46-06:00",
+          "tree_id": "3b36a3f02058e6cd7668add1fc42177fbffabf52",
+          "url": "https://github.com/pomerium/pomerium/commit/31a65441d07c8e69ac42ab9ac528a2985d49e41b"
+        },
+        "date": 1683668309964,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16447410,
+            "unit": "ns/op",
+            "extra": "76 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10428169,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
