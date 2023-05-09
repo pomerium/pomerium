@@ -740,7 +740,7 @@ func (o *Options) GetDeriveInternalDomain() string {
 	if o.DeriveInternalDomainCert == nil {
 		return ""
 	}
-	return *o.DeriveInternalDomainCert
+	return strings.ToLower(*o.DeriveInternalDomainCert)
 }
 
 // GetAuthenticateURL returns the AuthenticateURL in the options or 127.0.0.1.
