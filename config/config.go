@@ -213,7 +213,7 @@ func (cfg *Config) WillHaveCertificateForServerName(serverName string) (bool, er
 		}
 	}
 
-	return cfg.Options.DeriveInternalDomainCert != nil, nil
+	return cfg.Options.GetDeriveInternalDomain() == serverName, nil
 }
 
 // GetCertificatePool gets the certificate pool for the config.
