@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684172083489,
+  "lastUpdate": 1684173926391,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -45416,6 +45416,42 @@ window.BENCHMARK_DATA = {
             "value": 10313226,
             "unit": "ns/op",
             "extra": "126 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "43b414de338b4f8f5519e0c051913fed6a57fb83",
+          "message": "chore(deps): bump golang.org/x/oauth2 from 0.7.0 to 0.8.0 (#4178)\n\nBumps [golang.org/x/oauth2](https://github.com/golang/oauth2) from 0.7.0 to 0.8.0.\r\n- [Commits](https://github.com/golang/oauth2/compare/v0.7.0...v0.8.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golang.org/x/oauth2\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-05-15T14:02:23-04:00",
+          "tree_id": "80fe2995e854ea06a28ec1929e429d1e48d5b061",
+          "url": "https://github.com/pomerium/pomerium/commit/43b414de338b4f8f5519e0c051913fed6a57fb83"
+        },
+        "date": 1684173925524,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17022024,
+            "unit": "ns/op",
+            "extra": "73 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10645477,
+            "unit": "ns/op",
+            "extra": "98 times\n2 procs"
           }
         ]
       }
