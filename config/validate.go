@@ -42,6 +42,16 @@ func ValidateDNSLookupFamily(value string) error {
 	return fmt.Errorf("unknown dns_lookup_family: %s, known families are: %s", value, strings.Join(AllDNSLookupFamilies, ", "))
 }
 
+// ValidateCookieSameSite validates the cookie same site option.
+func ValidateCookieSameSite(value string) error {
+	value = strings.ToLower(value)
+	switch value {
+	case "", "strict", "lax", "none":
+		return nil
+	}
+	return fmt.Errorf("unknown cookie_same_site: %s", value)
+}
+
 // GetEnvoyDNSLookupFamily gets the envoy DNS lookup family.
 func GetEnvoyDNSLookupFamily(value string) envoy_config_cluster_v3.Cluster_DnsLookupFamily {
 	switch value {
