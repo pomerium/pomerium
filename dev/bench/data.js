@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684171899601,
+  "lastUpdate": 1684172012329,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -45348,6 +45348,42 @@ window.BENCHMARK_DATA = {
             "value": 8903102,
             "unit": "ns/op",
             "extra": "133 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d9d26005a2e360ffb48ecf029edd647a09b78b1c",
+          "message": "chore(deps): bump golang.org/x/net from 0.9.0 to 0.10.0 (#4174)\n\nBumps [golang.org/x/net](https://github.com/golang/net) from 0.9.0 to 0.10.0.\r\n- [Commits](https://github.com/golang/net/compare/v0.9.0...v0.10.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golang.org/x/net\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-05-15T13:30:41-04:00",
+          "tree_id": "270cd265cf6b5301a7bf932e6111da0ad051705a",
+          "url": "https://github.com/pomerium/pomerium/commit/d9d26005a2e360ffb48ecf029edd647a09b78b1c"
+        },
+        "date": 1684172011544,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15325079,
+            "unit": "ns/op",
+            "extra": "75 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10056894,
+            "unit": "ns/op",
+            "extra": "122 times\n2 procs"
           }
         ]
       }
