@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684185093410,
+  "lastUpdate": 1684186740460,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -45488,6 +45488,38 @@ window.BENCHMARK_DATA = {
             "value": 10345767,
             "unit": "ns/op",
             "extra": "120 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "781efe82b41697747b42c17216ca39d683dba170",
+          "message": "authenticate: add aws cognito",
+          "timestamp": "2023-05-15T00:28:52Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4137/commits/781efe82b41697747b42c17216ca39d683dba170"
+        },
+        "date": 1684186739561,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 20731895,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12815928,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
