@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684254655898,
+  "lastUpdate": 1684266342141,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -45588,6 +45588,38 @@ window.BENCHMARK_DATA = {
             "value": 10128558,
             "unit": "ns/op",
             "extra": "121 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "d5f92d9dbf24d79e7bbd274065346b5bc967d5e7",
+          "message": "fix lint warning in pkg/envoy",
+          "timestamp": "2023-05-16T09:15:24Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4181/commits/d5f92d9dbf24d79e7bbd274065346b5bc967d5e7"
+        },
+        "date": 1684266341731,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13955044,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9701586,
+            "unit": "ns/op",
+            "extra": "130 times\n2 procs"
           }
         ]
       }
