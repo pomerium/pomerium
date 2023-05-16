@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684247122380,
+  "lastUpdate": 1684254655898,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -45552,6 +45552,42 @@ window.BENCHMARK_DATA = {
             "value": 10691742,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2db2d66ebae846ddf188afda7b677bd5d95e6d39",
+          "message": "authenticate: add aws cognito (#4137)",
+          "timestamp": "2023-05-16T12:28:12-04:00",
+          "tree_id": "c16e982704a838941f5cf2a6a27c722b77243ea0",
+          "url": "https://github.com/pomerium/pomerium/commit/2db2d66ebae846ddf188afda7b677bd5d95e6d39"
+        },
+        "date": 1684254655169,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15957528,
+            "unit": "ns/op",
+            "extra": "72 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10128558,
+            "unit": "ns/op",
+            "extra": "121 times\n2 procs"
           }
         ]
       }
