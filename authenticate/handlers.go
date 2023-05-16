@@ -271,7 +271,7 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 
 	endSessionURL, err := authenticator.LogOut()
 	if err == nil && redirectString != "" {
-		params := url.Values{}
+		params := endSessionURL.Query()
 		params.Add("id_token_hint", rawIDToken)
 		params.Add("post_logout_redirect_uri", redirectString)
 		endSessionURL.RawQuery = params.Encode()
