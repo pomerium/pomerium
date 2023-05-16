@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684266342141,
+  "lastUpdate": 1684270840010,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -45620,6 +45620,42 @@ window.BENCHMARK_DATA = {
             "value": 9701586,
             "unit": "ns/op",
             "extra": "130 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "79beb86924aa4b597319221188c9a2b8c702bcc4",
+          "message": "fix lint warning in pkg/envoy (#4181)\n\nRename unused 'ctx' parameter to '_'.",
+          "timestamp": "2023-05-16T13:58:00-07:00",
+          "tree_id": "c6bb09724020c7701517c27b1a77aa44bda65f5d",
+          "url": "https://github.com/pomerium/pomerium/commit/79beb86924aa4b597319221188c9a2b8c702bcc4"
+        },
+        "date": 1684270839414,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14602516,
+            "unit": "ns/op",
+            "extra": "81 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8546324,
+            "unit": "ns/op",
+            "extra": "144 times\n2 procs"
           }
         ]
       }
