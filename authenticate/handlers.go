@@ -270,23 +270,20 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 	}
 
 	endSessionURL, err := authenticator.LogOut()
-	if err != nil {
-		if !errors.Is(err, oidc.ErrSignoutNotImplemented) {
-			log.Warn(r.Context()).Err(err).Msg("authenticator.LogOut")
-		}
-		return httputil.NewError(http.StatusOK, errors.New("user logged out"))
-	}
-
-	if redirectString != "" {
-		params := url.Values{}
+	if err == nil && redirectString != "" {
+		params := endSessionURL.Query()
 		params.Add("id_token_hint", rawIDToken)
 		params.Add("post_logout_redirect_uri", redirectString)
 		endSessionURL.RawQuery = params.Encode()
+		redirectString = endSessionURL.String()
+	} else if err != nil && !errors.Is(err, oidc.ErrSignoutNotImplemented) {
+		log.Warn(r.Context()).Err(err).Msg("authenticate.SignOut: failed getting session")
 	}
-	redirectString = endSessionURL.String()
-
-	httputil.Redirect(w, r, redirectString, http.StatusFound)
-	return nil
+	if redirectString != "" {
+		httputil.Redirect(w, r, redirectString, http.StatusFound)
+		return nil
+	}
+	return httputil.NewError(http.StatusOK, errors.New("user logged out"))
 }
 
 // reauthenticateOrFail starts the authenticate process by redirecting the
