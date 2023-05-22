@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684774998398,
+  "lastUpdate": 1684775004776,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -45788,6 +45788,38 @@ window.BENCHMARK_DATA = {
             "value": 8922186,
             "unit": "ns/op",
             "extra": "139 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "9ae2904b10f11ac3562875bf4fc5e56e38655941",
+          "message": "chore(deps): bump github.com/mholt/acmez from 1.1.0 to 1.1.1",
+          "timestamp": "2023-05-20T06:59:13Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4184/commits/9ae2904b10f11ac3562875bf4fc5e56e38655941"
+        },
+        "date": 1684775003879,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14439052,
+            "unit": "ns/op",
+            "extra": "86 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9763311,
+            "unit": "ns/op",
+            "extra": "120 times\n2 procs"
           }
         ]
       }
