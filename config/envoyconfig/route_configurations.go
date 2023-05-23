@@ -78,7 +78,7 @@ func (b *Builder) buildMainRouteConfiguration(
 
 		// if we're the proxy, add all the policy routes
 		if config.IsProxy(cfg.Options.Services) {
-			rs, err := b.buildRoutesForPoliciesWithHost(cfg, host)
+			rs, err := b.buildRoutesForPoliciesWithHost(cfg, certs, host)
 			if err != nil {
 				return nil, err
 			}
@@ -95,7 +95,7 @@ func (b *Builder) buildMainRouteConfiguration(
 		return nil, err
 	}
 	if config.IsProxy(cfg.Options.Services) {
-		rs, err := b.buildRoutesForPoliciesWithCatchAll(cfg)
+		rs, err := b.buildRoutesForPoliciesWithCatchAll(cfg, certs)
 		if err != nil {
 			return nil, err
 		}
