@@ -2,8 +2,11 @@ package databroker
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
+
+	"golang.org/x/exp/maps"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -92,8 +95,13 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 
 	var additionalPolicies []config.Policy
 
+	ids := maps.Keys(src.dbConfigs)
+	sort.Strings(ids)
+
 	// add all the config policies to the list
-	for id, cfgpb := range src.dbConfigs {
+	for _, id := range ids {
+		cfgpb := src.dbConfigs[id]
+
 		cfg.Options.ApplySettings(ctx, cfgpb.Settings)
 		var errCount uint64
 
