@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684851792125,
+  "lastUpdate": 1684852747873,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -46052,6 +46052,42 @@ window.BENCHMARK_DATA = {
             "value": 8617314,
             "unit": "ns/op",
             "extra": "139 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "083dbea3923c9feb5dd9987ef319829d10a01f36",
+          "message": "envoy: set re2 limits very high (#4187)\n\n* envoy: set re2 limits very high\r\n\r\n* fix test",
+          "timestamp": "2023-05-23T08:36:17-06:00",
+          "tree_id": "9c8349ca70d2fe5f0df1c231b0d6aac3a4cb51ad",
+          "url": "https://github.com/pomerium/pomerium/commit/083dbea3923c9feb5dd9987ef319829d10a01f36"
+        },
+        "date": 1684852747143,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15309901,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10937360,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
