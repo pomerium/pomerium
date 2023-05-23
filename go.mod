@@ -61,7 +61,7 @@ require (
 	github.com/yuin/gopher-lua v1.1.0
 	go.opencensus.io v0.24.0
 	go.uber.org/zap v1.24.0
-	golang.org/x/crypto v0.8.0
+	golang.org/x/crypto v0.9.0
 	golang.org/x/exp v0.0.0-20220930202632-ec3f01382ef9
 	golang.org/x/net v0.10.0
 	golang.org/x/oauth2 v0.8.0
