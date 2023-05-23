@@ -45,8 +45,10 @@ func TestBuilder_BuildBootstrapLayeredRuntime(t *testing.T) {
 					"global_downstream_max_connections": 50000
 				},
 				"re2": {
-					"error_level": 1048576,
-					"warn_level": 1024
+					"max_program_size": {
+						"error_level": 1048576,
+						"warn_level": 1024
+					}
 				}
 			}
 		}] }
