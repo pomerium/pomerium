@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"strings"
 	"time"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -585,9 +584,11 @@ func getAllRouteableHosts(options *config.Options, addr string) ([]string, error
 		allHosts.Add(hosts...)
 	}
 
+	// Filter out any "special" wildcard domains (those that can't be
+	// implemented as an Envoy virtual host).
 	var filtered []string
 	for _, host := range allHosts.ToSlice() {
-		if !strings.Contains(host, "*") {
+		if !isSpecialWildcardHost(host) {
 			filtered = append(filtered, host)
 		}
 	}
