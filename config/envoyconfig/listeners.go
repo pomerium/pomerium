@@ -109,7 +109,8 @@ func getAllCertificates(cfg *config.Config) ([]tls.Certificate, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error collecting all certificates: %w", err)
 	}
-	wc, err := cfg.GetCertificateForServerName("*")
+
+	wc, err := cfg.GenerateCatchAllCertificate()
 	if err != nil {
 		return nil, fmt.Errorf("error getting wildcard certificate: %w", err)
 	}

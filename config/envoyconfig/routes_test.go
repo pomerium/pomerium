@@ -307,7 +307,7 @@ func TestTimeouts(t *testing.T) {
 					AllowWebsockets: tc.allowWebsockets,
 				},
 			},
-		}}, "example.com")
+		}}, nil, "example.com")
 		if !assert.NoError(t, err, "%v", tc) || !assert.Len(t, routes, 1, tc) || !assert.NotNil(t, routes[0].GetRoute(), "%v", tc) {
 			continue
 		}
@@ -412,7 +412,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				UpstreamTimeout:     &ten,
 			},
 		},
-	}}, "example.com")
+	}}, nil, "example.com")
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, `
@@ -918,7 +918,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					PassIdentityHeaders: true,
 				},
 			},
-		}}, "authenticate.example.com")
+		}}, nil, "authenticate.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -1005,7 +1005,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					UpstreamTimeout:     &ten,
 				},
 			},
-		}}, "example.com:22")
+		}}, nil, "example.com:22")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -1151,7 +1151,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					From: "https://from.example.com",
 				},
 			},
-		}}, "from.example.com")
+		}}, nil, "from.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -1272,7 +1272,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				HostPathRegexRewriteSubstitution: "\\1",
 			},
 		},
-	}}, "example.com")
+	}}, nil, "example.com")
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, `

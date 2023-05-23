@@ -16,9 +16,9 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/client9/misspell v0.3.4
 	github.com/coreos/go-oidc/v3 v3.5.0
-	github.com/docker/docker v23.0.6+incompatible
+	github.com/docker/docker v24.0.1+incompatible
 	github.com/envoyproxy/go-control-plane v0.11.0
-	github.com/envoyproxy/protoc-gen-validate v1.0.0
+	github.com/envoyproxy/protoc-gen-validate v1.0.1
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/go-jose/go-jose/v3 v3.0.0
