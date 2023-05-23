@@ -12,7 +12,6 @@ import (
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -149,24 +148,9 @@ func (cfg *Config) GetTLSClientConfig() (*tls.Config, error) {
 	}, nil
 }
 
-// GetCertificateForServerName gets the certificate for the server name. If no certificate is found and there
-// is a derived CA one will be generated using that CA. If no derived CA is defined a self-signed certificate
-// will be generated.
-func (cfg *Config) GetCertificateForServerName(serverName string) (*tls.Certificate, error) {
-	certificates, err := cfg.AllCertificates()
-	if err != nil {
-		return nil, err
-	}
-
-	// first try a direct name match
-	for i := range certificates {
-		if cryptutil.MatchesServerName(&certificates[i], serverName) {
-			return &certificates[i], nil
-		}
-	}
-
-	log.WarnNoTLSCertificate(serverName)
-
+// GenerateCatchAllCertificate generates a catch-all certificate. If no derived CA is defined a
+// self-signed certificate will be generated.
+func (cfg *Config) GenerateCatchAllCertificate() (*tls.Certificate, error) {
 	if cfg.Options.DeriveInternalDomainCert != nil {
 		sharedKey, err := cfg.Options.GetSharedKey()
 		if err != nil {
@@ -178,7 +162,7 @@ func (cfg *Config) GetCertificateForServerName(serverName string) (*tls.Certific
 			return nil, fmt.Errorf("failed to generate cert, invalid derived CA: %w", err)
 		}
 
-		pem, err := ca.NewServerCert([]string{serverName})
+		pem, err := ca.NewServerCert([]string{"*"})
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate cert, error creating server certificate: %w", err)
 		}
@@ -196,7 +180,7 @@ func (cfg *Config) GetCertificateForServerName(serverName string) (*tls.Certific
 	}
 
 	// finally fall back to a generated, self-signed certificate
-	return cryptutil.GenerateCertificate(sharedKey, serverName)
+	return cryptutil.GenerateCertificate(sharedKey, "*")
 }
 
 // WillHaveCertificateForServerName returns true if there will be a certificate for the given server name.
