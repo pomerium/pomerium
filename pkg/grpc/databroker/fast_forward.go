@@ -2,15 +2,18 @@ package databroker
 
 import (
 	"context"
+	"sync"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 // fastForwardHandler will skip
 type fastForwardHandler struct {
 	handler SyncerHandler
-	in      chan *ffCmd
-	exec    chan *ffCmd
+	pending chan ffCmd
+
+	mu sync.Mutex
 }
 
 type ffCmd struct {
@@ -22,52 +25,23 @@ type ffCmd struct {
 func newFastForwardHandler(ctx context.Context, handler SyncerHandler) SyncerHandler {
 	ff := &fastForwardHandler{
 		handler: handler,
-		in:      make(chan *ffCmd, 20),
-		exec:    make(chan *ffCmd),
+		pending: make(chan ffCmd, 1),
 	}
-	go ff.runSelect(ctx)
-	go ff.runExec(ctx)
-
+	go ff.run(ctx)
 	return ff
 }
 
-func (ff *fastForwardHandler) update(ctx context.Context, c *ffCmd) {
-	ff.handler.UpdateRecords(ctx, c.serverVersion, c.records)
-}
-
-func (ff *fastForwardHandler) runSelect(ctx context.Context) {
-	var update *ffCmd
-
-	for {
-		if update == nil {
-			select {
-			case <-ctx.Done():
-				return
-			case update = <-ff.in:
-			}
-		} else {
-			select {
-			case <-ctx.Done():
-				return
-			case update = <-ff.in:
-			case ff.exec <- update:
-				update = nil
-			}
-		}
-	}
-}
-
-func (ff *fastForwardHandler) runExec(ctx context.Context) {
+func (ff *fastForwardHandler) run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case update := <-ff.exec:
-			if update.clearRecords {
+		case cmd := <-ff.pending:
+			if cmd.clearRecords {
 				ff.handler.ClearRecords(ctx)
-				continue
+			} else {
+				ff.handler.UpdateRecords(ctx, cmd.serverVersion, cmd.records)
 			}
-			ff.update(ctx, update)
 		}
 	}
 }
@@ -77,19 +51,57 @@ func (ff *fastForwardHandler) GetDataBrokerServiceClient() DataBrokerServiceClie
 }
 
 func (ff *fastForwardHandler) ClearRecords(ctx context.Context) {
+	ff.mu.Lock()
+	defer ff.mu.Unlock()
+
+	var cmd ffCmd
 	select {
 	case <-ctx.Done():
-		log.Error(ctx).
-			Msg("ff_handler: ClearRecords: context canceled")
-	case ff.exec <- &ffCmd{clearRecords: true}:
+		return
+	case cmd = <-ff.pending:
+	default:
+	}
+	cmd.clearRecords = true
+	cmd.records = nil
+
+	select {
+	case <-ctx.Done():
+	case ff.pending <- cmd:
 	}
 }
 
 func (ff *fastForwardHandler) UpdateRecords(ctx context.Context, serverVersion uint64, records []*Record) {
+	ff.mu.Lock()
+	defer ff.mu.Unlock()
+
+	var cmd ffCmd
 	select {
 	case <-ctx.Done():
-		log.Error(ctx).
-			Msg("ff_handler: UpdateRecords: context canceled")
-	case ff.in <- &ffCmd{serverVersion: serverVersion, records: records}:
+		return
+	case cmd = <-ff.pending:
+	default:
+	}
+
+	records = append(cmd.records, records...)
+	// reverse, so that when we get the unique records, the oldest take precedence
+	slices.Reverse(records)
+	cnt := len(records)
+	records = slices.UniqueBy(records, func(record *Record) [2]string {
+		return [2]string{record.GetType(), record.GetId()}
+	})
+	dropped := cnt - len(records)
+	if dropped > 0 {
+		log.Info(ctx).Msgf("databroker: fast-forwarded %d records", dropped)
+	}
+	// reverse back so they appear in the order they were delivered
+	slices.Reverse(records)
+
+	cmd.clearRecords = false
+	cmd.serverVersion = serverVersion
+	cmd.records = records
+
+	select {
+	case <-ctx.Done():
+	case ff.pending <- cmd:
 	}
 }
