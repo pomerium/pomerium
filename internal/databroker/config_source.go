@@ -81,7 +81,7 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 	// start the updater
 	src.runUpdater(cfg)
 
-	seen := map[uint64]struct{}{}
+	seen := map[uint64]string{}
 	for _, policy := range cfg.Options.GetAllPolicies() {
 		id, err := policy.RouteID()
 		if err != nil {
@@ -90,7 +90,7 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 				Msg("databroker: invalid policy config, ignoring")
 			return
 		}
-		seen[id] = struct{}{}
+		seen[id] = ""
 	}
 
 	var additionalPolicies []config.Policy
@@ -145,11 +145,12 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 				errCount++
 				log.Warn(ctx).Err(err).
 					Str("db_config_id", id).
+					Str("seen-in", seen[routeID]).
 					Str("policy", policy.String()).
 					Msg("databroker: duplicate policy detected, ignoring")
 				continue
 			}
-			seen[routeID] = struct{}{}
+			seen[routeID] = id
 
 			additionalPolicies = append(additionalPolicies, *policy)
 		}
