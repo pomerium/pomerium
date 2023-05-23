@@ -134,6 +134,12 @@ func (b *Builder) BuildBootstrapLayeredRuntime() (*envoy_config_bootstrap_v3.Lay
 		"overload": map[string]interface{}{
 			"global_downstream_max_connections": 50000,
 		},
+		"re2": map[string]any{
+			"max_program_size": map[string]any{
+				"error_level": 1024 * 1024,
+				"warn_level":  1024,
+			},
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("envoyconfig: failed to create layered runtime layer: %w", err)
