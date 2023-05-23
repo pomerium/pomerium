@@ -1,6 +1,7 @@
 package envoyconfig
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -193,6 +194,7 @@ func getClusterStatsName(policy *config.Policy) string {
 
 func (b *Builder) buildRoutesForPoliciesWithHost(
 	cfg *config.Config,
+	certs []tls.Certificate,
 	host string,
 ) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
@@ -207,7 +209,7 @@ func (b *Builder) buildRoutesForPoliciesWithHost(
 			continue
 		}
 
-		policyRoutes, err := b.buildRoutesForPolicy(cfg, &policy, fmt.Sprintf("policy-%d", i))
+		policyRoutes, err := b.buildRoutesForPolicy(cfg, certs, &policy, fmt.Sprintf("policy-%d", i))
 		if err != nil {
 			return nil, err
 		}
@@ -219,6 +221,7 @@ func (b *Builder) buildRoutesForPoliciesWithHost(
 
 func (b *Builder) buildRoutesForPoliciesWithCatchAll(
 	cfg *config.Config,
+	certs []tls.Certificate,
 ) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
 	for i, p := range cfg.Options.GetAllPolicies() {
@@ -232,7 +235,7 @@ func (b *Builder) buildRoutesForPoliciesWithCatchAll(
 			continue
 		}
 
-		policyRoutes, err := b.buildRoutesForPolicy(cfg, &policy, fmt.Sprintf("policy-%d", i))
+		policyRoutes, err := b.buildRoutesForPolicy(cfg, certs, &policy, fmt.Sprintf("policy-%d", i))
 		if err != nil {
 			return nil, err
 		}
@@ -244,6 +247,7 @@ func (b *Builder) buildRoutesForPoliciesWithCatchAll(
 
 func (b *Builder) buildRoutesForPolicy(
 	cfg *config.Config,
+	certs []tls.Certificate,
 	policy *config.Policy,
 	name string,
 ) ([]*envoy_config_route_v3.Route, error) {
@@ -256,14 +260,14 @@ func (b *Builder) buildRoutesForPolicy(
 	if strings.Contains(fromURL.Host, "*") {
 		// we have to match '*.example.com' and '*.example.com:443', so there are two routes
 		for _, host := range urlutil.GetDomainsForURL(fromURL) {
-			route, err := b.buildRouteForPolicyAndMatch(cfg, policy, name, mkRouteMatchForHost(policy, host))
+			route, err := b.buildRouteForPolicyAndMatch(cfg, certs, policy, name, mkRouteMatchForHost(policy, host))
 			if err != nil {
 				return nil, err
 			}
 			routes = append(routes, route)
 		}
 	} else {
-		route, err := b.buildRouteForPolicyAndMatch(cfg, policy, name, mkRouteMatch(policy))
+		route, err := b.buildRouteForPolicyAndMatch(cfg, certs, policy, name, mkRouteMatch(policy))
 		if err != nil {
 			return nil, err
 		}
@@ -274,16 +278,12 @@ func (b *Builder) buildRoutesForPolicy(
 
 func (b *Builder) buildRouteForPolicyAndMatch(
 	cfg *config.Config,
+	certs []tls.Certificate,
 	policy *config.Policy,
 	name string,
 	match *envoy_config_route_v3.RouteMatch,
 ) (*envoy_config_route_v3.Route, error) {
 	fromURL, err := urlutil.ParseAndValidateURL(policy.From)
-	if err != nil {
-		return nil, err
-	}
-
-	certs, err := getAllCertificates(cfg)
 	if err != nil {
 		return nil, err
 	}
