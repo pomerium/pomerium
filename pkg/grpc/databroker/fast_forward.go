@@ -83,7 +83,7 @@ func (ff *fastForwardHandler) UpdateRecords(ctx context.Context, serverVersion u
 	}
 
 	records = append(cmd.records, records...)
-	// reverse, so that when we get the unique records, the oldest take precedence
+	// reverse, so that when we get the unique records, the newest take precedence
 	slices.Reverse(records)
 	cnt := len(records)
 	records = slices.UniqueBy(records, func(record *Record) [2]string {
