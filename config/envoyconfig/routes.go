@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
-	"strings"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
@@ -231,7 +230,7 @@ func (b *Builder) buildRoutesForPoliciesWithCatchAll(
 			return nil, err
 		}
 
-		if !strings.Contains(fromURL.Host, "*") {
+		if !isSpecialWildcardHost(fromURL.Host) {
 			continue
 		}
 
@@ -257,7 +256,7 @@ func (b *Builder) buildRoutesForPolicy(
 	}
 
 	var routes []*envoy_config_route_v3.Route
-	if strings.Contains(fromURL.Host, "*") {
+	if isSpecialWildcardHost(fromURL.Host) {
 		// we have to match '*.example.com' and '*.example.com:443', so there are two routes
 		for _, host := range urlutil.GetDomainsForURL(fromURL) {
 			route, err := b.buildRouteForPolicyAndMatch(cfg, certs, policy, name, mkRouteMatchForHost(policy, host))
