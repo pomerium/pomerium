@@ -102,7 +102,7 @@ func TestPolicyEvaluator(t *testing.T) {
 			})
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
-			Allow: NewRuleResult(false, criteria.ReasonEmailUnauthorized, criteria.ReasonNonPomeriumRoute, criteria.ReasonUserUnauthorized),
+			Allow: NewRuleResult(false, criteria.ReasonEmailUnauthorized, criteria.ReasonUserUnauthorized),
 			Deny:  NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
 		}, output)
 	})
@@ -161,7 +161,7 @@ func TestPolicyEvaluator(t *testing.T) {
 				})
 			require.NoError(t, err)
 			assert.Equal(t, &PolicyResponse{
-				Allow: NewRuleResult(false, criteria.ReasonNonPomeriumRoute),
+				Allow: NewRuleResult(false),
 				Deny:  NewRuleResult(true, criteria.ReasonAccept),
 			}, output)
 		})
@@ -191,7 +191,7 @@ func TestPolicyEvaluator(t *testing.T) {
 				})
 			require.NoError(t, err)
 			assert.Equal(t, &PolicyResponse{
-				Allow: NewRuleResult(false, criteria.ReasonNonPomeriumRoute),
+				Allow: NewRuleResult(false),
 				Deny:  NewRuleResult(true, criteria.ReasonAccept, criteria.ReasonInvalidClientCertificate),
 			}, output)
 		})

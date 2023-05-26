@@ -11,6 +11,7 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -107,6 +108,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 ) (*evaluator.Request, error) {
 	requestURL := getCheckRequestURL(in)
 	req := &evaluator.Request{
+		IsInternal: envoyconfig.ExtAuthzContextExtensionsIsInternal(in.GetAttributes().GetContextExtensions()),
 		HTTP: evaluator.NewRequestHTTP(
 			in.GetAttributes().GetRequest().GetHttp().GetMethod(),
 			requestURL,
@@ -172,6 +174,7 @@ func getCheckRequestURL(req *envoy_service_auth_v3.CheckRequest) url.URL {
 	path := h.GetPath()
 	if idx := strings.Index(path, "?"); idx != -1 {
 		u.RawPath, u.RawQuery = path[:idx], path[idx+1:]
+		u.RawQuery = u.Query().Encode()
 	} else {
 		u.RawPath = path
 	}

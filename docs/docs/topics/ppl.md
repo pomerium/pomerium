@@ -15,16 +15,16 @@ Each PPL policy has at the top level a set of `allow` or `deny` actions, with a 
 ```yaml
 allow:
   and:
-  - domain:
-      is: example.com
-  - groups:
-      has: admin
+    - domain:
+        is: example.com
+    - groups:
+        has: admin
 deny:
   or:
-  - user:
-      is: user1@example.com
-  - user:
-      is: user2@example.com
+    - user:
+        is: user1@example.com
+    - user:
+        is: user2@example.com
 ```
 
 This policy will allow a user with an email address at `example.com` who **is also** a member of the `admin` group. It will deny `user1` **or** `user2`, regardless of their domain and group membership.
@@ -47,10 +47,10 @@ Given the following example with `OPERATOR` replaced:
 ```yaml
 allow:
   OPERATOR:
-  - domain:
-      is: example.com
-  - groups:
-      has: admin
+    - domain:
+        is: example.com
+    - groups:
+        has: admin
 ```
 
 If `and` is used, the user will have access if their email address ends in `example.com` **and** they are a member of the admin group. **(A ∧ B)**
@@ -69,7 +69,7 @@ Criteria in PPL are represented as an object where the key is the name and optio
 ```yaml
 allow:
   and:
-  - claim/family_name: Smith
+    - claim/family_name: Smith
 ```
 
 PPL supports many different criteria:
@@ -87,14 +87,13 @@ PPL supports many different criteria:
 | `http_method`                | [String Matcher]              | Returns true if the HTTP method matches the given value.                                                                                                                                                                     |
 | `http_path`                  | [String Matcher]              | Returns true if the HTTP path matches the given value.                                                                                                                                                                       |
 | `invalid_client_certificate` | Anything. Typically `true`.   | Returns true if the incoming request has an invalid client certificate. A default `deny` rule using this criterion is added to all Pomerium policies when an mTLS [client certificate authority] is set.                     |
-| `pomerium_routes`            | Anything. Typically `true`.   | Returns true if the incoming request is for the special `.pomerium` routes. A default `allow` rule using this criterion is added to all Pomerium policies.                                                                   |
 | `reject`                     | Anything. Typically `true`.   | Always returns false. The opposite of `accept`.                                                                                                                                                                              |
 | `user`                       | [String Matcher]              | Returns true if the logged-in user's id matches the given value.                                                                                                                                                             |
 
 [Pomerium Enterprise] supports all the open source criteria, but also supports these additional criteria:
 
-| Criterion Name | Data Format         | Description                                                                            |
-| -------------- | ------------------- | -------------------------------------------------------------------------------------- |
+| Criterion Name | Data Format           | Description                                                                            |
+| -------------- | --------------------- | -------------------------------------------------------------------------------------- |
 | `date`         | [Date Matcher]        | Returns true if the time of the request matches the constraints.                       |
 | `day_of_week`  | [Day of Week Matcher] | Returns true if the day of the request matches the constraints.                        |
 | `time_of_day`  | [Time of Day Matcher] | Returns true if the time of the request (for the current day) matches the constraints. |
@@ -105,15 +104,15 @@ PPL supports many different criteria:
 
 The day of week matcher is a **string**. The string can either be `*`, a comma-separated list of days, or a dash-separated list of days.
 
-  - `*` matches all days.
-  - `,` matches either day (e.g. `mon,wed,fri`).
-  - `-` matches a range of days. (e.g. `mon-fri`). Days can be specified as English full day names, or as 3 character abbreviations. For example:
+- `*` matches all days.
+- `,` matches either day (e.g. `mon,wed,fri`).
+- `-` matches a range of days. (e.g. `mon-fri`). Days can be specified as English full day names, or as 3 character abbreviations. For example:
 
-    ```yaml
-    allow:
-      and:
-        - day_of_week: tue-fri
-    ```
+  ```yaml
+  allow:
+    and:
+      - day_of_week: tue-fri
+  ```
 
 ## Date Matcher
 
@@ -122,9 +121,9 @@ The date matcher is an object with operators as keys. It supports the following 
 ```yaml
 allow:
   and:
-  - date:
-      after: 2020-01-02T16:20:00
-      before: 2150-01-02T16:20:00
+    - date:
+        after: 2020-01-02T16:20:00
+        before: 2150-01-02T16:20:00
 ```
 
 ## Device Matcher
@@ -134,8 +133,8 @@ A device matcher is an object with operators as keys. It supports the following 
 - `is` - an exact match of the device ID.
 - `approved` - true if the device has been approved. This is an enterprise-only feature.
 - `type` - Specifies the type of device to match on. The available types are `enclave_only` and `any`.
-    - `enclave_only` will only match [platform authenticators](/docs/topics/device-identity.md#secure-enclaves). These include TPM modules and hardware-backed keystores built into mobile devices.
-    - `any` will also match [hardware security keys](/docs/topics/device-identity.md#hardware-security-keys).
+  - `enclave_only` will only match [platform authenticators](/docs/topics/device-identity.md#secure-enclaves). These include TPM modules and hardware-backed keystores built into mobile devices.
+  - `any` will also match [hardware security keys](/docs/topics/device-identity.md#hardware-security-keys).
 
 For example, a policy to allow any user with a registered device:
 
@@ -169,8 +168,8 @@ A list matcher is an object with operators as keys. It supports the following op
 ```yaml
 allow:
   and:
-  - groups:
-      has: 'admin'
+    - groups:
+        has: "admin"
 ```
 
 ### String Matcher
@@ -180,8 +179,8 @@ A string matcher is an object with operators as keys. It supports the following 
 ```yaml
 allow:
   and:
-  - email:
-      starts_with: 'admin@'
+    - email:
+        starts_with: "admin@"
 ```
 
 ## Time of Day Matcher
