@@ -42,7 +42,7 @@ func (b *Builder) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
 		},
 		Action: action,
 		TypedPerFilterConfig: map[string]*any.Any{
-			"envoy.filters.http.ext_authz": disableExtAuthz,
+			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzDisabled(),
 		},
 	}}, nil
 }
@@ -58,20 +58,16 @@ func (b *Builder) buildPomeriumHTTPRoutes(options *config.Options, host string) 
 	}
 	if !isFrontingAuthenticate {
 		routes = append(routes,
-			// enable ext_authz
-			b.buildControlPlanePathRoute("/.pomerium/jwt", true),
-			b.buildControlPlanePathRoute(urlutil.WebAuthnURLPath, true),
-			// disable ext_authz and passthrough to proxy handlers
-			b.buildControlPlanePathRoute("/ping", false),
-			b.buildControlPlanePathRoute("/healthz", false),
-			b.buildControlPlanePathRoute("/.pomerium", false),
-			b.buildControlPlanePrefixRoute("/.pomerium/", false),
-			b.buildControlPlanePathRoute("/.well-known/pomerium", false),
-			b.buildControlPlanePrefixRoute("/.well-known/pomerium/", false),
+			b.buildControlPlanePathRoute("/ping"),
+			b.buildControlPlanePathRoute("/healthz"),
+			b.buildControlPlanePathRoute("/.pomerium"),
+			b.buildControlPlanePrefixRoute("/.pomerium/"),
+			b.buildControlPlanePathRoute("/.well-known/pomerium"),
+			b.buildControlPlanePrefixRoute("/.well-known/pomerium/"),
 		)
 		// per #837, only add robots.txt if there are no unauthenticated routes
 		if !hasPublicPolicyMatchingURL(options, url.URL{Scheme: "https", Host: host, Path: "/robots.txt"}) {
-			routes = append(routes, b.buildControlPlanePathRoute("/robots.txt", false))
+			routes = append(routes, b.buildControlPlanePathRoute("/robots.txt"))
 		}
 	}
 
@@ -98,15 +94,15 @@ func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(options *config.Options, h
 		}
 		if urlMatchesHost(u, host) {
 			return []*envoy_config_route_v3.Route{
-				b.buildControlPlanePathRoute(options.AuthenticateCallbackPath, false),
-				b.buildControlPlanePathRoute("/", false),
+				b.buildControlPlanePathRoute(options.AuthenticateCallbackPath),
+				b.buildControlPlanePathRoute("/"),
 			}, nil
 		}
 	}
 	return nil, nil
 }
 
-func (b *Builder) buildControlPlanePathRoute(path string, protected bool) *envoy_config_route_v3.Route {
+func (b *Builder) buildControlPlanePathRoute(path string) *envoy_config_route_v3.Route {
 	r := &envoy_config_route_v3.Route{
 		Name: "pomerium-path-" + path,
 		Match: &envoy_config_route_v3.RouteMatch{
@@ -119,16 +115,14 @@ func (b *Builder) buildControlPlanePathRoute(path string, protected bool) *envoy
 				},
 			},
 		},
-	}
-	if !protected {
-		r.TypedPerFilterConfig = map[string]*any.Any{
-			"envoy.filters.http.ext_authz": disableExtAuthz,
-		}
+		TypedPerFilterConfig: map[string]*any.Any{
+			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, 0)),
+		},
 	}
 	return r
 }
 
-func (b *Builder) buildControlPlanePrefixRoute(prefix string, protected bool) *envoy_config_route_v3.Route {
+func (b *Builder) buildControlPlanePrefixRoute(prefix string) *envoy_config_route_v3.Route {
 	r := &envoy_config_route_v3.Route{
 		Name: "pomerium-prefix-" + prefix,
 		Match: &envoy_config_route_v3.RouteMatch{
@@ -141,11 +135,9 @@ func (b *Builder) buildControlPlanePrefixRoute(prefix string, protected bool) *e
 				},
 			},
 		},
-	}
-	if !protected {
-		r.TypedPerFilterConfig = map[string]*any.Any{
-			"envoy.filters.http.ext_authz": disableExtAuthz,
-		}
+		TypedPerFilterConfig: map[string]*any.Any{
+			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, 0)),
+		},
 	}
 	return r
 }
@@ -176,6 +168,11 @@ func (b *Builder) buildPolicyRoutes(options *config.Options, host string) ([]*en
 		policy := p
 		if !urlMatchesHost(policy.Source.URL, host) {
 			continue
+		}
+
+		routeID, err := policy.RouteID()
+		if err != nil {
+			return nil, err
 		}
 
 		match := mkRouteMatch(&policy)
@@ -212,9 +209,12 @@ func (b *Builder) buildPolicyRoutes(options *config.Options, host string) ([]*en
 		}
 		if isFrontingAuthenticate {
 			envoyRoute.TypedPerFilterConfig = map[string]*any.Any{
-				"envoy.filters.http.ext_authz": disableExtAuthz,
+				PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzDisabled(),
 			}
 		} else {
+			envoyRoute.TypedPerFilterConfig = map[string]*any.Any{
+				PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(false, routeID)),
+			}
 			luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
 				Kind: &structpb.Value_StringValue{
 					StringValue: options.CookieName,
@@ -233,8 +233,7 @@ func (b *Builder) buildPolicyRoutes(options *config.Options, host string) ([]*en
 		}
 
 		if policy.IsForKubernetes() {
-			policyID, _ := policy.RouteID()
-			for _, hdr := range b.reproxy.GetPolicyIDHeaders(policyID) {
+			for _, hdr := range b.reproxy.GetPolicyIDHeaders(routeID) {
 				envoyRoute.RequestHeadersToAdd = append(envoyRoute.RequestHeadersToAdd,
 					&envoy_config_core_v3.HeaderValueOption{
 						Header: &envoy_config_core_v3.HeaderValue{

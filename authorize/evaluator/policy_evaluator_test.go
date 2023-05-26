@@ -110,7 +110,7 @@ func TestPolicyEvaluator(t *testing.T) {
 			})
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
-			Allow:  NewRuleResult(false, criteria.ReasonEmailUnauthorized, criteria.ReasonNonPomeriumRoute, criteria.ReasonUserUnauthorized),
+			Allow:  NewRuleResult(false, criteria.ReasonEmailUnauthorized, criteria.ReasonUserUnauthorized),
 			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
 			Traces: []contextutil.PolicyEvaluationTrace{{}},
 		}, output)
@@ -171,7 +171,7 @@ func TestPolicyEvaluator(t *testing.T) {
 				})
 			require.NoError(t, err)
 			assert.Equal(t, &PolicyResponse{
-				Allow:  NewRuleResult(false, criteria.ReasonNonPomeriumRoute),
+				Allow:  NewRuleResult(false),
 				Deny:   NewRuleResult(true, criteria.ReasonAccept),
 				Traces: []contextutil.PolicyEvaluationTrace{{}, {ID: "p1", Deny: true}},
 			}, output)
@@ -202,7 +202,7 @@ func TestPolicyEvaluator(t *testing.T) {
 				})
 			require.NoError(t, err)
 			assert.Equal(t, &PolicyResponse{
-				Allow:  NewRuleResult(false, criteria.ReasonNonPomeriumRoute),
+				Allow:  NewRuleResult(false),
 				Deny:   NewRuleResult(true, criteria.ReasonAccept, criteria.ReasonInvalidClientCertificate),
 				Traces: []contextutil.PolicyEvaluationTrace{{Deny: true}, {ID: "p1", Deny: true}},
 			}, output)
@@ -288,7 +288,7 @@ func TestPolicyEvaluator(t *testing.T) {
 			})
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
-			Allow:  NewRuleResult(false, criteria.ReasonNonPomeriumRoute, criteria.ReasonUserUnauthenticated),
+			Allow:  NewRuleResult(false, criteria.ReasonUserUnauthenticated),
 			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
 			Traces: []contextutil.PolicyEvaluationTrace{{Allow: false}},
 		}, output)

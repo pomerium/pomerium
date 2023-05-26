@@ -16,7 +16,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
-	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 func policyNameFunc() func(*config.Policy) string {
@@ -55,27 +54,27 @@ func Test_buildGRPCRoutes(t *testing.T) {
 
 func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 	b := &Builder{filemgr: filemgr.NewManager()}
-	routeString := func(typ, name string, protected bool) string {
+	routeString := func(typ, name string) string {
 		str := `{
-				"name": "pomerium-` + typ + `-` + name + `",
-				"match": {
-					"` + typ + `": "` + name + `"
-				},
-				"route": {
-					"cluster": "pomerium-control-plane-http"
-				}
-			`
-		if !protected {
-			str += `,
-				"typedPerFilterConfig": {
-					"envoy.filters.http.ext_authz": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-						"disabled": true
+			"name": "pomerium-` + typ + `-` + name + `",
+			"match": {
+				"` + typ + `": "` + name + `"
+			},
+			"route": {
+				"cluster": "pomerium-control-plane-http"
+			},
+			"typedPerFilterConfig": {
+				"envoy.filters.http.ext_authz": {
+					"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+					"checkSettings": {
+						"contextExtensions": {
+							"internal": "true",
+							"route_id": "0"
+						}
 					}
 				}
-			`
-		}
-		str += "}"
+			}
+		}`
 		return str
 	}
 	t.Run("authenticate", func(t *testing.T) {
@@ -88,17 +87,15 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
-			`+routeString("path", "/.pomerium/jwt", true)+`,
-			`+routeString("path", urlutil.WebAuthnURLPath, true)+`,
-			`+routeString("path", "/ping", false)+`,
-			`+routeString("path", "/healthz", false)+`,
-			`+routeString("path", "/.pomerium", false)+`,
-			`+routeString("prefix", "/.pomerium/", false)+`,
-			`+routeString("path", "/.well-known/pomerium", false)+`,
-			`+routeString("prefix", "/.well-known/pomerium/", false)+`,
-			`+routeString("path", "/robots.txt", false)+`,
-			`+routeString("path", "/oauth2/callback", false)+`,
-			`+routeString("path", "/", false)+`
+			`+routeString("path", "/ping")+`,
+			`+routeString("path", "/healthz")+`,
+			`+routeString("path", "/.pomerium")+`,
+			`+routeString("prefix", "/.pomerium/")+`,
+			`+routeString("path", "/.well-known/pomerium")+`,
+			`+routeString("prefix", "/.well-known/pomerium/")+`,
+			`+routeString("path", "/robots.txt")+`,
+			`+routeString("path", "/oauth2/callback")+`,
+			`+routeString("path", "/")+`
 		]`, routes)
 	})
 	t.Run("proxy fronting authenticate", func(t *testing.T) {
@@ -127,15 +124,13 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
-			`+routeString("path", "/.pomerium/jwt", true)+`,
-			`+routeString("path", urlutil.WebAuthnURLPath, true)+`,
-			`+routeString("path", "/ping", false)+`,
-			`+routeString("path", "/healthz", false)+`,
-			`+routeString("path", "/.pomerium", false)+`,
-			`+routeString("prefix", "/.pomerium/", false)+`,
-			`+routeString("path", "/.well-known/pomerium", false)+`,
-			`+routeString("prefix", "/.well-known/pomerium/", false)+`,
-			`+routeString("path", "/robots.txt", false)+`
+			`+routeString("path", "/ping")+`,
+			`+routeString("path", "/healthz")+`,
+			`+routeString("path", "/.pomerium")+`,
+			`+routeString("prefix", "/.pomerium/")+`,
+			`+routeString("path", "/.well-known/pomerium")+`,
+			`+routeString("prefix", "/.well-known/pomerium/")+`,
+			`+routeString("path", "/robots.txt")+`
 		]`, routes)
 	})
 
@@ -155,21 +150,19 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
-			`+routeString("path", "/.pomerium/jwt", true)+`,
-			`+routeString("path", urlutil.WebAuthnURLPath, true)+`,
-			`+routeString("path", "/ping", false)+`,
-			`+routeString("path", "/healthz", false)+`,
-			`+routeString("path", "/.pomerium", false)+`,
-			`+routeString("prefix", "/.pomerium/", false)+`,
-			`+routeString("path", "/.well-known/pomerium", false)+`,
-			`+routeString("prefix", "/.well-known/pomerium/", false)+`
+			`+routeString("path", "/ping")+`,
+			`+routeString("path", "/healthz")+`,
+			`+routeString("path", "/.pomerium")+`,
+			`+routeString("prefix", "/.pomerium/")+`,
+			`+routeString("path", "/.well-known/pomerium")+`,
+			`+routeString("prefix", "/.well-known/pomerium/")+`
 		]`, routes)
 	})
 }
 
 func Test_buildControlPlanePathRoute(t *testing.T) {
 	b := &Builder{filemgr: filemgr.NewManager()}
-	route := b.buildControlPlanePathRoute("/hello/world", false)
+	route := b.buildControlPlanePathRoute("/hello/world")
 	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-path-/hello/world",
@@ -182,7 +175,12 @@ func Test_buildControlPlanePathRoute(t *testing.T) {
 			"typedPerFilterConfig": {
 				"envoy.filters.http.ext_authz": {
 					"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-					"disabled": true
+					"checkSettings": {
+						"contextExtensions": {
+							"internal": "true",
+							"route_id": "0"
+						}
+					}
 				}
 			}
 		}
@@ -191,7 +189,7 @@ func Test_buildControlPlanePathRoute(t *testing.T) {
 
 func Test_buildControlPlanePrefixRoute(t *testing.T) {
 	b := &Builder{filemgr: filemgr.NewManager()}
-	route := b.buildControlPlanePrefixRoute("/hello/world/", false)
+	route := b.buildControlPlanePrefixRoute("/hello/world/")
 	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-prefix-/hello/world/",
@@ -204,7 +202,12 @@ func Test_buildControlPlanePrefixRoute(t *testing.T) {
 			"typedPerFilterConfig": {
 				"envoy.filters.http.ext_authz": {
 					"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-					"disabled": true
+					"checkSettings": {
+						"contextExtensions": {
+							"internal": "true",
+							"route_id": "0"
+						}
+					}
 				}
 			}
 		}
@@ -249,6 +252,7 @@ func TestTimeouts(t *testing.T) {
 			Policies: []config.Policy{
 				{
 					Source:          &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+					To:              mustParseWeightedURLs(t, "https://example.com"),
 					Path:            "/test",
 					UpstreamTimeout: getDuration(tc.upstream),
 					IdleTimeout:     getDuration(tc.idle),
@@ -303,14 +307,17 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		Policies: []config.Policy{
 			{
 				Source:              &config.StringURL{URL: mustParseURL(t, "https://ignore.example.com")},
+				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 				PassIdentityHeaders: true,
 			},
 			{
 				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 				PassIdentityHeaders: true,
 			},
 			{
 				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 				Path:                "/some/path",
 				AllowWebsockets:     true,
 				PreserveHostHeader:  true,
@@ -318,6 +325,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 				Prefix:              "/some/prefix/",
 				SetRequestHeaders:   map[string]string{"HEADER-KEY": "HEADER-VALUE"},
 				UpstreamTimeout:     &oneMinute,
@@ -325,11 +333,13 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 				Regex:               `^/[a]+$`,
 				PassIdentityHeaders: true,
 			},
 			{
 				Source:               &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				To:                   mustParseWeightedURLs(t, "https://to.example.com"),
 				Prefix:               "/some/prefix/",
 				RemoveRequestHeaders: []string{"HEADER-KEY"},
 				UpstreamTimeout:      &oneMinute,
@@ -337,6 +347,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 				Path:                "/some/path",
 				AllowSPDY:           true,
 				PreserveHostHeader:  true,
@@ -344,6 +355,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 				Path:                "/some/path",
 				AllowSPDY:           true,
 				AllowWebsockets:     true,
@@ -352,6 +364,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				Source:              &config.StringURL{URL: mustParseURL(t, "https://example.com")},
+				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 				Path:                "/websocket-timeout",
 				AllowWebsockets:     true,
 				PreserveHostHeader:  true,
@@ -405,7 +418,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "7746454661610785111"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-2",
@@ -449,7 +473,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "6370109395891044565"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-3",
@@ -499,7 +534,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "11248013325168299965"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-4",
@@ -545,7 +591,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "17692847211962454053"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-5",
@@ -589,7 +646,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"HEADER-KEY",
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "11248013325168299965"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-6",
@@ -632,7 +700,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "6370109395891044565"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-7",
@@ -676,7 +755,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "6370109395891044565"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-8",
@@ -720,7 +810,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "7972237966834677964"
+							}
+						}
+					}
+				}
 			}
 		]
 	`, routes)
@@ -734,6 +835,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			Policies: []config.Policy{
 				{
 					Source:              &config.StringURL{URL: mustParseURL(t, "https://authenticate.example.com")},
+					To:                  mustParseWeightedURLs(t, "https://authenticate.internal"),
 					PassIdentityHeaders: true,
 				},
 			},
@@ -799,10 +901,12 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			Policies: []config.Policy{
 				{
 					Source:              &config.StringURL{URL: mustParseURL(t, "tcp+https://example.com:22")},
+					To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 					PassIdentityHeaders: true,
 				},
 				{
 					Source:              &config.StringURL{URL: mustParseURL(t, "tcp+https://example.com:22")},
+					To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 					PassIdentityHeaders: true,
 					UpstreamTimeout:     &ten,
 				},
@@ -855,7 +959,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "4491062410224443025"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-1",
@@ -900,7 +1015,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "4491062410224443025"
+							}
+						}
+					}
+				}
 			}
 		]
 	`, routes)
@@ -918,6 +1044,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			Policies: []config.Policy{
 				{
 					Source: &config.StringURL{URL: mustParseURL(t, "https://from.example.com")},
+					To:     mustParseWeightedURLs(t, "https://to.example.com"),
 				},
 			},
 		}, "from.example.com")
@@ -969,7 +1096,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"x-email",
 						"x-pomerium-reproxy-policy",
 						"x-pomerium-reproxy-policy-hmac"
-					]
+					],
+					"typedPerFilterConfig": {
+						"envoy.filters.http.ext_authz": {
+							"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+							"checkSettings": {
+								"contextExtensions": {
+									"internal": "false",
+									"route_id": "16734437564672684348"
+								}
+							}
+						}
+					}
 				}
 			]
 		`, routes)
@@ -1071,7 +1209,18 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "2168630557152195352"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-1",
@@ -1115,7 +1264,18 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "2168630557152195352"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-2",
@@ -1165,7 +1325,18 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "2168630557152195352"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-3",
@@ -1209,7 +1380,18 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "2168630557152195352"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-4",
@@ -1253,7 +1435,18 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "2168630557152195352"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-5",
@@ -1303,7 +1496,18 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "2168630557152195352"
+							}
+						}
+					}
+				}
 			}
 		]
 	`, routes)

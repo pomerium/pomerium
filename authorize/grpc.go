@@ -159,6 +159,7 @@ func getCheckRequestURL(req *envoy_service_auth_v3.CheckRequest) url.URL {
 	path := h.GetPath()
 	if idx := strings.Index(path, "?"); idx != -1 {
 		u.RawPath, u.RawQuery = path[:idx], path[idx+1:]
+		u.RawQuery = u.Query().Encode()
 	} else {
 		u.RawPath = path
 	}
