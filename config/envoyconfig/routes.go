@@ -45,7 +45,7 @@ func (b *Builder) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
 		},
 		Action: action,
 		TypedPerFilterConfig: map[string]*any.Any{
-			"envoy.filters.http.ext_authz": disableExtAuthz,
+			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzDisabled(),
 		},
 	}}, nil
 }
@@ -65,20 +65,16 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 	}
 	if !isFrontingAuthenticate {
 		routes = append(routes,
-			// enable ext_authz
-			b.buildControlPlanePathRoute(options, "/.pomerium/jwt", true, requireStrictTransportSecurity),
-			b.buildControlPlanePathRoute(options, urlutil.WebAuthnURLPath, true, requireStrictTransportSecurity),
-			// disable ext_authz and passthrough to proxy handlers
-			b.buildControlPlanePathRoute(options, "/ping", false, requireStrictTransportSecurity),
-			b.buildControlPlanePathRoute(options, "/healthz", false, requireStrictTransportSecurity),
-			b.buildControlPlanePathRoute(options, "/.pomerium", false, requireStrictTransportSecurity),
-			b.buildControlPlanePrefixRoute(options, "/.pomerium/", false, requireStrictTransportSecurity),
-			b.buildControlPlanePathRoute(options, "/.well-known/pomerium", false, requireStrictTransportSecurity),
-			b.buildControlPlanePrefixRoute(options, "/.well-known/pomerium/", false, requireStrictTransportSecurity),
+			b.buildControlPlanePathRoute(options, "/ping", requireStrictTransportSecurity),
+			b.buildControlPlanePathRoute(options, "/healthz", requireStrictTransportSecurity),
+			b.buildControlPlanePathRoute(options, "/.pomerium", requireStrictTransportSecurity),
+			b.buildControlPlanePrefixRoute(options, "/.pomerium/", requireStrictTransportSecurity),
+			b.buildControlPlanePathRoute(options, "/.well-known/pomerium", requireStrictTransportSecurity),
+			b.buildControlPlanePrefixRoute(options, "/.well-known/pomerium/", requireStrictTransportSecurity),
 		)
 		// per #837, only add robots.txt if there are no unauthenticated routes
 		if !hasPublicPolicyMatchingURL(options, url.URL{Scheme: "https", Host: host, Path: "/robots.txt"}) {
-			routes = append(routes, b.buildControlPlanePathRoute(options, "/robots.txt", false, requireStrictTransportSecurity))
+			routes = append(routes, b.buildControlPlanePathRoute(options, "/robots.txt", requireStrictTransportSecurity))
 		}
 	}
 
@@ -109,8 +105,8 @@ func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(
 		}
 		if urlMatchesHost(u, host) {
 			return []*envoy_config_route_v3.Route{
-				b.buildControlPlanePathRoute(options, options.AuthenticateCallbackPath, false, requireStrictTransportSecurity),
-				b.buildControlPlanePathRoute(options, "/", false, requireStrictTransportSecurity),
+				b.buildControlPlanePathRoute(options, options.AuthenticateCallbackPath, requireStrictTransportSecurity),
+				b.buildControlPlanePathRoute(options, "/", requireStrictTransportSecurity),
 			}, nil
 		}
 	}
@@ -120,7 +116,6 @@ func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(
 func (b *Builder) buildControlPlanePathRoute(
 	options *config.Options,
 	path string,
-	protected bool,
 	requireStrictTransportSecurity bool,
 ) *envoy_config_route_v3.Route {
 	r := &envoy_config_route_v3.Route{
@@ -136,11 +131,9 @@ func (b *Builder) buildControlPlanePathRoute(
 			},
 		},
 		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders(requireStrictTransportSecurity)),
-	}
-	if !protected {
-		r.TypedPerFilterConfig = map[string]*any.Any{
-			"envoy.filters.http.ext_authz": disableExtAuthz,
-		}
+		TypedPerFilterConfig: map[string]*any.Any{
+			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, 0)),
+		},
 	}
 	return r
 }
@@ -148,7 +141,6 @@ func (b *Builder) buildControlPlanePathRoute(
 func (b *Builder) buildControlPlanePrefixRoute(
 	options *config.Options,
 	prefix string,
-	protected bool,
 	requireStrictTransportSecurity bool,
 ) *envoy_config_route_v3.Route {
 	r := &envoy_config_route_v3.Route{
@@ -164,11 +156,9 @@ func (b *Builder) buildControlPlanePrefixRoute(
 			},
 		},
 		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders(requireStrictTransportSecurity)),
-	}
-	if !protected {
-		r.TypedPerFilterConfig = map[string]*any.Any{
-			"envoy.filters.http.ext_authz": disableExtAuthz,
-		}
+		TypedPerFilterConfig: map[string]*any.Any{
+			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, 0)),
+		},
 	}
 	return r
 }
@@ -288,6 +278,11 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		return nil, err
 	}
 
+	routeID, err := policy.RouteID()
+	if err != nil {
+		return nil, err
+	}
+
 	requireStrictTransportSecurity := cryptutil.HasCertificateForServerName(certs, fromURL.Hostname())
 
 	route := &envoy_config_route_v3.Route{
@@ -323,9 +318,12 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 	}
 	if isFrontingAuthenticate {
 		route.TypedPerFilterConfig = map[string]*any.Any{
-			"envoy.filters.http.ext_authz": disableExtAuthz,
+			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzDisabled(),
 		}
 	} else {
+		route.TypedPerFilterConfig = map[string]*any.Any{
+			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(false, routeID)),
+		}
 		luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
 			Kind: &structpb.Value_StringValue{
 				StringValue: cfg.Options.CookieName,
@@ -344,8 +342,7 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 	}
 
 	if policy.IsForKubernetes() {
-		policyID, _ := policy.RouteID()
-		for _, hdr := range b.reproxy.GetPolicyIDHeaders(policyID) {
+		for _, hdr := range b.reproxy.GetPolicyIDHeaders(routeID) {
 			route.RequestHeadersToAdd = append(route.RequestHeadersToAdd,
 				&envoy_config_core_v3.HeaderValueOption{
 					Header: &envoy_config_core_v3.HeaderValue{

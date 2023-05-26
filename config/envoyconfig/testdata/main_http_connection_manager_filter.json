@@ -120,6 +120,7 @@
       ]
     },
     "requestTimeout": "30s",
+    "normalizePath": true,
     "rds": {
       "configSource": {
         "ads": {},
