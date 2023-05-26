@@ -26,6 +26,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 		Policies: []config.Policy{
 			{
 				From: "https://*.example.com",
+				To:   mustParseWeightedURLs(t, "https://www.example.com"),
 			},
 		},
 	}}
@@ -40,15 +41,13 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 				"name": "catch-all",
 				"domains": ["*"],
 				"routes": [
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/.pomerium/jwt", true, false))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/.pomerium/webauthn", true, false))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/ping", false, false))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/healthz", false, false))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/.pomerium", false, false))+`,
-					`+protojson.Format(b.buildControlPlanePrefixRoute(cfg.Options, "/.pomerium/", false, false))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/.well-known/pomerium", false, false))+`,
-					`+protojson.Format(b.buildControlPlanePrefixRoute(cfg.Options, "/.well-known/pomerium/", false, false))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/robots.txt", false, false))+`,
+					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/ping", false))+`,
+					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/healthz", false))+`,
+					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/.pomerium", false))+`,
+					`+protojson.Format(b.buildControlPlanePrefixRoute(cfg.Options, "/.pomerium/", false))+`,
+					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/.well-known/pomerium", false))+`,
+					`+protojson.Format(b.buildControlPlanePrefixRoute(cfg.Options, "/.well-known/pomerium/", false))+`,
+					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/robots.txt", false))+`,
 					{
 						"name": "policy-0",
 						"match": {
@@ -79,7 +78,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 						],
 						"route": {
 							"autoHostRewrite": true,
-							"cluster": "route-0",
+							"cluster": "route-5feb9fe8bd89aa97",
 							"hashPolicy": [
 								{ "header": { "headerName": "x-pomerium-routing-key" }, "terminal": true },
 								{ "connectionProperties": { "sourceIp": true }, "terminal": true }
@@ -89,6 +88,17 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 								{ "enabled": false, "upgradeType": "websocket" },
 								{ "enabled": false, "upgradeType": "spdy/3.1" }
 							]
+						},
+						"typedPerFilterConfig": {
+							"envoy.filters.http.ext_authz": {
+								"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+								"checkSettings": {
+									"contextExtensions": {
+										"internal": "false",
+										"route_id": "6911793875091303063"
+									}
+								}
+							}
 						}
 					},
 					{
@@ -121,7 +131,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 						],
 						"route": {
 							"autoHostRewrite": true,
-							"cluster": "route-0",
+							"cluster": "route-5feb9fe8bd89aa97",
 							"hashPolicy": [
 								{ "header": { "headerName": "x-pomerium-routing-key" }, "terminal": true },
 								{ "connectionProperties": { "sourceIp": true }, "terminal": true }
@@ -131,6 +141,17 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 								{ "enabled": false, "upgradeType": "websocket" },
 								{ "enabled": false, "upgradeType": "spdy/3.1" }
 							]
+						},
+						"typedPerFilterConfig": {
+							"envoy.filters.http.ext_authz": {
+								"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+								"checkSettings": {
+									"contextExtensions": {
+										"internal": "false",
+										"route_id": "6911793875091303063"
+									}
+								}
+							}
 						}
 					}
 				]

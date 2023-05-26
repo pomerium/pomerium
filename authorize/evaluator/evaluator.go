@@ -22,17 +22,12 @@ import (
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
 
-// notFoundOutput is what's returned if a route isn't found for a policy.
-var notFoundOutput = &Result{
-	Deny:    NewRuleResult(true, criteria.ReasonRouteNotFound),
-	Headers: make(http.Header),
-}
-
 // Request contains the inputs needed for evaluation.
 type Request struct {
-	Policy  *config.Policy
-	HTTP    RequestHTTP
-	Session RequestSession
+	IsInternal bool
+	Policy     *config.Policy
+	HTTP       RequestHTTP
+	Session    RequestSession
 }
 
 // RequestHTTP is the HTTP field in the request.
@@ -125,8 +120,60 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	ctx, span := trace.StartSpan(ctx, "authorize.Evaluator.Evaluate")
 	defer span.End()
 
+	eg, ctx := errgroup.WithContext(ctx)
+
+	var policyOutput *PolicyResponse
+	eg.Go(func() error {
+		var err error
+		if req.IsInternal {
+			policyOutput, err = e.evaluateInternal(ctx, req)
+		} else {
+			policyOutput, err = e.evaluatePolicy(ctx, req)
+		}
+		return err
+	})
+
+	var headersOutput *HeadersResponse
+	eg.Go(func() error {
+		var err error
+		headersOutput, err = e.evaluateHeaders(ctx, req)
+		return err
+	})
+
+	err := eg.Wait()
+	if err != nil {
+		return nil, err
+	}
+
+	res := &Result{
+		Allow:   policyOutput.Allow,
+		Deny:    policyOutput.Deny,
+		Headers: headersOutput.Headers,
+		Traces:  policyOutput.Traces,
+	}
+	return res, nil
+}
+
+func (e *Evaluator) evaluateInternal(_ context.Context, req *Request) (*PolicyResponse, error) {
+	// these endpoints require a logged-in user
+	if req.HTTP.Path == "/.pomerium/webauthn" || req.HTTP.Path == "/.pomerium/jwt" {
+		if req.Session.ID == "" {
+			return &PolicyResponse{
+				Allow: NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+			}, nil
+		}
+	}
+
+	return &PolicyResponse{
+		Allow: NewRuleResult(true, criteria.ReasonPomeriumRoute),
+	}, nil
+}
+
+func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyResponse, error) {
 	if req.Policy == nil {
-		return notFoundOutput, nil
+		return &PolicyResponse{
+			Deny: NewRuleResult(true, criteria.ReasonRouteNotFound),
+		}, nil
 	}
 
 	id, err := req.Policy.RouteID()
@@ -136,7 +183,9 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 
 	policyEvaluator, ok := e.policyEvaluators[id]
 	if !ok {
-		return notFoundOutput, nil
+		return &PolicyResponse{
+			Deny: NewRuleResult(true, criteria.ReasonRouteNotFound),
+		}, nil
 	}
 
 	clientCA, err := e.getClientCA(req.Policy)
@@ -149,41 +198,23 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return nil, fmt.Errorf("authorize: error validating client certificate: %w", err)
 	}
 
-	eg, ectx := errgroup.WithContext(ctx)
-
-	var policyOutput *PolicyResponse
-	eg.Go(func() error {
-		var err error
-		policyOutput, err = policyEvaluator.Evaluate(ectx, &PolicyRequest{
-			HTTP:                     req.HTTP,
-			Session:                  req.Session,
-			IsValidClientCertificate: isValidClientCertificate,
-		})
-		return err
+	return policyEvaluator.Evaluate(ctx, &PolicyRequest{
+		HTTP:                     req.HTTP,
+		Session:                  req.Session,
+		IsValidClientCertificate: isValidClientCertificate,
 	})
+}
 
-	var headersOutput *HeadersResponse
-	eg.Go(func() error {
-		headersReq := NewHeadersRequestFromPolicy(req.Policy, req.HTTP.Hostname)
-		headersReq.Session = req.Session
-		var err error
-		headersOutput, err = e.headersEvaluators.Evaluate(ectx, headersReq)
-		return err
-	})
-
-	err = eg.Wait()
+func (e *Evaluator) evaluateHeaders(ctx context.Context, req *Request) (*HeadersResponse, error) {
+	headersReq := NewHeadersRequestFromPolicy(req.Policy, req.HTTP.Hostname)
+	headersReq.Session = req.Session
+	res, err := e.headersEvaluators.Evaluate(ctx, headersReq)
 	if err != nil {
 		return nil, err
 	}
 
-	carryOverJWTAssertion(headersOutput.Headers, req.HTTP.Headers)
+	carryOverJWTAssertion(res.Headers, req.HTTP.Headers)
 
-	res := &Result{
-		Allow:   policyOutput.Allow,
-		Deny:    policyOutput.Deny,
-		Headers: headersOutput.Headers,
-		Traces:  policyOutput.Traces,
-	}
 	return res, nil
 }
 

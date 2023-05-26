@@ -16,7 +16,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
-	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -56,43 +55,43 @@ func Test_buildGRPCRoutes(t *testing.T) {
 
 func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 	b := &Builder{filemgr: filemgr.NewManager()}
-	routeString := func(typ, name string, protected bool) string {
+	routeString := func(typ, name string) string {
 		str := `{
-				"name": "pomerium-` + typ + `-` + name + `",
-				"match": {
-					"` + typ + `": "` + name + `"
+			"name": "pomerium-` + typ + `-` + name + `",
+			"match": {
+				"` + typ + `": "` + name + `"
+			},
+			"responseHeadersToAdd": [
+				{
+					"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+					"header": {
+						"key": "X-Frame-Options",
+						"value": "SAMEORIGIN"
+					}
 				},
-				"responseHeadersToAdd": [
-					{
-						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
-						"header": {
-						  "key": "X-Frame-Options",
-						  "value": "SAMEORIGIN"
-						}
-					},
-					{
-						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
-						"header": {
-						  "key": "X-XSS-Protection",
-						  "value": "1; mode=block"
-						}
-					}
-				],
-				"route": {
-					"cluster": "pomerium-control-plane-http"
-				}
-			`
-		if !protected {
-			str += `,
-				"typedPerFilterConfig": {
-					"envoy.filters.http.ext_authz": {
-						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-						"disabled": true
+				{
+					"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+					"header": {
+						"key": "X-XSS-Protection",
+						"value": "1; mode=block"
 					}
 				}
-			`
-		}
-		str += "}"
+			],
+			"route": {
+				"cluster": "pomerium-control-plane-http"
+			},
+			"typedPerFilterConfig": {
+				"envoy.filters.http.ext_authz": {
+					"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+					"checkSettings": {
+						"contextExtensions": {
+							"internal": "true",
+							"route_id": "0"
+						}
+					}
+				}
+			}
+		}`
 		return str
 	}
 	t.Run("authenticate", func(t *testing.T) {
@@ -105,17 +104,15 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
-			`+routeString("path", "/.pomerium/jwt", true)+`,
-			`+routeString("path", urlutil.WebAuthnURLPath, true)+`,
-			`+routeString("path", "/ping", false)+`,
-			`+routeString("path", "/healthz", false)+`,
-			`+routeString("path", "/.pomerium", false)+`,
-			`+routeString("prefix", "/.pomerium/", false)+`,
-			`+routeString("path", "/.well-known/pomerium", false)+`,
-			`+routeString("prefix", "/.well-known/pomerium/", false)+`,
-			`+routeString("path", "/robots.txt", false)+`,
-			`+routeString("path", "/oauth2/callback", false)+`,
-			`+routeString("path", "/", false)+`
+			`+routeString("path", "/ping")+`,
+			`+routeString("path", "/healthz")+`,
+			`+routeString("path", "/.pomerium")+`,
+			`+routeString("prefix", "/.pomerium/")+`,
+			`+routeString("path", "/.well-known/pomerium")+`,
+			`+routeString("prefix", "/.well-known/pomerium/")+`,
+			`+routeString("path", "/robots.txt")+`,
+			`+routeString("path", "/oauth2/callback")+`,
+			`+routeString("path", "/")+`
 		]`, routes)
 	})
 	t.Run("proxy fronting authenticate", func(t *testing.T) {
@@ -144,15 +141,13 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
-			`+routeString("path", "/.pomerium/jwt", true)+`,
-			`+routeString("path", urlutil.WebAuthnURLPath, true)+`,
-			`+routeString("path", "/ping", false)+`,
-			`+routeString("path", "/healthz", false)+`,
-			`+routeString("path", "/.pomerium", false)+`,
-			`+routeString("prefix", "/.pomerium/", false)+`,
-			`+routeString("path", "/.well-known/pomerium", false)+`,
-			`+routeString("prefix", "/.well-known/pomerium/", false)+`,
-			`+routeString("path", "/robots.txt", false)+`
+			`+routeString("path", "/ping")+`,
+			`+routeString("path", "/healthz")+`,
+			`+routeString("path", "/.pomerium")+`,
+			`+routeString("prefix", "/.pomerium/")+`,
+			`+routeString("path", "/.well-known/pomerium")+`,
+			`+routeString("prefix", "/.well-known/pomerium/")+`,
+			`+routeString("path", "/robots.txt")+`
 		]`, routes)
 	})
 
@@ -172,14 +167,12 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
-			`+routeString("path", "/.pomerium/jwt", true)+`,
-			`+routeString("path", urlutil.WebAuthnURLPath, true)+`,
-			`+routeString("path", "/ping", false)+`,
-			`+routeString("path", "/healthz", false)+`,
-			`+routeString("path", "/.pomerium", false)+`,
-			`+routeString("prefix", "/.pomerium/", false)+`,
-			`+routeString("path", "/.well-known/pomerium", false)+`,
-			`+routeString("prefix", "/.well-known/pomerium/", false)+`
+			`+routeString("path", "/ping")+`,
+			`+routeString("path", "/healthz")+`,
+			`+routeString("path", "/.pomerium")+`,
+			`+routeString("prefix", "/.pomerium/")+`,
+			`+routeString("path", "/.well-known/pomerium")+`,
+			`+routeString("prefix", "/.well-known/pomerium/")+`
 		]`, routes)
 	})
 }
@@ -187,7 +180,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 func Test_buildControlPlanePathRoute(t *testing.T) {
 	options := config.NewDefaultOptions()
 	b := &Builder{filemgr: filemgr.NewManager()}
-	route := b.buildControlPlanePathRoute(options, "/hello/world", false, false)
+	route := b.buildControlPlanePathRoute(options, "/hello/world", false)
 	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-path-/hello/world",
@@ -216,7 +209,12 @@ func Test_buildControlPlanePathRoute(t *testing.T) {
 			"typedPerFilterConfig": {
 				"envoy.filters.http.ext_authz": {
 					"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-					"disabled": true
+					"checkSettings": {
+						"contextExtensions": {
+							"internal": "true",
+							"route_id": "0"
+						}
+					}
 				}
 			}
 		}
@@ -226,7 +224,7 @@ func Test_buildControlPlanePathRoute(t *testing.T) {
 func Test_buildControlPlanePrefixRoute(t *testing.T) {
 	options := config.NewDefaultOptions()
 	b := &Builder{filemgr: filemgr.NewManager()}
-	route := b.buildControlPlanePrefixRoute(options, "/hello/world/", false, false)
+	route := b.buildControlPlanePrefixRoute(options, "/hello/world/", false)
 	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-prefix-/hello/world/",
@@ -255,7 +253,12 @@ func Test_buildControlPlanePrefixRoute(t *testing.T) {
 			"typedPerFilterConfig": {
 				"envoy.filters.http.ext_authz": {
 					"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
-					"disabled": true
+					"checkSettings": {
+						"contextExtensions": {
+							"internal": "true",
+							"route_id": "0"
+						}
+					}
 				}
 			}
 		}
@@ -301,6 +304,7 @@ func TestTimeouts(t *testing.T) {
 			Policies: []config.Policy{
 				{
 					From:            "https://example.com",
+					To:              mustParseWeightedURLs(t, "https://to.example.com"),
 					Path:            "/test",
 					UpstreamTimeout: getDuration(tc.upstream),
 					IdleTimeout:     getDuration(tc.idle),
@@ -356,14 +360,17 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		Policies: []config.Policy{
 			{
 				From:                "https://ignore.example.com",
+				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 				PassIdentityHeaders: true,
 			},
 			{
 				From:                "https://example.com",
+				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 				PassIdentityHeaders: true,
 			},
 			{
 				From:                "https://example.com",
+				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 				Path:                "/some/path",
 				AllowWebsockets:     true,
 				PreserveHostHeader:  true,
@@ -371,6 +378,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				From:                "https://example.com",
+				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 				Prefix:              "/some/prefix/",
 				SetRequestHeaders:   map[string]string{"HEADER-KEY": "HEADER-VALUE"},
 				UpstreamTimeout:     &oneMinute,
@@ -378,11 +386,13 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				From:                "https://example.com",
+				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 				Regex:               `^/[a]+$`,
 				PassIdentityHeaders: true,
 			},
 			{
 				From:                 "https://example.com",
+				To:                   mustParseWeightedURLs(t, "https://to.example.com"),
 				Prefix:               "/some/prefix/",
 				RemoveRequestHeaders: []string{"HEADER-KEY"},
 				UpstreamTimeout:      &oneMinute,
@@ -390,6 +400,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				From:                "https://example.com",
+				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 				Path:                "/some/path",
 				AllowSPDY:           true,
 				PreserveHostHeader:  true,
@@ -397,6 +408,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				From:                "https://example.com",
+				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 				Path:                "/some/path",
 				AllowSPDY:           true,
 				AllowWebsockets:     true,
@@ -405,6 +417,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				From:                "https://example.com",
+				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 				Path:                "/websocket-timeout",
 				AllowWebsockets:     true,
 				PreserveHostHeader:  true,
@@ -474,7 +487,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						  "value": "1; mode=block"
 						}
 					}
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "11444765232398592404"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-2",
@@ -534,7 +558,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						  "value": "1; mode=block"
 						}
 					}
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "2990091139764155677"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-3",
@@ -600,7 +635,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						  "value": "1; mode=block"
 						}
 					}
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "2544588842279234006"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-4",
@@ -661,7 +707,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						  "value": "1; mode=block"
 						}
 					}
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "10244970664102670752"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-5",
@@ -721,7 +778,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						  "value": "1; mode=block"
 						}
 					}
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "2544588842279234006"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-6",
@@ -780,7 +848,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						  "value": "1; mode=block"
 						}
 					}
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "2990091139764155677"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-7",
@@ -840,7 +919,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						  "value": "1; mode=block"
 						}
 					}
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "2990091139764155677"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-8",
@@ -900,7 +990,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						  "value": "1; mode=block"
 						}
 					}
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "1052418080698022187"
+							}
+						}
+					}
+				}
 			}
 		]
 	`, routes)
@@ -915,6 +1016,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			Policies: []config.Policy{
 				{
 					From:                "https://authenticate.example.com",
+					To:                  mustParseWeightedURLs(t, "https://authenticate.internal"),
 					PassIdentityHeaders: true,
 				},
 			},
@@ -997,10 +1099,12 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			Policies: []config.Policy{
 				{
 					From:                "tcp+https://example.com:22",
+					To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 					PassIdentityHeaders: true,
 				},
 				{
 					From:                "tcp+https://example.com:22",
+					To:                  mustParseWeightedURLs(t, "https://to.example.com"),
 					PassIdentityHeaders: true,
 					UpstreamTimeout:     &ten,
 				},
@@ -1069,7 +1173,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						  "value": "1; mode=block"
 						}
 					}
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "2226589900561460978"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-1",
@@ -1130,7 +1245,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						  "value": "1; mode=block"
 						}
 					}
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "2226589900561460978"
+							}
+						}
+					}
+				}
 			}
 		]
 	`, routes)
@@ -1149,6 +1275,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			Policies: []config.Policy{
 				{
 					From: "https://from.example.com",
+					To:   mustParseWeightedURLs(t, "https://to.example.com"),
 				},
 			},
 		}}, nil, "from.example.com")
@@ -1216,7 +1343,18 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							  "value": "1; mode=block"
 							}
 						}
-					]
+					],
+					"typedPerFilterConfig": {
+						"envoy.filters.http.ext_authz": {
+							"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+							"checkSettings": {
+								"contextExtensions": {
+									"internal": "false",
+									"route_id": "15508081512033148378"
+								}
+							}
+						}
+					}
 				}
 			]
 		`, routes)
@@ -1335,7 +1473,18 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						  "value": "1; mode=block"
 						}
 					}
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "285016060542193864"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-1",
@@ -1395,7 +1544,18 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						  "value": "1; mode=block"
 						}
 					}
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "285016060542193864"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-2",
@@ -1460,7 +1620,18 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						  "value": "1; mode=block"
 						}
 					}
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "285016060542193864"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-3",
@@ -1520,7 +1691,18 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						  "value": "1; mode=block"
 						}
 					}
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "285016060542193864"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-4",
@@ -1580,7 +1762,18 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						  "value": "1; mode=block"
 						}
 					}
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "285016060542193864"
+							}
+						}
+					}
+				}
 			},
 			{
 				"name": "policy-5",
@@ -1645,7 +1838,18 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						  "value": "1; mode=block"
 						}
 					}
-				]
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "285016060542193864"
+							}
+						}
+					}
+				}
 			}
 		]
 	`, routes)
