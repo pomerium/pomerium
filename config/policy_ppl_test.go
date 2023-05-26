@@ -60,14 +60,6 @@ default allow = [false, set()]
 
 default deny = [false, set()]
 
-pomerium_routes_0 = [true, {"pomerium-route"}] {
-	contains(input.http.url, "/.pomerium/")
-}
-
-else = [false, {"non-pomerium-route"}] {
-	true
-}
-
 accept_0 = [true, {"accept"}]
 
 cors_preflight_0 = [true, {"cors-request"}] {
@@ -570,7 +562,7 @@ else = [false, {"user-unauthenticated"}] {
 }
 
 or_0 = v {
-	results := [pomerium_routes_0, accept_0, cors_preflight_0, authenticated_user_0, domain_0, domain_1, domain_2, domain_3, domain_4, groups_0, groups_1, groups_2, groups_3, groups_4, claim_0, claim_1, claim_2, claim_3, user_0, email_0, user_1, email_1, user_2, email_2, user_3, email_3, user_4, email_4]
+	results := [accept_0, cors_preflight_0, authenticated_user_0, domain_0, domain_1, domain_2, domain_3, domain_4, groups_0, groups_1, groups_2, groups_3, groups_4, claim_0, claim_1, claim_2, claim_3, user_0, email_0, user_1, email_1, user_2, email_2, user_3, email_3, user_4, email_4]
 	normalized := [normalize_criterion_result(x) | x := results[i]]
 	v := merge_with_or(normalized)
 }

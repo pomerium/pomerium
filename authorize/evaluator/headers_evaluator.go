@@ -31,18 +31,20 @@ type HeadersRequest struct {
 // NewHeadersRequestFromPolicy creates a new HeadersRequest from a policy.
 func NewHeadersRequestFromPolicy(policy *config.Policy) *HeadersRequest {
 	input := new(HeadersRequest)
-	input.EnableGoogleCloudServerlessAuthentication = policy.EnableGoogleCloudServerlessAuthentication
-	input.EnableRoutingKey = policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
-		policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_MAGLEV
-	if u, err := urlutil.ParseAndValidateURL(policy.From); err == nil {
-		input.FromAudience = u.Hostname()
+	if policy != nil {
+		input.EnableGoogleCloudServerlessAuthentication = policy.EnableGoogleCloudServerlessAuthentication
+		input.EnableRoutingKey = policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
+			policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_MAGLEV
+		if u, err := urlutil.ParseAndValidateURL(policy.From); err == nil {
+			input.FromAudience = u.Hostname()
+		}
+		input.KubernetesServiceAccountToken = policy.KubernetesServiceAccountToken
+		for _, wu := range policy.To {
+			input.ToAudience = "https://" + wu.URL.Hostname()
+		}
+		input.PassAccessToken = policy.GetSetAuthorizationHeader() == configpb.Route_ACCESS_TOKEN
+		input.PassIDToken = policy.GetSetAuthorizationHeader() == configpb.Route_ID_TOKEN
 	}
-	input.KubernetesServiceAccountToken = policy.KubernetesServiceAccountToken
-	for _, wu := range policy.To {
-		input.ToAudience = "https://" + wu.URL.Hostname()
-	}
-	input.PassAccessToken = policy.GetSetAuthorizationHeader() == configpb.Route_ACCESS_TOKEN
-	input.PassIDToken = policy.GetSetAuthorizationHeader() == configpb.Route_ID_TOKEN
 	return input
 }
 

@@ -26,7 +26,6 @@ const (
 	ReasonHTTPPathUnauthorized                 = "http-path-unauthorized"
 	ReasonInvalidClientCertificate             = "invalid-client-certificate"
 	ReasonNonCORSRequest                       = "non-cors-request"
-	ReasonNonPomeriumRoute                     = "non-pomerium-route"
 	ReasonPomeriumRoute                        = "pomerium-route"
 	ReasonReject                               = "reject"
 	ReasonRouteNotFound                        = "route-not-found"

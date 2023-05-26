@@ -464,6 +464,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		SkipXffAppend:     options.SkipXffAppend,
 		XffNumTrustedHops: options.XffNumTrustedHops,
 		LocalReplyConfig:  b.buildLocalReplyConfig(options),
+		NormalizePath:     wrapperspb.Bool(true),
 	})
 
 	return &envoy_config_listener_v3.Filter{
