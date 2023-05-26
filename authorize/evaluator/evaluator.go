@@ -22,12 +22,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
 
-// notFoundOutput is what's returned if a route isn't found for a policy.
-var notFoundOutput = &Result{
-	Deny:    NewRuleResult(true, criteria.ReasonRouteNotFound),
-	Headers: make(http.Header),
-}
-
 // Request contains the inputs needed for evaluation.
 type Request struct {
 	IsInternal bool
