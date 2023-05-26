@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685027112181,
+  "lastUpdate": 1685134200132,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -46588,6 +46588,42 @@ window.BENCHMARK_DATA = {
             "value": 10547470,
             "unit": "ns/op",
             "extra": "117 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d315e683357a9b587ba9ef399a8813bcc52fdebb",
+          "message": "Merge pull request from GHSA-pvrc-wvj2-f59p\n\n* authorize: use route id from envoy for policy evaluation\n\n* authorize: normalize URL query params\n\n* config: enable envoy normalize_path option\n\n* fix tests\n\n---------\n\nCo-authored-by: Kenneth Jenkins <51246568+kenjenkins@users.noreply.github.com>",
+          "timestamp": "2023-05-26T13:34:21-07:00",
+          "tree_id": "4d9c3114ada1a2734352b94862c155c6b29ae76e",
+          "url": "https://github.com/pomerium/pomerium/commit/d315e683357a9b587ba9ef399a8813bcc52fdebb"
+        },
+        "date": 1685134199733,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14006490,
+            "unit": "ns/op",
+            "extra": "88 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8658619,
+            "unit": "ns/op",
+            "extra": "134 times\n2 procs"
           }
         ]
       }
