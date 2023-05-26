@@ -13,10 +13,6 @@ func (p *Policy) ToPPL() *parser.Policy {
 	ppl := &parser.Policy{}
 
 	allowRule := parser.Rule{Action: parser.ActionAllow}
-	allowRule.Or = append(allowRule.Or,
-		parser.Criterion{
-			Name: "pomerium_routes",
-		})
 	if p.AllowPublicUnauthenticatedAccess {
 		allowRule.Or = append(allowRule.Or,
 			parser.Criterion{

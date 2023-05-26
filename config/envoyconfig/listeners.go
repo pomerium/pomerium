@@ -396,6 +396,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		SkipXffAppend:     options.SkipXffAppend,
 		XffNumTrustedHops: options.XffNumTrustedHops,
 		LocalReplyConfig:  b.buildLocalReplyConfig(options),
+		NormalizePath:     wrapperspb.Bool(true),
 	}), nil
 }
 
