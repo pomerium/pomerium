@@ -31,9 +31,10 @@ var notFoundOutput = &Result{
 
 // Request contains the inputs needed for evaluation.
 type Request struct {
-	Policy  *config.Policy
-	HTTP    RequestHTTP
-	Session RequestSession
+	IsInternal bool
+	Policy     *config.Policy
+	HTTP       RequestHTTP
+	Session    RequestSession
 }
 
 // RequestHTTP is the HTTP field in the request.
@@ -124,42 +125,48 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	ctx, span := trace.StartSpan(ctx, "authorize.Evaluator.Evaluate")
 	defer span.End()
 
-	if req.Policy == nil {
-		return notFoundOutput, nil
-	}
-
-	id, err := req.Policy.RouteID()
-	if err != nil {
-		return nil, fmt.Errorf("authorize: error computing policy route id: %w", err)
-	}
-
-	policyEvaluator, ok := e.policyEvaluators[id]
-	if !ok {
-		return notFoundOutput, nil
-	}
-
-	clientCA, err := e.getClientCA(req.Policy)
-	if err != nil {
-		return nil, err
-	}
-
-	isValidClientCertificate, err := isValidClientCertificate(clientCA, req.HTTP.ClientCertificate)
-	if err != nil {
-		return nil, fmt.Errorf("authorize: error validating client certificate: %w", err)
-	}
-
 	eg, ectx := errgroup.WithContext(ctx)
 
 	var policyOutput *PolicyResponse
-	eg.Go(func() error {
+	if req.IsInternal {
 		var err error
-		policyOutput, err = policyEvaluator.Evaluate(ectx, &PolicyRequest{
-			HTTP:                     req.HTTP,
-			Session:                  req.Session,
-			IsValidClientCertificate: isValidClientCertificate,
+		policyOutput, err = e.evaluateInternal(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+	} else if req.Policy == nil {
+		return notFoundOutput, nil
+	} else {
+		id, err := req.Policy.RouteID()
+		if err != nil {
+			return nil, fmt.Errorf("authorize: error computing policy route id: %w", err)
+		}
+
+		policyEvaluator, ok := e.policyEvaluators[id]
+		if !ok {
+			return notFoundOutput, nil
+		}
+
+		clientCA, err := e.getClientCA(req.Policy)
+		if err != nil {
+			return nil, err
+		}
+
+		isValidClientCertificate, err := isValidClientCertificate(clientCA, req.HTTP.ClientCertificate)
+		if err != nil {
+			return nil, fmt.Errorf("authorize: error validating client certificate: %w", err)
+		}
+
+		eg.Go(func() error {
+			var err error
+			policyOutput, err = policyEvaluator.Evaluate(ectx, &PolicyRequest{
+				HTTP:                     req.HTTP,
+				Session:                  req.Session,
+				IsValidClientCertificate: isValidClientCertificate,
+			})
+			return err
 		})
-		return err
-	})
+	}
 
 	var headersOutput *HeadersResponse
 	eg.Go(func() error {
@@ -170,7 +177,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return err
 	})
 
-	err = eg.Wait()
+	err := eg.Wait()
 	if err != nil {
 		return nil, err
 	}
@@ -184,6 +191,21 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		Traces:  policyOutput.Traces,
 	}
 	return res, nil
+}
+
+func (e *Evaluator) evaluateInternal(_ context.Context, req *Request) (*PolicyResponse, error) {
+	// these endpoints require a logged-in user
+	if req.HTTP.Path == "/.pomerium/jwt" {
+		if req.Session.ID == "" {
+			return &PolicyResponse{
+				Allow: NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+			}, nil
+		}
+	}
+
+	return &PolicyResponse{
+		Allow: NewRuleResult(true, criteria.ReasonPomeriumRoute),
+	}, nil
 }
 
 func (e *Evaluator) getClientCA(policy *config.Policy) (string, error) {
