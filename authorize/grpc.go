@@ -11,6 +11,7 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
@@ -93,6 +94,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 ) (*evaluator.Request, error) {
 	requestURL := getCheckRequestURL(in)
 	req := &evaluator.Request{
+		IsInternal: envoyconfig.ExtAuthzContextExtensionsIsInternal(in.GetAttributes().GetContextExtensions()),
 		HTTP: evaluator.NewRequestHTTP(
 			in.GetAttributes().GetRequest().GetHttp().GetMethod(),
 			requestURL,
@@ -106,15 +108,16 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 			ID: sessionState.ID,
 		}
 	}
-	req.Policy = a.getMatchingPolicy(requestURL)
+	req.Policy = a.getMatchingPolicy(envoyconfig.ExtAuthzContextExtensionsRouteID(in.Attributes.GetContextExtensions()))
 	return req, nil
 }
 
-func (a *Authorize) getMatchingPolicy(requestURL url.URL) *config.Policy {
+func (a *Authorize) getMatchingPolicy(routeID uint64) *config.Policy {
 	options := a.currentOptions.Load()
 
 	for _, p := range options.GetAllPolicies() {
-		if p.Matches(requestURL) {
+		id, _ := p.RouteID()
+		if id == routeID {
 			return &p
 		}
 	}
