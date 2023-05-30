@@ -752,20 +752,21 @@ func TestOptions_GetSetResponseHeaders(t *testing.T) {
 		assert.Equal(t, map[string]string{
 			"X-Frame-Options":  "SAMEORIGIN",
 			"X-XSS-Protection": "1; mode=block",
-		}, options.GetSetResponseHeaders(false))
+		}, options.GetSetResponseHeaders())
 	})
 	t.Run("strict", func(t *testing.T) {
 		options := NewDefaultOptions()
+		options.Cert = "CERT"
 		assert.Equal(t, map[string]string{
 			"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 			"X-Frame-Options":           "SAMEORIGIN",
 			"X-XSS-Protection":          "1; mode=block",
-		}, options.GetSetResponseHeaders(true))
+		}, options.GetSetResponseHeaders())
 	})
 	t.Run("disable", func(t *testing.T) {
 		options := NewDefaultOptions()
 		options.SetResponseHeaders = map[string]string{DisableHeaderKey: "1", "x-other": "xyz"}
-		assert.Equal(t, map[string]string{}, options.GetSetResponseHeaders(true))
+		assert.Equal(t, map[string]string{}, options.GetSetResponseHeaders())
 	})
 }
 
@@ -776,7 +777,7 @@ func TestOptions_GetSetResponseHeadersForPolicy(t *testing.T) {
 		policy := &Policy{
 			SetResponseHeaders: map[string]string{"x": "y"},
 		}
-		assert.Equal(t, map[string]string{"x": "y"}, options.GetSetResponseHeadersForPolicy(policy, true))
+		assert.Equal(t, map[string]string{"x": "y"}, options.GetSetResponseHeadersForPolicy(policy))
 	})
 }
 
