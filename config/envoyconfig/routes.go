@@ -1,7 +1,6 @@
 package envoyconfig
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -20,7 +19,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 const (
@@ -53,7 +51,6 @@ func (b *Builder) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
 func (b *Builder) buildPomeriumHTTPRoutes(
 	options *config.Options,
 	host string,
-	requireStrictTransportSecurity bool,
 ) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
 
@@ -65,20 +62,20 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 	}
 	if !isFrontingAuthenticate {
 		routes = append(routes,
-			b.buildControlPlanePathRoute(options, "/ping", requireStrictTransportSecurity),
-			b.buildControlPlanePathRoute(options, "/healthz", requireStrictTransportSecurity),
-			b.buildControlPlanePathRoute(options, "/.pomerium", requireStrictTransportSecurity),
-			b.buildControlPlanePrefixRoute(options, "/.pomerium/", requireStrictTransportSecurity),
-			b.buildControlPlanePathRoute(options, "/.well-known/pomerium", requireStrictTransportSecurity),
-			b.buildControlPlanePrefixRoute(options, "/.well-known/pomerium/", requireStrictTransportSecurity),
+			b.buildControlPlanePathRoute(options, "/ping"),
+			b.buildControlPlanePathRoute(options, "/healthz"),
+			b.buildControlPlanePathRoute(options, "/.pomerium"),
+			b.buildControlPlanePrefixRoute(options, "/.pomerium/"),
+			b.buildControlPlanePathRoute(options, "/.well-known/pomerium"),
+			b.buildControlPlanePrefixRoute(options, "/.well-known/pomerium/"),
 		)
 		// per #837, only add robots.txt if there are no unauthenticated routes
 		if !hasPublicPolicyMatchingURL(options, url.URL{Scheme: "https", Host: host, Path: "/robots.txt"}) {
-			routes = append(routes, b.buildControlPlanePathRoute(options, "/robots.txt", requireStrictTransportSecurity))
+			routes = append(routes, b.buildControlPlanePathRoute(options, "/robots.txt"))
 		}
 	}
 
-	authRoutes, err := b.buildPomeriumAuthenticateHTTPRoutes(options, host, requireStrictTransportSecurity)
+	authRoutes, err := b.buildPomeriumAuthenticateHTTPRoutes(options, host)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +86,6 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(
 	options *config.Options,
 	host string,
-	requireStrictTransportSecurity bool,
 ) ([]*envoy_config_route_v3.Route, error) {
 	if !config.IsAuthenticate(options.Services) {
 		return nil, nil
@@ -105,8 +101,8 @@ func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(
 		}
 		if urlMatchesHost(u, host) {
 			return []*envoy_config_route_v3.Route{
-				b.buildControlPlanePathRoute(options, options.AuthenticateCallbackPath, requireStrictTransportSecurity),
-				b.buildControlPlanePathRoute(options, "/", requireStrictTransportSecurity),
+				b.buildControlPlanePathRoute(options, options.AuthenticateCallbackPath),
+				b.buildControlPlanePathRoute(options, "/"),
 			}, nil
 		}
 	}
@@ -116,7 +112,6 @@ func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(
 func (b *Builder) buildControlPlanePathRoute(
 	options *config.Options,
 	path string,
-	requireStrictTransportSecurity bool,
 ) *envoy_config_route_v3.Route {
 	r := &envoy_config_route_v3.Route{
 		Name: "pomerium-path-" + path,
@@ -130,7 +125,7 @@ func (b *Builder) buildControlPlanePathRoute(
 				},
 			},
 		},
-		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders(requireStrictTransportSecurity)),
+		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders()),
 		TypedPerFilterConfig: map[string]*any.Any{
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, 0)),
 		},
@@ -141,7 +136,6 @@ func (b *Builder) buildControlPlanePathRoute(
 func (b *Builder) buildControlPlanePrefixRoute(
 	options *config.Options,
 	prefix string,
-	requireStrictTransportSecurity bool,
 ) *envoy_config_route_v3.Route {
 	r := &envoy_config_route_v3.Route{
 		Name: "pomerium-prefix-" + prefix,
@@ -155,7 +149,7 @@ func (b *Builder) buildControlPlanePrefixRoute(
 				},
 			},
 		},
-		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders(requireStrictTransportSecurity)),
+		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders()),
 		TypedPerFilterConfig: map[string]*any.Any{
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, 0)),
 		},
@@ -184,7 +178,6 @@ func getClusterStatsName(policy *config.Policy) string {
 
 func (b *Builder) buildRoutesForPoliciesWithHost(
 	cfg *config.Config,
-	certs []tls.Certificate,
 	host string,
 ) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
@@ -199,7 +192,7 @@ func (b *Builder) buildRoutesForPoliciesWithHost(
 			continue
 		}
 
-		policyRoutes, err := b.buildRoutesForPolicy(cfg, certs, &policy, fmt.Sprintf("policy-%d", i))
+		policyRoutes, err := b.buildRoutesForPolicy(cfg, &policy, fmt.Sprintf("policy-%d", i))
 		if err != nil {
 			return nil, err
 		}
@@ -211,7 +204,6 @@ func (b *Builder) buildRoutesForPoliciesWithHost(
 
 func (b *Builder) buildRoutesForPoliciesWithCatchAll(
 	cfg *config.Config,
-	certs []tls.Certificate,
 ) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
 	for i, p := range cfg.Options.GetAllPolicies() {
@@ -225,7 +217,7 @@ func (b *Builder) buildRoutesForPoliciesWithCatchAll(
 			continue
 		}
 
-		policyRoutes, err := b.buildRoutesForPolicy(cfg, certs, &policy, fmt.Sprintf("policy-%d", i))
+		policyRoutes, err := b.buildRoutesForPolicy(cfg, &policy, fmt.Sprintf("policy-%d", i))
 		if err != nil {
 			return nil, err
 		}
@@ -237,7 +229,6 @@ func (b *Builder) buildRoutesForPoliciesWithCatchAll(
 
 func (b *Builder) buildRoutesForPolicy(
 	cfg *config.Config,
-	certs []tls.Certificate,
 	policy *config.Policy,
 	name string,
 ) ([]*envoy_config_route_v3.Route, error) {
@@ -250,14 +241,14 @@ func (b *Builder) buildRoutesForPolicy(
 	if strings.Contains(fromURL.Host, "*") {
 		// we have to match '*.example.com' and '*.example.com:443', so there are two routes
 		for _, host := range urlutil.GetDomainsForURL(fromURL) {
-			route, err := b.buildRouteForPolicyAndMatch(cfg, certs, policy, name, mkRouteMatchForHost(policy, host))
+			route, err := b.buildRouteForPolicyAndMatch(cfg, policy, name, mkRouteMatchForHost(policy, host))
 			if err != nil {
 				return nil, err
 			}
 			routes = append(routes, route)
 		}
 	} else {
-		route, err := b.buildRouteForPolicyAndMatch(cfg, certs, policy, name, mkRouteMatch(policy))
+		route, err := b.buildRouteForPolicyAndMatch(cfg, policy, name, mkRouteMatch(policy))
 		if err != nil {
 			return nil, err
 		}
@@ -268,7 +259,6 @@ func (b *Builder) buildRoutesForPolicy(
 
 func (b *Builder) buildRouteForPolicyAndMatch(
 	cfg *config.Config,
-	certs []tls.Certificate,
 	policy *config.Policy,
 	name string,
 	match *envoy_config_route_v3.RouteMatch,
@@ -283,15 +273,13 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		return nil, err
 	}
 
-	requireStrictTransportSecurity := cryptutil.HasCertificateForServerName(certs, fromURL.Hostname())
-
 	route := &envoy_config_route_v3.Route{
 		Name:                   name,
 		Match:                  match,
 		Metadata:               &envoy_config_core_v3.Metadata{},
 		RequestHeadersToAdd:    toEnvoyHeaders(policy.SetRequestHeaders),
 		RequestHeadersToRemove: getRequestHeadersToRemove(cfg.Options, policy),
-		ResponseHeadersToAdd:   toEnvoyHeaders(cfg.Options.GetSetResponseHeadersForPolicy(policy, requireStrictTransportSecurity)),
+		ResponseHeadersToAdd:   toEnvoyHeaders(cfg.Options.GetSetResponseHeadersForPolicy(policy)),
 	}
 	if policy.Redirect != nil {
 		action, err := b.buildPolicyRouteRedirectAction(policy.Redirect)
