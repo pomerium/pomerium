@@ -2,12 +2,10 @@ package envoyconfig
 
 import (
 	"context"
-	"crypto/tls"
 
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 // BuildRouteConfigurations builds the route configurations for the RDS service.
@@ -32,15 +30,6 @@ func (b *Builder) buildMainRouteConfiguration(
 	_ context.Context,
 	cfg *config.Config,
 ) (*envoy_config_route_v3.RouteConfiguration, error) {
-	var certs []tls.Certificate
-	if !cfg.Options.InsecureServer {
-		var err error
-		certs, err = getAllCertificates(cfg)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	authorizeURLs, err := cfg.Options.GetInternalAuthorizeURLs()
 	if err != nil {
 		return nil, err
@@ -58,8 +47,7 @@ func (b *Builder) buildMainRouteConfiguration(
 
 	var virtualHosts []*envoy_config_route_v3.VirtualHost
 	for _, host := range allHosts {
-		requireStrictTransportSecurity := cryptutil.HasCertificateForServerName(certs, host)
-		vh, err := b.buildVirtualHost(cfg.Options, host, host, requireStrictTransportSecurity)
+		vh, err := b.buildVirtualHost(cfg.Options, host, host)
 		if err != nil {
 			return nil, err
 		}
@@ -78,7 +66,7 @@ func (b *Builder) buildMainRouteConfiguration(
 
 		// if we're the proxy, add all the policy routes
 		if config.IsProxy(cfg.Options.Services) {
-			rs, err := b.buildRoutesForPoliciesWithHost(cfg, certs, host)
+			rs, err := b.buildRoutesForPoliciesWithHost(cfg, host)
 			if err != nil {
 				return nil, err
 			}
@@ -90,12 +78,12 @@ func (b *Builder) buildMainRouteConfiguration(
 		}
 	}
 
-	vh, err := b.buildVirtualHost(cfg.Options, "catch-all", "*", false)
+	vh, err := b.buildVirtualHost(cfg.Options, "catch-all", "*")
 	if err != nil {
 		return nil, err
 	}
 	if config.IsProxy(cfg.Options.Services) {
-		rs, err := b.buildRoutesForPoliciesWithCatchAll(cfg, certs)
+		rs, err := b.buildRoutesForPoliciesWithCatchAll(cfg)
 		if err != nil {
 			return nil, err
 		}
