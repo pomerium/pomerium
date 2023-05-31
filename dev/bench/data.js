@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685557901992,
+  "lastUpdate": 1685558184266,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -47416,6 +47416,38 @@ window.BENCHMARK_DATA = {
             "value": 12049203,
             "unit": "ns/op",
             "extra": "99 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "276d09ed7ad09e4eaea958e52f27434529ddf3e3",
+          "message": "config: update logic for checking overlapping certificates",
+          "timestamp": "2023-05-31T00:29:58Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4216/commits/276d09ed7ad09e4eaea958e52f27434529ddf3e3"
+        },
+        "date": 1685558183592,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13790931,
+            "unit": "ns/op",
+            "extra": "79 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9282421,
+            "unit": "ns/op",
+            "extra": "127 times\n2 procs"
           }
         ]
       }
