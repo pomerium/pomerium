@@ -36,6 +36,13 @@ func TestNewHeadersRequestFromPolicy(t *testing.T) {
 	}, req)
 }
 
+func TestNewHeadersRequestFromPolicy_nil(t *testing.T) {
+	req := NewHeadersRequestFromPolicy(nil, "from.example.com")
+	assert.Equal(t, &HeadersRequest{
+		Issuer: "from.example.com",
+	}, req)
+}
+
 func TestHeadersEvaluator(t *testing.T) {
 	type A = []interface{}
 	type M = map[string]interface{}
