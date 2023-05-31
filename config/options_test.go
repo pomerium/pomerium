@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
@@ -735,13 +736,17 @@ func TestOptions_ApplySettings(t *testing.T) {
 		cert3, err := cryptutil.GenerateCertificate(nil, "not.example.com")
 		require.NoError(t, err)
 
+		certsIndex := cryptutil.NewCertificatesIndex()
+		xc1, _ := x509.ParseCertificate(cert1.Certificate[0])
+		certsIndex.Add(xc1)
+
 		settings := &config.Settings{
 			Certificates: []*config.Settings_Certificate{
 				{CertBytes: encodeCert(cert2)},
 				{CertBytes: encodeCert(cert3)},
 			},
 		}
-		options.ApplySettings(ctx, settings)
+		options.ApplySettings(ctx, certsIndex, settings)
 		assert.Len(t, options.CertificateFiles, 2, "should prevent adding duplicate certificates")
 	})
 }
