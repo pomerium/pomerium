@@ -41,13 +41,13 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 				"name": "catch-all",
 				"domains": ["*"],
 				"routes": [
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/ping", false))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/healthz", false))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/.pomerium", false))+`,
-					`+protojson.Format(b.buildControlPlanePrefixRoute(cfg.Options, "/.pomerium/", false))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/.well-known/pomerium", false))+`,
-					`+protojson.Format(b.buildControlPlanePrefixRoute(cfg.Options, "/.well-known/pomerium/", false))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/robots.txt", false))+`,
+					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/ping"))+`,
+					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/healthz"))+`,
+					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/.pomerium"))+`,
+					`+protojson.Format(b.buildControlPlanePrefixRoute(cfg.Options, "/.pomerium/"))+`,
+					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/.well-known/pomerium"))+`,
+					`+protojson.Format(b.buildControlPlanePrefixRoute(cfg.Options, "/.well-known/pomerium/"))+`,
+					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/robots.txt"))+`,
 					{
 						"name": "policy-0",
 						"match": {

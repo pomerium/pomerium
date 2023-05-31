@@ -970,6 +970,11 @@ func (o *Options) GetCertificates() ([]tls.Certificate, error) {
 	return certs, nil
 }
 
+// HasCertificates returns true if options has any certificates.
+func (o *Options) HasCertificates() bool {
+	return o.Cert != "" || o.Key != "" || len(o.CertificateFiles) > 0 || o.CertFile != "" || o.KeyFile != ""
+}
+
 // GetSharedKey gets the decoded shared key.
 func (o *Options) GetSharedKey() ([]byte, error) {
 	sharedKey := o.SharedKey
@@ -1009,17 +1014,21 @@ func (o *Options) GetGoogleCloudServerlessAuthenticationServiceAccount() string 
 }
 
 // GetSetResponseHeaders gets the SetResponseHeaders.
-func (o *Options) GetSetResponseHeaders(requireStrictTransportSecurity bool) map[string]string {
-	return o.GetSetResponseHeadersForPolicy(nil, requireStrictTransportSecurity)
+func (o *Options) GetSetResponseHeaders() map[string]string {
+	return o.GetSetResponseHeadersForPolicy(nil)
 }
 
 // GetSetResponseHeadersForPolicy gets the SetResponseHeaders for a policy.
-func (o *Options) GetSetResponseHeadersForPolicy(policy *Policy, requireStrictTransportSecurity bool) map[string]string {
+func (o *Options) GetSetResponseHeadersForPolicy(policy *Policy) map[string]string {
 	hdrs := o.SetResponseHeaders
 	if hdrs == nil {
 		hdrs = make(map[string]string)
 		for k, v := range defaultSetResponseHeaders {
 			hdrs[k] = v
+		}
+
+		if !o.HasCertificates() {
+			delete(hdrs, "Strict-Transport-Security")
 		}
 	}
 	if _, ok := hdrs[DisableHeaderKey]; ok {
@@ -1033,10 +1042,6 @@ func (o *Options) GetSetResponseHeadersForPolicy(policy *Policy, requireStrictTr
 	}
 	if _, ok := hdrs[DisableHeaderKey]; ok {
 		hdrs = make(map[string]string)
-	}
-
-	if !requireStrictTransportSecurity {
-		delete(hdrs, "Strict-Transport-Security")
 	}
 
 	return hdrs

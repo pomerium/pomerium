@@ -100,7 +100,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
 		}
-		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com", false)
+		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
@@ -121,7 +121,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
 		}
-		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com", false)
+		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, "null", routes)
 	})
@@ -137,7 +137,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			}},
 		}
 		_ = options.Policies[0].Validate()
-		routes, err := b.buildPomeriumHTTPRoutes(options, "from.example.com", false)
+		routes, err := b.buildPomeriumHTTPRoutes(options, "from.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
@@ -163,7 +163,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			}},
 		}
 		_ = options.Policies[0].Validate()
-		routes, err := b.buildPomeriumHTTPRoutes(options, "from.example.com", false)
+		routes, err := b.buildPomeriumHTTPRoutes(options, "from.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
@@ -180,7 +180,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 func Test_buildControlPlanePathRoute(t *testing.T) {
 	options := config.NewDefaultOptions()
 	b := &Builder{filemgr: filemgr.NewManager()}
-	route := b.buildControlPlanePathRoute(options, "/hello/world", false)
+	route := b.buildControlPlanePathRoute(options, "/hello/world")
 	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-path-/hello/world",
@@ -224,7 +224,7 @@ func Test_buildControlPlanePathRoute(t *testing.T) {
 func Test_buildControlPlanePrefixRoute(t *testing.T) {
 	options := config.NewDefaultOptions()
 	b := &Builder{filemgr: filemgr.NewManager()}
-	route := b.buildControlPlanePrefixRoute(options, "/hello/world/", false)
+	route := b.buildControlPlanePrefixRoute(options, "/hello/world/")
 	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-prefix-/hello/world/",
@@ -311,7 +311,7 @@ func TestTimeouts(t *testing.T) {
 					AllowWebsockets: tc.allowWebsockets,
 				},
 			},
-		}}, nil, "example.com")
+		}}, "example.com")
 		if !assert.NoError(t, err, "%v", tc) || !assert.Len(t, routes, 1, tc) || !assert.NotNil(t, routes[0].GetRoute(), "%v", tc) {
 			continue
 		}
@@ -425,7 +425,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				UpstreamTimeout:     &ten,
 			},
 		},
-	}}, nil, "example.com")
+	}}, "example.com")
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, `
@@ -1020,7 +1020,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					PassIdentityHeaders: true,
 				},
 			},
-		}}, nil, "authenticate.example.com")
+		}}, "authenticate.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -1109,7 +1109,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					UpstreamTimeout:     &ten,
 				},
 			},
-		}}, nil, "example.com:22")
+		}}, "example.com:22")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -1278,7 +1278,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					To:   mustParseWeightedURLs(t, "https://to.example.com"),
 				},
 			},
-		}}, nil, "from.example.com")
+		}}, "from.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -1410,7 +1410,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				HostPathRegexRewriteSubstitution: "\\1",
 			},
 		},
-	}}, nil, "example.com")
+	}}, "example.com")
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, `

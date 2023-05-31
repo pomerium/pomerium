@@ -298,7 +298,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		UseRemoteAddress:  &wrappers.BoolValue{Value: true},
 		SkipXffAppend:     cfg.Options.SkipXffAppend,
 		XffNumTrustedHops: cfg.Options.XffNumTrustedHops,
-		LocalReplyConfig:  b.buildLocalReplyConfig(cfg.Options, false),
+		LocalReplyConfig:  b.buildLocalReplyConfig(cfg.Options),
 		NormalizePath:     wrapperspb.Bool(true),
 	}
 

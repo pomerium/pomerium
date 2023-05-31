@@ -13,7 +13,6 @@ func (b *Builder) buildVirtualHost(
 	options *config.Options,
 	name string,
 	host string,
-	requireStrictTransportSecurity bool,
 ) (*envoy_config_route_v3.VirtualHost, error) {
 	vh := &envoy_config_route_v3.VirtualHost{
 		Name:    name,
@@ -21,7 +20,7 @@ func (b *Builder) buildVirtualHost(
 	}
 
 	// these routes match /.pomerium/... and similar paths
-	rs, err := b.buildPomeriumHTTPRoutes(options, host, requireStrictTransportSecurity)
+	rs, err := b.buildPomeriumHTTPRoutes(options, host)
 	if err != nil {
 		return nil, err
 	}
@@ -34,13 +33,12 @@ func (b *Builder) buildVirtualHost(
 // coming directly from envoy
 func (b *Builder) buildLocalReplyConfig(
 	options *config.Options,
-	requireStrictTransportSecurity bool,
 ) *envoy_http_connection_manager.LocalReplyConfig {
 	// add global headers for HSTS headers (#2110)
 	var headers []*envoy_config_core_v3.HeaderValueOption
 	// if we're the proxy or authenticate service, add our global headers
 	if config.IsProxy(options.Services) || config.IsAuthenticate(options.Services) {
-		headers = toEnvoyHeaders(options.GetSetResponseHeaders(requireStrictTransportSecurity))
+		headers = toEnvoyHeaders(options.GetSetResponseHeaders())
 	}
 
 	return &envoy_http_connection_manager.LocalReplyConfig{
