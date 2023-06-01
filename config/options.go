@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -975,6 +976,40 @@ func (o *Options) HasCertificates() bool {
 	return o.Cert != "" || o.Key != "" || len(o.CertificateFiles) > 0 || o.CertFile != "" || o.KeyFile != ""
 }
 
+// GetX509Certificates gets all the x509 certificates from the options. Invalid certificates are ignored.
+func (o *Options) GetX509Certificates() []*x509.Certificate {
+	var certs []*x509.Certificate
+
+	if o.CertFile != "" {
+		cert, err := cryptutil.ParsePEMCertificateFromFile(o.CertFile)
+		if err != nil {
+			log.Error(context.Background()).Err(err).Str("file", o.CertFile).Msg("invalid cert_file")
+		} else {
+			certs = append(certs, cert)
+		}
+	} else if o.Cert != "" {
+		if cert, err := cryptutil.ParsePEMCertificateFromBase64(o.Cert); err != nil {
+			log.Error(context.Background()).Err(err).Msg("invalid cert")
+		} else {
+			certs = append(certs, cert)
+		}
+	}
+
+	for _, c := range o.CertificateFiles {
+		cert, err := cryptutil.ParsePEMCertificateFromBase64(c.CertFile)
+		if err != nil {
+			cert, err = cryptutil.ParsePEMCertificateFromFile(c.CertFile)
+		}
+		if err != nil {
+			log.Error(context.Background()).Err(err).Msg("invalid certificate_file")
+		} else {
+			certs = append(certs, cert)
+		}
+	}
+
+	return certs
+}
+
 // GetSharedKey gets the decoded shared key.
 func (o *Options) GetSharedKey() ([]byte, error) {
 	sharedKey := o.SharedKey
@@ -1202,40 +1237,7 @@ func (o *Options) Checksum() uint64 {
 	return hashutil.MustHash(o)
 }
 
-func (o *Options) indexCerts(ctx context.Context) certsIndex {
-	idx := make(certsIndex)
-
-	if o.CertFile != "" {
-		cert, err := cryptutil.ParsePEMCertificateFromFile(o.CertFile)
-		if err != nil {
-			log.Error(ctx).Err(err).Str("file", o.CertFile).Msg("parsing local cert: skipped")
-		} else {
-			idx.addCert(cert)
-		}
-	} else if o.Cert != "" {
-		if cert, err := cryptutil.ParsePEMCertificateFromBase64(o.Cert); err != nil {
-			log.Error(ctx).Err(err).Msg("parsing local cert: skipped")
-		} else {
-			idx.addCert(cert)
-		}
-	}
-
-	for _, c := range o.CertificateFiles {
-		cert, err := cryptutil.ParsePEMCertificateFromBase64(c.CertFile)
-		if err != nil {
-			cert, err = cryptutil.ParsePEMCertificateFromFile(c.CertFile)
-		}
-		if err != nil {
-			log.Error(ctx).Err(err).Msg("parsing local cert: skipped")
-		} else {
-			idx.addCert(cert)
-		}
-	}
-	return idx
-}
-
-func (o *Options) applyExternalCerts(ctx context.Context, certs []*config.Settings_Certificate) {
-	idx := o.indexCerts(ctx)
+func (o *Options) applyExternalCerts(ctx context.Context, certsIndex *cryptutil.CertificatesIndex, certs []*config.Settings_Certificate) {
 	for _, c := range certs {
 		cfp := certificateFilePair{}
 		cfp.CertFile = base64.StdEncoding.EncodeToString(c.CertBytes)
@@ -1246,7 +1248,7 @@ func (o *Options) applyExternalCerts(ctx context.Context, certs []*config.Settin
 			log.Error(ctx).Err(err).Msg("parsing cert from databroker: skipped")
 			continue
 		}
-		if overlaps, name := idx.matchCert(cert); overlaps {
+		if overlaps, name := certsIndex.OverlapsWithExistingCertificate(cert); overlaps {
 			log.Error(ctx).Err(err).Str("domain", name).Msg("overlaps with local certs: skipped")
 			continue
 		}
@@ -1256,7 +1258,7 @@ func (o *Options) applyExternalCerts(ctx context.Context, certs []*config.Settin
 }
 
 // ApplySettings modifies the config options using the given protobuf settings.
-func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) {
+func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.CertificatesIndex, settings *config.Settings) {
 	if settings == nil {
 		return
 	}
@@ -1270,7 +1272,7 @@ func (o *Options) ApplySettings(ctx context.Context, settings *config.Settings) 
 	set(&o.Addr, settings.Address)
 	set(&o.InsecureServer, settings.InsecureServer)
 	set(&o.DNSLookupFamily, settings.DnsLookupFamily)
-	o.applyExternalCerts(ctx, settings.GetCertificates())
+	o.applyExternalCerts(ctx, certsIndex, settings.GetCertificates())
 	set(&o.HTTPRedirectAddr, settings.HttpRedirectAddr)
 	setDuration(&o.ReadTimeout, settings.TimeoutRead)
 	setDuration(&o.WriteTimeout, settings.TimeoutWrite)
