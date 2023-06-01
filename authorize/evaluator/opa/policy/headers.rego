@@ -10,6 +10,7 @@ package pomerium.headers
 #   to_audience: string
 #   pass_access_token: boolean
 #   pass_id_token: boolean
+#   set_request_headers: map[string]string
 #
 # data:
 #   jwt_claim_headers: map[string]string
@@ -46,30 +47,22 @@ session = v {
 	v = get_databroker_record("type.googleapis.com/session.Session", input.session.id)
 	v != null
 	object.get(v, "impersonate_session_id", "") == ""
-} else = {} {
-	true
-}
+} else = {}
 
 user = u {
 	u = get_databroker_record("type.googleapis.com/user.User", session.user_id)
 	u != null
-} else = {} {
-	true
-}
+} else = {}
 
 directory_user = du {
 	du = get_databroker_record("pomerium.io/DirectoryUser", session.user_id)
 	du != null
-} else = {} {
-	true
-}
+} else = {}
 
 group_ids = gs {
 	gs = directory_user.group_ids
 	gs != null
-} else = [] {
-	true
-}
+} else = []
 
 groups := array.concat(group_ids, array.concat(get_databroker_group_names(group_ids), get_databroker_group_emails(group_ids)))
 
@@ -81,29 +74,21 @@ jwt_headers = {
 
 jwt_payload_aud = v {
 	v := input.issuer
-} else = "" {
-	true
-}
+} else = ""
 
 jwt_payload_iss = v {
 	v := input.issuer
-} else = "" {
-	true
-}
+} else = ""
 
 jwt_payload_jti = v {
 	v = session.id
-} else = "" {
-	true
-}
+} else = ""
 
 jwt_payload_exp = v {
 	v = min([five_minutes, round(session.expires_at.seconds)])
 } else = v {
 	v = five_minutes
-} else = null {
-	true
-}
+} else = null
 
 jwt_payload_iat = v {
 	# sessions store the issued_at on the id_token
@@ -111,29 +96,21 @@ jwt_payload_iat = v {
 } else = v {
 	# service accounts store the issued at directly
 	v = round(session.issued_at.seconds)
-} else = null {
-	true
-}
+} else = null
 
 jwt_payload_sub = v {
 	v = session.user_id
-} else = "" {
-	true
-}
+} else = ""
 
 jwt_payload_user = v {
 	v = session.user_id
-} else = "" {
-	true
-}
+} else = ""
 
 jwt_payload_email = v {
 	v = directory_user.email
 } else = v {
 	v = user.email
-} else = "" {
-	true
-}
+} else = ""
 
 jwt_payload_groups = v {
 	v = array.concat(group_ids, get_databroker_group_names(group_ids))
@@ -141,17 +118,13 @@ jwt_payload_groups = v {
 } else = v {
 	v = session.claims.groups
 	v != null
-} else = [] {
-	true
-}
+} else = []
 
 jwt_payload_name = v {
 	v = get_header_string_value(session.claims.name)
 } else = v {
 	v = get_header_string_value(user.claims.name)
-} else = "" {
-	true
-}
+} else = ""
 
 # the session id is always set to the input session id, even if impersonating
 jwt_payload_sid := input.session.id
@@ -204,43 +177,49 @@ kubernetes_headers = h {
 		["Impersonate-User", jwt_payload_email],
 		["Impersonate-Group", get_header_string_value(jwt_payload_groups)],
 	]
-} else = [] {
-	true
-}
+} else = []
 
 google_cloud_serverless_authentication_service_account = s {
 	s := data.google_cloud_serverless_authentication_service_account
-} else = "" {
-	true
-}
+} else = ""
 
 google_cloud_serverless_headers = h {
 	input.enable_google_cloud_serverless_authentication
 	h := get_google_cloud_serverless_headers(google_cloud_serverless_authentication_service_account, input.to_audience)
-} else = {} {
-	true
-}
+} else = {}
 
 routing_key_headers = h {
 	input.enable_routing_key
 	h := [["x-pomerium-routing-key", crypto.sha256(input.session.id)]]
-} else = [] {
-	true
-}
+} else = []
 
 pass_access_token_headers = h {
 	input.pass_access_token
 	h := [["Authorization", concat(" ", ["Bearer", session.oauth_token.access_token])]]
-} else = [] {
-	true
-}
+} else = []
 
 pass_id_token_headers = h {
 	input.pass_id_token
 	h := [["Authorization", concat(" ", ["Bearer", session.id_token.raw])]]
-} else = [] {
-	true
-}
+} else = []
+
+session_id_token = v {
+	v := session.id_token.raw
+} else = ""
+
+session_access_token = v {
+	v := session.oauth_token.access_token
+} else = ""
+
+set_request_headers = h {
+	h := [[header_name, header_value] |
+		some header_name
+		v1 := input.set_request_headers[header_name]
+		v2 := replace(v1, "$pomerium.id_token", session_id_token)
+		v3 := replace(v2, "$pomerium.access_token", session_access_token)
+		header_value := v3
+	]
+} else = []
 
 identity_headers := {key: values |
 	h1 := [["x-pomerium-jwt-assertion", signed_jwt]]
@@ -263,8 +242,9 @@ identity_headers := {key: values |
 	h5 := routing_key_headers
 	h6 := pass_access_token_headers
 	h7 := pass_id_token_headers
+	h8 := set_request_headers
 
-	h := array.concat(array.concat(array.concat(array.concat(array.concat(array.concat(h1, h2), h3), h4), h5), h6), h7)
+	h := array.concat(array.concat(array.concat(array.concat(array.concat(array.concat(array.concat(h1, h2), h3), h4), h5), h6), h7), h8)
 
 	some i
 	[key, v1] := h[i]

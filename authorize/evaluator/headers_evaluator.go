@@ -17,14 +17,15 @@ import (
 
 // HeadersRequest is the input to the headers.rego script.
 type HeadersRequest struct {
-	EnableGoogleCloudServerlessAuthentication bool           `json:"enable_google_cloud_serverless_authentication"`
-	EnableRoutingKey                          bool           `json:"enable_routing_key"`
-	Issuer                                    string         `json:"issuer"`
-	KubernetesServiceAccountToken             string         `json:"kubernetes_service_account_token"`
-	ToAudience                                string         `json:"to_audience"`
-	Session                                   RequestSession `json:"session"`
-	PassAccessToken                           bool           `json:"pass_access_token"`
-	PassIDToken                               bool           `json:"pass_id_token"`
+	EnableGoogleCloudServerlessAuthentication bool              `json:"enable_google_cloud_serverless_authentication"`
+	EnableRoutingKey                          bool              `json:"enable_routing_key"`
+	Issuer                                    string            `json:"issuer"`
+	KubernetesServiceAccountToken             string            `json:"kubernetes_service_account_token"`
+	ToAudience                                string            `json:"to_audience"`
+	Session                                   RequestSession    `json:"session"`
+	PassAccessToken                           bool              `json:"pass_access_token"`
+	PassIDToken                               bool              `json:"pass_id_token"`
+	SetRequestHeaders                         map[string]string `json:"set_request_headers"`
 }
 
 // NewHeadersRequestFromPolicy creates a new HeadersRequest from a policy.
@@ -41,6 +42,7 @@ func NewHeadersRequestFromPolicy(policy *config.Policy, hostname string) *Header
 		}
 		input.PassAccessToken = policy.GetSetAuthorizationHeader() == configpb.Route_ACCESS_TOKEN
 		input.PassIDToken = policy.GetSetAuthorizationHeader() == configpb.Route_ID_TOKEN
+		input.SetRequestHeaders = policy.SetRequestHeaders
 	}
 	return input
 }
