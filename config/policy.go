@@ -542,6 +542,11 @@ func (p *Policy) Validate() error {
 		return fmt.Errorf("config: invalid policy set_authorization_header: %v", p.SetAuthorizationHeader)
 	}
 
+	if p.SetAuthorizationHeader != "" {
+		log.Warn(context.Background()).Msg("config: set_authorization_header is deprecated, " +
+			"use $pomerium.id_token or $pomerium.access_token in set_request_headers instead")
+	}
+
 	return nil
 }
 

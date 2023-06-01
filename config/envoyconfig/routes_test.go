@@ -609,13 +609,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						{ "enabled": false, "upgradeType": "spdy/3.1"}
 					]
 				},
-				"requestHeadersToAdd": [{
-					"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
-					"header": {
-						"key": "HEADER-KEY",
-						"value": "HEADER-VALUE"
-					}
-				}],
 				"requestHeadersToRemove": [
 					"x-pomerium-reproxy-policy",
 					"x-pomerium-reproxy-policy-hmac"

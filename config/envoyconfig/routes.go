@@ -277,7 +277,6 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		Name:                   name,
 		Match:                  match,
 		Metadata:               &envoy_config_core_v3.Metadata{},
-		RequestHeadersToAdd:    toEnvoyHeaders(policy.SetRequestHeaders),
 		RequestHeadersToRemove: getRequestHeadersToRemove(cfg.Options, policy),
 		ResponseHeadersToAdd:   toEnvoyHeaders(cfg.Options.GetSetResponseHeadersForPolicy(policy)),
 	}
