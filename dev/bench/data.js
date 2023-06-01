@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685558184266,
+  "lastUpdate": 1685633603484,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -47446,6 +47446,42 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 9282421,
+            "unit": "ns/op",
+            "extra": "127 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "baf964f44a5f145dcfe1777939d978924fab486c",
+          "message": "config: update logic for checking overlapping certificates (#4216)\n\n* config: update logic for checking overlapping certificates\r\n\r\n* add test\r\n\r\n* go mod tidy",
+          "timestamp": "2023-06-01T09:30:46-06:00",
+          "tree_id": "9047ebc84407ec3ab6dfe4884450e4ac47d73f1b",
+          "url": "https://github.com/pomerium/pomerium/commit/baf964f44a5f145dcfe1777939d978924fab486c"
+        },
+        "date": 1685633602789,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13692935,
+            "unit": "ns/op",
+            "extra": "81 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9456962,
             "unit": "ns/op",
             "extra": "127 times\n2 procs"
           }
