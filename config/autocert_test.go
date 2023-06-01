@@ -63,7 +63,7 @@ func TestAutocertOptions_Validate(t *testing.T) {
 		wantErr bool
 		cleanup func()
 	}
-	var tests = map[string]func(t *testing.T) test{
+	tests := map[string]func(t *testing.T) test{
 		"ok/custom-ca": func(t *testing.T) test {
 			return test{
 				fields: fields{

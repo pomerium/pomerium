@@ -13,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -98,11 +99,16 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 	ids := maps.Keys(src.dbConfigs)
 	sort.Strings(ids)
 
+	certsIndex := cryptutil.NewCertificatesIndex()
+	for _, cert := range cfg.Options.GetX509Certificates() {
+		certsIndex.Add(cert)
+	}
+
 	// add all the config policies to the list
 	for _, id := range ids {
 		cfgpb := src.dbConfigs[id]
 
-		cfg.Options.ApplySettings(ctx, cfgpb.Settings)
+		cfg.Options.ApplySettings(ctx, certsIndex, cfgpb.Settings)
 		var errCount uint64
 
 		err := cfg.Options.Validate()
