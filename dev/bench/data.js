@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685650335758,
+  "lastUpdate": 1685656941781,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -47748,6 +47748,42 @@ window.BENCHMARK_DATA = {
             "value": 14349390,
             "unit": "ns/op",
             "extra": "97 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5be322e2ef8d9c656d3677a7f13a7328f7041506",
+          "message": "config: add support for $pomerium.id_token and $pomerium.access_token in set_request_headers (#4219)\n\n* config: add support for $pomerium.id_token and $pomerium.access_token in set_request_headers\r\n\r\n* lint\r\n\r\n* Update authorize/evaluator/headers_evaluator_test.go\r\n\r\nCo-authored-by: Denis Mishin <dmishin@pomerium.com>\r\n\r\n* fix spelling\r\n\r\n---------\r\n\r\nCo-authored-by: Denis Mishin <dmishin@pomerium.com>",
+          "timestamp": "2023-06-01T16:00:02-06:00",
+          "tree_id": "ff88df467db5ec6887bd53876371c05b61144a9c",
+          "url": "https://github.com/pomerium/pomerium/commit/5be322e2ef8d9c656d3677a7f13a7328f7041506"
+        },
+        "date": 1685656941317,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13428316,
+            "unit": "ns/op",
+            "extra": "86 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 58980816,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
