@@ -165,7 +165,8 @@ func TestHeadersEvaluator(t *testing.T) {
 		assert.Equal(t, "ID_TOKEN", output.Headers.Get("X-ID-Token"))
 		assert.Equal(t, "ACCESS_TOKEN", output.Headers.Get("X-Access-Token"))
 	})
-	t.Run("set_request_headers original behaviour", func(t *testing.T) {
+
+	t.Run("set_request_headers original behavior", func(t *testing.T) {
 		output, err := eval(t,
 			[]proto.Message{
 				&session.Session{Id: "s1", IdToken: &session.IDToken{
