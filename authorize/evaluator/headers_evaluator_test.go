@@ -28,11 +28,18 @@ func TestNewHeadersRequestFromPolicy(t *testing.T) {
 				URL: *mustParseURL("http://to.example.com"),
 			},
 		},
-	})
+	}, "from.example.com")
 	assert.Equal(t, &HeadersRequest{
 		EnableGoogleCloudServerlessAuthentication: true,
 		Issuer:     "from.example.com",
 		ToAudience: "https://to.example.com",
+	}, req)
+}
+
+func TestNewHeadersRequestFromPolicy_nil(t *testing.T) {
+	req := NewHeadersRequestFromPolicy(nil, "from.example.com")
+	assert.Equal(t, &HeadersRequest{
+		Issuer: "from.example.com",
 	}, req)
 }
 
