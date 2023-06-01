@@ -165,4 +165,25 @@ func TestHeadersEvaluator(t *testing.T) {
 		assert.Equal(t, "ID_TOKEN", output.Headers.Get("X-ID-Token"))
 		assert.Equal(t, "ACCESS_TOKEN", output.Headers.Get("X-Access-Token"))
 	})
+	t.Run("set_request_headers original behaviour", func(t *testing.T) {
+		output, err := eval(t,
+			[]proto.Message{
+				&session.Session{Id: "s1", IdToken: &session.IDToken{
+					Raw: "ID_TOKEN",
+				}, OauthToken: &session.OAuthToken{
+					AccessToken: "ACCESS_TOKEN",
+				}},
+			},
+			&HeadersRequest{
+				Issuer:     "from.example.com",
+				ToAudience: "to.example.com",
+				Session:    RequestSession{ID: "s1"},
+				SetRequestHeaders: map[string]string{
+					"Authorization": "Bearer $pomerium.id_token",
+				},
+			})
+		require.NoError(t, err)
+
+		assert.Equal(t, "Bearer ID_TOKEN", output.Headers.Get("Authorization"))
+	})
 }
