@@ -170,3 +170,14 @@ func mustParseURL(str string) *url.URL {
 	}
 	return u
 }
+
+func loadCertificate(t *testing.T, certName string) tls.Certificate {
+	t.Helper()
+	certFile := filepath.Join(".", "tpl", "files", certName+".pem")
+	keyFile := filepath.Join(".", "tpl", "files", certName+"-key.pem")
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cert
+}
