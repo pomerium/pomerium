@@ -568,6 +568,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	cacheDir, _ := os.UserCacheDir()
 	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-354e49305a5a39414a545530374e58454e48334148524c4e324258463837364355564c4e4532464b54355139495547514a38.pem")
 	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3350415a38414e4e4a4655424e55393430474147324651433949384e485341334b5157364f424b4c5856365a545937383735.pem")
+	clientCAFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "client-ca-33515845575a495a4c4a4949574e42573552464d4f344245424a46425034375250524934374844564b5a3055484b55485659.pem")
 
 	t.Run("no-validation", func(t *testing.T) {
 		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
@@ -634,9 +635,12 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 					}
 				],
 				"validationContext": {
-					"trustChainVerification": "ACCEPT_UNTRUSTED"
+					"trustedCa": {
+						"filename": "`+clientCAFileName+`"
+					}
 				}
-			}
+			},
+			"requireClientCertificate": true
 		}`, downstreamTLSContext)
 	})
 	t.Run("policy-client-ca", func(t *testing.T) {
@@ -676,9 +680,12 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 					}
 				],
 				"validationContext": {
-					"trustChainVerification": "ACCEPT_UNTRUSTED"
+					"trustedCa": {
+						"filename": "`+clientCAFileName+`"
+					}
 				}
-			}
+			},
+			"requireClientCertificate": true
 		}`, downstreamTLSContext)
 	})
 	t.Run("http1", func(t *testing.T) {
