@@ -1,6 +1,7 @@
 package envoyconfig
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -675,7 +676,7 @@ func (b *Builder) buildDownstreamTLSContext(ctx context.Context,
 			AlpnProtocols:   alpnProtocols,
 		},
 	}
-	if clientCA := clientCAForDomain(cfg, domain); len(clientCA) > 0 {
+	if clientCA := clientCAForDomain(ctx, cfg, domain); len(clientCA) > 0 {
 		dtc.CommonTlsContext.ValidationContextType = b.buildDownstreamValidationContext(ctx, cfg, clientCA)
 		dtc.RequireClientCertificate = wrapperspb.Bool(true)
 	}
@@ -684,18 +685,25 @@ func (b *Builder) buildDownstreamTLSContext(ctx context.Context,
 
 // clientCAForDomain returns a bundle of all per-route client CAs configured
 // for the given domain, or else the globally configured client CA.
-func clientCAForDomain(cfg *config.Config, domain string) []byte {
-	var bundle []byte
+func clientCAForDomain(ctx context.Context, cfg *config.Config, domain string) []byte {
+	var bundle bytes.Buffer
 	for _, p := range getPoliciesForDomain(cfg.Options, domain) {
 		if p.TLSDownstreamClientCA == "" {
 			continue
 		}
-		if ca, err := base64.StdEncoding.DecodeString(p.TLSDownstreamClientCA); err == nil {
-			bundle = append(bundle, ca...)
+		ca, err := base64.StdEncoding.DecodeString(p.TLSDownstreamClientCA)
+		if err != nil {
+			log.Error(ctx).Err(err).Msg("invalid client CA")
+			continue
+		}
+		bundle.Write(ca)
+		// In case there are multiple CAs, make sure they are separated by a newline.
+		if ca[len(ca)-1] != '\n' {
+			bundle.WriteByte('\n')
 		}
 	}
-	if len(bundle) > 0 {
-		return bundle
+	if bundle.Len() > 0 {
+		return bundle.Bytes()
 	}
 	ca, _ := cfg.Options.GetClientCA()
 	return ca
