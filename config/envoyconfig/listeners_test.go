@@ -2,6 +2,7 @@ package envoyconfig
 
 import (
 	"context"
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"testing"
@@ -756,6 +757,128 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 			}
 		}`, downstreamTLSContext)
 	})
+}
+
+func Test_clientCAForDomain_globalAndPerRoute(t *testing.T) {
+	clientCA1 := []byte("client CA 1\n")
+	clientCA2 := []byte("client CA 2\n")
+	clientCA3 := []byte("client CA 3\n")
+	clientCA2and3 := []byte("client CA 2\nclient CA 3\n")
+
+	b64 := base64.StdEncoding.EncodeToString
+	cfg := &config.Config{Options: &config.Options{
+		ClientCA: b64(clientCA1),
+		Policies: []config.Policy{
+			{
+				Source: &config.StringURL{
+					URL: mustParseURL(t, "https://a.example.com:1234")},
+				TLSDownstreamClientCA: b64(clientCA2),
+			},
+			{
+				Source: &config.StringURL{
+					URL: mustParseURL(t, "https://a.example.com:4567")},
+				TLSDownstreamClientCA: b64(clientCA3),
+			},
+			{
+				Source: &config.StringURL{
+					URL: mustParseURL(t, "https://b.example.com")},
+				TLSDownstreamClientCA: b64(clientCA3),
+			},
+			{
+				Source: &config.StringURL{
+					URL: mustParseURL(t, "https://c.example.com")},
+			},
+		},
+	}}
+
+	cases := []struct {
+		domain   string
+		expected []byte
+	}{
+		{"a.example.com", clientCA2and3},
+		{"b.example.com", clientCA3},
+		{"c.example.com", clientCA1}, // no per-route client CA override
+		{"any-other-domain", clientCA1},
+	}
+	for i := range cases {
+		c := &cases[i]
+		t.Run(c.domain, func(t *testing.T) {
+			actual := clientCAForDomain(context.Background(), cfg, c.domain)
+			assert.Equal(t, c.expected, actual)
+		})
+	}
+}
+
+func Test_clientCAForDomain_perRouteOnly(t *testing.T) {
+	clientCA1 := []byte("client CA 1\n")
+	clientCA2 := []byte("client CA 2\n")
+
+	b64 := base64.StdEncoding.EncodeToString
+	cfg := &config.Config{Options: &config.Options{
+		Policies: []config.Policy{
+			{
+				Source: &config.StringURL{
+					URL: mustParseURL(t, "https://a.example.com")},
+			},
+			{
+				Source: &config.StringURL{
+					URL: mustParseURL(t, "https://b.example.com")},
+				TLSDownstreamClientCA: b64(clientCA2),
+			},
+			{
+				Source: &config.StringURL{
+					URL: mustParseURL(t, "https://c.example.com")},
+				TLSDownstreamClientCA: b64(clientCA1),
+			},
+		},
+	}}
+
+	cases := []struct {
+		domain   string
+		expected []byte
+	}{
+		{"a.example.com", nil},
+		{"b.example.com", clientCA2},
+		{"c.example.com", clientCA1},
+	}
+	for i := range cases {
+		c := &cases[i]
+		t.Run(c.domain, func(t *testing.T) {
+			actual := clientCAForDomain(context.Background(), cfg, c.domain)
+			assert.Equal(t, c.expected, actual)
+		})
+	}
+}
+
+func Test_clientCAForDomain_newlines(t *testing.T) {
+	// Make sure multiple bundled per-route CAs are separated by newlines.
+	clientCA1 := []byte("client CA 1")
+	clientCA2 := []byte("client CA 2")
+	clientCA3 := []byte("client CA 3")
+
+	b64 := base64.StdEncoding.EncodeToString
+	cfg := &config.Config{Options: &config.Options{
+		Policies: []config.Policy{
+			{
+				Source: &config.StringURL{
+					URL: mustParseURL(t, "https://foo.example.com:123")},
+				TLSDownstreamClientCA: b64(clientCA3),
+			},
+			{
+				Source: &config.StringURL{
+					URL: mustParseURL(t, "https://foo.example.com:456")},
+				TLSDownstreamClientCA: b64(clientCA2),
+			},
+			{
+				Source: &config.StringURL{
+					URL: mustParseURL(t, "https://foo.example.com:789")},
+				TLSDownstreamClientCA: b64(clientCA1),
+			},
+		},
+	}}
+	expected := []byte("client CA 3\nclient CA 2\nclient CA 1\n")
+	actual := clientCAForDomain(context.Background(), cfg, "foo.example.com")
+	assert.Equal(t, expected, actual)
 }
 
 func Test_getAllDomains(t *testing.T) {
