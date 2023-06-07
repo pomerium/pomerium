@@ -7,7 +7,7 @@
       "request": "launch",
       "mode": "debug",
       "program": "${workspaceRoot}/cmd/pomerium",
-      "args": ["-config", "${workspaceRoot}/.config.yaml"],
+      "args": ["-config", "${workspaceRoot}/.config-console.yaml"],
       "cwd": "${workspaceRoot}",
     },
     {

@@ -211,6 +211,33 @@ func getRootCertificateAuthority() (string, error) {
 	return rootCABundle.value, nil
 }
 
+func getCombinedClientCertificateAuthority(opts *config.Options) ([]byte, error) {
+	var buf bytes.Buffer
+
+	if opts.ClientCAFile != "" {
+		if err := fileutil.CopyFileUpTo(&buf, opts.ClientCAFile, 5<<20); err != nil {
+			return nil, fmt.Errorf("error reading CA file: %w", err)
+		}
+		buf.WriteRune('\n')
+	} else if opts.ClientCA != "" {
+		panic("TODO: not implemented")
+	}
+
+	for _, route := range opts.Routes {
+		if route.TLSDownstreamClientCAFile != "" {
+			if err := fileutil.CopyFileUpTo(&buf, route.TLSDownstreamClientCAFile, 5<<20); err != nil {
+				return nil, fmt.Errorf("error reading CA file: %w", err)
+			}
+			fmt.Println("***COPIED CA FILE", route.TLSDownstreamClientCAFile)
+			buf.WriteRune('\n')
+		} else if route.TLSDownstreamClientCA != "" {
+			panic("TODO: not implemented")
+		}
+	}
+
+	return buf.Bytes(), nil
+}
+
 func getCombinedCertificateAuthority(cfg *config.Config) ([]byte, error) {
 	rootFile, err := getRootCertificateAuthority()
 	if err != nil {

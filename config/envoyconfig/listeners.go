@@ -496,6 +496,7 @@ func (b *Builder) buildDownstreamTLSContextMulti(
 		envoyCerts = append(envoyCerts, envoyCert)
 	}
 	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
+		RequireClientCertificate: wrapperspb.Bool(true),
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			TlsParams:             tlsParams,
 			TlsCertificates:       envoyCerts,
@@ -530,13 +531,23 @@ func (b *Builder) buildDownstreamValidationContext(
 		}
 	}
 	if !needsClientCert {
+		fmt.Println("*** NO CLIENT CERT REQUIRED ***")
 		return nil
+	}
+
+	clientCAs, err := getCombinedClientCertificateAuthority(cfg.Options)
+	if err != nil {
+		panic("failed to get combined client certificate authority:" + err.Error())
+	}
+	if len(clientCAs) == 0 {
+		panic("no client certificate authority provided")
 	}
 
 	// trusted_ca is left blank because we verify the client certificate in the authorize service
 	vc := &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
 		ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
-			TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_ACCEPT_UNTRUSTED,
+			TrustedCa:              b.filemgr.BytesDataSource("client-ca.pem", clientCAs),
+			TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_VERIFY_TRUST_CHAIN,
 		},
 	}
 
