@@ -135,7 +135,7 @@ local ComposeService(name, definition, additionalAliases=[]) =
 
 function(mode, idp, dns_suffix='') {
   local name = 'pomerium',
-  local image = 'pomerium/pomerium:${POMERIUM_TAG:-master}',
+  local image = 'pomerium/pomerium:${POMERIUM_TAG:-main}',
   local environment = Environment(mode, idp, dns_suffix),
 
   compose: {
