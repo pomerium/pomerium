@@ -563,7 +563,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	}`, filter)
 }
 
-func Test_buildDownstreamTLSContext(t *testing.T) {
+func Test_buildDownstreamTLSContextWithValidation(t *testing.T) {
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
 
 	cacheDir, _ := os.UserCacheDir()
@@ -572,7 +572,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	clientCAFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "client-ca-3533485838304b593757424e3354425157494c4747433534384f474f3631364d5332554c3332485a483834334d50454c344a.pem")
 
 	t.Run("no-validation", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext := b.buildDownstreamTLSContextWithValidation(context.Background(), &config.Config{Options: &config.Options{
 			Cert: aExampleComCert,
 			Key:  aExampleComKey,
 		}}, "a.example.com")
@@ -605,7 +605,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("client-ca", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext := b.buildDownstreamTLSContextWithValidation(context.Background(), &config.Config{Options: &config.Options{
 			Cert:     aExampleComCert,
 			Key:      aExampleComKey,
 			ClientCA: "VEVTVAo=", // "TEST\n" (with a trailing newline)
@@ -645,7 +645,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("policy-client-ca", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext := b.buildDownstreamTLSContextWithValidation(context.Background(), &config.Config{Options: &config.Options{
 			Cert: aExampleComCert,
 			Key:  aExampleComKey,
 			Policies: []config.Policy{
@@ -690,7 +690,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("http1", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext := b.buildDownstreamTLSContextWithValidation(context.Background(), &config.Config{Options: &config.Options{
 			Cert:      aExampleComCert,
 			Key:       aExampleComKey,
 			CodecType: config.CodecTypeHTTP1,
@@ -724,7 +724,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext)
 	})
 	t.Run("http2", func(t *testing.T) {
-		downstreamTLSContext := b.buildDownstreamTLSContext(context.Background(), &config.Config{Options: &config.Options{
+		downstreamTLSContext := b.buildDownstreamTLSContextWithValidation(context.Background(), &config.Config{Options: &config.Options{
 			Cert:      aExampleComCert,
 			Key:       aExampleComKey,
 			CodecType: config.CodecTypeHTTP2,
