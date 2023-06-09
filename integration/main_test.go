@@ -105,6 +105,14 @@ func getClient(t testing.TB) *http.Client {
 	}
 }
 
+// Returns a new http.Client configured with the same settings as getClient(),
+// as well as a pointer to the wrapped http.Transport, so that the
+// http.Transport can be easily customized.
+func getClientWithTransport(t testing.TB) (*http.Client, *http.Transport) {
+	client := getClient(t)
+	return client, client.Transport.(loggingRoundTripper).transport.(*http.Transport)
+}
+
 func waitForHealthy(ctx context.Context) error {
 	client := getClient(nil)
 	check := func(endpoint string) error {
@@ -193,4 +201,15 @@ func mustParseURL(str string) *url.URL {
 		panic(err)
 	}
 	return u
+}
+
+func loadCertificate(t *testing.T, certName string) tls.Certificate {
+	t.Helper()
+	certFile := filepath.Join(".", "tpl", "files", certName+".pem")
+	keyFile := filepath.Join(".", "tpl", "files", certName+"-key.pem")
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cert
 }

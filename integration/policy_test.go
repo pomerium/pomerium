@@ -12,8 +12,10 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/integration/flows"
+	"github.com/pomerium/pomerium/internal/httputil"
 )
 
 func TestQueryStringParams(t *testing.T) {
@@ -337,5 +339,139 @@ func TestLoadBalancer(t *testing.T) {
 		distribution := getDistribution(t, "maglev")
 		assert.Lenf(t, distribution, 1, "should distribute requests to a single backend, got: %v",
 			distribution)
+	})
+}
+
+func TestDownstreamClientCA(t *testing.T) {
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Minute*10)
+	defer clearTimeout()
+
+	t.Run("no client cert", func(t *testing.T) {
+		res, err := flows.Authenticate(ctx, getClient(t),
+			mustParseURL("https://client-cert-required.localhost.pomerium.io/"),
+			flows.WithEmail("user1@dogs.test"))
+		require.NoError(t, err)
+		res.Body.Close()
+		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
+	})
+	t.Run("untrusted client cert", func(t *testing.T) {
+		// Configure an http.Client with an untrusted client certificate.
+		cert := loadCertificate(t, "downstream-2-client")
+		client, transport := getClientWithTransport(t)
+		transport.TLSClientConfig.Certificates = []tls.Certificate{cert}
+
+		res, err := flows.Authenticate(ctx, client,
+			mustParseURL("https://client-cert-required.localhost.pomerium.io/"),
+			flows.WithEmail("user1@dogs.test"))
+		require.NoError(t, err)
+		res.Body.Close()
+		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
+	})
+	t.Run("valid client cert", func(t *testing.T) {
+		// Configure an http.Client with a trusted client certificate.
+		cert := loadCertificate(t, "downstream-1-client")
+		client, transport := getClientWithTransport(t)
+		transport.TLSClientConfig.Certificates = []tls.Certificate{cert}
+
+		res, err := flows.Authenticate(ctx, client,
+			mustParseURL("https://client-cert-required.localhost.pomerium.io/"),
+			flows.WithEmail("user1@dogs.test"))
+		require.NoError(t, err)
+		defer res.Body.Close()
+
+		var result struct {
+			Path string `json:"path"`
+		}
+		err = json.NewDecoder(res.Body).Decode(&result)
+		if !assert.NoError(t, err) {
+			return
+		}
+		assert.Equal(t, "/", result.Path)
+	})
+}
+
+func TestMultipleDownstreamClientCAs(t *testing.T) {
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Minute*10)
+	defer clearTimeout()
+
+	// Initializes a new http.Client with the given certificate.
+	newClientWithCert := func(certName string) *http.Client {
+		cert := loadCertificate(t, certName)
+		client, transport := getClientWithTransport(t)
+		transport.TLSClientConfig.Certificates = []tls.Certificate{cert}
+		return client
+	}
+
+	// Asserts that we get a successful JSON response from the httpdetails
+	// service, matching the given path.
+	assertOK := func(res *http.Response, err error, path string) {
+		require.NoError(t, err, "unexpected http error")
+		defer res.Body.Close()
+
+		var result struct {
+			Path string `json:"path"`
+		}
+		err = json.NewDecoder(res.Body).Decode(&result)
+		require.NoError(t, err)
+		assert.Equal(t, path, result.Path)
+	}
+
+	t.Run("cert1", func(t *testing.T) {
+		client := newClientWithCert("downstream-1-client")
+
+		// With cert1, we should get a valid response for the /ca1 path.
+		res, err := flows.Authenticate(ctx, client,
+			mustParseURL("https://client-cert-overlap.localhost.pomerium.io/ca1"),
+			flows.WithEmail("user1@dogs.test"))
+		assertOK(res, err, "/ca1")
+
+		// With cert1, we should get an HTML error page for the /ca1 path.
+		req, err := http.NewRequestWithContext(ctx, "GET",
+			"https://client-cert-overlap.localhost.pomerium.io/ca2", nil)
+		require.NoError(t, err)
+
+		res, err = client.Do(req)
+		require.NoError(t, err, "unexpected http error")
+		res.Body.Close()
+		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
+	})
+	t.Run("cert2", func(t *testing.T) {
+		client := newClientWithCert("downstream-2-client")
+
+		// With cert2, we should get an HTML error page for the /ca1 path
+		// (after login).
+		res, err := flows.Authenticate(ctx, client,
+			mustParseURL("https://client-cert-overlap.localhost.pomerium.io/ca1"),
+			flows.WithEmail("user1@dogs.test"))
+		require.NoError(t, err)
+		res.Body.Close()
+		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
+
+		// With cert2, we should get a valid response for the /ca2 path.
+		req, err := http.NewRequestWithContext(ctx, "GET",
+			"https://client-cert-overlap.localhost.pomerium.io/ca2", nil)
+		require.NoError(t, err, "unexpected http error")
+		res, err = client.Do(req)
+		assertOK(res, err, "/ca2")
+	})
+	t.Run("no cert", func(t *testing.T) {
+		client := getClient(t)
+
+		// Without a client certificate, both paths should return an HTML error
+		// page (after login).
+		res, err := flows.Authenticate(ctx, client,
+			mustParseURL("https://client-cert-overlap.localhost.pomerium.io/ca1"),
+			flows.WithEmail("user1@dogs.test"))
+		require.NoError(t, err)
+		res.Body.Close()
+		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
+
+		req, err := http.NewRequestWithContext(ctx, "GET",
+			"https://client-cert-overlap.localhost.pomerium.io/ca2", nil)
+		require.NoError(t, err)
+		res, err = client.Do(req)
+		require.NoError(t, err, "unexpected http error")
+		res.Body.Close()
+		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
 	})
 }
