@@ -425,8 +425,8 @@ func TestMultipleDownstreamClientCAs(t *testing.T) {
 			flows.WithEmail("user1@dogs.test"))
 		assertOK(res, err, "/ca1")
 
-		// With cert1, we should get an HTML error page for the /ca1 path.
-		req, err := http.NewRequestWithContext(ctx, "GET",
+		// With cert1, we should get an HTML error page for the /ca2 path.
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 			"https://client-cert-overlap.localhost.pomerium.io/ca2", nil)
 		require.NoError(t, err)
 
@@ -448,7 +448,7 @@ func TestMultipleDownstreamClientCAs(t *testing.T) {
 		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
 
 		// With cert2, we should get a valid response for the /ca2 path.
-		req, err := http.NewRequestWithContext(ctx, "GET",
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 			"https://client-cert-overlap.localhost.pomerium.io/ca2", nil)
 		require.NoError(t, err, "unexpected http error")
 		res, err = client.Do(req)
@@ -466,7 +466,7 @@ func TestMultipleDownstreamClientCAs(t *testing.T) {
 		res.Body.Close()
 		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
 
-		req, err := http.NewRequestWithContext(ctx, "GET",
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 			"https://client-cert-overlap.localhost.pomerium.io/ca2", nil)
 		require.NoError(t, err)
 		res, err = client.Do(req)
