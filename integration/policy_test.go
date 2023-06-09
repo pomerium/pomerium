@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/integration/flows"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -334,9 +335,7 @@ func TestDownstreamClientCA(t *testing.T) {
 	t.Run("no client cert", func(t *testing.T) {
 		req, err := http.NewRequestWithContext(ctx, "GET",
 			"https://client-cert-required.localhost.pomerium.io/", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		res, err := getClient().Do(req)
 		if assert.Error(t, err, "expected error when no certificate provided") {
@@ -358,9 +357,7 @@ func TestDownstreamClientCA(t *testing.T) {
 
 		req, err := http.NewRequestWithContext(ctx, "GET",
 			"https://client-cert-required.localhost.pomerium.io/", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		res, err := client.Do(req)
 		if assert.Error(t, err, "expected error for untrusted certificate") {
@@ -380,18 +377,14 @@ func TestDownstreamClientCA(t *testing.T) {
 		res, err := flows.Authenticate(ctx, &client,
 			mustParseURL("https://client-cert-required.localhost.pomerium.io/"),
 			flows.WithEmail("user1@dogs.test"))
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
+		require.NoError(t, err, "unexpected http error")
 		defer res.Body.Close()
 
 		var result struct {
 			Path string `json:"path"`
 		}
 		err = json.NewDecoder(res.Body).Decode(&result)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, "/", result.Path)
 	})
 }
@@ -418,18 +411,14 @@ func TestMultipleDownstreamClientCAs(t *testing.T) {
 	// Asserts that we get a successful JSON response from the httpdetails
 	// service, matching the given path.
 	assertOK := func(res *http.Response, err error, path string) {
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
+		require.NoError(t, err, "unexpected http error")
 		defer res.Body.Close()
 
 		var result struct {
 			Path string `json:"path"`
 		}
 		err = json.NewDecoder(res.Body).Decode(&result)
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 		assert.Equal(t, path, result.Path)
 	}
 
@@ -445,14 +434,10 @@ func TestMultipleDownstreamClientCAs(t *testing.T) {
 		// With cert1, we should get an HTTP error response for the /ca2 path.
 		req, err := http.NewRequestWithContext(ctx, "GET",
 			"https://client-cert-overlap.localhost.pomerium.io/ca2", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		res, err = client.Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
+		require.NoError(t, err)
 		defer res.Body.Close()
 		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
 	})
@@ -462,14 +447,10 @@ func TestMultipleDownstreamClientCAs(t *testing.T) {
 		// With cert2, we should get an HTTP error response for the /ca1 path.
 		req, err := http.NewRequestWithContext(ctx, "GET",
 			"https://client-cert-overlap.localhost.pomerium.io/ca1", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		res, err := client.Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
+		require.NoError(t, err, "unexpected http error")
 		defer res.Body.Close()
 		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
 
@@ -480,12 +461,10 @@ func TestMultipleDownstreamClientCAs(t *testing.T) {
 		assertOK(res, err, "/ca2")
 	})
 	t.Run("no cert", func(t *testing.T) {
-		// Without a client certificate, connections should be rejected
+		// Without a client certificate, connections should be rejected.
 		req, err := http.NewRequestWithContext(ctx, "GET",
 			"https://client-cert-overlap.localhost.pomerium.io/ca1", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		res, err := getClient().Do(req)
 		if assert.Error(t, err, "expected error when no certificate provided") {
@@ -496,9 +475,7 @@ func TestMultipleDownstreamClientCAs(t *testing.T) {
 
 		req, err = http.NewRequestWithContext(ctx, "GET",
 			"https://client-cert-overlap.localhost.pomerium.io/ca2", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 
 		res, err = getClient().Do(req)
 		if assert.Error(t, err, "expected error when no certificate provided") {
