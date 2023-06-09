@@ -11,8 +11,10 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/integration/flows"
+	"github.com/pomerium/pomerium/internal/httputil"
 )
 
 func TestCORS(t *testing.T) {
@@ -318,5 +320,168 @@ func TestLoadBalancer(t *testing.T) {
 		distribution := getDistribution(t, "maglev")
 		assert.Lenf(t, distribution, 1, "should distribute requests to a single backend, got: %v",
 			distribution)
+	})
+}
+
+func TestDownstreamClientCA(t *testing.T) {
+	if ClusterType == "traefik" || ClusterType == "nginx" {
+		t.Skip()
+		return
+	}
+
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Minute*10)
+	defer clearTimeout()
+
+	t.Run("no client cert", func(t *testing.T) {
+		req, err := http.NewRequestWithContext(ctx, "GET",
+			"https://client-cert-required.localhost.pomerium.io/", nil)
+		require.NoError(t, err)
+
+		res, err := getClient().Do(req)
+		if assert.Error(t, err, "expected error when no certificate provided") {
+			assert.Contains(t, err.Error(), "remote error: tls: certificate required")
+		} else {
+			res.Body.Close()
+		}
+	})
+	t.Run("untrusted client cert", func(t *testing.T) {
+		// Configure an http.Client with an untrusted client certificate.
+		cert := loadCertificate(t, "downstream-2-client")
+		client := *getClient()
+		tr := client.Transport.(*http.Transport).Clone()
+		// We need to use the GetClientCertificate callback here in order to
+		// present a certificate that doesn't match the advertised CA.
+		tr.TLSClientConfig.GetClientCertificate =
+			func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) { return &cert, nil }
+		client.Transport = tr
+
+		req, err := http.NewRequestWithContext(ctx, "GET",
+			"https://client-cert-required.localhost.pomerium.io/", nil)
+		require.NoError(t, err)
+
+		res, err := client.Do(req)
+		if assert.Error(t, err, "expected error for untrusted certificate") {
+			assert.Contains(t, err.Error(), "remote error: tls: unknown certificate authority")
+		} else {
+			res.Body.Close()
+		}
+	})
+	t.Run("valid client cert", func(t *testing.T) {
+		// Configure an http.Client with a trusted client certificate.
+		cert := loadCertificate(t, "downstream-1-client")
+		client := *getClient()
+		tr := client.Transport.(*http.Transport).Clone()
+		tr.TLSClientConfig.Certificates = []tls.Certificate{cert}
+		client.Transport = tr
+
+		res, err := flows.Authenticate(ctx, &client,
+			mustParseURL("https://client-cert-required.localhost.pomerium.io/"),
+			flows.WithEmail("user1@dogs.test"))
+		require.NoError(t, err, "unexpected http error")
+		defer res.Body.Close()
+
+		var result struct {
+			Path string `json:"path"`
+		}
+		err = json.NewDecoder(res.Body).Decode(&result)
+		require.NoError(t, err)
+		assert.Equal(t, "/", result.Path)
+	})
+}
+
+func TestMultipleDownstreamClientCAs(t *testing.T) {
+	if ClusterType == "traefik" || ClusterType == "nginx" {
+		t.Skip()
+		return
+	}
+
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Minute*10)
+	defer clearTimeout()
+
+	// Initializes a new http.Client with the given certificate.
+	newClientWithCert := func(certName string) *http.Client {
+		cert := loadCertificate(t, certName)
+		client := *getClient()
+		tr := client.Transport.(*http.Transport).Clone()
+		tr.TLSClientConfig.Certificates = []tls.Certificate{cert}
+		client.Transport = tr
+		return &client
+	}
+
+	// Asserts that we get a successful JSON response from the httpdetails
+	// service, matching the given path.
+	assertOK := func(res *http.Response, err error, path string) {
+		require.NoError(t, err, "unexpected http error")
+		defer res.Body.Close()
+
+		var result struct {
+			Path string `json:"path"`
+		}
+		err = json.NewDecoder(res.Body).Decode(&result)
+		require.NoError(t, err)
+		assert.Equal(t, path, result.Path)
+	}
+
+	t.Run("cert1", func(t *testing.T) {
+		client := newClientWithCert("downstream-1-client")
+
+		// With cert1, we should get a valid response for the /ca1 path.
+		res, err := flows.Authenticate(ctx, client,
+			mustParseURL("https://client-cert-overlap.localhost.pomerium.io/ca1"),
+			flows.WithEmail("user1@dogs.test"))
+		assertOK(res, err, "/ca1")
+
+		// With cert1, we should get an HTTP error response for the /ca2 path.
+		req, err := http.NewRequestWithContext(ctx, "GET",
+			"https://client-cert-overlap.localhost.pomerium.io/ca2", nil)
+		require.NoError(t, err)
+
+		res, err = client.Do(req)
+		require.NoError(t, err)
+		defer res.Body.Close()
+		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
+	})
+	t.Run("cert2", func(t *testing.T) {
+		client := newClientWithCert("downstream-2-client")
+
+		// With cert2, we should get an HTTP error response for the /ca1 path.
+		req, err := http.NewRequestWithContext(ctx, "GET",
+			"https://client-cert-overlap.localhost.pomerium.io/ca1", nil)
+		require.NoError(t, err)
+
+		res, err := client.Do(req)
+		require.NoError(t, err, "unexpected http error")
+		defer res.Body.Close()
+		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
+
+		// With cert2, we should get a valid response for the /ca2 path.
+		res, err = flows.Authenticate(ctx, client,
+			mustParseURL("https://client-cert-overlap.localhost.pomerium.io/ca2"),
+			flows.WithEmail("user1@dogs.test"))
+		assertOK(res, err, "/ca2")
+	})
+	t.Run("no cert", func(t *testing.T) {
+		// Without a client certificate, connections should be rejected.
+		req, err := http.NewRequestWithContext(ctx, "GET",
+			"https://client-cert-overlap.localhost.pomerium.io/ca1", nil)
+		require.NoError(t, err)
+
+		res, err := getClient().Do(req)
+		if assert.Error(t, err, "expected error when no certificate provided") {
+			assert.Contains(t, err.Error(), "remote error: tls: certificate required")
+		} else {
+			res.Body.Close()
+		}
+
+		req, err = http.NewRequestWithContext(ctx, "GET",
+			"https://client-cert-overlap.localhost.pomerium.io/ca2", nil)
+		require.NoError(t, err)
+
+		res, err = getClient().Do(req)
+		if assert.Error(t, err, "expected error when no certificate provided") {
+			assert.Contains(t, err.Error(), "remote error: tls: certificate required")
+		} else {
+			res.Body.Close()
+		}
 	})
 }
