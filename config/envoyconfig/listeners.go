@@ -151,7 +151,7 @@ func (b *Builder) buildMainListener(ctx context.Context, cfg *config.Config) (*e
 					ServerNames: []string{tlsDomain},
 				}
 			}
-			tlsContext := b.buildDownstreamTLSContext(ctx, cfg, tlsDomain)
+			tlsContext := b.buildDownstreamTLSContextWithValidation(ctx, cfg, tlsDomain)
 			if tlsContext != nil {
 				tlsConfig := marshalAny(tlsContext)
 				filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
@@ -669,13 +669,21 @@ func (b *Builder) buildDownstreamTLSContext(ctx context.Context,
 	}
 
 	envoyCert := b.envoyTLSCertificateFromGoTLSCertificate(ctx, cert)
-	dtc := &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
+	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			TlsParams:       tlsParams,
 			TlsCertificates: []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{envoyCert},
 			AlpnProtocols:   alpnProtocols,
 		},
 	}
+}
+
+func (b *Builder) buildDownstreamTLSContextWithValidation(
+	ctx context.Context,
+	cfg *config.Config,
+	domain string,
+) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
+	dtc := b.buildDownstreamTLSContext(ctx, cfg, domain)
 	if clientCA := clientCAForDomain(ctx, cfg, domain); len(clientCA) > 0 {
 		dtc.CommonTlsContext.ValidationContextType = b.buildDownstreamValidationContext(ctx, cfg, clientCA)
 		dtc.RequireClientCertificate = wrapperspb.Bool(true)
