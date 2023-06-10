@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686364372630,
+  "lastUpdate": 1686364426216,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -48408,6 +48408,42 @@ window.BENCHMARK_DATA = {
             "value": 10689354,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "158d36163d25e2ca3326dedb85e96c4f1e0fa446",
+          "message": "chore(deps): bump github.com/coreos/go-oidc/v3 from 3.5.0 to 3.6.0 (#4226)",
+          "timestamp": "2023-06-09T22:31:08-04:00",
+          "tree_id": "dba5e8d4e700b7d017ba4ef3e236c5b184e261fb",
+          "url": "https://github.com/pomerium/pomerium/commit/158d36163d25e2ca3326dedb85e96c4f1e0fa446"
+        },
+        "date": 1686364425345,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13684702,
+            "unit": "ns/op",
+            "extra": "79 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8630039,
+            "unit": "ns/op",
+            "extra": "139 times\n2 procs"
           }
         ]
       }
