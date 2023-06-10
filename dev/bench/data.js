@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686354905660,
+  "lastUpdate": 1686358164333,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -48108,6 +48108,42 @@ window.BENCHMARK_DATA = {
             "value": 8495701,
             "unit": "ns/op",
             "extra": "135 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "334d4cd60d21e3c930d54f7bcafb2cb6d823e575",
+          "message": "ci: fix lint workflow (#4229)",
+          "timestamp": "2023-06-09T20:44:05-04:00",
+          "tree_id": "b55804535eeef7ba1c04b208e25e1a4b2203b306",
+          "url": "https://github.com/pomerium/pomerium/commit/334d4cd60d21e3c930d54f7bcafb2cb6d823e575"
+        },
+        "date": 1686358163888,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16752978,
+            "unit": "ns/op",
+            "extra": "72 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10288742,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
