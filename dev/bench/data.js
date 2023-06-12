@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686598895754,
+  "lastUpdate": 1686612681009,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -48904,6 +48904,38 @@ window.BENCHMARK_DATA = {
             "value": 14455880,
             "unit": "ns/op",
             "extra": "81 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "01dde18696f304be6cc172bf8847267751fc2bf6",
+          "message": "pin to debian:bullseye for casource base image",
+          "timestamp": "2023-06-12T02:14:30Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4250/commits/01dde18696f304be6cc172bf8847267751fc2bf6"
+        },
+        "date": 1686612680550,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13203010,
+            "unit": "ns/op",
+            "extra": "90 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8456069,
+            "unit": "ns/op",
+            "extra": "139 times\n2 procs"
           }
         ]
       }
