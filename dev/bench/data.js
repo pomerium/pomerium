@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686669623659,
+  "lastUpdate": 1686674795521,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -49000,6 +49000,42 @@ window.BENCHMARK_DATA = {
             "value": 8568247,
             "unit": "ns/op",
             "extra": "139 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d96ca0611afbb9d1358dad35aee73e1cdcca0716",
+          "message": "pin to a debian:latest image for casource base image (#4250)\n\nThe debian 'stable' images configure apt to install from the rolling\r\n'stable' repository, rather than a specific Debian release. Thus even\r\nthough we pin to a specific Docker image digest, the packages installed\r\nby 'apt-get' can change when a new Debian release is promoted to stable.\r\n\r\nInstead, pin to an image where apt is configured to install from\r\nrepositories for a specific Debian release (in this case, bullseye).",
+          "timestamp": "2023-06-13T09:41:53-07:00",
+          "tree_id": "38dd904e12c62104ab1bf2a9df7d52b96a9d8f2a",
+          "url": "https://github.com/pomerium/pomerium/commit/d96ca0611afbb9d1358dad35aee73e1cdcca0716"
+        },
+        "date": 1686674795072,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12740164,
+            "unit": "ns/op",
+            "extra": "94 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8662212,
+            "unit": "ns/op",
+            "extra": "141 times\n2 procs"
           }
         ]
       }
