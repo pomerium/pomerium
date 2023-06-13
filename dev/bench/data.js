@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686674841589,
+  "lastUpdate": 1686676206104,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -49100,6 +49100,38 @@ window.BENCHMARK_DATA = {
             "value": 8785762,
             "unit": "ns/op",
             "extra": "135 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "62347e8ef2cf3b519e9030b76fd8b0febeb78610",
+          "message": "add downstream mTLS integration test cases (main)",
+          "timestamp": "2023-06-13T10:45:08Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4234/commits/62347e8ef2cf3b519e9030b76fd8b0febeb78610"
+        },
+        "date": 1686676205683,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14402186,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8685343,
+            "unit": "ns/op",
+            "extra": "133 times\n2 procs"
           }
         ]
       }
