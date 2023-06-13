@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686676206104,
+  "lastUpdate": 1686677858858,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -49132,6 +49132,42 @@ window.BENCHMARK_DATA = {
             "value": 8685343,
             "unit": "ns/op",
             "extra": "133 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3ebee1159c0505130a9a09859f04292f709d452e",
+          "message": "add downstream mTLS integration test cases (#4234)\n\n* integration test config: add downstream mTLS routes\r\n\r\nAdd two new CA certificates for use with downstream mTLS tests, and a\r\nclient certificate/key pair issued by each CA.\r\n\r\nAdd a few routes to the policy template that require a client CA. Update\r\nthe generated output configurations.\r\n\r\n(based on commit ed63a6a6e7474d1131294836ab7faac17d8b8599)\r\n\r\n* add downstream mTLS integration test cases\r\n\r\nThese are modeled after the tests added to v0.17 in 83957a9, but here\r\nthe expected behavior is that requests with an invalid client\r\ncertificate will receive a 495 response only after authentication.",
+          "timestamp": "2023-06-13T10:25:21-07:00",
+          "tree_id": "d62b5379c5cc76edc550145f7814ce975b149171",
+          "url": "https://github.com/pomerium/pomerium/commit/3ebee1159c0505130a9a09859f04292f709d452e"
+        },
+        "date": 1686677858121,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15705790,
+            "unit": "ns/op",
+            "extra": "75 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11341110,
+            "unit": "ns/op",
+            "extra": "93 times\n2 procs"
           }
         ]
       }
