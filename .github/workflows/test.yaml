@@ -88,6 +88,7 @@ jobs:
       - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753
         with:
           go-version: ${{ matrix.go-version }}
+          cache: false
 
       - uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c
         with:
@@ -171,6 +172,7 @@ jobs:
       - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753
         with:
           go-version: 1.20.x
+          cache: false
 
       - uses: actions/setup-python@bd6b4b6205c4dbad673328db7b31b7fab9e241c0
         with:
@@ -198,6 +200,7 @@ jobs:
       - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753
         with:
           go-version: 1.20.x
+          cache: false
 
       - name: retrieve binary
         uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a
