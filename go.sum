@@ -532,8 +532,8 @@ github.com/ory/dockertest/v3 v3.10.0/go.mod h1:nr57ZbRWMqfsdGdFNLHz5jjNdDb7VVFnz
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
 github.com/pelletier/go-toml/v2 v2.0.6 h1:nrzqCb7j9cDFj2coyLNLaZuJTLjWjlaz6nvTvIwycIU=
 github.com/pelletier/go-toml/v2 v2.0.6/go.mod h1:eumQOmlWiOPt5WriQQqoM5y18pDHwha2N+QD+EUNTek=
-github.com/peterbourgon/ff/v3 v3.3.1 h1:XSWvXxeNdgeppLNGGJEAOiXRdX2YMF/LuZfdnqQ1SNc=
-github.com/peterbourgon/ff/v3 v3.3.1/go.mod h1:zjJVUhx+twciwfDl0zBcFzl4dW8axCRyXE/eKY9RztQ=
+github.com/peterbourgon/ff/v3 v3.3.2 h1:2J07/5/36kd9HYVt42Zve0xCeQ+LLRIvoKrt6sAZXJ4=
+github.com/peterbourgon/ff/v3 v3.3.2/go.mod h1:zjJVUhx+twciwfDl0zBcFzl4dW8axCRyXE/eKY9RztQ=
 github.com/philhofer/fwd v1.0.0 h1:UbZqGr5Y38ApvM/V/jEljVxwocdweyH+vmYvRPBnbqQ=
 github.com/philhofer/fwd v1.0.0/go.mod h1:gk3iGcWd9+svBvR0sR+KPcfE+RNWozjowpeBVG3ZVNU=
 github.com/pierrec/lz4 v1.0.2-0.20190131084431-473cd7ce01a1 h1:VGcrWe3yk6o+t7BdVNy5UDPWa4OZuDWtE1W1ZbS7Kyw=
