@@ -43,7 +43,7 @@ require (
 	github.com/open-policy-agent/opa v0.53.1
 	github.com/openzipkin/zipkin-go v0.4.1
 	github.com/ory/dockertest/v3 v3.10.0
-	github.com/peterbourgon/ff/v3 v3.3.1
+	github.com/peterbourgon/ff/v3 v3.3.2
 	github.com/pomerium/csrf v1.7.0
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524
 	github.com/pomerium/webauthn v0.0.0-20221118023040-00a9c430578b
