@@ -25,6 +25,4 @@ updates:
     directory: "/ui"
     schedule:
       interval: "monthly"
-      day: "monday"
-      time: "12:00"
     open-pull-requests-limit: 50
