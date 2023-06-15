@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686868496133,
+  "lastUpdate": 1686868504726,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -49736,6 +49736,38 @@ window.BENCHMARK_DATA = {
             "value": 8991690,
             "unit": "ns/op",
             "extra": "121 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "6807c0301ddbd5375cebbd25fed81aa1a7c22a3a",
+          "message": "chore(deps): bump docker/setup-qemu-action from 2.1.0 to 2.2.0",
+          "timestamp": "2023-06-14T13:08:50Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4263/commits/6807c0301ddbd5375cebbd25fed81aa1a7c22a3a"
+        },
+        "date": 1686868503596,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13359348,
+            "unit": "ns/op",
+            "extra": "94 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8917509,
+            "unit": "ns/op",
+            "extra": "127 times\n2 procs"
           }
         ]
       }
