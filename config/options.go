@@ -1167,6 +1167,9 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 			if err != nil {
 				return nil, err
 			}
+			if fromURL.Scheme == "tcp+https" {
+				continue
+			}
 
 			hosts.Add(urlutil.GetDomainsForURL(fromURL)...)
 			if policy.TLSDownstreamServerName != "" {

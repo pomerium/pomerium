@@ -3,6 +3,7 @@ package envoyconfig
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"fmt"
 	"net"
@@ -118,6 +119,62 @@ func (b *Builder) buildTLSSocket(ctx context.Context, cfg *config.Config, certs 
 	}, nil
 }
 
+func (b *Builder) buildMainFilterChain(
+	ctx context.Context,
+	cfg *config.Config,
+	fullyStatic bool,
+) (
+	*envoy_config_listener_v3.FilterChain,
+	error,
+) {
+	allCertificates, err := getAllCertificates(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
+	if err != nil {
+		return nil, err
+	}
+	filterChain := &envoy_config_listener_v3.FilterChain{
+		Name:    "main",
+		Filters: []*envoy_config_listener_v3.Filter{filter},
+	}
+
+	sock, err := b.buildTLSSocket(ctx, cfg, allCertificates)
+	if err != nil {
+		return nil, fmt.Errorf("error building TLS socket: %w", err)
+	}
+	filterChain.TransportSocket = sock
+
+	return filterChain, nil
+}
+
+func getWildcardCertificates(opts *config.Options) ([]tls.Certificate, error) {
+	certs, err := opts.GetCertificates()
+	if err != nil {
+		return nil, err
+	}
+
+	var out []tls.Certificate
+	for _, cert := range certs {
+		if cert.Leaf == nil {
+			cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
+			if err != nil {
+				return nil, err
+			}
+		}
+		// check if cert is wildcard
+		for _, dnsName := range cert.Leaf.DNSNames {
+			if strings.HasPrefix(dnsName, "*.") {
+				out = append(out, cert)
+				break
+			}
+		}
+	}
+	return out, nil
+}
+
 func (b *Builder) buildMainListener(
 	ctx context.Context,
 	cfg *config.Config,
@@ -145,25 +202,17 @@ func (b *Builder) buildMainListener(
 		li.Address = buildAddress(cfg.Options.Addr, 443)
 		li.ListenerFilters = append(li.ListenerFilters, TLSInspectorFilter())
 
-		allCertificates, err := getAllCertificates(cfg)
+		filterChain, err := b.buildMainFilterChain(ctx, cfg, fullyStatic)
 		if err != nil {
 			return nil, err
-		}
-
-		filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
-		if err != nil {
-			return nil, err
-		}
-		filterChain := &envoy_config_listener_v3.FilterChain{
-			Filters: []*envoy_config_listener_v3.Filter{filter},
 		}
 		li.FilterChains = append(li.FilterChains, filterChain)
 
-		sock, err := b.buildTLSSocket(ctx, cfg, allCertificates)
+		filterChain, err = b.buildTCPFilterChain(ctx, cfg)
 		if err != nil {
-			return nil, fmt.Errorf("error building TLS socket: %w", err)
+			return nil, err
 		}
-		filterChain.TransportSocket = sock
+		li.FilterChains = append(li.FilterChains, filterChain)
 	}
 	return li, nil
 }
@@ -247,21 +296,96 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 	return li, nil
 }
 
+func (b *Builder) buildTCPFilterChain(
+	ctx context.Context,
+	cfg *config.Config,
+) (
+	*envoy_config_listener_v3.FilterChain,
+	error,
+) {
+	certs, err := getWildcardCertificates(cfg.Options)
+	if err != nil {
+		return nil, err
+	}
+	filter, err := b.buildTCPMainHTTPConnectionManagerFilter(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	filterChain := &envoy_config_listener_v3.FilterChain{
+		Name: "tcp-main",
+		FilterChainMatch: &envoy_config_listener_v3.FilterChainMatch{
+			ServerNames: []string{"*.localhost.pomerium.io"},
+		},
+		Filters: []*envoy_config_listener_v3.Filter{filter},
+	}
+
+	sock, err := b.buildTLSSocket(ctx, cfg, certs)
+	if err != nil {
+		return nil, fmt.Errorf("error building TLS socket: %w", err)
+	}
+	filterChain.TransportSocket = sock
+
+	return filterChain, nil
+
+}
+
+func (b *Builder) buildTCPMainHTTPConnectionManagerFilter(
+	ctx context.Context,
+	cfg *config.Config,
+) (*envoy_config_listener_v3.Filter, error) {
+	filters := []*envoy_http_connection_manager.HttpFilter{
+		LuaFilter(luascripts.RemoveImpersonateHeaders),
+		ExtAuthzFilter(b.getGRPCClientTimeout(cfg.Options)),
+		LuaFilter(luascripts.ExtAuthzSetCookie),
+		LuaFilter(luascripts.CleanUpstream),
+		LuaFilter(luascripts.RewriteHeaders),
+	}
+	filters = append(filters, HTTPRouterFilter())
+
+	mgr := &envoy_http_connection_manager.HttpConnectionManager{
+		AlwaysSetRequestIdInResponse: true,
+		CodecType:                    cfg.Options.GetCodecType().ToEnvoy(),
+		StatPrefix:                   "tcp-ingress",
+		HttpFilters:                  filters,
+		AccessLog:                    buildAccessLogs(cfg.Options),
+		CommonHttpProtocolOptions: &envoy_config_core_v3.HttpProtocolOptions{
+			IdleTimeout: durationpb.New(cfg.Options.IdleTimeout),
+		},
+		HttpProtocolOptions: http1ProtocolOptions,
+		RequestTimeout:      durationpb.New(cfg.Options.ReadTimeout),
+		// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-for
+		LocalReplyConfig: b.buildLocalReplyConfig(cfg.Options),
+		NormalizePath:    wrapperspb.Bool(true),
+	}
+
+	mgr.RouteSpecifier = &envoy_http_connection_manager.HttpConnectionManager_Rds{
+		Rds: &envoy_http_connection_manager.Rds{
+			ConfigSource: &envoy_config_core_v3.ConfigSource{
+				ResourceApiVersion:    envoy_config_core_v3.ApiVersion_V3,
+				ConfigSourceSpecifier: &envoy_config_core_v3.ConfigSource_Ads{},
+			},
+			RouteConfigName: "tcp",
+		},
+	}
+
+	return HTTPConnectionManagerFilter(mgr), nil
+}
+
+func (b *Builder) getGRPCClientTimeout(opts *config.Options) *durationpb.Duration {
+	if opts.GRPCClientTimeout != 0 {
+		return durationpb.New(opts.GRPCClientTimeout)
+	}
+	return durationpb.New(30 * time.Second)
+}
+
 func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	ctx context.Context,
 	cfg *config.Config,
 	fullyStatic bool,
 ) (*envoy_config_listener_v3.Filter, error) {
-	var grpcClientTimeout *durationpb.Duration
-	if cfg.Options.GRPCClientTimeout != 0 {
-		grpcClientTimeout = durationpb.New(cfg.Options.GRPCClientTimeout)
-	} else {
-		grpcClientTimeout = durationpb.New(30 * time.Second)
-	}
-
 	filters := []*envoy_http_connection_manager.HttpFilter{
 		LuaFilter(luascripts.RemoveImpersonateHeaders),
-		ExtAuthzFilter(grpcClientTimeout),
+		ExtAuthzFilter(b.getGRPCClientTimeout(cfg.Options)),
 		LuaFilter(luascripts.ExtAuthzSetCookie),
 		LuaFilter(luascripts.CleanUpstream),
 		LuaFilter(luascripts.RewriteHeaders),
@@ -552,6 +676,22 @@ func (b *Builder) buildDownstreamValidationContext(
 	}
 
 	return vc
+}
+
+func getAllTCPHosts(options *config.Options) ([]string, error) {
+	hosts := sets.NewSorted[string]()
+	for _, route := range options.GetAllPolicies() {
+		fromURL, err := urlutil.ParseAndValidateURL(route.From)
+		if err != nil {
+			return nil, err
+		}
+		if fromURL.Scheme != "tcp+https" {
+			continue
+		}
+
+		hosts.Add(urlutil.GetDomainsForURL(fromURL)...)
+	}
+	return hosts.ToSlice(), nil
 }
 
 func getAllRouteableHosts(options *config.Options, addr string) ([]string, error) {

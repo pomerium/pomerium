@@ -23,7 +23,43 @@ func (b *Builder) BuildRouteConfigurations(
 		routeConfigurations = append(routeConfigurations, rc)
 	}
 
+	if config.IsProxy(cfg.Options.Services) {
+		rc, err := b.buildTCPRouteConfiguration(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		routeConfigurations = append(routeConfigurations, rc)
+	}
+
 	return routeConfigurations, nil
+}
+
+func (b *Builder) buildTCPRouteConfiguration(
+	_ context.Context,
+	cfg *config.Config,
+) (*envoy_config_route_v3.RouteConfiguration, error) {
+	var virtualHosts []*envoy_config_route_v3.VirtualHost
+	tcpHosts, err := getAllTCPHosts(cfg.Options)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, host := range tcpHosts {
+		vh, err := b.buildVirtualHost(cfg.Options, host, host)
+		if err != nil {
+			return nil, err
+		}
+
+		rs, err := b.buildRoutesForPoliciesWithHost(cfg, host)
+		if err != nil {
+			return nil, err
+		}
+		vh.Routes = append(vh.Routes, rs...)
+
+		virtualHosts = append(virtualHosts, vh)
+	}
+
+	return b.buildRouteConfiguration("tcp", virtualHosts)
 }
 
 func (b *Builder) buildMainRouteConfiguration(
