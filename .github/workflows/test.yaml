@@ -29,23 +29,6 @@ jobs:
       - name: set env vars
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
-      - name: cache go binaries
-        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
-        id: cache-go-bin
-        with:
-          path: ~/go/bin
-          key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
-          restore-keys: ${{ runner.os }}-go-bin
-
-      - uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-            ~/Library/Caches/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-go-
-
       - run: make deps-build
 
       - name: test
@@ -70,23 +53,6 @@ jobs:
 
       - name: set env vars
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-
-      - name: cache go binaries
-        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
-        id: cache-go-bin
-        with:
-          path: ~/go/bin
-          key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
-          restore-keys: ${{ runner.os }}-go-bin
-
-      - uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-            ~/Library/Caches/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-go-
 
       - name: cover
         run: make cover
@@ -126,16 +92,6 @@ jobs:
       - name: set env vars
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
-      - uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
-        with:
-          path: |
-            ~/go/pkg
-            ~/.cache/go-build
-            ~/Library/Caches/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
       - name: build dev docker image
         run: |
           ./scripts/build-dev-docker.bash
@@ -168,16 +124,6 @@ jobs:
       - uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c
         with:
           node-version: ${{ matrix.node-version }}
-
-      - uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-            ~/Library/Caches/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
 
       - name: build
         run: |
