@@ -61,7 +61,7 @@ require (
 	github.com/yuin/gopher-lua v1.1.0
 	go.opencensus.io v0.24.0
 	go.uber.org/zap v1.24.0
-	golang.org/x/crypto v0.9.0
+	golang.org/x/crypto v0.10.0
 	golang.org/x/exp v0.0.0-20220930202632-ec3f01382ef9
 	golang.org/x/net v0.10.0
 	golang.org/x/oauth2 v0.8.0
@@ -206,8 +206,8 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/mod v0.10.0 // indirect
-	golang.org/x/sys v0.8.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
+	golang.org/x/sys v0.9.0 // indirect
+	golang.org/x/text v0.10.0 // indirect
 	golang.org/x/tools v0.8.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/DataDog/dd-trace-go.v1 v1.22.0 // indirect
