@@ -90,12 +90,20 @@ jwt_payload_exp = v {
 	v = five_minutes
 } else = null
 
+jwt_payload_exp_int = v {
+	v = to_number(format_int(jwt_payload_exp, 10))
+} else = null
+
 jwt_payload_iat = v {
 	# sessions store the issued_at on the id_token
 	v = round(session.id_token.issued_at.seconds)
 } else = v {
 	# service accounts store the issued at directly
 	v = round(session.issued_at.seconds)
+} else = null
+
+jwt_payload_iat_int = v {
+	v = to_number(format_int(jwt_payload_iat, 10))
 } else = null
 
 jwt_payload_sub = v {
@@ -133,8 +141,8 @@ base_jwt_claims := [
 	["iss", jwt_payload_iss],
 	["aud", jwt_payload_aud],
 	["jti", jwt_payload_jti],
-	["exp", jwt_payload_exp],
-	["iat", jwt_payload_iat],
+	["exp", jwt_payload_exp_int],
+	["iat", jwt_payload_iat_int],
 	["sub", jwt_payload_sub],
 	["user", jwt_payload_user],
 	["email", jwt_payload_email],
