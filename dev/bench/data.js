@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686868644986,
+  "lastUpdate": 1686868710088,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -49900,6 +49900,42 @@ window.BENCHMARK_DATA = {
             "value": 8770974,
             "unit": "ns/op",
             "extra": "132 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d97540d918287e86ecdba3dfdd39f49fe8813dbb",
+          "message": "chore(deps): bump golangci/golangci-lint-action from 3.5.0 to 3.6.0 (#4238)\n\nBumps [golangci/golangci-lint-action](https://github.com/golangci/golangci-lint-action) from 3.5.0 to 3.6.0.\r\n- [Release notes](https://github.com/golangci/golangci-lint-action/releases)\r\n- [Commits](https://github.com/golangci/golangci-lint-action/compare/5f1fec7010f6ae3b84ea4f7b2129beb8639b564f...639cd343e1d3b897ff35927a75193d57cfcba299)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golangci/golangci-lint-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-06-15T16:34:14-06:00",
+          "tree_id": "88e77f6a0a7d3c3ad2502d343da1f9f1f3e6a6bc",
+          "url": "https://github.com/pomerium/pomerium/commit/d97540d918287e86ecdba3dfdd39f49fe8813dbb"
+        },
+        "date": 1686868709036,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13836778,
+            "unit": "ns/op",
+            "extra": "81 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10021602,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
