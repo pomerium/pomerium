@@ -1,16 +1,24 @@
 package evaluator
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"math"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
@@ -67,6 +75,8 @@ func TestHeadersEvaluator(t *testing.T) {
 		return e.Evaluate(ctx, input)
 	}
 
+	iat := time.Unix(1686870680, 0)
+
 	t.Run("jwt", func(t *testing.T) {
 		output, err := eval(t,
 			[]proto.Message{
@@ -75,7 +85,7 @@ func TestHeadersEvaluator(t *testing.T) {
 					"name": {Values: []*structpb.Value{
 						structpb.NewStringValue("n1"),
 					}},
-				}},
+				}, IssuedAt: timestamppb.New(iat)},
 			},
 			&HeadersRequest{
 				Issuer:     "from.example.com",
@@ -86,7 +96,29 @@ func TestHeadersEvaluator(t *testing.T) {
 			})
 		require.NoError(t, err)
 
-		rawJWT, err := jwt.ParseSigned(output.Headers.Get("X-Pomerium-Jwt-Assertion"))
+		jwtHeader := output.Headers.Get("X-Pomerium-Jwt-Assertion")
+
+		// Make sure the 'iat' and 'exp' claims can be parsed as an integer. We
+		// need to do some explicit decoding in order to be able to verify
+		// this, as by default json.Unmarshal() will make no distinction
+		// between numeric formats.
+		d := json.NewDecoder(bytes.NewReader(decodeJWSPayload(t, jwtHeader)))
+		d.UseNumber()
+		var jwtPayloadDecoded map[string]interface{}
+		err = d.Decode(&jwtPayloadDecoded)
+		require.NoError(t, err)
+
+		// The 'iat' claim is set from the session store.
+		assert.Equal(t, json.Number("1686870680"), jwtPayloadDecoded["iat"],
+			"unexpected 'iat' timestamp format")
+
+		// The 'exp' claim will vary with the current time, but we can still
+		// use Atoi() to verify that it can be parsed as an integer.
+		exp := string(jwtPayloadDecoded["exp"].(json.Number))
+		_, err = strconv.Atoi(exp)
+		assert.NoError(t, err, "unexpected 'exp' timestamp format")
+
+		rawJWT, err := jwt.ParseSigned(jwtHeader)
 		require.NoError(t, err)
 
 		var claims M
@@ -187,4 +219,32 @@ func TestHeadersEvaluator(t *testing.T) {
 
 		assert.Equal(t, "Bearer ID_TOKEN", output.Headers.Get("Authorization"))
 	})
+}
+
+func decodeJWSPayload(t *testing.T, jws string) []byte {
+	t.Helper()
+
+	// A compact JWS string should consist of three base64-encoded values,
+	// separated by a '.' character. The payload is the middle one of these.
+	// cf. https://www.rfc-editor.org/rfc/rfc7515#section-7.1
+	parts := strings.Split(jws, ".")
+	require.Equal(t, 3, len(parts))
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	require.NoError(t, err)
+	return payload
+}
+
+// If this test fails with the message "workaround no longer needed", then the
+// upstream serialization issue in Rego has been fixed, and we should be able
+// to remove the to_number / format_int workaround from headers.rego (and
+// delete this test).
+func TestTimestampWorkaroundStillNeeded(t *testing.T) {
+	now := strconv.FormatInt(time.Now().Unix(), 10)
+	r := rego.New(rego.Query(fmt.Sprintf("json.marshal(%s + 0)", now)))
+	rs, err := r.Eval(context.Background())
+	require.NoError(t, err, "rego evaluation error")
+	require.Equal(t, 1, len(rs))
+	e := rs[0].Expressions
+	require.Equal(t, 1, len(e))
+	assert.NotEqual(t, now, e[0].Value, "workaround no longer needed")
 }
