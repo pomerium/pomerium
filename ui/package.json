@@ -22,7 +22,7 @@
     ]
   },
   "dependencies": {
-    "@babel/core": "^7.0.0",
+    "@babel/core": "^7.22.5",
     "@emotion/react": "^11.7.1",
     "@emotion/styled": "^11.11.0",
     "@fontsource/dm-mono": "^4.5.2",
