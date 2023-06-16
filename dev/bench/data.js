@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686924653022,
+  "lastUpdate": 1686925414268,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -50328,6 +50328,42 @@ window.BENCHMARK_DATA = {
             "value": 8904576,
             "unit": "ns/op",
             "extra": "122 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2ae0b93e5f4d1da2075557bb2ad9d60487a6030b",
+          "message": "chore(deps): bump golang.org/x/crypto from 0.9.0 to 0.10.0 (#4266)\n\nBumps [golang.org/x/crypto](https://github.com/golang/crypto) from 0.9.0 to 0.10.0.\r\n- [Commits](https://github.com/golang/crypto/compare/v0.9.0...v0.10.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golang.org/x/crypto\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-06-16T08:19:06-06:00",
+          "tree_id": "94ee5b888587cc1c18c547b60e37f911b5c5b991",
+          "url": "https://github.com/pomerium/pomerium/commit/2ae0b93e5f4d1da2075557bb2ad9d60487a6030b"
+        },
+        "date": 1686925413732,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17525196,
+            "unit": "ns/op",
+            "extra": "70 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11482909,
+            "unit": "ns/op",
+            "extra": "102 times\n2 procs"
           }
         ]
       }
