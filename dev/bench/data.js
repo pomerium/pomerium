@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686935214761,
+  "lastUpdate": 1686935270076,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -51204,6 +51204,38 @@ window.BENCHMARK_DATA = {
             "value": 8617840,
             "unit": "ns/op",
             "extra": "138 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "e5c7057e7894055dd2b17dfcb04f040028f3df84",
+          "message": "chore(deps): bump markdown-to-jsx from 7.1.7 to 7.2.1 in /ui",
+          "timestamp": "2023-06-16T16:39:07Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4297/commits/e5c7057e7894055dd2b17dfcb04f040028f3df84"
+        },
+        "date": 1686935268764,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 20510147,
+            "unit": "ns/op",
+            "extra": "63 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 13412243,
+            "unit": "ns/op",
+            "extra": "90 times\n2 procs"
           }
         ]
       }
