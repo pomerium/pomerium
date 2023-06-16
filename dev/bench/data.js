@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686941760497,
+  "lastUpdate": 1686941776495,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -53592,6 +53592,42 @@ window.BENCHMARK_DATA = {
             "value": 9795493,
             "unit": "ns/op",
             "extra": "120 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d42cf55e28f7a3b2b95fdc154932774529053803",
+          "message": "chore(deps-dev): bump typescript from 4.5.5 to 5.1.3 in /ui (#4289)\n\nBumps [typescript](https://github.com/Microsoft/TypeScript) from 4.5.5 to 5.1.3.\r\n- [Release notes](https://github.com/Microsoft/TypeScript/releases)\r\n- [Commits](https://github.com/Microsoft/TypeScript/compare/v4.5.5...v5.1.3)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: typescript\r\n  dependency-type: direct:development\r\n  update-type: version-update:semver-major\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-06-16T12:16:32-06:00",
+          "tree_id": "53db905b115bde218eabd651b9a70d768341b3c5",
+          "url": "https://github.com/pomerium/pomerium/commit/d42cf55e28f7a3b2b95fdc154932774529053803"
+        },
+        "date": 1686941775790,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13561064,
+            "unit": "ns/op",
+            "extra": "96 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8478054,
+            "unit": "ns/op",
+            "extra": "128 times\n2 procs"
           }
         ]
       }
