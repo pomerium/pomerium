@@ -1,4 +1,4 @@
-FROM node:lts-buster@sha256:f658ecef8cc8152188e8f8169ced5a70db6eb6f24f973229c9348c2397161ec6 as ui
+FROM node:lts-buster@sha256:05824f71b10334d5625cf228aa618ed69ecd5765afc308693b9f2033de1265be as ui
 WORKDIR /build
 
 COPY .git ./.git
