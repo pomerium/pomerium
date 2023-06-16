@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686925414268,
+  "lastUpdate": 1686925579229,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -50364,6 +50364,42 @@ window.BENCHMARK_DATA = {
             "value": 11482909,
             "unit": "ns/op",
             "extra": "102 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8a74cfaa0ca9bb768a71dbdcf12d3d863ef5379c",
+          "message": "chore(deps): bump github.com/hashicorp/golang-lru/v2 from 2.0.2 to 2.0.3 (#4267)\n\nBumps [github.com/hashicorp/golang-lru/v2](https://github.com/hashicorp/golang-lru) from 2.0.2 to 2.0.3.\r\n- [Release notes](https://github.com/hashicorp/golang-lru/releases)\r\n- [Commits](https://github.com/hashicorp/golang-lru/compare/v2.0.2...v2.0.3)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/hashicorp/golang-lru/v2\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-06-16T08:19:22-06:00",
+          "tree_id": "4b4e7e01dd0899b8e69198c4ee8da822de17e7c5",
+          "url": "https://github.com/pomerium/pomerium/commit/8a74cfaa0ca9bb768a71dbdcf12d3d863ef5379c"
+        },
+        "date": 1686925578118,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18677805,
+            "unit": "ns/op",
+            "extra": "60 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11322145,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
           }
         ]
       }
