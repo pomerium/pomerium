@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686939821806,
+  "lastUpdate": 1686939869341,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -52420,6 +52420,42 @@ window.BENCHMARK_DATA = {
             "value": 9798679,
             "unit": "ns/op",
             "extra": "124 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "78a18feae48549eefcc1609058c2adf0c3e529bf",
+          "message": "chore(deps): bump react-feather from 2.0.9 to 2.0.10 in /ui (#4306)\n\nBumps [react-feather](https://github.com/feathericons/react-feather) from 2.0.9 to 2.0.10.\r\n- [Commits](https://github.com/feathericons/react-feather/commits)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: react-feather\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-06-16T12:05:51-06:00",
+          "tree_id": "c9e8e79fe57fc9bc83920532ba95488c67368817",
+          "url": "https://github.com/pomerium/pomerium/commit/78a18feae48549eefcc1609058c2adf0c3e529bf"
+        },
+        "date": 1686939868725,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13623239,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9253137,
+            "unit": "ns/op",
+            "extra": "133 times\n2 procs"
           }
         ]
       }
