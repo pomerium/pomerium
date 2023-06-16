@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686941284544,
+  "lastUpdate": 1686941350295,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -53328,6 +53328,42 @@ window.BENCHMARK_DATA = {
             "value": 12640919,
             "unit": "ns/op",
             "extra": "99 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ff208f43f3dc21e0b3269da2f4b4b19d95b5d587",
+          "message": "chore(deps-dev): bump @typescript-eslint/parser from 5.10.2 to 5.59.11 in /ui (#4282)\n\nchore(deps-dev): bump @typescript-eslint/parser in /ui\r\n\r\nBumps [@typescript-eslint/parser](https://github.com/typescript-eslint/typescript-eslint/tree/HEAD/packages/parser) from 5.10.2 to 5.59.11.\r\n- [Release notes](https://github.com/typescript-eslint/typescript-eslint/releases)\r\n- [Changelog](https://github.com/typescript-eslint/typescript-eslint/blob/main/packages/parser/CHANGELOG.md)\r\n- [Commits](https://github.com/typescript-eslint/typescript-eslint/commits/v5.59.11/packages/parser)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: \"@typescript-eslint/parser\"\r\n  dependency-type: direct:development\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-06-16T12:10:48-06:00",
+          "tree_id": "96c7664fe922fb8e3cb9d6ff4375f331974363ab",
+          "url": "https://github.com/pomerium/pomerium/commit/ff208f43f3dc21e0b3269da2f4b4b19d95b5d587"
+        },
+        "date": 1686941349057,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 19855890,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12312784,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
