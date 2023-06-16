@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686935270076,
+  "lastUpdate": 1686935301567,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -51236,6 +51236,38 @@ window.BENCHMARK_DATA = {
             "value": 13412243,
             "unit": "ns/op",
             "extra": "90 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "ed07b9a1b575143c11199f8f8412c42a4440b11d",
+          "message": "chore(deps): bump @emotion/react from 11.7.1 to 11.11.1 in /ui",
+          "timestamp": "2023-06-16T16:39:07Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4299/commits/ed07b9a1b575143c11199f8f8412c42a4440b11d"
+        },
+        "date": 1686935300961,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14674544,
+            "unit": "ns/op",
+            "extra": "73 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8437974,
+            "unit": "ns/op",
+            "extra": "127 times\n2 procs"
           }
         ]
       }
