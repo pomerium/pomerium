@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686938765284,
+  "lastUpdate": 1686938902430,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -51768,6 +51768,42 @@ window.BENCHMARK_DATA = {
             "value": 10253094,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "29bbb505ceaabcd97e25b4c5f19dc174b9472630",
+          "message": "chore(deps): bump github.com/spf13/viper from 1.15.0 to 1.16.0 (#4296)\n\nBumps [github.com/spf13/viper](https://github.com/spf13/viper) from 1.15.0 to 1.16.0.\r\n- [Release notes](https://github.com/spf13/viper/releases)\r\n- [Commits](https://github.com/spf13/viper/compare/v1.15.0...v1.16.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/spf13/viper\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-06-16T12:00:08-06:00",
+          "tree_id": "b423775be46b45464c53282ea83c4bb8d17a4246",
+          "url": "https://github.com/pomerium/pomerium/commit/29bbb505ceaabcd97e25b4c5f19dc174b9472630"
+        },
+        "date": 1686938901982,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13356728,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8812997,
+            "unit": "ns/op",
+            "extra": "136 times\n2 procs"
           }
         ]
       }
