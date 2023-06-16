@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686935620080,
+  "lastUpdate": 1686937246949,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -51524,6 +51524,42 @@ window.BENCHMARK_DATA = {
             "value": 12366254,
             "unit": "ns/op",
             "extra": "103 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e7703a18919f69d7c3689bb7c51608fb14e173ba",
+          "message": "add JWT timestamp formatting workaround (#4270)\n\nRego will sometimes serialize integers to JSON with a decimal point and\r\nexponent. I don't completely understand this behavior.\r\n\r\nAdd a workaround to headers.rego to convert the JWT \"iat\" and \"exp\"\r\ntimestamps to a string and back to an integer. This appears to cause\r\nRego to serialize these values as plain integers.\r\n\r\nAdd a unit test to verify this behavior. Also add a unit test that will\r\nfail if the Rego behavior changes, making this workaround unnecessary.",
+          "timestamp": "2023-06-16T10:36:00-07:00",
+          "tree_id": "44144644836f6aac845697df597b39eea9427ac9",
+          "url": "https://github.com/pomerium/pomerium/commit/e7703a18919f69d7c3689bb7c51608fb14e173ba"
+        },
+        "date": 1686937246486,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15766736,
+            "unit": "ns/op",
+            "extra": "78 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10127560,
+            "unit": "ns/op",
+            "extra": "122 times\n2 procs"
           }
         ]
       }
