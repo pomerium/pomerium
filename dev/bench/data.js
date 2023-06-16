@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686938448486,
+  "lastUpdate": 1686938529576,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -51696,6 +51696,42 @@ window.BENCHMARK_DATA = {
             "value": 8650756,
             "unit": "ns/op",
             "extra": "123 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "76e056e616e781e029c5b430b01bb09d028d5df5",
+          "message": "chore(deps): bump golang.org/x/sync from 0.2.0 to 0.3.0 (#4294)\n\nBumps [golang.org/x/sync](https://github.com/golang/sync) from 0.2.0 to 0.3.0.\r\n- [Commits](https://github.com/golang/sync/compare/v0.2.0...v0.3.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golang.org/x/sync\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-06-16T11:57:53-06:00",
+          "tree_id": "256accbbc015ff1158c137276d2ff8b3d13a93b8",
+          "url": "https://github.com/pomerium/pomerium/commit/76e056e616e781e029c5b430b01bb09d028d5df5"
+        },
+        "date": 1686938529003,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14251214,
+            "unit": "ns/op",
+            "extra": "86 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8594581,
+            "unit": "ns/op",
+            "extra": "130 times\n2 procs"
           }
         ]
       }
