@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686935483306,
+  "lastUpdate": 1686935485288,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -51428,6 +51428,38 @@ window.BENCHMARK_DATA = {
             "value": 13038869,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "1f56ed05507497ca08704d54496cc442e88f2cf6",
+          "message": "chore(deps): bump react-feather from 2.0.9 to 2.0.10 in /ui",
+          "timestamp": "2023-06-16T16:39:07Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4306/commits/1f56ed05507497ca08704d54496cc442e88f2cf6"
+        },
+        "date": 1686935484662,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14806412,
+            "unit": "ns/op",
+            "extra": "99 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9279896,
+            "unit": "ns/op",
+            "extra": "132 times\n2 procs"
           }
         ]
       }
