@@ -452,10 +452,10 @@
     minimatch "^3.0.4"
     strip-json-comments "^3.1.1"
 
-"@fontsource/dm-mono@^4.5.2":
-  version "4.5.2"
-  resolved "https://registry.yarnpkg.com/@fontsource/dm-mono/-/dm-mono-4.5.2.tgz#0f7ac02bdc6e66f481374bf76616351dd05f2059"
-  integrity sha512-2SBMD3fRNvd5gAhLeZNvpkadtwBkoVLxopeLpBzXOhvgu1YVgul2RfvNbZPtt5yZokG4WWHS+aal07RDwl8ouQ==
+"@fontsource/dm-mono@^5.0.3":
+  version "5.0.3"
+  resolved "https://registry.yarnpkg.com/@fontsource/dm-mono/-/dm-mono-5.0.3.tgz#0b5681fdf9ca16c39d0684a652b16783cb8d6a06"
+  integrity sha512-9CHaVMFmn4Wt+FXy649RySQlM0kGzeqyz8j/fiJOO1TMyMb1ouWMJHqKB9wm+Yse8kMV3Fp8+d9V+PJK7rHneg==
 
 "@fontsource/dm-sans@^5.0.3":
   version "5.0.3"
