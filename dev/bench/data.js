@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686941362622,
+  "lastUpdate": 1686941370232,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -53396,6 +53396,38 @@ window.BENCHMARK_DATA = {
             "value": 10304751,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "a844950a136d88511422b09b28a565b3c2c82dde",
+          "message": "chore(deps-dev): bump eslint from 7.32.0 to 8.42.0 in /ui",
+          "timestamp": "2023-06-16T16:39:07Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4285/commits/a844950a136d88511422b09b28a565b3c2c82dde"
+        },
+        "date": 1686941369541,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13610997,
+            "unit": "ns/op",
+            "extra": "82 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8661062,
+            "unit": "ns/op",
+            "extra": "130 times\n2 procs"
           }
         ]
       }
