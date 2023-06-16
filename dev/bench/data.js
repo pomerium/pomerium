@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686935374734,
+  "lastUpdate": 1686935422139,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -51332,6 +51332,38 @@ window.BENCHMARK_DATA = {
             "value": 9720187,
             "unit": "ns/op",
             "extra": "122 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "9f9f961956f9ce629450fce30b4566333a26db09",
+          "message": "chore(deps): bump @mui/icons-material from 5.3.1 to 5.11.16 in /ui",
+          "timestamp": "2023-06-16T16:39:07Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4303/commits/9f9f961956f9ce629450fce30b4566333a26db09"
+        },
+        "date": 1686935421129,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17867905,
+            "unit": "ns/op",
+            "extra": "80 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12005167,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
           }
         ]
       }
