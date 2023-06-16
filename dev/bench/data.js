@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686942012870,
+  "lastUpdate": 1686942117955,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -53760,6 +53760,38 @@ window.BENCHMARK_DATA = {
             "value": 8949910,
             "unit": "ns/op",
             "extra": "129 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "137a865aa61464c0920a1704f213d72a781b410c",
+          "message": "chore(deps-dev): bump prettier from 2.5.1 to 2.8.8 in /ui",
+          "timestamp": "2023-06-16T16:39:07Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4301/commits/137a865aa61464c0920a1704f213d72a781b410c"
+        },
+        "date": 1686942116850,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14589945,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9697912,
+            "unit": "ns/op",
+            "extra": "122 times\n2 procs"
           }
         ]
       }
