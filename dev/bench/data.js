@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686932298363,
+  "lastUpdate": 1686934459552,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -50464,6 +50464,42 @@ window.BENCHMARK_DATA = {
             "value": 10892001,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "aa90cd4bb716d0c6740809775b67716db5ccaa38",
+          "message": "dependabot: improvements (#4261)\n\n* dependabot: improvements\r\n\r\n* no day for monthly\r\n\r\n* only security updates\r\n\r\n* turn updates back on\r\n\r\n* switch to monthly",
+          "timestamp": "2023-06-16T10:51:33-06:00",
+          "tree_id": "733012e940db3e41afddf40824ddb40462813eae",
+          "url": "https://github.com/pomerium/pomerium/commit/aa90cd4bb716d0c6740809775b67716db5ccaa38"
+        },
+        "date": 1686934458742,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13484237,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8533047,
+            "unit": "ns/op",
+            "extra": "136 times\n2 procs"
           }
         ]
       }
