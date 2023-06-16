@@ -85,7 +85,7 @@ jobs:
         run: make cover
 
       - uses: jandelgado/gcov2lcov-action@c680c0f7c7442485f1749eb2a13e54a686e76eb5
-        if: ${{ matrix.platform }} == 'ubuntu-latest'
+        if: matrix.platform == 'ubuntu-latest'
         name: convert coverage to lcov
         with:
           infile: coverage.txt
@@ -93,7 +93,7 @@ jobs:
 
       - name: upload to coveralls
         uses: coverallsapp/github-action@c7885c00cb7ec0b8f9f5ff3f53cddb980f7a4412
-        if: ${{ matrix.platform }} == 'ubuntu-latest'
+        if: matrix.platform == 'ubuntu-latest'
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: coverage.lcov
