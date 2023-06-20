@@ -8,105 +8,6 @@ on:
   pull_request:
 
 jobs:
-  test:
-    strategy:
-      matrix:
-        go-version: [1.20.x]
-        node-version: [16.x]
-        platform: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.platform }}
-    steps:
-      - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753
-        with:
-          go-version: ${{ matrix.go-version }}
-
-      - uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: set env vars
-        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-        with:
-          fetch-depth: 0
-
-      - name: cache go binaries
-        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
-        id: cache-go-bin
-        with:
-          path: ~/go/bin
-          key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
-          restore-keys: ${{ runner.os }}-go-bin
-
-      - uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-            ~/Library/Caches/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-go-
-
-      - run: make deps-build
-
-      - name: test
-        run: make test
-
-  cover:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: [1.20.x]
-        node-version: [16.x]
-    steps:
-      - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753
-        with:
-          go-version: ${{ matrix.go-version }}
-
-      - uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-        with:
-          fetch-depth: 0
-
-      - name: set env vars
-        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-
-      - name: cache go binaries
-        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
-        id: cache-go-bin
-        with:
-          path: ~/go/bin
-          key: ${{ runner.os }}-${{ hashFiles('**/go.mod') }}
-          restore-keys: ${{ runner.os }}-go-bin
-
-      - uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-            ~/Library/Caches/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-go-
-
-      - name: cover
-        run: make cover
-
-      - uses: jandelgado/gcov2lcov-action@c680c0f7c7442485f1749eb2a13e54a686e76eb5
-        name: convert coverage to lcov
-        with:
-          infile: coverage.txt
-          outfile: coverage.lcov
-
-      - name: upload to coveralls
-        uses: coverallsapp/github-action@c7885c00cb7ec0b8f9f5ff3f53cddb980f7a4412
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: coverage.lcov
-
   integration:
     strategy:
       fail-fast: false
@@ -117,28 +18,21 @@ jobs:
         deployment: [multi, single]
     runs-on: ${{ matrix.platform }}
     steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+
       - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753
         with:
           go-version: ${{ matrix.go-version }}
+          cache: false
 
       - uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c
         with:
           node-version: ${{ matrix.node-version }}
+          cache: yarn
+          cache-dependency-path: ui/yarn.lock
 
       - name: set env vars
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-        with:
-          fetch-depth: 0
-      - uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
-        with:
-          path: |
-            ~/go/pkg
-            ~/.cache/go-build
-            ~/Library/Caches/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
 
       - name: build dev docker image
         run: |
@@ -163,6 +57,8 @@ jobs:
         platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+
       - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753
         with:
           go-version: ${{ matrix.go-version }}
@@ -170,19 +66,8 @@ jobs:
       - uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c
         with:
           node-version: ${{ matrix.node-version }}
-
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-        with:
-          fetch-depth: 0
-      - uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-            ~/Library/Caches/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          cache: yarn
+          cache-dependency-path: ui/yarn.lock
 
       - name: build
         run: |
@@ -196,12 +81,27 @@ jobs:
           name: pomerium ${{ github.run_id }} ${{ matrix.platform }}
           retention-days: 1
 
+      - name: test
+        run: make cover
+
+      - uses: jandelgado/gcov2lcov-action@c680c0f7c7442485f1749eb2a13e54a686e76eb5
+        if: matrix.platform == 'ubuntu-latest'
+        name: convert coverage to lcov
+        with:
+          infile: coverage.txt
+          outfile: coverage.lcov
+
+      - name: upload to coveralls
+        uses: coverallsapp/github-action@c7885c00cb7ec0b8f9f5ff3f53cddb980f7a4412
+        if: matrix.platform == 'ubuntu-latest'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: coverage.lcov
+
   build-docker:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-        with:
-          fetch-depth: 0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@ecf95283f03858871ff00b787d79c419715afc34
@@ -212,6 +112,8 @@ jobs:
           context: .
           file: ./Dockerfile
           push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   precommit:
     runs-on: ubuntu-latest
@@ -220,12 +122,16 @@ jobs:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
         with:
           fetch-depth: 0
+
       - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753
         with:
           go-version: 1.20.x
+          cache: false
+
       - uses: actions/setup-python@bd6b4b6205c4dbad673328db7b31b7fab9e241c0
         with:
           python-version: "3.x"
+
       - uses: pre-commit/action@646c83fcd040023954eafda54b4db0192ce70507
         with:
           extra_args: --show-diff-on-failure --from-ref ${{
@@ -243,11 +149,12 @@ jobs:
     needs:
       - build
     steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+
       - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753
         with:
           go-version: 1.20.x
-
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+          cache: false
 
       - name: retrieve binary
         uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a
