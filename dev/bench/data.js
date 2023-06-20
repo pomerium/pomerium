@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1686950618693,
+  "lastUpdate": 1687276977793,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -54112,6 +54112,42 @@ window.BENCHMARK_DATA = {
             "value": 10664301,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1f839554c9ed0016a4168224bd850e6acf8e36ff",
+          "message": "ci: updates (#4269)\n\n* fix checkouts\r\n\r\n* add fetch-depth for pre-commit\r\n\r\n* remove manual caching\r\n\r\n* cache node\r\n\r\n* maybe fix yarn\r\n\r\n* disable cache\r\n\r\n* move test job to build job\r\n\r\n* move cover to build step, use cache for docker\r\n\r\n* only upload coverage for linux\r\n\r\n* try again",
+          "timestamp": "2023-06-20T09:58:15-06:00",
+          "tree_id": "fb02c8ce9954743890bebcc903b0f803bd178aa9",
+          "url": "https://github.com/pomerium/pomerium/commit/1f839554c9ed0016a4168224bd850e6acf8e36ff"
+        },
+        "date": 1687276971228,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13974590,
+            "unit": "ns/op",
+            "extra": "86 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8718988,
+            "unit": "ns/op",
+            "extra": "130 times\n2 procs"
           }
         ]
       }
