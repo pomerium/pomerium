@@ -122,8 +122,8 @@ func New(ctx context.Context, store *store.Store, options ...Option) (*Evaluator
 		if err != nil {
 			return nil, fmt.Errorf("authorize: error computing policy route id: %w", err)
 		}
-		clientCA, _ := e.getClientCA(&configPolicy)
-		policyEvaluator, err := NewPolicyEvaluator(ctx, store, &configPolicy, clientCA)
+		policyEvaluator, err :=
+			NewPolicyEvaluator(ctx, store, &configPolicy, cfg.addDefaultClientCertificateRule)
 		if err != nil {
 			return nil, err
 		}

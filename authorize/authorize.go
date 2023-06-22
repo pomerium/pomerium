@@ -114,9 +114,16 @@ func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Ev
 		return nil, fmt.Errorf("authorize: invalid signing key: %w", err)
 	}
 
+	// It is important to add an invalid_client_certificate rule even when the
+	// mTLS enforcement behavior is set to reject connections at the listener
+	// level, because of the per-route TLSDownstreamClientCA setting.
+	addDefaultClientCertificateRule :=
+		opts.DownstreamMTLS.GetEnforcement() != config.MTLSEnforcementPolicy
+
 	return evaluator.New(ctx, store,
 		evaluator.WithPolicies(opts.GetAllPolicies()),
 		evaluator.WithClientCA(clientCA),
+		evaluator.WithAddDefaultClientCertificateRule(addDefaultClientCertificateRule),
 		evaluator.WithClientCRL(clientCRL),
 		evaluator.WithSigningKey(signingKey),
 		evaluator.WithAuthenticateURL(authenticateURL.String()),

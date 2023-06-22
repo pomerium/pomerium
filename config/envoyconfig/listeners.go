@@ -517,14 +517,15 @@ func (b *Builder) buildDownstreamTLSContextMulti(
 	if err != nil {
 		return nil, err
 	}
-	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
+	dtc := &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
-			TlsParams:             tlsParams,
-			TlsCertificates:       envoyCerts,
-			AlpnProtocols:         getALPNProtos(cfg.Options),
-			ValidationContextType: b.buildDownstreamValidationContext(ctx, cfg),
+			TlsParams:       tlsParams,
+			TlsCertificates: envoyCerts,
+			AlpnProtocols:   getALPNProtos(cfg.Options),
 		},
-	}, nil
+	}
+	b.buildDownstreamValidationContext(ctx, dtc, cfg)
+	return dtc, nil
 }
 
 func getALPNProtos(opts *config.Options) []string {
@@ -540,18 +541,23 @@ func getALPNProtos(opts *config.Options) []string {
 
 func (b *Builder) buildDownstreamValidationContext(
 	ctx context.Context,
+	dtc *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext,
 	cfg *config.Config,
-) *envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext {
+) {
 	clientCA := clientCABundle(ctx, cfg)
 	if len(clientCA) == 0 {
-		return nil
+		return
 	}
 
-	vc := &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
-		ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
-			TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_ACCEPT_UNTRUSTED,
-			TrustedCa:              b.filemgr.BytesDataSource("client-ca.pem", clientCA),
-		},
+	vc := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
+		TrustedCa: b.filemgr.BytesDataSource("client-ca.pem", clientCA),
+	}
+
+	if cfg.Options.DownstreamMTLS.GetEnforcement() == config.MTLSEnforcementRejectConnection {
+		dtc.RequireClientCertificate = wrapperspb.Bool(true)
+	} else {
+		vc.TrustChainVerification =
+			envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_ACCEPT_UNTRUSTED
 	}
 
 	if crl := cfg.Options.DownstreamMTLS.CRL; crl != "" {
@@ -559,13 +565,16 @@ func (b *Builder) buildDownstreamValidationContext(
 		if err != nil {
 			log.Error(ctx).Err(err).Msg("invalid client CRL")
 		} else {
-			vc.ValidationContext.Crl = b.filemgr.BytesDataSource("client-crl.pem", bs)
+			vc.Crl = b.filemgr.BytesDataSource("client-crl.pem", bs)
 		}
 	} else if crlf := cfg.Options.DownstreamMTLS.CRLFile; crlf != "" {
-		vc.ValidationContext.Crl = b.filemgr.FileDataSource(crlf)
+		vc.Crl = b.filemgr.FileDataSource(crlf)
 	}
 
-	return vc
+	dtc.CommonTlsContext.ValidationContextType =
+		&envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
+			ValidationContext: vc,
+		}
 }
 
 // clientCABundle returns a bundle of the globally configured client CA and any

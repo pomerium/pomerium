@@ -245,4 +245,12 @@ message Settings {
 message DownstreamMtlsSettings {
   optional string ca = 1;
   optional string crl = 2;
+  optional MtlsEnforcementMode enforcement = 3;
+}
+
+enum MtlsEnforcementMode {
+  UNKNOWN = 0;
+  POLICY = 1;
+  POLICY_WITH_DEFAULT_DENY = 2;
+  REJECT_CONNECTION = 3;
 }
