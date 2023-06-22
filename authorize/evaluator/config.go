@@ -57,9 +57,9 @@ func WithAddDefaultClientCertificateRule(addDefaultClientCertificateRule bool) O
 }
 
 // WithClientCertConstraints sets addition client certificate constraints.
-func WithClientCertConstraints(constraints ClientCertConstraints) Option {
+func WithClientCertConstraints(constraints *ClientCertConstraints) Option {
 	return func(cfg *evaluatorConfig) {
-		cfg.clientCertConstraints = constraints
+		cfg.clientCertConstraints = *constraints
 	}
 }
 

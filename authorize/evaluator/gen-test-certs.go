@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"net"
+	"net/url"
 	"time"
 )
 
@@ -148,6 +150,46 @@ func main() {
 		},
 	}, rootCA, rootKey)
 
+	trustedClientCert3PEM, _, _ := newCertificate(&x509.Certificate{
+		SerialNumber: big.NewInt(0x1004),
+		Subject: pkix.Name{
+			CommonName: "client cert 3",
+		},
+		DNSNames:    []string{"a.client3.example.com", "b.client3.example.com"},
+		NotAfter:    notAfter,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}, rootCA, rootKey)
+
+	trustedClientCert4PEM, _, _ := newCertificate(&x509.Certificate{
+		SerialNumber: big.NewInt(0x1005),
+		Subject: pkix.Name{
+			CommonName: "client cert 4",
+		},
+		EmailAddresses: []string{"client4@example.com"},
+		NotAfter:       notAfter,
+		ExtKeyUsage:    []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}, rootCA, rootKey)
+
+	trustedClientCert5PEM, _, _ := newCertificate(&x509.Certificate{
+		SerialNumber: big.NewInt(0x1006),
+		Subject: pkix.Name{
+			CommonName: "client cert 5",
+		},
+		IPAddresses: []net.IP{net.ParseIP("192.168.10.10")},
+		NotAfter:    notAfter,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}, rootCA, rootKey)
+
+	trustedClientCert6PEM, _, _ := newCertificate(&x509.Certificate{
+		SerialNumber: big.NewInt(0x1007),
+		Subject: pkix.Name{
+			CommonName: "client cert 6",
+		},
+		URIs:        []*url.URL{{Scheme: "spiffe", Host: "example.com", Path: "/foo/bar"}},
+		NotAfter:    notAfter,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}, rootCA, rootKey)
+
 	fmt.Println(`
 const (
 	testCA = ` + "`\n" + rootPEM + "`" + `
@@ -157,6 +199,10 @@ const (
 	testCRL = ` + "`\n" + crlPEM + "`" + `
 	testIntermediateCA = ` + "`\n" + intermediatePEM + "`" + `
 	testValidIntermediateCert = ` + "`\n" + trustedClientCert2PEM + "`" + `
+	testValidCertWithDNSSANs = ` + "`\n" + trustedClientCert3PEM + "`" + `
+	testValidCertWithEmailSAN = ` + "`\n" + trustedClientCert4PEM + "`" + `
+	testValidCertWithIPSAN = ` + "`\n" + trustedClientCert5PEM + "`" + `
+	testValidCertWithURISAN = ` + "`\n" + trustedClientCert6PEM + "`" + `
 )
 `)
 }

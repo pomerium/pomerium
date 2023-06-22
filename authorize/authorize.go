@@ -120,8 +120,10 @@ func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Ev
 	addDefaultClientCertificateRule :=
 		opts.DownstreamMTLS.GetEnforcement() != config.MTLSEnforcementPolicy
 
-	clientCertConstraints := evaluator.ClientCertConstraints{
-		MaxVerifyDepth: opts.DownstreamMTLS.GetMaxVerifyDepth(),
+	clientCertConstraints, err := evaluator.ClientCertConstraintsFromConfig(&opts.DownstreamMTLS)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"authorize: internal error: couldn't build client cert constraints: %w", err)
 	}
 
 	return evaluator.New(ctx, store,

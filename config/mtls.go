@@ -3,9 +3,14 @@ package config
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
+
+	envoy_tls "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
+	envoy_matcher "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -31,6 +36,23 @@ const (
 	MTLSEnforcementRejectConnection MTLSEnforcement = "reject_connection"
 )
 
+// SANType represents a certificate Subject Alternative Name type.
+type SANType string
+
+const (
+	// SANTypeDNS represents a DNS name.
+	SANTypeDNS SANType = "dns"
+
+	// SANTypeEmail represents an email address.
+	SANTypeEmail SANType = "email"
+
+	// SANTypeIPAddress represents an IP address.
+	SANTypeIPAddress SANType = "ip_address"
+
+	// SANTypeURI represents a URI.
+	SANTypeURI SANType = "uri"
+)
+
 // DownstreamMTLSSettings specify the downstream client certificate requirements.
 type DownstreamMTLSSettings struct {
 	// CA is the base64-encoded certificate authority (or bundle of certificate
@@ -54,6 +76,11 @@ type DownstreamMTLSSettings struct {
 	// Enforcement indicates the behavior applied to requests without a valid
 	// client certificate.
 	Enforcement MTLSEnforcement `mapstructure:"enforcement" yaml:"enforcement,omitempty"`
+
+	// MatchSubjectAltNames is a list of SAN match expressions. When non-empty,
+	// a client certificate must contain at least one Subject Alternative Name
+	// that matches at least one of the expessions.
+	MatchSubjectAltNames []SANMatcher `mapstructure:"match_subject_alt_names" yaml:"match_subject_alt_names,omitempty"`
 
 	// MaxVerifyDepth is the maximum allowed depth of a certificate trust chain
 	// (not counting the leaf certificate). The value 0 indicates no maximum.
@@ -139,6 +166,12 @@ func (s *DownstreamMTLSSettings) validate() error {
 		return errors.New("unknown enforcement option")
 	}
 
+	for i := range s.MatchSubjectAltNames {
+		if err := s.MatchSubjectAltNames[i].validate(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -169,5 +202,75 @@ func mtlsEnforcementFromProtoEnum(
 	default:
 		log.Error(ctx).Msgf("unknown mTLS enforcement mode %s", mode)
 		return ""
+	}
+}
+
+// SANMatcher represents a Subject Alternative Name string matcher condition. A
+// certificate satisfies this condition if it contains at least one SAN of the
+// given type that matches the regular expression as a full string match.
+type SANMatcher struct {
+	Type    SANType
+	Pattern string
+}
+
+func (s *SANMatcher) validate() error {
+	if s.envoyType() == envoy_tls.SubjectAltNameMatcher_SAN_TYPE_UNSPECIFIED {
+		return fmt.Errorf("unknown SAN type %q", s.Type)
+	}
+	if _, err := regexp.Compile(s.Pattern); err != nil {
+		return fmt.Errorf("couldn't parse pattern %q: %w", s.Pattern, err)
+	}
+	return nil
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (s *SANMatcher) UnmarshalJSON(b []byte) error {
+	var m map[string]string
+	if err := json.Unmarshal(b, &m); err != nil {
+		return err
+	} else if len(m) != 1 {
+		return errors.New("unsupported SAN matcher format: expected {type: pattern}")
+	}
+
+	for k, v := range m {
+		s.Type = SANType(k)
+		s.Pattern = v
+	}
+	return nil
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (s *SANMatcher) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]string{string(s.Type): s.Pattern})
+}
+
+// ToEnvoyProto rerturns a representation of this matcher as an Envoy
+// SubjectAltNameMatcher proto.
+func (s *SANMatcher) ToEnvoyProto() *envoy_tls.SubjectAltNameMatcher {
+	return &envoy_tls.SubjectAltNameMatcher{
+		SanType: s.envoyType(),
+		Matcher: &envoy_matcher.StringMatcher{
+			MatchPattern: &envoy_matcher.StringMatcher_SafeRegex{
+				SafeRegex: &envoy_matcher.RegexMatcher{
+					EngineType: &envoy_matcher.RegexMatcher_GoogleRe2{},
+					Regex:      s.Pattern,
+				},
+			},
+		},
+	}
+}
+
+func (s *SANMatcher) envoyType() envoy_tls.SubjectAltNameMatcher_SanType {
+	switch s.Type {
+	case SANTypeDNS:
+		return envoy_tls.SubjectAltNameMatcher_DNS
+	case SANTypeEmail:
+		return envoy_tls.SubjectAltNameMatcher_EMAIL
+	case SANTypeIPAddress:
+		return envoy_tls.SubjectAltNameMatcher_IP_ADDRESS
+	case SANTypeURI:
+		return envoy_tls.SubjectAltNameMatcher_URI
+	default:
+		return envoy_tls.SubjectAltNameMatcher_SAN_TYPE_UNSPECIFIED
 	}
 }

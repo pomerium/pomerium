@@ -226,6 +226,67 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 			}
 		}`, downstreamTLSContext.GetCommonTlsContext().GetValidationContext())
 	})
+	t.Run("client-ca-san-matchers", func(t *testing.T) {
+		config := &config.Config{Options: &config.Options{
+			DownstreamMTLS: config.DownstreamMTLSSettings{
+				CA: "VEVTVAo=", // "TEST\n"
+				MatchSubjectAltNames: []config.SANMatcher{
+					{Type: config.SANTypeDNS, Pattern: `.*\.corp\.example\.com`},
+					{Type: config.SANTypeEmail, Pattern: `.*@example\.com`},
+					{Type: config.SANTypeIPAddress, Pattern: `10\.10\.42\..*`},
+					{Type: config.SANTypeURI, Pattern: `spiffe://example\.com/.*`},
+				},
+			},
+		}}
+		downstreamTLSContext, err :=
+			b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
+		require.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `{
+			"maxVerifyDepth": 1,
+			"matchTypedSubjectAltNames": [
+				{
+					"matcher": {
+						"safeRegex": {
+							"googleRe2": {},
+							"regex": ".*\\.corp\\.example\\.com"
+						}
+					},
+					"sanType": "DNS"
+				},
+				{
+					"matcher": {
+						"safeRegex": {
+							"googleRe2": {},
+							"regex": ".*@example\\.com"
+						}
+					},
+					"sanType": "EMAIL"
+				},
+				{
+					"matcher": {
+						"safeRegex": {
+							"googleRe2": {},
+							"regex": "10\\.10\\.42\\..*"
+						}
+					},
+					"sanType": "IP_ADDRESS"
+				},
+				{
+					"matcher": {
+						"safeRegex": {
+							"googleRe2": {},
+							"regex": "spiffe://example\\.com/.*"
+						}
+					},
+					"sanType": "URI"
+				}
+			],
+			"trustChainVerification": "ACCEPT_UNTRUSTED",
+			"trustedCa": {
+				"filename": "`+clientCAFileName+`"
+			}
+		}`, downstreamTLSContext.GetCommonTlsContext().GetValidationContext())
+	})
 	t.Run("http1", func(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
 			Cert:      aExampleComCert,
