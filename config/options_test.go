@@ -977,6 +977,28 @@ func TestOptions_GetCSRFSameSite(t *testing.T) {
 	}
 }
 
+func TestOptions_RequestParams(t *testing.T) {
+	cases := []struct {
+		label    string
+		config   string
+		expected map[string]string
+	}{
+		{"not present", "", nil},
+		{"explicitly empty", "idp_request_params: {}", map[string]string{}},
+	}
+	cfg := filepath.Join(t.TempDir(), "config.yaml")
+	for i := range cases {
+		c := &cases[i]
+		t.Run(c.label, func(t *testing.T) {
+			err := os.WriteFile(cfg, []byte(c.config), 0644)
+			require.NoError(t, err)
+			o, err := newOptionsFromConfig(cfg)
+			require.NoError(t, err)
+			assert.Equal(t, c.expected, o.RequestParams)
+		})
+	}
+}
+
 func encodeCert(cert *tls.Certificate) []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Certificate[0]})
 }
