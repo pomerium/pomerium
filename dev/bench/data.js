@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1687470571792,
+  "lastUpdate": 1687471349021,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -54212,6 +54212,38 @@ window.BENCHMARK_DATA = {
             "value": 9237610,
             "unit": "ns/op",
             "extra": "126 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "44efe0cf554e26fcb5f2603daea2df470dd421fe",
+          "message": "Allow clearing default Azure auth code options",
+          "timestamp": "2023-06-22T21:11:54Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4315/commits/44efe0cf554e26fcb5f2603daea2df470dd421fe"
+        },
+        "date": 1687471344243,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 20364648,
+            "unit": "ns/op",
+            "extra": "67 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12969690,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
           }
         ]
       }
