@@ -55,7 +55,7 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 	p.Provider = genericOidc
 
 	p.AuthCodeOptions = defaultAuthCodeOptions
-	if len(o.AuthCodeOptions) != 0 {
+	if o.AuthCodeOptions != nil {
 		p.AuthCodeOptions = o.AuthCodeOptions
 	}
 	return &p, nil
