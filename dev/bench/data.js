@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1687802493815,
+  "lastUpdate": 1687882656474,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -54276,6 +54276,42 @@ window.BENCHMARK_DATA = {
             "value": 8988217,
             "unit": "ns/op",
             "extra": "124 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2bf83e20d8a36fc46ce444336d341a946759f23c",
+          "message": "Allow clearing default Azure and Google auth code options (#4315)\n\nAllow users to clear the default IdP auth code options, by explicitly\r\nsetting an empty idp_request_params map.\r\n\r\nTo do this in a YAML config file, set:\r\n\r\n    idp_request_params: {}",
+          "timestamp": "2023-06-27T09:11:54-07:00",
+          "tree_id": "e3968ac6c98f07e25c3991b23ebecd30ab824ffb",
+          "url": "https://github.com/pomerium/pomerium/commit/2bf83e20d8a36fc46ce444336d341a946759f23c"
+        },
+        "date": 1687882651834,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18136172,
+            "unit": "ns/op",
+            "extra": "58 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11798946,
+            "unit": "ns/op",
+            "extra": "105 times\n2 procs"
           }
         ]
       }
