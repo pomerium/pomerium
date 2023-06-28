@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1687971850260,
+  "lastUpdate": 1687975653819,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -54344,6 +54344,42 @@ window.BENCHMARK_DATA = {
             "value": 10048178,
             "unit": "ns/op",
             "extra": "122 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2f4005cc0982678eaac9bd1fcf56bf9e0dd56d7f",
+          "message": "authenticate: remove extraneous error log (#4319)\n\nCurrently the Authenticate.storeIdentityProfile() method always emits an\r\nError log. If there is no error from cookieChunker.SetCookie(), this\r\nresults in an empty log entry:\r\n\r\n    {\"level\":\"error\",\"time\":\"2023-06-27T23:56:38Z\"}\r\n\r\nRefactor this method to instead return the error from SetCookie(), and\r\nupdate the calling code so that it logs a message only when this error\r\nis non-nil.\r\n\r\n(Moving the log call to the calling method gives access to the request\r\ncontext, so the log entry will include the request ID and other related\r\ninfo.)",
+          "timestamp": "2023-06-28T11:02:06-07:00",
+          "tree_id": "12fb10da361a710e1bacfcf07d07facea1b35b5c",
+          "url": "https://github.com/pomerium/pomerium/commit/2f4005cc0982678eaac9bd1fcf56bf9e0dd56d7f"
+        },
+        "date": 1687975649370,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15678891,
+            "unit": "ns/op",
+            "extra": "70 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9838895,
+            "unit": "ns/op",
+            "extra": "120 times\n2 procs"
           }
         ]
       }
