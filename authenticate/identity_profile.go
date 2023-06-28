@@ -14,7 +14,6 @@ import (
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -85,7 +84,7 @@ func (a *Authenticate) loadIdentityProfile(r *http.Request, aead cipher.AEAD) (*
 	return &profile, nil
 }
 
-func (a *Authenticate) storeIdentityProfile(w http.ResponseWriter, aead cipher.AEAD, profile *identitypb.Profile) {
+func (a *Authenticate) storeIdentityProfile(w http.ResponseWriter, aead cipher.AEAD, profile *identitypb.Profile) error {
 	options := a.options.Load()
 
 	decrypted, err := protojson.Marshal(profile)
@@ -98,6 +97,5 @@ func (a *Authenticate) storeIdentityProfile(w http.ResponseWriter, aead cipher.A
 	cookie.Name = urlutil.QueryIdentityProfile
 	cookie.Value = base64.RawURLEncoding.EncodeToString(encrypted)
 	cookie.Path = "/"
-	err = cookieChunker.SetCookie(w, cookie)
-	log.Error(context.Background()).Err(err).Send()
+	return cookieChunker.SetCookie(w, cookie)
 }

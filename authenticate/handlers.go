@@ -443,7 +443,9 @@ Or contact your administrator.
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, err)
 	}
-	a.storeIdentityProfile(w, state.cookieCipher, profile)
+	if err := a.storeIdentityProfile(w, state.cookieCipher, profile); err != nil {
+		log.Error(r.Context()).Err(err).Msg("failed to store identity profile")
+	}
 
 	// ...  and the user state to local storage.
 	if err := state.sessionStore.SaveSession(w, r, &newState); err != nil {
