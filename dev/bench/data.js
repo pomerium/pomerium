@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1688135079697,
+  "lastUpdate": 1688138897749,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -54448,6 +54448,42 @@ window.BENCHMARK_DATA = {
             "value": 11127735,
             "unit": "ns/op",
             "extra": "110 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cd056e89db08503b802605236d5eac5d5b9a10c5",
+          "message": "organize go.mod (#4320)\n\nCombine indirect dependencies into a single require block. Move all\r\ndirect dependencies to the first require block.",
+          "timestamp": "2023-06-30T08:22:41-07:00",
+          "tree_id": "0513b0af40d5f42915ffe7c66b27100618696d2d",
+          "url": "https://github.com/pomerium/pomerium/commit/cd056e89db08503b802605236d5eac5d5b9a10c5"
+        },
+        "date": 1688138892525,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16959455,
+            "unit": "ns/op",
+            "extra": "73 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11121885,
+            "unit": "ns/op",
+            "extra": "97 times\n2 procs"
           }
         ]
       }
