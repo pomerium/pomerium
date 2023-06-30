@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1688138897749,
+  "lastUpdate": 1688145225225,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -54484,6 +54484,38 @@ window.BENCHMARK_DATA = {
             "value": 11121885,
             "unit": "ns/op",
             "extra": "97 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "7c22960139ca12f600263d4e43b5a2e0fe1db901",
+          "message": "authorize: remove JWT timestamp format workaround",
+          "timestamp": "2023-06-30T12:10:55Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4321/commits/7c22960139ca12f600263d4e43b5a2e0fe1db901"
+        },
+        "date": 1688145220615,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15649754,
+            "unit": "ns/op",
+            "extra": "88 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10921854,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
