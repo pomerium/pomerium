@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1688080672347,
+  "lastUpdate": 1688135079697,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -54412,6 +54412,42 @@ window.BENCHMARK_DATA = {
             "value": 10562751,
             "unit": "ns/op",
             "extra": "99 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "nhayfield@yahoo.com",
+            "name": "Nathan Hayfield",
+            "username": "nhayfield"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f54b1a7d098fac76c7ddbccdb9351483466b7b6a",
+          "message": "adds success colors for statuses in the 200 range (#4314)",
+          "timestamp": "2023-06-30T16:18:35+02:00",
+          "tree_id": "c9d47687fae9703c2c582270868baea0dfa870ab",
+          "url": "https://github.com/pomerium/pomerium/commit/f54b1a7d098fac76c7ddbccdb9351483466b7b6a"
+        },
+        "date": 1688135074714,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17152920,
+            "unit": "ns/op",
+            "extra": "67 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11127735,
+            "unit": "ns/op",
+            "extra": "110 times\n2 procs"
           }
         ]
       }
