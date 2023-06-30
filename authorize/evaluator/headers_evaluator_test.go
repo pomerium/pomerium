@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v3/jwt"
-	"github.com/open-policy-agent/opa/rego"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -232,19 +230,4 @@ func decodeJWSPayload(t *testing.T, jws string) []byte {
 	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
 	require.NoError(t, err)
 	return payload
-}
-
-// If this test fails with the message "workaround no longer needed", then the
-// upstream serialization issue in Rego has been fixed, and we should be able
-// to remove the to_number / format_int workaround from headers.rego (and
-// delete this test).
-func TestTimestampWorkaroundStillNeeded(t *testing.T) {
-	now := strconv.FormatInt(time.Now().Unix(), 10)
-	r := rego.New(rego.Query(fmt.Sprintf("json.marshal(%s + 0)", now)))
-	rs, err := r.Eval(context.Background())
-	require.NoError(t, err, "rego evaluation error")
-	require.Equal(t, 1, len(rs))
-	e := rs[0].Expressions
-	require.Equal(t, 1, len(e))
-	assert.NotEqual(t, now, e[0].Value, "workaround no longer needed")
 }
