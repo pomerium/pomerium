@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1688145225225,
+  "lastUpdate": 1688151549477,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -54516,6 +54516,42 @@ window.BENCHMARK_DATA = {
             "value": 10921854,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "74e648630ff1686e722f36b441e98f328d8e23fa",
+          "message": "authorize: remove JWT timestamp format workaround (#4321)\n\nUpdate OPA to v0.54.0, which changes the JSON serialization behavior for\r\nlarge integers. Remove the formatting workaround and the unit test that\r\nverified that the workaround was still needed.",
+          "timestamp": "2023-06-30T11:54:46-07:00",
+          "tree_id": "e313b754fa144ca24e907e4ac121bf1ab2c13a8b",
+          "url": "https://github.com/pomerium/pomerium/commit/74e648630ff1686e722f36b441e98f328d8e23fa"
+        },
+        "date": 1688151545599,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13779632,
+            "unit": "ns/op",
+            "extra": "81 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8382771,
+            "unit": "ns/op",
+            "extra": "135 times\n2 procs"
           }
         ]
       }
