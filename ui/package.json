@@ -49,7 +49,7 @@
     "eslint-plugin-react": "^7.28.0",
     "prettier": "^2.4.1",
     "ts-node": "^10.4.0",
-    "typescript": "^5.1.3"
+    "typescript": "^5.1.6"
   },
   "prettier": {
     "importOrder": [
