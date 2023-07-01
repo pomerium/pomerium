@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1688230351863,
+  "lastUpdate": 1688230393608,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -54936,6 +54936,38 @@ window.BENCHMARK_DATA = {
             "value": 8758239,
             "unit": "ns/op",
             "extra": "141 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "146aa873ea3f4373e722435523bbbe30b83f9260",
+          "message": "chore(deps): bump github.com/caddyserver/certmagic from 0.18.0 to 0.18.2",
+          "timestamp": "2023-07-01T15:37:37Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4334/commits/146aa873ea3f4373e722435523bbbe30b83f9260"
+        },
+        "date": 1688230389692,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13464939,
+            "unit": "ns/op",
+            "extra": "88 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8579815,
+            "unit": "ns/op",
+            "extra": "132 times\n2 procs"
           }
         ]
       }
