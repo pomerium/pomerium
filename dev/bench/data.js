@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1688230518405,
+  "lastUpdate": 1688230557113,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -55032,6 +55032,38 @@ window.BENCHMARK_DATA = {
             "value": 12180016,
             "unit": "ns/op",
             "extra": "96 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "6dc77f1258fb29f1f1b667515f8731aa961e66c3",
+          "message": "chore(deps-dev): bump @typescript-eslint/eslint-plugin from 5.10.2 to 5.60.1 in /ui",
+          "timestamp": "2023-07-01T15:37:37Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4338/commits/6dc77f1258fb29f1f1b667515f8731aa961e66c3"
+        },
+        "date": 1688230552523,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14691396,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9416378,
+            "unit": "ns/op",
+            "extra": "123 times\n2 procs"
           }
         ]
       }
