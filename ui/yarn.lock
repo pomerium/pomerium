@@ -650,10 +650,10 @@
   resolved "https://registry.yarnpkg.com/@types/luxon/-/luxon-2.0.9.tgz#782a0edfa6d699191292c13168bd496cd66b87c6"
   integrity sha512-ZuzIc7aN+i2ZDMWIiSmMdubR9EMMSTdEzF6R+FckP4p6xdnOYKqknTo/k+xXQvciSXlNGIwA4OPU5X7JIFzYdA==
 
-"@types/node@^17.0.14":
-  version "17.0.14"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-17.0.14.tgz#33b9b94f789a8fedd30a68efdbca4dbb06b61f20"
-  integrity sha512-SbjLmERksKOGzWzPNuW7fJM7fk3YXVTFiZWB/Hs99gwhk+/dnrQRPBQjPW9aO+fi1tAffi9PrwFvsmOKmDTyng==
+"@types/node@^20.3.3":
+  version "20.3.3"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.3.3.tgz#329842940042d2b280897150e023e604d11657d6"
+  integrity sha512-wheIYdr4NYML61AjC8MKj/2jrR/kDQri/CIpVoZwldwhnIrD/j9jIU5bJ8yBKuB2VhpFV7Ab6G2XkBjv9r9Zzw==
 
 "@types/parse-json@^4.0.0":
   version "4.0.0"
