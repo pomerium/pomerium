@@ -40,7 +40,7 @@ require (
 	github.com/jackc/pgx/v5 v5.4.0
 	github.com/klauspost/compress v1.16.6
 	github.com/martinlindhe/base36 v1.1.1
-	github.com/mholt/acmez v1.1.1
+	github.com/mholt/acmez v1.2.0
 	github.com/minio/minio-go/v7 v7.0.57
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.5.0
