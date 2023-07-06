@@ -7,16 +7,15 @@
 [![LICENSE](https://img.shields.io/github/license/pomerium/pomerium.svg)](https://github.com/pomerium/pomerium/blob/main/LICENSE)
 ![Docker Pulls](https://img.shields.io/docker/pulls/pomerium/pomerium)
 
-Pomerium is an identity and context-aware reverse proxy that brokers secure access to apps and services at scale. Pomerium provides a standardized interface to add access control to applications regardless of whether the application itself has authorization or authentication baked-in.
+Pomerium builds secure, clientless connections to internal web apps and services without a corporate VPN.
 
-Pomerium can be used in situations where you'd typically reach for a VPN, but, unlike a VPN, does not require a client and uses identity and context, not network locality to determine access.
+Pomerium is:
 
-Pomerium can be used to:
+- **Easier** because you don’t have to maintain a client or software.
+- **Faster** because it’s deployed directly where your apps and services are. No more expensive data backhauling.
+- **Safer** because every single action is verified for trusted identity, device, and context.
 
-- provide a **single-sign-on gateway** to internal applications.
-- enforce **dynamic access policy** based on **context**, **identity**, and **device identity**.
-- aggregate access logs and telemetry data.
-- a **VPN alternative**.
+It’s not a VPN alternative – it’s the trusted, full-proof way to protect your business.
 
 ## Docs
 
