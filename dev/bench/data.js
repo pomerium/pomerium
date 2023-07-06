@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1688674874996,
+  "lastUpdate": 1688679315662,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -55224,6 +55224,42 @@ window.BENCHMARK_DATA = {
             "value": 9722670,
             "unit": "ns/op",
             "extra": "124 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "60552605+ZPain8464@users.noreply.github.com",
+            "name": "zachary painter",
+            "username": "ZPain8464"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "21ad1c6a9c9bc592227f3d8cf43107306c8b549a",
+          "message": "Docs: updates pomerium/pomerium readme file with new blurb (#4345)\n\nupdates pomerium/pomerium readme file with new blurb",
+          "timestamp": "2023-07-06T17:30:12-04:00",
+          "tree_id": "2e79c251bda07afa3c0292cf2203eacc6adb6225",
+          "url": "https://github.com/pomerium/pomerium/commit/21ad1c6a9c9bc592227f3d8cf43107306c8b549a"
+        },
+        "date": 1688679310855,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14566207,
+            "unit": "ns/op",
+            "extra": "73 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9050073,
+            "unit": "ns/op",
+            "extra": "126 times\n2 procs"
           }
         ]
       }
