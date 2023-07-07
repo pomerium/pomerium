@@ -88,6 +88,19 @@ func TestAuthorize_handleResult(t *testing.T) {
 			assert.NotNil(t, res.GetOkResponse())
 		})
 	})
+	t.Run("invalid-client-certificate", func(t *testing.T) {
+		// Even if the user is unauthenticated, if a client certificate was required and no valid
+		// certificate was provided, access should be denied (no login redirect).
+		res, err := a.handleResult(context.Background(),
+			&envoy_service_auth_v3.CheckRequest{},
+			&evaluator.Request{},
+			&evaluator.Result{
+				Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+				Deny:  evaluator.NewRuleResult(true, criteria.ReasonInvalidClientCertificate),
+			})
+		assert.NoError(t, err)
+		assert.Equal(t, 495, int(res.GetDeniedResponse().GetStatus().GetCode()))
+	})
 }
 
 func TestAuthorize_okResponse(t *testing.T) {
