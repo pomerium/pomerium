@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689022974627,
+  "lastUpdate": 1689032654875,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -55980,6 +55980,42 @@ window.BENCHMARK_DATA = {
             "value": 10890532,
             "unit": "ns/op",
             "extra": "96 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5459e6940a526549fc34f4c1d52ca971050ef885",
+          "message": "authorize: do not redirect if invalid client cert (#4344)\n\nIf an authorization policy requires a client certificate, but an\r\nincoming request does not include a valid certificate, we should serve a\r\ndeny error page right away, regardless of whether the user is\r\nauthenticated via the identity provider or not. Do not redirect to the\r\nidentity provider login page in this case.\r\n\r\nUpdate the existing integration tests accordingly, and add a unit test\r\ncase for this scenario.",
+          "timestamp": "2023-07-10T16:39:26-07:00",
+          "tree_id": "1d7ea8bcadcb9e012b1c882d8dc42d742916f83f",
+          "url": "https://github.com/pomerium/pomerium/commit/5459e6940a526549fc34f4c1d52ca971050ef885"
+        },
+        "date": 1689032650309,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14355269,
+            "unit": "ns/op",
+            "extra": "78 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9179115,
+            "unit": "ns/op",
+            "extra": "130 times\n2 procs"
           }
         ]
       }
