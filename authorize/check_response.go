@@ -32,6 +32,12 @@ func (a *Authorize) handleResult(
 	request *evaluator.Request,
 	result *evaluator.Result,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
+	// If a client certificate is required, but the client did not provide a
+	// valid certificate, deny right away. Do not redirect to authenticate.
+	if result.Deny.Reasons.Has(criteria.ReasonInvalidClientCertificate) {
+		return a.handleResultDenied(ctx, in, request, result, result.Deny.Reasons)
+	}
+
 	// when the user is unauthenticated it means they haven't
 	// logged in yet, so redirect to authenticate
 	if result.Allow.Reasons.Has(criteria.ReasonUserUnauthenticated) ||
