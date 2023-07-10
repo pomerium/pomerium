@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689022306709,
+  "lastUpdate": 1689022376000,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -55766,6 +55766,42 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 11396386,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "13032577ca310415528854d177fa4c29cc840ebb",
+          "message": "chore(deps): bump google.golang.org/protobuf from 1.30.0 to 1.31.0 (#4325)\n\nBumps google.golang.org/protobuf from 1.30.0 to 1.31.0.\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: google.golang.org/protobuf\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-07-10T14:44:04-06:00",
+          "tree_id": "8cede79639d7f129dab3968aff0bb116b6fd6cfe",
+          "url": "https://github.com/pomerium/pomerium/commit/13032577ca310415528854d177fa4c29cc840ebb"
+        },
+        "date": 1689022368241,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14647908,
+            "unit": "ns/op",
+            "extra": "81 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10012723,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
           }
