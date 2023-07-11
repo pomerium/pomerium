@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689072564828,
+  "lastUpdate": 1689089833283,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -56048,6 +56048,42 @@ window.BENCHMARK_DATA = {
             "value": 8606442,
             "unit": "ns/op",
             "extra": "140 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4444485dfea5a0580b9dc7cf96f0bb9bab0052c5",
+          "message": "chore(deps): bump semver from 6.3.0 to 6.3.1 in /ui (#4350)\n\nBumps [semver](https://github.com/npm/node-semver) from 6.3.0 to 6.3.1.\r\n- [Release notes](https://github.com/npm/node-semver/releases)\r\n- [Changelog](https://github.com/npm/node-semver/blob/v6.3.1/CHANGELOG.md)\r\n- [Commits](https://github.com/npm/node-semver/compare/v6.3.0...v6.3.1)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: semver\r\n  dependency-type: indirect\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-07-11T08:32:21-07:00",
+          "tree_id": "62d924da46898312f3d0619c0c181486237accad",
+          "url": "https://github.com/pomerium/pomerium/commit/4444485dfea5a0580b9dc7cf96f0bb9bab0052c5"
+        },
+        "date": 1689089828993,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13306206,
+            "unit": "ns/op",
+            "extra": "82 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8921198,
+            "unit": "ns/op",
+            "extra": "135 times\n2 procs"
           }
         ]
       }
