@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689032654875,
+  "lastUpdate": 1689072564828,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -56016,6 +56016,38 @@ window.BENCHMARK_DATA = {
             "value": 9179115,
             "unit": "ns/op",
             "extra": "130 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "6ead4e5a4d16f542699e324e7824c1a920f88b42",
+          "message": "chore(deps): bump semver from 6.3.0 to 6.3.1 in /ui",
+          "timestamp": "2023-07-10T12:34:48Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4350/commits/6ead4e5a4d16f542699e324e7824c1a920f88b42"
+        },
+        "date": 1689072560413,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12973580,
+            "unit": "ns/op",
+            "extra": "86 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8606442,
+            "unit": "ns/op",
+            "extra": "140 times\n2 procs"
           }
         ]
       }
