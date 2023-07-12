@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689090021495,
+  "lastUpdate": 1689180646831,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -56180,6 +56180,42 @@ window.BENCHMARK_DATA = {
             "value": 11262970,
             "unit": "ns/op",
             "extra": "91 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "guoguangwu@magic-shield.com",
+            "name": "guangwu",
+            "username": "testwill"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4674b98cfbfa07b678327f27a8ce9199009f4b1f",
+          "message": "chore: unnecessary use of fmt.Sprintf (#4349)\n\nRemove fmt.Sprintf() calls where the format string contains no formatting verbs.",
+          "timestamp": "2023-07-12T09:44:29-07:00",
+          "tree_id": "542ce3ff65f345b27990fb6fa0c0f7c48e76ecee",
+          "url": "https://github.com/pomerium/pomerium/commit/4674b98cfbfa07b678327f27a8ce9199009f4b1f"
+        },
+        "date": 1689180641073,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18826270,
+            "unit": "ns/op",
+            "extra": "61 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12180961,
+            "unit": "ns/op",
+            "extra": "98 times\n2 procs"
           }
         ]
       }
