@@ -38,11 +38,11 @@ jobs:
           TAGS=${TAGS},${IMAGE}:master
           TAGS=${TAGS},${IMAGE}:${SHA_TAG}
           TS=$(date +%Y%m%d%H%M%S)
-          echo ::set-output name=tags::${TAGS}
-          echo ::set-output name=timestamp::${TS}
-          echo ::set-output name=name::pomerium
-          echo ::set-output name=image::${IMAGE}
-          echo ::set-output name=sha-tag::${SHA_TAG}
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+          echo "timestamp=${TS}" >> $GITHUB_OUTPUT
+          echo "name=pomerium" >> $GITHUB_OUTPUT
+          echo "image=${IMAGE}" >> $GITHUB_OUTPUT
+          echo "sha-tag=${SHA_TAG}" >> $GITHUB_OUTPUT
 
       - name: Docker Publish - Main
         uses: docker/build-push-action@2eb1c1961a95fc15694676618e422e8ba1d63825
