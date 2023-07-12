@@ -56,8 +56,8 @@ func TestValidTimestamp(t *testing.T) {
 		{"good - now + 200ms", fmt.Sprint(time.Now().Add(200 * time.Millisecond).Unix()), false},
 		{"bad - now + 10m", fmt.Sprint(time.Now().Add(10 * time.Minute).Unix()), true},
 		{"bad - now - 10m", fmt.Sprint(time.Now().Add(-10 * time.Minute).Unix()), true},
-		{"malformed - non int", fmt.Sprint("pomerium"), true},
-		{"malformed - negative number", fmt.Sprint("-1"), true},
+		{"malformed - non int", "pomerium", true},
+		{"malformed - negative number", "-1", true},
 		{"malformed - huge number", fmt.Sprintf("%d", 10*10000000000), true},
 	}
 	for _, tt := range tests {

@@ -60,7 +60,7 @@ func TestAuthenticate_RobotsTxt(t *testing.T) {
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
-	expected := fmt.Sprintf("User-agent: *\nDisallow: /")
+	expected := "User-agent: *\nDisallow: /"
 	if rr.Body.String() != expected {
 		t.Errorf("handler returned wrong body: got %v want %v", rr.Body.String(), expected)
 	}
@@ -78,7 +78,7 @@ func TestAuthenticate_Handler(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
-	expected := fmt.Sprintf("User-agent: *\nDisallow: /")
+	expected := "User-agent: *\nDisallow: /"
 
 	body := rr.Body.String()
 	if body != expected {
@@ -92,7 +92,7 @@ func TestAuthenticate_Handler(t *testing.T) {
 	req.Header.Set("Access-Control-Request-Headers", "X-Requested-With")
 	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
-	expected = fmt.Sprintf("User-agent: *\nDisallow: /")
+	expected = "User-agent: *\nDisallow: /"
 	code := rr.Code
 	if code/100 != 2 {
 		t.Errorf("bad preflight code %v", code)
