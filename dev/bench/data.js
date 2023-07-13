@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689217332470,
+  "lastUpdate": 1689268205973,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -56312,6 +56312,42 @@ window.BENCHMARK_DATA = {
             "value": 11481344,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a1388592d8627368ef9421c98d43d500e20beb37",
+          "message": "stub out HPKE public key fetch for self-hosted authenticate (#4360)\n\nFetch the HPKE public key only when configured to use the hosted\r\nauthenticate service. Determine whether we are using the hosted\r\nauthenticate service by comparing the resolved authenticate domain with\r\na hard-coded list of hosted authenticate domains.\r\n\r\nExtract this list of hosted authenticate domains to the internal/urlutil\r\npackage in order to keep a single source of truth for this data.",
+          "timestamp": "2023-07-13T10:04:34-07:00",
+          "tree_id": "cc9eec3d7cf1b8157247bd02deeb0fac1fbb38ab",
+          "url": "https://github.com/pomerium/pomerium/commit/a1388592d8627368ef9421c98d43d500e20beb37"
+        },
+        "date": 1689268197368,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17183651,
+            "unit": "ns/op",
+            "extra": "68 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11178572,
+            "unit": "ns/op",
+            "extra": "99 times\n2 procs"
           }
         ]
       }
