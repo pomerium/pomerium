@@ -237,10 +237,22 @@ func (cfg *Config) GetAuthenticateKeyFetcher() (hpke.KeyFetcher, error) {
 	if err != nil {
 		return nil, err
 	}
-	jwksURL := authenticateURL.ResolveReference(&url.URL{
-		Path: urlutil.HPKEPublicKeyPath,
-	}).String()
-	return hpke.NewKeyFetcher(jwksURL, transport), nil
+
+	// For hosted authenticate, we need to fetch the HPKE public key.
+	if urlutil.IsHostedAuthenticateDomain(authenticateURL.Hostname()) {
+		hpkeURL := authenticateURL.ResolveReference(&url.URL{
+			Path: urlutil.HPKEPublicKeyPath,
+		}).String()
+		return hpke.NewKeyFetcher(hpkeURL, transport), nil
+	}
+
+	// Otherwise we can use our own HPKE public key.
+	privKey, err := cfg.Options.GetHPKEPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+	pubKey := privKey.PublicKey()
+	return hpke.NewStubKeyFetcher(pubKey), nil
 }
 
 func (cfg *Config) resolveAuthenticateURL() (*url.URL, *http.Transport, error) {
