@@ -1,5 +1,7 @@
 package urlutil
 
+// HostedAuthenticateDomains is a list of all known domains associated with the
+// hosted authenticate service.
 var HostedAuthenticateDomains = []string{
 	"authenticate.pomerium.app",
 	"authenticate.staging.pomerium.app",
@@ -15,6 +17,8 @@ func initHostedAuthenticateDomainSet() map[string]struct{} {
 	return s
 }
 
+// IsHostedAuthenticateDomain indicates whether the given domain is associated
+// with the hosted authenticate service.
 func IsHostedAuthenticateDomain(domain string) bool {
 	_, isHostedAuthenticate := hostedAuthenticateDomainSet[domain]
 	return isHostedAuthenticate
