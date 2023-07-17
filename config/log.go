@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 
+	"github.com/rs/zerolog"
+
 	"github.com/pomerium/pomerium/internal/log"
 )
 
@@ -41,6 +43,7 @@ func (mgr *LogManager) OnConfigChange(_ context.Context, cfg *Config) {
 	}
 
 	if cfg.Options.LogLevel != "" {
-		log.SetLevel(cfg.Options.LogLevel)
+		log.SetLevel(cfg.Options.LogLevel.ToZerolog().String())
+		zerolog.SetGlobalLevel(cfg.Options.LogLevel.ToZerolog())
 	}
 }
