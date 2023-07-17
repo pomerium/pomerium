@@ -11,7 +11,7 @@ type LogLevel string
 
 // Known log levels.
 const (
-	LogLevelUnset    LogLevel = ""
+	LogLevelUnset    LogLevel = "" // defaults to info
 	LogLevelTrace    LogLevel = "trace"
 	LogLevelDebug    LogLevel = "debug"
 	LogLevelInfo     LogLevel = "info"
@@ -93,10 +93,8 @@ func (lvl LogLevel) ToEnvoy() string {
 		return "debug"
 	case LogLevelInfo, LogLevelUnset:
 		return "info"
-	case LogLevelWarn:
+	case LogLevelWarn, LogLevelWarning:
 		return "warn"
-	case LogLevelWarning:
-		return "warning"
 	case LogLevelError:
 		return "error"
 	case LogLevelCritical, LogLevelFatal, LogLevelPanic:
