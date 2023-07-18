@@ -381,35 +381,43 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 		return nil, err
 	}
 
+	filterChain := envoy_config_listener_v3.FilterChain{
+		Filters: []*envoy_config_listener_v3.Filter{filter},
+	}
+
 	li := newEnvoyListener("grpc-ingress")
+	li.FilterChains = []*envoy_config_listener_v3.FilterChain{&filterChain}
+
 	if cfg.Options.GetGRPCInsecure() {
 		li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 80)
-		li.FilterChains = []*envoy_config_listener_v3.FilterChain{{
-			Filters: []*envoy_config_listener_v3.Filter{
-				filter,
-			},
-		}}
-	} else {
-		li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 443)
-		li.ListenerFilters = []*envoy_config_listener_v3.ListenerFilter{
-			TLSInspectorFilter(),
-		}
+		return li, nil
+	}
 
-		allCertificates, err := getAllCertificates(cfg)
-		if err != nil {
-			return nil, err
-		}
+	li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 443)
+	li.ListenerFilters = []*envoy_config_listener_v3.ListenerFilter{
+		TLSInspectorFilter(),
+	}
 
-		sock, err := b.buildTLSSocket(ctx, cfg, allCertificates)
-		if err != nil {
-			return nil, fmt.Errorf("error building TLS socket: %w", err)
-		}
-
-		filterChain := &envoy_config_listener_v3.FilterChain{
-			Filters:         []*envoy_config_listener_v3.Filter{filter},
-			TransportSocket: sock,
-		}
-		li.FilterChains = append(li.FilterChains, filterChain)
+	allCertificates, err := getAllCertificates(cfg)
+	if err != nil {
+		return nil, err
+	}
+	envoyCerts, err := b.envoyCertificates(ctx, allCertificates)
+	if err != nil {
+		return nil, err
+	}
+	tlsContext := &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
+		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
+			TlsParams:       tlsParams,
+			TlsCertificates: envoyCerts,
+			AlpnProtocols:   []string{"h2"}, // gRPC requires HTTP/2
+		},
+	}
+	filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
+		Name: "tls",
+		ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+			TypedConfig: marshalAny(tlsContext),
+		},
 	}
 	return li, nil
 }
@@ -479,21 +487,33 @@ func (b *Builder) buildRouteConfiguration(name string, virtualHosts []*envoy_con
 	}, nil
 }
 
-func (b *Builder) buildDownstreamTLSContextMulti(
-	ctx context.Context,
-	cfg *config.Config,
-	certs []tls.Certificate) (
-	*envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext,
-	error,
+func (b *Builder) envoyCertificates(ctx context.Context, certs []tls.Certificate) (
+	[]*envoy_extensions_transport_sockets_tls_v3.TlsCertificate, error,
 ) {
 	envoyCerts := make([]*envoy_extensions_transport_sockets_tls_v3.TlsCertificate, 0, len(certs))
 	for i := range certs {
 		cert := &certs[i]
 		if err := validateCertificate(cert); err != nil {
-			return nil, fmt.Errorf("invalid certificate for domain %s: %w", cert.Leaf.Subject.CommonName, err)
+			return nil, fmt.Errorf("invalid certificate for domain %s: %w",
+				cert.Leaf.Subject.CommonName, err)
 		}
 		envoyCert := b.envoyTLSCertificateFromGoTLSCertificate(ctx, cert)
 		envoyCerts = append(envoyCerts, envoyCert)
+	}
+	return envoyCerts, nil
+}
+
+func (b *Builder) buildDownstreamTLSContextMulti(
+	ctx context.Context,
+	cfg *config.Config,
+	certs []tls.Certificate,
+) (
+	*envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext,
+	error,
+) {
+	envoyCerts, err := b.envoyCertificates(ctx, certs)
+	if err != nil {
+		return nil, err
 	}
 	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
