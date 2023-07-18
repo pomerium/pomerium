@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689634209905,
+  "lastUpdate": 1689648819123,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -56544,6 +56544,42 @@ window.BENCHMARK_DATA = {
             "value": 9818254,
             "unit": "ns/op",
             "extra": "123 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5c0d7aa008572ad6c7bad3d416f02566bfe2e829",
+          "message": "replace docker publish action ::set-output usage (#4359)\n\nUpdate the 'Docker Main' GitHub Action workflow to update the deprecated\r\n::set-output command to use the newer environment file mechanism.",
+          "timestamp": "2023-07-17T19:49:09-07:00",
+          "tree_id": "55c705a465dad201fa07a1a4e2bd4ff0ed3a4e0d",
+          "url": "https://github.com/pomerium/pomerium/commit/5c0d7aa008572ad6c7bad3d416f02566bfe2e829"
+        },
+        "date": 1689648815001,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14621224,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8861785,
+            "unit": "ns/op",
+            "extra": "128 times\n2 procs"
           }
         ]
       }
