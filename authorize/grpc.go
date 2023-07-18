@@ -2,12 +2,14 @@ package authorize
 
 import (
 	"context"
+	"encoding/pem"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
@@ -60,7 +62,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		u, _ = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
 	}
 
-	req, err := a.getEvaluatorRequestFromCheckRequest(in, sessionState)
+	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in, sessionState)
 	if err != nil {
 		log.Warn(ctx).Err(err).Msg("error building evaluator request")
 		return nil, err
@@ -89,18 +91,22 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 }
 
 func (a *Authorize) getEvaluatorRequestFromCheckRequest(
+	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
 	sessionState *sessions.State,
 ) (*evaluator.Request, error) {
 	requestURL := getCheckRequestURL(in)
+	attrs := in.GetAttributes()
+	clientCertMetadata :=
+		attrs.GetMetadataContext().GetFilterMetadata()["com.pomerium.client-certificate-info"]
 	req := &evaluator.Request{
-		IsInternal: envoyconfig.ExtAuthzContextExtensionsIsInternal(in.GetAttributes().GetContextExtensions()),
+		IsInternal: envoyconfig.ExtAuthzContextExtensionsIsInternal(attrs.GetContextExtensions()),
 		HTTP: evaluator.NewRequestHTTP(
-			in.GetAttributes().GetRequest().GetHttp().GetMethod(),
+			attrs.GetRequest().GetHttp().GetMethod(),
 			requestURL,
 			getCheckRequestHeaders(in),
-			getPeerCertificate(in),
-			in.GetAttributes().GetSource().GetAddress().GetSocketAddress().GetAddress(),
+			getClientCertificateInfo(ctx, clientCertMetadata),
+			attrs.GetSource().GetAddress().GetSocketAddress().GetAddress(),
 		),
 	}
 	if sessionState != nil {
@@ -108,7 +114,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 			ID: sessionState.ID,
 		}
 	}
-	req.Policy = a.getMatchingPolicy(envoyconfig.ExtAuthzContextExtensionsRouteID(in.Attributes.GetContextExtensions()))
+	req.Policy = a.getMatchingPolicy(envoyconfig.ExtAuthzContextExtensionsRouteID(attrs.GetContextExtensions()))
 	return req, nil
 }
 
@@ -170,9 +176,38 @@ func getCheckRequestURL(req *envoy_service_auth_v3.CheckRequest) url.URL {
 	return u
 }
 
-// getPeerCertificate gets the PEM-encoded peer certificate from the check request
-func getPeerCertificate(in *envoy_service_auth_v3.CheckRequest) string {
-	// ignore the error as we will just return the empty string in that case
-	cert, _ := url.QueryUnescape(in.GetAttributes().GetSource().GetCertificate())
-	return cert
+// getClientCertificateInfo translates from the client certificate Envoy
+// metadata to the ClientCertificateInfo type.
+func getClientCertificateInfo(
+	ctx context.Context, metadata *structpb.Struct,
+) evaluator.ClientCertificateInfo {
+	var c evaluator.ClientCertificateInfo
+	if metadata == nil {
+		return c
+	}
+	c.Presented = metadata.Fields["presented"].GetBoolValue()
+	c.Validated = metadata.Fields["validated"].GetBoolValue()
+	escapedChain := metadata.Fields["chain"].GetStringValue()
+	if escapedChain == "" {
+		// No validated client certificate.
+		return c
+	}
+
+	chain, err := url.QueryUnescape(escapedChain)
+	if err != nil {
+		log.Warn(ctx).Str("chain", escapedChain).Err(err).
+			Msg(`received unexpected client certificate "chain" value`)
+		return c
+	}
+
+	// Split the chain into the leaf and any intermediate certificates.
+	p, rest := pem.Decode([]byte(chain))
+	if p == nil {
+		log.Warn(ctx).Str("chain", escapedChain).
+			Msg(`received unexpected client certificate "chain" value (no PEM block found)`)
+		return c
+	}
+	c.Leaf = string(pem.EncodeToMemory(p))
+	c.Intermediates = string(rest)
+	return c
 }

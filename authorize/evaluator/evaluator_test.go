@@ -116,6 +116,12 @@ func TestEvaluator(t *testing.T) {
 		WithPolicies(policies),
 	}
 
+	validCertInfo := ClientCertificateInfo{
+		Presented: true,
+		Validated: true,
+		Leaf:      testValidCert,
+	}
+
 	t.Run("client certificate", func(t *testing.T) {
 		t.Run("invalid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
@@ -128,7 +134,7 @@ func TestEvaluator(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
 				Policy: &policies[0],
 				HTTP: RequestHTTP{
-					ClientCertificate: testValidCert,
+					ClientCertificate: validCertInfo,
 				},
 			})
 			require.NoError(t, err)
@@ -154,7 +160,7 @@ func TestEvaluator(t *testing.T) {
 				HTTP: RequestHTTP{
 					Method:            http.MethodGet,
 					URL:               "https://from.example.com",
-					ClientCertificate: testValidCert,
+					ClientCertificate: validCertInfo,
 				},
 			})
 			require.NoError(t, err)
@@ -179,7 +185,7 @@ func TestEvaluator(t *testing.T) {
 					HTTP: RequestHTTP{
 						Method:            http.MethodGet,
 						URL:               "https://from.example.com",
-						ClientCertificate: testValidCert,
+						ClientCertificate: validCertInfo,
 					},
 				})
 				require.NoError(t, err)
@@ -206,7 +212,7 @@ func TestEvaluator(t *testing.T) {
 				HTTP: RequestHTTP{
 					Method:            http.MethodGet,
 					URL:               "https://from.example.com",
-					ClientCertificate: testValidCert,
+					ClientCertificate: validCertInfo,
 				},
 			})
 			require.NoError(t, err)
@@ -230,7 +236,7 @@ func TestEvaluator(t *testing.T) {
 				HTTP: RequestHTTP{
 					Method:            http.MethodGet,
 					URL:               "https://from.example.com",
-					ClientCertificate: testValidCert,
+					ClientCertificate: validCertInfo,
 				},
 			})
 			require.NoError(t, err)
@@ -254,7 +260,7 @@ func TestEvaluator(t *testing.T) {
 				HTTP: RequestHTTP{
 					Method:            http.MethodGet,
 					URL:               "https://from.example.com",
-					ClientCertificate: testValidCert,
+					ClientCertificate: validCertInfo,
 				},
 			})
 			require.NoError(t, err)
@@ -285,7 +291,7 @@ func TestEvaluator(t *testing.T) {
 				HTTP: RequestHTTP{
 					Method:            http.MethodGet,
 					URL:               "https://from.example.com",
-					ClientCertificate: testValidCert,
+					ClientCertificate: validCertInfo,
 				},
 			})
 			require.NoError(t, err)
@@ -310,7 +316,7 @@ func TestEvaluator(t *testing.T) {
 			HTTP: RequestHTTP{
 				Method:            http.MethodGet,
 				URL:               "https://from.example.com",
-				ClientCertificate: testValidCert,
+				ClientCertificate: validCertInfo,
 			},
 		})
 		require.NoError(t, err)
@@ -334,7 +340,7 @@ func TestEvaluator(t *testing.T) {
 			HTTP: RequestHTTP{
 				Method:            http.MethodGet,
 				URL:               "https://from.example.com",
-				ClientCertificate: testValidCert,
+				ClientCertificate: validCertInfo,
 			},
 		})
 		require.NoError(t, err)
@@ -363,7 +369,7 @@ func TestEvaluator(t *testing.T) {
 			HTTP: RequestHTTP{
 				Method:            http.MethodGet,
 				URL:               "https://from.example.com",
-				ClientCertificate: testValidCert,
+				ClientCertificate: validCertInfo,
 			},
 		})
 		require.NoError(t, err)
@@ -386,7 +392,7 @@ func TestEvaluator(t *testing.T) {
 			HTTP: RequestHTTP{
 				Method:            http.MethodGet,
 				URL:               "https://from.example.com",
-				ClientCertificate: testValidCert,
+				ClientCertificate: validCertInfo,
 			},
 		})
 		require.NoError(t, err)
@@ -423,7 +429,7 @@ func TestEvaluator(t *testing.T) {
 				HTTP: RequestHTTP{
 					Method:            http.MethodGet,
 					URL:               "https://from.example.com",
-					ClientCertificate: testValidCert,
+					ClientCertificate: validCertInfo,
 					Headers:           tc.src,
 				},
 			})
@@ -439,7 +445,7 @@ func TestEvaluator(t *testing.T) {
 				http.MethodGet,
 				*mustParseURL("https://from.example.com/"),
 				nil,
-				testValidCert,
+				validCertInfo,
 				"",
 			),
 		})
@@ -453,7 +459,7 @@ func TestEvaluator(t *testing.T) {
 				"POST",
 				*mustParseURL("https://from.example.com/test"),
 				nil,
-				testValidCert,
+				validCertInfo,
 				"",
 			),
 		})

@@ -1,6 +1,7 @@
 package envoyconfig
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/base64"
@@ -261,6 +262,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 
 	filters := []*envoy_http_connection_manager.HttpFilter{
 		LuaFilter(luascripts.RemoveImpersonateHeaders),
+		LuaFilter(luascripts.SetClientCertificateMetadata),
 		ExtAuthzFilter(grpcClientTimeout),
 		LuaFilter(luascripts.ExtAuthzSetCookie),
 		LuaFilter(luascripts.CleanUpstream),
@@ -540,23 +542,15 @@ func (b *Builder) buildDownstreamValidationContext(
 	ctx context.Context,
 	cfg *config.Config,
 ) *envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext {
-	needsClientCert := false
-	if ca, _ := cfg.Options.GetClientCA(); len(ca) > 0 {
-		needsClientCert = true
-	}
-	for _, p := range cfg.Options.GetAllPolicies() {
-		if p.TLSDownstreamClientCA != "" || p.TLSDownstreamClientCAFile != "" {
-			needsClientCert = true
-		}
-	}
-	if !needsClientCert {
+	clientCA := clientCABundle(ctx, cfg)
+	if len(clientCA) == 0 {
 		return nil
 	}
 
-	// trusted_ca is left blank because we verify the client certificate in the authorize service
 	vc := &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
 		ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
 			TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_ACCEPT_UNTRUSTED,
+			TrustedCa:              b.filemgr.BytesDataSource("client-ca.pem", clientCA),
 		},
 	}
 
@@ -572,6 +566,39 @@ func (b *Builder) buildDownstreamValidationContext(
 	}
 
 	return vc
+}
+
+// clientCABundle returns a bundle of the globally configured client CA and any
+// per-route client CAs.
+func clientCABundle(ctx context.Context, cfg *config.Config) []byte {
+	var bundle bytes.Buffer
+	ca, _ := cfg.Options.GetClientCA()
+	addCAToBundle(&bundle, ca)
+	allPolicies := cfg.Options.GetAllPolicies()
+	for i := range allPolicies {
+		p := &allPolicies[i]
+		if p.TLSDownstreamClientCA == "" {
+			continue
+		}
+		ca, err := base64.StdEncoding.DecodeString(p.TLSDownstreamClientCA)
+		if err != nil {
+			log.Error(ctx).Stringer("policy", p).Err(err).Msg("invalid client CA")
+			continue
+		}
+		addCAToBundle(&bundle, ca)
+	}
+	return bundle.Bytes()
+}
+
+func addCAToBundle(bundle *bytes.Buffer, ca []byte) {
+	if len(ca) == 0 {
+		return
+	}
+	bundle.Write(ca)
+	// Make sure each CA is separated by a newline.
+	if ca[len(ca)-1] != '\n' {
+		bundle.WriteByte('\n')
+	}
 }
 
 func getAllRouteableHosts(options *config.Options, addr string) ([]string, error) {
