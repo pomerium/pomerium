@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689648819123,
+  "lastUpdate": 1689650059690,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -56580,6 +56580,42 @@ window.BENCHMARK_DATA = {
             "value": 8861785,
             "unit": "ns/op",
             "extra": "128 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1d6aa75f03d6c2361e6cd0c9f9883b052afe0471",
+          "message": "envoy: separate gRPC listener configuration (#4365)\n\nPomerium configures a gRPC listener in Envoy, for internal communication\r\nbetween the various Pomerium services. Currently this listener shares\r\nmuch of the same configuration as the main HTTP listener, based on the\r\nmain Pomerium configuration options.\r\n\r\nHowever, some configuration options don't make sense for the gRPC\r\nlistener. Specifically, the `codec_type` option should not be applied to\r\nthe gRPC listener, as gRPC requires HTTP/2. Also, any client certificate\r\nsettings should not apply to the gRPC listener.\r\n\r\nSeparate the gRPC listener configuration from the main HTTP listener\r\nconfiguration, so we can avoid applying these configuration options.\r\nInstead set AlpnProtocols to just \"h2\" (HTTP/2), and do not set any\r\nValidationContextType on the DownstreamTlsContext (no client certificate\r\nvalidation).\r\n\r\nSpecifically, inline the call to buildTLSSocket() within the body of\r\nbuildGRPCListener(). Extract a new method envoyCertificates() from\r\nbuildDownstreamTLSContextMulti(), to avoid repeating this logic.",
+          "timestamp": "2023-07-17T20:09:28-07:00",
+          "tree_id": "b34e07b4d075e9d64da407f37c03d9da3a9c2ce7",
+          "url": "https://github.com/pomerium/pomerium/commit/1d6aa75f03d6c2361e6cd0c9f9883b052afe0471"
+        },
+        "date": 1689650055043,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15919814,
+            "unit": "ns/op",
+            "extra": "81 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10681130,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
