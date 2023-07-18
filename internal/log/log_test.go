@@ -134,19 +134,19 @@ func Example() {
 
 func ExampleSetLevel() {
 	setup()
-	log.SetLevel("info")
+	log.SetLevel(zerolog.InfoLevel)
 	log.Debug(context.Background()).Msg("Debug")
 	log.Info(context.Background()).Msg("Debug or Info")
-	log.SetLevel("warn")
+	log.SetLevel(zerolog.WarnLevel)
 	log.Debug(context.Background()).Msg("Debug")
 	log.Info(context.Background()).Msg("Debug or Info")
 	log.Warn(context.Background()).Msg("Debug or Info or Warn")
-	log.SetLevel("error")
+	log.SetLevel(zerolog.ErrorLevel)
 	log.Debug(context.Background()).Msg("Debug")
 	log.Info(context.Background()).Msg("Debug or Info")
 	log.Warn(context.Background()).Msg("Debug or Info or Warn")
 	log.Error(context.Background()).Msg("Debug or Info or Warn or Error")
-	log.SetLevel("default-fall-through")
+	log.SetLevel(zerolog.DebugLevel)
 	log.Debug(context.Background()).Msg("Debug")
 
 	// Output:

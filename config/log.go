@@ -41,6 +41,6 @@ func (mgr *LogManager) OnConfigChange(_ context.Context, cfg *Config) {
 	}
 
 	if cfg.Options.LogLevel != "" {
-		log.SetLevel(cfg.Options.LogLevel)
+		log.SetLevel(cfg.Options.LogLevel.ToZerolog())
 	}
 }
