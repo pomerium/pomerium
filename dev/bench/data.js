@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689805835102,
+  "lastUpdate": 1689807155266,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -57044,6 +57044,42 @@ window.BENCHMARK_DATA = {
             "value": 8623028,
             "unit": "ns/op",
             "extra": "138 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "26bbcdfe07a81204b4357b15998e2fe152f7669f",
+          "message": "authorize: remove a nolint directive (#4375)",
+          "timestamp": "2023-07-19T15:47:35-07:00",
+          "tree_id": "503794e2b93766c07c6da514392a601f9747e978",
+          "url": "https://github.com/pomerium/pomerium/commit/26bbcdfe07a81204b4357b15998e2fe152f7669f"
+        },
+        "date": 1689807149933,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14304545,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9117097,
+            "unit": "ns/op",
+            "extra": "120 times\n2 procs"
           }
         ]
       }
