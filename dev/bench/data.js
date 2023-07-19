@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689793580269,
+  "lastUpdate": 1689796441255,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -56812,6 +56812,38 @@ window.BENCHMARK_DATA = {
             "value": 9798950,
             "unit": "ns/op",
             "extra": "130 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "c33b4dc5f6cf6b58beed749f94a9332ba3a96100",
+          "message": "autocert: suppress OCSP stapling errors",
+          "timestamp": "2023-07-19T06:08:52Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4371/commits/c33b4dc5f6cf6b58beed749f94a9332ba3a96100"
+        },
+        "date": 1689796435611,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18548215,
+            "unit": "ns/op",
+            "extra": "66 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11180347,
+            "unit": "ns/op",
+            "extra": "104 times\n2 procs"
           }
         ]
       }
