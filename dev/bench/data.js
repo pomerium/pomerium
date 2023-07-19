@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689805223885,
+  "lastUpdate": 1689805835102,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -57012,6 +57012,38 @@ window.BENCHMARK_DATA = {
             "value": 10135507,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "3ac6cd7ae417d180ff8a2b4678500025326daeaf",
+          "message": "authorize: remove a nolint directive",
+          "timestamp": "2023-07-19T22:18:51Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4375/commits/3ac6cd7ae417d180ff8a2b4678500025326daeaf"
+        },
+        "date": 1689805830503,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12937040,
+            "unit": "ns/op",
+            "extra": "86 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8623028,
+            "unit": "ns/op",
+            "extra": "138 times\n2 procs"
           }
         ]
       }
