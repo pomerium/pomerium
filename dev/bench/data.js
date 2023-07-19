@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689797033661,
+  "lastUpdate": 1689797245300,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -56912,6 +56912,42 @@ window.BENCHMARK_DATA = {
             "value": 14842664,
             "unit": "ns/op",
             "extra": "85 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8e4f728c11473c70b20710390487b4c19a14cca1",
+          "message": "envoy: add a filter to store client cert info (#4372)\n\nAdd a new Lua filter that will store client certificate info as dynamic\r\nmetadata. This will allow us to configure client certificate validation\r\nat the Envoy listener level, and then pass the results of that\r\nvalidation into our ExtAuthz service.\r\n\r\nThis also allows us to pass the entire client certificate chain (and not\r\njust the leaf certificate, which is how the 'include_peer_certificate'\r\nExtAuthz setting behaves). This will allow us to add support for\r\nintermediate CA certificates supplied by the client.\r\n\r\nHowever, if a client certificate does not validate successfully by\r\nEnvoy, we will not store the certificate chain. (This should help guard\r\nagainst any possibility of making policy decisions based on unvalidated\r\nclient certificate data.)",
+          "timestamp": "2023-07-19T13:02:13-07:00",
+          "tree_id": "78dd579ec41232121aeda73b2f3d9c826b02a3ae",
+          "url": "https://github.com/pomerium/pomerium/commit/8e4f728c11473c70b20710390487b4c19a14cca1"
+        },
+        "date": 1689797240337,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17265675,
+            "unit": "ns/op",
+            "extra": "61 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11072995,
+            "unit": "ns/op",
+            "extra": "94 times\n2 procs"
           }
         ]
       }
