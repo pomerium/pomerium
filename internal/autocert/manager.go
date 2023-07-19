@@ -18,7 +18,6 @@ import (
 	"github.com/caddyserver/certmagic"
 	"github.com/mholt/acmez/acme"
 	"github.com/rs/zerolog"
-	"go.uber.org/zap"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -78,7 +77,7 @@ func newManager(ctx context.Context,
 		return nil, err
 	}
 
-	logger := log.ZapLogger().With(zap.String("service", "autocert"))
+	logger := getCertMagicLogger()
 	acmeTemplate.Logger = logger
 
 	mgr := &Manager{
