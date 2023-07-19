@@ -6,7 +6,7 @@ function envoy_on_request(request_handle)
     local validated = ssl:peerCertificateValidated()
     metadata:set("com.pomerium.client-certificate-info", "validated", validated)
     if validated then
-        metadata:set("com.pomerium.client-certificate-info", "chain", 
+        metadata:set("com.pomerium.client-certificate-info", "chain",
                      ssl:urlEncodedPemEncodedPeerCertificateChain())
     end
 end
