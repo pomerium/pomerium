@@ -23,6 +23,9 @@ func (c certMagicLoggerCore) With(fs []zapcore.Field) zapcore.Core {
 }
 
 func (c certMagicLoggerCore) Check(e zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
+	if !c.Enabled(e.Level) {
+		return ce
+	}
 	return ce.AddCore(e, c)
 }
 
