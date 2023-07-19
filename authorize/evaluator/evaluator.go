@@ -98,12 +98,13 @@ func New(ctx context.Context, store *store.Store, options ...Option) (*Evaluator
 	}
 
 	e.policyEvaluators = make(map[uint64]*PolicyEvaluator)
-	for _, configPolicy := range cfg.policies {
+	for i := range cfg.policies {
+		configPolicy := cfg.policies[i]
 		id, err := configPolicy.RouteID()
 		if err != nil {
 			return nil, fmt.Errorf("authorize: error computing policy route id: %w", err)
 		}
-		policyEvaluator, err := NewPolicyEvaluator(ctx, store, &configPolicy) //nolint
+		policyEvaluator, err := NewPolicyEvaluator(ctx, store, &configPolicy)
 		if err != nil {
 			return nil, err
 		}
