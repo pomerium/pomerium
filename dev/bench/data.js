@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689650059690,
+  "lastUpdate": 1689758731662,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -56616,6 +56616,38 @@ window.BENCHMARK_DATA = {
             "value": 10681130,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "6192908e6aa95f0ca03b714466beb49be784270e",
+          "message": "chore(deps): bump word-wrap from 1.2.3 to 1.2.4 in /ui",
+          "timestamp": "2023-07-19T06:08:52Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4369/commits/6192908e6aa95f0ca03b714466beb49be784270e"
+        },
+        "date": 1689758726972,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13673560,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8323231,
+            "unit": "ns/op",
+            "extra": "126 times\n2 procs"
           }
         ]
       }
