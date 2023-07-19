@@ -77,7 +77,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 				},
 				MetadataContext: &envoy_config_core_v3.Metadata{
 					FilterMetadata: map[string]*structpb.Struct{
-						"com.pomerium.client-certificate-info": &structpb.Struct{
+						"com.pomerium.client-certificate-info": {
 							Fields: map[string]*structpb.Value{
 								"presented": structpb.NewBoolValue(true),
 								"validated": structpb.NewBoolValue(true),
