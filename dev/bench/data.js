@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689796441255,
+  "lastUpdate": 1689796868943,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -56844,6 +56844,42 @@ window.BENCHMARK_DATA = {
             "value": 11180347,
             "unit": "ns/op",
             "extra": "104 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "df8ff2633280ada576128d99572b61b305c8094b",
+          "message": "autocert: suppress OCSP stapling errors (#4371)\n\n* autocert: suppress OCSP stapling errors\r\n\r\n* check level, add test",
+          "timestamp": "2023-07-19T13:56:36-06:00",
+          "tree_id": "a53d789edaef6ec6f1dd28fbfd7fdc532cd1afae",
+          "url": "https://github.com/pomerium/pomerium/commit/df8ff2633280ada576128d99572b61b305c8094b"
+        },
+        "date": 1689796864678,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13895093,
+            "unit": "ns/op",
+            "extra": "92 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8959964,
+            "unit": "ns/op",
+            "extra": "122 times\n2 procs"
           }
         ]
       }
