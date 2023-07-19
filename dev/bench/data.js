@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689804601754,
+  "lastUpdate": 1689805223885,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -56980,6 +56980,38 @@ window.BENCHMARK_DATA = {
             "value": 8450550,
             "unit": "ns/op",
             "extra": "141 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "fb30f3f0233580554a9ed02cbb72d38c2cc975fb",
+          "message": "authorize: incorporate mTLS validation from Envoy",
+          "timestamp": "2023-07-19T06:08:52Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4374/commits/fb30f3f0233580554a9ed02cbb72d38c2cc975fb"
+        },
+        "date": 1689805218575,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14865483,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10135507,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
