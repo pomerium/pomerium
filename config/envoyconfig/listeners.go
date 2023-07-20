@@ -577,6 +577,9 @@ func clientCABundle(ctx context.Context, cfg *config.Config) []byte {
 	allPolicies := cfg.Options.GetAllPolicies()
 	for i := range allPolicies {
 		p := &allPolicies[i]
+		// We don't need to check TLSDownstreamClientCAFile here because
+		// Policy.Validate() will populate TLSDownstreamClientCA when
+		// TLSDownstreamClientCAFile is set.
 		if p.TLSDownstreamClientCA == "" {
 			continue
 		}
