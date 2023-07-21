@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"fmt"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"strings"
@@ -22,6 +23,21 @@ func (b *Builder) buildSubjectAltNameMatcher(
 	sni := dst.Hostname()
 	if overrideName != "" {
 		sni = overrideName
+	}
+
+	if ip, err := netip.ParseAddr(sni); err == nil {
+		// Strip off any IPv6 zone.
+		if ip.Zone() != "" {
+			ip = ip.WithZone("")
+		}
+		return &envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher{
+			SanType: envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher_IP_ADDRESS,
+			Matcher: &envoy_type_matcher_v3.StringMatcher{
+				MatchPattern: &envoy_type_matcher_v3.StringMatcher_Exact{
+					Exact: ip.String(),
+				},
+			},
+		}
 	}
 
 	if strings.Contains(sni, "*") {
