@@ -28,23 +28,11 @@ func (a *Authorize) logAuthorizeCheck(
 	defer span.End()
 
 	hdrs := getCheckRequestHeaders(in)
-	hattrs := in.GetAttributes().GetRequest().GetHttp()
-	evt := log.Info(ctx).Str("service", "authorize")
-	// request
-	evt = evt.Str("request-id", requestid.FromContext(ctx))
-	evt = evt.Str("check-request-id", hdrs["X-Request-Id"])
-	evt = evt.Str("method", hattrs.GetMethod())
-	evt = evt.Str("path", stripQueryString(hattrs.GetPath()))
-	evt = evt.Str("host", hattrs.GetHost())
-	evt = evt.Str("query", hattrs.GetQuery())
-	evt = evt.Str("ip", in.GetAttributes().GetSource().GetAddress().GetSocketAddress().GetAddress())
+	impersonateDetails := a.getImpersonateDetails(ctx, s)
 
-	// session information
-	if s, ok := s.(*session.Session); ok {
-		evt = a.populateLogSessionDetails(ctx, evt, s)
-	}
-	if sa, ok := s.(*user.ServiceAccount); ok {
-		evt = evt.Str("service-account-id", sa.GetId())
+	evt := log.Info(ctx).Str("service", "authorize")
+	for _, field := range a.currentOptions.Load().GetAuthorizeLogFields() {
+		evt = populateLogEvent(ctx, field, evt, in, s, u, hdrs, impersonateDetails)
 	}
 
 	// result
@@ -61,13 +49,6 @@ func (a *Authorize) logAuthorizeCheck(
 		} else {
 			evt = evt.Strs("deny-why-false", res.Deny.Reasons.Strings())
 		}
-		evt = evt.Str("user", u.GetId())
-		evt = evt.Str("email", u.GetEmail())
-	}
-
-	// potentially sensitive, only log if debug mode
-	if zerolog.GlobalLevel() <= zerolog.DebugLevel {
-		evt = evt.Interface("headers", hdrs)
 	}
 
 	evt.Msg("authorize check")
@@ -92,56 +73,140 @@ func (a *Authorize) logAuthorizeCheck(
 	}
 }
 
-func (a *Authorize) populateLogSessionDetails(ctx context.Context, evt *zerolog.Event, s *session.Session) *zerolog.Event {
-	evt = evt.Str("session-id", s.GetId())
-	if s.GetImpersonateSessionId() == "" {
-		return evt
+type impersonateDetails struct {
+	email     string
+	sessionID string
+	userID    string
+}
+
+func (a *Authorize) getImpersonateDetails(
+	ctx context.Context,
+	s sessionOrServiceAccount,
+) *impersonateDetails {
+	var sessionID string
+	if s, ok := s.(*session.Session); ok {
+		sessionID = s.GetImpersonateSessionId()
+	}
+	if sessionID == "" {
+		return nil
 	}
 
 	querier := storage.GetQuerier(ctx)
 
-	evt = evt.Str("impersonate-session-id", s.GetImpersonateSessionId())
 	req := &databroker.QueryRequest{
 		Type:  grpcutil.GetTypeURL(new(session.Session)),
 		Limit: 1,
 	}
-	req.SetFilterByID(s.GetImpersonateSessionId())
+	req.SetFilterByID(sessionID)
 	res, err := querier.Query(ctx, req)
 	if err != nil || len(res.GetRecords()) == 0 {
-		return evt
+		return nil
 	}
 
 	impersonatedSessionMsg, err := res.GetRecords()[0].GetData().UnmarshalNew()
 	if err != nil {
-		return evt
+		return nil
 	}
 	impersonatedSession, ok := impersonatedSessionMsg.(*session.Session)
 	if !ok {
-		return evt
+		return nil
 	}
-	evt = evt.Str("impersonate-user-id", impersonatedSession.GetUserId())
+	userID := impersonatedSession.GetUserId()
 
 	req = &databroker.QueryRequest{
 		Type:  grpcutil.GetTypeURL(new(user.User)),
 		Limit: 1,
 	}
-	req.SetFilterByID(impersonatedSession.GetUserId())
+	req.SetFilterByID(userID)
 	res, err = querier.Query(ctx, req)
 	if err != nil || len(res.GetRecords()) == 0 {
-		return evt
+		return nil
 	}
 
 	impersonatedUserMsg, err := res.GetRecords()[0].GetData().UnmarshalNew()
 	if err != nil {
-		return evt
+		return nil
 	}
 	impersonatedUser, ok := impersonatedUserMsg.(*user.User)
 	if !ok {
-		return evt
+		return nil
 	}
-	evt = evt.Str("impersonate-email", impersonatedUser.GetEmail())
+	email := impersonatedUser.GetEmail()
 
-	return evt
+	return &impersonateDetails{
+		sessionID: sessionID,
+		userID:    userID,
+		email:     email,
+	}
+}
+
+func populateLogEvent(
+	ctx context.Context,
+	field log.AuthorizeLogField,
+	evt *zerolog.Event,
+	in *envoy_service_auth_v3.CheckRequest,
+	s sessionOrServiceAccount,
+	u *user.User,
+	hdrs map[string]string,
+	impersonateDetails *impersonateDetails,
+) *zerolog.Event {
+	if debugField, ok := field.IsForDebugOnly(); ok {
+		if zerolog.GlobalLevel() > zerolog.DebugLevel {
+			// ignore because we're not logging debug messages
+			return evt
+		}
+		field = debugField
+	}
+
+	switch field {
+	case log.AuthorizeLogFieldCheckRequestID:
+		return evt.Str(string(field), hdrs["X-Request-Id"])
+	case log.AuthorizeLogFieldEmail:
+		return evt.Str(string(field), u.GetEmail())
+	case log.AuthorizeLogFieldHeaders:
+		return evt.Interface(string(field), hdrs)
+	case log.AuthorizeLogFieldHost:
+		return evt.Str(string(field), in.GetAttributes().GetRequest().GetHttp().GetHost())
+	case log.AuthorizeLogFieldImpersonateEmail:
+		if impersonateDetails != nil {
+			evt = evt.Str(string(field), impersonateDetails.email)
+		}
+		return evt
+	case log.AuthorizeLogFieldImpersonateSessionID:
+		if impersonateDetails != nil {
+			evt = evt.Str(string(field), impersonateDetails.sessionID)
+		}
+		return evt
+	case log.AuthorizeLogFieldImpersonateUserID:
+		if impersonateDetails != nil {
+			evt = evt.Str(string(field), impersonateDetails.userID)
+		}
+		return evt
+	case log.AuthorizeLogFieldIP:
+		return evt.Str(string(field), in.GetAttributes().GetSource().GetAddress().GetSocketAddress().GetAddress())
+	case log.AuthorizeLogFieldMethod:
+		return evt.Str(string(field), in.GetAttributes().GetRequest().GetHttp().GetMethod())
+	case log.AuthorizeLogFieldPath:
+		return evt.Str(string(field), stripQueryString(in.GetAttributes().GetRequest().GetHttp().GetPath()))
+	case log.AuthorizeLogFieldQuery:
+		return evt.Str(string(field), in.GetAttributes().GetRequest().GetHttp().GetQuery())
+	case log.AuthorizeLogFieldRequestID:
+		return evt.Str(string(field), requestid.FromContext(ctx))
+	case log.AuthorizeLogFieldServiceAccountID:
+		if sa, ok := s.(*user.ServiceAccount); ok {
+			evt = evt.Str(string(field), sa.GetId())
+		}
+		return evt
+	case log.AuthorizeLogFieldSessionID:
+		if s, ok := s.(*session.Session); ok {
+			evt = evt.Str(string(field), s.GetId())
+		}
+		return evt
+	case log.AuthorizeLogFieldUser:
+		return evt.Str(string(field), u.GetId())
+	default:
+		return evt.Str(string(field), "<<UNKNOWN AUTHORIZE LOG FIELD>>")
+	}
 }
 
 func stripQueryString(str string) string {

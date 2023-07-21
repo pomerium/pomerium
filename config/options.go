@@ -68,6 +68,12 @@ type Options struct {
 	// Possible options are "info","warn", and "error". Defaults to the value of `LogLevel`.
 	ProxyLogLevel LogLevel `mapstructure:"proxy_log_level" yaml:"proxy_log_level,omitempty"`
 
+	// AccessLogFields are the fields to log in access logs.
+	AccessLogFields []log.AccessLogField `mapstructure:"access_log_fields" yaml:"access_log_fields,omitempty"`
+
+	// AuthorizeLogFields are the fields to log in authorize logs.
+	AuthorizeLogFields []log.AuthorizeLogField `mapstructure:"authorize_log_fields" yaml:"authorize_log_fields,omitempty"`
+
 	// SharedKey is the shared secret authorization key used to mutually authenticate
 	// requests between services.
 	SharedKey        string `mapstructure:"shared_secret" yaml:"shared_secret,omitempty"`
@@ -1283,6 +1289,22 @@ func (o *Options) GetSigningKey() ([]byte, error) {
 	return []byte(rawSigningKey), nil
 }
 
+// GetAccessLogFields returns the access log fields. If none are set, the default fields are returned.
+func (o *Options) GetAccessLogFields() []log.AccessLogField {
+	if o.AccessLogFields == nil {
+		return log.DefaultAccessLogFields
+	}
+	return o.AccessLogFields
+}
+
+// GetAuthorizeLogFields returns the authorize log fields. If none are set, the default fields are returned.
+func (o *Options) GetAuthorizeLogFields() []log.AuthorizeLogField {
+	if o.AuthorizeLogFields == nil {
+		return log.DefaultAuthorizeLogFields
+	}
+	return o.AuthorizeLogFields
+}
+
 // NewCookie creates a new Cookie.
 func (o *Options) NewCookie() *http.Cookie {
 	return &http.Cookie{
@@ -1329,6 +1351,8 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.InstallationID, settings.InstallationId)
 	set(&o.Debug, settings.Debug)
 	setLogLevel(&o.LogLevel, settings.LogLevel)
+	setAccessLogFields(&o.AccessLogFields, settings.AccessLogFields)
+	setAuthorizeLogFields(&o.AuthorizeLogFields, settings.AuthorizeLogFields)
 	setLogLevel(&o.ProxyLogLevel, settings.ProxyLogLevel)
 	set(&o.SharedKey, settings.SharedSecret)
 	set(&o.Services, settings.Services)
@@ -1456,6 +1480,26 @@ func set[T any](dst, src *T) {
 		return
 	}
 	*dst = *src
+}
+
+func setAccessLogFields(dst *[]log.AccessLogField, src *config.Settings_StringList) {
+	if src == nil {
+		return
+	}
+	*dst = make([]log.AccessLogField, len(src.Values))
+	for i, v := range src.Values {
+		(*dst)[i] = log.AccessLogField(v)
+	}
+}
+
+func setAuthorizeLogFields(dst *[]log.AuthorizeLogField, src *config.Settings_StringList) {
+	if src == nil {
+		return
+	}
+	*dst = make([]log.AuthorizeLogField, len(src.Values))
+	for i, v := range src.Values {
+		(*dst)[i] = log.AuthorizeLogField(v)
+	}
 }
 
 func setAuditKey(dst **PublicKeyEncryptionKeyOptions, src *crypt.PublicKeyEncryptionKey) {
