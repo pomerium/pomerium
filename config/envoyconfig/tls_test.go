@@ -34,6 +34,12 @@ func TestBuildSubjectAltNameMatcher(t *testing.T) {
 		}
 	}`, b.buildSubjectAltNameMatcher(&url.URL{Host: "[fd12:3456:789a:1::1]:1234"}, ""))
 	testutil.AssertProtoJSONEqual(t, `{
+		"sanType": "IP_ADDRESS",
+		"matcher": {
+			"exact": "fe80::1ff:fe23:4567:890a"
+		}
+	}`, b.buildSubjectAltNameMatcher(&url.URL{Host: "[fe80::1ff:fe23:4567:890a%eth2]:1234"}, ""))
+	testutil.AssertProtoJSONEqual(t, `{
 		"sanType": "DNS",
 		"matcher": {
 			"exact": "example.org"
