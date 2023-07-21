@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689966933247,
+  "lastUpdate": 1689967365455,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -57274,6 +57274,42 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 10578584,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8d09567fd715035987c16870847cca1f088903b7",
+          "message": "authorize: incorporate mTLS validation from Envoy (#4374)\n\nConfigure Envoy to validate client certificates, using the union of all\r\nrelevant client CA bundles (that is, a bundle of the main client CA\r\nsetting together with all per-route client CAs). Pass the validation\r\nstatus from Envoy through to the authorize service, by configuring Envoy\r\nto use the newly-added SetClientCertificateMetadata filter, and by also\r\nadding the relevant metadata namespace to the ExtAuthz configuration.\r\n\r\nRemove the existing 'include_peer_certificate' setting from the ExtAuthz\r\nconfiguration, as the metadata from the Lua filter will include the full\r\ncertificate chain (when it validates successfully by Envoy).\r\n\r\nUpdate policy evaluation to consider the validation status from Envoy,\r\nin addition to its own certificate chain validation. (Policy evaluation\r\ncannot rely solely on the Envoy validation status while we still support\r\nthe per-route client CA setting.)",
+          "timestamp": "2023-07-21T12:17:01-07:00",
+          "tree_id": "c7d9363c399f15caf28afed590b2c4b42b380611",
+          "url": "https://github.com/pomerium/pomerium/commit/8d09567fd715035987c16870847cca1f088903b7"
+        },
+        "date": 1689967360280,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16568541,
+            "unit": "ns/op",
+            "extra": "80 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10797758,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
           }
