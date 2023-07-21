@@ -1,20 +1,25 @@
 package authorize
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"net/url"
 	"testing"
 
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -53,12 +58,9 @@ func Test_getEvaluatorRequest(t *testing.T) {
 		}},
 	})
 
-	actual, err := a.getEvaluatorRequestFromCheckRequest(
+	actual, err := a.getEvaluatorRequestFromCheckRequest(context.Background(),
 		&envoy_service_auth_v3.CheckRequest{
 			Attributes: &envoy_service_auth_v3.AttributeContext{
-				Source: &envoy_service_auth_v3.AttributeContext_Peer{
-					Certificate: url.QueryEscape(certPEM),
-				},
 				Request: &envoy_service_auth_v3.AttributeContext_Request{
 					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 						Id:     "id-1234",
@@ -71,6 +73,17 @@ func Test_getEvaluatorRequest(t *testing.T) {
 						Host:   "example.com",
 						Scheme: "http",
 						Body:   "BODY",
+					},
+				},
+				MetadataContext: &envoy_config_core_v3.Metadata{
+					FilterMetadata: map[string]*structpb.Struct{
+						"com.pomerium.client-certificate-info": {
+							Fields: map[string]*structpb.Value{
+								"presented": structpb.NewBoolValue(true),
+								"validated": structpb.NewBoolValue(true),
+								"chain":     structpb.NewStringValue(url.QueryEscape(certPEM)),
+							},
+						},
 					},
 				},
 			},
@@ -92,7 +105,12 @@ func Test_getEvaluatorRequest(t *testing.T) {
 				"Accept":            "text/html",
 				"X-Forwarded-Proto": "https",
 			},
-			certPEM,
+			evaluator.ClientCertificateInfo{
+				Presented:     true,
+				Validated:     true,
+				Leaf:          certPEM[1:] + "\n",
+				Intermediates: "",
+			},
 			"",
 		),
 	}
@@ -110,27 +128,25 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 		}},
 	})
 
-	actual, err := a.getEvaluatorRequestFromCheckRequest(&envoy_service_auth_v3.CheckRequest{
-		Attributes: &envoy_service_auth_v3.AttributeContext{
-			Source: &envoy_service_auth_v3.AttributeContext_Peer{
-				Certificate: url.QueryEscape(certPEM),
-			},
-			Request: &envoy_service_auth_v3.AttributeContext_Request{
-				Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
-					Id:     "id-1234",
-					Method: http.MethodGet,
-					Headers: map[string]string{
-						"accept":            "text/html",
-						"x-forwarded-proto": "https",
+	actual, err := a.getEvaluatorRequestFromCheckRequest(context.Background(),
+		&envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Id:     "id-1234",
+						Method: http.MethodGet,
+						Headers: map[string]string{
+							"accept":            "text/html",
+							"x-forwarded-proto": "https",
+						},
+						Path:   "/some/path?qs=1",
+						Host:   "example.com:80",
+						Scheme: "http",
+						Body:   "BODY",
 					},
-					Path:   "/some/path?qs=1",
-					Host:   "example.com:80",
-					Scheme: "http",
-					Body:   "BODY",
 				},
 			},
-		},
-	}, nil)
+		}, nil)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
 		Policy:  &a.currentOptions.Load().Policies[0],
@@ -142,11 +158,142 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 				"Accept":            "text/html",
 				"X-Forwarded-Proto": "https",
 			},
-			certPEM,
+			evaluator.ClientCertificateInfo{},
 			"",
 		),
 	}
 	assert.Equal(t, expect, actual)
+}
+
+func Test_getClientCertificateInfo(t *testing.T) {
+	const leafPEM = `-----BEGIN CERTIFICATE-----
+MIIBZTCCAQugAwIBAgICEAEwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPSW50ZXJt
+ZWRpYXRlIENBMCIYDzAwMDEwMTAxMDAwMDAwWhgPMDAwMTAxMDEwMDAwMDBaMB8x
+HTAbBgNVBAMTFENsaWVudCBjZXJ0aWZpY2F0ZSAxMFkwEwYHKoZIzj0CAQYIKoZI
+zj0DAQcDQgAESly1cwEbcxaJBl6qAhrX1k7vejTFNE2dEbrTMpUYMl86GEWdsDYN
+KSa/1wZCowPy82gPGjfAU90odkqJOusCQqM4MDYwEwYDVR0lBAwwCgYIKwYBBQUH
+AwIwHwYDVR0jBBgwFoAU6Qb7nEl2XHKpf/QLL6PENsHFqbowCgYIKoZIzj0EAwID
+SAAwRQIgXREMUz81pYwJCMLGcV0ApaXIUap1V5n1N4VhyAGxGLYCIQC8p/LwoSgu
+71H3/nCi5MxsECsvVtsmHIfwXt0wulQ1TA==
+-----END CERTIFICATE-----
+`
+	const intermediatePEM = `-----BEGIN CERTIFICATE-----
+MIIBYzCCAQigAwIBAgICEAEwCgYIKoZIzj0EAwIwEjEQMA4GA1UEAxMHUm9vdCBD
+QTAiGA8wMDAxMDEwMTAwMDAwMFoYDzAwMDEwMTAxMDAwMDAwWjAaMRgwFgYDVQQD
+Ew9JbnRlcm1lZGlhdGUgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATYaTr9
+uH4LpEp541/2SlKrdQZwNns+NHY/ftm++NhMDUn+izzNbPZ5aPT6VBs4Q6vbgfkK
+kDaBpaKzb+uOT+o1o0IwQDAdBgNVHQ4EFgQU6Qb7nEl2XHKpf/QLL6PENsHFqbow
+HwYDVR0jBBgwFoAUiQ3r61y+vxDn6PMWZrpISr67HiQwCgYIKoZIzj0EAwIDSQAw
+RgIhAMvdURs28uib2QwSMnqJjKasMb30yrSJvTiSU+lcg97/AiEA+6GpioM0c221
+n/XNKVYEkPmeXHRoz9ZuVDnSfXKJoHE=
+-----END CERTIFICATE-----
+`
+	const rootPEM = `-----BEGIN CERTIFICATE-----
+MIIBNzCB36ADAgECAgIQADAKBggqhkjOPQQDAjASMRAwDgYDVQQDEwdSb290IENB
+MCIYDzAwMDEwMTAxMDAwMDAwWhgPMDAwMTAxMDEwMDAwMDBaMBIxEDAOBgNVBAMT
+B1Jvb3QgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAS6q0mTvm29xasq7Lwk
+aRGb2S/LkQFsAwaCXohSNvonCQHRMCRvA1IrQGk/oyBS5qrDoD9/7xkcVYHuTv5D
+CbtuoyEwHzAdBgNVHQ4EFgQUiQ3r61y+vxDn6PMWZrpISr67HiQwCgYIKoZIzj0E
+AwIDRwAwRAIgF1ux0ridbN+bo0E3TTcNY8Xfva7yquYRMmEkfbGvSb0CIDqK80B+
+fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
+-----END CERTIFICATE-----
+`
+
+	cases := []struct {
+		label       string
+		presented   bool
+		validated   bool
+		chain       string
+		expected    evaluator.ClientCertificateInfo
+		expectedLog string
+	}{
+		{
+			"not presented",
+			false,
+			false,
+			"",
+			evaluator.ClientCertificateInfo{},
+			"",
+		},
+		{
+			"presented but invalid",
+			true,
+			false,
+			"",
+			evaluator.ClientCertificateInfo{
+				Presented: true,
+			},
+			"",
+		},
+		{
+			"validated",
+			true,
+			true,
+			url.QueryEscape(leafPEM),
+			evaluator.ClientCertificateInfo{
+				Presented: true,
+				Validated: true,
+				Leaf:      leafPEM,
+			},
+			"",
+		},
+		{
+			"validated with intermediates",
+			true,
+			true,
+			url.QueryEscape(leafPEM + intermediatePEM + rootPEM),
+			evaluator.ClientCertificateInfo{
+				Presented:     true,
+				Validated:     true,
+				Leaf:          leafPEM,
+				Intermediates: intermediatePEM + rootPEM,
+			},
+			"",
+		},
+		{
+			"invalid chain URL encoding",
+			false,
+			false,
+			"invalid%URL%encoding",
+			evaluator.ClientCertificateInfo{},
+			`{"level":"warn","chain":"invalid%URL%encoding","error":"invalid URL escape \"%UR\"","message":"received unexpected client certificate \"chain\" value"}
+`,
+		},
+		{
+			"invalid chain PEM encoding",
+			true,
+			true,
+			"not valid PEM data",
+			evaluator.ClientCertificateInfo{
+				Presented: true,
+				Validated: true,
+			},
+			`{"level":"warn","chain":"not valid PEM data","message":"received unexpected client certificate \"chain\" value (no PEM block found)"}
+`,
+		},
+	}
+
+	var logOutput bytes.Buffer
+	zl := zerolog.New(&logOutput)
+	testutil.SetLogger(t, &zl)
+
+	ctx := context.Background()
+	for i := range cases {
+		c := &cases[i]
+		logOutput.Reset()
+		t.Run(c.label, func(t *testing.T) {
+			metadata := &structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					"presented": structpb.NewBoolValue(c.presented),
+					"validated": structpb.NewBoolValue(c.validated),
+					"chain":     structpb.NewStringValue(c.chain),
+				},
+			}
+			info := getClientCertificateInfo(ctx, metadata)
+			assert.Equal(t, c.expected, info)
+			assert.Equal(t, c.expectedLog, logOutput.String())
+		})
+	}
 }
 
 type mockDataBrokerServiceClient struct {

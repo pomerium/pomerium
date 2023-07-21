@@ -73,6 +73,9 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 func Test_buildDownstreamTLSContext(t *testing.T) {
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
 
+	cacheDir, _ := os.UserCacheDir()
+	clientCAFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "client-ca-3533485838304b593757424e3354425157494c4747433534384f474f3631364d5332554c3332485a483834334d50454c344a.pem")
+
 	t.Run("no-validation", func(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{}}, nil)
 		require.NoError(t, err)
@@ -95,7 +98,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	})
 	t.Run("client-ca", func(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
-			ClientCA: "TEST",
+			ClientCA: "VEVTVAo=", // "TEST\n" (with a trailing newline)
 		}}, nil)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `{
@@ -113,7 +116,10 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 				},
 				"alpnProtocols": ["h2", "http/1.1"],
 				"validationContext": {
-					"trustChainVerification": "ACCEPT_UNTRUSTED"
+					"trustChainVerification": "ACCEPT_UNTRUSTED",
+					"trustedCa": {
+						"filename": "`+clientCAFileName+`"
+					}
 				}
 			}
 		}`, downstreamTLSContext)
@@ -123,7 +129,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 			Policies: []config.Policy{
 				{
 					From:                  "https://a.example.com:1234",
-					TLSDownstreamClientCA: "TEST",
+					TLSDownstreamClientCA: "VEVTVA==", // "TEST" (no trailing newline)
 				},
 			},
 		}}, nil)
@@ -144,7 +150,10 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 				},
 				"alpnProtocols": ["h2", "http/1.1"],
 				"validationContext": {
-					"trustChainVerification": "ACCEPT_UNTRUSTED"
+					"trustChainVerification": "ACCEPT_UNTRUSTED",
+					"trustedCa": {
+						"filename": "`+clientCAFileName+`"
+					}
 				}
 			}
 		}`, downstreamTLSContext)
@@ -199,6 +208,31 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 			}
 		}`, downstreamTLSContext)
 	})
+}
+
+func Test_clientCABundle(t *testing.T) {
+	// Make sure multiple bundled CAs are separated by newlines.
+	clientCA1 := []byte("client CA 1")
+	clientCA2 := []byte("client CA 2")
+	clientCA3 := []byte("client CA 3")
+
+	b64 := base64.StdEncoding.EncodeToString
+	cfg := &config.Config{Options: &config.Options{
+		ClientCA: b64(clientCA3),
+		Policies: []config.Policy{
+			{
+				From:                  "https://foo.example.com",
+				TLSDownstreamClientCA: b64(clientCA2),
+			},
+			{
+				From:                  "https://bar.example.com",
+				TLSDownstreamClientCA: b64(clientCA1),
+			},
+		},
+	}}
+	expected := []byte("client CA 3\nclient CA 2\nclient CA 1\n")
+	actual := clientCABundle(context.Background(), cfg)
+	assert.Equal(t, expected, actual)
 }
 
 func Test_getAllDomains(t *testing.T) {

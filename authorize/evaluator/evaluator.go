@@ -32,13 +32,13 @@ type Request struct {
 
 // RequestHTTP is the HTTP field in the request.
 type RequestHTTP struct {
-	Method            string            `json:"method"`
-	Hostname          string            `json:"hostname"`
-	Path              string            `json:"path"`
-	URL               string            `json:"url"`
-	Headers           map[string]string `json:"headers"`
-	ClientCertificate string            `json:"client_certificate"`
-	IP                string            `json:"ip"`
+	Method            string                `json:"method"`
+	Hostname          string                `json:"hostname"`
+	Path              string                `json:"path"`
+	URL               string                `json:"url"`
+	Headers           map[string]string     `json:"headers"`
+	ClientCertificate ClientCertificateInfo `json:"client_certificate"`
+	IP                string                `json:"ip"`
 }
 
 // NewRequestHTTP creates a new RequestHTTP.
@@ -46,7 +46,7 @@ func NewRequestHTTP(
 	method string,
 	requestURL url.URL,
 	headers map[string]string,
-	rawClientCertificate string,
+	clientCertificate ClientCertificateInfo,
 	ip string,
 ) RequestHTTP {
 	return RequestHTTP{
@@ -55,9 +55,31 @@ func NewRequestHTTP(
 		Path:              requestURL.Path,
 		URL:               requestURL.String(),
 		Headers:           headers,
-		ClientCertificate: rawClientCertificate,
+		ClientCertificate: clientCertificate,
 		IP:                ip,
 	}
+}
+
+// ClientCertificateInfo contains information about the certificate presented
+// by the client (if any).
+type ClientCertificateInfo struct {
+	// Presented is true if the client presented any certificate at all.
+	Presented bool `json:"presented"`
+
+	// Validated is true if the client presented a valid certificate with a
+	// trust chain rooted at any of the CAs configured within the Envoy
+	// listener. If any routes define a tls_downstream_client_ca, additional
+	// validation is required (for all routes).
+	Validated bool `json:"validated"`
+
+	// Leaf contains the leaf client certificate, provided that the certificate
+	// validated successfully.
+	Leaf string `json:"leaf,omitempty"`
+
+	// Intermediates contains the remainder of the client certificate chain as
+	// it was originally presented by the client, provided that the client
+	// certificate validated successfully.
+	Intermediates string `json:"intermediates,omitempty"`
 }
 
 // RequestSession is the session field in the request.
