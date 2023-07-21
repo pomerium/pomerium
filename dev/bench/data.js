@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689965284285,
+  "lastUpdate": 1689966496862,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -57208,6 +57208,42 @@ window.BENCHMARK_DATA = {
             "value": 11759503,
             "unit": "ns/op",
             "extra": "98 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d2e8ecc7dae389eb94070556b28048675c032605",
+          "message": "envoy: configure upstream IP SAN match as needed (#4380)\n\nWhen building an upstream validation context for a particular URL, check\r\nwhether the hostname is an IP address. If so, configure the SAN match to\r\nuse type IP_ADDRESS rather than DNS.",
+          "timestamp": "2023-07-21T12:02:51-07:00",
+          "tree_id": "fe5a486ee63beeded05347db6d8b9a3d77cfd766",
+          "url": "https://github.com/pomerium/pomerium/commit/d2e8ecc7dae389eb94070556b28048675c032605"
+        },
+        "date": 1689966491051,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13786131,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10254349,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
