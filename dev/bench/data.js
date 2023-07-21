@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689896005096,
+  "lastUpdate": 1689965284285,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -57176,6 +57176,38 @@ window.BENCHMARK_DATA = {
             "value": 8350613,
             "unit": "ns/op",
             "extra": "136 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "a86ecd20a230d6d805f7d0ae28f3b72f87251748",
+          "message": "envoy: configure upstream IP SAN match as needed",
+          "timestamp": "2023-07-21T17:04:03Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4380/commits/a86ecd20a230d6d805f7d0ae28f3b72f87251748"
+        },
+        "date": 1689965278946,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 20050507,
+            "unit": "ns/op",
+            "extra": "60 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11759503,
+            "unit": "ns/op",
+            "extra": "98 times\n2 procs"
           }
         ]
       }
