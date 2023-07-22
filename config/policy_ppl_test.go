@@ -392,25 +392,6 @@ allow = v {
 	v := merge_with_or(normalized)
 }
 
-invalid_client_certificate_0 = [true, {"invalid-client-certificate"}] {
-	is_boolean(input.is_valid_client_certificate)
-	not input.is_valid_client_certificate
-}
-
-else = [false, {"valid-client-certificate-or-none-required"}]
-
-or_2 = v {
-	results := [invalid_client_certificate_0]
-	normalized := [normalize_criterion_result(x) | x := results[i]]
-	v := merge_with_or(normalized)
-}
-
-deny = v {
-	results := [or_2]
-	normalized := [normalize_criterion_result(x) | x := results[i]]
-	v := merge_with_or(normalized)
-}
-
 invert_criterion_result(in) = out {
 	in[0]
 	out = array.concat([false], array.slice(in, 1, count(in)))

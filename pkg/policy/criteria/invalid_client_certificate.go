@@ -26,12 +26,13 @@ func (invalidClientCertificateCriterion) Name() string {
 
 func (c invalidClientCertificateCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {
 	rule := NewCriterionRule(c.g, c.Name(),
-		ReasonInvalidClientCertificate, ReasonValidClientCertificateOrNoneRequired,
+		ReasonInvalidClientCertificate, ReasonValidClientCertificate,
 		invalidClientCertificateBody)
 	return rule, nil, nil
 }
 
-// InvalidClientCertificate returns a Criterion which returns true if the client certificate is valid.
+// InvalidClientCertificate returns a Criterion which returns true if the
+// client certificate is invalid.
 func InvalidClientCertificate(generator *Generator) Criterion {
 	return invalidClientCertificateCriterion{g: generator}
 }

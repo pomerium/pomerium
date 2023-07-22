@@ -126,7 +126,7 @@ func New(ctx context.Context, store *store.Store, options ...Option) (*Evaluator
 		if err != nil {
 			return nil, fmt.Errorf("authorize: error computing policy route id: %w", err)
 		}
-		policyEvaluator, err := NewPolicyEvaluator(ctx, store, &configPolicy)
+		policyEvaluator, err := NewPolicyEvaluator(ctx, store, &configPolicy, cfg)
 		if err != nil {
 			return nil, err
 		}

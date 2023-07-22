@@ -79,13 +79,6 @@ func (p *Policy) ToPPL() *parser.Policy {
 	}
 	ppl.Rules = append(ppl.Rules, allowRule)
 
-	denyRule := parser.Rule{Action: parser.ActionDeny}
-	denyRule.Or = append(denyRule.Or,
-		parser.Criterion{
-			Name: "invalid_client_certificate",
-		})
-	ppl.Rules = append(ppl.Rules, denyRule)
-
 	// append embedded PPL policy rules
 	if p.Policy != nil && p.Policy.Policy != nil {
 		ppl.Rules = append(ppl.Rules, p.Policy.Policy.Rules...)

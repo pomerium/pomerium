@@ -32,13 +32,15 @@ func TestPolicyEvaluator(t *testing.T) {
 	privateJWK, err := cryptutil.PrivateJWKFromBytes(encodedSigningKey)
 	require.NoError(t, err)
 
+	var cfg evaluatorConfig
+
 	eval := func(t *testing.T, policy *config.Policy, data []proto.Message, input *PolicyRequest) (*PolicyResponse, error) {
 		ctx := context.Background()
 		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
 		store := store.New()
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
-		e, err := NewPolicyEvaluator(ctx, store, policy)
+		e, err := NewPolicyEvaluator(ctx, store, policy, &cfg)
 		require.NoError(t, err)
 		return e.Evaluate(ctx, input)
 	}
@@ -72,13 +74,47 @@ func TestPolicyEvaluator(t *testing.T) {
 			&PolicyRequest{
 				HTTP:    RequestHTTP{Method: http.MethodGet, URL: "https://from.example.com/path"},
 				Session: RequestSession{ID: "s1"},
+			})
+		require.NoError(t, err)
+		assert.Equal(t, &PolicyResponse{
+			Allow:  NewRuleResult(true, criteria.ReasonEmailOK),
+			Deny:   NewRuleResult(false),
+			Traces: []contextutil.PolicyEvaluationTrace{{Allow: true}},
+		}, output)
+	})
+	t.Run("forbidden", func(t *testing.T) {
+		output, err := eval(t,
+			p1,
+			[]proto.Message{s1, u1, s2, u2},
+			&PolicyRequest{
+				HTTP:    RequestHTTP{Method: http.MethodGet, URL: "https://from.example.com/path"},
+				Session: RequestSession{ID: "s2"},
+			})
+		require.NoError(t, err)
+		assert.Equal(t, &PolicyResponse{
+			Allow:  NewRuleResult(false, criteria.ReasonEmailUnauthorized, criteria.ReasonUserUnauthorized),
+			Deny:   NewRuleResult(false),
+			Traces: []contextutil.PolicyEvaluationTrace{{}},
+		}, output)
+	})
+
+	// Enable client certificate validation.
+	cfg.clientCA = []byte("---FAKE CA CERTIFICATE---")
+
+	t.Run("allowed with cert", func(t *testing.T) {
+		output, err := eval(t,
+			p1,
+			[]proto.Message{s1, u1, s2, u2},
+			&PolicyRequest{
+				HTTP:    RequestHTTP{Method: http.MethodGet, URL: "https://from.example.com/path"},
+				Session: RequestSession{ID: "s1"},
 
 				IsValidClientCertificate: true,
 			})
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
 			Allow:  NewRuleResult(true, criteria.ReasonEmailOK),
-			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificate),
 			Traces: []contextutil.PolicyEvaluationTrace{{Allow: true}},
 		}, output)
 	})
@@ -99,7 +135,7 @@ func TestPolicyEvaluator(t *testing.T) {
 			Traces: []contextutil.PolicyEvaluationTrace{{Allow: true, Deny: true}},
 		}, output)
 	})
-	t.Run("forbidden", func(t *testing.T) {
+	t.Run("forbidden with cert", func(t *testing.T) {
 		output, err := eval(t,
 			p1,
 			[]proto.Message{s1, u1, s2, u2},
@@ -112,10 +148,11 @@ func TestPolicyEvaluator(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
 			Allow:  NewRuleResult(false, criteria.ReasonEmailUnauthorized, criteria.ReasonUserUnauthorized),
-			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificate),
 			Traces: []contextutil.PolicyEvaluationTrace{{}},
 		}, output)
 	})
+
 	t.Run("ppl", func(t *testing.T) {
 		t.Run("allow", func(t *testing.T) {
 			rego, err := policy.GenerateRegoFromReader(strings.NewReader(`
@@ -143,7 +180,7 @@ func TestPolicyEvaluator(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, &PolicyResponse{
 				Allow:  NewRuleResult(true, criteria.ReasonAccept),
-				Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+				Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificate),
 				Traces: []contextutil.PolicyEvaluationTrace{{}, {ID: "p1", Allow: true}},
 			}, output)
 		})
@@ -243,7 +280,7 @@ func TestPolicyEvaluator(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
 			Allow:  NewRuleResult(true),
-			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificate),
 			Traces: []contextutil.PolicyEvaluationTrace{{}, {ID: "p1", Allow: true}},
 		}, output)
 	})
@@ -266,7 +303,7 @@ func TestPolicyEvaluator(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
 			Allow:  NewRuleResult(true, criteria.ReasonEmailOK),
-			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificate),
 			Traces: []contextutil.PolicyEvaluationTrace{{Allow: true}},
 		}, output)
 	})
@@ -290,7 +327,7 @@ func TestPolicyEvaluator(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, &PolicyResponse{
 			Allow:  NewRuleResult(false, criteria.ReasonUserUnauthenticated),
-			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificateOrNoneRequired),
+			Deny:   NewRuleResult(false, criteria.ReasonValidClientCertificate),
 			Traces: []contextutil.PolicyEvaluationTrace{{Allow: false}},
 		}, output)
 	})
