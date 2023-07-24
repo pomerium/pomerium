@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"context"
+	"encoding/base64"
 	"net/http"
 	"net/url"
 	"testing"
@@ -109,10 +110,14 @@ func TestEvaluator(t *testing.T) {
 				},
 			},
 		},
+		{
+			To:                    config.WeightedURLs{{URL: *mustParseURL("https://to11.example.com")}},
+			AllowedUsers:          []string{"a@example.com"},
+			TLSDownstreamClientCA: base64.StdEncoding.EncodeToString([]byte(testCA)),
+		},
 	}
 	options := []Option{
 		WithAuthenticateURL("https://authn.example.com"),
-		WithClientCA([]byte(testCA)),
 		WithPolicies(policies),
 	}
 
@@ -122,7 +127,10 @@ func TestEvaluator(t *testing.T) {
 		Leaf:      testValidCert,
 	}
 
-	t.Run("client certificate", func(t *testing.T) {
+	t.Run("client certificate (default CA)", func(t *testing.T) {
+		// Clone the existing options and add a default client CA.
+		options := append([]Option(nil), options...)
+		options = append(options, WithClientCA([]byte(testCA)))
 		t.Run("invalid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
 				Policy: &policies[0],
@@ -133,6 +141,25 @@ func TestEvaluator(t *testing.T) {
 		t.Run("valid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
 				Policy: &policies[0],
+				HTTP: RequestHTTP{
+					ClientCertificate: validCertInfo,
+				},
+			})
+			require.NoError(t, err)
+			assert.False(t, res.Deny.Value)
+		})
+	})
+	t.Run("client certificate (per-policy CA)", func(t *testing.T) {
+		t.Run("invalid", func(t *testing.T) {
+			res, err := eval(t, options, nil, &Request{
+				Policy: &policies[10],
+			})
+			require.NoError(t, err)
+			assert.Equal(t, NewRuleResult(true, criteria.ReasonInvalidClientCertificate), res.Deny)
+		})
+		t.Run("valid", func(t *testing.T) {
+			res, err := eval(t, options, nil, &Request{
+				Policy: &policies[10],
 				HTTP: RequestHTTP{
 					ClientCertificate: validCertInfo,
 				},
@@ -158,9 +185,8 @@ func TestEvaluator(t *testing.T) {
 					ID: "session1",
 				},
 				HTTP: RequestHTTP{
-					Method:            http.MethodGet,
-					URL:               "https://from.example.com",
-					ClientCertificate: validCertInfo,
+					Method: http.MethodGet,
+					URL:    "https://from.example.com",
 				},
 			})
 			require.NoError(t, err)
@@ -183,9 +209,8 @@ func TestEvaluator(t *testing.T) {
 						ID: "session1",
 					},
 					HTTP: RequestHTTP{
-						Method:            http.MethodGet,
-						URL:               "https://from.example.com",
-						ClientCertificate: validCertInfo,
+						Method: http.MethodGet,
+						URL:    "https://from.example.com",
 					},
 				})
 				require.NoError(t, err)
@@ -210,9 +235,8 @@ func TestEvaluator(t *testing.T) {
 					ID: "session1",
 				},
 				HTTP: RequestHTTP{
-					Method:            http.MethodGet,
-					URL:               "https://from.example.com",
-					ClientCertificate: validCertInfo,
+					Method: http.MethodGet,
+					URL:    "https://from.example.com",
 				},
 			})
 			require.NoError(t, err)
@@ -234,9 +258,8 @@ func TestEvaluator(t *testing.T) {
 					ID: "session1",
 				},
 				HTTP: RequestHTTP{
-					Method:            http.MethodGet,
-					URL:               "https://from.example.com",
-					ClientCertificate: validCertInfo,
+					Method: http.MethodGet,
+					URL:    "https://from.example.com",
 				},
 			})
 			require.NoError(t, err)
@@ -258,9 +281,8 @@ func TestEvaluator(t *testing.T) {
 					ID: "session1",
 				},
 				HTTP: RequestHTTP{
-					Method:            http.MethodGet,
-					URL:               "https://from.example.com",
-					ClientCertificate: validCertInfo,
+					Method: http.MethodGet,
+					URL:    "https://from.example.com",
 				},
 			})
 			require.NoError(t, err)
@@ -289,9 +311,8 @@ func TestEvaluator(t *testing.T) {
 					ID: "session2",
 				},
 				HTTP: RequestHTTP{
-					Method:            http.MethodGet,
-					URL:               "https://from.example.com",
-					ClientCertificate: validCertInfo,
+					Method: http.MethodGet,
+					URL:    "https://from.example.com",
 				},
 			})
 			require.NoError(t, err)
@@ -314,9 +335,8 @@ func TestEvaluator(t *testing.T) {
 				ID: "session1",
 			},
 			HTTP: RequestHTTP{
-				Method:            http.MethodGet,
-				URL:               "https://from.example.com",
-				ClientCertificate: validCertInfo,
+				Method: http.MethodGet,
+				URL:    "https://from.example.com",
 			},
 		})
 		require.NoError(t, err)
@@ -338,9 +358,8 @@ func TestEvaluator(t *testing.T) {
 				ID: "session1",
 			},
 			HTTP: RequestHTTP{
-				Method:            http.MethodGet,
-				URL:               "https://from.example.com",
-				ClientCertificate: validCertInfo,
+				Method: http.MethodGet,
+				URL:    "https://from.example.com",
 			},
 		})
 		require.NoError(t, err)
@@ -367,9 +386,8 @@ func TestEvaluator(t *testing.T) {
 				ID: "session1",
 			},
 			HTTP: RequestHTTP{
-				Method:            http.MethodGet,
-				URL:               "https://from.example.com",
-				ClientCertificate: validCertInfo,
+				Method: http.MethodGet,
+				URL:    "https://from.example.com",
 			},
 		})
 		require.NoError(t, err)
@@ -390,9 +408,8 @@ func TestEvaluator(t *testing.T) {
 				ID: "session1",
 			},
 			HTTP: RequestHTTP{
-				Method:            http.MethodGet,
-				URL:               "https://from.example.com",
-				ClientCertificate: validCertInfo,
+				Method: http.MethodGet,
+				URL:    "https://from.example.com",
 			},
 		})
 		require.NoError(t, err)
@@ -427,10 +444,9 @@ func TestEvaluator(t *testing.T) {
 					ID: "session1",
 				},
 				HTTP: RequestHTTP{
-					Method:            http.MethodGet,
-					URL:               "https://from.example.com",
-					ClientCertificate: validCertInfo,
-					Headers:           tc.src,
+					Method:  http.MethodGet,
+					URL:     "https://from.example.com",
+					Headers: tc.src,
 				},
 			})
 			if assert.NoError(t, err) {
@@ -445,7 +461,7 @@ func TestEvaluator(t *testing.T) {
 				http.MethodGet,
 				*mustParseURL("https://from.example.com/"),
 				nil,
-				validCertInfo,
+				ClientCertificateInfo{},
 				"",
 			),
 		})
@@ -459,7 +475,7 @@ func TestEvaluator(t *testing.T) {
 				"POST",
 				*mustParseURL("https://from.example.com/test"),
 				nil,
-				validCertInfo,
+				ClientCertificateInfo{},
 				"",
 			),
 		})
