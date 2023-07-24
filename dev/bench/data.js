@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690225652264,
+  "lastUpdate": 1690226505206,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -57572,6 +57572,42 @@ window.BENCHMARK_DATA = {
             "value": 9557350,
             "unit": "ns/op",
             "extra": "114 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "438aecd7bce2aa755527cd702638434131315d12",
+          "message": "config: add customization options for logging (#4383)\n\n* config: add customization options for logging\r\n\r\n* config: validate log fields\r\n\r\n* allocate slices once",
+          "timestamp": "2023-07-24T13:17:03-06:00",
+          "tree_id": "3fab25fa99565a590d90fedbf9e9915d8d8c9fc0",
+          "url": "https://github.com/pomerium/pomerium/commit/438aecd7bce2aa755527cd702638434131315d12"
+        },
+        "date": 1690226500806,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16100735,
+            "unit": "ns/op",
+            "extra": "78 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11243783,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
