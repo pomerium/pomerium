@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690231370425,
+  "lastUpdate": 1690236103116,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -57640,6 +57640,42 @@ window.BENCHMARK_DATA = {
             "value": 9140749,
             "unit": "ns/op",
             "extra": "126 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "219296a87572024e4d86e443e41fb508673c6592",
+          "message": "add integration test for client_crl setting (#4384)\n\nUpdate the integration test templates to add a new client certificate\r\nissued by downstream-ca-1, along with a combined CRL that revokes it.\r\n(Setting a CRL just from downstream-ca-1 doesn't appear to work, which\r\nsurprises me.) Add a test case to verify that access is not allowed when\r\nusing the revoked certificate.",
+          "timestamp": "2023-07-24T14:56:12-07:00",
+          "tree_id": "5e58f299df2e6405b6472ae5a94b60a511482c55",
+          "url": "https://github.com/pomerium/pomerium/commit/219296a87572024e4d86e443e41fb508673c6592"
+        },
+        "date": 1690236097965,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16963877,
+            "unit": "ns/op",
+            "extra": "78 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10351710,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
