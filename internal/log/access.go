@@ -24,22 +24,24 @@ const (
 	AccessLogFieldUserAgent           AccessLogField = "user-agent"
 )
 
+var defaultAccessLogFields = []AccessLogField{
+	AccessLogFieldUpstreamCluster,
+	AccessLogFieldMethod,
+	AccessLogFieldAuthority,
+	AccessLogFieldPath,
+	AccessLogFieldUserAgent,
+	AccessLogFieldReferer,
+	AccessLogFieldForwardedFor,
+	AccessLogFieldRequestID,
+	AccessLogFieldDuration,
+	AccessLogFieldSize,
+	AccessLogFieldResponseCode,
+	AccessLogFieldResponseCodeDetails,
+}
+
 // DefaultAccessLogFields returns the default access log fields.
 func DefaultAccessLogFields() []AccessLogField {
-	return []AccessLogField{
-		AccessLogFieldUpstreamCluster,
-		AccessLogFieldMethod,
-		AccessLogFieldAuthority,
-		AccessLogFieldPath,
-		AccessLogFieldUserAgent,
-		AccessLogFieldReferer,
-		AccessLogFieldForwardedFor,
-		AccessLogFieldRequestID,
-		AccessLogFieldDuration,
-		AccessLogFieldSize,
-		AccessLogFieldResponseCode,
-		AccessLogFieldResponseCodeDetails,
-	}
+	return defaultAccessLogFields
 }
 
 // ErrUnknownAccessLogField indicates that an access log field is unknown.

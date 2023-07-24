@@ -29,28 +29,31 @@ const (
 	AuthorizeLogFieldUser                 AuthorizeLogField = "user"
 )
 
+var defaultAuthorizeLogFields = []AuthorizeLogField{
+	AuthorizeLogFieldRequestID,
+	AuthorizeLogFieldCheckRequestID,
+	AuthorizeLogFieldMethod,
+	AuthorizeLogFieldPath,
+	AuthorizeLogFieldHost,
+	AuthorizeLogFieldQuery,
+	AuthorizeLogFieldIP,
+	AuthorizeLogFieldSessionID,
+	AuthorizeLogFieldImpersonateSessionID,
+	AuthorizeLogFieldImpersonateUserID,
+	AuthorizeLogFieldImpersonateEmail,
+	AuthorizeLogFieldServiceAccountID,
+	AuthorizeLogFieldUser,
+	AuthorizeLogFieldEmail,
+}
+
+var defaultDebugAuthorizeLogFields = append(defaultAuthorizeLogFields, AuthorizeLogFieldHeaders)
+
 // DefaultAuthorizeLogFields returns the default authorize log fields.
 func DefaultAuthorizeLogFields() []AuthorizeLogField {
-	fields := []AuthorizeLogField{
-		AuthorizeLogFieldRequestID,
-		AuthorizeLogFieldCheckRequestID,
-		AuthorizeLogFieldMethod,
-		AuthorizeLogFieldPath,
-		AuthorizeLogFieldHost,
-		AuthorizeLogFieldQuery,
-		AuthorizeLogFieldIP,
-		AuthorizeLogFieldSessionID,
-		AuthorizeLogFieldImpersonateSessionID,
-		AuthorizeLogFieldImpersonateUserID,
-		AuthorizeLogFieldImpersonateEmail,
-		AuthorizeLogFieldServiceAccountID,
-		AuthorizeLogFieldUser,
-		AuthorizeLogFieldEmail,
-	}
 	if zerolog.GlobalLevel() <= zerolog.DebugLevel {
-		fields = append(fields, AuthorizeLogFieldHeaders)
+		return defaultDebugAuthorizeLogFields
 	}
-	return fields
+	return defaultAuthorizeLogFields
 }
 
 // ErrUnknownAuthorizeLogField indicates that an authorize log field is unknown.
