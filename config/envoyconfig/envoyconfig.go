@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"net/netip"
 	"net/url"
 	"os"
@@ -92,6 +93,13 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 		return nil
 	}
 
+	var additionalRequestHeaders []string
+	for _, field := range options.AccessLogFields {
+		if headerName, ok := field.IsForHeader(); ok {
+			additionalRequestHeaders = append(additionalRequestHeaders, http.CanonicalHeaderKey(headerName))
+		}
+	}
+
 	tc := marshalAny(&envoy_extensions_access_loggers_grpc_v3.HttpGrpcAccessLogConfig{
 		CommonConfig: &envoy_extensions_access_loggers_grpc_v3.CommonGrpcAccessLogConfig{
 			LogName: "ingress-http",
@@ -104,6 +112,7 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 			},
 			TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
 		},
+		AdditionalRequestHeadersToLog: additionalRequestHeaders,
 	})
 	return []*envoy_config_accesslog_v3.AccessLog{{
 		Name:       "envoy.access_loggers.http_grpc",
