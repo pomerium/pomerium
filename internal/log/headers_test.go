@@ -45,7 +45,7 @@ func TestHTTPHeaders(t *testing.T) {
 
 		assert.Equal(t, `{"level":"info"}`, strings.TrimSpace(buf.String()))
 	})
-	t.Run("one", func(t *testing.T) {
+	t.Run("two", func(t *testing.T) {
 		t.Parallel()
 
 		var buf bytes.Buffer
