@@ -60,6 +60,8 @@ func populateLogEvent(
 		return evt.Str(string(field), entry.GetRequest().GetRequestMethod().String())
 	case log.AccessLogFieldPath:
 		return evt.Str(string(field), stripQueryString(entry.GetRequest().GetPath()))
+	case log.AccessLogFieldQuery:
+		return evt.Str(string(field), getQueryString(entry.GetRequest().GetPath()))
 	case log.AccessLogFieldReferer:
 		return evt.Str(string(field), stripQueryString(entry.GetRequest().GetReferer()))
 	case log.AccessLogFieldRequestID:
@@ -77,6 +79,13 @@ func populateLogEvent(
 	default:
 		return evt
 	}
+}
+
+func getQueryString(str string) string {
+	if idx := strings.Index(str, "?"); idx != -1 {
+		return str[idx+1:]
+	}
+	return ""
 }
 
 func stripQueryString(str string) string {

@@ -15,6 +15,7 @@ const (
 	AccessLogFieldForwardedFor        AccessLogField = "forwarded-for"
 	AccessLogFieldMethod              AccessLogField = "method"
 	AccessLogFieldPath                AccessLogField = "path"
+	AccessLogFieldQuery               AccessLogField = "query"
 	AccessLogFieldReferer             AccessLogField = "referer"
 	AccessLogFieldRequestID           AccessLogField = "request-id"
 	AccessLogFieldResponseCode        AccessLogField = "response-code"
@@ -53,6 +54,7 @@ var accessLogFieldLookup = map[AccessLogField]struct{}{
 	AccessLogFieldForwardedFor:        {},
 	AccessLogFieldMethod:              {},
 	AccessLogFieldPath:                {},
+	AccessLogFieldQuery:               {},
 	AccessLogFieldReferer:             {},
 	AccessLogFieldRequestID:           {},
 	AccessLogFieldResponseCode:        {},
