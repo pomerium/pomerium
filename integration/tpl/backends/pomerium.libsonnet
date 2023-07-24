@@ -80,6 +80,7 @@ local Environment(mode, idp, dns_suffix) =
     CERTIFICATE: std.base64(importstr '../files/trusted.pem'),
     CERTIFICATE_KEY: std.base64(importstr '../files/trusted-key.pem'),
     CERTIFICATE_AUTHORITY: std.base64(importstr '../files/ca.pem'),
+    CLIENT_CRL: std.base64(importstr '../files/downstream-crl.pem'),
     COOKIE_SECRET: 'UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=',
     DATABROKER_STORAGE_TYPE: 'postgres',
     DATABROKER_STORAGE_CONNECTION_STRING: 'postgres://pomerium:password@postgres:5432/test',
