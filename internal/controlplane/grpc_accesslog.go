@@ -72,7 +72,7 @@ func populateLogEvent(
 	case log.AccessLogFieldUserAgent:
 		return evt.Str(string(field), entry.GetRequest().GetUserAgent())
 	default:
-		return evt.Str(string(field), "<<UNKNOWN ACCESS LOG FIELD>>")
+		return evt
 	}
 }
 

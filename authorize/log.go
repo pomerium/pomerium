@@ -150,14 +150,6 @@ func populateLogEvent(
 	hdrs map[string]string,
 	impersonateDetails *impersonateDetails,
 ) *zerolog.Event {
-	if debugField, ok := field.IsForDebugOnly(); ok {
-		if zerolog.GlobalLevel() > zerolog.DebugLevel {
-			// ignore because we're not logging debug messages
-			return evt
-		}
-		field = debugField
-	}
-
 	switch field {
 	case log.AuthorizeLogFieldCheckRequestID:
 		return evt.Str(string(field), hdrs["X-Request-Id"])
@@ -205,7 +197,7 @@ func populateLogEvent(
 	case log.AuthorizeLogFieldUser:
 		return evt.Str(string(field), u.GetId())
 	default:
-		return evt.Str(string(field), "<<UNKNOWN AUTHORIZE LOG FIELD>>")
+		return evt
 	}
 }
 

@@ -1,6 +1,11 @@
 package log
 
-import "strings"
+import (
+	"errors"
+	"fmt"
+
+	"github.com/rs/zerolog"
+)
 
 // An AuthorizeLogField is a field in the authorize logs.
 type AuthorizeLogField string
@@ -24,39 +29,57 @@ const (
 	AuthorizeLogFieldUser                 AuthorizeLogField = "user"
 )
 
-// DefaultAuthorizeLogFields are the default authorize log fields to log.
-var DefaultAuthorizeLogFields = []AuthorizeLogField{
-	AuthorizeLogFieldRequestID,
-	AuthorizeLogFieldCheckRequestID,
-	AuthorizeLogFieldMethod,
-	AuthorizeLogFieldPath,
-	AuthorizeLogFieldHost,
-	AuthorizeLogFieldQuery,
-	AuthorizeLogFieldIP,
-	AuthorizeLogFieldSessionID,
-	AuthorizeLogFieldImpersonateSessionID,
-	AuthorizeLogFieldImpersonateUserID,
-	AuthorizeLogFieldImpersonateEmail,
-	AuthorizeLogFieldServiceAccountID,
-	AuthorizeLogFieldUser,
-	AuthorizeLogFieldEmail,
-	AuthorizeLogFieldHeaders.ForDebugOnly(),
+// DefaultAuthorizeLogFields returns the default authorize log fields.
+func DefaultAuthorizeLogFields() []AuthorizeLogField {
+	fields := []AuthorizeLogField{
+		AuthorizeLogFieldRequestID,
+		AuthorizeLogFieldCheckRequestID,
+		AuthorizeLogFieldMethod,
+		AuthorizeLogFieldPath,
+		AuthorizeLogFieldHost,
+		AuthorizeLogFieldQuery,
+		AuthorizeLogFieldIP,
+		AuthorizeLogFieldSessionID,
+		AuthorizeLogFieldImpersonateSessionID,
+		AuthorizeLogFieldImpersonateUserID,
+		AuthorizeLogFieldImpersonateEmail,
+		AuthorizeLogFieldServiceAccountID,
+		AuthorizeLogFieldUser,
+		AuthorizeLogFieldEmail,
+	}
+	if zerolog.GlobalLevel() <= zerolog.DebugLevel {
+		fields = append(fields, AuthorizeLogFieldHeaders)
+	}
+	return fields
 }
 
-const debugOnlyPrefix = "debug."
+// ErrUnknownAuthorizeLogField indicates that an authorize log field is unknown.
+var ErrUnknownAuthorizeLogField = errors.New("unknown authorize log field")
 
-// IsForDebugOnly returns an authorize log field that's intended to only be logged in debug mode.
-func (field AuthorizeLogField) IsForDebugOnly() (AuthorizeLogField, bool) {
-	if strings.HasPrefix(string(field), debugOnlyPrefix) {
-		return field[len(debugOnlyPrefix):], true
-	}
-	return field, false
+var authorizeLogFieldLookup = map[AuthorizeLogField]struct{}{
+	AuthorizeLogFieldCheckRequestID:       {},
+	AuthorizeLogFieldEmail:                {},
+	AuthorizeLogFieldHeaders:              {},
+	AuthorizeLogFieldHost:                 {},
+	AuthorizeLogFieldImpersonateEmail:     {},
+	AuthorizeLogFieldImpersonateSessionID: {},
+	AuthorizeLogFieldImpersonateUserID:    {},
+	AuthorizeLogFieldIP:                   {},
+	AuthorizeLogFieldMethod:               {},
+	AuthorizeLogFieldPath:                 {},
+	AuthorizeLogFieldQuery:                {},
+	AuthorizeLogFieldRequestID:            {},
+	AuthorizeLogFieldServiceAccountID:     {},
+	AuthorizeLogFieldSessionID:            {},
+	AuthorizeLogFieldUser:                 {},
 }
 
-// ForDebugOnly returns the authorize log field that will only be logged in debug mode.
-func (field AuthorizeLogField) ForDebugOnly() AuthorizeLogField {
-	if _, ok := field.IsForDebugOnly(); ok {
-		return field
+// Validate returns an error if the authorize log field is invalid.
+func (field AuthorizeLogField) Validate() error {
+	_, ok := authorizeLogFieldLookup[field]
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrUnknownAuthorizeLogField, field)
 	}
-	return debugOnlyPrefix + field
+
+	return nil
 }

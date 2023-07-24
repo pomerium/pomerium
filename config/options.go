@@ -755,6 +755,18 @@ func (o *Options) Validate() error {
 		return fmt.Errorf("config: invalid proxy_log_level: %w", err)
 	}
 
+	for _, field := range o.AccessLogFields {
+		if err := field.Validate(); err != nil {
+			return fmt.Errorf("config: invalid access_log_fields: %w", err)
+		}
+	}
+
+	for _, field := range o.AuthorizeLogFields {
+		if err := field.Validate(); err != nil {
+			return fmt.Errorf("config: invalid authorize_log_fields: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -1292,7 +1304,7 @@ func (o *Options) GetSigningKey() ([]byte, error) {
 // GetAccessLogFields returns the access log fields. If none are set, the default fields are returned.
 func (o *Options) GetAccessLogFields() []log.AccessLogField {
 	if o.AccessLogFields == nil {
-		return log.DefaultAccessLogFields
+		return log.DefaultAccessLogFields()
 	}
 	return o.AccessLogFields
 }
@@ -1300,7 +1312,7 @@ func (o *Options) GetAccessLogFields() []log.AccessLogField {
 // GetAuthorizeLogFields returns the authorize log fields. If none are set, the default fields are returned.
 func (o *Options) GetAuthorizeLogFields() []log.AuthorizeLogField {
 	if o.AuthorizeLogFields == nil {
-		return log.DefaultAuthorizeLogFields
+		return log.DefaultAuthorizeLogFields()
 	}
 	return o.AuthorizeLogFields
 }

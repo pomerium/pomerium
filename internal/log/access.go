@@ -1,5 +1,10 @@
 package log
 
+import (
+	"errors"
+	"fmt"
+)
+
 // An AccessLogField is a field in the access logs.
 type AccessLogField string
 
@@ -19,18 +24,48 @@ const (
 	AccessLogFieldUserAgent           AccessLogField = "user-agent"
 )
 
-// DefaultAccessLogFields are the default access log fields to log.
-var DefaultAccessLogFields = []AccessLogField{
-	AccessLogFieldUpstreamCluster,
-	AccessLogFieldMethod,
-	AccessLogFieldAuthority,
-	AccessLogFieldPath,
-	AccessLogFieldUserAgent,
-	AccessLogFieldReferer,
-	AccessLogFieldForwardedFor,
-	AccessLogFieldRequestID,
-	AccessLogFieldDuration,
-	AccessLogFieldSize,
-	AccessLogFieldResponseCode,
-	AccessLogFieldResponseCodeDetails,
+// DefaultAccessLogFields returns the default access log fields.
+func DefaultAccessLogFields() []AccessLogField {
+	return []AccessLogField{
+		AccessLogFieldUpstreamCluster,
+		AccessLogFieldMethod,
+		AccessLogFieldAuthority,
+		AccessLogFieldPath,
+		AccessLogFieldUserAgent,
+		AccessLogFieldReferer,
+		AccessLogFieldForwardedFor,
+		AccessLogFieldRequestID,
+		AccessLogFieldDuration,
+		AccessLogFieldSize,
+		AccessLogFieldResponseCode,
+		AccessLogFieldResponseCodeDetails,
+	}
+}
+
+// ErrUnknownAccessLogField indicates that an access log field is unknown.
+var ErrUnknownAccessLogField = errors.New("unknown access log field")
+
+var accessLogFieldLookup = map[AccessLogField]struct{}{
+	AccessLogFieldAuthority:           {},
+	AccessLogFieldDuration:            {},
+	AccessLogFieldForwardedFor:        {},
+	AccessLogFieldMethod:              {},
+	AccessLogFieldPath:                {},
+	AccessLogFieldReferer:             {},
+	AccessLogFieldRequestID:           {},
+	AccessLogFieldResponseCode:        {},
+	AccessLogFieldResponseCodeDetails: {},
+	AccessLogFieldSize:                {},
+	AccessLogFieldUpstreamCluster:     {},
+	AccessLogFieldUserAgent:           {},
+}
+
+// Validate returns an error if the access log field is invalid.
+func (field AccessLogField) Validate() error {
+	_, ok := accessLogFieldLookup[field]
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrUnknownAccessLogField, field)
+	}
+
+	return nil
 }
