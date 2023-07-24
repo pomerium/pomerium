@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690225431140,
+  "lastUpdate": 1690225652264,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -57536,6 +57536,42 @@ window.BENCHMARK_DATA = {
             "value": 12313345,
             "unit": "ns/op",
             "extra": "98 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "577319d26c005ca0f27ba39ca57bf100496764da",
+          "message": "authorize: fix policy numbers in evaluator test (#4387)\n\nIn authorize_test.go, the policy 'to' URLs are numbered from 1 to 11.\r\nHowever, there is no number 8 (it looks like it was removed in commit\r\nc178819). Update the URLs with numbers 9 through 11 to remove this gap.\r\nUpdate the \"any authenticated user\" test case to use the corresponding\r\nAllowAnyAuthenticatedUser policy (currently this case passes because\r\nit's using the policy that allows any GET request, but it's not testing\r\nwhat it says it should).",
+          "timestamp": "2023-07-24T12:02:14-07:00",
+          "tree_id": "c785f2b0e9a54d8be4e08be893efce6878f19c17",
+          "url": "https://github.com/pomerium/pomerium/commit/577319d26c005ca0f27ba39ca57bf100496764da"
+        },
+        "date": 1690225647075,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16117841,
+            "unit": "ns/op",
+            "extra": "76 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9557350,
+            "unit": "ns/op",
+            "extra": "114 times\n2 procs"
           }
         ]
       }
