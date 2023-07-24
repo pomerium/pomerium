@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690237065341,
+  "lastUpdate": 1690237950152,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -57708,6 +57708,42 @@ window.BENCHMARK_DATA = {
             "value": 10818315,
             "unit": "ns/op",
             "extra": "99 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4698e4661a14c67addc7cfc393b25eacab5210ef",
+          "message": "authorize: omit client cert rule when not needed (#4386)\n\nCurrently we always add an invalid_client_certificate deny rule to all\r\nPPL policies. Instead, let's add this rule only when a client CA is\r\nconfigured. This way, if a user is not using client certificates at all,\r\nthey won't see any reason strings related to client certificates in the\r\nauthorize logs.\r\n\r\nChange the \"valid-client-certificate-or-none-required\" reason string to\r\njust \"valid-client-certificate\" accordingly.\r\n\r\nPass the main Evaluator config to NewPolicyEvaluator so that we can\r\ndetermine whether there is a client CA configured or not. Extract the\r\nexisting default deny rule to a separate method. Add unit tests\r\nexercising the new behavior.",
+          "timestamp": "2023-07-24T15:27:57-07:00",
+          "tree_id": "35c6a4552a1b46b2dfd9cdf3c7ff6dcbb2dce9a4",
+          "url": "https://github.com/pomerium/pomerium/commit/4698e4661a14c67addc7cfc393b25eacab5210ef"
+        },
+        "date": 1690237945915,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13826822,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8754049,
+            "unit": "ns/op",
+            "extra": "133 times\n2 procs"
           }
         ]
       }
