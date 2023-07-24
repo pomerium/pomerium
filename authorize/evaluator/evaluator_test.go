@@ -76,11 +76,11 @@ func TestEvaluator(t *testing.T) {
 			AllowedDomains: []string{"example.com"},
 		},
 		{
-			To:                        config.WeightedURLs{{URL: *mustParseURL("https://to9.example.com")}},
+			To:                        config.WeightedURLs{{URL: *mustParseURL("https://to8.example.com")}},
 			AllowAnyAuthenticatedUser: true,
 		},
 		{
-			To: config.WeightedURLs{{URL: *mustParseURL("https://to10.example.com")}},
+			To: config.WeightedURLs{{URL: *mustParseURL("https://to9.example.com")}},
 			Policy: &config.PPLPolicy{
 				Policy: &parser.Policy{
 					Rules: []parser.Rule{{
@@ -95,7 +95,7 @@ func TestEvaluator(t *testing.T) {
 			},
 		},
 		{
-			To: config.WeightedURLs{{URL: *mustParseURL("https://to11.example.com")}},
+			To: config.WeightedURLs{{URL: *mustParseURL("https://to10.example.com")}},
 			Policy: &config.PPLPolicy{
 				Policy: &parser.Policy{
 					Rules: []parser.Rule{{
@@ -385,7 +385,7 @@ func TestEvaluator(t *testing.T) {
 				Id: "user1",
 			},
 		}, &Request{
-			Policy: &policies[8],
+			Policy: &policies[7],
 			Session: RequestSession{
 				ID: "session1",
 			},

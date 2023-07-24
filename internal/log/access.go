@@ -25,24 +25,6 @@ const (
 	AccessLogFieldUserAgent           AccessLogField = "user-agent"
 )
 
-// DefaultAccessLogFields returns the default access log fields.
-func DefaultAccessLogFields() []AccessLogField {
-	return []AccessLogField{
-		AccessLogFieldUpstreamCluster,
-		AccessLogFieldMethod,
-		AccessLogFieldAuthority,
-		AccessLogFieldPath,
-		AccessLogFieldUserAgent,
-		AccessLogFieldReferer,
-		AccessLogFieldForwardedFor,
-		AccessLogFieldRequestID,
-		AccessLogFieldDuration,
-		AccessLogFieldSize,
-		AccessLogFieldResponseCode,
-		AccessLogFieldResponseCodeDetails,
-	}
-}
-
 const accessLogFieldHeaderPrefix = "header."
 
 // AccessLogFieldForHeader returns an access log field for the given header name.
@@ -56,6 +38,26 @@ func (field AccessLogField) IsForHeader() (headerName string, ok bool) {
 		return string(field[len(accessLogFieldHeaderPrefix):]), true
 	}
 	return "", false
+}
+
+var defaultAccessLogFields = []AccessLogField{
+	AccessLogFieldUpstreamCluster,
+	AccessLogFieldMethod,
+	AccessLogFieldAuthority,
+	AccessLogFieldPath,
+	AccessLogFieldUserAgent,
+	AccessLogFieldReferer,
+	AccessLogFieldForwardedFor,
+	AccessLogFieldRequestID,
+	AccessLogFieldDuration,
+	AccessLogFieldSize,
+	AccessLogFieldResponseCode,
+	AccessLogFieldResponseCodeDetails,
+}
+
+// DefaultAccessLogFields returns the default access log fields.
+func DefaultAccessLogFields() []AccessLogField {
+	return defaultAccessLogFields
 }
 
 // ErrUnknownAccessLogField indicates that an access log field is unknown.
