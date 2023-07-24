@@ -95,7 +95,7 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 
 	var additionalRequestHeaders []string
 	for _, field := range options.AccessLogFields {
-		if headerName, ok := field.IsForHeader(); ok {
+		if headerName, ok := log.GetHeaderField(field); ok {
 			additionalRequestHeaders = append(additionalRequestHeaders, http.CanonicalHeaderKey(headerName))
 		}
 	}

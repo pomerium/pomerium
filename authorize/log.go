@@ -31,9 +31,11 @@ func (a *Authorize) logAuthorizeCheck(
 	impersonateDetails := a.getImpersonateDetails(ctx, s)
 
 	evt := log.Info(ctx).Str("service", "authorize")
-	for _, field := range a.currentOptions.Load().GetAuthorizeLogFields() {
+	fields := a.currentOptions.Load().GetAuthorizeLogFields()
+	for _, field := range fields {
 		evt = populateLogEvent(ctx, field, evt, in, s, u, hdrs, impersonateDetails)
 	}
+	evt = log.HTTPHeaders(evt, fields, hdrs)
 
 	// result
 	if res != nil {
@@ -155,8 +157,6 @@ func populateLogEvent(
 		return evt.Str(string(field), hdrs["X-Request-Id"])
 	case log.AuthorizeLogFieldEmail:
 		return evt.Str(string(field), u.GetEmail())
-	case log.AuthorizeLogFieldHeaders:
-		return evt.Interface(string(field), hdrs)
 	case log.AuthorizeLogFieldHost:
 		return evt.Str(string(field), in.GetAttributes().GetRequest().GetHttp().GetHost())
 	case log.AuthorizeLogFieldImpersonateEmail:

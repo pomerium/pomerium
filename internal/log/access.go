@@ -3,7 +3,6 @@ package log
 import (
 	"errors"
 	"fmt"
-	"strings"
 )
 
 // An AccessLogField is a field in the access logs.
@@ -24,21 +23,6 @@ const (
 	AccessLogFieldUpstreamCluster     AccessLogField = "upstream-cluster"
 	AccessLogFieldUserAgent           AccessLogField = "user-agent"
 )
-
-const accessLogFieldHeaderPrefix = "header."
-
-// AccessLogFieldForHeader returns an access log field for the given header name.
-func AccessLogFieldForHeader(header string) AccessLogField {
-	return AccessLogField(accessLogFieldHeaderPrefix + header)
-}
-
-// IsForHeader returns true if the access log field is for a header.
-func (field AccessLogField) IsForHeader() (headerName string, ok bool) {
-	if strings.HasPrefix(string(field), accessLogFieldHeaderPrefix) {
-		return string(field[len(accessLogFieldHeaderPrefix):]), true
-	}
-	return "", false
-}
 
 var defaultAccessLogFields = []AccessLogField{
 	AccessLogFieldUpstreamCluster,
@@ -80,7 +64,7 @@ var accessLogFieldLookup = map[AccessLogField]struct{}{
 
 // Validate returns an error if the access log field is invalid.
 func (field AccessLogField) Validate() error {
-	if _, ok := field.IsForHeader(); ok {
+	if _, ok := GetHeaderField(field); ok {
 		return nil
 	}
 
