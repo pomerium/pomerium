@@ -403,7 +403,7 @@ func TestEvaluator(t *testing.T) {
 				Id: "user1",
 			},
 		}, &Request{
-			Policy: &policies[8],
+			Policy: &policies[7],
 			Session: RequestSession{
 				ID: "session1",
 			},
