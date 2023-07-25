@@ -32,6 +32,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/fileutil"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
@@ -92,6 +93,13 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 		return nil
 	}
 
+	var additionalRequestHeaders []string
+	for _, field := range options.AccessLogFields {
+		if headerName, ok := log.GetHeaderField(field); ok {
+			additionalRequestHeaders = append(additionalRequestHeaders, httputil.CanonicalHeaderKey(headerName))
+		}
+	}
+
 	tc := marshalAny(&envoy_extensions_access_loggers_grpc_v3.HttpGrpcAccessLogConfig{
 		CommonConfig: &envoy_extensions_access_loggers_grpc_v3.CommonGrpcAccessLogConfig{
 			LogName: "ingress-http",
@@ -104,6 +112,7 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 			},
 			TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
 		},
+		AdditionalRequestHeadersToLog: additionalRequestHeaders,
 	})
 	return []*envoy_config_accesslog_v3.AccessLog{{
 		Name:       "envoy.access_loggers.http_grpc",

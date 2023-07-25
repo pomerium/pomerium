@@ -64,6 +64,10 @@ var accessLogFieldLookup = map[AccessLogField]struct{}{
 
 // Validate returns an error if the access log field is invalid.
 func (field AccessLogField) Validate() error {
+	if _, ok := GetHeaderField(field); ok {
+		return nil
+	}
+
 	_, ok := accessLogFieldLookup[field]
 	if !ok {
 		return fmt.Errorf("%w: %s", ErrUnknownAccessLogField, field)

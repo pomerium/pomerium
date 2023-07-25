@@ -32,8 +32,14 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogS
 				evt = log.Info(stream.Context())
 			}
 			evt = evt.Str("service", "envoy")
-			for _, field := range srv.currentConfig.Load().Config.Options.GetAccessLogFields() {
+
+			fields := srv.currentConfig.Load().Config.Options.GetAccessLogFields()
+			for _, field := range fields {
 				evt = populateLogEvent(field, evt, entry)
+			}
+			// headers are selected in the envoy access logs config, so we can log all of them here
+			if len(entry.GetRequest().GetRequestHeaders()) > 0 {
+				evt = evt.Interface("headers", entry.GetRequest().GetRequestHeaders())
 			}
 			evt.Msg("http-request")
 		}

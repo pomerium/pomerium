@@ -14,7 +14,7 @@ type AuthorizeLogField string
 const (
 	AuthorizeLogFieldCheckRequestID       AuthorizeLogField = "check-request-id"
 	AuthorizeLogFieldEmail                AuthorizeLogField = "email"
-	AuthorizeLogFieldHeaders              AuthorizeLogField = "headers"
+	AuthorizeLogFieldHeaders                                = AuthorizeLogField(headersFieldName)
 	AuthorizeLogFieldHost                 AuthorizeLogField = "host"
 	AuthorizeLogFieldImpersonateEmail     AuthorizeLogField = "impersonate-email"
 	AuthorizeLogFieldImpersonateSessionID AuthorizeLogField = "impersonate-session-id"
@@ -79,6 +79,10 @@ var authorizeLogFieldLookup = map[AuthorizeLogField]struct{}{
 
 // Validate returns an error if the authorize log field is invalid.
 func (field AuthorizeLogField) Validate() error {
+	if _, ok := GetHeaderField(field); ok {
+		return nil
+	}
+
 	_, ok := authorizeLogFieldLookup[field]
 	if !ok {
 		return fmt.Errorf("%w: %s", ErrUnknownAuthorizeLogField, field)

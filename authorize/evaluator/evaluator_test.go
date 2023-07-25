@@ -422,11 +422,11 @@ func TestEvaluator(t *testing.T) {
 		}{
 			{map[string]string{}, ""},
 			{map[string]string{
-				http.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertion): "identity-a",
+				httputil.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertion): "identity-a",
 			}, "identity-a"},
 			{map[string]string{
-				http.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertionFor): "identity-a",
-				http.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertion):    "identity-b",
+				httputil.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertionFor): "identity-a",
+				httputil.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertion):    "identity-b",
 			}, "identity-a"},
 		}
 		for _, tc := range tcs {

@@ -311,13 +311,13 @@ func safeEval(ctx context.Context, q rego.PreparedEvalQuery, options ...rego.Eva
 // carryOverJWTAssertion copies assertion JWT from request to response
 // note that src keys are expected to be http.CanonicalHeaderKey
 func carryOverJWTAssertion(dst http.Header, src map[string]string) {
-	jwtForKey := http.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertionFor)
+	jwtForKey := httputil.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertionFor)
 	jwtFor, ok := src[jwtForKey]
 	if ok && jwtFor != "" {
 		dst.Add(jwtForKey, jwtFor)
 		return
 	}
-	jwtFor, ok = src[http.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertion)]
+	jwtFor, ok = src[httputil.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertion)]
 	if ok && jwtFor != "" {
 		dst.Add(jwtForKey, jwtFor)
 	}
