@@ -152,6 +152,8 @@ func populateLogEvent(
 	hdrs map[string]string,
 	impersonateDetails *impersonateDetails,
 ) *zerolog.Event {
+	path, query, _ := strings.Cut(in.GetAttributes().GetRequest().GetHttp().GetPath(), "?")
+
 	switch field {
 	case log.AuthorizeLogFieldCheckRequestID:
 		return evt.Str(string(field), hdrs["X-Request-Id"])
@@ -179,9 +181,9 @@ func populateLogEvent(
 	case log.AuthorizeLogFieldMethod:
 		return evt.Str(string(field), in.GetAttributes().GetRequest().GetHttp().GetMethod())
 	case log.AuthorizeLogFieldPath:
-		return evt.Str(string(field), stripQueryString(in.GetAttributes().GetRequest().GetHttp().GetPath()))
+		return evt.Str(string(field), path)
 	case log.AuthorizeLogFieldQuery:
-		return evt.Str(string(field), getQueryString(in.GetAttributes().GetRequest().GetHttp().GetPath()))
+		return evt.Str(string(field), query)
 	case log.AuthorizeLogFieldRequestID:
 		return evt.Str(string(field), requestid.FromContext(ctx))
 	case log.AuthorizeLogFieldServiceAccountID:
@@ -199,18 +201,4 @@ func populateLogEvent(
 	default:
 		return evt
 	}
-}
-
-func getQueryString(str string) string {
-	if idx := strings.Index(str, "?"); idx != -1 {
-		return str[idx+1:]
-	}
-	return ""
-}
-
-func stripQueryString(str string) string {
-	if idx := strings.Index(str, "?"); idx != -1 {
-		str = str[:idx]
-	}
-	return str
 }

@@ -51,22 +51,25 @@ func populateLogEvent(
 	evt *zerolog.Event,
 	entry *envoy_data_accesslog_v3.HTTPAccessLogEntry,
 ) *zerolog.Event {
+	referer, _, _ := strings.Cut(entry.GetRequest().GetReferer(), "?")
+	path, query, _ := strings.Cut(entry.GetRequest().GetPath(), "?")
+
 	switch field {
 	case log.AccessLogFieldAuthority:
 		return evt.Str(string(field), entry.GetRequest().GetAuthority())
 	case log.AccessLogFieldDuration:
-		dur := entry.CommonProperties.TimeToLastDownstreamTxByte.AsDuration()
+		dur := entry.GetCommonProperties().GetTimeToLastDownstreamTxByte().AsDuration()
 		return evt.Dur(string(field), dur)
 	case log.AccessLogFieldForwardedFor:
 		return evt.Str(string(field), entry.GetRequest().GetForwardedFor())
 	case log.AccessLogFieldMethod:
 		return evt.Str(string(field), entry.GetRequest().GetRequestMethod().String())
 	case log.AccessLogFieldPath:
-		return evt.Str(string(field), stripQueryString(entry.GetRequest().GetPath()))
+		return evt.Str(string(field), path)
 	case log.AccessLogFieldQuery:
-		return evt.Str(string(field), getQueryString(entry.GetRequest().GetPath()))
+		return evt.Str(string(field), query)
 	case log.AccessLogFieldReferer:
-		return evt.Str(string(field), stripQueryString(entry.GetRequest().GetReferer()))
+		return evt.Str(string(field), referer)
 	case log.AccessLogFieldRequestID:
 		return evt.Str(string(field), entry.GetRequest().GetRequestId())
 	case log.AccessLogFieldResponseCode:
@@ -74,7 +77,7 @@ func populateLogEvent(
 	case log.AccessLogFieldResponseCodeDetails:
 		return evt.Str(string(field), entry.GetResponse().GetResponseCodeDetails())
 	case log.AccessLogFieldSize:
-		return evt.Uint64(string(field), entry.Response.ResponseBodyBytes)
+		return evt.Uint64(string(field), entry.GetResponse().GetResponseBodyBytes())
 	case log.AccessLogFieldUpstreamCluster:
 		return evt.Str(string(field), entry.GetCommonProperties().GetUpstreamCluster())
 	case log.AccessLogFieldUserAgent:
@@ -82,18 +85,4 @@ func populateLogEvent(
 	default:
 		return evt
 	}
-}
-
-func getQueryString(str string) string {
-	if idx := strings.Index(str, "?"); idx != -1 {
-		return str[idx+1:]
-	}
-	return ""
-}
-
-func stripQueryString(str string) string {
-	if idx := strings.Index(str, "?"); idx != -1 {
-		str = str[:idx]
-	}
-	return str
 }
