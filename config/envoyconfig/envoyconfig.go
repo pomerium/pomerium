@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 	"net/netip"
 	"net/url"
 	"os"
@@ -33,6 +32,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/fileutil"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
@@ -96,7 +96,7 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 	var additionalRequestHeaders []string
 	for _, field := range options.AccessLogFields {
 		if headerName, ok := log.GetHeaderField(field); ok {
-			additionalRequestHeaders = append(additionalRequestHeaders, http.CanonicalHeaderKey(headerName))
+			additionalRequestHeaders = append(additionalRequestHeaders, httputil.CanonicalHeaderKey(headerName))
 		}
 	}
 

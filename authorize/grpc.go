@@ -14,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
@@ -97,8 +98,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 ) (*evaluator.Request, error) {
 	requestURL := getCheckRequestURL(in)
 	attrs := in.GetAttributes()
-	clientCertMetadata :=
-		attrs.GetMetadataContext().GetFilterMetadata()["com.pomerium.client-certificate-info"]
+	clientCertMetadata := attrs.GetMetadataContext().GetFilterMetadata()["com.pomerium.client-certificate-info"]
 	req := &evaluator.Request{
 		IsInternal: envoyconfig.ExtAuthzContextExtensionsIsInternal(attrs.GetContextExtensions()),
 		HTTP: evaluator.NewRequestHTTP(
@@ -152,7 +152,7 @@ func getCheckRequestHeaders(req *envoy_service_auth_v3.CheckRequest) map[string]
 	hdrs := make(map[string]string)
 	ch := req.GetAttributes().GetRequest().GetHttp().GetHeaders()
 	for k, v := range ch {
-		hdrs[http.CanonicalHeaderKey(k)] = v
+		hdrs[httputil.CanonicalHeaderKey(k)] = v
 	}
 	return hdrs
 }
