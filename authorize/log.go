@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
@@ -161,6 +162,17 @@ func populateLogEvent(
 		return evt.Str(string(field), u.GetEmail())
 	case log.AuthorizeLogFieldHost:
 		return evt.Str(string(field), in.GetAttributes().GetRequest().GetHttp().GetHost())
+	case log.AuthorizeLogFieldIDToken:
+		if s, ok := s.(*session.Session); ok {
+			evt = evt.Str("id-token", s.GetIdToken().GetRaw())
+
+			if t, err := jwt.ParseSigned(s.GetIdToken().GetRaw()); err == nil {
+				var m map[string]any
+				_ = t.UnsafeClaimsWithoutVerification(&m)
+				evt = evt.Interface("id-token-claims", m)
+			}
+		}
+		return evt
 	case log.AuthorizeLogFieldImpersonateEmail:
 		if impersonateDetails != nil {
 			evt = evt.Str(string(field), impersonateDetails.email)
