@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690290696990,
+  "lastUpdate": 1690291282534,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -57840,6 +57840,38 @@ window.BENCHMARK_DATA = {
             "value": 8576921,
             "unit": "ns/op",
             "extra": "133 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "356e4b535d7f9c40121495008ca6c87ffc09453d",
+          "message": "proxy: add support for logging http request headers",
+          "timestamp": "2023-07-25T07:10:39Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4388/commits/356e4b535d7f9c40121495008ca6c87ffc09453d"
+        },
+        "date": 1690291276658,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18284871,
+            "unit": "ns/op",
+            "extra": "61 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11892780,
+            "unit": "ns/op",
+            "extra": "93 times\n2 procs"
           }
         ]
       }
