@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690316292950,
+  "lastUpdate": 1690321745766,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -58108,6 +58108,42 @@ window.BENCHMARK_DATA = {
             "value": 11266659,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1aa8187a4beffd73b72fb4f6d8d49ac7d5508d46",
+          "message": "authorize: add support for logging id token (#4392)",
+          "timestamp": "2023-07-25T15:44:25-06:00",
+          "tree_id": "3bed6120b7a758abe1ee1dde8abd0bffee7ed80b",
+          "url": "https://github.com/pomerium/pomerium/commit/1aa8187a4beffd73b72fb4f6d8d49ac7d5508d46"
+        },
+        "date": 1690321740938,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13765078,
+            "unit": "ns/op",
+            "extra": "94 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9109964,
+            "unit": "ns/op",
+            "extra": "132 times\n2 procs"
           }
         ]
       }
