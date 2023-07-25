@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690309469337,
+  "lastUpdate": 1690311739843,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -58008,6 +58008,42 @@ window.BENCHMARK_DATA = {
             "value": 12865829,
             "unit": "ns/op",
             "extra": "97 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "baf8918676aeca3f6f0b017252c1c9560a0d7381",
+          "message": "logs: add support for logging the http query (#4390)\n\n* config: add customization options for logging\r\n\r\n* config: validate log fields\r\n\r\n* proxy: add support for logging http request headers\r\n\r\n* log subset of headers\r\n\r\n* add support for logging the http query\r\n\r\n* fix test name\r\n\r\n* use strings.Cut, add unit tests",
+          "timestamp": "2023-07-25T12:56:49-06:00",
+          "tree_id": "faffd1977a812ba1417bf531c1bc49921ef365c2",
+          "url": "https://github.com/pomerium/pomerium/commit/baf8918676aeca3f6f0b017252c1c9560a0d7381"
+        },
+        "date": 1690311734304,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17406945,
+            "unit": "ns/op",
+            "extra": "66 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10956213,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
