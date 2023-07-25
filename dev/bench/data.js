@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690302467075,
+  "lastUpdate": 1690304910561,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -57940,6 +57940,42 @@ window.BENCHMARK_DATA = {
             "value": 8858865,
             "unit": "ns/op",
             "extra": "126 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8401170443c6f16d77d2970c0191bc8206232b97",
+          "message": "authorize: add \"client-certificate-required\" reason (#4389)\n\nAdd a new reason \"client-certificate-required\" that will be returned by\r\nthe invalid_client_certificate criterion in the case that no client\r\ncertificate was provided. Determine this using the new 'presented' field\r\npopulated from the Envoy metadata.",
+          "timestamp": "2023-07-25T10:03:51-07:00",
+          "tree_id": "52f259950f7a1fb25a3c764576975db4af10cf4c",
+          "url": "https://github.com/pomerium/pomerium/commit/8401170443c6f16d77d2970c0191bc8206232b97"
+        },
+        "date": 1690304905742,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14118317,
+            "unit": "ns/op",
+            "extra": "82 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8756622,
+            "unit": "ns/op",
+            "extra": "128 times\n2 procs"
           }
         ]
       }
