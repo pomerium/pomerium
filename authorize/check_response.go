@@ -34,7 +34,7 @@ func (a *Authorize) handleResult(
 ) (*envoy_service_auth_v3.CheckResponse, error) {
 	// If a client certificate is required, but the client did not provide a
 	// valid certificate, deny right away. Do not redirect to authenticate.
-	if result.Deny.Reasons.Has(criteria.ReasonInvalidClientCertificate) {
+	if invalidClientCertReason(result.Deny.Reasons) {
 		return a.handleResultDenied(ctx, in, request, result, result.Deny.Reasons)
 	}
 
@@ -93,12 +93,17 @@ func (a *Authorize) handleResultDenied(
 	case reasons.Has(criteria.ReasonRouteNotFound):
 		denyStatusCode = http.StatusNotFound
 		denyStatusText = httputil.DetailsText(http.StatusNotFound)
-	case reasons.Has(criteria.ReasonInvalidClientCertificate):
+	case invalidClientCertReason(reasons):
 		denyStatusCode = httputil.StatusInvalidClientCertificate
 		denyStatusText = httputil.DetailsText(httputil.StatusInvalidClientCertificate)
 	}
 
 	return a.deniedResponse(ctx, in, denyStatusCode, denyStatusText, nil)
+}
+
+func invalidClientCertReason(reasons criteria.Reasons) bool {
+	return reasons.Has(criteria.ReasonClientCertificateRequired) ||
+		reasons.Has(criteria.ReasonInvalidClientCertificate)
 }
 
 func (a *Authorize) okResponse(headers http.Header) *envoy_service_auth_v3.CheckResponse {

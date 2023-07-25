@@ -118,12 +118,33 @@ func TestPolicyEvaluator(t *testing.T) {
 			Traces: []contextutil.PolicyEvaluationTrace{{Allow: true}},
 		}, output)
 	})
-	t.Run("invalid cert", func(t *testing.T) {
+	t.Run("no cert", func(t *testing.T) {
 		output, err := eval(t,
 			p1,
 			[]proto.Message{s1, u1, s2, u2},
 			&PolicyRequest{
 				HTTP:    RequestHTTP{Method: http.MethodGet, URL: "https://from.example.com/path"},
+				Session: RequestSession{ID: "s1"},
+
+				IsValidClientCertificate: false,
+			})
+		require.NoError(t, err)
+		assert.Equal(t, &PolicyResponse{
+			Allow:  NewRuleResult(true, criteria.ReasonEmailOK),
+			Deny:   NewRuleResult(true, criteria.ReasonClientCertificateRequired),
+			Traces: []contextutil.PolicyEvaluationTrace{{Allow: true, Deny: true}},
+		}, output)
+	})
+	t.Run("invalid cert", func(t *testing.T) {
+		output, err := eval(t,
+			p1,
+			[]proto.Message{s1, u1, s2, u2},
+			&PolicyRequest{
+				HTTP: RequestHTTP{
+					Method:            http.MethodGet,
+					URL:               "https://from.example.com/path",
+					ClientCertificate: ClientCertificateInfo{Presented: true},
+				},
 				Session: RequestSession{ID: "s1"},
 
 				IsValidClientCertificate: false,
@@ -241,7 +262,7 @@ func TestPolicyEvaluator(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, &PolicyResponse{
 				Allow:  NewRuleResult(false),
-				Deny:   NewRuleResult(true, criteria.ReasonAccept, criteria.ReasonInvalidClientCertificate),
+				Deny:   NewRuleResult(true, criteria.ReasonAccept, criteria.ReasonClientCertificateRequired),
 				Traces: []contextutil.PolicyEvaluationTrace{{Deny: true}, {ID: "p1", Deny: true}},
 			}, output)
 		})

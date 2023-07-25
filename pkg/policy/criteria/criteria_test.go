@@ -29,16 +29,21 @@ var testingNow = time.Date(2021, 5, 11, 13, 43, 0, 0, time.Local)
 
 type (
 	Input struct {
-		HTTP    InputHTTP    `json:"http"`
-		Session InputSession `json:"session"`
+		HTTP                     InputHTTP    `json:"http"`
+		Session                  InputSession `json:"session"`
+		IsValidClientCertificate bool         `json:"is_valid_client_certificate"`
 	}
 	InputHTTP struct {
-		Method  string              `json:"method"`
-		Path    string              `json:"path"`
-		Headers map[string][]string `json:"headers"`
+		Method            string                `json:"method"`
+		Path              string                `json:"path"`
+		Headers           map[string][]string   `json:"headers"`
+		ClientCertificate ClientCertificateInfo `json:"client_certificate"`
 	}
 	InputSession struct {
 		ID string `json:"id"`
+	}
+	ClientCertificateInfo struct {
+		Presented bool `json:"presented"`
 	}
 )
 

@@ -131,9 +131,19 @@ func TestEvaluator(t *testing.T) {
 		// Clone the existing options and add a default client CA.
 		options := append([]Option(nil), options...)
 		options = append(options, WithClientCA([]byte(testCA)))
+		t.Run("missing", func(t *testing.T) {
+			res, err := eval(t, options, nil, &Request{
+				Policy: &policies[0],
+			})
+			require.NoError(t, err)
+			assert.Equal(t, NewRuleResult(true, criteria.ReasonClientCertificateRequired), res.Deny)
+		})
 		t.Run("invalid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
 				Policy: &policies[0],
+				HTTP: RequestHTTP{
+					ClientCertificate: ClientCertificateInfo{Presented: true},
+				},
 			})
 			require.NoError(t, err)
 			assert.Equal(t, NewRuleResult(true, criteria.ReasonInvalidClientCertificate), res.Deny)
@@ -150,9 +160,33 @@ func TestEvaluator(t *testing.T) {
 		})
 	})
 	t.Run("client certificate (per-policy CA)", func(t *testing.T) {
-		t.Run("invalid", func(t *testing.T) {
+		t.Run("missing", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
 				Policy: &policies[10],
+			})
+			require.NoError(t, err)
+			assert.Equal(t, NewRuleResult(true, criteria.ReasonClientCertificateRequired), res.Deny)
+		})
+		t.Run("invalid (Envoy)", func(t *testing.T) {
+			res, err := eval(t, options, nil, &Request{
+				Policy: &policies[10],
+				HTTP: RequestHTTP{
+					ClientCertificate: ClientCertificateInfo{Presented: true},
+				},
+			})
+			require.NoError(t, err)
+			assert.Equal(t, NewRuleResult(true, criteria.ReasonInvalidClientCertificate), res.Deny)
+		})
+		t.Run("invalid (authorize)", func(t *testing.T) {
+			res, err := eval(t, options, nil, &Request{
+				Policy: &policies[10],
+				HTTP: RequestHTTP{
+					ClientCertificate: ClientCertificateInfo{
+						Presented: true,
+						Validated: true,
+						Leaf:      testUnsignedCert,
+					},
+				},
 			})
 			require.NoError(t, err)
 			assert.Equal(t, NewRuleResult(true, criteria.ReasonInvalidClientCertificate), res.Deny)

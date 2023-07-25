@@ -7,9 +7,14 @@ import (
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
-var invalidClientCertificateBody = ast.Body{
+var validClientCertificateBody = ast.Body{
 	ast.MustParseExpr(`is_boolean(input.is_valid_client_certificate)`),
-	ast.MustParseExpr(`not input.is_valid_client_certificate`),
+	ast.MustParseExpr(`input.is_valid_client_certificate`),
+}
+
+var noClientCertificateBody = ast.Body{
+	ast.MustParseExpr(`is_boolean(input.http.client_certificate.presented)`),
+	ast.MustParseExpr(`not input.http.client_certificate.presented`),
 }
 
 type invalidClientCertificateCriterion struct {
@@ -25,10 +30,26 @@ func (invalidClientCertificateCriterion) Name() string {
 }
 
 func (c invalidClientCertificateCriterion) GenerateRule(_ string, _ parser.Value) (*ast.Rule, []*ast.Rule, error) {
-	rule := NewCriterionRule(c.g, c.Name(),
-		ReasonInvalidClientCertificate, ReasonValidClientCertificate,
-		invalidClientCertificateBody)
-	return rule, nil, nil
+	r1 := c.g.NewRule(c.Name())
+	r1.Head.Value = NewCriterionTerm(false, ReasonValidClientCertificate)
+	r1.Body = validClientCertificateBody
+
+	r2 := &ast.Rule{
+		Head: &ast.Head{
+			Value: NewCriterionTerm(true, ReasonClientCertificateRequired),
+		},
+		Body: noClientCertificateBody,
+	}
+	r1.Else = r2
+
+	r3 := &ast.Rule{
+		Head: &ast.Head{
+			Value: NewCriterionTerm(true, ReasonInvalidClientCertificate),
+		},
+	}
+	r2.Else = r3
+
+	return r1, nil, nil
 }
 
 // InvalidClientCertificate returns a Criterion which returns true if the
