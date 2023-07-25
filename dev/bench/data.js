@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690291282534,
+  "lastUpdate": 1690300281939,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -57872,6 +57872,42 @@ window.BENCHMARK_DATA = {
             "value": 11892780,
             "unit": "ns/op",
             "extra": "93 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "638d9f3d6c74d9554dbcca9e60987b5a6004743b",
+          "message": "proxy: add support for logging http request headers (#4388)\n\n* config: add customization options for logging\r\n\r\n* config: validate log fields\r\n\r\n* proxy: add support for logging http request headers\r\n\r\n* log subset of headers\r\n\r\n* fix test name\r\n\r\n* dont use log.HTTPHeaders for access logs\r\n\r\n* canonicalize http/2 headers",
+          "timestamp": "2023-07-25T09:46:42-06:00",
+          "tree_id": "9e9fef579a86e06671c8da460da220c0924948dd",
+          "url": "https://github.com/pomerium/pomerium/commit/638d9f3d6c74d9554dbcca9e60987b5a6004743b"
+        },
+        "date": 1690300277549,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13428379,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8166715,
+            "unit": "ns/op",
+            "extra": "139 times\n2 procs"
           }
         ]
       }
