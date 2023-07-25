@@ -36,7 +36,7 @@ func HTTPHeaders[TField interface{ ~string }](
 			all = true
 			break
 		} else if strings.HasPrefix(string(field), headersFieldPrefix) {
-			include.Add(http.CanonicalHeaderKey(string(field[len(headersFieldPrefix):])))
+			include.Add(CanonicalHeaderKey(string(field[len(headersFieldPrefix):])))
 		}
 	}
 
@@ -47,10 +47,19 @@ func HTTPHeaders[TField interface{ ~string }](
 
 	hdrs := map[string]string{}
 	for k, v := range src {
-		h := http.CanonicalHeaderKey(k)
+		h := CanonicalHeaderKey(k)
 		if all || include.Has(h) {
 			hdrs[h] = v
 		}
 	}
 	return evt.Interface(headersFieldName, hdrs)
+}
+
+// CanonicalHeaderKey converts a header name into its canonical form using http.CanonicalHeaderKey.
+// It also supports HTTP/2 headers that start with : by lowercasing them.
+func CanonicalHeaderKey(k string) string {
+	if strings.HasPrefix(k, ":") {
+		return strings.ToLower(k)
+	}
+	return http.CanonicalHeaderKey(k)
 }

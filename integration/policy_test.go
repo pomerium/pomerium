@@ -392,6 +392,21 @@ func TestDownstreamClientCA(t *testing.T) {
 		}
 		assert.Equal(t, "/", result.Path)
 	})
+	t.Run("revoked client cert", func(t *testing.T) {
+		// Configure an http.Client with a revoked client certificate.
+		cert := loadCertificate(t, "downstream-1-client-revoked")
+		client, transport := getClientWithTransport(t)
+		transport.TLSClientConfig.Certificates = []tls.Certificate{cert}
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+			"https://client-cert-required.localhost.pomerium.io/", nil)
+		require.NoError(t, err)
+
+		res, err := client.Do(req)
+		require.NoError(t, err)
+		res.Body.Close()
+		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
+	})
 }
 
 func TestMultipleDownstreamClientCAs(t *testing.T) {
