@@ -62,6 +62,8 @@ func populateLogEvent(
 		return evt.Dur(string(field), dur)
 	case log.AccessLogFieldForwardedFor:
 		return evt.Str(string(field), entry.GetRequest().GetForwardedFor())
+	case log.AccessLogFieldIP:
+		return evt.Str(string(field), entry.GetCommonProperties().GetDownstreamRemoteAddress().GetSocketAddress().GetAddress())
 	case log.AccessLogFieldMethod:
 		return evt.Str(string(field), entry.GetRequest().GetRequestMethod().String())
 	case log.AccessLogFieldPath:
