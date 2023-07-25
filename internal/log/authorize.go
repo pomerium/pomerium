@@ -35,7 +35,6 @@ var defaultAuthorizeLogFields = []AuthorizeLogField{
 	AuthorizeLogFieldMethod,
 	AuthorizeLogFieldPath,
 	AuthorizeLogFieldHost,
-	AuthorizeLogFieldQuery,
 	AuthorizeLogFieldIP,
 	AuthorizeLogFieldSessionID,
 	AuthorizeLogFieldImpersonateSessionID,
