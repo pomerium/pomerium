@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690391358297,
+  "lastUpdate": 1690391841963,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -58176,6 +58176,38 @@ window.BENCHMARK_DATA = {
             "value": 8998863,
             "unit": "ns/op",
             "extra": "121 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "7f7354dc9c2de5c9fa30d3dff9b171c789aae2b7",
+          "message": "dependencies: upgrade otel",
+          "timestamp": "2023-07-26T09:35:38Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4395/commits/7f7354dc9c2de5c9fa30d3dff9b171c789aae2b7"
+        },
+        "date": 1690391836674,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16814369,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11391842,
+            "unit": "ns/op",
+            "extra": "96 times\n2 procs"
           }
         ]
       }
