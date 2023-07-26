@@ -164,12 +164,15 @@ func populateLogEvent(
 		return evt.Str(string(field), in.GetAttributes().GetRequest().GetHttp().GetHost())
 	case log.AuthorizeLogFieldIDToken:
 		if s, ok := s.(*session.Session); ok {
-			evt = evt.Str("id-token", s.GetIdToken().GetRaw())
-
+			evt = evt.Str(string(field), s.GetIdToken().GetRaw())
+		}
+		return evt
+	case log.AuthorizeLogFieldIDTokenClaims:
+		if s, ok := s.(*session.Session); ok {
 			if t, err := jwt.ParseSigned(s.GetIdToken().GetRaw()); err == nil {
 				var m map[string]any
 				_ = t.UnsafeClaimsWithoutVerification(&m)
-				evt = evt.Interface("id-token-claims", m)
+				evt = evt.Interface(string(field), m)
 			}
 		}
 		return evt
