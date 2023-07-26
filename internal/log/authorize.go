@@ -17,6 +17,7 @@ const (
 	AuthorizeLogFieldHeaders                                = AuthorizeLogField(headersFieldName)
 	AuthorizeLogFieldHost                 AuthorizeLogField = "host"
 	AuthorizeLogFieldIDToken              AuthorizeLogField = "id-token"
+	AuthorizeLogFieldIDTokenClaims        AuthorizeLogField = "id-token-claims"
 	AuthorizeLogFieldImpersonateEmail     AuthorizeLogField = "impersonate-email"
 	AuthorizeLogFieldImpersonateSessionID AuthorizeLogField = "impersonate-session-id"
 	AuthorizeLogFieldImpersonateUserID    AuthorizeLogField = "impersonate-user-id"
@@ -65,6 +66,7 @@ var authorizeLogFieldLookup = map[AuthorizeLogField]struct{}{
 	AuthorizeLogFieldHeaders:              {},
 	AuthorizeLogFieldHost:                 {},
 	AuthorizeLogFieldIDToken:              {},
+	AuthorizeLogFieldIDTokenClaims:        {},
 	AuthorizeLogFieldImpersonateEmail:     {},
 	AuthorizeLogFieldImpersonateSessionID: {},
 	AuthorizeLogFieldImpersonateUserID:    {},
