@@ -6,12 +6,12 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/pomerium/pomerium/internal/version"
-	"github.com/pomerium/pomerium/pkg/metrics"
-
 	"go.opencensus.io/metric/metricdata"
 	"go.opencensus.io/metric/metricproducer"
 	"go.opencensus.io/stats/view"
+
+	"github.com/pomerium/pomerium/internal/version"
+	"github.com/pomerium/pomerium/pkg/metrics"
 )
 
 func Test_SetConfigInfo(t *testing.T) {

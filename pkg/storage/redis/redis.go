@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -29,15 +30,16 @@ const (
 
 	// we rely on transactions in redis, so all redis-cluster keys need to be
 	// on the same node. Using a `hash tag` gives us this capability.
-	serverVersionKey = redisutil.KeyPrefix + "server_version"
-	lastVersionKey   = redisutil.KeyPrefix + "last_version"
-	lastVersionChKey = redisutil.KeyPrefix + "last_version_ch"
-	recordHashKey    = redisutil.KeyPrefix + "records"
-	changesSetKey    = redisutil.KeyPrefix + "changes"
-	optionsKey       = redisutil.KeyPrefix + "options"
+	serverVersionKey  = redisutil.KeyPrefix + "server_version"
+	lastVersionKey    = redisutil.KeyPrefix + "last_version"
+	lastVersionChKey  = redisutil.KeyPrefix + "last_version_ch"
+	recordHashKey     = redisutil.KeyPrefix + "records"
+	recordTypesSetKey = redisutil.KeyPrefix + "record_types"
+	changesSetKey     = redisutil.KeyPrefix + "changes"
+	optionsKey        = redisutil.KeyPrefix + "options"
 
 	recordTypeChangesKeyTpl = redisutil.KeyPrefix + "changes.%s"
-	leaseKeyTpl             = "{pomerium_v3}.lease.%s"
+	leaseKeyTpl             = redisutil.KeyPrefix + "lease.%s"
 )
 
 // custom errors
@@ -121,7 +123,7 @@ func (backend *Backend) Get(ctx context.Context, recordType, id string) (_ *data
 	key, field := getHashKey(recordType, id)
 	cmd := backend.client.HGet(ctx, key, field)
 	raw, err := cmd.Result()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		return nil, storage.ErrNotFound
 	} else if err != nil {
 		return nil, err
@@ -139,7 +141,7 @@ func (backend *Backend) Get(ctx context.Context, recordType, id string) (_ *data
 // GetOptions gets the options for the given record type.
 func (backend *Backend) GetOptions(ctx context.Context, recordType string) (*databroker.Options, error) {
 	raw, err := backend.client.HGet(ctx, optionsKey, recordType).Result()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		// treat no options as an empty set of options
 		return new(databroker.Options), nil
 	} else if err != nil {
@@ -190,6 +192,21 @@ func (backend *Backend) Lease(ctx context.Context, leaseName, leaseID string, tt
 		err = nil
 	}
 	return acquired, err
+}
+
+// ListTypes lists all the known record types.
+func (backend *Backend) ListTypes(ctx context.Context) (types []string, err error) {
+	ctx, span := trace.StartSpan(ctx, "databroker.redis.ListTypes")
+	defer span.End()
+	defer func(start time.Time) { recordOperation(ctx, start, "listTypes", err) }(time.Now())
+
+	cmd := backend.client.SMembers(ctx, recordTypesSetKey)
+	types, err = cmd.Result()
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(types)
+	return types, nil
 }
 
 // Put puts a record into redis.
@@ -271,7 +288,6 @@ func (backend *Backend) SyncLatest(
 	recordVersion, err = backend.client.Get(ctx, lastVersionKey).Uint64()
 	if errors.Is(err, redis.Nil) {
 		// this happens if there are no records
-		err = nil
 	} else if err != nil {
 		return serverVersion, recordVersion, nil, err
 	}
@@ -310,6 +326,7 @@ func (backend *Backend) put(ctx context.Context, records []*databroker.Record) e
 					Score:  float64(version) + float64(i),
 					Member: bs,
 				})
+				p.SAdd(ctx, recordTypesSetKey, record.GetType())
 			}
 			return nil
 		})

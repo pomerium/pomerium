@@ -39,6 +39,7 @@ async function createCredential(
       })),
       rp: {
         name: creationOptions?.rp?.name,
+        id: creationOptions?.rp?.id,
       },
       timeout: creationOptions?.timeout,
       user: {

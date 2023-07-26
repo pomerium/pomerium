@@ -75,6 +75,11 @@ func TestBackend(t *testing.T) {
 			assert.Error(t, err)
 			assert.Nil(t, record)
 		})
+		t.Run("list types", func(t *testing.T) {
+			types, err := backend.ListTypes(ctx)
+			assert.NoError(t, err)
+			assert.Equal(t, []string{"TYPE"}, types)
+		})
 		return nil
 	}
 

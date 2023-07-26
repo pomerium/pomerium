@@ -12,16 +12,17 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
+const userRefreshInterval = 10 * time.Minute
+
 // A User is a user managed by the Manager.
 type User struct {
 	*user.User
-	lastRefresh     time.Time
-	refreshInterval time.Duration
+	lastRefresh time.Time
 }
 
 // NextRefresh returns the next time the user information needs to be refreshed.
 func (u User) NextRefresh() time.Time {
-	return u.lastRefresh.Add(u.refreshInterval)
+	return u.lastRefresh.Add(userRefreshInterval)
 }
 
 // UnmarshalJSON unmarshals json data into the user object.

@@ -1,23 +1,25 @@
 package authorize
 
 import (
+	"bytes"
 	"context"
+	"net/http"
 	"net/url"
 	"testing"
 
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
-	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -49,23 +51,20 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
 	a.currentOptions.Store(&config.Options{
 		Policies: []config.Policy{{
-			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
+			From: "https://example.com",
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},
 		}},
 	})
 
-	actual, err := a.getEvaluatorRequestFromCheckRequest(
+	actual, err := a.getEvaluatorRequestFromCheckRequest(context.Background(),
 		&envoy_service_auth_v3.CheckRequest{
 			Attributes: &envoy_service_auth_v3.AttributeContext{
-				Source: &envoy_service_auth_v3.AttributeContext_Peer{
-					Certificate: url.QueryEscape(certPEM),
-				},
 				Request: &envoy_service_auth_v3.AttributeContext_Request{
 					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
 						Id:     "id-1234",
-						Method: "GET",
+						Method: http.MethodGet,
 						Headers: map[string]string{
 							"accept":            "text/html",
 							"x-forwarded-proto": "https",
@@ -74,6 +73,17 @@ func Test_getEvaluatorRequest(t *testing.T) {
 						Host:   "example.com",
 						Scheme: "http",
 						Body:   "BODY",
+					},
+				},
+				MetadataContext: &envoy_config_core_v3.Metadata{
+					FilterMetadata: map[string]*structpb.Struct{
+						"com.pomerium.client-certificate-info": {
+							Fields: map[string]*structpb.Value{
+								"presented": structpb.NewBoolValue(true),
+								"validated": structpb.NewBoolValue(true),
+								"chain":     structpb.NewStringValue(url.QueryEscape(certPEM)),
+							},
+						},
 					},
 				},
 			},
@@ -89,222 +99,201 @@ func Test_getEvaluatorRequest(t *testing.T) {
 			ID: "SESSION_ID",
 		},
 		HTTP: evaluator.NewRequestHTTP(
-			"GET",
+			http.MethodGet,
 			mustParseURL("http://example.com/some/path?qs=1"),
 			map[string]string{
 				"Accept":            "text/html",
 				"X-Forwarded-Proto": "https",
 			},
-			certPEM,
+			evaluator.ClientCertificateInfo{
+				Presented:     true,
+				Validated:     true,
+				Leaf:          certPEM[1:] + "\n",
+				Intermediates: "",
+			},
 			"",
 		),
 	}
 	assert.Equal(t, expect, actual)
-}
-
-func Test_handleForwardAuth(t *testing.T) {
-	tests := []struct {
-		name           string
-		checkReq       *envoy_service_auth_v3.CheckRequest
-		forwardAuthURL string
-		want           bool
-	}{
-		{
-			name: "enabled",
-			checkReq: &envoy_service_auth_v3.CheckRequest{
-				Attributes: &envoy_service_auth_v3.AttributeContext{
-					Source: &envoy_service_auth_v3.AttributeContext_Peer{
-						Certificate: url.QueryEscape(certPEM),
-					},
-					Request: &envoy_service_auth_v3.AttributeContext_Request{
-						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
-							Method: "GET",
-							Path:   "/verify?uri=" + url.QueryEscape("https://example.com/some/path?qs=1"),
-							Host:   "forward-auth.example.com",
-							Scheme: "https",
-						},
-					},
-				},
-			},
-			forwardAuthURL: "https://forward-auth.example.com",
-			want:           true,
-		},
-		{
-			name:           "disabled",
-			checkReq:       nil,
-			forwardAuthURL: "",
-			want:           false,
-		},
-		{
-			name: "honor x-forwarded-uri set",
-			checkReq: &envoy_service_auth_v3.CheckRequest{
-				Attributes: &envoy_service_auth_v3.AttributeContext{
-					Source: &envoy_service_auth_v3.AttributeContext_Peer{
-						Certificate: url.QueryEscape(certPEM),
-					},
-					Request: &envoy_service_auth_v3.AttributeContext_Request{
-						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
-							Method: "GET",
-							Path:   "/",
-							Host:   "forward-auth.example.com",
-							Scheme: "https",
-							Headers: map[string]string{
-								httputil.HeaderForwardedURI:   "/foo/bar",
-								httputil.HeaderForwardedProto: "https",
-								httputil.HeaderForwardedHost:  "example.com",
-							},
-						},
-					},
-				},
-			},
-			forwardAuthURL: "https://forward-auth.example.com",
-			want:           true,
-		},
-		{
-			name: "request with invalid forward auth url",
-			checkReq: &envoy_service_auth_v3.CheckRequest{
-				Attributes: &envoy_service_auth_v3.AttributeContext{
-					Source: &envoy_service_auth_v3.AttributeContext_Peer{
-						Certificate: url.QueryEscape(certPEM),
-					},
-					Request: &envoy_service_auth_v3.AttributeContext_Request{
-						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
-							Method: "GET",
-							Path:   "/verify?uri=" + url.QueryEscape("https://example.com?q=foo"),
-							Host:   "fake-forward-auth.example.com",
-							Scheme: "https",
-						},
-					},
-				},
-			},
-			forwardAuthURL: "https://forward-auth.example.com",
-			want:           false,
-		},
-		{
-			name: "request with invalid path",
-			checkReq: &envoy_service_auth_v3.CheckRequest{
-				Attributes: &envoy_service_auth_v3.AttributeContext{
-					Source: &envoy_service_auth_v3.AttributeContext_Peer{
-						Certificate: url.QueryEscape(certPEM),
-					},
-					Request: &envoy_service_auth_v3.AttributeContext_Request{
-						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
-							Method: "GET",
-							Path:   "/foo?uri=" + url.QueryEscape("https://example.com?q=foo"),
-							Host:   "forward-auth.example.com",
-							Scheme: "https",
-						},
-					},
-				},
-			},
-			forwardAuthURL: "https://forward-auth.example.com",
-			want:           true,
-		},
-		{
-			name: "request with empty uri",
-			checkReq: &envoy_service_auth_v3.CheckRequest{
-				Attributes: &envoy_service_auth_v3.AttributeContext{
-					Source: &envoy_service_auth_v3.AttributeContext_Peer{
-						Certificate: url.QueryEscape(certPEM),
-					},
-					Request: &envoy_service_auth_v3.AttributeContext_Request{
-						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
-							Method: "GET",
-							Path:   "/verify?uri=",
-							Host:   "forward-auth.example.com",
-							Scheme: "https",
-						},
-					},
-				},
-			},
-			forwardAuthURL: "https://forward-auth.example.com",
-			want:           true,
-		},
-		{
-			name: "request with invalid uri",
-			checkReq: &envoy_service_auth_v3.CheckRequest{
-				Attributes: &envoy_service_auth_v3.AttributeContext{
-					Source: &envoy_service_auth_v3.AttributeContext_Peer{
-						Certificate: url.QueryEscape(certPEM),
-					},
-					Request: &envoy_service_auth_v3.AttributeContext_Request{
-						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
-							Method: "GET",
-							Path:   "/verify?uri= http://example.com/foo",
-							Host:   "forward-auth.example.com",
-							Scheme: "https",
-						},
-					},
-				},
-			},
-			forwardAuthURL: "https://forward-auth.example.com",
-			want:           true,
-		},
-	}
-
-	for _, tc := range tests {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
-			a.currentOptions.Store(&config.Options{ForwardAuthURLString: tc.forwardAuthURL})
-
-			got := a.isForwardAuth(tc.checkReq)
-
-			if diff := cmp.Diff(got, tc.want); diff != "" {
-				t.Errorf("Authorize.Check() = %s", diff)
-			}
-		})
-	}
 }
 
 func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
 	a.currentOptions.Store(&config.Options{
 		Policies: []config.Policy{{
-			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
+			From: "https://example.com",
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},
 		}},
 	})
 
-	actual, err := a.getEvaluatorRequestFromCheckRequest(&envoy_service_auth_v3.CheckRequest{
-		Attributes: &envoy_service_auth_v3.AttributeContext{
-			Source: &envoy_service_auth_v3.AttributeContext_Peer{
-				Certificate: url.QueryEscape(certPEM),
-			},
-			Request: &envoy_service_auth_v3.AttributeContext_Request{
-				Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
-					Id:     "id-1234",
-					Method: "GET",
-					Headers: map[string]string{
-						"accept":            "text/html",
-						"x-forwarded-proto": "https",
+	actual, err := a.getEvaluatorRequestFromCheckRequest(context.Background(),
+		&envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Id:     "id-1234",
+						Method: http.MethodGet,
+						Headers: map[string]string{
+							"accept":            "text/html",
+							"x-forwarded-proto": "https",
+						},
+						Path:   "/some/path?qs=1",
+						Host:   "example.com:80",
+						Scheme: "http",
+						Body:   "BODY",
 					},
-					Path:   "/some/path?qs=1",
-					Host:   "example.com:80",
-					Scheme: "http",
-					Body:   "BODY",
 				},
 			},
-		},
-	}, nil)
+		}, nil)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
 		Policy:  &a.currentOptions.Load().Policies[0],
 		Session: evaluator.RequestSession{},
 		HTTP: evaluator.NewRequestHTTP(
-			"GET",
+			http.MethodGet,
 			mustParseURL("http://example.com/some/path?qs=1"),
 			map[string]string{
 				"Accept":            "text/html",
 				"X-Forwarded-Proto": "https",
 			},
-			certPEM,
+			evaluator.ClientCertificateInfo{},
 			"",
 		),
 	}
 	assert.Equal(t, expect, actual)
+}
+
+func Test_getClientCertificateInfo(t *testing.T) {
+	const leafPEM = `-----BEGIN CERTIFICATE-----
+MIIBZTCCAQugAwIBAgICEAEwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPSW50ZXJt
+ZWRpYXRlIENBMCIYDzAwMDEwMTAxMDAwMDAwWhgPMDAwMTAxMDEwMDAwMDBaMB8x
+HTAbBgNVBAMTFENsaWVudCBjZXJ0aWZpY2F0ZSAxMFkwEwYHKoZIzj0CAQYIKoZI
+zj0DAQcDQgAESly1cwEbcxaJBl6qAhrX1k7vejTFNE2dEbrTMpUYMl86GEWdsDYN
+KSa/1wZCowPy82gPGjfAU90odkqJOusCQqM4MDYwEwYDVR0lBAwwCgYIKwYBBQUH
+AwIwHwYDVR0jBBgwFoAU6Qb7nEl2XHKpf/QLL6PENsHFqbowCgYIKoZIzj0EAwID
+SAAwRQIgXREMUz81pYwJCMLGcV0ApaXIUap1V5n1N4VhyAGxGLYCIQC8p/LwoSgu
+71H3/nCi5MxsECsvVtsmHIfwXt0wulQ1TA==
+-----END CERTIFICATE-----
+`
+	const intermediatePEM = `-----BEGIN CERTIFICATE-----
+MIIBYzCCAQigAwIBAgICEAEwCgYIKoZIzj0EAwIwEjEQMA4GA1UEAxMHUm9vdCBD
+QTAiGA8wMDAxMDEwMTAwMDAwMFoYDzAwMDEwMTAxMDAwMDAwWjAaMRgwFgYDVQQD
+Ew9JbnRlcm1lZGlhdGUgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATYaTr9
+uH4LpEp541/2SlKrdQZwNns+NHY/ftm++NhMDUn+izzNbPZ5aPT6VBs4Q6vbgfkK
+kDaBpaKzb+uOT+o1o0IwQDAdBgNVHQ4EFgQU6Qb7nEl2XHKpf/QLL6PENsHFqbow
+HwYDVR0jBBgwFoAUiQ3r61y+vxDn6PMWZrpISr67HiQwCgYIKoZIzj0EAwIDSQAw
+RgIhAMvdURs28uib2QwSMnqJjKasMb30yrSJvTiSU+lcg97/AiEA+6GpioM0c221
+n/XNKVYEkPmeXHRoz9ZuVDnSfXKJoHE=
+-----END CERTIFICATE-----
+`
+	const rootPEM = `-----BEGIN CERTIFICATE-----
+MIIBNzCB36ADAgECAgIQADAKBggqhkjOPQQDAjASMRAwDgYDVQQDEwdSb290IENB
+MCIYDzAwMDEwMTAxMDAwMDAwWhgPMDAwMTAxMDEwMDAwMDBaMBIxEDAOBgNVBAMT
+B1Jvb3QgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAS6q0mTvm29xasq7Lwk
+aRGb2S/LkQFsAwaCXohSNvonCQHRMCRvA1IrQGk/oyBS5qrDoD9/7xkcVYHuTv5D
+CbtuoyEwHzAdBgNVHQ4EFgQUiQ3r61y+vxDn6PMWZrpISr67HiQwCgYIKoZIzj0E
+AwIDRwAwRAIgF1ux0ridbN+bo0E3TTcNY8Xfva7yquYRMmEkfbGvSb0CIDqK80B+
+fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
+-----END CERTIFICATE-----
+`
+
+	cases := []struct {
+		label       string
+		presented   bool
+		validated   bool
+		chain       string
+		expected    evaluator.ClientCertificateInfo
+		expectedLog string
+	}{
+		{
+			"not presented",
+			false,
+			false,
+			"",
+			evaluator.ClientCertificateInfo{},
+			"",
+		},
+		{
+			"presented but invalid",
+			true,
+			false,
+			"",
+			evaluator.ClientCertificateInfo{
+				Presented: true,
+			},
+			"",
+		},
+		{
+			"validated",
+			true,
+			true,
+			url.QueryEscape(leafPEM),
+			evaluator.ClientCertificateInfo{
+				Presented: true,
+				Validated: true,
+				Leaf:      leafPEM,
+			},
+			"",
+		},
+		{
+			"validated with intermediates",
+			true,
+			true,
+			url.QueryEscape(leafPEM + intermediatePEM + rootPEM),
+			evaluator.ClientCertificateInfo{
+				Presented:     true,
+				Validated:     true,
+				Leaf:          leafPEM,
+				Intermediates: intermediatePEM + rootPEM,
+			},
+			"",
+		},
+		{
+			"invalid chain URL encoding",
+			false,
+			false,
+			"invalid%URL%encoding",
+			evaluator.ClientCertificateInfo{},
+			`{"level":"warn","chain":"invalid%URL%encoding","error":"invalid URL escape \"%UR\"","message":"received unexpected client certificate \"chain\" value"}
+`,
+		},
+		{
+			"invalid chain PEM encoding",
+			true,
+			true,
+			"not valid PEM data",
+			evaluator.ClientCertificateInfo{
+				Presented: true,
+				Validated: true,
+			},
+			`{"level":"warn","chain":"not valid PEM data","message":"received unexpected client certificate \"chain\" value (no PEM block found)"}
+`,
+		},
+	}
+
+	var logOutput bytes.Buffer
+	zl := zerolog.New(&logOutput)
+	testutil.SetLogger(t, &zl)
+
+	ctx := context.Background()
+	for i := range cases {
+		c := &cases[i]
+		logOutput.Reset()
+		t.Run(c.label, func(t *testing.T) {
+			metadata := &structpb.Struct{
+				Fields: map[string]*structpb.Value{
+					"presented": structpb.NewBoolValue(c.presented),
+					"validated": structpb.NewBoolValue(c.validated),
+					"chain":     structpb.NewStringValue(c.chain),
+				},
+			}
+			info := getClientCertificateInfo(ctx, metadata)
+			assert.Equal(t, c.expected, info)
+			assert.Equal(t, c.expectedLog, logOutput.String())
+		})
+	}
 }
 
 type mockDataBrokerServiceClient struct {
@@ -320,100 +309,6 @@ func (m mockDataBrokerServiceClient) Get(ctx context.Context, in *databroker.Get
 
 func (m mockDataBrokerServiceClient) Put(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
 	return m.put(ctx, in, opts...)
-}
-
-func TestAuthorize_Check(t *testing.T) {
-	opt := config.NewDefaultOptions()
-	opt.AuthenticateURLString = "https://authenticate.example.com"
-	opt.DataBrokerURLString = "https://databroker.example.com"
-	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
-	a, err := New(&config.Config{Options: opt})
-	if err != nil {
-		t.Fatal(err)
-	}
-	a.currentOptions.Store(&config.Options{ForwardAuthURLString: "https://forward-auth.example.com"})
-
-	cmpOpts := []cmp.Option{
-		cmpopts.IgnoreUnexported(envoy_service_auth_v3.CheckResponse{}),
-		cmpopts.IgnoreUnexported(status.Status{}),
-		cmpopts.IgnoreTypes(envoy_service_auth_v3.DeniedHttpResponse{}),
-	}
-	tests := []struct {
-		name    string
-		in      *envoy_service_auth_v3.CheckRequest
-		want    *envoy_service_auth_v3.CheckResponse
-		wantErr bool
-	}{
-		{
-			"basic deny",
-			&envoy_service_auth_v3.CheckRequest{
-				Attributes: &envoy_service_auth_v3.AttributeContext{
-					Source: &envoy_service_auth_v3.AttributeContext_Peer{
-						Certificate: url.QueryEscape(certPEM),
-					},
-					Request: &envoy_service_auth_v3.AttributeContext_Request{
-						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
-							Id:     "id-1234",
-							Method: "GET",
-							Headers: map[string]string{
-								"accept":            "application/json",
-								"x-forwarded-proto": "https",
-							},
-							Path:   "/some/path?qs=1",
-							Host:   "example.com",
-							Scheme: "http",
-							Body:   "BODY",
-						},
-					},
-				},
-			},
-			&envoy_service_auth_v3.CheckResponse{
-				Status: &status.Status{Code: 7, Message: "Access Denied"},
-				HttpResponse: &envoy_service_auth_v3.CheckResponse_DeniedResponse{
-					DeniedResponse: &envoy_service_auth_v3.DeniedHttpResponse{},
-				},
-			},
-			false,
-		},
-		{
-			"basic forward-auth deny",
-			&envoy_service_auth_v3.CheckRequest{
-				Attributes: &envoy_service_auth_v3.AttributeContext{
-					Source: &envoy_service_auth_v3.AttributeContext_Peer{
-						Certificate: url.QueryEscape(certPEM),
-					},
-					Request: &envoy_service_auth_v3.AttributeContext_Request{
-						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
-							Method: "GET",
-							Path:   "/verify?uri=" + url.QueryEscape("https://example.com/some/path?qs=1"),
-							Host:   "forward-auth.example.com",
-							Scheme: "https",
-						},
-					},
-				},
-			},
-			&envoy_service_auth_v3.CheckResponse{
-				Status: &status.Status{Code: 7, Message: "Access Denied"},
-				HttpResponse: &envoy_service_auth_v3.CheckResponse_DeniedResponse{
-					DeniedResponse: &envoy_service_auth_v3.DeniedHttpResponse{},
-				},
-			},
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := a.Check(context.TODO(), tt.in)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Authorize.Check() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if diff := cmp.Diff(got, tt.want, cmpOpts...); diff != "" {
-				t.Errorf("NewStore() = %s", diff)
-			}
-		})
-	}
 }
 
 func mustParseURL(rawURL string) url.URL {

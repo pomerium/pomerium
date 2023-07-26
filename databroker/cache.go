@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"sync"
 
 	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
@@ -16,7 +15,6 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
-	"github.com/pomerium/pomerium/internal/directory"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/manager"
@@ -41,9 +39,6 @@ type DataBroker struct {
 	localGRPCServer     *grpc.Server
 	localGRPCConnection *grpc.ClientConn
 	sharedKey           *atomicutil.Value[[]byte]
-
-	mu                sync.Mutex
-	directoryProvider directory.Provider
 }
 
 // New creates a new databroker service.
@@ -126,7 +121,6 @@ func (c *DataBroker) OnConfigChange(ctx context.Context, cfg *config.Config) {
 // Register registers all the gRPC services with the given server.
 func (c *DataBroker) Register(grpcServer *grpc.Server) {
 	databroker.RegisterDataBrokerServiceServer(grpcServer, c.dataBrokerServer)
-	directory.RegisterDirectoryServiceServer(grpcServer, c)
 	registry.RegisterRegistryServer(grpcServer, c.dataBrokerServer)
 }
 
@@ -163,38 +157,20 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("databroker: invalid oauth options: %w", err)
 	}
 
-	clientSecret, err := cfg.Options.GetClientSecret()
-	if err != nil {
-		return fmt.Errorf("databroker: error retrieving IPD client secret: %w", err)
-	}
-
-	directoryProvider := directory.GetProvider(directory.Options{
-		ServiceAccount: cfg.Options.ServiceAccount,
-		Provider:       cfg.Options.Provider,
-		ProviderURL:    cfg.Options.ProviderURL,
-		QPS:            cfg.Options.GetQPS(),
-		ClientID:       cfg.Options.ClientID,
-		ClientSecret:   clientSecret,
-	})
-	c.mu.Lock()
-	c.directoryProvider = directoryProvider
-	c.mu.Unlock()
-
 	dataBrokerClient := databroker.NewDataBrokerServiceClient(c.localGRPCConnection)
 
 	options := []manager.Option{
-		manager.WithDirectoryProvider(directoryProvider),
 		manager.WithDataBrokerClient(dataBrokerClient),
-		manager.WithGroupRefreshInterval(cfg.Options.RefreshDirectoryInterval),
-		manager.WithGroupRefreshTimeout(cfg.Options.RefreshDirectoryTimeout),
 		manager.WithEventManager(c.eventsMgr),
 	}
 
-	authenticator, err := identity.NewAuthenticator(oauthOptions)
-	if err != nil {
-		log.Error(ctx).Err(err).Msg("databroker: failed to create authenticator")
-	} else {
-		options = append(options, manager.WithAuthenticator(authenticator))
+	if cfg.Options.Provider != "" {
+		authenticator, err := identity.NewAuthenticator(oauthOptions)
+		if err != nil {
+			log.Error(ctx).Err(err).Msg("databroker: failed to create authenticator")
+		} else {
+			options = append(options, manager.WithAuthenticator(authenticator))
+		}
 	}
 
 	if c.manager == nil {

@@ -31,13 +31,12 @@ func (o *Options) GetIdentityProviderForPolicy(policy *Policy) (*identity.Provid
 	}
 
 	idp := &identity.Provider{
-		ClientId:       o.ClientID,
-		ClientSecret:   clientSecret,
-		Type:           o.Provider,
-		Scopes:         o.Scopes,
-		ServiceAccount: o.ServiceAccount,
-		Url:            o.ProviderURL,
-		RequestParams:  o.RequestParams,
+		ClientId:      o.ClientID,
+		ClientSecret:  clientSecret,
+		Type:          o.Provider,
+		Scopes:        o.Scopes,
+		Url:           o.ProviderURL,
+		RequestParams: o.RequestParams,
 	}
 	if policy != nil {
 		if policy.IDPClientID != "" {

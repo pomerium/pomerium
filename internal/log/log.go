@@ -64,22 +64,22 @@ func ZapLogger() *zap.Logger {
 	return zapLogger.Load()
 }
 
-// SetLevel sets the minimum global log level. Options are 'debug' 'info' 'warn' and 'error'.
-// Defaults to 'debug'
-func SetLevel(level string) {
+// SetLevel sets the minimum global log level.
+func SetLevel(level zerolog.Level) {
+	zerolog.SetGlobalLevel(level)
 	switch level {
-	case "info":
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-		zapLevel.SetLevel(zapcore.InfoLevel)
-	case "warn":
-		zerolog.SetGlobalLevel(zerolog.WarnLevel)
-		zapLevel.SetLevel(zapcore.WarnLevel)
-	case "error":
-		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
-		zapLevel.SetLevel(zapcore.ErrorLevel)
-	default:
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	case zerolog.DebugLevel, zerolog.TraceLevel:
 		zapLevel.SetLevel(zapcore.DebugLevel)
+	case zerolog.WarnLevel:
+		zapLevel.SetLevel(zapcore.WarnLevel)
+	case zerolog.ErrorLevel:
+		zapLevel.SetLevel(zapcore.ErrorLevel)
+	case zerolog.FatalLevel:
+		zapLevel.SetLevel(zapcore.FatalLevel)
+	case zerolog.PanicLevel:
+		zapLevel.SetLevel(zapcore.PanicLevel)
+	default:
+		zapLevel.SetLevel(zapcore.InfoLevel)
 	}
 }
 
@@ -161,7 +161,7 @@ func Panic() *zerolog.Event {
 // zerolog.Disabled will still disable events produced by this method.
 //
 // You must call Msg on the returned event in order to send the event.
-func Log(ctx context.Context) *zerolog.Event {
+func Log(_ context.Context) *zerolog.Event {
 	return Logger().Log()
 }
 

@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Generate token
         id: generate_token
-        uses: tibdex/github-app-token@f717b5ecd4534d3c4df4ce9b5c1c2214f0f7cd06
+        uses: tibdex/github-app-token@b62528385c34dbc9f38e5f4225ac829252d1ea92
         with:
           app_id: ${{ secrets.BACKPORT_APP_APPID }}
           private_key: ${{ secrets.BACKPORT_APP_PRIVATE_KEY }}

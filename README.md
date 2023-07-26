@@ -1,22 +1,19 @@
 <a href="https://pomerium.com" title="Pomerium is a zero trust, context and identity aware access proxy."><img src="https://www.pomerium.com/wp-content/uploads/2021/08/Pomerium-H-white-bg.png" height="70" alt="pomerium logo"></a>
 
-[![pomerium chat](https://img.shields.io/badge/chat-on%20slack-blue.svg?style=flat&logo=slack)](http://slack.pomerium.io)
-[![GitHub Actions](https://img.shields.io/github/workflow/status/pomerium/pomerium/Release?style=flat)](https://github.com/pomerium/pomerium/actions?query=workflow%3ARelease)
 [![Go Report Card](https://goreportcard.com/badge/github.com/pomerium/pomerium)](https://goreportcard.com/report/github.com/pomerium/pomerium)
 [![GoDoc](https://godoc.org/github.com/pomerium/pomerium?status.svg)][godocs]
 [![LICENSE](https://img.shields.io/github/license/pomerium/pomerium.svg)](https://github.com/pomerium/pomerium/blob/main/LICENSE)
 ![Docker Pulls](https://img.shields.io/docker/pulls/pomerium/pomerium)
 
-Pomerium is an identity and context-aware reverse proxy that brokers secure access to apps and services at scale. Pomerium provides a standardized interface to add access control to applications regardless of whether the application itself has authorization or authentication baked-in.
+Pomerium builds secure, clientless connections to internal web apps and services without a corporate VPN.
 
-Pomerium can be used in situations where you'd typically reach for a VPN, but, unlike a VPN, does not require a client and uses identity and context, not network locality to determine access.
+Pomerium is:
 
-Pomerium can be used to:
+- **Easier** because you don’t have to maintain a client or software.
+- **Faster** because it’s deployed directly where your apps and services are. No more expensive data backhauling.
+- **Safer** because every single action is verified for trusted identity, device, and context.
 
-- provide a **single-sign-on gateway** to internal applications.
-- enforce **dynamic access policy** based on **context**, **identity**, and **device identity**.
-- aggregate access logs and telemetry data.
-- a **VPN alternative**.
+It’s not a VPN alternative – it’s the trusted, full-proof way to protect your business.
 
 ## Docs
 

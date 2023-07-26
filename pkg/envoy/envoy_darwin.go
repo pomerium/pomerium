@@ -14,7 +14,7 @@ var sysProcAttr = &syscall.SysProcAttr{
 	Setpgid: true,
 }
 
-func (srv *Server) runProcessCollector(ctx context.Context) {}
+func (srv *Server) runProcessCollector(_ context.Context) {}
 
 func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []string) (exePath string, args []string) {
 	if srv.cmd != nil && srv.cmd.Process != nil {

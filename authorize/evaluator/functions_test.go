@@ -95,27 +95,48 @@ Y+E5W+FKfIBv9yvdNBYZsL6IZ0Yh1ctKwB5gnajO8+swx5BeaCIbBrCtOBSB
 
 func Test_isValidClientCertificate(t *testing.T) {
 	t.Run("no ca", func(t *testing.T) {
-		valid, err := isValidClientCertificate("", "WHATEVER!")
+		valid, err := isValidClientCertificate("", ClientCertificateInfo{Leaf: "WHATEVER!"})
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 	})
 	t.Run("no cert", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, "")
+		valid, err := isValidClientCertificate(testCA, ClientCertificateInfo{})
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 	})
 	t.Run("valid cert", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, testValidCert)
+		valid, err := isValidClientCertificate(testCA, ClientCertificateInfo{
+			Presented: true,
+			Validated: true,
+			Leaf:      testValidCert,
+		})
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 	})
+	t.Run("cert not externally validated", func(t *testing.T) {
+		valid, err := isValidClientCertificate(testCA, ClientCertificateInfo{
+			Presented: true,
+			Validated: false,
+			Leaf:      testValidCert,
+		})
+		assert.NoError(t, err, "should not return an error")
+		assert.False(t, valid, "should return false")
+	})
 	t.Run("unsigned cert", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, testUnsignedCert)
+		valid, err := isValidClientCertificate(testCA, ClientCertificateInfo{
+			Presented: true,
+			Validated: true,
+			Leaf:      testUnsignedCert,
+		})
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 	})
 	t.Run("not a cert", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, "WHATEVER!")
+		valid, err := isValidClientCertificate(testCA, ClientCertificateInfo{
+			Presented: true,
+			Validated: true,
+			Leaf:      "WHATEVER!",
+		})
 		assert.Error(t, err, "should return an error")
 		assert.False(t, valid, "should return false")
 	})

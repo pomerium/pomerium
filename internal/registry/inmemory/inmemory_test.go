@@ -8,14 +8,14 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/pomerium/pomerium/pkg/grpc/registry"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
+
+	pb "github.com/pomerium/pomerium/pkg/grpc/registry"
 )
 
 const (

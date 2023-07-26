@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/pomerium/pomerium/authenticate/handlers/webauthn"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -39,10 +38,9 @@ func ValidateOptions(o *config.Options) error {
 
 // Authenticate contains data required to run the authenticate service.
 type Authenticate struct {
-	cfg      *authenticateConfig
-	options  *atomicutil.Value[*config.Options]
-	state    *atomicutil.Value[*authenticateState]
-	webauthn *webauthn.Handler
+	cfg     *authenticateConfig
+	options *atomicutil.Value[*config.Options]
+	state   *atomicutil.Value[*authenticateState]
 }
 
 // New validates and creates a new authenticate service from a set of Options.
@@ -52,7 +50,8 @@ func New(cfg *config.Config, options ...Option) (*Authenticate, error) {
 		options: config.NewAtomicOptions(),
 		state:   atomicutil.NewValue(newAuthenticateState()),
 	}
-	a.webauthn = webauthn.New(a.getWebauthnState)
+
+	a.options.Store(cfg.Options)
 
 	state, err := newAuthenticateStateFromConfig(cfg)
 	if err != nil {

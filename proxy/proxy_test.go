@@ -8,14 +8,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pomerium/pomerium/config"
-
 	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/config"
+	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
 )
 
 func testOptions(t *testing.T) *config.Options {
+	t.Helper()
+
 	opts := config.NewDefaultOptions()
-	opts.AuthenticateURLString = "https://authenticate.example"
 
 	to, err := config.ParseWeightedUrls("https://example.example")
 	require.NoError(t, err)
@@ -27,6 +29,13 @@ func testOptions(t *testing.T) *config.Options {
 	opts.Services = config.ServiceAll
 	opts.SharedKey = "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
 	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="
+
+	hpkePrivateKey, err := opts.GetHPKEPrivateKey()
+	require.NoError(t, err)
+
+	authnSrv := httptest.NewServer(hpke_handlers.HPKEPublicKeyHandler(hpkePrivateKey.PublicKey()))
+	t.Cleanup(authnSrv.Close)
+	opts.AuthenticateURLString = authnSrv.URL
 
 	require.NoError(t, opts.Validate())
 
@@ -41,8 +50,6 @@ func TestOptions_Validate(t *testing.T) {
 	badAuthURL.AuthenticateURLString = "BAD_URL"
 	authenticateBadScheme := testOptions(t)
 	authenticateBadScheme.AuthenticateURLString = "authenticate.corp.beyondperimeter.com"
-	emptyCookieSecret := testOptions(t)
-	emptyCookieSecret.CookieSecret = ""
 	invalidCookieSecret := testOptions(t)
 	invalidCookieSecret.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw^"
 	shortCookieLength := testOptions(t)
@@ -62,7 +69,6 @@ func TestOptions_Validate(t *testing.T) {
 	}{
 		{"good - minimum options", good, false},
 		{"nil options", &config.Options{}, true},
-		{"no cookie secret", emptyCookieSecret, true},
 		{"invalid cookie secret", invalidCookieSecret, true},
 		{"short cookie secret", shortCookieLength, true},
 		{"no shared secret", badSharedKey, true},
@@ -161,8 +167,7 @@ func Test_UpdateOptions(t *testing.T) {
 	corsPreflight.Policies = []config.Policy{{To: toFoo, From: "http://bar.example", CORSAllowPreflight: true}}
 	disableAuth := testOptions(t)
 	disableAuth.Policies = []config.Policy{{To: toFoo, From: "http://bar.example", AllowPublicUnauthenticatedAccess: true}}
-	fwdAuth := testOptions(t)
-	fwdAuth.ForwardAuthURLString = "https://corp.example.example"
+
 	reqHeaders := testOptions(t)
 	reqHeaders.Policies = []config.Policy{{To: toFoo, From: "http://bar.example", SetRequestHeaders: map[string]string{"x": "y"}}}
 	preserveHostHeader := testOptions(t)
@@ -188,7 +193,6 @@ func Test_UpdateOptions(t *testing.T) {
 		{"no websockets, custom timeout", good, customTimeout, "https://corp.example.example", false, true},
 		{"enable cors preflight", good, corsPreflight, "https://corp.example.example", false, true},
 		{"disable auth", good, disableAuth, "https://corp.example.example", false, true},
-		{"enable forward auth", good, fwdAuth, "https://corp.example.example", false, true},
 		{"set request headers", good, reqHeaders, "https://corp.example.example", false, true},
 		{"preserve host headers", preserveHostHeader, preserveHostHeader, "https://corp.example.example", false, true},
 	}
@@ -200,7 +204,7 @@ func Test_UpdateOptions(t *testing.T) {
 			}
 
 			p.OnConfigChange(context.Background(), &config.Config{Options: tt.updatedOptions})
-			r := httptest.NewRequest("GET", tt.host, nil)
+			r := httptest.NewRequest(http.MethodGet, tt.host, nil)
 			w := httptest.NewRecorder()
 			p.ServeHTTP(w, r)
 			if tt.wantRoute && w.Code != http.StatusNotFound {

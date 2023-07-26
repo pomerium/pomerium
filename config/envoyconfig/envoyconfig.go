@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -32,6 +31,8 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/fileutil"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
@@ -71,7 +72,7 @@ func newDefaultEnvoyClusterConfig() *envoy_config_cluster_v3.Cluster {
 	return &envoy_config_cluster_v3.Cluster{
 		ConnectTimeout:                defaultConnectionTimeout,
 		RespectDnsTtl:                 true,
-		DnsLookupFamily:               envoy_config_cluster_v3.Cluster_AUTO,
+		DnsLookupFamily:               envoy_config_cluster_v3.Cluster_V4_PREFERRED,
 		PerConnectionBufferLimitBytes: wrapperspb.UInt32(connectionBufferLimit),
 	}
 }
@@ -82,14 +83,21 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 		lvl = options.LogLevel
 	}
 	if lvl == "" {
-		lvl = "debug"
+		lvl = config.LogLevelDebug
 	}
 
 	switch lvl {
-	case "trace", "debug", "info":
+	case config.LogLevelTrace, config.LogLevelDebug, config.LogLevelInfo:
 	default:
 		// don't log access requests for levels > info
 		return nil
+	}
+
+	var additionalRequestHeaders []string
+	for _, field := range options.AccessLogFields {
+		if headerName, ok := log.GetHeaderField(field); ok {
+			additionalRequestHeaders = append(additionalRequestHeaders, httputil.CanonicalHeaderKey(headerName))
+		}
 	}
 
 	tc := marshalAny(&envoy_extensions_access_loggers_grpc_v3.HttpGrpcAccessLogConfig{
@@ -104,6 +112,7 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 			},
 			TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
 		},
+		AdditionalRequestHeadersToLog: additionalRequestHeaders,
 	})
 	return []*envoy_config_accesslog_v3.AccessLog{{
 		Name:       "envoy.access_loggers.http_grpc",
@@ -211,45 +220,34 @@ func getRootCertificateAuthority() (string, error) {
 	return rootCABundle.value, nil
 }
 
-func getCombinedCertificateAuthority(customCA, customCAFile string) ([]byte, error) {
+func getCombinedCertificateAuthority(cfg *config.Config) ([]byte, error) {
 	rootFile, err := getRootCertificateAuthority()
 	if err != nil {
 		return nil, err
 	}
 
-	combined, err := os.ReadFile(rootFile)
-	if err != nil {
+	var buf bytes.Buffer
+	if err := fileutil.CopyFileUpTo(&buf, rootFile, 5<<20); err != nil {
 		return nil, fmt.Errorf("error reading root certificates: %w", err)
 	}
+	buf.WriteRune('\n')
 
-	if customCA != "" {
-		bs, err := base64.StdEncoding.DecodeString(customCA)
-		if err != nil {
-			return nil, err
-		}
-		combined = append(combined, '\n')
-		combined = append(combined, bs...)
+	all, err := cfg.AllCertificateAuthoritiesPEM()
+	if err != nil {
+		return nil, fmt.Errorf("get all CA: %w", err)
 	}
+	buf.Write(all)
 
-	if customCAFile != "" {
-		bs, err := os.ReadFile(customCAFile)
-		if err != nil {
-			return nil, err
-		}
-		combined = append(combined, '\n')
-		combined = append(combined, bs...)
-	}
-
-	return combined, nil
+	return buf.Bytes(), nil
 }
 
 func marshalAny(msg proto.Message) *anypb.Any {
-	any := new(anypb.Any)
-	_ = anypb.MarshalFrom(any, msg, proto.MarshalOptions{
+	data := new(anypb.Any)
+	_ = anypb.MarshalFrom(data, msg, proto.MarshalOptions{
 		AllowPartial:  true,
 		Deterministic: true,
 	})
-	return any
+	return data
 }
 
 // parseAddress parses a string address into an envoy address.

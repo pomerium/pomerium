@@ -8,20 +8,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestFileWatcherSource(t *testing.T) {
 	ctx := context.Background()
 
-	tmpdir := filepath.Join(os.TempDir(), uuid.New().String())
-	err := os.MkdirAll(tmpdir, 0o755)
-	if !assert.NoError(t, err) {
-		return
-	}
+	tmpdir := t.TempDir()
 
-	err = os.WriteFile(filepath.Join(tmpdir, "example.txt"), []byte{1, 2, 3, 4}, 0o600)
+	err := os.WriteFile(filepath.Join(tmpdir, "example.txt"), []byte{1, 2, 3, 4}, 0o600)
 	if !assert.NoError(t, err) {
 		return
 	}

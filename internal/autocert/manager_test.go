@@ -18,7 +18,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -27,7 +26,6 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/google/uuid"
 	"github.com/mholt/acmez/acme"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -217,9 +215,7 @@ func TestConfig(t *testing.T) {
 
 	mockACME = newMockACME(ca, srv)
 
-	tmpdir := filepath.Join(os.TempDir(), uuid.New().String())
-	_ = os.MkdirAll(tmpdir, 0o755)
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	li, err := net.Listen("tcp", "127.0.0.1:0")
 	if !assert.NoError(t, err) {
@@ -388,7 +384,7 @@ func Test_configureCertificateAuthority(t *testing.T) {
 		expected *certmagic.ACMEIssuer
 		wantErr  bool
 	}
-	var tests = map[string]func(t *testing.T) test{
+	tests := map[string]func(t *testing.T) test{
 		"ok/default": func(t *testing.T) test {
 			return test{
 				args: args{
@@ -464,7 +460,7 @@ func Test_configureExternalAccountBinding(t *testing.T) {
 		expected *certmagic.ACMEIssuer
 		wantErr  bool
 	}
-	var tests = map[string]func(t *testing.T) test{
+	tests := map[string]func(t *testing.T) test{
 		"ok": func(t *testing.T) test {
 			return test{
 				args: args{
@@ -526,11 +522,11 @@ func Test_configureTrustedRoots(t *testing.T) {
 		wantErr  bool
 		cleanup  func()
 	}
-	var tests = map[string]func(t *testing.T) test{
+	tests := map[string]func(t *testing.T) test{
 		"ok/pem": func(t *testing.T) test {
-			copy, err := x509.SystemCertPool()
+			roots, err := x509.SystemCertPool()
 			require.NoError(t, err)
-			ok := copy.AppendCertsFromPEM(ca.certPEM)
+			ok := roots.AppendCertsFromPEM(ca.certPEM)
 			require.Equal(t, true, ok)
 			return test{
 				args: args{
@@ -542,15 +538,15 @@ func Test_configureTrustedRoots(t *testing.T) {
 				expected: &certmagic.ACMEIssuer{
 					CA:           certmagic.DefaultACME.CA,
 					TestCA:       certmagic.DefaultACME.TestCA,
-					TrustedRoots: copy,
+					TrustedRoots: roots,
 				},
 				wantErr: false,
 			}
 		},
 		"ok/file": func(t *testing.T) test {
-			copy, err := x509.SystemCertPool()
+			roots, err := x509.SystemCertPool()
 			require.NoError(t, err)
-			ok := copy.AppendCertsFromPEM(ca.certPEM)
+			ok := roots.AppendCertsFromPEM(ca.certPEM)
 			require.Equal(t, true, ok)
 			f, err := os.CreateTemp("", "pomerium-test-ca")
 			require.NoError(t, err)
@@ -567,7 +563,7 @@ func Test_configureTrustedRoots(t *testing.T) {
 				expected: &certmagic.ACMEIssuer{
 					CA:           certmagic.DefaultACME.CA,
 					TestCA:       certmagic.DefaultACME.TestCA,
-					TrustedRoots: copy,
+					TrustedRoots: roots,
 				},
 				wantErr: false,
 				cleanup: func() {
@@ -576,7 +572,7 @@ func Test_configureTrustedRoots(t *testing.T) {
 			}
 		},
 		"fail/pem": func(t *testing.T) test {
-			copy, err := x509.SystemCertPool()
+			roots, err := x509.SystemCertPool()
 			require.NoError(t, err)
 			return test{
 				args: args{
@@ -588,13 +584,13 @@ func Test_configureTrustedRoots(t *testing.T) {
 				expected: &certmagic.ACMEIssuer{
 					CA:           certmagic.DefaultACME.CA,
 					TestCA:       certmagic.DefaultACME.TestCA,
-					TrustedRoots: copy,
+					TrustedRoots: roots,
 				},
 				wantErr: true,
 			}
 		},
 		"fail/file": func(t *testing.T) test {
-			copy, err := x509.SystemCertPool()
+			roots, err := x509.SystemCertPool()
 			require.NoError(t, err)
 			return test{
 				args: args{
@@ -606,7 +602,7 @@ func Test_configureTrustedRoots(t *testing.T) {
 				expected: &certmagic.ACMEIssuer{
 					CA:           certmagic.DefaultACME.CA,
 					TestCA:       certmagic.DefaultACME.TestCA,
-					TrustedRoots: copy,
+					TrustedRoots: roots,
 				},
 				wantErr: true,
 			}

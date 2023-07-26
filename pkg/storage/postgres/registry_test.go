@@ -14,6 +14,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/registry"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 type mockRegistryWatchServer struct {
@@ -111,4 +112,20 @@ func TestRegistry(t *testing.T) {
 
 		return nil
 	}))
+}
+
+func TestUnmarshalJSONUnknownFields(t *testing.T) {
+	data, err := protoutil.UnmarshalAnyJSON([]byte(`
+	{
+		"@type": "type.googleapis.com/registry.Service",
+		"kind": "AUTHENTICATE",
+		"endpoint": "endpoint",
+		"unknown_field": true
+	  }
+	`))
+	require.NoError(t, err)
+	var val registry.Service
+	require.NoError(t, data.UnmarshalTo(&val))
+	assert.Equal(t, registry.ServiceKind_AUTHENTICATE, val.Kind)
+	assert.Equal(t, "endpoint", val.Endpoint)
 }

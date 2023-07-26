@@ -16,11 +16,11 @@ const (
 // GetRecordIndex gets a record's index. If there is no index, nil is returned.
 func GetRecordIndex(msg proto.Message) *structpb.Struct {
 	for {
-		any, ok := msg.(*anypb.Any)
+		data, ok := msg.(*anypb.Any)
 		if !ok {
 			break
 		}
-		msg, _ = any.UnmarshalNew()
+		msg, _ = data.UnmarshalNew()
 	}
 
 	var s *structpb.Struct

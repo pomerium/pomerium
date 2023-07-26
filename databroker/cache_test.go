@@ -1,8 +1,6 @@
 package databroker
 
 import (
-	"log"
-	"os"
 	"testing"
 
 	"github.com/pomerium/pomerium/config"
@@ -11,12 +9,6 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	dir, err := os.MkdirTemp("", "example")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
 	tests := []struct {
 		name    string
 		opts    config.Options

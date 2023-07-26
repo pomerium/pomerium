@@ -1,7 +1,9 @@
 package proxy
 
 import (
+	"context"
 	"crypto/cipher"
+	"fmt"
 	"net/url"
 
 	"github.com/pomerium/pomerium/config"
@@ -10,7 +12,12 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/hpke"
 )
+
+var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
 
 type proxyState struct {
 	sharedKey    []byte
@@ -21,10 +28,14 @@ type proxyState struct {
 	authenticateSigninURL    *url.URL
 	authenticateRefreshURL   *url.URL
 
-	encoder         encoding.MarshalUnmarshaler
-	cookieSecret    []byte
-	sessionStore    sessions.SessionStore
-	jwtClaimHeaders config.JWTClaimHeaders
+	encoder                encoding.MarshalUnmarshaler
+	cookieSecret           []byte
+	sessionStore           sessions.SessionStore
+	jwtClaimHeaders        config.JWTClaimHeaders
+	hpkePrivateKey         *hpke.PrivateKey
+	authenticateKeyFetcher hpke.KeyFetcher
+
+	dataBrokerClient databroker.DataBrokerServiceClient
 
 	programmaticRedirectDomainWhitelist []string
 }
@@ -36,9 +47,20 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	}
 
 	state := new(proxyState)
+
 	state.sharedKey, err = cfg.Options.GetSharedKey()
 	if err != nil {
 		return nil, err
+	}
+
+	state.hpkePrivateKey, err = cfg.Options.GetHPKEPrivateKey()
+	if err != nil {
+		return nil, err
+	}
+
+	state.authenticateKeyFetcher, err = cfg.GetAuthenticateKeyFetcher()
+	if err != nil {
+		return nil, fmt.Errorf("authorize: get authenticate JWKS key fetcher: %w", err)
 	}
 
 	state.sharedCipher, err = cryptutil.NewAEADCipher(state.sharedKey)
@@ -76,11 +98,25 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 			Secure:   cfg.Options.CookieSecure,
 			HTTPOnly: cfg.Options.CookieHTTPOnly,
 			Expire:   cfg.Options.CookieExpire,
+			SameSite: cfg.Options.GetCookieSameSite(),
 		}
 	}, state.encoder)
 	if err != nil {
 		return nil, err
 	}
+
+	dataBrokerConn, err := outboundGRPCConnection.Get(context.Background(), &grpc.OutboundOptions{
+		OutboundPort:   cfg.OutboundPort,
+		InstallationID: cfg.Options.InstallationID,
+		ServiceName:    cfg.Options.Services,
+		SignedJWTKey:   state.sharedKey,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	state.dataBrokerClient = databroker.NewDataBrokerServiceClient(dataBrokerConn)
+
 	state.programmaticRedirectDomainWhitelist = cfg.Options.ProgrammaticRedirectDomainWhitelist
 
 	return state, nil

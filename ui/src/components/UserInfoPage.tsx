@@ -81,10 +81,15 @@ const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
           marginLeft: mdUp ? "256px" : "0px",
         }}
       >
-        {subpage === "User" && <SessionDetails session={data?.session} />}
+        {subpage === "User" && (
+          <SessionDetails session={data?.session} profile={data?.profile} />
+        )}
 
         {subpage === "Groups Info" && (
-          <GroupDetails groups={data?.directoryGroups} />
+          <GroupDetails
+            isEnterprise={data?.isEnterprise}
+            groups={data?.directoryGroups}
+          />
         )}
 
         {subpage === "Devices Info" && (

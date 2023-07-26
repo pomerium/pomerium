@@ -6,21 +6,22 @@ import (
 	"encoding/pem"
 	"fmt"
 
-	lru "github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru/v2"
 
 	"github.com/pomerium/pomerium/internal/log"
 )
 
-var isValidClientCertificateCache, _ = lru.New2Q(100)
+var isValidClientCertificateCache, _ = lru.New2Q[[2]string, bool](100)
 
-func isValidClientCertificate(ca, cert string) (bool, error) {
-	// when ca is the empty string, client certificates are always accepted
+func isValidClientCertificate(ca string, certInfo ClientCertificateInfo) (bool, error) {
+	// when ca is the empty string, client certificates are not required
 	if ca == "" {
 		return true, nil
 	}
 
-	// when cert is the empty string, no client certificate was supplied
-	if cert == "" {
+	cert := certInfo.Leaf
+
+	if !certInfo.Validated || cert == "" {
 		return false, nil
 	}
 
@@ -28,7 +29,7 @@ func isValidClientCertificate(ca, cert string) (bool, error) {
 
 	value, ok := isValidClientCertificateCache.Get(cacheKey)
 	if ok {
-		return value.(bool), nil
+		return value, nil
 	}
 
 	roots := x509.NewCertPool()

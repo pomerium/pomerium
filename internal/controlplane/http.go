@@ -7,17 +7,19 @@ import (
 	"time"
 
 	"github.com/CAFxX/httpcompression"
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
+	"github.com/pomerium/pomerium/internal/urlutil"
+	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
 )
 
-func (srv *Server) addHTTPMiddleware(root *mux.Router, cfg *config.Config) {
+func (srv *Server) addHTTPMiddleware(root *mux.Router, _ *config.Config) {
 	compressor, err := httpcompression.DefaultAdapter()
 	if err != nil {
 		panic(err)
@@ -37,8 +39,7 @@ func (srv *Server) addHTTPMiddleware(root *mux.Router, cfg *config.Config) {
 			Str("path", r.URL.String()).
 			Msg("http-request")
 	}))
-	root.Use(handlers.RecoveryHandler())
-	root.Use(log.HeadersHandler(httputil.HeadersXForwarded))
+	root.Use(middleware.Recovery)
 	root.Use(log.RemoteAddrHandler("ip"))
 	root.Use(log.UserAgentHandler("user_agent"))
 	root.Use(log.RefererHandler("referer"))
@@ -54,15 +55,22 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 		return fmt.Errorf("invalid authenticate URL: %w", err)
 	}
 
-	rawSigningKey, err := cfg.Options.GetSigningKey()
+	signingKey, err := cfg.Options.GetSigningKey()
 	if err != nil {
 		return fmt.Errorf("invalid signing key: %w", err)
 	}
 
-	root.HandleFunc("/healthz", httputil.HealthCheck)
-	root.HandleFunc("/ping", httputil.HealthCheck)
-	root.Handle("/.well-known/pomerium", httputil.WellKnownPomeriumHandler(authenticateURL))
-	root.Handle("/.well-known/pomerium/", httputil.WellKnownPomeriumHandler(authenticateURL))
-	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(httputil.JWKSHandler(rawSigningKey))
+	hpkePrivateKey, err := cfg.Options.GetHPKEPrivateKey()
+	if err != nil {
+		return fmt.Errorf("invalid hpke private key: %w", err)
+	}
+	hpkePublicKey := hpkePrivateKey.PublicKey()
+
+	root.HandleFunc("/healthz", handlers.HealthCheck)
+	root.HandleFunc("/ping", handlers.HealthCheck)
+	root.Handle("/.well-known/pomerium", handlers.WellKnownPomerium(authenticateURL))
+	root.Handle("/.well-known/pomerium/", handlers.WellKnownPomerium(authenticateURL))
+	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(handlers.JWKSHandler(signingKey))
+	root.Path(urlutil.HPKEPublicKeyPath).Methods(http.MethodGet).Handler(hpke_handlers.HPKEPublicKeyHandler(hpkePublicKey))
 	return nil
 }

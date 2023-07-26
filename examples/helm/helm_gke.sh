@@ -3,7 +3,7 @@
 # curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
 # NOTE! This will create real resources on Google's cloud. Make sure you clean up any unused
 # resources to avoid being billed. For reference, this tutorial cost me <10 cents for a couple of hours.
-# NOTE! You must change the identity provider client secret setting, and service account setting!
+# NOTE! You must change the identity provider client secret setting!
 # NOTE! If you are using gsuite, you should also set `authenticate.idp.serviceAccount`, see docs !
 
 echo "=> [GCE] creating cluster"
@@ -28,8 +28,8 @@ echo "=> install pomerium with helm"
 helm install \
 	pomerium \
 	pomerium/pomerium \
-	--set ingress.secret.cert="$(base64 -i $HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer)" \
-	--set ingress.secret.key="$(base64 -i $HOME/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key)" \
+	--set ingress.secret.cert="$(base64 -i "$HOME"/.acme.sh/*.corp.beyondperimeter.com_ecc/fullchain.cer)" \
+	--set ingress.secret.key="$(base64 -i "$HOME"/.acme.sh/*.corp.beyondperimeter.com_ecc/*.corp.beyondperimeter.com.key)" \
 	--values docs/configuration/examples/kubernetes/values.yaml
 
 # When done, clean up by deleting the cluster!

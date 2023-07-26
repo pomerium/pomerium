@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -42,7 +42,7 @@ func (stream *recordStream) Close() error {
 	return nil
 }
 
-func (stream *recordStream) Next(block bool) bool {
+func (stream *recordStream) Next(_ bool) bool {
 	if stream.err != nil {
 		return false
 	}

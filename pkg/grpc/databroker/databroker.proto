@@ -36,6 +36,10 @@ message GetRequest {
 }
 message GetResponse { Record record = 1; }
 
+message ListTypesResponse {
+  repeated string types = 1;
+}
+
 message QueryRequest {
   string type = 1;
   string query = 2;
@@ -106,6 +110,8 @@ service DataBrokerService {
   rpc AcquireLease(AcquireLeaseRequest) returns (AcquireLeaseResponse);
   // Get gets a record.
   rpc Get(GetRequest) returns (GetResponse);
+  // ListTypes lists all the known record types.
+  rpc ListTypes(google.protobuf.Empty) returns (ListTypesResponse);
   // Put saves a record.
   rpc Put(PutRequest) returns (PutResponse);
   // Query queries for records.

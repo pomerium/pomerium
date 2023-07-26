@@ -16,7 +16,8 @@ type HTTPError struct {
 	// HTTP status codes as registered with IANA.
 	Status int
 	// Err is the wrapped error.
-	Err error
+	Err         error
+	Description string
 	// DebugURL is the URL to the debug endpoint.
 	DebugURL *url.URL
 	// The request ID.
@@ -26,7 +27,7 @@ type HTTPError struct {
 }
 
 // NewError returns an error that contains a HTTP status and error.
-func NewError(status int, err error) error {
+func NewError(status int, err error) *HTTPError {
 	return &HTTPError{Status: status, Err: err}
 }
 
@@ -54,6 +55,7 @@ func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r 
 	response := struct {
 		Status                 int
 		StatusText             string                              `json:"-"`
+		Description            string                              `json:"description,omitempty"`
 		RequestID              string                              `json:",omitempty"`
 		CanDebug               bool                                `json:"-"`
 		DebugURL               *url.URL                            `json:",omitempty"`
@@ -61,6 +63,7 @@ func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r 
 	}{
 		Status:                 e.Status,
 		StatusText:             StatusText(e.Status),
+		Description:            e.Description,
 		RequestID:              reqID,
 		CanDebug:               e.Status/100 == 4 && (e.DebugURL != nil || reqID != ""),
 		DebugURL:               e.DebugURL,
@@ -69,12 +72,14 @@ func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r 
 	// indicate to clients that the error originates from Pomerium, not the app
 	w.Header().Set(HeaderPomeriumResponse, "true")
 
-	log.Error(ctx).
-		Err(e.Err).
-		Int("status", e.Status).
-		Str("status-text", StatusText(e.Status)).
-		Str("request-id", reqID).
-		Msg("httputil: error")
+	if e.Status >= 400 {
+		log.Error(ctx).
+			Err(e.Err).
+			Int("status", e.Status).
+			Str("status-text", StatusText(e.Status)).
+			Str("request-id", reqID).
+			Msg("httputil: error")
+	}
 
 	if r.Header.Get("Accept") == "application/json" {
 		RenderJSON(w, e.Status, response)
@@ -83,6 +88,7 @@ func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r 
 
 	m := map[string]any{
 		"canDebug":               response.CanDebug,
+		"description":            response.Description,
 		"requestId":              response.RequestID,
 		"status":                 response.Status,
 		"statusText":             response.StatusText,
@@ -98,4 +104,10 @@ func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r 
 	if err := ui.ServePage(w, r, "Error", m); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+// WithDescription sets the description in the HTTP error.
+func (e *HTTPError) WithDescription(description string) *HTTPError {
+	e.Description = description
+	return e
 }

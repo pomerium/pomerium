@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/caddyserver/certmagic"
 )
 
 const (
@@ -92,13 +94,37 @@ func GetAbsoluteURL(r *http.Request) *url.URL {
 	return u
 }
 
+// GetServerNamesForURL returns the TLS server names for the given URL. The server name is the
+// URL hostname.
+func GetServerNamesForURL(u *url.URL) []string {
+	if u == nil {
+		return nil
+	}
+
+	return []string{u.Hostname()}
+}
+
 // GetDomainsForURL returns the available domains for given url.
 //
 // For standard HTTP (80)/HTTPS (443) ports, it returns `example.com` and `example.com:<port>`.
 // Otherwise, return the URL.Host value.
-func GetDomainsForURL(u url.URL) []string {
-	if IsTCP(&u) {
-		return []string{u.Host}
+func GetDomainsForURL(u *url.URL) []string {
+	if u == nil {
+		return nil
+	}
+
+	// tcp+https://ssh.example.com:22
+	// => ssh.example.com:22
+	// tcp+https://proxy.example.com/ssh.example.com:22
+	// => ssh.example.com:22
+	if strings.HasPrefix(u.Scheme, "tcp+") {
+		hosts := strings.Split(u.Path, "/")[1:]
+		// if there are no domains in the path part of the URL, use the host
+		if len(hosts) == 0 {
+			return []string{u.Host}
+		}
+		// otherwise use the path parts of the URL as the hosts
+		return hosts
 	}
 
 	var defaultPort string
@@ -117,11 +143,6 @@ func GetDomainsForURL(u url.URL) []string {
 
 	// for everything else we return two routes: 'example.com' and 'example.com:443'
 	return []string{u.Hostname(), net.JoinHostPort(u.Hostname(), defaultPort)}
-}
-
-// IsTCP returns whether or not the given URL is for TCP via HTTP Connect.
-func IsTCP(u *url.URL) bool {
-	return u.Scheme == "tcp+http" || u.Scheme == "tcp+https"
 }
 
 // Join joins elements of a URL with '/'.
@@ -159,4 +180,9 @@ func GetExternalRequest(internalURL, externalURL *url.URL, r *http.Request) *htt
 		er.Host = externalURL.Host
 	}
 	return er
+}
+
+// MatchesServerName returnes true if the url's host matches the given server name.
+func MatchesServerName(u url.URL, serverName string) bool {
+	return certmagic.MatchWildcard(u.Hostname(), serverName)
 }

@@ -22,6 +22,24 @@ func TestBuildSubjectAltNameMatcher(t *testing.T) {
 		}
 	}`, b.buildSubjectAltNameMatcher(&url.URL{Host: "example.com:1234"}, ""))
 	testutil.AssertProtoJSONEqual(t, `{
+		"sanType": "IP_ADDRESS",
+		"matcher": {
+			"exact": "10.0.0.1"
+		}
+	}`, b.buildSubjectAltNameMatcher(&url.URL{Host: "10.0.0.1:1234"}, ""))
+	testutil.AssertProtoJSONEqual(t, `{
+		"sanType": "IP_ADDRESS",
+		"matcher": {
+			"exact": "fd12:3456:789a:1::1"
+		}
+	}`, b.buildSubjectAltNameMatcher(&url.URL{Host: "[fd12:3456:789a:1::1]:1234"}, ""))
+	testutil.AssertProtoJSONEqual(t, `{
+		"sanType": "IP_ADDRESS",
+		"matcher": {
+			"exact": "fe80::1ff:fe23:4567:890a"
+		}
+	}`, b.buildSubjectAltNameMatcher(&url.URL{Host: "[fe80::1ff:fe23:4567:890a%eth2]:1234"}, ""))
+	testutil.AssertProtoJSONEqual(t, `{
 		"sanType": "DNS",
 		"matcher": {
 			"exact": "example.org"
@@ -46,7 +64,7 @@ func TestBuildSubjectNameIndication(t *testing.T) {
 }
 
 func TestValidateCertificate(t *testing.T) {
-	cert, err := cryptutil.GenerateSelfSignedCertificate("example.com", func(tpl *x509.Certificate) {
+	cert, err := cryptutil.GenerateCertificate(nil, "example.com", func(tpl *x509.Certificate) {
 		// set the must staple flag on the cert
 		tpl.ExtraExtensions = append(tpl.ExtraExtensions, pkix.Extension{
 			Id: oidMustStaple,

@@ -13,7 +13,6 @@ cookie_secret: YYYYY
 idp_provider: "google"
 idp_client_id: XXXX
 idp_client_secret: YYYY
-idp_service_account: XXXXXX
 
 routes:
   - from: https://yoursite.localhost.pomerium.io

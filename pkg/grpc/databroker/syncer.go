@@ -2,6 +2,7 @@ package databroker
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	backoff "github.com/cenkalti/backoff/v4"
@@ -132,8 +133,7 @@ func (syncer *Syncer) init(ctx context.Context) error {
 		Type: syncer.cfg.typeURL,
 	})
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("error during initial sync")
-		return err
+		return fmt.Errorf("error during initial sync: %w", err)
 	}
 	syncer.backoff.Reset()
 
@@ -154,8 +154,7 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 		Type:          syncer.cfg.typeURL,
 	})
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("error during sync")
-		return err
+		return fmt.Errorf("error calling sync: %w", err)
 	}
 
 	log.Info(ctx).Msg("listening for updates")
@@ -168,7 +167,7 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 			syncer.serverVersion = 0
 			return nil
 		} else if err != nil {
-			return err
+			return fmt.Errorf("error receiving sync record: %w", err)
 		}
 
 		rec := res.GetRecord()

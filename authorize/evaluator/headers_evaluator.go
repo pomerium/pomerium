@@ -12,37 +12,38 @@ import (
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	"github.com/pomerium/pomerium/internal/urlutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 // HeadersRequest is the input to the headers.rego script.
 type HeadersRequest struct {
-	EnableGoogleCloudServerlessAuthentication bool           `json:"enable_google_cloud_serverless_authentication"`
-	EnableRoutingKey                          bool           `json:"enable_routing_key"`
-	FromAudience                              string         `json:"from_audience"`
-	KubernetesServiceAccountToken             string         `json:"kubernetes_service_account_token"`
-	ToAudience                                string         `json:"to_audience"`
-	Session                                   RequestSession `json:"session"`
-	PassAccessToken                           bool           `json:"pass_access_token"`
-	PassIDToken                               bool           `json:"pass_id_token"`
+	EnableGoogleCloudServerlessAuthentication bool              `json:"enable_google_cloud_serverless_authentication"`
+	EnableRoutingKey                          bool              `json:"enable_routing_key"`
+	Issuer                                    string            `json:"issuer"`
+	KubernetesServiceAccountToken             string            `json:"kubernetes_service_account_token"`
+	ToAudience                                string            `json:"to_audience"`
+	Session                                   RequestSession    `json:"session"`
+	PassAccessToken                           bool              `json:"pass_access_token"`
+	PassIDToken                               bool              `json:"pass_id_token"`
+	SetRequestHeaders                         map[string]string `json:"set_request_headers"`
 }
 
 // NewHeadersRequestFromPolicy creates a new HeadersRequest from a policy.
-func NewHeadersRequestFromPolicy(policy *config.Policy) *HeadersRequest {
+func NewHeadersRequestFromPolicy(policy *config.Policy, hostname string) *HeadersRequest {
 	input := new(HeadersRequest)
-	input.EnableGoogleCloudServerlessAuthentication = policy.EnableGoogleCloudServerlessAuthentication
-	input.EnableRoutingKey = policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
-		policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_MAGLEV
-	if u, err := urlutil.ParseAndValidateURL(policy.From); err == nil {
-		input.FromAudience = u.Hostname()
+	input.Issuer = hostname
+	if policy != nil {
+		input.EnableGoogleCloudServerlessAuthentication = policy.EnableGoogleCloudServerlessAuthentication
+		input.EnableRoutingKey = policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
+			policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_MAGLEV
+		input.KubernetesServiceAccountToken = policy.KubernetesServiceAccountToken
+		for _, wu := range policy.To {
+			input.ToAudience = "https://" + wu.URL.Hostname()
+		}
+		input.PassAccessToken = policy.GetSetAuthorizationHeader() == configpb.Route_ACCESS_TOKEN
+		input.PassIDToken = policy.GetSetAuthorizationHeader() == configpb.Route_ID_TOKEN
+		input.SetRequestHeaders = policy.SetRequestHeaders
 	}
-	input.KubernetesServiceAccountToken = policy.KubernetesServiceAccountToken
-	for _, wu := range policy.To {
-		input.ToAudience = "https://" + wu.URL.Hostname()
-	}
-	input.PassAccessToken = policy.GetSetAuthorizationHeader() == configpb.Route_ACCESS_TOKEN
-	input.PassIDToken = policy.GetSetAuthorizationHeader() == configpb.Route_ID_TOKEN
 	return input
 }
 
@@ -78,7 +79,7 @@ func NewHeadersEvaluator(ctx context.Context, store *store.Store) (*HeadersEvalu
 
 // Evaluate evaluates the headers.rego script.
 func (e *HeadersEvaluator) Evaluate(ctx context.Context, req *HeadersRequest) (*HeadersResponse, error) {
-	_, span := trace.StartSpan(ctx, "authorize.HeadersEvaluator.Evaluate")
+	ctx, span := trace.StartSpan(ctx, "authorize.HeadersEvaluator.Evaluate")
 	defer span.End()
 	rs, err := safeEval(ctx, e.q, rego.EvalInput(req))
 	if err != nil {

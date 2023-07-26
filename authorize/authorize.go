@@ -91,7 +91,7 @@ func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Ev
 		return int64(len(opts.GetAllPolicies()))
 	})
 	ctx := context.Background()
-	_, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
+	ctx, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
 	defer span.End()
 
 	clientCA, err := opts.GetClientCA()

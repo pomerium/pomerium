@@ -3,27 +3,15 @@ package xdsmgr
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"os"
 	"sync"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/google/uuid"
-	lru "github.com/hashicorp/golang-lru"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/pomerium/pomerium/internal/contextkeys"
-	"github.com/pomerium/pomerium/internal/events"
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
-)
-
-const (
-	maxNonceCacheSize = 1 << 12
 )
 
 type streamState struct {
@@ -41,28 +29,15 @@ type Manager struct {
 	mu        sync.Mutex
 	nonce     string
 	resources map[string][]*envoy_service_discovery_v3.Resource
-
-	nonceToConfig *lru.Cache
-
-	hostname string
-
-	events *events.Manager
 }
 
 // NewManager creates a new Manager.
-func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource, evt *events.Manager) *Manager {
-	nonceToConfig, _ := lru.New(maxNonceCacheSize) // the only error they return is when size is negative, which never happens
-
+func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource) *Manager {
 	return &Manager{
 		signal: signal.New(),
 
-		nonceToConfig: nonceToConfig,
-		nonce:         uuid.NewString(),
-		resources:     resources,
-
-		hostname: getHostname(),
-
-		events: evt,
+		nonce:     uuid.NewString(),
+		resources: resources,
 	}
 }
 
@@ -137,8 +112,6 @@ func (mgr *Manager) DeltaAggregatedResources(
 			for _, resource := range mgr.resources[req.GetTypeUrl()] {
 				state.clientResourceVersions[resource.Name] = resource.Version
 			}
-
-			mgr.nackEvent(ctx, req)
 		case req.GetResponseNonce() == mgr.nonce:
 			// an ACK for the last response
 			// - set the client resource versions to the current resource versions
@@ -146,11 +119,8 @@ func (mgr *Manager) DeltaAggregatedResources(
 			for _, resource := range mgr.resources[req.GetTypeUrl()] {
 				state.clientResourceVersions[resource.Name] = resource.Version
 			}
-
-			mgr.ackEvent(ctx, req)
 		default:
 			// an ACK for a response that's not the last response
-			mgr.ackEvent(ctx, req)
 		}
 
 		// update subscriptions
@@ -219,7 +189,6 @@ func (mgr *Manager) DeltaAggregatedResources(
 				case <-ctx.Done():
 					return ctx.Err()
 				case outgoing <- res:
-					mgr.changeEvent(ctx, res)
 				}
 			}
 		}
@@ -243,7 +212,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 
 // StreamAggregatedResources is not implemented.
 func (mgr *Manager) StreamAggregatedResources(
-	stream envoy_service_discovery_v3.AggregatedDiscoveryService_StreamAggregatedResourcesServer,
+	_ envoy_service_discovery_v3.AggregatedDiscoveryService_StreamAggregatedResourcesServer,
 ) error {
 	return status.Errorf(codes.Unimplemented, "method StreamAggregatedResources not implemented")
 }
@@ -256,104 +225,7 @@ func (mgr *Manager) Update(ctx context.Context, resources map[string][]*envoy_se
 	mgr.mu.Lock()
 	mgr.nonce = nonce
 	mgr.resources = resources
-	mgr.nonceToConfig.Add(nonce, ctx.Value(contextkeys.UpdateRecordsVersion))
 	mgr.mu.Unlock()
 
 	mgr.signal.Broadcast(ctx)
-}
-
-func (mgr *Manager) nonceToConfigVersion(nonce string) (ver uint64) {
-	val, ok := mgr.nonceToConfig.Get(nonce)
-	if !ok {
-		return 0
-	}
-	ver, _ = val.(uint64)
-	return ver
-}
-
-func (mgr *Manager) nackEvent(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
-	mgr.events.Dispatch(&events.EnvoyConfigurationEvent{
-		Instance:             mgr.hostname,
-		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_NACK,
-		Time:                 timestamppb.Now(),
-		Message:              req.ErrorDetail.Message,
-		Code:                 req.ErrorDetail.Code,
-		Details:              req.ErrorDetail.Details,
-		ResourceSubscribed:   req.ResourceNamesSubscribe,
-		ResourceUnsubscribed: req.ResourceNamesUnsubscribe,
-		ConfigVersion:        mgr.nonceToConfigVersion(req.ResponseNonce),
-		TypeUrl:              req.TypeUrl,
-		Nonce:                req.ResponseNonce,
-	})
-
-	bs, _ := json.Marshal(req.ErrorDetail.Details)
-	log.Fatal().
-		Err(errors.New(req.ErrorDetail.Message)).
-		Str("resource_type", req.TypeUrl).
-		Strs("resources_unsubscribe", req.ResourceNamesUnsubscribe).
-		Strs("resources_subscribe", req.ResourceNamesSubscribe).
-		Uint64("nonce_version", mgr.nonceToConfigVersion(req.ResponseNonce)).
-		Int32("code", req.ErrorDetail.Code).
-		RawJSON("details", bs).Msg("error applying configuration")
-}
-
-func (mgr *Manager) ackEvent(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
-	mgr.events.Dispatch(&events.EnvoyConfigurationEvent{
-		Instance:             mgr.hostname,
-		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_REQUEST_ACK,
-		Time:                 timestamppb.Now(),
-		ConfigVersion:        mgr.nonceToConfigVersion(req.ResponseNonce),
-		ResourceSubscribed:   req.ResourceNamesSubscribe,
-		ResourceUnsubscribed: req.ResourceNamesUnsubscribe,
-		TypeUrl:              req.TypeUrl,
-		Nonce:                req.ResponseNonce,
-		Message:              "ok",
-	})
-
-	log.Debug(ctx).
-		Str("resource_type", req.TypeUrl).
-		Strs("resources_unsubscribe", req.ResourceNamesUnsubscribe).
-		Strs("resources_subscribe", req.ResourceNamesSubscribe).
-		Uint64("nonce_version", mgr.nonceToConfigVersion(req.ResponseNonce)).
-		Msg("ACK")
-}
-
-func (mgr *Manager) changeEvent(ctx context.Context, res *envoy_service_discovery_v3.DeltaDiscoveryResponse) {
-	mgr.events.Dispatch(&events.EnvoyConfigurationEvent{
-		Instance:             mgr.hostname,
-		Kind:                 events.EnvoyConfigurationEvent_EVENT_DISCOVERY_RESPONSE,
-		Time:                 timestamppb.Now(),
-		Nonce:                res.Nonce,
-		Message:              "change",
-		ConfigVersion:        mgr.nonceToConfigVersion(res.Nonce),
-		TypeUrl:              res.TypeUrl,
-		ResourceSubscribed:   resourceNames(res.Resources),
-		ResourceUnsubscribed: res.RemovedResources,
-	})
-	log.Debug(ctx).
-		Uint64("ctx_config_version", mgr.nonceToConfigVersion(res.Nonce)).
-		Str("nonce", res.Nonce).
-		Str("type", res.TypeUrl).
-		Strs("subscribe", resourceNames(res.Resources)).
-		Strs("removed", res.RemovedResources).
-		Msg("sent update")
-}
-
-func resourceNames(res []*envoy_service_discovery_v3.Resource) []string {
-	txt := make([]string, 0, len(res))
-	for _, r := range res {
-		txt = append(txt, r.Name)
-	}
-	return txt
-}
-
-func getHostname() string {
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = os.Getenv("HOSTNAME")
-	}
-	if hostname == "" {
-		hostname = "__unknown__"
-	}
-	return hostname
 }

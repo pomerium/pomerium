@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -38,11 +37,8 @@ type Policy struct {
 
 	// Identity related policy
 	AllowedUsers     []string                 `mapstructure:"allowed_users" yaml:"allowed_users,omitempty" json:"allowed_users,omitempty"`
-	AllowedGroups    []string                 `mapstructure:"allowed_groups" yaml:"allowed_groups,omitempty" json:"allowed_groups,omitempty"`
 	AllowedDomains   []string                 `mapstructure:"allowed_domains" yaml:"allowed_domains,omitempty" json:"allowed_domains,omitempty"`
 	AllowedIDPClaims identity.FlattenedClaims `mapstructure:"allowed_idp_claims" yaml:"allowed_idp_claims,omitempty" json:"allowed_idp_claims,omitempty"`
-
-	Source *StringURL `yaml:",omitempty" json:"source,omitempty" hash:"ignore"`
 
 	// Additional route matching options
 	Prefix        string `mapstructure:"prefix" yaml:"prefix,omitempty" json:"prefix,omitempty"`
@@ -120,6 +116,9 @@ type Policy struct {
 	TLSDownstreamClientCA     string `mapstructure:"tls_downstream_client_ca" yaml:"tls_downstream_client_ca,omitempty"`
 	TLSDownstreamClientCAFile string `mapstructure:"tls_downstream_client_ca_file" yaml:"tls_downstream_client_ca_file,omitempty"`
 
+	// TLSUpstreamAllowRenegotiation allows server-initiated TLS renegotiation.
+	TLSUpstreamAllowRenegotiation bool `mapstructure:"tls_upstream_allow_renegotiation" yaml:"allow_renegotiation,omitempty"`
+
 	// SetAuthorizationHeader sets the authorization request header based on the user's identity. Supported modes are
 	// `pass_through`, `access_token` and `id_token`.
 	SetAuthorizationHeader string `mapstructure:"set_authorization_header" yaml:"set_authorization_header,omitempty"`
@@ -192,7 +191,6 @@ type SubPolicy struct {
 	ID               string                   `mapstructure:"id" yaml:"id" json:"id"`
 	Name             string                   `mapstructure:"name" yaml:"name" json:"name"`
 	AllowedUsers     []string                 `mapstructure:"allowed_users" yaml:"allowed_users,omitempty" json:"allowed_users,omitempty"`
-	AllowedGroups    []string                 `mapstructure:"allowed_groups" yaml:"allowed_groups,omitempty" json:"allowed_groups,omitempty"`
 	AllowedDomains   []string                 `mapstructure:"allowed_domains" yaml:"allowed_domains,omitempty" json:"allowed_domains,omitempty"`
 	AllowedIDPClaims identity.FlattenedClaims `mapstructure:"allowed_idp_claims" yaml:"allowed_idp_claims,omitempty" json:"allowed_idp_claims,omitempty"`
 	Rego             []string                 `mapstructure:"rego" yaml:"rego" json:"rego,omitempty"`
@@ -231,7 +229,6 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	p := &Policy{
 		From:                             pb.GetFrom(),
 		AllowedUsers:                     pb.GetAllowedUsers(),
-		AllowedGroups:                    pb.GetAllowedGroups(),
 		AllowedDomains:                   pb.GetAllowedDomains(),
 		AllowedIDPClaims:                 identity.NewFlattenedClaimsFromPB(pb.GetAllowedIdpClaims()),
 		Prefix:                           pb.GetPrefix(),
@@ -317,7 +314,6 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			ID:               sp.GetId(),
 			Name:             sp.GetName(),
 			AllowedUsers:     sp.GetAllowedUsers(),
-			AllowedGroups:    sp.GetAllowedGroups(),
 			AllowedDomains:   sp.GetAllowedDomains(),
 			AllowedIDPClaims: identity.NewFlattenedClaimsFromPB(sp.GetAllowedIdpClaims()),
 			Rego:             sp.GetRego(),
@@ -347,7 +343,6 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 			Id:               sp.ID,
 			Name:             sp.Name,
 			AllowedUsers:     sp.AllowedUsers,
-			AllowedGroups:    sp.AllowedGroups,
 			AllowedDomains:   sp.AllowedDomains,
 			AllowedIdpClaims: sp.AllowedIDPClaims.ToPB(),
 			Rego:             sp.Rego,
@@ -358,7 +353,6 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		Name:                             fmt.Sprint(p.RouteID()),
 		From:                             p.From,
 		AllowedUsers:                     p.AllowedUsers,
-		AllowedGroups:                    p.AllowedGroups,
 		AllowedDomains:                   p.AllowedDomains,
 		AllowedIdpClaims:                 p.AllowedIDPClaims.ToPB(),
 		Prefix:                           p.Prefix,
@@ -453,8 +447,6 @@ func (p *Policy) Validate() error {
 			source.String())
 	}
 
-	p.Source = &StringURL{source}
-
 	if len(p.To) == 0 && p.Redirect == nil {
 		return errEitherToOrRedirectRequired
 	}
@@ -466,12 +458,12 @@ func (p *Policy) Validate() error {
 	}
 
 	// Only allow public access if no other whitelists are in place
-	if p.AllowPublicUnauthenticatedAccess && (p.AllowAnyAuthenticatedUser || p.AllowedDomains != nil || p.AllowedGroups != nil || p.AllowedUsers != nil) {
+	if p.AllowPublicUnauthenticatedAccess && (p.AllowAnyAuthenticatedUser || p.AllowedDomains != nil || p.AllowedUsers != nil) {
 		return fmt.Errorf("config: policy route marked as public but contains whitelists")
 	}
 
 	// Only allow any authenticated user if no other whitelists are in place
-	if p.AllowAnyAuthenticatedUser && (p.AllowedDomains != nil || p.AllowedGroups != nil || p.AllowedUsers != nil) {
+	if p.AllowAnyAuthenticatedUser && (p.AllowedDomains != nil || p.AllowedUsers != nil) {
 		return fmt.Errorf("config: policy route marked accessible for any authenticated user but contains whitelists")
 	}
 
@@ -550,6 +542,11 @@ func (p *Policy) Validate() error {
 		return fmt.Errorf("config: invalid policy set_authorization_header: %v", p.SetAuthorizationHeader)
 	}
 
+	if p.SetAuthorizationHeader != "" {
+		log.Warn(context.Background()).Msg("config: set_authorization_header is deprecated, " +
+			"use $pomerium.id_token or $pomerium.access_token in set_request_headers instead")
+	}
+
 	return nil
 }
 
@@ -561,7 +558,7 @@ func (p *Policy) Checksum() uint64 {
 // RouteID returns a unique identifier for a route
 func (p *Policy) RouteID() (uint64, error) {
 	id := routeID{
-		Source: p.Source,
+		From:   p.From,
 		Prefix: p.Prefix,
 		Path:   p.Path,
 		Regex:  p.Regex,
@@ -592,17 +589,18 @@ func (p *Policy) String() string {
 		to = strings.Join(dsts, ",")
 	}
 
-	return fmt.Sprintf("%s → %s", p.Source.String(), to)
+	return fmt.Sprintf("%s → %s", p.From, to)
 }
 
 // Matches returns true if the policy would match the given URL.
 func (p *Policy) Matches(requestURL url.URL) bool {
-	// handle nils by always returning false
-	if p.Source == nil {
+	// an invalid from URL should not match anything
+	fromURL, err := urlutil.ParseAndValidateURL(p.From)
+	if err != nil {
 		return false
 	}
 
-	if p.Source.Host != requestURL.Host {
+	if !FromURLMatchesRequestURL(fromURL, &requestURL) {
 		return false
 	}
 
@@ -632,6 +630,11 @@ func (p *Policy) IsForKubernetes() bool {
 	return p.KubernetesServiceAccountTokenFile != "" || p.KubernetesServiceAccountToken != ""
 }
 
+// IsTCP returns true if the route is for TCP.
+func (p *Policy) IsTCP() bool {
+	return strings.HasPrefix(p.From, "tcp")
+}
+
 // AllAllowedDomains returns all the allowed domains.
 func (p *Policy) AllAllowedDomains() []string {
 	var ads []string
@@ -640,16 +643,6 @@ func (p *Policy) AllAllowedDomains() []string {
 		ads = append(ads, sp.AllowedDomains...)
 	}
 	return ads
-}
-
-// AllAllowedGroups returns all the allowed groups.
-func (p *Policy) AllAllowedGroups() []string {
-	var ags []string
-	ags = append(ags, p.AllowedGroups...)
-	for _, sp := range p.SubPolicies {
-		ags = append(ags, sp.AllowedGroups...)
-	}
-	return ags
 }
 
 // AllAllowedIDPClaims returns all the allowed IDP claims.
@@ -682,25 +675,8 @@ func (p *Policy) GetSetAuthorizationHeader() configpb.Route_AuthorizationHeaderM
 	return mode
 }
 
-// StringURL stores a URL as a string in json.
-type StringURL struct {
-	*url.URL
-}
-
-func (su *StringURL) String() string {
-	if su == nil || su.URL == nil {
-		return "?"
-	}
-	return su.URL.String()
-}
-
-// MarshalJSON returns the URLs host as json.
-func (su *StringURL) MarshalJSON() ([]byte, error) {
-	return json.Marshal(su.String())
-}
-
 type routeID struct {
-	Source   *StringURL
+	From     string
 	To       []string
 	Prefix   string
 	Path     string

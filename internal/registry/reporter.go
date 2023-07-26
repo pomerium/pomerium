@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	pb "github.com/pomerium/pomerium/pkg/grpc/registry"
-
-	"github.com/cenkalti/backoff/v4"
 )
 
 // Reporter periodically submits a list of services available on this instance to the service registry

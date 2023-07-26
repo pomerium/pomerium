@@ -3,11 +3,14 @@ package config
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -18,6 +21,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pomerium/csrf"
+	"github.com/pomerium/pomerium/internal/identity/oauth/apple"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
 )
@@ -53,11 +58,6 @@ func Test_Validate(t *testing.T) {
 	badSignoutRedirectURL := testOptions()
 	badSignoutRedirectURL.SignOutRedirectURLString = "--"
 
-	missingSharedSecretWithPersistence := testOptions()
-	missingSharedSecretWithPersistence.SharedKey = ""
-	missingSharedSecretWithPersistence.DataBrokerStorageType = StorageRedisName
-	missingSharedSecretWithPersistence.DataBrokerStorageConnectionString = "redis://somehost:6379"
-
 	tests := []struct {
 		name     string
 		testOpts *Options
@@ -71,7 +71,6 @@ func Test_Validate(t *testing.T) {
 		{"invalid databroker storage type", invalidStorageType, true},
 		{"missing databroker storage dsn", missingStorageDSN, true},
 		{"invalid signout redirect url", badSignoutRedirectURL, true},
-		{"no shared key with databroker persistence", missingSharedSecretWithPersistence, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -92,9 +91,9 @@ func Test_bindEnvs(t *testing.T) {
 	defer os.Unsetenv("POMERIUM_DEBUG")
 	defer os.Unsetenv("POLICY")
 	defer os.Unsetenv("HEADERS")
-	os.Setenv("POMERIUM_DEBUG", "true")
-	os.Setenv("POLICY", "LSBmcm9tOiBodHRwczovL2h0dHBiaW4ubG9jYWxob3N0LnBvbWVyaXVtLmlvCiAgdG86IAogICAgLSBodHRwOi8vbG9jYWxob3N0OjgwODEsMQo=")
-	os.Setenv("HEADERS", `{"X-Custom-1":"foo", "X-Custom-2":"bar"}`)
+	t.Setenv("POMERIUM_DEBUG", "true")
+	t.Setenv("POLICY", "LSBmcm9tOiBodHRwczovL2h0dHBiaW4ubG9jYWxob3N0LnBvbWVyaXVtLmlvCiAgdG86IAogICAgLSBodHRwOi8vbG9jYWxob3N0OjgwODEsMQo=")
+	t.Setenv("HEADERS", `{"X-Custom-1":"foo", "X-Custom-2":"bar"}`)
 	err := bindEnvs(o, v)
 	if err != nil {
 		t.Fatalf("failed to bind options to env vars: %s", err)
@@ -212,7 +211,6 @@ func Test_parsePolicyFile(t *testing.T) {
 	}
 
 	source := "https://pomerium.io"
-	sourceURL, _ := url.ParseRequestURI(source)
 
 	to, err := ParseWeightedURL("https://httpbin.org")
 	require.NoError(t, err)
@@ -227,9 +225,8 @@ func Test_parsePolicyFile(t *testing.T) {
 			"simple json",
 			[]byte(fmt.Sprintf(`{"policy":[{"from": "%s","to":"%s"}]}`, source, to.URL.String())),
 			[]Policy{{
-				From:   source,
-				To:     []WeightedURL{*to},
-				Source: &StringURL{sourceURL},
+				From: source,
+				To:   []WeightedURL{*to},
 			}},
 			false,
 		},
@@ -285,7 +282,7 @@ func Test_Checksum(t *testing.T) {
 func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
 		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "DataBrokerURLStrings", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin", "TracingSampleRate", "ProgrammaticRedirectDomainWhitelist"),
-		cmpopts.IgnoreFields(Policy{}, "Source", "EnvoyOpts"),
+		cmpopts.IgnoreFields(Policy{}, "EnvoyOpts"),
 		cmpOptIgnoreUnexported,
 	}
 
@@ -304,15 +301,8 @@ func TestOptionsFromViper(t *testing.T) {
 				CookieSecure:             true,
 				InsecureServer:           true,
 				CookieHTTPOnly:           true,
+				AuthenticateURLString:    "https://authenticate.pomerium.app",
 				AuthenticateCallbackPath: "/oauth2/callback",
-				SetResponseHeaders: map[string]string{
-					"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-					"X-Frame-Options":           "SAMEORIGIN",
-					"X-XSS-Protection":          "1; mode=block",
-				},
-				RefreshDirectoryTimeout:  1 * time.Minute,
-				RefreshDirectoryInterval: 10 * time.Minute,
-				QPS:                      1.0,
 				DataBrokerStorageType:    "memory",
 				EnvoyAdminAccessLogPath:  os.DevNull,
 				EnvoyAdminProfilePath:    os.DevNull,
@@ -325,14 +315,12 @@ func TestOptionsFromViper(t *testing.T) {
 			&Options{
 				Policies:                 []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
 				CookieName:               "_pomerium",
+				AuthenticateURLString:    "https://authenticate.pomerium.app",
 				AuthenticateCallbackPath: "/oauth2/callback",
 				CookieSecure:             true,
 				CookieHTTPOnly:           true,
 				InsecureServer:           true,
 				SetResponseHeaders:       map[string]string{"disable": "true"},
-				RefreshDirectoryTimeout:  1 * time.Minute,
-				RefreshDirectoryInterval: 10 * time.Minute,
-				QPS:                      1.0,
 				DataBrokerStorageType:    "memory",
 				EnvoyAdminAccessLogPath:  os.DevNull,
 				EnvoyAdminProfilePath:    os.DevNull,
@@ -342,7 +330,6 @@ func TestOptionsFromViper(t *testing.T) {
 		{"bad url", []byte(`{"policy":[{"from": "https://","to":"https://to.example"}]}`), nil, true},
 		{"bad policy", []byte(`{"policy":[{"allow_public_unauthenticated_access": "dog","to":"https://to.example"}]}`), nil, true},
 		{"bad file", []byte(`{''''}`), nil, true},
-		{"allowed_groups without idp_service_account should fail", []byte(`{"autocert_dir":"","insecure_server":true,"policy":[{"from": "https://from.example","to":"https://to.example","allowed_groups": "['group1']"}]}`), nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -379,8 +366,6 @@ func Test_NewOptionsFromConfigEnvVar(t *testing.T) {
 		{"no certs no insecure mode set", map[string]string{"SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
 		{"good disable headers ", map[string]string{"HEADERS": "disable:true", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
 		{"bad whitespace in secret", map[string]string{"INSECURE_SERVER": "true", "SERVICES": "authenticate", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=\n"}, true},
-		{"good forward auth url", map[string]string{"FORWARD_AUTH_URL": "https://databroker.example", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
-		{"bad forward auth url", map[string]string{"FORWARD_AUTH_URL": "databroker.example", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
 		{"same addr and grpc addr", map[string]string{"SERVICES": "databroker", "ADDRESS": "0", "GRPC_ADDRESS": "0", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
 		{"bad cert files", map[string]string{"INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", "CERTIFICATES": "./test-data/example-cert.pem"}, true},
 		{"good cert file", map[string]string{"CERTIFICATE_FILE": "./testdata/example-cert.pem", "CERTIFICATE_KEY_FILE": "./testdata/example-key.pem", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
@@ -649,7 +634,6 @@ func TestOptions_DefaultURL(t *testing.T) {
 		AuthenticateURLString: "https://authenticate.example.com",
 		AuthorizeURLString:    "https://authorize.example.com",
 		DataBrokerURLString:   "https://databroker.example.com",
-		ForwardAuthURLString:  "https://forwardauth.example.com",
 	}
 	tests := []struct {
 		name           string
@@ -659,11 +643,9 @@ func TestOptions_DefaultURL(t *testing.T) {
 		{"default authenticate url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
 		{"default authorize url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
 		{"default databroker url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
-		{"default forward auth url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
 		{"good authenticate url", opts.GetAuthenticateURL, "https://authenticate.example.com"},
 		{"good authorize url", firstURL(opts.GetAuthorizeURLs), "https://authorize.example.com"},
 		{"good databroker url", firstURL(opts.GetDataBrokerURLs), "https://databroker.example.com"},
-		{"good forward auth url", opts.GetForwardAuthURL, "https://forwardauth.example.com"},
 	}
 
 	for _, tc := range tests {
@@ -688,14 +670,14 @@ func TestOptions_GetOauthOptions(t *testing.T) {
 	assert.Equal(t, u.Hostname(), oauthOptions.RedirectURL.Hostname())
 }
 
-func TestOptions_GetAllRouteableGRPCDomains(t *testing.T) {
+func TestOptions_GetAllRouteableGRPCHosts(t *testing.T) {
 	opts := &Options{
 		AuthenticateURLString: "https://authenticate.example.com",
 		AuthorizeURLString:    "https://authorize.example.com",
 		DataBrokerURLString:   "https://databroker.example.com",
 		Services:              "all",
 	}
-	domains, err := opts.GetAllRouteableGRPCDomains()
+	hosts, err := opts.GetAllRouteableGRPCHosts()
 	assert.NoError(t, err)
 
 	assert.Equal(t, []string{
@@ -703,10 +685,10 @@ func TestOptions_GetAllRouteableGRPCDomains(t *testing.T) {
 		"authorize.example.com:443",
 		"databroker.example.com",
 		"databroker.example.com:443",
-	}, domains)
+	}, hosts)
 }
 
-func TestOptions_GetAllRouteableHTTPDomains(t *testing.T) {
+func TestOptions_GetAllRouteableHTTPHosts(t *testing.T) {
 	p1 := Policy{From: "https://from1.example.com"}
 	p1.Validate()
 	p2 := Policy{From: "https://from2.example.com"}
@@ -721,7 +703,7 @@ func TestOptions_GetAllRouteableHTTPDomains(t *testing.T) {
 		Policies:              []Policy{p1, p2, p3},
 		Services:              "all",
 	}
-	domains, err := opts.GetAllRouteableHTTPDomains()
+	hosts, err := opts.GetAllRouteableHTTPHosts()
 	assert.NoError(t, err)
 
 	assert.Equal(t, []string{
@@ -735,7 +717,7 @@ func TestOptions_GetAllRouteableHTTPDomains(t *testing.T) {
 		"from2.example.com:443",
 		"from3.example.com",
 		"from3.example.com:443",
-	}, domains)
+	}, hosts)
 }
 
 func TestOptions_ApplySettings(t *testing.T) {
@@ -744,15 +726,19 @@ func TestOptions_ApplySettings(t *testing.T) {
 
 	t.Run("certificates", func(t *testing.T) {
 		options := NewDefaultOptions()
-		cert1, err := cryptutil.GenerateSelfSignedCertificate("example.com")
+		cert1, err := cryptutil.GenerateCertificate(nil, "example.com")
 		require.NoError(t, err)
 		options.CertificateFiles = append(options.CertificateFiles, certificateFilePair{
 			CertFile: base64.StdEncoding.EncodeToString(encodeCert(cert1)),
 		})
-		cert2, err := cryptutil.GenerateSelfSignedCertificate("example.com")
+		cert2, err := cryptutil.GenerateCertificate(nil, "example.com")
 		require.NoError(t, err)
-		cert3, err := cryptutil.GenerateSelfSignedCertificate("not.example.com")
+		cert3, err := cryptutil.GenerateCertificate(nil, "not.example.com")
 		require.NoError(t, err)
+
+		certsIndex := cryptutil.NewCertificatesIndex()
+		xc1, _ := x509.ParseCertificate(cert1.Certificate[0])
+		certsIndex.Add(xc1)
 
 		settings := &config.Settings{
 			Certificates: []*config.Settings_Certificate{
@@ -760,9 +746,257 @@ func TestOptions_ApplySettings(t *testing.T) {
 				{CertBytes: encodeCert(cert3)},
 			},
 		}
-		options.ApplySettings(ctx, settings)
+		options.ApplySettings(ctx, certsIndex, settings)
 		assert.Len(t, options.CertificateFiles, 2, "should prevent adding duplicate certificates")
 	})
+}
+
+func TestOptions_GetSetResponseHeaders(t *testing.T) {
+	t.Run("lax", func(t *testing.T) {
+		options := NewDefaultOptions()
+		assert.Equal(t, map[string]string{
+			"X-Frame-Options":  "SAMEORIGIN",
+			"X-XSS-Protection": "1; mode=block",
+		}, options.GetSetResponseHeaders())
+	})
+	t.Run("strict", func(t *testing.T) {
+		options := NewDefaultOptions()
+		options.Cert = "CERT"
+		assert.Equal(t, map[string]string{
+			"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+			"X-Frame-Options":           "SAMEORIGIN",
+			"X-XSS-Protection":          "1; mode=block",
+		}, options.GetSetResponseHeaders())
+	})
+	t.Run("disable", func(t *testing.T) {
+		options := NewDefaultOptions()
+		options.SetResponseHeaders = map[string]string{DisableHeaderKey: "1", "x-other": "xyz"}
+		assert.Equal(t, map[string]string{}, options.GetSetResponseHeaders())
+	})
+}
+
+func TestOptions_GetSetResponseHeadersForPolicy(t *testing.T) {
+	t.Run("disable but set in policy", func(t *testing.T) {
+		options := NewDefaultOptions()
+		options.SetResponseHeaders = map[string]string{DisableHeaderKey: "1"}
+		policy := &Policy{
+			SetResponseHeaders: map[string]string{"x": "y"},
+		}
+		assert.Equal(t, map[string]string{"x": "y"}, options.GetSetResponseHeadersForPolicy(policy))
+	})
+}
+
+func TestOptions_GetSharedKey(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		o := NewDefaultOptions()
+		bs, err := o.GetSharedKey()
+		assert.NoError(t, err)
+		assert.Equal(t, randomSharedKey, base64.StdEncoding.EncodeToString(bs))
+	})
+	t.Run("missing", func(t *testing.T) {
+		o := NewDefaultOptions()
+		o.Services = ServiceProxy
+		_, err := o.GetSharedKey()
+		assert.Error(t, err)
+	})
+}
+
+func TestOptions_GetSigningKey(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		input  string
+		output []byte
+		err    error
+	}{
+		{"missing", "", []byte{}, nil},
+		{"pem", `
+-----BEGIN EC PRIVATE KEY-----
+MHQCAQEEIGGh6FlBe8yy9dRJgm+35lj3naGFtDODOf6leCW1bRGwoAcGBSuBBAAK
+oUQDQgAE7UlKcFatc9m3GinCrhhT2oRQZ/bEwS98iEUXr0DR8GdxH3e4fhnicsNB
+jHOCur7NYTgf5VaPJwIqLGBmTwM0ew==
+-----END EC PRIVATE KEY-----
+
+-----BEGIN EC PRIVATE KEY-----
+MHQCAQEEIBo4wSjkFqQrzf2APNnPol8EDZzkhpcMSaEWXg8iOkbOoAcGBSuBBAAK
+oUQDQgAEr+bGqssRv8RxPV2jJbDpMw81AVXr5+Q2pIF4u6xD9r56lst8uHYThPsw
+ypaqswFIkSzQSW8awdWJ5d+1DEJRUQ==
+-----END EC PRIVATE KEY-----
+		`, []byte{
+			0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x20, 0x45, 0x43, 0x20, 0x50, 0x52,
+			0x49, 0x56, 0x41, 0x54, 0x45, 0x20, 0x4b, 0x45, 0x59, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x0a, 0x4d,
+			0x48, 0x51, 0x43, 0x41, 0x51, 0x45, 0x45, 0x49, 0x47, 0x47, 0x68, 0x36, 0x46, 0x6c, 0x42, 0x65,
+			0x38, 0x79, 0x79, 0x39, 0x64, 0x52, 0x4a, 0x67, 0x6d, 0x2b, 0x33, 0x35, 0x6c, 0x6a, 0x33, 0x6e,
+			0x61, 0x47, 0x46, 0x74, 0x44, 0x4f, 0x44, 0x4f, 0x66, 0x36, 0x6c, 0x65, 0x43, 0x57, 0x31, 0x62,
+			0x52, 0x47, 0x77, 0x6f, 0x41, 0x63, 0x47, 0x42, 0x53, 0x75, 0x42, 0x42, 0x41, 0x41, 0x4b, 0x0a,
+			0x6f, 0x55, 0x51, 0x44, 0x51, 0x67, 0x41, 0x45, 0x37, 0x55, 0x6c, 0x4b, 0x63, 0x46, 0x61, 0x74,
+			0x63, 0x39, 0x6d, 0x33, 0x47, 0x69, 0x6e, 0x43, 0x72, 0x68, 0x68, 0x54, 0x32, 0x6f, 0x52, 0x51,
+			0x5a, 0x2f, 0x62, 0x45, 0x77, 0x53, 0x39, 0x38, 0x69, 0x45, 0x55, 0x58, 0x72, 0x30, 0x44, 0x52,
+			0x38, 0x47, 0x64, 0x78, 0x48, 0x33, 0x65, 0x34, 0x66, 0x68, 0x6e, 0x69, 0x63, 0x73, 0x4e, 0x42,
+			0x0a, 0x6a, 0x48, 0x4f, 0x43, 0x75, 0x72, 0x37, 0x4e, 0x59, 0x54, 0x67, 0x66, 0x35, 0x56, 0x61,
+			0x50, 0x4a, 0x77, 0x49, 0x71, 0x4c, 0x47, 0x42, 0x6d, 0x54, 0x77, 0x4d, 0x30, 0x65, 0x77, 0x3d,
+			0x3d, 0x0a, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x45, 0x4e, 0x44, 0x20, 0x45, 0x43, 0x20, 0x50, 0x52,
+			0x49, 0x56, 0x41, 0x54, 0x45, 0x20, 0x4b, 0x45, 0x59, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x0a, 0x0a,
+			0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x20, 0x45, 0x43, 0x20, 0x50, 0x52,
+			0x49, 0x56, 0x41, 0x54, 0x45, 0x20, 0x4b, 0x45, 0x59, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x0a, 0x4d,
+			0x48, 0x51, 0x43, 0x41, 0x51, 0x45, 0x45, 0x49, 0x42, 0x6f, 0x34, 0x77, 0x53, 0x6a, 0x6b, 0x46,
+			0x71, 0x51, 0x72, 0x7a, 0x66, 0x32, 0x41, 0x50, 0x4e, 0x6e, 0x50, 0x6f, 0x6c, 0x38, 0x45, 0x44,
+			0x5a, 0x7a, 0x6b, 0x68, 0x70, 0x63, 0x4d, 0x53, 0x61, 0x45, 0x57, 0x58, 0x67, 0x38, 0x69, 0x4f,
+			0x6b, 0x62, 0x4f, 0x6f, 0x41, 0x63, 0x47, 0x42, 0x53, 0x75, 0x42, 0x42, 0x41, 0x41, 0x4b, 0x0a,
+			0x6f, 0x55, 0x51, 0x44, 0x51, 0x67, 0x41, 0x45, 0x72, 0x2b, 0x62, 0x47, 0x71, 0x73, 0x73, 0x52,
+			0x76, 0x38, 0x52, 0x78, 0x50, 0x56, 0x32, 0x6a, 0x4a, 0x62, 0x44, 0x70, 0x4d, 0x77, 0x38, 0x31,
+			0x41, 0x56, 0x58, 0x72, 0x35, 0x2b, 0x51, 0x32, 0x70, 0x49, 0x46, 0x34, 0x75, 0x36, 0x78, 0x44,
+			0x39, 0x72, 0x35, 0x36, 0x6c, 0x73, 0x74, 0x38, 0x75, 0x48, 0x59, 0x54, 0x68, 0x50, 0x73, 0x77,
+			0x0a, 0x79, 0x70, 0x61, 0x71, 0x73, 0x77, 0x46, 0x49, 0x6b, 0x53, 0x7a, 0x51, 0x53, 0x57, 0x38,
+			0x61, 0x77, 0x64, 0x57, 0x4a, 0x35, 0x64, 0x2b, 0x31, 0x44, 0x45, 0x4a, 0x52, 0x55, 0x51, 0x3d,
+			0x3d, 0x0a, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x45, 0x4e, 0x44, 0x20, 0x45, 0x43, 0x20, 0x50, 0x52,
+			0x49, 0x56, 0x41, 0x54, 0x45, 0x20, 0x4b, 0x45, 0x59, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d,
+		}, nil},
+		{"base64", `
+LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IUUNBUUVFSUdHaDZGbEJlOHl5OWRSSmdtKzM1bGozbmFHRnRET0RPZjZsZUNXMWJSR3dvQWNHQlN1QkJBQUsKb1VRRFFnQUU3VWxLY0ZhdGM5bTNHaW5DcmhoVDJvUlFaL2JFd1M5OGlFVVhyMERSOEdkeEgzZTRmaG5pY3NOQgpqSE9DdXI3TllUZ2Y1VmFQSndJcUxHQm1Ud00wZXc9PQotLS0tLUVORCBFQyBQUklWQVRFIEtFWS0tLS0tCgotLS0tLUJFR0lOIEVDIFBSSVZBVEUgS0VZLS0tLS0KTUhRQ0FRRUVJQm80d1Nqa0ZxUXJ6ZjJBUE5uUG9sOEVEWnpraHBjTVNhRVdYZzhpT2tiT29BY0dCU3VCQkFBSwpvVVFEUWdBRXIrYkdxc3NSdjhSeFBWMmpKYkRwTXc4MUFWWHI1K1EycElGNHU2eEQ5cjU2bHN0OHVIWVRoUHN3CnlwYXFzd0ZJa1N6UVNXOGF3ZFdKNWQrMURFSlJVUT09Ci0tLS0tRU5EIEVDIFBSSVZBVEUgS0VZLS0tLS0=
+		`, []byte{
+			0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x20, 0x45, 0x43, 0x20, 0x50, 0x52,
+			0x49, 0x56, 0x41, 0x54, 0x45, 0x20, 0x4b, 0x45, 0x59, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x0a, 0x4d,
+			0x48, 0x51, 0x43, 0x41, 0x51, 0x45, 0x45, 0x49, 0x47, 0x47, 0x68, 0x36, 0x46, 0x6c, 0x42, 0x65,
+			0x38, 0x79, 0x79, 0x39, 0x64, 0x52, 0x4a, 0x67, 0x6d, 0x2b, 0x33, 0x35, 0x6c, 0x6a, 0x33, 0x6e,
+			0x61, 0x47, 0x46, 0x74, 0x44, 0x4f, 0x44, 0x4f, 0x66, 0x36, 0x6c, 0x65, 0x43, 0x57, 0x31, 0x62,
+			0x52, 0x47, 0x77, 0x6f, 0x41, 0x63, 0x47, 0x42, 0x53, 0x75, 0x42, 0x42, 0x41, 0x41, 0x4b, 0x0a,
+			0x6f, 0x55, 0x51, 0x44, 0x51, 0x67, 0x41, 0x45, 0x37, 0x55, 0x6c, 0x4b, 0x63, 0x46, 0x61, 0x74,
+			0x63, 0x39, 0x6d, 0x33, 0x47, 0x69, 0x6e, 0x43, 0x72, 0x68, 0x68, 0x54, 0x32, 0x6f, 0x52, 0x51,
+			0x5a, 0x2f, 0x62, 0x45, 0x77, 0x53, 0x39, 0x38, 0x69, 0x45, 0x55, 0x58, 0x72, 0x30, 0x44, 0x52,
+			0x38, 0x47, 0x64, 0x78, 0x48, 0x33, 0x65, 0x34, 0x66, 0x68, 0x6e, 0x69, 0x63, 0x73, 0x4e, 0x42,
+			0x0a, 0x6a, 0x48, 0x4f, 0x43, 0x75, 0x72, 0x37, 0x4e, 0x59, 0x54, 0x67, 0x66, 0x35, 0x56, 0x61,
+			0x50, 0x4a, 0x77, 0x49, 0x71, 0x4c, 0x47, 0x42, 0x6d, 0x54, 0x77, 0x4d, 0x30, 0x65, 0x77, 0x3d,
+			0x3d, 0x0a, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x45, 0x4e, 0x44, 0x20, 0x45, 0x43, 0x20, 0x50, 0x52,
+			0x49, 0x56, 0x41, 0x54, 0x45, 0x20, 0x4b, 0x45, 0x59, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x0a, 0x0a,
+			0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x20, 0x45, 0x43, 0x20, 0x50, 0x52,
+			0x49, 0x56, 0x41, 0x54, 0x45, 0x20, 0x4b, 0x45, 0x59, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x0a, 0x4d,
+			0x48, 0x51, 0x43, 0x41, 0x51, 0x45, 0x45, 0x49, 0x42, 0x6f, 0x34, 0x77, 0x53, 0x6a, 0x6b, 0x46,
+			0x71, 0x51, 0x72, 0x7a, 0x66, 0x32, 0x41, 0x50, 0x4e, 0x6e, 0x50, 0x6f, 0x6c, 0x38, 0x45, 0x44,
+			0x5a, 0x7a, 0x6b, 0x68, 0x70, 0x63, 0x4d, 0x53, 0x61, 0x45, 0x57, 0x58, 0x67, 0x38, 0x69, 0x4f,
+			0x6b, 0x62, 0x4f, 0x6f, 0x41, 0x63, 0x47, 0x42, 0x53, 0x75, 0x42, 0x42, 0x41, 0x41, 0x4b, 0x0a,
+			0x6f, 0x55, 0x51, 0x44, 0x51, 0x67, 0x41, 0x45, 0x72, 0x2b, 0x62, 0x47, 0x71, 0x73, 0x73, 0x52,
+			0x76, 0x38, 0x52, 0x78, 0x50, 0x56, 0x32, 0x6a, 0x4a, 0x62, 0x44, 0x70, 0x4d, 0x77, 0x38, 0x31,
+			0x41, 0x56, 0x58, 0x72, 0x35, 0x2b, 0x51, 0x32, 0x70, 0x49, 0x46, 0x34, 0x75, 0x36, 0x78, 0x44,
+			0x39, 0x72, 0x35, 0x36, 0x6c, 0x73, 0x74, 0x38, 0x75, 0x48, 0x59, 0x54, 0x68, 0x50, 0x73, 0x77,
+			0x0a, 0x79, 0x70, 0x61, 0x71, 0x73, 0x77, 0x46, 0x49, 0x6b, 0x53, 0x7a, 0x51, 0x53, 0x57, 0x38,
+			0x61, 0x77, 0x64, 0x57, 0x4a, 0x35, 0x64, 0x2b, 0x31, 0x44, 0x45, 0x4a, 0x52, 0x55, 0x51, 0x3d,
+			0x3d, 0x0a, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x45, 0x4e, 0x44, 0x20, 0x45, 0x43, 0x20, 0x50, 0x52,
+			0x49, 0x56, 0x41, 0x54, 0x45, 0x20, 0x4b, 0x45, 0x59, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d,
+		}, nil},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			output, err := (&Options{SigningKey: tc.input}).GetSigningKey()
+			assert.Equal(t, tc.err, err)
+			assert.Equal(t, tc.output, output)
+
+			dir := t.TempDir()
+			err = os.WriteFile(filepath.Join(dir, "cert"), []byte(tc.input), 0o0666)
+			assert.NoError(t, err)
+
+			output, err = (&Options{SigningKeyFile: filepath.Join(dir, "cert")}).GetSigningKey()
+			assert.Equal(t, tc.err, err)
+			assert.Equal(t, tc.output, output)
+		})
+	}
+}
+
+func TestOptions_GetCookieSecret(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		o := NewDefaultOptions()
+		bs, err := o.GetCookieSecret()
+		assert.NoError(t, err)
+		assert.Equal(t, randomSharedKey, base64.StdEncoding.EncodeToString(bs))
+	})
+	t.Run("missing", func(t *testing.T) {
+		o := NewDefaultOptions()
+		o.Services = ServiceProxy
+		_, err := o.GetCookieSecret()
+		assert.Error(t, err)
+	})
+}
+
+func TestOptions_GetCookieSameSite(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		input    string
+		expected http.SameSite
+	}{
+		{"", http.SameSiteDefaultMode},
+		{"Lax", http.SameSiteLaxMode},
+		{"lax", http.SameSiteLaxMode},
+		{"Strict", http.SameSiteStrictMode},
+		{"strict", http.SameSiteStrictMode},
+		{"None", http.SameSiteNoneMode},
+		{"none", http.SameSiteNoneMode},
+		{"UnKnOwN", http.SameSiteDefaultMode},
+	} {
+		tc := tc
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+
+			o := NewDefaultOptions()
+			o.CookieSameSite = tc.input
+			assert.Equal(t, tc.expected, o.GetCookieSameSite())
+		})
+	}
+}
+
+func TestOptions_GetCSRFSameSite(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		cookieSameSite string
+		provider       string
+		expected       csrf.SameSiteMode
+	}{
+		{"", "", csrf.SameSiteDefaultMode},
+		{"Lax", "", csrf.SameSiteLaxMode},
+		{"lax", "", csrf.SameSiteLaxMode},
+		{"Strict", "", csrf.SameSiteStrictMode},
+		{"strict", "", csrf.SameSiteStrictMode},
+		{"None", "", csrf.SameSiteNoneMode},
+		{"none", "", csrf.SameSiteNoneMode},
+		{"UnKnOwN", "", csrf.SameSiteDefaultMode},
+		{"", apple.Name, csrf.SameSiteNoneMode},
+	} {
+		tc := tc
+		t.Run(tc.cookieSameSite, func(t *testing.T) {
+			t.Parallel()
+
+			o := NewDefaultOptions()
+			o.CookieSameSite = tc.cookieSameSite
+			o.Provider = tc.provider
+			assert.Equal(t, tc.expected, o.GetCSRFSameSite())
+		})
+	}
+}
+
+func TestOptions_RequestParams(t *testing.T) {
+	cases := []struct {
+		label    string
+		config   string
+		expected map[string]string
+	}{
+		{"not present", "", nil},
+		{"explicitly empty", "idp_request_params: {}", map[string]string{}},
+	}
+	cfg := filepath.Join(t.TempDir(), "config.yaml")
+	for i := range cases {
+		c := &cases[i]
+		t.Run(c.label, func(t *testing.T) {
+			err := os.WriteFile(cfg, []byte(c.config), 0644)
+			require.NoError(t, err)
+			o, err := newOptionsFromConfig(cfg)
+			require.NoError(t, err)
+			assert.Equal(t, c.expected, o.RequestParams)
+		})
+	}
 }
 
 func encodeCert(cert *tls.Certificate) []byte {

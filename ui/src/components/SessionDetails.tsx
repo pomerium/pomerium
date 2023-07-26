@@ -1,6 +1,3 @@
-import { Session } from "../types";
-import IDField from "./IDField";
-import Section from "./Section";
 import Stack from "@mui/material/Stack";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -8,13 +5,20 @@ import TableCell from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
 import TableRow from "@mui/material/TableRow";
 import React, { FC } from "react";
-import ClaimValue from "./ClaimValue";
-import {startCase} from "lodash";
+
+import { Profile, Session } from "../types";
+import ClaimRow from "./ClaimRow";
+import IDField from "./IDField";
+import Section from "./Section";
 
 export type SessionDetailsProps = {
   session: Session;
+  profile: Profile;
 };
-export const SessionDetails: FC<SessionDetailsProps> = ({ session }) => {
+export const SessionDetails: FC<SessionDetailsProps> = ({
+  session,
+  profile,
+}) => {
   return (
     <Section title="User Details">
       <Stack spacing={3}>
@@ -22,7 +26,9 @@ export const SessionDetails: FC<SessionDetailsProps> = ({ session }) => {
           <Table size="small">
             <TableBody>
               <TableRow>
-                <TableCell width={'18%'} variant="head">Session ID</TableCell>
+                <TableCell width={"18%"} variant="head">
+                  Session ID
+                </TableCell>
                 <TableCell align="left">
                   <IDField value={session?.id} />
                 </TableCell>
@@ -30,26 +36,28 @@ export const SessionDetails: FC<SessionDetailsProps> = ({ session }) => {
               <TableRow>
                 <TableCell variant="head">User ID</TableCell>
                 <TableCell align="left">
-                  <IDField value={session?.userId} />
+                  <IDField
+                    value={session?.userId || `${profile?.claims?.sub}`}
+                  />
                 </TableCell>
               </TableRow>
               <TableRow>
                 <TableCell variant="head">Expires At</TableCell>
                 <TableCell align="left">{session?.expiresAt || ""}</TableCell>
               </TableRow>
-              {Object.entries(session?.claims || {}).map(
-                ([key, values]) => (
-                <TableRow key={key}>
-                  <TableCell variant="head">{startCase(key)}</TableCell>
-                  <TableCell align="left">
-                    {values?.map((v, i) => (
-                      <React.Fragment key={`${v}`}>
-                        {i > 0 ? <br /> : <></>}
-                        <ClaimValue claimKey={key} claimValue={v} />
-                      </React.Fragment>
-                    ))}
-                  </TableCell>
-                </TableRow>
+              {Object.entries(session?.claims || {}).map(([key, values]) => (
+                <ClaimRow
+                  key={`session/${key}`}
+                  claimKey={key}
+                  claimValue={values}
+                />
+              ))}
+              {Object.entries(profile?.claims || {}).map(([key, value]) => (
+                <ClaimRow
+                  key={`profile/${key}`}
+                  claimKey={key}
+                  claimValue={value}
+                />
               ))}
             </TableBody>
           </Table>

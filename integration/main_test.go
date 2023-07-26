@@ -50,10 +50,21 @@ func TestMain(m *testing.M) {
 	os.Exit(status)
 }
 
-func getClient() *http.Client {
-	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-	if err != nil {
-		panic(err)
+type loggingRoundTripper struct {
+	t         testing.TB
+	transport http.RoundTripper
+}
+
+func (l loggingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	if l.t != nil {
+		l.t.Logf("%s %s", req.Method, req.URL.String())
+	}
+	return l.transport.RoundTrip(req)
+}
+
+func getTransport(t testing.TB) http.RoundTripper {
+	if t != nil {
+		t.Helper()
 	}
 
 	rootCAs, err := x509.SystemCertPool()
@@ -66,28 +77,49 @@ func getClient() *http.Client {
 		panic(err)
 	}
 	_ = rootCAs.AppendCertsFromPEM(bs)
+	transport := &http.Transport{
+		DisableKeepAlives: true,
+		TLSClientConfig: &tls.Config{
+			RootCAs: rootCAs,
+		},
+	}
+	return loggingRoundTripper{t, transport}
+}
+
+func getClient(t testing.TB) *http.Client {
+	if t != nil {
+		t.Helper()
+	}
+
+	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+	if err != nil {
+		panic(err)
+	}
 
 	return &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
-		Transport: &http.Transport{
-			DisableKeepAlives: true,
-			TLSClientConfig: &tls.Config{
-				RootCAs: rootCAs,
-			},
-		},
-		Jar: jar,
+		Transport: getTransport(t),
+		Jar:       jar,
 	}
 }
 
+// Returns a new http.Client configured with the same settings as getClient(),
+// as well as a pointer to the wrapped http.Transport, so that the
+// http.Transport can be easily customized.
+func getClientWithTransport(t testing.TB) (*http.Client, *http.Transport) {
+	client := getClient(t)
+	return client, client.Transport.(loggingRoundTripper).transport.(*http.Transport)
+}
+
 func waitForHealthy(ctx context.Context) error {
-	client := getClient()
+	client := getClient(nil)
 	check := func(endpoint string) error {
 		reqCtx, clearTimeout := context.WithTimeout(ctx, time.Second)
 		defer clearTimeout()
 
-		req, err := http.NewRequestWithContext(reqCtx, "GET", endpoint, nil)
+		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, endpoint, nil)
 		if err != nil {
 			return err
 		}
@@ -169,4 +201,15 @@ func mustParseURL(str string) *url.URL {
 		panic(err)
 	}
 	return u
+}
+
+func loadCertificate(t *testing.T, certName string) tls.Certificate {
+	t.Helper()
+	certFile := filepath.Join(".", "tpl", "files", certName+".pem")
+	keyFile := filepath.Join(".", "tpl", "files", certName+"-key.pem")
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cert
 }

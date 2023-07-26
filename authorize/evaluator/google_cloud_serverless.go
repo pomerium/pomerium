@@ -66,7 +66,7 @@ type gcpIdentityTokenSource struct {
 
 func (src *gcpIdentityTokenSource) Token() (*oauth2.Token, error) {
 	res, err, _ := src.singleflight.Do("", func() (interface{}, error) {
-		req, err := http.NewRequestWithContext(context.Background(), "GET", GCPIdentityDocURL+"?"+url.Values{
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, GCPIdentityDocURL+"?"+url.Values{
 			"format":   {"full"},
 			"audience": {src.audience},
 		}.Encode(), nil)

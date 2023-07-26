@@ -15,11 +15,11 @@ type mockFF struct {
 	update chan uint64
 }
 
-func (ff *mockFF) ClearRecords(ctx context.Context) {
+func (ff *mockFF) ClearRecords(_ context.Context) {
 	ff.clear <- struct{}{}
 }
 
-func (ff *mockFF) UpdateRecords(ctx context.Context, sv uint64, records []*Record) {
+func (ff *mockFF) UpdateRecords(_ context.Context, sv uint64, _ []*Record) {
 	time.Sleep(time.Millisecond * time.Duration(rand.Intn(5)))
 	ff.update <- sv
 }

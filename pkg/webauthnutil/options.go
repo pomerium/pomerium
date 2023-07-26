@@ -3,14 +3,15 @@ package webauthnutil
 import (
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"time"
-
-	"github.com/pomerium/webauthn"
-	"github.com/pomerium/webauthn/cose"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/device"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/slices"
+	"github.com/pomerium/webauthn"
+	"github.com/pomerium/webauthn/cose"
 )
 
 const (
@@ -25,12 +26,14 @@ func GenerateChallenge(key []byte, expiry time.Time) cryptutil.SecureToken {
 
 // GenerateCreationOptions generates creation options for WebAuthn.
 func GenerateCreationOptions(
+	r *http.Request,
 	key []byte,
 	deviceType *device.Type,
 	user *user.User,
 ) *webauthn.PublicKeyCredentialCreationOptions {
 	expiry := time.Now().Add(ceremonyTimeout)
 	return newCreationOptions(
+		r,
 		GenerateChallenge(key, expiry).Bytes(),
 		deviceType,
 		user,
@@ -39,12 +42,14 @@ func GenerateCreationOptions(
 
 // GenerateRequestOptions generates request options for WebAuthn.
 func GenerateRequestOptions(
+	r *http.Request,
 	key []byte,
 	deviceType *device.Type,
 	knownDeviceCredentials []*device.Credential,
 ) *webauthn.PublicKeyCredentialRequestOptions {
 	expiry := time.Now().Add(ceremonyTimeout)
 	return newRequestOptions(
+		r,
 		GenerateChallenge(key, expiry).Bytes(),
 		deviceType,
 		knownDeviceCredentials,
@@ -54,6 +59,7 @@ func GenerateRequestOptions(
 // GetCreationOptionsForCredential gets the creation options for the public key creation credential. An error may be
 // returned if the challenge used to generate the credential is invalid.
 func GetCreationOptionsForCredential(
+	r *http.Request,
 	key []byte,
 	deviceType *device.Type,
 	user *user.User,
@@ -76,12 +82,13 @@ func GetCreationOptionsForCredential(
 		return nil, err
 	}
 
-	return newCreationOptions(challenge.Bytes(), deviceType, user), nil
+	return newCreationOptions(r, challenge.Bytes(), deviceType, user), nil
 }
 
 // GetRequestOptionsForCredential gets the request options for the public key request credential. An error may be
 // returned if the challenge used to generate the credential is invalid.
 func GetRequestOptionsForCredential(
+	r *http.Request,
 	key []byte,
 	deviceType *device.Type,
 	knownDeviceCredentials []*device.Credential,
@@ -104,11 +111,12 @@ func GetRequestOptionsForCredential(
 		return nil, err
 	}
 
-	return newRequestOptions(challenge.Bytes(), deviceType, knownDeviceCredentials), nil
+	return newRequestOptions(r, challenge.Bytes(), deviceType, knownDeviceCredentials), nil
 }
 
 // newCreationOptions gets the creation options for WebAuthn with the provided challenge.
 func newCreationOptions(
+	r *http.Request,
 	challenge []byte,
 	deviceType *device.Type,
 	user *user.User,
@@ -116,6 +124,7 @@ func newCreationOptions(
 	options := &webauthn.PublicKeyCredentialCreationOptions{
 		RP: webauthn.PublicKeyCredentialRPEntity{
 			Name: rpName,
+			ID:   GetEffectiveDomain(r),
 		},
 		User:      GetUserEntity(user),
 		Challenge: challenge,
@@ -133,6 +142,7 @@ func newCreationOptions(
 
 // newRequestOptions gets the request options for WebAuthn with the provided challenge.
 func newRequestOptions(
+	r *http.Request,
 	challenge []byte,
 	deviceType *device.Type,
 	knownDeviceCredentials []*device.Credential,
@@ -140,12 +150,16 @@ func newRequestOptions(
 	options := &webauthn.PublicKeyCredentialRequestOptions{
 		Challenge: challenge,
 		Timeout:   ceremonyTimeout,
+		RPID:      GetEffectiveDomain(r),
 	}
 	fillRequestUserVerificationRequirement(
 		options,
 		deviceType.GetWebauthn().GetOptions().GetAuthenticatorSelection().UserVerification,
 	)
-	for _, knownDeviceCredential := range knownDeviceCredentials {
+	knownDeviceCredentialsForType := slices.Filter(knownDeviceCredentials, func(c *device.Credential) bool {
+		return c.GetTypeId() == deviceType.GetId()
+	})
+	for _, knownDeviceCredential := range knownDeviceCredentialsForType {
 		if publicKey := knownDeviceCredential.GetWebauthn(); publicKey != nil {
 			options.AllowCredentials = append(options.AllowCredentials, webauthn.PublicKeyCredentialDescriptor{
 				Type: webauthn.PublicKeyCredentialTypePublicKey,

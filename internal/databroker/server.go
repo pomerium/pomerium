@@ -76,7 +76,7 @@ func (srv *Server) UpdateConfig(options ...ServerOption) {
 
 // AcquireLease acquires a lease.
 func (srv *Server) AcquireLease(ctx context.Context, req *databroker.AcquireLeaseRequest) (*databroker.AcquireLeaseResponse, error) {
-	_, span := trace.StartSpan(ctx, "databroker.grpc.AcquireLease")
+	ctx, span := trace.StartSpan(ctx, "databroker.grpc.AcquireLease")
 	defer span.End()
 	log.Info(ctx).
 		Str("name", req.GetName()).
@@ -103,7 +103,7 @@ func (srv *Server) AcquireLease(ctx context.Context, req *databroker.AcquireLeas
 
 // Get gets a record from the in-memory list.
 func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databroker.GetResponse, error) {
-	_, span := trace.StartSpan(ctx, "databroker.grpc.Get")
+	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Get")
 	defer span.End()
 	log.Info(ctx).
 		Str("type", req.GetType()).
@@ -128,9 +128,26 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 	}, nil
 }
 
+// ListTypes lists all the record types.
+func (srv *Server) ListTypes(ctx context.Context, _ *emptypb.Empty) (*databroker.ListTypesResponse, error) {
+	ctx, span := trace.StartSpan(ctx, "databroker.grpc.ListTypes")
+	defer span.End()
+	log.Info(ctx).Msg("list types")
+
+	db, err := srv.getBackend()
+	if err != nil {
+		return nil, err
+	}
+	types, err := db.ListTypes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &databroker.ListTypesResponse{Types: types}, nil
+}
+
 // Query queries for records.
 func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*databroker.QueryResponse, error) {
-	_, span := trace.StartSpan(ctx, "databroker.grpc.Query")
+	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Query")
 	defer span.End()
 	log.Info(ctx).
 		Str("type", req.GetType()).
@@ -183,7 +200,7 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 
 // Put updates an existing record or adds a new one.
 func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databroker.PutResponse, error) {
-	_, span := trace.StartSpan(ctx, "databroker.grpc.Put")
+	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Put")
 	defer span.End()
 
 	records := req.GetRecords()
@@ -222,7 +239,7 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 
 // ReleaseLease releases a lease.
 func (srv *Server) ReleaseLease(ctx context.Context, req *databroker.ReleaseLeaseRequest) (*emptypb.Empty, error) {
-	_, span := trace.StartSpan(ctx, "databroker.grpc.ReleaseLease")
+	ctx, span := trace.StartSpan(ctx, "databroker.grpc.ReleaseLease")
 	defer span.End()
 	log.Info(ctx).
 		Str("name", req.GetName()).
@@ -244,7 +261,7 @@ func (srv *Server) ReleaseLease(ctx context.Context, req *databroker.ReleaseLeas
 
 // RenewLease releases a lease.
 func (srv *Server) RenewLease(ctx context.Context, req *databroker.RenewLeaseRequest) (*emptypb.Empty, error) {
-	_, span := trace.StartSpan(ctx, "databroker.grpc.RenewLease")
+	ctx, span := trace.StartSpan(ctx, "databroker.grpc.RenewLease")
 	defer span.End()
 	log.Debug(ctx).
 		Str("name", req.GetName()).
@@ -269,7 +286,7 @@ func (srv *Server) RenewLease(ctx context.Context, req *databroker.RenewLeaseReq
 
 // SetOptions sets options for a type in the databroker.
 func (srv *Server) SetOptions(ctx context.Context, req *databroker.SetOptionsRequest) (*databroker.SetOptionsResponse, error) {
-	_, span := trace.StartSpan(ctx, "databroker.grpc.SetOptions")
+	ctx, span := trace.StartSpan(ctx, "databroker.grpc.SetOptions")
 	defer span.End()
 
 	backend, err := srv.getBackend()
@@ -363,7 +380,7 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 		}
 	}
 	if recordStream.Err() != nil {
-		return recordStream.Err()
+		return err
 	}
 
 	// always send the server version last in case there are no records

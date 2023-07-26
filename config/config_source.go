@@ -36,7 +36,7 @@ func (dispatcher *ChangeDispatcher) Trigger(ctx context.Context, cfg *Config) {
 }
 
 // OnConfigChange adds a listener.
-func (dispatcher *ChangeDispatcher) OnConfigChange(ctx context.Context, li ChangeListener) {
+func (dispatcher *ChangeDispatcher) OnConfigChange(_ context.Context, li ChangeListener) {
 	dispatcher.Lock()
 	defer dispatcher.Unlock()
 	dispatcher.onConfigChangeListeners = append(dispatcher.onConfigChangeListeners, li)
@@ -80,7 +80,7 @@ func (src *StaticSource) SetConfig(ctx context.Context, cfg *Config) {
 }
 
 // OnConfigChange is ignored for the StaticSource.
-func (src *StaticSource) OnConfigChange(ctx context.Context, li ChangeListener) {
+func (src *StaticSource) OnConfigChange(_ context.Context, li ChangeListener) {
 	src.mu.Lock()
 	defer src.mu.Unlock()
 

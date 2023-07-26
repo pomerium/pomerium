@@ -13,10 +13,6 @@ func (p *Policy) ToPPL() *parser.Policy {
 	ppl := &parser.Policy{}
 
 	allowRule := parser.Rule{Action: parser.ActionAllow}
-	allowRule.Or = append(allowRule.Or,
-		parser.Criterion{
-			Name: "pomerium_routes",
-		})
 	if p.AllowPublicUnauthenticatedAccess {
 		allowRule.Or = append(allowRule.Or,
 			parser.Criterion{
@@ -44,15 +40,6 @@ func (p *Policy) ToPPL() *parser.Policy {
 				Name: "domain",
 				Data: parser.Object{
 					"is": parser.String(ad),
-				},
-			})
-	}
-	for _, ag := range p.AllAllowedGroups() {
-		allowRule.Or = append(allowRule.Or,
-			parser.Criterion{
-				Name: "groups",
-				Data: parser.Object{
-					"has": parser.String(ag),
 				},
 			})
 	}
@@ -91,13 +78,6 @@ func (p *Policy) ToPPL() *parser.Policy {
 			})
 	}
 	ppl.Rules = append(ppl.Rules, allowRule)
-
-	denyRule := parser.Rule{Action: parser.ActionDeny}
-	denyRule.Or = append(denyRule.Or,
-		parser.Criterion{
-			Name: "invalid_client_certificate",
-		})
-	ppl.Rules = append(ppl.Rules, denyRule)
 
 	// append embedded PPL policy rules
 	if p.Policy != nil && p.Policy.Policy != nil {

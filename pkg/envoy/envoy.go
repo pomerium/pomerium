@@ -19,8 +19,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	envoy_config_bootstrap_v3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
-	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	"github.com/google/go-cmp/cmp"
 	"github.com/natefinch/atomic"
 	"github.com/rs/zerolog"
@@ -30,7 +28,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 )
 
@@ -40,7 +37,7 @@ const (
 
 type serverOptions struct {
 	services string
-	logLevel string
+	logLevel config.LogLevel
 }
 
 // A Server is a pomerium proxy implemented via envoy.
@@ -116,7 +113,7 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 
 	options := serverOptions{
 		services: cfg.Options.Services,
-		logLevel: firstNonEmpty(cfg.Options.ProxyLogLevel, cfg.Options.LogLevel, "debug"),
+		logLevel: firstNonEmpty(cfg.Options.ProxyLogLevel, cfg.Options.LogLevel, config.LogLevelDebug),
 	}
 
 	if cmp.Equal(srv.options, options, cmp.AllowUnexported(serverOptions{})) {
@@ -143,7 +140,7 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 
 	args := []string{
 		"-c", configFileName,
-		"--log-level", srv.options.logLevel,
+		"--log-level", srv.options.logLevel.ToEnvoy(),
 		"--log-format", "[LOG_FORMAT]%l--%n--%v",
 		"--log-format-escaped",
 	}
@@ -185,7 +182,7 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 }
 
 func (srv *Server) writeConfig(ctx context.Context, cfg *config.Config) error {
-	confBytes, err := srv.buildBootstrapConfig(cfg)
+	confBytes, err := srv.buildBootstrapConfig(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -196,63 +193,10 @@ func (srv *Server) writeConfig(ctx context.Context, cfg *config.Config) error {
 	return atomic.WriteFile(cfgPath, bytes.NewReader(confBytes))
 }
 
-func (srv *Server) buildBootstrapConfig(cfg *config.Config) ([]byte, error) {
-	nodeCfg := &envoy_config_core_v3.Node{
-		Id:      telemetry.ServiceName(cfg.Options.Services),
-		Cluster: telemetry.ServiceName(cfg.Options.Services),
-	}
-
-	adminCfg, err := srv.builder.BuildBootstrapAdmin(cfg)
+func (srv *Server) buildBootstrapConfig(ctx context.Context, cfg *config.Config) ([]byte, error) {
+	bootstrapCfg, err := srv.builder.BuildBootstrap(ctx, cfg, false)
 	if err != nil {
 		return nil, err
-	}
-
-	dynamicCfg := &envoy_config_bootstrap_v3.Bootstrap_DynamicResources{
-		AdsConfig: &envoy_config_core_v3.ApiConfigSource{
-			ApiType:             envoy_config_core_v3.ApiConfigSource_ApiType(envoy_config_core_v3.ApiConfigSource_ApiType_value["DELTA_GRPC"]),
-			TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
-			GrpcServices: []*envoy_config_core_v3.GrpcService{
-				{
-					TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
-						EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
-							ClusterName: "pomerium-control-plane-grpc",
-						},
-					},
-				},
-			},
-		},
-		LdsConfig: &envoy_config_core_v3.ConfigSource{
-			ResourceApiVersion:    envoy_config_core_v3.ApiVersion_V3,
-			ConfigSourceSpecifier: &envoy_config_core_v3.ConfigSource_Ads{},
-		},
-		CdsConfig: &envoy_config_core_v3.ConfigSource{
-			ResourceApiVersion:    envoy_config_core_v3.ApiVersion_V3,
-			ConfigSourceSpecifier: &envoy_config_core_v3.ConfigSource_Ads{},
-		},
-	}
-
-	staticCfg, err := srv.builder.BuildBootstrapStaticResources()
-	if err != nil {
-		return nil, err
-	}
-
-	statsCfg, err := srv.builder.BuildBootstrapStatsConfig(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	layeredRuntimeCfg, err := srv.builder.BuildBootstrapLayeredRuntime()
-	if err != nil {
-		return nil, err
-	}
-
-	bootstrapCfg := &envoy_config_bootstrap_v3.Bootstrap{
-		Node:             nodeCfg,
-		Admin:            adminCfg,
-		DynamicResources: dynamicCfg,
-		StaticResources:  staticCfg,
-		StatsConfig:      statsCfg,
-		LayeredRuntime:   layeredRuntimeCfg,
 	}
 
 	jsonBytes, err := protojson.Marshal(bootstrapCfg)

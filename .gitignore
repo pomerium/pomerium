@@ -3,6 +3,7 @@
 .*.yaml
 .*.json
 .*.rego
+*.jq
 pem
 env
 coverage.txt
@@ -95,3 +96,5 @@ pkg/envoy/files/envoy-*-?????.sha256
 pkg/envoy/files/envoy-*-?????.version
 
 yarn-error.log
+
+gha-creds-*.json

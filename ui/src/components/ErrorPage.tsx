@@ -20,8 +20,7 @@ type PolicyEvaluationTraceDetailsProps = {
   trace: PolicyEvaluationTrace;
 } & ListItemProps;
 const PolicyEvaluationTraceDetails: FC<PolicyEvaluationTraceDetailsProps> = ({
-  trace,
-  ...props
+  trace
 }) => {
   return (
     <TableRow>
@@ -52,16 +51,23 @@ export type ErrorPageProps = {
 export const ErrorPage: FC<ErrorPageProps> = ({ data }) => {
   const traces =
     data?.policyEvaluationTraces?.filter((trace) => !!trace.id) || [];
+  const status = data?.status || 500;
+
   return (
     <Container maxWidth={false}>
       <Paper sx={{ overflow: "hidden" }}>
         <Stack>
           <Box sx={{ padding: "16px" }}>
-            <Alert severity="error">
+            <Alert severity={status < 200 || status >= 300 ? "error" : "success"}>
               <AlertTitle>
-                {data?.status || 500}{" "}
+                {status}{" "}
                 {data?.statusText || "Internal Server Error"}
               </AlertTitle>
+              {data?.description ? (
+                <Markdown>{data.description}</Markdown>
+              ) : (
+                <></>
+              )}
             </Alert>
           </Box>
           {!!data?.errorMessageFirstParagraph && (

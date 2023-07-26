@@ -107,11 +107,16 @@ type PolicyEvaluator struct {
 }
 
 // NewPolicyEvaluator creates a new PolicyEvaluator.
-func NewPolicyEvaluator(ctx context.Context, store *store.Store, configPolicy *config.Policy) (*PolicyEvaluator, error) {
+func NewPolicyEvaluator(
+	ctx context.Context, store *store.Store, configPolicy *config.Policy, clientCA string,
+) (*PolicyEvaluator, error) {
 	e := new(PolicyEvaluator)
 
 	// generate the base rego script for the policy
 	ppl := configPolicy.ToPPL()
+	if clientCA != "" {
+		ppl.AddDefaultClientCertificateRule()
+	}
 	base, err := policy.GenerateRegoFromPolicy(ppl)
 	if err != nil {
 		return nil, err
@@ -198,7 +203,7 @@ func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *PolicyRequest) (*Po
 }
 
 func (e *PolicyEvaluator) evaluateQuery(ctx context.Context, req *PolicyRequest, query policyQuery) (*PolicyResponse, error) {
-	_, span := trace.StartSpan(ctx, "authorize.PolicyEvaluator.evaluateQuery")
+	ctx, span := trace.StartSpan(ctx, "authorize.PolicyEvaluator.evaluateQuery")
 	defer span.End()
 	span.AddAttributes(octrace.StringAttribute("script_checksum", query.checksum()))
 

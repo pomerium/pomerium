@@ -136,6 +136,31 @@ func TestGetAbsoluteURL(t *testing.T) {
 	}
 }
 
+func TestGetServerNamesForURL(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		u    *url.URL
+		want []string
+	}{
+		{"http", &url.URL{Scheme: "http", Host: "example.com"}, []string{"example.com"}},
+		{"http scheme with host contain 443", &url.URL{Scheme: "http", Host: "example.com:443"}, []string{"example.com"}},
+		{"https", &url.URL{Scheme: "https", Host: "example.com"}, []string{"example.com"}},
+		{"Host contains other port", &url.URL{Scheme: "https", Host: "example.com:1234"}, []string{"example.com"}},
+		{"tcp", &url.URL{Scheme: "tcp+https", Host: "example.com:1234"}, []string{"example.com"}},
+		{"tcp with path", &url.URL{Scheme: "tcp+https", Host: "proxy.example.com", Path: "/ssh.example.com:1234"}, []string{"proxy.example.com"}},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := GetServerNamesForURL(tc.u)
+			if diff := cmp.Diff(got, tc.want); diff != "" {
+				t.Errorf("GetServerNamesForURL() = %v", diff)
+			}
+		})
+	}
+}
+
 func TestGetDomainsForURL(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -147,12 +172,14 @@ func TestGetDomainsForURL(t *testing.T) {
 		{"http scheme with host contain 443", &url.URL{Scheme: "http", Host: "example.com:443"}, []string{"example.com:443"}},
 		{"https", &url.URL{Scheme: "https", Host: "example.com"}, []string{"example.com", "example.com:443"}},
 		{"Host contains other port", &url.URL{Scheme: "https", Host: "example.com:1234"}, []string{"example.com:1234"}},
+		{"tcp", &url.URL{Scheme: "tcp+https", Host: "example.com:1234"}, []string{"example.com:1234"}},
+		{"tcp with path", &url.URL{Scheme: "tcp+https", Host: "proxy.example.com", Path: "/ssh.example.com:1234"}, []string{"ssh.example.com:1234"}},
 	}
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := GetDomainsForURL(*tc.u)
+			got := GetDomainsForURL(tc.u)
 			if diff := cmp.Diff(got, tc.want); diff != "" {
 				t.Errorf("GetDomainsForURL() = %v", diff)
 			}
@@ -165,4 +192,10 @@ func TestJoin(t *testing.T) {
 	assert.Equal(t, "/x/y/z/", Join("/x/", "y/z/"))
 	assert.Equal(t, "/x/y/z/", Join("/x", "/y/z/"))
 	assert.Equal(t, "/x/y/z/", Join("/x/", "/y/z/"))
+}
+
+func TestMatchesServerName(t *testing.T) {
+	t.Run("wildcard", func(t *testing.T) {
+		assert.True(t, MatchesServerName(MustParseAndValidateURL("https://domain.example.com"), "*.example.com"))
+	})
 }

@@ -2,14 +2,18 @@ package databroker
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
+
+	"golang.org/x/exp/maps"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -78,7 +82,7 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 	// start the updater
 	src.runUpdater(cfg)
 
-	seen := map[uint64]struct{}{}
+	seen := map[uint64]string{}
 	for _, policy := range cfg.Options.GetAllPolicies() {
 		id, err := policy.RouteID()
 		if err != nil {
@@ -87,14 +91,24 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 				Msg("databroker: invalid policy config, ignoring")
 			return
 		}
-		seen[id] = struct{}{}
+		seen[id] = ""
 	}
 
 	var additionalPolicies []config.Policy
 
+	ids := maps.Keys(src.dbConfigs)
+	sort.Strings(ids)
+
+	certsIndex := cryptutil.NewCertificatesIndex()
+	for _, cert := range cfg.Options.GetX509Certificates() {
+		certsIndex.Add(cert)
+	}
+
 	// add all the config policies to the list
-	for id, cfgpb := range src.dbConfigs {
-		cfg.Options.ApplySettings(ctx, cfgpb.Settings)
+	for _, id := range ids {
+		cfgpb := src.dbConfigs[id]
+
+		cfg.Options.ApplySettings(ctx, certsIndex, cfgpb.Settings)
 		var errCount uint64
 
 		err := cfg.Options.Validate()
@@ -137,11 +151,12 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 				errCount++
 				log.Warn(ctx).Err(err).
 					Str("db_config_id", id).
+					Str("seen-in", seen[routeID]).
 					Str("policy", policy.String()).
 					Msg("databroker: duplicate policy detected, ignoring")
 				continue
 			}
-			seen[routeID] = struct{}{}
+			seen[routeID] = id
 
 			additionalPolicies = append(additionalPolicies, *policy)
 		}
@@ -223,13 +238,13 @@ func (s *syncerHandler) GetDataBrokerServiceClient() databroker.DataBrokerServic
 	return s.client
 }
 
-func (s *syncerHandler) ClearRecords(ctx context.Context) {
+func (s *syncerHandler) ClearRecords(_ context.Context) {
 	s.src.mu.Lock()
 	s.src.dbConfigs = map[string]dbConfig{}
 	s.src.mu.Unlock()
 }
 
-func (s *syncerHandler) UpdateRecords(ctx context.Context, serverVersion uint64, records []*databroker.Record) {
+func (s *syncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*databroker.Record) {
 	if len(records) == 0 {
 		return
 	}

@@ -10,39 +10,35 @@ import (
 
 	"github.com/go-jose/go-jose/v3"
 	"github.com/open-policy-agent/opa/rego"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
 
-// notFoundOutput is what's returned if a route isn't found for a policy.
-var notFoundOutput = &Result{
-	Deny:    NewRuleResult(true, criteria.ReasonRouteNotFound),
-	Headers: make(http.Header),
-}
-
 // Request contains the inputs needed for evaluation.
 type Request struct {
-	Policy  *config.Policy
-	HTTP    RequestHTTP
-	Session RequestSession
+	IsInternal bool
+	Policy     *config.Policy
+	HTTP       RequestHTTP
+	Session    RequestSession
 }
 
 // RequestHTTP is the HTTP field in the request.
 type RequestHTTP struct {
-	Method            string            `json:"method"`
-	Path              string            `json:"path"`
-	URL               string            `json:"url"`
-	Headers           map[string]string `json:"headers"`
-	ClientCertificate string            `json:"client_certificate"`
-	IP                string            `json:"ip"`
+	Method            string                `json:"method"`
+	Hostname          string                `json:"hostname"`
+	Path              string                `json:"path"`
+	URL               string                `json:"url"`
+	Headers           map[string]string     `json:"headers"`
+	ClientCertificate ClientCertificateInfo `json:"client_certificate"`
+	IP                string                `json:"ip"`
 }
 
 // NewRequestHTTP creates a new RequestHTTP.
@@ -50,17 +46,40 @@ func NewRequestHTTP(
 	method string,
 	requestURL url.URL,
 	headers map[string]string,
-	rawClientCertificate string,
+	clientCertificate ClientCertificateInfo,
 	ip string,
 ) RequestHTTP {
 	return RequestHTTP{
 		Method:            method,
+		Hostname:          requestURL.Hostname(),
 		Path:              requestURL.Path,
 		URL:               requestURL.String(),
 		Headers:           headers,
-		ClientCertificate: rawClientCertificate,
+		ClientCertificate: clientCertificate,
 		IP:                ip,
 	}
+}
+
+// ClientCertificateInfo contains information about the certificate presented
+// by the client (if any).
+type ClientCertificateInfo struct {
+	// Presented is true if the client presented any certificate at all.
+	Presented bool `json:"presented"`
+
+	// Validated is true if the client presented a valid certificate with a
+	// trust chain rooted at any of the CAs configured within the Envoy
+	// listener. If any routes define a tls_downstream_client_ca, additional
+	// validation is required (for all routes).
+	Validated bool `json:"validated"`
+
+	// Leaf contains the leaf client certificate, provided that the certificate
+	// validated successfully.
+	Leaf string `json:"leaf,omitempty"`
+
+	// Intermediates contains the remainder of the client certificate chain as
+	// it was originally presented by the client, provided that the client
+	// certificate validated successfully.
+	Intermediates string `json:"intermediates,omitempty"`
 }
 
 // RequestSession is the session field in the request.
@@ -100,31 +119,85 @@ func New(ctx context.Context, store *store.Store, options ...Option) (*Evaluator
 		return nil, err
 	}
 
+	e.clientCA = cfg.clientCA
+
 	e.policyEvaluators = make(map[uint64]*PolicyEvaluator)
-	for _, configPolicy := range cfg.policies {
+	for i := range cfg.policies {
+		configPolicy := cfg.policies[i]
 		id, err := configPolicy.RouteID()
 		if err != nil {
 			return nil, fmt.Errorf("authorize: error computing policy route id: %w", err)
 		}
-		policyEvaluator, err := NewPolicyEvaluator(ctx, store, &configPolicy) //nolint
+		clientCA, _ := e.getClientCA(&configPolicy)
+		policyEvaluator, err := NewPolicyEvaluator(ctx, store, &configPolicy, clientCA)
 		if err != nil {
 			return nil, err
 		}
 		e.policyEvaluators[id] = policyEvaluator
 	}
 
-	e.clientCA = cfg.clientCA
-
 	return e, nil
 }
 
 // Evaluate evaluates the rego for the given policy and generates the identity headers.
 func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error) {
-	_, span := trace.StartSpan(ctx, "authorize.Evaluator.Evaluate")
+	ctx, span := trace.StartSpan(ctx, "authorize.Evaluator.Evaluate")
 	defer span.End()
 
+	eg, ctx := errgroup.WithContext(ctx)
+
+	var policyOutput *PolicyResponse
+	eg.Go(func() error {
+		var err error
+		if req.IsInternal {
+			policyOutput, err = e.evaluateInternal(ctx, req)
+		} else {
+			policyOutput, err = e.evaluatePolicy(ctx, req)
+		}
+		return err
+	})
+
+	var headersOutput *HeadersResponse
+	eg.Go(func() error {
+		var err error
+		headersOutput, err = e.evaluateHeaders(ctx, req)
+		return err
+	})
+
+	err := eg.Wait()
+	if err != nil {
+		return nil, err
+	}
+
+	res := &Result{
+		Allow:   policyOutput.Allow,
+		Deny:    policyOutput.Deny,
+		Headers: headersOutput.Headers,
+		Traces:  policyOutput.Traces,
+	}
+	return res, nil
+}
+
+func (e *Evaluator) evaluateInternal(_ context.Context, req *Request) (*PolicyResponse, error) {
+	// these endpoints require a logged-in user
+	if req.HTTP.Path == "/.pomerium/webauthn" || req.HTTP.Path == "/.pomerium/jwt" {
+		if req.Session.ID == "" {
+			return &PolicyResponse{
+				Allow: NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+			}, nil
+		}
+	}
+
+	return &PolicyResponse{
+		Allow: NewRuleResult(true, criteria.ReasonPomeriumRoute),
+	}, nil
+}
+
+func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyResponse, error) {
 	if req.Policy == nil {
-		return notFoundOutput, nil
+		return &PolicyResponse{
+			Deny: NewRuleResult(true, criteria.ReasonRouteNotFound),
+		}, nil
 	}
 
 	id, err := req.Policy.RouteID()
@@ -134,7 +207,9 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 
 	policyEvaluator, ok := e.policyEvaluators[id]
 	if !ok {
-		return notFoundOutput, nil
+		return &PolicyResponse{
+			Deny: NewRuleResult(true, criteria.ReasonRouteNotFound),
+		}, nil
 	}
 
 	clientCA, err := e.getClientCA(req.Policy)
@@ -147,30 +222,23 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 		return nil, fmt.Errorf("authorize: error validating client certificate: %w", err)
 	}
 
-	policyOutput, err := policyEvaluator.Evaluate(ctx, &PolicyRequest{
+	return policyEvaluator.Evaluate(ctx, &PolicyRequest{
 		HTTP:                     req.HTTP,
 		Session:                  req.Session,
 		IsValidClientCertificate: isValidClientCertificate,
 	})
-	if err != nil {
-		return nil, err
-	}
+}
 
-	headersReq := NewHeadersRequestFromPolicy(req.Policy)
+func (e *Evaluator) evaluateHeaders(ctx context.Context, req *Request) (*HeadersResponse, error) {
+	headersReq := NewHeadersRequestFromPolicy(req.Policy, req.HTTP.Hostname)
 	headersReq.Session = req.Session
-	headersOutput, err := e.headersEvaluators.Evaluate(ctx, headersReq)
+	res, err := e.headersEvaluators.Evaluate(ctx, headersReq)
 	if err != nil {
 		return nil, err
 	}
 
-	carryOverJWTAssertion(headersOutput.Headers, req.HTTP.Headers)
+	carryOverJWTAssertion(res.Headers, req.HTTP.Headers)
 
-	res := &Result{
-		Allow:   policyOutput.Allow,
-		Deny:    policyOutput.Deny,
-		Headers: headersOutput.Headers,
-		Traces:  policyOutput.Traces,
-	}
 	return res, nil
 }
 
@@ -192,12 +260,6 @@ func (e *Evaluator) updateStore(cfg *evaluatorConfig) error {
 		return fmt.Errorf("authorize: couldn't create signer: %w", err)
 	}
 
-	authenticateURL, err := urlutil.ParseAndValidateURL(cfg.authenticateURL)
-	if err != nil {
-		return fmt.Errorf("authorize: invalid authenticate URL: %w", err)
-	}
-
-	e.store.UpdateIssuer(authenticateURL.Host)
 	e.store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(
 		cfg.googleCloudServerlessAuthenticationServiceAccount,
 	)
@@ -211,7 +273,7 @@ func (e *Evaluator) updateStore(cfg *evaluatorConfig) error {
 func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
 	var decodedCert []byte
 	// if we don't have a signing key, generate one
-	if cfg.signingKey == "" {
+	if len(cfg.signingKey) == 0 {
 		key, err := cryptutil.NewSigningKey()
 		if err != nil {
 			return nil, fmt.Errorf("couldn't generate signing key: %w", err)
@@ -221,11 +283,7 @@ func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
 			return nil, fmt.Errorf("bad signing key: %w", err)
 		}
 	} else {
-		var err error
-		decodedCert, err = base64.StdEncoding.DecodeString(cfg.signingKey)
-		if err != nil {
-			return nil, fmt.Errorf("bad signing key: %w", err)
-		}
+		decodedCert = cfg.signingKey
 	}
 
 	jwk, err := cryptutil.PrivateJWKFromBytes(decodedCert)
@@ -253,13 +311,13 @@ func safeEval(ctx context.Context, q rego.PreparedEvalQuery, options ...rego.Eva
 // carryOverJWTAssertion copies assertion JWT from request to response
 // note that src keys are expected to be http.CanonicalHeaderKey
 func carryOverJWTAssertion(dst http.Header, src map[string]string) {
-	jwtForKey := http.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertionFor)
+	jwtForKey := httputil.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertionFor)
 	jwtFor, ok := src[jwtForKey]
 	if ok && jwtFor != "" {
 		dst.Add(jwtForKey, jwtFor)
 		return
 	}
-	jwtFor, ok = src[http.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertion)]
+	jwtFor, ok = src[httputil.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertion)]
 	if ok && jwtFor != "" {
 		dst.Add(jwtForKey, jwtFor)
 	}

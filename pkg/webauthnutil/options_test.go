@@ -1,9 +1,11 @@
 package webauthnutil
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/pkg/grpc/device"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -12,14 +14,17 @@ import (
 )
 
 func TestGenerateCreationOptions(t *testing.T) {
+	r, err := http.NewRequest(http.MethodGet, "https://www.example.com", nil)
+	require.NoError(t, err)
+
 	t.Run("random challenge", func(t *testing.T) {
 		key := []byte{1, 2, 3}
-		options1 := GenerateCreationOptions(key, predefinedDeviceTypes[DefaultDeviceType], &user.User{
+		options1 := GenerateCreationOptions(r, key, predefinedDeviceTypes[DefaultDeviceType], &user.User{
 			Id:    "example",
 			Email: "test@example.com",
 			Name:  "Test User",
 		})
-		options2 := GenerateCreationOptions(key, predefinedDeviceTypes[DefaultDeviceType], &user.User{
+		options2 := GenerateCreationOptions(r, key, predefinedDeviceTypes[DefaultDeviceType], &user.User{
 			Id:    "example",
 			Email: "test@example.com",
 			Name:  "Test User",
@@ -28,7 +33,7 @@ func TestGenerateCreationOptions(t *testing.T) {
 	})
 	t.Run(DefaultDeviceType, func(t *testing.T) {
 		key := []byte{1, 2, 3}
-		options := GenerateCreationOptions(key, predefinedDeviceTypes[DefaultDeviceType], &user.User{
+		options := GenerateCreationOptions(r, key, predefinedDeviceTypes[DefaultDeviceType], &user.User{
 			Id:    "example",
 			Email: "test@example.com",
 			Name:  "Test User",
@@ -37,6 +42,7 @@ func TestGenerateCreationOptions(t *testing.T) {
 		assert.Equal(t, &webauthn.PublicKeyCredentialCreationOptions{
 			RP: webauthn.PublicKeyCredentialRPEntity{
 				Name: "Pomerium",
+				ID:   "example.com",
 			},
 			User: webauthn.PublicKeyCredentialUserEntity{
 				ID: []byte{
@@ -63,22 +69,29 @@ func TestGenerateCreationOptions(t *testing.T) {
 }
 
 func TestGenerateRequestOptions(t *testing.T) {
+	r, err := http.NewRequest(http.MethodGet, "https://www.example.com", nil)
+	require.NoError(t, err)
+
 	t.Run("random challenge", func(t *testing.T) {
 		key := []byte{1, 2, 3}
-		options1 := GenerateRequestOptions(key, predefinedDeviceTypes[DefaultDeviceType], nil)
-		options2 := GenerateRequestOptions(key, predefinedDeviceTypes[DefaultDeviceType], nil)
+		options1 := GenerateRequestOptions(r, key, predefinedDeviceTypes[DefaultDeviceType], nil)
+		options2 := GenerateRequestOptions(r, key, predefinedDeviceTypes[DefaultDeviceType], nil)
 		assert.NotEqual(t, options1.Challenge, options2.Challenge)
 	})
 	t.Run(DefaultDeviceType, func(t *testing.T) {
 		key := []byte{1, 2, 3}
-		options := GenerateRequestOptions(key, predefinedDeviceTypes[DefaultDeviceType], []*device.Credential{
-			{Id: "device1", Specifier: &device.Credential_Webauthn{Webauthn: &device.Credential_WebAuthn{
+		options := GenerateRequestOptions(r, key, predefinedDeviceTypes[DefaultDeviceType], []*device.Credential{
+			{Id: "device1", TypeId: DefaultDeviceType, Specifier: &device.Credential_Webauthn{Webauthn: &device.Credential_WebAuthn{
 				Id: []byte{4, 5, 6},
+			}}},
+			{Id: "device2", TypeId: "some-other-type", Specifier: &device.Credential_Webauthn{Webauthn: &device.Credential_WebAuthn{
+				Id: []byte{7, 8, 9},
 			}}},
 		})
 		options.Challenge = nil
 		assert.Equal(t, &webauthn.PublicKeyCredentialRequestOptions{
 			Timeout: 900000000000,
+			RPID:    "example.com",
 			AllowCredentials: []webauthn.PublicKeyCredentialDescriptor{
 				{Type: "public-key", ID: []byte{4, 5, 6}},
 			},
@@ -129,7 +142,8 @@ func TestFillPublicKeyCredentialParameters(t *testing.T) {
 	}{
 		{"", 0, nil},
 		{"public-key", -7, &device.WebAuthnOptions_PublicKeyCredentialParameters{
-			Type: device.WebAuthnOptions_PUBLIC_KEY, Alg: -7}},
+			Type: device.WebAuthnOptions_PUBLIC_KEY, Alg: -7,
+		}},
 	} {
 		params := new(webauthn.PublicKeyCredentialParameters)
 		fillPublicKeyCredentialParameters(params, testCase.in)

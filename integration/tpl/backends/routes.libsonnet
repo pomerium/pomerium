@@ -100,6 +100,28 @@ local Routes(mode, idp, dns_suffix) =
     //   path: '/tls-client-cert-disabled',
     //   allow_public_unauthenticated_access: true,
     // },
+    // downstream mTLS
+    {
+      from: 'https://client-cert-required.localhost.pomerium.io',
+      to: 'http://trusted-httpdetails' + dns_suffix + ':8080',
+      tls_downstream_client_ca: std.base64(importstr '../files/downstream-ca-1.pem'),
+      allow_any_authenticated_user: true,
+    },
+    // overlapping downstream mTLS
+    {
+      from: 'https://client-cert-overlap.localhost.pomerium.io',
+      to: 'http://trusted-httpdetails' + dns_suffix + ':8080',
+      path: '/ca1',
+      tls_downstream_client_ca: std.base64(importstr '../files/downstream-ca-1.pem'),
+      allow_any_authenticated_user: true,
+    },
+    {
+      from: 'https://client-cert-overlap.localhost.pomerium.io',
+      to: 'http://trusted-httpdetails' + dns_suffix + ':8080',
+      path: '/ca2',
+      tls_downstream_client_ca: std.base64(importstr '../files/downstream-ca-2.pem'),
+      allow_any_authenticated_user: true,
+    },
     // cors_allow_preflight option
     {
       from: 'https://httpdetails.localhost.pomerium.io',

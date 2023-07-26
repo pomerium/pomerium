@@ -6,19 +6,11 @@ import (
 	"testing"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test(t *testing.T) {
-	dir := filepath.Join(os.TempDir(), uuid.New().String())
-	err := os.MkdirAll(dir, 0o755)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer func() {
-		_ = os.RemoveAll(dir)
-	}()
+	dir := t.TempDir()
 
 	t.Run("bytes", func(t *testing.T) {
 		mgr := NewManager(WithCacheDir(dir))

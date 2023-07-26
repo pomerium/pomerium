@@ -33,6 +33,13 @@ func Remove[S ~[]E, E comparable](s S, e E) S {
 	return ns
 }
 
+// Reverse reverses a slice's order.
+func Reverse[S ~[]E, E comparable](s S) {
+	for i := 0; i < len(s)/2; i++ {
+		s[i], s[len(s)-1-i] = s[len(s)-1-i], s[i]
+	}
+}
+
 // Unique returns the unique elements of s.
 func Unique[S ~[]E, E comparable](s S) S {
 	var ns S
@@ -40,6 +47,20 @@ func Unique[S ~[]E, E comparable](s S) S {
 	for _, el := range s {
 		if _, ok := h[el]; !ok {
 			h[el] = struct{}{}
+			ns = append(ns, el)
+		}
+	}
+	return ns
+}
+
+// UniqueBy returns the unique elements of s using a function to map elements.
+func UniqueBy[S ~[]E, E any, V comparable](s S, by func(E) V) S {
+	var ns S
+	h := map[V]struct{}{}
+	for _, el := range s {
+		v := by(el)
+		if _, ok := h[v]; !ok {
+			h[v] = struct{}{}
 			ns = append(ns, el)
 		}
 	}

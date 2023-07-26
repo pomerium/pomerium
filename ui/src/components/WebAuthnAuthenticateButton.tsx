@@ -28,6 +28,7 @@ async function authenticateCredential(
       challenge: decode(requestOptions?.challenge),
       timeout: requestOptions?.timeout,
       userVerification: requestOptions?.userVerification,
+      rpId: requestOptions?.rpId,
     },
   });
   return credential as CredentialForAuthenticate;

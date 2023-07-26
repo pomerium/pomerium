@@ -13,11 +13,13 @@ import (
 	opastorage "github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/types"
+	octrace "go.opencensus.io/trace"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -32,11 +34,6 @@ func New() *Store {
 	return &Store{
 		Store: inmem.New(),
 	}
-}
-
-// UpdateIssuer updates the issuer in the store. The issuer is used as part of JWT construction.
-func (s *Store) UpdateIssuer(issuer string) {
-	s.write("/issuer", issuer)
 }
 
 // UpdateGoogleCloudServerlessAuthenticationServiceAccount updates the google cloud serverless authentication
@@ -105,15 +102,20 @@ func (s *Store) GetDataBrokerRecordOption() func(*rego.Rego) {
 			types.NewObject(nil, types.NewDynamicProperty(types.S, types.S)),
 		),
 	}, func(bctx rego.BuiltinContext, op1 *ast.Term, op2 *ast.Term) (*ast.Term, error) {
+		ctx, span := trace.StartSpan(bctx.Context, "rego.get_databroker_record")
+		defer span.End()
+
 		recordType, ok := op1.Value.(ast.String)
 		if !ok {
 			return nil, fmt.Errorf("invalid record type: %T", op1)
 		}
+		span.AddAttributes(octrace.StringAttribute("record_type", recordType.String()))
 
 		value, ok := op2.Value.(ast.String)
 		if !ok {
 			return nil, fmt.Errorf("invalid record id: %T", op2)
 		}
+		span.AddAttributes(octrace.StringAttribute("record_id", value.String()))
 
 		req := &databroker.QueryRequest{
 			Type:  string(recordType),
@@ -121,9 +123,9 @@ func (s *Store) GetDataBrokerRecordOption() func(*rego.Rego) {
 		}
 		req.SetFilterByIDOrIndex(string(value))
 
-		res, err := storage.GetQuerier(bctx.Context).Query(bctx.Context, req)
+		res, err := storage.GetQuerier(ctx).Query(ctx, req)
 		if err != nil {
-			log.Error(bctx.Context).Err(err).Msg("authorize/store: error retrieving record")
+			log.Error(ctx).Err(err).Msg("authorize/store: error retrieving record")
 			return ast.NullTerm(), nil
 		}
 
@@ -147,7 +149,7 @@ func (s *Store) GetDataBrokerRecordOption() func(*rego.Rego) {
 
 		regoValue, err := ast.InterfaceToValue(obj)
 		if err != nil {
-			log.Error(bctx.Context).Err(err).Msg("authorize/store: error converting object to rego")
+			log.Error(ctx).Err(err).Msg("authorize/store: error converting object to rego")
 			return ast.NullTerm(), nil
 		}
 

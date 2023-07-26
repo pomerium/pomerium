@@ -64,7 +64,7 @@ func Test_HTTPMetricsHandler(t *testing.T) {
 		{
 			name:                          "good get",
 			url:                           "http://test.local/good",
-			verb:                          "GET",
+			verb:                          http.MethodGet,
 			wanthttpServerRequestSize:     "{ { {host test.local}{http_method GET}{service test_service} }&{1 0 5e-324 0 0 [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
 			wanthttpServerResponseSize:    "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
 			wanthttpServerRequestDuration: "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }",
@@ -145,7 +145,7 @@ func Test_HTTPMetricsRoundTripper(t *testing.T) {
 		{
 			name:                          "good get",
 			url:                           "http://test.local/good",
-			verb:                          "GET",
+			verb:                          http.MethodGet,
 			wanthttpClientRequestSize:     "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
 			wanthttpClientResponseSize:    "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }&{1 5 5 5 0 [0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]",
 			wanthttpClientRequestDuration: "{ { {host test.local}{http.status 200}{http_method GET}{service test_service} }",
@@ -190,7 +190,7 @@ func Test_HTTPMetricsRoundTripper(t *testing.T) {
 
 	// Check for transport Errors
 	client = http.Client{Transport: chain.Then(newFailingTestTransport())}
-	req, _ := http.NewRequest("GET", "http://test.local", new(bytes.Buffer))
+	req, _ := http.NewRequest(http.MethodGet, "http://test.local", new(bytes.Buffer))
 	resp, err := client.Do(req)
 	if err == nil || resp != nil {
 		t.Error("Transport error not surfaced properly")

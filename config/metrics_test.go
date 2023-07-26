@@ -52,7 +52,7 @@ func TestMetricsManagerBasicAuth(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusUnauthorized, res.StatusCode)
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/metrics", srv1.URL), nil)
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/metrics", srv1.URL), nil)
 	require.NoError(t, err)
 	req.SetBasicAuth("x", "y")
 	res, err = http.DefaultClient.Do(req)

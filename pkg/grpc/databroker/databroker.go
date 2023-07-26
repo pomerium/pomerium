@@ -3,9 +3,12 @@ package databroker
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	structpb "google.golang.org/protobuf/types/known/structpb"
 
@@ -41,6 +44,34 @@ func Get(ctx context.Context, client DataBrokerServiceClient, object recordObjec
 	}
 
 	return res.GetRecord().GetData().UnmarshalTo(object)
+}
+
+// GetViaJSON gets a record from the databroker, marshals it to JSON, and then unmarshals it to the given type.
+func GetViaJSON[T any](ctx context.Context, client DataBrokerServiceClient, recordType, recordID string) (*T, error) {
+	res, err := client.Get(ctx, &GetRequest{
+		Type: recordType,
+		Id:   recordID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	msg, err := res.GetRecord().GetData().UnmarshalNew()
+	if err != nil {
+		return nil, err
+	}
+
+	bs, err := protojson.Marshal(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	var obj T
+	err = json.Unmarshal(bs, &obj)
+	if err != nil {
+		return nil, err
+	}
+	return &obj, nil
 }
 
 // Put puts a record into the databroker.
@@ -81,10 +112,10 @@ loop:
 	for {
 		res, err := stream.Recv()
 		switch {
-		case err == io.EOF:
+		case errors.Is(err, io.EOF):
 			break loop
 		case err != nil:
-			return nil, 0, 0, err
+			return nil, 0, 0, fmt.Errorf("error receiving record: %w", err)
 		}
 
 		switch res := res.GetResponse().(type) {

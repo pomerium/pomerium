@@ -80,6 +80,7 @@ local Environment(mode, idp, dns_suffix) =
     CERTIFICATE: std.base64(importstr '../files/trusted.pem'),
     CERTIFICATE_KEY: std.base64(importstr '../files/trusted-key.pem'),
     CERTIFICATE_AUTHORITY: std.base64(importstr '../files/ca.pem'),
+    CLIENT_CRL: std.base64(importstr '../files/downstream-crl.pem'),
     COOKIE_SECRET: 'UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=',
     DATABROKER_STORAGE_TYPE: 'postgres',
     DATABROKER_STORAGE_CONNECTION_STRING: 'postgres://pomerium:password@postgres:5432/test',
@@ -103,12 +104,6 @@ local Environment(mode, idp, dns_suffix) =
     DATABROKER_SERVICE_URL: 'https://pomerium-databroker:5443',
     GRPC_ADDRESS: ':5443',
     GRPC_INSECURE: 'false',
-  } else if mode == 'traefik' then {
-    FORWARD_AUTH_URL: 'https://forward-authenticate.localhost.pomerium.io',
-  } else if mode == 'nginx' then {
-    ADDRESS: ':80',
-    INSECURE_SERVER: 'true',
-    FORWARD_AUTH_URL: 'https://forward-authenticate.localhost.pomerium.io',
   } else {};
 
 local ComposeService(name, definition, additionalAliases=[]) =
@@ -186,24 +181,6 @@ function(mode, idp, dns_suffix='') {
           '9901:9901/tcp',
         ],
       }, ['mock-idp.localhost.pomerium.io'])
-    else if mode == 'traefik' || mode == 'nginx' then
-      ComposeService(name, {
-        image: image,
-        environment: environment,
-      }, ['authenticate.localhost.pomerium.io', 'forward-authenticate.localhost.pomerium.io']) +
-      ComposeService(name + '-ready', {
-        image: 'powerman/dockerize:0.16.3',
-        command: [
-          '-skip-tls-verify',
-          '-wait',
-          if mode == 'nginx' then
-            'http://' + name + ':80/healthz'
-          else
-            'https://' + name + ':443/healthz',
-          '-timeout',
-          '10m',
-        ],
-      })
     else
       ComposeService(name, {
         image: image,

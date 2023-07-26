@@ -16,7 +16,6 @@ func TestPolicy_ToPPL(t *testing.T) {
 		CORSAllowPreflight:               true,
 		AllowAnyAuthenticatedUser:        true,
 		AllowedDomains:                   []string{"a.example.com", "b.example.com"},
-		AllowedGroups:                    []string{"group1", "group2"},
 		AllowedUsers:                     []string{"user1", "user2"},
 		AllowedIDPClaims: map[string][]interface{}{
 			"family_name": {"Smith", "Jones"},
@@ -24,7 +23,6 @@ func TestPolicy_ToPPL(t *testing.T) {
 		SubPolicies: []SubPolicy{
 			{
 				AllowedDomains: []string{"c.example.com", "d.example.com"},
-				AllowedGroups:  []string{"group3", "group4"},
 				AllowedUsers:   []string{"user3", "user4"},
 				AllowedIDPClaims: map[string][]interface{}{
 					"given_name": {"John"},
@@ -32,7 +30,6 @@ func TestPolicy_ToPPL(t *testing.T) {
 			},
 			{
 				AllowedDomains: []string{"e.example.com"},
-				AllowedGroups:  []string{"group5"},
 				AllowedUsers:   []string{"user5"},
 				AllowedIDPClaims: map[string][]interface{}{
 					"timezone": {"EST"},
@@ -60,14 +57,6 @@ default allow = [false, set()]
 
 default deny = [false, set()]
 
-pomerium_routes_0 = [true, {"pomerium-route"}] {
-	contains(input.http.url, "/.pomerium/")
-}
-
-else = [false, {"non-pomerium-route"}] {
-	true
-}
-
 accept_0 = [true, {"accept"}]
 
 cors_preflight_0 = [true, {"cors-request"}] {
@@ -76,9 +65,7 @@ cors_preflight_0 = [true, {"cors-request"}] {
 	count(object.get(input.http.headers, "Origin", [])) > 0
 }
 
-else = [false, {"non-cors-request"}] {
-	true
-}
+else = [false, {"non-cors-request"}]
 
 authenticated_user_0 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
@@ -91,9 +78,7 @@ else = [false, {"user-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 domain_0 = [true, {"domain-ok"}] {
 	session := get_session(input.session.id)
@@ -107,9 +92,7 @@ else = [false, {"domain-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 domain_1 = [true, {"domain-ok"}] {
 	session := get_session(input.session.id)
@@ -123,9 +106,7 @@ else = [false, {"domain-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 domain_2 = [true, {"domain-ok"}] {
 	session := get_session(input.session.id)
@@ -139,9 +120,7 @@ else = [false, {"domain-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 domain_3 = [true, {"domain-ok"}] {
 	session := get_session(input.session.id)
@@ -155,9 +134,7 @@ else = [false, {"domain-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 domain_4 = [true, {"domain-ok"}] {
 	session := get_session(input.session.id)
@@ -171,164 +148,7 @@ else = [false, {"domain-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
-
-groups_0 = [true, {"groups-ok"}] {
-	session := get_session(input.session.id)
-	directory_user := get_directory_user(session)
-	group_ids := get_group_ids(session, directory_user)
-	group_names := [directory_group.name |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.name != null
-	]
-	group_emails := [directory_group.email |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.email != null
-	]
-	groups = array.concat(group_ids, array.concat(group_names, group_emails))
-	count([true | some v; v = groups[_0]; v == "group1"]) > 0
-}
-
-else = [false, {"groups-unauthorized"}] {
-	session := get_session(input.session.id)
-	session.id != ""
-}
-
-else = [false, {"user-unauthenticated"}] {
-	true
-}
-
-groups_1 = [true, {"groups-ok"}] {
-	session := get_session(input.session.id)
-	directory_user := get_directory_user(session)
-	group_ids := get_group_ids(session, directory_user)
-	group_names := [directory_group.name |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.name != null
-	]
-	group_emails := [directory_group.email |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.email != null
-	]
-	groups = array.concat(group_ids, array.concat(group_names, group_emails))
-	count([true | some v; v = groups[_0]; v == "group2"]) > 0
-}
-
-else = [false, {"groups-unauthorized"}] {
-	session := get_session(input.session.id)
-	session.id != ""
-}
-
-else = [false, {"user-unauthenticated"}] {
-	true
-}
-
-groups_2 = [true, {"groups-ok"}] {
-	session := get_session(input.session.id)
-	directory_user := get_directory_user(session)
-	group_ids := get_group_ids(session, directory_user)
-	group_names := [directory_group.name |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.name != null
-	]
-	group_emails := [directory_group.email |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.email != null
-	]
-	groups = array.concat(group_ids, array.concat(group_names, group_emails))
-	count([true | some v; v = groups[_0]; v == "group3"]) > 0
-}
-
-else = [false, {"groups-unauthorized"}] {
-	session := get_session(input.session.id)
-	session.id != ""
-}
-
-else = [false, {"user-unauthenticated"}] {
-	true
-}
-
-groups_3 = [true, {"groups-ok"}] {
-	session := get_session(input.session.id)
-	directory_user := get_directory_user(session)
-	group_ids := get_group_ids(session, directory_user)
-	group_names := [directory_group.name |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.name != null
-	]
-	group_emails := [directory_group.email |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.email != null
-	]
-	groups = array.concat(group_ids, array.concat(group_names, group_emails))
-	count([true | some v; v = groups[_0]; v == "group4"]) > 0
-}
-
-else = [false, {"groups-unauthorized"}] {
-	session := get_session(input.session.id)
-	session.id != ""
-}
-
-else = [false, {"user-unauthenticated"}] {
-	true
-}
-
-groups_4 = [true, {"groups-ok"}] {
-	session := get_session(input.session.id)
-	directory_user := get_directory_user(session)
-	group_ids := get_group_ids(session, directory_user)
-	group_names := [directory_group.name |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.name != null
-	]
-	group_emails := [directory_group.email |
-		some i
-		group_id := group_ids[i]
-		directory_group := get_directory_group(group_id)
-		directory_group != null
-		directory_group.email != null
-	]
-	groups = array.concat(group_ids, array.concat(group_names, group_emails))
-	count([true | some v; v = groups[_0]; v == "group5"]) > 0
-}
-
-else = [false, {"groups-unauthorized"}] {
-	session := get_session(input.session.id)
-	session.id != ""
-}
-
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 claim_0 = [true, {"claim-ok"}] {
 	rule_data := "Smith"
@@ -347,9 +167,7 @@ else = [false, {"claim-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 claim_1 = [true, {"claim-ok"}] {
 	rule_data := "Jones"
@@ -368,9 +186,7 @@ else = [false, {"claim-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 claim_2 = [true, {"claim-ok"}] {
 	rule_data := "John"
@@ -389,9 +205,7 @@ else = [false, {"claim-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 claim_3 = [true, {"claim-ok"}] {
 	rule_data := "EST"
@@ -410,9 +224,7 @@ else = [false, {"claim-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 user_0 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
@@ -425,9 +237,7 @@ else = [false, {"user-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 email_0 = [true, {"email-ok"}] {
 	session := get_session(input.session.id)
@@ -441,9 +251,7 @@ else = [false, {"email-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 user_1 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
@@ -456,9 +264,7 @@ else = [false, {"user-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 email_1 = [true, {"email-ok"}] {
 	session := get_session(input.session.id)
@@ -472,9 +278,7 @@ else = [false, {"email-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 user_2 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
@@ -487,9 +291,7 @@ else = [false, {"user-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 email_2 = [true, {"email-ok"}] {
 	session := get_session(input.session.id)
@@ -503,9 +305,7 @@ else = [false, {"email-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 user_3 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
@@ -518,9 +318,7 @@ else = [false, {"user-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 email_3 = [true, {"email-ok"}] {
 	session := get_session(input.session.id)
@@ -534,9 +332,7 @@ else = [false, {"email-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 user_4 = [true, {"user-ok"}] {
 	session := get_session(input.session.id)
@@ -549,9 +345,7 @@ else = [false, {"user-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 email_4 = [true, {"email-ok"}] {
 	session := get_session(input.session.id)
@@ -565,12 +359,10 @@ else = [false, {"email-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 or_0 = v {
-	results := [pomerium_routes_0, accept_0, cors_preflight_0, authenticated_user_0, domain_0, domain_1, domain_2, domain_3, domain_4, groups_0, groups_1, groups_2, groups_3, groups_4, claim_0, claim_1, claim_2, claim_3, user_0, email_0, user_1, email_1, user_2, email_2, user_3, email_3, user_4, email_4]
+	results := [accept_0, cors_preflight_0, authenticated_user_0, domain_0, domain_1, domain_2, domain_3, domain_4, claim_0, claim_1, claim_2, claim_3, user_0, email_0, user_1, email_1, user_2, email_2, user_3, email_3, user_4, email_4]
 	normalized := [normalize_criterion_result(x) | x := results[i]]
 	v := merge_with_or(normalized)
 }
@@ -586,9 +378,7 @@ else = [false, {"user-unauthorized"}] {
 	session.id != ""
 }
 
-else = [false, {"user-unauthenticated"}] {
-	true
-}
+else = [false, {"user-unauthenticated"}]
 
 or_1 = v {
 	results := [user_5]
@@ -598,27 +388,6 @@ or_1 = v {
 
 allow = v {
 	results := [or_0, or_1]
-	normalized := [normalize_criterion_result(x) | x := results[i]]
-	v := merge_with_or(normalized)
-}
-
-invalid_client_certificate_0 = [true, {"invalid-client-certificate"}] {
-	is_boolean(input.is_valid_client_certificate)
-	not input.is_valid_client_certificate
-}
-
-else = [false, {"valid-client-certificate-or-none-required"}] {
-	true
-}
-
-or_2 = v {
-	results := [invalid_client_certificate_0]
-	normalized := [normalize_criterion_result(x) | x := results[i]]
-	v := merge_with_or(normalized)
-}
-
-deny = v {
-	results := [or_2]
 	normalized := [normalize_criterion_result(x) | x := results[i]]
 	v := merge_with_or(normalized)
 }
@@ -702,53 +471,20 @@ else = v {
 	object.get(v, "impersonate_session_id", "") == ""
 }
 
-else = {} {
-	true
-}
+else = {}
 
 get_user(session) = v {
 	v = get_databroker_record("type.googleapis.com/user.User", session.user_id)
 	v != null
 }
 
-else = {} {
-	true
-}
-
-get_directory_user(session) = v {
-	v = get_databroker_record("type.googleapis.com/directory.User", session.user_id)
-	v != null
-}
-
-else = "" {
-	true
-}
-
-get_directory_group(id) = v {
-	v = get_databroker_record("type.googleapis.com/directory.Group", id)
-	v != null
-}
-
-else = {} {
-	true
-}
+else = {}
 
 get_user_email(session, user) = v {
 	v = user.email
 }
 
-else = "" {
-	true
-}
-
-get_group_ids(session, directory_user) = v {
-	v = directory_user.group_ids
-	v != null
-}
-
-else = [] {
-	true
-}
+else = ""
 
 object_get(obj, key, def) = value {
 	undefined := "10a0fd35-0f1a-4e5b-97ce-631e89e1bafa"

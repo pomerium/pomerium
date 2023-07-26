@@ -13,6 +13,13 @@ export type Group = {
   name: string;
 };
 
+export type Profile = {
+  providerId: string;
+  idToken: string;
+  oauthToken: string;
+  claims: Record<string, unknown>;
+};
+
 export type Session = {
   audience: string[];
   claims: Claims;
@@ -58,6 +65,7 @@ export type WebAuthnCreationOptions = {
   pubKeyCredParams: PublicKeyCredentialParameters[];
   rp: {
     name: string;
+    id: string;
   };
   timeout: number;
   user: {
@@ -75,6 +83,7 @@ export type WebAuthnRequestOptions = {
   challenge: string;
   timeout: number;
   userVerification: UserVerificationRequirement;
+  rpId: string;
 };
 
 // page data
@@ -95,6 +104,7 @@ export type ErrorPageData = BasePageData & {
   requestId?: string;
   status?: number;
   statusText?: string;
+  description?: string;
   errorMessageFirstParagraph?: string;
   policyEvaluationTraces?: PolicyEvaluationTrace[];
 };
@@ -103,8 +113,10 @@ export type UserInfoData = {
   csrfToken: string;
   directoryGroups?: Group[];
   directoryUser?: DirectoryUser;
+  isEnterprise?: boolean;
   session?: Session;
   user?: User;
+  profile?: Profile;
   webAuthnCreationOptions?: WebAuthnCreationOptions;
   webAuthnRequestOptions?: WebAuthnRequestOptions;
   webAuthnUrl?: string;

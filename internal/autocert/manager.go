@@ -10,19 +10,20 @@ import (
 	"net"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/mholt/acmez/acme"
 	"github.com/rs/zerolog"
-	"go.uber.org/zap"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -48,7 +49,7 @@ type Manager struct {
 	mu                  sync.RWMutex
 	config              *config.Config
 	certmagic           *certmagic.Config
-	acmeMgr             *atomicutil.Value[*certmagic.ACMEIssuer]
+	acmeMgr             atomic.Pointer[certmagic.ACMEIssuer]
 	srv                 *http.Server
 	acmeTLSALPNListener net.Listener
 
@@ -76,24 +77,31 @@ func newManager(ctx context.Context,
 		return nil, err
 	}
 
-	certmagicConfig := certmagic.NewDefault()
-	// set certmagic default storage cache, otherwise cert renewal loop will be based off
-	// certmagic's own default location
-	certmagicConfig.Storage = &certmagic.FileStorage{
-		Path: src.GetConfig().Options.AutocertOptions.Folder,
-	}
-
-	logger := log.ZapLogger().With(zap.String("service", "autocert"))
-	certmagicConfig.Logger = logger
+	logger := getCertMagicLogger()
 	acmeTemplate.Logger = logger
 
 	mgr := &Manager{
 		src:          src,
 		acmeTemplate: acmeTemplate,
-		acmeMgr:      atomicutil.NewValue(new(certmagic.ACMEIssuer)),
-		certmagic:    certmagicConfig,
 		ocspCache:    ocspRespCache,
 	}
+
+	// set certmagic default storage cache, otherwise cert renewal loop will be based off
+	// certmagic's own default location
+	certmagicStorage, err := GetCertMagicStorage(ctx, src.GetConfig().Options.AutocertOptions.Folder)
+	if err != nil {
+		return nil, err
+	}
+	mgr.certmagic = certmagic.New(certmagic.NewCache(certmagic.CacheOptions{
+		GetConfigForCert: func(c certmagic.Certificate) (*certmagic.Config, error) {
+			return mgr.certmagic, nil
+		},
+		Logger: logger,
+	}), certmagic.Config{
+		Logger:  logger,
+		Storage: certmagicStorage,
+	})
+
 	err = mgr.update(ctx, src.GetConfig())
 	if err != nil {
 		return nil, err
@@ -131,7 +139,11 @@ func newManager(ctx context.Context,
 func (mgr *Manager) getCertMagicConfig(ctx context.Context, cfg *config.Config) (*certmagic.Config, error) {
 	mgr.certmagic.MustStaple = cfg.Options.AutocertOptions.MustStaple
 	mgr.certmagic.OnDemand = nil // disable on-demand
-	mgr.certmagic.Storage = &certmagic.FileStorage{Path: cfg.Options.AutocertOptions.Folder}
+	var err error
+	mgr.certmagic.Storage, err = GetCertMagicStorage(ctx, cfg.Options.AutocertOptions.Folder)
+	if err != nil {
+		return nil, err
+	}
 	certs, err := cfg.AllCertificates()
 	if err != nil {
 		return nil, err
@@ -265,6 +277,7 @@ func (mgr *Manager) renewCert(ctx context.Context, domain string, cert certmagic
 
 func (mgr *Manager) updateAutocert(ctx context.Context, cfg *config.Config) error {
 	if !cfg.Options.AutocertOptions.Enable {
+		mgr.acmeMgr.Store(nil)
 		return nil
 	}
 
@@ -433,13 +446,19 @@ func sourceHostnames(cfg *config.Config) []string {
 
 	dedupe := map[string]struct{}{}
 	for _, p := range policies {
-		dedupe[p.Source.Hostname()] = struct{}{}
-	}
-	if cfg.Options.AuthenticateURLString != "" {
-		u, _ := cfg.Options.GetAuthenticateURL()
-		if u != nil {
+		if u, _ := urlutil.ParseAndValidateURL(p.From); u != nil && !strings.Contains(u.Host, "*") {
 			dedupe[u.Hostname()] = struct{}{}
 		}
+	}
+	if cfg.Options.AuthenticateURLString != "" {
+		if u, _ := cfg.Options.GetAuthenticateURL(); u != nil {
+			dedupe[u.Hostname()] = struct{}{}
+		}
+	}
+
+	// remove any hosted authenticate URLs
+	for _, domain := range urlutil.HostedAuthenticateDomains {
+		delete(dedupe, domain)
 	}
 
 	var h []string

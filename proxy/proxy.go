@@ -13,6 +13,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
+	"github.com/pomerium/pomerium/internal/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
@@ -54,6 +55,7 @@ type Proxy struct {
 	state          *atomicutil.Value[*proxyState]
 	currentOptions *atomicutil.Value[*config.Options]
 	currentRouter  *atomicutil.Value[*mux.Router]
+	webauthn       *webauthn.Handler
 }
 
 // New takes a Proxy service from options and a validation function.
@@ -69,6 +71,7 @@ func New(cfg *config.Config) (*Proxy, error) {
 		currentOptions: config.NewAtomicOptions(),
 		currentRouter:  atomicutil.NewValue(httputil.NewRouter()),
 	}
+	p.webauthn = webauthn.New(p.getWebauthnState)
 
 	metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
 		return int64(len(p.currentOptions.Load().GetAllPolicies()))
@@ -83,7 +86,7 @@ func (p *Proxy) Mount(r *mux.Router) {
 }
 
 // OnConfigChange updates internal structures based on config.Options
-func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
+func (p *Proxy) OnConfigChange(_ context.Context, cfg *config.Config) {
 	if p == nil {
 		return
 	}
@@ -112,16 +115,6 @@ func (p *Proxy) setHandlers(opts *config.Options) error {
 	r.HandleFunc("/robots.txt", p.RobotsTxt).Methods(http.MethodGet)
 	// dashboard handlers are registered to all routes
 	r = p.registerDashboardHandlers(r)
-
-	forwardAuthURL, err := opts.GetForwardAuthURL()
-	if err != nil {
-		return err
-	}
-	if forwardAuthURL != nil {
-		// if a forward auth endpoint is set, register its handlers
-		h := r.Host(forwardAuthURL.Hostname()).Subrouter()
-		h.PathPrefix("/").Handler(p.registerFwdAuthHandlers())
-	}
 
 	p.currentRouter.Store(r)
 	return nil

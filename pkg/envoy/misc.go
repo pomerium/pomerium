@@ -8,7 +8,7 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 )
 
-func firstNonEmpty(args ...string) string {
+func firstNonEmpty[T interface{ ~string }](args ...T) T {
 	for _, a := range args {
 		if a != "" {
 			return a

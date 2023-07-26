@@ -7,7 +7,7 @@ import (
 type evaluatorConfig struct {
 	policies                                          []config.Policy
 	clientCA                                          []byte
-	signingKey                                        string
+	signingKey                                        []byte
 	authenticateURL                                   string
 	googleCloudServerlessAuthenticationServiceAccount string
 	jwtClaimsHeaders                                  config.JWTClaimHeaders
@@ -39,7 +39,7 @@ func WithClientCA(clientCA []byte) Option {
 }
 
 // WithSigningKey sets the signing key and algorithm in the config.
-func WithSigningKey(signingKey string) Option {
+func WithSigningKey(signingKey []byte) Option {
 	return func(cfg *evaluatorConfig) {
 		cfg.signingKey = signingKey
 	}

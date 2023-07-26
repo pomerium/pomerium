@@ -4,12 +4,14 @@ package inmemory
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/google/btree"
 	"github.com/rs/zerolog"
+	"golang.org/x/exp/maps"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -184,6 +186,16 @@ func (backend *Backend) Lease(_ context.Context, leaseName, leaseID string, ttl 
 	// update the expiry (renew the lease)
 	l.expiry = time.Now().Add(ttl)
 	return true, nil
+}
+
+// ListTypes lists the record types.
+func (backend *Backend) ListTypes(_ context.Context) ([]string, error) {
+	backend.mu.Lock()
+	keys := maps.Keys(backend.lookup)
+	backend.mu.Unlock()
+
+	sort.Strings(keys)
+	return keys, nil
 }
 
 // Put puts a record into the in-memory store.

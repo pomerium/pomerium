@@ -11,6 +11,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
@@ -23,6 +24,8 @@ type authorizeState struct {
 	dataBrokerClient           databroker.DataBrokerServiceClient
 	auditEncryptor             *protoutil.Encryptor
 	sessionStore               *config.SessionStore
+	hpkePrivateKey             *hpke.PrivateKey
+	authenticateKeyFetcher     hpke.KeyFetcher
 }
 
 func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*authorizeState, error) {
@@ -72,6 +75,12 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*autho
 	state.sessionStore, err = config.NewSessionStore(cfg.Options)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid session store: %w", err)
+	}
+
+	state.hpkePrivateKey = hpke.DerivePrivateKey(sharedKey)
+	state.authenticateKeyFetcher, err = cfg.GetAuthenticateKeyFetcher()
+	if err != nil {
+		return nil, fmt.Errorf("authorize: get authenticate JWKS key fetcher: %w", err)
 	}
 
 	return state, nil

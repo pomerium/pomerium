@@ -32,8 +32,6 @@ func TestOptions_Validate(t *testing.T) {
 	emptyClientID.ClientID = ""
 	emptyClientSecret := newTestOptions(t)
 	emptyClientSecret.ClientSecret = ""
-	emptyCookieSecret := newTestOptions(t)
-	emptyCookieSecret.CookieSecret = ""
 	invalidCookieSecret := newTestOptions(t)
 	invalidCookieSecret.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw^"
 	shortCookieLength := newTestOptions(t)
@@ -53,7 +51,6 @@ func TestOptions_Validate(t *testing.T) {
 	}{
 		{"minimum options", good, false},
 		{"nil options", &config.Options{}, true},
-		{"no cookie secret", emptyCookieSecret, true},
 		{"invalid cookie secret", invalidCookieSecret, true},
 		{"short cookie secret", shortCookieLength, true},
 		{"no shared secret", badSharedKey, true},
@@ -92,10 +89,7 @@ func TestNew(t *testing.T) {
 	goodSigningKey.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUpCMFZkbko1VjEvbVlpYUlIWHhnd2Q0Yzd5YWRTeXMxb3Y0bzA1b0F3ekdvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFVUc1eENQMEpUVDFINklvbDhqS3VUSVBWTE0wNENnVzlQbEV5cE5SbVdsb29LRVhSOUhUMwpPYnp6aktZaWN6YjArMUt3VjJmTVRFMTh1dy82MXJVQ0JBPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
 
 	badSigningKey := newTestOptions(t)
-	badSigningKey.SigningKey = "%"
-
-	badSigninKeyPublic := newTestOptions(t)
-	badSigninKeyPublic.SigningKey = "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJFakNCdWdJSkFNWUdtVzhpYWd1TU1Bb0dDQ3FHU000OUJBTUNNQkV4RHpBTkJnTlZCQU1NQm5WdWRYTmwKWkRBZ0Z3MHlNREExTWpJeU1EUTFNalJhR0E4ME56VTRNRFF4T1RJd05EVXlORm93RVRFUE1BMEdBMVVFQXd3RwpkVzUxYzJWa01Ga3dFd1lIS29aSXpqMENBUVlJS29aSXpqMERBUWNEUWdBRVVHNXhDUDBKVFQxSDZJb2w4akt1ClRJUFZMTTA0Q2dXOVBsRXlwTlJtV2xvb0tFWFI5SFQzT2J6empLWWljemIwKzFLd1YyZk1URTE4dXcvNjFyVUMKQkRBS0JnZ3Foa2pPUFFRREFnTkhBREJFQWlBSFFDUFh2WG5oeHlDTGNhZ3N3eWt4RUM1NFV5RmdyUVJVRmVCYwpPUzVCSFFJZ1Y3T2FXY2pMeHdsRlIrWDZTQ2daZDI5bXBtOVZKNnpXQURhWGdEN3FURW89Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K"
+	badSigningKey.SigningKey = "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJFakNCdWdJSkFNWUdtVzhpYWd1TU1Bb0dDQ3FHU000OUJBTUNNQkV4RHpBTkJnTlZCQU1NQm5WdWRYTmwKWkRBZ0Z3MHlNREExTWpJeU1EUTFNalJhR0E4ME56VTRNRFF4T1RJd05EVXlORm93RVRFUE1BMEdBMVVFQXd3RwpkVzUxYzJWa01Ga3dFd1lIS29aSXpqMENBUVlJS29aSXpqMERBUWNEUWdBRVVHNXhDUDBKVFQxSDZJb2w4akt1ClRJUFZMTTA0Q2dXOVBsRXlwTlJtV2xvb0tFWFI5SFQzT2J6empLWWljemIwKzFLd1YyZk1URTE4dXcvNjFyVUMKQkRBS0JnZ3Foa2pPUFFRREFnTkhBREJFQWlBSFFDUFh2WG5oeHlDTGNhZ3N3eWt4RUM1NFV5RmdyUVJVRmVCYwpPUzVCSFFJZ1Y3T2FXY2pMeHdsRlIrWDZTQ2daZDI5bXBtOVZKNnpXQURhWGdEN3FURW89Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K"
 
 	tests := []struct {
 		name string
@@ -108,7 +102,6 @@ func TestNew(t *testing.T) {
 		{"fails to validate", badRedirectURL, true},
 		{"good signing key", goodSigningKey, false},
 		{"bad signing key", badSigningKey, true},
-		{"bad public signing key", badSigninKeyPublic, true},
 	}
 	for _, tt := range tests {
 		tt := tt

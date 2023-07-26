@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -49,7 +50,7 @@ func TestServerSync(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close()
 	c := databroker.NewDataBrokerServiceClient(conn)
-	any := protoutil.NewAny(new(user.User))
+	data := protoutil.NewAny(new(user.User))
 	numRecords := 200
 
 	var serverVersion uint64
@@ -57,9 +58,9 @@ func TestServerSync(t *testing.T) {
 	for i := 0; i < numRecords; i++ {
 		res, err := c.Put(ctx, &databroker.PutRequest{
 			Records: []*databroker.Record{{
-				Type: any.TypeUrl,
+				Type: data.TypeUrl,
 				Id:   strconv.Itoa(i),
-				Data: any,
+				Data: data,
 			}},
 		})
 		require.NoError(t, err)
@@ -89,7 +90,7 @@ func TestServerSync(t *testing.T) {
 		require.NoError(t, err)
 		_, err = client.Recv()
 		require.Error(t, err)
-		require.Equal(t, codes.Aborted, status.Code(err))
+		assert.Equal(t, codes.Aborted.String(), status.Code(err).String())
 	})
 }
 
@@ -101,15 +102,15 @@ func BenchmarkSync(b *testing.B) {
 	}
 	defer conn.Close()
 	c := databroker.NewDataBrokerServiceClient(conn)
-	any := protoutil.NewAny(new(session.Session))
+	data := protoutil.NewAny(new(session.Session))
 	numRecords := 10000
 
 	for i := 0; i < numRecords; i++ {
 		_, _ = c.Put(ctx, &databroker.PutRequest{
 			Records: []*databroker.Record{{
-				Type: any.TypeUrl,
+				Type: data.TypeUrl,
 				Id:   strconv.Itoa(i),
-				Data: any,
+				Data: data,
 			}},
 		})
 	}

@@ -1,6 +1,7 @@
 package envoyconfig
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -42,6 +43,12 @@ func TestBuilder_BuildBootstrapLayeredRuntime(t *testing.T) {
 			"staticLayer": {
 				"overload": {
 					"global_downstream_max_connections": 50000
+				},
+				"re2": {
+					"max_program_size": {
+						"error_level": 1048576,
+						"warn_level": 1024
+					}
 				}
 			}
 		}] }
@@ -51,7 +58,7 @@ func TestBuilder_BuildBootstrapLayeredRuntime(t *testing.T) {
 func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		b := New("localhost:1111", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil)
-		staticCfg, err := b.BuildBootstrapStaticResources()
+		staticCfg, err := b.BuildBootstrapStaticResources(context.Background(), &config.Config{}, false)
 		assert.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -95,7 +102,7 @@ func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 	})
 	t.Run("bad gRPC address", func(t *testing.T) {
 		b := New("xyz:zyx", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil)
-		_, err := b.BuildBootstrapStaticResources()
+		_, err := b.BuildBootstrapStaticResources(context.Background(), &config.Config{}, false)
 		assert.Error(t, err)
 	})
 }

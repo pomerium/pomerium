@@ -20,23 +20,30 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
-type A = []interface{}
-type M = map[string]interface{}
+type (
+	A = []interface{}
+	M = map[string]interface{}
+)
 
 var testingNow = time.Date(2021, 5, 11, 13, 43, 0, 0, time.Local)
 
 type (
 	Input struct {
-		HTTP    InputHTTP    `json:"http"`
-		Session InputSession `json:"session"`
+		HTTP                     InputHTTP    `json:"http"`
+		Session                  InputSession `json:"session"`
+		IsValidClientCertificate bool         `json:"is_valid_client_certificate"`
 	}
 	InputHTTP struct {
-		Method  string              `json:"method"`
-		Path    string              `json:"path"`
-		Headers map[string][]string `json:"headers"`
+		Method            string                `json:"method"`
+		Path              string                `json:"path"`
+		Headers           map[string][]string   `json:"headers"`
+		ClientCertificate ClientCertificateInfo `json:"client_certificate"`
 	}
 	InputSession struct {
 		ID string `json:"id"`
+	}
+	ClientCertificateInfo struct {
+		Presented bool `json:"presented"`
 	}
 )
 
@@ -98,8 +105,8 @@ func evaluate(t *testing.T,
 			}
 
 			for _, record := range dataBrokerRecords {
-				any := protoutil.NewAny(record)
-				if string(recordType) == any.GetTypeUrl() &&
+				data := protoutil.NewAny(record)
+				if string(recordType) == data.GetTypeUrl() &&
 					string(recordID) == record.GetId() {
 					bs, _ := json.Marshal(record)
 					v, err := ast.ValueFromReader(bytes.NewReader(bs))

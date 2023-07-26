@@ -31,7 +31,7 @@ func newDataBrokerServer(cfg *config.Config) *dataBrokerServer {
 }
 
 // OnConfigChange updates the underlying databroker server whenever configuration is changed.
-func (srv *dataBrokerServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
+func (srv *dataBrokerServer) OnConfigChange(_ context.Context, cfg *config.Config) {
 	srv.server.UpdateConfig(srv.getOptions(cfg)...)
 	srv.setKey(cfg)
 }
@@ -70,6 +70,13 @@ func (srv *dataBrokerServer) Get(ctx context.Context, req *databrokerpb.GetReque
 		return nil, err
 	}
 	return srv.server.Get(ctx, req)
+}
+
+func (srv *dataBrokerServer) ListTypes(ctx context.Context, req *emptypb.Empty) (*databrokerpb.ListTypesResponse, error) {
+	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
+		return nil, err
+	}
+	return srv.server.ListTypes(ctx, req)
 }
 
 func (srv *dataBrokerServer) Query(ctx context.Context, req *databrokerpb.QueryRequest) (*databrokerpb.QueryResponse, error) {

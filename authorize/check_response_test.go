@@ -3,7 +3,7 @@ package authorize
 import (
 	"context"
 	"net/http"
-	"net/url"
+	"net/http/httptest"
 	"testing"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -20,14 +20,22 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/testutil"
+	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
 
 func TestAuthorize_handleResult(t *testing.T) {
 	opt := config.NewDefaultOptions()
-	opt.AuthenticateURLString = "https://authenticate.example.com"
 	opt.DataBrokerURLString = "https://databroker.example.com"
 	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
+
+	hpkePrivateKey, err := opt.GetHPKEPrivateKey()
+	require.NoError(t, err)
+
+	authnSrv := httptest.NewServer(hpke_handlers.HPKEPublicKeyHandler(hpkePrivateKey.PublicKey()))
+	t.Cleanup(authnSrv.Close)
+	opt.AuthenticateURLString = authnSrv.URL
+
 	a, err := New(&config.Config{Options: opt})
 	require.NoError(t, err)
 
@@ -37,8 +45,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 			&evaluator.Request{},
 			&evaluator.Result{
 				Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
-			},
-			false)
+			})
 		assert.NoError(t, err)
 		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
 
@@ -47,10 +54,65 @@ func TestAuthorize_handleResult(t *testing.T) {
 			&evaluator.Request{},
 			&evaluator.Result{
 				Deny: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
-			},
-			false)
+			})
 		assert.NoError(t, err)
 		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
+	})
+	t.Run("device-unauthenticated", func(t *testing.T) {
+		res, err := a.handleResult(context.Background(),
+			&envoy_service_auth_v3.CheckRequest{},
+			&evaluator.Request{},
+			&evaluator.Result{
+				Allow: evaluator.NewRuleResult(false, criteria.ReasonDeviceUnauthenticated),
+			})
+		assert.NoError(t, err)
+		assert.Equal(t, 302, int(res.GetDeniedResponse().GetStatus().GetCode()))
+
+		t.Run("webauthn path", func(t *testing.T) {
+			res, err := a.handleResult(context.Background(),
+				&envoy_service_auth_v3.CheckRequest{
+					Attributes: &envoy_service_auth_v3.AttributeContext{
+						Request: &envoy_service_auth_v3.AttributeContext_Request{
+							Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+								Path: "/.pomerium/webauthn",
+							},
+						},
+					},
+				},
+				&evaluator.Request{},
+				&evaluator.Result{
+					Allow: evaluator.NewRuleResult(true, criteria.ReasonPomeriumRoute),
+					Deny:  evaluator.NewRuleResult(false, criteria.ReasonDeviceUnauthenticated),
+				})
+			assert.NoError(t, err)
+			assert.NotNil(t, res.GetOkResponse())
+		})
+	})
+	t.Run("invalid-client-certificate", func(t *testing.T) {
+		// Even if the user is unauthenticated, if a client certificate was required and an invalid
+		// certificate was provided, access should be denied (no login redirect).
+		res, err := a.handleResult(context.Background(),
+			&envoy_service_auth_v3.CheckRequest{},
+			&evaluator.Request{},
+			&evaluator.Result{
+				Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+				Deny:  evaluator.NewRuleResult(true, criteria.ReasonInvalidClientCertificate),
+			})
+		assert.NoError(t, err)
+		assert.Equal(t, 495, int(res.GetDeniedResponse().GetStatus().GetCode()))
+	})
+	t.Run("client-certificate-required", func(t *testing.T) {
+		// Likewise, if a client certificate was required and no certificate
+		// was presented, access should be denied (no login redirect).
+		res, err := a.handleResult(context.Background(),
+			&envoy_service_auth_v3.CheckRequest{},
+			&evaluator.Request{},
+			&evaluator.Result{
+				Allow: evaluator.NewRuleResult(false, criteria.ReasonUserUnauthenticated),
+				Deny:  evaluator.NewRuleResult(true, criteria.ReasonClientCertificateRequired),
+			})
+		assert.NoError(t, err)
+		assert.Equal(t, 495, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
 }
 
@@ -58,8 +120,8 @@ func TestAuthorize_okResponse(t *testing.T) {
 	opt := &config.Options{
 		AuthenticateURLString: "https://authenticate.example.com",
 		Policies: []config.Policy{{
-			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
-			To:     mustParseWeightedURLs(t, "https://to.example.com"),
+			From: "https://example.com",
+			To:   mustParseWeightedURLs(t, "https://to.example.com"),
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},
@@ -123,7 +185,7 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
 	a.currentOptions.Store(&config.Options{
 		Policies: []config.Policy{{
-			Source: &config.StringURL{URL: &url.URL{Host: "example.com"}},
+			From: "https://example.com",
 			SubPolicies: []config.SubPolicy{{
 				Rego: []string{"allow = true"},
 			}},
@@ -152,8 +214,8 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 							Code: envoy_type_v3.StatusCode(codes.InvalidArgument),
 						},
 						Headers: []*envoy_config_core_v3.HeaderValueOption{
-							mkHeader("Content-Type", "text/html; charset=UTF-8", false),
-							mkHeader("X-Pomerium-Intercepted-Response", "true", false),
+							mkHeader("Content-Type", "text/html; charset=UTF-8"),
+							mkHeader("X-Pomerium-Intercepted-Response", "true"),
 						},
 						Body: "Access Denied",
 					},
@@ -181,18 +243,27 @@ func mustParseWeightedURLs(t *testing.T, urls ...string) []config.WeightedURL {
 }
 
 func TestRequireLogin(t *testing.T) {
+	t.Parallel()
+
 	opt := config.NewDefaultOptions()
-	opt.AuthenticateURLString = "https://authenticate.example.com"
 	opt.DataBrokerURLString = "https://databroker.example.com"
 	opt.SharedKey = "E8wWIMnihUx+AUfRegAQDNs8eRb3UrB5G3zlJW9XJDM="
+	opt.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUJlMFRxbXJkSXBZWE03c3pSRERWYndXOS83RWJHVWhTdFFJalhsVHNXM1BvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFb0xaRDI2bEdYREhRQmhhZkdlbEVmRDdlNmYzaURjWVJPVjdUbFlIdHF1Y1BFL2hId2dmYQpNY3FBUEZsRmpueUpySXJhYTFlQ2xZRTJ6UktTQk5kNXBRPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
+
+	hpkePrivateKey, err := opt.GetHPKEPrivateKey()
+	require.NoError(t, err)
+
+	authnSrv := httptest.NewServer(hpke_handlers.HPKEPublicKeyHandler(hpkePrivateKey.PublicKey()))
+	t.Cleanup(authnSrv.Close)
+	opt.AuthenticateURLString = authnSrv.URL
+
 	a, err := New(&config.Config{Options: opt})
 	require.NoError(t, err)
 
 	t.Run("accept empty", func(t *testing.T) {
 		res, err := a.requireLoginResponse(context.Background(),
 			&envoy_service_auth_v3.CheckRequest{},
-			&evaluator.Request{},
-			false)
+			&evaluator.Request{})
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
@@ -209,8 +280,7 @@ func TestRequireLogin(t *testing.T) {
 					},
 				},
 			},
-			&evaluator.Request{},
-			false)
+			&evaluator.Request{})
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})
@@ -227,8 +297,7 @@ func TestRequireLogin(t *testing.T) {
 					},
 				},
 			},
-			&evaluator.Request{},
-			false)
+			&evaluator.Request{})
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, int(res.GetDeniedResponse().GetStatus().GetCode()))
 	})

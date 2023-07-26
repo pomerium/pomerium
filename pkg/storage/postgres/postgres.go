@@ -5,12 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/registry"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -96,52 +98,49 @@ func getLatestRecordVersion(ctx context.Context, q querier) (recordVersion uint6
 }
 
 func getNextChangedRecord(ctx context.Context, q querier, recordType string, afterRecordVersion uint64) (*databroker.Record, error) {
-	for {
-		var recordID string
-		var version uint64
-		var data pgtype.JSONB
-		var modifiedAt pgtype.Timestamptz
-		var deletedAt pgtype.Timestamptz
-		query := `
+	var recordID string
+	var version uint64
+	var data []byte
+	var modifiedAt pgtype.Timestamptz
+	var deletedAt pgtype.Timestamptz
+	query := `
 			SELECT type, id, version, data, modified_at, deleted_at
 			FROM ` + schemaName + `.` + recordChangesTableName + `
 			WHERE version > $1
 		`
-		args := []any{afterRecordVersion}
-		if recordType != "" {
-			query += ` AND type = $2`
-			args = append(args, recordType)
-		}
-		query += `
+	args := []any{afterRecordVersion}
+	if recordType != "" {
+		query += ` AND type = $2`
+		args = append(args, recordType)
+	}
+	query += `
 			ORDER BY version ASC
 			LIMIT 1
 		`
-		err := q.QueryRow(ctx, query, args...).Scan(&recordType, &recordID, &version, &data, &modifiedAt, &deletedAt)
-		if isNotFound(err) {
-			return nil, storage.ErrNotFound
-		} else if err != nil {
-			return nil, fmt.Errorf("error querying next changed record: %w", err)
-		}
-		afterRecordVersion = version
-
-		var any anypb.Any
-		err = protojson.Unmarshal(data.Bytes, &any)
-		if isUnknownType(err) {
-			// ignore
-			continue
-		} else if err != nil {
-			return nil, fmt.Errorf("error unmarshaling changed record data: %w", err)
-		}
-
-		return &databroker.Record{
-			Version:    version,
-			Type:       recordType,
-			Id:         recordID,
-			Data:       &any,
-			ModifiedAt: timestamppbFromTimestamptz(modifiedAt),
-			DeletedAt:  timestamppbFromTimestamptz(deletedAt),
-		}, nil
+	err := q.QueryRow(ctx, query, args...).Scan(&recordType, &recordID, &version, &data, &modifiedAt, &deletedAt)
+	if isNotFound(err) {
+		return nil, storage.ErrNotFound
+	} else if err != nil {
+		return nil, fmt.Errorf("error querying next changed record: %w", err)
 	}
+
+	a, err := protoutil.UnmarshalAnyJSON(data)
+	if isUnknownType(err) {
+		a = protoutil.ToAny(protoutil.ToStruct(map[string]string{
+			"id": recordID,
+		}))
+	} else if err != nil {
+		return nil, fmt.Errorf("error unmarshaling changed record data: %w", err)
+	}
+
+	return &databroker.Record{
+		Version:    version,
+		Type:       recordType,
+		Id:         recordID,
+		Data:       a,
+		ModifiedAt: timestamppbFromTimestamptz(modifiedAt),
+		DeletedAt:  timestamppbFromTimestamptz(deletedAt),
+	}, nil
 }
 
 func getOptions(ctx context.Context, q querier, recordType string) (*databroker.Options, error) {
@@ -155,15 +154,15 @@ func getOptions(ctx context.Context, q querier, recordType string) (*databroker.
 		return nil, err
 	}
 	options := new(databroker.Options)
-	if capacity.Status == pgtype.Present {
-		options.Capacity = proto.Uint64(uint64(capacity.Int))
+	if capacity.Valid {
+		options.Capacity = proto.Uint64(uint64(capacity.Int64))
 	}
 	return options, nil
 }
 
 func getRecord(ctx context.Context, q querier, recordType, recordID string) (*databroker.Record, error) {
 	var version uint64
-	var data pgtype.JSONB
+	var data []byte
 	var modifiedAt pgtype.Timestamptz
 	err := q.QueryRow(ctx, `
 		SELECT version, data, modified_at
@@ -176,8 +175,7 @@ func getRecord(ctx context.Context, q querier, recordType, recordID string) (*da
 		return nil, fmt.Errorf("postgres: failed to execute query: %w", err)
 	}
 
-	var any anypb.Any
-	err = protojson.Unmarshal(data.Bytes, &any)
+	a, err := protoutil.UnmarshalAnyJSON(data)
 	if isUnknownType(err) {
 		return nil, storage.ErrNotFound
 	} else if err != nil {
@@ -188,7 +186,7 @@ func getRecord(ctx context.Context, q querier, recordType, recordID string) (*da
 		Version:    version,
 		Type:       recordType,
 		Id:         recordID,
-		Data:       &any,
+		Data:       a,
 		ModifiedAt: timestamppbFromTimestamptz(modifiedAt),
 	}, nil
 }
@@ -221,18 +219,18 @@ func listRecords(ctx context.Context, q querier, expr storage.FilterExpression, 
 	for rows.Next() {
 		var recordType, id string
 		var version uint64
-		var data pgtype.JSONB
+		var data []byte
 		var modifiedAt pgtype.Timestamptz
 		err = rows.Scan(&recordType, &id, &version, &data, &modifiedAt)
 		if err != nil {
 			return nil, fmt.Errorf("postgres: failed to scan row: %w", err)
 		}
 
-		var any anypb.Any
-		err = protojson.Unmarshal(data.Bytes, &any)
+		a, err := protoutil.UnmarshalAnyJSON(data)
 		if isUnknownType(err) {
-			// ignore records with an unknown type
-			continue
+			a = protoutil.ToAny(protoutil.ToStruct(map[string]string{
+				"id": id,
+			}))
 		} else if err != nil {
 			return nil, fmt.Errorf("postgres: failed to unmarshal data: %w", err)
 		}
@@ -241,7 +239,7 @@ func listRecords(ctx context.Context, q querier, expr storage.FilterExpression, 
 			Version:    version,
 			Type:       recordType,
 			Id:         id,
-			Data:       &any,
+			Data:       a,
 			ModifiedAt: timestamppbFromTimestamptz(modifiedAt),
 		})
 	}
@@ -287,6 +285,36 @@ func listServices(ctx context.Context, q querier) ([]*registry.Service, error) {
 	return services, nil
 }
 
+func listTypes(ctx context.Context, q querier) ([]string, error) {
+	query := `
+		SELECT DISTINCT type
+		FROM ` + schemaName + `.` + recordsTableName + `
+	`
+	rows, err := q.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: failed to execute query: %w", err)
+	}
+	defer rows.Close()
+
+	var types []string
+	for rows.Next() {
+		var recordType string
+		err = rows.Scan(&recordType)
+		if err != nil {
+			return nil, fmt.Errorf("postgres: failed to scan row: %w", err)
+		}
+
+		types = append(types, recordType)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("postgres: error iterating over rows: %w", err)
+	}
+
+	sort.Strings(types)
+	return types, nil
+}
+
 func maybeAcquireLease(ctx context.Context, q querier, leaseName, leaseID string, ttl time.Duration) (leaseHolderID string, err error) {
 	tbl := schemaName + "." + leasesTableName
 	expiresAt := timestamptzFromTimestamppb(timestamppb.New(time.Now().Add(ttl)))
@@ -310,9 +338,10 @@ func putRecordAndChange(ctx context.Context, q querier, record *databroker.Recor
 
 	modifiedAt := timestamptzFromTimestamppb(record.GetModifiedAt())
 	deletedAt := timestamptzFromTimestamppb(record.GetDeletedAt())
-	indexCIDR := &pgtype.Text{Status: pgtype.Null}
+	indexCIDR := &pgtype.Text{Valid: false}
 	if cidr := storage.GetRecordIndexCIDR(record.GetData()); cidr != nil {
-		_ = indexCIDR.Set(cidr.String())
+		indexCIDR.String = cidr.String()
+		indexCIDR.Valid = true
 	}
 
 	query := `
@@ -361,10 +390,10 @@ func putService(ctx context.Context, q querier, svc *registry.Service, expiresAt
 }
 
 func setOptions(ctx context.Context, q querier, recordType string, options *databroker.Options) error {
-	capacity := pgtype.Int8{Status: pgtype.Null}
+	capacity := pgtype.Int8{}
 	if options != nil && options.Capacity != nil {
-		capacity.Int = int64(options.GetCapacity())
-		capacity.Status = pgtype.Present
+		capacity.Int64 = int64(options.GetCapacity())
+		capacity.Valid = true
 	}
 
 	_, err := q.Exec(ctx, `
@@ -386,21 +415,16 @@ func signalServiceChange(ctx context.Context, q querier) error {
 	return err
 }
 
-func jsonbFromAny(any *anypb.Any) (pgtype.JSONB, error) {
+func jsonbFromAny(any *anypb.Any) ([]byte, error) {
 	if any == nil {
-		return pgtype.JSONB{Status: pgtype.Null}, nil
+		return nil, nil
 	}
 
-	bs, err := protojson.Marshal(any)
-	if err != nil {
-		return pgtype.JSONB{Status: pgtype.Null}, err
-	}
-
-	return pgtype.JSONB{Bytes: bs, Status: pgtype.Present}, nil
+	return protojson.Marshal(any)
 }
 
 func timestamppbFromTimestamptz(ts pgtype.Timestamptz) *timestamppb.Timestamp {
-	if ts.Status != pgtype.Present {
+	if !ts.Valid {
 		return nil
 	}
 	return timestamppb.New(ts.Time)
@@ -408,9 +432,9 @@ func timestamppbFromTimestamptz(ts pgtype.Timestamptz) *timestamppb.Timestamp {
 
 func timestamptzFromTimestamppb(ts *timestamppb.Timestamp) pgtype.Timestamptz {
 	if !ts.IsValid() {
-		return pgtype.Timestamptz{Status: pgtype.Null}
+		return pgtype.Timestamptz{}
 	}
-	return pgtype.Timestamptz{Time: ts.AsTime(), Status: pgtype.Present}
+	return pgtype.Timestamptz{Time: ts.AsTime(), Valid: true}
 }
 
 func isNotFound(err error) bool {

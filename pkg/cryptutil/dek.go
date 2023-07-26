@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	lru "github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"golang.org/x/crypto/chacha20poly1305"
 )
 
@@ -83,22 +83,18 @@ func (dek *DataEncryptionKey) KeyBytes() []byte {
 // Internally an LRU cache is used and the encrypted DEK bytes are converted to strings
 // to allow usage as hash map keys.
 type DataEncryptionKeyCache struct {
-	lru *lru.Cache
+	lru *lru.Cache[string, *DataEncryptionKey]
 }
 
 // NewDataEncryptionKeyCache creates a new DataEncryptionKeyCache.
 func NewDataEncryptionKeyCache() *DataEncryptionKeyCache {
-	c, _ := lru.New(DataEncryptionKeyCacheSize) // only errors if size <= 0
+	c, _ := lru.New[string, *DataEncryptionKey](DataEncryptionKeyCacheSize) // only errors if size <= 0
 	return &DataEncryptionKeyCache{lru: c}
 }
 
 // Get returns a data encryption key if available.
 func (cache *DataEncryptionKeyCache) Get(encryptedDEK []byte) (*DataEncryptionKey, bool) {
-	obj, ok := cache.lru.Get(string(encryptedDEK))
-	if ok {
-		return obj.(*DataEncryptionKey), true
-	}
-	return nil, false
+	return cache.lru.Get(string(encryptedDEK))
 }
 
 // Put stores a data encryption key by its encrypted representation.

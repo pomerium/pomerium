@@ -92,11 +92,6 @@ _import_paths=$(join_by , "${_imports[@]}")
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./device/." \
   ./device/device.proto
 
-../../scripts/protoc -I ./directory/ \
-  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./directory/." \
-  ./directory/directory.proto
-
-
 ../../scripts/protoc -I ./identity/ \
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./identity/." \
   ./identity/identity.proto
@@ -116,7 +111,7 @@ _import_paths=$(join_by , "${_imports[@]}")
 
 ../../scripts/protoc -I ./events/ -I ./ \
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./events/." \
-  ./events/xds.proto ./events/last_error.proto
+  ./events/last_error.proto
 
 ../../scripts/protoc -I ./cli/ -I ./ \
   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./cli/." \

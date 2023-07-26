@@ -12,24 +12,19 @@ import (
 func (b *Builder) buildVirtualHost(
 	options *config.Options,
 	name string,
-	domain string,
+	host string,
 ) (*envoy_config_route_v3.VirtualHost, error) {
 	vh := &envoy_config_route_v3.VirtualHost{
 		Name:    name,
-		Domains: []string{domain},
+		Domains: []string{host},
 	}
 
 	// these routes match /.pomerium/... and similar paths
-	rs, err := b.buildPomeriumHTTPRoutes(options, domain)
+	rs, err := b.buildPomeriumHTTPRoutes(options, host)
 	if err != nil {
 		return nil, err
 	}
 	vh.Routes = append(vh.Routes, rs...)
-
-	// if we're the proxy or authenticate service, add our global headers
-	if config.IsProxy(options.Services) || config.IsAuthenticate(options.Services) {
-		vh.ResponseHeadersToAdd = toEnvoyHeaders(options.GetSetResponseHeaders())
-	}
 
 	return vh, nil
 }

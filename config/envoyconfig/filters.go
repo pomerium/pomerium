@@ -35,8 +35,8 @@ func ExtAuthzFilter(grpcClientTimeout *durationpb.Duration) *envoy_extensions_fi
 						},
 					},
 				},
-				IncludePeerCertificate: true,
-				TransportApiVersion:    envoy_config_core_v3.ApiVersion_V3,
+				MetadataContextNamespaces: []string{"com.pomerium.client-certificate-info"},
+				TransportApiVersion:       envoy_config_core_v3.ApiVersion_V3,
 			}),
 		},
 	}

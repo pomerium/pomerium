@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
 
@@ -34,6 +35,7 @@ func TestServerHTTP(t *testing.T) {
 	}
 	cfg.Options.AuthenticateURLString = "https://authenticate.localhost.pomerium.io"
 	cfg.Options.SigningKey = "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUpCMFZkbko1VjEvbVlpYUlIWHhnd2Q0Yzd5YWRTeXMxb3Y0bzA1b0F3ekdvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFVUc1eENQMEpUVDFINklvbDhqS3VUSVBWTE0wNENnVzlQbEV5cE5SbVdsb29LRVhSOUhUMwpPYnp6aktZaWN6YjArMUt3VjJmTVRFMTh1dy82MXJVQ0JBPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
+	cfg.Options.SharedKey = "JDNjY2ITDlARvNaQXjc2Djk+GA6xeCy4KiozmZfdbTs="
 
 	src := config.NewStaticSource(cfg)
 	srv, err := NewServer(cfg, config.NewMetricsManager(ctx, src), events.New())
@@ -51,8 +53,8 @@ func TestServerHTTP(t *testing.T) {
 
 		expect := map[string]any{
 			"authentication_callback_endpoint": "https://authenticate.localhost.pomerium.io/oauth2/callback",
-			"frontchannel_logout_uri":          "https://authenticate.localhost.pomerium.io/.pomerium/sign_out",
-			"jwks_uri":                         "https://authenticate.localhost.pomerium.io/.well-known/pomerium/jwks.json",
+			"frontchannel_logout_uri":          fmt.Sprintf("https://localhost:%s/.pomerium/sign_out", src.GetConfig().HTTPPort),
+			"jwks_uri":                         fmt.Sprintf("https://localhost:%s/.well-known/pomerium/jwks.json", src.GetConfig().HTTPPort),
 		}
 		assert.Equal(t, expect, actual)
 	})
@@ -66,16 +68,32 @@ func TestServerHTTP(t *testing.T) {
 		require.NoError(t, err)
 
 		expect := map[string]any{
-			"keys": []any{map[string]any{
-				"alg": "ES256",
-				"crv": "P-256",
-				"kid": "5b419ade1895fec2d2def6cd33b1b9a018df60db231dc5ecb85cbed6d942813c",
-				"kty": "EC",
-				"use": "sig",
-				"x":   "UG5xCP0JTT1H6Iol8jKuTIPVLM04CgW9PlEypNRmWlo",
-				"y":   "KChF0fR09zm884ymInM29PtSsFdnzExNfLsP-ta1AgQ",
-			}},
+			"keys": []any{
+				map[string]any{
+					"alg": "ES256",
+					"crv": "P-256",
+					"kid": "5b419ade1895fec2d2def6cd33b1b9a018df60db231dc5ecb85cbed6d942813c",
+					"kty": "EC",
+					"use": "sig",
+					"x":   "UG5xCP0JTT1H6Iol8jKuTIPVLM04CgW9PlEypNRmWlo",
+					"y":   "KChF0fR09zm884ymInM29PtSsFdnzExNfLsP-ta1AgQ",
+				},
+			},
 		}
 		assert.Equal(t, expect, actual)
+	})
+	t.Run("hpke-public-key", func(t *testing.T) {
+		res, err := http.Get(fmt.Sprintf("http://localhost:%s/.well-known/pomerium/hpke-public-key", src.GetConfig().HTTPPort))
+		require.NoError(t, err)
+		defer res.Body.Close()
+
+		bs, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		assert.Equal(t, []byte{
+			0x4f, 0x47, 0x1b, 0x36, 0xb2, 0x5b, 0x3b, 0xd8,
+			0xa7, 0xf8, 0x58, 0x28, 0xc0, 0xa0, 0x0f, 0xf8,
+			0x75, 0xfa, 0x0a, 0x2f, 0x2a, 0xe7, 0x48, 0x28,
+			0xa4, 0xeb, 0x79, 0xda, 0xc7, 0x61, 0x78, 0x78,
+		}, bs)
 	})
 }

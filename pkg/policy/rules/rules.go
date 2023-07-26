@@ -74,42 +74,6 @@ get_device_enrollment(device_credential) = v {
 `)
 }
 
-// GetDirectoryUser returns the directory user for the given session.
-func GetDirectoryUser() *ast.Rule {
-	return ast.MustParseRule(`
-get_directory_user(session) = v {
-	v = get_databroker_record("type.googleapis.com/directory.User", session.user_id)
-	v != null
-} else = "" {
-	true
-}
-`)
-}
-
-// GetDirectoryGroup returns the directory group for the given id.
-func GetDirectoryGroup() *ast.Rule {
-	return ast.MustParseRule(`
-get_directory_group(id) = v {
-	v = get_databroker_record("type.googleapis.com/directory.Group", id)
-	v != null
-} else = {} {
-	true
-}
-`)
-}
-
-// GetGroupIDs returns the group ids for the given session or directory user.
-func GetGroupIDs() *ast.Rule {
-	return ast.MustParseRule(`
-get_group_ids(session, directory_user) = v {
-	v = directory_user.group_ids
-	v != null
-} else = [] {
-	true
-}
-`)
-}
-
 // MergeWithAnd merges criterion results using `and`.
 func MergeWithAnd() *ast.Rule {
 	return ast.MustParseRule(`

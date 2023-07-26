@@ -27,12 +27,12 @@ func DeleteCredential(
 		return nil, err
 	}
 
-	any := protoutil.NewAny(credential)
+	data := protoutil.NewAny(credential)
 	_, err = client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Type:      any.GetTypeUrl(),
+			Type:      data.GetTypeUrl(),
 			Id:        credentialID,
-			Data:      any,
+			Data:      data,
 			DeletedAt: timestamppb.Now(),
 		}},
 	})
@@ -52,12 +52,12 @@ func DeleteEnrollment(
 		return nil, err
 	}
 
-	any := protoutil.NewAny(enrollment)
+	data := protoutil.NewAny(enrollment)
 	_, err = client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Type:      any.GetTypeUrl(),
+			Type:      data.GetTypeUrl(),
 			Id:        enrollmentID,
-			Data:      any,
+			Data:      data,
 			DeletedAt: timestamppb.Now(),
 		}},
 	})
@@ -70,10 +70,10 @@ func GetCredential(
 	client databroker.DataBrokerServiceClient,
 	credentialID string,
 ) (*Credential, error) {
-	any := protoutil.NewAny(new(Credential))
+	data := protoutil.NewAny(new(Credential))
 
 	res, err := client.Get(ctx, &databroker.GetRequest{
-		Type: any.GetTypeUrl(),
+		Type: data.GetTypeUrl(),
 		Id:   credentialID,
 	})
 	if err != nil {
@@ -95,10 +95,10 @@ func GetEnrollment(
 	client databroker.DataBrokerServiceClient,
 	enrollmentID string,
 ) (*Enrollment, error) {
-	any := protoutil.NewAny(new(Enrollment))
+	data := protoutil.NewAny(new(Enrollment))
 
 	res, err := client.Get(ctx, &databroker.GetRequest{
-		Type: any.GetTypeUrl(),
+		Type: data.GetTypeUrl(),
 		Id:   enrollmentID,
 	})
 	if err != nil {
@@ -120,10 +120,10 @@ func GetOwnerCredentialRecord(
 	client databroker.DataBrokerServiceClient,
 	credentialID []byte,
 ) (*OwnerCredentialRecord, error) {
-	any := protoutil.NewAny(new(OwnerCredentialRecord))
+	data := protoutil.NewAny(new(OwnerCredentialRecord))
 
 	res, err := client.Get(ctx, &databroker.GetRequest{
-		Type: any.GetTypeUrl(),
+		Type: data.GetTypeUrl(),
 		Id:   base58.Encode(credentialID),
 	})
 	if err != nil {
@@ -145,10 +145,10 @@ func GetType(
 	client databroker.DataBrokerServiceClient,
 	typeID string,
 ) (*Type, error) {
-	any := protoutil.NewAny(new(Type))
+	data := protoutil.NewAny(new(Type))
 
 	res, err := client.Get(ctx, &databroker.GetRequest{
-		Type: any.GetTypeUrl(),
+		Type: data.GetTypeUrl(),
 		Id:   typeID,
 	})
 	if err != nil {
@@ -172,12 +172,12 @@ func PutCredential(
 ) error {
 	shrinkCredential(credential)
 
-	any := protoutil.NewAny(credential)
+	data := protoutil.NewAny(credential)
 	_, err := client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Type: any.GetTypeUrl(),
+			Type: data.GetTypeUrl(),
 			Id:   credential.GetId(),
-			Data: any,
+			Data: data,
 		}},
 	})
 	return err
@@ -189,12 +189,12 @@ func PutEnrollment(
 	client databroker.DataBrokerServiceClient,
 	enrollment *Enrollment,
 ) error {
-	any := protoutil.NewAny(enrollment)
+	data := protoutil.NewAny(enrollment)
 	_, err := client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Type: any.GetTypeUrl(),
+			Type: data.GetTypeUrl(),
 			Id:   enrollment.GetId(),
-			Data: any,
+			Data: data,
 		}},
 	})
 	return err
@@ -206,12 +206,12 @@ func PutOwnerCredentialRecord(
 	client databroker.DataBrokerServiceClient,
 	ownerCredentialRecord *OwnerCredentialRecord,
 ) error {
-	any := protoutil.NewAny(ownerCredentialRecord)
+	data := protoutil.NewAny(ownerCredentialRecord)
 	_, err := client.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{{
-			Type: any.GetTypeUrl(),
+			Type: data.GetTypeUrl(),
 			Id:   base58.Encode(ownerCredentialRecord.GetId()),
-			Data: any,
+			Data: data,
 		}},
 	})
 	return err

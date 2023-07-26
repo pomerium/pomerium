@@ -39,19 +39,6 @@ func Test_buildOutboundRoutes(t *testing.T) {
 		{
 			"match": {
 				"grpc": {},
-				"prefix": "/directory.DirectoryService/"
-			},
-			"name": "pomerium-databroker",
-			"route": {
-				"autoHostRewrite": true,
-				"cluster": "pomerium-databroker",
-				"idleTimeout": "0s",
-				"timeout": "0s"
-			}
-		},
-		{
-			"match": {
-				"grpc": {},
 				"prefix": "/registry.Registry/"
 			},
 			"name": "pomerium-databroker",

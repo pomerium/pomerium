@@ -11,10 +11,12 @@ import (
 
 	"github.com/pomerium/pomerium/internal/identity/identity"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
+	"github.com/pomerium/pomerium/internal/identity/oauth/apple"
 	"github.com/pomerium/pomerium/internal/identity/oauth/github"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/identity/oidc/auth0"
 	"github.com/pomerium/pomerium/internal/identity/oidc/azure"
+	"github.com/pomerium/pomerium/internal/identity/oidc/cognito"
 	"github.com/pomerium/pomerium/internal/identity/oidc/gitlab"
 	"github.com/pomerium/pomerium/internal/identity/oidc/google"
 	"github.com/pomerium/pomerium/internal/identity/oidc/okta"
@@ -37,6 +39,8 @@ type Authenticator interface {
 func NewAuthenticator(o oauth.Options) (a Authenticator, err error) {
 	ctx := context.Background()
 	switch o.ProviderName {
+	case apple.Name:
+		a, err = apple.New(ctx, &o)
 	case auth0.Name:
 		a, err = auth0.New(ctx, &o)
 	case azure.Name:
@@ -55,6 +59,8 @@ func NewAuthenticator(o oauth.Options) (a Authenticator, err error) {
 		a, err = onelogin.New(ctx, &o)
 	case ping.Name:
 		a, err = ping.New(ctx, &o)
+	case cognito.Name:
+		a, err = cognito.New(ctx, &o)
 	case "":
 		return nil, fmt.Errorf("identity: provider is not defined")
 	default:

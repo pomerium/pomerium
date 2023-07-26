@@ -3,6 +3,7 @@ package controlplane
 import (
 	"strings"
 
+	envoy_data_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3"
 	envoy_service_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v3"
 	"github.com/rs/zerolog"
 
@@ -30,31 +31,58 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogS
 			} else {
 				evt = log.Info(stream.Context())
 			}
-			// common properties
 			evt = evt.Str("service", "envoy")
-			evt = evt.Str("upstream-cluster", entry.GetCommonProperties().GetUpstreamCluster())
-			// request properties
-			evt = evt.Str("method", entry.GetRequest().GetRequestMethod().String())
-			evt = evt.Str("authority", entry.GetRequest().GetAuthority())
-			evt = evt.Str("path", stripQueryString(reqPath))
-			evt = evt.Str("user-agent", entry.GetRequest().GetUserAgent())
-			evt = evt.Str("referer", stripQueryString(entry.GetRequest().GetReferer()))
-			evt = evt.Str("forwarded-for", entry.GetRequest().GetForwardedFor())
-			evt = evt.Str("request-id", entry.GetRequest().GetRequestId())
-			// response properties
-			dur := entry.CommonProperties.TimeToLastDownstreamTxByte.AsDuration()
-			evt = evt.Dur("duration", dur)
-			evt = evt.Uint64("size", entry.Response.ResponseBodyBytes)
-			evt = evt.Uint32("response-code", entry.GetResponse().GetResponseCode().GetValue())
-			evt = evt.Str("response-code-details", entry.GetResponse().GetResponseCodeDetails())
+
+			fields := srv.currentConfig.Load().Config.Options.GetAccessLogFields()
+			for _, field := range fields {
+				evt = populateLogEvent(field, evt, entry)
+			}
+			// headers are selected in the envoy access logs config, so we can log all of them here
+			if len(entry.GetRequest().GetRequestHeaders()) > 0 {
+				evt = evt.Interface("headers", entry.GetRequest().GetRequestHeaders())
+			}
 			evt.Msg("http-request")
 		}
 	}
 }
 
-func stripQueryString(str string) string {
-	if idx := strings.Index(str, "?"); idx != -1 {
-		str = str[:idx]
+func populateLogEvent(
+	field log.AccessLogField,
+	evt *zerolog.Event,
+	entry *envoy_data_accesslog_v3.HTTPAccessLogEntry,
+) *zerolog.Event {
+	referer, _, _ := strings.Cut(entry.GetRequest().GetReferer(), "?")
+	path, query, _ := strings.Cut(entry.GetRequest().GetPath(), "?")
+
+	switch field {
+	case log.AccessLogFieldAuthority:
+		return evt.Str(string(field), entry.GetRequest().GetAuthority())
+	case log.AccessLogFieldDuration:
+		dur := entry.GetCommonProperties().GetTimeToLastDownstreamTxByte().AsDuration()
+		return evt.Dur(string(field), dur)
+	case log.AccessLogFieldForwardedFor:
+		return evt.Str(string(field), entry.GetRequest().GetForwardedFor())
+	case log.AccessLogFieldMethod:
+		return evt.Str(string(field), entry.GetRequest().GetRequestMethod().String())
+	case log.AccessLogFieldPath:
+		return evt.Str(string(field), path)
+	case log.AccessLogFieldQuery:
+		return evt.Str(string(field), query)
+	case log.AccessLogFieldReferer:
+		return evt.Str(string(field), referer)
+	case log.AccessLogFieldRequestID:
+		return evt.Str(string(field), entry.GetRequest().GetRequestId())
+	case log.AccessLogFieldResponseCode:
+		return evt.Uint32(string(field), entry.GetResponse().GetResponseCode().GetValue())
+	case log.AccessLogFieldResponseCodeDetails:
+		return evt.Str(string(field), entry.GetResponse().GetResponseCodeDetails())
+	case log.AccessLogFieldSize:
+		return evt.Uint64(string(field), entry.GetResponse().GetResponseBodyBytes())
+	case log.AccessLogFieldUpstreamCluster:
+		return evt.Str(string(field), entry.GetCommonProperties().GetUpstreamCluster())
+	case log.AccessLogFieldUserAgent:
+		return evt.Str(string(field), entry.GetRequest().GetUserAgent())
+	default:
+		return evt
 	}
-	return str
 }

@@ -33,7 +33,7 @@ func getMetrics(t *testing.T, envoyURL *url.URL) []byte {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req := httptest.NewRequest("GET", "http://test.local/metrics", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://test.local/metrics", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 

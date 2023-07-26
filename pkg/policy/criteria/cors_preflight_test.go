@@ -1,6 +1,7 @@
 package criteria
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,7 +16,7 @@ allow:
 `, []dataBrokerRecord{}, Input{HTTP: InputHTTP{
 			Method: "OPTIONS",
 			Headers: map[string][]string{
-				"Access-Control-Request-Method": {"GET"},
+				"Access-Control-Request-Method": {http.MethodGet},
 				"Origin":                        {"example.com"},
 			},
 		}})

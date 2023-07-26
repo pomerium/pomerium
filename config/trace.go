@@ -6,12 +6,12 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/rs/zerolog"
+
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
-
-	"github.com/rs/zerolog"
 )
 
 // TracingOptions are the options for tracing.

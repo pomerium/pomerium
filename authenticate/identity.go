@@ -30,7 +30,6 @@ func defaultGetIdentityProvider(options *config.Options, idpID string) (identity
 		ClientID:        idp.GetClientId(),
 		ClientSecret:    idp.GetClientSecret(),
 		Scopes:          idp.GetScopes(),
-		ServiceAccount:  idp.GetServiceAccount(),
 		AuthCodeOptions: idp.GetRequestParams(),
 	})
 }

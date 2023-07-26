@@ -2,32 +2,11 @@ package httputil
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
-
-	"github.com/go-jose/go-jose/v3"
-
-	"github.com/pomerium/csrf"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
-
-// HealthCheck is a simple healthcheck handler that responds to GET and HEAD
-// http requests.
-func HealthCheck(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	if r.Method == http.MethodGet {
-		fmt.Fprintln(w, http.StatusText(http.StatusOK))
-	}
-}
 
 // Redirect wraps the std libs's redirect method indicating that pomerium is
 // the origin of the response.
@@ -70,42 +49,4 @@ func (f HandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		e.ErrorResponse(r.Context(), w, r)
 	}
-}
-
-// JWKSHandler returns the /.well-known/pomerium/jwks.json handler.
-func JWKSHandler(rawSigningKey string) http.Handler {
-	return HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		var jwks jose.JSONWebKeySet
-		if rawSigningKey != "" {
-			decodedCert, err := base64.StdEncoding.DecodeString(rawSigningKey)
-			if err != nil {
-				return NewError(http.StatusInternalServerError, errors.New("bad signing key"))
-			}
-			jwk, err := cryptutil.PublicJWKFromBytes(decodedCert)
-			if err != nil {
-				return NewError(http.StatusInternalServerError, errors.New("bad signing key"))
-			}
-			jwks.Keys = append(jwks.Keys, *jwk)
-		}
-		RenderJSON(w, http.StatusOK, jwks)
-		return nil
-	})
-}
-
-// WellKnownPomeriumHandler returns the /.well-known/pomerium handler.
-func WellKnownPomeriumHandler(authenticateURL *url.URL) http.Handler {
-	return HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		wellKnownURLs := struct {
-			OAuth2Callback        string `json:"authentication_callback_endpoint"` // RFC6749
-			JSONWebKeySetURL      string `json:"jwks_uri"`                         // RFC7517
-			FrontchannelLogoutURI string `json:"frontchannel_logout_uri"`          // https://openid.net/specs/openid-connect-frontchannel-1_0.html
-		}{
-			authenticateURL.ResolveReference(&url.URL{Path: "/oauth2/callback"}).String(),
-			authenticateURL.ResolveReference(&url.URL{Path: "/.well-known/pomerium/jwks.json"}).String(),
-			authenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/sign_out"}).String(),
-		}
-		w.Header().Set("X-CSRF-Token", csrf.Token(r))
-		RenderJSON(w, http.StatusOK, wellKnownURLs)
-		return nil
-	})
 }

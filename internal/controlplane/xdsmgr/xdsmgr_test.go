@@ -13,7 +13,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/test/bufconn"
 
-	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/signal"
 )
 
@@ -37,7 +36,7 @@ func TestManager(t *testing.T) {
 		typeURL: {
 			{Name: "r1", Version: "1"},
 		},
-	}, events.New())
+	})
 	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv, mgr)
 
 	li := bufconn.Listen(bufSize)

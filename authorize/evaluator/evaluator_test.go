@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"context"
+	"encoding/base64"
 	"net/http"
 	"net/url"
 	"testing"
@@ -14,7 +15,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
@@ -34,7 +34,6 @@ func TestEvaluator(t *testing.T) {
 		ctx := context.Background()
 		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
 		store := store.New()
-		store.UpdateIssuer("authenticate.example.com")
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
 		e, err := New(ctx, store, options...)
@@ -78,22 +77,18 @@ func TestEvaluator(t *testing.T) {
 			AllowedDomains: []string{"example.com"},
 		},
 		{
-			To:            config.WeightedURLs{{URL: *mustParseURL("https://to8.example.com")}},
-			AllowedGroups: []string{"group1@example.com"},
-		},
-		{
-			To:                        config.WeightedURLs{{URL: *mustParseURL("https://to9.example.com")}},
+			To:                        config.WeightedURLs{{URL: *mustParseURL("https://to8.example.com")}},
 			AllowAnyAuthenticatedUser: true,
 		},
 		{
-			To: config.WeightedURLs{{URL: *mustParseURL("https://to10.example.com")}},
+			To: config.WeightedURLs{{URL: *mustParseURL("https://to9.example.com")}},
 			Policy: &config.PPLPolicy{
 				Policy: &parser.Policy{
 					Rules: []parser.Rule{{
 						Action: parser.ActionAllow,
 						Or: []parser.Criterion{{
 							Name: "http_method", Data: parser.Object{
-								"is": parser.String("GET"),
+								"is": parser.String(http.MethodGet),
 							},
 						}},
 					}},
@@ -101,7 +96,7 @@ func TestEvaluator(t *testing.T) {
 			},
 		},
 		{
-			To: config.WeightedURLs{{URL: *mustParseURL("https://to11.example.com")}},
+			To: config.WeightedURLs{{URL: *mustParseURL("https://to10.example.com")}},
 			Policy: &config.PPLPolicy{
 				Policy: &parser.Policy{
 					Rules: []parser.Rule{{
@@ -115,17 +110,40 @@ func TestEvaluator(t *testing.T) {
 				},
 			},
 		},
+		{
+			To:                    config.WeightedURLs{{URL: *mustParseURL("https://to11.example.com")}},
+			AllowedUsers:          []string{"a@example.com"},
+			TLSDownstreamClientCA: base64.StdEncoding.EncodeToString([]byte(testCA)),
+		},
 	}
 	options := []Option{
 		WithAuthenticateURL("https://authn.example.com"),
-		WithClientCA([]byte(testCA)),
 		WithPolicies(policies),
 	}
 
-	t.Run("client certificate", func(t *testing.T) {
+	validCertInfo := ClientCertificateInfo{
+		Presented: true,
+		Validated: true,
+		Leaf:      testValidCert,
+	}
+
+	t.Run("client certificate (default CA)", func(t *testing.T) {
+		// Clone the existing options and add a default client CA.
+		options := append([]Option(nil), options...)
+		options = append(options, WithClientCA([]byte(testCA)))
+		t.Run("missing", func(t *testing.T) {
+			res, err := eval(t, options, nil, &Request{
+				Policy: &policies[0],
+			})
+			require.NoError(t, err)
+			assert.Equal(t, NewRuleResult(true, criteria.ReasonClientCertificateRequired), res.Deny)
+		})
 		t.Run("invalid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
 				Policy: &policies[0],
+				HTTP: RequestHTTP{
+					ClientCertificate: ClientCertificateInfo{Presented: true},
+				},
 			})
 			require.NoError(t, err)
 			assert.Equal(t, NewRuleResult(true, criteria.ReasonInvalidClientCertificate), res.Deny)
@@ -134,7 +152,50 @@ func TestEvaluator(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
 				Policy: &policies[0],
 				HTTP: RequestHTTP{
-					ClientCertificate: testValidCert,
+					ClientCertificate: validCertInfo,
+				},
+			})
+			require.NoError(t, err)
+			assert.False(t, res.Deny.Value)
+		})
+	})
+	t.Run("client certificate (per-policy CA)", func(t *testing.T) {
+		t.Run("missing", func(t *testing.T) {
+			res, err := eval(t, options, nil, &Request{
+				Policy: &policies[10],
+			})
+			require.NoError(t, err)
+			assert.Equal(t, NewRuleResult(true, criteria.ReasonClientCertificateRequired), res.Deny)
+		})
+		t.Run("invalid (Envoy)", func(t *testing.T) {
+			res, err := eval(t, options, nil, &Request{
+				Policy: &policies[10],
+				HTTP: RequestHTTP{
+					ClientCertificate: ClientCertificateInfo{Presented: true},
+				},
+			})
+			require.NoError(t, err)
+			assert.Equal(t, NewRuleResult(true, criteria.ReasonInvalidClientCertificate), res.Deny)
+		})
+		t.Run("invalid (authorize)", func(t *testing.T) {
+			res, err := eval(t, options, nil, &Request{
+				Policy: &policies[10],
+				HTTP: RequestHTTP{
+					ClientCertificate: ClientCertificateInfo{
+						Presented: true,
+						Validated: true,
+						Leaf:      testUnsignedCert,
+					},
+				},
+			})
+			require.NoError(t, err)
+			assert.Equal(t, NewRuleResult(true, criteria.ReasonInvalidClientCertificate), res.Deny)
+		})
+		t.Run("valid", func(t *testing.T) {
+			res, err := eval(t, options, nil, &Request{
+				Policy: &policies[10],
+				HTTP: RequestHTTP{
+					ClientCertificate: validCertInfo,
 				},
 			})
 			require.NoError(t, err)
@@ -158,9 +219,8 @@ func TestEvaluator(t *testing.T) {
 					ID: "session1",
 				},
 				HTTP: RequestHTTP{
-					Method:            "GET",
-					URL:               "https://from.example.com",
-					ClientCertificate: testValidCert,
+					Method: http.MethodGet,
+					URL:    "https://from.example.com",
 				},
 			})
 			require.NoError(t, err)
@@ -183,9 +243,8 @@ func TestEvaluator(t *testing.T) {
 						ID: "session1",
 					},
 					HTTP: RequestHTTP{
-						Method:            "GET",
-						URL:               "https://from.example.com",
-						ClientCertificate: testValidCert,
+						Method: http.MethodGet,
+						URL:    "https://from.example.com",
 					},
 				})
 				require.NoError(t, err)
@@ -210,9 +269,8 @@ func TestEvaluator(t *testing.T) {
 					ID: "session1",
 				},
 				HTTP: RequestHTTP{
-					Method:            "GET",
-					URL:               "https://from.example.com",
-					ClientCertificate: testValidCert,
+					Method: http.MethodGet,
+					URL:    "https://from.example.com",
 				},
 			})
 			require.NoError(t, err)
@@ -234,9 +292,8 @@ func TestEvaluator(t *testing.T) {
 					ID: "session1",
 				},
 				HTTP: RequestHTTP{
-					Method:            "GET",
-					URL:               "https://from.example.com",
-					ClientCertificate: testValidCert,
+					Method: http.MethodGet,
+					URL:    "https://from.example.com",
 				},
 			})
 			require.NoError(t, err)
@@ -258,9 +315,8 @@ func TestEvaluator(t *testing.T) {
 					ID: "session1",
 				},
 				HTTP: RequestHTTP{
-					Method:            "GET",
-					URL:               "https://from.example.com",
-					ClientCertificate: testValidCert,
+					Method: http.MethodGet,
+					URL:    "https://from.example.com",
 				},
 			})
 			require.NoError(t, err)
@@ -289,9 +345,8 @@ func TestEvaluator(t *testing.T) {
 					ID: "session2",
 				},
 				HTTP: RequestHTTP{
-					Method:            "GET",
-					URL:               "https://from.example.com",
-					ClientCertificate: testValidCert,
+					Method: http.MethodGet,
+					URL:    "https://from.example.com",
 				},
 			})
 			require.NoError(t, err)
@@ -314,9 +369,8 @@ func TestEvaluator(t *testing.T) {
 				ID: "session1",
 			},
 			HTTP: RequestHTTP{
-				Method:            "GET",
-				URL:               "https://from.example.com",
-				ClientCertificate: testValidCert,
+				Method: http.MethodGet,
+				URL:    "https://from.example.com",
 			},
 		})
 		require.NoError(t, err)
@@ -338,9 +392,8 @@ func TestEvaluator(t *testing.T) {
 				ID: "session1",
 			},
 			HTTP: RequestHTTP{
-				Method:            "GET",
-				URL:               "https://from.example.com",
-				ClientCertificate: testValidCert,
+				Method: http.MethodGet,
+				URL:    "https://from.example.com",
 			},
 		})
 		require.NoError(t, err)
@@ -367,42 +420,8 @@ func TestEvaluator(t *testing.T) {
 				ID: "session1",
 			},
 			HTTP: RequestHTTP{
-				Method:            "GET",
-				URL:               "https://from.example.com",
-				ClientCertificate: testValidCert,
-			},
-		})
-		require.NoError(t, err)
-		assert.True(t, res.Allow.Value)
-	})
-	t.Run("groups", func(t *testing.T) {
-		res, err := eval(t, options, []proto.Message{
-			&session.Session{
-				Id:     "session1",
-				UserId: "user1",
-			},
-			&user.User{
-				Id:    "user1",
-				Email: "a@example.com",
-			},
-			&directory.User{
-				Id:       "user1",
-				GroupIds: []string{"group1"},
-			},
-			&directory.Group{
-				Id:    "group1",
-				Name:  "group1name",
-				Email: "group1@example.com",
-			},
-		}, &Request{
-			Policy: &policies[7],
-			Session: RequestSession{
-				ID: "session1",
-			},
-			HTTP: RequestHTTP{
-				Method:            "GET",
-				URL:               "https://from.example.com",
-				ClientCertificate: testValidCert,
+				Method: http.MethodGet,
+				URL:    "https://from.example.com",
 			},
 		})
 		require.NoError(t, err)
@@ -418,14 +437,13 @@ func TestEvaluator(t *testing.T) {
 				Id: "user1",
 			},
 		}, &Request{
-			Policy: &policies[8],
+			Policy: &policies[7],
 			Session: RequestSession{
 				ID: "session1",
 			},
 			HTTP: RequestHTTP{
-				Method:            "GET",
-				URL:               "https://from.example.com",
-				ClientCertificate: testValidCert,
+				Method: http.MethodGet,
+				URL:    "https://from.example.com",
 			},
 		})
 		require.NoError(t, err)
@@ -438,11 +456,11 @@ func TestEvaluator(t *testing.T) {
 		}{
 			{map[string]string{}, ""},
 			{map[string]string{
-				http.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertion): "identity-a",
+				httputil.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertion): "identity-a",
 			}, "identity-a"},
 			{map[string]string{
-				http.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertionFor): "identity-a",
-				http.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertion):    "identity-b",
+				httputil.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertionFor): "identity-a",
+				httputil.CanonicalHeaderKey(httputil.HeaderPomeriumJWTAssertion):    "identity-b",
 			}, "identity-a"},
 		}
 		for _, tc := range tcs {
@@ -460,10 +478,9 @@ func TestEvaluator(t *testing.T) {
 					ID: "session1",
 				},
 				HTTP: RequestHTTP{
-					Method:            "GET",
-					URL:               "https://from.example.com",
-					ClientCertificate: testValidCert,
-					Headers:           tc.src,
+					Method:  http.MethodGet,
+					URL:     "https://from.example.com",
+					Headers: tc.src,
 				},
 			})
 			if assert.NoError(t, err) {
@@ -473,12 +490,12 @@ func TestEvaluator(t *testing.T) {
 	})
 	t.Run("http method", func(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{}, &Request{
-			Policy: &policies[9],
+			Policy: &policies[8],
 			HTTP: NewRequestHTTP(
-				"GET",
+				http.MethodGet,
 				*mustParseURL("https://from.example.com/"),
 				nil,
-				testValidCert,
+				ClientCertificateInfo{},
 				"",
 			),
 		})
@@ -487,12 +504,12 @@ func TestEvaluator(t *testing.T) {
 	})
 	t.Run("http path", func(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{}, &Request{
-			Policy: &policies[10],
+			Policy: &policies[9],
 			HTTP: NewRequestHTTP(
 				"POST",
 				*mustParseURL("https://from.example.com/test"),
 				nil,
-				testValidCert,
+				ClientCertificateInfo{},
 				"",
 			),
 		})

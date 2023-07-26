@@ -26,7 +26,7 @@ func (mgr *LogManager) Close() error {
 }
 
 // OnConfigChange is called whenever configuration changes.
-func (mgr *LogManager) OnConfigChange(ctx context.Context, cfg *Config) {
+func (mgr *LogManager) OnConfigChange(_ context.Context, cfg *Config) {
 	if cfg == nil || cfg.Options == nil {
 		return
 	}
@@ -41,6 +41,6 @@ func (mgr *LogManager) OnConfigChange(ctx context.Context, cfg *Config) {
 	}
 
 	if cfg.Options.LogLevel != "" {
-		log.SetLevel(cfg.Options.LogLevel)
+		log.SetLevel(cfg.Options.LogLevel.ToZerolog())
 	}
 }

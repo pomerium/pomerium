@@ -55,7 +55,7 @@ message Route {
   RouteRedirect redirect = 34;
 
   repeated string allowed_users = 4 [ deprecated = true ];
-  repeated string allowed_groups = 5 [ deprecated = true ];
+  // repeated string allowed_groups = 5 [ deprecated = true ];
   repeated string allowed_domains = 6 [ deprecated = true ];
   map<string, google.protobuf.ListValue> allowed_idp_claims = 32
       [ deprecated = true ];
@@ -90,6 +90,8 @@ message Route {
   string tls_downstream_client_ca = 38;
   string tls_downstream_client_ca_file = 39;
 
+  bool tls_upstream_allow_renegotiation = 60;
+
   map<string, string> set_request_headers = 22;
   repeated string remove_request_headers = 23;
   map<string, string> set_response_headers = 41;
@@ -121,7 +123,7 @@ message Policy {
   string id = 1;
   string name = 2;
   repeated string allowed_users = 3;
-  repeated string allowed_groups = 4;
+  // repeated string allowed_groups = 4;
   repeated string allowed_domains = 5;
   map<string, google.protobuf.ListValue> allowed_idp_claims = 7;
   repeated string rego = 6;
@@ -132,15 +134,18 @@ message Policy {
 
 message Settings {
   message Certificate {
-    string cert_file = 1;
-    string key_file = 2;
     bytes cert_bytes = 3;
     bytes key_bytes = 4;
+  }
+  message StringList {
+    repeated string values = 1;
   }
 
   optional string installation_id = 71;
   optional bool debug = 2;
   optional string log_level = 3;
+  optional StringList access_log_fields = 114;
+  optional StringList authorize_log_fields = 115;
   optional string proxy_log_level = 4;
   optional string shared_secret = 5;
   optional string services = 6;
@@ -154,6 +159,7 @@ message Settings {
   optional google.protobuf.Duration timeout_idle = 13;
   optional string authenticate_service_url = 14;
   optional string authenticate_internal_service_url = 82;
+  optional string signout_redirect_url = 93;
   optional string authenticate_callback_path = 15;
   optional string cookie_name = 16;
   optional string cookie_secret = 17;
@@ -161,20 +167,21 @@ message Settings {
   optional bool cookie_secure = 19;
   optional bool cookie_http_only = 20;
   optional google.protobuf.Duration cookie_expire = 21;
+  optional string cookie_same_site = 113;
   optional string idp_client_id = 22;
   optional string idp_client_secret = 23;
   optional string idp_provider = 24;
   optional string idp_provider_url = 25;
   repeated string scopes = 26;
-  optional string idp_service_account = 27;
-  optional google.protobuf.Duration idp_refresh_directory_timeout = 28;
-  optional google.protobuf.Duration idp_refresh_directory_interval = 29;
+  // optional string idp_service_account = 27;
+  // optional google.protobuf.Duration idp_refresh_directory_timeout = 28;
+  // optional google.protobuf.Duration idp_refresh_directory_interval = 29;
   map<string, string> request_params = 30;
   repeated string authorize_service_urls = 32;
   optional string authorize_internal_service_url = 83;
   optional string override_certificate_name = 33;
   optional string certificate_authority = 34;
-  optional string certificate_authority_file = 35;
+  optional string derive_tls = 96;
   optional string signing_key = 36;
   map<string, string> set_response_headers = 69;
   // repeated string jwt_claims_headers = 37;
@@ -184,38 +191,46 @@ message Settings {
   optional string metrics_basic_auth = 64;
   optional Certificate metrics_certificate = 65;
   optional string metrics_client_ca = 66;
-  optional string metrics_client_ca_file = 67;
   optional string tracing_provider = 41;
   optional double tracing_sample_rate = 42;
+  optional string tracing_datadog_address = 98;
   optional string tracing_jaeger_collector_endpoint = 43;
   optional string tracing_jaeger_agent_endpoint = 44;
   optional string tracing_zipkin_endpoint = 45;
   optional string grpc_address = 46;
   optional bool grpc_insecure = 47;
-  optional string forward_auth_url = 50;
+  optional google.protobuf.Duration grpc_client_timeout = 99;
+  optional bool grpc_client_dns_roundrobin = 100;
+  // optional string forward_auth_url = 50;
   repeated string databroker_service_urls = 52;
   optional string databroker_internal_service_url = 84;
+  optional string databroker_storage_type = 101;
+  optional string databroker_storage_connection_string = 102;
+  optional bool databroker_storage_tls_skip_verify = 106;
   optional string client_ca = 53;
-  optional string client_ca_file = 54;
   optional string client_crl = 74;
-  optional string client_crl_file = 75;
   optional string google_cloud_serverless_authentication_service_account = 55;
+  optional bool use_proxy_protocol = 107;
   optional bool autocert = 56;
   optional string autocert_ca = 76;
   optional string autocert_email = 77;
+  optional bool autocert_use_staging = 57;
   optional string autocert_eab_key_id = 78;
   optional string autocert_eab_mac_key = 79;
-  optional string autocert_trusted_ca = 80;
-  optional string autocert_trusted_ca_file = 81;
-  optional bool autocert_use_staging = 57;
   optional bool autocert_must_staple = 58;
   optional string autocert_dir = 59;
+  optional string autocert_trusted_ca = 80;
   optional bool skip_xff_append = 61;
   optional uint32 xff_num_trusted_hops = 70;
+  optional string envoy_admin_access_log_path = 108;
+  optional string envoy_admin_profile_path = 109;
+  optional string envoy_admin_address = 110;
+  optional string envoy_bind_config_source_address = 111;
+  optional string envoy_bind_config_freebind = 112;
   repeated string programmatic_redirect_domain_whitelist = 68;
-  optional pomerium.crypt.PublicKeyEncryptionKey audit_key = 72;
   optional envoy.extensions.filters.network.http_connection_manager.v3
       .HttpConnectionManager.CodecType codec_type = 73;
+  optional pomerium.crypt.PublicKeyEncryptionKey audit_key = 72;
   optional string primary_color = 85;
   optional string secondary_color = 86;
   optional string darkmode_primary_color = 87;

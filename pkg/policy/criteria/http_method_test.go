@@ -1,6 +1,7 @@
 package criteria
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,7 +14,7 @@ allow:
   and:
     - http_method:
         is: GET
-`, []dataBrokerRecord{}, Input{HTTP: InputHTTP{Method: "GET"}})
+`, []dataBrokerRecord{}, Input{HTTP: InputHTTP{Method: http.MethodGet}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonHTTPMethodOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])

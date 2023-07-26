@@ -9,6 +9,7 @@ import (
 )
 
 func TestMerge(t *testing.T) {
+	type key string
 	t.Run("value", func(t *testing.T) {
 		type contextKey string
 		k1 := contextKey("key1")
