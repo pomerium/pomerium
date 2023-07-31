@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690820571937,
+  "lastUpdate": 1690823997199,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -58312,6 +58312,42 @@ window.BENCHMARK_DATA = {
             "value": 12906441,
             "unit": "ns/op",
             "extra": "98 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bb2fb9730ad4f714d025578305236081fba32db9",
+          "message": "github: update CODEOWNERS (#4398)",
+          "timestamp": "2023-07-31T11:09:28-06:00",
+          "tree_id": "e94c429c06d4c2ee6afe66e51dcd70641ba44048",
+          "url": "https://github.com/pomerium/pomerium/commit/bb2fb9730ad4f714d025578305236081fba32db9"
+        },
+        "date": 1690823991037,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18082406,
+            "unit": "ns/op",
+            "extra": "62 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12779879,
+            "unit": "ns/op",
+            "extra": "93 times\n2 procs"
           }
         ]
       }
