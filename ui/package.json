@@ -46,7 +46,7 @@
     "esbuild": "^0.13.12",
     "eslint": "7.32.0",
     "eslint-config-prettier": "^8.3.0",
-    "eslint-plugin-react": "^7.28.0",
+    "eslint-plugin-react": "^7.33.1",
     "prettier": "^2.4.1",
     "ts-node": "^10.4.0",
     "typescript": "^5.1.3"
