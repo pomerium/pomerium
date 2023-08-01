@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690909103433,
+  "lastUpdate": 1690909105949,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -59672,6 +59672,38 @@ window.BENCHMARK_DATA = {
             "value": 12534954,
             "unit": "ns/op",
             "extra": "94 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "3b6d0eca46ac59c9455087683cc8254e3b7ed1fd",
+          "message": "chore(deps): bump docker/setup-buildx-action from 2.8.0 to 2.9.1",
+          "timestamp": "2023-08-01T14:49:43Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4433/commits/3b6d0eca46ac59c9455087683cc8254e3b7ed1fd"
+        },
+        "date": 1690909097949,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 19944928,
+            "unit": "ns/op",
+            "extra": "56 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12237702,
+            "unit": "ns/op",
+            "extra": "90 times\n2 procs"
           }
         ]
       }
