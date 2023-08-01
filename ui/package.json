@@ -25,7 +25,7 @@
     "@babel/core": "^7.0.0",
     "@emotion/react": "^11.7.1",
     "@emotion/styled": "^11.11.0",
-    "@fontsource/dm-mono": "^4.5.2",
+    "@fontsource/dm-mono": "^5.0.5",
     "@fontsource/dm-sans": "^5.0.3",
     "@mui/icons-material": "^5.3.1",
     "@mui/material": "^5.4.0",
