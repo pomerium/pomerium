@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690907240363,
+  "lastUpdate": 1690907360671,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -59244,6 +59244,42 @@ window.BENCHMARK_DATA = {
             "value": 8681743,
             "unit": "ns/op",
             "extra": "130 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4c38599b100e6ced9b657e14af46c42b394084ed",
+          "message": "chore(deps): bump github.com/minio/minio-go/v7 from 7.0.59 to 7.0.61 (#4415)\n\nBumps [github.com/minio/minio-go/v7](https://github.com/minio/minio-go) from 7.0.59 to 7.0.61.\r\n- [Release notes](https://github.com/minio/minio-go/releases)\r\n- [Commits](https://github.com/minio/minio-go/compare/v7.0.59...v7.0.61)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/minio/minio-go/v7\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-08-01T12:24:49-04:00",
+          "tree_id": "997ed4b59969878dbc295fb74e63989510b2fcd0",
+          "url": "https://github.com/pomerium/pomerium/commit/4c38599b100e6ced9b657e14af46c42b394084ed"
+        },
+        "date": 1690907356025,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14489132,
+            "unit": "ns/op",
+            "extra": "73 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9522957,
+            "unit": "ns/op",
+            "extra": "124 times\n2 procs"
           }
         ]
       }
