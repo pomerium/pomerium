@@ -139,33 +139,3 @@ jobs:
             github.event.pull_request.head.sha }}
         env:
           SKIP: lint
-
-  license:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: [1.20.x]
-        platform: [ubuntu-latest]
-    needs:
-      - build
-    steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-
-      - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753
-        with:
-          go-version: 1.20.x
-          cache: false
-
-      - name: retrieve binary
-        uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a
-        with:
-          name: pomerium ${{ github.run_id }} ${{ matrix.platform }}
-          path: bin/
-
-      - name: download envoy
-        run: make get-envoy
-
-      - name: FOSSA Scan
-        uses: fossa-contrib/fossa-action@6728dc6fe9a068c648d080c33829ffbe56565023
-        with:
-          fossa-api-key: 18f4ef488f514d06874b75f5809cea93
