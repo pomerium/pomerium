@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690926416419,
+  "lastUpdate": 1690928895621,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -59802,6 +59802,42 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 10461679,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7851830c69d68a912173d2c4bca5cefe98d74d2d",
+          "message": "chore(deps): bump github.com/caddyserver/certmagic from 0.18.2 to 0.19.1 (#4401)\n\n* chore(deps): bump github.com/caddyserver/certmagic from 0.18.2 to 0.19.1\r\n\r\nBumps [github.com/caddyserver/certmagic](https://github.com/caddyserver/certmagic) from 0.18.2 to 0.19.1.\r\n- [Release notes](https://github.com/caddyserver/certmagic/releases)\r\n- [Commits](https://github.com/caddyserver/certmagic/compare/v0.18.2...v0.19.1)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/caddyserver/certmagic\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\n* autocert: update cache method invocation\r\n\r\nThe method CacheUnmanagedTLSCertificate() now returns a certificate hash\r\nin addition to an error value.\r\n\r\n---------\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Kenneth Jenkins <51246568+kenjenkins@users.noreply.github.com>",
+          "timestamp": "2023-08-01T15:21:56-07:00",
+          "tree_id": "36b7b340637b0afc974362dff3a88801a8fd9f73",
+          "url": "https://github.com/pomerium/pomerium/commit/7851830c69d68a912173d2c4bca5cefe98d74d2d"
+        },
+        "date": 1690928890182,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14404526,
+            "unit": "ns/op",
+            "extra": "82 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10344021,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
           }
