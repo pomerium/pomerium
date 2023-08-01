@@ -150,7 +150,7 @@ func (mgr *Manager) getCertMagicConfig(ctx context.Context, cfg *config.Config) 
 	}
 	// add existing certs to the cache, and staple OCSP
 	for _, cert := range certs {
-		if err := mgr.certmagic.CacheUnmanagedTLSCertificate(ctx, cert, nil); err != nil {
+		if _, err := mgr.certmagic.CacheUnmanagedTLSCertificate(ctx, cert, nil); err != nil {
 			return nil, fmt.Errorf("config: failed caching cert: %w", err)
 		}
 	}
