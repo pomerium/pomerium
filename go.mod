@@ -37,11 +37,11 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru/v2 v2.0.4
-	github.com/jackc/pgx/v5 v5.4.1
-	github.com/klauspost/compress v1.16.6
+	github.com/jackc/pgx/v5 v5.4.2
+	github.com/klauspost/compress v1.16.7
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/mholt/acmez v1.2.0
-	github.com/minio/minio-go/v7 v7.0.59
+	github.com/minio/minio-go/v7 v7.0.61
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/natefinch/atomic v1.0.1
@@ -57,7 +57,7 @@ require (
 	github.com/prometheus/common v0.44.0
 	github.com/prometheus/procfs v0.11.0
 	github.com/rs/cors v1.9.0
-	github.com/rs/zerolog v1.29.1
+	github.com/rs/zerolog v1.30.0
 	github.com/shirou/gopsutil/v3 v3.23.6
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
