@@ -38,10 +38,10 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru/v2 v2.0.4
 	github.com/jackc/pgx/v5 v5.4.1
-	github.com/klauspost/compress v1.16.6
+	github.com/klauspost/compress v1.16.7
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/mholt/acmez v1.2.0
-	github.com/minio/minio-go/v7 v7.0.59
+	github.com/minio/minio-go/v7 v7.0.61
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/natefinch/atomic v1.0.1
