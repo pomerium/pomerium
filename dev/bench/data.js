@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690919859868,
+  "lastUpdate": 1690921039569,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -59736,6 +59736,42 @@ window.BENCHMARK_DATA = {
             "value": 8465665,
             "unit": "ns/op",
             "extra": "144 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1c6026ba413bb50728c525aa579e5e5571aa17ed",
+          "message": "github-actions: remove license check (#4434)",
+          "timestamp": "2023-08-01T14:12:31-06:00",
+          "tree_id": "e4d5503387446d82d5af23f5f306f61f0a735b94",
+          "url": "https://github.com/pomerium/pomerium/commit/1c6026ba413bb50728c525aa579e5e5571aa17ed"
+        },
+        "date": 1690921034698,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13823114,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9149445,
+            "unit": "ns/op",
+            "extra": "121 times\n2 procs"
           }
         ]
       }
