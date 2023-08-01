@@ -27,7 +27,7 @@
     "@emotion/styled": "^11.11.0",
     "@fontsource/dm-mono": "^4.5.2",
     "@fontsource/dm-sans": "^5.0.3",
-    "@mui/icons-material": "^5.3.1",
+    "@mui/icons-material": "^5.14.3",
     "@mui/material": "^5.4.0",
     "luxon": "^2.5.2",
     "markdown-to-jsx": "^7.2.1",
