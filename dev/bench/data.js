@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690908472085,
+  "lastUpdate": 1690908568673,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -59412,6 +59412,42 @@ window.BENCHMARK_DATA = {
             "value": 8879390,
             "unit": "ns/op",
             "extra": "132 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "34259b99832ba44860ffe0edf05f2d9aec7d868d",
+          "message": "chore(deps): bump github.com/rs/zerolog from 1.29.1 to 1.30.0 (#4406)\n\nBumps [github.com/rs/zerolog](https://github.com/rs/zerolog) from 1.29.1 to 1.30.0.\r\n- [Release notes](https://github.com/rs/zerolog/releases)\r\n- [Commits](https://github.com/rs/zerolog/compare/v1.29.1...v1.30.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/rs/zerolog\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Denis Mishin <dmishin@pomerium.com>",
+          "timestamp": "2023-08-01T12:43:37-04:00",
+          "tree_id": "a74e9a2706e2e27c259b18418fd46bf1f5dd94d9",
+          "url": "https://github.com/pomerium/pomerium/commit/34259b99832ba44860ffe0edf05f2d9aec7d868d"
+        },
+        "date": 1690908562631,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17630328,
+            "unit": "ns/op",
+            "extra": "66 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11164171,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
