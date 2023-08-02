@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690996711345,
+  "lastUpdate": 1690997578965,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -61084,6 +61084,38 @@ window.BENCHMARK_DATA = {
             "value": 8499762,
             "unit": "ns/op",
             "extra": "129 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "4a29e2e7c0274b562d7303a26a405a84d872ac37",
+          "message": "autocert: use new OCSP error type",
+          "timestamp": "2023-08-02T07:33:51Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4437/commits/4a29e2e7c0274b562d7303a26a405a84d872ac37"
+        },
+        "date": 1690997569582,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14450529,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8669027,
+            "unit": "ns/op",
+            "extra": "124 times\n2 procs"
           }
         ]
       }
