@@ -99,6 +99,11 @@ func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Ev
 		return nil, fmt.Errorf("authorize: invalid client CA: %w", err)
 	}
 
+	clientCRL, err := opts.GetClientCRL()
+	if err != nil {
+		return nil, fmt.Errorf("authorize: invalid client CRL: %w", err)
+	}
+
 	authenticateURL, err := opts.GetInternalAuthenticateURL()
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid authenticate url: %w", err)
@@ -112,6 +117,7 @@ func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Ev
 	return evaluator.New(ctx, store,
 		evaluator.WithPolicies(opts.GetAllPolicies()),
 		evaluator.WithClientCA(clientCA),
+		evaluator.WithClientCRL(clientCRL),
 		evaluator.WithSigningKey(signingKey),
 		evaluator.WithAuthenticateURL(authenticateURL.String()),
 		evaluator.WithGoogleCloudServerlessAuthenticationServiceAccount(opts.GetGoogleCloudServerlessAuthenticationServiceAccount()),

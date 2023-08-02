@@ -93,6 +93,7 @@ type Evaluator struct {
 	policyEvaluators  map[uint64]*PolicyEvaluator
 	headersEvaluators *HeadersEvaluator
 	clientCA          []byte
+	clientCRL         []byte
 }
 
 // New creates a new Evaluator.
@@ -112,6 +113,7 @@ func New(ctx context.Context, store *store.Store, options ...Option) (*Evaluator
 	}
 
 	e.clientCA = cfg.clientCA
+	e.clientCRL = cfg.clientCRL
 
 	e.policyEvaluators = make(map[uint64]*PolicyEvaluator)
 	for i := range cfg.policies {
@@ -209,7 +211,8 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 		return nil, err
 	}
 
-	isValidClientCertificate, err := isValidClientCertificate(clientCA, req.HTTP.ClientCertificate)
+	isValidClientCertificate, err :=
+		isValidClientCertificate(clientCA, string(e.clientCRL), req.HTTP.ClientCertificate)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error validating client certificate: %w", err)
 	}

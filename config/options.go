@@ -966,6 +966,18 @@ func (o *Options) GetClientCA() ([]byte, error) {
 	return nil, nil
 }
 
+// GetClientCRL returns the client certificate revocation list bundle. If
+// neither client_crl nor client_crl_file is specified nil will be returned.
+func (o *Options) GetClientCRL() ([]byte, error) {
+	if o.ClientCRL != "" {
+		return base64.StdEncoding.DecodeString(o.ClientCRL)
+	}
+	if o.ClientCRLFile != "" {
+		return os.ReadFile(o.ClientCRLFile)
+	}
+	return nil, nil
+}
+
 // GetDataBrokerCertificate gets the optional databroker certificate. This method will return nil if no certificate is
 // specified.
 func (o *Options) GetDataBrokerCertificate() (*tls.Certificate, error) {
