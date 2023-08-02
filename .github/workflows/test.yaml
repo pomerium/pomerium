@@ -92,7 +92,7 @@ jobs:
           outfile: coverage.lcov
 
       - name: upload to coveralls
-        uses: coverallsapp/github-action@c7885c00cb7ec0b8f9f5ff3f53cddb980f7a4412
+        uses: coverallsapp/github-action@95b1a2355bd0e526ad2fd62da9fd386ad4c98474
         if: matrix.platform == 'ubuntu-latest'
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
