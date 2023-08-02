@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690989122704,
+  "lastUpdate": 1690989126830,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -60616,6 +60616,38 @@ window.BENCHMARK_DATA = {
             "value": 11657439,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "500277b215556f3838e5cc8dcf10db1134232c79",
+          "message": "chore(deps): bump github.com/peterbourgon/ff/v3 from 3.3.2 to 3.4.0",
+          "timestamp": "2023-08-02T07:33:51Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4399/commits/500277b215556f3838e5cc8dcf10db1134232c79"
+        },
+        "date": 1690989120486,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16494631,
+            "unit": "ns/op",
+            "extra": "75 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10080535,
+            "unit": "ns/op",
+            "extra": "114 times\n2 procs"
           }
         ]
       }
