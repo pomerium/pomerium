@@ -7,6 +7,7 @@ import (
 type evaluatorConfig struct {
 	policies                                          []config.Policy
 	clientCA                                          []byte
+	clientCRL                                         []byte
 	signingKey                                        []byte
 	authenticateURL                                   string
 	googleCloudServerlessAuthenticationServiceAccount string
@@ -35,6 +36,13 @@ func WithPolicies(policies []config.Policy) Option {
 func WithClientCA(clientCA []byte) Option {
 	return func(cfg *evaluatorConfig) {
 		cfg.clientCA = clientCA
+	}
+}
+
+// WithClientCRL sets the client CRL in the config.
+func WithClientCRL(clientCRL []byte) Option {
+	return func(cfg *evaluatorConfig) {
+		cfg.clientCRL = clientCRL
 	}
 }
 
