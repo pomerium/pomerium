@@ -172,7 +172,7 @@ func TestEvaluator(t *testing.T) {
 				HTTP: RequestHTTP{
 					ClientCertificate: ClientCertificateInfo{
 						Presented: true,
-						Leaf:      testUntrustedCert,
+						Leaf:      testUnsignedCert,
 					},
 				},
 			})
