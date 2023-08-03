@@ -371,7 +371,7 @@ func optionsFromViper(configFile string) (*Options, error) {
 	o := NewDefaultOptions()
 	v := o.viper
 	// Load up config
-	err := bindEnvs(o, v)
+	err := bindEnvs(v)
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind options to env vars: %w", err)
 	}
@@ -506,20 +506,11 @@ func (o *Options) parseHeaders(_ context.Context) error {
 	return nil
 }
 
-// bindEnvs binds a viper instance to each env var of an Options struct based
-// on the mapstructure tag
-func bindEnvs(o *Options, v *viper.Viper) error {
-	tagName := `mapstructure`
-	t := reflect.TypeOf(*o)
-
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		envName := field.Tag.Get(tagName)
-		err := v.BindEnv(envName)
-		if err != nil {
-			return fmt.Errorf("failed to bind field '%s' to env var '%s': %w", field.Name, envName, err)
-		}
-
+// bindEnvs adds a Viper environment variable binding for each field in the
+// Options struct (including nested structs), based on the mapstructure tag.
+func bindEnvs(v *viper.Viper) error {
+	if _, err := bindEnvsRecursive(reflect.TypeOf(Options{}), v, "", ""); err != nil {
+		return err
 	}
 
 	// Statically bind fields
@@ -531,18 +522,54 @@ func bindEnvs(o *Options, v *viper.Viper) error {
 	if err != nil {
 		return fmt.Errorf("failed to bind field 'HeadersEnv' to env var 'HEADERS': %w", err)
 	}
-	// autocert options
-	ao := reflect.TypeOf(o.AutocertOptions)
-	for i := 0; i < ao.NumField(); i++ {
-		field := ao.Field(i)
-		envName := field.Tag.Get(tagName)
-		err := v.BindEnv(envName)
-		if err != nil {
-			return fmt.Errorf("failed to bind field '%s' to env var '%s': %w", field.Name, envName, err)
-		}
-	}
 
 	return nil
+}
+
+// bindEnvsRecursive binds all fields of the provided struct type that have a
+// "mapstructure" tag to corresponding environment variables, recursively. If a
+// nested struct contains no fields with a "mapstructure" tag, a binding will
+// be added for the struct itself (e.g. null.Bool).
+func bindEnvsRecursive(t reflect.Type, v *viper.Viper, keyPrefix, envPrefix string) (bool, error) {
+	anyFieldHasMapstructureTag := false
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag, hasTag := field.Tag.Lookup("mapstructure")
+		if !hasTag || tag == "-" {
+			continue
+		}
+
+		anyFieldHasMapstructureTag = true
+
+		key, _, _ := strings.Cut(tag, ",")
+		keyPath := keyPrefix + key
+		envName := envPrefix + strings.ToUpper(key)
+
+		if field.Type.Kind() == reflect.Struct {
+			newKeyPrefix := keyPath
+			newEnvPrefix := envName
+			if key != "" {
+				newKeyPrefix += "."
+				newEnvPrefix += "_"
+			}
+			nestedMapstructure, err := bindEnvsRecursive(field.Type, v, newKeyPrefix, newEnvPrefix)
+			if err != nil {
+				return false, err
+			} else if nestedMapstructure {
+				// If we've bound any nested fields from this struct, do not
+				// also bind this struct itself.
+				continue
+			}
+		}
+
+		if key != "" {
+			if err := v.BindEnv(keyPath, envName); err != nil {
+				return false, fmt.Errorf("failed to bind field '%s' to env var '%s': %w",
+					field.Name, envName, err)
+			}
+		}
+	}
+	return anyFieldHasMapstructureTag, nil
 }
 
 // Validate ensures the Options fields are valid, and hydrated.
