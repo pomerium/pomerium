@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691085761821,
+  "lastUpdate": 1691103917028,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -61216,6 +61216,42 @@ window.BENCHMARK_DATA = {
             "value": 11684502,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9d4d31cb4f3666b6df171fa32f7188cfaadab3b5",
+          "message": "authorize: implement client certificate CRL check (#4439)\n\nUpdate isValidClientCertificate() to also consult the configured\r\ncertificate revocation lists. Update existing test cases and add a new\r\nunit test to exercise the revocation support. Restore the skipped\r\nintegration test case.\r\n\r\nGenerate new test certificates and CRLs using a new `go run`-able source\r\nfile.",
+          "timestamp": "2023-08-03T15:59:11-07:00",
+          "tree_id": "09be5a032490c17ca4a94aa28a5e33140e058c78",
+          "url": "https://github.com/pomerium/pomerium/commit/9d4d31cb4f3666b6df171fa32f7188cfaadab3b5"
+        },
+        "date": 1691103910749,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18502471,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11928011,
+            "unit": "ns/op",
+            "extra": "96 times\n2 procs"
           }
         ]
       }
