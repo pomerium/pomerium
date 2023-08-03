@@ -107,25 +107,14 @@ func Test_isValidClientCertificate(t *testing.T) {
 	t.Run("valid cert", func(t *testing.T) {
 		valid, err := isValidClientCertificate(testCA, ClientCertificateInfo{
 			Presented: true,
-			Validated: true,
 			Leaf:      testValidCert,
 		})
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 	})
-	t.Run("cert not externally validated", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, ClientCertificateInfo{
-			Presented: true,
-			Validated: false,
-			Leaf:      testValidCert,
-		})
-		assert.NoError(t, err, "should not return an error")
-		assert.False(t, valid, "should return false")
-	})
 	t.Run("unsigned cert", func(t *testing.T) {
 		valid, err := isValidClientCertificate(testCA, ClientCertificateInfo{
 			Presented: true,
-			Validated: true,
 			Leaf:      testUnsignedCert,
 		})
 		assert.NoError(t, err, "should not return an error")
@@ -134,7 +123,6 @@ func Test_isValidClientCertificate(t *testing.T) {
 	t.Run("not a cert", func(t *testing.T) {
 		valid, err := isValidClientCertificate(testCA, ClientCertificateInfo{
 			Presented: true,
-			Validated: true,
 			Leaf:      "WHATEVER!",
 		})
 		assert.Error(t, err, "should return an error")

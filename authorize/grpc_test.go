@@ -80,7 +80,6 @@ func Test_getEvaluatorRequest(t *testing.T) {
 						"com.pomerium.client-certificate-info": {
 							Fields: map[string]*structpb.Value{
 								"presented": structpb.NewBoolValue(true),
-								"validated": structpb.NewBoolValue(true),
 								"chain":     structpb.NewStringValue(url.QueryEscape(certPEM)),
 							},
 						},
@@ -107,7 +106,6 @@ func Test_getEvaluatorRequest(t *testing.T) {
 			},
 			evaluator.ClientCertificateInfo{
 				Presented:     true,
-				Validated:     true,
 				Leaf:          certPEM[1:] + "\n",
 				Intermediates: "",
 			},
@@ -202,7 +200,6 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 	cases := []struct {
 		label       string
 		presented   bool
-		validated   bool
 		chain       string
 		expected    evaluator.ClientCertificateInfo
 		expectedLog string
@@ -210,41 +207,26 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 		{
 			"not presented",
 			false,
-			false,
 			"",
 			evaluator.ClientCertificateInfo{},
 			"",
 		},
 		{
-			"presented but invalid",
-			true,
-			false,
-			"",
-			evaluator.ClientCertificateInfo{
-				Presented: true,
-			},
-			"",
-		},
-		{
-			"validated",
-			true,
+			"presented",
 			true,
 			url.QueryEscape(leafPEM),
 			evaluator.ClientCertificateInfo{
 				Presented: true,
-				Validated: true,
 				Leaf:      leafPEM,
 			},
 			"",
 		},
 		{
-			"validated with intermediates",
-			true,
+			"presented with intermediates",
 			true,
 			url.QueryEscape(leafPEM + intermediatePEM + rootPEM),
 			evaluator.ClientCertificateInfo{
 				Presented:     true,
-				Validated:     true,
 				Leaf:          leafPEM,
 				Intermediates: intermediatePEM + rootPEM,
 			},
@@ -252,7 +234,6 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 		},
 		{
 			"invalid chain URL encoding",
-			false,
 			false,
 			"invalid%URL%encoding",
 			evaluator.ClientCertificateInfo{},
@@ -262,11 +243,9 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 		{
 			"invalid chain PEM encoding",
 			true,
-			true,
 			"not valid PEM data",
 			evaluator.ClientCertificateInfo{
 				Presented: true,
-				Validated: true,
 			},
 			`{"level":"warn","chain":"not valid PEM data","message":"received unexpected client certificate \"chain\" value (no PEM block found)"}
 `,
@@ -285,7 +264,6 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 			metadata := &structpb.Struct{
 				Fields: map[string]*structpb.Value{
 					"presented": structpb.NewBoolValue(c.presented),
-					"validated": structpb.NewBoolValue(c.validated),
 					"chain":     structpb.NewStringValue(c.chain),
 				},
 			}

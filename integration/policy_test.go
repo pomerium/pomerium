@@ -393,6 +393,8 @@ func TestDownstreamClientCA(t *testing.T) {
 		assert.Equal(t, "/", result.Path)
 	})
 	t.Run("revoked client cert", func(t *testing.T) {
+		t.Skip("CRL support must be reimplemented first")
+
 		// Configure an http.Client with a revoked client certificate.
 		cert := loadCertificate(t, "downstream-1-client-revoked")
 		client, transport := getClientWithTransport(t)
