@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691076009536,
+  "lastUpdate": 1691085029952,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -61148,6 +61148,42 @@ window.BENCHMARK_DATA = {
             "value": 11293117,
             "unit": "ns/op",
             "extra": "111 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e91600c158cc3440517767d80d8534ff04705962",
+          "message": "authorize: do not rely on Envoy client cert validation (#4438)\n\nPartially revert #4374: do not record the peerCertificateValidated()\r\nresult as reported by Envoy, as this does not work correctly for resumed\r\nTLS sessions. Instead always record the certificate chain as presented\r\nby the client. Remove the corresponding ClientCertificateInfo Validated\r\nfield, and update affected code accordingly. Skip the CRL integration\r\ntest case for now.",
+          "timestamp": "2023-08-03T10:45:55-07:00",
+          "tree_id": "e8c9de3f31df40ad0af81dfb35d8fa166d9cf9a1",
+          "url": "https://github.com/pomerium/pomerium/commit/e91600c158cc3440517767d80d8534ff04705962"
+        },
+        "date": 1691085025138,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14375742,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8676412,
+            "unit": "ns/op",
+            "extra": "122 times\n2 procs"
           }
         ]
       }
