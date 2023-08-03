@@ -63,22 +63,14 @@ func NewRequestHTTP(
 // ClientCertificateInfo contains information about the certificate presented
 // by the client (if any).
 type ClientCertificateInfo struct {
-	// Presented is true if the client presented any certificate at all.
+	// Presented is true if the client presented a certificate.
 	Presented bool `json:"presented"`
 
-	// Validated is true if the client presented a valid certificate with a
-	// trust chain rooted at any of the CAs configured within the Envoy
-	// listener. If any routes define a tls_downstream_client_ca, additional
-	// validation is required (for all routes).
-	Validated bool `json:"validated"`
-
-	// Leaf contains the leaf client certificate, provided that the certificate
-	// validated successfully.
+	// Leaf contains the leaf client certificate (unvalidated).
 	Leaf string `json:"leaf,omitempty"`
 
 	// Intermediates contains the remainder of the client certificate chain as
-	// it was originally presented by the client, provided that the client
-	// certificate validated successfully.
+	// it was originally presented by the client (unvalidated).
 	Intermediates string `json:"intermediates,omitempty"`
 }
 

@@ -21,7 +21,7 @@ func isValidClientCertificate(ca string, certInfo ClientCertificateInfo) (bool, 
 
 	cert := certInfo.Leaf
 
-	if !certInfo.Validated || cert == "" {
+	if cert == "" {
 		return false, nil
 	}
 
