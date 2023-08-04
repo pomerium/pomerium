@@ -1,8 +1,9 @@
 package autocert
 
 import (
-	"strings"
+	"errors"
 
+	"github.com/caddyserver/certmagic"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -32,7 +33,7 @@ func (c certMagicLoggerCore) Check(e zapcore.Entry, ce *zapcore.CheckedEntry) *z
 func (c certMagicLoggerCore) Write(e zapcore.Entry, fs []zapcore.Field) error {
 	fs = append(c.fields, fs...)
 	for _, f := range fs {
-		if f.Type == zapcore.ErrorType && strings.Contains(f.Interface.(error).Error(), "no OCSP server specified in certificate") {
+		if f.Type == zapcore.ErrorType && errors.Is(f.Interface.(error), certmagic.ErrNoOCSPServerSpecified) {
 			// ignore this error message (#4245)
 			return nil
 		}

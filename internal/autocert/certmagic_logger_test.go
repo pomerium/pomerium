@@ -2,9 +2,10 @@ package autocert
 
 import (
 	"bytes"
-	"errors"
+	"fmt"
 	"testing"
 
+	"github.com/caddyserver/certmagic"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -20,7 +21,8 @@ func TestCertMagicLogger(t *testing.T) {
 
 	logger := zap.New(core)
 
-	logger.Info("TEST", zap.Error(errors.New("no OCSP server specified in certificate")))
+	ocspError := fmt.Errorf("ocsp error: %w", certmagic.ErrNoOCSPServerSpecified)
+	logger.Info("TEST", zap.Error(ocspError))
 	assert.Empty(t, buf.Bytes())
 
 	logger.Info("TEST")
