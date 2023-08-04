@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691184677703,
+  "lastUpdate": 1691185600382,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -61284,6 +61284,42 @@ window.BENCHMARK_DATA = {
             "value": 8562821,
             "unit": "ns/op",
             "extra": "139 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0affd9268bc37c7f6ff1597593074ff9009e2e55",
+          "message": "autocert: use new OCSP error type (#4437)",
+          "timestamp": "2023-08-04T14:41:25-07:00",
+          "tree_id": "742b42e3bfd19d7384d2eedc094bdc1c8f2c5ad4",
+          "url": "https://github.com/pomerium/pomerium/commit/0affd9268bc37c7f6ff1597593074ff9009e2e55"
+        },
+        "date": 1691185594855,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13032847,
+            "unit": "ns/op",
+            "extra": "90 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8458683,
+            "unit": "ns/op",
+            "extra": "133 times\n2 procs"
           }
         ]
       }
