@@ -255,13 +255,16 @@ type Options struct {
 	DataBrokerStorageCertSkipVerify   bool   `mapstructure:"databroker_storage_tls_skip_verify" yaml:"databroker_storage_tls_skip_verify,omitempty"`
 
 	// ClientCA is the base64-encoded certificate authority to validate client mTLS certificates against.
+	//
+	// Deprecated: Use DownstreamMTLS.CA instead.
 	ClientCA string `mapstructure:"client_ca" yaml:"client_ca,omitempty"`
 	// ClientCAFile points to a file that contains the certificate authority to validate client mTLS certificates against.
+	//
+	// Deprecated: Use DownstreamMTLS.CAFile instead.
 	ClientCAFile string `mapstructure:"client_ca_file" yaml:"client_ca_file,omitempty"`
-	// ClientCRL is the base64-encoded certificate revocation list for client mTLS certificates.
-	ClientCRL string `mapstructure:"client_crl" yaml:"client_crl,omitempty"`
-	// ClientCRLFile points to a file that contains the certificate revocation list for client mTLS certificates.
-	ClientCRLFile string `mapstructure:"client_crl_file" yaml:"client_crl_file,omitempty"`
+
+	// DownstreamMTLS holds all downstream mTLS settings.
+	DownstreamMTLS DownstreamMTLSSettings `mapstructure:"downstream_mtls" yaml:"downstream_mtls,omitempty"`
 
 	// GoogleCloudServerlessAuthenticationServiceAccount is the service account to use for GCP serverless authentication.
 	// If unset, the GCP metadata server will be used to query for identity tokens.
@@ -694,30 +697,22 @@ func (o *Options) Validate() error {
 	}
 
 	if o.ClientCA != "" {
-		if _, err := base64.StdEncoding.DecodeString(o.ClientCA); err != nil {
-			return fmt.Errorf("config: bad client ca base64: %w", err)
+		log.Warn(context.Background()).Msg("config: client_ca is deprecated, set " +
+			"downstream_mtls.ca instead")
+		if o.DownstreamMTLS.CA == "" {
+			o.DownstreamMTLS.CA = o.ClientCA
 		}
 	}
-
 	if o.ClientCAFile != "" {
-		_, err := os.ReadFile(o.ClientCAFile)
-		if err != nil {
-			return fmt.Errorf("config: bad client ca file: %w", err)
+		log.Warn(context.Background()).Msg("config: client_ca_file is deprecated, set " +
+			"downstream_mtls.ca_file instead")
+		if o.DownstreamMTLS.CAFile == "" {
+			o.DownstreamMTLS.CAFile = o.ClientCAFile
 		}
 	}
 
-	if o.ClientCRL != "" {
-		_, err = cryptutil.CRLFromBase64(o.ClientCRL)
-		if err != nil {
-			return fmt.Errorf("config: bad client crl base64: %w", err)
-		}
-	}
-
-	if o.ClientCRLFile != "" {
-		_, err = cryptutil.CRLFromFile(o.ClientCRLFile)
-		if err != nil {
-			return fmt.Errorf("config: bad client crl file: %w", err)
-		}
+	if err := o.DownstreamMTLS.validate(); err != nil {
+		return fmt.Errorf("config: bad downstream mTLS settings: %w", err)
 	}
 
 	// strip quotes from redirect address (#811)
@@ -979,30 +974,6 @@ func (o *Options) GetMetricsBasicAuth() (username, password string, ok bool) {
 	}
 
 	return string(bs[:idx]), string(bs[idx+1:]), true
-}
-
-// GetClientCA returns the client certificate authority. If neither client_ca nor client_ca_file is specified nil will
-// be returned.
-func (o *Options) GetClientCA() ([]byte, error) {
-	if o.ClientCA != "" {
-		return base64.StdEncoding.DecodeString(o.ClientCA)
-	}
-	if o.ClientCAFile != "" {
-		return os.ReadFile(o.ClientCAFile)
-	}
-	return nil, nil
-}
-
-// GetClientCRL returns the client certificate revocation list bundle. If
-// neither client_crl nor client_crl_file is specified nil will be returned.
-func (o *Options) GetClientCRL() ([]byte, error) {
-	if o.ClientCRL != "" {
-		return base64.StdEncoding.DecodeString(o.ClientCRL)
-	}
-	if o.ClientCRLFile != "" {
-		return os.ReadFile(o.ClientCRLFile)
-	}
-	return nil, nil
 }
 
 // GetDataBrokerCertificate gets the optional databroker certificate. This method will return nil if no certificate is
@@ -1460,7 +1431,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.DataBrokerStorageType, settings.DatabrokerStorageType)
 	set(&o.DataBrokerStorageConnectionString, settings.DatabrokerStorageConnectionString)
 	set(&o.DataBrokerStorageCertSkipVerify, settings.DatabrokerStorageTlsSkipVerify)
-	set(&o.ClientCA, settings.ClientCa)
+	o.DownstreamMTLS.applySettingsProto(ctx, settings.DownstreamMtls)
 	set(&o.GoogleCloudServerlessAuthenticationServiceAccount, settings.GoogleCloudServerlessAuthenticationServiceAccount)
 	set(&o.UseProxyProtocol, settings.UseProxyProtocol)
 	set(&o.AutocertOptions.Enable, settings.Autocert)
@@ -1477,7 +1448,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	setSlice(&o.ProgrammaticRedirectDomainWhitelist, settings.ProgrammaticRedirectDomainWhitelist)
 	setAuditKey(&o.AuditKey, settings.AuditKey)
 	setCodecType(&o.CodecType, settings.CodecType)
-	set(&o.ClientCRL, settings.ClientCrl)
 	o.BrandingOptions = settings
 }
 

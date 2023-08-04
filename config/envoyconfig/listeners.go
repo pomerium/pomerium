@@ -554,15 +554,15 @@ func (b *Builder) buildDownstreamValidationContext(
 		},
 	}
 
-	if cfg.Options.ClientCRL != "" {
-		bs, err := base64.StdEncoding.DecodeString(cfg.Options.ClientCRL)
+	if crl := cfg.Options.DownstreamMTLS.CRL; crl != "" {
+		bs, err := base64.StdEncoding.DecodeString(crl)
 		if err != nil {
 			log.Error(ctx).Err(err).Msg("invalid client CRL")
 		} else {
 			vc.ValidationContext.Crl = b.filemgr.BytesDataSource("client-crl.pem", bs)
 		}
-	} else if cfg.Options.ClientCRLFile != "" {
-		vc.ValidationContext.Crl = b.filemgr.FileDataSource(cfg.Options.ClientCRLFile)
+	} else if crlf := cfg.Options.DownstreamMTLS.CRLFile; crlf != "" {
+		vc.ValidationContext.Crl = b.filemgr.FileDataSource(crlf)
 	}
 
 	return vc
@@ -572,7 +572,7 @@ func (b *Builder) buildDownstreamValidationContext(
 // per-route client CAs.
 func clientCABundle(ctx context.Context, cfg *config.Config) []byte {
 	var bundle bytes.Buffer
-	ca, _ := cfg.Options.GetClientCA()
+	ca, _ := cfg.Options.DownstreamMTLS.GetCA()
 	addCAToBundle(&bundle, ca)
 	allPolicies := cfg.Options.GetAllPolicies()
 	for i := range allPolicies {

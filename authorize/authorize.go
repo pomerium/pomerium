@@ -94,12 +94,12 @@ func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Ev
 	ctx, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
 	defer span.End()
 
-	clientCA, err := opts.GetClientCA()
+	clientCA, err := opts.DownstreamMTLS.GetCA()
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid client CA: %w", err)
 	}
 
-	clientCRL, err := opts.GetClientCRL()
+	clientCRL, err := opts.DownstreamMTLS.GetCRL()
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid client CRL: %w", err)
 	}

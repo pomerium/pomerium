@@ -98,7 +98,9 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	})
 	t.Run("client-ca", func(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
-			ClientCA: "VEVTVAo=", // "TEST\n" (with a trailing newline)
+			DownstreamMTLS: config.DownstreamMTLSSettings{
+				CA: "VEVTVAo=", // "TEST\n" (with a trailing newline)
+			},
 		}}, nil)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `{
@@ -218,7 +220,9 @@ func Test_clientCABundle(t *testing.T) {
 
 	b64 := base64.StdEncoding.EncodeToString
 	cfg := &config.Config{Options: &config.Options{
-		ClientCA: b64(clientCA3),
+		DownstreamMTLS: config.DownstreamMTLSSettings{
+			CA: b64(clientCA3),
+		},
 		Policies: []config.Policy{
 			{
 				From:                  "https://foo.example.com",

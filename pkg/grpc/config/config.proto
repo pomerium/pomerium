@@ -132,6 +132,7 @@ message Policy {
   string remediation = 9;
 }
 
+// Next ID: 117.
 message Settings {
   message Certificate {
     bytes cert_bytes = 3;
@@ -207,8 +208,9 @@ message Settings {
   optional string databroker_storage_type = 101;
   optional string databroker_storage_connection_string = 102;
   optional bool databroker_storage_tls_skip_verify = 106;
-  optional string client_ca = 53;
-  optional string client_crl = 74;
+  optional DownstreamMtlsSettings downstream_mtls = 116;
+  // optional string client_ca = 53;
+  // optional string client_crl = 74;
   optional string google_cloud_serverless_authentication_service_account = 55;
   optional bool use_proxy_protocol = 107;
   optional bool autocert = 56;
@@ -238,4 +240,9 @@ message Settings {
   optional string logo_url = 89;
   optional string favicon_url = 90;
   optional string error_message_first_paragraph = 91;
+}
+
+message DownstreamMtlsSettings {
+  optional string ca = 1;
+  optional string crl = 2;
 }
