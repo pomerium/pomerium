@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -94,7 +96,7 @@ func Test_bindEnvs(t *testing.T) {
 	t.Setenv("POMERIUM_DEBUG", "true")
 	t.Setenv("POLICY", "LSBmcm9tOiBodHRwczovL2h0dHBiaW4ubG9jYWxob3N0LnBvbWVyaXVtLmlvCiAgdG86IAogICAgLSBodHRwOi8vbG9jYWxob3N0OjgwODEsMQo=")
 	t.Setenv("HEADERS", `{"X-Custom-1":"foo", "X-Custom-2":"bar"}`)
-	err := bindEnvs(o, v)
+	err := bindEnvs(v)
 	if err != nil {
 		t.Fatalf("failed to bind options to env vars: %s", err)
 	}
@@ -115,6 +117,83 @@ func Test_bindEnvs(t *testing.T) {
 	if o.HeadersEnv != `{"X-Custom-1":"foo", "X-Custom-2":"bar"}` {
 		t.Errorf("Failed to bind headers env var to HeadersEnv")
 	}
+}
+
+type Foo struct {
+	FieldOne Bar    `mapstructure:"field_one"`
+	FieldTwo string `mapstructure:"field_two"`
+}
+type Bar struct {
+	Baz  int    `mapstructure:"baz"`
+	Quux string `mapstructure:"quux"`
+}
+
+func Test_bindEnvsRecursive(t *testing.T) {
+	v := viper.New()
+	_, err := bindEnvsRecursive(reflect.TypeOf(Foo{}), v, "", "")
+	require.NoError(t, err)
+
+	t.Setenv("FIELD_ONE_BAZ", "123")
+	t.Setenv("FIELD_ONE_QUUX", "hello")
+	t.Setenv("FIELD_TWO", "world")
+
+	var foo Foo
+	v.Unmarshal(&foo)
+	assert.Equal(t, Foo{
+		FieldOne: Bar{
+			Baz:  123,
+			Quux: "hello",
+		},
+		FieldTwo: "world",
+	}, foo)
+}
+
+func Test_bindEnvsRecursive_Override(t *testing.T) {
+	v := viper.New()
+	v.SetConfigType("yaml")
+	v.ReadConfig(strings.NewReader(`
+field_one:
+  baz: 10
+  quux: abc
+field_two: hello
+`))
+
+	// Baseline: values populated from config file.
+	var foo1 Foo
+	v.Unmarshal(&foo1)
+	assert.Equal(t, Foo{
+		FieldOne: Bar{
+			Baz:  10,
+			Quux: "abc",
+		},
+		FieldTwo: "hello",
+	}, foo1)
+
+	_, err := bindEnvsRecursive(reflect.TypeOf(Foo{}), v, "", "")
+	require.NoError(t, err)
+
+	// Environment variables should selectively override config file keys.
+	t.Setenv("FIELD_ONE_QUUX", "def")
+	var foo2 Foo
+	v.Unmarshal(&foo2)
+	assert.Equal(t, Foo{
+		FieldOne: Bar{
+			Baz:  10,
+			Quux: "def",
+		},
+		FieldTwo: "hello",
+	}, foo2)
+
+	t.Setenv("FIELD_TWO", "world")
+	var foo3 Foo
+	v.Unmarshal(&foo3)
+	assert.Equal(t, Foo{
+		FieldOne: Bar{
+			Baz:  10,
+			Quux: "def",
+		},
+		FieldTwo: "world",
+	}, foo3)
 }
 
 func Test_parseHeaders(t *testing.T) {
