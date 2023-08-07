@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691437153993,
+  "lastUpdate": 1691437454551,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -61352,6 +61352,42 @@ window.BENCHMARK_DATA = {
             "value": 11440191,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a16bdd9cb01e25d7ae219780f326736e2912f169",
+          "message": "config: support arbitrary nested config structs (#4440)\n\nUpdate bindEnvs() to add support for binding nested fields of the\r\nOptions struct to environment variables. The variable names are formed\r\nby joining the nested fields' mapstructure tags with underscores (after\r\nfirst converting to uppercase).\r\n\r\nThis is in preparation for adding a new nested struct for downstream\r\nmTLS settings that will look something like this:\r\n\r\n  downstream_mtls:\r\n    ca_file: /path/to/CA/cert.pem\r\n    enforcement: reject_connection\r\n\r\nWith this change, these fields would be bound to the variables\r\nDOWNSTREAM_MTLS_CA_FILE and DOWNSTREAM_MTLS_ENFORCEMENT.",
+          "timestamp": "2023-08-07T12:39:37-07:00",
+          "tree_id": "9000a16b89a243429a4eaaed707e227766c71209",
+          "url": "https://github.com/pomerium/pomerium/commit/a16bdd9cb01e25d7ae219780f326736e2912f169"
+        },
+        "date": 1691437449668,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13023210,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8316625,
+            "unit": "ns/op",
+            "extra": "140 times\n2 procs"
           }
         ]
       }
