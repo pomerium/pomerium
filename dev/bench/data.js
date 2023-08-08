@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691461301474,
+  "lastUpdate": 1691462822027,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -61484,6 +61484,38 @@ window.BENCHMARK_DATA = {
             "value": 8911062,
             "unit": "ns/op",
             "extra": "128 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "48c248657dd4a762b609cbf5256388a2baa85920",
+          "message": "zero: resource bundle reconciler",
+          "timestamp": "2023-08-07T03:04:01Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4445/commits/48c248657dd4a762b609cbf5256388a2baa85920"
+        },
+        "date": 1691462816420,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13938085,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8920203,
+            "unit": "ns/op",
+            "extra": "124 times\n2 procs"
           }
         ]
       }
