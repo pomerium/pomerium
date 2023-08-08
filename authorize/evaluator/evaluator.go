@@ -225,7 +225,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 }
 
 func (e *Evaluator) evaluateHeaders(ctx context.Context, req *Request) (*HeadersResponse, error) {
-	headersReq := NewHeadersRequestFromPolicy(req.Policy, req.HTTP.Hostname)
+	headersReq := NewHeadersRequestFromPolicy(req.Policy, req.HTTP)
 	headersReq.Session = req.Session
 	res, err := e.headersEvaluators.Evaluate(ctx, headersReq)
 	if err != nil {
