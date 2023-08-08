@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -19,12 +20,14 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/identity/oauth/apple"
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
 )
@@ -691,6 +694,29 @@ func TestCompareByteSliceSlice(t *testing.T) {
 				tt.a, tt.b, tt.expect, actual)
 		}
 	}
+}
+
+func TestDeprecatedClientCAOptions(t *testing.T) {
+	fakeCACert := []byte("--- FAKE CA CERT ---")
+	caFile := filepath.Join(t.TempDir(), "CA.pem")
+	os.WriteFile(caFile, fakeCACert, 0644)
+
+	var logOutput bytes.Buffer
+	zl := zerolog.New(&logOutput)
+	testutil.SetLogger(t, &zl)
+
+	o := NewDefaultOptions()
+	o.ClientCA = "LS0tIEZBS0UgQ0EgQ0VSVCAtLS0="
+	o.ClientCAFile = caFile
+	o.AutocertOptions.Enable = true // suppress an unrelated warning
+
+	err := o.Validate()
+	require.NoError(t, err)
+	assert.Equal(t, "LS0tIEZBS0UgQ0EgQ0VSVCAtLS0=", o.DownstreamMTLS.CA)
+	assert.Equal(t, caFile, o.DownstreamMTLS.CAFile)
+	assert.Equal(t, `{"level":"warn","message":"config: client_ca is deprecated, set downstream_mtls.ca instead"}
+{"level":"warn","message":"config: client_ca_file is deprecated, set downstream_mtls.ca_file instead"}
+`, logOutput.String())
 }
 
 func TestOptions_DefaultURL(t *testing.T) {
