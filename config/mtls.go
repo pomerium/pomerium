@@ -16,14 +16,18 @@ import (
 type MTLSEnforcement string
 
 const (
-	// No default client certificate enforcement: any requirements must be
-	// explicitly specified in a policy.
+	// MTLSEnforcementPolicy specifies no default client certificate
+	// enforcement: any requirements must be explicitly specified in a policy.
 	MTLSEnforcementPolicy MTLSEnforcement = "policy"
 
-	// Enforce client certificate requirements via a default policy deny rule.
+	// MTLSEnforcementPolicyWithDefaultDeny specifies that client certificate
+	// requirements will be enforced by route policy, with a default
+	// invalid_client_certificate deny rule added to each policy.
 	MTLSEnforcementPolicyWithDefaultDeny MTLSEnforcement = "policy_with_default_deny"
 
-	// Enforce client certificate requirements by rejecting connection attempts.
+	// MTLSEnforcementRejectConnection specifies that client certificate
+	// requirements will be enforced by rejecting any connection attempts
+	// without a trusted certificate.
 	MTLSEnforcementRejectConnection MTLSEnforcement = "reject_connection"
 )
 
