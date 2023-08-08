@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691514821538,
+  "lastUpdate": 1691515633210,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -61548,6 +61548,42 @@ window.BENCHMARK_DATA = {
             "value": 10904866,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "24b09186a4d9cc5573770e17995af4b6e193878b",
+          "message": "config: move mTLS settings to new struct (#4442)\n\nMove downstream mTLS settings to a nested config file object, under the\r\nkey 'downstream_mtls', and add a new DownstreamMTLSSettings struct for\r\nthese settings.\r\n\r\nDeprecate the existing ClientCA and ClientCAFile fields in the Options\r\nstruct, but continue to honor them for now (log a warning if either is\r\npopulated).\r\n\r\nDelete the ClientCRL and ClientCRLFile fields entirely (in current\r\nreleases these cannot be set without causing an Envoy error, so this\r\nshould not be a breaking change).\r\n\r\nUpdate the Settings proto to mirror this nested structure.",
+          "timestamp": "2023-08-08T10:22:48-07:00",
+          "tree_id": "e86c01e557468a56c06bfee45b0936fb943a35f8",
+          "url": "https://github.com/pomerium/pomerium/commit/24b09186a4d9cc5573770e17995af4b6e193878b"
+        },
+        "date": 1691515628265,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13711807,
+            "unit": "ns/op",
+            "extra": "78 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8372183,
+            "unit": "ns/op",
+            "extra": "132 times\n2 procs"
           }
         ]
       }
