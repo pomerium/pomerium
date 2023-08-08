@@ -3,8 +3,9 @@ package bootstrap_test
 import (
 	"testing"
 
-	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 )
 
 func TestConfigDeterministic(t *testing.T) {

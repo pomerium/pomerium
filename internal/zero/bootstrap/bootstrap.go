@@ -1,3 +1,4 @@
+// Package bootstrap fetches the very initial configuration for Pomerium Core to start.
 package bootstrap
 
 /*
@@ -12,14 +13,11 @@ package bootstrap
 
 import (
 	"context"
-	"crypto/cipher"
 	"fmt"
 	"time"
 
 	"golang.org/x/sync/errgroup"
 
-
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	cluster_api "github.com/pomerium/zero-sdk/cluster"
 	connect_mux "github.com/pomerium/zero-sdk/connect-mux"
@@ -35,7 +33,16 @@ const (
 )
 
 // Run initializes the bootstrap config source
-func (svc *BootstrapConfigSource) Run(ctx context.Context) error {
+func (svc *Source) Run(
+	ctx context.Context,
+	clusterAPI cluster_api.ClientWithResponsesInterface,
+	mux *connect_mux.Mux,
+	fileCachePath string,
+) error {
+	svc.clusterAPI = clusterAPI
+	svc.connectMux = mux
+	svc.fileCachePath = fileCachePath
+
 	svc.tryLoadInitial(ctx)
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -45,7 +52,7 @@ func (svc *BootstrapConfigSource) Run(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (svc *BootstrapConfigSource) watchUpdates(ctx context.Context) error {
+func (svc *Source) watchUpdates(ctx context.Context) error {
 	return svc.connectMux.Watch(ctx,
 		connect_mux.WithOnConnected(func(_ context.Context) {
 			svc.triggerUpdate(DefaultCheckForUpdateIntervalWhenConnected)
@@ -59,7 +66,7 @@ func (svc *BootstrapConfigSource) watchUpdates(ctx context.Context) error {
 	)
 }
 
-func (svc *BootstrapConfigSource) updateLoop(ctx context.Context) error {
+func (svc *Source) updateLoop(ctx context.Context) error {
 	ticker := time.NewTicker(svc.updateInterval.Load())
 	defer ticker.Stop()
 
@@ -72,7 +79,7 @@ func (svc *BootstrapConfigSource) updateLoop(ctx context.Context) error {
 		}
 		ticker.Reset(svc.updateInterval.Load())
 
-		err := svc.update(ctx)
+		err := svc.tryUpdateAndSave(ctx)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("failed to update bootstrap config")
 		}
@@ -81,7 +88,7 @@ func (svc *BootstrapConfigSource) updateLoop(ctx context.Context) error {
 
 // triggerUpdate triggers an update of the bootstrap config
 // and sets the interval for the next update
-func (svc *BootstrapConfigSource) triggerUpdate(newUpdateInterval time.Duration) {
+func (svc *Source) triggerUpdate(newUpdateInterval time.Duration) {
 	svc.updateInterval.Store(newUpdateInterval)
 
 	select {
@@ -90,62 +97,37 @@ func (svc *BootstrapConfigSource) triggerUpdate(newUpdateInterval time.Duration)
 	}
 }
 
-func (svc *BootstrapConfigSource) update(ctx context.Context) error {
-	current := svc.GetConfig()
-	cfg := current.Clone()
-
-	err := tryUpdateAndSave(ctx, cfg.Options, svc.clusterAPI, svc.fileCachePath, svc.fileCipher)
-	if err != nil {
-		return err
-	}
-
-	_ = svc.SetConfig(ctx, cfg)
-
-	return nil
-}
-
-func tryUpdateAndSave(
-	ctx context.Context,
-	dst *config.Options,
-	clusterAPI cluster_api.ClientWithResponsesInterface,
-	fileCachePath string,
-	fileCipher cipher.AEAD,
-) error {
-	err := LoadBootstrapConfigFromAPI(ctx, dst, clusterAPI)
+func (svc *Source) tryUpdateAndSave(ctx context.Context) error {
+	cfg, err := LoadBootstrapConfigFromAPI(ctx, svc.clusterAPI)
 	if err != nil {
 		return fmt.Errorf("load bootstrap config from API: %w", err)
 	}
 
-	err = SaveBootstrapConfigToFile(dst, fileCachePath, fileCipher)
+	err = SaveBootstrapConfigToFile(cfg, svc.fileCachePath, svc.fileCipher)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).
 			Msg("failed to save bootstrap config to file, note it may prevent Pomerium from starting up in case of connectivity issues")
 	}
 
+	svc.UpdateBootstrap(ctx, *cfg)
 	return nil
 }
 
-func (src *BootstrapConfigSource) tryLoadInitial(ctx context.Context) {
-	dst := src.GetConfig()
-
-	err := tryUpdateAndSave(ctx, dst.Options, src.clusterAPI, src.fileCachePath, src.fileCipher)
+func (svc *Source) tryLoadInitial(ctx context.Context) {
+	err := svc.tryUpdateAndSave(ctx)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to load bootstrap config")
-		src.tryLoadFromFile(ctx)
+		svc.tryLoadFromFile(ctx)
 		return
 	}
-
-	src.SetConfig(ctx, dst)
 }
 
-func (src *BootstrapConfigSource) tryLoadFromFile(ctx context.Context) {
-	dst := src.GetConfig()
-
-	err := LoadBootstrapConfigFromFile(dst.Options, src.fileCachePath, src.fileCipher)
+func (svc *Source) tryLoadFromFile(ctx context.Context) {
+	cfg, err := LoadBootstrapConfigFromFile(svc.fileCachePath, svc.fileCipher)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to load bootstrap config from file")
 		return
 	}
 
-	src.SetConfig(ctx, dst)
+	svc.UpdateBootstrap(ctx, *cfg)
 }

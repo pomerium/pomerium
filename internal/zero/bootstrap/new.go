@@ -20,8 +20,8 @@ import (
 	connect_mux "github.com/pomerium/zero-sdk/connect-mux"
 )
 
-// BootstrapConfigSource is a base config layer for Pomerium
-type BootstrapConfigSource struct {
+// Source is a base config layer for Pomerium
+type Source struct {
 	source
 
 	clusterAPI cluster_api.ClientWithResponsesInterface
@@ -34,12 +34,8 @@ type BootstrapConfigSource struct {
 	updateInterval atomicutil.Value[time.Duration]
 }
 
-func New(
-	clusterAPI cluster_api.ClientWithResponsesInterface,
-	mux *connect_mux.Mux,
-	secret []byte,
-	fileCachePath string,
-) (*BootstrapConfigSource, error) {
+// New creates a new bootstrap config source
+func New(secret []byte) (*Source, error) {
 	cfg := new(config.Config)
 
 	err := setConfigDefaults(cfg)
@@ -59,13 +55,10 @@ func New(
 		return nil, fmt.Errorf("init secrets: %w", err)
 	}
 
-	svc := &BootstrapConfigSource{
+	svc := &Source{
 		source:         source{ready: make(chan struct{})},
 		fileCipher:     cipher,
 		checkForUpdate: make(chan struct{}, 1),
-		fileCachePath:  fileCachePath,
-		clusterAPI:     clusterAPI,
-		connectMux:     mux,
 	}
 	svc.cfg.Store(cfg)
 	svc.updateInterval.Store(DefaultCheckForUpdateInterval)

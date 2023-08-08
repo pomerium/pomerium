@@ -9,6 +9,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
+	cluster_api "github.com/pomerium/zero-sdk/cluster"
 )
 
 var (
@@ -43,7 +44,7 @@ func (src *source) WaitReady(ctx context.Context) error {
 
 // GetConfig implements config.Source
 func (src *source) GetConfig() *config.Config {
-	return src.cfg.Load().Clone()
+	return src.cfg.Load()
 }
 
 // OnConfigChange implements config.Source
@@ -53,16 +54,19 @@ func (src *source) OnConfigChange(_ context.Context, l config.ChangeListener) {
 	src.listenerLock.Unlock()
 }
 
-// setConfig updates the underlying configuration
-// its only called by the updater
-func (src *source) SetConfig(ctx context.Context, cfg *config.Config) bool {
+// UpdateBootstrap updates the underlying configuration options
+func (src *source) UpdateBootstrap(ctx context.Context, cfg cluster_api.BootstrapConfig) bool {
 	current := src.cfg.Load()
-	if cmp.Equal(cfg.Options, current.Options, cmpOpts...) {
+	incoming := current.Clone()
+	applyBootstrapConfig(incoming.Options, &cfg)
+
+	if cmp.Equal(incoming.Options, current.Options, cmpOpts...) {
 		return false
 	}
 
-	src.cfg.Store(cfg)
-	src.notifyListeners(ctx, cfg)
+	src.cfg.Store(incoming)
+
+	src.notifyListeners(ctx, incoming)
 
 	return true
 }
@@ -78,5 +82,12 @@ func (src *source) notifyListeners(ctx context.Context, cfg *config.Config) {
 
 	for _, l := range listeners {
 		l(ctx, cfg)
+	}
+}
+
+func applyBootstrapConfig(dst *config.Options, src *cluster_api.BootstrapConfig) {
+	if src.DatabrokerStorageConnection != nil {
+		dst.DataBrokerStorageType = "postgres"
+		dst.DataBrokerStorageConnectionString = *src.DatabrokerStorageConnection
 	}
 }

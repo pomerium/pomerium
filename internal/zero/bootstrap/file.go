@@ -14,33 +14,33 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	cluster_api "github.com/pomerium/zero-sdk/cluster"
 )
 
-func LoadBootstrapConfigFromFile(dst *config.Options, fp string, cipher cipher.AEAD) error {
+// LoadBootstrapConfigFromFile loads the bootstrap configuration from a file.
+func LoadBootstrapConfigFromFile(fp string, cipher cipher.AEAD) (*cluster_api.BootstrapConfig, error) {
 	ciphertext, err := os.ReadFile(fp)
 	if err != nil {
-		return fmt.Errorf("read bootstrap config: %w", err)
+		return nil, fmt.Errorf("read bootstrap config: %w", err)
 	}
 	plaintext, err := cryptutil.Decrypt(cipher, ciphertext, nil)
 	if err != nil {
-		return fmt.Errorf("decrypt bootstrap config: %w", err)
+		return nil, fmt.Errorf("decrypt bootstrap config: %w", err)
 	}
 
-	fc := fileConfig{}
-	err = json.Unmarshal(plaintext, &fc)
+	var dst cluster_api.BootstrapConfig
+	err = json.Unmarshal(plaintext, &dst)
 	if err != nil {
-		return fmt.Errorf("unmarshal bootstrap config: %w", err)
+		return nil, fmt.Errorf("unmarshal bootstrap config: %w", err)
 	}
 
-	applyFileConfig(dst, fc)
-
-	return nil
+	return &dst, nil
 }
 
-func SaveBootstrapConfigToFile(src *config.Options, fp string, cipher cipher.AEAD) error {
-	plaintext, err := json.Marshal(getFileConfig(src))
+// SaveBootstrapConfigToFile saves the bootstrap configuration to a file.
+func SaveBootstrapConfigToFile(src *cluster_api.BootstrapConfig, fp string, cipher cipher.AEAD) error {
+	plaintext, err := json.Marshal(src)
 	if err != nil {
 		return fmt.Errorf("marshal file config: %w", err)
 	}
@@ -51,22 +51,4 @@ func SaveBootstrapConfigToFile(src *config.Options, fp string, cipher cipher.AEA
 		return fmt.Errorf("write bootstrap config: %w", err)
 	}
 	return nil
-}
-
-type fileConfig struct {
-	PostgresDSN *string `json:"postgres_dsn"`
-}
-
-func getFileConfig(src *config.Options) fileConfig {
-	fc := fileConfig{}
-	if src.DataBrokerStorageConnectionString != "" {
-		fc.PostgresDSN = &src.DataBrokerStorageConnectionString
-	}
-	return fc
-}
-
-func applyFileConfig(dst *config.Options, fc fileConfig) {
-	if fc.PostgresDSN != nil {
-		dst.DataBrokerStorageConnectionString = *fc.PostgresDSN
-	}
 }
