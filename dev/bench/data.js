@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691515633210,
+  "lastUpdate": 1691515858507,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -61584,6 +61584,38 @@ window.BENCHMARK_DATA = {
             "value": 8372183,
             "unit": "ns/op",
             "extra": "132 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "231231b3510137422ae6675d32b75c3164c5041f",
+          "message": "config: add new mTLS enforcement setting",
+          "timestamp": "2023-08-07T03:04:01Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4443/commits/231231b3510137422ae6675d32b75c3164c5041f"
+        },
+        "date": 1691515853077,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15641450,
+            "unit": "ns/op",
+            "extra": "81 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9317077,
+            "unit": "ns/op",
+            "extra": "123 times\n2 procs"
           }
         ]
       }
