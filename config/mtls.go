@@ -34,10 +34,18 @@ type DownstreamMTLSSettings struct {
 // GetCA returns the certificate authority (or nil if unset).
 func (s *DownstreamMTLSSettings) GetCA() ([]byte, error) {
 	if s.CA != "" {
-		return base64.StdEncoding.DecodeString(s.CA)
+		ca, err := base64.StdEncoding.DecodeString(s.CA)
+		if err != nil {
+			return nil, fmt.Errorf("CA: %w", err)
+		}
+		return ca, nil
 	}
 	if s.CAFile != "" {
-		return os.ReadFile(s.CAFile)
+		ca, err := os.ReadFile(s.CAFile)
+		if err != nil {
+			return nil, fmt.Errorf("CA file: %w", err)
+		}
+		return ca, nil
 	}
 	return nil, nil
 }
@@ -45,36 +53,34 @@ func (s *DownstreamMTLSSettings) GetCA() ([]byte, error) {
 // GetCRL returns the certificate revocation list bundle (or nil if unset).
 func (s *DownstreamMTLSSettings) GetCRL() ([]byte, error) {
 	if s.CRL != "" {
-		return base64.StdEncoding.DecodeString(s.CRL)
+		crl, err := base64.StdEncoding.DecodeString(s.CRL)
+		if err != nil {
+			return nil, fmt.Errorf("CRL: %w", err)
+		}
+		return crl, nil
 	}
 	if s.CRLFile != "" {
-		return os.ReadFile(s.CRLFile)
+		crl, err := os.ReadFile(s.CRLFile)
+		if err != nil {
+			return nil, fmt.Errorf("CRL file: %w", err)
+		}
+		return crl, nil
 	}
 	return nil, nil
 }
 
 func (s *DownstreamMTLSSettings) validate() error {
-	if s.CA != "" {
-		if _, err := base64.StdEncoding.DecodeString(s.CA); err != nil {
-			return fmt.Errorf("CA: %w", err)
-		}
+	if _, err := s.GetCA(); err != nil {
+		return err
 	}
 
-	if s.CAFile != "" {
-		if _, err := os.ReadFile(s.CAFile); err != nil {
-			return fmt.Errorf("CA file: %w", err)
-		}
+	crl, err := s.GetCRL()
+	if err != nil {
+		return err
 	}
-
-	if s.CRL != "" {
-		if _, err := cryptutil.CRLFromBase64(s.CRL); err != nil {
+	if len(crl) > 0 {
+		if _, err := cryptutil.DecodeCRL(crl); err != nil {
 			return fmt.Errorf("CRL: %w", err)
-		}
-	}
-
-	if s.CRLFile != "" {
-		if _, err := cryptutil.CRLFromFile(s.CRLFile); err != nil {
-			return fmt.Errorf("CRL file: %w", err)
 		}
 	}
 
