@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691462822027,
+  "lastUpdate": 1691514821538,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -61516,6 +61516,38 @@ window.BENCHMARK_DATA = {
             "value": 8920203,
             "unit": "ns/op",
             "extra": "124 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "2fc3886b9d4d8a33c892ec1f23695fd1bbd251b4",
+          "message": "config: move mTLS settings to new struct",
+          "timestamp": "2023-08-07T03:04:01Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4442/commits/2fc3886b9d4d8a33c892ec1f23695fd1bbd251b4"
+        },
+        "date": 1691514815181,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15351446,
+            "unit": "ns/op",
+            "extra": "79 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10904866,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
