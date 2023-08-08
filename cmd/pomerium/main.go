@@ -12,6 +12,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/version"
+	zero_cmd "github.com/pomerium/pomerium/internal/zero/cmd"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 )
@@ -30,7 +31,12 @@ func main() {
 	}
 
 	ctx := context.Background()
-	if err := run(ctx); !errors.Is(err, context.Canceled) {
+	runFn := run
+	if zero_cmd.IsManagedMode() {
+		runFn = zero_cmd.Run
+	}
+
+	if err := runFn(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		log.Fatal().Err(err).Msg("cmd/pomerium")
 	}
 	log.Info(ctx).Msg("cmd/pomerium: exiting")
