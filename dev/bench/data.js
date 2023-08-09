@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691595654623,
+  "lastUpdate": 1691599946654,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -61884,6 +61884,42 @@ window.BENCHMARK_DATA = {
             "value": 14110601,
             "unit": "ns/op",
             "extra": "74 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ac475f4c5daa08087285352c04f4b0e3e5771a0b",
+          "message": "ppl: add new client certificate criterion (#4448)\n\nAdd a new client_certificate criterion that accepts a \"Certificate\r\nMatcher\" object. Start with two certificate match conditions:\r\nfingerprint and SPKI hash, each of which can accept either a single\r\nstring or an array of strings.\r\n\r\nAdd new \"client-certificate-ok\" and \"client-certificate-unauthorized\"\r\nreason strings.",
+          "timestamp": "2023-08-09T09:47:23-07:00",
+          "tree_id": "9e0e2961d7e7173aad699df84afc3409a5b74eef",
+          "url": "https://github.com/pomerium/pomerium/commit/ac475f4c5daa08087285352c04f4b0e3e5771a0b"
+        },
+        "date": 1691599940538,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14583023,
+            "unit": "ns/op",
+            "extra": "80 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9139803,
+            "unit": "ns/op",
+            "extra": "123 times\n2 procs"
           }
         ]
       }
