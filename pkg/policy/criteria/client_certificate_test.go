@@ -5,9 +5,10 @@ import (
 	"testing"
 
 	"github.com/open-policy-agent/opa/ast"
-	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
 const testCert = `
