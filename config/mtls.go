@@ -54,6 +54,10 @@ type DownstreamMTLSSettings struct {
 	// Enforcement indicates the behavior applied to requests without a valid
 	// client certificate.
 	Enforcement MTLSEnforcement `mapstructure:"enforcement" yaml:"enforcement,omitempty"`
+
+	// MaxVerifyDepth is the maximum allowed depth of a certificate trust chain
+	// (not counting the leaf certificate). The value 0 indicates no maximum.
+	MaxVerifyDepth *uint32 `mapstructure:"max_verify_depth" yaml:"max_verify_depth,omitempty"`
 }
 
 // GetCA returns the certificate authority (or nil if unset).
@@ -100,6 +104,15 @@ func (s *DownstreamMTLSSettings) GetEnforcement() MTLSEnforcement {
 		return MTLSEnforcementPolicyWithDefaultDeny
 	}
 	return s.Enforcement
+}
+
+// GetMaxVerifyDepth returns the maximum certificate chain depth. The value 0
+// indicates no maximum.
+func (s *DownstreamMTLSSettings) GetMaxVerifyDepth() uint32 {
+	if s.MaxVerifyDepth == nil {
+		return 1
+	}
+	return *s.MaxVerifyDepth
 }
 
 func (s *DownstreamMTLSSettings) validate() error {

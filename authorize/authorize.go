@@ -120,11 +120,16 @@ func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Ev
 	addDefaultClientCertificateRule :=
 		opts.DownstreamMTLS.GetEnforcement() != config.MTLSEnforcementPolicy
 
+	clientCertConstraints := evaluator.ClientCertConstraints{
+		MaxVerifyDepth: opts.DownstreamMTLS.GetMaxVerifyDepth(),
+	}
+
 	return evaluator.New(ctx, store,
 		evaluator.WithPolicies(opts.GetAllPolicies()),
 		evaluator.WithClientCA(clientCA),
 		evaluator.WithAddDefaultClientCertificateRule(addDefaultClientCertificateRule),
 		evaluator.WithClientCRL(clientCRL),
+		evaluator.WithClientCertConstraints(clientCertConstraints),
 		evaluator.WithSigningKey(signingKey),
 		evaluator.WithAuthenticateURL(authenticateURL.String()),
 		evaluator.WithGoogleCloudServerlessAuthenticationServiceAccount(opts.GetGoogleCloudServerlessAuthenticationServiceAccount()),

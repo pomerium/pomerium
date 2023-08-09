@@ -95,6 +95,24 @@ func TestDownstreamMTLSSettingsGetEnforcement(t *testing.T) {
 	}
 }
 
+func TestDownstreamMTLSSettingsGetMaxVerifyDepth(t *testing.T) {
+	t.Parallel()
+
+	// MaxVerifyDepth should default to 1 if not set explicitly.
+	var s DownstreamMTLSSettings
+	assert.Equal(t, uint32(1), s.GetMaxVerifyDepth())
+
+	var maxVerifyDepth uint32
+	s.MaxVerifyDepth = &maxVerifyDepth
+	assert.Equal(t, uint32(0), s.GetMaxVerifyDepth())
+
+	maxVerifyDepth = 1
+	assert.Equal(t, uint32(1), s.GetMaxVerifyDepth())
+
+	maxVerifyDepth = 1000
+	assert.Equal(t, uint32(1000), s.GetMaxVerifyDepth())
+}
+
 func TestDownstreamMTLSSettingsValidate(t *testing.T) {
 	t.Parallel()
 

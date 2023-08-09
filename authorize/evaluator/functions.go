@@ -3,6 +3,7 @@ package evaluator
 import (
 	"context"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -12,9 +13,19 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 )
 
-var isValidClientCertificateCache, _ = lru.New2Q[[4]string, bool](100)
+// ClientCertConstraints contains additional constraints to validate when
+// verifying a client certificate.
+type ClientCertConstraints struct {
+	// MaxVerifyDepth is the maximum allowed certificate chain depth (not
+	// counting the leaf certificate). A value of 0 indicates no maximum.
+	MaxVerifyDepth uint32
+}
 
-func isValidClientCertificate(ca, crl string, certInfo ClientCertificateInfo) (bool, error) {
+var isValidClientCertificateCache, _ = lru.New2Q[[5]string, bool](100)
+
+func isValidClientCertificate(
+	ca, crl string, certInfo ClientCertificateInfo, constraints ClientCertConstraints,
+) (bool, error) {
 	// when ca is the empty string, client certificates are not required
 	if ca == "" {
 		return true, nil
@@ -27,7 +38,12 @@ func isValidClientCertificate(ca, crl string, certInfo ClientCertificateInfo) (b
 		return false, nil
 	}
 
-	cacheKey := [4]string{ca, crl, cert, intermediates}
+	constraintsJSON, err := json.Marshal(constraints)
+	if err != nil {
+		return false, fmt.Errorf("internal error: failed to serialize constraints: %w", err)
+	}
+
+	cacheKey := [5]string{ca, crl, cert, intermediates, string(constraintsJSON)}
 
 	value, ok := isValidClientCertificateCache.Get(cacheKey)
 	if ok {
@@ -50,7 +66,7 @@ func isValidClientCertificate(ca, crl string, certInfo ClientCertificateInfo) (b
 		return false, err
 	}
 
-	verifyErr := verifyClientCertificate(xcert, roots, intermediatesPool, crls)
+	verifyErr := verifyClientCertificate(xcert, roots, intermediatesPool, crls, constraints)
 	valid := verifyErr == nil
 
 	if verifyErr != nil {
@@ -67,6 +83,7 @@ func verifyClientCertificate(
 	roots *x509.CertPool,
 	intermediates *x509.CertPool,
 	crls map[string]*x509.RevocationList,
+	constraints ClientCertConstraints,
 ) error {
 	chains, err := cert.Verify(x509.VerifyOptions{
 		Roots:         roots,
@@ -77,10 +94,11 @@ func verifyClientCertificate(
 		return err
 	}
 
-	// At least one of the verified chains must also pass revocation checking.
+	// At least one of the verified chains must also pass revocation checking
+	// and satisfy any additional constraints.
 	err = errors.New("internal error: no verified chains")
 	for _, chain := range chains {
-		err = validateClientCertificateChain(chain, crls)
+		err = validateClientCertificateChain(chain, crls, constraints)
 		if err == nil {
 			return nil
 		}
@@ -94,7 +112,15 @@ func verifyClientCertificate(
 func validateClientCertificateChain(
 	chain []*x509.Certificate,
 	crls map[string]*x509.RevocationList,
+	constraints ClientCertConstraints,
 ) error {
+	if constraints.MaxVerifyDepth > 0 {
+		if d := uint32(len(chain) - 1); d > constraints.MaxVerifyDepth {
+			return fmt.Errorf("chain depth %d exceeds max_verify_depth %d",
+				d, constraints.MaxVerifyDepth)
+		}
+	}
+
 	// Consult CRLs for all CAs in the chain (that is, all certificates except
 	// for the first one). To match Envoy's behavior, if a CRL is provided for
 	// any CA in the chain, CRLs must be provided for all CAs in the chain (see
