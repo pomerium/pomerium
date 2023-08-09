@@ -34,16 +34,24 @@ func TestNewHeadersRequestFromPolicy(t *testing.T) {
 				URL: *mustParseURL("http://to.example.com"),
 			},
 		},
-	}, "from.example.com")
+	}, RequestHTTP{
+		Hostname: "from.example.com",
+		ClientCertificate: ClientCertificateInfo{
+			Leaf: "--- FAKE CERTIFICATE ---",
+		},
+	})
 	assert.Equal(t, &HeadersRequest{
 		EnableGoogleCloudServerlessAuthentication: true,
 		Issuer:     "from.example.com",
 		ToAudience: "https://to.example.com",
+		ClientCertificate: ClientCertificateInfo{
+			Leaf: "--- FAKE CERTIFICATE ---",
+		},
 	}, req)
 }
 
 func TestNewHeadersRequestFromPolicy_nil(t *testing.T) {
-	req := NewHeadersRequestFromPolicy(nil, "from.example.com")
+	req := NewHeadersRequestFromPolicy(nil, RequestHTTP{Hostname: "from.example.com"})
 	assert.Equal(t, &HeadersRequest{
 		Issuer: "from.example.com",
 	}, req)
@@ -184,16 +192,20 @@ func TestHeadersEvaluator(t *testing.T) {
 				ToAudience: "to.example.com",
 				Session:    RequestSession{ID: "s1"},
 				SetRequestHeaders: map[string]string{
-					"X-Custom-Header": "CUSTOM_VALUE",
-					"X-ID-Token":      "$pomerium.id_token",
-					"X-Access-Token":  "$pomerium.access_token",
+					"X-Custom-Header":         "CUSTOM_VALUE",
+					"X-ID-Token":              "$pomerium.id_token",
+					"X-Access-Token":          "$pomerium.access_token",
+					"Client-Cert-Fingerprint": "$pomerium.client_cert_fingerprint",
 				},
+				ClientCertificate: ClientCertificateInfo{Leaf: testValidCert},
 			})
 		require.NoError(t, err)
 
 		assert.Equal(t, "CUSTOM_VALUE", output.Headers.Get("X-Custom-Header"))
 		assert.Equal(t, "ID_TOKEN", output.Headers.Get("X-ID-Token"))
 		assert.Equal(t, "ACCESS_TOKEN", output.Headers.Get("X-Access-Token"))
+		assert.Equal(t, "17859273e8a980631d367b2d5a6a6635412b0f22835f69e47b3f65624546a704",
+			output.Headers.Get("Client-Cert-Fingerprint"))
 	})
 
 	t.Run("set_request_headers original behavior", func(t *testing.T) {
@@ -216,6 +228,20 @@ func TestHeadersEvaluator(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, "Bearer ID_TOKEN", output.Headers.Get("Authorization"))
+	})
+
+	t.Run("set_request_headers no client cert", func(t *testing.T) {
+		output, err := eval(t, nil,
+			&HeadersRequest{
+				Issuer:     "from.example.com",
+				ToAudience: "to.example.com",
+				SetRequestHeaders: map[string]string{
+					"fingerprint": "$pomerium.client_cert_fingerprint",
+				},
+			})
+		require.NoError(t, err)
+
+		assert.Equal(t, "", output.Headers.Get("fingerprint"))
 	})
 }
 

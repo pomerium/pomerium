@@ -3,6 +3,8 @@ package pomerium.headers
 # input:
 #   enable_google_cloud_serverless_authentication: boolean
 #   enable_routing_key: boolean
+#   client_certificate:
+#     leaf: string
 #   issuer: string
 #   kubernetes_service_account_token: string
 #   session:
@@ -211,13 +213,19 @@ session_access_token = v {
 	v := session.oauth_token.access_token
 } else = ""
 
+client_cert_fingerprint = v {
+    cert := crypto.x509.parse_certificates(trim_space(input.client_certificate.leaf))[0]
+    v := crypto.sha256(base64.decode(cert.Raw))
+} else = ""
+
 set_request_headers = h {
 	h := [[header_name, header_value] |
 		some header_name
 		v1 := input.set_request_headers[header_name]
 		v2 := replace(v1, "$pomerium.id_token", session_id_token)
 		v3 := replace(v2, "$pomerium.access_token", session_access_token)
-		header_value := v3
+		v4 := replace(v3, "$pomerium.client_cert_fingerprint", client_cert_fingerprint)
+		header_value := v4
 	]
 } else = []
 
