@@ -43,7 +43,8 @@ type (
 		ID string `json:"id"`
 	}
 	ClientCertificateInfo struct {
-		Presented bool `json:"presented"`
+		Presented bool   `json:"presented"`
+		Leaf      string `json:"leaf"`
 	}
 )
 
