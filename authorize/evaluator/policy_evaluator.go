@@ -108,13 +108,14 @@ type PolicyEvaluator struct {
 
 // NewPolicyEvaluator creates a new PolicyEvaluator.
 func NewPolicyEvaluator(
-	ctx context.Context, store *store.Store, configPolicy *config.Policy, clientCA string,
+	ctx context.Context, store *store.Store, configPolicy *config.Policy,
+	addDefaultClientCertificateRule bool,
 ) (*PolicyEvaluator, error) {
 	e := new(PolicyEvaluator)
 
 	// generate the base rego script for the policy
 	ppl := configPolicy.ToPPL()
-	if clientCA != "" {
+	if addDefaultClientCertificateRule {
 		ppl.AddDefaultClientCertificateRule()
 	}
 	base, err := policy.GenerateRegoFromPolicy(ppl)

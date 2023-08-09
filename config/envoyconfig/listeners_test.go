@@ -126,6 +126,37 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 			}
 		}`, downstreamTLSContext)
 	})
+	t.Run("client-ca-strict", func(t *testing.T) {
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
+			DownstreamMTLS: config.DownstreamMTLSSettings{
+				CA:          "VEVTVAo=", // "TEST\n" (with a trailing newline)
+				Enforcement: config.MTLSEnforcementRejectConnection,
+			},
+		}}, nil)
+		require.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `{
+			"commonTlsContext": {
+				"tlsParams": {
+					"cipherSuites": [
+						"ECDHE-ECDSA-AES256-GCM-SHA384",
+						"ECDHE-RSA-AES256-GCM-SHA384",
+						"ECDHE-ECDSA-AES128-GCM-SHA256",
+						"ECDHE-RSA-AES128-GCM-SHA256",
+						"ECDHE-ECDSA-CHACHA20-POLY1305",
+						"ECDHE-RSA-CHACHA20-POLY1305"
+					],
+					"tlsMinimumProtocolVersion": "TLSv1_2"
+				},
+				"alpnProtocols": ["h2", "http/1.1"],
+				"validationContext": {
+					"trustedCa": {
+						"filename": "`+clientCAFileName+`"
+					}
+				}
+			},
+			"requireClientCertificate": true
+		}`, downstreamTLSContext)
+	})
 	t.Run("policy-client-ca", func(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
 			Policies: []config.Policy{

@@ -25,6 +25,58 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type MtlsEnforcementMode int32
+
+const (
+	MtlsEnforcementMode_UNKNOWN                  MtlsEnforcementMode = 0
+	MtlsEnforcementMode_POLICY                   MtlsEnforcementMode = 1
+	MtlsEnforcementMode_POLICY_WITH_DEFAULT_DENY MtlsEnforcementMode = 2
+	MtlsEnforcementMode_REJECT_CONNECTION        MtlsEnforcementMode = 3
+)
+
+// Enum value maps for MtlsEnforcementMode.
+var (
+	MtlsEnforcementMode_name = map[int32]string{
+		0: "UNKNOWN",
+		1: "POLICY",
+		2: "POLICY_WITH_DEFAULT_DENY",
+		3: "REJECT_CONNECTION",
+	}
+	MtlsEnforcementMode_value = map[string]int32{
+		"UNKNOWN":                  0,
+		"POLICY":                   1,
+		"POLICY_WITH_DEFAULT_DENY": 2,
+		"REJECT_CONNECTION":        3,
+	}
+)
+
+func (x MtlsEnforcementMode) Enum() *MtlsEnforcementMode {
+	p := new(MtlsEnforcementMode)
+	*p = x
+	return p
+}
+
+func (x MtlsEnforcementMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (MtlsEnforcementMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_config_proto_enumTypes[0].Descriptor()
+}
+
+func (MtlsEnforcementMode) Type() protoreflect.EnumType {
+	return &file_config_proto_enumTypes[0]
+}
+
+func (x MtlsEnforcementMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use MtlsEnforcementMode.Descriptor instead.
+func (MtlsEnforcementMode) EnumDescriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{0}
+}
+
 type Route_AuthorizationHeaderMode int32
 
 const (
@@ -58,11 +110,11 @@ func (x Route_AuthorizationHeaderMode) String() string {
 }
 
 func (Route_AuthorizationHeaderMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_config_proto_enumTypes[0].Descriptor()
+	return file_config_proto_enumTypes[1].Descriptor()
 }
 
 func (Route_AuthorizationHeaderMode) Type() protoreflect.EnumType {
-	return &file_config_proto_enumTypes[0]
+	return &file_config_proto_enumTypes[1]
 }
 
 func (x Route_AuthorizationHeaderMode) Number() protoreflect.EnumNumber {
@@ -1675,8 +1727,9 @@ type DownstreamMtlsSettings struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Ca  *string `protobuf:"bytes,1,opt,name=ca,proto3,oneof" json:"ca,omitempty"`
-	Crl *string `protobuf:"bytes,2,opt,name=crl,proto3,oneof" json:"crl,omitempty"`
+	Ca          *string              `protobuf:"bytes,1,opt,name=ca,proto3,oneof" json:"ca,omitempty"`
+	Crl         *string              `protobuf:"bytes,2,opt,name=crl,proto3,oneof" json:"crl,omitempty"`
+	Enforcement *MtlsEnforcementMode `protobuf:"varint,3,opt,name=enforcement,proto3,enum=pomerium.config.MtlsEnforcementMode,oneof" json:"enforcement,omitempty"`
 }
 
 func (x *DownstreamMtlsSettings) Reset() {
@@ -1723,6 +1776,13 @@ func (x *DownstreamMtlsSettings) GetCrl() string {
 		return *x.Crl
 	}
 	return ""
+}
+
+func (x *DownstreamMtlsSettings) GetEnforcement() MtlsEnforcementMode {
+	if x != nil && x.Enforcement != nil {
+		return *x.Enforcement
+	}
+	return MtlsEnforcementMode_UNKNOWN
 }
 
 type Settings_Certificate struct {
@@ -2597,15 +2657,28 @@ var file_config_proto_rawDesc = []byte{
 	0x42, 0x0e, 0x0a, 0x0c, 0x5f, 0x66, 0x61, 0x76, 0x69, 0x63, 0x6f, 0x6e, 0x5f, 0x75, 0x72, 0x6c,
 	0x42, 0x20, 0x0a, 0x1e, 0x5f, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x5f, 0x6d, 0x65, 0x73, 0x73, 0x61,
 	0x67, 0x65, 0x5f, 0x66, 0x69, 0x72, 0x73, 0x74, 0x5f, 0x70, 0x61, 0x72, 0x61, 0x67, 0x72, 0x61,
-	0x70, 0x68, 0x22, 0x53, 0x0a, 0x16, 0x44, 0x6f, 0x77, 0x6e, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d,
-	0x4d, 0x74, 0x6c, 0x73, 0x53, 0x65, 0x74, 0x74, 0x69, 0x6e, 0x67, 0x73, 0x12, 0x13, 0x0a, 0x02,
-	0x63, 0x61, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x48, 0x00, 0x52, 0x02, 0x63, 0x61, 0x88, 0x01,
-	0x01, 0x12, 0x15, 0x0a, 0x03, 0x63, 0x72, 0x6c, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x48, 0x01,
-	0x52, 0x03, 0x63, 0x72, 0x6c, 0x88, 0x01, 0x01, 0x42, 0x05, 0x0a, 0x03, 0x5f, 0x63, 0x61, 0x42,
-	0x06, 0x0a, 0x04, 0x5f, 0x63, 0x72, 0x6c, 0x42, 0x2e, 0x5a, 0x2c, 0x67, 0x69, 0x74, 0x68, 0x75,
-	0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70,
-	0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x67, 0x72, 0x70, 0x63,
-	0x2f, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x70, 0x68, 0x22, 0xb0, 0x01, 0x0a, 0x16, 0x44, 0x6f, 0x77, 0x6e, 0x73, 0x74, 0x72, 0x65, 0x61,
+	0x6d, 0x4d, 0x74, 0x6c, 0x73, 0x53, 0x65, 0x74, 0x74, 0x69, 0x6e, 0x67, 0x73, 0x12, 0x13, 0x0a,
+	0x02, 0x63, 0x61, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x48, 0x00, 0x52, 0x02, 0x63, 0x61, 0x88,
+	0x01, 0x01, 0x12, 0x15, 0x0a, 0x03, 0x63, 0x72, 0x6c, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x48,
+	0x01, 0x52, 0x03, 0x63, 0x72, 0x6c, 0x88, 0x01, 0x01, 0x12, 0x4b, 0x0a, 0x0b, 0x65, 0x6e, 0x66,
+	0x6f, 0x72, 0x63, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x24,
+	0x2e, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67,
+	0x2e, 0x4d, 0x74, 0x6c, 0x73, 0x45, 0x6e, 0x66, 0x6f, 0x72, 0x63, 0x65, 0x6d, 0x65, 0x6e, 0x74,
+	0x4d, 0x6f, 0x64, 0x65, 0x48, 0x02, 0x52, 0x0b, 0x65, 0x6e, 0x66, 0x6f, 0x72, 0x63, 0x65, 0x6d,
+	0x65, 0x6e, 0x74, 0x88, 0x01, 0x01, 0x42, 0x05, 0x0a, 0x03, 0x5f, 0x63, 0x61, 0x42, 0x06, 0x0a,
+	0x04, 0x5f, 0x63, 0x72, 0x6c, 0x42, 0x0e, 0x0a, 0x0c, 0x5f, 0x65, 0x6e, 0x66, 0x6f, 0x72, 0x63,
+	0x65, 0x6d, 0x65, 0x6e, 0x74, 0x2a, 0x63, 0x0a, 0x13, 0x4d, 0x74, 0x6c, 0x73, 0x45, 0x6e, 0x66,
+	0x6f, 0x72, 0x63, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x4d, 0x6f, 0x64, 0x65, 0x12, 0x0b, 0x0a, 0x07,
+	0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10, 0x00, 0x12, 0x0a, 0x0a, 0x06, 0x50, 0x4f, 0x4c,
+	0x49, 0x43, 0x59, 0x10, 0x01, 0x12, 0x1c, 0x0a, 0x18, 0x50, 0x4f, 0x4c, 0x49, 0x43, 0x59, 0x5f,
+	0x57, 0x49, 0x54, 0x48, 0x5f, 0x44, 0x45, 0x46, 0x41, 0x55, 0x4c, 0x54, 0x5f, 0x44, 0x45, 0x4e,
+	0x59, 0x10, 0x02, 0x12, 0x15, 0x0a, 0x11, 0x52, 0x45, 0x4a, 0x45, 0x43, 0x54, 0x5f, 0x43, 0x4f,
+	0x4e, 0x4e, 0x45, 0x43, 0x54, 0x49, 0x4f, 0x4e, 0x10, 0x03, 0x42, 0x2e, 0x5a, 0x2c, 0x67, 0x69,
+	0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75,
+	0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x67,
+	0x72, 0x70, 0x63, 0x2f, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x33,
 }
 
 var (
@@ -2620,69 +2693,71 @@ func file_config_proto_rawDescGZIP() []byte {
 	return file_config_proto_rawDescData
 }
 
-var file_config_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_config_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_config_proto_goTypes = []interface{}{
-	(Route_AuthorizationHeaderMode)(0),       // 0: pomerium.config.Route.AuthorizationHeaderMode
-	(*Config)(nil),                           // 1: pomerium.config.Config
-	(*RouteRewriteHeader)(nil),               // 2: pomerium.config.RouteRewriteHeader
-	(*RouteRedirect)(nil),                    // 3: pomerium.config.RouteRedirect
-	(*Route)(nil),                            // 4: pomerium.config.Route
-	(*Policy)(nil),                           // 5: pomerium.config.Policy
-	(*Settings)(nil),                         // 6: pomerium.config.Settings
-	(*DownstreamMtlsSettings)(nil),           // 7: pomerium.config.DownstreamMtlsSettings
-	nil,                                      // 8: pomerium.config.Route.AllowedIdpClaimsEntry
-	nil,                                      // 9: pomerium.config.Route.SetRequestHeadersEntry
-	nil,                                      // 10: pomerium.config.Route.SetResponseHeadersEntry
-	nil,                                      // 11: pomerium.config.Policy.AllowedIdpClaimsEntry
-	(*Settings_Certificate)(nil),             // 12: pomerium.config.Settings.Certificate
-	(*Settings_StringList)(nil),              // 13: pomerium.config.Settings.StringList
-	nil,                                      // 14: pomerium.config.Settings.RequestParamsEntry
-	nil,                                      // 15: pomerium.config.Settings.SetResponseHeadersEntry
-	nil,                                      // 16: pomerium.config.Settings.JwtClaimsHeadersEntry
-	(*durationpb.Duration)(nil),              // 17: google.protobuf.Duration
-	(*v3.Cluster)(nil),                       // 18: envoy.config.cluster.v3.Cluster
-	(v31.HttpConnectionManager_CodecType)(0), // 19: envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager.CodecType
-	(*crypt.PublicKeyEncryptionKey)(nil),     // 20: pomerium.crypt.PublicKeyEncryptionKey
-	(*structpb.ListValue)(nil),               // 21: google.protobuf.ListValue
+	(MtlsEnforcementMode)(0),                 // 0: pomerium.config.MtlsEnforcementMode
+	(Route_AuthorizationHeaderMode)(0),       // 1: pomerium.config.Route.AuthorizationHeaderMode
+	(*Config)(nil),                           // 2: pomerium.config.Config
+	(*RouteRewriteHeader)(nil),               // 3: pomerium.config.RouteRewriteHeader
+	(*RouteRedirect)(nil),                    // 4: pomerium.config.RouteRedirect
+	(*Route)(nil),                            // 5: pomerium.config.Route
+	(*Policy)(nil),                           // 6: pomerium.config.Policy
+	(*Settings)(nil),                         // 7: pomerium.config.Settings
+	(*DownstreamMtlsSettings)(nil),           // 8: pomerium.config.DownstreamMtlsSettings
+	nil,                                      // 9: pomerium.config.Route.AllowedIdpClaimsEntry
+	nil,                                      // 10: pomerium.config.Route.SetRequestHeadersEntry
+	nil,                                      // 11: pomerium.config.Route.SetResponseHeadersEntry
+	nil,                                      // 12: pomerium.config.Policy.AllowedIdpClaimsEntry
+	(*Settings_Certificate)(nil),             // 13: pomerium.config.Settings.Certificate
+	(*Settings_StringList)(nil),              // 14: pomerium.config.Settings.StringList
+	nil,                                      // 15: pomerium.config.Settings.RequestParamsEntry
+	nil,                                      // 16: pomerium.config.Settings.SetResponseHeadersEntry
+	nil,                                      // 17: pomerium.config.Settings.JwtClaimsHeadersEntry
+	(*durationpb.Duration)(nil),              // 18: google.protobuf.Duration
+	(*v3.Cluster)(nil),                       // 19: envoy.config.cluster.v3.Cluster
+	(v31.HttpConnectionManager_CodecType)(0), // 20: envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager.CodecType
+	(*crypt.PublicKeyEncryptionKey)(nil),     // 21: pomerium.crypt.PublicKeyEncryptionKey
+	(*structpb.ListValue)(nil),               // 22: google.protobuf.ListValue
 }
 var file_config_proto_depIdxs = []int32{
-	4,  // 0: pomerium.config.Config.routes:type_name -> pomerium.config.Route
-	6,  // 1: pomerium.config.Config.settings:type_name -> pomerium.config.Settings
-	3,  // 2: pomerium.config.Route.redirect:type_name -> pomerium.config.RouteRedirect
-	8,  // 3: pomerium.config.Route.allowed_idp_claims:type_name -> pomerium.config.Route.AllowedIdpClaimsEntry
-	17, // 4: pomerium.config.Route.timeout:type_name -> google.protobuf.Duration
-	17, // 5: pomerium.config.Route.idle_timeout:type_name -> google.protobuf.Duration
-	9,  // 6: pomerium.config.Route.set_request_headers:type_name -> pomerium.config.Route.SetRequestHeadersEntry
-	10, // 7: pomerium.config.Route.set_response_headers:type_name -> pomerium.config.Route.SetResponseHeadersEntry
-	2,  // 8: pomerium.config.Route.rewrite_response_headers:type_name -> pomerium.config.RouteRewriteHeader
-	0,  // 9: pomerium.config.Route.set_authorization_header:type_name -> pomerium.config.Route.AuthorizationHeaderMode
-	18, // 10: pomerium.config.Route.envoy_opts:type_name -> envoy.config.cluster.v3.Cluster
-	5,  // 11: pomerium.config.Route.policies:type_name -> pomerium.config.Policy
-	11, // 12: pomerium.config.Policy.allowed_idp_claims:type_name -> pomerium.config.Policy.AllowedIdpClaimsEntry
-	13, // 13: pomerium.config.Settings.access_log_fields:type_name -> pomerium.config.Settings.StringList
-	13, // 14: pomerium.config.Settings.authorize_log_fields:type_name -> pomerium.config.Settings.StringList
-	12, // 15: pomerium.config.Settings.certificates:type_name -> pomerium.config.Settings.Certificate
-	17, // 16: pomerium.config.Settings.timeout_read:type_name -> google.protobuf.Duration
-	17, // 17: pomerium.config.Settings.timeout_write:type_name -> google.protobuf.Duration
-	17, // 18: pomerium.config.Settings.timeout_idle:type_name -> google.protobuf.Duration
-	17, // 19: pomerium.config.Settings.cookie_expire:type_name -> google.protobuf.Duration
-	14, // 20: pomerium.config.Settings.request_params:type_name -> pomerium.config.Settings.RequestParamsEntry
-	15, // 21: pomerium.config.Settings.set_response_headers:type_name -> pomerium.config.Settings.SetResponseHeadersEntry
-	16, // 22: pomerium.config.Settings.jwt_claims_headers:type_name -> pomerium.config.Settings.JwtClaimsHeadersEntry
-	17, // 23: pomerium.config.Settings.default_upstream_timeout:type_name -> google.protobuf.Duration
-	12, // 24: pomerium.config.Settings.metrics_certificate:type_name -> pomerium.config.Settings.Certificate
-	17, // 25: pomerium.config.Settings.grpc_client_timeout:type_name -> google.protobuf.Duration
-	7,  // 26: pomerium.config.Settings.downstream_mtls:type_name -> pomerium.config.DownstreamMtlsSettings
-	19, // 27: pomerium.config.Settings.codec_type:type_name -> envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager.CodecType
-	20, // 28: pomerium.config.Settings.audit_key:type_name -> pomerium.crypt.PublicKeyEncryptionKey
-	21, // 29: pomerium.config.Route.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
-	21, // 30: pomerium.config.Policy.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
-	31, // [31:31] is the sub-list for method output_type
-	31, // [31:31] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	5,  // 0: pomerium.config.Config.routes:type_name -> pomerium.config.Route
+	7,  // 1: pomerium.config.Config.settings:type_name -> pomerium.config.Settings
+	4,  // 2: pomerium.config.Route.redirect:type_name -> pomerium.config.RouteRedirect
+	9,  // 3: pomerium.config.Route.allowed_idp_claims:type_name -> pomerium.config.Route.AllowedIdpClaimsEntry
+	18, // 4: pomerium.config.Route.timeout:type_name -> google.protobuf.Duration
+	18, // 5: pomerium.config.Route.idle_timeout:type_name -> google.protobuf.Duration
+	10, // 6: pomerium.config.Route.set_request_headers:type_name -> pomerium.config.Route.SetRequestHeadersEntry
+	11, // 7: pomerium.config.Route.set_response_headers:type_name -> pomerium.config.Route.SetResponseHeadersEntry
+	3,  // 8: pomerium.config.Route.rewrite_response_headers:type_name -> pomerium.config.RouteRewriteHeader
+	1,  // 9: pomerium.config.Route.set_authorization_header:type_name -> pomerium.config.Route.AuthorizationHeaderMode
+	19, // 10: pomerium.config.Route.envoy_opts:type_name -> envoy.config.cluster.v3.Cluster
+	6,  // 11: pomerium.config.Route.policies:type_name -> pomerium.config.Policy
+	12, // 12: pomerium.config.Policy.allowed_idp_claims:type_name -> pomerium.config.Policy.AllowedIdpClaimsEntry
+	14, // 13: pomerium.config.Settings.access_log_fields:type_name -> pomerium.config.Settings.StringList
+	14, // 14: pomerium.config.Settings.authorize_log_fields:type_name -> pomerium.config.Settings.StringList
+	13, // 15: pomerium.config.Settings.certificates:type_name -> pomerium.config.Settings.Certificate
+	18, // 16: pomerium.config.Settings.timeout_read:type_name -> google.protobuf.Duration
+	18, // 17: pomerium.config.Settings.timeout_write:type_name -> google.protobuf.Duration
+	18, // 18: pomerium.config.Settings.timeout_idle:type_name -> google.protobuf.Duration
+	18, // 19: pomerium.config.Settings.cookie_expire:type_name -> google.protobuf.Duration
+	15, // 20: pomerium.config.Settings.request_params:type_name -> pomerium.config.Settings.RequestParamsEntry
+	16, // 21: pomerium.config.Settings.set_response_headers:type_name -> pomerium.config.Settings.SetResponseHeadersEntry
+	17, // 22: pomerium.config.Settings.jwt_claims_headers:type_name -> pomerium.config.Settings.JwtClaimsHeadersEntry
+	18, // 23: pomerium.config.Settings.default_upstream_timeout:type_name -> google.protobuf.Duration
+	13, // 24: pomerium.config.Settings.metrics_certificate:type_name -> pomerium.config.Settings.Certificate
+	18, // 25: pomerium.config.Settings.grpc_client_timeout:type_name -> google.protobuf.Duration
+	8,  // 26: pomerium.config.Settings.downstream_mtls:type_name -> pomerium.config.DownstreamMtlsSettings
+	20, // 27: pomerium.config.Settings.codec_type:type_name -> envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager.CodecType
+	21, // 28: pomerium.config.Settings.audit_key:type_name -> pomerium.crypt.PublicKeyEncryptionKey
+	0,  // 29: pomerium.config.DownstreamMtlsSettings.enforcement:type_name -> pomerium.config.MtlsEnforcementMode
+	22, // 30: pomerium.config.Route.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
+	22, // 31: pomerium.config.Policy.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
+	32, // [32:32] is the sub-list for method output_type
+	32, // [32:32] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for extension type_name
+	32, // [32:32] is the sub-list for extension extendee
+	0,  // [0:32] is the sub-list for field type_name
 }
 
 func init() { file_config_proto_init() }
@@ -2812,7 +2887,7 @@ func file_config_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_config_proto_rawDesc,
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,

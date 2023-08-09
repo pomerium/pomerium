@@ -63,6 +63,38 @@ func TestDownstreamMTLSSettingsGetCRL(t *testing.T) {
 	}
 }
 
+func TestDownstreamMTLSSettingsGetEnforcement(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		label    string
+		settings DownstreamMTLSSettings
+		expected MTLSEnforcement
+	}{
+		{"default",
+			DownstreamMTLSSettings{}, MTLSEnforcementPolicyWithDefaultDeny,
+		},
+		{"policy",
+			DownstreamMTLSSettings{Enforcement: "policy"}, MTLSEnforcementPolicy,
+		},
+		{"policy_with_default_deny",
+			DownstreamMTLSSettings{Enforcement: "policy_with_default_deny"},
+			MTLSEnforcementPolicyWithDefaultDeny,
+		},
+		{"reject_connection",
+			DownstreamMTLSSettings{Enforcement: "reject_connection"},
+			MTLSEnforcementRejectConnection,
+		},
+	}
+
+	for i := range cases {
+		c := &cases[i]
+		t.Run(c.label, func(t *testing.T) {
+			assert.Equal(t, c.expected, c.settings.GetEnforcement())
+		})
+	}
+}
+
 func TestDownstreamMTLSSettingsValidate(t *testing.T) {
 	t.Parallel()
 
@@ -80,9 +112,12 @@ func TestDownstreamMTLSSettingsValidate(t *testing.T) {
 			"CRL: cryptutil: invalid crl, no X509 CRL block found"},
 		{"bad CRL file", DownstreamMTLSSettings{CRLFile: "-"},
 			"CRL file: open -: no such file or directory"},
+		{"bad enforcement mode", DownstreamMTLSSettings{Enforcement: "whatever"},
+			"unknown enforcement option"},
 		{"OK", DownstreamMTLSSettings{
-			CA:  "dGhpc2lzZmluZQo=",
-			CRL: "LS0tLS1CRUdJTiBYNTA5IENSTC0tLS0tCk1JSUNOVENCbmdJQkFUQU5CZ2txaGtpRzl3MEJBUXNGQURBNk1SNHdIQVlEVlFRS0V4VnRhMk5sY25RZ1pHVjIKWld4dmNHMWxiblFnUTBFeEdEQVdCZ05WQkFNVEQyUnZkMjV6ZEhKbFlXMGdRMEVnTWhjTk1qTXdOekU1TWpFMQpNREUxV2hjTk16TXdOekUyTWpFMU1ERTFXcUF3TUM0d0h3WURWUjBqQkJnd0ZvQVVDeFEyY0JhNVl6cVZ6YW1wCmlOQ3g4S3dGRnlRd0N3WURWUjBVQkFRQ0FoQUFNQTBHQ1NxR1NJYjNEUUVCQ3dVQUE0SUJnUUNZYW14OHBNK1IKQ2x5c2tjdTdvdWh1L1IxSnkxbldHeVd0S3BoWXEwWEZiT0xsbmsyWjdlRGZBWDhFZWoyRmF2cXh6YXBSMngyTwo0aUpORENtaXdZWVlVUzJYMkxKM3JSUkpYeVh2V2h0ZkhyeFVSZDZCaXRDMklYcHlrQnRWbGYzekFuWjhHWkZRClMxamRmeUxNdUVBaUR3SWFpM1l0OEhzRHAvcUcwODlvWGNvU3R5UWcvdVJwbVd5MDVBOXVDVk9mTkhTTFNadTgKbHI0cWF0bGV1MHdXYlYxYW1MOHRPOXg0Q1JrTzBvMVlhUXE0RG9PcnVQciszTmtUbVB2R2lkaDNGNzFWNklFQQpoK0t6ZGJSWHhGbUNDV0xXbXBKRGNyZ1I3S1VxWk9oVVV0K0RVcWFxaFY0NHFJMG5ycFIrUVpMb2hvRG9yOUx3CksrdWZqM24yOWVTUlgrM1B4K29WV1BUOFlaUDJ1S1BkaXppOTZtZTJqV1RyNTF4OUFqRW9KRHNUbllSbDkrdVkKU2hpVXhXblRkUXNvb2tuSWZjUy8wemZnWjg3R3ZVVnppbkNRekpwd1Z4ZDRBbHQ4QWxSK2ZYQXFOSW9PZ3V5dgpwL0N0UlZualZFN2w3SFcvaFFScTFKMGlqQ0NLd215Zi9LVGQ2RUs0VGRydmJYL1U5bXNWTThZPQotLS0tLUVORCBYNTA5IENSTC0tLS0tCg==",
+			CA:          "dGhpc2lzZmluZQo=",
+			CRL:         "LS0tLS1CRUdJTiBYNTA5IENSTC0tLS0tCk1JSUNOVENCbmdJQkFUQU5CZ2txaGtpRzl3MEJBUXNGQURBNk1SNHdIQVlEVlFRS0V4VnRhMk5sY25RZ1pHVjIKWld4dmNHMWxiblFnUTBFeEdEQVdCZ05WQkFNVEQyUnZkMjV6ZEhKbFlXMGdRMEVnTWhjTk1qTXdOekU1TWpFMQpNREUxV2hjTk16TXdOekUyTWpFMU1ERTFXcUF3TUM0d0h3WURWUjBqQkJnd0ZvQVVDeFEyY0JhNVl6cVZ6YW1wCmlOQ3g4S3dGRnlRd0N3WURWUjBVQkFRQ0FoQUFNQTBHQ1NxR1NJYjNEUUVCQ3dVQUE0SUJnUUNZYW14OHBNK1IKQ2x5c2tjdTdvdWh1L1IxSnkxbldHeVd0S3BoWXEwWEZiT0xsbmsyWjdlRGZBWDhFZWoyRmF2cXh6YXBSMngyTwo0aUpORENtaXdZWVlVUzJYMkxKM3JSUkpYeVh2V2h0ZkhyeFVSZDZCaXRDMklYcHlrQnRWbGYzekFuWjhHWkZRClMxamRmeUxNdUVBaUR3SWFpM1l0OEhzRHAvcUcwODlvWGNvU3R5UWcvdVJwbVd5MDVBOXVDVk9mTkhTTFNadTgKbHI0cWF0bGV1MHdXYlYxYW1MOHRPOXg0Q1JrTzBvMVlhUXE0RG9PcnVQciszTmtUbVB2R2lkaDNGNzFWNklFQQpoK0t6ZGJSWHhGbUNDV0xXbXBKRGNyZ1I3S1VxWk9oVVV0K0RVcWFxaFY0NHFJMG5ycFIrUVpMb2hvRG9yOUx3CksrdWZqM24yOWVTUlgrM1B4K29WV1BUOFlaUDJ1S1BkaXppOTZtZTJqV1RyNTF4OUFqRW9KRHNUbllSbDkrdVkKU2hpVXhXblRkUXNvb2tuSWZjUy8wemZnWjg3R3ZVVnppbkNRekpwd1Z4ZDRBbHQ4QWxSK2ZYQXFOSW9PZ3V5dgpwL0N0UlZualZFN2w3SFcvaFFScTFKMGlqQ0NLd215Zi9LVGQ2RUs0VGRydmJYL1U5bXNWTThZPQotLS0tLUVORCBYNTA5IENSTC0tLS0tCg==",
+			Enforcement: "reject_connection",
 		}, ""},
 	}
 
