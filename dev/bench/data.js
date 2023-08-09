@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691593064725,
+  "lastUpdate": 1691595654623,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -61848,6 +61848,42 @@ window.BENCHMARK_DATA = {
             "value": 8783700,
             "unit": "ns/op",
             "extra": "128 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f7e0b61c03f33b02fa686ad32dafc5c32bf3b5b4",
+          "message": "authorize: client cert fingerprint in set_request_headers (#4447)\n\nAdd support for a new token $pomerium.client_cert_fingerprint in the\r\nset_request_headers option. This token will be replaced with the SHA-256\r\nhash of the presented leaf client certificate.",
+          "timestamp": "2023-08-09T08:34:51-07:00",
+          "tree_id": "ecff4b1db0ff7b96820a0306a84243a56824ff7f",
+          "url": "https://github.com/pomerium/pomerium/commit/f7e0b61c03f33b02fa686ad32dafc5c32bf3b5b4"
+        },
+        "date": 1691595648033,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 19545808,
+            "unit": "ns/op",
+            "extra": "66 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 14110601,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
           }
         ]
       }
