@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691586907434,
+  "lastUpdate": 1691593064725,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -61812,6 +61812,42 @@ window.BENCHMARK_DATA = {
             "value": 11287118,
             "unit": "ns/op",
             "extra": "109 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "de68e37bc3900759456e4bdcfa689eb4d79c9844",
+          "message": "config: add new mTLS enforcement setting (#4443)\n\nAdd an \"enforcement\" option to the new downstream mTLS configuration\r\nsettings group.\r\n\r\nWhen not set, or when set to \"policy_default_deny\", keep the current\r\nbehavior of adding an invalid_client_certificate rule to all policies.\r\n\r\nWhen the enforcement mode is set to just \"policy\", remove the default\r\ninvalid_client_certificate rule that would be normally added.\r\n\r\nWhen the enforcement mode is set to \"reject_connection\", configure the\r\nEnvoy listener with the require_client_certificate setting and remove\r\nthe ACCEPT_UNTRUSTED option.\r\n\r\nAdd a corresponding field to the Settings proto.",
+          "timestamp": "2023-08-09T07:53:11-07:00",
+          "tree_id": "ed3bb9069aa57bda7d0929d249711f165f36edd7",
+          "url": "https://github.com/pomerium/pomerium/commit/de68e37bc3900759456e4bdcfa689eb4d79c9844"
+        },
+        "date": 1691593059777,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14375174,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8783700,
+            "unit": "ns/op",
+            "extra": "128 times\n2 procs"
           }
         ]
       }
