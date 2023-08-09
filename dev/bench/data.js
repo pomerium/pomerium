@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691523563153,
+  "lastUpdate": 1691541320255,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -61710,6 +61710,38 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 10837308,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "59bb4b77a70718abdf19897cb85001619877f976",
+          "message": "ppl: add new client certificate criterion",
+          "timestamp": "2023-08-08T21:51:58Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4448/commits/59bb4b77a70718abdf19897cb85001619877f976"
+        },
+        "date": 1691541314061,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15375048,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10441178,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
           }
