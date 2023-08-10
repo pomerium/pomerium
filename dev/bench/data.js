@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691704900677,
+  "lastUpdate": 1691709665269,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -62216,6 +62216,38 @@ window.BENCHMARK_DATA = {
             "value": 11317313,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "77f06972cd2f664cf143c6072a775656c9fda1e4",
+          "message": "cryptutil: update CRL parsing",
+          "timestamp": "2023-08-09T06:24:42Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4454/commits/77f06972cd2f664cf143c6072a775656c9fda1e4"
+        },
+        "date": 1691709660232,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14039927,
+            "unit": "ns/op",
+            "extra": "81 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 47739196,
+            "unit": "ns/op",
+            "extra": "128 times\n2 procs"
           }
         ]
       }
