@@ -116,10 +116,15 @@ func (s *DownstreamMTLSSettings) GetMaxVerifyDepth() uint32 {
 }
 
 func (s *DownstreamMTLSSettings) validate() error {
-	if _, err := s.GetCA(); err != nil {
+	if s.CA != "" && s.CAFile != "" {
+		return errors.New("cannot set both ca and ca_file")
+	} else if _, err := s.GetCA(); err != nil {
 		return err
 	}
 
+	if s.CRL != "" && s.CRLFile != "" {
+		return errors.New("cannot set both crl and crl_file")
+	}
 	crl, err := s.GetCRL()
 	if err != nil {
 		return err
