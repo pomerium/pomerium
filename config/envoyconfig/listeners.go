@@ -553,6 +553,10 @@ func (b *Builder) buildDownstreamValidationContext(
 		TrustedCa: b.filemgr.BytesDataSource("client-ca.pem", clientCA),
 	}
 
+	if d := cfg.Options.DownstreamMTLS.GetMaxVerifyDepth(); d > 0 {
+		vc.MaxVerifyDepth = wrapperspb.UInt32(d)
+	}
+
 	if cfg.Options.DownstreamMTLS.GetEnforcement() == config.MTLSEnforcementRejectConnection {
 		dtc.RequireClientCertificate = wrapperspb.Bool(true)
 	} else {

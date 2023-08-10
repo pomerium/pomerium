@@ -97,13 +97,15 @@ BVAnH/e8AiEAjy8cP1msG62BeDaAVU5NcU9RAXDw1Oz4HkpELXQWqK8=
 )
 
 func Test_isValidClientCertificate(t *testing.T) {
+	var noConstraints ClientCertConstraints
 	t.Run("no ca", func(t *testing.T) {
-		valid, err := isValidClientCertificate("", "", ClientCertificateInfo{Leaf: "WHATEVER!"})
+		valid, err := isValidClientCertificate(
+			"", "", ClientCertificateInfo{Leaf: "WHATEVER!"}, noConstraints)
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 	})
 	t.Run("no cert", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{})
+		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{}, noConstraints)
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 	})
@@ -111,7 +113,7 @@ func Test_isValidClientCertificate(t *testing.T) {
 		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCert,
-		})
+		}, noConstraints)
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 	})
@@ -120,7 +122,7 @@ func Test_isValidClientCertificate(t *testing.T) {
 			Presented:     true,
 			Leaf:          testValidIntermediateCert,
 			Intermediates: testIntermediateCA,
-		})
+		}, noConstraints)
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 	})
@@ -129,7 +131,7 @@ func Test_isValidClientCertificate(t *testing.T) {
 			Presented:     true,
 			Leaf:          testValidIntermediateCert,
 			Intermediates: "",
-		})
+		}, noConstraints)
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 	})
@@ -137,7 +139,7 @@ func Test_isValidClientCertificate(t *testing.T) {
 		valid, err := isValidClientCertificate(testIntermediateCA, "", ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidIntermediateCert,
-		})
+		}, noConstraints)
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 	})
@@ -145,7 +147,7 @@ func Test_isValidClientCertificate(t *testing.T) {
 		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testUntrustedCert,
-		})
+		}, noConstraints)
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 	})
@@ -153,7 +155,7 @@ func Test_isValidClientCertificate(t *testing.T) {
 		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
 			Presented: true,
 			Leaf:      "WHATEVER!",
-		})
+		}, noConstraints)
 		assert.Error(t, err, "should return an error")
 		assert.False(t, valid, "should return false")
 	})
@@ -164,11 +166,11 @@ func Test_isValidClientCertificate(t *testing.T) {
 		}
 
 		// The "revoked cert" should otherwise be valid (when no CRL is specified).
-		valid, err := isValidClientCertificate(testCA, "", revokedCertInfo)
+		valid, err := isValidClientCertificate(testCA, "", revokedCertInfo, noConstraints)
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 
-		valid, err = isValidClientCertificate(testCA, testCRL, revokedCertInfo)
+		valid, err = isValidClientCertificate(testCA, testCRL, revokedCertInfo, noConstraints)
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 
@@ -176,7 +178,7 @@ func Test_isValidClientCertificate(t *testing.T) {
 		valid, err = isValidClientCertificate(testCA, testCRL, ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCert,
-		})
+		}, noConstraints)
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 	})
@@ -186,7 +188,16 @@ func Test_isValidClientCertificate(t *testing.T) {
 			Presented:     true,
 			Leaf:          testValidIntermediateCert,
 			Intermediates: testIntermediateCA,
-		})
+		}, noConstraints)
+		assert.NoError(t, err, "should not return an error")
+		assert.False(t, valid, "should return false")
+	})
+	t.Run("chain too deep", func(t *testing.T) {
+		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+			Presented:     true,
+			Leaf:          testValidIntermediateCert,
+			Intermediates: testIntermediateCA,
+		}, ClientCertConstraints{MaxVerifyDepth: 1})
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 	})

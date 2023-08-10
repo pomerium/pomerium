@@ -118,6 +118,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 				},
 				"alpnProtocols": ["h2", "http/1.1"],
 				"validationContext": {
+					"maxVerifyDepth": 1,
 					"trustChainVerification": "ACCEPT_UNTRUSTED",
 					"trustedCa": {
 						"filename": "`+clientCAFileName+`"
@@ -149,6 +150,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 				},
 				"alpnProtocols": ["h2", "http/1.1"],
 				"validationContext": {
+					"maxVerifyDepth": 1,
 					"trustedCa": {
 						"filename": "`+clientCAFileName+`"
 					}
@@ -183,6 +185,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 				},
 				"alpnProtocols": ["h2", "http/1.1"],
 				"validationContext": {
+					"maxVerifyDepth": 1,
 					"trustChainVerification": "ACCEPT_UNTRUSTED",
 					"trustedCa": {
 						"filename": "`+clientCAFileName+`"
@@ -190,6 +193,38 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 				}
 			}
 		}`, downstreamTLSContext)
+	})
+	t.Run("client-ca-max-verify-depth", func(t *testing.T) {
+		var maxVerifyDepth uint32
+		config := &config.Config{Options: &config.Options{
+			DownstreamMTLS: config.DownstreamMTLSSettings{
+				MaxVerifyDepth: &maxVerifyDepth,
+				CA:             "VEVTVAo=", // "TEST\n"
+			},
+		}}
+
+		maxVerifyDepth = 10
+		downstreamTLSContext, err :=
+			b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
+		require.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `{
+			"maxVerifyDepth": 10,
+			"trustChainVerification": "ACCEPT_UNTRUSTED",
+			"trustedCa": {
+				"filename": "`+clientCAFileName+`"
+			}
+		}`, downstreamTLSContext.GetCommonTlsContext().GetValidationContext())
+
+		maxVerifyDepth = 0
+		downstreamTLSContext, err =
+			b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
+		require.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `{
+			"trustChainVerification": "ACCEPT_UNTRUSTED",
+			"trustedCa": {
+				"filename": "`+clientCAFileName+`"
+			}
+		}`, downstreamTLSContext.GetCommonTlsContext().GetValidationContext())
 	})
 	t.Run("http1", func(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
