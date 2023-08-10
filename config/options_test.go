@@ -705,18 +705,37 @@ func TestDeprecatedClientCAOptions(t *testing.T) {
 	zl := zerolog.New(&logOutput)
 	testutil.SetLogger(t, &zl)
 
-	o := NewDefaultOptions()
-	o.ClientCA = "LS0tIEZBS0UgQ0EgQ0VSVCAtLS0="
-	o.ClientCAFile = caFile
-	o.AutocertOptions.Enable = true // suppress an unrelated warning
+	t.Run("CA", func(t *testing.T) {
+		logOutput.Reset()
 
-	err := o.Validate()
-	require.NoError(t, err)
-	assert.Equal(t, "LS0tIEZBS0UgQ0EgQ0VSVCAtLS0=", o.DownstreamMTLS.CA)
-	assert.Equal(t, caFile, o.DownstreamMTLS.CAFile)
-	assert.Equal(t, `{"level":"warn","message":"config: client_ca is deprecated, set downstream_mtls.ca instead"}
-{"level":"warn","message":"config: client_ca_file is deprecated, set downstream_mtls.ca_file instead"}
-`, logOutput.String())
+		o := NewDefaultOptions()
+		o.AutocertOptions.Enable = true // suppress an unrelated warning
+		o.ClientCA = "LS0tIEZBS0UgQ0EgQ0VSVCAtLS0="
+
+		err := o.Validate()
+
+		require.NoError(t, err)
+		assert.Equal(t, "LS0tIEZBS0UgQ0EgQ0VSVCAtLS0=", o.DownstreamMTLS.CA)
+		assert.Equal(t, `{"level":"warn","message":"config: client_ca is deprecated, set downstream_mtls.ca instead"}
+`,
+			logOutput.String())
+	})
+
+	t.Run("CAFile", func(t *testing.T) {
+		logOutput.Reset()
+
+		o := NewDefaultOptions()
+		o.AutocertOptions.Enable = true // suppress an unrelated warning
+		o.ClientCAFile = caFile
+
+		err := o.Validate()
+
+		require.NoError(t, err)
+		assert.Equal(t, caFile, o.DownstreamMTLS.CAFile)
+		assert.Equal(t, `{"level":"warn","message":"config: client_ca_file is deprecated, set downstream_mtls.ca_file instead"}
+`,
+			logOutput.String())
+	})
 }
 
 func TestOptions_DefaultURL(t *testing.T) {
