@@ -122,10 +122,14 @@ func TestDownstreamMTLSSettingsValidate(t *testing.T) {
 		errorMsg string
 	}{
 		{"not set", DownstreamMTLSSettings{}, ""},
+		{"both CA and CA file", DownstreamMTLSSettings{CA: "CA", CAFile: "CAFile"},
+			"cannot set both ca and ca_file"},
 		{"bad CA", DownstreamMTLSSettings{CA: "not%valid%base64%data"},
 			"CA: illegal base64 data at input byte 3"},
 		{"bad CA file", DownstreamMTLSSettings{CAFile: "-"},
 			"CA file: open -: no such file or directory"},
+		{"both CRL and CRL file", DownstreamMTLSSettings{CRL: "CRL", CRLFile: "CRLFile"},
+			"cannot set both crl and crl_file"},
 		{"bad CRL", DownstreamMTLSSettings{CRL: "dGhpc2lzZmluZQo="},
 			"CRL: cryptutil: invalid crl, no X509 CRL block found"},
 		{"bad CRL file", DownstreamMTLSSettings{CRLFile: "-"},
