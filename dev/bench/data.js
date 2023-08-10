@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691709665269,
+  "lastUpdate": 1691709686353,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -62248,6 +62248,42 @@ window.BENCHMARK_DATA = {
             "value": 47739196,
             "unit": "ns/op",
             "extra": "128 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ed9a93fe5b9b9288e6be99da6d3a0b6a2cde470a",
+          "message": "config: extra CA and CRL validation (#4455)\n\nReturn an error from DownstreamMTLSSettings.validate() if both CA and\r\nCAFile are populated, or if both CRL and CRLFile are populated.",
+          "timestamp": "2023-08-10T16:15:11-07:00",
+          "tree_id": "b9aa7de6bea47496a5507c62561ffb6134fb71bb",
+          "url": "https://github.com/pomerium/pomerium/commit/ed9a93fe5b9b9288e6be99da6d3a0b6a2cde470a"
+        },
+        "date": 1691709679509,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 21669868,
+            "unit": "ns/op",
+            "extra": "55 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 14901364,
+            "unit": "ns/op",
+            "extra": "76 times\n2 procs"
           }
         ]
       }
