@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/types"
 
 	"github.com/pomerium/pomerium/authorize/evaluator/opa"
 	"github.com/pomerium/pomerium/authorize/internal/store"
@@ -54,6 +57,45 @@ type HeadersResponse struct {
 	Headers http.Header
 }
 
+var variableSubstitutionFunctionRegoOption = rego.Function2(&rego.Function{
+	Name: "pomerium.variable_substitution",
+	Decl: types.NewFunction(
+		types.Args(
+			types.Named("input_string", types.S),
+			types.Named("replacements",
+				types.NewObject(nil, types.NewDynamicProperty(types.S, types.S))),
+		),
+		types.Named("output", types.S),
+	),
+}, func(bctx rego.BuiltinContext, op1 *ast.Term, op2 *ast.Term) (*ast.Term, error) {
+	inputString, ok := op1.Value.(ast.String)
+	if !ok {
+		return nil, fmt.Errorf("invalid input_string type: %T", op1.Value)
+	}
+
+	replacements, ok := op2.Value.(ast.Object)
+	if !ok {
+		return nil, fmt.Errorf("invalid replacements type: %T", op2.Value)
+	}
+
+	var err error
+	output := os.Expand(string(inputString), func(key string) string {
+		r := replacements.Get(ast.StringTerm(key))
+		if r == nil {
+			return ""
+		}
+		s, ok := r.Value.(ast.String)
+		if !ok {
+			err = fmt.Errorf("invalid replacement value type for key %q: %T", key, r.Value)
+		}
+		return string(s)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return ast.StringTerm(output), nil
+})
+
 // A HeadersEvaluator evaluates the headers.rego script.
 type HeadersEvaluator struct {
 	q rego.PreparedEvalQuery
@@ -66,6 +108,7 @@ func NewHeadersEvaluator(ctx context.Context, store *store.Store) (*HeadersEvalu
 		rego.Module("pomerium.headers", opa.HeadersRego),
 		rego.Query("result = data.pomerium.headers"),
 		getGoogleCloudServerlessHeadersRegoOption,
+		variableSubstitutionFunctionRegoOption,
 		store.GetDataBrokerRecordOption(),
 	)
 

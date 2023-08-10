@@ -193,9 +193,9 @@ func TestHeadersEvaluator(t *testing.T) {
 				Session:    RequestSession{ID: "s1"},
 				SetRequestHeaders: map[string]string{
 					"X-Custom-Header":         "CUSTOM_VALUE",
-					"X-ID-Token":              "$pomerium.id_token",
-					"X-Access-Token":          "$pomerium.access_token",
-					"Client-Cert-Fingerprint": "$pomerium.client_cert_fingerprint",
+					"X-ID-Token":              "${pomerium.id_token}",
+					"X-Access-Token":          "${pomerium.access_token}",
+					"Client-Cert-Fingerprint": "${pomerium.client_cert_fingerprint}",
 				},
 				ClientCertificate: ClientCertificateInfo{Leaf: testValidCert},
 			})
@@ -206,6 +206,28 @@ func TestHeadersEvaluator(t *testing.T) {
 		assert.Equal(t, "ACCESS_TOKEN", output.Headers.Get("X-Access-Token"))
 		assert.Equal(t, "f0c7dc2ca5e4b792935bcdb61a8b8f31b6521c686ffd8a6edb414a1e64ab8eb5",
 			output.Headers.Get("Client-Cert-Fingerprint"))
+	})
+
+	t.Run("set_request_headers no repeated substitution", func(t *testing.T) {
+		output, err := eval(t,
+			[]proto.Message{
+				&session.Session{Id: "s1", IdToken: &session.IDToken{
+					Raw: "$pomerium.access_token",
+				}, OauthToken: &session.OAuthToken{
+					AccessToken: "ACCESS_TOKEN",
+				}},
+			},
+			&HeadersRequest{
+				Issuer:     "from.example.com",
+				ToAudience: "to.example.com",
+				Session:    RequestSession{ID: "s1"},
+				SetRequestHeaders: map[string]string{
+					"X-ID-Token": "${pomerium.id_token}",
+				},
+			})
+		require.NoError(t, err)
+
+		assert.Equal(t, "$pomerium.access_token", output.Headers.Get("X-ID-Token"))
 	})
 
 	t.Run("set_request_headers original behavior", func(t *testing.T) {
@@ -222,7 +244,7 @@ func TestHeadersEvaluator(t *testing.T) {
 				ToAudience: "to.example.com",
 				Session:    RequestSession{ID: "s1"},
 				SetRequestHeaders: map[string]string{
-					"Authorization": "Bearer $pomerium.id_token",
+					"Authorization": "Bearer ${pomerium.id_token}",
 				},
 			})
 		require.NoError(t, err)
@@ -236,7 +258,7 @@ func TestHeadersEvaluator(t *testing.T) {
 				Issuer:     "from.example.com",
 				ToAudience: "to.example.com",
 				SetRequestHeaders: map[string]string{
-					"fingerprint": "$pomerium.client_cert_fingerprint",
+					"fingerprint": "${pomerium.client_cert_fingerprint}",
 				},
 			})
 		require.NoError(t, err)

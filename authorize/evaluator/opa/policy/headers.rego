@@ -219,13 +219,15 @@ client_cert_fingerprint = v {
 } else = ""
 
 set_request_headers = h {
+    replacements := {
+        "pomerium.id_token": session_id_token,
+        "pomerium.access_token": session_access_token,
+		"pomerium.client_cert_fingerprint": client_cert_fingerprint,
+    }
 	h := [[header_name, header_value] |
 		some header_name
-		v1 := input.set_request_headers[header_name]
-		v2 := replace(v1, "$pomerium.id_token", session_id_token)
-		v3 := replace(v2, "$pomerium.access_token", session_access_token)
-		v4 := replace(v3, "$pomerium.client_cert_fingerprint", client_cert_fingerprint)
-		header_value := v4
+		v := input.set_request_headers[header_name]
+		header_value := pomerium.variable_substitution(v, replacements)
 	]
 } else = []
 
