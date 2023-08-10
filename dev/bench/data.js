@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691685611899,
+  "lastUpdate": 1691687454060,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -62084,6 +62084,42 @@ window.BENCHMARK_DATA = {
             "value": 9074029,
             "unit": "ns/op",
             "extra": "123 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "50e6cf7466dd18a14c07d878b2217add0a39e378",
+          "message": "config: add support for max_verify_depth (#4452)\n\nAdd a new max_verify_depth option to the downstream_mtls settings group,\r\nwith a default value of 1 (to match the behavior of current Pomerium\r\nreleases).\r\n\r\nPopulate the corresponding setting within Envoy, and also implement a\r\ndepth check within isValidClientCertificate() in the authorize service.",
+          "timestamp": "2023-08-10T10:05:48-07:00",
+          "tree_id": "5b4effbf6413732dc48346631b852dadcf14c023",
+          "url": "https://github.com/pomerium/pomerium/commit/50e6cf7466dd18a14c07d878b2217add0a39e378"
+        },
+        "date": 1691687448325,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13297106,
+            "unit": "ns/op",
+            "extra": "93 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8384595,
+            "unit": "ns/op",
+            "extra": "129 times\n2 procs"
           }
         ]
       }
