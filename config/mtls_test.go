@@ -127,7 +127,7 @@ func TestDownstreamMTLSSettingsValidate(t *testing.T) {
 		{"bad CA file", DownstreamMTLSSettings{CAFile: "-"},
 			"CA file: open -: no such file or directory"},
 		{"bad CRL", DownstreamMTLSSettings{CRL: "dGhpc2lzZmluZQo="},
-			"CRL: cryptutil: invalid crl, no X509 CRL block found"},
+			"CRL: cryptutil: non-PEM data in CRL bundle"},
 		{"bad CRL file", DownstreamMTLSSettings{CRLFile: "-"},
 			"CRL file: open -: no such file or directory"},
 		{"bad enforcement mode", DownstreamMTLSSettings{Enforcement: "whatever"},
