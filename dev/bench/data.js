@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691626834597,
+  "lastUpdate": 1691685499444,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -62016,6 +62016,42 @@ window.BENCHMARK_DATA = {
             "value": 10218766,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0fcc3f16def2af03c54d15c86ad602c81f9ae990",
+          "message": "authorize: allow client certificate intermediates (#4451)\n\nUpdate the isValidClientCertificate() method to consider any\r\nclient-supplied intermediate certificates. Previously, in order to trust\r\nclient certificates issued by an intermediate CA, users would need to\r\ninclude that intermediate CA's certificate directly in the client_ca\r\nsetting. After this change, only the trusted root CA needs to be set: as\r\nlong as the client can supply a set of certificates that chain back to\r\nthis trusted root, the client's certificate will validate successfully.\r\n\r\nRework the previous CRL checking logic to now consider CRLs for all\r\nissuers in the verified chains.",
+          "timestamp": "2023-08-10T09:33:29-07:00",
+          "tree_id": "2644c00246e3a76aa4849b11ef2de85c87cb8ba8",
+          "url": "https://github.com/pomerium/pomerium/commit/0fcc3f16def2af03c54d15c86ad602c81f9ae990"
+        },
+        "date": 1691685490742,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14135744,
+            "unit": "ns/op",
+            "extra": "90 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8493413,
+            "unit": "ns/op",
+            "extra": "129 times\n2 procs"
           }
         ]
       }
