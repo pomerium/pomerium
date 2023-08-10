@@ -90,6 +90,26 @@ func main() {
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}, rootCA, rootKey)
 
+	intermediatePEM, intermediateCA, intermediateKey := newCertificate(&x509.Certificate{
+		SerialNumber: big.NewInt(0x1003),
+		Subject: pkix.Name{
+			CommonName: "Trusted Intermediate CA",
+		},
+		NotAfter:              notAfter,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}, rootCA, rootKey)
+
+	trustedClientCert2PEM, _, _ := newCertificate(&x509.Certificate{
+		SerialNumber: big.NewInt(0x1000),
+		Subject: pkix.Name{
+			CommonName: "client cert from intermediate",
+		},
+		NotAfter:    notAfter,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}, intermediateCA, intermediateKey)
+
 	_, untrustedCA, untrustedCAKey := newSelfSignedCertificate(&x509.Certificate{
 		SerialNumber: big.NewInt(0x1000),
 		Subject: pkix.Name{
@@ -135,6 +155,8 @@ const (
 	testUntrustedCert = ` + "`\n" + untrustedClientCertPEM + "`" + `
 	testRevokedCert = ` + "`\n" + revokedClientCertPEM + "`" + `
 	testCRL = ` + "`\n" + crlPEM + "`" + `
+	testIntermediateCA = ` + "`\n" + intermediatePEM + "`" + `
+	testValidIntermediateCert = ` + "`\n" + trustedClientCert2PEM + "`" + `
 )
 `)
 }

@@ -204,7 +204,7 @@ func TestHeadersEvaluator(t *testing.T) {
 		assert.Equal(t, "CUSTOM_VALUE", output.Headers.Get("X-Custom-Header"))
 		assert.Equal(t, "ID_TOKEN", output.Headers.Get("X-ID-Token"))
 		assert.Equal(t, "ACCESS_TOKEN", output.Headers.Get("X-Access-Token"))
-		assert.Equal(t, "17859273e8a980631d367b2d5a6a6635412b0f22835f69e47b3f65624546a704",
+		assert.Equal(t, "f0c7dc2ca5e4b792935bcdb61a8b8f31b6521c686ffd8a6edb414a1e64ab8eb5",
 			output.Headers.Get("Client-Cert-Fingerprint"))
 	})
 

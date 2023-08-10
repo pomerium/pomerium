@@ -14,60 +14,85 @@ import (
 const (
 	testCA = `
 -----BEGIN CERTIFICATE-----
-MIIBZzCCAQ6gAwIBAgICEAAwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
-ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzMwNzMxMTUzMzE5WjAaMRgw
+MIIBaTCCAQ6gAwIBAgICEAAwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
+ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzMwODA2MjExMzI0WjAaMRgw
 FgYDVQQDEw9UcnVzdGVkIFJvb3QgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC
-AARGMVCBvgbkVB3OPltnBHAy9s9rtog2rlnzZ4BKzPBbLEM0uPYTOZa0LLxSMtCj
-N+Bu3wfGPgHU6/pJ2uEky7/Uo0IwQDAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/
-BAUwAwEB/zAdBgNVHQ4EFgQUXep6D8FTP6+5ZdR/HjP3pYfmxkwwCgYIKoZIzj0E
-AwIDRwAwRAIgSS5J6ii/n0gf2/UAMFb+UVG8n0nb1dcBCG55fSlWlVECIENVK+X3
-6SfUhfYSVBvOdS08AzMVvOM7aZbWaY9UirIf
+AATcFCe6i6IqnevuUoR8nTrka8fikGYB3ciKfRyS0NUfm27MGsbuU2ribMYjhuz2
+K4/nU7A2hcu393JNKriXgwoyo0IwQDAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/
+BAUwAwEB/zAdBgNVHQ4EFgQU0SX0xv9f6gYAcLC926z+Bt9vTAMwCgYIKoZIzj0E
+AwIDSQAwRgIhAJIFP4r9Gbo0D2MM/fzPx5wtXsjH1IoQMpn0aw+G1WkmAiEAi56g
+gO7l3bJj1YZtBv3tEkZPzaZ+xL3Nllcjv1K12Ac=
 -----END CERTIFICATE-----
 `
 	testValidCert = `
 -----BEGIN CERTIFICATE-----
 MIIBYTCCAQigAwIBAgICEAEwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
-ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzMwNzMxMTUzMzE5WjAeMRww
+ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzMwODA2MjExMzI0WjAeMRww
 GgYDVQQDExN0cnVzdGVkIGNsaWVudCBjZXJ0MFkwEwYHKoZIzj0CAQYIKoZIzj0D
-AQcDQgAEfAYP3ZwiKJgk9zXpR/CMHYlAxjweJaMJihIS2FTA5gb0xBcTEe5AGpNF
-CHWPk4YCB25VeHg9GmY9Q1+qDD1hdqM4MDYwEwYDVR0lBAwwCgYIKwYBBQUHAwIw
-HwYDVR0jBBgwFoAUXep6D8FTP6+5ZdR/HjP3pYfmxkwwCgYIKoZIzj0EAwIDRwAw
-RAIgProROtxpvKS/qjrjonSvacnhdU0JwoXj2DgYvF/qjrUCIAXlHkdEzyXmTLuu
-/YxuOibV35vlaIzj21GRj4pYmVR1
+AQcDQgAE3xjPIJPp9v+qu89DNHnqcIfkOSkLb8irRAnFmAYdJJLRqWRNRjmzRHtZ
+htT4TWvhEw6VsFbRlsd510+dEASm9aM4MDYwEwYDVR0lBAwwCgYIKwYBBQUHAwIw
+HwYDVR0jBBgwFoAU0SX0xv9f6gYAcLC926z+Bt9vTAMwCgYIKoZIzj0EAwIDRwAw
+RAIgYZaCYXhfBBR8w/AfqUm9MVLYrgkz78mndNFFjz+YvpwCIFsfyIjft/vRcuaU
+xlJFtrmFMSt4x1TecZfJsWDA0M55
 -----END CERTIFICATE-----
 `
 	testUntrustedCert = `
 -----BEGIN CERTIFICATE-----
 MIIBZzCCAQygAwIBAgICEAEwCgYIKoZIzj0EAwIwHDEaMBgGA1UEAxMRVW50cnVz
-dGVkIFJvb3QgQ0EwIBgPMDAwMTAxMDEwMDAwMDBaFw0zMzA3MzExNTMzMTlaMCAx
+dGVkIFJvb3QgQ0EwIBgPMDAwMTAxMDEwMDAwMDBaFw0zMzA4MDYyMTEzMjRaMCAx
 HjAcBgNVBAMTFXVudHJ1c3RlZCBjbGllbnQgY2VydDBZMBMGByqGSM49AgEGCCqG
-SM49AwEHA0IABBG2Qo/l0evcNKjwaJsi04BJJh7ec064lRiKaRMNRUK+UxkKmfbn
-0FobVtlioTmzeWCX8OJFPfO7y7/VLMiGVr+jODA2MBMGA1UdJQQMMAoGCCsGAQUF
-BwMCMB8GA1UdIwQYMBaAFCd2l26OflZF3LTFUEBB54ZQV3AUMAoGCCqGSM49BAMC
-A0kAMEYCIQCYEk3D4nHevIlKFg6f7O2/GdptzKU6F05pz4B3Aa8ahAIhAJcBGUNm
-cqQQJNOelJJmMeFOzmmTk7oNFxCGEC00wlGn
+SM49AwEHA0IABCLf7g3vlTE+xuIDttn/FYMpAAzlCKqr37rzBnBtuEhCDypW6Y/Y
+MbIboFx9o2M9FYLzDJCS7Bj3cp2qd145HdqjODA2MBMGA1UdJQQMMAoGCCsGAQUF
+BwMCMB8GA1UdIwQYMBaAFGGTTkLU8r+tXUCs+nMR5Xm3KkgLMAoGCCqGSM49BAMC
+A0kAMEYCIQCELFkfQak8X+Yvc7H95j+shSnVgwUuOYT1Lv2NLT1qPAIhAMEvKiwc
+ZkWK0F4PJLpSt1wsbnVtfK7kXwHxdp2Z8yy7
 -----END CERTIFICATE-----
 `
 	testRevokedCert = `
 -----BEGIN CERTIFICATE-----
-MIIBYzCCAQigAwIBAgICEAIwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
-ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzMwNzMxMTUzMzE5WjAeMRww
+MIIBYTCCAQigAwIBAgICEAIwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
+ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzMwODA2MjExMzI0WjAeMRww
 GgYDVQQDExNyZXZva2VkIGNsaWVudCBjZXJ0MFkwEwYHKoZIzj0CAQYIKoZIzj0D
-AQcDQgAEoN/gKhZgyKhTmiC3qLHDQ54TIpgXBTvGKrdIRHO616XMkzj0lFZMHG5u
-LGK3qo8wJtyoalOFTkSck0kl3PD/9qM4MDYwEwYDVR0lBAwwCgYIKwYBBQUHAwIw
-HwYDVR0jBBgwFoAUXep6D8FTP6+5ZdR/HjP3pYfmxkwwCgYIKoZIzj0EAwIDSQAw
-RgIhAK6/oLtzvrK2Vrt1MRZJ6aGU2Cz28X0Y/4TOwFSvCK9AAiEAm4XPQXy6L0PE
-vfXoV8RW/RnndDhf8iDALvAaAuS82fU=
+AQcDQgAENFshpve+if3UmlNyPi5sVz8A03F9AAt6u1LxqiR5cMO6eU+L91Bey/XC
+XYrqgpJzbRgTuC4LCFx6cwwl5ff/4KM4MDYwEwYDVR0lBAwwCgYIKwYBBQUHAwIw
+HwYDVR0jBBgwFoAU0SX0xv9f6gYAcLC926z+Bt9vTAMwCgYIKoZIzj0EAwIDRwAw
+RAIgappua0SnpXDzp9nml4iHqKtYAHTn/rg0w405ahdqBQwCIHulKmPGFNLDw1dq
+1bZyKsG1t58DfFsO9G27sRssvCgV
 -----END CERTIFICATE-----
 `
 	testCRL = `
 -----BEGIN X509 CRL-----
-MIHfMIGFAgEBMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD1RydXN0ZWQgUm9vdCBD
-QRgPMDAwMTAxMDEwMDAwMDBaMBUwEwICEAIXDTIzMDgwMzE1MzMxOVqgMDAuMB8G
-A1UdIwQYMBaAFF3qeg/BUz+vuWXUfx4z96WH5sZMMAsGA1UdFAQEAgIgADAKBggq
-hkjOPQQDAgNJADBGAiEApMG/hJxlMe9QNF8cCVjOFyTfVVBkfKtrFQDmElO46x4C
-IQCX9SYteNaaW+NVmGED6QfHXRWnDqHnXfe/mLxmnPVWzA==
+MIHeMIGFAgEBMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD1RydXN0ZWQgUm9vdCBD
+QRgPMDAwMTAxMDEwMDAwMDBaMBUwEwICEAIXDTIzMDgwOTIxMTMyNFqgMDAuMB8G
+A1UdIwQYMBaAFNEl9Mb/X+oGAHCwvdus/gbfb0wDMAsGA1UdFAQEAgIgADAKBggq
+hkjOPQQDAgNIADBFAiEA1QoleqO9qKhxSxKUc+SOQlFTG9sTbs3ztniUhi0CxhAC
+IBElm/lXpVVuWrt0PJhcQHhHqbOxnfkx3HUxVEBWMOzX
 -----END X509 CRL-----
+`
+	testIntermediateCA = `
+-----BEGIN CERTIFICATE-----
+MIIBkjCCATegAwIBAgICEAMwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
+ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzMwODA2MjExMzI0WjAiMSAw
+HgYDVQQDExdUcnVzdGVkIEludGVybWVkaWF0ZSBDQTBZMBMGByqGSM49AgEGCCqG
+SM49AwEHA0IABJyxF8EUBMMh/avAul6M8AjoKstuIULPIHOvjYftT/hSqGHNYM6g
+0NIBW1g2QX/fnHG9tBy45ReTkVY5HMoO2wujYzBhMA4GA1UdDwEB/wQEAwIBBjAP
+BgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBRe0Fh8zjBKzxms/xpbS/vHY5hqujAf
+BgNVHSMEGDAWgBTRJfTG/1/qBgBwsL3brP4G329MAzAKBggqhkjOPQQDAgNJADBG
+AiEAsnob34JrBGbJjoTZS84mfno2Vb+QPJ1xy3U7AbgyYM4CIQCL3P2A3w1Z87Nr
+0A/i8rXw+kiGP1OHbs4k85ZIg6FAtQ==
+-----END CERTIFICATE-----
+`
+	testValidIntermediateCert = `
+-----BEGIN CERTIFICATE-----
+MIIBdTCCARqgAwIBAgICEAAwCgYIKoZIzj0EAwIwIjEgMB4GA1UEAxMXVHJ1c3Rl
+ZCBJbnRlcm1lZGlhdGUgQ0EwIBgPMDAwMTAxMDEwMDAwMDBaFw0zMzA4MDYyMTEz
+MjRaMCgxJjAkBgNVBAMTHWNsaWVudCBjZXJ0IGZyb20gaW50ZXJtZWRpYXRlMFkw
+EwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvv9cmqtcuPuSXv6Qup0ycveDtx4PYC4V
+UKp5BU1B/1h/IupoIlX165rERkNCxyDXjfw5zkcHXsP1qRbc3LSXT6M4MDYwEwYD
+VR0lBAwwCgYIKwYBBQUHAwIwHwYDVR0jBBgwFoAUXtBYfM4wSs8ZrP8aW0v7x2OY
+arowCgYIKoZIzj0EAwIDSQAwRgIhAJJwdjSiC3avGDc1KZo/AZ1cMPDcFZkI92E6
+BVAnH/e8AiEAjy8cP1msG62BeDaAVU5NcU9RAXDw1Oz4HkpELXQWqK8=
+-----END CERTIFICATE-----
 `
 )
 
@@ -86,6 +111,32 @@ func Test_isValidClientCertificate(t *testing.T) {
 		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCert,
+		})
+		assert.NoError(t, err, "should not return an error")
+		assert.True(t, valid, "should return true")
+	})
+	t.Run("valid cert with intermediate", func(t *testing.T) {
+		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+			Presented:     true,
+			Leaf:          testValidIntermediateCert,
+			Intermediates: testIntermediateCA,
+		})
+		assert.NoError(t, err, "should not return an error")
+		assert.True(t, valid, "should return true")
+	})
+	t.Run("valid cert missing intermediate", func(t *testing.T) {
+		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+			Presented:     true,
+			Leaf:          testValidIntermediateCert,
+			Intermediates: "",
+		})
+		assert.NoError(t, err, "should not return an error")
+		assert.False(t, valid, "should return false")
+	})
+	t.Run("intermediate CA as root", func(t *testing.T) {
+		valid, err := isValidClientCertificate(testIntermediateCA, "", ClientCertificateInfo{
+			Presented: true,
+			Leaf:      testValidIntermediateCert,
 		})
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
@@ -128,5 +179,15 @@ func Test_isValidClientCertificate(t *testing.T) {
 		})
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
+	})
+	t.Run("missing CRL", func(t *testing.T) {
+		// If a CRL is provided for any CA, it must be provided for all CAs.
+		valid, err := isValidClientCertificate(testCA, testCRL, ClientCertificateInfo{
+			Presented:     true,
+			Leaf:          testValidIntermediateCert,
+			Intermediates: testIntermediateCA,
+		})
+		assert.NoError(t, err, "should not return an error")
+		assert.False(t, valid, "should return false")
 	})
 }
