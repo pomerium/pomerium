@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691768281435,
+  "lastUpdate": 1691785950352,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -62352,6 +62352,42 @@ window.BENCHMARK_DATA = {
             "value": 8486654,
             "unit": "ns/op",
             "extra": "130 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5568606f03023c1f936ed70b5a41fe3679ba6426",
+          "message": "config: support client certificate SAN match (#4453)\n\nAdd a new match_subject_alt_names option to the downstream_mtls settings\r\ngroup. This setting can be used to further constrain the allowed client\r\ncertificates by requiring that certificates contain a Subject\r\nAlternative Name of a particular type, matching a particular regex.\r\n\r\nWhen set, populate the corresponding match_typed_subject_alt_names\r\nsetting within Envoy, and also implement a corresponding check in the\r\nauthorize service.",
+          "timestamp": "2023-08-11T13:27:12-07:00",
+          "tree_id": "79722c36eea5e9645069aae0eb2d432b70ede8cf",
+          "url": "https://github.com/pomerium/pomerium/commit/5568606f03023c1f936ed70b5a41fe3679ba6426"
+        },
+        "date": 1691785945091,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15035260,
+            "unit": "ns/op",
+            "extra": "78 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9656614,
+            "unit": "ns/op",
+            "extra": "121 times\n2 procs"
           }
         ]
       }
