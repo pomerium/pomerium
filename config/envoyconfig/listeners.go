@@ -551,6 +551,12 @@ func (b *Builder) buildDownstreamValidationContext(
 
 	vc := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
 		TrustedCa: b.filemgr.BytesDataSource("client-ca.pem", clientCA),
+		MatchTypedSubjectAltNames: make([]*envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher,
+			0, len(cfg.Options.DownstreamMTLS.MatchSubjectAltNames)),
+	}
+	for i := range cfg.Options.DownstreamMTLS.MatchSubjectAltNames {
+		vc.MatchTypedSubjectAltNames = append(vc.MatchTypedSubjectAltNames,
+			cfg.Options.DownstreamMTLS.MatchSubjectAltNames[i].ToEnvoyProto())
 	}
 
 	if d := cfg.Options.DownstreamMTLS.GetMaxVerifyDepth(); d > 0 {

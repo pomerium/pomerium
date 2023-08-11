@@ -7,9 +7,12 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 
 	lru "github.com/hashicorp/golang-lru/v2"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
@@ -20,6 +23,52 @@ type ClientCertConstraints struct {
 	// MaxVerifyDepth is the maximum allowed certificate chain depth (not
 	// counting the leaf certificate). A value of 0 indicates no maximum.
 	MaxVerifyDepth uint32
+
+	// SANMatchers is a map of SAN type to regex match expression. When
+	// non-empty, a client certificate must contain at least one Subject
+	// Alternative Name that matches one of the expessions.
+	SANMatchers SANMatchers
+}
+
+// SANMatchers is a map of SAN type to regex match expression.
+type SANMatchers = map[config.SANType]*regexp.Regexp
+
+// ClientCertConstraintsFromConfig populates a new ClientCertConstraints struct
+// based on the provided configuration.
+func ClientCertConstraintsFromConfig(
+	cfg *config.DownstreamMTLSSettings,
+) (*ClientCertConstraints, error) {
+	constraints := &ClientCertConstraints{
+		MaxVerifyDepth: cfg.GetMaxVerifyDepth(),
+	}
+
+	// Combine all SAN match patterns for a given type into one expression.
+	patternsByType := make(map[config.SANType][]string)
+	for i := range cfg.MatchSubjectAltNames {
+		m := &cfg.MatchSubjectAltNames[i]
+		patternsByType[m.Type] = append(patternsByType[m.Type], m.Pattern)
+	}
+	matchers := make(SANMatchers)
+	for k, v := range patternsByType {
+		var s strings.Builder
+		s.WriteString("^(")
+		s.WriteString(v[0])
+		for _, p := range v[1:] {
+			s.WriteString(")|(")
+			s.WriteString(p)
+		}
+		s.WriteString(")$")
+		r, err := regexp.Compile(s.String())
+		if err != nil {
+			return nil, err
+		}
+		matchers[k] = r
+	}
+	if len(matchers) > 0 {
+		constraints.SANMatchers = matchers
+	}
+
+	return constraints, nil
 }
 
 var isValidClientCertificateCache, _ = lru.New2Q[[5]string, bool](100)
@@ -122,6 +171,10 @@ func validateClientCertificateChain(
 		}
 	}
 
+	if err := validateClientCertificateSANs(chain, constraints.SANMatchers); err != nil {
+		return err
+	}
+
 	// Consult CRLs for all CAs in the chain (that is, all certificates except
 	// for the first one). To match Envoy's behavior, if a CRL is provided for
 	// any CA in the chain, CRLs must be provided for all CAs in the chain (see
@@ -157,6 +210,49 @@ func validateClientCertificateChain(
 	}
 
 	return nil
+}
+
+var errNoSANMatch = errors.New("no matching Subject Alternative Name")
+
+func validateClientCertificateSANs(chain []*x509.Certificate, matchers SANMatchers) error {
+	if len(matchers) == 0 {
+		return nil
+	} else if len(chain) == 0 {
+		return errors.New("internal error: no certificates in verified chain")
+	}
+
+	cert := chain[0]
+
+	if r := matchers[config.SANTypeDNS]; r != nil {
+		for _, name := range cert.DNSNames {
+			if r.MatchString(name) {
+				return nil
+			}
+		}
+	}
+	if r := matchers[config.SANTypeEmail]; r != nil {
+		for _, email := range cert.EmailAddresses {
+			if r.MatchString(email) {
+				return nil
+			}
+		}
+	}
+	if r := matchers[config.SANTypeIPAddress]; r != nil {
+		for _, ip := range cert.IPAddresses {
+			if r.MatchString(ip.String()) {
+				return nil
+			}
+		}
+	}
+	if r := matchers[config.SANTypeURI]; r != nil {
+		for _, uri := range cert.URIs {
+			if r.MatchString(uri.String()) {
+				return nil
+			}
+		}
+	}
+
+	return errNoSANMatch
 }
 
 func parseCertificate(pemStr string) (*x509.Certificate, error) {
