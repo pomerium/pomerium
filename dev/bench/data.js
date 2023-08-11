@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691709702001,
+  "lastUpdate": 1691768281435,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -62316,6 +62316,42 @@ window.BENCHMARK_DATA = {
             "value": 10521904,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cc1ef1ae1816275c6a455c281e367df7b1f6477a",
+          "message": "cryptutil: update CRL parsing (#4454)\n\nMove the parseCRLs() method from package 'authorize/evaluator' to\r\n'pkg/cryptutil', replacing the existing DecodeCRL() method. This method\r\nwill parse all CRLs found in the PEM input, rather than just the first.\r\n\r\n(This removes our usage of the deprecated method x509.ParseDERCRL.)\r\n\r\nUpdate this method to return an error if there is non-PEM data found in\r\nthe input, to satisfy the existing test that raw DER-encoded CRLs are\r\nnot permitted.\r\n\r\nDelete the CRLFromBase64() and CRLFromFile() methods, as these are no\r\nlonger used.",
+          "timestamp": "2023-08-11T08:33:22-07:00",
+          "tree_id": "9ce15fe27a7bfac631f3343598fe7e83f0e2ceb4",
+          "url": "https://github.com/pomerium/pomerium/commit/cc1ef1ae1816275c6a455c281e367df7b1f6477a"
+        },
+        "date": 1691768276120,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13249164,
+            "unit": "ns/op",
+            "extra": "92 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8486654,
+            "unit": "ns/op",
+            "extra": "130 times\n2 procs"
           }
         ]
       }
