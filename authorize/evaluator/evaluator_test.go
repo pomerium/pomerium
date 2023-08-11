@@ -135,6 +135,7 @@ func TestEvaluator(t *testing.T) {
 
 	validCertInfo := ClientCertificateInfo{
 		Presented: true,
+		Validated: true,
 		Leaf:      testValidCert,
 	}
 
@@ -182,12 +183,23 @@ func TestEvaluator(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, NewRuleResult(true, criteria.ReasonClientCertificateRequired), res.Deny)
 		})
-		t.Run("invalid", func(t *testing.T) {
+		t.Run("invalid (Envoy)", func(t *testing.T) {
+			res, err := eval(t, options, nil, &Request{
+				Policy: &policies[10],
+				HTTP: RequestHTTP{
+					ClientCertificate: ClientCertificateInfo{Presented: true},
+				},
+			})
+			require.NoError(t, err)
+			assert.Equal(t, NewRuleResult(true, criteria.ReasonInvalidClientCertificate), res.Deny)
+		})
+		t.Run("invalid (authorize)", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
 				Policy: &policies[10],
 				HTTP: RequestHTTP{
 					ClientCertificate: ClientCertificateInfo{
 						Presented: true,
+						Validated: true,
 						Leaf:      testUntrustedCert,
 					},
 				},

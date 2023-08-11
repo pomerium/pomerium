@@ -106,15 +106,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {
 				"tlsParams": {
-					"cipherSuites": [
-						"ECDHE-ECDSA-AES256-GCM-SHA384",
-						"ECDHE-RSA-AES256-GCM-SHA384",
-						"ECDHE-ECDSA-AES128-GCM-SHA256",
-						"ECDHE-RSA-AES128-GCM-SHA256",
-						"ECDHE-ECDSA-CHACHA20-POLY1305",
-						"ECDHE-RSA-CHACHA20-POLY1305"
-					],
-					"tlsMinimumProtocolVersion": "TLSv1_2"
+					"tlsMinimumProtocolVersion": "TLSv1_3"
 				},
 				"alpnProtocols": ["h2", "http/1.1"],
 				"validationContext": {
@@ -124,7 +116,8 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 						"filename": "`+clientCAFileName+`"
 					}
 				}
-			}
+			},
+			"disableStatelessSessionResumption": true
 		}`, downstreamTLSContext)
 	})
 	t.Run("client-ca-strict", func(t *testing.T) {
@@ -138,15 +131,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {
 				"tlsParams": {
-					"cipherSuites": [
-						"ECDHE-ECDSA-AES256-GCM-SHA384",
-						"ECDHE-RSA-AES256-GCM-SHA384",
-						"ECDHE-ECDSA-AES128-GCM-SHA256",
-						"ECDHE-RSA-AES128-GCM-SHA256",
-						"ECDHE-ECDSA-CHACHA20-POLY1305",
-						"ECDHE-RSA-CHACHA20-POLY1305"
-					],
-					"tlsMinimumProtocolVersion": "TLSv1_2"
+					"tlsMinimumProtocolVersion": "TLSv1_3"
 				},
 				"alpnProtocols": ["h2", "http/1.1"],
 				"validationContext": {
@@ -156,6 +141,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 					}
 				}
 			},
+			"disableStatelessSessionResumption": true,
 			"requireClientCertificate": true
 		}`, downstreamTLSContext)
 	})
@@ -173,15 +159,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		testutil.AssertProtoJSONEqual(t, `{
 			"commonTlsContext": {
 				"tlsParams": {
-					"cipherSuites": [
-						"ECDHE-ECDSA-AES256-GCM-SHA384",
-						"ECDHE-RSA-AES256-GCM-SHA384",
-						"ECDHE-ECDSA-AES128-GCM-SHA256",
-						"ECDHE-RSA-AES128-GCM-SHA256",
-						"ECDHE-ECDSA-CHACHA20-POLY1305",
-						"ECDHE-RSA-CHACHA20-POLY1305"
-					],
-					"tlsMinimumProtocolVersion": "TLSv1_2"
+					"tlsMinimumProtocolVersion": "TLSv1_3"
 				},
 				"alpnProtocols": ["h2", "http/1.1"],
 				"validationContext": {
@@ -191,7 +169,8 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 						"filename": "`+clientCAFileName+`"
 					}
 				}
-			}
+			},
+			"disableStatelessSessionResumption": true
 		}`, downstreamTLSContext)
 	})
 	t.Run("client-ca-max-verify-depth", func(t *testing.T) {

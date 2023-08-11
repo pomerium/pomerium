@@ -9,7 +9,7 @@ type evaluatorConfig struct {
 	clientCA                                          []byte
 	clientCRL                                         []byte
 	addDefaultClientCertificateRule                   bool
-	clientCertConstraints                             ClientCertConstraints
+	clientCertMaxVerifyDepth                          uint32
 	signingKey                                        []byte
 	authenticateURL                                   string
 	googleCloudServerlessAuthenticationServiceAccount string
@@ -56,10 +56,10 @@ func WithAddDefaultClientCertificateRule(addDefaultClientCertificateRule bool) O
 	}
 }
 
-// WithClientCertConstraints sets addition client certificate constraints.
-func WithClientCertConstraints(constraints *ClientCertConstraints) Option {
+// WithClientCertMaxVerifyDepth sets an addition client certificate constraint.
+func WithClientCertMaxVerifyDepth(depth uint32) Option {
 	return func(cfg *evaluatorConfig) {
-		cfg.clientCertConstraints = *constraints
+		cfg.clientCertMaxVerifyDepth = depth
 	}
 }
 

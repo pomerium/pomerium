@@ -120,18 +120,12 @@ func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Ev
 	addDefaultClientCertificateRule :=
 		opts.DownstreamMTLS.GetEnforcement() != config.MTLSEnforcementPolicy
 
-	clientCertConstraints, err := evaluator.ClientCertConstraintsFromConfig(&opts.DownstreamMTLS)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"authorize: internal error: couldn't build client cert constraints: %w", err)
-	}
-
 	return evaluator.New(ctx, store,
 		evaluator.WithPolicies(opts.GetAllPolicies()),
 		evaluator.WithClientCA(clientCA),
 		evaluator.WithAddDefaultClientCertificateRule(addDefaultClientCertificateRule),
 		evaluator.WithClientCRL(clientCRL),
-		evaluator.WithClientCertConstraints(clientCertConstraints),
+		evaluator.WithClientCertMaxVerifyDepth(opts.DownstreamMTLS.GetMaxVerifyDepth()),
 		evaluator.WithSigningKey(signingKey),
 		evaluator.WithAuthenticateURL(authenticateURL.String()),
 		evaluator.WithGoogleCloudServerlessAuthenticationServiceAccount(opts.GetGoogleCloudServerlessAuthenticationServiceAccount()),

@@ -63,14 +63,22 @@ func NewRequestHTTP(
 // ClientCertificateInfo contains information about the certificate presented
 // by the client (if any).
 type ClientCertificateInfo struct {
-	// Presented is true if the client presented a certificate.
+	// Presented is true if the client presented any certificate at all.
 	Presented bool `json:"presented"`
 
-	// Leaf contains the leaf client certificate (unvalidated).
+	// Validated is true if the client presented a valid certificate with a
+	// trust chain rooted at any of the CAs configured within the Envoy
+	// listener. If any routes define a tls_downstream_client_ca, additional
+	// validation is required (for all routes).
+	Validated bool `json:"validated"`
+
+	// Leaf contains the leaf client certificate, provided that the certificate
+	// validated successfully.
 	Leaf string `json:"leaf,omitempty"`
 
 	// Intermediates contains the remainder of the client certificate chain as
-	// it was originally presented by the client (unvalidated).
+	// it was originally presented by the client, provided that the client
+	// certificate validated successfully.
 	Intermediates string `json:"intermediates,omitempty"`
 }
 
@@ -89,12 +97,12 @@ type Result struct {
 
 // An Evaluator evaluates policies.
 type Evaluator struct {
-	store                 *store.Store
-	policyEvaluators      map[uint64]*PolicyEvaluator
-	headersEvaluators     *HeadersEvaluator
-	clientCA              []byte
-	clientCRL             []byte
-	clientCertConstraints ClientCertConstraints
+	store                    *store.Store
+	policyEvaluators         map[uint64]*PolicyEvaluator
+	headersEvaluators        *HeadersEvaluator
+	clientCA                 []byte
+	clientCRL                []byte
+	clientCertMaxVerifyDepth uint32
 }
 
 // New creates a new Evaluator.
@@ -115,7 +123,7 @@ func New(ctx context.Context, store *store.Store, options ...Option) (*Evaluator
 
 	e.clientCA = cfg.clientCA
 	e.clientCRL = cfg.clientCRL
-	e.clientCertConstraints = cfg.clientCertConstraints
+	e.clientCertMaxVerifyDepth = cfg.clientCertMaxVerifyDepth
 
 	e.policyEvaluators = make(map[uint64]*PolicyEvaluator)
 	for i := range cfg.policies {
@@ -214,7 +222,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 	}
 
 	isValidClientCertificate, err := isValidClientCertificate(
-		clientCA, string(e.clientCRL), req.HTTP.ClientCertificate, e.clientCertConstraints)
+		clientCA, string(e.clientCRL), req.HTTP.ClientCertificate, e.clientCertMaxVerifyDepth)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error validating client certificate: %w", err)
 	}

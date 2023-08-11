@@ -549,6 +549,16 @@ func (b *Builder) buildDownstreamValidationContext(
 		return
 	}
 
+	// Envoy's client certificate validation status is not populated after a
+	// TLS session resumption. As a workaround, disable TLS session resumption
+	// entirely.
+	dtc.CommonTlsContext.TlsParams = &envoy_extensions_transport_sockets_tls_v3.TlsParameters{
+		TlsMinimumProtocolVersion: envoy_extensions_transport_sockets_tls_v3.TlsParameters_TLSv1_3,
+	}
+	dtc.SessionTicketKeysType = &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext_DisableStatelessSessionResumption{
+		DisableStatelessSessionResumption: true,
+	}
+
 	vc := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
 		TrustedCa: b.filemgr.BytesDataSource("client-ca.pem", clientCA),
 		MatchTypedSubjectAltNames: make([]*envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher,

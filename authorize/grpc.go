@@ -186,6 +186,7 @@ func getClientCertificateInfo(
 		return c
 	}
 	c.Presented = metadata.Fields["presented"].GetBoolValue()
+	c.Validated = metadata.Fields["validated"].GetBoolValue()
 	escapedChain := metadata.Fields["chain"].GetStringValue()
 	if escapedChain == "" {
 		// No validated client certificate.

@@ -38,7 +38,7 @@
         "typedConfig": {
           "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
           "defaultSourceCode": {
-            "inlineString": "function envoy_on_request(request_handle)\n    local metadata = request_handle:streamInfo():dynamicMetadata()\n    local ssl = request_handle:streamInfo():downstreamSslConnection()\n    metadata:set(\"com.pomerium.client-certificate-info\", \"presented\",\n                 ssl:peerCertificatePresented())\n    metadata:set(\"com.pomerium.client-certificate-info\", \"chain\",\n                 ssl:urlEncodedPemEncodedPeerCertificateChain())\nend\n\nfunction envoy_on_response(response_handle) end\n"
+            "inlineString": "function envoy_on_request(request_handle)\n    local metadata = request_handle:streamInfo():dynamicMetadata()\n    local ssl = request_handle:streamInfo():downstreamSslConnection()\n    metadata:set(\"com.pomerium.client-certificate-info\", \"presented\",\n                 ssl:peerCertificatePresented())\n    local validated = ssl:peerCertificateValidated()\n    metadata:set(\"com.pomerium.client-certificate-info\", \"validated\", validated)\n    if validated then\n        metadata:set(\"com.pomerium.client-certificate-info\", \"chain\",\n                     ssl:urlEncodedPemEncodedPeerCertificateChain())\n    end\nend\n\nfunction envoy_on_response(response_handle) end\n"
           }
         }
       },
