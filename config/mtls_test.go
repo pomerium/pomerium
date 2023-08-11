@@ -131,7 +131,7 @@ func TestDownstreamMTLSSettingsValidate(t *testing.T) {
 		{"both CRL and CRL file", DownstreamMTLSSettings{CRL: "CRL", CRLFile: "CRLFile"},
 			"cannot set both crl and crl_file"},
 		{"bad CRL", DownstreamMTLSSettings{CRL: "dGhpc2lzZmluZQo="},
-			"CRL: cryptutil: invalid crl, no X509 CRL block found"},
+			"CRL: cryptutil: non-PEM data in CRL bundle"},
 		{"bad CRL file", DownstreamMTLSSettings{CRLFile: "-"},
 			"CRL file: open -: no such file or directory"},
 		{"bad enforcement mode", DownstreamMTLSSettings{Enforcement: "whatever"},

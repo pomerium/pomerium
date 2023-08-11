@@ -11,6 +11,7 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 // ClientCertConstraints contains additional constraints to validate when
@@ -61,7 +62,7 @@ func isValidClientCertificate(
 		return false, err
 	}
 
-	crls, err := parseCRLs([]byte(crl))
+	crls, err := cryptutil.ParseCRLs([]byte(crl))
 	if err != nil {
 		return false, err
 	}
@@ -167,23 +168,4 @@ func parseCertificate(pemStr string) (*x509.Certificate, error) {
 		return nil, fmt.Errorf("unknown PEM type: %s", block.Type)
 	}
 	return x509.ParseCertificate(block.Bytes)
-}
-
-func parseCRLs(crl []byte) (map[string]*x509.RevocationList, error) {
-	m := make(map[string]*x509.RevocationList)
-	for {
-		var block *pem.Block
-		block, crl = pem.Decode(crl)
-		if block == nil {
-			return m, nil
-		}
-		if block.Type != "X509 CRL" {
-			continue
-		}
-		l, err := x509.ParseRevocationList(block.Bytes)
-		if err != nil {
-			return nil, err
-		}
-		m[string(l.RawIssuer)] = l
-	}
 }

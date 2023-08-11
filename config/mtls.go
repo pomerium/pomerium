@@ -128,11 +128,8 @@ func (s *DownstreamMTLSSettings) validate() error {
 	crl, err := s.GetCRL()
 	if err != nil {
 		return err
-	}
-	if len(crl) > 0 {
-		if _, err := cryptutil.DecodeCRL(crl); err != nil {
-			return fmt.Errorf("CRL: %w", err)
-		}
+	} else if _, err := cryptutil.ParseCRLs(crl); err != nil {
+		return fmt.Errorf("CRL: %w", err)
 	}
 
 	switch s.Enforcement {
