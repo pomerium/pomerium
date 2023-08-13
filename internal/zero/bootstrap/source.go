@@ -60,6 +60,8 @@ func (src *source) UpdateBootstrap(ctx context.Context, cfg cluster_api.Bootstra
 	incoming := current.Clone()
 	applyBootstrapConfig(incoming.Options, &cfg)
 
+	src.markReady.Do(func() { close(src.ready) })
+
 	if cmp.Equal(incoming.Options, current.Options, cmpOpts...) {
 		return false
 	}
@@ -73,8 +75,6 @@ func (src *source) UpdateBootstrap(ctx context.Context, cfg cluster_api.Bootstra
 
 // notifyListeners notifies all listeners of a configuration change
 func (src *source) notifyListeners(ctx context.Context, cfg *config.Config) {
-	src.markReady.Do(func() { close(src.ready) })
-
 	src.listenerLock.RLock()
 	listeners := make([]config.ChangeListener, len(src.listeners))
 	copy(listeners, src.listeners)

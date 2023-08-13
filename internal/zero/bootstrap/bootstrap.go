@@ -19,7 +19,8 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/log"
-	cluster_api "github.com/pomerium/zero-sdk/cluster"
+	"github.com/pomerium/pomerium/internal/retry"
+	sdk "github.com/pomerium/zero-sdk"
 	connect_mux "github.com/pomerium/zero-sdk/connect-mux"
 )
 
@@ -35,11 +36,11 @@ const (
 // Run initializes the bootstrap config source
 func (svc *Source) Run(
 	ctx context.Context,
-	clusterAPI cluster_api.ClientWithResponsesInterface,
+	api *sdk.API,
 	mux *connect_mux.Mux,
 	fileCachePath string,
 ) error {
-	svc.clusterAPI = clusterAPI
+	svc.clusterAPI = api
 	svc.connectMux = mux
 	svc.fileCachePath = fileCachePath
 
@@ -71,17 +72,21 @@ func (svc *Source) updateLoop(ctx context.Context) error {
 	defer ticker.Stop()
 
 	for {
+		err := retry.Retry(ctx,
+			"update bootstrap", svc.updateAndSave,
+			retry.WithWatch("bootstrap config updated", svc.checkForUpdate, nil),
+		)
+		if err != nil {
+			return fmt.Errorf("update bootstrap config: %w", err)
+		}
+
+		ticker.Reset(svc.updateInterval.Load())
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-svc.checkForUpdate:
 		case <-ticker.C:
-		}
-		ticker.Reset(svc.updateInterval.Load())
-
-		err := svc.tryUpdateAndSave(ctx)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("failed to update bootstrap config")
 		}
 	}
 }
@@ -97,8 +102,8 @@ func (svc *Source) triggerUpdate(newUpdateInterval time.Duration) {
 	}
 }
 
-func (svc *Source) tryUpdateAndSave(ctx context.Context) error {
-	cfg, err := LoadBootstrapConfigFromAPI(ctx, svc.clusterAPI)
+func (svc *Source) updateAndSave(ctx context.Context) error {
+	cfg, err := svc.clusterAPI.GetClusterBootstrapConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("load bootstrap config from API: %w", err)
 	}
@@ -114,7 +119,7 @@ func (svc *Source) tryUpdateAndSave(ctx context.Context) error {
 }
 
 func (svc *Source) tryLoadInitial(ctx context.Context) {
-	err := svc.tryUpdateAndSave(ctx)
+	err := svc.updateAndSave(ctx)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to load bootstrap config")
 		svc.tryLoadFromFile(ctx)

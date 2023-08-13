@@ -16,7 +16,7 @@ import (
 	"github.com/pomerium/pomerium/internal/deterministicecdsa"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/netutil"
-	cluster_api "github.com/pomerium/zero-sdk/cluster"
+	sdk "github.com/pomerium/zero-sdk"
 	connect_mux "github.com/pomerium/zero-sdk/connect-mux"
 )
 
@@ -24,7 +24,7 @@ import (
 type Source struct {
 	source
 
-	clusterAPI cluster_api.ClientWithResponsesInterface
+	clusterAPI *sdk.API
 	connectMux *connect_mux.Mux
 
 	fileCachePath string
