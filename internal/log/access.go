@@ -13,6 +13,7 @@ const (
 	AccessLogFieldAuthority           AccessLogField = "authority"
 	AccessLogFieldDuration            AccessLogField = "duration"
 	AccessLogFieldForwardedFor        AccessLogField = "forwarded-for"
+	AccessLogFieldIP                  AccessLogField = "ip"
 	AccessLogFieldMethod              AccessLogField = "method"
 	AccessLogFieldPath                AccessLogField = "path"
 	AccessLogFieldQuery               AccessLogField = "query"
@@ -52,6 +53,7 @@ var accessLogFieldLookup = map[AccessLogField]struct{}{
 	AccessLogFieldAuthority:           {},
 	AccessLogFieldDuration:            {},
 	AccessLogFieldForwardedFor:        {},
+	AccessLogFieldIP:                  {},
 	AccessLogFieldMethod:              {},
 	AccessLogFieldPath:                {},
 	AccessLogFieldQuery:               {},

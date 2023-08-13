@@ -45,6 +45,9 @@ func Register(criterionConstructor CriterionConstructor) {
 }
 
 const (
+	// CriterionDataTypeCertificateMatcher indicates the expected data type is
+	// a certificate matcher.
+	CriterionDataTypeCertificateMatcher CriterionDataType = "certificate_matcher"
 	// CriterionDataTypeStringListMatcher indicates the expected data type is a string list matcher.
 	CriterionDataTypeStringListMatcher CriterionDataType = "string_list_matcher"
 	// CriterionDataTypeStringMatcher indicates the expected data type is a string matcher.

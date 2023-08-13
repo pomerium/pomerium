@@ -106,29 +106,18 @@ func TestCertificateFromFile(t *testing.T) {
 	_ = listener
 }
 
-func TestCRLFromBase64(t *testing.T) {
-	bs := base64.StdEncoding.EncodeToString([]byte(pemCRL))
-	lst, err := CRLFromBase64(bs)
+func TestParseCRLs(t *testing.T) {
+	crls, err := ParseCRLs([]byte(pemCRL))
 	assert.NoError(t, err)
-	assert.NotNil(t, lst)
-}
-
-func TestCRLFromFile(t *testing.T) {
-	lst, err := CRLFromFile("testdata/example-crl.pem")
-	assert.NoError(t, err)
-	assert.NotNil(t, lst)
-}
-
-func TestDecodeCRL(t *testing.T) {
-	lst, err := DecodeCRL([]byte(pemCRL))
-	assert.NoError(t, err)
-	assert.NotNil(t, lst)
+	assert.Equal(t, 1, len(crls))
+	crl := crls["0l1\x1a0\x18\x06\x03U\x04\n\x13\x11RSA Security Inc.1\x1e0\x1c\x06\x03U\x04\x03\x13\x15RSA Public Root CA v11.0,\x06\t*\x86H\x86\xf7\r\x01\t\x01\x16\x1frsakeonrootsign@rsasecurity.com"]
+	assert.NotNil(t, crl)
 
 	t.Run("der", func(t *testing.T) {
 		bs, _ := base64.StdEncoding.DecodeString(derCRLBase64)
-		lst, err := DecodeCRL(bs)
+		crls, err := ParseCRLs(bs)
 		assert.Error(t, err, "should not allow DER encoded CRL")
-		assert.Nil(t, lst)
+		assert.Nil(t, crls)
 	})
 }
 

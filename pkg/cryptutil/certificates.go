@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
@@ -16,7 +15,6 @@ import (
 )
 
 const (
-	crlPemType      = "X509 CRL"
 	maxCertFileSize = 1 << 16
 )
 
@@ -41,43 +39,28 @@ func CertificateFromFile(certFile, keyFile string) (*tls.Certificate, error) {
 	return &cert, err
 }
 
-// CRLFromBase64 parses a certificate revocation list from a base64 encoded blob.
-func CRLFromBase64(rawCRL string) (*pkix.CertificateList, error) {
-	bs, err := base64.StdEncoding.DecodeString(rawCRL)
-	if err != nil {
-		return nil, fmt.Errorf("cryptutil: failed to decode base64 crl: %w", err)
-	}
-	return DecodeCRL(bs)
-}
-
-// CRLFromFile parses a certificate revocation list from a file.
-func CRLFromFile(fileName string) (*pkix.CertificateList, error) {
-	bs, err := os.ReadFile(fileName)
-	if err != nil {
-		return nil, fmt.Errorf("cryptutil: failed to read crl file (%s): %w", fileName, err)
-	}
-	return DecodeCRL(bs)
-}
-
-// DecodeCRL decodes a PEM-encoded certificate revocation list.
-func DecodeCRL(encodedCRL []byte) (*pkix.CertificateList, error) {
-	data := encodedCRL
-	for len(data) > 0 {
+// ParseCRLs parses PEM-encoded certificate revocation lists, returning a map
+// of the parsed CRLs keyed by the raw issuer name.
+func ParseCRLs(crl []byte) (map[string]*x509.RevocationList, error) {
+	m := make(map[string]*x509.RevocationList)
+	for {
 		var block *pem.Block
-		block, data = pem.Decode(data)
+		block, crl = pem.Decode(crl)
 		if block == nil {
-			break
-		}
-
-		if block.Type == crlPemType {
-			lst, err := x509.ParseDERCRL(block.Bytes)
-			if err != nil {
-				return nil, fmt.Errorf("cryptutil: failed to parse crl: %w", err)
+			if len(crl) > 0 {
+				return nil, errors.New("cryptutil: non-PEM data in CRL bundle")
 			}
-			return lst, nil
+			return m, nil
 		}
+		if block.Type != "X509 CRL" {
+			continue
+		}
+		l, err := x509.ParseRevocationList(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("cryptutil: failed to parse crl: %w", err)
+		}
+		m[string(l.RawIssuer)] = l
 	}
-	return nil, fmt.Errorf("cryptutil: invalid crl, no %s block found", crlPemType)
 }
 
 // DecodePublicKey decodes a PEM-encoded ECDSA public key.

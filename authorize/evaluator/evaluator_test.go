@@ -115,6 +115,18 @@ func TestEvaluator(t *testing.T) {
 			AllowedUsers:          []string{"a@example.com"},
 			TLSDownstreamClientCA: base64.StdEncoding.EncodeToString([]byte(testCA)),
 		},
+		{
+			To:           config.WeightedURLs{{URL: *mustParseURL("https://to12.example.com")}},
+			AllowedUsers: []string{"a@example.com"},
+			Policy: &config.PPLPolicy{
+				Policy: &parser.Policy{
+					Rules: []parser.Rule{{
+						Action: parser.ActionDeny,
+						Or:     []parser.Criterion{{Name: "invalid_client_certificate"}},
+					}},
+				},
+			},
+		},
 	}
 	options := []Option{
 		WithAuthenticateURL("https://authn.example.com"),
@@ -129,7 +141,8 @@ func TestEvaluator(t *testing.T) {
 	t.Run("client certificate (default CA)", func(t *testing.T) {
 		// Clone the existing options and add a default client CA.
 		options := append([]Option(nil), options...)
-		options = append(options, WithClientCA([]byte(testCA)))
+		options = append(options, WithClientCA([]byte(testCA)),
+			WithAddDefaultClientCertificateRule(true))
 		t.Run("missing", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
 				Policy: &policies[0],
@@ -159,6 +172,9 @@ func TestEvaluator(t *testing.T) {
 		})
 	})
 	t.Run("client certificate (per-policy CA)", func(t *testing.T) {
+		// Clone existing options and add the default client certificate rule.
+		options := append([]Option(nil), options...)
+		options = append(options, WithAddDefaultClientCertificateRule(true))
 		t.Run("missing", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
 				Policy: &policies[10],
@@ -188,6 +204,38 @@ func TestEvaluator(t *testing.T) {
 			})
 			require.NoError(t, err)
 			assert.False(t, res.Deny.Value)
+		})
+	})
+	t.Run("explicit client certificate rule", func(t *testing.T) {
+		// Clone the existing options and add a default client CA (but no
+		// default deny rule).
+		options := append([]Option(nil), options...)
+		options = append(options, WithClientCA([]byte(testCA)))
+		t.Run("invalid but allowed", func(t *testing.T) {
+			res, err := eval(t, options, nil, &Request{
+				Policy: &policies[0], // no explicit deny rule
+				HTTP: RequestHTTP{
+					ClientCertificate: ClientCertificateInfo{
+						Presented: true,
+						Leaf:      testUntrustedCert,
+					},
+				},
+			})
+			require.NoError(t, err)
+			assert.False(t, res.Deny.Value)
+		})
+		t.Run("invalid", func(t *testing.T) {
+			res, err := eval(t, options, nil, &Request{
+				Policy: &policies[11], // policy has explicit deny rule
+				HTTP: RequestHTTP{
+					ClientCertificate: ClientCertificateInfo{
+						Presented: true,
+						Leaf:      testUntrustedCert,
+					},
+				},
+			})
+			require.NoError(t, err)
+			assert.Equal(t, NewRuleResult(true, criteria.ReasonInvalidClientCertificate), res.Deny)
 		})
 	})
 	t.Run("identity_headers", func(t *testing.T) {

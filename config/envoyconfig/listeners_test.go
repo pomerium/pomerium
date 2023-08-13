@@ -98,7 +98,9 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	})
 	t.Run("client-ca", func(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
-			ClientCA: "VEVTVAo=", // "TEST\n" (with a trailing newline)
+			DownstreamMTLS: config.DownstreamMTLSSettings{
+				CA: "VEVTVAo=", // "TEST\n" (with a trailing newline)
+			},
 		}}, nil)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `{
@@ -116,12 +118,45 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 				},
 				"alpnProtocols": ["h2", "http/1.1"],
 				"validationContext": {
+					"maxVerifyDepth": 1,
 					"trustChainVerification": "ACCEPT_UNTRUSTED",
 					"trustedCa": {
 						"filename": "`+clientCAFileName+`"
 					}
 				}
 			}
+		}`, downstreamTLSContext)
+	})
+	t.Run("client-ca-strict", func(t *testing.T) {
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
+			DownstreamMTLS: config.DownstreamMTLSSettings{
+				CA:          "VEVTVAo=", // "TEST\n" (with a trailing newline)
+				Enforcement: config.MTLSEnforcementRejectConnection,
+			},
+		}}, nil)
+		require.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `{
+			"commonTlsContext": {
+				"tlsParams": {
+					"cipherSuites": [
+						"ECDHE-ECDSA-AES256-GCM-SHA384",
+						"ECDHE-RSA-AES256-GCM-SHA384",
+						"ECDHE-ECDSA-AES128-GCM-SHA256",
+						"ECDHE-RSA-AES128-GCM-SHA256",
+						"ECDHE-ECDSA-CHACHA20-POLY1305",
+						"ECDHE-RSA-CHACHA20-POLY1305"
+					],
+					"tlsMinimumProtocolVersion": "TLSv1_2"
+				},
+				"alpnProtocols": ["h2", "http/1.1"],
+				"validationContext": {
+					"maxVerifyDepth": 1,
+					"trustedCa": {
+						"filename": "`+clientCAFileName+`"
+					}
+				}
+			},
+			"requireClientCertificate": true
 		}`, downstreamTLSContext)
 	})
 	t.Run("policy-client-ca", func(t *testing.T) {
@@ -150,6 +185,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 				},
 				"alpnProtocols": ["h2", "http/1.1"],
 				"validationContext": {
+					"maxVerifyDepth": 1,
 					"trustChainVerification": "ACCEPT_UNTRUSTED",
 					"trustedCa": {
 						"filename": "`+clientCAFileName+`"
@@ -157,6 +193,99 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 				}
 			}
 		}`, downstreamTLSContext)
+	})
+	t.Run("client-ca-max-verify-depth", func(t *testing.T) {
+		var maxVerifyDepth uint32
+		config := &config.Config{Options: &config.Options{
+			DownstreamMTLS: config.DownstreamMTLSSettings{
+				MaxVerifyDepth: &maxVerifyDepth,
+				CA:             "VEVTVAo=", // "TEST\n"
+			},
+		}}
+
+		maxVerifyDepth = 10
+		downstreamTLSContext, err :=
+			b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
+		require.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `{
+			"maxVerifyDepth": 10,
+			"trustChainVerification": "ACCEPT_UNTRUSTED",
+			"trustedCa": {
+				"filename": "`+clientCAFileName+`"
+			}
+		}`, downstreamTLSContext.GetCommonTlsContext().GetValidationContext())
+
+		maxVerifyDepth = 0
+		downstreamTLSContext, err =
+			b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
+		require.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `{
+			"trustChainVerification": "ACCEPT_UNTRUSTED",
+			"trustedCa": {
+				"filename": "`+clientCAFileName+`"
+			}
+		}`, downstreamTLSContext.GetCommonTlsContext().GetValidationContext())
+	})
+	t.Run("client-ca-san-matchers", func(t *testing.T) {
+		config := &config.Config{Options: &config.Options{
+			DownstreamMTLS: config.DownstreamMTLSSettings{
+				CA: "VEVTVAo=", // "TEST\n"
+				MatchSubjectAltNames: []config.SANMatcher{
+					{Type: config.SANTypeDNS, Pattern: `.*\.corp\.example\.com`},
+					{Type: config.SANTypeEmail, Pattern: `.*@example\.com`},
+					{Type: config.SANTypeIPAddress, Pattern: `10\.10\.42\..*`},
+					{Type: config.SANTypeURI, Pattern: `spiffe://example\.com/.*`},
+				},
+			},
+		}}
+		downstreamTLSContext, err :=
+			b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
+		require.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `{
+			"maxVerifyDepth": 1,
+			"matchTypedSubjectAltNames": [
+				{
+					"matcher": {
+						"safeRegex": {
+							"googleRe2": {},
+							"regex": ".*\\.corp\\.example\\.com"
+						}
+					},
+					"sanType": "DNS"
+				},
+				{
+					"matcher": {
+						"safeRegex": {
+							"googleRe2": {},
+							"regex": ".*@example\\.com"
+						}
+					},
+					"sanType": "EMAIL"
+				},
+				{
+					"matcher": {
+						"safeRegex": {
+							"googleRe2": {},
+							"regex": "10\\.10\\.42\\..*"
+						}
+					},
+					"sanType": "IP_ADDRESS"
+				},
+				{
+					"matcher": {
+						"safeRegex": {
+							"googleRe2": {},
+							"regex": "spiffe://example\\.com/.*"
+						}
+					},
+					"sanType": "URI"
+				}
+			],
+			"trustChainVerification": "ACCEPT_UNTRUSTED",
+			"trustedCa": {
+				"filename": "`+clientCAFileName+`"
+			}
+		}`, downstreamTLSContext.GetCommonTlsContext().GetValidationContext())
 	})
 	t.Run("http1", func(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
@@ -218,7 +347,9 @@ func Test_clientCABundle(t *testing.T) {
 
 	b64 := base64.StdEncoding.EncodeToString
 	cfg := &config.Config{Options: &config.Options{
-		ClientCA: b64(clientCA3),
+		DownstreamMTLS: config.DownstreamMTLSSettings{
+			CA: b64(clientCA3),
+		},
 		Policies: []config.Policy{
 			{
 				From:                  "https://foo.example.com",

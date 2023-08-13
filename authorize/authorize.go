@@ -94,12 +94,12 @@ func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Ev
 	ctx, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
 	defer span.End()
 
-	clientCA, err := opts.GetClientCA()
+	clientCA, err := opts.DownstreamMTLS.GetCA()
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid client CA: %w", err)
 	}
 
-	clientCRL, err := opts.GetClientCRL()
+	clientCRL, err := opts.DownstreamMTLS.GetCRL()
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid client CRL: %w", err)
 	}
@@ -114,10 +114,24 @@ func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Ev
 		return nil, fmt.Errorf("authorize: invalid signing key: %w", err)
 	}
 
+	// It is important to add an invalid_client_certificate rule even when the
+	// mTLS enforcement behavior is set to reject connections at the listener
+	// level, because of the per-route TLSDownstreamClientCA setting.
+	addDefaultClientCertificateRule :=
+		opts.DownstreamMTLS.GetEnforcement() != config.MTLSEnforcementPolicy
+
+	clientCertConstraints, err := evaluator.ClientCertConstraintsFromConfig(&opts.DownstreamMTLS)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"authorize: internal error: couldn't build client cert constraints: %w", err)
+	}
+
 	return evaluator.New(ctx, store,
 		evaluator.WithPolicies(opts.GetAllPolicies()),
 		evaluator.WithClientCA(clientCA),
+		evaluator.WithAddDefaultClientCertificateRule(addDefaultClientCertificateRule),
 		evaluator.WithClientCRL(clientCRL),
+		evaluator.WithClientCertConstraints(clientCertConstraints),
 		evaluator.WithSigningKey(signingKey),
 		evaluator.WithAuthenticateURL(authenticateURL.String()),
 		evaluator.WithGoogleCloudServerlessAuthenticationServiceAccount(opts.GetGoogleCloudServerlessAuthenticationServiceAccount()),
