@@ -17,15 +17,99 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/retry"
 )
 
-// SyncBundle syncs the bundle to the databroker.
+// Sync synchronizes the bundles between their cloud source and the databroker.
+func (c *service) SyncLoop(ctx context.Context) error {
+	ticker := time.NewTicker(c.periodicUpdateInterval.Load())
+	defer ticker.Stop()
+
+	for {
+		ticker.Reset(c.periodicUpdateInterval.Load())
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-c.bundleSyncRequest:
+			err := c.syncBundles(ctx)
+			if err != nil {
+				return fmt.Errorf("reconciler: sync bundles: %w", err)
+			}
+		case <-c.fullSyncRequest:
+			err := c.syncAll(ctx)
+			if err != nil {
+				return fmt.Errorf("reconciler: sync all: %w", err)
+			}
+		case <-ticker.C:
+			err := c.syncAll(ctx)
+			if err != nil {
+				return fmt.Errorf("reconciler: sync all: %w", err)
+			}
+		}
+	}
+}
+
+func (c *service) syncAll(ctx context.Context) error {
+	err := c.syncBundleList(ctx)
+	if err != nil {
+		return fmt.Errorf("sync bundle list: %w", err)
+	}
+
+	err = c.syncBundles(ctx)
+	if err != nil {
+		return fmt.Errorf("sync bundles: %w", err)
+	}
+
+	return nil
+}
+
+// trySyncAllBundles tries to sync all bundles in the queue.
+func (c *service) syncBundleList(ctx context.Context) error {
+	// refresh bundle list,
+	// ignoring other signals while we're retrying
+	return retry.Retry(ctx,
+		"refresh bundle list", c.RefreshBundleList,
+		retry.WithWatch("refresh bundle list", c.fullSyncRequest, nil),
+		retry.WithWatch("bundle update", c.bundleSyncRequest, nil),
+	)
+}
+
+// syncBundles retries until there are no more bundles to sync.
+// updates bundle list if the full bundle update request arrives.
+func (c *service) syncBundles(ctx context.Context) error {
+	return retry.Retry(ctx,
+		"sync bundles", c.trySyncBundles,
+		retry.WithWatch("refresh bundle list", c.fullSyncRequest, c.RefreshBundleList),
+		retry.WithWatch("bundle update", c.bundleSyncRequest, nil),
+	)
+}
+
+// trySyncAllBundles tries to sync all bundles in the queue
+// it returns nil if all bundles were synced successfully
+func (c *service) trySyncBundles(ctx context.Context) error {
+	for {
+		id, ok := c.bundles.GetNextBundleToSync()
+		if !ok { // no more bundles to sync
+			return nil
+		}
+
+		err := c.syncBundle(ctx, id)
+		if err != nil {
+			c.bundles.MarkForSyncLater(id)
+			return fmt.Errorf("sync bundle %s: %w", id, err)
+		}
+	}
+}
+
+// syncBundle syncs the bundle to the databroker.
 // Databroker holds last synced bundle state in form of a (etag, last-modified) tuple.
 // This is only persisted in the databroker after all records are successfully synced.
 // That allows us to ignore any changes based on the same bundle state, without need to re-check all records between bundle and databroker.
-func (c *service) SyncBundle(ctx context.Context, key string) error {
+func (c *service) syncBundle(ctx context.Context, key string) error {
 	var cached, changed BundleCacheEntry
 	opts := []DownloadOption{
 		WithUpdateCacheEntry(&changed),

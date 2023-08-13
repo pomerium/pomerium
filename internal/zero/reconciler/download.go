@@ -71,7 +71,7 @@ func (c *service) DownloadBundleIfChanged(
 ) error {
 	options := getDownloadOptions(opts...)
 
-	url, err := c.GetBundleDownloadURL(ctx, bundleKey)
+	url, err := c.config.api.DownloadClusterResourceBundle(ctx, bundleKey, c.config.minDownloadTTL)
 	if err != nil {
 		return fmt.Errorf("get download url: %w", err)
 	}

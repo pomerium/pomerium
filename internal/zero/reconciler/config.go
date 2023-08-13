@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/zero-sdk/cluster"
+	sdk "github.com/pomerium/zero-sdk"
 	connect_mux "github.com/pomerium/zero-sdk/connect-mux"
 )
 
 // reconcilerConfig contains the configuration for the resource bundles reconciler.
 type reconcilerConfig struct {
-	clusterAPI cluster.ClientWithResponsesInterface
+	api        *sdk.API
 	connectMux *connect_mux.Mux
 
 	databrokerClient databroker.DataBrokerServiceClient
@@ -27,6 +27,8 @@ type reconcilerConfig struct {
 
 	checkForUpdateIntervalWhenDisconnected time.Duration
 	checkForUpdateIntervalWhenConnected    time.Duration
+
+	syncBackoffMaxInterval time.Duration
 }
 
 // Option configures the resource bundles reconciler
@@ -40,10 +42,10 @@ func WithTemporaryDirectory(path string) Option {
 	}
 }
 
-// WithClusterAPIClient configures the cluster api client.
-func WithClusterAPIClient(client cluster.ClientWithResponsesInterface) Option {
+// WithAPI configures the cluster api client.
+func WithAPI(client *sdk.API) Option {
 	return func(cfg *reconcilerConfig) {
-		cfg.clusterAPI = client
+		cfg.api = client
 	}
 }
 
@@ -99,6 +101,13 @@ func WithCheckForUpdateIntervalWhenConnected(interval time.Duration) Option {
 	}
 }
 
+// WithSyncBackoffMaxInterval configures the maximum interval between sync attempts.
+func WithSyncBackoffMaxInterval(interval time.Duration) Option {
+	return func(cfg *reconcilerConfig) {
+		cfg.syncBackoffMaxInterval = interval
+	}
+}
+
 func newConfig(opts ...Option) *reconcilerConfig {
 	cfg := &reconcilerConfig{}
 	for _, opt := range []Option{
@@ -108,6 +117,7 @@ func newConfig(opts ...Option) *reconcilerConfig {
 		WithDatabrokerRPSLimit(1_000),
 		WithCheckForUpdateIntervalWhenDisconnected(time.Minute * 5),
 		WithCheckForUpdateIntervalWhenConnected(time.Hour),
+		WithSyncBackoffMaxInterval(time.Minute),
 	} {
 		opt(cfg)
 	}
