@@ -32,7 +32,7 @@ func TestPolicyEvaluator(t *testing.T) {
 	privateJWK, err := cryptutil.PrivateJWKFromBytes(encodedSigningKey)
 	require.NoError(t, err)
 
-	var clientCA string
+	var addDefaultClientCertificateRule bool
 
 	eval := func(t *testing.T, policy *config.Policy, data []proto.Message, input *PolicyRequest) (*PolicyResponse, error) {
 		ctx := context.Background()
@@ -40,7 +40,7 @@ func TestPolicyEvaluator(t *testing.T) {
 		store := store.New()
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
-		e, err := NewPolicyEvaluator(ctx, store, policy, clientCA)
+		e, err := NewPolicyEvaluator(ctx, store, policy, addDefaultClientCertificateRule)
 		require.NoError(t, err)
 		return e.Evaluate(ctx, input)
 	}
@@ -99,7 +99,7 @@ func TestPolicyEvaluator(t *testing.T) {
 	})
 
 	// Enable client certificate validation.
-	clientCA = "---FAKE CA CERTIFICATE---"
+	addDefaultClientCertificateRule = true
 
 	t.Run("allowed with cert", func(t *testing.T) {
 		output, err := eval(t,

@@ -17,21 +17,22 @@ import (
 
 // HeadersRequest is the input to the headers.rego script.
 type HeadersRequest struct {
-	EnableGoogleCloudServerlessAuthentication bool              `json:"enable_google_cloud_serverless_authentication"`
-	EnableRoutingKey                          bool              `json:"enable_routing_key"`
-	Issuer                                    string            `json:"issuer"`
-	KubernetesServiceAccountToken             string            `json:"kubernetes_service_account_token"`
-	ToAudience                                string            `json:"to_audience"`
-	Session                                   RequestSession    `json:"session"`
-	PassAccessToken                           bool              `json:"pass_access_token"`
-	PassIDToken                               bool              `json:"pass_id_token"`
-	SetRequestHeaders                         map[string]string `json:"set_request_headers"`
+	EnableGoogleCloudServerlessAuthentication bool                  `json:"enable_google_cloud_serverless_authentication"`
+	EnableRoutingKey                          bool                  `json:"enable_routing_key"`
+	Issuer                                    string                `json:"issuer"`
+	KubernetesServiceAccountToken             string                `json:"kubernetes_service_account_token"`
+	ToAudience                                string                `json:"to_audience"`
+	Session                                   RequestSession        `json:"session"`
+	ClientCertificate                         ClientCertificateInfo `json:"client_certificate"`
+	PassAccessToken                           bool                  `json:"pass_access_token"`
+	PassIDToken                               bool                  `json:"pass_id_token"`
+	SetRequestHeaders                         map[string]string     `json:"set_request_headers"`
 }
 
 // NewHeadersRequestFromPolicy creates a new HeadersRequest from a policy.
-func NewHeadersRequestFromPolicy(policy *config.Policy, hostname string) *HeadersRequest {
+func NewHeadersRequestFromPolicy(policy *config.Policy, http RequestHTTP) *HeadersRequest {
 	input := new(HeadersRequest)
-	input.Issuer = hostname
+	input.Issuer = http.Hostname
 	if policy != nil {
 		input.EnableGoogleCloudServerlessAuthentication = policy.EnableGoogleCloudServerlessAuthentication
 		input.EnableRoutingKey = policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
@@ -42,6 +43,7 @@ func NewHeadersRequestFromPolicy(policy *config.Policy, hostname string) *Header
 		}
 		input.PassAccessToken = policy.GetSetAuthorizationHeader() == configpb.Route_ACCESS_TOKEN
 		input.PassIDToken = policy.GetSetAuthorizationHeader() == configpb.Route_ID_TOKEN
+		input.ClientCertificate = http.ClientCertificate
 		input.SetRequestHeaders = policy.SetRequestHeaders
 	}
 	return input

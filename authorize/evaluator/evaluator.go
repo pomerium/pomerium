@@ -89,11 +89,12 @@ type Result struct {
 
 // An Evaluator evaluates policies.
 type Evaluator struct {
-	store             *store.Store
-	policyEvaluators  map[uint64]*PolicyEvaluator
-	headersEvaluators *HeadersEvaluator
-	clientCA          []byte
-	clientCRL         []byte
+	store                 *store.Store
+	policyEvaluators      map[uint64]*PolicyEvaluator
+	headersEvaluators     *HeadersEvaluator
+	clientCA              []byte
+	clientCRL             []byte
+	clientCertConstraints ClientCertConstraints
 }
 
 // New creates a new Evaluator.
@@ -114,6 +115,7 @@ func New(ctx context.Context, store *store.Store, options ...Option) (*Evaluator
 
 	e.clientCA = cfg.clientCA
 	e.clientCRL = cfg.clientCRL
+	e.clientCertConstraints = cfg.clientCertConstraints
 
 	e.policyEvaluators = make(map[uint64]*PolicyEvaluator)
 	for i := range cfg.policies {
@@ -122,8 +124,8 @@ func New(ctx context.Context, store *store.Store, options ...Option) (*Evaluator
 		if err != nil {
 			return nil, fmt.Errorf("authorize: error computing policy route id: %w", err)
 		}
-		clientCA, _ := e.getClientCA(&configPolicy)
-		policyEvaluator, err := NewPolicyEvaluator(ctx, store, &configPolicy, clientCA)
+		policyEvaluator, err :=
+			NewPolicyEvaluator(ctx, store, &configPolicy, cfg.addDefaultClientCertificateRule)
 		if err != nil {
 			return nil, err
 		}
@@ -211,8 +213,8 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 		return nil, err
 	}
 
-	isValidClientCertificate, err :=
-		isValidClientCertificate(clientCA, string(e.clientCRL), req.HTTP.ClientCertificate)
+	isValidClientCertificate, err := isValidClientCertificate(
+		clientCA, string(e.clientCRL), req.HTTP.ClientCertificate, e.clientCertConstraints)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error validating client certificate: %w", err)
 	}
@@ -225,7 +227,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 }
 
 func (e *Evaluator) evaluateHeaders(ctx context.Context, req *Request) (*HeadersResponse, error) {
-	headersReq := NewHeadersRequestFromPolicy(req.Policy, req.HTTP.Hostname)
+	headersReq := NewHeadersRequestFromPolicy(req.Policy, req.HTTP)
 	headersReq.Session = req.Session
 	res, err := e.headersEvaluators.Evaluate(ctx, headersReq)
 	if err != nil {

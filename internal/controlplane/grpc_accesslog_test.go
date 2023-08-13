@@ -21,6 +21,13 @@ func Test_populateLogEvent(t *testing.T) {
 
 	entry := &envoy_data_accesslog_v3.HTTPAccessLogEntry{
 		CommonProperties: &envoy_data_accesslog_v3.AccessLogCommon{
+			DownstreamRemoteAddress: &envoy_config_core_v3.Address{
+				Address: &envoy_config_core_v3.Address_SocketAddress{
+					SocketAddress: &envoy_config_core_v3.SocketAddress{
+						Address: "127.0.0.1",
+					},
+				},
+			},
 			TimeToLastDownstreamTxByte: durationpb.New(time.Second * 3),
 			UpstreamCluster:            "UPSTREAM-CLUSTER",
 		},
@@ -47,6 +54,7 @@ func Test_populateLogEvent(t *testing.T) {
 		{log.AccessLogFieldAuthority, `{"authority":"AUTHORITY"}`},
 		{log.AccessLogFieldDuration, `{"duration":3000}`},
 		{log.AccessLogFieldForwardedFor, `{"forwarded-for":"FORWARDED-FOR"}`},
+		{log.AccessLogFieldIP, `{"ip":"127.0.0.1"}`},
 		{log.AccessLogFieldMethod, `{"method":"GET"}`},
 		{log.AccessLogFieldPath, `{"path":"https://www.example.com/some/path"}`},
 		{log.AccessLogFieldQuery, `{"query":"a=b"}`},

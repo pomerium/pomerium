@@ -8,6 +8,8 @@ type evaluatorConfig struct {
 	policies                                          []config.Policy
 	clientCA                                          []byte
 	clientCRL                                         []byte
+	addDefaultClientCertificateRule                   bool
+	clientCertConstraints                             ClientCertConstraints
 	signingKey                                        []byte
 	authenticateURL                                   string
 	googleCloudServerlessAuthenticationServiceAccount string
@@ -43,6 +45,21 @@ func WithClientCA(clientCA []byte) Option {
 func WithClientCRL(clientCRL []byte) Option {
 	return func(cfg *evaluatorConfig) {
 		cfg.clientCRL = clientCRL
+	}
+}
+
+// WithAddDefaultClientCertificateRule sets whether to add a default
+// invalid_client_certificate deny rule to all policies.
+func WithAddDefaultClientCertificateRule(addDefaultClientCertificateRule bool) Option {
+	return func(cfg *evaluatorConfig) {
+		cfg.addDefaultClientCertificateRule = addDefaultClientCertificateRule
+	}
+}
+
+// WithClientCertConstraints sets addition client certificate constraints.
+func WithClientCertConstraints(constraints *ClientCertConstraints) Option {
+	return func(cfg *evaluatorConfig) {
+		cfg.clientCertConstraints = *constraints
 	}
 }
 
