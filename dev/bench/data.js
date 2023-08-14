@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1692031337331,
+  "lastUpdate": 1692052417097,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -62676,6 +62676,42 @@ window.BENCHMARK_DATA = {
             "value": 11102131,
             "unit": "ns/op",
             "extra": "98 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e8b489eb875cd9afa218b26935bff7c6178fcf2e",
+          "message": "authorize: rework token substitution in headers (#4456)\n\nCurrently Pomerium replaces dynamic set_request_headers tokens\r\nsequentially. As a result, if a replacement value itself contained a\r\nsupported \"$pomerium\" token, Pomerium may treat that as another\r\nreplacement, resulting in incorrect output.\r\n\r\nThis is unlikely to be a problem given the current set of dynamic\r\ntokens, but if we continue to add additional tokens, this will likely\r\nbecome more of a concern.\r\n\r\nTo forestall any issues, let's perform all replacements in one pass,\r\nusing the os.Expand() method. This does require a slight change to the\r\nsyntax, as tokens containing a '.' will need to be wrapped in curly\r\nbraces, e.g. ${pomerium.id_token}.\r\n\r\nA literal dollar sign can be included by using $$ in the input.",
+          "timestamp": "2023-08-14T15:28:10-07:00",
+          "tree_id": "d8ca650399b74d5d2a1e993e21b5d40c3f485303",
+          "url": "https://github.com/pomerium/pomerium/commit/e8b489eb875cd9afa218b26935bff7c6178fcf2e"
+        },
+        "date": 1692052410618,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15937459,
+            "unit": "ns/op",
+            "extra": "75 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10489294,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
