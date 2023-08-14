@@ -80,6 +80,9 @@ var variableSubstitutionFunctionRegoOption = rego.Function2(&rego.Function{
 
 	var err error
 	output := os.Expand(string(inputString), func(key string) string {
+		if key == "$" {
+			return "$" // allow a dollar sign to be escaped using $$
+		}
 		r := replacements.Get(ast.StringTerm(key))
 		if r == nil {
 			return ""

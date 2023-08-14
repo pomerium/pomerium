@@ -196,6 +196,7 @@ func TestHeadersEvaluator(t *testing.T) {
 					"X-ID-Token":              "${pomerium.id_token}",
 					"X-Access-Token":          "${pomerium.access_token}",
 					"Client-Cert-Fingerprint": "${pomerium.client_cert_fingerprint}",
+					"Foo":                     "escaped $$dollar sign",
 				},
 				ClientCertificate: ClientCertificateInfo{Leaf: testValidCert},
 			})
@@ -206,6 +207,7 @@ func TestHeadersEvaluator(t *testing.T) {
 		assert.Equal(t, "ACCESS_TOKEN", output.Headers.Get("X-Access-Token"))
 		assert.Equal(t, "f0c7dc2ca5e4b792935bcdb61a8b8f31b6521c686ffd8a6edb414a1e64ab8eb5",
 			output.Headers.Get("Client-Cert-Fingerprint"))
+		assert.Equal(t, "escaped $dollar sign", output.Headers.Get("Foo"))
 	})
 
 	t.Run("set_request_headers no repeated substitution", func(t *testing.T) {
