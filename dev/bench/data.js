@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1692052417097,
+  "lastUpdate": 1692119686054,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -62712,6 +62712,38 @@ window.BENCHMARK_DATA = {
             "value": 10489294,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "73fc2590658d09fe2cc9b6ea273ca4f0c2abe6bd",
+          "message": "config: deprecate tls_downstream_client_ca",
+          "timestamp": "2023-08-14T18:25:48Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4461/commits/73fc2590658d09fe2cc9b6ea273ca4f0c2abe6bd"
+        },
+        "date": 1692119679754,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16999632,
+            "unit": "ns/op",
+            "extra": "73 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10636545,
+            "unit": "ns/op",
+            "extra": "112 times\n2 procs"
           }
         ]
       }
