@@ -496,7 +496,11 @@ func (p *Policy) Validate() error {
 		}
 	}
 
+	const clientCADeprecationMsg = "config: %s is deprecated, see https://www.pomerium.com/docs/" +
+		"reference/routes/tls#tls-downstream-client-certificate-authority for more information"
+
 	if p.TLSDownstreamClientCA != "" {
+		log.Warn(context.Background()).Msgf(clientCADeprecationMsg, "tls_downstream_client_ca")
 		_, err := base64.StdEncoding.DecodeString(p.TLSDownstreamClientCA)
 		if err != nil {
 			return fmt.Errorf("config: couldn't decode downstream client ca: %w", err)
@@ -504,6 +508,7 @@ func (p *Policy) Validate() error {
 	}
 
 	if p.TLSDownstreamClientCAFile != "" {
+		log.Warn(context.Background()).Msgf(clientCADeprecationMsg, "tls_downstream_client_ca_file")
 		bs, err := os.ReadFile(p.TLSDownstreamClientCAFile)
 		if err != nil {
 			return fmt.Errorf("config: couldn't load downstream client ca: %w", err)
