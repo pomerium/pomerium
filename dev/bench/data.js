@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1692119686054,
+  "lastUpdate": 1692135863687,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -62744,6 +62744,42 @@ window.BENCHMARK_DATA = {
             "value": 10636545,
             "unit": "ns/op",
             "extra": "112 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a2539839d38de20bd83e7b6008e187074b543b3b",
+          "message": "config: deprecate tls_downstream_client_ca (#4461)\n\nLog a deprecation warning for any route where tls_downstream_client_ca\r\nor tls_downstream_client_ca_file is non-empty.",
+          "timestamp": "2023-08-15T14:38:36-07:00",
+          "tree_id": "5325ad588081d167f78731db9578b03a37acebf8",
+          "url": "https://github.com/pomerium/pomerium/commit/a2539839d38de20bd83e7b6008e187074b543b3b"
+        },
+        "date": 1692135857127,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18635420,
+            "unit": "ns/op",
+            "extra": "68 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11624531,
+            "unit": "ns/op",
+            "extra": "103 times\n2 procs"
           }
         ]
       }
