@@ -37,11 +37,9 @@ const (
 func (svc *Source) Run(
 	ctx context.Context,
 	api *sdk.API,
-	mux *connect_mux.Mux,
 	fileCachePath string,
 ) error {
-	svc.clusterAPI = api
-	svc.connectMux = mux
+	svc.api = api
 	svc.fileCachePath = fileCachePath
 
 	svc.tryLoadInitial(ctx)
@@ -54,7 +52,7 @@ func (svc *Source) Run(
 }
 
 func (svc *Source) watchUpdates(ctx context.Context) error {
-	return svc.connectMux.Watch(ctx,
+	return svc.api.Watch(ctx,
 		connect_mux.WithOnConnected(func(_ context.Context) {
 			svc.triggerUpdate(DefaultCheckForUpdateIntervalWhenConnected)
 		}),
@@ -103,7 +101,7 @@ func (svc *Source) triggerUpdate(newUpdateInterval time.Duration) {
 }
 
 func (svc *Source) updateAndSave(ctx context.Context) error {
-	cfg, err := svc.clusterAPI.GetClusterBootstrapConfig(ctx)
+	cfg, err := svc.api.GetClusterBootstrapConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("load bootstrap config from API: %w", err)
 	}
