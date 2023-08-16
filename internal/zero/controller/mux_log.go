@@ -12,7 +12,7 @@ import (
 func (c *controller) RunConnectLog(ctx context.Context) error {
 	logger := log.Ctx(ctx).With().Str("service", "connect-mux").Logger().Level(zerolog.InfoLevel)
 
-	return c.connectMux.Watch(ctx,
+	return c.api.Watch(ctx,
 		connect_mux.WithOnConnected(func(ctx context.Context) {
 			logger.Info().Msg("connected")
 		}),

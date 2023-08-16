@@ -13,7 +13,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	sdk "github.com/pomerium/zero-sdk"
-	connect_mux "github.com/pomerium/zero-sdk/connect-mux"
 )
 
 // Run runs Pomerium is managed mode using the provided token.
@@ -37,6 +36,7 @@ func Run(ctx context.Context, opts ...Option) error {
 		return fmt.Errorf("init databroker client: %w", err)
 	}
 
+	eg.Go(func() error { return run(ctx, "connect", c.runConnect, nil) })
 	eg.Go(func() error { return run(ctx, "zero-bootstrap", c.runBootstrap, nil) })
 	eg.Go(func() error { return run(ctx, "pomerium-core", c.runPomeriumCore, src.WaitReady) })
 	eg.Go(func() error { return run(ctx, "zero-reconciler", c.RunReconciler, src.WaitReady) })
@@ -47,8 +47,7 @@ func Run(ctx context.Context, opts ...Option) error {
 type controller struct {
 	cfg *controllerConfig
 
-	connectMux *connect_mux.Mux
-	api        *sdk.API
+	api *sdk.API
 
 	bootstrapConfig *bootstrap.Source
 
@@ -56,7 +55,7 @@ type controller struct {
 }
 
 func (c *controller) initAPI(ctx context.Context) error {
-	api, err := sdk.NewAPI(
+	api, err := sdk.NewAPI(ctx,
 		sdk.WithClusterAPIEndpoint(c.cfg.clusterAPIEndpoint),
 		sdk.WithAPIToken(c.cfg.apiToken),
 		sdk.WithConnectAPIEndpoint(c.cfg.connectAPIEndpoint),
@@ -65,13 +64,7 @@ func (c *controller) initAPI(ctx context.Context) error {
 		return fmt.Errorf("error initializing cloud api: %w", err)
 	}
 
-	mux, err := api.Connect(ctx)
-	if err != nil {
-		return fmt.Errorf("error starting cloud api: %w", err)
-	}
-
 	c.api = api
-	c.connectMux = mux
 
 	return nil
 }
@@ -94,9 +87,13 @@ func run(ctx context.Context, name string, runFn func(context.Context) error, wa
 }
 
 func (c *controller) runBootstrap(ctx context.Context) error {
-	return c.bootstrapConfig.Run(ctx, c.api, c.connectMux, c.cfg.bootstrapConfigFileName)
+	return c.bootstrapConfig.Run(ctx, c.api, c.cfg.bootstrapConfigFileName)
 }
 
 func (c *controller) runPomeriumCore(ctx context.Context) error {
 	return pomerium.Run(ctx, c.bootstrapConfig)
+}
+
+func (c *controller) runConnect(ctx context.Context) error {
+	return c.api.Connect(ctx)
 }
