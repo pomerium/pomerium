@@ -8,20 +8,16 @@ import (
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	sdk "github.com/pomerium/zero-sdk"
-	connect_mux "github.com/pomerium/zero-sdk/connect-mux"
 )
 
 // reconcilerConfig contains the configuration for the resource bundles reconciler.
 type reconcilerConfig struct {
-	api        *sdk.API
-	connectMux *connect_mux.Mux
+	api *sdk.API
 
 	databrokerClient databroker.DataBrokerServiceClient
 	databrokerRPS    int
 
 	tmpDir string
-
-	minDownloadTTL time.Duration
 
 	httpClient *http.Client
 
@@ -49,25 +45,10 @@ func WithAPI(client *sdk.API) Option {
 	}
 }
 
-// WithConnectMux configures the connect mux.
-func WithConnectMux(client *connect_mux.Mux) Option {
-	return func(cfg *reconcilerConfig) {
-		cfg.connectMux = client
-	}
-}
-
 // WithDataBrokerClient configures the databroker client.
 func WithDataBrokerClient(client databroker.DataBrokerServiceClient) Option {
 	return func(cfg *reconcilerConfig) {
 		cfg.databrokerClient = client
-	}
-}
-
-// WithMinDownloadTTL configures the download URL validity in cache,
-// before it would be requested again from the cloud (that also sets it's own TTL to the signed URL).
-func WithMinDownloadTTL(ttl time.Duration) Option {
-	return func(cfg *reconcilerConfig) {
-		cfg.minDownloadTTL = ttl
 	}
 }
 
@@ -112,7 +93,6 @@ func newConfig(opts ...Option) *reconcilerConfig {
 	cfg := &reconcilerConfig{}
 	for _, opt := range []Option{
 		WithTemporaryDirectory(os.TempDir()),
-		WithMinDownloadTTL(5 * time.Minute),
 		WithDownloadHTTPClient(http.DefaultClient),
 		WithDatabrokerRPSLimit(1_000),
 		WithCheckForUpdateIntervalWhenDisconnected(time.Minute * 5),

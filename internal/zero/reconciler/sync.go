@@ -16,7 +16,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -29,22 +28,27 @@ func (c *service) SyncLoop(ctx context.Context) error {
 	defer ticker.Stop()
 
 	for {
-		ticker.Reset(c.periodicUpdateInterval.Load())
+		dur := c.periodicUpdateInterval.Load()
+		ticker.Reset(dur)
+		log.Ctx(ctx).Info().Str("duration", dur.String()).Msg("*** next sync cycle ***")
 
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-c.bundleSyncRequest:
+			log.Ctx(ctx).Info().Msg("bundle sync triggered")
 			err := c.syncBundles(ctx)
 			if err != nil {
 				return fmt.Errorf("reconciler: sync bundles: %w", err)
 			}
 		case <-c.fullSyncRequest:
+			log.Ctx(ctx).Info().Msg("full sync triggered")
 			err := c.syncAll(ctx)
 			if err != nil {
 				return fmt.Errorf("reconciler: sync all: %w", err)
 			}
 		case <-ticker.C:
+			log.Ctx(ctx).Info().Msg("periodic sync triggered")
 			err := c.syncAll(ctx)
 			if err != nil {
 				return fmt.Errorf("reconciler: sync all: %w", err)
@@ -72,7 +76,7 @@ func (c *service) syncBundleList(ctx context.Context) error {
 	// refresh bundle list,
 	// ignoring other signals while we're retrying
 	return retry.Retry(ctx,
-		"refresh bundle list", c.RefreshBundleList,
+		"refresh bundle list", c.refreshBundleList,
 		retry.WithWatch("refresh bundle list", c.fullSyncRequest, nil),
 		retry.WithWatch("bundle update", c.bundleSyncRequest, nil),
 	)
@@ -83,7 +87,7 @@ func (c *service) syncBundleList(ctx context.Context) error {
 func (c *service) syncBundles(ctx context.Context) error {
 	return retry.Retry(ctx,
 		"sync bundles", c.trySyncBundles,
-		retry.WithWatch("refresh bundle list", c.fullSyncRequest, c.RefreshBundleList),
+		retry.WithWatch("refresh bundle list", c.fullSyncRequest, c.refreshBundleList),
 		retry.WithWatch("bundle update", c.bundleSyncRequest, nil),
 	)
 }
@@ -110,37 +114,40 @@ func (c *service) trySyncBundles(ctx context.Context) error {
 // This is only persisted in the databroker after all records are successfully synced.
 // That allows us to ignore any changes based on the same bundle state, without need to re-check all records between bundle and databroker.
 func (c *service) syncBundle(ctx context.Context, key string) error {
-	var cached, changed BundleCacheEntry
-	opts := []DownloadOption{
-		WithUpdateCacheEntry(&changed),
-	}
-
-	err := c.GetBundleCacheEntry(ctx, key, &cached)
-	if err == nil {
-		opts = append(opts, WithCacheEntry(cached))
-	} else if err != nil && !errors.Is(err, ErrBundleCacheEntryNotFound) {
+	cached, err := c.GetBundleCacheEntry(ctx, key)
+	if err != nil && !errors.Is(err, ErrBundleCacheEntryNotFound) {
 		return fmt.Errorf("get bundle cache entry: %w", err)
 	}
 
 	// download is much faster compared to databroker sync,
 	// so we don't use pipe but rather download to a temp file and then sync it to databroker
-
-	fd, err := os.CreateTemp(c.config.tmpDir, fmt.Sprintf("pomerium-bundle-%s", key))
+	fd, err := c.GetTmpFile(key)
 	if err != nil {
-		return fmt.Errorf("create temp file: %w", err)
+		return fmt.Errorf("get tmp file: %w", err)
 	}
-	defer fd.Close()
-	defer os.Remove(fd.Name())
+	defer func() {
+		if err := fd.Close(); err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("close tmp file")
+		}
+	}()
 
-	err = c.DownloadBundleIfChanged(ctx, fd, key, opts...)
+	conditional := cached.GetDownloadConditional()
+	log.Ctx(ctx).Info().Str("id", key).Any("conditional", conditional).Msg("downloading bundle")
+
+	result, err := c.config.api.DownloadClusterResourceBundle(ctx, fd, key, conditional)
 	if err != nil {
 		return fmt.Errorf("download bundle: %w", err)
 	}
 
-	if changed.Equals(cached) {
+	if result.NotModified {
 		log.Ctx(ctx).Info().Str("bundle", key).Msg("bundle not changed")
 		return nil
 	}
+
+	log.Ctx(ctx).Info().Str("bundle", key).
+		Interface("cached-entry", cached).
+		Interface("current-entry", result.DownloadConditional).
+		Msg("bundle changed")
 
 	_, err = fd.Seek(0, io.SeekStart)
 	if err != nil {
@@ -151,16 +158,19 @@ func (c *service) syncBundle(ctx context.Context, key string) error {
 	if err != nil {
 		return fmt.Errorf("apply bundle to databroker: %w", err)
 	}
-	changed.RecordTypes = bundleRecordTypes
+	current := BundleCacheEntry{
+		DownloadConditional: *result.DownloadConditional,
+		RecordTypes:         bundleRecordTypes,
+	}
 
 	log.Ctx(ctx).Info().
 		Str("bundle", key).
 		Strs("record_types", bundleRecordTypes).
-		Str("etag", changed.ETag).
-		Time("last_modified", changed.LastModified).
+		Str("etag", current.ETag).
+		Str("last_modified", current.LastModified).
 		Msg("bundle synced")
 
-	err = c.SetBundleCacheEntry(ctx, key, changed)
+	err = c.SetBundleCacheEntry(ctx, key, current)
 	if err != nil {
 		return fmt.Errorf("set bundle cache entry: %w", err)
 	}
@@ -197,4 +207,19 @@ func (c *service) syncBundleToDatabroker(ctx context.Context, src io.Reader) ([]
 	}
 
 	return bundleRecords.RecordTypes(), nil
+}
+
+func (c *service) refreshBundleList(ctx context.Context) error {
+	resp, err := c.config.api.GetClusterResourceBundles(ctx)
+	if err != nil {
+		return fmt.Errorf("get bundles: %w", err)
+	}
+
+	ids := make([]string, 0, len(resp.Bundles))
+	for _, v := range resp.Bundles {
+		ids = append(ids, v.Id)
+	}
+
+	c.bundles.Set(ids)
+	return nil
 }
