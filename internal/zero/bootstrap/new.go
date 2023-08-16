@@ -59,7 +59,7 @@ func New(secret []byte) (*Source, error) {
 		checkForUpdate: make(chan struct{}, 1),
 	}
 	svc.cfg.Store(cfg)
-	svc.updateInterval.Store(DefaultCheckForUpdateInterval)
+	svc.updateInterval.Store(DefaultCheckForUpdateIntervalWhenDisconnected)
 
 	return svc, nil
 }
