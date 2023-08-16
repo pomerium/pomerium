@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1692208386265,
+  "lastUpdate": 1692209439798,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -63164,6 +63164,42 @@ window.BENCHMARK_DATA = {
             "value": 9927077,
             "unit": "ns/op",
             "extra": "115 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1b3ee7ff8fc29381405f7aeea4824d9846361c0f",
+          "message": "config: add decode hook for the SANMatcher type (#4464)",
+          "timestamp": "2023-08-16T11:05:17-07:00",
+          "tree_id": "22a88ff3445c32ecafd0dff3616399993e5b003a",
+          "url": "https://github.com/pomerium/pomerium/commit/1b3ee7ff8fc29381405f7aeea4824d9846361c0f"
+        },
+        "date": 1692209433857,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15273837,
+            "unit": "ns/op",
+            "extra": "73 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9859576,
+            "unit": "ns/op",
+            "extra": "123 times\n2 procs"
           }
         ]
       }
