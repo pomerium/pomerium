@@ -508,6 +508,26 @@ func parseJSONPB(src map[string]interface{}, dst proto.Message, opts protojson.U
 	return opts.Unmarshal(data, dst)
 }
 
+// decodeSANMatcherHookFunc returns a decode hook for the SANMatcher type.
+func decodeSANMatcherHookFunc() mapstructure.DecodeHookFunc {
+	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
+		if t != reflect.TypeOf(SANMatcher{}) {
+			return data, nil
+		}
+
+		b, err := json.Marshal(data)
+		if err != nil {
+			return nil, err
+		}
+
+		var m SANMatcher
+		if err := json.Unmarshal(b, &m); err != nil {
+			return nil, err
+		}
+		return m, nil
+	}
+}
+
 // serializable converts mapstructure nested map into map[string]interface{} that is serializable to JSON
 func serializable(in interface{}) (interface{}, error) {
 	switch typed := in.(type) {
