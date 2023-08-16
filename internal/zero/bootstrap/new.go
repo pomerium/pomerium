@@ -17,15 +17,13 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/netutil"
 	sdk "github.com/pomerium/zero-sdk"
-	connect_mux "github.com/pomerium/zero-sdk/connect-mux"
 )
 
 // Source is a base config layer for Pomerium
 type Source struct {
 	source
 
-	clusterAPI *sdk.API
-	connectMux *connect_mux.Mux
+	api *sdk.API
 
 	fileCachePath string
 	fileCipher    cipher.AEAD
