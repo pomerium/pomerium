@@ -52,7 +52,7 @@ func Run(ctx context.Context, opts ...Option) error {
 // it may be later optimized by splitting between download and reconciliation process,
 // as we would get more resource bundles beyond the config.
 func (c *service) watchUpdates(ctx context.Context) error {
-	return c.config.connectMux.Watch(ctx,
+	return c.config.api.Watch(ctx,
 		connect_mux.WithOnConnected(func(ctx context.Context) {
 			c.triggerFullUpdate(true)
 		}),
