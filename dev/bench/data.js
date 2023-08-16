@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1692212336145,
+  "lastUpdate": 1692215054034,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -63232,6 +63232,42 @@ window.BENCHMARK_DATA = {
             "value": 10140964,
             "unit": "ns/op",
             "extra": "122 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a83375db7fe6f3d102d4e0ee03ab09ef9be92398",
+          "message": "envoy: check for nil ssl() in client cert script (#4466)\n\nIf Pomerium is operating in the insecure_server mode (e.g. if there is\r\nanother reverse proxy in front of Pomerium), then the ssl() Lua method\r\nwill return nil.\r\n\r\nAdd a check for this case to the set-client-certificate-metadata.lua\r\nscript, in order to avoid an error when attempting to store the client\r\ncertificate info.",
+          "timestamp": "2023-08-16T12:39:20-07:00",
+          "tree_id": "2d8cb7991a85fe757a7b0c90b8dc070cf64c3cae",
+          "url": "https://github.com/pomerium/pomerium/commit/a83375db7fe6f3d102d4e0ee03ab09ef9be92398"
+        },
+        "date": 1692215048968,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13586950,
+            "unit": "ns/op",
+            "extra": "96 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8406016,
+            "unit": "ns/op",
+            "extra": "136 times\n2 procs"
           }
         ]
       }
