@@ -52,7 +52,7 @@ require (
 	github.com/pomerium/csrf v1.7.0
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524
 	github.com/pomerium/webauthn v0.0.0-20221118023040-00a9c430578b
-	github.com/pomerium/zero-sdk v0.0.0-20230816000855-af1b8165df05
+	github.com/pomerium/zero-sdk v0.0.0-20230816163741-2c7886877a34
 	github.com/prometheus/client_golang v1.16.0
 	github.com/prometheus/client_model v0.4.0
 	github.com/prometheus/common v0.44.0
