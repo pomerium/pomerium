@@ -759,6 +759,62 @@ func TestDeprecatedClientCAOptions(t *testing.T) {
 	})
 }
 
+func TestHasAnyDownstreamMTLSClientCA(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		label    string
+		opts     *Options
+		expected bool
+	}{
+		{"zero", &Options{}, false},
+		{"default", NewDefaultOptions(), false},
+		{"no client CAs", &Options{
+			Policies: []Policy{
+				{From: "https://example.com/one"},
+				{From: "https://example.com/two"},
+				{From: "https://example.com/three"},
+			},
+		}, false},
+		{"global client CA only", &Options{
+			DownstreamMTLS: DownstreamMTLSSettings{CA: "ZmFrZSBDQQ=="},
+			Policies: []Policy{
+				{From: "https://example.com/one"},
+				{From: "https://example.com/two"},
+				{From: "https://example.com/three"},
+			},
+		}, true},
+		{"per-route CA only", &Options{
+			Policies: []Policy{
+				{From: "https://example.com/one"},
+				{
+					From:                  "https://example.com/two",
+					TLSDownstreamClientCA: "ZmFrZSBDQQ==",
+				},
+				{From: "https://example.com/three"},
+			},
+		}, true},
+		{"both global and per-route client CAs", &Options{
+			DownstreamMTLS: DownstreamMTLSSettings{CA: "ZmFrZSBDQQ=="},
+			Policies: []Policy{
+				{From: "https://example.com/one"},
+				{
+					From:                  "https://example.com/two",
+					TLSDownstreamClientCA: "ZmFrZSBDQQ==",
+				},
+				{From: "https://example.com/three"},
+			},
+		}, true},
+	}
+	for i := range cases {
+		c := &cases[i]
+		t.Run(c.label, func(t *testing.T) {
+			actual := c.opts.HasAnyDownstreamMTLSClientCA()
+			assert.Equal(t, c.expected, actual)
+		})
+	}
+}
+
 func TestOptions_DefaultURL(t *testing.T) {
 	t.Parallel()
 

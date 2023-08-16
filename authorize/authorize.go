@@ -117,7 +117,7 @@ func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Ev
 	// It is important to add an invalid_client_certificate rule even when the
 	// mTLS enforcement behavior is set to reject connections at the listener
 	// level, because of the per-route TLSDownstreamClientCA setting.
-	addDefaultClientCertificateRule :=
+	addDefaultClientCertificateRule := opts.HasAnyDownstreamMTLSClientCA() &&
 		opts.DownstreamMTLS.GetEnforcement() != config.MTLSEnforcementPolicy
 
 	clientCertConstraints, err := evaluator.ClientCertConstraintsFromConfig(&opts.DownstreamMTLS)
