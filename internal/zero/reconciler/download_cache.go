@@ -60,7 +60,7 @@ func (c *service) GetBundleCacheEntry(ctx context.Context, id string) (*BundleCa
 		log.Ctx(ctx).Error().Err(err).
 			Str("bundle-id", id).
 			Str("data", protojson.Format(data)).
-			Msg("unmarshal bundle cache entry")
+			Msg("could not unmarshal bundle cache entry")
 		// we would allow it to be overwritten by the update process
 		return nil, ErrBundleCacheEntryNotFound
 	}
@@ -74,7 +74,7 @@ func (c *service) SetBundleCacheEntry(ctx context.Context, id string, src Bundle
 	if err != nil {
 		return fmt.Errorf("marshal bundle cache entry: %w", err)
 	}
-	resp, err := c.config.databrokerClient.Put(ctx, &databroker.PutRequest{
+	_, err = c.config.databrokerClient.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{
 			{
 				Type: bundleCacheEntryRecordType,
@@ -86,11 +86,6 @@ func (c *service) SetBundleCacheEntry(ctx context.Context, id string, src Bundle
 	if err != nil {
 		return fmt.Errorf("set bundle cache entry: %w", err)
 	}
-	log.Ctx(ctx).Info().
-		Str("bundle-id", id).
-		Str("sent", protojson.Format(val)).
-		Str("got", protojson.Format(resp.GetRecord().GetData())).
-		Msg("set bundle cache entry")
 	return nil
 }
 
@@ -122,7 +117,6 @@ func (r *BundleCacheEntry) FromAny(any *anypb.Any) error {
 	if err != nil {
 		return fmt.Errorf("unmarshal struct: %w", err)
 	}
-	fmt.Println("****", protojson.Format(any), protojson.Format(&s))
 
 	r.ETag = s.GetFields()["etag"].GetStringValue()
 	r.LastModified = s.GetFields()["last_modified"].GetStringValue()

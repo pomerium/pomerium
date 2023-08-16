@@ -30,7 +30,6 @@ func (c *service) SyncLoop(ctx context.Context) error {
 	for {
 		dur := c.periodicUpdateInterval.Load()
 		ticker.Reset(dur)
-		log.Ctx(ctx).Info().Str("duration", dur.String()).Msg("*** next sync cycle ***")
 
 		select {
 		case <-ctx.Done():
