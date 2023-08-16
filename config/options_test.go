@@ -341,6 +341,27 @@ func Test_parsePolicyFile(t *testing.T) {
 	}
 }
 
+func Test_decodeSANMatcher(t *testing.T) {
+	// Verify that config file parsing will decode the SANMatcher type.
+	const yaml = `
+downstream_mtls:
+  match_subject_alt_names:
+    - dns: 'example-1\..*'
+    - dns: '.*\.example-2'
+`
+	cfg := filepath.Join(t.TempDir(), "config.yaml")
+	err := os.WriteFile(cfg, []byte(yaml), 0644)
+	require.NoError(t, err)
+
+	o, err := optionsFromViper(cfg)
+	require.NoError(t, err)
+
+	assert.Equal(t, []SANMatcher{
+		{Type: SANTypeDNS, Pattern: `example-1\..*`},
+		{Type: SANTypeDNS, Pattern: `.*\.example-2`},
+	}, o.DownstreamMTLS.MatchSubjectAltNames)
+}
+
 func Test_Checksum(t *testing.T) {
 	o := NewDefaultOptions()
 
