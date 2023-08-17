@@ -38,15 +38,15 @@ func (h *bundleHeap) Pop() interface{} {
 	return x
 }
 
-// Bundles is a priority queue of bundles to sync.
-type Bundles struct {
+// BundleQueue is a priority queue of bundles to sync.
+type BundleQueue struct {
 	sync.Mutex
 	bundles bundleHeap
 	counter int // to assign priorities based on order of insertion
 }
 
 // Set sets the bundles to be synced. This will reset the sync status of all bundles.
-func (b *Bundles) Set(bundles []string) {
+func (b *BundleQueue) Set(bundles []string) {
 	b.Lock()
 	defer b.Unlock()
 
@@ -63,7 +63,7 @@ func (b *Bundles) Set(bundles []string) {
 }
 
 // MarkForSync marks the bundle with the given ID for syncing.
-func (b *Bundles) MarkForSync(id string) {
+func (b *BundleQueue) MarkForSync(id string) {
 	b.Lock()
 	defer b.Unlock()
 
@@ -81,7 +81,7 @@ func (b *Bundles) MarkForSync(id string) {
 }
 
 // MarkForSyncLater marks the bundle with the given ID for syncing later (after all other bundles).
-func (b *Bundles) MarkForSyncLater(id string) {
+func (b *BundleQueue) MarkForSyncLater(id string) {
 	b.Lock()
 	defer b.Unlock()
 
@@ -100,7 +100,7 @@ func (b *Bundles) MarkForSyncLater(id string) {
 }
 
 // GetNextBundleToSync returns the ID of the next bundle to sync and whether there is one.
-func (b *Bundles) GetNextBundleToSync() (string, bool) {
+func (b *BundleQueue) GetNextBundleToSync() (string, bool) {
 	b.Lock()
 	defer b.Unlock()
 
