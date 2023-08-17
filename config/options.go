@@ -976,6 +976,26 @@ func (o *Options) GetMetricsBasicAuth() (username, password string, ok bool) {
 	return string(bs[:idx]), string(bs[idx+1:]), true
 }
 
+// HasAnyDownstreamMTLSClientCA returns true if there is a global downstream
+// client CA or there are any per-route downstream client CAs.
+func (o *Options) HasAnyDownstreamMTLSClientCA() bool {
+	// All the CA settings should already have been validated.
+	ca, _ := o.DownstreamMTLS.GetCA()
+	if len(ca) > 0 {
+		return true
+	}
+	allPolicies := o.GetAllPolicies()
+	for i := range allPolicies {
+		// We don't need to check TLSDownstreamClientCAFile here because
+		// Policy.Validate() will populate TLSDownstreamClientCA when
+		// TLSDownstreamClientCAFile is set.
+		if allPolicies[i].TLSDownstreamClientCA != "" {
+			return true
+		}
+	}
+	return false
+}
+
 // GetDataBrokerCertificate gets the optional databroker certificate. This method will return nil if no certificate is
 // specified.
 func (o *Options) GetDataBrokerCertificate() (*tls.Certificate, error) {

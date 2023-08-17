@@ -7,7 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
 
 func TestNew(t *testing.T) {
@@ -137,4 +140,54 @@ func testPolicies(t *testing.T) []config.Policy {
 		testPolicy,
 	}
 	return policies
+}
+
+func TestNewPolicyEvaluator_addDefaultClientCertificateRule(t *testing.T) {
+	t.Parallel()
+
+	resultFalse := evaluator.NewRuleResult(false) // no mention of client certificates
+	resultClientCertificateRequired := evaluator.NewRuleResult(true,
+		criteria.ReasonClientCertificateRequired)
+
+	cases := []struct {
+		label    string
+		opts     *config.Options
+		expected evaluator.RuleResult
+	}{
+		{"zero", &config.Options{}, resultFalse},
+		{"default", config.NewDefaultOptions(), resultFalse},
+		{"client CA, default enforcement", &config.Options{
+			DownstreamMTLS: config.DownstreamMTLSSettings{CA: "ZmFrZSBDQQ=="},
+		}, resultClientCertificateRequired},
+		{"client CA, reject connection", &config.Options{
+			DownstreamMTLS: config.DownstreamMTLSSettings{
+				CA:          "ZmFrZSBDQQ==",
+				Enforcement: config.MTLSEnforcementRejectConnection,
+			},
+		}, resultClientCertificateRequired},
+		{"client CA, policy", &config.Options{
+			DownstreamMTLS: config.DownstreamMTLSSettings{
+				CA:          "ZmFrZSBDQQ==",
+				Enforcement: config.MTLSEnforcementPolicy,
+			},
+		}, resultFalse},
+	}
+	for i := range cases {
+		c := &cases[i]
+		t.Run(c.label, func(t *testing.T) {
+			store := store.New()
+			c.opts.Policies = []config.Policy{{
+				To: mustParseWeightedURLs(t, "http://example.com"),
+			}}
+			e, err := newPolicyEvaluator(c.opts, store)
+			require.NoError(t, err)
+
+			r, err := e.Evaluate(context.Background(), &evaluator.Request{
+				Policy: &c.opts.Policies[0],
+				HTTP:   evaluator.RequestHTTP{},
+			})
+			require.NoError(t, err)
+			assert.Equal(t, c.expected, r.Deny)
+		})
+	}
 }
