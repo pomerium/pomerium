@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1692314977021,
+  "lastUpdate": 1692316722006,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -63788,6 +63788,38 @@ window.BENCHMARK_DATA = {
             "value": 9355879,
             "unit": "ns/op",
             "extra": "122 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "aa16ad78bd362a97bae6f1a157311fad80287337",
+          "message": "add integration test for https IP address route",
+          "timestamp": "2023-08-16T10:08:06Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4476/commits/aa16ad78bd362a97bae6f1a157311fad80287337"
+        },
+        "date": 1692316715674,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16234043,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10530979,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
