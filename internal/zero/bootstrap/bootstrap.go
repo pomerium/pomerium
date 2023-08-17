@@ -42,10 +42,7 @@ func (svc *Source) Run(
 	svc.api = api
 	svc.fileCachePath = fileCachePath
 
-	err := svc.tryLoadInitial(ctx)
-	if err != nil {
-		return err
-	}
+	svc.tryLoadFromFile(ctx)
 
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error { return svc.watchUpdates(ctx) })
@@ -73,6 +70,14 @@ func (svc *Source) updateLoop(ctx context.Context) error {
 	defer ticker.Stop()
 
 	for {
+		err := retry.Retry(ctx,
+			"update bootstrap", svc.updateAndSave,
+			retry.WithWatch("bootstrap config updated", svc.checkForUpdate, nil),
+		)
+		if err != nil {
+			return fmt.Errorf("update bootstrap config: %w", err)
+		}
+
 		ticker.Reset(svc.updateInterval.Load())
 
 		select {
@@ -80,14 +85,6 @@ func (svc *Source) updateLoop(ctx context.Context) error {
 			return ctx.Err()
 		case <-svc.checkForUpdate:
 		case <-ticker.C:
-		}
-
-		err := retry.Retry(ctx,
-			"update bootstrap", svc.updateAndSave,
-			retry.WithWatch("bootstrap config updated", svc.checkForUpdate, nil),
-		)
-		if err != nil {
-			return fmt.Errorf("update bootstrap config: %w", err)
 		}
 	}
 }
@@ -116,18 +113,6 @@ func (svc *Source) updateAndSave(ctx context.Context) error {
 	}
 
 	svc.UpdateBootstrap(ctx, *cfg)
-	return nil
-}
-
-func (svc *Source) tryLoadInitial(ctx context.Context) error {
-	err := svc.updateAndSave(ctx)
-	if retry.IsTerminalError(err) {
-		return err
-	}
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to load bootstrap config")
-		svc.tryLoadFromFile(ctx)
-	}
 	return nil
 }
 
