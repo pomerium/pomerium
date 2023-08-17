@@ -59,11 +59,11 @@ type Options struct {
 
 	// LogLevel sets the global override for log level. All Loggers will use at least this value.
 	// Possible options are "info","warn","debug" and "error". Defaults to "info".
-	LogLevel string `mapstructure:"log_level" yaml:"log_level,omitempty"`
+	LogLevel LogLevel `mapstructure:"log_level" yaml:"log_level,omitempty"`
 
 	// ProxyLogLevel sets the log level for the proxy service.
 	// Possible options are "info","warn", and "error". Defaults to the value of `LogLevel`.
-	ProxyLogLevel string `mapstructure:"proxy_log_level" yaml:"proxy_log_level,omitempty"`
+	ProxyLogLevel LogLevel `mapstructure:"proxy_log_level" yaml:"proxy_log_level,omitempty"`
 
 	// SharedKey is the shared secret authorization key used to mutually authenticate
 	// requests between services.
@@ -298,7 +298,7 @@ type certificateFilePair struct {
 // DefaultOptions are the default configuration options for pomerium
 var defaultOptions = Options{
 	Debug:                    false,
-	LogLevel:                 "info",
+	LogLevel:                 LogLevelInfo,
 	Services:                 "all",
 	CookieHTTPOnly:           true,
 	CookieSecure:             true,
@@ -731,6 +731,14 @@ func (o *Options) Validate() error {
 	err = o.AutocertOptions.Validate()
 	if err != nil {
 		return err
+	}
+
+	if err := ValidateLogLevel(o.LogLevel); err != nil {
+		return fmt.Errorf("config: invalid log_level: %w", err)
+	}
+
+	if err := ValidateLogLevel(o.ProxyLogLevel); err != nil {
+		return fmt.Errorf("config: invalid proxy_log_level: %w", err)
 	}
 
 	return nil
@@ -1265,8 +1273,8 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 
 	set(&o.InstallationID, settings.InstallationId)
 	set(&o.Debug, settings.Debug)
-	set(&o.LogLevel, settings.LogLevel)
-	set(&o.ProxyLogLevel, settings.ProxyLogLevel)
+	setLogLevel(&o.LogLevel, settings.LogLevel)
+	setLogLevel(&o.ProxyLogLevel, settings.ProxyLogLevel)
 	set(&o.SharedKey, settings.SharedSecret)
 	set(&o.Services, settings.Services)
 	set(&o.Addr, settings.Address)
@@ -1416,6 +1424,13 @@ func setDuration(dst *time.Duration, src *durationpb.Duration) {
 		return
 	}
 	*dst = src.AsDuration()
+}
+
+func setLogLevel(dst *LogLevel, src *string) {
+	if src == nil {
+		return
+	}
+	*dst = LogLevel(*src)
 }
 
 func setOptional[T any](dst **T, src *T) {

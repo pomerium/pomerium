@@ -82,11 +82,11 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 		lvl = options.LogLevel
 	}
 	if lvl == "" {
-		lvl = "debug"
+		lvl = config.LogLevelDebug
 	}
 
 	switch lvl {
-	case "trace", "debug", "info":
+	case config.LogLevelTrace, config.LogLevelDebug, config.LogLevelInfo:
 	default:
 		// don't log access requests for levels > info
 		return nil

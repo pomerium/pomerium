@@ -37,7 +37,7 @@ const (
 
 type serverOptions struct {
 	services string
-	logLevel string
+	logLevel config.LogLevel
 }
 
 // A Server is a pomerium proxy implemented via envoy.
@@ -113,7 +113,7 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 
 	options := serverOptions{
 		services: cfg.Options.Services,
-		logLevel: firstNonEmpty(cfg.Options.ProxyLogLevel, cfg.Options.LogLevel, "debug"),
+		logLevel: firstNonEmpty(cfg.Options.ProxyLogLevel, cfg.Options.LogLevel, config.LogLevelDebug),
 	}
 
 	if cmp.Equal(srv.options, options, cmp.AllowUnexported(serverOptions{})) {
@@ -140,7 +140,7 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 
 	args := []string{
 		"-c", configFileName,
-		"--log-level", srv.options.logLevel,
+		"--log-level", srv.options.logLevel.ToEnvoy(),
 		"--log-format", "[LOG_FORMAT]%l--%n--%v",
 		"--log-format-escaped",
 	}
