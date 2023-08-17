@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1692237452816,
+  "lastUpdate": 1692285527346,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -63428,6 +63428,42 @@ window.BENCHMARK_DATA = {
             "value": 8494383,
             "unit": "ns/op",
             "extra": "126 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e448909042bdda5f85cdf528bd10fbab0857dbcd",
+          "message": "authorize: remove incorrect \"valid-client-certificate\" reason (#4470)\n\nFix the logic around when to add the default invalid_client_certificate\r\nrule: this should only be added if mTLS is enabled and the enforcement\r\nmode is not set to \"policy\". Add a unit test for this logic.",
+          "timestamp": "2023-08-17T08:13:57-07:00",
+          "tree_id": "1428519e1556fd12515a30da5021482857e70f5a",
+          "url": "https://github.com/pomerium/pomerium/commit/e448909042bdda5f85cdf528bd10fbab0857dbcd"
+        },
+        "date": 1692285522183,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13740801,
+            "unit": "ns/op",
+            "extra": "88 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8314909,
+            "unit": "ns/op",
+            "extra": "127 times\n2 procs"
           }
         ]
       }
