@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1692299933543,
+  "lastUpdate": 1692304175832,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -63560,6 +63560,42 @@ window.BENCHMARK_DATA = {
             "value": 9167223,
             "unit": "ns/op",
             "extra": "118 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c6b7927e1c8b0e060bf563097811d1479ed51e3c",
+          "message": "add integration test for Pomerium JWT (#4472)\n\nAdd an integration test case to verify properties of the Pomerium\r\nattestation JWT:\r\n\r\n - The 'iat' and 'exp' timestamps should be plain integers.\r\n - The JWT should contain an issuer and audience claim.\r\n - A JWT retrieved from the /.pomerium/jwt endpoint should contain all\r\n   the same data as a JWT from the X-Pomerium-Jwt-Assertion header.",
+          "timestamp": "2023-08-17T13:23:16-07:00",
+          "tree_id": "1693623764cdf0d1945d777bda144ae33a536308",
+          "url": "https://github.com/pomerium/pomerium/commit/c6b7927e1c8b0e060bf563097811d1479ed51e3c"
+        },
+        "date": 1692304169178,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17657137,
+            "unit": "ns/op",
+            "extra": "67 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11799401,
+            "unit": "ns/op",
+            "extra": "102 times\n2 procs"
           }
         ]
       }
