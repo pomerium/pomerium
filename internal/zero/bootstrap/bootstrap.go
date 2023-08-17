@@ -42,7 +42,10 @@ func (svc *Source) Run(
 	svc.api = api
 	svc.fileCachePath = fileCachePath
 
-	svc.tryLoadInitial(ctx)
+	err := svc.tryLoadInitial(ctx)
+	if err != nil {
+		return err
+	}
 
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error { return svc.watchUpdates(ctx) })
@@ -116,13 +119,16 @@ func (svc *Source) updateAndSave(ctx context.Context) error {
 	return nil
 }
 
-func (svc *Source) tryLoadInitial(ctx context.Context) {
+func (svc *Source) tryLoadInitial(ctx context.Context) error {
 	err := svc.updateAndSave(ctx)
+	if retry.IsTerminalError(err) {
+		return err
+	}
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to load bootstrap config")
 		svc.tryLoadFromFile(ctx)
-		return
 	}
+	return nil
 }
 
 func (svc *Source) tryLoadFromFile(ctx context.Context) {
