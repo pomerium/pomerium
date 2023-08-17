@@ -120,3 +120,13 @@ func (rsb RecordSetBundle[T]) Flatten() []T {
 	}
 	return records
 }
+
+// Get returns a record by type and id.
+func (rsb RecordSetBundle[T]) Get(typeName, id string) (record T, ok bool) {
+	rs, ok := rsb[typeName]
+	if !ok {
+		return
+	}
+	record, ok = rs[id]
+	return
+}

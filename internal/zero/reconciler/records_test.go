@@ -9,8 +9,8 @@ import (
 )
 
 type testRecord struct {
-	ID   string
 	Type string
+	ID   string
 	Val  string
 }
 

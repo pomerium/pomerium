@@ -153,6 +153,14 @@ func (r *BundleCacheEntry) GetDownloadConditional() *zero_sdk.DownloadConditiona
 	return &cond
 }
 
+// GetRecordTypes returns the record types
+func (r *BundleCacheEntry) GetRecordTypes() []string {
+	if r == nil {
+		return nil
+	}
+	return r.RecordTypes
+}
+
 // Equals returns true if the two cache entries are equal
 func (r *BundleCacheEntry) Equals(other *BundleCacheEntry) bool {
 	return r != nil && other != nil &&

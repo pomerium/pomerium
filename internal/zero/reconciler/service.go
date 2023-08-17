@@ -21,7 +21,7 @@ type service struct {
 
 	databrokerRateLimit *rate.Limiter
 
-	bundles Bundles
+	bundles BundleQueue
 
 	fullSyncRequest        chan struct{}
 	bundleSyncRequest      chan struct{}

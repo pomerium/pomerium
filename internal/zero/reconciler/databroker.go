@@ -7,7 +7,6 @@ import (
 	"io"
 
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
@@ -36,15 +35,16 @@ func (r DatabrokerRecord) Equal(other DatabrokerRecord) bool {
 		proto.Equal(r.V.Data, other.V.Data)
 }
 
-// GetDataBrokerRecords gets all databroker records of the given types.
-func (c *service) GetDatabrokerRecords(
+// GetDatabrokerRecords gets all databroker records of the given types.
+func GetDatabrokerRecords(
 	ctx context.Context,
+	client databroker.DataBrokerServiceClient,
 	types []string,
 ) (RecordSetBundle[DatabrokerRecord], error) {
 	rsb := make(RecordSetBundle[DatabrokerRecord])
 
 	for _, typ := range types {
-		recs, err := c.getDatabrokerRecords(ctx, typ)
+		recs, err := getDatabrokerRecords(ctx, client, typ)
 		if err != nil {
 			return nil, fmt.Errorf("get databroker records for type %s: %w", typ, err)
 		}
@@ -54,21 +54,18 @@ func (c *service) GetDatabrokerRecords(
 	return rsb, nil
 }
 
-func (c *service) getDatabrokerRecords(ctx context.Context, typ string) (RecordSet[DatabrokerRecord], error) {
-	stream, err := c.config.databrokerClient.SyncLatest(ctx, &databroker.SyncLatestRequest{
-		Type: typ,
-	})
+func getDatabrokerRecords(
+	ctx context.Context,
+	client databroker.DataBrokerServiceClient,
+	typ string,
+) (RecordSet[DatabrokerRecord], error) {
+	stream, err := client.SyncLatest(ctx, &databroker.SyncLatestRequest{Type: typ})
 	if err != nil {
 		return nil, fmt.Errorf("sync latest databroker: %w", err)
 	}
 
 	recordSet := make(RecordSet[DatabrokerRecord])
 	for {
-		err = c.databrokerRateLimit.Wait(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("wait for databroker rate limit: %w", err)
-		}
-
 		res, err := stream.Recv()
 		if errors.Is(err, io.EOF) {
 			break
@@ -81,57 +78,4 @@ func (c *service) getDatabrokerRecords(ctx context.Context, typ string) (RecordS
 		}
 	}
 	return recordSet, nil
-}
-
-// DatabrokerChangeSet is a set of databroker changes.
-type DatabrokerChangeSet struct {
-	now     *timestamppb.Timestamp
-	updates []*databroker.Record
-}
-
-// NewDatabrokerChangeSet creates a new databroker change set.
-func NewDatabrokerChangeSet() *DatabrokerChangeSet {
-	return &DatabrokerChangeSet{
-		now: timestamppb.Now(),
-	}
-}
-
-// Remove adds a record to the change set.
-func (cs *DatabrokerChangeSet) Remove(typ string, id string) {
-	cs.updates = append(cs.updates, &databroker.Record{
-		Type:      typ,
-		Id:        id,
-		DeletedAt: cs.now,
-	})
-}
-
-// Upsert adds a record to the change set.
-func (cs *DatabrokerChangeSet) Upsert(record *databroker.Record) {
-	cs.updates = append(cs.updates, &databroker.Record{
-		Type: record.Type,
-		Id:   record.Id,
-		Data: record.Data,
-	})
-}
-
-func (c *service) ApplyChanges(ctx context.Context, changes *DatabrokerChangeSet) error {
-	updates := databroker.OptimumPutRequestsFromRecords(changes.updates)
-	for _, req := range updates {
-		err := c.databrokerRateLimit.Wait(ctx)
-		if err != nil {
-			return fmt.Errorf("wait for databroker rate limit: %w", err)
-		}
-		_, err = c.config.databrokerClient.Put(ctx, req)
-		if err != nil {
-			return fmt.Errorf("put databroker record: %w", err)
-		}
-	}
-	return nil
-}
-
-// PurgeRecordsNotInList removes databroker records that existed in
-// the bundles, and were applied to the databroker, but no longer present in the bundle list.
-func (c *service) PurgeRecordsNotInList(_ context.Context) error {
-	// TODO: implement
-	return nil
 }
