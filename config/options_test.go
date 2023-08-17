@@ -341,6 +341,27 @@ func Test_parsePolicyFile(t *testing.T) {
 	}
 }
 
+func Test_decodeSANMatcher(t *testing.T) {
+	// Verify that config file parsing will decode the SANMatcher type.
+	const yaml = `
+downstream_mtls:
+  match_subject_alt_names:
+    - dns: 'example-1\..*'
+    - dns: '.*\.example-2'
+`
+	cfg := filepath.Join(t.TempDir(), "config.yaml")
+	err := os.WriteFile(cfg, []byte(yaml), 0644)
+	require.NoError(t, err)
+
+	o, err := optionsFromViper(cfg)
+	require.NoError(t, err)
+
+	assert.Equal(t, []SANMatcher{
+		{Type: SANTypeDNS, Pattern: `example-1\..*`},
+		{Type: SANTypeDNS, Pattern: `.*\.example-2`},
+	}, o.DownstreamMTLS.MatchSubjectAltNames)
+}
+
 func Test_Checksum(t *testing.T) {
 	o := NewDefaultOptions()
 
@@ -736,6 +757,62 @@ func TestDeprecatedClientCAOptions(t *testing.T) {
 `,
 			logOutput.String())
 	})
+}
+
+func TestHasAnyDownstreamMTLSClientCA(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		label    string
+		opts     *Options
+		expected bool
+	}{
+		{"zero", &Options{}, false},
+		{"default", NewDefaultOptions(), false},
+		{"no client CAs", &Options{
+			Policies: []Policy{
+				{From: "https://example.com/one"},
+				{From: "https://example.com/two"},
+				{From: "https://example.com/three"},
+			},
+		}, false},
+		{"global client CA only", &Options{
+			DownstreamMTLS: DownstreamMTLSSettings{CA: "ZmFrZSBDQQ=="},
+			Policies: []Policy{
+				{From: "https://example.com/one"},
+				{From: "https://example.com/two"},
+				{From: "https://example.com/three"},
+			},
+		}, true},
+		{"per-route CA only", &Options{
+			Policies: []Policy{
+				{From: "https://example.com/one"},
+				{
+					From:                  "https://example.com/two",
+					TLSDownstreamClientCA: "ZmFrZSBDQQ==",
+				},
+				{From: "https://example.com/three"},
+			},
+		}, true},
+		{"both global and per-route client CAs", &Options{
+			DownstreamMTLS: DownstreamMTLSSettings{CA: "ZmFrZSBDQQ=="},
+			Policies: []Policy{
+				{From: "https://example.com/one"},
+				{
+					From:                  "https://example.com/two",
+					TLSDownstreamClientCA: "ZmFrZSBDQQ==",
+				},
+				{From: "https://example.com/three"},
+			},
+		}, true},
+	}
+	for i := range cases {
+		c := &cases[i]
+		t.Run(c.label, func(t *testing.T) {
+			actual := c.opts.HasAnyDownstreamMTLSClientCA()
+			assert.Equal(t, c.expected, actual)
+		})
+	}
 }
 
 func TestOptions_DefaultURL(t *testing.T) {
