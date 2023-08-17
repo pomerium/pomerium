@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1692296736461,
+  "lastUpdate": 1692299933543,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -63528,6 +63528,38 @@ window.BENCHMARK_DATA = {
             "value": 8285718,
             "unit": "ns/op",
             "extra": "134 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "47b7a5d74684672f385cc332b5ed2ab4952bfbd6",
+          "message": "add integration test for Pomerium JWT",
+          "timestamp": "2023-08-16T10:08:06Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4472/commits/47b7a5d74684672f385cc332b5ed2ab4952bfbd6"
+        },
+        "date": 1692299927737,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13952702,
+            "unit": "ns/op",
+            "extra": "80 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9167223,
+            "unit": "ns/op",
+            "extra": "118 times\n2 procs"
           }
         ]
       }
