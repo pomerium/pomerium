@@ -131,7 +131,7 @@ func (c *service) syncBundle(ctx context.Context, key string) error {
 	}()
 
 	conditional := cached.GetDownloadConditional()
-	log.Ctx(ctx).Info().Str("id", key).Any("conditional", conditional).Msg("downloading bundle")
+	log.Ctx(ctx).Debug().Str("id", key).Any("conditional", conditional).Msg("downloading bundle")
 
 	result, err := c.config.api.DownloadClusterResourceBundle(ctx, fd, key, conditional)
 	if err != nil {
@@ -139,21 +139,21 @@ func (c *service) syncBundle(ctx context.Context, key string) error {
 	}
 
 	if result.NotModified {
-		log.Ctx(ctx).Info().Str("bundle", key).Msg("bundle not changed")
+		log.Ctx(ctx).Debug().Str("bundle", key).Msg("bundle not changed")
 		return nil
 	}
 
-	log.Ctx(ctx).Info().Str("bundle", key).
+	log.Ctx(ctx).Debug().Str("bundle", key).
 		Interface("cached-entry", cached).
 		Interface("current-entry", result.DownloadConditional).
-		Msg("bundle changed")
+		Msg("bundle updated")
 
 	_, err = fd.Seek(0, io.SeekStart)
 	if err != nil {
 		return fmt.Errorf("seek to start: %w", err)
 	}
 
-	bundleRecordTypes, err := c.syncBundleToDatabroker(ctx, fd)
+	bundleRecordTypes, err := c.syncBundleToDatabroker(ctx, fd, cached.GetRecordTypes())
 	if err != nil {
 		return fmt.Errorf("apply bundle to databroker: %w", err)
 	}
@@ -177,32 +177,39 @@ func (c *service) syncBundle(ctx context.Context, key string) error {
 	return nil
 }
 
-func (c *service) syncBundleToDatabroker(ctx context.Context, src io.Reader) ([]string, error) {
+func strUnion(a, b []string) []string {
+	m := make(map[string]struct{}, len(a)+len(b))
+	for _, s := range a {
+		m[s] = struct{}{}
+	}
+	for _, s := range b {
+		m[s] = struct{}{}
+	}
+
+	out := make([]string, 0, len(m))
+	for s := range m {
+		out = append(out, s)
+	}
+	return out
+}
+
+func (c *service) syncBundleToDatabroker(ctx context.Context, src io.Reader, currentRecordTypes []string) ([]string, error) {
 	bundleRecords, err := ReadBundleRecords(src)
 	if err != nil {
 		return nil, fmt.Errorf("read bundle records: %w", err)
 	}
 
-	databrokerRecords, err := c.GetDatabrokerRecords(ctx, bundleRecords.RecordTypes())
+	databrokerRecords, err := GetDatabrokerRecords(ctx,
+		c.config.databrokerClient,
+		strUnion(bundleRecords.RecordTypes(), currentRecordTypes),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("get databroker records: %w", err)
 	}
 
-	updates := NewDatabrokerChangeSet()
-
-	for _, rec := range databrokerRecords.GetRemoved(bundleRecords).Flatten() {
-		updates.Remove(rec.GetType(), rec.GetID())
-	}
-	for _, rec := range databrokerRecords.GetModified(bundleRecords).Flatten() {
-		updates.Upsert(rec.V)
-	}
-	for _, rec := range databrokerRecords.GetAdded(bundleRecords).Flatten() {
-		updates.Upsert(rec.V)
-	}
-
-	err = c.ApplyChanges(ctx, updates)
+	err = Reconcile(ctx, c.config.databrokerClient, bundleRecords, databrokerRecords)
 	if err != nil {
-		return nil, fmt.Errorf("apply databroker changes: %w", err)
+		return nil, fmt.Errorf("reconcile databroker records: %w", err)
 	}
 
 	return bundleRecords.RecordTypes(), nil
