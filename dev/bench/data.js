@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1692316722006,
+  "lastUpdate": 1692376728291,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -63818,6 +63818,42 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 10530979,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "379abecab138e28878c1f92d36ddd063b07db87c",
+          "message": "add integration test for https IP address route (#4476)\n\nUpdate the integration test libsonnet templates to assign a fixed IP \r\naddress to the trusted-httpdetails service. This requires also assigning\r\na fixed IP subnet to the docker network.\r\n\r\nConfigure a route with a 'to' URL using https and this fixed IP address. \r\nAdd a corresponding certificate with the IP address. Finally, add a test\r\ncase that makes a request to this route.",
+          "timestamp": "2023-08-18T09:32:21-07:00",
+          "tree_id": "da7f36f6237ac23d2e96e2069cfcc0245dfe0edc",
+          "url": "https://github.com/pomerium/pomerium/commit/379abecab138e28878c1f92d36ddd063b07db87c"
+        },
+        "date": 1692376721691,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18237650,
+            "unit": "ns/op",
+            "extra": "60 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11697832,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
           }
