@@ -96,8 +96,8 @@ local ParseURL(rawURL) =
 local ComposeService(name, definition, additionalAliases=[]) =
   {
     [name]: definition {
-      networks: {
-        main: {
+      networks+: {
+        main+: {
           aliases: [name] + additionalAliases,
         },
       },
