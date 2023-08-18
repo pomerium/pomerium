@@ -4,8 +4,9 @@ local Variations() =
   [
     {
       name: 'trusted',
-      cert: importstr '../files/trusted.pem',
-      key: importstr '../files/trusted-key.pem',
+      cert: importstr '../files/trusted-sans.pem',
+      key: importstr '../files/trusted-sans-key.pem',
+      ipv4Address: '172.20.0.50',
     },
     {
       name: 'trusted-1',
@@ -60,6 +61,11 @@ function() {
         utils.ComposeService(variation.name + '-' + suffix, {
           image: image,
           command: Command(variation),
+          [if std.get(variation, 'ipv4Address') != null then 'networks']: {
+            main: {
+              ipv4_address: variation.ipv4Address,
+            }
+          },
         }) +
         utils.ComposeService(variation.name + '-' + suffix + '-ready', {
           image: 'jwilder/dockerize:0.6.1',
