@@ -10,7 +10,11 @@ function(idp) utils.Merge([
   (import '../backends/websocket-echo.libsonnet')().compose,
   {
     networks: {
-      main: {},
+      main: {
+        ipam: {
+          config: [{subnet: "172.20.0.0/16"}],
+        },
+      },
     },
   },
 ])
