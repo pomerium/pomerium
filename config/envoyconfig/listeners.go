@@ -106,17 +106,15 @@ func getAllCertificates(cfg *config.Config) ([]tls.Certificate, error) {
 	return append(allCertificates, *wc), nil
 }
 
-func (b *Builder) buildTLSSocket(ctx context.Context, cfg *config.Config, certs []tls.Certificate) (*envoy_config_core_v3.TransportSocket, error) {
-	tlsContext, err := b.buildDownstreamTLSContextMulti(ctx, cfg, certs)
-	if err != nil {
-		return nil, err
-	}
+func (b *Builder) buildTLSSocket(
+	tlsContext *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext,
+) *envoy_config_core_v3.TransportSocket {
 	return &envoy_config_core_v3.TransportSocket{
 		Name: "tls",
 		ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
 			TypedConfig: marshalAny(tlsContext),
 		},
-	}, nil
+	}
 }
 
 func (b *Builder) buildMainListener(
@@ -131,41 +129,17 @@ func (b *Builder) buildMainListener(
 
 	if cfg.Options.InsecureServer {
 		li.Address = buildAddress(cfg.Options.Addr, 80)
-
-		filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
-		if err != nil {
-			return nil, err
-		}
-
-		li.FilterChains = []*envoy_config_listener_v3.FilterChain{{
-			Filters: []*envoy_config_listener_v3.Filter{
-				filter,
-			},
-		}}
 	} else {
 		li.Address = buildAddress(cfg.Options.Addr, 443)
 		li.ListenerFilters = append(li.ListenerFilters, TLSInspectorFilter())
-
-		allCertificates, err := getAllCertificates(cfg)
-		if err != nil {
-			return nil, err
-		}
-
-		filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
-		if err != nil {
-			return nil, err
-		}
-		filterChain := &envoy_config_listener_v3.FilterChain{
-			Filters: []*envoy_config_listener_v3.Filter{filter},
-		}
-		li.FilterChains = append(li.FilterChains, filterChain)
-
-		sock, err := b.buildTLSSocket(ctx, cfg, allCertificates)
-		if err != nil {
-			return nil, fmt.Errorf("error building TLS socket: %w", err)
-		}
-		filterChain.TransportSocket = sock
 	}
+
+	filterChains, err := b.buildMainHTTPConnectionManagerFilterChains(ctx, cfg, fullyStatic)
+	if err != nil {
+		return nil, err
+	}
+	li.FilterChains = filterChains
+
 	return li, nil
 }
 
@@ -248,11 +222,140 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 	return li, nil
 }
 
+func (b *Builder) buildMainHTTPConnectionManagerFilterChains(
+	ctx context.Context,
+	cfg *config.Config,
+	fullyStatic bool,
+) ([]*envoy_config_listener_v3.FilterChain, error) {
+	mainFilter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.Options.InsecureServer {
+		return []*envoy_config_listener_v3.FilterChain{{
+			Filters: []*envoy_config_listener_v3.Filter{mainFilter},
+		}}, nil
+	}
+
+	allCertificates, err := getAllCertificates(cfg)
+	if err != nil {
+		return nil, err
+	}
+	envoyCerts, err := b.envoyCertificates(ctx, allCertificates)
+	if err != nil {
+		return nil, err
+	}
+
+	filterChains := make([]*envoy_config_listener_v3.FilterChain, 0, 2)
+
+	if useSeparateAuthenticateFilterChain(cfg) {
+		authenticateURL, err := cfg.Options.GetAuthenticateURL()
+		if err != nil {
+			return nil, err
+		}
+		authenticateFilter, err := b.buildAuthenticateHTTPConnectionManagerFilter(
+			ctx, cfg, authenticateURL.Host)
+		if err != nil {
+			return nil, err
+		}
+
+		// Note: we do not set any downstream validation context on this filter
+		// chain's transport socket.
+		tlsContext := b.buildDownstreamTLSContextMulti(cfg, envoyCerts)
+
+		filterChains = append(filterChains, &envoy_config_listener_v3.FilterChain{
+			FilterChainMatch: &envoy_config_listener_v3.FilterChainMatch{
+				ServerNames: []string{authenticateURL.Hostname()},
+			},
+			Filters:         []*envoy_config_listener_v3.Filter{authenticateFilter},
+			TransportSocket: b.buildTLSSocket(tlsContext),
+		})
+	}
+
+	tlsContext := b.buildDownstreamTLSContextMulti(cfg, envoyCerts)
+	b.buildDownstreamValidationContext(ctx, tlsContext, cfg)
+	filterChains = append(filterChains, &envoy_config_listener_v3.FilterChain{
+		Filters:         []*envoy_config_listener_v3.Filter{mainFilter},
+		TransportSocket: b.buildTLSSocket(tlsContext),
+	})
+	return filterChains, nil
+}
+
+// Returns true if we should build a separate filter chain for the authenticate
+// service. This is desirable when downstream mTLS is enabled and the
+// enforcement mode is not set to 'reject_connection', because it avoids an
+// unnecessary client certificate prompt during login.
+// See https://github.com/pomerium/pomerium/issues/4364 for more context.
+func useSeparateAuthenticateFilterChain(cfg *config.Config) bool {
+	// This is never necessary when using the hosted authenticate service.
+	authenticateURL, err := cfg.Options.GetAuthenticateURL()
+	if err != nil || urlutil.IsHostedAuthenticateDomain(authenticateURL.Hostname()) {
+		return false
+	}
+
+	return !cfg.Options.InsecureServer && config.IsAuthenticate(cfg.Options.Services) &&
+		cfg.Options.HasAnyDownstreamMTLSClientCA() &&
+		cfg.Options.DownstreamMTLS.GetEnforcement() != config.MTLSEnforcementRejectConnection
+}
+
+func (b *Builder) buildAuthenticateHTTPConnectionManagerFilter(
+	ctx context.Context, cfg *config.Config, host string,
+) (*envoy_config_listener_v3.Filter, error) {
+	mgr, err := b.buildMainHTTPConnectionManagerBase(cfg)
+	if err != nil {
+		return nil, err
+	}
+	vh, err := b.buildVirtualHost(cfg.Options, host, host)
+	if err != nil {
+		return nil, err
+	}
+	rc, err := b.buildRouteConfiguration("authenticate", []*envoy_config_route_v3.VirtualHost{vh})
+	if err != nil {
+		return nil, err
+	}
+	mgr.RouteSpecifier = &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
+		RouteConfig: rc,
+	}
+	return HTTPConnectionManagerFilter(mgr), nil
+}
+
 func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	ctx context.Context,
 	cfg *config.Config,
 	fullyStatic bool,
 ) (*envoy_config_listener_v3.Filter, error) {
+	mgr, err := b.buildMainHTTPConnectionManagerBase(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if fullyStatic {
+		routeConfiguration, err := b.buildMainRouteConfiguration(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		mgr.RouteSpecifier = &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
+			RouteConfig: routeConfiguration,
+		}
+	} else {
+		mgr.RouteSpecifier = &envoy_http_connection_manager.HttpConnectionManager_Rds{
+			Rds: &envoy_http_connection_manager.Rds{
+				ConfigSource: &envoy_config_core_v3.ConfigSource{
+					ResourceApiVersion:    envoy_config_core_v3.ApiVersion_V3,
+					ConfigSourceSpecifier: &envoy_config_core_v3.ConfigSource_Ads{},
+				},
+				RouteConfigName: "main",
+			},
+		}
+	}
+
+	return HTTPConnectionManagerFilter(mgr), nil
+}
+
+func (b *Builder) buildMainHTTPConnectionManagerBase(
+	cfg *config.Config,
+) (*envoy_http_connection_manager.HttpConnectionManager, error) {
 	var grpcClientTimeout *durationpb.Duration
 	if cfg.Options.GRPCClientTimeout != 0 {
 		grpcClientTimeout = durationpb.New(cfg.Options.GRPCClientTimeout)
@@ -280,7 +383,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		return nil, err
 	}
 
-	mgr := &envoy_http_connection_manager.HttpConnectionManager{
+	return &envoy_http_connection_manager.HttpConnectionManager{
 		AlwaysSetRequestIdInResponse: true,
 		CodecType:                    cfg.Options.GetCodecType().ToEnvoy(),
 		StatPrefix:                   "ingress",
@@ -302,29 +405,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		XffNumTrustedHops: cfg.Options.XffNumTrustedHops,
 		LocalReplyConfig:  b.buildLocalReplyConfig(cfg.Options),
 		NormalizePath:     wrapperspb.Bool(true),
-	}
-
-	if fullyStatic {
-		routeConfiguration, err := b.buildMainRouteConfiguration(ctx, cfg)
-		if err != nil {
-			return nil, err
-		}
-		mgr.RouteSpecifier = &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
-			RouteConfig: routeConfiguration,
-		}
-	} else {
-		mgr.RouteSpecifier = &envoy_http_connection_manager.HttpConnectionManager_Rds{
-			Rds: &envoy_http_connection_manager.Rds{
-				ConfigSource: &envoy_config_core_v3.ConfigSource{
-					ResourceApiVersion:    envoy_config_core_v3.ApiVersion_V3,
-					ConfigSourceSpecifier: &envoy_config_core_v3.ConfigSource_Ads{},
-				},
-				RouteConfigName: "main",
-			},
-		}
-	}
-
-	return HTTPConnectionManagerFilter(mgr), nil
+	}, nil
 }
 
 func (b *Builder) buildMetricsHTTPConnectionManagerFilter() (*envoy_config_listener_v3.Filter, error) {
@@ -506,26 +587,16 @@ func (b *Builder) envoyCertificates(ctx context.Context, certs []tls.Certificate
 }
 
 func (b *Builder) buildDownstreamTLSContextMulti(
-	ctx context.Context,
 	cfg *config.Config,
-	certs []tls.Certificate,
-) (
-	*envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext,
-	error,
-) {
-	envoyCerts, err := b.envoyCertificates(ctx, certs)
-	if err != nil {
-		return nil, err
-	}
-	dtc := &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
+	certs []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate,
+) *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext {
+	return &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			TlsParams:       tlsParams,
-			TlsCertificates: envoyCerts,
+			TlsCertificates: certs,
 			AlpnProtocols:   getALPNProtos(cfg.Options),
 		},
 	}
-	b.buildDownstreamValidationContext(ctx, dtc, cfg)
-	return dtc, nil
 }
 
 func getALPNProtos(opts *config.Options) []string {
@@ -581,6 +652,9 @@ func (b *Builder) buildDownstreamValidationContext(
 		vc.Crl = b.filemgr.FileDataSource(crlf)
 	}
 
+	if dtc.CommonTlsContext == nil {
+		dtc.CommonTlsContext = &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{}
+	}
 	dtc.CommonTlsContext.ValidationContextType =
 		&envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
 			ValidationContext: vc,

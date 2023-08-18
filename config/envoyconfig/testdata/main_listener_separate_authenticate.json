@@ -1,0 +1,738 @@
+{
+  "address": {
+    "socketAddress": {
+      "address": "::",
+      "ipv4Compat": true,
+      "portValue": 443
+    }
+  },
+  "filterChains": [
+    {
+      "filterChainMatch": {
+        "serverNames": [
+          "authenticate.example.com"
+        ]
+      },
+      "filters": [
+        {
+          "name": "envoy.filters.network.http_connection_manager",
+          "typedConfig": {
+            "@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager",
+            "accessLog": [
+              {
+                "name": "envoy.access_loggers.http_grpc",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.access_loggers.grpc.v3.HttpGrpcAccessLogConfig",
+                  "commonConfig": {
+                    "grpcService": {
+                      "envoyGrpc": {
+                        "clusterName": "pomerium-control-plane-grpc"
+                      }
+                    },
+                    "logName": "ingress-http",
+                    "transportApiVersion": "V3"
+                  }
+                }
+              }
+            ],
+            "alwaysSetRequestIdInResponse": true,
+            "commonHttpProtocolOptions": {
+              "idleTimeout": "300s"
+            },
+            "httpFilters": [
+              {
+                "name": "envoy.filters.http.lua",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
+                  "defaultSourceCode": {
+                    "inlineString": "local function starts_with(str, start)\n    return str:sub(1, #start) == start\nend\n\nfunction envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local metadata = request_handle:metadata()\n\n    local remove_impersonate_headers = metadata:get(\"remove_impersonate_headers\")\n    if remove_impersonate_headers then\n        local to_remove = {}\n        for k, v in pairs(headers) do\n            if starts_with(k, \"impersonate-extra-\") or k == \"impersonate-group\" or k == \"impersonate-user\" then\n                table.insert(to_remove, k)\n            end\n        end\n\n        for k, v in pairs(to_remove) do\n            headers:remove(v)\n        end\n    end\nend\n\nfunction envoy_on_response(response_handle)\nend\n"
+                  }
+                }
+              },
+              {
+                "name": "envoy.filters.http.lua",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
+                  "defaultSourceCode": {
+                    "inlineString": "function envoy_on_request(request_handle)\n    local metadata = request_handle:streamInfo():dynamicMetadata()\n    local ssl = request_handle:streamInfo():downstreamSslConnection()\n    if ssl == nil then\n        return\n    end\n    metadata:set(\"com.pomerium.client-certificate-info\", \"presented\",\n                 ssl:peerCertificatePresented())\n    metadata:set(\"com.pomerium.client-certificate-info\", \"chain\",\n                 ssl:urlEncodedPemEncodedPeerCertificateChain())\nend\n\nfunction envoy_on_response(response_handle) end\n"
+                  }
+                }
+              },
+              {
+                "name": "envoy.filters.http.ext_authz",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz",
+                  "grpcService": {
+                    "envoyGrpc": {
+                      "clusterName": "pomerium-authorize"
+                    },
+                    "timeout": "10s"
+                  },
+                  "metadataContextNamespaces": [
+                    "com.pomerium.client-certificate-info"
+                  ],
+                  "statusOnError": {
+                    "code": "InternalServerError"
+                  },
+                  "transportApiVersion": "V3"
+                }
+              },
+              {
+                "name": "envoy.filters.http.lua",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
+                  "defaultSourceCode": {
+                    "inlineString": "function envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local dynamic_meta = request_handle:streamInfo():dynamicMetadata()\n    if headers:get(\"x-pomerium-set-cookie\") ~= nil then\n        dynamic_meta:set(\"envoy.filters.http.lua\", \"pomerium_set_cookie\",\n                         headers:get(\"x-pomerium-set-cookie\"))\n        headers:remove(\"x-pomerium-set-cookie\")\n    end\nend\n\nfunction envoy_on_response(response_handle)\n    local headers = response_handle:headers()\n    local dynamic_meta = response_handle:streamInfo():dynamicMetadata()\n    local tbl = dynamic_meta:get(\"envoy.filters.http.lua\")\n    if tbl ~= nil and tbl[\"pomerium_set_cookie\"] ~= nil then\n        headers:add(\"set-cookie\", tbl[\"pomerium_set_cookie\"])\n    end\nend\n"
+                  }
+                }
+              },
+              {
+                "name": "envoy.filters.http.lua",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
+                  "defaultSourceCode": {
+                    "inlineString": "function remove_pomerium_cookie(cookie_name, cookie)\n    -- lua doesn't support optional capture groups\n    -- so we replace twice to handle pomerium=xyz at the end of the string\n    cookie = cookie:gsub(cookie_name .. \"=[^;]+; \", \"\")\n    cookie = cookie:gsub(cookie_name .. \"=[^;]+\", \"\")\n    return cookie\nend\n\nfunction has_prefix(str, prefix)\n    return str ~= nil and str:sub(1, #prefix) == prefix\nend\n\nfunction envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local metadata = request_handle:metadata()\n\n    local remove_cookie_name = metadata:get(\"remove_pomerium_cookie\")\n    if remove_cookie_name then\n        local cookie = headers:get(\"cookie\")\n        if cookie ~= nil then\n            newcookie = remove_pomerium_cookie(remove_cookie_name, cookie)\n            headers:replace(\"cookie\", newcookie)\n        end\n    end\n\n    local remove_authorization = metadata:get(\"remove_pomerium_authorization\")\n    if remove_authorization then\n        local authorization = headers:get(\"authorization\")\n        local authorization_prefix = \"Pomerium \"\n        if has_prefix(authorization, authorization_prefix) then\n            headers:remove(\"authorization\")\n        end\n\n        headers:remove('x-pomerium-authorization')\n    end\nend\n\nfunction envoy_on_response(response_handle) end\n"
+                  }
+                }
+              },
+              {
+                "name": "envoy.filters.http.lua",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
+                  "defaultSourceCode": {
+                    "inlineString": "function replace_prefix(str, prefix, value)\n    if str:sub(0, prefix:len()) == prefix then\n        return value..str:sub(prefix:len()+1)\n    end\n    return str\nend\n\nfunction envoy_on_request(request_handle)\nend\n\nfunction envoy_on_response(response_handle)\n    local headers = response_handle:headers()\n    local metadata = response_handle:metadata()\n\n    -- should be in the form:\n    -- [{\n    --   \"header\":\"Location\",\n    --   \"prefix\":\"http://localhost:8000/two/\",\n    --   \"value\":\"http://frontend/one/\"\n    -- }]\n    local rewrite_response_headers = metadata:get(\"rewrite_response_headers\")\n    if rewrite_response_headers then\n        for _, obj in pairs(rewrite_response_headers) do\n            local hdr = headers:get(obj.header)\n            if hdr ~= nil then\n                local newhdr = replace_prefix(hdr, obj.prefix, obj.value)\n                headers:replace(obj.header, newhdr)\n            end\n        end\n    end\nend\n"
+                  }
+                }
+              },
+              {
+                "name": "envoy.filters.http.router",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.filters.http.router.v3.Router"
+                }
+              }
+            ],
+            "httpProtocolOptions": {
+              "headerKeyFormat": {
+                "statefulFormatter": {
+                  "name": "preserve_case",
+                  "typedConfig": {
+                    "@type": "type.googleapis.com/envoy.extensions.http.header_formatters.preserve_case.v3.PreserveCaseFormatterConfig"
+                  }
+                }
+              }
+            },
+            "localReplyConfig": {
+              "mappers": [
+                {
+                  "filter": {
+                    "responseFlagFilter": {}
+                  },
+                  "headersToAdd": [
+                    {
+                      "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                      "header": {
+                        "key": "X-Frame-Options",
+                        "value": "SAMEORIGIN"
+                      }
+                    },
+                    {
+                      "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                      "header": {
+                        "key": "X-XSS-Protection",
+                        "value": "1; mode=block"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            "normalizePath": true,
+            "requestTimeout": "30s",
+            "routeConfig": {
+              "name": "authenticate",
+              "validateClusters": false,
+              "virtualHosts": [
+                {
+                  "domains": [
+                    "authenticate.example.com"
+                  ],
+                  "name": "authenticate.example.com",
+                  "routes": [
+                    {
+                      "match": {
+                        "path": "/ping"
+                      },
+                      "name": "pomerium-path-/ping",
+                      "responseHeadersToAdd": [
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-Frame-Options",
+                            "value": "SAMEORIGIN"
+                          }
+                        },
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-XSS-Protection",
+                            "value": "1; mode=block"
+                          }
+                        }
+                      ],
+                      "route": {
+                        "cluster": "pomerium-control-plane-http"
+                      },
+                      "typedPerFilterConfig": {
+                        "envoy.filters.http.ext_authz": {
+                          "@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+                          "checkSettings": {
+                            "contextExtensions": {
+                              "internal": "true",
+                              "route_id": "0"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "match": {
+                        "path": "/healthz"
+                      },
+                      "name": "pomerium-path-/healthz",
+                      "responseHeadersToAdd": [
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-Frame-Options",
+                            "value": "SAMEORIGIN"
+                          }
+                        },
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-XSS-Protection",
+                            "value": "1; mode=block"
+                          }
+                        }
+                      ],
+                      "route": {
+                        "cluster": "pomerium-control-plane-http"
+                      },
+                      "typedPerFilterConfig": {
+                        "envoy.filters.http.ext_authz": {
+                          "@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+                          "checkSettings": {
+                            "contextExtensions": {
+                              "internal": "true",
+                              "route_id": "0"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "match": {
+                        "path": "/.pomerium"
+                      },
+                      "name": "pomerium-path-/.pomerium",
+                      "responseHeadersToAdd": [
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-Frame-Options",
+                            "value": "SAMEORIGIN"
+                          }
+                        },
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-XSS-Protection",
+                            "value": "1; mode=block"
+                          }
+                        }
+                      ],
+                      "route": {
+                        "cluster": "pomerium-control-plane-http"
+                      },
+                      "typedPerFilterConfig": {
+                        "envoy.filters.http.ext_authz": {
+                          "@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+                          "checkSettings": {
+                            "contextExtensions": {
+                              "internal": "true",
+                              "route_id": "0"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "match": {
+                        "prefix": "/.pomerium/"
+                      },
+                      "name": "pomerium-prefix-/.pomerium/",
+                      "responseHeadersToAdd": [
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-Frame-Options",
+                            "value": "SAMEORIGIN"
+                          }
+                        },
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-XSS-Protection",
+                            "value": "1; mode=block"
+                          }
+                        }
+                      ],
+                      "route": {
+                        "cluster": "pomerium-control-plane-http"
+                      },
+                      "typedPerFilterConfig": {
+                        "envoy.filters.http.ext_authz": {
+                          "@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+                          "checkSettings": {
+                            "contextExtensions": {
+                              "internal": "true",
+                              "route_id": "0"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "match": {
+                        "path": "/.well-known/pomerium"
+                      },
+                      "name": "pomerium-path-/.well-known/pomerium",
+                      "responseHeadersToAdd": [
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-Frame-Options",
+                            "value": "SAMEORIGIN"
+                          }
+                        },
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-XSS-Protection",
+                            "value": "1; mode=block"
+                          }
+                        }
+                      ],
+                      "route": {
+                        "cluster": "pomerium-control-plane-http"
+                      },
+                      "typedPerFilterConfig": {
+                        "envoy.filters.http.ext_authz": {
+                          "@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+                          "checkSettings": {
+                            "contextExtensions": {
+                              "internal": "true",
+                              "route_id": "0"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "match": {
+                        "prefix": "/.well-known/pomerium/"
+                      },
+                      "name": "pomerium-prefix-/.well-known/pomerium/",
+                      "responseHeadersToAdd": [
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-Frame-Options",
+                            "value": "SAMEORIGIN"
+                          }
+                        },
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-XSS-Protection",
+                            "value": "1; mode=block"
+                          }
+                        }
+                      ],
+                      "route": {
+                        "cluster": "pomerium-control-plane-http"
+                      },
+                      "typedPerFilterConfig": {
+                        "envoy.filters.http.ext_authz": {
+                          "@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+                          "checkSettings": {
+                            "contextExtensions": {
+                              "internal": "true",
+                              "route_id": "0"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "match": {
+                        "path": "/robots.txt"
+                      },
+                      "name": "pomerium-path-/robots.txt",
+                      "responseHeadersToAdd": [
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-Frame-Options",
+                            "value": "SAMEORIGIN"
+                          }
+                        },
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-XSS-Protection",
+                            "value": "1; mode=block"
+                          }
+                        }
+                      ],
+                      "route": {
+                        "cluster": "pomerium-control-plane-http"
+                      },
+                      "typedPerFilterConfig": {
+                        "envoy.filters.http.ext_authz": {
+                          "@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+                          "checkSettings": {
+                            "contextExtensions": {
+                              "internal": "true",
+                              "route_id": "0"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "match": {
+                        "path": "/oauth2/callback"
+                      },
+                      "name": "pomerium-path-/oauth2/callback",
+                      "responseHeadersToAdd": [
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-Frame-Options",
+                            "value": "SAMEORIGIN"
+                          }
+                        },
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-XSS-Protection",
+                            "value": "1; mode=block"
+                          }
+                        }
+                      ],
+                      "route": {
+                        "cluster": "pomerium-control-plane-http"
+                      },
+                      "typedPerFilterConfig": {
+                        "envoy.filters.http.ext_authz": {
+                          "@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+                          "checkSettings": {
+                            "contextExtensions": {
+                              "internal": "true",
+                              "route_id": "0"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "match": {
+                        "path": "/"
+                      },
+                      "name": "pomerium-path-/",
+                      "responseHeadersToAdd": [
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-Frame-Options",
+                            "value": "SAMEORIGIN"
+                          }
+                        },
+                        {
+                          "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                          "header": {
+                            "key": "X-XSS-Protection",
+                            "value": "1; mode=block"
+                          }
+                        }
+                      ],
+                      "route": {
+                        "cluster": "pomerium-control-plane-http"
+                      },
+                      "typedPerFilterConfig": {
+                        "envoy.filters.http.ext_authz": {
+                          "@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+                          "checkSettings": {
+                            "contextExtensions": {
+                              "internal": "true",
+                              "route_id": "0"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            "statPrefix": "ingress",
+            "tracing": {
+              "randomSampling": {
+                "value": 0.01
+              }
+            },
+            "useRemoteAddress": true
+          }
+        }
+      ],
+      "transportSocket": {
+        "name": "tls",
+        "typedConfig": {
+          "@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext",
+          "commonTlsContext": {
+            "alpnProtocols": [
+              "h2",
+              "http/1.1"
+            ],
+            "tlsCertificates": [
+              {
+                "certificateChain": {
+                  "filename": "{{ .CertFile }}"
+                },
+                "privateKey": {
+                  "filename": "{{ .KeyFile }}"
+                }
+              }
+            ],
+            "tlsParams": {
+              "cipherSuites": [
+                "ECDHE-ECDSA-AES256-GCM-SHA384",
+                "ECDHE-RSA-AES256-GCM-SHA384",
+                "ECDHE-ECDSA-AES128-GCM-SHA256",
+                "ECDHE-RSA-AES128-GCM-SHA256",
+                "ECDHE-ECDSA-CHACHA20-POLY1305",
+                "ECDHE-RSA-CHACHA20-POLY1305"
+              ],
+              "tlsMinimumProtocolVersion": "TLSv1_2"
+            }
+          }
+        }
+      }
+    },
+    {
+      "filters": [
+        {
+          "name": "envoy.filters.network.http_connection_manager",
+          "typedConfig": {
+            "@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager",
+            "accessLog": [
+              {
+                "name": "envoy.access_loggers.http_grpc",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.access_loggers.grpc.v3.HttpGrpcAccessLogConfig",
+                  "commonConfig": {
+                    "grpcService": {
+                      "envoyGrpc": {
+                        "clusterName": "pomerium-control-plane-grpc"
+                      }
+                    },
+                    "logName": "ingress-http",
+                    "transportApiVersion": "V3"
+                  }
+                }
+              }
+            ],
+            "alwaysSetRequestIdInResponse": true,
+            "commonHttpProtocolOptions": {
+              "idleTimeout": "300s"
+            },
+            "httpFilters": [
+              {
+                "name": "envoy.filters.http.lua",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
+                  "defaultSourceCode": {
+                    "inlineString": "local function starts_with(str, start)\n    return str:sub(1, #start) == start\nend\n\nfunction envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local metadata = request_handle:metadata()\n\n    local remove_impersonate_headers = metadata:get(\"remove_impersonate_headers\")\n    if remove_impersonate_headers then\n        local to_remove = {}\n        for k, v in pairs(headers) do\n            if starts_with(k, \"impersonate-extra-\") or k == \"impersonate-group\" or k == \"impersonate-user\" then\n                table.insert(to_remove, k)\n            end\n        end\n\n        for k, v in pairs(to_remove) do\n            headers:remove(v)\n        end\n    end\nend\n\nfunction envoy_on_response(response_handle)\nend\n"
+                  }
+                }
+              },
+              {
+                "name": "envoy.filters.http.lua",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
+                  "defaultSourceCode": {
+                    "inlineString": "function envoy_on_request(request_handle)\n    local metadata = request_handle:streamInfo():dynamicMetadata()\n    local ssl = request_handle:streamInfo():downstreamSslConnection()\n    if ssl == nil then\n        return\n    end\n    metadata:set(\"com.pomerium.client-certificate-info\", \"presented\",\n                 ssl:peerCertificatePresented())\n    metadata:set(\"com.pomerium.client-certificate-info\", \"chain\",\n                 ssl:urlEncodedPemEncodedPeerCertificateChain())\nend\n\nfunction envoy_on_response(response_handle) end\n"
+                  }
+                }
+              },
+              {
+                "name": "envoy.filters.http.ext_authz",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz",
+                  "grpcService": {
+                    "envoyGrpc": {
+                      "clusterName": "pomerium-authorize"
+                    },
+                    "timeout": "10s"
+                  },
+                  "metadataContextNamespaces": [
+                    "com.pomerium.client-certificate-info"
+                  ],
+                  "statusOnError": {
+                    "code": "InternalServerError"
+                  },
+                  "transportApiVersion": "V3"
+                }
+              },
+              {
+                "name": "envoy.filters.http.lua",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
+                  "defaultSourceCode": {
+                    "inlineString": "function envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local dynamic_meta = request_handle:streamInfo():dynamicMetadata()\n    if headers:get(\"x-pomerium-set-cookie\") ~= nil then\n        dynamic_meta:set(\"envoy.filters.http.lua\", \"pomerium_set_cookie\",\n                         headers:get(\"x-pomerium-set-cookie\"))\n        headers:remove(\"x-pomerium-set-cookie\")\n    end\nend\n\nfunction envoy_on_response(response_handle)\n    local headers = response_handle:headers()\n    local dynamic_meta = response_handle:streamInfo():dynamicMetadata()\n    local tbl = dynamic_meta:get(\"envoy.filters.http.lua\")\n    if tbl ~= nil and tbl[\"pomerium_set_cookie\"] ~= nil then\n        headers:add(\"set-cookie\", tbl[\"pomerium_set_cookie\"])\n    end\nend\n"
+                  }
+                }
+              },
+              {
+                "name": "envoy.filters.http.lua",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
+                  "defaultSourceCode": {
+                    "inlineString": "function remove_pomerium_cookie(cookie_name, cookie)\n    -- lua doesn't support optional capture groups\n    -- so we replace twice to handle pomerium=xyz at the end of the string\n    cookie = cookie:gsub(cookie_name .. \"=[^;]+; \", \"\")\n    cookie = cookie:gsub(cookie_name .. \"=[^;]+\", \"\")\n    return cookie\nend\n\nfunction has_prefix(str, prefix)\n    return str ~= nil and str:sub(1, #prefix) == prefix\nend\n\nfunction envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local metadata = request_handle:metadata()\n\n    local remove_cookie_name = metadata:get(\"remove_pomerium_cookie\")\n    if remove_cookie_name then\n        local cookie = headers:get(\"cookie\")\n        if cookie ~= nil then\n            newcookie = remove_pomerium_cookie(remove_cookie_name, cookie)\n            headers:replace(\"cookie\", newcookie)\n        end\n    end\n\n    local remove_authorization = metadata:get(\"remove_pomerium_authorization\")\n    if remove_authorization then\n        local authorization = headers:get(\"authorization\")\n        local authorization_prefix = \"Pomerium \"\n        if has_prefix(authorization, authorization_prefix) then\n            headers:remove(\"authorization\")\n        end\n\n        headers:remove('x-pomerium-authorization')\n    end\nend\n\nfunction envoy_on_response(response_handle) end\n"
+                  }
+                }
+              },
+              {
+                "name": "envoy.filters.http.lua",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
+                  "defaultSourceCode": {
+                    "inlineString": "function replace_prefix(str, prefix, value)\n    if str:sub(0, prefix:len()) == prefix then\n        return value..str:sub(prefix:len()+1)\n    end\n    return str\nend\n\nfunction envoy_on_request(request_handle)\nend\n\nfunction envoy_on_response(response_handle)\n    local headers = response_handle:headers()\n    local metadata = response_handle:metadata()\n\n    -- should be in the form:\n    -- [{\n    --   \"header\":\"Location\",\n    --   \"prefix\":\"http://localhost:8000/two/\",\n    --   \"value\":\"http://frontend/one/\"\n    -- }]\n    local rewrite_response_headers = metadata:get(\"rewrite_response_headers\")\n    if rewrite_response_headers then\n        for _, obj in pairs(rewrite_response_headers) do\n            local hdr = headers:get(obj.header)\n            if hdr ~= nil then\n                local newhdr = replace_prefix(hdr, obj.prefix, obj.value)\n                headers:replace(obj.header, newhdr)\n            end\n        end\n    end\nend\n"
+                  }
+                }
+              },
+              {
+                "name": "envoy.filters.http.router",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.filters.http.router.v3.Router"
+                }
+              }
+            ],
+            "httpProtocolOptions": {
+              "headerKeyFormat": {
+                "statefulFormatter": {
+                  "name": "preserve_case",
+                  "typedConfig": {
+                    "@type": "type.googleapis.com/envoy.extensions.http.header_formatters.preserve_case.v3.PreserveCaseFormatterConfig"
+                  }
+                }
+              }
+            },
+            "localReplyConfig": {
+              "mappers": [
+                {
+                  "filter": {
+                    "responseFlagFilter": {}
+                  },
+                  "headersToAdd": [
+                    {
+                      "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                      "header": {
+                        "key": "X-Frame-Options",
+                        "value": "SAMEORIGIN"
+                      }
+                    },
+                    {
+                      "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+                      "header": {
+                        "key": "X-XSS-Protection",
+                        "value": "1; mode=block"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            "normalizePath": true,
+            "rds": {
+              "configSource": {
+                "ads": {},
+                "resourceApiVersion": "V3"
+              },
+              "routeConfigName": "main"
+            },
+            "requestTimeout": "30s",
+            "statPrefix": "ingress",
+            "tracing": {
+              "randomSampling": {
+                "value": 0.01
+              }
+            },
+            "useRemoteAddress": true
+          }
+        }
+      ],
+      "transportSocket": {
+        "name": "tls",
+        "typedConfig": {
+          "@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext",
+          "commonTlsContext": {
+            "alpnProtocols": [
+              "h2",
+              "http/1.1"
+            ],
+            "tlsCertificates": [
+              {
+                "certificateChain": {
+                  "filename": "{{ .CertFile }}"
+                },
+                "privateKey": {
+                  "filename": "{{ .KeyFile }}"
+                }
+              }
+            ],
+            "tlsParams": {
+              "cipherSuites": [
+                "ECDHE-ECDSA-AES256-GCM-SHA384",
+                "ECDHE-RSA-AES256-GCM-SHA384",
+                "ECDHE-ECDSA-AES128-GCM-SHA256",
+                "ECDHE-RSA-AES128-GCM-SHA256",
+                "ECDHE-ECDSA-CHACHA20-POLY1305",
+                "ECDHE-RSA-CHACHA20-POLY1305"
+              ],
+              "tlsMinimumProtocolVersion": "TLSv1_2"
+            },
+            "validationContext": {
+              "maxVerifyDepth": 1,
+              "trustChainVerification": "ACCEPT_UNTRUSTED",
+              "trustedCa": {
+                "filename": "{{ .ClientCAFile }}"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "listenerFilters": [
+    {
+      "name": "tls_inspector",
+      "typedConfig": {
+        "@type": "type.googleapis.com/envoy.extensions.filters.listener.tls_inspector.v3.TlsInspector"
+      }
+    }
+  ],
+  "name": "http-ingress",
+  "perConnectionBufferLimitBytes": 32768
+}
