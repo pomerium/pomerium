@@ -40,6 +40,12 @@ local Routes(mode, idp, dns_suffix) =
       to: 'tcp://redis' + dns_suffix + ':6379',
       allow_any_authenticated_user: true,
     },
+    // specify https upstream by IP address
+    {
+      from: 'https://httpdetails-ip-address.localhost.pomerium.io',
+      to: 'https://172.20.0.50:8443',
+      allow_public_unauthenticated_access: true,
+    },
     // tls_skip_verify
     {
       from: 'https://httpdetails.localhost.pomerium.io',

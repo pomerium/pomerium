@@ -411,3 +411,20 @@ func rawJWTPayload(t *testing.T, jwt string) map[string]interface{} {
 	require.NoError(t, err, "JWT payload could not be deserialized")
 	return decoded
 }
+
+func TestUpstreamViaIPAddress(t *testing.T) {
+	// Verify that we can make a successful request to a route with a 'to' URL
+	// that uses https with an IP address.
+	client := getClient(t)
+	res, err := client.Get("https://httpdetails-ip-address.localhost.pomerium.io/")
+	require.NoError(t, err, "unexpected http error")
+	defer res.Body.Close()
+
+	var result struct {
+		Headers  map[string]string `json:"headers"`
+		Protocol string            `json:"protocol"`
+	}
+	err = json.NewDecoder(res.Body).Decode(&result)
+	require.NoError(t, err)
+	assert.Equal(t, "https", result.Protocol)
+}
