@@ -255,7 +255,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilterChains(
 			return nil, err
 		}
 		authenticateFilter, err := b.buildAuthenticateHTTPConnectionManagerFilter(
-			ctx, cfg, authenticateURL.Host)
+			cfg, authenticateURL.Host)
 		if err != nil {
 			return nil, err
 		}
@@ -300,7 +300,7 @@ func useSeparateAuthenticateFilterChain(cfg *config.Config) bool {
 }
 
 func (b *Builder) buildAuthenticateHTTPConnectionManagerFilter(
-	ctx context.Context, cfg *config.Config, host string,
+	cfg *config.Config, host string,
 ) (*envoy_config_listener_v3.Filter, error) {
 	mgr, err := b.buildMainHTTPConnectionManagerBase(cfg)
 	if err != nil {
