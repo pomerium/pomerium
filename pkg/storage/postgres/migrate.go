@@ -144,10 +144,11 @@ var migrations = []func(context.Context, pgx.Tx) error{
 	5: func(ctx context.Context, tx pgx.Tx) error {
 		for _, q := range []string{
 			`CREATE INDEX ON ` + schemaName + `.` + recordsTableName + ` (type)`,
-			`CREATE INDEX ON ` + schemaName + `.` + recordsTableName + ` (id)`,
+			`CREATE INDEX ON ` + schemaName + `.` + recordsTableName + ` (type, version)`,
 			`CREATE INDEX ON ` + schemaName + `.` + recordChangesTableName + ` (modified_at)`,
 			`CREATE INDEX ON ` + schemaName + `.` + recordChangesTableName + ` (version)`,
 			`CREATE INDEX ON ` + schemaName + `.` + recordChangesTableName + ` (type)`,
+			`CREATE INDEX ON ` + schemaName + `.` + recordChangesTableName + ` (type, version)`,
 		} {
 			_, err := tx.Exec(ctx, q)
 			if err != nil {
