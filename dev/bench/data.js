@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1692650546178,
+  "lastUpdate": 1692652811433,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -63984,6 +63984,42 @@ window.BENCHMARK_DATA = {
             "value": 12060030,
             "unit": "ns/op",
             "extra": "97 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3e330bb76ab9b99e74f1a7edc4015d4a95f4f89b",
+          "message": "storage: add indexes for postgres (#4479)\n\n* storage: add indexes for postgres\r\n\r\n* add type, version index",
+          "timestamp": "2023-08-21T15:13:48-06:00",
+          "tree_id": "7015fdd3a14d619633600f7f05d3f0d3df9aaa83",
+          "url": "https://github.com/pomerium/pomerium/commit/3e330bb76ab9b99e74f1a7edc4015d4a95f4f89b"
+        },
+        "date": 1692652805225,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 19928820,
+            "unit": "ns/op",
+            "extra": "62 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12836833,
+            "unit": "ns/op",
+            "extra": "80 times\n2 procs"
           }
         ]
       }
