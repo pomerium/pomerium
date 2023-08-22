@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1692652811433,
+  "lastUpdate": 1692725835831,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -64020,6 +64020,38 @@ window.BENCHMARK_DATA = {
             "value": 12836833,
             "unit": "ns/op",
             "extra": "80 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "a5c91a92aaf5bc37b8f20471aaaf6e8ace534a41",
+          "message": "authorize: check CRLs only for leaf certificates",
+          "timestamp": "2023-08-20T11:53:03Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4480/commits/a5c91a92aaf5bc37b8f20471aaaf6e8ace534a41"
+        },
+        "date": 1692725829947,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15890358,
+            "unit": "ns/op",
+            "extra": "70 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9438180,
+            "unit": "ns/op",
+            "extra": "123 times\n2 procs"
           }
         ]
       }
