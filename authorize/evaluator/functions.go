@@ -175,38 +175,29 @@ func validateClientCertificateChain(
 		return err
 	}
 
-	// Consult CRLs for all CAs in the chain (that is, all certificates except
-	// for the first one). To match Envoy's behavior, if a CRL is provided for
-	// any CA in the chain, CRLs must be provided for all CAs in the chain (see
+	// Consult CRLs only for the first CA in the chain, to match Envoy's
+	// behavior when the only_verify_leaf_cert_crl option is set (see
 	// https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/common.proto).
-	var anyIssuerHasCRL bool
-	var lastIssuerWithoutCRL *x509.Certificate
-	for i := 0; i < len(chain)-1; i++ {
-		cert, issuer := chain[i], chain[i+1]
-		crl := crls[string(issuer.RawSubject)]
-		if crl == nil {
-			lastIssuerWithoutCRL = issuer
-			continue
-		}
-
-		anyIssuerHasCRL = true
-
-		// Is the CRL signature itself valid?
-		if err := crl.CheckSignatureFrom(issuer); err != nil {
-			return fmt.Errorf("CRL signature verification failed for issuer %q: %w",
-				issuer.Subject, err)
-		}
-
-		// Is the certificate listed as revoked in the CRL?
-		for i := range crl.RevokedCertificates {
-			if cert.SerialNumber.Cmp(crl.RevokedCertificates[i].SerialNumber) == 0 {
-				return fmt.Errorf("certificate %q was revoked", cert.Subject)
-			}
-		}
+	if len(chain) < 2 {
+		return nil
+	}
+	cert, issuer := chain[0], chain[1]
+	crl := crls[string(issuer.RawSubject)]
+	if crl == nil {
+		return nil
 	}
 
-	if anyIssuerHasCRL && lastIssuerWithoutCRL != nil {
-		return fmt.Errorf("no CRL provided for issuer %q", lastIssuerWithoutCRL.Subject)
+	// Is the CRL signature itself valid?
+	if err := crl.CheckSignatureFrom(issuer); err != nil {
+		return fmt.Errorf("CRL signature verification failed for issuer %q: %w",
+			issuer.Subject, err)
+	}
+
+	// Is the certificate listed as revoked in the CRL?
+	for i := range crl.RevokedCertificates {
+		if cert.SerialNumber.Cmp(crl.RevokedCertificates[i].SerialNumber) == 0 {
+			return fmt.Errorf("certificate %q was revoked", cert.Subject)
+		}
 	}
 
 	return nil
