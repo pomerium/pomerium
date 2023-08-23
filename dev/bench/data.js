@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1692725835831,
+  "lastUpdate": 1692807207578,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -64052,6 +64052,42 @@ window.BENCHMARK_DATA = {
             "value": 9438180,
             "unit": "ns/op",
             "extra": "123 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c95f1695ec4479f91800e81dac2a53d7e48a9352",
+          "message": "authorize: check CRLs only for leaf certificates (#4480)\n\nSet the Envoy option only_verify_leaf_cert_crl, to avoid a bug where\r\nCRLs cannot be used in combination with an intermediate CA trust root.\r\nUpdate the client certificate validation logic in the authorize service\r\nto match this behavior.",
+          "timestamp": "2023-08-23T09:07:32-07:00",
+          "tree_id": "fe094eb0c027e847bcc4b4d89819fe85c783f3e3",
+          "url": "https://github.com/pomerium/pomerium/commit/c95f1695ec4479f91800e81dac2a53d7e48a9352"
+        },
+        "date": 1692807201153,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16314011,
+            "unit": "ns/op",
+            "extra": "67 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10647639,
+            "unit": "ns/op",
+            "extra": "121 times\n2 procs"
           }
         ]
       }
