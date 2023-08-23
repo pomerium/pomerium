@@ -62,6 +62,9 @@ func Test_Validate(t *testing.T) {
 	missingStorageDSN.DataBrokerStorageType = "redis"
 	badSignoutRedirectURL := testOptions()
 	badSignoutRedirectURL.SignOutRedirectURLString = "--"
+	badCookieSettings := testOptions()
+	badCookieSettings.CookieSameSite = "none"
+	badCookieSettings.CookieSecure = false
 
 	tests := []struct {
 		name     string
@@ -76,6 +79,7 @@ func Test_Validate(t *testing.T) {
 		{"invalid databroker storage type", invalidStorageType, true},
 		{"missing databroker storage dsn", missingStorageDSN, true},
 		{"invalid signout redirect url", badSignoutRedirectURL, true},
+		{"CookieSameSite none with CookieSecure fale", badCookieSettings, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
