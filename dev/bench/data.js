@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1692810977661,
+  "lastUpdate": 1692812874657,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -64120,6 +64120,42 @@ window.BENCHMARK_DATA = {
             "value": 11295473,
             "unit": "ns/op",
             "extra": "94 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5a4acc5cd3a764b9812bb01d0af56a0e7ec7599c",
+          "message": "config: validate cookie_secure option (#4484)\n\nDo not allow the combination of 'cookie_same_site: none' and\r\n'cookie_secure: false'.\r\n\r\nCookies with SameSite=None must also set the Secure option, see\r\nhttps://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#none.",
+          "timestamp": "2023-08-23T10:43:01-07:00",
+          "tree_id": "8c304b1adf2ec479ffc58f4930c74de0618be051",
+          "url": "https://github.com/pomerium/pomerium/commit/5a4acc5cd3a764b9812bb01d0af56a0e7ec7599c"
+        },
+        "date": 1692812868867,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14413522,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8869772,
+            "unit": "ns/op",
+            "extra": "126 times\n2 procs"
           }
         ]
       }
