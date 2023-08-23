@@ -119,6 +119,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 				"alpnProtocols": ["h2", "http/1.1"],
 				"validationContext": {
 					"maxVerifyDepth": 1,
+					"onlyVerifyLeafCertCrl": true,
 					"trustChainVerification": "ACCEPT_UNTRUSTED",
 					"trustedCa": {
 						"filename": "`+clientCAFileName+`"
@@ -151,6 +152,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 				"alpnProtocols": ["h2", "http/1.1"],
 				"validationContext": {
 					"maxVerifyDepth": 1,
+					"onlyVerifyLeafCertCrl": true,
 					"trustedCa": {
 						"filename": "`+clientCAFileName+`"
 					}
@@ -186,6 +188,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 				"alpnProtocols": ["h2", "http/1.1"],
 				"validationContext": {
 					"maxVerifyDepth": 1,
+					"onlyVerifyLeafCertCrl": true,
 					"trustChainVerification": "ACCEPT_UNTRUSTED",
 					"trustedCa": {
 						"filename": "`+clientCAFileName+`"
@@ -209,6 +212,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `{
 			"maxVerifyDepth": 10,
+			"onlyVerifyLeafCertCrl": true,
 			"trustChainVerification": "ACCEPT_UNTRUSTED",
 			"trustedCa": {
 				"filename": "`+clientCAFileName+`"
@@ -220,6 +224,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 			b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `{
+			"onlyVerifyLeafCertCrl": true,
 			"trustChainVerification": "ACCEPT_UNTRUSTED",
 			"trustedCa": {
 				"filename": "`+clientCAFileName+`"
@@ -281,6 +286,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 					"sanType": "URI"
 				}
 			],
+			"onlyVerifyLeafCertCrl": true,
 			"trustChainVerification": "ACCEPT_UNTRUSTED",
 			"trustedCa": {
 				"filename": "`+clientCAFileName+`"

@@ -238,16 +238,6 @@ func Test_isValidClientCertificate(t *testing.T) {
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 	})
-	t.Run("missing CRL", func(t *testing.T) {
-		// If a CRL is provided for any CA, it must be provided for all CAs.
-		valid, err := isValidClientCertificate(testCA, testCRL, ClientCertificateInfo{
-			Presented:     true,
-			Leaf:          testValidIntermediateCert,
-			Intermediates: testIntermediateCA,
-		}, noConstraints)
-		assert.NoError(t, err, "should not return an error")
-		assert.False(t, valid, "should return false")
-	})
 	t.Run("chain too deep", func(t *testing.T) {
 		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
 			Presented:     true,
