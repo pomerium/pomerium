@@ -553,6 +553,7 @@ func (b *Builder) buildDownstreamValidationContext(
 		TrustedCa: b.filemgr.BytesDataSource("client-ca.pem", clientCA),
 		MatchTypedSubjectAltNames: make([]*envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher,
 			0, len(cfg.Options.DownstreamMTLS.MatchSubjectAltNames)),
+		OnlyVerifyLeafCertCrl: true,
 	}
 	for i := range cfg.Options.DownstreamMTLS.MatchSubjectAltNames {
 		vc.MatchTypedSubjectAltNames = append(vc.MatchTypedSubjectAltNames,

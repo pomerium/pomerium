@@ -767,6 +767,8 @@ func (o *Options) Validate() error {
 
 	if err := ValidateCookieSameSite(o.CookieSameSite); err != nil {
 		return fmt.Errorf("config: invalid cookie_same_site: %w", err)
+	} else if !o.CookieSecure && o.GetCookieSameSite() == http.SameSiteNoneMode {
+		return errors.New("config: cannot use cookie_same_site: none with cookie_secure: false")
 	}
 
 	if err := ValidateLogLevel(o.LogLevel); err != nil {
