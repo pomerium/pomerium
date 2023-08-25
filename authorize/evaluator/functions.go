@@ -120,7 +120,7 @@ func isValidClientCertificate(
 	valid := verifyErr == nil
 
 	if verifyErr != nil {
-		log.Debug(context.Background()).Err(verifyErr).Msg("client certificate failed verification: %w")
+		log.Debug(context.Background()).Err(verifyErr).Msg("client certificate failed verification")
 	}
 
 	isValidClientCertificateCache.Add(cacheKey, valid)
