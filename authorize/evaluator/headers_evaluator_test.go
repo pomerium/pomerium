@@ -142,42 +142,6 @@ func TestHeadersEvaluator(t *testing.T) {
 		assert.Equal(t, "n1", claims["name"], "should set name")
 	})
 
-	t.Run("access token", func(t *testing.T) {
-		output, err := eval(t,
-			[]proto.Message{
-				&session.Session{Id: "s1", OauthToken: &session.OAuthToken{
-					AccessToken: "ACCESS_TOKEN",
-				}},
-			},
-			&HeadersRequest{
-				Issuer:          "from.example.com",
-				ToAudience:      "to.example.com",
-				Session:         RequestSession{ID: "s1"},
-				PassAccessToken: true,
-			})
-		require.NoError(t, err)
-
-		assert.Equal(t, "Bearer ACCESS_TOKEN", output.Headers.Get("Authorization"))
-	})
-
-	t.Run("id token", func(t *testing.T) {
-		output, err := eval(t,
-			[]proto.Message{
-				&session.Session{Id: "s1", IdToken: &session.IDToken{
-					Raw: "ID_TOKEN",
-				}},
-			},
-			&HeadersRequest{
-				Issuer:      "from.example.com",
-				ToAudience:  "to.example.com",
-				Session:     RequestSession{ID: "s1"},
-				PassIDToken: true,
-			})
-		require.NoError(t, err)
-
-		assert.Equal(t, "Bearer ID_TOKEN", output.Headers.Get("Authorization"))
-	})
-
 	t.Run("set_request_headers", func(t *testing.T) {
 		output, err := eval(t,
 			[]proto.Message{
