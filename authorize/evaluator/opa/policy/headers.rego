@@ -10,8 +10,6 @@ package pomerium.headers
 #   session:
 #     id: string
 #   to_audience: string
-#   pass_access_token: boolean
-#   pass_id_token: boolean
 #   set_request_headers: map[string]string
 #
 # data:
@@ -195,16 +193,6 @@ routing_key_headers = h {
 	h := [["x-pomerium-routing-key", crypto.sha256(input.session.id)]]
 } else = []
 
-pass_access_token_headers = h {
-	input.pass_access_token
-	h := [["Authorization", concat(" ", ["Bearer", session.oauth_token.access_token])]]
-} else = []
-
-pass_id_token_headers = h {
-	input.pass_id_token
-	h := [["Authorization", concat(" ", ["Bearer", session.id_token.raw])]]
-} else = []
-
 session_id_token = v {
 	v := session.id_token.raw
 } else = ""
@@ -250,11 +238,9 @@ identity_headers := {key: values |
 	h3 := kubernetes_headers
 	h4 := [[k, v] | v := google_cloud_serverless_headers[k]]
 	h5 := routing_key_headers
-	h6 := pass_access_token_headers
-	h7 := pass_id_token_headers
-	h8 := set_request_headers
+	h6 := set_request_headers
 
-	h := array.concat(array.concat(array.concat(array.concat(array.concat(array.concat(array.concat(h1, h2), h3), h4), h5), h6), h7), h8)
+	h := array.concat(array.concat(array.concat(array.concat(array.concat(h1, h2), h3), h4), h5), h6)
 
 	some i
 	[key, v1] := h[i]

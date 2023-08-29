@@ -15,7 +15,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 // HeadersRequest is the input to the headers.rego script.
@@ -27,8 +26,6 @@ type HeadersRequest struct {
 	ToAudience                                string                `json:"to_audience"`
 	Session                                   RequestSession        `json:"session"`
 	ClientCertificate                         ClientCertificateInfo `json:"client_certificate"`
-	PassAccessToken                           bool                  `json:"pass_access_token"`
-	PassIDToken                               bool                  `json:"pass_id_token"`
 	SetRequestHeaders                         map[string]string     `json:"set_request_headers"`
 }
 
@@ -44,8 +41,6 @@ func NewHeadersRequestFromPolicy(policy *config.Policy, http RequestHTTP) *Heade
 		for _, wu := range policy.To {
 			input.ToAudience = "https://" + wu.URL.Hostname()
 		}
-		input.PassAccessToken = policy.GetSetAuthorizationHeader() == configpb.Route_ACCESS_TOKEN
-		input.PassIDToken = policy.GetSetAuthorizationHeader() == configpb.Route_ID_TOKEN
 		input.ClientCertificate = http.ClientCertificate
 		input.SetRequestHeaders = policy.SetRequestHeaders
 	}
