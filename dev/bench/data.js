@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1693322429411,
+  "lastUpdate": 1693325207709,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -64252,6 +64252,42 @@ window.BENCHMARK_DATA = {
             "value": 8767305,
             "unit": "ns/op",
             "extra": "132 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fd84075af16dc490f8f78c118a338ea3f040dcce",
+          "message": "config: remove set_authorization_header option (#4489)\n\nRemove the deprecated set_authorization_header option entirely. Add an\r\nentry to the removedConfigFields map with a link to the relevant\r\nUpgrading page section.",
+          "timestamp": "2023-08-29T09:02:08-07:00",
+          "tree_id": "2cf772511dc909b1d8fdd10fc184e5dd4003b92a",
+          "url": "https://github.com/pomerium/pomerium/commit/fd84075af16dc490f8f78c118a338ea3f040dcce"
+        },
+        "date": 1693325201919,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13747579,
+            "unit": "ns/op",
+            "extra": "84 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8562777,
+            "unit": "ns/op",
+            "extra": "134 times\n2 procs"
           }
         ]
       }
