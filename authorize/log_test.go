@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -62,6 +63,7 @@ func Test_populateLogEvent(t *testing.T) {
 		sessionID: "IMPERSONATE-SESSION-ID",
 		userID:    "IMPERSONATE-USER-ID",
 	}
+	opts := &config.Options{}
 
 	for _, tc := range []struct {
 		field  log.AuthorizeLogField
@@ -93,10 +95,85 @@ func Test_populateLogEvent(t *testing.T) {
 			var buf bytes.Buffer
 			log := zerolog.New(&buf)
 			evt := log.Log()
-			evt = populateLogEvent(ctx, tc.field, evt, checkRequest, tc.s, u, headers, impersonateDetails)
+			evt = populateLogEvent(ctx, tc.field, evt, checkRequest, tc.s, u, headers, impersonateDetails, opts)
 			evt.Send()
 
 			assert.Equal(t, tc.expect, strings.TrimSpace(buf.String()))
+		})
+	}
+}
+
+func Test_getIPAddress(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		label             string
+		socketIP          string
+		xForwardedFor     string
+		xffNumTrustedHops uint32
+		skipXffAppend     bool
+		expected          string
+	}{
+		{"xff_num_trusted_hops=0",
+			"127.0.0.1", "10.2.2.2, 10.1.1.1, 10.0.0.0", 0, false, "127.0.0.1"},
+		{"xff_num_trusted_hops=1",
+			"127.0.0.1", "10.2.2.2, 10.1.1.1, 10.0.0.0", 1, false, "10.1.1.1"},
+		{"xff_num_trusted_hops=2",
+			"127.0.0.1", "10.2.2.2, 10.1.1.1, 10.0.0.0", 2, false, "10.2.2.2"},
+		{"xff_num_trusted_hops=3",
+			"127.0.0.1", "10.2.2.2, 10.1.1.1, 10.0.0.0", 3, false, "127.0.0.1"},
+		{"xff_num_trusted_hops=4",
+			"127.0.0.1", "10.2.2.2, 10.1.1.1, 10.0.0.0", 4, false, "127.0.0.1"},
+
+		{"xff_num_trusted_hops=0 skip_xff_append",
+			"127.0.0.1", "10.2.2.2, 10.1.1.1", 0, true, "127.0.0.1"},
+		{"xff_num_trusted_hops=1 skip_xff_append",
+			"127.0.0.1", "10.2.2.2, 10.1.1.1", 1, true, "10.1.1.1"},
+		{"xff_num_trusted_hops=2 skip_xff_append",
+			"127.0.0.1", "10.2.2.2, 10.1.1.1", 2, true, "10.2.2.2"},
+		{"xff_num_trusted_hops=3 skip_xff_append",
+			"127.0.0.1", "10.2.2.2, 10.1.1.1", 3, true, "127.0.0.1"},
+		{"xff_num_trusted_hops=4 skip_xff_append",
+			"127.0.0.1", "10.2.2.2, 10.1.1.1", 4, true, "127.0.0.1"},
+
+		{"xff_num_trusted_hops int32 overflow",
+			"127.0.0.1", "10.2.2.2, 10.1.1.1, 10.0.0.0", 0x80000000, false, "127.0.0.1"},
+		{"xff_num_trusted_hops uint32 max",
+			"127.0.0.1", "10.2.2.2, 10.1.1.1, 10.0.0.0", 0xffffffff, false, "127.0.0.1"},
+
+		{"empty X-Forwarded-For",
+			"127.0.0.1", "", 1, false, "127.0.0.1"},
+		{"empty X-Forwarded-For skip_xff_append",
+			"127.0.0.1", "", 1, true, "127.0.0.1"},
+	}
+
+	for i := range cases {
+		c := &cases[i]
+		t.Run(c.label, func(t *testing.T) {
+			attributes := &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Headers: map[string]string{
+							"x-forwarded-for": c.xForwardedFor,
+						},
+					},
+				},
+				Source: &envoy_service_auth_v3.AttributeContext_Peer{
+					Address: &envoy_config_core_v3.Address{
+						Address: &envoy_config_core_v3.Address_SocketAddress{
+							SocketAddress: &envoy_config_core_v3.SocketAddress{
+								Address: c.socketIP,
+							},
+						},
+					},
+				},
+			}
+			options := &config.Options{
+				XffNumTrustedHops: c.xffNumTrustedHops,
+				SkipXffAppend:     c.skipXffAppend,
+			}
+			actual := getIPAddress(attributes, options)
+			assert.Equal(t, c.expected, actual)
 		})
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -32,9 +33,10 @@ func (a *Authorize) logAuthorizeCheck(
 	impersonateDetails := a.getImpersonateDetails(ctx, s)
 
 	evt := log.Info(ctx).Str("service", "authorize")
-	fields := a.currentOptions.Load().GetAuthorizeLogFields()
+	currentOptions := a.currentOptions.Load()
+	fields := currentOptions.GetAuthorizeLogFields()
 	for _, field := range fields {
-		evt = populateLogEvent(ctx, field, evt, in, s, u, hdrs, impersonateDetails)
+		evt = populateLogEvent(ctx, field, evt, in, s, u, hdrs, impersonateDetails, currentOptions)
 	}
 	evt = log.HTTPHeaders(evt, fields, hdrs)
 
@@ -152,6 +154,7 @@ func populateLogEvent(
 	u *user.User,
 	hdrs map[string]string,
 	impersonateDetails *impersonateDetails,
+	currentOptions *config.Options,
 ) *zerolog.Event {
 	path, query, _ := strings.Cut(in.GetAttributes().GetRequest().GetHttp().GetPath(), "?")
 
@@ -192,7 +195,7 @@ func populateLogEvent(
 		}
 		return evt
 	case log.AuthorizeLogFieldIP:
-		return evt.Str(string(field), in.GetAttributes().GetSource().GetAddress().GetSocketAddress().GetAddress())
+		return evt.Str(string(field), getIPAddress(in.GetAttributes(), currentOptions))
 	case log.AuthorizeLogFieldMethod:
 		return evt.Str(string(field), in.GetAttributes().GetRequest().GetHttp().GetMethod())
 	case log.AuthorizeLogFieldPath:
@@ -216,4 +219,35 @@ func populateLogEvent(
 	default:
 		return evt
 	}
+}
+
+func getIPAddress(attributes *envoy_service_auth_v3.AttributeContext, cfg *config.Options) string {
+	socketAddress := attributes.GetSource().GetAddress().GetSocketAddress().GetAddress()
+	xForwardedFor := attributes.GetRequest().GetHttp().GetHeaders()["x-forwarded-for"]
+
+	// If XffNumTrustedHops is zero, we should not trust anything in the
+	// X-Forwarded-For header, so return the actual socket address.
+	// If the X-Forwarded-For header is empty, we should not trust it either.
+	if cfg.XffNumTrustedHops == 0 || xForwardedFor == "" {
+		return socketAddress
+	}
+
+	// Parse the X-Forwarded-For header by splitting on the ',' character.
+	addresses := strings.Split(xForwardedFor, ",")
+
+	// Unless SkipXffAppend is set, the last address in X-Forwarded-For was
+	// appended by Envoy, so it shouldn't count as a separate hop.
+	hops := cfg.XffNumTrustedHops
+	if !cfg.SkipXffAppend {
+		hops++
+	}
+
+	// Fall back to the actual socket address if the X-Forwarded-For header has
+	// fewer entries than expected (or if XffNumTrustedHops was set to exactly
+	// the maximum uint32 value and SkipXffAppend is false).
+	lenAddresses := uint32(len(addresses))
+	if hops > lenAddresses || hops == 0 {
+		return socketAddress
+	}
+	return strings.TrimSpace(addresses[lenAddresses-hops])
 }
