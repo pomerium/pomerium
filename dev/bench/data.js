@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1693591701793,
+  "lastUpdate": 1693603121734,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -66140,6 +66140,42 @@ window.BENCHMARK_DATA = {
             "value": 10443238,
             "unit": "ns/op",
             "extra": "97 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f1fc57120844f5af057aa237d4900148b8eb927e",
+          "message": "replace ::set-output in release action (#4493)\n\nUpdate the 'Release' GitHub Action workflow to replace the deprecated\r\n::set-output command with the newer $GITHUB_OUTPUT file mechanism.",
+          "timestamp": "2023-09-01T14:12:37-07:00",
+          "tree_id": "ea3abdf9f0ce1b6dec4e3c1fb634cc9fe22f1815",
+          "url": "https://github.com/pomerium/pomerium/commit/f1fc57120844f5af057aa237d4900148b8eb927e"
+        },
+        "date": 1693603110750,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17685417,
+            "unit": "ns/op",
+            "extra": "72 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12057906,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
