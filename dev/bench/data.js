@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1693612453749,
+  "lastUpdate": 1693612473918,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -66212,6 +66212,42 @@ window.BENCHMARK_DATA = {
             "value": 10426971,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "833622707dc36c4a933692aeb729d55d19b9f2fe",
+          "message": "chore(deps): bump github.com/google/uuid from 1.3.0 to 1.3.1 (#4517)",
+          "timestamp": "2023-09-01T19:50:02-04:00",
+          "tree_id": "3e8fc220b3e2527d2208e225908019a11c86ba52",
+          "url": "https://github.com/pomerium/pomerium/commit/833622707dc36c4a933692aeb729d55d19b9f2fe"
+        },
+        "date": 1693612468496,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14135553,
+            "unit": "ns/op",
+            "extra": "75 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8689564,
+            "unit": "ns/op",
+            "extra": "129 times\n2 procs"
           }
         ]
       }
