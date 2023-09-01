@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1693590994314,
+  "lastUpdate": 1693591043427,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -65772,6 +65772,38 @@ window.BENCHMARK_DATA = {
             "value": 11123024,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "1b112414e098cdd1f34eaad46968726f314afbed",
+          "message": "chore(deps): bump github.com/minio/minio-go/v7 from 7.0.61 to 7.0.63",
+          "timestamp": "2023-09-01T07:15:51Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4527/commits/1b112414e098cdd1f34eaad46968726f314afbed"
+        },
+        "date": 1693591035890,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 22363405,
+            "unit": "ns/op",
+            "extra": "52 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 15128410,
+            "unit": "ns/op",
+            "extra": "72 times\n2 procs"
           }
         ]
       }
