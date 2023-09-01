@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1693585584352,
+  "lastUpdate": 1693585591239,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -65120,6 +65120,38 @@ window.BENCHMARK_DATA = {
             "value": 8476628,
             "unit": "ns/op",
             "extra": "129 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "beb45034eaed42b0f794545ab7291f1da8404984",
+          "message": "chore(deps): bump github.com/openzipkin/zipkin-go from 0.4.1 to 0.4.2",
+          "timestamp": "2023-09-01T07:15:51Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4523/commits/beb45034eaed42b0f794545ab7291f1da8404984"
+        },
+        "date": 1693585585980,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13749334,
+            "unit": "ns/op",
+            "extra": "73 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8468000,
+            "unit": "ns/op",
+            "extra": "133 times\n2 procs"
           }
         ]
       }
