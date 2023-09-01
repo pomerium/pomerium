@@ -69,8 +69,8 @@ jobs:
         id: tagName
         run: |
           TAG=$(git describe --tags --exact-match)
-          echo ::set-output name=tag::${TAG}
-          echo ::set-output name=version::${TAG#v}
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "version=${TAG#v}" >> $GITHUB_OUTPUT
 
       - name: Install Cloudsmith CLI
         run: |
@@ -96,7 +96,7 @@ jobs:
         id: latestTag
         run: |
           LATEST_TAG=$(git tag | grep -vi 'rc' | sort --version-sort | tail -1)
-          echo "::set-output name=tag::${LATEST_TAG}"
+          echo "tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
 
       - name: Publish latest tag
         if: "steps.latestTag.outputs.tag == steps.tagName.outputs.tag"
