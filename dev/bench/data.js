@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1693590819070,
+  "lastUpdate": 1693590888133,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -65576,6 +65576,42 @@ window.BENCHMARK_DATA = {
             "value": 9337899,
             "unit": "ns/op",
             "extra": "121 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3cc20f50a711bf1ccf75c3919e85bdc90787df4c",
+          "message": "chore(deps): bump github.com/jackc/pgx/v5 from 5.4.2 to 5.4.3 (#4531)\n\nBumps [github.com/jackc/pgx/v5](https://github.com/jackc/pgx) from 5.4.2 to 5.4.3.\r\n- [Changelog](https://github.com/jackc/pgx/blob/master/CHANGELOG.md)\r\n- [Commits](https://github.com/jackc/pgx/compare/v5.4.2...v5.4.3)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/jackc/pgx/v5\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-09-01T11:48:28-06:00",
+          "tree_id": "fcd7d310adbe00f45bc65bcea42a080a9dd7b730",
+          "url": "https://github.com/pomerium/pomerium/commit/3cc20f50a711bf1ccf75c3919e85bdc90787df4c"
+        },
+        "date": 1693590881220,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17686630,
+            "unit": "ns/op",
+            "extra": "62 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11959165,
+            "unit": "ns/op",
+            "extra": "86 times\n2 procs"
           }
         ]
       }
