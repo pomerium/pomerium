@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1693924273461,
+  "lastUpdate": 1693924300120,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -66688,6 +66688,42 @@ window.BENCHMARK_DATA = {
             "value": 8396266,
             "unit": "ns/op",
             "extra": "135 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cb9461f9ad06d189726b6e23670bb065e66541ab",
+          "message": "chore(deps): bump docker/setup-buildx-action from 2.9.1 to 2.10.0 (#4498)\n\nBumps [docker/setup-buildx-action](https://github.com/docker/setup-buildx-action) from 2.9.1 to 2.10.0.\r\n- [Release notes](https://github.com/docker/setup-buildx-action/releases)\r\n- [Commits](https://github.com/docker/setup-buildx-action/compare/4c0219f9ac95b02789c1075625400b2acbff50b1...885d1462b80bc1c1c7f0b00334ad271f09369c55)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: docker/setup-buildx-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-09-05T08:26:59-06:00",
+          "tree_id": "4609fe5a0455ff7ebe6444d597a14ecd12714d85",
+          "url": "https://github.com/pomerium/pomerium/commit/cb9461f9ad06d189726b6e23670bb065e66541ab"
+        },
+        "date": 1693924294554,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15759598,
+            "unit": "ns/op",
+            "extra": "70 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10546006,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
