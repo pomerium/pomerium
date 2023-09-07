@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1694100838867,
+  "lastUpdate": 1694100849392,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -67112,6 +67112,38 @@ window.BENCHMARK_DATA = {
             "value": 10962931,
             "unit": "ns/op",
             "extra": "106 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "140d45fcb9a4b0d31fa728221b01f3265db888dc",
+          "message": "chore(deps-dev): bump eslint-config-prettier from 8.3.0 to 9.0.0 in /ui",
+          "timestamp": "2023-09-07T14:25:43Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4509/commits/140d45fcb9a4b0d31fa728221b01f3265db888dc"
+        },
+        "date": 1694100842952,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13698410,
+            "unit": "ns/op",
+            "extra": "79 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8394475,
+            "unit": "ns/op",
+            "extra": "138 times\n2 procs"
           }
         ]
       }
