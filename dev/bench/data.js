@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1694100790149,
+  "lastUpdate": 1694100792034,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -67012,6 +67012,42 @@ window.BENCHMARK_DATA = {
             "value": 12357180,
             "unit": "ns/op",
             "extra": "94 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d01d0748bba2f4aba14b5e6699755bbd0d8b7729",
+          "message": "chore(deps-dev): bump ts-node from 10.4.0 to 10.9.1 in /ui (#4279)\n\nBumps [ts-node](https://github.com/TypeStrong/ts-node) from 10.4.0 to 10.9.1.\r\n- [Release notes](https://github.com/TypeStrong/ts-node/releases)\r\n- [Changelog](https://github.com/TypeStrong/ts-node/blob/main/development-docs/release-template.md)\r\n- [Commits](https://github.com/TypeStrong/ts-node/compare/v10.4.0...v10.9.1)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: ts-node\r\n  dependency-type: direct:development\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-09-07T09:27:49-06:00",
+          "tree_id": "14ea512c420fbb30557a03895f505a90ffc0c957",
+          "url": "https://github.com/pomerium/pomerium/commit/d01d0748bba2f4aba14b5e6699755bbd0d8b7729"
+        },
+        "date": 1694100783402,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15347846,
+            "unit": "ns/op",
+            "extra": "81 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10952893,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
