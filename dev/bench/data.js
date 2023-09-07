@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1694101070303,
+  "lastUpdate": 1694101109982,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -67304,6 +67304,38 @@ window.BENCHMARK_DATA = {
             "value": 12017681,
             "unit": "ns/op",
             "extra": "97 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "a094675cc5409f0cdaa225c9cf38e17c13fc67b2",
+          "message": "chore(deps-dev): bump @trivago/prettier-plugin-sort-imports from 2.0.4 to 4.2.0 in /ui",
+          "timestamp": "2023-09-07T14:25:43Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4422/commits/a094675cc5409f0cdaa225c9cf38e17c13fc67b2"
+        },
+        "date": 1694101104051,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13013928,
+            "unit": "ns/op",
+            "extra": "91 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8233209,
+            "unit": "ns/op",
+            "extra": "135 times\n2 procs"
           }
         ]
       }
