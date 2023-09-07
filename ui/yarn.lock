@@ -452,10 +452,10 @@
   resolved "https://registry.yarnpkg.com/@fontsource/dm-mono/-/dm-mono-5.0.11.tgz#20e4f687d06f19beb32669092e03c2e41e6a5007"
   integrity sha512-vYEGqUVqZeHMphdE/yvTfMOlOPnOykh4ZdcxySjkG0S5CQhJYib5nacwotu4nUUMYnU9OAwoW/Tuf+Fpr8Rwng==
 
-"@fontsource/dm-sans@^5.0.3":
-  version "5.0.3"
-  resolved "https://registry.yarnpkg.com/@fontsource/dm-sans/-/dm-sans-5.0.3.tgz#87f7569a6a0cbeb5f19ddead59973c0a81e0c8e0"
-  integrity sha512-M+Gdza6nQM4OjoEpUXrmbvSoilSUCzOXN6BXpkT8E7kJiyoLuYWs2HvsdmgHDP8mnz2FULWg2iVbYUZX4snxkw==
+"@fontsource/dm-sans@^5.0.11":
+  version "5.0.11"
+  resolved "https://registry.yarnpkg.com/@fontsource/dm-sans/-/dm-sans-5.0.11.tgz#a657c48341b8fe4553526aa922e60cd3d92d50af"
+  integrity sha512-oyhtKiW73+CctPLiXrq9uofnzVZqRxJeWgHqzyJCQlhUdEmwbJEEueeoJ4IkdV/qvvnj/CgjE9YMEITSWVsQ6A==
 
 "@humanwhocodes/config-array@^0.5.0":
   version "0.5.0"
