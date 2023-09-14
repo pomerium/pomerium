@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1694712625421,
+  "lastUpdate": 1694716232890,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -67596,6 +67596,42 @@ window.BENCHMARK_DATA = {
             "value": 9419413,
             "unit": "ns/op",
             "extra": "126 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "01672528cbe013f5ab35a11570acfafdeade0a05",
+          "message": "cryptutil: remove unused functions (#4541)\n\nRemove the unused functions Sign() and Verify().",
+          "timestamp": "2023-09-14T11:25:19-07:00",
+          "tree_id": "7271dde6dc5b67bfff4097c2ef8d0e18e951b86d",
+          "url": "https://github.com/pomerium/pomerium/commit/01672528cbe013f5ab35a11570acfafdeade0a05"
+        },
+        "date": 1694716226068,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13449914,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9295072,
+            "unit": "ns/op",
+            "extra": "140 times\n2 procs"
           }
         ]
       }
