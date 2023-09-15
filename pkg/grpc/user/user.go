@@ -40,7 +40,7 @@ func (x *ServiceAccount) Validate() error {
 	for _, expiresAt := range []*timestamppb.Timestamp{
 		x.GetExpiresAt(),
 	} {
-		if expiresAt.AsTime().Year() > 1 && now.After(expiresAt.AsTime()) {
+		if expiresAt.AsTime().Year() > 1970 && now.After(expiresAt.AsTime()) {
 			return ErrServiceAccountExpired
 		}
 	}

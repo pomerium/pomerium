@@ -99,7 +99,7 @@ func (x *Session) Validate() error {
 		"access_token": x.GetOauthToken().GetExpiresAt(),
 		"id_token":     x.GetIdToken().GetExpiresAt(),
 	} {
-		if expiresAt.AsTime().Year() > 1 && now.After(expiresAt.AsTime()) {
+		if expiresAt.AsTime().Year() > 1970 && now.After(expiresAt.AsTime()) {
 			return fmt.Errorf("%w: %s expired at %s", ErrSessionExpired, name, expiresAt.AsTime())
 		}
 	}
