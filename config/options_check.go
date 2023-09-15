@@ -28,11 +28,12 @@ var reKeyPath = regexp.MustCompile(`\[\d+\]`)
 var (
 	// options that were deprecated in the config
 	removedConfigFields = map[string]string{
-		"idp_service_account":            "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
-		"idp_refresh_directory_timeout":  "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
-		"idp_refresh_directory_interval": "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
-		"idp_qps":                        "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
-		"routes.allowed_groups":          "https://docs.pomerium.com/docs/overview/upgrading#idp-groups-policy",
+		"idp_service_account":             "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
+		"idp_refresh_directory_timeout":   "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
+		"idp_refresh_directory_interval":  "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
+		"idp_qps":                         "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
+		"routes.allowed_groups":           "https://docs.pomerium.com/docs/overview/upgrading#idp-groups-policy",
+		"routes.set_authorization_header": "https://www.pomerium.com/docs/deploy/core/upgrading#set-authorization-header",
 	}
 
 	// mapstructure has issues with embedded protobuf structs that we should ignore
