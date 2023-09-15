@@ -95,9 +95,9 @@ var ErrSessionExpired = fmt.Errorf("session has expired")
 func (x *Session) Validate() error {
 	now := time.Now()
 	for name, expiresAt := range map[string]*timestamppb.Timestamp{
-		"session": x.GetExpiresAt(),
+		"session":      x.GetExpiresAt(),
 		"access_token": x.GetOauthToken().GetExpiresAt(),
-		"id_token": x.GetIdToken().GetExpiresAt(),
+		"id_token":     x.GetIdToken().GetExpiresAt(),
 	} {
 		if expiresAt != nil && now.After(expiresAt.AsTime()) {
 			return fmt.Errorf("%s: %w", name, ErrSessionExpired)
