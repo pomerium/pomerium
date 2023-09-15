@@ -13,6 +13,7 @@ import (
 
 type sessionOrServiceAccount interface {
 	GetUserId() string
+	Validate() error
 }
 
 func getDataBrokerRecord(
@@ -77,6 +78,9 @@ func (a *Authorize) getDataBrokerSessionOrServiceAccount(
 		return nil, err
 	}
 	s = msg.(sessionOrServiceAccount)
+	if err := s.Validate(); err != nil {
+		return nil, err
+	}
 
 	if _, ok := s.(*session.Session); ok {
 		a.accessTracker.TrackSessionAccess(sessionID)
