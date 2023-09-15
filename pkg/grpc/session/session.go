@@ -4,6 +4,7 @@ package session
 import (
 	context "context"
 	"fmt"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -85,4 +86,23 @@ func (x *Session) RemoveDeviceCredentialID(deviceCredentialID string) {
 	x.DeviceCredentials = slices.Filter(x.DeviceCredentials, func(el *Session_DeviceCredential) bool {
 		return el.GetId() != deviceCredentialID
 	})
+}
+
+// ErrSessionExpired indicates the session has expired
+var ErrSessionExpired = fmt.Errorf("session has expired")
+
+// Validate returns an error if the session is not valid.
+func (x *Session) Validate() error {
+	now := time.Now()
+	for _, expiresAt := range []*timestamppb.Timestamp{
+		x.GetExpiresAt(),
+		x.GetOauthToken().GetExpiresAt(),
+		x.GetIdToken().GetExpiresAt(),
+	} {
+		if expiresAt != nil && now.After(expiresAt.AsTime()) {
+			return ErrSessionExpired
+		}
+	}
+
+	return nil
 }

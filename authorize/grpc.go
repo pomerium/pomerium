@@ -55,7 +55,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	if sessionState != nil {
 		s, err = a.getDataBrokerSessionOrServiceAccount(ctx, sessionState.ID, sessionState.DatabrokerRecordVersion)
 		if err != nil {
-			log.Warn(ctx).Err(err).Msg("clearing session due to missing session or service account")
+			log.Warn(ctx).Err(err).Msg("clearing session due to missing or invalid session or service account")
 			sessionState = nil
 		}
 	}
