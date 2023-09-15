@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1694814143401,
+  "lastUpdate": 1694815845696,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -67896,6 +67896,42 @@ window.BENCHMARK_DATA = {
             "value": 8329392,
             "unit": "ns/op",
             "extra": "140 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "23ea48815f65af03e4b625dacea999eae98d2964",
+          "message": "core/authorize: check for expired tokens (#4543)\n\n* core/authorize: check for expired tokens\r\n\r\n* Update pkg/grpc/session/session.go\r\n\r\nCo-authored-by: Denis Mishin <dmishin@pomerium.com>\r\n\r\n* lint\r\n\r\n* fix zero timestamps\r\n\r\n* fix\r\n\r\n---------\r\n\r\nCo-authored-by: Denis Mishin <dmishin@pomerium.com>",
+          "timestamp": "2023-09-15T16:06:13-06:00",
+          "tree_id": "1f62fea2ef4b6c3bc39c30f2ba3ddf77dd87e771",
+          "url": "https://github.com/pomerium/pomerium/commit/23ea48815f65af03e4b625dacea999eae98d2964"
+        },
+        "date": 1694815839575,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12878512,
+            "unit": "ns/op",
+            "extra": "82 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8546517,
+            "unit": "ns/op",
+            "extra": "129 times\n2 procs"
           }
         ]
       }
