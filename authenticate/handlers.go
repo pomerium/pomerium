@@ -143,12 +143,21 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
-		_, err = a.loadIdentityProfile(r, state.cookieCipher)
+		profile, err := a.loadIdentityProfile(r, state.cookieCipher)
 		if err != nil {
 			log.FromRequest(r).Info().
 				Err(err).
 				Str("idp_id", idpID).
 				Msg("authenticate: identity profile load error")
+			return a.reauthenticateOrFail(w, r, err)
+		}
+
+		err = a.validateIdentityProfile(ctx, profile)
+		if err != nil {
+			log.FromRequest(r).Info().
+				Err(err).
+				Str("idp_id", idpID).
+				Msg("authenticate: invalid identity profile")
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
