@@ -99,3 +99,28 @@ func (a *Authenticate) storeIdentityProfile(w http.ResponseWriter, aead cipher.A
 	cookie.Path = "/"
 	return cookieChunker.SetCookie(w, cookie)
 }
+
+func (a *Authenticate) validateIdentityProfile(ctx context.Context, profile *identitypb.Profile) error {
+	authenticator, err := a.cfg.getIdentityProvider(a.options.Load(), profile.GetProviderId())
+	if err != nil {
+		return err
+	}
+
+	oauthToken := new(oauth2.Token)
+	err = json.Unmarshal(profile.GetOauthToken(), oauthToken)
+	if err != nil {
+		return fmt.Errorf("invalid oauth token in profile: %w", err)
+	}
+
+	if !oauthToken.Valid() {
+		return fmt.Errorf("invalid oauth token in profile")
+	}
+
+	var claims identity.SessionClaims
+	err = authenticator.UpdateUserInfo(ctx, oauthToken, &claims)
+	if err != nil {
+		return fmt.Errorf("error updating user info from oauth token: %w", err)
+	}
+
+	return nil
+}
