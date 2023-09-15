@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1694727949986,
+  "lastUpdate": 1694801962698,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -67664,6 +67664,42 @@ window.BENCHMARK_DATA = {
             "value": 9188010,
             "unit": "ns/op",
             "extra": "126 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "723bd91e4b2215f1389514ce81cf6afc197dbcd5",
+          "message": "core/identity: fix slow restart (#4542)",
+          "timestamp": "2023-09-15T12:14:24-06:00",
+          "tree_id": "e43d2750a6b61ac9d564d82f2a9f1375ba6f2950",
+          "url": "https://github.com/pomerium/pomerium/commit/723bd91e4b2215f1389514ce81cf6afc197dbcd5"
+        },
+        "date": 1694801955867,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14926896,
+            "unit": "ns/op",
+            "extra": "73 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9345294,
+            "unit": "ns/op",
+            "extra": "117 times\n2 procs"
           }
         ]
       }
