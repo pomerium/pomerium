@@ -3,8 +3,11 @@ package user
 
 import (
 	context "context"
+	"fmt"
+	"time"
 
 	"google.golang.org/protobuf/types/known/structpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -26,6 +29,23 @@ func GetServiceAccount(ctx context.Context, client databroker.DataBrokerServiceC
 // PutServiceAccount saves a service account to the databroker.
 func PutServiceAccount(ctx context.Context, client databroker.DataBrokerServiceClient, serviceAccount *ServiceAccount) (*databroker.PutResponse, error) {
 	return databroker.Put(ctx, client, serviceAccount)
+}
+
+// ErrServiceAccountExpired indicates the service account has expired.
+var ErrServiceAccountExpired = fmt.Errorf("service account has expired")
+
+// Validate returns an error if the service account is not valid.
+func (x *ServiceAccount) Validate() error {
+	now := time.Now()
+	for _, expiresAt := range []*timestamppb.Timestamp{
+		x.GetExpiresAt(),
+	} {
+		if expiresAt.AsTime().Year() > 1970 && now.After(expiresAt.AsTime()) {
+			return ErrServiceAccountExpired
+		}
+	}
+
+	return nil
 }
 
 // AddClaims adds the flattened claims to the user.
