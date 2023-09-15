@@ -117,6 +117,7 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 	}
 	select {
 	case <-ctx.Done():
+		return ctx.Err()
 	case msg := <-update:
 		mgr.onUpdateRecords(ctx, msg)
 	}
@@ -128,9 +129,9 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 
 	// start refreshing
 	maxWait := time.Minute * 10
-	nextTime := time.Now().Add(maxWait)
+	var nextTime time.Time
 
-	timer := time.NewTimer(time.Until(nextTime))
+	timer := time.NewTimer(0)
 	defer timer.Stop()
 
 	for {
