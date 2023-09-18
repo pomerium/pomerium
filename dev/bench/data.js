@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1695079897174,
+  "lastUpdate": 1695079902001,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -68224,6 +68224,42 @@ window.BENCHMARK_DATA = {
             "value": 14195234,
             "unit": "ns/op",
             "extra": "99 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ad454ba940ba93125ee8eed652a33494877fbb36",
+          "message": "dependabot: also update release Dockerfiles (#4548)",
+          "timestamp": "2023-09-18T16:25:46-07:00",
+          "tree_id": "539c93b398ecbc2679f22e8098bf1e9c946bbec2",
+          "url": "https://github.com/pomerium/pomerium/commit/ad454ba940ba93125ee8eed652a33494877fbb36"
+        },
+        "date": 1695079894487,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18561773,
+            "unit": "ns/op",
+            "extra": "63 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11589119,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
