@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1695080660774,
+  "lastUpdate": 1695080716375,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -69028,6 +69028,38 @@ window.BENCHMARK_DATA = {
             "value": 8789083,
             "unit": "ns/op",
             "extra": "138 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "ab2852e364e8fe82f0327ef3e3069d7cc8a18b6f",
+          "message": "chore(deps): bump go.uber.org/zap from 1.25.0 to 1.26.0",
+          "timestamp": "2023-09-18T09:17:15Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4577/commits/ab2852e364e8fe82f0327ef3e3069d7cc8a18b6f"
+        },
+        "date": 1695080709585,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12951245,
+            "unit": "ns/op",
+            "extra": "90 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8408008,
+            "unit": "ns/op",
+            "extra": "124 times\n2 procs"
           }
         ]
       }
