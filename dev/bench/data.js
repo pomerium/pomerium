@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1695080772591,
+  "lastUpdate": 1695080807471,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -69124,6 +69124,38 @@ window.BENCHMARK_DATA = {
             "value": 8762329,
             "unit": "ns/op",
             "extra": "126 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "28000e3e9cbfb09d0439c4babd3a096eed541756",
+          "message": "chore(deps): bump golang.org/x/oauth2 from 0.11.0 to 0.12.0",
+          "timestamp": "2023-09-18T09:17:15Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4580/commits/28000e3e9cbfb09d0439c4babd3a096eed541756"
+        },
+        "date": 1695080801514,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13591232,
+            "unit": "ns/op",
+            "extra": "80 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8401324,
+            "unit": "ns/op",
+            "extra": "129 times\n2 procs"
           }
         ]
       }
