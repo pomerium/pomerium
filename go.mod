@@ -19,7 +19,7 @@ require (
 	github.com/client9/misspell v0.3.4
 	github.com/cloudflare/circl v1.3.3
 	github.com/coreos/go-oidc/v3 v3.6.0
-	github.com/docker/docker v24.0.2+incompatible
+	github.com/docker/docker v24.0.6+incompatible
 	github.com/envoyproxy/go-control-plane v0.11.1
 	github.com/envoyproxy/protoc-gen-validate v1.0.2
 	github.com/fsnotify/fsnotify v1.6.0
