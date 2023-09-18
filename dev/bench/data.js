@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1694815889432,
+  "lastUpdate": 1695074999057,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -67964,6 +67964,38 @@ window.BENCHMARK_DATA = {
             "value": 9332942,
             "unit": "ns/op",
             "extra": "129 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "964b15279c11d9c3947e0322b39e0e890b40f44b",
+          "message": "ci: remove ca-certificates workaround",
+          "timestamp": "2023-09-18T09:17:15Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4488/commits/964b15279c11d9c3947e0322b39e0e890b40f44b"
+        },
+        "date": 1695074991349,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18059869,
+            "unit": "ns/op",
+            "extra": "64 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11425862,
+            "unit": "ns/op",
+            "extra": "105 times\n2 procs"
           }
         ]
       }
