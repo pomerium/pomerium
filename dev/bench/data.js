@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1695076584850,
+  "lastUpdate": 1695077499982,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -68060,6 +68060,42 @@ window.BENCHMARK_DATA = {
             "value": 10164885,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "30cd8a8472b963259365be6dccb6a4e290e022ce",
+          "message": "ci: remove ca-certificates workaround (#4488)\n\nUpdate our Dockerfiles to debian12 distroless base images and remove the\r\nca-certificates workaround (Debian 12 has dropped the problematic\r\nexpired root certificate).",
+          "timestamp": "2023-09-18T15:47:10-07:00",
+          "tree_id": "a05d61f80d87c67f2f5c94b77f6a25c601b56e6e",
+          "url": "https://github.com/pomerium/pomerium/commit/30cd8a8472b963259365be6dccb6a4e290e022ce"
+        },
+        "date": 1695077494345,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14097795,
+            "unit": "ns/op",
+            "extra": "80 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8767803,
+            "unit": "ns/op",
+            "extra": "135 times\n2 procs"
           }
         ]
       }
