@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1695158392944,
+  "lastUpdate": 1695158408614,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -70404,6 +70404,38 @@ window.BENCHMARK_DATA = {
             "value": 8430844,
             "unit": "ns/op",
             "extra": "140 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "a69362bbc73e24cc41ef8627e6fd6a7fa8cc6cd1",
+          "message": "chore(deps): bump github.com/CAFxX/httpcompression from 0.0.8 to 0.0.9",
+          "timestamp": "2023-09-18T09:17:15Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4572/commits/a69362bbc73e24cc41ef8627e6fd6a7fa8cc6cd1"
+        },
+        "date": 1695158401087,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15266126,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10443723,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
