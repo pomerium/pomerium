@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1695148927659,
+  "lastUpdate": 1695148940320,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -69364,6 +69364,42 @@ window.BENCHMARK_DATA = {
             "value": 8434208,
             "unit": "ns/op",
             "extra": "138 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dc9f1b5def1d6f3231b0fb7c2e20012457948e8c",
+          "message": "chore(deps): bump busybox from `caa382c` to `3fbc632` in /.github (#4549)\n\nBumps busybox from `caa382c` to `3fbc632`.\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: busybox\r\n  dependency-type: direct:production\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-09-19T12:36:09-06:00",
+          "tree_id": "8c72ada92f8f1215b665953283c0a61d0b6c8b32",
+          "url": "https://github.com/pomerium/pomerium/commit/dc9f1b5def1d6f3231b0fb7c2e20012457948e8c"
+        },
+        "date": 1695148932598,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16789582,
+            "unit": "ns/op",
+            "extra": "74 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10924829,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
