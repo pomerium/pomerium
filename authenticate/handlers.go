@@ -266,30 +266,26 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 
 	rawIDToken := a.revokeSession(ctx, w, r)
 
-	redirectString := ""
-	signOutURL, err := options.GetSignOutRedirectURL()
+	signOutURL := ""
+	signOutRedirectURL, err := options.GetSignOutRedirectURL()
 	if err != nil {
 		return err
 	}
-	if signOutURL != nil {
-		redirectString = signOutURL.String()
+	if signOutRedirectURL != nil {
+		signOutURL = signOutRedirectURL.String()
 	}
 	if uri := r.FormValue(urlutil.QueryRedirectURI); uri != "" {
-		redirectString = uri
+		signOutURL = uri
 	}
 
-	endSessionURL, err := authenticator.LogOut()
-	if err == nil && redirectString != "" {
-		params := endSessionURL.Query()
-		params.Add("id_token_hint", rawIDToken)
-		params.Add("post_logout_redirect_uri", redirectString)
-		endSessionURL.RawQuery = params.Encode()
-		redirectString = endSessionURL.String()
-	} else if err != nil && !errors.Is(err, oidc.ErrSignoutNotImplemented) {
-		log.Warn(r.Context()).Err(err).Msg("authenticate.SignOut: failed getting session")
+	if idpSignOutURL, err := authenticator.GetSignOutURL(rawIDToken, signOutURL); err == nil {
+		signOutURL = idpSignOutURL
+	} else if !errors.Is(err, oidc.ErrSignoutNotImplemented) {
+		log.Warn(r.Context()).Err(err).Msg("authenticate: failed to get sign out url for authenticator")
 	}
-	if redirectString != "" {
-		httputil.Redirect(w, r, redirectString, http.StatusFound)
+
+	if signOutURL != "" {
+		httputil.Redirect(w, r, signOutURL, http.StatusFound)
 		return nil
 	}
 	return httputil.NewError(http.StatusOK, errors.New("user logged out"))

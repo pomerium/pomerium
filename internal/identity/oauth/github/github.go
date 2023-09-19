@@ -245,9 +245,9 @@ func (p *Provider) GetSignInURL(state string) (string, error) {
 	return p.Oauth.AuthCodeURL(state, oauth2.AccessTypeOffline), nil
 }
 
-// LogOut is not implemented by github.
-func (p *Provider) LogOut() (*url.URL, error) {
-	return nil, oidc.ErrSignoutNotImplemented
+// GetSignOutURL is not implemented.
+func (p *Provider) GetSignOutURL(idTokenHint, redirectToURL string) (string, error) {
+	return "", oidc.ErrSignoutNotImplemented
 }
 
 // Name returns the provider name.

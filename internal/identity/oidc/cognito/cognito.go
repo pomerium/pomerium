@@ -48,14 +48,30 @@ func New(ctx context.Context, opts *oauth.Options) (*Provider, error) {
 	// https://docs.aws.amazon.com/cognito/latest/developerguide/revocation-endpoint.html
 	p.RevocationURL = cognitoURL.ResolveReference(&url.URL{Path: "/oauth2/revoke"}).String()
 
-	// https://docs.aws.amazon.com/cognito/latest/developerguide/logout-endpoint.html
-	p.EndSessionURL = cognitoURL.ResolveReference(&url.URL{
-		Path: "/logout",
-		RawQuery: url.Values{
-			"client_id":  []string{opts.ClientID},
-			"logout_uri": []string{opts.RedirectURL.ResolveReference(&url.URL{Path: "/"}).String()},
-		}.Encode(),
-	}).String()
-
 	return &p, nil
+}
+
+// GetSignOutURL gets the sign out URL according to https://docs.aws.amazon.com/cognito/latest/developerguide/logout-endpoint.html.
+func (p *Provider) GetSignOutURL(idTokenHint, returnToURL string) (string, error) {
+	oa, err := p.GetOauthConfig()
+	if err != nil {
+		return "", fmt.Errorf("error getting cognito oauth config: %w", err)
+	}
+
+	authURL, err := urlutil.ParseAndValidateURL(oa.Endpoint.AuthURL)
+	if err != nil {
+		return "", fmt.Errorf("error getting cognito endpoint auth url: %w", err)
+	}
+
+	logOutQuery := url.Values{
+		"client_id": []string{oa.ClientID},
+	}
+	if returnToURL != "" {
+		logOutQuery.Set("logout_uri", returnToURL)
+	}
+	logOutURL := authURL.ResolveReference(&url.URL{
+		Path:     "/logout",
+		RawQuery: logOutQuery.Encode(),
+	})
+	return logOutURL.String(), nil
 }
