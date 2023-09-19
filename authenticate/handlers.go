@@ -89,6 +89,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 
 	// routes that don't need a session:
 	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
+	sr.Path("/signed_out").Handler(handlers.SignedOut(handlers.SignedOutData{})).Methods(http.MethodGet)
 
 	// routes that need a session:
 	sr = sr.NewRoute().Subrouter()
@@ -266,16 +267,25 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 
 	rawIDToken := a.revokeSession(ctx, w, r)
 
-	signOutURL := ""
+	authenticateURL, err := options.GetAuthenticateURL()
+	if err != nil {
+		return fmt.Errorf("error getting authenticate url: %w", err)
+	}
+
 	signOutRedirectURL, err := options.GetSignOutRedirectURL()
 	if err != nil {
 		return err
 	}
-	if signOutRedirectURL != nil {
-		signOutURL = signOutRedirectURL.String()
-	}
+
+	var signOutURL string
 	if uri := r.FormValue(urlutil.QueryRedirectURI); uri != "" {
 		signOutURL = uri
+	} else if signOutRedirectURL != nil {
+		signOutURL = signOutRedirectURL.String()
+	} else {
+		signOutURL = authenticateURL.ResolveReference(&url.URL{
+			Path: "/.pomerium/signed_out",
+		}).String()
 	}
 
 	if idpSignOutURL, err := authenticator.GetSignOutURL(rawIDToken, signOutURL); err == nil {
@@ -284,11 +294,8 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 		log.Warn(r.Context()).Err(err).Msg("authenticate: failed to get sign out url for authenticator")
 	}
 
-	if signOutURL != "" {
-		httputil.Redirect(w, r, signOutURL, http.StatusFound)
-		return nil
-	}
-	return httputil.NewError(http.StatusOK, errors.New("user logged out"))
+	httputil.Redirect(w, r, signOutURL, http.StatusFound)
+	return nil
 }
 
 // reauthenticateOrFail starts the authenticate process by redirecting the
