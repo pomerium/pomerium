@@ -56,7 +56,7 @@ require (
 	github.com/prometheus/client_model v0.4.0
 	github.com/prometheus/common v0.44.0
 	github.com/prometheus/procfs v0.11.1
-	github.com/rs/cors v1.9.0
+	github.com/rs/cors v1.10.0
 	github.com/rs/zerolog v1.30.0
 	github.com/shirou/gopsutil/v3 v3.23.8
 	github.com/spf13/viper v1.16.0
