@@ -52,7 +52,7 @@ func New(ctx context.Context, opts *oauth.Options) (*Provider, error) {
 }
 
 // GetSignOutURL gets the sign out URL according to https://docs.aws.amazon.com/cognito/latest/developerguide/logout-endpoint.html.
-func (p *Provider) GetSignOutURL(idTokenHint, returnToURL string) (string, error) {
+func (p *Provider) GetSignOutURL(_, returnToURL string) (string, error) {
 	oa, err := p.GetOauthConfig()
 	if err != nil {
 		return "", fmt.Errorf("error getting cognito oauth config: %w", err)

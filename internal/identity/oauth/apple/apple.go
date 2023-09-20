@@ -104,7 +104,7 @@ func (p *Provider) GetSignInURL(state string) (string, error) {
 }
 
 // GetSignOutURL is not implemented.
-func (p *Provider) GetSignOutURL(idTokenHint, redirectToURL string) (string, error) {
+func (p *Provider) GetSignOutURL(_, _ string) (string, error) {
 	return "", oidc.ErrSignoutNotImplemented
 }
 

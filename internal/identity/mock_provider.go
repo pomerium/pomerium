@@ -39,7 +39,7 @@ func (mp MockProvider) Revoke(_ context.Context, _ *oauth2.Token) error {
 // GetSignInURL is a mocked providers function.
 func (mp MockProvider) GetSignInURL(_ string) (string, error) { return mp.GetSignInURLResponse, nil }
 
-// LogOut is a mocked providers function.
+// GetSignOutURL is a mocked providers function.
 func (mp MockProvider) GetSignOutURL(_, _ string) (string, error) {
 	return mp.GetSignOutURLResponse, mp.GetSignOutURLError
 }
