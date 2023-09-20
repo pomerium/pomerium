@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1695168779764,
+  "lastUpdate": 1695168859872,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -70746,6 +70746,42 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 11884666,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1c997acbfa94cc0d54308144fb59be026bf8121b",
+          "message": "chore(deps): bump distroless/base from `b0216a3` to `46c5b9b` in /.github (#4550)\n\nchore(deps): bump distroless/base in /.github\r\n\r\nBumps distroless/base from `b0216a3` to `46c5b9b`.\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: distroless/base\r\n  dependency-type: direct:production\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-09-19T18:07:50-06:00",
+          "tree_id": "1dd8a6d65122bab846e916ccabe9692caf929785",
+          "url": "https://github.com/pomerium/pomerium/commit/1c997acbfa94cc0d54308144fb59be026bf8121b"
+        },
+        "date": 1695168852166,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17693774,
+            "unit": "ns/op",
+            "extra": "58 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11170401,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
           }
