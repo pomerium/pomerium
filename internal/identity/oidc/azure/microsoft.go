@@ -52,7 +52,8 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 				ClientID: o.ClientID,
 				// If using the common endpoint, the verification provider URI will not match.
 				// https://github.com/pomerium/pomerium/issues/1605
-				SkipIssuerCheck: o.ProviderURL == defaultProviderURL,
+				//SkipIssuerCheck: o.ProviderURL == defaultProviderURL,
+				SkipIssuerCheck: true,
 			})
 		}))
 	if err != nil {
