@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1695168720393,
+  "lastUpdate": 1695168747506,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -70640,6 +70640,42 @@ window.BENCHMARK_DATA = {
             "value": 8776718,
             "unit": "ns/op",
             "extra": "124 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "22cf44402920026f97f3501170bcbc438ca0ad11",
+          "message": "chore(deps): bump github.com/CAFxX/httpcompression from 0.0.8 to 0.0.9 (#4572)\n\nBumps [github.com/CAFxX/httpcompression](https://github.com/CAFxX/httpcompression) from 0.0.8 to 0.0.9.\r\n- [Release notes](https://github.com/CAFxX/httpcompression/releases)\r\n- [Commits](https://github.com/CAFxX/httpcompression/compare/v0.0.8...v0.0.9)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/CAFxX/httpcompression\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-09-19T18:06:22-06:00",
+          "tree_id": "4f83d154981e48beb67bb524b5651c9d90bda7e5",
+          "url": "https://github.com/pomerium/pomerium/commit/22cf44402920026f97f3501170bcbc438ca0ad11"
+        },
+        "date": 1695168739409,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17986906,
+            "unit": "ns/op",
+            "extra": "66 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11027875,
+            "unit": "ns/op",
+            "extra": "112 times\n2 procs"
           }
         ]
       }
