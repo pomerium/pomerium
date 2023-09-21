@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1695220304456,
+  "lastUpdate": 1695332069876,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -70978,6 +70978,42 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 9313696,
+            "unit": "ns/op",
+            "extra": "122 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "sylvain@abstraction.fr",
+            "name": "Sylvain Rabot",
+            "username": "sylr"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7211a8d81909174511f3467eec1be8c6fc8ff4d1",
+          "message": "Add metric request error in log (#4585)\n\nSigned-off-by: Sylvain Rabot <sylvain@abstraction.fr>",
+          "timestamp": "2023-09-21T15:29:35-06:00",
+          "tree_id": "43916dfcf9fc8d30c725e123d10922e4d81d5150",
+          "url": "https://github.com/pomerium/pomerium/commit/7211a8d81909174511f3467eec1be8c6fc8ff4d1"
+        },
+        "date": 1695332063060,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14365519,
+            "unit": "ns/op",
+            "extra": "79 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9712783,
             "unit": "ns/op",
             "extra": "122 times\n2 procs"
           }
