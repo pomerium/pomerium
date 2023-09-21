@@ -28,7 +28,7 @@
     "@fontsource/dm-mono": "^5.0.12",
     "@fontsource/dm-sans": "^5.0.12",
     "@mui/icons-material": "^5.14.9",
-    "@mui/material": "^5.4.0",
+    "@mui/material": "^5.14.10",
     "luxon": "^2.5.2",
     "markdown-to-jsx": "^7.2.1",
     "react": "^17.0.2",
