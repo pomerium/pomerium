@@ -9,7 +9,7 @@ type SignedOutPageProps = {
 const SignedOutPage: FC<SignedOutPageProps> = ({ data }) => {
   return (
     <Container>
-      <Alert color="info">User has been Logged Out</Alert>
+      <Alert color="info">User has been logged out.</Alert>
     </Container>
   );
 };
