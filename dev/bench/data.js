@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1695332549537,
+  "lastUpdate": 1695915996395,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -71180,6 +71180,38 @@ window.BENCHMARK_DATA = {
             "value": 10023326,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "e49612022b389d53eb9793c8070becff9d54eab4",
+          "message": "core/authenticate: refactor idp sign out",
+          "timestamp": "2023-09-28T11:01:53Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4589/commits/e49612022b389d53eb9793c8070becff9d54eab4"
+        },
+        "date": 1695915989659,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12972993,
+            "unit": "ns/op",
+            "extra": "90 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8187917,
+            "unit": "ns/op",
+            "extra": "144 times\n2 procs"
           }
         ]
       }
