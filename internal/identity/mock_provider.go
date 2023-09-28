@@ -2,7 +2,6 @@ package identity
 
 import (
 	"context"
-	"net/url"
 
 	"golang.org/x/oauth2"
 
@@ -11,15 +10,15 @@ import (
 
 // MockProvider provides a mocked implementation of the providers interface.
 type MockProvider struct {
-	AuthenticateResponse oauth2.Token
-	AuthenticateError    error
-	RefreshResponse      oauth2.Token
-	RefreshError         error
-	RevokeError          error
-	GetSignInURLResponse string
-	LogOutResponse       url.URL
-	LogOutError          error
-	UpdateUserInfoError  error
+	AuthenticateResponse  oauth2.Token
+	AuthenticateError     error
+	RefreshResponse       oauth2.Token
+	RefreshError          error
+	RevokeError           error
+	GetSignInURLResponse  string
+	GetSignOutURLResponse string
+	GetSignOutURLError    error
+	UpdateUserInfoError   error
 }
 
 // Authenticate is a mocked providers function.
@@ -40,8 +39,10 @@ func (mp MockProvider) Revoke(_ context.Context, _ *oauth2.Token) error {
 // GetSignInURL is a mocked providers function.
 func (mp MockProvider) GetSignInURL(_ string) (string, error) { return mp.GetSignInURLResponse, nil }
 
-// LogOut is a mocked providers function.
-func (mp MockProvider) LogOut() (*url.URL, error) { return &mp.LogOutResponse, mp.LogOutError }
+// GetSignOutURL is a mocked providers function.
+func (mp MockProvider) GetSignOutURL(_, _ string) (string, error) {
+	return mp.GetSignOutURLResponse, mp.GetSignOutURLError
+}
 
 // UpdateUserInfo is a mocked providers function.
 func (mp MockProvider) UpdateUserInfo(_ context.Context, _ *oauth2.Token, _ interface{}) error {

@@ -1,12 +1,13 @@
 import Box from "@mui/material/Box";
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider } from "@mui/material/styles";
-import React, {FC, useLayoutEffect} from "react";
+import React, { FC, useLayoutEffect } from "react";
 
 import ErrorPage from "./components/ErrorPage";
 import Footer from "./components/Footer";
 import Header from "./components/Header";
 import SignOutConfirmPage from "./components/SignOutConfirmPage";
+import SignedOutPage from "./components/SignedOutPage";
 import { ToolbarOffset } from "./components/ToolbarOffset";
 import UserInfoPage from "./components/UserInfoPage";
 import WebAuthnRegistrationPage from "./components/WebAuthnRegistrationPage";
@@ -27,6 +28,9 @@ const App: FC = () => {
     case "SignOutConfirm":
       body = <SignOutConfirmPage data={data} />;
       break;
+    case "SignedOut":
+      body = <SignedOutPage data={data} />;
+      break;
     case "DeviceEnrolled":
     case "UserInfo":
       body = <UserInfoPage data={data} />;
@@ -38,18 +42,18 @@ const App: FC = () => {
 
   useLayoutEffect(() => {
     const favicon = document.getElementById(
-      'favicon'
+      "favicon"
     ) as HTMLAnchorElement | null;
     if (favicon) {
-      favicon.href = data?.faviconUrl || '/.pomerium/favicon.ico';
+      favicon.href = data?.faviconUrl || "/.pomerium/favicon.ico";
     }
     const extraFaviconLinks = document.getElementsByClassName(
-      'pomerium_favicon'
+      "pomerium_favicon"
     ) as HTMLCollectionOf<HTMLAnchorElement> | null;
     for (const link of extraFaviconLinks) {
-      link.style.display = data?.faviconUrl ? 'none' : '';
+      link.style.display = data?.faviconUrl ? "none" : "";
     }
-  }, [])
+  }, []);
 
   return (
     <ThemeProvider theme={theme}>

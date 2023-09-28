@@ -132,6 +132,10 @@ export type SignOutConfirmPageData = BasePageData & {
   url: string;
 };
 
+export type SignedOutPageData = BasePageData & {
+  page: "SignedOut";
+};
+
 export type UserInfoPageData = BasePageData &
   UserInfoData & {
     page: "UserInfo";
@@ -150,6 +154,7 @@ export type PageData =
   | ErrorPageData
   | DeviceEnrolledPageData
   | SignOutConfirmPageData
+  | SignedOutPageData
   | UserInfoPageData
   | WebAuthnRegistrationPageData;
 
