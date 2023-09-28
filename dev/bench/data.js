@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1695915996395,
+  "lastUpdate": 1695915998471,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -71212,6 +71212,42 @@ window.BENCHMARK_DATA = {
             "value": 8187917,
             "unit": "ns/op",
             "extra": "144 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a0c92896efb766db4d48108d9a615800b3945d23",
+          "message": "core/authenticate: refactor idp sign out (#4582)",
+          "timestamp": "2023-09-28T08:41:19-07:00",
+          "tree_id": "cd9531e49913eba005dbc28fc85c7ef9876bfeea",
+          "url": "https://github.com/pomerium/pomerium/commit/a0c92896efb766db4d48108d9a615800b3945d23"
+        },
+        "date": 1695915989335,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14024692,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12063801,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
