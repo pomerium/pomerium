@@ -103,6 +103,11 @@ func (p *Provider) GetSignInURL(state string) (string, error) {
 	return authURL, nil
 }
 
+// GetSignOutURL is not implemented.
+func (p *Provider) GetSignOutURL(_, _ string) (string, error) {
+	return "", oidc.ErrSignoutNotImplemented
+}
+
 // Authenticate converts an authorization code returned from the identity
 // provider into a token which is then converted into a user session.
 func (p *Provider) Authenticate(ctx context.Context, code string, v identity.State) (*oauth2.Token, error) {
@@ -121,11 +126,6 @@ func (p *Provider) Authenticate(ctx context.Context, code string, v identity.Sta
 	}
 
 	return oauth2Token, nil
-}
-
-// LogOut is not implemented by Apple.
-func (p *Provider) LogOut() (*url.URL, error) {
-	return nil, oidc.ErrSignoutNotImplemented
 }
 
 // Refresh renews a user's session.

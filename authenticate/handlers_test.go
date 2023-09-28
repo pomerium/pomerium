@@ -135,7 +135,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"",
 			"sig",
 			"ts",
-			identity.MockProvider{LogOutResponse: (*uriParseHelper("https://microsoft.com"))},
+			identity.MockProvider{GetSignOutURLResponse: "https://microsoft.com"},
 			&mstore.Store{Encrypted: true, Session: &sessions.State{}},
 			http.StatusFound,
 			"",
@@ -148,7 +148,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"https://signout-redirect-url.example.com",
 			"sig",
 			"ts",
-			identity.MockProvider{LogOutResponse: (*uriParseHelper("https://microsoft.com"))},
+			identity.MockProvider{GetSignOutURLError: oidc.ErrSignoutNotImplemented},
 			&mstore.Store{Encrypted: true, Session: &sessions.State{}},
 			http.StatusFound,
 			"",
@@ -161,7 +161,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"",
 			"sig",
 			"ts",
-			identity.MockProvider{RevokeError: errors.New("OH NO")},
+			identity.MockProvider{GetSignOutURLError: oidc.ErrSignoutNotImplemented, RevokeError: errors.New("OH NO")},
 			&mstore.Store{Encrypted: true, Session: &sessions.State{}},
 			http.StatusFound,
 			"",
@@ -174,7 +174,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"",
 			"sig",
 			"ts",
-			identity.MockProvider{RevokeError: errors.New("OH NO")},
+			identity.MockProvider{GetSignOutURLError: oidc.ErrSignoutNotImplemented, RevokeError: errors.New("OH NO")},
 			&mstore.Store{Encrypted: true, Session: &sessions.State{}},
 			http.StatusFound,
 			"",
@@ -187,23 +187,10 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			"",
 			"sig",
 			"ts",
-			identity.MockProvider{LogOutError: oidc.ErrSignoutNotImplemented},
+			identity.MockProvider{GetSignOutURLError: oidc.ErrSignoutNotImplemented},
 			&mstore.Store{Encrypted: true, Session: &sessions.State{}},
 			http.StatusFound,
 			"",
-		},
-		{
-			"no redirect uri",
-			http.MethodPost,
-			nil,
-			"",
-			"",
-			"sig",
-			"ts",
-			identity.MockProvider{LogOutResponse: (*uriParseHelper("https://microsoft.com"))},
-			&mstore.Store{Encrypted: true, Session: &sessions.State{}},
-			http.StatusOK,
-			"{\"Status\":200}\n",
 		},
 	}
 	for _, tt := range tests {
@@ -253,7 +240,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			}
 			if tt.signoutRedirectURL != "" {
 				loc := w.Header().Get("Location")
-				assert.Contains(t, loc, url.QueryEscape(tt.signoutRedirectURL))
+				assert.Contains(t, loc, tt.signoutRedirectURL)
 			}
 		})
 	}

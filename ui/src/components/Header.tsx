@@ -57,6 +57,8 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
     get(data, "user.claims.picture") ||
     get(data, "profile.claims.picture") ||
     null;
+  const showAvatar =
+    data?.page !== "SignOutConfirm" && data?.page !== "SignedOut";
 
   const handleDrawerOpen = () => {
     setDrawerOpen(true);
@@ -122,9 +124,11 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
           </a>
         )}
         <Box flexGrow={1} />
-        <IconButton color="inherit" onClick={handleMenuOpen}>
-          <Avatar name={userName} url={userPictureUrl} />
-        </IconButton>
+        {showAvatar && (
+          <IconButton color="inherit" onClick={handleMenuOpen}>
+            <Avatar name={userName} url={userPictureUrl} />
+          </IconButton>
+        )}
         <Menu
           onClose={handleMenuClose}
           anchorOrigin={{
