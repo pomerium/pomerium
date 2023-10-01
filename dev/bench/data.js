@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1696177997606,
+  "lastUpdate": 1696178025760,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -71408,6 +71408,38 @@ window.BENCHMARK_DATA = {
             "value": 8189007,
             "unit": "ns/op",
             "extra": "134 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "a99d6c53578e99a9a3888e792b8d9d30cb402917",
+          "message": "chore(deps-dev): bump @types/node from 17.0.14 to 20.8.0 in /ui",
+          "timestamp": "2023-10-01T15:14:17Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4595/commits/a99d6c53578e99a9a3888e792b8d9d30cb402917"
+        },
+        "date": 1696178018896,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13364301,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8232850,
+            "unit": "ns/op",
+            "extra": "138 times\n2 procs"
           }
         ]
       }
