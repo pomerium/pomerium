@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1696177918604,
+  "lastUpdate": 1696177931359,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -71280,6 +71280,38 @@ window.BENCHMARK_DATA = {
             "value": 10740231,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "938f0ab97c22566be53a8fc7cf8ed04d0f9d875f",
+          "message": "chore(deps): bump @fontsource/dm-mono from 5.0.12 to 5.0.13 in /ui",
+          "timestamp": "2023-10-01T15:14:17Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4590/commits/938f0ab97c22566be53a8fc7cf8ed04d0f9d875f"
+        },
+        "date": 1696177923396,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17490204,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10552569,
+            "unit": "ns/op",
+            "extra": "116 times\n2 procs"
           }
         ]
       }
