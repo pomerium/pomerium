@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1696369931444,
+  "lastUpdate": 1696369933218,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -72232,6 +72232,42 @@ window.BENCHMARK_DATA = {
             "value": 11153962,
             "unit": "ns/op",
             "extra": "116 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "60552605+ZPain8464@users.noreply.github.com",
+            "name": "zachary painter",
+            "username": "ZPain8464"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "016914648ba2bd288bbc30c41534e3fd8cb373a8",
+          "message": "Docs: remove tcp example (#4616)\n\n* updates typo on README\r\n\r\n* removes TCP example",
+          "timestamp": "2023-10-03T17:47:33-04:00",
+          "tree_id": "b6d33216b405b616472f2be3f308d36c8e24a25f",
+          "url": "https://github.com/pomerium/pomerium/commit/016914648ba2bd288bbc30c41534e3fd8cb373a8"
+        },
+        "date": 1696369919770,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12558780,
+            "unit": "ns/op",
+            "extra": "90 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8087955,
+            "unit": "ns/op",
+            "extra": "141 times\n2 procs"
           }
         ]
       }
