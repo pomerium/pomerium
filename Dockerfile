@@ -1,4 +1,4 @@
-FROM node:lts-buster@sha256:f41231b6c8ddf78c6b792e9a3fdfc560b27ab6ac418306ce3f668a5bf5507dee as ui
+FROM node:lts-buster@sha256:7923c641e2626803b58562ac1a337f27b419cf2068f8fb1368076ad33145d5c4 as ui
 WORKDIR /build
 
 COPY .git ./.git
@@ -29,17 +29,10 @@ COPY --from=ui /build/ui/dist ./ui/dist
 RUN make build-go NAME=pomerium
 RUN touch /config.yaml
 
-# build our own root trust store from current stable
-FROM debian:latest@sha256:432f545c6ba13b79e2681f4cc4858788b0ab099fc1cca799cc0fae4687c69070 as casource
-RUN apt-get update && apt-get install -y ca-certificates=20210119
-# Remove expired root (https://github.com/pomerium/pomerium/issues/2653)
-RUN rm /usr/share/ca-certificates/mozilla/DST_Root_CA_X3.crt && update-ca-certificates
-
-FROM gcr.io/distroless/base:debug@sha256:357bc96a42d8db2e4710d8ae6257da3a66b1243affc03932438710a53a8d1ac6
+FROM gcr.io/distroless/base-debian12:debug@sha256:d2890b2740037c95fca7fe44c27e09e91f2e557c62cf0910d2569b0dedc98ddc
 ENV AUTOCERT_DIR /data/autocert
 WORKDIR /pomerium
 COPY --from=build /go/src/github.com/pomerium/pomerium/bin/* /bin/
 COPY --from=build /config.yaml /pomerium/config.yaml
-COPY --from=casource /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 ENTRYPOINT [ "/bin/pomerium" ]
 CMD ["-config","/pomerium/config.yaml"]

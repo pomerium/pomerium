@@ -89,6 +89,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 
 	// routes that don't need a session:
 	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
+	sr.Path("/signed_out").Handler(handlers.SignedOut(handlers.SignedOutData{})).Methods(http.MethodGet)
 
 	// routes that need a session:
 	sr = sr.NewRoute().Subrouter()
@@ -266,33 +267,35 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 
 	rawIDToken := a.revokeSession(ctx, w, r)
 
-	redirectString := ""
-	signOutURL, err := options.GetSignOutRedirectURL()
+	authenticateURL, err := options.GetAuthenticateURL()
+	if err != nil {
+		return fmt.Errorf("error getting authenticate url: %w", err)
+	}
+
+	signOutRedirectURL, err := options.GetSignOutRedirectURL()
 	if err != nil {
 		return err
 	}
-	if signOutURL != nil {
-		redirectString = signOutURL.String()
-	}
+
+	var signOutURL string
 	if uri := r.FormValue(urlutil.QueryRedirectURI); uri != "" {
-		redirectString = uri
+		signOutURL = uri
+	} else if signOutRedirectURL != nil {
+		signOutURL = signOutRedirectURL.String()
+	} else {
+		signOutURL = authenticateURL.ResolveReference(&url.URL{
+			Path: "/.pomerium/signed_out",
+		}).String()
 	}
 
-	endSessionURL, err := authenticator.LogOut()
-	if err == nil && redirectString != "" {
-		params := endSessionURL.Query()
-		params.Add("id_token_hint", rawIDToken)
-		params.Add("post_logout_redirect_uri", redirectString)
-		endSessionURL.RawQuery = params.Encode()
-		redirectString = endSessionURL.String()
-	} else if err != nil && !errors.Is(err, oidc.ErrSignoutNotImplemented) {
-		log.Warn(r.Context()).Err(err).Msg("authenticate.SignOut: failed getting session")
+	if idpSignOutURL, err := authenticator.GetSignOutURL(rawIDToken, signOutURL); err == nil {
+		signOutURL = idpSignOutURL
+	} else if !errors.Is(err, oidc.ErrSignoutNotImplemented) {
+		log.Warn(r.Context()).Err(err).Msg("authenticate: failed to get sign out url for authenticator")
 	}
-	if redirectString != "" {
-		httputil.Redirect(w, r, redirectString, http.StatusFound)
-		return nil
-	}
-	return httputil.NewError(http.StatusOK, errors.New("user logged out"))
+
+	httputil.Redirect(w, r, signOutURL, http.StatusFound)
+	return nil
 }
 
 // reauthenticateOrFail starts the authenticate process by redirecting the

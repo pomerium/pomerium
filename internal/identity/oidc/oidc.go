@@ -116,6 +116,38 @@ func (p *Provider) GetSignInURL(state string) (string, error) {
 	return oa.AuthCodeURL(state, opts...), nil
 }
 
+// GetSignOutURL returns the EndSessionURL endpoint to allow a logout
+// session to be initiated.
+// https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPInitiated
+func (p *Provider) GetSignOutURL(idTokenHint, redirectToURL string) (string, error) {
+	_, err := p.GetProvider()
+	if err != nil {
+		return "", err
+	}
+
+	if p.EndSessionURL == "" {
+		return "", ErrSignoutNotImplemented
+	}
+
+	endSessionURL, err := urlutil.ParseAndValidateURL(p.EndSessionURL)
+	if err != nil {
+		return "", err
+	}
+
+	params := endSessionURL.Query()
+	if idTokenHint != "" {
+		params.Add("id_token_hint", idTokenHint)
+	}
+	if oa, err := p.GetOauthConfig(); err == nil {
+		params.Add("client_id", oa.ClientID)
+	}
+	if redirectToURL != "" {
+		params.Add("post_logout_redirect_uri", redirectToURL)
+	}
+	endSessionURL.RawQuery = params.Encode()
+	return endSessionURL.String(), nil
+}
+
 // Authenticate converts an authorization code returned from the identity
 // provider into a token which is then converted into a user session.
 func (p *Provider) Authenticate(ctx context.Context, code string, v identity.State) (*oauth2.Token, error) {
@@ -257,20 +289,6 @@ func (p *Provider) Revoke(ctx context.Context, t *oauth2.Token) error {
 	}
 
 	return nil
-}
-
-// LogOut returns the EndSessionURL endpoint to allow a logout
-// session to be initiated.
-// https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPInitiated
-func (p *Provider) LogOut() (*url.URL, error) {
-	_, err := p.GetProvider()
-	if err != nil {
-		return nil, err
-	}
-	if p.EndSessionURL == "" {
-		return nil, ErrSignoutNotImplemented
-	}
-	return urlutil.ParseAndValidateURL(p.EndSessionURL)
 }
 
 // GetSubject gets the RFC 7519 Subject claim (`sub`) from a
