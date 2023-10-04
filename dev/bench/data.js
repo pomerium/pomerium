@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1696456840598,
+  "lastUpdate": 1696456842429,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -72540,6 +72540,42 @@ window.BENCHMARK_DATA = {
             "value": 9291409,
             "unit": "ns/op",
             "extra": "122 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6d914d03de4ae6c0a7fe92763e7ce0573d5ceaf9",
+          "message": "chore(deps): bump @fontsource/dm-sans from 5.0.12 to 5.0.13 in /ui (#4593)\n\nBumps [@fontsource/dm-sans](https://github.com/fontsource/font-files/tree/HEAD/fonts/google/dm-sans) from 5.0.12 to 5.0.13.\r\n- [Changelog](https://github.com/fontsource/font-files/blob/main/fonts/google/dm-sans/CHANGELOG.md)\r\n- [Commits](https://github.com/fontsource/font-files/commits/HEAD/fonts/google/dm-sans)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: \"@fontsource/dm-sans\"\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-10-04T15:55:10-06:00",
+          "tree_id": "9d8a4728629e201a5abae755173f3017a85a0b65",
+          "url": "https://github.com/pomerium/pomerium/commit/6d914d03de4ae6c0a7fe92763e7ce0573d5ceaf9"
+        },
+        "date": 1696456832668,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13385754,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9274744,
+            "unit": "ns/op",
+            "extra": "128 times\n2 procs"
           }
         ]
       }
