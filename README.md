@@ -13,7 +13,7 @@ Pomerium is:
 - **Faster** because it’s deployed directly where your apps and services are. No more expensive data backhauling.
 - **Safer** because every single action is verified for trusted identity, device, and context.
 
-It’s not a VPN alternative – it’s the trusted, full-proof way to protect your business.
+It’s not a VPN alternative – it’s the trusted, foolproof way to protect your business.
 
 ## Docs
 
