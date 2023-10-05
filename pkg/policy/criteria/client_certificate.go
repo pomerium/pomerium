@@ -4,6 +4,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/mail"
+	"net/url"
+	"net"
 	"regexp"
 	"strings"
 
@@ -18,6 +21,10 @@ var clientCertificateBaseBody = ast.MustParseBody(`
 	fingerprint := crypto.sha256(base64.decode(cert.Raw))
 	spki_hash := base64.encode(hex.decode(
 		crypto.sha256(base64.decode(cert.RawSubjectPublicKeyInfo))))
+	san_email_addresses := cert.EmailAddresses
+	san_dns_names := cert.DNSNames
+	san_ip_addresses := cert.IPAddresses
+	san_uris := cert.URIs
 `)
 
 type clientCertificateCriterion struct {
@@ -50,6 +57,14 @@ func (c clientCertificateCriterion) GenerateRule(
 			err = addCertFingerprintCondition(&body, v)
 		case "spki_hash":
 			err = addCertSPKIHashCondition(&body, v)
+		case "email":
+			err = addSanEmailCondition(&body, v)
+		case "dns":
+			err = addSanDNSCondition(&body, v)
+		case "ip":
+			err = addSanIPCondition(&body, v)
+		case "uri":
+			err = addSanURICondition(&body, v)
 		default:
 			err = fmt.Errorf("unsupported certificate matcher condition: %s", k)
 		}
@@ -153,6 +168,146 @@ func addCertSPKIHashCondition(body *ast.Body, data parser.Value) error {
 		ast.Equal.Expr(ast.VarTerm("spki_hash"), ast.VarTerm("allowed_spki_hashes[_]")))
 	return nil
 }
+
+func addSanEmailCondition(body *ast.Body, data parser.Value) error {
+	var pa parser.Array
+	switch v := data.(type) {
+	case parser.Array:
+		pa = v
+	case parser.String:
+		pa = parser.Array{data}
+	default:
+		return errors.New("certificate SAN email condition expects a string or array of strings")
+	}
+
+	ra := ast.NewArray()
+	for _, v := range pa {
+		s, ok := v.(parser.String)
+		if !ok {
+			return fmt.Errorf("certificate SAN email must be a string (was %v)", v)
+		}
+
+		emailStr := string(s)
+		if _, err := mail.ParseAddress(emailStr); err != nil {
+			return fmt.Errorf("certificate SAN email must be a valid email address (was %s)", emailStr)
+		}
+
+		ra = ra.Append(ast.NewTerm(ast.String(emailStr)))
+	}
+
+	*body = append(*body,
+		ast.Assign.Expr(ast.VarTerm("allowed_san_emails"), ast.NewTerm(ra)),
+		ast.Equal.Expr(ast.VarTerm("allowed_san_emails[_]"), ast.VarTerm("san_email_addresses[_]")))
+	return nil
+}
+
+func addSanDNSCondition(body *ast.Body, data parser.Value) error {
+	var pa parser.Array
+	switch v := data.(type) {
+	case parser.Array:
+		pa = v
+	case parser.String:
+		pa = parser.Array{data}
+	default:
+		return errors.New("certificate SAN dns condition expects a string or array of strings")
+	}
+
+	ra := ast.NewArray()
+	for _, v := range pa {
+		s, ok := v.(parser.String)
+		if !ok {
+			return fmt.Errorf("certificate SAN dns must be a string (was %v)", v)
+		}
+
+		dnsStr := string(s)
+		// regex extracted from govalidator
+		const DNSName string = `^([a-zA-Z0-9_]{1}[a-zA-Z0-9_-]{0,62}){1}(\.[a-zA-Z0-9_]{1}[a-zA-Z0-9_-]{0,62})*[\._]?$`
+		rxDNSName := regexp.MustCompile(DNSName)
+
+		if !rxDNSName.MatchString(dnsStr) {
+			return fmt.Errorf("certificate SAN dns must be a valid DNS name (was %s)", dnsStr)
+		}
+
+		ra = ra.Append(ast.NewTerm(ast.String(dnsStr)))
+	}
+
+	*body = append(*body,
+		ast.Assign.Expr(ast.VarTerm("allowed_san_dns_names"), ast.NewTerm(ra)),
+		ast.Equal.Expr(ast.VarTerm("allowed_san_dns_names[_]"), ast.VarTerm("san_dns_names[_]")))
+	return nil
+}
+
+func addSanIPCondition(body *ast.Body, data parser.Value) error {
+	var pa parser.Array
+	switch v := data.(type) {
+	case parser.Array:
+		pa = v
+	case parser.String:
+		pa = parser.Array{data}
+	default:
+		return errors.New("certificate SAN IP condition expects a string or array of strings")
+	}
+
+	ra := ast.NewArray()
+	for _, v := range pa {
+		s, ok := v.(parser.String)
+		if !ok {
+			return fmt.Errorf("certificate SAN IP must be a string (was %v)", v)
+		}
+
+		ipStr := string(s)
+		if net.ParseIP(ipStr) == nil {
+			return fmt.Errorf("certificate SAN IP must be a valid IP address (was %s)", ipStr)
+		}
+
+		ra = ra.Append(ast.NewTerm(ast.String(ipStr)))
+	}
+
+	*body = append(*body,
+		ast.Assign.Expr(ast.VarTerm("allowed_san_ip_addresses"), ast.NewTerm(ra)),
+		ast.Equal.Expr(ast.VarTerm("allowed_san_ip_addresses[_]"), ast.VarTerm("san_ip_addresses[_]")))
+	return nil
+}
+
+func addSanURICondition(body *ast.Body, data parser.Value) error {
+    var pa parser.Array
+    switch v := data.(type) {
+    case parser.Array:
+        pa = v
+    case parser.String:
+        pa = parser.Array{data}
+    default:
+        return errors.New("certificate SAN URI condition expects a string or array of strings")
+    }
+
+    ra := ast.NewArray()
+    for _, v := range pa {
+        s, ok := v.(parser.String)
+        if !ok {
+            return fmt.Errorf("certificate URI must be a string (was %v)", v)
+        }
+
+        urlStr := string(s)
+        if _, err := url.Parse(urlStr); err != nil {
+            return fmt.Errorf("certificate SAN URI must be a valid URI (was %s)", urlStr)
+        }
+
+        ra = ra.Append(ast.NewTerm(ast.String(urlStr)))
+    }
+
+    // Assign the allowed_san_uris to the parsed URIs from the config
+    *body = append(*body, ast.Assign.Expr(ast.VarTerm("allowed_san_uris"), ast.NewTerm(ra)))
+
+    // Construct each URI in san_uris separately and check against allowed URIs
+    uriCheckBody := ast.MustParseBody(`some san_uri_index; sprintf("%s://%s%s", [san_uris[san_uri_index].Scheme, san_uris[san_uri_index].Host, san_uris[san_uri_index].Path]) == allowed_san_uris[_]`)
+    for _, expr := range uriCheckBody {
+        *body = append(*body, expr)
+    }
+
+    return nil
+}
+
+
 
 // ClientCertificate returns a Criterion on a client certificate.
 func ClientCertificate(generator *Generator) Criterion {

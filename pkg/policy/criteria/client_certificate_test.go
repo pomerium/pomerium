@@ -13,14 +13,19 @@ import (
 
 const testCert = `
 -----BEGIN CERTIFICATE-----
-MIIBYTCCAQigAwIBAgICEAEwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
-ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzMwNzMxMTUzMzE5WjAeMRww
-GgYDVQQDExN0cnVzdGVkIGNsaWVudCBjZXJ0MFkwEwYHKoZIzj0CAQYIKoZIzj0D
-AQcDQgAEfAYP3ZwiKJgk9zXpR/CMHYlAxjweJaMJihIS2FTA5gb0xBcTEe5AGpNF
-CHWPk4YCB25VeHg9GmY9Q1+qDD1hdqM4MDYwEwYDVR0lBAwwCgYIKwYBBQUHAwIw
-HwYDVR0jBBgwFoAUXep6D8FTP6+5ZdR/HjP3pYfmxkwwCgYIKoZIzj0EAwIDRwAw
-RAIgProROtxpvKS/qjrjonSvacnhdU0JwoXj2DgYvF/qjrUCIAXlHkdEzyXmTLuu
-/YxuOibV35vlaIzj21GRj4pYmVR1
+MIICPzCCAeWgAwIBAgIQYAOF5EYVQhvchRr58fDzaTAKBggqhkjOPQQDAjAaMRgw
+FgYDVQQDEw9UcnVzdGVkIFJvb3QgQ0EwHhcNMjMxMDA1MTM0MTQ2WhcNMzMxMDAy
+MTM0MTQ1WjAeMRwwGgYDVQQDExN0cnVzdGVkIGNsaWVudCBjZXJ0MFkwEwYHKoZI
+zj0CAQYIKoZIzj0DAQcDQgAEWGaY+S59zsNG/b1B18m68jZVWL5zaVAm0DQPYez4
+fcnRO9JsHDK7mHYgI9dlcO58u8NCvBXp6BfRXG0oj+Rc7qOCAQcwggEDMA4GA1Ud
+DwEB/wQEAwIHgDAdBgNVHSUEFjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwHQYDVR0O
+BBYEFNfMFyRLWjw2B1z0Ri45D+/pJORjMB8GA1UdIwQYMBaAFLXqXh23FkH/ZX5i
+Wg2pR+8DoZjfMIGRBgNVHREEgYkwgYaCHXN1cGVyc2VjcmV0c2VydmVyLmV4YW1w
+bGUuY29tgRBqb2huQGV4YW1wbGUuY29tgRByb290QGV4YW1wbGUuY29thwSsEAAF
+hiNzcGlmZmU6Ly9leGFtcGxlLmNvbS9teXNlcnZpY2Uvam9oboYWaHR0cHM6Ly9v
+dGhlcndvcmxkLmNvbTAKBggqhkjOPQQDAgNIADBFAiB9l/UxylEWgTuug7CsY1WF
+Mfqj2RlAA7gUb1oRLoJENwIhALlcKIgOOHhg9TTGmrCsfvotZSOQe798zB/+4ZHb
+LYc+
 -----END CERTIFICATE-----`
 
 func TestClientCertificate(t *testing.T) {
@@ -36,7 +41,7 @@ func TestClientCertificate(t *testing.T) {
 			`allow:
   or:
     - client_certificate:
-        fingerprint: 17859273e8a980631d367b2d5a6a6635412b0f22835f69e47b3f65624546a704`,
+        fingerprint: f31b6b73e8d089a69f8ad972fec59e638f42c3c0488fc650323bf85dd593cdef`,
 			"",
 			A{false, A{ReasonClientCertificateUnauthorized}, M{}},
 		},
@@ -52,7 +57,7 @@ func TestClientCertificate(t *testing.T) {
 			`allow:
   or:
     - client_certificate:
-        fingerprint: 17859273e8a980631d367b2d5a6a6635412b0f22835f69e47b3f65624546a704`,
+        fingerprint: f31b6b73e8d089a69f8ad972fec59e638f42c3c0488fc650323bf85dd593cdef`,
 			testCert,
 			A{true, A{ReasonClientCertificateOK}, M{}},
 		},
@@ -61,7 +66,7 @@ func TestClientCertificate(t *testing.T) {
   or:
     - client_certificate:
         fingerprint:
-          - 17859273e8a980631d367b2d5a6a6635412b0f22835f69e47b3f65624546a704
+          - f31b6b73e8d089a69f8ad972fec59e638f42c3c0488fc650323bf85dd593cdef
           - df6ff72fe9116521268f6f2dd4966f51df479883fe7037b39f75916ac3049d1a`,
 			testCert,
 			A{true, A{ReasonClientCertificateOK}, M{}},
@@ -70,7 +75,7 @@ func TestClientCertificate(t *testing.T) {
 			`allow:
   or:
     - client_certificate:
-        spki_hash: FsDbM0rUYIiL3V339eIKqiz6HPSB+Pz2WeAWhqlqh8U=`,
+        spki_hash: byYc5v1pf/sb3u77NDp1Jq/QQXuzT39Uk3W2IlYXXBI=`,
 			testCert,
 			A{true, A{ReasonClientCertificateOK}, M{}},
 		},
@@ -79,10 +84,97 @@ func TestClientCertificate(t *testing.T) {
   or:
     - client_certificate:
         spki_hash:
-          - FsDbM0rUYIiL3V339eIKqiz6HPSB+Pz2WeAWhqlqh8U=
+          - byYc5v1pf/sb3u77NDp1Jq/QQXuzT39Uk3W2IlYXXBI=
           - NvqYIYSbgK2vCJpQhObf77vv+bQWtc5ek5RIOwPiC9A=`,
 			testCert,
 			A{true, A{ReasonClientCertificateOK}, M{}},
+		},
+		{"no email match",
+			`allow:
+  or:
+    - client_certificate:
+        email:
+          - nothere@example.com`,
+			testCert,
+			A{false, A{ReasonClientCertificateUnauthorized}, M{}},
+		},
+		{"email match single line",
+			`allow:
+  or:
+    - client_certificate:
+        email: root@example.com`,
+			testCert,
+			A{true, A{ReasonClientCertificateOK}, M{}},
+		},
+		{"email match",
+			`allow:
+  or:
+    - client_certificate:
+        email:
+          - john@example.com`,
+			testCert,
+			A{true, A{ReasonClientCertificateOK}, M{}},
+		},
+		{"no dns match",
+			`allow:
+  or:
+    - client_certificate:
+        dns:
+          - invalid.match.com`,
+			testCert,
+			A{false, A{ReasonClientCertificateUnauthorized}, M{}},
+		},
+		{"dns match single line",
+			`allow:
+  or:
+    - client_certificate:
+        dns: supersecretserver.example.com`,
+			testCert,
+			A{true, A{ReasonClientCertificateOK}, M{}},
+		},
+		{"dns match",
+			`allow:
+  or:
+    - client_certificate:
+        dns:
+          - supersecretserver.example.com`,
+			testCert,
+			A{true, A{ReasonClientCertificateOK}, M{}},
+		},
+		{"no uri match",
+			`allow:
+  or:
+    - client_certificate:
+        uri:
+          - http://dummy`,
+			testCert,
+			A{false, A{ReasonClientCertificateUnauthorized}, M{}},
+		},
+		{"uri match single line",
+			`allow:
+  or:
+    - client_certificate:
+        uri: spiffe://example.com/myservice/john`,
+			testCert,
+			A{true, A{ReasonClientCertificateOK}, M{}},
+		},
+		{"uri match",
+			`allow:
+  or:
+    - client_certificate:
+        uri:
+          - spiffe://example.com/myservice/john`,
+			testCert,
+			A{true, A{ReasonClientCertificateOK}, M{}},
+		},
+		{"ensure uri match consistency",
+			`allow:
+  or:
+    - client_certificate:
+        uri:
+          - spiffe://otherworld.com`,
+			testCert,
+			A{false, A{ReasonClientCertificateUnauthorized}, M{}},
 		},
 	}
 
@@ -193,6 +285,140 @@ func TestSPKIHashFormatErrors(t *testing.T) {
 
 			var body ast.Body
 			err = addCertSPKIHashCondition(&body, value)
+			if c.err == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.Equal(t, c.err, err.Error())
+			}
+		})
+	}
+}
+
+func TestEmailFormatErrors(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		label string
+		input string
+		err   string
+	}{
+		{"object",
+			`{}`, "certificate SAN email condition expects a string or array of strings",
+		},
+		{"not valid email",
+			`"not-an-email"`, "certificate SAN email must be a valid email address (was not-an-email)",
+		},
+		{"not valid email",
+			`"@example.com"`, "certificate SAN email must be a valid email address (was @example.com)",
+		},
+		{"valid",
+			`"test@example.com"`, "",
+		},
+	}
+
+	for i := range cases {
+		c := cases[i]
+		t.Run(c.label, func(t *testing.T) {
+			t.Parallel()
+
+			value, err := parser.ParseValue(strings.NewReader(c.input))
+			require.NoError(t, err)
+
+			var body ast.Body
+			err = addSanEmailCondition(&body, value)
+			if c.err == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.Equal(t, c.err, err.Error())
+			}
+		})
+	}
+}
+
+
+func TestDNSFormatErrors(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		label string
+		input string
+		err   string
+	}{
+		{"object",
+			`{}`, "certificate SAN dns condition expects a string or array of strings",
+		},
+		{"not valid dns",
+			`"-not-a-domain"`, "certificate SAN dns must be a valid DNS name (was -not-a-domain)",
+		},
+		{"not valid dns",
+			`"@example.com"`, "certificate SAN dns must be a valid DNS name (was @example.com)",
+		},
+		{"valid",
+			`"www.example.com"`, "",
+		},
+	}
+
+	for i := range cases {
+		c := cases[i]
+		t.Run(c.label, func(t *testing.T) {
+			t.Parallel()
+
+			value, err := parser.ParseValue(strings.NewReader(c.input))
+			require.NoError(t, err)
+
+			var body ast.Body
+			err = addSanDNSCondition(&body, value)
+			if c.err == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.Equal(t, c.err, err.Error())
+			}
+		})
+	}
+}
+
+
+func TestIPFormatErrors(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		label string
+		input string
+		err   string
+	}{
+		{"object",
+			`{}`, "certificate SAN IP condition expects a string or array of strings",
+		},
+		{"not valid ip",
+			`"-not-an-ip"`, "certificate SAN IP must be a valid IP address (was -not-an-ip)",
+		},
+		{"not valid ip 2",
+			`"@example.com"`, "certificate SAN IP must be a valid IP address (was @example.com)",
+		},
+		{"not valid ip 3",
+			`"10.10.10.10.2"`, "certificate SAN IP must be a valid IP address (was 10.10.10.10.2)",
+		},
+		{"not valid ipv6",
+			`"2001:0db8:85a3::8a2e:037j"`, "certificate SAN IP must be a valid IP address (was 2001:0db8:85a3::8a2e:037j)",
+		},
+		{"valid",
+			`"172.16.0.1"`, "",
+		},
+		{"valid IPv6",
+			`"2001:0db8:85a3:0000:0000:8a2e:0370:7334"`, "",
+		},
+	}
+
+	for i := range cases {
+		c := cases[i]
+		t.Run(c.label, func(t *testing.T) {
+			t.Parallel()
+
+			value, err := parser.ParseValue(strings.NewReader(c.input))
+			require.NoError(t, err)
+
+			var body ast.Body
+			err = addSanIPCondition(&body, value)
 			if c.err == "" {
 				assert.NoError(t, err)
 			} else {
