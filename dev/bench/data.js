@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1696519228828,
+  "lastUpdate": 1696519302721,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -73236,6 +73236,42 @@ window.BENCHMARK_DATA = {
             "value": 10483557,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3337236d7f87a63627860d3a80f2905ec7d88ee4",
+          "message": "chore(deps): bump github.com/rs/cors from 1.10.0 to 1.10.1 (#4601)\n\nBumps [github.com/rs/cors](https://github.com/rs/cors) from 1.10.0 to 1.10.1.\r\n- [Release notes](https://github.com/rs/cors/releases)\r\n- [Commits](https://github.com/rs/cors/compare/v1.10.0...v1.10.1)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/rs/cors\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-10-05T08:15:49-07:00",
+          "tree_id": "4a13aaba11a55eef9886a460238320ec6903777f",
+          "url": "https://github.com/pomerium/pomerium/commit/3337236d7f87a63627860d3a80f2905ec7d88ee4"
+        },
+        "date": 1696519290380,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16188744,
+            "unit": "ns/op",
+            "extra": "72 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10540318,
+            "unit": "ns/op",
+            "extra": "109 times\n2 procs"
           }
         ]
       }
