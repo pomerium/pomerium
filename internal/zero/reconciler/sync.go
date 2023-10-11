@@ -135,6 +135,7 @@ func (c *service) syncBundle(ctx context.Context, key string) error {
 
 	result, err := c.config.api.DownloadClusterResourceBundle(ctx, fd, key, conditional)
 	if err != nil {
+		c.ReportBundleAppliedFailure(ctx, key, BundleStatusFailureDownloadError, err)
 		return fmt.Errorf("download bundle: %w", err)
 	}
 
@@ -155,6 +156,7 @@ func (c *service) syncBundle(ctx context.Context, key string) error {
 
 	bundleRecordTypes, err := c.syncBundleToDatabroker(ctx, fd, cached.GetRecordTypes())
 	if err != nil {
+		c.ReportBundleAppliedFailure(ctx, key, BundleStatusFailureDatabrokerError, err)
 		return fmt.Errorf("apply bundle to databroker: %w", err)
 	}
 	current := BundleCacheEntry{
@@ -171,9 +173,12 @@ func (c *service) syncBundle(ctx context.Context, key string) error {
 
 	err = c.SetBundleCacheEntry(ctx, key, current)
 	if err != nil {
-		return fmt.Errorf("set bundle cache entry: %w", err)
+		err = fmt.Errorf("set bundle cache entry: %w", err)
+		c.ReportBundleAppliedFailure(ctx, key, BundleStatusFailureDatabrokerError, err)
+		return err
 	}
 
+	c.ReportBundleAppliedSuccess(ctx, key, result.Metadata)
 	return nil
 }
 
