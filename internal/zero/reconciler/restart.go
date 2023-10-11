@@ -2,54 +2,71 @@ package reconciler
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"sync"
-
-	"github.com/pomerium/pomerium/internal/log"
 )
 
-// RunWithRestart continuously executes the provided execFn,
-// restarting it when the provided restartOnErrFn returns any error other than context cancellation,
-// until execFn returns an error or if the provided context gets canceled.
+// RunWithRestart executes execFn.
+// The execution would be restarted, by means of canceling the context provided to execFn, each time restartFn quits.
+// the error returned by restartFn is purely informational and does not affect the execution; may be nil.
+// the loop is stopped when the context provided to RunWithRestart is canceled or a genuine error is returned by execFn, not caused by the context.
 func RunWithRestart(
 	ctx context.Context,
 	execFn func(context.Context) error,
-	restartOnErrFn func(context.Context) error,
+	restartFn func(context.Context) error,
 ) error {
-	for {
-		canceled, err := runWithCancel(ctx, execFn, restartOnErrFn)
-		if ctx.Err() != nil || !canceled {
-			return err
-		}
-		log.Ctx(ctx).Info().Err(err).Msg("restarting")
-	}
-}
+	contexts := make(chan context.Context)
 
-func runWithCancel(
-	ctx context.Context,
-	execFn func(context.Context) error,
-	cancelExec func(context.Context) error,
-) (bool, error) {
-	ctx, cancelCtx := context.WithCancelCause(ctx)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	var execErr error
+	var err error
 	go func() {
-		defer wg.Done()
-		execErr = execFn(ctx)
-		cancelCtx(execErr)
+		err = restartWithContext(contexts, execFn)
+		cancel()
+		wg.Done()
 	}()
-
-	restartRequiredErr := errors.New("restart requested")
 	go func() {
-		defer wg.Done()
-		err := cancelExec(ctx)
-		log.Ctx(ctx).Info().Err(err).Msg("restart requested")
-		cancelCtx(restartRequiredErr)
+		restartContexts(ctx, contexts, restartFn)
+		wg.Done()
 	}()
 
 	wg.Wait()
-	return errors.Is(context.Cause(ctx), restartRequiredErr), execErr
+	return err
+}
+
+func restartContexts(
+	base context.Context,
+	contexts chan<- context.Context,
+	restartFn func(context.Context) error,
+) {
+	defer close(contexts)
+	for base.Err() == nil {
+		ctx, cancel := context.WithCancelCause(base)
+		select {
+		case contexts <- ctx:
+			err := restartFn(ctx)
+			cancel(fmt.Errorf("requesting restart: %w", err))
+		case <-base.Done():
+			cancel(fmt.Errorf("parent context canceled: %w", base.Err()))
+			return
+		}
+	}
+}
+
+func restartWithContext(
+	contexts <-chan context.Context,
+	execFn func(context.Context) error,
+) error {
+	var err error
+	for ctx := range contexts {
+		err = execFn(ctx)
+		if ctx.Err() == nil {
+			return err
+		}
+	}
+	return err
 }
