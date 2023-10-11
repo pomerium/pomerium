@@ -53,13 +53,13 @@ require (
 	github.com/pomerium/csrf v1.7.0
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524
 	github.com/pomerium/webauthn v0.0.0-20221118023040-00a9c430578b
-	github.com/pomerium/zero-sdk v0.0.0-20231004183232-80935152cbae
+	github.com/pomerium/zero-sdk v0.0.0-20231006190436-fa42b41aa1a9
 	github.com/prometheus/client_golang v1.16.0
 	github.com/prometheus/client_model v0.4.0
 	github.com/prometheus/common v0.44.0
 	github.com/prometheus/procfs v0.11.1
 	github.com/rs/cors v1.10.0
-	github.com/rs/zerolog v1.30.0
+	github.com/rs/zerolog v1.31.0
 	github.com/shirou/gopsutil/v3 v3.23.8
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
@@ -76,7 +76,7 @@ require (
 	golang.org/x/time v0.3.0
 	google.golang.org/api v0.141.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230911183012-2d3300fd4832
-	google.golang.org/grpc v1.58.1
+	google.golang.org/grpc v1.58.2
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v3 v3.0.1
 	namespacelabs.dev/go-filenotify v0.0.0-20220511192020-53ea11be7eaa
@@ -122,7 +122,7 @@ require (
 	github.com/containerd/stargz-snapshotter/estargz v0.14.3 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/deepmap/oapi-codegen v1.14.0 // indirect
+	github.com/deepmap/oapi-codegen v1.15.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/docker/cli v24.0.4+incompatible // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
