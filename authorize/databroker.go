@@ -20,7 +20,7 @@ func getDataBrokerRecord(
 	ctx context.Context,
 	recordType string,
 	recordID string,
-	lowestRecordVersion uint64,
+	invalidate func(*databroker.Record) bool,
 ) (*databroker.Record, error) {
 	q := storage.GetQuerier(ctx)
 
@@ -38,14 +38,13 @@ func getDataBrokerRecord(
 		return nil, storage.ErrNotFound
 	}
 
-	// if the current record version is less than the lowest we'll accept, invalidate the cache
-	if res.GetRecords()[0].GetVersion() < lowestRecordVersion {
-		q.InvalidateCache(ctx, req)
-	} else {
+	// Check to see if we should invalidate the cache.
+	if invalidate == nil || !invalidate(res.GetRecords()[0]) {
 		return res.GetRecords()[0], nil
 	}
 
 	// retry with an up to date cache
+	q.InvalidateCache(ctx, req)
 	res, err = q.Query(ctx, req)
 	if err != nil {
 		return nil, err
@@ -65,20 +64,28 @@ func (a *Authorize) getDataBrokerSessionOrServiceAccount(
 	ctx, span := trace.StartSpan(ctx, "authorize.getDataBrokerSessionOrServiceAccount")
 	defer span.End()
 
-	record, err := getDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID, dataBrokerRecordVersion)
+	invalidate := func(record *databroker.Record) bool {
+		// if the current record version is less than the lowest we'll accept, invalidate the cache
+		if record.GetVersion() < dataBrokerRecordVersion {
+			return true
+		}
+
+		// or if the session or service account is invalid, invalidate the cache
+		_, err := validateSessionOrServiceAccount(record)
+		return err != nil
+	}
+
+	record, err := getDataBrokerRecord(
+		ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID, invalidate)
 	if storage.IsNotFound(err) {
-		record, err = getDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(user.ServiceAccount)), sessionID, dataBrokerRecordVersion)
+		record, err = getDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(user.ServiceAccount)), sessionID, invalidate)
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	msg, err := record.GetData().UnmarshalNew()
+	s, err = validateSessionOrServiceAccount(record)
 	if err != nil {
-		return nil, err
-	}
-	s = msg.(sessionOrServiceAccount)
-	if err := s.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -91,6 +98,18 @@ func (a *Authorize) getDataBrokerSessionOrServiceAccount(
 	return s, nil
 }
 
+func validateSessionOrServiceAccount(record *databroker.Record) (sessionOrServiceAccount, error) {
+	msg, err := record.GetData().UnmarshalNew()
+	if err != nil {
+		return nil, err
+	}
+	s := msg.(sessionOrServiceAccount)
+	if err := s.Validate(); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
 func (a *Authorize) getDataBrokerUser(
 	ctx context.Context,
 	userID string,
@@ -98,7 +117,7 @@ func (a *Authorize) getDataBrokerUser(
 	ctx, span := trace.StartSpan(ctx, "authorize.getDataBrokerUser")
 	defer span.End()
 
-	record, err := getDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(user.User)), userID, 0)
+	record, err := getDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(user.User)), userID, nil)
 	if err != nil {
 		return nil, err
 	}

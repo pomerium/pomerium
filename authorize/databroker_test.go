@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -42,11 +43,15 @@ func Test_getDataBrokerRecord(t *testing.T) {
 			tcq := storage.NewTracingQuerier(cq)
 			qctx := storage.WithQuerier(ctx, tcq)
 
-			s, err := getDataBrokerRecord(qctx, grpcutil.GetTypeURL(s1), s1.GetId(), tc.queryVersion)
+			invalidate := func(record *databroker.Record) bool {
+				return record.GetVersion() < tc.queryVersion
+			}
+
+			s, err := getDataBrokerRecord(qctx, grpcutil.GetTypeURL(s1), s1.GetId(), invalidate)
 			assert.NoError(t, err)
 			assert.NotNil(t, s)
 
-			s, err = getDataBrokerRecord(qctx, grpcutil.GetTypeURL(s1), s1.GetId(), tc.queryVersion)
+			s, err = getDataBrokerRecord(qctx, grpcutil.GetTypeURL(s1), s1.GetId(), invalidate)
 			assert.NoError(t, err)
 			assert.NotNil(t, s)
 
