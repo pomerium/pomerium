@@ -7,12 +7,14 @@ package reconciler
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 
 	"github.com/pomerium/pomerium/internal/atomicutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	connect_mux "github.com/pomerium/zero-sdk/connect-mux"
 )
 
@@ -40,11 +42,54 @@ func Run(ctx context.Context, opts ...Option) error {
 	}
 	c.periodicUpdateInterval.Store(config.checkForUpdateIntervalWhenDisconnected)
 
+	return c.runMainLoop(ctx)
+}
+
+// RunLeased implements the databroker.LeaseHandler interface
+func (c *service) RunLeased(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error { return c.watchUpdates(ctx) })
 	eg.Go(func() error { return c.SyncLoop(ctx) })
 
 	return eg.Wait()
+}
+
+// GetDataBrokerServiceClient implements the databroker.LeaseHandler interface.
+func (c *service) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	return c.config.databrokerClient
+}
+
+func (c *service) runMainLoop(ctx context.Context) error {
+	leaser := databroker.NewLeaser("zero-reconciler", time.Second*30, c)
+	return RunWithRestart(ctx, func(ctx context.Context) error {
+		return leaser.Run(ctx)
+	}, c.databrokerChangeMonitor)
+}
+
+// databrokerChangeMonitor runs infinite sync loop to see if there is any change in databroker
+func (c *service) databrokerChangeMonitor(ctx context.Context) error {
+	_, recordVersion, serverVersion, err := databroker.InitialSync(ctx, c.GetDataBrokerServiceClient(), &databroker.SyncLatestRequest{
+		Type: BundleCacheEntryRecordType,
+	})
+	if err != nil {
+		return fmt.Errorf("error during initial sync: %w", err)
+	}
+
+	stream, err := c.GetDataBrokerServiceClient().Sync(ctx, &databroker.SyncRequest{
+		Type:          BundleCacheEntryRecordType,
+		ServerVersion: serverVersion,
+		RecordVersion: recordVersion,
+	})
+	if err != nil {
+		return fmt.Errorf("error calling sync: %w", err)
+	}
+
+	for {
+		_, err := stream.Recv()
+		if err != nil {
+			return fmt.Errorf("error receiving record: %w", err)
+		}
+	}
 }
 
 // run is a main control loop.
