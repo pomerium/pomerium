@@ -33,7 +33,8 @@ type BundleCacheEntry struct {
 }
 
 const (
-	bundleCacheEntryRecordType = "pomerium.io/BundleCacheEntry"
+	// BundleCacheEntryRecordType is the databroker record type for BundleCacheEntry
+	BundleCacheEntryRecordType = "pomerium.io/BundleCacheEntry"
 )
 
 var (
@@ -44,7 +45,7 @@ var (
 // GetBundleCacheEntry gets a bundle cache entry from the databroker
 func (c *service) GetBundleCacheEntry(ctx context.Context, id string) (*BundleCacheEntry, error) {
 	record, err := c.config.databrokerClient.Get(ctx, &databroker.GetRequest{
-		Type: bundleCacheEntryRecordType,
+		Type: BundleCacheEntryRecordType,
 		Id:   id,
 	})
 	if err != nil && status.Code(err) == codes.NotFound {
@@ -77,7 +78,7 @@ func (c *service) SetBundleCacheEntry(ctx context.Context, id string, src Bundle
 	_, err = c.config.databrokerClient.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{
 			{
-				Type: bundleCacheEntryRecordType,
+				Type: BundleCacheEntryRecordType,
 				Id:   id,
 				Data: val,
 			},
