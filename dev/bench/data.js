@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1697122578911,
+  "lastUpdate": 1697126428912,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -73468,6 +73468,42 @@ window.BENCHMARK_DATA = {
             "value": 12299647,
             "unit": "ns/op",
             "extra": "96 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5f9f46652afcc86ed522cfde379c3afe6e3be38e",
+          "message": "upgrade envoy to v1.27.1 (#4625)",
+          "timestamp": "2023-10-12T08:55:18-07:00",
+          "tree_id": "59c339d086b8a5fa6fb5c5bb5341170e7915bd63",
+          "url": "https://github.com/pomerium/pomerium/commit/5f9f46652afcc86ed522cfde379c3afe6e3be38e"
+        },
+        "date": 1697126421334,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12851113,
+            "unit": "ns/op",
+            "extra": "88 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8069898,
+            "unit": "ns/op",
+            "extra": "130 times\n2 procs"
           }
         ]
       }
