@@ -447,15 +447,15 @@
     minimatch "^3.0.4"
     strip-json-comments "^3.1.1"
 
-"@fontsource/dm-mono@^5.0.12":
-  version "5.0.12"
-  resolved "https://registry.yarnpkg.com/@fontsource/dm-mono/-/dm-mono-5.0.12.tgz#2fcec7fbd21b747366771edd666915151d51a028"
-  integrity sha512-cLHAOTr+E4H0kHDq3daTj9Urwc8Qpd5cBRnMZcEhPIlrb8ZWrpMbAn8Hxn30lMJoD+ovSvl4g9wLIg03Z0KWPQ==
+"@fontsource/dm-mono@^5.0.14":
+  version "5.0.14"
+  resolved "https://registry.yarnpkg.com/@fontsource/dm-mono/-/dm-mono-5.0.14.tgz#71ec1503e21e693e8f0f7ca52fe187d7203cad9d"
+  integrity sha512-9KW/pX36Md1mkSp/JDDOWze1jRAk8ePn0U3s9n/b0aekgHA1rtXbxGobiDFAJRQ+8uhvViN8ZHuMzd4WjSJgyA==
 
-"@fontsource/dm-sans@^5.0.12":
-  version "5.0.12"
-  resolved "https://registry.yarnpkg.com/@fontsource/dm-sans/-/dm-sans-5.0.12.tgz#901d8e9c5edb31b4184bac79bfaff1086697263f"
-  integrity sha512-VHX2NccLRG0rASmA5RHu8URVpaUIcBaYzKVljS43CPLDddom4gaiW/ducEM4k5vH+K9pvHwrKTL+l49E1244UQ==
+"@fontsource/dm-sans@^5.0.13":
+  version "5.0.13"
+  resolved "https://registry.yarnpkg.com/@fontsource/dm-sans/-/dm-sans-5.0.13.tgz#f4a6af783158cae40b6a6c6c6dca17e4cc955eeb"
+  integrity sha512-jKs0zs3S3M91XXMJtFmwkNrLe9NyoEUilyMgnu2GNtOUsRE+lrc2Q5qHks0a6EL428sfYEnFUxunv2xEQupD3w==
 
 "@humanwhocodes/config-array@^0.5.0":
   version "0.5.0"
