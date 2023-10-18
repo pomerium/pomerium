@@ -1026,6 +1026,25 @@ func TestOptions_GetSetResponseHeadersForPolicy(t *testing.T) {
 			"X-XSS-Protection":          "1; mode=block",
 		}, options.GetSetResponseHeadersForPolicy(policy))
 	})
+	t.Run("multiple policies", func(t *testing.T) {
+		options := NewDefaultOptions()
+		options.SetResponseHeaders = map[string]string{"global": "foo"}
+		p1 := &Policy{
+			SetResponseHeaders: map[string]string{"route-1": "bar"},
+		}
+		p2 := &Policy{
+			SetResponseHeaders: map[string]string{"route-2": "baz"},
+		}
+		assert.Equal(t, map[string]string{
+			"global":  "foo",
+			"route-1": "bar",
+		}, options.GetSetResponseHeadersForPolicy(p1))
+		assert.Equal(t, map[string]string{
+			"global":  "foo",
+			"route-2": "baz",
+		}, options.GetSetResponseHeadersForPolicy(p2))
+		assert.Equal(t, map[string]string{"global": "foo"}, options.GetSetResponseHeaders())
+	})
 }
 
 func TestOptions_GetSharedKey(t *testing.T) {
