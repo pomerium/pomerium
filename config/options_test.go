@@ -978,6 +978,18 @@ func TestOptions_GetSetResponseHeaders(t *testing.T) {
 		options.SetResponseHeaders = map[string]string{DisableHeaderKey: "1", "x-other": "xyz"}
 		assert.Equal(t, map[string]string{}, options.GetSetResponseHeaders())
 	})
+	t.Run("empty", func(t *testing.T) {
+		options := NewDefaultOptions()
+		options.SetResponseHeaders = map[string]string{}
+		assert.Equal(t, map[string]string{}, options.GetSetResponseHeaders())
+	})
+	t.Run("no partial defaults", func(t *testing.T) {
+		options := NewDefaultOptions()
+		options.Cert = "CERT"
+		options.SetResponseHeaders = map[string]string{"X-Frame-Options": "DENY"}
+		assert.Equal(t, map[string]string{"X-Frame-Options": "DENY"},
+			options.GetSetResponseHeaders())
+	})
 }
 
 func TestOptions_GetSetResponseHeadersForPolicy(t *testing.T) {
@@ -988,6 +1000,31 @@ func TestOptions_GetSetResponseHeadersForPolicy(t *testing.T) {
 			SetResponseHeaders: map[string]string{"x": "y"},
 		}
 		assert.Equal(t, map[string]string{"x": "y"}, options.GetSetResponseHeadersForPolicy(policy))
+	})
+	t.Run("global defaults plus policy", func(t *testing.T) {
+		options := NewDefaultOptions()
+		options.Cert = "CERT"
+		policy := &Policy{
+			SetResponseHeaders: map[string]string{"Route": "xyz"},
+		}
+		assert.Equal(t, map[string]string{
+			"Route":                     "xyz",
+			"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+			"X-Frame-Options":           "SAMEORIGIN",
+			"X-XSS-Protection":          "1; mode=block",
+		}, options.GetSetResponseHeadersForPolicy(policy))
+	})
+	t.Run("global defaults partial override", func(t *testing.T) {
+		options := NewDefaultOptions()
+		options.Cert = "CERT"
+		policy := &Policy{
+			SetResponseHeaders: map[string]string{"X-Frame-Options": "DENY"},
+		}
+		assert.Equal(t, map[string]string{
+			"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+			"X-Frame-Options":           "DENY",
+			"X-XSS-Protection":          "1; mode=block",
+		}, options.GetSetResponseHeadersForPolicy(policy))
 	})
 }
 
