@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1697662875849,
+  "lastUpdate": 1697662889433,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -73568,6 +73568,42 @@ window.BENCHMARK_DATA = {
             "value": 9241527,
             "unit": "ns/op",
             "extra": "123 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5a735264b30d29f27bcf28f5e3a908b0711e1d39",
+          "message": "config: do not add route headers to global map (#4629)\n\nCurrently the GetSetResponseHeadersForPolicy() method may add entries to \r\nthe global SetResponseHeaders map, which can lead to one route's headers\r\nbeing applied to other routes.\r\n\r\nInstead, make a copy of the SetResponseHeaders map before adding any \r\nroute-specific response header entries.\r\n\r\nAdd additional unit tests for GetSetResponseHeaders() and \r\nGetSetResponseHeadersForPolicy().",
+          "timestamp": "2023-10-18T13:55:48-07:00",
+          "tree_id": "1b12913f579dbf30f61cfb45b7576ba0c439195e",
+          "url": "https://github.com/pomerium/pomerium/commit/5a735264b30d29f27bcf28f5e3a908b0711e1d39"
+        },
+        "date": 1697662880643,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16015807,
+            "unit": "ns/op",
+            "extra": "68 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10454982,
+            "unit": "ns/op",
+            "extra": "118 times\n2 procs"
           }
         ]
       }
