@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1697742005733,
+  "lastUpdate": 1697743012764,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -73668,6 +73668,38 @@ window.BENCHMARK_DATA = {
             "value": 9254054,
             "unit": "ns/op",
             "extra": "126 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "32076cb689948cbaad0e7a947f9ea6647efbdf53",
+          "message": "identity: override TokenSource expiry behavior",
+          "timestamp": "2023-10-19T12:55:38Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4632/commits/32076cb689948cbaad0e7a947f9ea6647efbdf53"
+        },
+        "date": 1697743004879,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14993443,
+            "unit": "ns/op",
+            "extra": "67 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10868123,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
