@@ -213,16 +213,9 @@ func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.Stat
 		return nil, err
 	}
 
-	if t == nil {
-		return nil, ErrMissingAccessToken
-	}
-	if t.RefreshToken == "" {
-		return nil, ErrMissingRefreshToken
-	}
-
-	newToken, err := oa.TokenSource(ctx, t).Token()
+	newToken, err := Refresh(ctx, oa, t)
 	if err != nil {
-		return nil, fmt.Errorf("identity/oidc: refresh failed: %w", err)
+		return nil, err
 	}
 
 	// Many identity providers _will not_ return `id_token` on refresh
