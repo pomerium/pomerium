@@ -7,6 +7,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// Refresh requests a new oauth2.Token based on an existing Token and the
+// provided Config. The existing Token must contain a refresh token.
 func Refresh(ctx context.Context, cfg *oauth2.Config, t *oauth2.Token) (*oauth2.Token, error) {
 	if t == nil || t.RefreshToken == "" {
 		return nil, ErrMissingRefreshToken
