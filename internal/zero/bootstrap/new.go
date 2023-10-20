@@ -43,14 +43,14 @@ func New(secret []byte) (*Source, error) {
 
 	rnd := hkdf.New(sha256.New, secret, nil, nil)
 
-	cipher, err := initCipher(rnd)
-	if err != nil {
-		return nil, fmt.Errorf("init cypher: %w", err)
-	}
-
 	err = initSecrets(cfg, rnd)
 	if err != nil {
 		return nil, fmt.Errorf("init secrets: %w", err)
+	}
+
+	cipher, err := initCipher(rnd)
+	if err != nil {
+		return nil, fmt.Errorf("init cypher: %w", err)
 	}
 
 	svc := &Source{
