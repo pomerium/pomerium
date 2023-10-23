@@ -1121,9 +1121,12 @@ func (o *Options) GetSetResponseHeaders() map[string]string {
 
 // GetSetResponseHeadersForPolicy gets the SetResponseHeaders for a policy.
 func (o *Options) GetSetResponseHeadersForPolicy(policy *Policy) map[string]string {
-	hdrs := o.SetResponseHeaders
-	if hdrs == nil {
-		hdrs = make(map[string]string)
+	hdrs := make(map[string]string)
+	for k, v := range o.SetResponseHeaders {
+		hdrs[k] = v
+	}
+
+	if o.SetResponseHeaders == nil {
 		for k, v := range defaultSetResponseHeaders {
 			hdrs[k] = v
 		}
