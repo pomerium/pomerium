@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1697769363075,
+  "lastUpdate": 1698074715889,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -73764,6 +73764,42 @@ window.BENCHMARK_DATA = {
             "value": 11203312,
             "unit": "ns/op",
             "extra": "91 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "39a477c5106baf4bac53a1d2261b544c772b5250",
+          "message": "identity: override TokenSource expiry behavior (#4632)\n\nThe current session refresh loop attempts to refresh access tokens when\r\nthey are due to expire in less than one minute. However, the code to\r\nperform the refresh relies on a TokenSource from the x/oauth2 package,\r\nwhich has its own internal 'expiryDelta' threshold, with a default of\r\n10 seconds. As a result, the first four or five attempts to refresh a\r\nparticular access token will not actually refresh the token. The refresh\r\nwill happen only when the access token is within 10 seconds of expiring.\r\n\r\nInstead, before we obtain a new TokenSource, first clear any existing\r\naccess token. This causes the TokenSource to consider the token invalid,\r\ntriggering a refresh. This should give the refresh loop more control\r\nover when refreshes happen.\r\n\r\nConsolidate this logic in a new Refresh() method in the oidc package.\r\nAdd unit tests for this new method.",
+          "timestamp": "2023-10-23T08:20:04-07:00",
+          "tree_id": "31d59d1a67ecbf66d720bcd563704e33cbe03ab7",
+          "url": "https://github.com/pomerium/pomerium/commit/39a477c5106baf4bac53a1d2261b544c772b5250"
+        },
+        "date": 1698074707918,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13909896,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9421747,
+            "unit": "ns/op",
+            "extra": "124 times\n2 procs"
           }
         ]
       }
