@@ -216,9 +216,20 @@ func TestManager_refreshSession(t *testing.T) {
 		coolOffDuration: 10 * time.Second,
 	})
 
-	// After a success token refresh, the manager should schedule another
-	// refresh event.
+	// If OAuth2 token refresh fails with a temporary error, the manager should
+	// still reschedule another refresh attempt.
 	now = now.Add(4 * time.Minute)
+	auth.refreshError = context.DeadlineExceeded
+	mgr.refreshSession(context.Background(), "user-id", "session-id")
+
+	tm, key := mgr.sessionScheduler.Next()
+	assert.Equal(t, now.Add(10*time.Second), tm)
+	assert.Equal(t, "user-id\037session-id", key)
+
+	// Simulate a successful token refresh on the second attempt. The manager
+	// should store the updated session in the databroker and schedule another
+	// refresh event.
+	now = now.Add(10 * time.Second)
 	auth.refreshResult, auth.refreshError = &oauth2.Token{
 		AccessToken:  "new-access-token",
 		RefreshToken: "new-refresh-token",
@@ -239,7 +250,7 @@ func TestManager_refreshSession(t *testing.T) {
 		Return(nil /* this result is currently unused */, nil)
 	mgr.refreshSession(context.Background(), "user-id", "session-id")
 
-	tm, key := mgr.sessionScheduler.Next()
+	tm, key = mgr.sessionScheduler.Next()
 	assert.Equal(t, now.Add(4*time.Minute), tm)
 	assert.Equal(t, "user-id\037session-id", key)
 }
