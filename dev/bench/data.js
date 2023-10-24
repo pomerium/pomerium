@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698184312395,
+  "lastUpdate": 1698184394005,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -74028,6 +74028,42 @@ window.BENCHMARK_DATA = {
             "value": 8370525,
             "unit": "ns/op",
             "extra": "141 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fa7dc469a360646c1385e3db6704ed1ffac1f466",
+          "message": "identity: preserve session refresh schedule (#4633)\n\nThe databroker identity manager is responsible for refreshing session\r\nrecords, to account for overall session expiration as well as OAuth2\r\naccess token expiration.\r\n\r\nRefresh events are scheduled subject to a coolOffDuration (10 seconds,\r\nby default) relative to a lastRefresh timestamp. Currently, any update\r\nto a session record will reset the associated lastRefresh value and\r\nreschedule any pending refresh event for that session. If an update\r\noccurs close before a scheduled refresh event, this will push back the\r\nscheduled refresh event to 10 seconds from that time.\r\n\r\nThis means that if a session is updated frequently enough (e.g. if there\r\nis a steady stream of requests that cause constant updates via the\r\nAccessTracker), the access token may expire before a refresh ever runs.\r\n\r\nTo avoid this problem, do not update the lastRefresh time upon every\r\nsession record update, but only if it hasn't yet been set. Instead,\r\nupdate the lastRefresh during the refresh attempt itself.\r\n\r\nAdd unit tests to exercise these changes. There is a now() function as\r\npart of the manager configuration (to allow unit tests to set a fake\r\ntime); update the Manager to use this function throughout.",
+          "timestamp": "2023-10-24T14:46:33-07:00",
+          "tree_id": "f08a8d575db5ea0c33b87ed1f3569b4aaea31883",
+          "url": "https://github.com/pomerium/pomerium/commit/fa7dc469a360646c1385e3db6704ed1ffac1f466"
+        },
+        "date": 1698184385095,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 19239632,
+            "unit": "ns/op",
+            "extra": "60 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 13704356,
+            "unit": "ns/op",
+            "extra": "86 times\n2 procs"
           }
         ]
       }
