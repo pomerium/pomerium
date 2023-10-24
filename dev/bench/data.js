@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698186317553,
+  "lastUpdate": 1698187808226,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -74096,6 +74096,42 @@ window.BENCHMARK_DATA = {
             "value": 9761935,
             "unit": "ns/op",
             "extra": "122 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1d2c525b1a672a8ab028cab40c8c5ef41c42aa3f",
+          "message": "identity: rework session refresh error handling (#4638)\n\nCurrently, if a temporary error occurs while attempting to refresh an\r\nOAuth2 token, the identity manager won't schedule another attempt.\r\n\r\nInstead, update the session refresh logic so that it will retry after\r\ntemporary errors. Extract the bulk of this logic into a separate method\r\nthat returns a boolean indicating whether to schedule another refresh.\r\n\r\nUpdate the unit test to simulate a temporary error during OAuth2 token\r\nrefresh.",
+          "timestamp": "2023-10-24T15:44:51-07:00",
+          "tree_id": "956af7de5927096a5977d64399749e3c38d71d1b",
+          "url": "https://github.com/pomerium/pomerium/commit/1d2c525b1a672a8ab028cab40c8c5ef41c42aa3f"
+        },
+        "date": 1698187800192,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17187647,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10763322,
+            "unit": "ns/op",
+            "extra": "115 times\n2 procs"
           }
         ]
       }
