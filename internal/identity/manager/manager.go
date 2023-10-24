@@ -107,6 +107,10 @@ func (mgr *Manager) GetDataBrokerServiceClient() databroker.DataBrokerServiceCli
 	return mgr.cfg.Load().dataBrokerClient
 }
 
+func (mgr *Manager) now() time.Time {
+	return mgr.cfg.Load().now()
+}
+
 func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecordsMessage, clear <-chan struct{}) error {
 	// wait for initial sync
 	select {
@@ -145,7 +149,7 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 		case <-timer.C:
 		}
 
-		now := time.Now()
+		now := mgr.now()
 		nextTime = now.Add(maxWait)
 
 		// refresh sessions
@@ -182,6 +186,15 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 	}
 }
 
+// refreshSession handles two distinct session lifecycle events:
+//
+//  1. If the session itself has expired, delete the session.
+//  2. If the session's underlying OAuth2 access token is nearing expiration
+//     (but the session itself is still valid), refresh the access token.
+//
+// After a successful access token refresh, this method will also trigger a
+// user info refresh. If an access token refresh or a user info refresh fails
+// with a permanent error, the session will be deleted.
 func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string) {
 	log.Info(ctx).
 		Str("user_id", userID).
@@ -208,7 +221,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 	}
 
 	expiry := s.GetExpiresAt().AsTime()
-	if !expiry.After(time.Now()) {
+	if !expiry.After(mgr.now()) {
 		log.Info(ctx).
 			Str("user_id", userID).
 			Str("session_id", sessionID).
@@ -262,8 +275,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 		return
 	}
 
-	res, err := session.Put(ctx, mgr.cfg.Load().dataBrokerClient, s.Session)
-	if err != nil {
+	if _, err := session.Put(ctx, mgr.cfg.Load().dataBrokerClient, s.Session); err != nil {
 		log.Error(ctx).Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
@@ -271,7 +283,9 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 		return
 	}
 
-	mgr.onUpdateSession(ctx, res.GetRecord(), s.Session)
+	s.lastRefresh = mgr.now()
+	mgr.sessions.ReplaceOrInsert(s)
+	mgr.sessionScheduler.Add(s.NextRefresh(), toSessionSchedulerKey(userID, sessionID))
 }
 
 func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
@@ -291,7 +305,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 			Msg("no user found for refresh")
 		return
 	}
-	u.lastRefresh = time.Now()
+	u.lastRefresh = mgr.now()
 	mgr.userScheduler.Add(u.NextRefresh(), u.GetId())
 
 	for _, s := range mgr.sessions.GetSessionsForUser(userID) {
@@ -343,7 +357,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 				log.Warn(ctx).Msgf("error unmarshaling session: %s", err)
 				continue
 			}
-			mgr.onUpdateSession(ctx, record, &pbSession)
+			mgr.onUpdateSession(record, &pbSession)
 		case grpcutil.GetTypeURL(new(user.User)):
 			var pbUser user.User
 			err := record.GetData().UnmarshalTo(&pbUser)
@@ -356,7 +370,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 	}
 }
 
-func (mgr *Manager) onUpdateSession(_ context.Context, record *databroker.Record, session *session.Session) {
+func (mgr *Manager) onUpdateSession(record *databroker.Record, session *session.Session) {
 	mgr.sessionScheduler.Remove(toSessionSchedulerKey(session.GetUserId(), session.GetId()))
 
 	if record.GetDeletedAt() != nil {
@@ -366,7 +380,9 @@ func (mgr *Manager) onUpdateSession(_ context.Context, record *databroker.Record
 
 	// update session
 	s, _ := mgr.sessions.Get(session.GetUserId(), session.GetId())
-	s.lastRefresh = time.Now()
+	if s.lastRefresh.IsZero() {
+		s.lastRefresh = mgr.now()
+	}
 	s.gracePeriod = mgr.cfg.Load().sessionRefreshGracePeriod
 	s.coolOffDuration = mgr.cfg.Load().sessionRefreshCoolOffDuration
 	s.Session = session
