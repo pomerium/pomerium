@@ -244,18 +244,6 @@ func TestManager_refreshSession(t *testing.T) {
 	assert.Equal(t, "user-id\037session-id", key)
 }
 
-type objectsAreEqualMatcher struct {
-	expected interface{}
-}
-
-func (m objectsAreEqualMatcher) Matches(x interface{}) bool {
-	return assert.ObjectsAreEqual(m.expected, x)
-}
-
-func (m objectsAreEqualMatcher) String() string {
-	return fmt.Sprintf("is equal to %v (%T)", m.expected, m.expected)
-}
-
 func TestManager_reportErrors(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
@@ -336,4 +324,19 @@ func mkRecord(msg recordable) *databroker.Record {
 type recordable interface {
 	proto.Message
 	GetId() string
+}
+
+// objectsAreEqualMatcher implements gomock.Matcher using ObjectsAreEqual. This
+// is especially helpful when working with pointers, as it will compare the
+// underlying values rather than the pointers themselves.
+type objectsAreEqualMatcher struct {
+	expected interface{}
+}
+
+func (m objectsAreEqualMatcher) Matches(x interface{}) bool {
+	return assert.ObjectsAreEqual(m.expected, x)
+}
+
+func (m objectsAreEqualMatcher) String() string {
+	return fmt.Sprintf("is equal to %v (%T)", m.expected, m.expected)
 }
