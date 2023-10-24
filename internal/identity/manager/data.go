@@ -54,6 +54,9 @@ func (u *User) UnmarshalJSON(data []byte) error {
 // A Session is a session managed by the Manager.
 type Session struct {
 	*session.Session
+	// lastRefresh is the time of the last refresh attempt (which may or may
+	// not have succeeded), or else the time the Manager first became aware of
+	// the session (if it has not yet attempted to refresh this session).
 	lastRefresh time.Time
 	// gracePeriod is the amount of time before expiration to attempt a refresh.
 	gracePeriod time.Duration
