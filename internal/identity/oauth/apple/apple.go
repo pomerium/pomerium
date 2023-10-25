@@ -130,16 +130,9 @@ func (p *Provider) Authenticate(ctx context.Context, code string, v identity.Sta
 
 // Refresh renews a user's session.
 func (p *Provider) Refresh(ctx context.Context, t *oauth2.Token, v identity.State) (*oauth2.Token, error) {
-	if t == nil {
-		return nil, oidc.ErrMissingAccessToken
-	}
-	if t.RefreshToken == "" {
-		return nil, oidc.ErrMissingRefreshToken
-	}
-
-	newToken, err := p.oauth.TokenSource(ctx, t).Token()
+	newToken, err := oidc.Refresh(ctx, p.oauth, t)
 	if err != nil {
-		return nil, fmt.Errorf("identity/apple: refresh failed: %w", err)
+		return nil, err
 	}
 
 	if rawIDToken, ok := newToken.Extra("id_token").(string); ok {

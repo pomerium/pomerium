@@ -3,6 +3,7 @@ package manager
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -24,18 +25,23 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
-type mockAuthenticator struct{}
-
-func (mock mockAuthenticator) Refresh(_ context.Context, _ *oauth2.Token, _ identity.State) (*oauth2.Token, error) {
-	return nil, errors.New("update session")
+type mockAuthenticator struct {
+	refreshResult       *oauth2.Token
+	refreshError        error
+	revokeError         error
+	updateUserInfoError error
 }
 
-func (mock mockAuthenticator) Revoke(_ context.Context, _ *oauth2.Token) error {
-	return errors.New("not implemented")
+func (mock *mockAuthenticator) Refresh(_ context.Context, _ *oauth2.Token, _ identity.State) (*oauth2.Token, error) {
+	return mock.refreshResult, mock.refreshError
 }
 
-func (mock mockAuthenticator) UpdateUserInfo(_ context.Context, _ *oauth2.Token, _ any) error {
-	return errors.New("update user info")
+func (mock *mockAuthenticator) Revoke(_ context.Context, _ *oauth2.Token) error {
+	return mock.revokeError
+}
+
+func (mock *mockAuthenticator) UpdateUserInfo(_ context.Context, _ *oauth2.Token, _ any) error {
+	return mock.updateUserInfoError
 }
 
 func TestManager_refresh(t *testing.T) {
@@ -86,12 +92,167 @@ func TestManager_onUpdateRecords(t *testing.T) {
 	})
 
 	if _, ok := mgr.sessions.Get("user1", "session1"); assert.True(t, ok) {
+		tm, id := mgr.sessionScheduler.Next()
+		assert.Equal(t, now.Add(10*time.Second), tm)
+		assert.Equal(t, "user1\037session1", id)
 	}
 	if _, ok := mgr.users.Get("user1"); assert.True(t, ok) {
 		tm, id := mgr.userScheduler.Next()
 		assert.Equal(t, now.Add(userRefreshInterval), tm)
 		assert.Equal(t, "user1", id)
 	}
+}
+
+func TestManager_onUpdateSession(t *testing.T) {
+	startTime := time.Date(2023, 10, 19, 12, 0, 0, 0, time.UTC)
+
+	s := &session.Session{
+		Id:     "session-id",
+		UserId: "user-id",
+		OauthToken: &session.OAuthToken{
+			AccessToken: "access-token",
+			ExpiresAt:   timestamppb.New(startTime.Add(5 * time.Minute)),
+		},
+		IssuedAt:  timestamppb.New(startTime),
+		ExpiresAt: timestamppb.New(startTime.Add(24 * time.Hour)),
+	}
+
+	assertNextScheduled := func(t *testing.T, mgr *Manager, expectedTime time.Time) {
+		t.Helper()
+		tm, key := mgr.sessionScheduler.Next()
+		assert.Equal(t, expectedTime, tm)
+		assert.Equal(t, "user-id\037session-id", key)
+	}
+
+	t.Run("initial refresh event when not expiring soon", func(t *testing.T) {
+		now := startTime
+		mgr := New(WithNow(func() time.Time { return now }))
+
+		// When the Manager first becomes aware of a session it should schedule
+		// a refresh event for one minute before access token expiration.
+		mgr.onUpdateSession(mkRecord(s), s)
+		assertNextScheduled(t, mgr, startTime.Add(4*time.Minute))
+	})
+	t.Run("initial refresh event when expiring soon", func(t *testing.T) {
+		now := startTime
+		mgr := New(WithNow(func() time.Time { return now }))
+
+		// When the Manager first becomes aware of a session, if that session
+		// is expiring within the gracePeriod (1 minute), it should schedule a
+		// refresh event for as soon as possible, subject to the
+		// coolOffDuration (10 seconds).
+		now = now.Add(4*time.Minute + 30*time.Second) // 30 s before expiration
+		mgr.onUpdateSession(mkRecord(s), s)
+		assertNextScheduled(t, mgr, now.Add(10*time.Second))
+	})
+	t.Run("update near scheduled refresh", func(t *testing.T) {
+		now := startTime
+		mgr := New(WithNow(func() time.Time { return now }))
+
+		mgr.onUpdateSession(mkRecord(s), s)
+		assertNextScheduled(t, mgr, startTime.Add(4*time.Minute))
+
+		// If a session is updated close to the time when it is scheduled to be
+		// refreshed, the scheduled refresh event should not be pushed back.
+		now = now.Add(3*time.Minute + 55*time.Second) // 5 s before refresh
+		mgr.onUpdateSession(mkRecord(s), s)
+		assertNextScheduled(t, mgr, now.Add(5*time.Second))
+
+		// However, if an update changes the access token validity, the refresh
+		// event should be rescheduled accordingly. (This should be uncommon,
+		// as only the refresh loop itself should modify the access token.)
+		s2 := proto.Clone(s).(*session.Session)
+		s2.OauthToken.ExpiresAt = timestamppb.New(now.Add(5 * time.Minute))
+		mgr.onUpdateSession(mkRecord(s2), s2)
+		assertNextScheduled(t, mgr, now.Add(4*time.Minute))
+	})
+	t.Run("session record deleted", func(t *testing.T) {
+		now := startTime
+		mgr := New(WithNow(func() time.Time { return now }))
+
+		mgr.onUpdateSession(mkRecord(s), s)
+		assertNextScheduled(t, mgr, startTime.Add(4*time.Minute))
+
+		// If a session is deleted, any scheduled refresh event should be canceled.
+		record := mkRecord(s)
+		record.DeletedAt = timestamppb.New(now)
+		mgr.onUpdateSession(record, s)
+		_, key := mgr.sessionScheduler.Next()
+		assert.Empty(t, key)
+	})
+}
+
+func TestManager_refreshSession(t *testing.T) {
+	startTime := time.Date(2023, 10, 19, 12, 0, 0, 0, time.UTC)
+
+	var auth mockAuthenticator
+
+	ctrl := gomock.NewController(t)
+	client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
+
+	now := startTime
+	mgr := New(
+		WithDataBrokerClient(client),
+		WithNow(func() time.Time { return now }),
+		WithAuthenticator(&auth),
+	)
+
+	// Initialize the Manager with a new session.
+	s := &session.Session{
+		Id:     "session-id",
+		UserId: "user-id",
+		OauthToken: &session.OAuthToken{
+			AccessToken:  "access-token",
+			ExpiresAt:    timestamppb.New(startTime.Add(5 * time.Minute)),
+			RefreshToken: "refresh-token",
+		},
+		IssuedAt:  timestamppb.New(startTime),
+		ExpiresAt: timestamppb.New(startTime.Add(24 * time.Hour)),
+	}
+	mgr.sessions.ReplaceOrInsert(Session{
+		Session:         s,
+		lastRefresh:     startTime,
+		gracePeriod:     time.Minute,
+		coolOffDuration: 10 * time.Second,
+	})
+
+	// If OAuth2 token refresh fails with a temporary error, the manager should
+	// still reschedule another refresh attempt.
+	now = now.Add(4 * time.Minute)
+	auth.refreshError = context.DeadlineExceeded
+	mgr.refreshSession(context.Background(), "user-id", "session-id")
+
+	tm, key := mgr.sessionScheduler.Next()
+	assert.Equal(t, now.Add(10*time.Second), tm)
+	assert.Equal(t, "user-id\037session-id", key)
+
+	// Simulate a successful token refresh on the second attempt. The manager
+	// should store the updated session in the databroker and schedule another
+	// refresh event.
+	now = now.Add(10 * time.Second)
+	auth.refreshResult, auth.refreshError = &oauth2.Token{
+		AccessToken:  "new-access-token",
+		RefreshToken: "new-refresh-token",
+		Expiry:       now.Add(5 * time.Minute),
+	}, nil
+	expectedSession := proto.Clone(s).(*session.Session)
+	expectedSession.OauthToken = &session.OAuthToken{
+		AccessToken:  "new-access-token",
+		ExpiresAt:    timestamppb.New(now.Add(5 * time.Minute)),
+		RefreshToken: "new-refresh-token",
+	}
+	client.EXPECT().Put(gomock.Any(),
+		objectsAreEqualMatcher{&databroker.PutRequest{Records: []*databroker.Record{{
+			Type: "type.googleapis.com/session.Session",
+			Id:   "session-id",
+			Data: protoutil.NewAny(expectedSession),
+		}}}}).
+		Return(nil /* this result is currently unused */, nil)
+	mgr.refreshSession(context.Background(), "user-id", "session-id")
+
+	tm, key = mgr.sessionScheduler.Next()
+	assert.Equal(t, now.Add(4*time.Minute), tm)
+	assert.Equal(t, "user-id\037session-id", key)
 }
 
 func TestManager_reportErrors(t *testing.T) {
@@ -135,7 +296,10 @@ func TestManager_reportErrors(t *testing.T) {
 	mgr := New(
 		WithEventManager(evtMgr),
 		WithDataBrokerClient(client),
-		WithAuthenticator(mockAuthenticator{}),
+		WithAuthenticator(&mockAuthenticator{
+			refreshError:        errors.New("update session"),
+			updateUserInfoError: errors.New("update user info"),
+		}),
 	)
 
 	mgr.onUpdateRecords(ctx, updateRecordsMessage{
@@ -171,4 +335,19 @@ func mkRecord(msg recordable) *databroker.Record {
 type recordable interface {
 	proto.Message
 	GetId() string
+}
+
+// objectsAreEqualMatcher implements gomock.Matcher using ObjectsAreEqual. This
+// is especially helpful when working with pointers, as it will compare the
+// underlying values rather than the pointers themselves.
+type objectsAreEqualMatcher struct {
+	expected interface{}
+}
+
+func (m objectsAreEqualMatcher) Matches(x interface{}) bool {
+	return assert.ObjectsAreEqual(m.expected, x)
+}
+
+func (m objectsAreEqualMatcher) String() string {
+	return fmt.Sprintf("is equal to %v (%T)", m.expected, m.expected)
 }
