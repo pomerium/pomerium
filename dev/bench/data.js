@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698270041905,
+  "lastUpdate": 1698273806522,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -74196,6 +74196,38 @@ window.BENCHMARK_DATA = {
             "value": 12072576,
             "unit": "ns/op",
             "extra": "104 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "96774bbb6c5075a0e1e6665b7631b245b3608c03",
+          "message": "core/envoy: fix remove cookie lua script",
+          "timestamp": "2023-10-21T21:52:14Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4641/commits/96774bbb6c5075a0e1e6665b7631b245b3608c03"
+        },
+        "date": 1698273798096,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16387577,
+            "unit": "ns/op",
+            "extra": "62 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10297116,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
