@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698273806522,
+  "lastUpdate": 1698325545829,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -74228,6 +74228,38 @@ window.BENCHMARK_DATA = {
             "value": 10297116,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "cebd1df947589c7ae2eea8cb20a2dfc89948463a",
+          "message": "cryptutil: add streaming crypt helpers",
+          "timestamp": "2023-10-21T21:52:14Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4642/commits/cebd1df947589c7ae2eea8cb20a2dfc89948463a"
+        },
+        "date": 1698325537003,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 19119746,
+            "unit": "ns/op",
+            "extra": "61 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 12696264,
+            "unit": "ns/op",
+            "extra": "90 times\n2 procs"
           }
         ]
       }
