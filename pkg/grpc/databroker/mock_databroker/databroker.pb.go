@@ -355,7 +355,7 @@ func (mr *MockDataBrokerService_SyncClientMockRecorder) Recv() *gomock.Call {
 }
 
 // RecvMsg mocks base method.
-func (m_2 *MockDataBrokerService_SyncClient) RecvMsg(m interface{}) error {
+func (m_2 *MockDataBrokerService_SyncClient) RecvMsg(m any) error {
 	m_2.ctrl.T.Helper()
 	ret := m_2.ctrl.Call(m_2, "RecvMsg", m)
 	ret0, _ := ret[0].(error)
@@ -369,7 +369,7 @@ func (mr *MockDataBrokerService_SyncClientMockRecorder) RecvMsg(m interface{}) *
 }
 
 // SendMsg mocks base method.
-func (m_2 *MockDataBrokerService_SyncClient) SendMsg(m interface{}) error {
+func (m_2 *MockDataBrokerService_SyncClient) SendMsg(m any) error {
 	m_2.ctrl.T.Helper()
 	ret := m_2.ctrl.Call(m_2, "SendMsg", m)
 	ret0, _ := ret[0].(error)
@@ -478,7 +478,7 @@ func (mr *MockDataBrokerService_SyncLatestClientMockRecorder) Recv() *gomock.Cal
 }
 
 // RecvMsg mocks base method.
-func (m_2 *MockDataBrokerService_SyncLatestClient) RecvMsg(m interface{}) error {
+func (m_2 *MockDataBrokerService_SyncLatestClient) RecvMsg(m any) error {
 	m_2.ctrl.T.Helper()
 	ret := m_2.ctrl.Call(m_2, "RecvMsg", m)
 	ret0, _ := ret[0].(error)
@@ -492,7 +492,7 @@ func (mr *MockDataBrokerService_SyncLatestClientMockRecorder) RecvMsg(m interfac
 }
 
 // SendMsg mocks base method.
-func (m_2 *MockDataBrokerService_SyncLatestClient) SendMsg(m interface{}) error {
+func (m_2 *MockDataBrokerService_SyncLatestClient) SendMsg(m any) error {
 	m_2.ctrl.T.Helper()
 	ret := m_2.ctrl.Call(m_2, "SendMsg", m)
 	ret0, _ := ret[0].(error)
@@ -728,7 +728,7 @@ func (mr *MockDataBrokerService_SyncServerMockRecorder) Context() *gomock.Call {
 }
 
 // RecvMsg mocks base method.
-func (m_2 *MockDataBrokerService_SyncServer) RecvMsg(m interface{}) error {
+func (m_2 *MockDataBrokerService_SyncServer) RecvMsg(m any) error {
 	m_2.ctrl.T.Helper()
 	ret := m_2.ctrl.Call(m_2, "RecvMsg", m)
 	ret0, _ := ret[0].(error)
@@ -770,7 +770,7 @@ func (mr *MockDataBrokerService_SyncServerMockRecorder) SendHeader(arg0 interfac
 }
 
 // SendMsg mocks base method.
-func (m_2 *MockDataBrokerService_SyncServer) SendMsg(m interface{}) error {
+func (m_2 *MockDataBrokerService_SyncServer) SendMsg(m any) error {
 	m_2.ctrl.T.Helper()
 	ret := m_2.ctrl.Call(m_2, "SendMsg", m)
 	ret0, _ := ret[0].(error)
@@ -847,7 +847,7 @@ func (mr *MockDataBrokerService_SyncLatestServerMockRecorder) Context() *gomock.
 }
 
 // RecvMsg mocks base method.
-func (m_2 *MockDataBrokerService_SyncLatestServer) RecvMsg(m interface{}) error {
+func (m_2 *MockDataBrokerService_SyncLatestServer) RecvMsg(m any) error {
 	m_2.ctrl.T.Helper()
 	ret := m_2.ctrl.Call(m_2, "RecvMsg", m)
 	ret0, _ := ret[0].(error)
@@ -889,7 +889,7 @@ func (mr *MockDataBrokerService_SyncLatestServerMockRecorder) SendHeader(arg0 in
 }
 
 // SendMsg mocks base method.
-func (m_2 *MockDataBrokerService_SyncLatestServer) SendMsg(m interface{}) error {
+func (m_2 *MockDataBrokerService_SyncLatestServer) SendMsg(m any) error {
 	m_2.ctrl.T.Helper()
 	ret := m_2.ctrl.Call(m_2, "SendMsg", m)
 	ret0, _ := ret[0].(error)

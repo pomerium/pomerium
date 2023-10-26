@@ -8,10 +8,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -47,8 +47,7 @@ func reformatJSON(raw json.RawMessage) string {
 }
 
 func toProtoJSON(protoMsg interface{}) json.RawMessage {
-	v2 := proto.MessageV2(protoMsg)
-	bs, _ := protojson.Marshal(v2)
+	bs, _ := protojson.Marshal(protoMsg.(protoreflect.ProtoMessage))
 	return bs
 }
 

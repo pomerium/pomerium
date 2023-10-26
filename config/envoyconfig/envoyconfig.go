@@ -22,7 +22,6 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
-	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/martinlindhe/base36"
 	"golang.org/x/net/nettest"
 	"google.golang.org/protobuf/proto"
@@ -46,14 +45,14 @@ var (
 type Endpoint struct {
 	url                url.URL
 	transportSocket    *envoy_config_core_v3.TransportSocket
-	loadBalancerWeight *wrappers.UInt32Value
+	loadBalancerWeight *wrapperspb.UInt32Value
 }
 
 // NewEndpoint creates a new Endpoint.
 func NewEndpoint(u *url.URL, ts *envoy_config_core_v3.TransportSocket, weight uint32) Endpoint {
-	var w *wrappers.UInt32Value
+	var w *wrapperspb.UInt32Value
 	if weight > 0 {
-		w = &wrappers.UInt32Value{Value: weight}
+		w = &wrapperspb.UInt32Value{Value: weight}
 	}
 	return Endpoint{url: *u, transportSocket: ts, loadBalancerWeight: w}
 }

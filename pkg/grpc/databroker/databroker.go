@@ -16,8 +16,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
-//go:generate go run github.com/golang/mock/mockgen -source=databroker.pb.go -destination ./mock_databroker/databroker.pb.go DataBrokerServiceClient
-//go:generate go run github.com/golang/mock/mockgen -source=leaser.go -destination ./mock_databroker/leaser.go LeaserHandler
+//go:generate go run github.com/golang/mock/mockgen@v1.6.0 -source=databroker.pb.go -destination ./mock_databroker/databroker.pb.go DataBrokerServiceClient
+//go:generate go run github.com/golang/mock/mockgen@v1.6.0 -source=leaser.go -destination ./mock_databroker/leaser.go LeaserHandler
 
 type recordObject interface {
 	proto.Message
