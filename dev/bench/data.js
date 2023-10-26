@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698337704446,
+  "lastUpdate": 1698342250308,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -74328,6 +74328,42 @@ window.BENCHMARK_DATA = {
             "value": 10776126,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "818f3926bf5de08f7450b8fa5153a79a00d9e5d0",
+          "message": "core/grpc: fix deprecated protobuf package, remove tools (#4643)",
+          "timestamp": "2023-10-26T11:38:54-06:00",
+          "tree_id": "ea61d96216ba7f776fed8a2c9f37aa0466b1dcf2",
+          "url": "https://github.com/pomerium/pomerium/commit/818f3926bf5de08f7450b8fa5153a79a00d9e5d0"
+        },
+        "date": 1698342243089,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13359602,
+            "unit": "ns/op",
+            "extra": "79 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8302059,
+            "unit": "ns/op",
+            "extra": "136 times\n2 procs"
           }
         ]
       }
