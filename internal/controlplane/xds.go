@@ -24,7 +24,7 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 
 	cfg := srv.currentConfig.Load()
 
-	log.Info(ctx).Int64("config-version", cfg.Version).Msg("controplane: building discovery resources")
+	log.Info(ctx).Int64("config-version", cfg.Version).Msg("controlplane: building discovery resources")
 
 	resources := map[string][]*envoy_service_discovery_v3.Resource{}
 	var clusterCount, listenerCount, routeConfigurationCount int
@@ -73,7 +73,7 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		Int("cluster-count", clusterCount).
 		Int("listener-count", listenerCount).
 		Int("route-configuration-count", routeConfigurationCount).
-		Msg("controplane: built discovery resources")
+		Msg("controlplane: built discovery resources")
 
 	return resources, nil
 }
