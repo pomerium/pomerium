@@ -20,11 +20,15 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 // BuildClusters builds envoy clusters from the given config.
 func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*envoy_config_cluster_v3.Cluster, error) {
+	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildClusters")
+	defer span.End()
+
 	grpcURLs := []*url.URL{{
 		Scheme: "http",
 		Host:   b.localGRPCAddress,

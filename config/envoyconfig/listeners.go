@@ -26,6 +26,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sets"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -49,6 +50,9 @@ func (b *Builder) BuildListeners(
 	cfg *config.Config,
 	fullyStatic bool,
 ) ([]*envoy_config_listener_v3.Listener, error) {
+	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildListeners")
+	defer span.End()
+
 	var listeners []*envoy_config_listener_v3.Listener
 
 	if config.IsAuthenticate(cfg.Options.Services) || config.IsProxy(cfg.Options.Services) {

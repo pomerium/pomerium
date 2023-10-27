@@ -6,6 +6,7 @@ import (
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
 // BuildRouteConfigurations builds the route configurations for the RDS service.
@@ -13,6 +14,9 @@ func (b *Builder) BuildRouteConfigurations(
 	ctx context.Context,
 	cfg *config.Config,
 ) ([]*envoy_config_route_v3.RouteConfiguration, error) {
+	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildRouteConfigurations")
+	defer span.End()
+
 	var routeConfigurations []*envoy_config_route_v3.RouteConfiguration
 
 	if config.IsAuthenticate(cfg.Options.Services) || config.IsProxy(cfg.Options.Services) {
