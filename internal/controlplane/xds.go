@@ -6,6 +6,8 @@ import (
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 
+	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
@@ -17,14 +19,22 @@ const (
 )
 
 func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*envoy_service_discovery_v3.Resource, error) {
-	resources := map[string][]*envoy_service_discovery_v3.Resource{}
+	ctx, span := trace.StartSpan(ctx, "controlplane.Server.buildDiscoveryResources")
+	defer span.End()
+
 	cfg := srv.currentConfig.Load()
+
+	log.Info(ctx).Int64("config-version", cfg.Version).Msg("controplane: building discovery resources")
+
+	resources := map[string][]*envoy_service_discovery_v3.Resource{}
+	var clusterCount, listenerCount, routeConfigurationCount int
 
 	clusters, err := srv.Builder.BuildClusters(ctx, cfg.Config)
 	if err != nil {
 		return nil, err
 	}
 	for _, cluster := range clusters {
+		clusterCount++
 		resources[clusterTypeURL] = append(resources[clusterTypeURL], &envoy_service_discovery_v3.Resource{
 			Name:     cluster.Name,
 			Version:  hex.EncodeToString(cryptutil.HashProto(cluster)),
@@ -37,6 +47,7 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		return nil, err
 	}
 	for _, listener := range listeners {
+		listenerCount++
 		resources[listenerTypeURL] = append(resources[listenerTypeURL], &envoy_service_discovery_v3.Resource{
 			Name:     listener.Name,
 			Version:  hex.EncodeToString(cryptutil.HashProto(listener)),
@@ -49,12 +60,20 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		return nil, err
 	}
 	for _, routeConfiguration := range routeConfigurations {
+		routeConfigurationCount++
 		resources[routeConfigurationTypeURL] = append(resources[routeConfigurationTypeURL], &envoy_service_discovery_v3.Resource{
 			Name:     routeConfiguration.Name,
 			Version:  hex.EncodeToString(cryptutil.HashProto(routeConfiguration)),
 			Resource: protoutil.NewAny(routeConfiguration),
 		})
 	}
+
+	log.Info(ctx).
+		Int64("config-version", cfg.Version).
+		Int("cluster-count", clusterCount).
+		Int("listener-count", listenerCount).
+		Int("route-configuration-count", routeConfigurationCount).
+		Msg("controplane: built discovery resources")
 
 	return resources, nil
 }

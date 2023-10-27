@@ -74,6 +74,8 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 	_, span := trace.StartSpan(ctx, "databroker.config_source.rebuild")
 	defer span.End()
 
+	log.Info(ctx).Msg("databroker: rebuilding configuration")
+
 	src.mu.Lock()
 	defer src.mu.Unlock()
 
@@ -107,6 +109,9 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 	// add all the config policies to the list
 	for _, id := range ids {
 		cfgpb := src.dbConfigs[id]
+		if cfgpb.GetVersion() > 0 {
+			cfg.Version = cfgpb.GetVersion()
+		}
 
 		cfg.Options.ApplySettings(ctx, certsIndex, cfgpb.Settings)
 		var errCount uint64
@@ -165,6 +170,8 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 
 	// add the additional policies here since calling `Validate` will reset them.
 	cfg.Options.AdditionalPolicies = append(cfg.Options.AdditionalPolicies, additionalPolicies...)
+
+	log.Info(ctx).Int64("config-version", cfg.Version).Msg("databroker: built new config")
 
 	src.computedConfig = cfg
 	if !firstTime {
