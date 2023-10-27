@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/events"
@@ -241,12 +242,17 @@ func TestManager_refreshSession(t *testing.T) {
 		ExpiresAt:    timestamppb.New(now.Add(5 * time.Minute)),
 		RefreshToken: "new-refresh-token",
 	}
-	client.EXPECT().Put(gomock.Any(),
-		objectsAreEqualMatcher{&databroker.PutRequest{Records: []*databroker.Record{{
-			Type: "type.googleapis.com/session.Session",
-			Id:   "session-id",
-			Data: protoutil.NewAny(expectedSession),
-		}}}}).
+	client.EXPECT().Patch(gomock.Any(), objectsAreEqualMatcher{
+		&databroker.PatchRequest{
+			Records: []*databroker.Record{{
+				Type: "type.googleapis.com/session.Session",
+				Id:   "session-id",
+				Data: protoutil.NewAny(expectedSession),
+			}},
+			FieldMask: &fieldmaskpb.FieldMask{
+				Paths: []string{"oauth_token", "claims"},
+			},
+		}}).
 		Return(nil /* this result is currently unused */, nil)
 	mgr.refreshSession(context.Background(), "user-id", "session-id")
 

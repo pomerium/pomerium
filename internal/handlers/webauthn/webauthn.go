@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -405,8 +406,13 @@ func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *Stat
 }
 
 func (h *Handler) saveSessionAndRedirect(w http.ResponseWriter, r *http.Request, state *State, rawRedirectURI string) error {
+	fm, err := fieldmaskpb.New(state.Session, "device_credentials")
+	if err != nil {
+		return fmt.Errorf("internal error: %w", err)
+	}
+
 	// save the session to the databroker
-	res, err := session.Put(r.Context(), state.Client, state.Session)
+	res, err := session.Patch(r.Context(), state.Client, state.Session, fm)
 	if err != nil {
 		return err
 	}

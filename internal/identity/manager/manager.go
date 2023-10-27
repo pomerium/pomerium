@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/atomicutil"
@@ -288,7 +289,13 @@ func (mgr *Manager) refreshSessionInternal(
 		return false
 	}
 
-	if _, err := session.Put(ctx, mgr.cfg.Load().dataBrokerClient, s.Session); err != nil {
+	fm, err := fieldmaskpb.New(s.Session, "oauth_token", "claims")
+	if err != nil {
+		log.Error(ctx).Err(err).Msg("internal error")
+		return false
+	}
+
+	if _, err := session.Patch(ctx, mgr.cfg.Load().dataBrokerClient, s.Session, fm); err != nil {
 		log.Error(ctx).Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).

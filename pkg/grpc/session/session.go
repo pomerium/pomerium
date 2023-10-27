@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -59,6 +60,24 @@ func Put(ctx context.Context, client databroker.DataBrokerServiceClient, s *Sess
 			Id:   s.Id,
 			Data: data,
 		}},
+	})
+	return res, err
+}
+
+// Patch updates specific fields of an existing session in the databroker.
+func Patch(
+	ctx context.Context, client databroker.DataBrokerServiceClient,
+	s *Session, fields *fieldmaskpb.FieldMask,
+) (*databroker.PatchResponse, error) {
+	s = proto.Clone(s).(*Session)
+	data := protoutil.NewAny(s)
+	res, err := client.Patch(ctx, &databroker.PatchRequest{
+		Records: []*databroker.Record{{
+			Type: data.GetTypeUrl(),
+			Id:   s.Id,
+			Data: data,
+		}},
+		FieldMask: fields,
 	})
 	return res, err
 }

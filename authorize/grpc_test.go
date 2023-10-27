@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
@@ -21,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 const certPEM = `
@@ -287,6 +290,37 @@ func (m mockDataBrokerServiceClient) Get(ctx context.Context, in *databroker.Get
 
 func (m mockDataBrokerServiceClient) Put(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
 	return m.put(ctx, in, opts...)
+}
+
+// Patch emulates the patch operation using Get and Put. (This is not atomic.)
+func (m mockDataBrokerServiceClient) Patch(ctx context.Context, in *databroker.PatchRequest, opts ...grpc.CallOption) (*databroker.PatchResponse, error) {
+	var records []*databroker.Record
+	for _, record := range in.GetRecords() {
+		getResponse, err := m.Get(ctx, &databroker.GetRequest{
+			Type: record.GetType(),
+			Id:   record.GetId(),
+		})
+		if storage.IsNotFound(err) {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
+		existing := getResponse.GetRecord()
+		if err := storage.PatchRecord(existing, record, in.GetFieldMask()); err != nil {
+			return nil, status.Errorf(codes.Unknown, err.Error())
+		}
+
+		records = append(records, record)
+	}
+	putResponse, err := m.Put(ctx, &databroker.PutRequest{Records: records})
+	if err != nil {
+		return nil, err
+	}
+	return &databroker.PatchResponse{
+		ServerVersion: putResponse.GetServerVersion(),
+		Records:       putResponse.GetRecords(),
+	}, nil
 }
 
 func mustParseURL(rawURL string) url.URL {
