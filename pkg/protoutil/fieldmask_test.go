@@ -55,6 +55,12 @@ func TestOverwriteMaskedErrors(t *testing.T) {
 	err := protoutil.OverwriteMasked(&s1, &s2, &fieldmaskpb.FieldMask{Paths: []string{"foo"}})
 	assert.Equal(t, `cannot overwrite unknown field "foo" in message session.Session`, err.Error())
 
+	s2.OauthToken = &session.OAuthToken{AccessToken: "access-token"}
+	err = protoutil.OverwriteMasked(&s1, &s2, &fieldmaskpb.FieldMask{
+		Paths: []string{"oauth_token.foo"}})
+	assert.Equal(t, `cannot overwrite unknown field "foo" in message session.OAuthToken`,
+		err.Error())
+
 	err = protoutil.OverwriteMasked(&s1, &s2,
 		&fieldmaskpb.FieldMask{Paths: []string{"device_credentials.type_id"}})
 	assert.Equal(t, `cannot overwrite sub-fields of field "device_credentials" in message `+
