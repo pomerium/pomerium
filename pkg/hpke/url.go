@@ -145,21 +145,30 @@ func withoutHPKEParams(values url.Values) url.Values {
 	return filtered
 }
 
-var zstdEncoder, _ = zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedBestCompression))
-
 func encodeQueryStringV1(values url.Values) []byte {
 	return []byte(values.Encode())
 }
+
+const zstdWindowSize = 8 << 10 // 8kiB
+
+var zstdEncoder, _ = zstd.NewWriter(nil,
+	zstd.WithEncoderLevel(zstd.SpeedBestCompression),
+	zstd.WithEncoderConcurrency(1),
+	zstd.WithWindowSize(zstdWindowSize),
+)
 
 func encodeQueryStringV2(values url.Values) []byte {
 	return zstdEncoder.EncodeAll([]byte(values.Encode()), nil)
 }
 
-var zstdDecoder, _ = zstd.NewReader(nil)
-
 func decodeQueryStringV1(raw []byte) (url.Values, error) {
 	return url.ParseQuery(string(raw))
 }
+
+var zstdDecoder, _ = zstd.NewReader(nil,
+	zstd.WithDecoderConcurrency(1),
+	zstd.WithDecoderLowmem(true),
+)
 
 func decodeQueryStringV2(raw []byte) (url.Values, error) {
 	bs, err := zstdDecoder.DecodeAll(raw, nil)

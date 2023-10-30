@@ -77,3 +77,16 @@ func TestEncryptURLValues(t *testing.T) {
 		assert.Less(t, len(encrypted.Encode()), 1024)
 	})
 }
+
+func BenchmarkZSTD(b *testing.B) {
+	payload := url.Values{
+		"a": {strings.Repeat("b", 128)},
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		bs := encodeQueryStringV2(payload)
+		_, _ = decodeQueryStringV2(bs)
+	}
+}
