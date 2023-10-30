@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698704616181,
+  "lastUpdate": 1698705531109,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -74792,6 +74792,38 @@ window.BENCHMARK_DATA = {
             "value": 8572638,
             "unit": "ns/op",
             "extra": "130 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "09d869c66736c99b77f5a2d7035dca84b02139e5",
+          "message": "protoutil: add OverwriteMasked method",
+          "timestamp": "2023-10-29T02:09:46Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4651/commits/09d869c66736c99b77f5a2d7035dca84b02139e5"
+        },
+        "date": 1698705524488,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14465599,
+            "unit": "ns/op",
+            "extra": "90 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9777660,
+            "unit": "ns/op",
+            "extra": "132 times\n2 procs"
           }
         ]
       }
