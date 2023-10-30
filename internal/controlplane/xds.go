@@ -29,7 +29,7 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 	resources := map[string][]*envoy_service_discovery_v3.Resource{}
 	var clusterCount, listenerCount, routeConfigurationCount int
 
-	clusters, err := srv.Builder.BuildClusters(ctx, cfg.Config)
+	clusters, err := srv.Builder.BuildClusters(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		})
 	}
 
-	listeners, err := srv.Builder.BuildListeners(ctx, cfg.Config, false)
+	listeners, err := srv.Builder.BuildListeners(ctx, cfg, false)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		})
 	}
 
-	routeConfigurations, err := srv.Builder.BuildRouteConfigurations(ctx, cfg.Config)
+	routeConfigurations, err := srv.Builder.BuildRouteConfigurations(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
