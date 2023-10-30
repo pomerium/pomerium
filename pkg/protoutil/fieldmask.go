@@ -76,11 +76,14 @@ func (t fieldMaskTree) overwrite(dst, src protoreflect.Message) error {
 				return fmt.Errorf("cannot overwrite sub-fields of field %q in message %v",
 					f.TextName(), dd.FullName())
 			}
-			if !src.Has(f) && !src.Has(f) {
-				// no need to copy fields that don't exist
+			if !dst.Has(f) && !src.Has(f) {
+				// no need to copy sub-fields of fields that aren't present in either message
 				continue
 			}
-			subTree.overwrite(dst.Mutable(f).Message(), src.Get(f).Message())
+			err := subTree.overwrite(dst.Mutable(f).Message(), src.Get(f).Message())
+			if err != nil {
+				return err
+			}
 			continue
 		}
 
