@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698696792499,
+  "lastUpdate": 1698704376292,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -74696,6 +74696,38 @@ window.BENCHMARK_DATA = {
             "value": 8352994,
             "unit": "ns/op",
             "extra": "138 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "6d3c4b33cd576ab1fc7ec69cc4563bab36247b02",
+          "message": "core/hpke: reduce memory usage from zstd",
+          "timestamp": "2023-10-29T02:09:46Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4650/commits/6d3c4b33cd576ab1fc7ec69cc4563bab36247b02"
+        },
+        "date": 1698704368552,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15099719,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9411152,
+            "unit": "ns/op",
+            "extra": "123 times\n2 procs"
           }
         ]
       }
