@@ -16,6 +16,22 @@ const (
 	paramQueryV2           = "q"
 )
 
+var zstdEncoder *zstd.Encoder
+var zstdDecoder *zstd.Decoder
+
+func init() {
+	enc, err := zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedBestCompression))
+	if err != nil {
+		panic(err)
+	}
+	dec, err := zstd.NewReader(nil, zstd.WithDecoderConcurrency(0))
+	if err != nil {
+		panic(err)
+	}
+	zstdEncoder = enc
+	zstdDecoder = dec
+}
+
 // IsEncryptedURL returns true if the url.Values contain an HPKE encrypted query.
 func IsEncryptedURL(values url.Values) bool {
 	return IsEncryptedURLV1(values) || IsEncryptedURLV2(values)
@@ -145,8 +161,6 @@ func withoutHPKEParams(values url.Values) url.Values {
 	return filtered
 }
 
-var zstdEncoder, _ = zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedBestCompression))
-
 func encodeQueryStringV1(values url.Values) []byte {
 	return []byte(values.Encode())
 }
@@ -154,8 +168,6 @@ func encodeQueryStringV1(values url.Values) []byte {
 func encodeQueryStringV2(values url.Values) []byte {
 	return zstdEncoder.EncodeAll([]byte(values.Encode()), nil)
 }
-
-var zstdDecoder, _ = zstd.NewReader(nil)
 
 func decodeQueryStringV1(raw []byte) (url.Values, error) {
 	return url.ParseQuery(string(raw))
