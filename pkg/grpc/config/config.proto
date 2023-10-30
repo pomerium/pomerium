@@ -12,6 +12,7 @@ import "crypt/crypt.proto";
 
 message Config {
   string name = 1;
+  int64 version = 4;
   repeated Route routes = 2;
   Settings settings = 3;
 }
@@ -138,9 +139,7 @@ message Settings {
     bytes cert_bytes = 3;
     bytes key_bytes = 4;
   }
-  message StringList {
-    repeated string values = 1;
-  }
+  message StringList { repeated string values = 1; }
 
   optional string installation_id = 71;
   optional bool debug = 2;
