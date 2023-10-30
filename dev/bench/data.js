@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698694525149,
+  "lastUpdate": 1698696792499,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -74664,6 +74664,38 @@ window.BENCHMARK_DATA = {
             "value": 12779586,
             "unit": "ns/op",
             "extra": "92 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "e05b02c1a20bc67b12375120220ae8b906947672",
+          "message": "core/controlplane: apply configuration changes in a background thread",
+          "timestamp": "2023-10-29T02:09:46Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4649/commits/e05b02c1a20bc67b12375120220ae8b906947672"
+        },
+        "date": 1698696785272,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12804610,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8352994,
+            "unit": "ns/op",
+            "extra": "138 times\n2 procs"
           }
         ]
       }
