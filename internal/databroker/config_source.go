@@ -101,9 +101,12 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 	ids := maps.Keys(src.dbConfigs)
 	sort.Strings(ids)
 
-	certsIndex := cryptutil.NewCertificatesIndex()
-	for _, cert := range cfg.Options.GetX509Certificates() {
-		certsIndex.Add(cert)
+	var certsIndex *cryptutil.CertificatesIndex
+	if !cfg.Options.DisableValidation {
+		certsIndex = cryptutil.NewCertificatesIndex()
+		for _, cert := range cfg.Options.GetX509Certificates() {
+			certsIndex.Add(cert)
+		}
 	}
 
 	// add all the config policies to the list

@@ -300,6 +300,8 @@ type Options struct {
 	AuditKey *PublicKeyEncryptionKeyOptions `mapstructure:"audit_key"`
 
 	BrandingOptions httputil.BrandingOptions
+
+	DisableValidation bool
 }
 
 type certificateFilePair struct {
@@ -577,6 +579,10 @@ func bindEnvsRecursive(t reflect.Type, v *viper.Viper, keyPrefix, envPrefix stri
 
 // Validate ensures the Options fields are valid, and hydrated.
 func (o *Options) Validate() error {
+	if o.DisableValidation {
+		return nil
+	}
+
 	ctx := context.TODO()
 	if !IsValidService(o.Services) {
 		return fmt.Errorf("config: %s is an invalid service type", o.Services)
