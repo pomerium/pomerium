@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -104,8 +105,19 @@ func TestBackendPatch(t *testing.T, ctx context.Context, backend BackendWithPatc
 	}`, updated[1].Data)
 
 	// Verify that the updates will indeed be seen by a subsequent Get().
+	// Note: first truncate the modified_at timestamps to 1 µs precision, as
+	// that is the maximum precision supported by Postgres.
 	r1, _ := backend.Get(ctx, "type.googleapis.com/session.Session", "session-1")
+	truncateTimestamps(updated[0].ModifiedAt, r1.ModifiedAt)
 	testutil.AssertProtoEqual(t, updated[0], r1)
 	r3, _ := backend.Get(ctx, "type.googleapis.com/session.Session", "session-3")
+	truncateTimestamps(updated[1].ModifiedAt, r3.ModifiedAt)
 	testutil.AssertProtoEqual(t, updated[1], r3)
+}
+
+// truncateTimestamps truncates Timestamp messages to 1 µs precision.
+func truncateTimestamps(ts ...*timestamppb.Timestamp) {
+	for _, t := range ts {
+		t.Nanos = (t.Nanos / 1000) * 1000
+	}
 }
