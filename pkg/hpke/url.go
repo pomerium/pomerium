@@ -152,8 +152,7 @@ func encodeQueryStringV1(values url.Values) []byte {
 const zstdWindowSize = 8 << 10 // 8kiB
 
 var zstdEncoder, _ = zstd.NewWriter(nil,
-	zstd.WithEncoderLevel(zstd.SpeedBestCompression),
-	zstd.WithEncoderConcurrency(1),
+	zstd.WithEncoderLevel(zstd.SpeedDefault),
 	zstd.WithWindowSize(zstdWindowSize),
 )
 
@@ -166,7 +165,6 @@ func decodeQueryStringV1(raw []byte) (url.Values, error) {
 }
 
 var zstdDecoder, _ = zstd.NewReader(nil,
-	zstd.WithDecoderConcurrency(1),
 	zstd.WithDecoderLowmem(true),
 )
 
