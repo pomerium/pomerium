@@ -75,16 +75,15 @@ func TestEvents(t *testing.T) {
 
 			srv := &Server{
 				haveSetCapacity: make(map[string]bool),
-				currentConfig: atomicutil.NewValue(versionedConfig{
-					Config: &config.Config{
-						OutboundPort: outboundPort,
-						Options: &config.Options{
-							SharedKey:           cryptutil.NewBase64Key(),
-							DataBrokerURLString: "http://" + li.Addr().String(),
-							GRPCInsecure:        proto.Bool(true),
-						},
+				currentConfig: atomicutil.NewValue(&config.Config{
+					OutboundPort: outboundPort,
+					Options: &config.Options{
+						SharedKey:           cryptutil.NewBase64Key(),
+						DataBrokerURLString: "http://" + li.Addr().String(),
+						GRPCInsecure:        proto.Bool(true),
 					},
-				}),
+				},
+				),
 			}
 			err := srv.storeEvent(ctx, new(events.LastError))
 			assert.NoError(t, err)
