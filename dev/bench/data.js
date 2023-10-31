@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698769422781,
+  "lastUpdate": 1698769843563,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -74922,6 +74922,42 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 11051444,
+            "unit": "ns/op",
+            "extra": "96 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a29476f61e0475c8e66f68ae5e52f911361622e1",
+          "message": "core/hpke: reduce memory usage from zstd (#4650)\n\n* core/hpke: reduce memory usage from zstd\r\n\r\n* use default compression, use default concurrency",
+          "timestamp": "2023-10-31T10:24:56-06:00",
+          "tree_id": "f610127dc18150e2cff207b766564070ebc4ca60",
+          "url": "https://github.com/pomerium/pomerium/commit/a29476f61e0475c8e66f68ae5e52f911361622e1"
+        },
+        "date": 1698769834801,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16947335,
+            "unit": "ns/op",
+            "extra": "70 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10935452,
             "unit": "ns/op",
             "extra": "96 times\n2 procs"
           }
