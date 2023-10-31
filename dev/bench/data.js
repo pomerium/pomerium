@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698769014958,
+  "lastUpdate": 1698769422781,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -74888,6 +74888,42 @@ window.BENCHMARK_DATA = {
             "value": 11872900,
             "unit": "ns/op",
             "extra": "91 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2cc82ed70659f36756eb2619f735f2409c480886",
+          "message": "protoutil: add OverwriteMasked method (#4651)\n\nAdd a method to copy selected fields from one proto message to another\r\n(of the same type), using a FieldMask. This is intended for use in a new\r\ndatabroker Patch method.",
+          "timestamp": "2023-10-31T09:16:54-07:00",
+          "tree_id": "f632ed4899e88de0a756ecb22d68c6d5f337dfac",
+          "url": "https://github.com/pomerium/pomerium/commit/2cc82ed70659f36756eb2619f735f2409c480886"
+        },
+        "date": 1698769414489,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18535685,
+            "unit": "ns/op",
+            "extra": "62 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11051444,
+            "unit": "ns/op",
+            "extra": "96 times\n2 procs"
           }
         ]
       }
