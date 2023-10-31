@@ -1,6 +1,7 @@
 package fileutil
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -18,8 +19,7 @@ func TestWatcher(t *testing.T) {
 	}
 
 	w := NewWatcher()
-	defer w.Clear()
-	w.Add(filepath.Join(tmpdir, "test1.txt"))
+	w.Watch(context.Background(), []string{filepath.Join(tmpdir, "test1.txt")})
 
 	ch := w.Bind()
 	defer w.Unbind(ch)
@@ -54,8 +54,7 @@ func TestWatcherSymlink(t *testing.T) {
 	assert.NoError(t, os.Symlink(filepath.Join(tmpdir, "test1.txt"), filepath.Join(tmpdir, "symlink1.txt")))
 
 	w := NewWatcher()
-	defer w.Clear()
-	w.Add(filepath.Join(tmpdir, "symlink1.txt"))
+	w.Watch(context.Background(), []string{filepath.Join(tmpdir, "symlink1.txt")})
 
 	ch := w.Bind()
 	t.Cleanup(func() { w.Unbind(ch) })

@@ -45,7 +45,7 @@ func Run(ctx context.Context, src config.Source) error {
 	defer logMgr.Close()
 
 	// trigger changes when underlying files are changed
-	src = config.NewFileWatcherSource(src)
+	src = config.NewFileWatcherSource(ctx, src)
 
 	src, err = autocert.New(src)
 	if err != nil {

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"fmt"
@@ -131,7 +132,7 @@ func NewFileOrEnvironmentSource(
 		watcher:    fileutil.NewWatcher(),
 		config:     cfg,
 	}
-	src.watcher.Add(configFile)
+	src.watcher.Watch(ctx, []string{configFile})
 	ch := src.watcher.Bind()
 	go func() {
 		for range ch {
@@ -180,29 +181,32 @@ type FileWatcherSource struct {
 	underlying Source
 	watcher    *fileutil.Watcher
 
-	mu             sync.RWMutex
-	computedConfig *Config
+	mu   sync.RWMutex
+	hash []byte
+	cfg  *Config
 
 	ChangeDispatcher
 }
 
 // NewFileWatcherSource creates a new FileWatcherSource
-func NewFileWatcherSource(underlying Source) *FileWatcherSource {
+func NewFileWatcherSource(ctx context.Context, underlying Source) *FileWatcherSource {
+	cfg := underlying.GetConfig()
 	src := &FileWatcherSource{
 		underlying: underlying,
 		watcher:    fileutil.NewWatcher(),
+		cfg:        cfg,
 	}
 
 	ch := src.watcher.Bind()
 	go func() {
 		for range ch {
-			src.check(context.TODO(), underlying.GetConfig())
+			src.onFileChange(ctx)
 		}
 	}()
-	underlying.OnConfigChange(context.TODO(), func(ctx context.Context, cfg *Config) {
-		src.check(ctx, cfg)
+	underlying.OnConfigChange(ctx, func(ctx context.Context, cfg *Config) {
+		src.onConfigChange(ctx, cfg)
 	})
-	src.check(context.TODO(), underlying.GetConfig())
+	src.onConfigChange(ctx, cfg)
 
 	return src
 }
@@ -211,20 +215,41 @@ func NewFileWatcherSource(underlying Source) *FileWatcherSource {
 func (src *FileWatcherSource) GetConfig() *Config {
 	src.mu.RLock()
 	defer src.mu.RUnlock()
-	return src.computedConfig
+
+	return src.cfg
 }
 
-func (src *FileWatcherSource) check(ctx context.Context, cfg *Config) {
-	if cfg == nil || cfg.Options == nil {
-		return
-	}
+func (src *FileWatcherSource) onConfigChange(ctx context.Context, cfg *Config) {
+	src.watcher.Watch(ctx, getAllConfigFilePaths(cfg))
 
 	src.mu.Lock()
 	defer src.mu.Unlock()
 
-	src.watcher.Clear()
+	src.cfg = cfg.Clone()
+	src.Trigger(ctx, src.cfg)
+}
+
+func (src *FileWatcherSource) onFileChange(ctx context.Context) {
+	src.mu.Lock()
+	defer src.mu.Unlock()
 
 	h := sha256.New()
+	for _, f := range getAllConfigFilePaths(src.cfg) {
+		_, _ = h.Write([]byte{0})
+		bs, err := os.ReadFile(f)
+		if err == nil {
+			_, _ = h.Write(bs)
+		}
+	}
+	bs := h.Sum(nil)
+
+	if !bytes.Equal(bs, src.hash) {
+		src.hash = bs
+		src.Trigger(ctx, src.cfg)
+	}
+}
+
+func getAllConfigFilePaths(cfg *Config) []string {
 	fs := []string{
 		cfg.Options.CAFile,
 		cfg.Options.CertFile,
@@ -259,18 +284,5 @@ func (src *FileWatcherSource) check(ctx context.Context, cfg *Config) {
 		)
 	}
 
-	for _, f := range fs {
-		_, _ = h.Write([]byte{0})
-		bs, err := os.ReadFile(f)
-		if err == nil {
-			src.watcher.Add(f)
-			_, _ = h.Write(bs)
-		}
-	}
-
-	// update the computed config
-	src.computedConfig = cfg.Clone()
-
-	// trigger a change
-	src.Trigger(ctx, src.computedConfig)
+	return fs
 }
