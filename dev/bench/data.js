@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698778384092,
+  "lastUpdate": 1698792766011,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -75056,6 +75056,42 @@ window.BENCHMARK_DATA = {
             "value": 53867240,
             "unit": "ns/op",
             "extra": "114 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6511440c2f06663fdeca9f896581bb8b6ab6f7df",
+          "message": "core/controlplane: apply configuration changes in a background thread (#4649)\n\n* core/controlplane: apply configuration changes in a background thread\r\n\r\n* core/controlplane: build envoy resources in goroutines\r\n\r\n* tracing",
+          "timestamp": "2023-10-31T16:47:13-06:00",
+          "tree_id": "e852d7e26bf42c236808a341b477fbb74e6ed4a7",
+          "url": "https://github.com/pomerium/pomerium/commit/6511440c2f06663fdeca9f896581bb8b6ab6f7df"
+        },
+        "date": 1698792756927,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16250335,
+            "unit": "ns/op",
+            "extra": "73 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10265792,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
