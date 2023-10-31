@@ -27,7 +27,6 @@ type Config struct {
 	Options          *Options
 	AutoCertificates []tls.Certificate
 	EnvoyVersion     string
-	Version          int64
 
 	// DerivedCertificates are TLS certificates derived from the shared secret
 	DerivedCertificates []tls.Certificate
@@ -63,7 +62,6 @@ func (cfg *Config) Clone() *Config {
 	_ = copy(endpoints, cfg.MetricsScrapeEndpoints)
 
 	return &Config{
-		Version:          cfg.Version,
 		Options:          newOptions,
 		AutoCertificates: cfg.AutoCertificates,
 		EnvoyVersion:     cfg.EnvoyVersion,
