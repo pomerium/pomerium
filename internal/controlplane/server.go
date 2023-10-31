@@ -267,7 +267,7 @@ func (srv *Server) OnConfigChange(ctx context.Context, cfg *config.Config) error
 	if err != nil {
 		return err
 	}
-	srv.xdsmgr.Update(ctx, cfg.Version, res)
+	srv.xdsmgr.Update(ctx, res)
 	return nil
 }
 
