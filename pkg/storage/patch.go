@@ -3,10 +3,11 @@ package storage
 import (
 	"fmt"
 
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/protoutil"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
+
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 // PatchRecord extracts the data from existing and record, updates the existing
