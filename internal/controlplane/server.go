@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
@@ -266,6 +267,9 @@ func (srv *Server) Run(ctx context.Context) error {
 
 // OnConfigChange updates the pomerium config options.
 func (srv *Server) OnConfigChange(ctx context.Context, cfg *config.Config) error {
+	ctx, span := trace.StartSpan(ctx, "controlplane.Server.OnConfigChange")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -287,6 +291,9 @@ func (srv *Server) EnableProxy(svc Service) error {
 }
 
 func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
+	ctx, span := trace.StartSpan(ctx, "controlplane.Server.update")
+	defer span.End()
+
 	if err := srv.updateRouter(cfg); err != nil {
 		return err
 	}
