@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698857304411,
+  "lastUpdate": 1698859713996,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -76568,6 +76568,38 @@ window.BENCHMARK_DATA = {
             "value": 12327997,
             "unit": "ns/op",
             "extra": "88 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "9ac7f5304623a0ed4ee8683ae5d97932270a5818",
+          "message": "core/filemgr: use xxhash instead of sha512 for filenames",
+          "timestamp": "2023-10-31T16:46:40Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4697/commits/9ac7f5304623a0ed4ee8683ae5d97932270a5818"
+        },
+        "date": 1698859706360,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13371804,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8629234,
+            "unit": "ns/op",
+            "extra": "133 times\n2 procs"
           }
         ]
       }
