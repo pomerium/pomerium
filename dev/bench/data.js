@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698868628054,
+  "lastUpdate": 1698868629968,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -76828,6 +76828,42 @@ window.BENCHMARK_DATA = {
             "value": 9218363,
             "unit": "ns/op",
             "extra": "135 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e0693e54f0d79b789d3f2b8ab026d0f36a47433a",
+          "message": "core/config: refactor change dispatcher (#4657)\n\n* core/config: refactor change dispatcher\r\n\r\n* update test\r\n\r\n* close listener go routine when context is canceled\r\n\r\n* use cancel cause\r\n\r\n* use context\r\n\r\n* add more time\r\n\r\n* more time",
+          "timestamp": "2023-11-01T13:52:23-06:00",
+          "tree_id": "1f8dcfc9a38a9613b197eecfdd6c95235257dd70",
+          "url": "https://github.com/pomerium/pomerium/commit/e0693e54f0d79b789d3f2b8ab026d0f36a47433a"
+        },
+        "date": 1698868616550,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14582384,
+            "unit": "ns/op",
+            "extra": "75 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8911976,
+            "unit": "ns/op",
+            "extra": "134 times\n2 procs"
           }
         ]
       }
