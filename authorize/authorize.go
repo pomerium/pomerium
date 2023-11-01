@@ -26,7 +26,7 @@ import (
 // Authorize struct holds
 type Authorize struct {
 	state          *atomicutil.Value[*authorizeState]
-	store          *store.Store
+	compiler       *evaluator.RegoCompiler
 	currentOptions *atomicutil.Value[*config.Options]
 	accessTracker  *AccessTracker
 	globalCache    storage.Cache
@@ -41,12 +41,12 @@ type Authorize struct {
 func New(cfg *config.Config) (*Authorize, error) {
 	a := &Authorize{
 		currentOptions: config.NewAtomicOptions(),
-		store:          store.New(),
+		compiler:       evaluator.NewRegoCompiler(store.New()),
 		globalCache:    storage.NewGlobalCache(time.Minute),
 	}
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 
-	state, err := newAuthorizeStateFromConfig(cfg, a.store)
+	state, err := newAuthorizeStateFromConfig(cfg, a.compiler)
 	if err != nil {
 		return nil, err
 	}
@@ -86,13 +86,16 @@ func validateOptions(o *config.Options) error {
 }
 
 // newPolicyEvaluator returns an policy evaluator.
-func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Evaluator, error) {
-	metrics.AddPolicyCountCallback("pomerium-authorize", func() int64 {
-		return int64(len(opts.GetAllPolicies()))
-	})
+func newPolicyEvaluator(opts *config.Options, compiler *evaluator.RegoCompiler) (*evaluator.Evaluator, error) {
 	ctx := context.Background()
 	ctx, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
 	defer span.End()
+
+	allPolicies := opts.GetAllPolicies()
+
+	metrics.AddPolicyCountCallback("pomerium-authorize", func() int64 {
+		return int64(len(allPolicies))
+	})
 
 	clientCA, err := opts.DownstreamMTLS.GetCA()
 	if err != nil {
@@ -126,8 +129,8 @@ func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Ev
 			"authorize: internal error: couldn't build client cert constraints: %w", err)
 	}
 
-	return evaluator.New(ctx, store,
-		evaluator.WithPolicies(opts.GetAllPolicies()),
+	return evaluator.New(ctx, compiler,
+		evaluator.WithPolicies(allPolicies),
 		evaluator.WithClientCA(clientCA),
 		evaluator.WithAddDefaultClientCertificateRule(addDefaultClientCertificateRule),
 		evaluator.WithClientCRL(clientCRL),
@@ -142,7 +145,7 @@ func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Ev
 // OnConfigChange updates internal structures based on config.Options
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	a.currentOptions.Store(cfg.Options)
-	if state, err := newAuthorizeStateFromConfig(cfg, a.store); err != nil {
+	if state, err := newAuthorizeStateFromConfig(cfg, a.compiler); err != nil {
 		log.Error(ctx).Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(state)

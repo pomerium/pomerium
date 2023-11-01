@@ -12,7 +12,6 @@ import (
 	"github.com/open-policy-agent/opa/types"
 
 	"github.com/pomerium/pomerium/authorize/evaluator/opa"
-	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
@@ -100,17 +99,8 @@ type HeadersEvaluator struct {
 }
 
 // NewHeadersEvaluator creates a new HeadersEvaluator.
-func NewHeadersEvaluator(ctx context.Context, store *store.Store) (*HeadersEvaluator, error) {
-	r := rego.New(
-		rego.Store(store),
-		rego.Module("pomerium.headers", opa.HeadersRego),
-		rego.Query("result = data.pomerium.headers"),
-		getGoogleCloudServerlessHeadersRegoOption,
-		variableSubstitutionFunctionRegoOption,
-		store.GetDataBrokerRecordOption(),
-	)
-
-	q, err := r.PrepareForEval(ctx)
+func NewHeadersEvaluator(ctx context.Context, compiler *RegoCompiler) (*HeadersEvaluator, error) {
+	q, err := compiler.CompileHeadersQuery(ctx, opa.HeadersRego)
 	if err != nil {
 		return nil, err
 	}

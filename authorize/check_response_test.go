@@ -130,8 +130,8 @@ func TestAuthorize_okResponse(t *testing.T) {
 	}
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
 	a.currentOptions.Store(opt)
-	a.store = store.New()
-	pe, err := newPolicyEvaluator(opt, a.store)
+	a.compiler = evaluator.NewRegoCompiler(store.New())
+	pe, err := newPolicyEvaluator(opt, a.compiler)
 	require.NoError(t, err)
 	a.state.Load().evaluator = pe
 

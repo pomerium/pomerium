@@ -7,7 +7,6 @@ import (
 	googlegrpc "google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
-	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -28,7 +27,7 @@ type authorizeState struct {
 	authenticateKeyFetcher     hpke.KeyFetcher
 }
 
-func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*authorizeState, error) {
+func newAuthorizeStateFromConfig(cfg *config.Config, compiler *evaluator.RegoCompiler) (*authorizeState, error) {
 	if err := validateOptions(cfg.Options); err != nil {
 		return nil, fmt.Errorf("authorize: bad options: %w", err)
 	}
@@ -37,7 +36,7 @@ func newAuthorizeStateFromConfig(cfg *config.Config, store *store.Store) (*autho
 
 	var err error
 
-	state.evaluator, err = newPolicyEvaluator(cfg.Options, store)
+	state.evaluator, err = newPolicyEvaluator(cfg.Options, compiler)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: failed to update policy with options: %w", err)
 	}

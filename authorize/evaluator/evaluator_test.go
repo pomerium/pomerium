@@ -36,7 +36,8 @@ func TestEvaluator(t *testing.T) {
 		store := store.New()
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
-		e, err := New(ctx, store, options...)
+		compiler := NewRegoCompiler(store)
+		e, err := New(ctx, compiler, options...)
 		require.NoError(t, err)
 		return e.Evaluate(ctx, req)
 	}

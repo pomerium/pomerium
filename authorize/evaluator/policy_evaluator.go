@@ -3,17 +3,15 @@ package evaluator
 import (
 	"context"
 	"fmt"
-	"strings"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/open-policy-agent/opa/rego"
 	octrace "go.opencensus.io/trace"
 
-	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/contextutil"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/policy"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 )
@@ -98,7 +96,7 @@ type policyQuery struct {
 }
 
 func (q policyQuery) checksum() string {
-	return fmt.Sprintf("%x", cryptutil.Hash("script", []byte(q.script)))
+	return fmt.Sprintf("%x", xxhash.Sum64String(q.script))
 }
 
 // A PolicyEvaluator evaluates policies.
@@ -108,7 +106,9 @@ type PolicyEvaluator struct {
 
 // NewPolicyEvaluator creates a new PolicyEvaluator.
 func NewPolicyEvaluator(
-	ctx context.Context, store *store.Store, configPolicy *config.Policy,
+	ctx context.Context,
+	compiler *RegoCompiler,
+	configPolicy *config.Policy,
 	addDefaultClientCertificateRule bool,
 ) (*PolicyEvaluator, error) {
 	e := new(PolicyEvaluator)
@@ -151,26 +151,7 @@ func NewPolicyEvaluator(
 			Interface("to", configPolicy.To).
 			Msg("authorize: rego script for policy evaluation")
 
-		r := rego.New(
-			rego.Store(store),
-			rego.Module("pomerium.policy", e.queries[i].script),
-			rego.Query("result = data.pomerium.policy"),
-			getGoogleCloudServerlessHeadersRegoOption,
-			store.GetDataBrokerRecordOption(),
-		)
-
-		q, err := r.PrepareForEval(ctx)
-		// if no package is in the src, add it
-		if err != nil && strings.Contains(err.Error(), "package expected") {
-			r := rego.New(
-				rego.Store(store),
-				rego.Module("pomerium.policy", "package pomerium.policy\n\n"+e.queries[i].script),
-				rego.Query("result = data.pomerium.policy"),
-				getGoogleCloudServerlessHeadersRegoOption,
-				store.GetDataBrokerRecordOption(),
-			)
-			q, err = r.PrepareForEval(ctx)
-		}
+		q, err := compiler.CompilePolicyQuery(ctx, e.queries[i].script)
 		if err != nil {
 			return nil, err
 		}

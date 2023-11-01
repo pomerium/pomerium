@@ -12,7 +12,6 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -89,7 +88,7 @@ type Result struct {
 
 // An Evaluator evaluates policies.
 type Evaluator struct {
-	store                 *store.Store
+	compiler              *RegoCompiler
 	policyEvaluators      map[uint64]*PolicyEvaluator
 	headersEvaluators     *HeadersEvaluator
 	clientCA              []byte
@@ -98,8 +97,8 @@ type Evaluator struct {
 }
 
 // New creates a new Evaluator.
-func New(ctx context.Context, store *store.Store, options ...Option) (*Evaluator, error) {
-	e := &Evaluator{store: store}
+func New(ctx context.Context, compiler *RegoCompiler, options ...Option) (*Evaluator, error) {
+	e := &Evaluator{compiler: compiler}
 
 	cfg := getConfig(options...)
 
@@ -108,7 +107,7 @@ func New(ctx context.Context, store *store.Store, options ...Option) (*Evaluator
 		return nil, err
 	}
 
-	e.headersEvaluators, err = NewHeadersEvaluator(ctx, store)
+	e.headersEvaluators, err = NewHeadersEvaluator(ctx, compiler)
 	if err != nil {
 		return nil, err
 	}
@@ -124,8 +123,7 @@ func New(ctx context.Context, store *store.Store, options ...Option) (*Evaluator
 		if err != nil {
 			return nil, fmt.Errorf("authorize: error computing policy route id: %w", err)
 		}
-		policyEvaluator, err :=
-			NewPolicyEvaluator(ctx, store, &configPolicy, cfg.addDefaultClientCertificateRule)
+		policyEvaluator, err := NewPolicyEvaluator(ctx, compiler, &configPolicy, cfg.addDefaultClientCertificateRule)
 		if err != nil {
 			return nil, err
 		}
@@ -257,12 +255,12 @@ func (e *Evaluator) updateStore(cfg *evaluatorConfig) error {
 		return fmt.Errorf("authorize: couldn't create signer: %w", err)
 	}
 
-	e.store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(
+	e.compiler.Store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(
 		cfg.googleCloudServerlessAuthenticationServiceAccount,
 	)
-	e.store.UpdateJWTClaimHeaders(cfg.jwtClaimsHeaders)
-	e.store.UpdateRoutePolicies(cfg.policies)
-	e.store.UpdateSigningKey(jwk)
+	e.compiler.Store.UpdateJWTClaimHeaders(cfg.jwtClaimsHeaders)
+	e.compiler.Store.UpdateRoutePolicies(cfg.policies)
+	e.compiler.Store.UpdateSigningKey(jwk)
 
 	return nil
 }
