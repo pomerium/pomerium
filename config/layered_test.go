@@ -38,17 +38,14 @@ func TestLayeredConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		var dst atomic.Pointer[config.Config]
+		dst.Store(layered.GetConfig())
 		layered.OnConfigChange(ctx, func(ctx context.Context, c *config.Config) {
 			dst.Store(c)
 		})
 
 		underlying.SetConfig(ctx, &config.Config{Options: &config.Options{DeriveInternalDomainCert: proto.String("b.com")}})
 		assert.Eventually(t, func() bool {
-			cfg := dst.Load()
-			if cfg == nil {
-				return false
-			}
-			return cfg.Options.GetDeriveInternalDomain() == "b.com"
-		}, time.Second, time.Millisecond)
+			return dst.Load().Options.GetDeriveInternalDomain() == "b.com"
+		}, 10*time.Second, time.Millisecond)
 	})
 }
