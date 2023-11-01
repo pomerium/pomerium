@@ -131,8 +131,12 @@ func (t *Target[T]) addListener(listener Listener[T], handle Handle) {
 	t.listeners[handle] = ch
 	// start a goroutine to send events to the listener
 	go func() {
-		for evt := range ch {
-			listener(evt)
+		for {
+			select {
+			case <-t.ctx.Done():
+			case evt := <-ch:
+				listener(evt)
+			}
 		}
 	}()
 }
