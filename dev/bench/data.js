@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698856596436,
+  "lastUpdate": 1698856617161,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -75896,6 +75896,38 @@ window.BENCHMARK_DATA = {
             "value": 10681793,
             "unit": "ns/op",
             "extra": "120 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "42f4da2832a402f3bd2e4a01c1d0fc2057d91ed0",
+          "message": "chore(deps): bump github.com/cloudflare/circl from 1.3.3 to 1.3.6",
+          "timestamp": "2023-10-31T16:46:40Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4674/commits/42f4da2832a402f3bd2e4a01c1d0fc2057d91ed0"
+        },
+        "date": 1698856608390,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14978003,
+            "unit": "ns/op",
+            "extra": "75 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9524223,
+            "unit": "ns/op",
+            "extra": "121 times\n2 procs"
           }
         ]
       }
