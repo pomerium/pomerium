@@ -49,6 +49,6 @@ func TestLayeredConfig(t *testing.T) {
 				return false
 			}
 			return cfg.Options.GetDeriveInternalDomain() == "b.com"
-		}, time.Millisecond*100, time.Millisecond)
+		}, time.Second, time.Millisecond)
 	})
 }

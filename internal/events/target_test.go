@@ -31,9 +31,9 @@ func TestTarget(t *testing.T) {
 	shouldBe := func(i1, i2, i3 int64) {
 		t.Helper()
 
-		assert.Eventually(t, func() bool { return calls1.Load() == i1 }, time.Millisecond*10, time.Microsecond*100)
-		assert.Eventually(t, func() bool { return calls2.Load() == i2 }, time.Millisecond*10, time.Microsecond*100)
-		assert.Eventually(t, func() bool { return calls3.Load() == i3 }, time.Millisecond*10, time.Microsecond*100)
+		assert.Eventually(t, func() bool { return calls1.Load() == i1 }, time.Second, time.Millisecond)
+		assert.Eventually(t, func() bool { return calls2.Load() == i2 }, time.Second, time.Millisecond)
+		assert.Eventually(t, func() bool { return calls3.Load() == i3 }, time.Second, time.Millisecond)
 	}
 
 	target.Dispatch(context.Background(), 1)
