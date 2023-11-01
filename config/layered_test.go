@@ -3,7 +3,9 @@ package config_test
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,6 +15,8 @@ import (
 )
 
 func TestLayeredConfig(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("error on initial build", func(t *testing.T) {
@@ -33,12 +37,15 @@ func TestLayeredConfig(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		var dst *config.Config
+		var dst atomic.Pointer[config.Config]
+		dst.Store(layered.GetConfig())
 		layered.OnConfigChange(ctx, func(ctx context.Context, c *config.Config) {
-			dst = c
+			dst.Store(c)
 		})
 
 		underlying.SetConfig(ctx, &config.Config{Options: &config.Options{DeriveInternalDomainCert: proto.String("b.com")}})
-		assert.Equal(t, "b.com", dst.Options.GetDeriveInternalDomain())
+		assert.Eventually(t, func() bool {
+			return dst.Load().Options.GetDeriveInternalDomain() == "b.com"
+		}, 10*time.Second, time.Millisecond)
 	})
 }

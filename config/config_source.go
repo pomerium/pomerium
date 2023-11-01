@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
+	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
@@ -19,27 +20,27 @@ import (
 // A ChangeListener is called when configuration changes.
 type ChangeListener = func(context.Context, *Config)
 
+type changeDispatcherEvent struct {
+	cfg *Config
+}
+
 // A ChangeDispatcher manages listeners on config changes.
 type ChangeDispatcher struct {
-	sync.Mutex
-	onConfigChangeListeners []ChangeListener
+	target events.Target[changeDispatcherEvent]
 }
 
 // Trigger triggers a change.
 func (dispatcher *ChangeDispatcher) Trigger(ctx context.Context, cfg *Config) {
-	dispatcher.Lock()
-	defer dispatcher.Unlock()
-
-	for _, li := range dispatcher.onConfigChangeListeners {
-		li(ctx, cfg)
-	}
+	dispatcher.target.Dispatch(ctx, changeDispatcherEvent{
+		cfg: cfg,
+	})
 }
 
 // OnConfigChange adds a listener.
 func (dispatcher *ChangeDispatcher) OnConfigChange(_ context.Context, li ChangeListener) {
-	dispatcher.Lock()
-	defer dispatcher.Unlock()
-	dispatcher.onConfigChangeListeners = append(dispatcher.onConfigChangeListeners, li)
+	dispatcher.target.AddListener(func(ctx context.Context, evt changeDispatcherEvent) {
+		li(ctx, evt.cfg)
+	})
 }
 
 // A Source gets configuration.
