@@ -16,7 +16,7 @@ require (
 	github.com/caddyserver/certmagic v0.19.2
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/cespare/xxhash/v2 v2.2.0
-	github.com/cloudflare/circl v1.3.3
+	github.com/cloudflare/circl v1.3.6
 	github.com/coreos/go-oidc/v3 v3.6.0
 	github.com/docker/docker v24.0.7+incompatible
 	github.com/envoyproxy/go-control-plane v0.11.1
