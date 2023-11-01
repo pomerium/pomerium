@@ -10,7 +10,7 @@ import (
 
 type (
 	// A Listener is a function that listens for events of type T.
-	Listener[T any] func(T)
+	Listener[T any] func(ctx context.Context, event T)
 	// A Handle represents a listener.
 	Handle string
 
@@ -22,6 +22,7 @@ type (
 		handle Handle
 	}
 	dispatchEvent[T any] struct {
+		ctx   context.Context
 		event T
 	}
 )
@@ -52,7 +53,7 @@ type Target[T any] struct {
 	addListenerCh    chan addListenerEvent[T]
 	removeListenerCh chan removeListenerEvent[T]
 	dispatchCh       chan dispatchEvent[T]
-	listeners        map[Handle]chan T
+	listeners        map[Handle]chan dispatchEvent[T]
 }
 
 // AddListener adds a listener to the target.
@@ -78,13 +79,13 @@ func (t *Target[T]) Close() {
 	t.cancel(errors.New("target closed"))
 }
 
-// Dispatch dispatches an event to any listeners.
-func (t *Target[T]) Dispatch(evt T) {
+// Dispatch dispatches an event to all listeners.
+func (t *Target[T]) Dispatch(ctx context.Context, evt T) {
 	t.init()
 
 	select {
 	case <-t.ctx.Done():
-	case t.dispatchCh <- dispatchEvent[T]{evt}:
+	case t.dispatchCh <- dispatchEvent[T]{ctx: ctx, event: evt}:
 	}
 }
 
@@ -104,7 +105,7 @@ func (t *Target[T]) init() {
 		t.addListenerCh = make(chan addListenerEvent[T], 1)
 		t.removeListenerCh = make(chan removeListenerEvent[T], 1)
 		t.dispatchCh = make(chan dispatchEvent[T], 1)
-		t.listeners = map[Handle]chan T{}
+		t.listeners = map[Handle]chan dispatchEvent[T]{}
 		go t.run()
 	})
 }
@@ -120,7 +121,7 @@ func (t *Target[T]) run() {
 		case evt := <-t.removeListenerCh:
 			t.removeListener(evt.handle)
 		case evt := <-t.dispatchCh:
-			t.dispatch(evt.event)
+			t.dispatch(evt.ctx, evt.event)
 		}
 	}
 }
@@ -128,7 +129,7 @@ func (t *Target[T]) run() {
 // these functions are not thread-safe. They are intended to be called only by "run".
 
 func (t *Target[T]) addListener(listener Listener[T], handle Handle) {
-	ch := make(chan T, 1)
+	ch := make(chan dispatchEvent[T], 1)
 	t.listeners[handle] = ch
 	// start a goroutine to send events to the listener
 	go func() {
@@ -136,7 +137,7 @@ func (t *Target[T]) addListener(listener Listener[T], handle Handle) {
 			select {
 			case <-t.ctx.Done():
 			case evt := <-ch:
-				listener(evt)
+				listener(evt.ctx, evt.event)
 			}
 		}
 	}()
@@ -153,13 +154,13 @@ func (t *Target[T]) removeListener(handle Handle) {
 	delete(t.listeners, handle)
 }
 
-func (t *Target[T]) dispatch(evt T) {
+func (t *Target[T]) dispatch(ctx context.Context, evt T) {
 	// loop over all the listeners and send the event to them
 	for _, ch := range t.listeners {
 		select {
 		case <-t.ctx.Done():
 			return
-		case ch <- evt:
+		case ch <- dispatchEvent[T]{ctx: ctx, event: evt}:
 		}
 	}
 }

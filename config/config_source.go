@@ -21,7 +21,6 @@ import (
 type ChangeListener = func(context.Context, *Config)
 
 type changeDispatcherEvent struct {
-	ctx context.Context
 	cfg *Config
 }
 
@@ -32,16 +31,15 @@ type ChangeDispatcher struct {
 
 // Trigger triggers a change.
 func (dispatcher *ChangeDispatcher) Trigger(ctx context.Context, cfg *Config) {
-	dispatcher.target.Dispatch(changeDispatcherEvent{
-		ctx: ctx,
+	dispatcher.target.Dispatch(ctx, changeDispatcherEvent{
 		cfg: cfg,
 	})
 }
 
 // OnConfigChange adds a listener.
 func (dispatcher *ChangeDispatcher) OnConfigChange(_ context.Context, li ChangeListener) {
-	dispatcher.target.AddListener(func(evt changeDispatcherEvent) {
-		li(evt.ctx, evt.cfg)
+	dispatcher.target.AddListener(func(ctx context.Context, evt changeDispatcherEvent) {
+		li(ctx, evt.cfg)
 	})
 }
 

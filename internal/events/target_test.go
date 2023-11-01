@@ -1,6 +1,7 @@
 package events_test
 
 import (
+	"context"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -14,16 +15,16 @@ func TestTarget(t *testing.T) {
 	t.Parallel()
 
 	var target events.Target[int64]
-	defer target.Close()
+	t.Cleanup(target.Close)
 
 	var calls1, calls2, calls3 atomic.Int64
-	h1 := target.AddListener(func(i int64) {
+	h1 := target.AddListener(func(_ context.Context, i int64) {
 		calls1.Add(i)
 	})
-	h2 := target.AddListener(func(i int64) {
+	h2 := target.AddListener(func(_ context.Context, i int64) {
 		calls2.Add(i)
 	})
-	h3 := target.AddListener(func(i int64) {
+	h3 := target.AddListener(func(_ context.Context, i int64) {
 		calls3.Add(i)
 	})
 
@@ -35,18 +36,18 @@ func TestTarget(t *testing.T) {
 		assert.Eventually(t, func() bool { return calls3.Load() == i3 }, time.Millisecond*10, time.Microsecond*100)
 	}
 
-	target.Dispatch(1)
+	target.Dispatch(context.Background(), 1)
 	shouldBe(1, 1, 1)
 
 	target.RemoveListener(h2)
-	target.Dispatch(2)
+	target.Dispatch(context.Background(), 2)
 	shouldBe(3, 1, 3)
 
 	target.RemoveListener(h1)
-	target.Dispatch(3)
+	target.Dispatch(context.Background(), 3)
 	shouldBe(3, 1, 6)
 
 	target.RemoveListener(h3)
-	target.Dispatch(4)
+	target.Dispatch(context.Background(), 4)
 	shouldBe(3, 1, 6)
 }
