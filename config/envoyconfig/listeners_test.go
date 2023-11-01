@@ -41,8 +41,8 @@ func testData(t *testing.T, name string, data interface{}) string {
 
 func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 	cacheDir, _ := os.UserCacheDir()
-	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-354e49305a5a39414a545530374e58454e48334148524c4e324258463837364355564c4e4532464b54355139495547514a38.pem")
-	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3350415a38414e4e4a4655424e55393430474147324651433949384e485341334b5157364f424b4c5856365a545937383735.pem")
+	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-32375a484d4f49594c4d374830.pem")
+	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-33393156483053584631414836.pem")
 
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
 	li, err := b.buildMetricsListener(&config.Config{
@@ -74,7 +74,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
 
 	cacheDir, _ := os.UserCacheDir()
-	clientCAFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "client-ca-3533485838304b593757424e3354425157494c4747433534384f474f3631364d5332554c3332485a483834334d50454c344a.pem")
+	clientCAFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "client-ca-313754424855313435355a5348.pem")
 
 	t.Run("no-validation", func(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{}}, nil)
@@ -207,8 +207,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}}
 
 		maxVerifyDepth = 10
-		downstreamTLSContext, err :=
-			b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `{
 			"maxVerifyDepth": 10,
@@ -220,8 +219,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 		}`, downstreamTLSContext.GetCommonTlsContext().GetValidationContext())
 
 		maxVerifyDepth = 0
-		downstreamTLSContext, err =
-			b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
+		downstreamTLSContext, err = b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `{
 			"onlyVerifyLeafCertCrl": true,
@@ -243,8 +241,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 				},
 			},
 		}}
-		downstreamTLSContext, err :=
-			b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
+		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `{
 			"maxVerifyDepth": 1,
