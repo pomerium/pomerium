@@ -3,7 +3,6 @@ package databroker
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"strings"
@@ -19,7 +18,6 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
@@ -429,20 +427,4 @@ func (srv *Server) newBackendLocked() (backend storage.Backend, err error) {
 		return nil, fmt.Errorf("unsupported storage type: %s", srv.cfg.storageType)
 	}
 	return backend, nil
-}
-
-func (srv *Server) getTLSConfigLocked(ctx context.Context) *tls.Config {
-	caCertPool, err := cryptutil.GetCertPool("", srv.cfg.storageCAFile)
-	if err != nil {
-		log.Warn(ctx).Err(err).Msg("failed to read databroker CA file")
-	}
-	tlsConfig := &tls.Config{
-		RootCAs: caCertPool,
-		//nolint: gosec
-		InsecureSkipVerify: srv.cfg.storageCertSkipVerify,
-	}
-	if srv.cfg.storageCertificate != nil {
-		tlsConfig.Certificates = []tls.Certificate{*srv.cfg.storageCertificate}
-	}
-	return tlsConfig
 }
