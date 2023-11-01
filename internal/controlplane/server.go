@@ -255,7 +255,6 @@ func (srv *Server) Run(ctx context.Context) error {
 				err := srv.update(ctx, cfg)
 				if err != nil {
 					log.Error(ctx).Err(err).
-						Int64("config-version", cfg.Version).
 						Msg("controlplane: error updating server with new config")
 				}
 			}
