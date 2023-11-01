@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/google/uuid"
@@ -47,7 +48,7 @@ type (
 type Target[T any] struct {
 	initOnce         sync.Once
 	ctx              context.Context
-	cancel           context.CancelFunc
+	cancel           context.CancelCauseFunc
 	addListenerCh    chan addListenerEvent[T]
 	removeListenerCh chan removeListenerEvent[T]
 	dispatchCh       chan dispatchEvent[T]
@@ -74,7 +75,7 @@ func (t *Target[T]) AddListener(listener Listener[T]) Handle {
 func (t *Target[T]) Close() {
 	t.init()
 
-	t.cancel()
+	t.cancel(errors.New("target closed"))
 }
 
 // Dispatch dispatches an event to any listeners.
@@ -99,7 +100,7 @@ func (t *Target[T]) RemoveListener(handle Handle) {
 
 func (t *Target[T]) init() {
 	t.initOnce.Do(func() {
-		t.ctx, t.cancel = context.WithCancel(context.Background())
+		t.ctx, t.cancel = context.WithCancelCause(context.Background())
 		t.addListenerCh = make(chan addListenerEvent[T], 1)
 		t.removeListenerCh = make(chan removeListenerEvent[T], 1)
 		t.dispatchCh = make(chan dispatchEvent[T], 1)
