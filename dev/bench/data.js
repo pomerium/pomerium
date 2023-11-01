@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698868629968,
+  "lastUpdate": 1698872555077,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -76864,6 +76864,38 @@ window.BENCHMARK_DATA = {
             "value": 8911976,
             "unit": "ns/op",
             "extra": "134 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "c56042f51ff7dbb75df0b35c5610c6ee548d4102",
+          "message": "databroker: remove redis storage backend",
+          "timestamp": "2023-10-31T16:46:40Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4699/commits/c56042f51ff7dbb75df0b35c5610c6ee548d4102"
+        },
+        "date": 1698872547903,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13789702,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8909005,
+            "unit": "ns/op",
+            "extra": "142 times\n2 procs"
           }
         ]
       }
