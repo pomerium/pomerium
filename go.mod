@@ -75,7 +75,7 @@ require (
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v3 v3.0.1
 	namespacelabs.dev/go-filenotify v0.0.0-20220511192020-53ea11be7eaa
-	sigs.k8s.io/yaml v1.3.0
+	sigs.k8s.io/yaml v1.4.0
 )
 
 require (
