@@ -36,7 +36,7 @@
     "react-feather": "^2.0.10"
   },
   "devDependencies": {
-    "@trivago/prettier-plugin-sort-imports": "2.0.4",
+    "@trivago/prettier-plugin-sort-imports": "4.2.1",
     "@types/luxon": "^2.0.9",
     "@types/node": "^17.0.14",
     "@types/react": "^17.0.34",
