@@ -1,26 +1,31 @@
+// Package storagetest contains test cases for use in verifying the behavior of
+// a storage.Backend implementation.
 package storagetest
 
 import (
 	"context"
 	"testing"
 
-	"github.com/pomerium/pomerium/internal/testutil"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
+
+	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
-// TODO: delete this type once Patch is added to the storage.Backend interface
+// BackendWithPatch is a storage.Backend with an additional Patch() method.
+// TODO: delete this type once Patch() is added to the storage.Backend interface
 type BackendWithPatch interface {
 	storage.Backend
 	Patch(context.Context, []*databroker.Record, *fieldmaskpb.FieldMask) (uint64, []*databroker.Record, error)
 }
 
-func TestBackendPatch(t *testing.T, ctx context.Context, backend BackendWithPatch) {
+// TestBackendPatch verifies the behavior of the backend Patch() method.
+func TestBackendPatch(t *testing.T, ctx context.Context, backend BackendWithPatch) { //nolint:revive
 	mkRecord := func(s *session.Session) *databroker.Record {
 		a, _ := anypb.New(s)
 		return &databroker.Record{
