@@ -3,9 +3,6 @@ package xdsmgr
 
 import (
 	"context"
-	"fmt"
-	"strconv"
-	"strings"
 	"sync"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
@@ -40,7 +37,7 @@ func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource) *Ma
 	return &Manager{
 		signal: signal.New(),
 
-		nonce:     toNonce(0),
+		nonce:     uuid.New().String(),
 		resources: resources,
 	}
 }
@@ -112,7 +109,6 @@ func (mgr *Manager) DeltaAggregatedResources(
 		case req.GetErrorDetail() != nil:
 			log.Info(ctx).
 				Any("error-detail", req.GetErrorDetail()).
-				Int64("config-version", versionFromNonce(req.GetResponseNonce())).
 				Msg("xdsmgr: nack")
 			// a NACK
 			// - set the client resource versions to the current resource versions
@@ -122,7 +118,6 @@ func (mgr *Manager) DeltaAggregatedResources(
 			}
 		case req.GetResponseNonce() == mgr.nonce:
 			log.Info(ctx).
-				Int64("config-version", versionFromNonce(req.GetResponseNonce())).
 				Msg("xdsmgr: ack")
 			// an ACK for the last response
 			// - set the client resource versions to the current resource versions
@@ -133,7 +128,6 @@ func (mgr *Manager) DeltaAggregatedResources(
 		default:
 			// an ACK for a response that's not the last response
 			log.Info(ctx).
-				Int64("config-version", versionFromNonce(req.GetResponseNonce())).
 				Msg("xdsmgr: ack")
 		}
 
@@ -215,7 +209,6 @@ func (mgr *Manager) DeltaAggregatedResources(
 				return ctx.Err()
 			case res := <-outgoing:
 				log.Info(ctx).
-					Int64("config-version", versionFromNonce(res.GetNonce())).
 					Int("resource-count", len(res.GetResources())).
 					Int("removed-resource-count", len(res.GetRemovedResources())).
 					Msg("xdsmgr: sending resources")
@@ -238,8 +231,8 @@ func (mgr *Manager) StreamAggregatedResources(
 
 // Update updates the state of resources. If any changes are made they will be pushed to any listening
 // streams. For each TypeURL the list of resources should be the complete list of resources.
-func (mgr *Manager) Update(ctx context.Context, version int64, resources map[string][]*envoy_service_discovery_v3.Resource) {
-	nonce := toNonce(version)
+func (mgr *Manager) Update(ctx context.Context, resources map[string][]*envoy_service_discovery_v3.Resource) {
+	nonce := uuid.New().String()
 
 	mgr.mu.Lock()
 	mgr.nonce = nonce
@@ -247,16 +240,4 @@ func (mgr *Manager) Update(ctx context.Context, version int64, resources map[str
 	mgr.mu.Unlock()
 
 	mgr.signal.Broadcast(ctx)
-}
-
-func toNonce(version int64) string {
-	return fmt.Sprintf("%d/%s", version, uuid.New().String())
-}
-
-// versionFromNonce parses the version out of the nonce. A missing or invalid version will be returned as 0.
-func versionFromNonce(nonce string) (version int64) {
-	if idx := strings.Index(nonce, "/"); idx > 0 {
-		version, _ = strconv.ParseInt(nonce[:idx], 10, 64)
-	}
-	return version
 }
