@@ -9,7 +9,6 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/registry/inmemory"
-	"github.com/pomerium/pomerium/internal/registry/redis"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -110,16 +109,6 @@ func (srv *Server) newRegistryLocked(backend storage.Backend) (registry.Interfac
 	case config.StorageInMemoryName:
 		log.Info(ctx).Msg("using in-memory registry")
 		return inmemory.New(ctx, srv.cfg.registryTTL), nil
-	case config.StorageRedisName:
-		log.Info(ctx).Msg("using redis registry")
-		r, err := redis.New(
-			srv.cfg.storageConnectionString,
-			redis.WithTLSConfig(srv.getTLSConfigLocked(ctx)),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create new redis registry: %w", err)
-		}
-		return r, nil
 	}
 
 	return nil, fmt.Errorf("unsupported registry type: %s", srv.cfg.storageType)

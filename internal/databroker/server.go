@@ -24,7 +24,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
 	"github.com/pomerium/pomerium/pkg/storage/postgres"
-	"github.com/pomerium/pomerium/pkg/storage/redis"
 )
 
 // Server implements the databroker service using an in memory database.
@@ -426,21 +425,6 @@ func (srv *Server) newBackendLocked() (backend storage.Backend, err error) {
 	case config.StoragePostgresName:
 		log.Info(ctx).Msg("using postgres store")
 		backend = postgres.New(srv.cfg.storageConnectionString)
-	case config.StorageRedisName:
-		log.Info(ctx).Msg("using redis store")
-		backend, err = redis.New(
-			srv.cfg.storageConnectionString,
-			redis.WithTLSConfig(srv.getTLSConfigLocked(ctx)),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create new redis storage: %w", err)
-		}
-		if srv.cfg.secret != nil {
-			backend, err = storage.NewEncryptedBackend(srv.cfg.secret, backend)
-			if err != nil {
-				return nil, err
-			}
-		}
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", srv.cfg.storageType)
 	}
