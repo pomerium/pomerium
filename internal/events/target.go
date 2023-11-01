@@ -40,9 +40,9 @@ type (
 // any requests and maintains the state of the listeners. Each listener also starts a
 // separate goroutine so that all listeners can be invoked concurrently.
 //
-// The channels to the main goroutine and to the listener goroutines have a size of 1 so typically
-// methods and dispatches will return immediately. However a slow listener will cause the next event
-// dispatch to block. This is the opposite behavior from Manager.
+// The channels to the listener goroutines have a size of 1 so typically dispatches will return
+// immediately. However a slow listener will cause the next event dispatch to block. This is the
+// opposite behavior from Manager.
 //
 // Close will cancel all the goroutines. Subsequent calls to AddListener, RemoveListener, Close and
 // Dispatch are no-ops.
@@ -102,9 +102,9 @@ func (t *Target[T]) RemoveListener(handle Handle) {
 func (t *Target[T]) init() {
 	t.initOnce.Do(func() {
 		t.ctx, t.cancel = context.WithCancelCause(context.Background())
-		t.addListenerCh = make(chan addListenerEvent[T], 1)
-		t.removeListenerCh = make(chan removeListenerEvent[T], 1)
-		t.dispatchCh = make(chan dispatchEvent[T], 1)
+		t.addListenerCh = make(chan addListenerEvent[T])
+		t.removeListenerCh = make(chan removeListenerEvent[T])
+		t.dispatchCh = make(chan dispatchEvent[T])
 		t.listeners = map[Handle]chan dispatchEvent[T]{}
 		go t.run()
 	})
