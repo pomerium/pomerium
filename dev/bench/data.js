@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698867169380,
+  "lastUpdate": 1698868628054,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -76792,6 +76792,42 @@ window.BENCHMARK_DATA = {
             "value": 11174605,
             "unit": "ns/op",
             "extra": "108 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fd8cb18c4426c949a574b7a99cbc961002c53b14",
+          "message": "core/filemgr: use xxhash instead of sha512 for filenames (#4697)",
+          "timestamp": "2023-11-01T13:52:32-06:00",
+          "tree_id": "711c85fd8b54abca33341e6e518c83a3c00abbce",
+          "url": "https://github.com/pomerium/pomerium/commit/fd8cb18c4426c949a574b7a99cbc961002c53b14"
+        },
+        "date": 1698868620936,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13919585,
+            "unit": "ns/op",
+            "extra": "82 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9218363,
+            "unit": "ns/op",
+            "extra": "135 times\n2 procs"
           }
         ]
       }
