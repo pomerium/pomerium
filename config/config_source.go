@@ -114,7 +114,6 @@ func NewFileOrEnvironmentSource(
 	cfg := &Config{
 		Options:      options,
 		EnvoyVersion: envoyVersion,
-		Version:      1,
 	}
 
 	ports, err := netutil.AllocatePorts(6)
@@ -152,7 +151,6 @@ func (src *FileOrEnvironmentSource) check(ctx context.Context) {
 	options, err := newOptionsFromConfig(src.configFile)
 	if err == nil {
 		cfg = cfg.Clone()
-		cfg.Version++
 		cfg.Options = options
 		metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
 	} else {
@@ -162,7 +160,7 @@ func (src *FileOrEnvironmentSource) check(ctx context.Context) {
 	src.config = cfg
 	src.mu.Unlock()
 
-	log.Info(ctx).Int64("config-version", cfg.Version).Msg("config: loaded configuration")
+	log.Info(ctx).Msg("config: loaded configuration")
 
 	src.Trigger(ctx, cfg)
 }
