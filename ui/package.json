@@ -26,7 +26,7 @@
     "@emotion/react": "^11.7.1",
     "@emotion/styled": "^11.11.0",
     "@fontsource/dm-mono": "^5.0.14",
-    "@fontsource/dm-sans": "^5.0.13",
+    "@fontsource/dm-sans": "^5.0.17",
     "@mui/icons-material": "^5.14.9",
     "@mui/material": "^5.4.0",
     "luxon": "^2.5.2",
