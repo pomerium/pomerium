@@ -33,7 +33,7 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogS
 			}
 			evt = evt.Str("service", "envoy")
 
-			fields := srv.currentConfig.Load().Config.Options.GetAccessLogFields()
+			fields := srv.currentConfig.Load().Options.GetAccessLogFields()
 			for _, field := range fields {
 				evt = populateLogEvent(field, evt, entry)
 			}
