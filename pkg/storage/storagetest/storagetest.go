@@ -151,11 +151,11 @@ func TestBackendPatch(t *testing.T, ctx context.Context, backend storage.Backend
 
 			wg.Add(2)
 			go func() {
-				backend.Patch(ctx, rs1, fmAccessToken)
+				_, _, _ = backend.Patch(ctx, rs1, fmAccessToken)
 				wg.Done()
 			}()
 			go func() {
-				backend.Patch(ctx, rs2, fmRefreshToken)
+				_, _, _ = backend.Patch(ctx, rs2, fmRefreshToken)
 				wg.Done()
 			}()
 			wg.Wait()
