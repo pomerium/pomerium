@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698895066106,
+  "lastUpdate": 1698936181056,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -77088,6 +77088,38 @@ window.BENCHMARK_DATA = {
             "value": 12419340,
             "unit": "ns/op",
             "extra": "97 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "09d1f1fa8a6277949ffc6d4057751f3f5e614535",
+          "message": "core/events: use synchronous channel to fix flaky test",
+          "timestamp": "2023-10-31T16:46:40Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4700/commits/09d1f1fa8a6277949ffc6d4057751f3f5e614535"
+        },
+        "date": 1698936166822,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 20650188,
+            "unit": "ns/op",
+            "extra": "52 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 13319168,
+            "unit": "ns/op",
+            "extra": "79 times\n2 procs"
           }
         ]
       }
