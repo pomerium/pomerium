@@ -58,8 +58,10 @@ func Test_Validate(t *testing.T) {
 	badPolicyFile.PolicyFile = "file"
 	invalidStorageType := testOptions()
 	invalidStorageType.DataBrokerStorageType = "foo"
+	redisStorageType := testOptions()
+	redisStorageType.DataBrokerStorageType = "redis"
 	missingStorageDSN := testOptions()
-	missingStorageDSN.DataBrokerStorageType = "redis"
+	missingStorageDSN.DataBrokerStorageType = "postgres"
 	badSignoutRedirectURL := testOptions()
 	badSignoutRedirectURL.SignOutRedirectURLString = "--"
 	badCookieSettings := testOptions()
@@ -77,6 +79,7 @@ func Test_Validate(t *testing.T) {
 		{"missing shared secret but all service", badSecretAllServices, false},
 		{"policy file specified", badPolicyFile, true},
 		{"invalid databroker storage type", invalidStorageType, true},
+		{"redis databroker storage type", redisStorageType, true},
 		{"missing databroker storage dsn", missingStorageDSN, true},
 		{"invalid signout redirect url", badSignoutRedirectURL, true},
 		{"CookieSameSite none with CookieSecure fale", badCookieSettings, true},
