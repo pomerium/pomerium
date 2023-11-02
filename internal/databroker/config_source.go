@@ -2,11 +2,14 @@ package databroker
 
 import (
 	"context"
+	"fmt"
+	"runtime"
 	"sort"
 	"sync"
 	"time"
 
 	"golang.org/x/exp/maps"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -18,6 +21,7 @@ import (
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 // ConfigSource provides a new Config source that decorates an underlying config with
@@ -30,6 +34,7 @@ type ConfigSource struct {
 	dbConfigs              map[string]dbConfig
 	updaterHash            uint64
 	cancel                 func()
+	enableValidation       bool
 
 	config.ChangeDispatcher
 }
@@ -39,9 +44,18 @@ type dbConfig struct {
 	version uint64
 }
 
+// EnableConfigValidation is a type that can be used to enable config validation.
+type EnableConfigValidation bool
+
 // NewConfigSource creates a new ConfigSource.
-func NewConfigSource(ctx context.Context, underlying config.Source, listeners ...config.ChangeListener) *ConfigSource {
+func NewConfigSource(
+	ctx context.Context,
+	underlying config.Source,
+	enableValidation EnableConfigValidation,
+	listeners ...config.ChangeListener,
+) *ConfigSource {
 	src := &ConfigSource{
+		enableValidation:       bool(enableValidation),
 		dbConfigs:              map[string]dbConfig{},
 		outboundGRPCConnection: new(grpc.CachedOutboundGRPClientConn),
 	}
@@ -74,104 +88,23 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 	_, span := trace.StartSpan(ctx, "databroker.config_source.rebuild")
 	defer span.End()
 
-	log.Info(ctx).Msg("databroker: rebuilding configuration")
-
+	now := time.Now()
 	src.mu.Lock()
 	defer src.mu.Unlock()
+	log.Info(ctx).Str("lock-wait", time.Since(now).String()).Msg("databroker: rebuilding configuration")
 
 	cfg := src.underlyingConfig.Clone()
 
 	// start the updater
 	src.runUpdater(cfg)
 
-	seen := map[uint64]string{}
-	for _, policy := range cfg.Options.GetAllPolicies() {
-		id, err := policy.RouteID()
-		if err != nil {
-			log.Warn(ctx).Err(err).
-				Str("policy", policy.String()).
-				Msg("databroker: invalid policy config, ignoring")
-			return
-		}
-		seen[id] = ""
+	now = time.Now()
+	err := src.buildNewConfigLocked(ctx, cfg)
+	if err != nil {
+		log.Error(ctx).Err(err).Msg("databroker: failed to build new config")
+		return
 	}
-
-	var additionalPolicies []config.Policy
-
-	ids := maps.Keys(src.dbConfigs)
-	sort.Strings(ids)
-
-	var certsIndex *cryptutil.CertificatesIndex
-	if !cfg.Options.DisableValidation {
-		certsIndex = cryptutil.NewCertificatesIndex()
-		for _, cert := range cfg.Options.GetX509Certificates() {
-			certsIndex.Add(cert)
-		}
-	}
-
-	// add all the config policies to the list
-	for _, id := range ids {
-		cfgpb := src.dbConfigs[id]
-
-		cfg.Options.ApplySettings(ctx, certsIndex, cfgpb.Settings)
-		var errCount uint64
-
-		err := cfg.Options.Validate()
-		if err != nil {
-			metrics.SetDBConfigRejected(ctx, cfg.Options.Services, id, cfgpb.version, err)
-			return
-		}
-
-		for _, routepb := range cfgpb.GetRoutes() {
-			policy, err := config.NewPolicyFromProto(routepb)
-			if err != nil {
-				errCount++
-				log.Warn(ctx).Err(err).
-					Str("db_config_id", id).
-					Msg("databroker: error converting protobuf into policy")
-				continue
-			}
-
-			err = policy.Validate()
-			if err != nil {
-				errCount++
-				log.Warn(ctx).Err(err).
-					Str("db_config_id", id).
-					Str("policy", policy.String()).
-					Msg("databroker: invalid policy, ignoring")
-				continue
-			}
-
-			routeID, err := policy.RouteID()
-			if err != nil {
-				errCount++
-				log.Warn(ctx).Err(err).
-					Str("db_config_id", id).
-					Str("policy", policy.String()).
-					Msg("databroker: cannot establish policy route ID, ignoring")
-				continue
-			}
-
-			if _, ok := seen[routeID]; ok {
-				errCount++
-				log.Warn(ctx).Err(err).
-					Str("db_config_id", id).
-					Str("seen-in", seen[routeID]).
-					Str("policy", policy.String()).
-					Msg("databroker: duplicate policy detected, ignoring")
-				continue
-			}
-			seen[routeID] = id
-
-			additionalPolicies = append(additionalPolicies, *policy)
-		}
-		metrics.SetDBConfigInfo(ctx, cfg.Options.Services, id, cfgpb.version, int64(errCount))
-	}
-
-	// add the additional policies here since calling `Validate` will reset them.
-	cfg.Options.AdditionalPolicies = append(cfg.Options.AdditionalPolicies, additionalPolicies...)
-
-	log.Info(ctx).Msg("databroker: built new config")
+	log.Info(ctx).Str("elapsed", time.Since(now).String()).Msg("databroker: built new config")
 
 	src.computedConfig = cfg
 	if !firstTime {
@@ -179,6 +112,107 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 	}
 
 	metrics.SetConfigInfo(ctx, cfg.Options.Services, "databroker", cfg.Checksum(), true)
+}
+
+func (src *ConfigSource) buildNewConfigLocked(ctx context.Context, cfg *config.Config) error {
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.SetLimit(runtime.NumCPU()/2 + 1)
+	eg.Go(func() error {
+		src.applySettingsLocked(ctx, cfg)
+		err := cfg.Options.Validate()
+		if err != nil {
+			return fmt.Errorf("validating settings: %w", err)
+		}
+		return nil
+	})
+	policies := slices.NewSafeSlice[*config.Policy]()
+	for _, cfgpb := range src.dbConfigs {
+		for _, routepb := range cfgpb.GetRoutes() {
+			routepb := routepb
+			eg.Go(func() error {
+				policy, err := src.buildPolicyFromProto(routepb)
+				if err != nil {
+					log.Ctx(ctx).Err(err).Msg("databroker: error building policy from protobuf")
+					return nil
+				}
+				policies.Append(policy)
+				return nil
+			})
+		}
+	}
+	err := eg.Wait()
+	if err != nil {
+		return err
+	}
+
+	src.addPolicies(ctx, cfg, policies.Get())
+	return nil
+}
+
+func (src *ConfigSource) applySettingsLocked(ctx context.Context, cfg *config.Config) {
+	ids := maps.Keys(src.dbConfigs)
+	sort.Strings(ids)
+
+	var certsIndex *cryptutil.CertificatesIndex
+	if src.enableValidation {
+		certsIndex = cryptutil.NewCertificatesIndex()
+		for _, cert := range cfg.Options.GetX509Certificates() {
+			certsIndex.Add(cert)
+		}
+	}
+
+	for i := 0; i < len(ids) && ctx.Err() == nil; i++ {
+		cfgpb := src.dbConfigs[ids[i]]
+		cfg.Options.ApplySettings(ctx, certsIndex, cfgpb.Settings)
+	}
+}
+
+func (src *ConfigSource) buildPolicyFromProto(routepb *configpb.Route) (*config.Policy, error) {
+	policy, err := config.NewPolicyFromProto(routepb)
+	if err != nil {
+		return nil, fmt.Errorf("error building policy from protobuf: %w", err)
+	}
+
+	if !src.enableValidation {
+		return policy, nil
+	}
+
+	err = policy.Validate()
+	if err != nil {
+		return nil, fmt.Errorf("error validating policy: %w", err)
+	}
+
+	return policy, nil
+}
+
+func (src *ConfigSource) addPolicies(ctx context.Context, cfg *config.Config, policies []*config.Policy) {
+	seen := make(map[uint64]struct{})
+	for _, policy := range cfg.Options.GetAllPolicies() {
+		id, err := policy.RouteID()
+		if err != nil {
+			log.Ctx(ctx).Err(err).Str("policy", policy.String()).Msg("databroker: error getting route id")
+			continue
+		}
+		seen[id] = struct{}{}
+	}
+
+	var additionalPolicies []config.Policy
+	for _, policy := range policies {
+		id, err := policy.RouteID()
+		if err != nil {
+			log.Ctx(ctx).Err(err).Str("policy", policy.String()).Msg("databroker: error getting route id")
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			log.Ctx(ctx).Debug().Str("policy", policy.String()).Msg("databroker: policy already exists")
+			continue
+		}
+		additionalPolicies = append(additionalPolicies, *policy)
+		seen[id] = struct{}{}
+	}
+
+	// add the additional policies here since calling `Validate` will reset them.
+	cfg.Options.AdditionalPolicies = append(cfg.Options.AdditionalPolicies, additionalPolicies...)
 }
 
 func (src *ConfigSource) runUpdater(cfg *config.Config) {
