@@ -234,6 +234,45 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 	return res, nil
 }
 
+// Patch updates specific fields of an existing record.
+func (srv *Server) Patch(ctx context.Context, req *databroker.PatchRequest) (*databroker.PatchResponse, error) {
+	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Patch")
+	defer span.End()
+
+	records := req.GetRecords()
+	if len(records) == 1 {
+		log.Info(ctx).
+			Str("record-type", records[0].GetType()).
+			Str("record-id", records[0].GetId()).
+			Msg("patch")
+	} else {
+		var recordType string
+		for _, record := range records {
+			recordType = record.GetType()
+		}
+		log.Info(ctx).
+			Int("record-count", len(records)).
+			Str("record-type", recordType).
+			Msg("patch")
+	}
+
+	db, err := srv.getBackend()
+	if err != nil {
+		return nil, err
+	}
+
+	serverVersion, patchedRecords, err := db.Patch(ctx, records, req.GetFieldMask())
+	if err != nil {
+		return nil, err
+	}
+	res := &databroker.PatchResponse{
+		ServerVersion: serverVersion,
+		Records:       patchedRecords,
+	}
+
+	return res, nil
+}
+
 // ReleaseLease releases a lease.
 func (srv *Server) ReleaseLease(ctx context.Context, req *databroker.ReleaseLeaseRequest) (*emptypb.Empty, error) {
 	ctx, span := trace.StartSpan(ctx, "databroker.grpc.ReleaseLease")
