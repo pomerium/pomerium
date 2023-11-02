@@ -22,7 +22,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/testutil"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -287,12 +286,11 @@ func TestServerInvalidStorage(t *testing.T) {
 	_ = assert.Error(t, err) && assert.Contains(t, err.Error(), "unsupported storage type")
 }
 
-func TestServerRedis(t *testing.T) {
-	testutil.WithTestRedis(false, func(rawURL string) error {
+func TestServerPostgres(t *testing.T) {
+	testutil.WithTestPostgres(func(dsn string) error {
 		srv := newServer(&serverConfig{
-			storageType:             "redis",
-			storageConnectionString: rawURL,
-			secret:                  cryptutil.NewKey(),
+			storageType:             "postgres",
+			storageConnectionString: dsn,
 		})
 
 		s := new(session.Session)

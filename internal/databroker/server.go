@@ -3,7 +3,6 @@ package databroker
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"strings"
@@ -19,12 +18,10 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
 	"github.com/pomerium/pomerium/pkg/storage/postgres"
-	"github.com/pomerium/pomerium/pkg/storage/redis"
 )
 
 // Server implements the databroker service using an in memory database.
@@ -426,39 +423,8 @@ func (srv *Server) newBackendLocked() (backend storage.Backend, err error) {
 	case config.StoragePostgresName:
 		log.Info(ctx).Msg("using postgres store")
 		backend = postgres.New(srv.cfg.storageConnectionString)
-	case config.StorageRedisName:
-		log.Info(ctx).Msg("using redis store")
-		backend, err = redis.New(
-			srv.cfg.storageConnectionString,
-			redis.WithTLSConfig(srv.getTLSConfigLocked(ctx)),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create new redis storage: %w", err)
-		}
-		if srv.cfg.secret != nil {
-			backend, err = storage.NewEncryptedBackend(srv.cfg.secret, backend)
-			if err != nil {
-				return nil, err
-			}
-		}
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", srv.cfg.storageType)
 	}
 	return backend, nil
-}
-
-func (srv *Server) getTLSConfigLocked(ctx context.Context) *tls.Config {
-	caCertPool, err := cryptutil.GetCertPool("", srv.cfg.storageCAFile)
-	if err != nil {
-		log.Warn(ctx).Err(err).Msg("failed to read databroker CA file")
-	}
-	tlsConfig := &tls.Config{
-		RootCAs: caCertPool,
-		//nolint: gosec
-		InsecureSkipVerify: srv.cfg.storageCertSkipVerify,
-	}
-	if srv.cfg.storageCertificate != nil {
-		tlsConfig.Certificates = []tls.Certificate{*srv.cfg.storageCertificate}
-	}
-	return tlsConfig
 }
