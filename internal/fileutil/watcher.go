@@ -54,29 +54,37 @@ func (watcher *Watcher) Watch(ctx context.Context, filePaths []string) {
 	}
 
 	for _, filePath := range add {
+		watcher.watching[filePath] = struct{}{}
+
 		if watcher.eventWatcher != nil {
-			if err := watcher.eventWatcher.Add(filePath); err != nil {
-				log.Error(ctx).Msg("fileutil/watcher: failed to add file to event-based file watcher")
+			err := watcher.eventWatcher.Add(filePath)
+			if err != nil {
+				log.Error(ctx).Err(err).Str("file", filePath).Msg("fileutil/watcher: failed to add file to polling-based file watcher")
 			}
 		}
 
 		if watcher.pollingWatcher != nil {
-			if err := watcher.pollingWatcher.Add(filePath); err != nil {
-				log.Error(ctx).Msg("fileutil/watcher: failed to add file to polling-based file watcher")
+			err := watcher.pollingWatcher.Add(filePath)
+			if err != nil {
+				log.Error(ctx).Err(err).Str("file", filePath).Msg("fileutil/watcher: failed to add file to polling-based file watcher")
 			}
 		}
 	}
 
 	for _, filePath := range remove {
+		delete(watcher.watching, filePath)
+
 		if watcher.eventWatcher != nil {
-			if err := watcher.eventWatcher.Remove(filePath); err != nil {
-				log.Error(ctx).Msg("fileutil/watcher: failed to remove file from event-based file watcher")
+			err := watcher.eventWatcher.Remove(filePath)
+			if err != nil {
+				log.Error(ctx).Err(err).Str("file", filePath).Msg("fileutil/watcher: failed to remove file from event-based file watcher")
 			}
 		}
 
 		if watcher.pollingWatcher != nil {
-			if err := watcher.pollingWatcher.Remove(filePath); err != nil {
-				log.Error(ctx).Msg("fileutil/watcher: failed to remove file from polling-based file watcher")
+			err := watcher.pollingWatcher.Remove(filePath)
+			if err != nil {
+				log.Error(ctx).Err(err).Str("file", filePath).Msg("fileutil/watcher: failed to remove file from polling-based file watcher")
 			}
 		}
 	}
@@ -91,7 +99,7 @@ func (watcher *Watcher) initLocked(ctx context.Context) {
 		var err error
 		watcher.eventWatcher, err = filenotify.NewEventWatcher()
 		if err != nil {
-			log.Error(ctx).Msg("fileutil/watcher: failed to create event-based file watcher")
+			log.Error(ctx).Err(err).Msg("fileutil/watcher: failed to create event-based file watcher")
 		}
 	}
 	if watcher.pollingWatcher == nil {

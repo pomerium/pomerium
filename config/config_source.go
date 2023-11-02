@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/netutil"
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 // A ChangeListener is called when configuration changes.
@@ -132,7 +133,9 @@ func NewFileOrEnvironmentSource(
 		watcher:    fileutil.NewWatcher(),
 		config:     cfg,
 	}
-	src.watcher.Watch(ctx, []string{configFile})
+	if configFile != "" {
+		src.watcher.Watch(ctx, []string{configFile})
+	}
 	ch := src.watcher.Bind()
 	go func() {
 		for range ch {
@@ -227,6 +230,8 @@ func (src *FileWatcherSource) onConfigChange(ctx context.Context, cfg *Config) {
 
 	// store the config and trigger an update
 	src.cfg = cfg.Clone()
+	src.hash = getAllConfigFilePathsHash(src.cfg)
+	log.Info(ctx).Uint64("hash", src.hash).Msg("config/filewatchersource: underlying config change, triggering update")
 	src.Trigger(ctx, src.cfg)
 }
 
@@ -234,9 +239,23 @@ func (src *FileWatcherSource) onFileChange(ctx context.Context) {
 	src.mu.Lock()
 	defer src.mu.Unlock()
 
+	hash := getAllConfigFilePathsHash(src.cfg)
+
+	if hash == src.hash {
+		log.Info(ctx).Uint64("hash", src.hash).Msg("config/filewatchersource: no change detected")
+	} else {
+		// if the hash changed, trigger an update
+		// the actual config will be identical
+		src.hash = hash
+		log.Info(ctx).Uint64("hash", src.hash).Msg("config/filewatchersource: change detected, triggering update")
+		src.Trigger(ctx, src.cfg)
+	}
+}
+
+func getAllConfigFilePathsHash(cfg *Config) uint64 {
 	// read all the config files and build a hash from their contents
 	h := xxhash.New()
-	for _, f := range getAllConfigFilePaths(src.cfg) {
+	for _, f := range getAllConfigFilePaths(cfg) {
 		_, _ = h.Write([]byte{0})
 		f, err := os.Open(f)
 		if err == nil {
@@ -244,17 +263,7 @@ func (src *FileWatcherSource) onFileChange(ctx context.Context) {
 			_ = f.Close()
 		}
 	}
-	hash := h.Sum64()
-
-	if hash == src.hash {
-		log.Info(ctx).Msg("config/filewatchersource: no change detected")
-	} else {
-		// if the hash changed, trigger an update
-		// the actual config will be identical
-		log.Info(ctx).Msg("config/filewatchersource: change detected")
-		src.hash = hash
-		src.Trigger(ctx, src.cfg)
-	}
+	return h.Sum64()
 }
 
 func getAllConfigFilePaths(cfg *Config) []string {
@@ -291,6 +300,10 @@ func getAllConfigFilePaths(cfg *Config) []string {
 			policy.TLSDownstreamClientCAFile,
 		)
 	}
+
+	fs = slices.Filter(fs, func(s string) bool {
+		return s != ""
+	})
 
 	return fs
 }
