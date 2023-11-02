@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698951528283,
+  "lastUpdate": 1698952238699,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -77516,6 +77516,42 @@ window.BENCHMARK_DATA = {
             "value": 8701795,
             "unit": "ns/op",
             "extra": "144 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4842002ed789cf34c2651042782be498b1c87419",
+          "message": "storage/postgres: implement patch operation (#4656)\n\nImplement the new Patch() method for the Postgres storage backend.",
+          "timestamp": "2023-11-02T12:07:36-07:00",
+          "tree_id": "34bd47ddd8013884385510c03f36fd90edf85758",
+          "url": "https://github.com/pomerium/pomerium/commit/4842002ed789cf34c2651042782be498b1c87419"
+        },
+        "date": 1698952233581,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11924943,
+            "unit": "ns/op",
+            "extra": "94 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6904607,
+            "unit": "ns/op",
+            "extra": "178 times\n4 procs"
           }
         ]
       }
