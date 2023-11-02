@@ -14,13 +14,6 @@ type (
 	// A Handle represents a listener.
 	Handle string
 
-	addListenerEvent[T any] struct {
-		listener Listener[T]
-		handle   Handle
-	}
-	removeListenerEvent[T any] struct {
-		handle Handle
-	}
 	dispatchEvent[T any] struct {
 		ctx   context.Context
 		event T
@@ -36,131 +29,123 @@ type (
 //
 // Target is safe to use in its zero state.
 //
-// The first time any method of Target is called a background goroutine is started that handles
-// any requests and maintains the state of the listeners. Each listener also starts a
-// separate goroutine so that all listeners can be invoked concurrently.
+// Each listener is run in its own goroutine.
 //
-// The channels to the main goroutine and to the listener goroutines have a size of 1 so typically
-// methods and dispatches will return immediately. However a slow listener will cause the next event
-// dispatch to block. This is the opposite behavior from Manager.
+// A slow listener will cause the next event dispatch to block. This is the
+// opposite behavior from Manager.
 //
-// Close will cancel all the goroutines. Subsequent calls to AddListener, RemoveListener, Close and
-// Dispatch are no-ops.
+// Close will remove and cancel all listeners.
 type Target[T any] struct {
-	initOnce         sync.Once
-	ctx              context.Context
-	cancel           context.CancelCauseFunc
-	addListenerCh    chan addListenerEvent[T]
-	removeListenerCh chan removeListenerEvent[T]
-	dispatchCh       chan dispatchEvent[T]
-	listeners        map[Handle]chan dispatchEvent[T]
+	mu        sync.RWMutex
+	listeners map[Handle]targetListener[T]
 }
 
 // AddListener adds a listener to the target.
 func (t *Target[T]) AddListener(listener Listener[T]) Handle {
-	t.init()
-
 	// using a handle is necessary because you can't use a function as a map key.
-	handle := Handle(uuid.NewString())
+	h := Handle(uuid.NewString())
+	tl := newTargetListener(listener)
 
-	select {
-	case <-t.ctx.Done():
-	case t.addListenerCh <- addListenerEvent[T]{listener, handle}:
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.listeners == nil {
+		t.listeners = make(map[Handle]targetListener[T])
 	}
 
-	return handle
+	t.listeners[h] = tl
+	return h
 }
 
 // Close closes the event target. This can be called multiple times safely.
-// Once closed the target cannot be used.
 func (t *Target[T]) Close() {
-	t.init()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
-	t.cancel(errors.New("target closed"))
+	for _, tl := range t.listeners {
+		tl.close()
+	}
+	t.listeners = nil
 }
 
 // Dispatch dispatches an event to all listeners.
 func (t *Target[T]) Dispatch(ctx context.Context, evt T) {
-	t.init()
+	// store all the listeners in a slice so we don't hold the lock while dispatching
+	var tls []targetListener[T]
+	t.mu.RLock()
+	tls = make([]targetListener[T], 0, len(t.listeners))
+	for _, tl := range t.listeners {
+		tls = append(tls, tl)
+	}
+	t.mu.RUnlock()
 
-	select {
-	case <-t.ctx.Done():
-	case t.dispatchCh <- dispatchEvent[T]{ctx: ctx, event: evt}:
+	// Because we're outside of the lock it's possible we may dispatch to a listener
+	// that's been removed if Dispatch and RemoveListener are called from separate
+	// goroutines. There should be no possibility of a deadlock however.
+
+	for _, tl := range tls {
+		tl.dispatch(dispatchEvent[T]{ctx: ctx, event: evt})
 	}
 }
 
 // RemoveListener removes a listener from the target.
 func (t *Target[T]) RemoveListener(handle Handle) {
-	t.init()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
-	select {
-	case <-t.ctx.Done():
-	case t.removeListenerCh <- removeListenerEvent[T]{handle}:
+	if t.listeners == nil {
+		t.listeners = make(map[Handle]targetListener[T])
 	}
-}
 
-func (t *Target[T]) init() {
-	t.initOnce.Do(func() {
-		t.ctx, t.cancel = context.WithCancelCause(context.Background())
-		t.addListenerCh = make(chan addListenerEvent[T], 1)
-		t.removeListenerCh = make(chan removeListenerEvent[T], 1)
-		t.dispatchCh = make(chan dispatchEvent[T], 1)
-		t.listeners = map[Handle]chan dispatchEvent[T]{}
-		go t.run()
-	})
-}
-
-func (t *Target[T]) run() {
-	// listen for add/remove/dispatch events and call functions
-	for {
-		select {
-		case <-t.ctx.Done():
-			return
-		case evt := <-t.addListenerCh:
-			t.addListener(evt.listener, evt.handle)
-		case evt := <-t.removeListenerCh:
-			t.removeListener(evt.handle)
-		case evt := <-t.dispatchCh:
-			t.dispatch(evt.ctx, evt.event)
-		}
-	}
-}
-
-// these functions are not thread-safe. They are intended to be called only by "run".
-
-func (t *Target[T]) addListener(listener Listener[T], handle Handle) {
-	ch := make(chan dispatchEvent[T], 1)
-	t.listeners[handle] = ch
-	// start a goroutine to send events to the listener
-	go func() {
-		for {
-			select {
-			case <-t.ctx.Done():
-			case evt := <-ch:
-				listener(evt.ctx, evt.event)
-			}
-		}
-	}()
-}
-
-func (t *Target[T]) removeListener(handle Handle) {
-	ch, ok := t.listeners[handle]
+	tl, ok := t.listeners[handle]
 	if !ok {
-		// nothing to do since the listener doesn't exist
 		return
 	}
-	// close the channel to kill the goroutine
-	close(ch)
+
+	tl.close()
 	delete(t.listeners, handle)
 }
 
-func (t *Target[T]) dispatch(ctx context.Context, evt T) {
-	// loop over all the listeners and send the event to them
-	for _, ch := range t.listeners {
+// A targetListener starts a goroutine that pulls events from "ch" and
+// calls the listener for each event.
+//
+// The goroutine is stopped when ".close()" is called. We don't rely
+// on closing "ch" because sending to a closed channel results in a
+// panic. Instead we signal closing via "ctx.Done()".
+type targetListener[T any] struct {
+	ctx      context.Context
+	cancel   context.CancelCauseFunc
+	ch       chan dispatchEvent[T]
+	listener Listener[T]
+}
+
+func newTargetListener[T any](listener Listener[T]) targetListener[T] {
+	li := targetListener[T]{}
+	li.ctx, li.cancel = context.WithCancelCause(context.Background())
+	li.ch = make(chan dispatchEvent[T])
+	li.listener = listener
+	go li.run()
+	return li
+}
+
+func (li targetListener[T]) close() {
+	li.cancel(errors.New("events target listener closed"))
+}
+
+func (li targetListener[T]) dispatch(evt dispatchEvent[T]) {
+	select {
+	case <-li.ctx.Done():
+	case li.ch <- evt:
+	}
+}
+
+func (li targetListener[T]) run() {
+	for {
 		select {
-		case <-t.ctx.Done():
+		case <-li.ctx.Done():
 			return
-		case ch <- dispatchEvent[T]{ctx: ctx, event: evt}:
+		case evt := <-li.ch:
+			li.listener(evt.ctx, evt.event)
 		}
 	}
 }
