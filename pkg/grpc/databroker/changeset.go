@@ -43,8 +43,17 @@ func (cs *ChangeSet) Updates() []*Record {
 	return cs.updates
 }
 
+// Len returns the number of updates in the change set.
+func (cs *ChangeSet) Len() int {
+	return len(cs.updates)
+}
+
 // ApplyChanges applies the changes to the databroker.
 func ApplyChanges(ctx context.Context, client DataBrokerServiceClient, changes *ChangeSet) error {
+	if len(changes.updates) == 0 {
+		return nil
+	}
+
 	updates := OptimumPutRequestsFromRecords(changes.updates)
 	for _, req := range updates {
 		_, err := client.Put(ctx, req)
