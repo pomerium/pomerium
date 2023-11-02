@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698936181056,
+  "lastUpdate": 1698938913704,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -77120,6 +77120,38 @@ window.BENCHMARK_DATA = {
             "value": 13319168,
             "unit": "ns/op",
             "extra": "79 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "0a769f7832c19ab2b1eea8c30a98125861d61491",
+          "message": "core/events: fix flaky test",
+          "timestamp": "2023-10-31T16:46:40Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4700/commits/0a769f7832c19ab2b1eea8c30a98125861d61491"
+        },
+        "date": 1698938899638,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 15449312,
+            "unit": "ns/op",
+            "extra": "82 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9513626,
+            "unit": "ns/op",
+            "extra": "121 times\n2 procs"
           }
         ]
       }
