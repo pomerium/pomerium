@@ -18,11 +18,11 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/testutil"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -83,6 +83,58 @@ func TestServer_Get(t *testing.T) {
 		assert.Error(t, err)
 		assert.Equal(t, codes.NotFound, status.Code(err))
 	})
+}
+
+func TestServer_Patch(t *testing.T) {
+	cfg := newServerConfig()
+	srv := newServer(cfg)
+
+	s := &session.Session{
+		Id:         "1",
+		OauthToken: &session.OAuthToken{AccessToken: "access-token"},
+	}
+	data := protoutil.NewAny(s)
+	_, err := srv.Put(context.Background(), &databroker.PutRequest{
+		Records: []*databroker.Record{{
+			Type: data.TypeUrl,
+			Id:   s.Id,
+			Data: data,
+		}},
+	})
+	require.NoError(t, err)
+
+	fm, err := fieldmaskpb.New(s, "accessed_at")
+	require.NoError(t, err)
+
+	now := timestamppb.Now()
+	s.AccessedAt = now
+	s.OauthToken.AccessToken = "access-token-field-ignored"
+	data = protoutil.NewAny(s)
+	patchResponse, err := srv.Patch(context.Background(), &databroker.PatchRequest{
+		Records: []*databroker.Record{{
+			Type: data.TypeUrl,
+			Id:   s.Id,
+			Data: data,
+		}},
+		FieldMask: fm,
+	})
+	require.NoError(t, err)
+	testutil.AssertProtoEqual(t, protoutil.NewAny(&session.Session{
+		Id:         "1",
+		AccessedAt: now,
+		OauthToken: &session.OAuthToken{AccessToken: "access-token"},
+	}), patchResponse.GetRecord().GetData())
+
+	getResponse, err := srv.Get(context.Background(), &databroker.GetRequest{
+		Type: data.TypeUrl,
+		Id:   s.Id,
+	})
+	require.NoError(t, err)
+	testutil.AssertProtoEqual(t, protoutil.NewAny(&session.Session{
+		Id:         "1",
+		AccessedAt: now,
+		OauthToken: &session.OAuthToken{AccessToken: "access-token"},
+	}), getResponse.GetRecord().GetData())
 }
 
 func TestServer_Options(t *testing.T) {
@@ -287,12 +339,11 @@ func TestServerInvalidStorage(t *testing.T) {
 	_ = assert.Error(t, err) && assert.Contains(t, err.Error(), "unsupported storage type")
 }
 
-func TestServerRedis(t *testing.T) {
-	testutil.WithTestRedis(false, func(rawURL string) error {
+func TestServerPostgres(t *testing.T) {
+	testutil.WithTestPostgres(func(dsn string) error {
 		srv := newServer(&serverConfig{
-			storageType:             "redis",
-			storageConnectionString: rawURL,
-			secret:                  cryptutil.NewKey(),
+			storageType:             "postgres",
+			storageConnectionString: dsn,
 		})
 
 		s := new(session.Session)

@@ -10,6 +10,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -140,7 +141,7 @@ func (backend *Backend) Get(
 		return nil, err
 	}
 
-	return getRecord(ctx, conn, recordType, recordID)
+	return getRecord(ctx, conn, recordType, recordID, lockModeNone)
 }
 
 // GetOptions returns the options for the given record type.
@@ -237,6 +238,42 @@ func (backend *Backend) Put(
 
 	err = signalRecordChange(ctx, pool)
 	return serverVersion, err
+}
+
+// Patch updates specific fields of existing records in Postgres.
+func (backend *Backend) Patch(
+	ctx context.Context,
+	records []*databroker.Record,
+	fields *fieldmaskpb.FieldMask,
+) (uint64, []*databroker.Record, error) {
+	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
+	defer cancel()
+
+	serverVersion, pool, err := backend.init(ctx)
+	if err != nil {
+		return serverVersion, nil, err
+	}
+
+	patchedRecords := make([]*databroker.Record, 0, len(records))
+
+	now := timestamppb.Now()
+
+	for _, record := range records {
+		record = dup(record)
+		record.ModifiedAt = now
+		err := patchRecord(ctx, pool, record, fields)
+		if storage.IsNotFound(err) {
+			continue
+		} else if err != nil {
+			err = fmt.Errorf("storage/postgres: error patching record %q of type %q: %w",
+				record.GetId(), record.GetType(), err)
+			return serverVersion, patchedRecords, err
+		}
+		patchedRecords = append(patchedRecords, record)
+	}
+
+	err = signalRecordChange(ctx, pool)
+	return serverVersion, patchedRecords, err
 }
 
 // SetOptions sets the options for the given record type.

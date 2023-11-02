@@ -3,7 +3,6 @@ package databroker
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"strings"
@@ -19,12 +18,10 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
 	"github.com/pomerium/pomerium/pkg/storage/postgres"
-	"github.com/pomerium/pomerium/pkg/storage/redis"
 )
 
 // Server implements the databroker service using an in memory database.
@@ -237,6 +234,45 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 	return res, nil
 }
 
+// Patch updates specific fields of an existing record.
+func (srv *Server) Patch(ctx context.Context, req *databroker.PatchRequest) (*databroker.PatchResponse, error) {
+	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Patch")
+	defer span.End()
+
+	records := req.GetRecords()
+	if len(records) == 1 {
+		log.Info(ctx).
+			Str("record-type", records[0].GetType()).
+			Str("record-id", records[0].GetId()).
+			Msg("patch")
+	} else {
+		var recordType string
+		for _, record := range records {
+			recordType = record.GetType()
+		}
+		log.Info(ctx).
+			Int("record-count", len(records)).
+			Str("record-type", recordType).
+			Msg("patch")
+	}
+
+	db, err := srv.getBackend()
+	if err != nil {
+		return nil, err
+	}
+
+	serverVersion, patchedRecords, err := db.Patch(ctx, records, req.GetFieldMask())
+	if err != nil {
+		return nil, err
+	}
+	res := &databroker.PatchResponse{
+		ServerVersion: serverVersion,
+		Records:       patchedRecords,
+	}
+
+	return res, nil
+}
+
 // ReleaseLease releases a lease.
 func (srv *Server) ReleaseLease(ctx context.Context, req *databroker.ReleaseLeaseRequest) (*emptypb.Empty, error) {
 	ctx, span := trace.StartSpan(ctx, "databroker.grpc.ReleaseLease")
@@ -426,39 +462,8 @@ func (srv *Server) newBackendLocked() (backend storage.Backend, err error) {
 	case config.StoragePostgresName:
 		log.Info(ctx).Msg("using postgres store")
 		backend = postgres.New(srv.cfg.storageConnectionString)
-	case config.StorageRedisName:
-		log.Info(ctx).Msg("using redis store")
-		backend, err = redis.New(
-			srv.cfg.storageConnectionString,
-			redis.WithTLSConfig(srv.getTLSConfigLocked(ctx)),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create new redis storage: %w", err)
-		}
-		if srv.cfg.secret != nil {
-			backend, err = storage.NewEncryptedBackend(srv.cfg.secret, backend)
-			if err != nil {
-				return nil, err
-			}
-		}
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", srv.cfg.storageType)
 	}
 	return backend, nil
-}
-
-func (srv *Server) getTLSConfigLocked(ctx context.Context) *tls.Config {
-	caCertPool, err := cryptutil.GetCertPool("", srv.cfg.storageCAFile)
-	if err != nil {
-		log.Warn(ctx).Err(err).Msg("failed to read databroker CA file")
-	}
-	tlsConfig := &tls.Config{
-		RootCAs: caCertPool,
-		//nolint: gosec
-		InsecureSkipVerify: srv.cfg.storageCertSkipVerify,
-	}
-	if srv.cfg.storageCertificate != nil {
-		tlsConfig.Certificates = []tls.Certificate{*srv.cfg.storageCertificate}
-	}
-	return tlsConfig
 }

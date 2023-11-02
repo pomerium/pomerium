@@ -12,10 +12,12 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -160,15 +162,24 @@ func getOptions(ctx context.Context, q querier, recordType string) (*databroker.
 	return options, nil
 }
 
-func getRecord(ctx context.Context, q querier, recordType, recordID string) (*databroker.Record, error) {
+type lockMode string
+
+const (
+	lockModeNone   lockMode = ""
+	lockModeUpdate lockMode = "FOR UPDATE"
+)
+
+func getRecord(
+	ctx context.Context, q querier, recordType, recordID string, lockMode lockMode,
+) (*databroker.Record, error) {
 	var version uint64
 	var data []byte
 	var modifiedAt pgtype.Timestamptz
 	err := q.QueryRow(ctx, `
 		SELECT version, data, modified_at
 		  FROM `+schemaName+`.`+recordsTableName+`
-		 WHERE type=$1 AND id=$2
-	`, recordType, recordID).Scan(&version, &data, &modifiedAt)
+		 WHERE type=$1 AND id=$2 `+string(lockMode),
+		recordType, recordID).Scan(&version, &data, &modifiedAt)
 	if isNotFound(err) {
 		return nil, storage.ErrNotFound
 	} else if err != nil {
@@ -376,6 +387,34 @@ func putRecordAndChange(ctx context.Context, q querier, record *databroker.Recor
 	}
 
 	return nil
+}
+
+// patchRecord updates specific fields of an existing record.
+func patchRecord(
+	ctx context.Context, p *pgxpool.Pool, record *databroker.Record, fields *fieldmaskpb.FieldMask,
+) error {
+	tx, err := p.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	existing, err := getRecord(ctx, tx, record.GetType(), record.GetId(), lockModeUpdate)
+	if isNotFound(err) {
+		return storage.ErrNotFound
+	} else if err != nil {
+		return err
+	}
+
+	if err := storage.PatchRecord(existing, record, fields); err != nil {
+		return err
+	}
+
+	if err := putRecordAndChange(ctx, tx, record); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }
 
 func putService(ctx context.Context, q querier, svc *registry.Service, expiresAt time.Time) error {
