@@ -15,6 +15,7 @@ import (
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
+	"github.com/pomerium/pomerium/pkg/storage/storagetest"
 )
 
 func TestBackend(t *testing.T) {
@@ -71,6 +72,9 @@ func TestBackend(t *testing.T) {
 		record, err := backend.Get(ctx, "TYPE", "abcd")
 		assert.Error(t, err)
 		assert.Nil(t, record)
+	})
+	t.Run("patch", func(t *testing.T) {
+		storagetest.TestBackendPatch(t, ctx, backend)
 	})
 }
 
