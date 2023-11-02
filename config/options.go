@@ -245,7 +245,7 @@ type Options struct {
 	DataBrokerURLStrings        []string `mapstructure:"databroker_service_urls" yaml:"databroker_service_urls,omitempty"`
 	DataBrokerInternalURLString string   `mapstructure:"databroker_internal_service_url" yaml:"databroker_internal_service_url,omitempty"`
 	// DataBrokerStorageType is the storage backend type that databroker will use.
-	// Supported type: memory, redis
+	// Supported type: memory, postgres
 	DataBrokerStorageType string `mapstructure:"databroker_storage_type" yaml:"databroker_storage_type,omitempty"`
 	// DataBrokerStorageConnectionString is the data source name for storage backend.
 	DataBrokerStorageConnectionString string `mapstructure:"databroker_storage_connection_string" yaml:"databroker_storage_connection_string,omitempty"`
@@ -584,7 +584,9 @@ func (o *Options) Validate() error {
 
 	switch o.DataBrokerStorageType {
 	case StorageInMemoryName:
-	case StorageRedisName, StoragePostgresName:
+	case StorageRedisName:
+		return errors.New("config: redis databroker storage backend is no longer supported")
+	case StoragePostgresName:
 		if o.DataBrokerStorageConnectionString == "" {
 			return errors.New("config: missing databroker storage backend dsn")
 		}
