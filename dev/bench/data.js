@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698951484173,
+  "lastUpdate": 1698951528283,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -77480,6 +77480,42 @@ window.BENCHMARK_DATA = {
             "value": 6591112,
             "unit": "ns/op",
             "extra": "184 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4f648e9ac1d10dfb6b0a1d0e20f6764ae94bc156",
+          "message": "databroker: remove redis storage backend (#4699)\n\nRemove the Redis databroker backend. According to\r\nhttps://www.pomerium.com/docs/internals/data-storage#redis it has been\r\ndiscouraged since Pomerium v0.18.\r\n\r\nUpdate the config options validation to return an error if \"redis\" is \r\nset as the databroker storage backend type.",
+          "timestamp": "2023-11-02T11:53:25-07:00",
+          "tree_id": "fd479203210f0bc1f6bfeafc32f11c6dc1e816ab",
+          "url": "https://github.com/pomerium/pomerium/commit/4f648e9ac1d10dfb6b0a1d0e20f6764ae94bc156"
+        },
+        "date": 1698951515564,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13517966,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8701795,
+            "unit": "ns/op",
+            "extra": "144 times\n2 procs"
           }
         ]
       }
