@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698948457001,
+  "lastUpdate": 1698948479962,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -77316,6 +77316,42 @@ window.BENCHMARK_DATA = {
             "value": 11498359,
             "unit": "ns/op",
             "extra": "93 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "47890e9ee1ed55538e07b30e3ac01cad7c198db0",
+          "message": "storage/inmemory: implement patch operation (#4654)\n\nAdd a new Patch() method that updates specific fields of an existing\r\nrecord's data, based on a field mask.\r\n\r\nExtract some logic from the existing Get() and Put() methods so it can\r\nbe shared with the new Patch() method.",
+          "timestamp": "2023-11-02T11:03:00-07:00",
+          "tree_id": "a244f349fbbfe9940ff711e761d8af3100edca7e",
+          "url": "https://github.com/pomerium/pomerium/commit/47890e9ee1ed55538e07b30e3ac01cad7c198db0"
+        },
+        "date": 1698948472406,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 14163439,
+            "unit": "ns/op",
+            "extra": "81 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8436787,
+            "unit": "ns/op",
+            "extra": "139 times\n2 procs"
           }
         ]
       }
