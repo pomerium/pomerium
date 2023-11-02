@@ -38,6 +38,11 @@ func (cs *ChangeSet) Upsert(record *Record) {
 	})
 }
 
+// Updates returns the change set's updates.
+func (cs *ChangeSet) Updates() []*Record {
+	return cs.updates
+}
+
 // ApplyChanges applies the changes to the databroker.
 func ApplyChanges(ctx context.Context, client DataBrokerServiceClient, changes *ChangeSet) error {
 	updates := OptimumPutRequestsFromRecords(changes.updates)
