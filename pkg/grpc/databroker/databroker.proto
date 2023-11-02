@@ -6,6 +6,7 @@ option go_package = "github.com/pomerium/pomerium/pkg/grpc/databroker";
 import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -56,6 +57,15 @@ message QueryResponse {
 
 message PutRequest { repeated Record records = 1; }
 message PutResponse {
+  uint64 server_version = 1;
+  repeated Record records = 2;
+}
+
+message PatchRequest {
+  repeated Record records = 1;
+  google.protobuf.FieldMask field_mask = 2;
+}
+message PatchResponse {
   uint64 server_version = 1;
   repeated Record records = 2;
 }
@@ -114,6 +124,8 @@ service DataBrokerService {
   rpc ListTypes(google.protobuf.Empty) returns (ListTypesResponse);
   // Put saves a record.
   rpc Put(PutRequest) returns (PutResponse);
+  // Patch updates specific fields of an existing record.
+  rpc Patch(PatchRequest) returns (PatchResponse);
   // Query queries for records.
   rpc Query(QueryRequest) returns (QueryResponse);
   // ReleaseLease releases a distributed mutex lease.

@@ -150,6 +150,15 @@ func (x *PutResponse) GetRecord() *Record {
 	return records[0]
 }
 
+// GetRecord gets the first record, or nil if there are none.
+func (x *PatchResponse) GetRecord() *Record {
+	records := x.GetRecords()
+	if len(records) == 0 {
+		return nil
+	}
+	return records[0]
+}
+
 // SetFilterByID sets the filter to an id.
 func (x *QueryRequest) SetFilterByID(id string) {
 	x.Filter = &structpb.Struct{Fields: map[string]*structpb.Value{
