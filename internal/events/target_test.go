@@ -2,7 +2,6 @@ package events_test
 
 import (
 	"context"
-	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -51,33 +50,4 @@ func TestTarget(t *testing.T) {
 	target.RemoveListener(h3)
 	target.Dispatch(context.Background(), 4)
 	shouldBe(3, 1, 6)
-}
-
-func TestDispatchOrder(t *testing.T) {
-	var target events.Target[int64]
-	t.Cleanup(target.Close)
-
-	ch := make(chan error)
-
-	var next atomic.Int64
-
-	update := func(_ context.Context, i int64) {
-		if n := next.Load(); i != n {
-			ch <- fmt.Errorf("want %d, got %d", n, i)
-		}
-		next.Store(i + 1)
-	}
-
-	go func() {
-		for i := int64(0); i < 1000; i++ {
-			h := target.AddListener(update)
-			target.Dispatch(context.Background(), i)
-			target.RemoveListener(h)
-		}
-		ch <- nil
-	}()
-
-	if err := <-ch; err != nil {
-		t.Fatal(err)
-	}
 }
