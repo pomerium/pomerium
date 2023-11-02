@@ -3,20 +3,21 @@ package filemgr
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	"github.com/martinlindhe/base36"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 // A Manager manages files for envoy.
 type Manager struct {
 	cfg *config
+
+	initOnce sync.Once
+	initErr  error
 }
 
 // NewManager creates a new Manager.
@@ -27,18 +28,23 @@ func NewManager(options ...Option) *Manager {
 	}
 }
 
+func (mgr *Manager) init() {
+	mgr.initOnce.Do(func() {
+		mgr.initErr = os.MkdirAll(mgr.cfg.cacheDir, 0o700)
+	})
+}
+
 // BytesDataSource returns an envoy config data source based on bytes.
 func (mgr *Manager) BytesDataSource(fileName string, data []byte) *envoy_config_core_v3.DataSource {
-	h := base36.EncodeBytes(cryptutil.Hash("filemgr", data))
-	ext := filepath.Ext(fileName)
-	fileName = fmt.Sprintf("%s-%x%s", fileName[:len(fileName)-len(ext)], h, ext)
-
-	if err := os.MkdirAll(mgr.cfg.cacheDir, 0o700); err != nil {
-		log.Error(context.TODO()).Err(err).Msg("filemgr: error creating cache directory, falling back to inline bytes")
+	mgr.init()
+	if mgr.initErr != nil {
+		log.Error(context.Background()).Err(mgr.initErr).Msg("filemgr: error creating cache directory, falling back to inline bytes")
 		return inlineBytes(data)
 	}
 
+	fileName = GetFileNameWithBytesHash(fileName, data)
 	filePath := filepath.Join(mgr.cfg.cacheDir, fileName)
+
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		err = os.WriteFile(filePath, data, 0o600)
 		if err != nil {

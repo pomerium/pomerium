@@ -27,17 +27,13 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/requestid"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
-
-type versionedConfig struct {
-	*config.Config
-	version int64
-}
 
 // A Service can be mounted on the control plane.
 type Service interface {
@@ -56,7 +52,8 @@ type Server struct {
 	Builder         *envoyconfig.Builder
 	EventsMgr       *events.Manager
 
-	currentConfig *atomicutil.Value[versionedConfig]
+	updateConfig  chan *config.Config
+	currentConfig *atomicutil.Value[*config.Config]
 	name          string
 	xdsmgr        *xdsmgr.Manager
 	filemgr       *filemgr.Manager
@@ -77,10 +74,9 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 		EventsMgr:       eventsMgr,
 		reproxy:         reproxy.New(),
 		haveSetCapacity: map[string]bool{},
-		currentConfig: atomicutil.NewValue(versionedConfig{
-			Config: cfg,
-		}),
-		httpRouter: atomicutil.NewValue(mux.NewRouter()),
+		updateConfig:    make(chan *config.Config, 1),
+		currentConfig:   atomicutil.NewValue(cfg),
+		httpRouter:      atomicutil.NewValue(mux.NewRouter()),
 	}
 
 	var err error
@@ -249,38 +245,65 @@ func (srv *Server) Run(ctx context.Context) error {
 		})
 	}
 
+	// apply configuration changes
+	eg.Go(func() error {
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case cfg := <-srv.updateConfig:
+				err := srv.update(ctx, cfg)
+				if err != nil {
+					log.Error(ctx).Err(err).
+						Msg("controlplane: error updating server with new config")
+				}
+			}
+		}
+	})
+
 	return eg.Wait()
 }
 
 // OnConfigChange updates the pomerium config options.
 func (srv *Server) OnConfigChange(ctx context.Context, cfg *config.Config) error {
-	if err := srv.updateRouter(cfg); err != nil {
-		return err
+	ctx, span := trace.StartSpan(ctx, "controlplane.Server.OnConfigChange")
+	defer span.End()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case srv.updateConfig <- cfg:
 	}
-	srv.reproxy.Update(ctx, cfg)
-	prev := srv.currentConfig.Load()
-	srv.currentConfig.Store(versionedConfig{
-		Config:  cfg,
-		version: prev.version + 1,
-	})
-	res, err := srv.buildDiscoveryResources(ctx)
-	if err != nil {
-		return err
-	}
-	srv.xdsmgr.Update(ctx, cfg.Version, res)
 	return nil
 }
 
 // EnableAuthenticate enables the authenticate service.
 func (srv *Server) EnableAuthenticate(svc Service) error {
 	srv.authenticateSvc = svc
-	return srv.updateRouter(srv.currentConfig.Load().Config)
+	return srv.updateRouter(srv.currentConfig.Load())
 }
 
 // EnableProxy enables the proxy service.
 func (srv *Server) EnableProxy(svc Service) error {
 	srv.proxySvc = svc
-	return srv.updateRouter(srv.currentConfig.Load().Config)
+	return srv.updateRouter(srv.currentConfig.Load())
+}
+
+func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
+	ctx, span := trace.StartSpan(ctx, "controlplane.Server.update")
+	defer span.End()
+
+	if err := srv.updateRouter(cfg); err != nil {
+		return err
+	}
+	srv.reproxy.Update(ctx, cfg)
+	srv.currentConfig.Store(cfg)
+	res, err := srv.buildDiscoveryResources(ctx)
+	if err != nil {
+		return err
+	}
+	srv.xdsmgr.Update(ctx, res)
+	return nil
 }
 
 func (srv *Server) updateRouter(cfg *config.Config) error {
