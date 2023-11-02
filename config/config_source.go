@@ -1,13 +1,13 @@
 package config
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
@@ -182,7 +182,7 @@ type FileWatcherSource struct {
 	watcher    *fileutil.Watcher
 
 	mu   sync.RWMutex
-	hash []byte
+	hash uint64
 	cfg  *Config
 
 	ChangeDispatcher
@@ -220,11 +220,13 @@ func (src *FileWatcherSource) GetConfig() *Config {
 }
 
 func (src *FileWatcherSource) onConfigChange(ctx context.Context, cfg *Config) {
+	// update the file watcher with paths from the config
 	src.watcher.Watch(ctx, getAllConfigFilePaths(cfg))
 
 	src.mu.Lock()
 	defer src.mu.Unlock()
 
+	// store the config and trigger an update
 	src.cfg = cfg.Clone()
 	src.Trigger(ctx, src.cfg)
 }
@@ -233,18 +235,25 @@ func (src *FileWatcherSource) onFileChange(ctx context.Context) {
 	src.mu.Lock()
 	defer src.mu.Unlock()
 
-	h := sha256.New()
+	// read all the config files and build a hash from their contents
+	h := xxhash.New()
 	for _, f := range getAllConfigFilePaths(src.cfg) {
 		_, _ = h.Write([]byte{0})
-		bs, err := os.ReadFile(f)
+		f, err := os.Open(f)
 		if err == nil {
-			_, _ = h.Write(bs)
+			_, _ = io.Copy(h, f)
+			_ = f.Close()
 		}
 	}
-	bs := h.Sum(nil)
+	hash := h.Sum64()
 
-	if !bytes.Equal(bs, src.hash) {
-		src.hash = bs
+	if hash == src.hash {
+		log.Info(ctx).Msg("config/filewatchersource: no change detected")
+	} else {
+		// if the hash changed, trigger an update
+		// the actual config will be identical
+		log.Info(ctx).Msg("config/filewatchersource: change detected")
+		src.hash = hash
 		src.Trigger(ctx, src.cfg)
 	}
 }

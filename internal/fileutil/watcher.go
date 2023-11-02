@@ -30,6 +30,7 @@ func NewWatcher() *Watcher {
 	}
 }
 
+// Watch updates the watched file paths.
 func (watcher *Watcher) Watch(ctx context.Context, filePaths []string) {
 	watcher.mu.Lock()
 	defer watcher.mu.Unlock()
