@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698962624103,
+  "lastUpdate": 1698963292631,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -77680,6 +77680,42 @@ window.BENCHMARK_DATA = {
             "value": 6595032,
             "unit": "ns/op",
             "extra": "187 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d5da8721571e500bf1f805badcb2fd94ec6ecd54",
+          "message": "databroker: add patch method (#4704)\n\nAdd a Patch() method to the databroker gRPC service.\r\n\r\nUpdate the storage.Backend interface to include the Patch() method now\r\nthat all the storage.Backend implementations include it.\r\n\r\nAdd a test to exercise the patch method under concurrent usage.",
+          "timestamp": "2023-11-02T15:07:37-07:00",
+          "tree_id": "b6d36ccef26328592ea247d8c3d248d2a6ffcf5a",
+          "url": "https://github.com/pomerium/pomerium/commit/d5da8721571e500bf1f805badcb2fd94ec6ecd54"
+        },
+        "date": 1698963283437,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16728345,
+            "unit": "ns/op",
+            "extra": "69 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11211474,
+            "unit": "ns/op",
+            "extra": "99 times\n2 procs"
           }
         ]
       }
