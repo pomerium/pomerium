@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"sort"
 
 	"github.com/open-policy-agent/opa/ast"
+	"golang.org/x/exp/maps"
 )
 
 // A Value is a JSON value. Either an object, array, string, number, boolean or null.
@@ -15,6 +17,7 @@ type Value interface {
 	isValue()
 	Clone() Value
 	RegoValue() ast.Value
+	WriteJSON(w io.Writer) (int, error)
 }
 
 // ParseValue parses JSON into a value.
@@ -194,6 +197,54 @@ func (o Object) Truthy(field string) bool {
 	return !o.Falsy(field)
 }
 
+// WriteJSON writes the object as JSON to w.
+func (o Object) WriteJSON(w io.Writer) (int, error) {
+	n, err := w.Write([]byte{'{'})
+	cnt := n
+	if err != nil {
+		return cnt, err
+	}
+
+	keys := maps.Keys(o)
+	sort.Strings(keys)
+
+	for i, key := range keys {
+		if i > 0 {
+			n, err = w.Write([]byte(","))
+			cnt += n
+			if err != nil {
+				return cnt, err
+			}
+		}
+
+		n, err = String(key).WriteJSON(w)
+		cnt += n
+		if err != nil {
+			return cnt, err
+		}
+
+		n, err = w.Write([]byte{':'})
+		cnt += n
+		if err != nil {
+			return cnt, err
+		}
+
+		n, err = o[key].WriteJSON(w)
+		cnt += n
+		if err != nil {
+			return cnt, err
+		}
+	}
+
+	n, err = w.Write([]byte{'}'})
+	cnt += n
+	if err != nil {
+		return cnt, err
+	}
+
+	return cnt, nil
+}
+
 // An Array is a slice of values.
 type Array []Value
 
@@ -221,6 +272,39 @@ func (a Array) String() string {
 	return string(bs)
 }
 
+// WriteJSON writes the array as JSON to w.
+func (a Array) WriteJSON(w io.Writer) (int, error) {
+	n, err := w.Write([]byte("["))
+	cnt := n
+	if err != nil {
+		return cnt, err
+	}
+
+	for i, v := range a {
+		if i > 0 {
+			n, err = w.Write([]byte(","))
+			cnt += n
+			if err != nil {
+				return cnt, err
+			}
+		}
+
+		n, err = v.WriteJSON(w)
+		cnt += n
+		if err != nil {
+			return cnt, err
+		}
+	}
+
+	n, err = w.Write([]byte("]"))
+	if err != nil {
+		return n, err
+	}
+	cnt += n
+
+	return cnt, nil
+}
+
 // A String is a wrapper around a string.
 type String string
 
@@ -240,6 +324,11 @@ func (s String) RegoValue() ast.Value {
 func (s String) String() string {
 	bs, _ := json.Marshal(s)
 	return string(bs)
+}
+
+// WriteJSON writes the string as JSON to w.
+func (s String) WriteJSON(w io.Writer) (int, error) {
+	return w.Write([]byte(s.String()))
 }
 
 // A Number is an integer or a floating point value stored in string representation.
@@ -279,6 +368,11 @@ func (n Number) MarshalJSON() ([]byte, error) {
 	return []byte(n), nil
 }
 
+// WriteJSON writes the number as JSON to w.
+func (n Number) WriteJSON(w io.Writer) (int, error) {
+	return w.Write([]byte(n))
+}
+
 // A Boolean is either true or false.
 type Boolean bool
 
@@ -302,6 +396,14 @@ func (b Boolean) String() string {
 	return "false"
 }
 
+// WriteJSON writes the boolean as JSON to w.
+func (b Boolean) WriteJSON(w io.Writer) (int, error) {
+	if b {
+		return w.Write([]byte("true"))
+	}
+	return w.Write([]byte("false"))
+}
+
 // A Null is the nil value.
 type Null struct{}
 
@@ -320,4 +422,9 @@ func (Null) RegoValue() ast.Value {
 // String returns JSON null.
 func (Null) String() string {
 	return "null"
+}
+
+// WriteJSON writes the null as JSON to w.
+func (Null) WriteJSON(w io.Writer) (int, error) {
+	return w.Write([]byte("null"))
 }

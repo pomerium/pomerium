@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/cespare/xxhash/v2"
 )
 
 // A Policy is a policy made up of multiple allow or deny rules.
@@ -32,6 +34,13 @@ func (p *Policy) ToJSON() Value {
 	}
 
 	return root
+}
+
+// Hash returns a hash of the policy.
+func (p *Policy) Hash() uint64 {
+	h := xxhash.New()
+	_, _ = p.ToJSON().WriteJSON(h)
+	return h.Sum64()
 }
 
 // PolicyFromValue converts a value into a Policy.
