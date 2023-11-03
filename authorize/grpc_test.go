@@ -299,7 +299,7 @@ func (m mockDataBrokerServiceClient) Patch(ctx context.Context, in *databroker.P
 		getResponse, err := m.Get(ctx, &databroker.GetRequest{
 			Type: record.GetType(),
 			Id:   record.GetId(),
-		})
+		}, opts...)
 		if storage.IsNotFound(err) {
 			continue
 		} else if err != nil {
@@ -313,7 +313,7 @@ func (m mockDataBrokerServiceClient) Patch(ctx context.Context, in *databroker.P
 
 		records = append(records, record)
 	}
-	putResponse, err := m.Put(ctx, &databroker.PutRequest{Records: records})
+	putResponse, err := m.Put(ctx, &databroker.PutRequest{Records: records}, opts...)
 	if err != nil {
 		return nil, err
 	}
