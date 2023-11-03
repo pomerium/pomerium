@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698972592252,
+  "lastUpdate": 1698974980030,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -77876,6 +77876,42 @@ window.BENCHMARK_DATA = {
             "value": 9131787,
             "unit": "ns/op",
             "extra": "130 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "45b72bc9b5e04ba97f727cab62d723f33f420262",
+          "message": "proto: add id to certificate (#4706)",
+          "timestamp": "2023-11-02T21:26:30-04:00",
+          "tree_id": "2d1cb0bffd0682fe2e99d7a01d5bf8d0296b3e5f",
+          "url": "https://github.com/pomerium/pomerium/commit/45b72bc9b5e04ba97f727cab62d723f33f420262"
+        },
+        "date": 1698974974754,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11351368,
+            "unit": "ns/op",
+            "extra": "99 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7185002,
+            "unit": "ns/op",
+            "extra": "165 times\n4 procs"
           }
         ]
       }
