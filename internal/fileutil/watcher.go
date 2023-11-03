@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/fsnotify/fsnotify"
 	"namespacelabs.dev/go-filenotify"
 
 	"github.com/pomerium/pomerium/internal/chanutil"
@@ -18,7 +17,6 @@ type Watcher struct {
 
 	mu             sync.Mutex
 	watching       map[string]struct{}
-	eventWatcher   filenotify.FileWatcher
 	pollingWatcher filenotify.FileWatcher
 }
 
@@ -56,13 +54,6 @@ func (watcher *Watcher) Watch(ctx context.Context, filePaths []string) {
 	for _, filePath := range add {
 		watcher.watching[filePath] = struct{}{}
 
-		if watcher.eventWatcher != nil {
-			err := watcher.eventWatcher.Add(filePath)
-			if err != nil {
-				log.Error(ctx).Err(err).Str("file", filePath).Msg("fileutil/watcher: failed to add file to polling-based file watcher")
-			}
-		}
-
 		if watcher.pollingWatcher != nil {
 			err := watcher.pollingWatcher.Add(filePath)
 			if err != nil {
@@ -74,13 +65,6 @@ func (watcher *Watcher) Watch(ctx context.Context, filePaths []string) {
 	for _, filePath := range remove {
 		delete(watcher.watching, filePath)
 
-		if watcher.eventWatcher != nil {
-			err := watcher.eventWatcher.Remove(filePath)
-			if err != nil {
-				log.Error(ctx).Err(err).Str("file", filePath).Msg("fileutil/watcher: failed to remove file from event-based file watcher")
-			}
-		}
-
 		if watcher.pollingWatcher != nil {
 			err := watcher.pollingWatcher.Remove(filePath)
 			if err != nil {
@@ -91,28 +75,16 @@ func (watcher *Watcher) Watch(ctx context.Context, filePaths []string) {
 }
 
 func (watcher *Watcher) initLocked(ctx context.Context) {
-	if watcher.eventWatcher != nil || watcher.pollingWatcher != nil {
+	if watcher.pollingWatcher != nil {
 		return
 	}
 
-	if watcher.eventWatcher == nil {
-		var err error
-		watcher.eventWatcher, err = filenotify.NewEventWatcher()
-		if err != nil {
-			log.Error(ctx).Err(err).Msg("fileutil/watcher: failed to create event-based file watcher")
-		}
-	}
 	if watcher.pollingWatcher == nil {
 		watcher.pollingWatcher = filenotify.NewPollingWatcher(nil)
 	}
 
-	var errors <-chan error = watcher.pollingWatcher.Errors()          //nolint
-	var events <-chan fsnotify.Event = watcher.pollingWatcher.Events() //nolint
-
-	if watcher.eventWatcher != nil {
-		errors = chanutil.Merge(errors, watcher.eventWatcher.Errors())
-		events = chanutil.Merge(events, watcher.eventWatcher.Events())
-	}
+	errors := watcher.pollingWatcher.Errors()
+	events := watcher.pollingWatcher.Events()
 
 	// log errors
 	go func() {

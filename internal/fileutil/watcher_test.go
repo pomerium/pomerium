@@ -8,9 +8,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWatcher(t *testing.T) {
+	t.Parallel()
+
 	tmpdir := t.TempDir()
 
 	err := os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2, 3, 4}, 0o666)
@@ -74,5 +77,38 @@ func TestWatcherSymlink(t *testing.T) {
 	case <-ch:
 	case <-time.After(10 * time.Second):
 		t.Error("expected change signal when symlink is changed")
+	}
+}
+
+func TestWatcher_FileRemoval(t *testing.T) {
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+
+	err := os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2, 3, 4}, 0o666)
+	require.NoError(t, err)
+
+	w := NewWatcher()
+	w.Watch(context.Background(), []string{filepath.Join(tmpdir, "test1.txt")})
+
+	ch := w.Bind()
+	defer w.Unbind(ch)
+
+	err = os.Remove(filepath.Join(tmpdir, "test1.txt"))
+	require.NoError(t, err)
+
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.Error("expected change signal when file is removed")
+	}
+
+	err = os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{5, 6, 7, 8}, 0o666)
+	require.NoError(t, err)
+
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.Error("expected change signal when new file is created")
 	}
 }
