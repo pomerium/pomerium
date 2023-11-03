@@ -4,11 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/fsnotify/fsnotify"
-	"github.com/rs/zerolog"
 	"namespacelabs.dev/go-filenotify"
 
-	"github.com/pomerium/pomerium/internal/chanutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
 )
@@ -19,7 +16,6 @@ type Watcher struct {
 
 	mu             sync.Mutex
 	watching       map[string]struct{}
-	eventWatcher   filenotify.FileWatcher
 	pollingWatcher filenotify.FileWatcher
 }
 
@@ -31,75 +27,63 @@ func NewWatcher() *Watcher {
 	}
 }
 
-// Add adds a new watch.
-func (watcher *Watcher) Add(filePath string) {
+// Watch updates the watched file paths.
+func (watcher *Watcher) Watch(ctx context.Context, filePaths []string) {
 	watcher.mu.Lock()
 	defer watcher.mu.Unlock()
 
-	// already watching
-	if _, ok := watcher.watching[filePath]; ok {
-		return
-	}
-
-	ctx := log.WithContext(context.Background(), func(c zerolog.Context) zerolog.Context {
-		return c.Str("watch_file", filePath)
-	})
 	watcher.initLocked(ctx)
 
-	if watcher.eventWatcher != nil {
-		if err := watcher.eventWatcher.Add(filePath); err != nil {
-			log.Error(ctx).Msg("fileutil/watcher: failed to watch file with event-based file watcher")
+	var add []string
+	seen := map[string]struct{}{}
+	for _, filePath := range filePaths {
+		if _, ok := watcher.watching[filePath]; !ok {
+			add = append(add, filePath)
+		}
+		seen[filePath] = struct{}{}
+	}
+
+	var remove []string
+	for filePath := range watcher.watching {
+		if _, ok := seen[filePath]; !ok {
+			remove = append(remove, filePath)
 		}
 	}
 
-	if watcher.pollingWatcher != nil {
-		if err := watcher.pollingWatcher.Add(filePath); err != nil {
-			log.Error(ctx).Msg("fileutil/watcher: failed to watch file with polling-based file watcher")
+	for _, filePath := range add {
+		watcher.watching[filePath] = struct{}{}
+
+		if watcher.pollingWatcher != nil {
+			err := watcher.pollingWatcher.Add(filePath)
+			if err != nil {
+				log.Error(ctx).Err(err).Str("file", filePath).Msg("fileutil/watcher: failed to add file to polling-based file watcher")
+			}
 		}
 	}
-}
 
-// Clear removes all watches.
-func (watcher *Watcher) Clear() {
-	watcher.mu.Lock()
-	defer watcher.mu.Unlock()
+	for _, filePath := range remove {
+		delete(watcher.watching, filePath)
 
-	if w := watcher.eventWatcher; w != nil {
-		_ = watcher.pollingWatcher.Close()
-		watcher.eventWatcher = nil
+		if watcher.pollingWatcher != nil {
+			err := watcher.pollingWatcher.Remove(filePath)
+			if err != nil {
+				log.Error(ctx).Err(err).Str("file", filePath).Msg("fileutil/watcher: failed to remove file from polling-based file watcher")
+			}
+		}
 	}
-
-	if w := watcher.pollingWatcher; w != nil {
-		_ = watcher.pollingWatcher.Close()
-		watcher.pollingWatcher = nil
-	}
-
-	watcher.watching = make(map[string]struct{})
 }
 
 func (watcher *Watcher) initLocked(ctx context.Context) {
-	if watcher.eventWatcher != nil || watcher.pollingWatcher != nil {
+	if watcher.pollingWatcher != nil {
 		return
 	}
 
-	if watcher.eventWatcher == nil {
-		var err error
-		watcher.eventWatcher, err = filenotify.NewEventWatcher()
-		if err != nil {
-			log.Error(ctx).Msg("fileutil/watcher: failed to create event-based file watcher")
-		}
-	}
 	if watcher.pollingWatcher == nil {
 		watcher.pollingWatcher = filenotify.NewPollingWatcher(nil)
 	}
 
-	var errors <-chan error = watcher.pollingWatcher.Errors()          //nolint
-	var events <-chan fsnotify.Event = watcher.pollingWatcher.Events() //nolint
-
-	if watcher.eventWatcher != nil {
-		errors = chanutil.Merge(errors, watcher.eventWatcher.Errors())
-		events = chanutil.Merge(events, watcher.eventWatcher.Events())
-	}
+	errors := watcher.pollingWatcher.Errors()
+	events := watcher.pollingWatcher.Events()
 
 	// log errors
 	go func() {
@@ -110,10 +94,8 @@ func (watcher *Watcher) initLocked(ctx context.Context) {
 
 	// handle events
 	go func() {
-		for evts := range chanutil.Batch(events) {
-			for _, evt := range evts {
-				log.Info(ctx).Str("name", evt.Name).Str("op", evt.Op.String()).Msg("fileutil/watcher: file notification event")
-			}
+		for evt := range events {
+			log.Info(ctx).Str("name", evt.Name).Str("op", evt.Op.String()).Msg("fileutil/watcher: file notification event")
 			watcher.Broadcast(ctx)
 		}
 	}()
