@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699036265428,
+  "lastUpdate": 1699040646238,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -78108,6 +78108,42 @@ window.BENCHMARK_DATA = {
             "value": 12739720,
             "unit": "ns/op",
             "extra": "85 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "77bb20327643c8e49a0b439b2a0677c252cf52eb",
+          "message": "databroker: add reconciler (#4709)",
+          "timestamp": "2023-11-03T15:40:57-04:00",
+          "tree_id": "cd96083a1bd025c63354495fc21b28ce2f5c3a82",
+          "url": "https://github.com/pomerium/pomerium/commit/77bb20327643c8e49a0b439b2a0677c252cf52eb"
+        },
+        "date": 1699040636807,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10901655,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6366592,
+            "unit": "ns/op",
+            "extra": "177 times\n4 procs"
           }
         ]
       }
