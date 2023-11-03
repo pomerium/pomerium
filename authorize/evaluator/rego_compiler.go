@@ -23,7 +23,7 @@ type RegoCompiler struct {
 
 // NewRegoCompiler creates a new RegoCompiler using the given store.
 func NewRegoCompiler(store *store.Store) *RegoCompiler {
-	policyCache := expirable.NewLRU[string, rego.PreparedEvalQuery](100, nil, time.Hour*24)
+	policyCache := expirable.NewLRU[string, rego.PreparedEvalQuery](10_000, nil, time.Hour*24)
 	headersCache, err := lru.New[string, rego.PreparedEvalQuery](1)
 	if err != nil {
 		panic(fmt.Errorf("failed to create lru cache for headers rego scripts: %w", err))
