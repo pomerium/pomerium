@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1698979662969,
+  "lastUpdate": 1699025565895,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -78008,6 +78008,42 @@ window.BENCHMARK_DATA = {
             "value": 8688545,
             "unit": "ns/op",
             "extra": "139 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6d5558cb978842271fe5568cc7a73f3beac82633",
+          "message": "databroker: add utility recordset and changeset (#4701)",
+          "timestamp": "2023-11-03T11:26:59-04:00",
+          "tree_id": "ddb8901e1af4e276fda441ed0c3398a501018222",
+          "url": "https://github.com/pomerium/pomerium/commit/6d5558cb978842271fe5568cc7a73f3beac82633"
+        },
+        "date": 1699025556211,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16796296,
+            "unit": "ns/op",
+            "extra": "68 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 10621564,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
