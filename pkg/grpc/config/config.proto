@@ -131,6 +131,7 @@ message Settings {
   message Certificate {
     bytes cert_bytes = 3;
     bytes key_bytes = 4;
+    string id = 5;
   }
   message StringList { repeated string values = 1; }
 

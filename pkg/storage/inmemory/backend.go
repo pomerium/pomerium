@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/exp/maps"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -130,18 +131,25 @@ func (backend *Backend) Close() error {
 func (backend *Backend) Get(_ context.Context, recordType, id string) (*databroker.Record, error) {
 	backend.mu.RLock()
 	defer backend.mu.RUnlock()
+	if record := backend.get(recordType, id); record != nil {
+		return record, nil
+	}
+	return nil, storage.ErrNotFound
+}
 
+// get gets a record from the in-memory store, assuming the RWMutex is held.
+func (backend *Backend) get(recordType, id string) *databroker.Record {
 	records := backend.lookup[recordType]
 	if records == nil {
-		return nil, storage.ErrNotFound
+		return nil
 	}
 
 	record := records.Get(id)
 	if record == nil {
-		return nil, storage.ErrNotFound
+		return nil
 	}
 
-	return dup(record), nil
+	return dup(record)
 }
 
 // GetOptions returns the options for a type in the in-memory store.
@@ -216,19 +224,7 @@ func (backend *Backend) Put(ctx context.Context, records []*databroker.Record) (
 				Str("db_type", record.Type)
 		})
 
-		backend.recordChange(record)
-
-		c, ok := backend.lookup[record.GetType()]
-		if !ok {
-			c = NewRecordCollection()
-			backend.lookup[record.GetType()] = c
-		}
-
-		if record.GetDeletedAt() != nil {
-			c.Delete(record.GetId())
-		} else {
-			c.Put(dup(record))
-		}
+		backend.update(record)
 
 		recordTypes[record.GetType()] = struct{}{}
 	}
@@ -237,6 +233,68 @@ func (backend *Backend) Put(ctx context.Context, records []*databroker.Record) (
 	}
 
 	return backend.serverVersion, nil
+}
+
+// update stores a record into the in-memory store, assuming the RWMutex is held.
+func (backend *Backend) update(record *databroker.Record) {
+	backend.recordChange(record)
+
+	c, ok := backend.lookup[record.GetType()]
+	if !ok {
+		c = NewRecordCollection()
+		backend.lookup[record.GetType()] = c
+	}
+
+	if record.GetDeletedAt() != nil {
+		c.Delete(record.GetId())
+	} else {
+		c.Put(dup(record))
+	}
+}
+
+// Patch updates the specified fields of existing record(s).
+func (backend *Backend) Patch(
+	ctx context.Context, records []*databroker.Record, fields *fieldmaskpb.FieldMask,
+) (serverVersion uint64, patchedRecords []*databroker.Record, err error) {
+	backend.mu.Lock()
+	defer backend.mu.Unlock()
+	defer backend.onChange.Broadcast(ctx)
+
+	serverVersion = backend.serverVersion
+	patchedRecords = make([]*databroker.Record, 0, len(records))
+
+	for _, record := range records {
+		err = backend.patch(record, fields)
+		if storage.IsNotFound(err) {
+			// Skip any record that does not currently exist.
+			continue
+		} else if err != nil {
+			return
+		}
+		patchedRecords = append(patchedRecords, record)
+	}
+
+	return
+}
+
+// patch updates the specified fields of an existing record, assuming the RWMutex is held.
+func (backend *Backend) patch(record *databroker.Record, fields *fieldmaskpb.FieldMask) error {
+	if record == nil {
+		return fmt.Errorf("cannot patch using a nil record")
+	}
+
+	existing := backend.get(record.GetType(), record.GetId())
+	if existing == nil {
+		return storage.ErrNotFound
+	}
+
+	if err := storage.PatchRecord(existing, record, fields); err != nil {
+		return err
+	}
+
+	backend.update(record)
+
+	return nil
 }
 
 // SetOptions sets the options for a type in the in-memory store.
