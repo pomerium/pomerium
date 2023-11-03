@@ -1,77 +1,77 @@
 package databroker_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
-type testRecord struct {
-	Type string
-	ID   string
-	Val  string
-}
-
-func (r testRecord) GetID() string {
-	return r.ID
-}
-
-func (r testRecord) GetType() string {
-	return r.Type
-}
-
-func (r testRecord) Equal(other testRecord) bool {
-	return r.ID == other.ID && r.Type == other.Type && r.Val == other.Val
-}
-
 func TestRecords(t *testing.T) {
-	initial := make(databroker.RecordSetBundle[testRecord])
-	initial.Add(testRecord{ID: "1", Type: "a", Val: "a-1"})
-	initial.Add(testRecord{ID: "2", Type: "a", Val: "a-2"})
-	initial.Add(testRecord{ID: "1", Type: "b", Val: "b-1"})
+	tr := func(id, typ, val string) *databroker.Record {
+		return &databroker.Record{
+			Id:   id,
+			Type: typ,
+			Data: protoutil.NewAnyString(val),
+		}
+	}
+
+	initial := make(databroker.RecordSetBundle)
+	initial.Add(tr("1", "a", "a-1"))
+	initial.Add(tr("2", "a", "a-2"))
+	initial.Add(tr("1", "b", "b-1"))
 
 	// test record types
 	assert.ElementsMatch(t, []string{"a", "b"}, initial.RecordTypes())
 
 	// test added, deleted and modified
-	updated := make(databroker.RecordSetBundle[testRecord])
-	updated.Add(testRecord{ID: "1", Type: "a", Val: "a-1-1"})
-	updated.Add(testRecord{ID: "3", Type: "a", Val: "a-3"})
-	updated.Add(testRecord{ID: "1", Type: "b", Val: "b-1"})
-	updated.Add(testRecord{ID: "2", Type: "b", Val: "b-2"})
-	updated.Add(testRecord{ID: "1", Type: "c", Val: "c-1"})
+	updated := make(databroker.RecordSetBundle)
+	updated.Add(tr("1", "a", "a-1-1"))
+	updated.Add(tr("3", "a", "a-3"))
+	updated.Add(tr("1", "b", "b-1"))
+	updated.Add(tr("2", "b", "b-2"))
+	updated.Add(tr("1", "c", "c-1"))
 
 	assert.ElementsMatch(t, []string{"a", "b", "c"}, updated.RecordTypes())
 
+	equalJSON := func(a, b databroker.RecordSetBundle) {
+		t.Helper()
+		var txt [2]string
+		for i, x := range [2]databroker.RecordSetBundle{a, b} {
+			data, err := json.Marshal(x)
+			assert.NoError(t, err)
+			txt[i] = string(data)
+		}
+		assert.JSONEq(t, txt[0], txt[1])
+	}
+
 	added := initial.GetAdded(updated)
-	assert.Equal(t,
-		databroker.RecordSetBundle[testRecord]{
-			"a": databroker.RecordSet[testRecord]{
-				"3": {ID: "3", Type: "a", Val: "a-3"},
-			},
-			"b": databroker.RecordSet[testRecord]{
-				"2": {ID: "2", Type: "b", Val: "b-2"},
-			},
-			"c": databroker.RecordSet[testRecord]{
-				"1": {ID: "1", Type: "c", Val: "c-1"},
-			},
-		}, added)
+	equalJSON(added, databroker.RecordSetBundle{
+		"a": databroker.RecordSet{
+			"3": tr("3", "a", "a-3"),
+		},
+		"b": databroker.RecordSet{
+			"2": tr("2", "b", "b-2"),
+		},
+		"c": databroker.RecordSet{
+			"1": tr("1", "c", "c-1"),
+		},
+	})
 
 	removed := initial.GetRemoved(updated)
-	assert.Equal(t,
-		databroker.RecordSetBundle[testRecord]{
-			"a": databroker.RecordSet[testRecord]{
-				"2": {ID: "2", Type: "a", Val: "a-2"},
-			},
-		}, removed)
+	equalJSON(removed, databroker.RecordSetBundle{
+		"a": databroker.RecordSet{
+			"2": tr("2", "a", "a-2"),
+		},
+	})
 
 	modified := initial.GetModified(updated)
-	assert.Equal(t,
-		databroker.RecordSetBundle[testRecord]{
-			"a": databroker.RecordSet[testRecord]{
-				"1": {ID: "1", Type: "a", Val: "a-1-1"},
-			},
-		}, modified)
+	equalJSON(modified, databroker.RecordSetBundle{
+		"a": databroker.RecordSet{
+			"1": tr("1", "a", "a-1-1"),
+		},
+	})
 }

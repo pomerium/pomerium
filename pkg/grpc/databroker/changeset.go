@@ -7,21 +7,32 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// ChangeSet is a set of databroker changes.
-type ChangeSet struct {
+// GetChangeSet returns list of changes between the current and target record sets,
+// that may be applied to the databroker to bring it to the target state.
+func GetChangeSet(current, target RecordSetBundle) []*Record {
+	cs := &changeSet{now: timestamppb.Now()}
+
+	for _, rec := range current.GetRemoved(target).Flatten() {
+		cs.Remove(rec.GetType(), rec.GetId())
+	}
+	for _, rec := range current.GetModified(target).Flatten() {
+		cs.Upsert(rec)
+	}
+	for _, rec := range current.GetAdded(target).Flatten() {
+		cs.Upsert(rec)
+	}
+
+	return cs.updates
+}
+
+// changeSet is a set of databroker changes.
+type changeSet struct {
 	now     *timestamppb.Timestamp
 	updates []*Record
 }
 
-// NewChangeSet creates a new databroker change set.
-func NewChangeSet() *ChangeSet {
-	return &ChangeSet{
-		now: timestamppb.Now(),
-	}
-}
-
 // Remove adds a record to the change set.
-func (cs *ChangeSet) Remove(typ string, id string) {
+func (cs *changeSet) Remove(typ string, id string) {
 	cs.updates = append(cs.updates, &Record{
 		Type:      typ,
 		Id:        id,
@@ -30,7 +41,7 @@ func (cs *ChangeSet) Remove(typ string, id string) {
 }
 
 // Upsert adds a record to the change set.
-func (cs *ChangeSet) Upsert(record *Record) {
+func (cs *changeSet) Upsert(record *Record) {
 	cs.updates = append(cs.updates, &Record{
 		Type: record.Type,
 		Id:   record.Id,
@@ -38,23 +49,13 @@ func (cs *ChangeSet) Upsert(record *Record) {
 	})
 }
 
-// Updates returns the change set's updates.
-func (cs *ChangeSet) Updates() []*Record {
-	return cs.updates
-}
-
-// Len returns the number of updates in the change set.
-func (cs *ChangeSet) Len() int {
-	return len(cs.updates)
-}
-
-// ApplyChanges applies the changes to the databroker.
-func ApplyChanges(ctx context.Context, client DataBrokerServiceClient, changes *ChangeSet) error {
-	if len(changes.updates) == 0 {
+// PutMulti puts the records into the databroker in batches.
+func PutMulti(ctx context.Context, client DataBrokerServiceClient, records ...*Record) error {
+	if len(records) == 0 {
 		return nil
 	}
 
-	updates := OptimumPutRequestsFromRecords(changes.updates)
+	updates := OptimumPutRequestsFromRecords(records)
 	for _, req := range updates {
 		_, err := client.Put(ctx, req)
 		if err != nil {
