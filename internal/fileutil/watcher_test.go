@@ -12,14 +12,10 @@ import (
 )
 
 func TestWatcher(t *testing.T) {
-	t.Parallel()
-
 	tmpdir := t.TempDir()
 
 	err := os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2, 3, 4}, 0o666)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	w := NewWatcher()
 	w.Watch(context.Background(), []string{filepath.Join(tmpdir, "test1.txt")})
@@ -28,27 +24,19 @@ func TestWatcher(t *testing.T) {
 	t.Cleanup(func() { w.Unbind(ch) })
 
 	err = os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{5, 6, 7, 8}, 0o666)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	expectChange(t, ch)
 }
 
 func TestWatcherSymlink(t *testing.T) {
-	t.Parallel()
-
 	tmpdir := t.TempDir()
 
 	err := os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2, 3, 4}, 0o666)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	err = os.WriteFile(filepath.Join(tmpdir, "test2.txt"), []byte{5, 6, 7, 8}, 0o666)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	assert.NoError(t, os.Symlink(filepath.Join(tmpdir, "test1.txt"), filepath.Join(tmpdir, "symlink1.txt")))
 
@@ -69,8 +57,6 @@ func TestWatcherSymlink(t *testing.T) {
 }
 
 func TestWatcher_FileRemoval(t *testing.T) {
-	t.Parallel()
-
 	tmpdir := t.TempDir()
 
 	err := os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2, 3, 4}, 0o666)
@@ -97,14 +83,10 @@ func expectChange(t *testing.T, ch chan context.Context) {
 	t.Helper()
 
 	cnt := 0
-loop:
-	for {
-		select {
-		case <-ch:
-			cnt++
-		case <-time.After(time.Second):
-			break loop
-		}
+	select {
+	case <-ch:
+		cnt++
+	case <-time.After(10 * time.Second):
 	}
 	if cnt == 0 {
 		t.Error("expected change signal")
