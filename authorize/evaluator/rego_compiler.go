@@ -3,7 +3,9 @@ package evaluator
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/golang-lru/v2/expirable"
 	"strings"
+	"time"
 
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/open-policy-agent/opa/rego"
@@ -15,16 +17,13 @@ import (
 // A RegoCompiler compiles rego scripts.
 type RegoCompiler struct {
 	Store        *store.Store
-	policyCache  *lru.Cache[string, rego.PreparedEvalQuery]
+	policyCache  *expirable.LRU[string, rego.PreparedEvalQuery]
 	headersCache *lru.Cache[string, rego.PreparedEvalQuery]
 }
 
 // NewRegoCompiler creates a new RegoCompiler using the given store.
 func NewRegoCompiler(store *store.Store) *RegoCompiler {
-	policyCache, err := lru.New[string, rego.PreparedEvalQuery](10_000)
-	if err != nil {
-		panic(fmt.Errorf("failed to create lru cache for policy rego scripts: %w", err))
-	}
+	policyCache := expirable.NewLRU[string, rego.PreparedEvalQuery](10_000, nil, time.Hour*24)
 	headersCache, err := lru.New[string, rego.PreparedEvalQuery](1)
 	if err != nil {
 		panic(fmt.Errorf("failed to create lru cache for headers rego scripts: %w", err))
