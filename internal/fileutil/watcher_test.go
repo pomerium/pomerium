@@ -14,7 +14,7 @@ import (
 func TestWatcher(t *testing.T) {
 	tmpdir := t.TempDir()
 
-	err := os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2, 3, 4}, 0o666)
+	err := os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1}, 0o666)
 	require.NoError(t, err)
 
 	w := NewWatcher()
@@ -23,7 +23,7 @@ func TestWatcher(t *testing.T) {
 	ch := w.Bind()
 	t.Cleanup(func() { w.Unbind(ch) })
 
-	err = os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{5, 6, 7, 8}, 0o666)
+	err = os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2}, 0o666)
 	require.NoError(t, err)
 
 	expectChange(t, ch)
@@ -32,10 +32,10 @@ func TestWatcher(t *testing.T) {
 func TestWatcherSymlink(t *testing.T) {
 	tmpdir := t.TempDir()
 
-	err := os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2, 3, 4}, 0o666)
+	err := os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1}, 0o666)
 	require.NoError(t, err)
 
-	err = os.WriteFile(filepath.Join(tmpdir, "test2.txt"), []byte{5, 6, 7, 8}, 0o666)
+	err = os.WriteFile(filepath.Join(tmpdir, "test2.txt"), []byte{1, 2}, 0o666)
 	require.NoError(t, err)
 
 	assert.NoError(t, os.Symlink(filepath.Join(tmpdir, "test1.txt"), filepath.Join(tmpdir, "symlink1.txt")))
@@ -46,7 +46,7 @@ func TestWatcherSymlink(t *testing.T) {
 	ch := w.Bind()
 	t.Cleanup(func() { w.Unbind(ch) })
 
-	assert.NoError(t, os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{9, 10, 11}, 0o666))
+	assert.NoError(t, os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2, 3}, 0o666))
 
 	expectChange(t, ch)
 
@@ -59,7 +59,7 @@ func TestWatcherSymlink(t *testing.T) {
 func TestWatcher_FileRemoval(t *testing.T) {
 	tmpdir := t.TempDir()
 
-	err := os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2, 3, 4}, 0o666)
+	err := os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1}, 0o666)
 	require.NoError(t, err)
 
 	w := NewWatcher()
@@ -73,7 +73,7 @@ func TestWatcher_FileRemoval(t *testing.T) {
 
 	expectChange(t, ch)
 
-	err = os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{5, 6, 7, 8}, 0o666)
+	err = os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1, 2}, 0o666)
 	require.NoError(t, err)
 
 	expectChange(t, ch)
