@@ -16,12 +16,12 @@ func TestFileWatcherSource(t *testing.T) {
 
 	tmpdir := t.TempDir()
 
-	err := os.WriteFile(filepath.Join(tmpdir, "example.txt"), []byte{1, 2, 3, 4}, 0o600)
+	err := os.WriteFile(filepath.Join(tmpdir, "example.txt"), []byte{1}, 0o600)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	err = os.WriteFile(filepath.Join(tmpdir, "kubernetes-example.txt"), []byte{1, 2, 3, 4}, 0o600)
+	err = os.WriteFile(filepath.Join(tmpdir, "kubernetes-example.txt"), []byte{2}, 0o600)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -44,7 +44,7 @@ func TestFileWatcherSource(t *testing.T) {
 		})
 	})
 
-	err = os.WriteFile(filepath.Join(tmpdir, "example.txt"), []byte{5, 6, 7, 8}, 0o600)
+	err = os.WriteFile(filepath.Join(tmpdir, "example.txt"), []byte{1, 2}, 0o600)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -55,7 +55,7 @@ func TestFileWatcherSource(t *testing.T) {
 		t.Error("expected OnConfigChange to be fired after modifying a file")
 	}
 
-	err = os.WriteFile(filepath.Join(tmpdir, "kubernetes-example.txt"), []byte{5, 6, 7, 8}, 0o600)
+	err = os.WriteFile(filepath.Join(tmpdir, "kubernetes-example.txt"), []byte{2, 3}, 0o600)
 	if !assert.NoError(t, err) {
 		return
 	}
