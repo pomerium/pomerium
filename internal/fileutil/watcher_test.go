@@ -97,18 +97,26 @@ func TestWatcher_FileRemoval(t *testing.T) {
 	err = os.Remove(filepath.Join(tmpdir, "test1.txt"))
 	require.NoError(t, err)
 
-	select {
-	case <-ch:
-	case <-time.After(time.Second):
-		t.Error("expected change signal when file is removed")
+	expectChange := func() {
+		cnt := 0
+	loop:
+		for {
+			select {
+			case <-ch:
+				cnt++
+			case <-time.After(time.Second):
+				break loop
+			}
+		}
+		if cnt == 0 {
+			t.Error("expected change signal")
+		}
 	}
+
+	expectChange()
 
 	err = os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{5, 6, 7, 8}, 0o666)
 	require.NoError(t, err)
 
-	select {
-	case <-ch:
-	case <-time.After(time.Second):
-		t.Error("expected change signal when new file is created")
-	}
+	expectChange()
 }
