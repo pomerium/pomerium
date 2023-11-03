@@ -250,7 +250,7 @@ func TestManager_refreshSession(t *testing.T) {
 				Data: protoutil.NewAny(expectedSession),
 			}},
 			FieldMask: &fieldmaskpb.FieldMask{
-				Paths: []string{"oauth_token", "claims"},
+				Paths: []string{"oauth_token", "id_token", "claims"},
 			},
 		}}).
 		Return(nil /* this result is currently unused */, nil)

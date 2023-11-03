@@ -289,7 +289,7 @@ func (mgr *Manager) refreshSessionInternal(
 		return false
 	}
 
-	fm, err := fieldmaskpb.New(s.Session, "oauth_token", "claims")
+	fm, err := fieldmaskpb.New(s.Session, "oauth_token", "id_token", "claims")
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("internal error")
 		return false
