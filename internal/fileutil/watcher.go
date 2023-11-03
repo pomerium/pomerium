@@ -6,7 +6,6 @@ import (
 
 	"namespacelabs.dev/go-filenotify"
 
-	"github.com/pomerium/pomerium/internal/chanutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
 )
@@ -95,10 +94,8 @@ func (watcher *Watcher) initLocked(ctx context.Context) {
 
 	// handle events
 	go func() {
-		for evts := range chanutil.Batch(events) {
-			for _, evt := range evts {
-				log.Info(ctx).Str("name", evt.Name).Str("op", evt.Op.String()).Msg("fileutil/watcher: file notification event")
-			}
+		for evt := range events {
+			log.Info(ctx).Str("name", evt.Name).Str("op", evt.Op.String()).Msg("fileutil/watcher: file notification event")
 			watcher.Broadcast(ctx)
 		}
 	}()
