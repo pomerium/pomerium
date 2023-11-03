@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699047436804,
+  "lastUpdate": 1699048590640,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -78432,6 +78432,42 @@ window.BENCHMARK_DATA = {
             "value": 12185398,
             "unit": "ns/op",
             "extra": "94 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2771a5ae870dba81d0a47a1c959c1af092a734b6",
+          "message": "core/config: refactor file watcher (#4702)\n\n* core/config: refactor file watcher\r\n\r\n* add comments\r\n\r\n* updates\r\n\r\n* only use the polling watcher\r\n\r\n* fix test\r\n\r\n* fix test\r\n\r\n* try to fix test again\r\n\r\n* remove batching\r\n\r\n* dont rely on file modification timestamp\r\n\r\n* remove benchmark\r\n\r\n* try fix again",
+          "timestamp": "2023-11-03T15:53:20-06:00",
+          "tree_id": "863b576cbb9dd66a46a03dc430d5e016c6c0a3d1",
+          "url": "https://github.com/pomerium/pomerium/commit/2771a5ae870dba81d0a47a1c959c1af092a734b6"
+        },
+        "date": 1699048585601,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12232285,
+            "unit": "ns/op",
+            "extra": "90 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7317689,
+            "unit": "ns/op",
+            "extra": "162 times\n4 procs"
           }
         ]
       }
