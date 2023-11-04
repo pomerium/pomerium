@@ -179,7 +179,7 @@ func TestNewPolicyEvaluator_addDefaultClientCertificateRule(t *testing.T) {
 			c.opts.Policies = []config.Policy{{
 				To: mustParseWeightedURLs(t, "http://example.com"),
 			}}
-			e, err := newPolicyEvaluator(c.opts, store)
+			e, err := newPolicyEvaluator(c.opts, store, nil)
 			require.NoError(t, err)
 
 			r, err := e.Evaluate(context.Background(), &evaluator.Request{
