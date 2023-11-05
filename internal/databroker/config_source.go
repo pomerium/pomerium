@@ -211,6 +211,8 @@ func (src *ConfigSource) addPolicies(ctx context.Context, cfg *config.Config, po
 		seen[id] = struct{}{}
 	}
 
+	config.SortPolicies(additionalPolicies)
+
 	// add the additional policies here since calling `Validate` will reset them.
 	cfg.Options.AdditionalPolicies = append(cfg.Options.AdditionalPolicies, additionalPolicies...)
 }

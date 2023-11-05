@@ -61,6 +61,7 @@ message Route {
   string prefix_rewrite = 29;
   string regex_rewrite_pattern = 30;
   string regex_rewrite_substitution = 31;
+  optional int64 regex_priority_order = 61;
 
   bool cors_allow_preflight = 10;
   bool allow_public_unauthenticated_access = 11;
