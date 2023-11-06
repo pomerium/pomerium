@@ -664,7 +664,7 @@ func TestPolicyEvaluatorReuse(t *testing.T) {
 		assertPolicyEvaluatorUpdated(t, e, &newPolicies[1])
 		assertPolicyEvaluatorReused(t, e, &newPolicies[2])
 
-		// The last policy shouldn't correspond with any of the inital policy
+		// The last policy shouldn't correspond with any of the initial policy
 		// evaluators.
 		rid, err := newPolicies[3].RouteID()
 		require.NoError(t, err)
