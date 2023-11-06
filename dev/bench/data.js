@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699284714516,
+  "lastUpdate": 1699292787377,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -78692,6 +78692,42 @@ window.BENCHMARK_DATA = {
             "value": 10028832,
             "unit": "ns/op",
             "extra": "123 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ab104a643ad52a1fc97c72ca6ba4403c61d333d9",
+          "message": "rework session updates to use new patch method (#4705)\n\nUpdate the AccessTracker, WebAuthn handlers, and identity manager\r\nrefresh loop to perform their session record updates using the\r\ndatabroker Patch() method.\r\n\r\nThis should prevent any of these updates from conflicting.",
+          "timestamp": "2023-11-06T09:43:07-08:00",
+          "tree_id": "4c57ce555328ca0ef1efffd32357789345a85a73",
+          "url": "https://github.com/pomerium/pomerium/commit/ab104a643ad52a1fc97c72ca6ba4403c61d333d9"
+        },
+        "date": 1699292782240,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13576649,
+            "unit": "ns/op",
+            "extra": "88 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8228542,
+            "unit": "ns/op",
+            "extra": "139 times\n4 procs"
           }
         ]
       }
