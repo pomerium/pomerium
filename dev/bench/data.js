@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699307256254,
+  "lastUpdate": 1699308142805,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -79088,6 +79088,42 @@ window.BENCHMARK_DATA = {
             "value": 12060458,
             "unit": "ns/op",
             "extra": "93 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ffca3b36a9dae640cccdf4ef04391748d7c3b727",
+          "message": "authorize: reuse policy evaluators where possible (#4710)\n\nAdd a parameter to evaluator.New() for the previous Evaluator (if any).\r\nIf the evaluatorConfig is the same, reuse any PolicyEvaluators for\r\npolicies that have not changed from the previous Evaluator.\r\n\r\nUse the route IDs along with the policy checksums to determine whether a\r\ngiven policy has changed. Similarly, add a new cacheKey() method to the\r\nevaluatorConfig to compute a checksum used for determine whether the\r\nevaluatorConfig has changed. (Store this checksum on the Evaluator.)",
+          "timestamp": "2023-11-06T13:57:59-08:00",
+          "tree_id": "bff2ba8bedc3d4117503910df9f1d52f993a96ce",
+          "url": "https://github.com/pomerium/pomerium/commit/ffca3b36a9dae640cccdf4ef04391748d7c3b727"
+        },
+        "date": 1699308135456,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13448790,
+            "unit": "ns/op",
+            "extra": "88 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8655627,
+            "unit": "ns/op",
+            "extra": "140 times\n2 procs"
           }
         ]
       }
