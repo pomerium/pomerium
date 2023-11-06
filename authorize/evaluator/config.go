@@ -14,7 +14,7 @@ type evaluatorConfig struct {
 	SigningKey                                        []byte
 	AuthenticateURL                                   string
 	GoogleCloudServerlessAuthenticationServiceAccount string
-	JwtClaimsHeaders                                  config.JWTClaimHeaders
+	JWTClaimsHeaders                                  config.JWTClaimHeaders
 }
 
 // cacheKey() returns a hash over the configuration, except for the policies.
@@ -94,6 +94,6 @@ func WithGoogleCloudServerlessAuthenticationServiceAccount(serviceAccount string
 // WithJWTClaimsHeaders sets the JWT claims headers in the config.
 func WithJWTClaimsHeaders(headers config.JWTClaimHeaders) Option {
 	return func(cfg *evaluatorConfig) {
-		cfg.JwtClaimsHeaders = headers
+		cfg.JWTClaimsHeaders = headers
 	}
 }

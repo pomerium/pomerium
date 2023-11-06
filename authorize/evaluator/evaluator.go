@@ -294,7 +294,7 @@ func updateStore(store *store.Store, cfg *evaluatorConfig) error {
 	store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(
 		cfg.GoogleCloudServerlessAuthenticationServiceAccount,
 	)
-	store.UpdateJWTClaimHeaders(cfg.JwtClaimsHeaders)
+	store.UpdateJWTClaimHeaders(cfg.JWTClaimsHeaders)
 	store.UpdateRoutePolicies(cfg.Policies)
 	store.UpdateSigningKey(jwk)
 
