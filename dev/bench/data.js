@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699292787377,
+  "lastUpdate": 1699295076702,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -78728,6 +78728,42 @@ window.BENCHMARK_DATA = {
             "value": 8228542,
             "unit": "ns/op",
             "extra": "139 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bfcc9708391d9aafa726be108943c970814b4433",
+          "message": "databroker: build config concurrently, option to bypass validation (#4655)\n\n* validation: option to bypass\r\n\r\n* concurrently build config\r\n\r\n* add regex_priority_order and route sorting\r\n\r\n* rm mutex",
+          "timestamp": "2023-11-06T13:21:29-05:00",
+          "tree_id": "75ec6e11feb2f1b6591f0d4c7321e20095167e91",
+          "url": "https://github.com/pomerium/pomerium/commit/bfcc9708391d9aafa726be108943c970814b4433"
+        },
+        "date": 1699295071520,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11899856,
+            "unit": "ns/op",
+            "extra": "93 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7154969,
+            "unit": "ns/op",
+            "extra": "165 times\n4 procs"
           }
         ]
       }
