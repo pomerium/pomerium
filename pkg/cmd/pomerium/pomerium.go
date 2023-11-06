@@ -40,7 +40,7 @@ func Run(ctx context.Context, src config.Source) error {
 	if err != nil {
 		return err
 	}
-	src = databroker.NewConfigSource(ctx, src)
+	src = databroker.NewConfigSource(ctx, src, databroker.EnableConfigValidation(true))
 	logMgr := config.NewLogManager(ctx, src)
 	defer logMgr.Close()
 

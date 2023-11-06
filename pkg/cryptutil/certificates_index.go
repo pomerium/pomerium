@@ -34,6 +34,10 @@ func (c *CertificatesIndex) Add(cert *x509.Certificate) {
 
 // OverlapsWithExistingCertificate returns true if the certificate overlaps with an existing certificate.
 func (c *CertificatesIndex) OverlapsWithExistingCertificate(cert *x509.Certificate) (bool, string) {
+	if c == nil {
+		return false, ""
+	}
+
 	usage := getCertUsage(cert)
 	for _, name := range cert.DNSNames {
 		if c.match(name, usage) {

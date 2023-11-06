@@ -279,3 +279,64 @@ func TestPolicy_Matches(t *testing.T) {
 		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://redis.example.com:6379`)))
 	})
 }
+
+func TestPolicy_SortOrder(t *testing.T) {
+	ptr := func(i int64) *int64 {
+		return &i
+	}
+
+	testCases := []struct {
+		name     string
+		policies []Policy
+		wantIDs  []string
+	}{
+		{
+			name: "regexPriorityOrder DESC NULLS LAST",
+			policies: []Policy{
+				{From: "a", Path: "/a", RegexPriorityOrder: nil, ID: "3"},
+				{From: "a", Path: "/a", RegexPriorityOrder: ptr(2), ID: "2"},
+				{From: "a", Path: "/a", RegexPriorityOrder: ptr(1), ID: "1"},
+			},
+			wantIDs: []string{"2", "1", "3"},
+		},
+		{
+			name: "from ASC",
+			policies: []Policy{
+				{From: "", Path: "", RegexPriorityOrder: nil, ID: "B"},
+				{From: "", Path: "", RegexPriorityOrder: ptr(0), ID: "C"},
+				{From: "source", Path: "/a", RegexPriorityOrder: ptr(1), ID: "A"},
+			},
+			wantIDs: []string{"C", "B", "A"},
+		},
+		{
+			name: "id ASC",
+			policies: []Policy{
+				{From: "source", Path: "/a", RegexPriorityOrder: ptr(1), Regex: "regex", Prefix: "prefix", ID: "2"},
+				{From: "source", Path: "/a", RegexPriorityOrder: ptr(1), Regex: "regex", Prefix: "prefix", ID: "1"},
+			},
+			wantIDs: []string{"1", "2"},
+		},
+		{
+			name: "path DESC",
+			policies: []Policy{
+				{From: "source", Path: "/b", RegexPriorityOrder: ptr(1), ID: "3"},
+				{From: "source", Path: "/a", RegexPriorityOrder: nil, ID: "2"},
+				{From: "source", Path: "/a", RegexPriorityOrder: ptr(2), ID: "1"},
+			},
+			wantIDs: []string{"3", "1", "2"},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			SortPolicies(tt.policies)
+
+			gotIDs := make([]string, 0, len(tt.policies))
+			for _, entity := range tt.policies {
+				gotIDs = append(gotIDs, entity.ID)
+			}
+
+			assert.Equal(t, tt.wantIDs, gotIDs)
+		})
+	}
+}

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -25,6 +26,8 @@ import (
 
 // Policy contains route specific configuration and access settings.
 type Policy struct {
+	ID string `mapstructure:"-" yaml:"-" json:"-"`
+
 	From string       `mapstructure:"from" yaml:"from"`
 	To   WeightedURLs `mapstructure:"to" yaml:"to"`
 
@@ -41,10 +44,11 @@ type Policy struct {
 	AllowedIDPClaims identity.FlattenedClaims `mapstructure:"allowed_idp_claims" yaml:"allowed_idp_claims,omitempty" json:"allowed_idp_claims,omitempty"`
 
 	// Additional route matching options
-	Prefix        string `mapstructure:"prefix" yaml:"prefix,omitempty" json:"prefix,omitempty"`
-	Path          string `mapstructure:"path" yaml:"path,omitempty" json:"path,omitempty"`
-	Regex         string `mapstructure:"regex" yaml:"regex,omitempty" json:"regex,omitempty"`
-	compiledRegex *regexp.Regexp
+	Prefix             string `mapstructure:"prefix" yaml:"prefix,omitempty" json:"prefix,omitempty"`
+	Path               string `mapstructure:"path" yaml:"path,omitempty" json:"path,omitempty"`
+	Regex              string `mapstructure:"regex" yaml:"regex,omitempty" json:"regex,omitempty"`
+	RegexPriorityOrder *int64 `mapstructure:"regex_priority_order" yaml:"regex_priority_order,omitempty" json:"regex_priority_order,omitempty"`
+	compiledRegex      *regexp.Regexp
 
 	// Path Rewrite Options
 	PrefixRewrite            string `mapstructure:"prefix_rewrite" yaml:"prefix_rewrite,omitempty" json:"prefix_rewrite,omitempty"`
@@ -223,6 +227,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	}
 
 	p := &Policy{
+		ID:                               pb.GetId(),
 		From:                             pb.GetFrom(),
 		AllowedUsers:                     pb.GetAllowedUsers(),
 		AllowedDomains:                   pb.GetAllowedDomains(),
@@ -233,6 +238,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		PrefixRewrite:                    pb.GetPrefixRewrite(),
 		RegexRewritePattern:              pb.GetRegexRewritePattern(),
 		RegexRewriteSubstitution:         pb.GetRegexRewriteSubstitution(),
+		RegexPriorityOrder:               pb.RegexPriorityOrder,
 		CORSAllowPreflight:               pb.GetCorsAllowPreflight(),
 		AllowPublicUnauthenticatedAccess: pb.GetAllowPublicUnauthenticatedAccess(),
 		AllowAnyAuthenticatedUser:        pb.GetAllowAnyAuthenticatedUser(),
@@ -666,4 +672,61 @@ type routeID struct {
 	Path     string
 	Regex    string
 	Redirect *PolicyRedirect
+}
+
+/*
+SortPolicies sorts policies to match the following SQL order:
+
+	  ORDER BY from ASC,
+		path DESC NULLS LAST,
+		regex_priority_order DESC NULLS LAST,
+		regex DESC NULLS LAST
+		prefix DESC NULLS LAST,
+		id ASC
+*/
+func SortPolicies(pp []Policy) {
+	sort.SliceStable(pp, func(i, j int) bool {
+		strDesc := func(a, b string) (val bool, equal bool) {
+			return a > b, a == b
+		}
+
+		strAsc := func(a, b string) (val bool, equal bool) {
+			return a < b, a == b
+		}
+
+		intPDesc := func(a, b *int64) (val bool, equal bool) {
+			if a == nil && b == nil {
+				return false, true
+			}
+			if a == nil && b != nil {
+				return false, false
+			}
+			if a != nil && b == nil {
+				return true, false
+			}
+			return *a > *b, *a == *b
+		}
+
+		if val, equal := strAsc(pp[i].From, pp[j].From); !equal {
+			return val
+		}
+
+		if val, equal := strDesc(pp[i].Path, pp[j].Path); !equal {
+			return val
+		}
+
+		if val, equal := intPDesc(pp[i].RegexPriorityOrder, pp[j].RegexPriorityOrder); !equal {
+			return val
+		}
+
+		if val, equal := strDesc(pp[i].Regex, pp[j].Regex); !equal {
+			return val
+		}
+
+		if val, equal := strDesc(pp[i].Prefix, pp[j].Prefix); !equal {
+			return val
+		}
+
+		return pp[i].ID < pp[j].ID // Ascending order for ID
+	})
 }

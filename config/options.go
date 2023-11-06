@@ -460,7 +460,7 @@ func (o *Options) parsePolicy() error {
 		}
 	}
 	for i := range o.AdditionalPolicies {
-		p := &o.AdditionalPolicies[i]
+		p := o.AdditionalPolicies[i]
 		if err := p.Validate(); err != nil {
 			return err
 		}
