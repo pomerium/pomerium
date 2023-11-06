@@ -36,7 +36,7 @@ func TestEvaluator(t *testing.T) {
 		store := store.New()
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
-		e, err := New(ctx, store, options...)
+		e, err := New(ctx, store, nil, options...)
 		require.NoError(t, err)
 		return e.Evaluate(ctx, req)
 	}
@@ -552,6 +552,130 @@ func TestEvaluator(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, res.Allow.Value)
 	})
+}
+
+func TestPolicyEvaluatorReuse(t *testing.T) {
+	ctx := context.Background()
+
+	store := store.New()
+
+	policies := []config.Policy{
+		{To: singleToURL("https://to1.example.com")},
+		{To: singleToURL("https://to2.example.com")},
+		{To: singleToURL("https://to3.example.com")},
+		{To: singleToURL("https://to4.example.com")},
+	}
+
+	options := []Option{
+		WithPolicies(policies),
+	}
+
+	initial, err := New(ctx, store, nil, options...)
+	require.NoError(t, err)
+
+	assertPolicyEvaluatorReused := func(t *testing.T, e *Evaluator, p *config.Policy) {
+		t.Helper()
+		routeID, err := p.RouteID()
+		require.NoError(t, err)
+		p1 := initial.policyEvaluators[routeID]
+		require.NotNil(t, p1)
+		p2 := e.policyEvaluators[routeID]
+		assert.Same(t, p1, p2, routeID)
+	}
+
+	assertPolicyEvaluatorUpdated := func(t *testing.T, e *Evaluator, p *config.Policy) {
+		t.Helper()
+		routeID, err := p.RouteID()
+		require.NoError(t, err)
+		p1 := initial.policyEvaluators[routeID]
+		require.NotNil(t, p1)
+		p2 := e.policyEvaluators[routeID]
+		require.NotNil(t, p2)
+		assert.NotSame(t, p1, p2, routeID)
+	}
+
+	// If the evaluatorConfig is identical, all of the policy evaluators should
+	// be reused.
+	t.Run("identical", func(t *testing.T) {
+		e, err := New(ctx, store, initial, options...)
+		require.NoError(t, err)
+		for i := range policies {
+			assertPolicyEvaluatorReused(t, e, &policies[i])
+		}
+	})
+
+	assertNoneReused := func(t *testing.T, o Option) {
+		e, err := New(ctx, store, initial, append(options, o)...)
+		require.NoError(t, err)
+		for i := range policies {
+			assertPolicyEvaluatorUpdated(t, e, &policies[i])
+		}
+	}
+
+	// If any of the evaluatorConfig fields besides the Policies change, no
+	// policy evaluators should be reused.
+	t.Run("ClientCA changed", func(t *testing.T) {
+		assertNoneReused(t, WithClientCA([]byte("dummy-ca")))
+	})
+	t.Run("ClientCRL changed", func(t *testing.T) {
+		assertNoneReused(t, WithClientCRL([]byte("dummy-crl")))
+	})
+	t.Run("AddDefaultClientCertificateRule changed", func(t *testing.T) {
+		assertNoneReused(t, WithAddDefaultClientCertificateRule(true))
+	})
+	t.Run("ClientCertConstraints changed", func(t *testing.T) {
+		assertNoneReused(t, WithClientCertConstraints(&ClientCertConstraints{MaxVerifyDepth: 3}))
+	})
+	t.Run("SigningKey changed", func(t *testing.T) {
+		signingKey, err := cryptutil.NewSigningKey()
+		require.NoError(t, err)
+		encodedSigningKey, err := cryptutil.EncodePrivateKey(signingKey)
+		require.NoError(t, err)
+		assertNoneReused(t, WithSigningKey(encodedSigningKey))
+	})
+	t.Run("AuthenticateURL changed", func(t *testing.T) {
+		assertNoneReused(t, WithAuthenticateURL("authenticate.example.com"))
+	})
+	t.Run("GoogleCloudServerlessAuthenticationServiceAccount changed", func(t *testing.T) {
+		assertNoneReused(t, WithGoogleCloudServerlessAuthenticationServiceAccount("dummy-account"))
+	})
+	t.Run("JWTClaimsHeaders changed", func(t *testing.T) {
+		assertNoneReused(t, WithJWTClaimsHeaders(config.JWTClaimHeaders{"dummy": "header"}))
+	})
+
+	// If some policies have changed, but the evaluatorConfig is otherwise
+	// identical, only evaluators for the changed policies should be updated.
+	t.Run("policies changed", func(t *testing.T) {
+		// Make changes to some of the policies.
+		newPolicies := []config.Policy{
+			{To: singleToURL("https://to1.example.com")},
+			{To: singleToURL("https://to2.example.com"),
+				AllowedUsers: []string{"user-id-1"}}, // change just the policy itself
+			{To: singleToURL("https://to3.example.com")},
+			{To: singleToURL("https://foo.example.com"), // change route ID too
+				AllowAnyAuthenticatedUser: true},
+		}
+
+		e, err := New(ctx, store, initial, WithPolicies(newPolicies))
+		require.NoError(t, err)
+
+		// Only the first and the third policy evaluators should be reused.
+		assertPolicyEvaluatorReused(t, e, &newPolicies[0])
+		assertPolicyEvaluatorUpdated(t, e, &newPolicies[1])
+		assertPolicyEvaluatorReused(t, e, &newPolicies[2])
+
+		// The last policy shouldn't correspond with any of the initial policy
+		// evaluators.
+		rid, err := newPolicies[3].RouteID()
+		require.NoError(t, err)
+		_, exists := initial.policyEvaluators[rid]
+		assert.False(t, exists, "initial evaluator should not have a policy for route ID", rid)
+		assert.NotNil(t, e.policyEvaluators[rid])
+	})
+}
+
+func singleToURL(url string) config.WeightedURLs {
+	return config.WeightedURLs{{URL: *mustParseURL(url)}}
 }
 
 func mustParseURL(str string) *url.URL {

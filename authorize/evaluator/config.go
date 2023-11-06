@@ -2,18 +2,24 @@ package evaluator
 
 import (
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/hashutil"
 )
 
 type evaluatorConfig struct {
-	policies                                          []config.Policy
-	clientCA                                          []byte
-	clientCRL                                         []byte
-	addDefaultClientCertificateRule                   bool
-	clientCertConstraints                             ClientCertConstraints
-	signingKey                                        []byte
-	authenticateURL                                   string
-	googleCloudServerlessAuthenticationServiceAccount string
-	jwtClaimsHeaders                                  config.JWTClaimHeaders
+	Policies                                          []config.Policy `hash:"-"`
+	ClientCA                                          []byte
+	ClientCRL                                         []byte
+	AddDefaultClientCertificateRule                   bool
+	ClientCertConstraints                             ClientCertConstraints
+	SigningKey                                        []byte
+	AuthenticateURL                                   string
+	GoogleCloudServerlessAuthenticationServiceAccount string
+	JWTClaimsHeaders                                  config.JWTClaimHeaders
+}
+
+// cacheKey() returns a hash over the configuration, except for the policies.
+func (e *evaluatorConfig) cacheKey() uint64 {
+	return hashutil.MustHash(e)
 }
 
 // An Option customizes the evaluator config.
@@ -30,21 +36,21 @@ func getConfig(options ...Option) *evaluatorConfig {
 // WithPolicies sets the policies in the config.
 func WithPolicies(policies []config.Policy) Option {
 	return func(cfg *evaluatorConfig) {
-		cfg.policies = policies
+		cfg.Policies = policies
 	}
 }
 
 // WithClientCA sets the client CA in the config.
 func WithClientCA(clientCA []byte) Option {
 	return func(cfg *evaluatorConfig) {
-		cfg.clientCA = clientCA
+		cfg.ClientCA = clientCA
 	}
 }
 
 // WithClientCRL sets the client CRL in the config.
 func WithClientCRL(clientCRL []byte) Option {
 	return func(cfg *evaluatorConfig) {
-		cfg.clientCRL = clientCRL
+		cfg.ClientCRL = clientCRL
 	}
 }
 
@@ -52,28 +58,28 @@ func WithClientCRL(clientCRL []byte) Option {
 // invalid_client_certificate deny rule to all policies.
 func WithAddDefaultClientCertificateRule(addDefaultClientCertificateRule bool) Option {
 	return func(cfg *evaluatorConfig) {
-		cfg.addDefaultClientCertificateRule = addDefaultClientCertificateRule
+		cfg.AddDefaultClientCertificateRule = addDefaultClientCertificateRule
 	}
 }
 
 // WithClientCertConstraints sets addition client certificate constraints.
 func WithClientCertConstraints(constraints *ClientCertConstraints) Option {
 	return func(cfg *evaluatorConfig) {
-		cfg.clientCertConstraints = *constraints
+		cfg.ClientCertConstraints = *constraints
 	}
 }
 
 // WithSigningKey sets the signing key and algorithm in the config.
 func WithSigningKey(signingKey []byte) Option {
 	return func(cfg *evaluatorConfig) {
-		cfg.signingKey = signingKey
+		cfg.SigningKey = signingKey
 	}
 }
 
 // WithAuthenticateURL sets the authenticate URL in the config.
 func WithAuthenticateURL(authenticateURL string) Option {
 	return func(cfg *evaluatorConfig) {
-		cfg.authenticateURL = authenticateURL
+		cfg.AuthenticateURL = authenticateURL
 	}
 }
 
@@ -81,13 +87,13 @@ func WithAuthenticateURL(authenticateURL string) Option {
 // account in the config.
 func WithGoogleCloudServerlessAuthenticationServiceAccount(serviceAccount string) Option {
 	return func(cfg *evaluatorConfig) {
-		cfg.googleCloudServerlessAuthenticationServiceAccount = serviceAccount
+		cfg.GoogleCloudServerlessAuthenticationServiceAccount = serviceAccount
 	}
 }
 
 // WithJWTClaimsHeaders sets the JWT claims headers in the config.
 func WithJWTClaimsHeaders(headers config.JWTClaimHeaders) Option {
 	return func(cfg *evaluatorConfig) {
-		cfg.jwtClaimsHeaders = headers
+		cfg.JWTClaimsHeaders = headers
 	}
 }
