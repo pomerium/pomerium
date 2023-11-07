@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699393560850,
+  "lastUpdate": 1699398431237,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -79316,6 +79316,38 @@ window.BENCHMARK_DATA = {
             "value": 7624229,
             "unit": "ns/op",
             "extra": "159 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "cd61532e98cb32929a1b5ebaf9ae9e355eaeb60b",
+          "message": "core/config: remove unnecessary authenticate route",
+          "timestamp": "2023-11-07T07:00:34Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4719/commits/cd61532e98cb32929a1b5ebaf9ae9e355eaeb60b"
+        },
+        "date": 1699398423092,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13455259,
+            "unit": "ns/op",
+            "extra": "85 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8344956,
+            "unit": "ns/op",
+            "extra": "139 times\n2 procs"
           }
         ]
       }
