@@ -3,7 +3,6 @@ package config
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"io"
 	"os"
 	"path/filepath"
@@ -43,16 +42,12 @@ func TestFileWatcherSource(t *testing.T) {
 
 	testCertFileRef := "./testdata/example-cert.pem"
 	testKeyFileRef := "./testdata/example-key.pem"
-	testCertFile, _ := os.ReadFile(testCertFileRef)
-	testKeyFile, _ := os.ReadFile(testKeyFileRef)
-	testCertAsBase64 := base64.StdEncoding.EncodeToString(testCertFile)
-	testKeyAsBase64 := base64.StdEncoding.EncodeToString(testKeyFile)
 
 	ssrc := NewStaticSource(&Config{
 		Options: &Options{
 			CertificateFiles: []certificateFilePair{{
-				CertFile: testCertAsBase64,
-				KeyFile:  testKeyAsBase64,
+				CertFile: testCertFileRef,
+				KeyFile:  testKeyFileRef,
 			}},
 			CAFile: filepath.Join(tmpdir, "example.txt"),
 			Policies: []Policy{{

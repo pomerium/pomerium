@@ -288,14 +288,7 @@ func getAllConfigFilePaths(cfg *Config) []string {
 	}
 
 	for _, pair := range cfg.Options.CertificateFiles {
-		// #4714 skip base64 certificates stored in CertificateFiles
-		// so only add watches for files that exist
-		if _, err := os.Stat(pair.CertFile); err == nil {
-			fs = append(fs, pair.CertFile)
-		}
-		if _, err := os.Stat(pair.KeyFile); err == nil {
-			fs = append(fs, pair.KeyFile)
-		}
+		fs = append(fs, pair.CertFile, pair.KeyFile)
 	}
 
 	for _, policy := range cfg.Options.Policies {
