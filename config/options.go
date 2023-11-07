@@ -1477,6 +1477,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	setSlice(&o.ProgrammaticRedirectDomainWhitelist, settings.ProgrammaticRedirectDomainWhitelist)
 	setAuditKey(&o.AuditKey, settings.AuditKey)
 	setCodecType(&o.CodecType, settings.CodecType)
+	setOptional(&o.PassIdentityHeaders, settings.PassIdentityHeaders)
 	o.BrandingOptions = settings
 }
 

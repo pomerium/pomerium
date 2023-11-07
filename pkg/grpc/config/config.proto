@@ -235,6 +235,7 @@ message Settings {
   optional string logo_url = 89;
   optional string favicon_url = 90;
   optional string error_message_first_paragraph = 91;
+  optional bool pass_identity_headers = 117;
 }
 
 message DownstreamMtlsSettings {
