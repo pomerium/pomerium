@@ -142,12 +142,12 @@ type Policy struct {
 	PreserveHostHeader bool `mapstructure:"preserve_host_header" yaml:"preserve_host_header,omitempty"`
 
 	// PassIdentityHeaders controls whether to add a user's identity headers to the upstream request.
-	// These includes:
+	// These include:
 	//
 	//  - X-Pomerium-Jwt-Assertion
 	//  - X-Pomerium-Claim-*
 	//
-	PassIdentityHeaders bool `mapstructure:"pass_identity_headers" yaml:"pass_identity_headers,omitempty"`
+	PassIdentityHeaders *bool `mapstructure:"pass_identity_headers" yaml:"pass_identity_headers,omitempty"`
 
 	// KubernetesServiceAccountToken is the kubernetes token to use for upstream requests.
 	KubernetesServiceAccountToken string `mapstructure:"kubernetes_service_account_token" yaml:"kubernetes_service_account_token,omitempty"`
@@ -265,13 +265,17 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		HostRewriteHeader:                pb.GetHostRewriteHeader(),
 		HostPathRegexRewritePattern:      pb.GetHostPathRegexRewritePattern(),
 		HostPathRegexRewriteSubstitution: pb.GetHostPathRegexRewriteSubstitution(),
-		PassIdentityHeaders:              pb.GetPassIdentityHeaders(),
+		PassIdentityHeaders:              pb.PassIdentityHeaders,
 		KubernetesServiceAccountToken:    pb.GetKubernetesServiceAccountToken(),
 		SetResponseHeaders:               pb.GetSetResponseHeaders(),
 		EnableGoogleCloudServerlessAuthentication: pb.GetEnableGoogleCloudServerlessAuthentication(),
 		IDPClientID:      pb.GetIdpClientId(),
 		IDPClientSecret:  pb.GetIdpClientSecret(),
 		ShowErrorDetails: pb.GetShowErrorDetails(),
+	}
+	if pb.DeprecatedPassIdentityHeaders {
+		v := true
+		p.PassIdentityHeaders = &v
 	}
 
 	if pb.Redirect.IsSet() {
@@ -388,6 +392,9 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		KubernetesServiceAccountToken:    p.KubernetesServiceAccountToken,
 		Policies:                         sps,
 		SetResponseHeaders:               p.SetResponseHeaders,
+	}
+	if p.PassIdentityHeaders != nil && *p.PassIdentityHeaders {
+		pb.DeprecatedPassIdentityHeaders = true
 	}
 	if p.IDPClientID != "" {
 		pb.IdpClientId = proto.String(p.IDPClientID)
@@ -663,6 +670,20 @@ func (p *Policy) AllAllowedUsers() []string {
 		aus = append(aus, sp.AllowedUsers...)
 	}
 	return aus
+}
+
+// GetPassIdentityHeaders gets the pass identity headers option. If not set in the policy, use the setting from the
+// options. If not set in either, return false.
+func (p *Policy) GetPassIdentityHeaders(options *Options) bool {
+	if p != nil && p.PassIdentityHeaders != nil {
+		return *p.PassIdentityHeaders
+	}
+
+	if options != nil && options.PassIdentityHeaders != nil {
+		return *options.PassIdentityHeaders
+	}
+
+	return false
 }
 
 type routeID struct {

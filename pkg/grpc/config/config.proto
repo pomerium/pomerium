@@ -94,7 +94,8 @@ message Route {
   // AuthorizationHeaderMode set_authorization_header = 54;
 
   bool preserve_host_header = 24;
-  bool pass_identity_headers = 25;
+  bool deprecated_pass_identity_headers = 25;
+  optional bool pass_identity_headers = 62;
 
   string kubernetes_service_account_token = 26;
   bool enable_google_cloud_serverless_authentication = 42;
