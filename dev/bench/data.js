@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699385339469,
+  "lastUpdate": 1699393560850,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -79284,6 +79284,38 @@ window.BENCHMARK_DATA = {
             "value": 8507164,
             "unit": "ns/op",
             "extra": "144 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "205aa8cf530457641b5ef522ef7cd939043d1b71",
+          "message": "core/config: remove support for base64 encoded certificates",
+          "timestamp": "2023-11-07T07:00:34Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4718/commits/205aa8cf530457641b5ef522ef7cd939043d1b71"
+        },
+        "date": 1699393555538,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12936034,
+            "unit": "ns/op",
+            "extra": "86 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7624229,
+            "unit": "ns/op",
+            "extra": "159 times\n4 procs"
           }
         ]
       }
