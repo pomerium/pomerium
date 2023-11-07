@@ -22,7 +22,7 @@ func TestFileWatcherSource(t *testing.T) {
 
 	// capture logs
 	var logOutput bytes.Buffer
-	logger := zerolog.New(io.MultiWriter(&logOutput, zerolog.NewTestWriter(t)))
+	logger := zerolog.New(io.MultiWriter(zerolog.SyncWriter(&logOutput), zerolog.NewTestWriter(t)))
 	originalLogger := log.Logger()
 	log.SetLogger(&logger)
 	t.Cleanup(func() {
