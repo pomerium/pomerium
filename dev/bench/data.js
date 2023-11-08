@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699470345919,
+  "lastUpdate": 1699474258709,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -79608,6 +79608,42 @@ window.BENCHMARK_DATA = {
             "value": 7223418,
             "unit": "ns/op",
             "extra": "162 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3bdbd56222fcb864919ec62f2101314fa0f1adbb",
+          "message": "core/config: add pass_identity_headers option (#4720)\n\n* core/config: add pass_identity_headers option\r\n\r\n* add to proto\r\n\r\n* remove deprecated field",
+          "timestamp": "2023-11-08T13:07:37-07:00",
+          "tree_id": "1987544c00552b711428e3f1d81ee37b3250bf64",
+          "url": "https://github.com/pomerium/pomerium/commit/3bdbd56222fcb864919ec62f2101314fa0f1adbb"
+        },
+        "date": 1699474252885,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11613792,
+            "unit": "ns/op",
+            "extra": "94 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6766721,
+            "unit": "ns/op",
+            "extra": "174 times\n4 procs"
           }
         ]
       }
