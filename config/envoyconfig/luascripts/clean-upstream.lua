@@ -5,8 +5,9 @@ end
 function remove_pomerium_cookie(cookie_name, cookie)
     local result = ""
     for c in cookie:gmatch("([^;]+)") do
-        c = c:gsub("[ ]+", "")
-        if not has_prefix(c, cookie_name) then
+        c = c:gsub("^ +","")
+        local name = c:match("^([^=]+)")
+        if name ~= cookie_name then
             if string.len(result) > 0 then
                 result = result .. "; " .. c
             else

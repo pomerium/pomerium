@@ -24,7 +24,7 @@ func TestLuaCleanUpstream(t *testing.T) {
 		"context-type":             "text/plain",
 		"authorization":            "Pomerium JWT",
 		"x-pomerium-authorization": "JWT",
-		"cookie":                   "cookieA=aaa_pomerium=123; cookieb=bbb; _pomerium=ey",
+		"cookie":                   "cookieA=aaa_pomerium=123; cookieb=bbb; _pomerium=ey;_pomerium_test1=stillhere ; _pomerium_test2=stillhere",
 	}
 	metadata := map[string]interface{}{
 		"remove_pomerium_authorization": true,
@@ -42,7 +42,7 @@ func TestLuaCleanUpstream(t *testing.T) {
 
 	assert.Equal(t, map[string]string{
 		"context-type": "text/plain",
-		"cookie":       "cookieA=aaa_pomerium=123; cookieb=bbb",
+		"cookie":       "cookieA=aaa_pomerium=123; cookieb=bbb; _pomerium_test1=stillhere ; _pomerium_test2=stillhere",
 	}, headers)
 }
 
