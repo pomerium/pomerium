@@ -517,7 +517,7 @@ func mkRouteMatchForHost(
 
 func getRequestHeadersToRemove(options *config.Options, policy *config.Policy) []string {
 	requestHeadersToRemove := policy.RemoveRequestHeaders
-	if !policy.PassIdentityHeaders {
+	if !policy.GetPassIdentityHeaders(options) {
 		requestHeadersToRemove = append(requestHeadersToRemove,
 			httputil.HeaderPomeriumJWTAssertion,
 			httputil.HeaderPomeriumJWTAssertionFor)

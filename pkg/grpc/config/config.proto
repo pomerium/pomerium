@@ -33,6 +33,7 @@ message RouteRedirect {
   optional bool strip_query = 8;
 }
 
+// Next ID: 62.
 message Route {
   string name = 1;
 
@@ -94,7 +95,7 @@ message Route {
   // AuthorizationHeaderMode set_authorization_header = 54;
 
   bool preserve_host_header = 24;
-  bool pass_identity_headers = 25;
+  optional bool pass_identity_headers = 25;
 
   string kubernetes_service_account_token = 26;
   bool enable_google_cloud_serverless_authentication = 42;
@@ -127,7 +128,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 117.
+// Next ID: 118.
 message Settings {
   message Certificate {
     bytes cert_bytes = 3;
@@ -234,6 +235,7 @@ message Settings {
   optional string logo_url = 89;
   optional string favicon_url = 90;
   optional string error_message_first_paragraph = 91;
+  optional bool pass_identity_headers = 117;
 }
 
 message DownstreamMtlsSettings {

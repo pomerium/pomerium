@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/identity/oauth/apple"
@@ -952,6 +953,14 @@ func TestOptions_ApplySettings(t *testing.T) {
 		}
 		options.ApplySettings(ctx, certsIndex, settings)
 		assert.Len(t, options.CertificateFiles, 2, "should prevent adding duplicate certificates")
+	})
+
+	t.Run("pass_identity_headers", func(t *testing.T) {
+		options := NewDefaultOptions()
+		options.ApplySettings(ctx, nil, &config.Settings{
+			PassIdentityHeaders: proto.Bool(true),
+		})
+		assert.Equal(t, proto.Bool(true), options.PassIdentityHeaders)
 	})
 }
 
