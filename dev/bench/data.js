@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699486099448,
+  "lastUpdate": 1699486215809,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -79812,6 +79812,42 @@ window.BENCHMARK_DATA = {
             "value": 11101578,
             "unit": "ns/op",
             "extra": "100 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ab7b66691d6a8cd6f1646f2e801e282043210ade",
+          "message": "core/config: add support for maps in environments (#4717)",
+          "timestamp": "2023-11-08T16:27:08-07:00",
+          "tree_id": "c26336b8aab5d6067c5c3c1acdc670b1ed833c82",
+          "url": "https://github.com/pomerium/pomerium/commit/ab7b66691d6a8cd6f1646f2e801e282043210ade"
+        },
+        "date": 1699486206048,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10729673,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6615595,
+            "unit": "ns/op",
+            "extra": "181 times\n4 procs"
           }
         ]
       }
