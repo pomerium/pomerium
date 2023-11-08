@@ -528,6 +528,21 @@ func decodeSANMatcherHookFunc() mapstructure.DecodeHookFunc {
 	}
 }
 
+func decodeStringToMapHookFunc() mapstructure.DecodeHookFunc {
+	return mapstructure.DecodeHookFuncValue(func(f, t reflect.Value) (any, error) {
+		if f.Kind() != reflect.String || t.Kind() != reflect.Map {
+			return f.Interface(), nil
+		}
+
+		err := json.Unmarshal([]byte(f.Interface().(string)), t.Addr().Interface())
+		if err != nil {
+			return nil, err
+		}
+
+		return t.Interface(), nil
+	})
+}
+
 // serializable converts mapstructure nested map into map[string]interface{} that is serializable to JSON
 func serializable(in interface{}) (interface{}, error) {
 	switch typed := in.(type) {
