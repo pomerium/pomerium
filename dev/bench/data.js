@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699481349339,
+  "lastUpdate": 1699486099448,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -79776,6 +79776,42 @@ window.BENCHMARK_DATA = {
             "value": 8531602,
             "unit": "ns/op",
             "extra": "132 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0238a39f232cb44fcf582fefb02283be4128efae",
+          "message": "session: add unit tests for gRPC wrapper methods (#4713)",
+          "timestamp": "2023-11-08T15:22:47-08:00",
+          "tree_id": "76be6bb7a1226bd3fb2a1e38b98fbee2b6b0ed16",
+          "url": "https://github.com/pomerium/pomerium/commit/0238a39f232cb44fcf582fefb02283be4128efae"
+        },
+        "date": 1699486082996,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 17726080,
+            "unit": "ns/op",
+            "extra": "67 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11101578,
+            "unit": "ns/op",
+            "extra": "100 times\n2 procs"
           }
         ]
       }
