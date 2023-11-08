@@ -17,7 +17,7 @@ import { PageData } from "./types";
 
 const App: FC = () => {
   const data = (window["POMERIUM_DATA"] || {}) as PageData;
-  const primary = data?.primaryColor || "#6F43E7";
+  const primary = data?.primaryColor || "#fff";
   const secondary = data?.secondaryColor || "#49AAA1";
   const theme = createTheme(primary, secondary);
   let body: React.ReactNode = <></>;
@@ -61,7 +61,7 @@ const App: FC = () => {
       <SubpageContextProvider page={data?.page}>
         <Header includeSidebar={data?.page === "UserInfo"} data={data} />
         <ToolbarOffset />
-        <Box sx={{ overflow: "hidden", height: "calc(100vh - 120px)" }}>
+        <Box sx={{ overflow: "hidden", height: "calc(100vh - 80px)" }}>
           <Box
             sx={{
               overflow: "auto",
@@ -73,7 +73,6 @@ const App: FC = () => {
             <ToolbarOffset />
           </Box>
         </Box>
-        <Footer />
       </SubpageContextProvider>
     </ThemeProvider>
   );

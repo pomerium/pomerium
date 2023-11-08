@@ -14,7 +14,7 @@ import { get } from "lodash";
 import React, { FC, useState } from "react";
 import { ChevronLeft, ChevronRight, Menu as MenuIcon } from "react-feather";
 
-import LogoURL from "../static/logo_white.svg";
+import LogoURL from "../static/cpo-logo.svg";
 import { PageData } from "../types";
 import { Avatar } from "./Avatar";
 import Logo from "./Logo";
@@ -79,50 +79,7 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
       sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
     >
       <Toolbar>
-        {!mdUp && includeSidebar ? (
-          <>
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              onClick={handleDrawerOpen}
-              edge="start"
-              sx={{ mr: 2, ...(drawerOpen && { display: "none" }) }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Drawer
-              sx={{
-                width: 256,
-                flexShrink: 0,
-                "& .MuiDrawer-paper": {
-                  width: 256,
-                  boxSizing: "border-box",
-                  backgroundColor: "neutral.900",
-                  height: "100vh",
-                },
-              }}
-              variant="persistent"
-              anchor="left"
-              open={drawerOpen}
-            >
-              <DrawerHeader>
-                <IconButton onClick={handleDrawerClose}>
-                  {theme.direction === "ltr" ? (
-                    <ChevronLeft />
-                  ) : (
-                    <ChevronRight />
-                  )}
-                </IconButton>
-              </DrawerHeader>
-              <UserSidebarContent close={handleDrawerClose} />
-              <ToolbarOffset />
-            </Drawer>
-          </>
-        ) : (
-          <a href="/.pomerium">
-            <Logo src={data?.logoUrl || LogoURL} />
-          </a>
-        )}
+        <Logo src={data?.logoUrl || LogoURL} />
         <Box flexGrow={1} />
         {showAvatar && (
           <IconButton color="inherit" onClick={handleMenuOpen}>

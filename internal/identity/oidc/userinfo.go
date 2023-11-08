@@ -65,6 +65,8 @@ func (transport *userInfoRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 			userInfo["email"] = mail
 		}
 
+		userInfo["token"] = req.Header["Authorization"]
+
 		bs, _ = json.Marshal(userInfo)
 	}
 
