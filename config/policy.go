@@ -273,11 +273,6 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		IDPClientSecret:  pb.GetIdpClientSecret(),
 		ShowErrorDetails: pb.GetShowErrorDetails(),
 	}
-	if pb.DeprecatedPassIdentityHeaders {
-		v := true
-		p.PassIdentityHeaders = &v
-	}
-
 	if pb.Redirect.IsSet() {
 		p.Redirect = &PolicyRedirect{
 			HTTPSRedirect:  pb.Redirect.HttpsRedirect,
@@ -392,9 +387,6 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		KubernetesServiceAccountToken:    p.KubernetesServiceAccountToken,
 		Policies:                         sps,
 		SetResponseHeaders:               p.SetResponseHeaders,
-	}
-	if p.PassIdentityHeaders != nil && *p.PassIdentityHeaders {
-		pb.DeprecatedPassIdentityHeaders = true
 	}
 	if p.IDPClientID != "" {
 		pb.IdpClientId = proto.String(p.IDPClientID)
