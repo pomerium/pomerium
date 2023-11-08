@@ -627,17 +627,12 @@ func TestCertificatesArrayParsing(t *testing.T) {
 
 	testCertFileRef := "./testdata/example-cert.pem"
 	testKeyFileRef := "./testdata/example-key.pem"
-	testCertFile, _ := os.ReadFile(testCertFileRef)
-	testKeyFile, _ := os.ReadFile(testKeyFileRef)
-	testCertAsBase64 := base64.StdEncoding.EncodeToString(testCertFile)
-	testKeyAsBase64 := base64.StdEncoding.EncodeToString(testKeyFile)
 
 	tests := []struct {
 		name             string
 		certificateFiles []certificateFilePair
 		wantErr          bool
 	}{
-		{"Handles base64 string as params", []certificateFilePair{{KeyFile: testKeyAsBase64, CertFile: testCertAsBase64}}, false},
 		{"Handles file reference as params", []certificateFilePair{{KeyFile: testKeyFileRef, CertFile: testCertFileRef}}, false},
 		{"Returns an error otherwise", []certificateFilePair{{KeyFile: "abc", CertFile: "abc"}}, true},
 	}
@@ -933,8 +928,11 @@ func TestOptions_ApplySettings(t *testing.T) {
 		options := NewDefaultOptions()
 		cert1, err := cryptutil.GenerateCertificate(nil, "example.com")
 		require.NoError(t, err)
+		cert1path := filepath.Join(t.TempDir(), "example.com.pem")
+		err = os.WriteFile(cert1path, cert1.Certificate[0], 0o600)
+		require.NoError(t, err)
 		options.CertificateFiles = append(options.CertificateFiles, certificateFilePair{
-			CertFile: base64.StdEncoding.EncodeToString(encodeCert(cert1)),
+			CertFile: cert1path,
 		})
 		cert2, err := cryptutil.GenerateCertificate(nil, "example.com")
 		require.NoError(t, err)
@@ -952,7 +950,7 @@ func TestOptions_ApplySettings(t *testing.T) {
 			},
 		}
 		options.ApplySettings(ctx, certsIndex, settings)
-		assert.Len(t, options.CertificateFiles, 2, "should prevent adding duplicate certificates")
+		assert.Len(t, options.CertificateData, 1, "should prevent adding duplicate certificates")
 	})
 
 	t.Run("pass_identity_headers", func(t *testing.T) {
