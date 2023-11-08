@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/identity/oauth/apple"
@@ -411,7 +412,6 @@ func TestOptionsFromViper(t *testing.T) {
 				CookieSecure:             true,
 				InsecureServer:           true,
 				CookieHTTPOnly:           true,
-				AuthenticateURLString:    "https://authenticate.pomerium.app",
 				AuthenticateCallbackPath: "/oauth2/callback",
 				DataBrokerStorageType:    "memory",
 				EnvoyAdminAccessLogPath:  os.DevNull,
@@ -425,7 +425,6 @@ func TestOptionsFromViper(t *testing.T) {
 			&Options{
 				Policies:                 []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
 				CookieName:               "_pomerium",
-				AuthenticateURLString:    "https://authenticate.pomerium.app",
 				AuthenticateCallbackPath: "/oauth2/callback",
 				CookieSecure:             true,
 				CookieHTTPOnly:           true,
@@ -628,17 +627,12 @@ func TestCertificatesArrayParsing(t *testing.T) {
 
 	testCertFileRef := "./testdata/example-cert.pem"
 	testKeyFileRef := "./testdata/example-key.pem"
-	testCertFile, _ := os.ReadFile(testCertFileRef)
-	testKeyFile, _ := os.ReadFile(testKeyFileRef)
-	testCertAsBase64 := base64.StdEncoding.EncodeToString(testCertFile)
-	testKeyAsBase64 := base64.StdEncoding.EncodeToString(testKeyFile)
 
 	tests := []struct {
 		name             string
 		certificateFiles []certificateFilePair
 		wantErr          bool
 	}{
-		{"Handles base64 string as params", []certificateFilePair{{KeyFile: testKeyAsBase64, CertFile: testCertAsBase64}}, false},
 		{"Handles file reference as params", []certificateFilePair{{KeyFile: testKeyFileRef, CertFile: testCertFileRef}}, false},
 		{"Returns an error otherwise", []certificateFilePair{{KeyFile: "abc", CertFile: "abc"}}, true},
 	}
@@ -848,9 +842,7 @@ func TestOptions_DefaultURL(t *testing.T) {
 		f              func() (*url.URL, error)
 		expectedURLStr string
 	}{
-		{"default authenticate url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
-		{"default authorize url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
-		{"default databroker url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
+		{"default authenticate url", defaultOptions.GetAuthenticateURL, "https://authenticate.pomerium.app"},
 		{"good authenticate url", opts.GetAuthenticateURL, "https://authenticate.example.com"},
 		{"good authorize url", firstURL(opts.GetAuthorizeURLs), "https://authorize.example.com"},
 		{"good databroker url", firstURL(opts.GetDataBrokerURLs), "https://databroker.example.com"},
@@ -936,8 +928,11 @@ func TestOptions_ApplySettings(t *testing.T) {
 		options := NewDefaultOptions()
 		cert1, err := cryptutil.GenerateCertificate(nil, "example.com")
 		require.NoError(t, err)
+		cert1path := filepath.Join(t.TempDir(), "example.com.pem")
+		err = os.WriteFile(cert1path, cert1.Certificate[0], 0o600)
+		require.NoError(t, err)
 		options.CertificateFiles = append(options.CertificateFiles, certificateFilePair{
-			CertFile: base64.StdEncoding.EncodeToString(encodeCert(cert1)),
+			CertFile: cert1path,
 		})
 		cert2, err := cryptutil.GenerateCertificate(nil, "example.com")
 		require.NoError(t, err)
@@ -955,7 +950,15 @@ func TestOptions_ApplySettings(t *testing.T) {
 			},
 		}
 		options.ApplySettings(ctx, certsIndex, settings)
-		assert.Len(t, options.CertificateFiles, 2, "should prevent adding duplicate certificates")
+		assert.Len(t, options.CertificateData, 1, "should prevent adding duplicate certificates")
+	})
+
+	t.Run("pass_identity_headers", func(t *testing.T) {
+		options := NewDefaultOptions()
+		options.ApplySettings(ctx, nil, &config.Settings{
+			PassIdentityHeaders: proto.Bool(true),
+		})
+		assert.Equal(t, proto.Bool(true), options.PassIdentityHeaders)
 	})
 }
 

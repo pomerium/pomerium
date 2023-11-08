@@ -96,6 +96,7 @@ type Options struct {
 	// If this setting is not specified, the value defaults to V4_PREFERRED.
 	DNSLookupFamily string `mapstructure:"dns_lookup_family" yaml:"dns_lookup_family,omitempty"`
 
+	CertificateData  []*config.Settings_Certificate
 	CertificateFiles []certificateFilePair `mapstructure:"certificates" yaml:"certificates,omitempty"`
 
 	// Cert and Key is the x509 certificate used to create the HTTPS server.
@@ -300,6 +301,8 @@ type Options struct {
 	AuditKey *PublicKeyEncryptionKeyOptions `mapstructure:"audit_key"`
 
 	BrandingOptions httputil.BrandingOptions
+
+	PassIdentityHeaders *bool `mapstructure:"pass_identity_headers" yaml:"pass_identity_headers"`
 }
 
 type certificateFilePair struct {
@@ -325,7 +328,6 @@ var defaultOptions = Options{
 	GRPCAddr:                 ":443",
 	GRPCClientTimeout:        10 * time.Second, // Try to withstand transient service failures for a single request
 	GRPCClientDNSRoundRobin:  true,
-	AuthenticateURLString:    "https://authenticate.pomerium.app",
 	AuthenticateCallbackPath: "/oauth2/callback",
 	TracingSampleRate:        0.0001,
 
@@ -666,13 +668,18 @@ func (o *Options) Validate() error {
 		hasCert = true
 	}
 
-	for _, c := range o.CertificateFiles {
-		_, err := cryptutil.CertificateFromBase64(c.CertFile, c.KeyFile)
+	for _, c := range o.CertificateData {
+		_, err := tls.X509KeyPair(c.GetCertBytes(), c.GetKeyBytes())
 		if err != nil {
-			_, err = cryptutil.CertificateFromFile(c.CertFile, c.KeyFile)
+			return fmt.Errorf("config: bad cert entry, cert is invalid: %w", err)
 		}
+		hasCert = true
+	}
+
+	for _, c := range o.CertificateFiles {
+		_, err := cryptutil.CertificateFromFile(c.CertFile, c.KeyFile)
 		if err != nil {
-			return fmt.Errorf("config: bad cert entry, base64 or file reference invalid. %w", err)
+			return fmt.Errorf("config: bad cert entry, file reference invalid. %w", err)
 		}
 		hasCert = true
 	}
@@ -806,17 +813,17 @@ func (o *Options) GetDeriveInternalDomain() string {
 
 // GetAuthenticateURL returns the AuthenticateURL in the options or 127.0.0.1.
 func (o *Options) GetAuthenticateURL() (*url.URL, error) {
-	rawurl := o.AuthenticateURLString
-	if rawurl == "" {
-		rawurl = "https://127.0.0.1"
+	rawURL := o.AuthenticateURLString
+	if rawURL == "" {
+		rawURL = "https://authenticate.pomerium.app"
 	}
-	return urlutil.ParseAndValidateURL(rawurl)
+	return urlutil.ParseAndValidateURL(rawURL)
 }
 
 // GetInternalAuthenticateURL returns the internal AuthenticateURL in the options or the AuthenticateURL.
 func (o *Options) GetInternalAuthenticateURL() (*url.URL, error) {
-	rawurl := o.AuthenticateInternalURLString
-	if rawurl == "" {
+	rawURL := o.AuthenticateInternalURLString
+	if rawURL == "" {
 		return o.GetAuthenticateURL()
 	}
 	return urlutil.ParseAndValidateURL(o.AuthenticateInternalURLString)
@@ -1020,14 +1027,18 @@ func (o *Options) GetCertificates() ([]tls.Certificate, error) {
 		certs = append(certs, *cert)
 	}
 	for _, c := range o.CertificateFiles {
-		cert, err := cryptutil.CertificateFromBase64(c.CertFile, c.KeyFile)
-		if err != nil {
-			cert, err = cryptutil.CertificateFromFile(c.CertFile, c.KeyFile)
-		}
+		cert, err := cryptutil.CertificateFromFile(c.CertFile, c.KeyFile)
 		if err != nil {
 			return nil, fmt.Errorf("config: invalid certificate entry: %w", err)
 		}
 		certs = append(certs, *cert)
+	}
+	for _, c := range o.CertificateData {
+		cert, err := tls.X509KeyPair(c.GetCertBytes(), c.GetKeyBytes())
+		if err != nil {
+			return nil, fmt.Errorf("config: invalid certificate entry: %w", err)
+		}
+		certs = append(certs, cert)
 	}
 	if o.CertFile != "" && o.KeyFile != "" {
 		cert, err := cryptutil.CertificateFromFile(o.CertFile, o.KeyFile)
@@ -1041,7 +1052,12 @@ func (o *Options) GetCertificates() ([]tls.Certificate, error) {
 
 // HasCertificates returns true if options has any certificates.
 func (o *Options) HasCertificates() bool {
-	return o.Cert != "" || o.Key != "" || len(o.CertificateFiles) > 0 || o.CertFile != "" || o.KeyFile != ""
+	return o.Cert != "" ||
+		o.Key != "" ||
+		len(o.CertificateFiles) > 0 ||
+		o.CertFile != "" ||
+		o.KeyFile != "" ||
+		len(o.CertificateData) > 0
 }
 
 // GetX509Certificates gets all the x509 certificates from the options. Invalid certificates are ignored.
@@ -1063,11 +1079,17 @@ func (o *Options) GetX509Certificates() []*x509.Certificate {
 		}
 	}
 
-	for _, c := range o.CertificateFiles {
-		cert, err := cryptutil.ParsePEMCertificateFromBase64(c.CertFile)
+	for _, c := range o.CertificateData {
+		cert, err := cryptutil.ParsePEMCertificate(c.GetCertBytes())
 		if err != nil {
-			cert, err = cryptutil.ParsePEMCertificateFromFile(c.CertFile)
+			log.Error(context.Background()).Err(err).Msg("invalid certificate")
+		} else {
+			certs = append(certs, cert)
 		}
+	}
+
+	for _, c := range o.CertificateFiles {
+		cert, err := cryptutil.ParsePEMCertificateFromFile(c.CertFile)
 		if err != nil {
 			log.Error(context.Background()).Err(err).Msg("invalid certificate_file")
 		} else {
@@ -1210,17 +1232,21 @@ func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
 func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 	hosts := sets.NewSorted[string]()
 	if IsAuthenticate(o.Services) {
-		authenticateURL, err := o.GetInternalAuthenticateURL()
-		if err != nil {
-			return nil, err
+		if o.AuthenticateInternalURLString != "" {
+			authenticateURL, err := o.GetInternalAuthenticateURL()
+			if err != nil {
+				return nil, err
+			}
+			hosts.Add(urlutil.GetDomainsForURL(authenticateURL)...)
 		}
-		hosts.Add(urlutil.GetDomainsForURL(authenticateURL)...)
 
-		authenticateURL, err = o.GetAuthenticateURL()
-		if err != nil {
-			return nil, err
+		if o.AuthenticateURLString != "" {
+			authenticateURL, err := o.GetAuthenticateURL()
+			if err != nil {
+				return nil, err
+			}
+			hosts.Add(urlutil.GetDomainsForURL(authenticateURL)...)
 		}
-		hosts.Add(urlutil.GetDomainsForURL(authenticateURL)...)
 	}
 
 	// policy urls
@@ -1373,21 +1399,18 @@ func (o *Options) Checksum() uint64 {
 
 func (o *Options) applyExternalCerts(ctx context.Context, certsIndex *cryptutil.CertificatesIndex, certs []*config.Settings_Certificate) {
 	for _, c := range certs {
-		cfp := certificateFilePair{}
-		cfp.CertFile = base64.StdEncoding.EncodeToString(c.CertBytes)
-		cfp.KeyFile = base64.StdEncoding.EncodeToString(c.KeyBytes)
-
-		cert, err := cryptutil.ParsePEMCertificateFromBase64(cfp.CertFile)
+		cert, err := cryptutil.ParsePEMCertificate(c.GetCertBytes())
 		if err != nil {
 			log.Error(ctx).Err(err).Msg("parsing cert from databroker: skipped")
 			continue
 		}
+
 		if overlaps, name := certsIndex.OverlapsWithExistingCertificate(cert); overlaps {
 			log.Error(ctx).Err(err).Str("domain", name).Msg("overlaps with local certs: skipped")
 			continue
 		}
 
-		o.CertificateFiles = append(o.CertificateFiles, cfp)
+		o.CertificateData = append(o.CertificateData, c)
 	}
 }
 
@@ -1475,6 +1498,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	setSlice(&o.ProgrammaticRedirectDomainWhitelist, settings.ProgrammaticRedirectDomainWhitelist)
 	setAuditKey(&o.AuditKey, settings.AuditKey)
 	setCodecType(&o.CodecType, settings.CodecType)
+	setOptional(&o.PassIdentityHeaders, settings.PassIdentityHeaders)
 	o.BrandingOptions = settings
 }
 
