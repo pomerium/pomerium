@@ -445,6 +445,16 @@ func Test_getAllDomains(t *testing.T) {
 			assert.Equal(t, expect, actual)
 		})
 	})
+
+	t.Run("exclude default authenticate", func(t *testing.T) {
+		options := config.NewDefaultOptions()
+		options.Policies = []config.Policy{
+			{From: "https://a.example.com"},
+		}
+		actual, err := getAllRouteableHosts(options, ":443")
+		require.NoError(t, err)
+		assert.Equal(t, []string{"a.example.com", "a.example.com:443"}, actual)
+	})
 }
 
 func Test_urlMatchesHost(t *testing.T) {

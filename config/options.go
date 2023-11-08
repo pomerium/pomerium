@@ -325,7 +325,6 @@ var defaultOptions = Options{
 	GRPCAddr:                 ":443",
 	GRPCClientTimeout:        10 * time.Second, // Try to withstand transient service failures for a single request
 	GRPCClientDNSRoundRobin:  true,
-	AuthenticateURLString:    "https://authenticate.pomerium.app",
 	AuthenticateCallbackPath: "/oauth2/callback",
 	TracingSampleRate:        0.0001,
 
@@ -806,17 +805,17 @@ func (o *Options) GetDeriveInternalDomain() string {
 
 // GetAuthenticateURL returns the AuthenticateURL in the options or 127.0.0.1.
 func (o *Options) GetAuthenticateURL() (*url.URL, error) {
-	rawurl := o.AuthenticateURLString
-	if rawurl == "" {
-		rawurl = "https://127.0.0.1"
+	rawURL := o.AuthenticateURLString
+	if rawURL == "" {
+		rawURL = "https://authenticate.pomerium.app"
 	}
-	return urlutil.ParseAndValidateURL(rawurl)
+	return urlutil.ParseAndValidateURL(rawURL)
 }
 
 // GetInternalAuthenticateURL returns the internal AuthenticateURL in the options or the AuthenticateURL.
 func (o *Options) GetInternalAuthenticateURL() (*url.URL, error) {
-	rawurl := o.AuthenticateInternalURLString
-	if rawurl == "" {
+	rawURL := o.AuthenticateInternalURLString
+	if rawURL == "" {
 		return o.GetAuthenticateURL()
 	}
 	return urlutil.ParseAndValidateURL(o.AuthenticateInternalURLString)
@@ -1210,17 +1209,21 @@ func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
 func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 	hosts := sets.NewSorted[string]()
 	if IsAuthenticate(o.Services) {
-		authenticateURL, err := o.GetInternalAuthenticateURL()
-		if err != nil {
-			return nil, err
+		if o.AuthenticateInternalURLString != "" {
+			authenticateURL, err := o.GetInternalAuthenticateURL()
+			if err != nil {
+				return nil, err
+			}
+			hosts.Add(urlutil.GetDomainsForURL(authenticateURL)...)
 		}
-		hosts.Add(urlutil.GetDomainsForURL(authenticateURL)...)
 
-		authenticateURL, err = o.GetAuthenticateURL()
-		if err != nil {
-			return nil, err
+		if o.AuthenticateURLString != "" {
+			authenticateURL, err := o.GetAuthenticateURL()
+			if err != nil {
+				return nil, err
+			}
+			hosts.Add(urlutil.GetDomainsForURL(authenticateURL)...)
 		}
-		hosts.Add(urlutil.GetDomainsForURL(authenticateURL)...)
 	}
 
 	// policy urls
