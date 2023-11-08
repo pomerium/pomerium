@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699474258709,
+  "lastUpdate": 1699474289772,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -79644,6 +79644,42 @@ window.BENCHMARK_DATA = {
             "value": 6766721,
             "unit": "ns/op",
             "extra": "174 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "62a9299e028d4f530b997de0a4bada798a93df26",
+          "message": "core/config: remove support for base64 encoded certificates (#4718)\n\n* core/config: update file watcher source to handle base64 encoded certificates\r\n\r\n* fix data race\r\n\r\n* core/config: only allow files in certificates\r\n\r\n* remove test\r\n\r\n* re-add test",
+          "timestamp": "2023-11-08T13:08:24-07:00",
+          "tree_id": "d323718dc1328fd763c43fd9539567447631321c",
+          "url": "https://github.com/pomerium/pomerium/commit/62a9299e028d4f530b997de0a4bada798a93df26"
+        },
+        "date": 1699474284539,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11314200,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6838672,
+            "unit": "ns/op",
+            "extra": "182 times\n4 procs"
           }
         ]
       }
