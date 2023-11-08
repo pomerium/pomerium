@@ -93,6 +93,13 @@ func (srv *dataBrokerServer) Put(ctx context.Context, req *databrokerpb.PutReque
 	return srv.server.Put(ctx, req)
 }
 
+func (srv *dataBrokerServer) Patch(ctx context.Context, req *databrokerpb.PatchRequest) (*databrokerpb.PatchResponse, error) {
+	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
+		return nil, err
+	}
+	return srv.server.Patch(ctx, req)
+}
+
 func (srv *dataBrokerServer) ReleaseLease(ctx context.Context, req *databrokerpb.ReleaseLeaseRequest) (*emptypb.Empty, error) {
 	if err := grpcutil.RequireSignedJWT(ctx, srv.sharedKey.Load()); err != nil {
 		return nil, err

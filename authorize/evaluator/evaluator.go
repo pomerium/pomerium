@@ -95,44 +95,78 @@ type Evaluator struct {
 	clientCA              []byte
 	clientCRL             []byte
 	clientCertConstraints ClientCertConstraints
+
+	cfgCacheKey uint64
 }
 
 // New creates a new Evaluator.
-func New(ctx context.Context, store *store.Store, options ...Option) (*Evaluator, error) {
-	e := &Evaluator{store: store}
-
+func New(
+	ctx context.Context, store *store.Store, previous *Evaluator, options ...Option,
+) (*Evaluator, error) {
 	cfg := getConfig(options...)
 
-	err := e.updateStore(cfg)
+	err := updateStore(store, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	e.headersEvaluators, err = NewHeadersEvaluator(ctx, store)
+	e := &Evaluator{
+		store:                 store,
+		clientCA:              cfg.ClientCA,
+		clientCRL:             cfg.ClientCRL,
+		clientCertConstraints: cfg.ClientCertConstraints,
+		cfgCacheKey:           cfg.cacheKey(),
+	}
+
+	// If there is a previous Evaluator constructed from the same settings, we
+	// can reuse the HeadersEvaluator along with any PolicyEvaluators for
+	// unchanged policies.
+	var cachedPolicyEvaluators map[uint64]*PolicyEvaluator
+	if previous != nil && previous.cfgCacheKey == e.cfgCacheKey {
+		e.headersEvaluators = previous.headersEvaluators
+		cachedPolicyEvaluators = previous.policyEvaluators
+	} else {
+		e.headersEvaluators, err = NewHeadersEvaluator(ctx, store)
+		if err != nil {
+			return nil, err
+		}
+	}
+	e.policyEvaluators, err = getOrCreatePolicyEvaluators(ctx, cfg, store, cachedPolicyEvaluators)
 	if err != nil {
 		return nil, err
 	}
 
-	e.clientCA = cfg.clientCA
-	e.clientCRL = cfg.clientCRL
-	e.clientCertConstraints = cfg.clientCertConstraints
+	return e, nil
+}
 
-	e.policyEvaluators = make(map[uint64]*PolicyEvaluator)
-	for i := range cfg.policies {
-		configPolicy := cfg.policies[i]
+func getOrCreatePolicyEvaluators(
+	ctx context.Context, cfg *evaluatorConfig, store *store.Store,
+	cachedPolicyEvaluators map[uint64]*PolicyEvaluator,
+) (map[uint64]*PolicyEvaluator, error) {
+	var newCount, reusedCount int
+	m := make(map[uint64]*PolicyEvaluator)
+	for i := range cfg.Policies {
+		configPolicy := cfg.Policies[i]
 		id, err := configPolicy.RouteID()
 		if err != nil {
 			return nil, fmt.Errorf("authorize: error computing policy route id: %w", err)
 		}
+		p := cachedPolicyEvaluators[id]
+		if p != nil && p.policyChecksum == configPolicy.Checksum() {
+			m[id] = p
+			reusedCount++
+			continue
+		}
 		policyEvaluator, err :=
-			NewPolicyEvaluator(ctx, store, &configPolicy, cfg.addDefaultClientCertificateRule)
+			NewPolicyEvaluator(ctx, store, &configPolicy, cfg.AddDefaultClientCertificateRule)
 		if err != nil {
 			return nil, err
 		}
-		e.policyEvaluators[id] = policyEvaluator
+		m[id] = policyEvaluator
+		newCount++
 	}
-
-	return e, nil
+	log.Info(ctx).Msgf("updated policy evaluators: %d created, %d reused", newCount, reusedCount)
+	return m, nil
 }
 
 // Evaluate evaluates the rego for the given policy and generates the identity headers.
@@ -251,18 +285,18 @@ func (e *Evaluator) getClientCA(policy *config.Policy) (string, error) {
 	return string(e.clientCA), nil
 }
 
-func (e *Evaluator) updateStore(cfg *evaluatorConfig) error {
+func updateStore(store *store.Store, cfg *evaluatorConfig) error {
 	jwk, err := getJWK(cfg)
 	if err != nil {
 		return fmt.Errorf("authorize: couldn't create signer: %w", err)
 	}
 
-	e.store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(
-		cfg.googleCloudServerlessAuthenticationServiceAccount,
+	store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(
+		cfg.GoogleCloudServerlessAuthenticationServiceAccount,
 	)
-	e.store.UpdateJWTClaimHeaders(cfg.jwtClaimsHeaders)
-	e.store.UpdateRoutePolicies(cfg.policies)
-	e.store.UpdateSigningKey(jwk)
+	store.UpdateJWTClaimHeaders(cfg.JWTClaimsHeaders)
+	store.UpdateRoutePolicies(cfg.Policies)
+	store.UpdateSigningKey(jwk)
 
 	return nil
 }
@@ -270,7 +304,7 @@ func (e *Evaluator) updateStore(cfg *evaluatorConfig) error {
 func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
 	var decodedCert []byte
 	// if we don't have a signing key, generate one
-	if len(cfg.signingKey) == 0 {
+	if len(cfg.SigningKey) == 0 {
 		key, err := cryptutil.NewSigningKey()
 		if err != nil {
 			return nil, fmt.Errorf("couldn't generate signing key: %w", err)
@@ -280,7 +314,7 @@ func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
 			return nil, fmt.Errorf("bad signing key: %w", err)
 		}
 	} else {
-		decodedCert = cfg.signingKey
+		decodedCert = cfg.SigningKey
 	}
 
 	jwk, err := cryptutil.PrivateJWKFromBytes(decodedCert)

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
@@ -46,7 +47,7 @@ func New(cfg *config.Config) (*Authorize, error) {
 	}
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 
-	state, err := newAuthorizeStateFromConfig(cfg, a.store)
+	state, err := newAuthorizeStateFromConfig(cfg, a.store, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -86,11 +87,15 @@ func validateOptions(o *config.Options) error {
 }
 
 // newPolicyEvaluator returns an policy evaluator.
-func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Evaluator, error) {
+func newPolicyEvaluator(
+	opts *config.Options, store *store.Store, previous *evaluator.Evaluator,
+) (*evaluator.Evaluator, error) {
 	metrics.AddPolicyCountCallback("pomerium-authorize", func() int64 {
 		return int64(len(opts.GetAllPolicies()))
 	})
-	ctx := context.Background()
+	ctx := log.WithContext(context.Background(), func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "authorize")
+	})
 	ctx, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
 	defer span.End()
 
@@ -126,7 +131,7 @@ func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Ev
 			"authorize: internal error: couldn't build client cert constraints: %w", err)
 	}
 
-	return evaluator.New(ctx, store,
+	return evaluator.New(ctx, store, previous,
 		evaluator.WithPolicies(opts.GetAllPolicies()),
 		evaluator.WithClientCA(clientCA),
 		evaluator.WithAddDefaultClientCertificateRule(addDefaultClientCertificateRule),
@@ -141,8 +146,9 @@ func newPolicyEvaluator(opts *config.Options, store *store.Store) (*evaluator.Ev
 
 // OnConfigChange updates internal structures based on config.Options
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
+	currentState := a.state.Load()
 	a.currentOptions.Store(cfg.Options)
-	if state, err := newAuthorizeStateFromConfig(cfg, a.store); err != nil {
+	if state, err := newAuthorizeStateFromConfig(cfg, a.store, currentState.evaluator); err != nil {
 		log.Error(ctx).Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(state)

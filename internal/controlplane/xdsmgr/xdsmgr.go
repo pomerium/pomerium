@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
 )
 
@@ -36,7 +37,7 @@ func NewManager(resources map[string][]*envoy_service_discovery_v3.Resource) *Ma
 	return &Manager{
 		signal: signal.New(),
 
-		nonce:     uuid.NewString(),
+		nonce:     uuid.New().String(),
 		resources: resources,
 	}
 }
@@ -106,6 +107,10 @@ func (mgr *Manager) DeltaAggregatedResources(
 		case req.GetResponseNonce() == "":
 			// neither an ACK or a NACK
 		case req.GetErrorDetail() != nil:
+			log.Info(ctx).
+				Str("type-url", req.GetTypeUrl()).
+				Any("error-detail", req.GetErrorDetail()).
+				Msg("xdsmgr: nack")
 			// a NACK
 			// - set the client resource versions to the current resource versions
 			state.clientResourceVersions = make(map[string]string)
@@ -113,6 +118,9 @@ func (mgr *Manager) DeltaAggregatedResources(
 				state.clientResourceVersions[resource.Name] = resource.Version
 			}
 		case req.GetResponseNonce() == mgr.nonce:
+			log.Info(ctx).
+				Str("type-url", req.GetTypeUrl()).
+				Msg("xdsmgr: ack")
 			// an ACK for the last response
 			// - set the client resource versions to the current resource versions
 			state.clientResourceVersions = make(map[string]string)
@@ -121,6 +129,9 @@ func (mgr *Manager) DeltaAggregatedResources(
 			}
 		default:
 			// an ACK for a response that's not the last response
+			log.Info(ctx).
+				Str("type-url", req.GetTypeUrl()).
+				Msg("xdsmgr: ack")
 		}
 
 		// update subscriptions
@@ -200,6 +211,11 @@ func (mgr *Manager) DeltaAggregatedResources(
 			case <-ctx.Done():
 				return ctx.Err()
 			case res := <-outgoing:
+				log.Info(ctx).
+					Str("type-url", res.GetTypeUrl()).
+					Int("resource-count", len(res.GetResources())).
+					Int("removed-resource-count", len(res.GetRemovedResources())).
+					Msg("xdsmgr: sending resources")
 				err := stream.Send(res)
 				if err != nil {
 					return err

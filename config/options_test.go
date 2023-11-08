@@ -58,8 +58,10 @@ func Test_Validate(t *testing.T) {
 	badPolicyFile.PolicyFile = "file"
 	invalidStorageType := testOptions()
 	invalidStorageType.DataBrokerStorageType = "foo"
+	redisStorageType := testOptions()
+	redisStorageType.DataBrokerStorageType = "redis"
 	missingStorageDSN := testOptions()
-	missingStorageDSN.DataBrokerStorageType = "redis"
+	missingStorageDSN.DataBrokerStorageType = "postgres"
 	badSignoutRedirectURL := testOptions()
 	badSignoutRedirectURL.SignOutRedirectURLString = "--"
 	badCookieSettings := testOptions()
@@ -77,6 +79,7 @@ func Test_Validate(t *testing.T) {
 		{"missing shared secret but all service", badSecretAllServices, false},
 		{"policy file specified", badPolicyFile, true},
 		{"invalid databroker storage type", invalidStorageType, true},
+		{"redis databroker storage type", redisStorageType, true},
 		{"missing databroker storage dsn", missingStorageDSN, true},
 		{"invalid signout redirect url", badSignoutRedirectURL, true},
 		{"CookieSameSite none with CookieSecure fale", badCookieSettings, true},
@@ -408,7 +411,6 @@ func TestOptionsFromViper(t *testing.T) {
 				CookieSecure:             true,
 				InsecureServer:           true,
 				CookieHTTPOnly:           true,
-				AuthenticateURLString:    "https://authenticate.pomerium.app",
 				AuthenticateCallbackPath: "/oauth2/callback",
 				DataBrokerStorageType:    "memory",
 				EnvoyAdminAccessLogPath:  os.DevNull,
@@ -422,7 +424,6 @@ func TestOptionsFromViper(t *testing.T) {
 			&Options{
 				Policies:                 []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
 				CookieName:               "_pomerium",
-				AuthenticateURLString:    "https://authenticate.pomerium.app",
 				AuthenticateCallbackPath: "/oauth2/callback",
 				CookieSecure:             true,
 				CookieHTTPOnly:           true,
@@ -845,9 +846,7 @@ func TestOptions_DefaultURL(t *testing.T) {
 		f              func() (*url.URL, error)
 		expectedURLStr string
 	}{
-		{"default authenticate url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
-		{"default authorize url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
-		{"default databroker url", defaultOptions.GetAuthenticateURL, "https://127.0.0.1"},
+		{"default authenticate url", defaultOptions.GetAuthenticateURL, "https://authenticate.pomerium.app"},
 		{"good authenticate url", opts.GetAuthenticateURL, "https://authenticate.example.com"},
 		{"good authorize url", firstURL(opts.GetAuthorizeURLs), "https://authorize.example.com"},
 		{"good databroker url", firstURL(opts.GetDataBrokerURLs), "https://databroker.example.com"},

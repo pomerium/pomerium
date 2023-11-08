@@ -245,7 +245,7 @@ type Options struct {
 	DataBrokerURLStrings        []string `mapstructure:"databroker_service_urls" yaml:"databroker_service_urls,omitempty"`
 	DataBrokerInternalURLString string   `mapstructure:"databroker_internal_service_url" yaml:"databroker_internal_service_url,omitempty"`
 	// DataBrokerStorageType is the storage backend type that databroker will use.
-	// Supported type: memory, redis
+	// Supported type: memory, postgres
 	DataBrokerStorageType string `mapstructure:"databroker_storage_type" yaml:"databroker_storage_type,omitempty"`
 	// DataBrokerStorageConnectionString is the data source name for storage backend.
 	DataBrokerStorageConnectionString string `mapstructure:"databroker_storage_connection_string" yaml:"databroker_storage_connection_string,omitempty"`
@@ -325,7 +325,6 @@ var defaultOptions = Options{
 	GRPCAddr:                 ":443",
 	GRPCClientTimeout:        10 * time.Second, // Try to withstand transient service failures for a single request
 	GRPCClientDNSRoundRobin:  true,
-	AuthenticateURLString:    "https://authenticate.pomerium.app",
 	AuthenticateCallbackPath: "/oauth2/callback",
 	TracingSampleRate:        0.0001,
 
@@ -460,7 +459,7 @@ func (o *Options) parsePolicy() error {
 		}
 	}
 	for i := range o.AdditionalPolicies {
-		p := &o.AdditionalPolicies[i]
+		p := o.AdditionalPolicies[i]
 		if err := p.Validate(); err != nil {
 			return err
 		}
@@ -584,7 +583,9 @@ func (o *Options) Validate() error {
 
 	switch o.DataBrokerStorageType {
 	case StorageInMemoryName:
-	case StorageRedisName, StoragePostgresName:
+	case StorageRedisName:
+		return errors.New("config: redis databroker storage backend is no longer supported")
+	case StoragePostgresName:
 		if o.DataBrokerStorageConnectionString == "" {
 			return errors.New("config: missing databroker storage backend dsn")
 		}
@@ -804,17 +805,17 @@ func (o *Options) GetDeriveInternalDomain() string {
 
 // GetAuthenticateURL returns the AuthenticateURL in the options or 127.0.0.1.
 func (o *Options) GetAuthenticateURL() (*url.URL, error) {
-	rawurl := o.AuthenticateURLString
-	if rawurl == "" {
-		rawurl = "https://127.0.0.1"
+	rawURL := o.AuthenticateURLString
+	if rawURL == "" {
+		rawURL = "https://authenticate.pomerium.app"
 	}
-	return urlutil.ParseAndValidateURL(rawurl)
+	return urlutil.ParseAndValidateURL(rawURL)
 }
 
 // GetInternalAuthenticateURL returns the internal AuthenticateURL in the options or the AuthenticateURL.
 func (o *Options) GetInternalAuthenticateURL() (*url.URL, error) {
-	rawurl := o.AuthenticateInternalURLString
-	if rawurl == "" {
+	rawURL := o.AuthenticateInternalURLString
+	if rawURL == "" {
 		return o.GetAuthenticateURL()
 	}
 	return urlutil.ParseAndValidateURL(o.AuthenticateInternalURLString)
@@ -1208,17 +1209,21 @@ func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
 func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 	hosts := sets.NewSorted[string]()
 	if IsAuthenticate(o.Services) {
-		authenticateURL, err := o.GetInternalAuthenticateURL()
-		if err != nil {
-			return nil, err
+		if o.AuthenticateInternalURLString != "" {
+			authenticateURL, err := o.GetInternalAuthenticateURL()
+			if err != nil {
+				return nil, err
+			}
+			hosts.Add(urlutil.GetDomainsForURL(authenticateURL)...)
 		}
-		hosts.Add(urlutil.GetDomainsForURL(authenticateURL)...)
 
-		authenticateURL, err = o.GetAuthenticateURL()
-		if err != nil {
-			return nil, err
+		if o.AuthenticateURLString != "" {
+			authenticateURL, err := o.GetAuthenticateURL()
+			if err != nil {
+				return nil, err
+			}
+			hosts.Add(urlutil.GetDomainsForURL(authenticateURL)...)
 		}
-		hosts.Add(urlutil.GetDomainsForURL(authenticateURL)...)
 	}
 
 	// policy urls

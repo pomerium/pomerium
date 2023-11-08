@@ -103,7 +103,8 @@ func (q policyQuery) checksum() string {
 
 // A PolicyEvaluator evaluates policies.
 type PolicyEvaluator struct {
-	queries []policyQuery
+	queries        []policyQuery
+	policyChecksum uint64
 }
 
 // NewPolicyEvaluator creates a new PolicyEvaluator.
@@ -112,6 +113,7 @@ func NewPolicyEvaluator(
 	addDefaultClientCertificateRule bool,
 ) (*PolicyEvaluator, error) {
 	e := new(PolicyEvaluator)
+	e.policyChecksum = configPolicy.Checksum()
 
 	// generate the base rego script for the policy
 	ppl := configPolicy.ToPPL()

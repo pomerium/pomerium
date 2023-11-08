@@ -18,6 +18,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/telemetry"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
 var (
@@ -32,6 +33,9 @@ func (b *Builder) BuildBootstrap(
 	cfg *config.Config,
 	fullyStatic bool,
 ) (bootstrap *envoy_config_bootstrap_v3.Bootstrap, err error) {
+	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildBootstrap")
+	defer span.End()
+
 	bootstrap = new(envoy_config_bootstrap_v3.Bootstrap)
 
 	bootstrap.Admin, err = b.BuildBootstrapAdmin(cfg)
@@ -164,6 +168,9 @@ func (b *Builder) BuildBootstrapStaticResources(
 	cfg *config.Config,
 	fullyStatic bool,
 ) (staticResources *envoy_config_bootstrap_v3.Bootstrap_StaticResources, err error) {
+	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildBootstrapStaticResources")
+	defer span.End()
+
 	staticResources = new(envoy_config_bootstrap_v3.Bootstrap_StaticResources)
 
 	if fullyStatic {

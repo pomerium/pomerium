@@ -65,7 +65,7 @@ func TestConfigSource(t *testing.T) {
 		OutboundPort: outboundPort,
 		Options:      base,
 	})
-	src := NewConfigSource(ctx, baseSource, func(_ context.Context, cfg *config.Config) {
+	src := NewConfigSource(ctx, baseSource, EnableConfigValidation(true), func(_ context.Context, cfg *config.Config) {
 		cfgs <- cfg
 	})
 	cfgs <- src.GetConfig()

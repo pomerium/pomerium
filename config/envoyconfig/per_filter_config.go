@@ -4,14 +4,14 @@ import (
 	"strconv"
 
 	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
-	"github.com/golang/protobuf/ptypes/any"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // PerFilterConfigExtAuthzName is the name of the ext authz filter to apply config to
 const PerFilterConfigExtAuthzName = "envoy.filters.http.ext_authz"
 
 // PerFilterConfigExtAuthzContextExtensions returns a per-filter config for ext authz that disables ext-authz.
-func PerFilterConfigExtAuthzContextExtensions(authzContextExtensions map[string]string) *any.Any {
+func PerFilterConfigExtAuthzContextExtensions(authzContextExtensions map[string]string) *anypb.Any {
 	return marshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute{
 		Override: &envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute_CheckSettings{
 			CheckSettings: &envoy_extensions_filters_http_ext_authz_v3.CheckSettings{
@@ -22,7 +22,7 @@ func PerFilterConfigExtAuthzContextExtensions(authzContextExtensions map[string]
 }
 
 // PerFilterConfigExtAuthzDisabled returns a per-filter config for ext authz that disables ext-authz.
-func PerFilterConfigExtAuthzDisabled() *any.Any {
+func PerFilterConfigExtAuthzDisabled() *anypb.Any {
 	return marshalAny(&envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute{
 		Override: &envoy_extensions_filters_http_ext_authz_v3.ExtAuthzPerRoute_Disabled{
 			Disabled: true,

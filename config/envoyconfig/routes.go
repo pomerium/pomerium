@@ -10,8 +10,7 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
-	"github.com/golang/protobuf/ptypes/any"
-	"github.com/golang/protobuf/ptypes/wrappers"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -42,7 +41,7 @@ func (b *Builder) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
 			Grpc: &envoy_config_route_v3.RouteMatch_GrpcRouteMatchOptions{},
 		},
 		Action: action,
-		TypedPerFilterConfig: map[string]*any.Any{
+		TypedPerFilterConfig: map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzDisabled(),
 		},
 	}}, nil
@@ -126,7 +125,7 @@ func (b *Builder) buildControlPlanePathRoute(
 			},
 		},
 		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders()),
-		TypedPerFilterConfig: map[string]*any.Any{
+		TypedPerFilterConfig: map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, 0)),
 		},
 	}
@@ -150,7 +149,7 @@ func (b *Builder) buildControlPlanePrefixRoute(
 			},
 		},
 		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders()),
-		TypedPerFilterConfig: map[string]*any.Any{
+		TypedPerFilterConfig: map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, 0)),
 		},
 	}
@@ -304,11 +303,11 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		return nil, err
 	}
 	if isFrontingAuthenticate {
-		route.TypedPerFilterConfig = map[string]*any.Any{
+		route.TypedPerFilterConfig = map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzDisabled(),
 		}
 	} else {
-		route.TypedPerFilterConfig = map[string]*any.Any{
+		route.TypedPerFilterConfig = map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(false, routeID)),
 		}
 		luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
@@ -396,18 +395,18 @@ func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *c
 	upgradeConfigs := []*envoy_config_route_v3.RouteAction_UpgradeConfig{
 		{
 			UpgradeType: "websocket",
-			Enabled:     &wrappers.BoolValue{Value: policy.AllowWebsockets},
+			Enabled:     &wrapperspb.BoolValue{Value: policy.AllowWebsockets},
 		},
 		{
 			UpgradeType: "spdy/3.1",
-			Enabled:     &wrappers.BoolValue{Value: policy.AllowSPDY},
+			Enabled:     &wrapperspb.BoolValue{Value: policy.AllowSPDY},
 		},
 	}
 
 	if policy.IsTCP() {
 		upgradeConfigs = append(upgradeConfigs, &envoy_config_route_v3.RouteAction_UpgradeConfig{
 			UpgradeType:   "CONNECT",
-			Enabled:       &wrappers.BoolValue{Value: true},
+			Enabled:       &wrapperspb.BoolValue{Value: true},
 			ConnectConfig: &envoy_config_route_v3.RouteAction_UpgradeConfig_ConnectConfig{},
 		})
 	}
@@ -417,7 +416,7 @@ func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *c
 		},
 		UpgradeConfigs: upgradeConfigs,
 		HostRewriteSpecifier: &envoy_config_route_v3.RouteAction_AutoHostRewrite{
-			AutoHostRewrite: &wrappers.BoolValue{Value: !policy.PreserveHostHeader},
+			AutoHostRewrite: &wrapperspb.BoolValue{Value: !policy.PreserveHostHeader},
 		},
 		Timeout:       routeTimeout,
 		IdleTimeout:   idleTimeout,

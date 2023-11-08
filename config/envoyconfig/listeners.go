@@ -17,7 +17,6 @@ import (
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
-	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
@@ -26,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sets"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -49,6 +49,9 @@ func (b *Builder) BuildListeners(
 	cfg *config.Config,
 	fullyStatic bool,
 ) ([]*envoy_config_listener_v3.Listener, error) {
+	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildListeners")
+	defer span.End()
+
 	var listeners []*envoy_config_listener_v3.Listener
 
 	if config.IsAuthenticate(cfg.Options.Services) || config.IsProxy(cfg.Options.Services) {
@@ -297,7 +300,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 			Provider:       tracingProvider,
 		},
 		// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-for
-		UseRemoteAddress:  &wrappers.BoolValue{Value: true},
+		UseRemoteAddress:  &wrapperspb.BoolValue{Value: true},
 		SkipXffAppend:     cfg.Options.SkipXffAppend,
 		XffNumTrustedHops: cfg.Options.XffNumTrustedHops,
 		LocalReplyConfig:  b.buildLocalReplyConfig(cfg.Options),
@@ -485,7 +488,7 @@ func (b *Builder) buildRouteConfiguration(name string, virtualHosts []*envoy_con
 		Name:         name,
 		VirtualHosts: virtualHosts,
 		// disable cluster validation since the order of LDS/CDS updates isn't guaranteed
-		ValidateClusters: &wrappers.BoolValue{Value: false},
+		ValidateClusters: &wrapperspb.BoolValue{Value: false},
 	}, nil
 }
 
@@ -567,8 +570,7 @@ func (b *Builder) buildDownstreamValidationContext(
 	if cfg.Options.DownstreamMTLS.GetEnforcement() == config.MTLSEnforcementRejectConnection {
 		dtc.RequireClientCertificate = wrapperspb.Bool(true)
 	} else {
-		vc.TrustChainVerification =
-			envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_ACCEPT_UNTRUSTED
+		vc.TrustChainVerification = envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_ACCEPT_UNTRUSTED
 	}
 
 	if crl := cfg.Options.DownstreamMTLS.CRL; crl != "" {
@@ -582,10 +584,9 @@ func (b *Builder) buildDownstreamValidationContext(
 		vc.Crl = b.filemgr.FileDataSource(crlf)
 	}
 
-	dtc.CommonTlsContext.ValidationContextType =
-		&envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
-			ValidationContext: vc,
-		}
+	dtc.CommonTlsContext.ValidationContextType = &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
+		ValidationContext: vc,
+	}
 }
 
 // clientCABundle returns a bundle of the globally configured client CA and any

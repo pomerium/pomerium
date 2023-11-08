@@ -23,7 +23,7 @@ import (
 func Test_buildPolicyTransportSocket(t *testing.T) {
 	ctx := context.Background()
 	cacheDir, _ := os.UserCacheDir()
-	customCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "custom-ca-32484c314b584447463735303142374c31414145374650305a525539554938594d524855353757313942494d473847535231.pem")
+	customCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "custom-ca-57394a4e5157303436544830.pem")
 
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
 	rootCABytes, _ := getCombinedCertificateAuthority(&config.Config{Options: &config.Options{}})
@@ -406,10 +406,10 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 						},
 						"tlsCertificates": [{
 							"certificateChain":{
-								"filename": "`+filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-354e49305a5a39414a545530374e58454e48334148524c4e324258463837364355564c4e4532464b54355139495547514a38.pem")+`"
+								"filename": "`+filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-32375a484d4f49594c4d374830.pem")+`"
 							},
 							"privateKey": {
-								"filename": "`+filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3350415a38414e4e4a4655424e55393430474147324651433949384e485341334b5157364f424b4c5856365a545937383735.pem")+`"
+								"filename": "`+filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-33393156483053584631414836.pem")+`"
 							}
 						}],
 						"validationContext": {

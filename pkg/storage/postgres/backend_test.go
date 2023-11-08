@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
+	"github.com/pomerium/pomerium/pkg/storage/storagetest"
 )
 
 const maxWait = time.Minute * 10
@@ -186,6 +187,10 @@ func TestBackend(t *testing.T) {
 			types, err := backend.ListTypes(ctx)
 			assert.NoError(t, err)
 			assert.Equal(t, []string{"capacity-test", "latest-test", "sync-test", "test-1", "unknown"}, types)
+		})
+
+		t.Run("patch", func(t *testing.T) {
+			storagetest.TestBackendPatch(t, ctx, backend)
 		})
 
 		return nil

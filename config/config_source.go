@@ -2,44 +2,47 @@ package config
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
+	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/netutil"
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 // A ChangeListener is called when configuration changes.
 type ChangeListener = func(context.Context, *Config)
 
+type changeDispatcherEvent struct {
+	cfg *Config
+}
+
 // A ChangeDispatcher manages listeners on config changes.
 type ChangeDispatcher struct {
-	sync.Mutex
-	onConfigChangeListeners []ChangeListener
+	target events.Target[changeDispatcherEvent]
 }
 
 // Trigger triggers a change.
 func (dispatcher *ChangeDispatcher) Trigger(ctx context.Context, cfg *Config) {
-	dispatcher.Lock()
-	defer dispatcher.Unlock()
-
-	for _, li := range dispatcher.onConfigChangeListeners {
-		li(ctx, cfg)
-	}
+	dispatcher.target.Dispatch(ctx, changeDispatcherEvent{
+		cfg: cfg,
+	})
 }
 
 // OnConfigChange adds a listener.
 func (dispatcher *ChangeDispatcher) OnConfigChange(_ context.Context, li ChangeListener) {
-	dispatcher.Lock()
-	defer dispatcher.Unlock()
-	dispatcher.onConfigChangeListeners = append(dispatcher.onConfigChangeListeners, li)
+	dispatcher.target.AddListener(func(ctx context.Context, evt changeDispatcherEvent) {
+		li(ctx, evt.cfg)
+	})
 }
 
 // A Source gets configuration.
@@ -130,7 +133,9 @@ func NewFileOrEnvironmentSource(
 		watcher:    fileutil.NewWatcher(),
 		config:     cfg,
 	}
-	src.watcher.Add(configFile)
+	if configFile != "" {
+		src.watcher.Watch(ctx, []string{configFile})
+	}
 	ch := src.watcher.Bind()
 	go func() {
 		for range ch {
@@ -160,6 +165,8 @@ func (src *FileOrEnvironmentSource) check(ctx context.Context) {
 	src.config = cfg
 	src.mu.Unlock()
 
+	log.Info(ctx).Msg("config: loaded configuration")
+
 	src.Trigger(ctx, cfg)
 }
 
@@ -176,29 +183,32 @@ type FileWatcherSource struct {
 	underlying Source
 	watcher    *fileutil.Watcher
 
-	mu             sync.RWMutex
-	computedConfig *Config
+	mu   sync.RWMutex
+	hash uint64
+	cfg  *Config
 
 	ChangeDispatcher
 }
 
 // NewFileWatcherSource creates a new FileWatcherSource
-func NewFileWatcherSource(underlying Source) *FileWatcherSource {
+func NewFileWatcherSource(ctx context.Context, underlying Source) *FileWatcherSource {
+	cfg := underlying.GetConfig()
 	src := &FileWatcherSource{
 		underlying: underlying,
 		watcher:    fileutil.NewWatcher(),
+		cfg:        cfg,
 	}
 
 	ch := src.watcher.Bind()
 	go func() {
 		for range ch {
-			src.check(context.TODO(), underlying.GetConfig())
+			src.onFileChange(ctx)
 		}
 	}()
-	underlying.OnConfigChange(context.TODO(), func(ctx context.Context, cfg *Config) {
-		src.check(ctx, cfg)
+	underlying.OnConfigChange(ctx, func(ctx context.Context, cfg *Config) {
+		src.onConfigChange(ctx, cfg)
 	})
-	src.check(context.TODO(), underlying.GetConfig())
+	src.onConfigChange(ctx, cfg)
 
 	return src
 }
@@ -207,20 +217,56 @@ func NewFileWatcherSource(underlying Source) *FileWatcherSource {
 func (src *FileWatcherSource) GetConfig() *Config {
 	src.mu.RLock()
 	defer src.mu.RUnlock()
-	return src.computedConfig
+
+	return src.cfg
 }
 
-func (src *FileWatcherSource) check(ctx context.Context, cfg *Config) {
-	if cfg == nil || cfg.Options == nil {
-		return
-	}
+func (src *FileWatcherSource) onConfigChange(ctx context.Context, cfg *Config) {
+	// update the file watcher with paths from the config
+	src.watcher.Watch(ctx, getAllConfigFilePaths(cfg))
 
 	src.mu.Lock()
 	defer src.mu.Unlock()
 
-	src.watcher.Clear()
+	// store the config and trigger an update
+	src.cfg = cfg.Clone()
+	src.hash = getAllConfigFilePathsHash(src.cfg)
+	log.Info(ctx).Uint64("hash", src.hash).Msg("config/filewatchersource: underlying config change, triggering update")
+	src.Trigger(ctx, src.cfg)
+}
 
-	h := sha256.New()
+func (src *FileWatcherSource) onFileChange(ctx context.Context) {
+	src.mu.Lock()
+	defer src.mu.Unlock()
+
+	hash := getAllConfigFilePathsHash(src.cfg)
+
+	if hash == src.hash {
+		log.Info(ctx).Uint64("hash", src.hash).Msg("config/filewatchersource: no change detected")
+	} else {
+		// if the hash changed, trigger an update
+		// the actual config will be identical
+		src.hash = hash
+		log.Info(ctx).Uint64("hash", src.hash).Msg("config/filewatchersource: change detected, triggering update")
+		src.Trigger(ctx, src.cfg)
+	}
+}
+
+func getAllConfigFilePathsHash(cfg *Config) uint64 {
+	// read all the config files and build a hash from their contents
+	h := xxhash.New()
+	for _, f := range getAllConfigFilePaths(cfg) {
+		_, _ = h.Write([]byte{0})
+		f, err := os.Open(f)
+		if err == nil {
+			_, _ = io.Copy(h, f)
+			_ = f.Close()
+		}
+	}
+	return h.Sum64()
+}
+
+func getAllConfigFilePaths(cfg *Config) []string {
 	fs := []string{
 		cfg.Options.CAFile,
 		cfg.Options.CertFile,
@@ -255,18 +301,9 @@ func (src *FileWatcherSource) check(ctx context.Context, cfg *Config) {
 		)
 	}
 
-	for _, f := range fs {
-		_, _ = h.Write([]byte{0})
-		bs, err := os.ReadFile(f)
-		if err == nil {
-			src.watcher.Add(f)
-			_, _ = h.Write(bs)
-		}
-	}
+	fs = slices.Filter(fs, func(s string) bool {
+		return s != ""
+	})
 
-	// update the computed config
-	src.computedConfig = cfg.Clone()
-
-	// trigger a change
-	src.Trigger(ctx, src.computedConfig)
+	return fs
 }

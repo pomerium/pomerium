@@ -2,11 +2,13 @@ package authorize
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -158,13 +160,12 @@ func (tracker *AccessTracker) updateSession(
 	ctx, clearTimeout := context.WithTimeout(ctx, accessTrackerUpdateTimeout)
 	defer clearTimeout()
 
-	s, err := session.Get(ctx, client, sessionID)
-	if status.Code(err) == codes.NotFound {
-		return nil
-	} else if err != nil {
-		return err
+	s := &session.Session{Id: sessionID, AccessedAt: timestamppb.Now()}
+	m, err := fieldmaskpb.New(s, "accessed_at")
+	if err != nil {
+		return fmt.Errorf("internal error: %w", err)
 	}
-	s.AccessedAt = timestamppb.Now()
-	_, err = session.Put(ctx, client, s)
+
+	_, err = session.Patch(ctx, client, s, m)
 	return err
 }
