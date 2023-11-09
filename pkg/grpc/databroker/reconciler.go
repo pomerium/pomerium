@@ -17,6 +17,7 @@ type Reconciler struct {
 	name                string
 	client              DataBrokerServiceClient
 	currentStateBuilder StateBuilderFn
+	cmpFn               RecordCompareFn
 	targetStateBuilder  StateBuilderFn
 	setCurrentState     func([]*Record)
 	trigger             chan struct{}
@@ -58,6 +59,7 @@ func NewReconciler(
 	currentStateBuilder StateBuilderFn,
 	targetStateBuilder StateBuilderFn,
 	setCurrentState func([]*Record),
+	cmpFn RecordCompareFn,
 	opts ...ReconcilerOption,
 ) *Reconciler {
 	return &Reconciler{
@@ -68,6 +70,7 @@ func NewReconciler(
 		currentStateBuilder: currentStateBuilder,
 		targetStateBuilder:  targetStateBuilder,
 		setCurrentState:     setCurrentState,
+		cmpFn:               cmpFn,
 	}
 }
 
@@ -119,7 +122,7 @@ func (r *Reconciler) reconcile(ctx context.Context) error {
 		return fmt.Errorf("get config record sets: %w", err)
 	}
 
-	updates := GetChangeSet(current, target)
+	updates := GetChangeSet(current, target, r.cmpFn)
 
 	err = r.applyChanges(ctx, updates)
 	if err != nil {

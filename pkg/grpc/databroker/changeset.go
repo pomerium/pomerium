@@ -9,13 +9,13 @@ import (
 
 // GetChangeSet returns list of changes between the current and target record sets,
 // that may be applied to the databroker to bring it to the target state.
-func GetChangeSet(current, target RecordSetBundle) []*Record {
+func GetChangeSet(current, target RecordSetBundle, cmpFn RecordCompareFn) []*Record {
 	cs := &changeSet{now: timestamppb.Now()}
 
 	for _, rec := range current.GetRemoved(target).Flatten() {
 		cs.Remove(rec.GetType(), rec.GetId())
 	}
-	for _, rec := range current.GetModified(target).Flatten() {
+	for _, rec := range current.GetModified(target, cmpFn).Flatten() {
 		cs.Upsert(rec)
 	}
 	for _, rec := range current.GetAdded(target).Flatten() {
