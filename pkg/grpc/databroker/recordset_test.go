@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -17,6 +18,10 @@ func TestRecords(t *testing.T) {
 			Type: typ,
 			Data: protoutil.NewAnyString(val),
 		}
+	}
+
+	cmpFn := func(a, b *databroker.Record) bool {
+		return proto.Equal(a, b)
 	}
 
 	initial := make(databroker.RecordSetBundle)
@@ -68,7 +73,7 @@ func TestRecords(t *testing.T) {
 		},
 	})
 
-	modified := initial.GetModified(updated)
+	modified := initial.GetModified(updated, cmpFn)
 	equalJSON(modified, databroker.RecordSetBundle{
 		"a": databroker.RecordSet{
 			"1": tr("1", "a", "a-1-1"),
