@@ -2,7 +2,6 @@ package databroker
 
 import (
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
 // RecordSetBundle is an index of databroker records by type
@@ -10,6 +9,9 @@ type RecordSetBundle map[string]RecordSet
 
 // RecordSet is an index of databroker records by their id.
 type RecordSet map[string]*Record
+
+// RecordCompareFn is a function that compares two records.
+type RecordCompareFn func(record1, record2 *Record) bool
 
 // RecordTypes returns the types of records in the bundle.
 func (rsb RecordSetBundle) RecordTypes() []string {
@@ -53,14 +55,14 @@ func (rsb RecordSetBundle) GetRemoved(other RecordSetBundle) RecordSetBundle {
 }
 
 // GetModified returns the records that are in both rs and other but have different data.
-func (rsb RecordSetBundle) GetModified(other RecordSetBundle) RecordSetBundle {
+func (rsb RecordSetBundle) GetModified(other RecordSetBundle, cmpFn RecordCompareFn) RecordSetBundle {
 	modified := make(RecordSetBundle)
 	for otherType, otherRS := range other {
 		rs, ok := rsb[otherType]
 		if !ok {
 			continue
 		}
-		m := rs.GetModified(otherRS)
+		m := rs.GetModified(otherRS, cmpFn)
 		if len(m) > 0 {
 			modified[otherType] = m
 		}
@@ -86,7 +88,7 @@ func (rs RecordSet) GetRemoved(other RecordSet) RecordSet {
 
 // GetModified returns the records that are in both rs and other but have different data.
 // by comparing the protobuf bytes of the payload.
-func (rs RecordSet) GetModified(other RecordSet) RecordSet {
+func (rs RecordSet) GetModified(other RecordSet, cmpFn RecordCompareFn) RecordSet {
 	modified := make(RecordSet)
 	for id, record := range other {
 		otherRecord, ok := rs[id]
@@ -94,7 +96,7 @@ func (rs RecordSet) GetModified(other RecordSet) RecordSet {
 			continue
 		}
 
-		if !proto.Equal(record, otherRecord) {
+		if !cmpFn(record, otherRecord) {
 			modified[id] = record
 		}
 	}
