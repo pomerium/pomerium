@@ -48,9 +48,6 @@ func TestDelete(t *testing.T) {
 func TestGet(t *testing.T) {
 	t.Parallel()
 
-	ctrl := gomock.NewController(t)
-	client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
-
 	ctx := context.Background()
 
 	t.Run("ok", func(t *testing.T) {
@@ -60,6 +57,8 @@ func TestGet(t *testing.T) {
 			Id:     "session-id",
 			UserId: "user-id",
 		}
+		ctrl := gomock.NewController(t)
+		client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 		client.EXPECT().Get(ctx, gomock.Any(), []grpc.CallOption{}).DoAndReturn(
 			func(_ context.Context, r *databroker.GetRequest, _ ...grpc.CallOption) (*databroker.GetResponse, error) {
 				assert.Equal(t, "type.googleapis.com/session.Session", r.Type)
@@ -77,6 +76,8 @@ func TestGet(t *testing.T) {
 		t.Parallel()
 
 		rpcErr := status.Error(codes.Unavailable, "dummy error for testing")
+		ctrl := gomock.NewController(t)
+		client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 		client.EXPECT().Get(ctx, gomock.Any(), []grpc.CallOption{}).DoAndReturn(
 			func(_ context.Context, r *databroker.GetRequest, _ ...grpc.CallOption) (*databroker.GetResponse, error) {
 				assert.Equal(t, "type.googleapis.com/session.Session", r.Type)
@@ -91,6 +92,8 @@ func TestGet(t *testing.T) {
 	t.Run("unmarshal error", func(t *testing.T) {
 		t.Parallel()
 
+		ctrl := gomock.NewController(t)
+		client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
 		client.EXPECT().Get(ctx, gomock.Any(), []grpc.CallOption{}).DoAndReturn(
 			func(_ context.Context, r *databroker.GetRequest, _ ...grpc.CallOption) (*databroker.GetResponse, error) {
 				assert.Equal(t, "type.googleapis.com/session.Session", r.Type)
