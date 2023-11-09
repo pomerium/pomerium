@@ -127,6 +127,7 @@ func (src *ConfigSource) buildNewConfigLocked(ctx context.Context, cfg *config.C
 	var policyBuilders []errgrouputil.BuilderFunc[config.Policy]
 	for _, cfgpb := range src.dbConfigs {
 		for _, routepb := range cfgpb.GetRoutes() {
+			routepb := routepb
 			policyBuilders = append(policyBuilders, func(ctx context.Context) (*config.Policy, error) {
 				p, err := src.buildPolicyFromProto(ctx, routepb)
 				if err != nil {
