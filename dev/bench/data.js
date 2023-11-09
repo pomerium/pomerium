@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699548724707,
+  "lastUpdate": 1699548902926,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -80044,6 +80044,42 @@ window.BENCHMARK_DATA = {
             "value": 6640412,
             "unit": "ns/op",
             "extra": "181 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bf1cd0aa183e9ac423401efb2285f49c921ed926",
+          "message": "authorize: build evaluators cache in parallel (#4722)\n\n* authorize: build evaluators cache in parallel\r\n\r\n* session: add unit tests for gRPC wrapper methods (#4713)\r\n\r\n* core/config: add support for maps in environments (#4717)\r\n\r\n* reconciler: allow custom comparison function (#4726)\r\n\r\n* add loopvar alias\r\n\r\n---------\r\n\r\nCo-authored-by: Kenneth Jenkins <51246568+kenjenkins@users.noreply.github.com>\r\nCo-authored-by: Caleb Doxsey <cdoxsey@pomerium.com>",
+          "timestamp": "2023-11-09T11:49:34-05:00",
+          "tree_id": "c4865781ceb75d0613de34d922fa16d4467124a0",
+          "url": "https://github.com/pomerium/pomerium/commit/bf1cd0aa183e9ac423401efb2285f49c921ed926"
+        },
+        "date": 1699548893598,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 16391698,
+            "unit": "ns/op",
+            "extra": "64 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 9805855,
+            "unit": "ns/op",
+            "extra": "116 times\n2 procs"
           }
         ]
       }
