@@ -1261,6 +1261,15 @@ func TestOptions_RequestParams(t *testing.T) {
 	}
 }
 
+func TestOptions_RequestParamsFromEnv(t *testing.T) {
+	t.Setenv("IDP_REQUEST_PARAMS", `{"x":"y"}`)
+
+	options, err := newOptionsFromConfig("")
+	if assert.NoError(t, err) {
+		assert.Equal(t, map[string]string{"x": "y"}, options.RequestParams)
+	}
+}
+
 func encodeCert(cert *tls.Certificate) []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Certificate[0]})
 }
