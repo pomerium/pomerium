@@ -1,13 +1,21 @@
-function remove_pomerium_cookie(cookie_name, cookie)
-    -- lua doesn't support optional capture groups
-    -- so we replace twice to handle pomerium=xyz at the end of the string
-    cookie = cookie:gsub(cookie_name .. "=[^;]+; ", "")
-    cookie = cookie:gsub(cookie_name .. "=[^;]+", "")
-    return cookie
-end
-
 function has_prefix(str, prefix)
     return str ~= nil and str:sub(1, #prefix) == prefix
+end
+
+function remove_pomerium_cookie(cookie_name, cookie)
+    local result = ""
+    for c in cookie:gmatch("([^;]+)") do
+        c = c:gsub("^ +","")
+        local name = c:match("^([^=]+)")
+        if name ~= cookie_name then
+            if string.len(result) > 0 then
+                result = result .. "; " .. c
+            else
+                result = result .. c
+            end
+        end
+    end
+    return result
 end
 
 function envoy_on_request(request_handle)
@@ -18,7 +26,7 @@ function envoy_on_request(request_handle)
     if remove_cookie_name then
         local cookie = headers:get("cookie")
         if cookie ~= nil then
-            newcookie = remove_pomerium_cookie(remove_cookie_name, cookie)
+            local newcookie = remove_pomerium_cookie(remove_cookie_name, cookie)
             headers:replace("cookie", newcookie)
         end
     end
