@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/go-jose/go-jose/v3"
 	"github.com/open-policy-agent/opa/rego"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/errgrouputil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -139,12 +141,20 @@ func New(
 	return e, nil
 }
 
+type routeEvaluator struct {
+	id        uint64
+	evaluator *PolicyEvaluator
+}
+
 func getOrCreatePolicyEvaluators(
 	ctx context.Context, cfg *evaluatorConfig, store *store.Store,
 	cachedPolicyEvaluators map[uint64]*PolicyEvaluator,
 ) (map[uint64]*PolicyEvaluator, error) {
-	var newCount, reusedCount int
+	now := time.Now()
+
+	var reusedCount int
 	m := make(map[uint64]*PolicyEvaluator)
+	var builders []errgrouputil.BuilderFunc[routeEvaluator]
 	for i := range cfg.Policies {
 		configPolicy := cfg.Policies[i]
 		id, err := configPolicy.RouteID()
@@ -157,15 +167,35 @@ func getOrCreatePolicyEvaluators(
 			reusedCount++
 			continue
 		}
-		policyEvaluator, err :=
-			NewPolicyEvaluator(ctx, store, &configPolicy, cfg.AddDefaultClientCertificateRule)
-		if err != nil {
-			return nil, err
-		}
-		m[id] = policyEvaluator
-		newCount++
+		builders = append(builders, func(ctx context.Context) (*routeEvaluator, error) {
+			evaluator, err := NewPolicyEvaluator(ctx, store, &configPolicy, cfg.AddDefaultClientCertificateRule)
+			if err != nil {
+				return nil, fmt.Errorf("authorize: error building evaluator for route id=%s: %w", configPolicy.ID, err)
+			}
+			return &routeEvaluator{
+				id:        id,
+				evaluator: evaluator,
+			}, nil
+		})
 	}
-	log.Info(ctx).Msgf("updated policy evaluators: %d created, %d reused", newCount, reusedCount)
+
+	evals, errs := errgrouputil.Build(ctx, builders...)
+	if len(errs) > 0 {
+		for _, err := range errs {
+			log.Error(ctx).Msg(err.Error())
+		}
+		return nil, fmt.Errorf("authorize: error building policy evaluators")
+	}
+
+	for _, p := range evals {
+		m[p.id] = p.evaluator
+	}
+
+	log.Info(ctx).
+		Dur("duration", time.Since(now)).
+		Int("reused-policies", reusedCount).
+		Int("created-policies", len(cfg.Policies)-reusedCount).
+		Msg("updated policy evaluators")
 	return m, nil
 }
 
