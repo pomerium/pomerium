@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699649347566,
+  "lastUpdate": 1699652377674,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -80348,6 +80348,38 @@ window.BENCHMARK_DATA = {
             "value": 8253368,
             "unit": "ns/op",
             "extra": "141 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "e19583b15f1e00eb3d7b1d731153eee1bfbc4316",
+          "message": "core/config: disable strict-transport-security header with staging autocert",
+          "timestamp": "2023-11-09T17:40:03Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4741/commits/e19583b15f1e00eb3d7b1d731153eee1bfbc4316"
+        },
+        "date": 1699652368625,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 18076765,
+            "unit": "ns/op",
+            "extra": "63 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 11112544,
+            "unit": "ns/op",
+            "extra": "98 times\n2 procs"
           }
         ]
       }
