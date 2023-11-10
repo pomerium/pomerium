@@ -126,13 +126,17 @@ func getNextChangedRecord(ctx context.Context, q querier, recordType string, aft
 		return nil, fmt.Errorf("error querying next changed record: %w", err)
 	}
 
-	a, err := protoutil.UnmarshalAnyJSON(data)
-	if isUnknownType(err) {
-		a = protoutil.ToAny(protoutil.ToStruct(map[string]string{
-			"id": recordID,
-		}))
-	} else if err != nil {
-		return nil, fmt.Errorf("error unmarshaling changed record data: %w", err)
+	// data may be nil if a record is deleted
+	var a *anypb.Any
+	if len(data) != 0 {
+		a, err = protoutil.UnmarshalAnyJSON(data)
+		if isUnknownType(err) {
+			a = protoutil.ToAny(protoutil.ToStruct(map[string]string{
+				"id": recordID,
+			}))
+		} else if err != nil {
+			return nil, fmt.Errorf("error unmarshaling changed record data: %w", err)
+		}
 	}
 
 	return &databroker.Record{
