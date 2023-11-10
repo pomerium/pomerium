@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -37,6 +38,7 @@ func (cs *changeSet) Remove(typ string, id string) {
 		Type:      typ,
 		Id:        id,
 		DeletedAt: cs.now,
+		Data:      &anypb.Any{TypeUrl: typ},
 	})
 }
 
