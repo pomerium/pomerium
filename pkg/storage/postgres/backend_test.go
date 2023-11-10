@@ -51,18 +51,20 @@ func TestBackend(t *testing.T) {
 		})
 
 		t.Run("delete", func(t *testing.T) {
-			serverVersion, err := backend.Put(ctx, []*databroker.Record{
-				{
-					Type: "test-1",
-					Id:   "r3",
-					Data: protoutil.NewAny(protoutil.NewStructMap(map[string]*structpb.Value{
-						"k1": protoutil.NewStructString("v1"),
-					})),
-					DeletedAt: timestamppb.Now(),
-				},
-			})
+			serverVersion, err := backend.Put(ctx, []*databroker.Record{{
+				Type:      "test-1",
+				Id:        "r3",
+				DeletedAt: timestamppb.Now(),
+			}})
 			assert.NotEqual(t, 0, serverVersion)
 			assert.NoError(t, err)
+
+			stream, err := backend.Sync(ctx, "test-1", serverVersion, 0)
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = stream.Close() })
+			records, err := storage.RecordStreamToList(stream)
+			require.NoError(t, err)
+			assert.NotEmpty(t, records)
 		})
 
 		t.Run("capacity", func(t *testing.T) {
