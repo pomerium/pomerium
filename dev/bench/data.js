@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699652377674,
+  "lastUpdate": 1699652917240,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -80380,6 +80380,38 @@ window.BENCHMARK_DATA = {
             "value": 11112544,
             "unit": "ns/op",
             "extra": "98 times\n2 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "698c4169d234f20c61f169d0aa8b6cf94b4368bc",
+          "message": "integration: add tool for renewing test certs",
+          "timestamp": "2023-11-09T17:40:03Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4742/commits/698c4169d234f20c61f169d0aa8b6cf94b4368bc"
+        },
+        "date": 1699652911835,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10380667,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6918393,
+            "unit": "ns/op",
+            "extra": "174 times\n4 procs"
           }
         ]
       }
