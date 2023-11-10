@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699649245973,
+  "lastUpdate": 1699649347566,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -80312,6 +80312,42 @@ window.BENCHMARK_DATA = {
             "value": 6702109,
             "unit": "ns/op",
             "extra": "169 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3ad72db2fb287bd3a4cf1fbf6ac4c59feaa01a6c",
+          "message": "integration: renew test certs (#4738)\n\nSeveral of the integration test certificates expired today. Update these \r\nso that they are valid for another 10 years. Also update several other\r\ncertificates that were due to expire tomorrow.",
+          "timestamp": "2023-11-10T12:44:03-08:00",
+          "tree_id": "7c0fe0dbf70573107198eaef49f6b0c5db0588c3",
+          "url": "https://github.com/pomerium/pomerium/commit/3ad72db2fb287bd3a4cf1fbf6ac4c59feaa01a6c"
+        },
+        "date": 1699649339482,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13521774,
+            "unit": "ns/op",
+            "extra": "87 times\n2 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8253368,
+            "unit": "ns/op",
+            "extra": "141 times\n2 procs"
           }
         ]
       }
