@@ -1155,7 +1155,7 @@ func (o *Options) GetSetResponseHeadersForPolicy(policy *Policy) map[string]stri
 			hdrs[k] = v
 		}
 
-		if !o.HasCertificates() {
+		if !o.HasCertificates() || o.AutocertOptions.UseStaging {
 			delete(hdrs, "Strict-Transport-Security")
 		}
 	}

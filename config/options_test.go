@@ -979,6 +979,15 @@ func TestOptions_GetSetResponseHeaders(t *testing.T) {
 			"X-XSS-Protection":          "1; mode=block",
 		}, options.GetSetResponseHeaders())
 	})
+	t.Run("autocert-staging", func(t *testing.T) {
+		options := NewDefaultOptions()
+		options.Cert = "CERT"
+		options.AutocertOptions.UseStaging = true
+		assert.Equal(t, map[string]string{
+			"X-Frame-Options":  "SAMEORIGIN",
+			"X-XSS-Protection": "1; mode=block",
+		}, options.GetSetResponseHeaders())
+	})
 	t.Run("disable", func(t *testing.T) {
 		options := NewDefaultOptions()
 		options.SetResponseHeaders = map[string]string{DisableHeaderKey: "1", "x-other": "xyz"}
