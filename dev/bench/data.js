@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699892701527,
+  "lastUpdate": 1699894822522,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -80448,6 +80448,42 @@ window.BENCHMARK_DATA = {
             "value": 7491933,
             "unit": "ns/op",
             "extra": "169 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0d2940119221b7876fda516f9fe5e3b7061fb890",
+          "message": "integration: add tool for renewing test certs (#4742)\n\nAdd a utility for updating the integration test certificates. It takes\r\nthree file paths: the existing certificate, the CA certificate, and the\r\nCA key. It will update the NotBefore and NotAfter timestamps and the\r\ncertificate signature, overwriting the existing certificate.\r\n\r\nExample usage:\r\n\r\n  cd integration/tpl/files\r\n  go run renew-cert.go trusted.pem ca.pem ca-key.pem",
+          "timestamp": "2023-11-13T08:57:02-08:00",
+          "tree_id": "8483f09b9943961d57786afe3c5d899509e12dc2",
+          "url": "https://github.com/pomerium/pomerium/commit/0d2940119221b7876fda516f9fe5e3b7061fb890"
+        },
+        "date": 1699894816346,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11102869,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6970318,
+            "unit": "ns/op",
+            "extra": "172 times\n4 procs"
           }
         ]
       }
