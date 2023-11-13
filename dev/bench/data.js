@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1699652917240,
+  "lastUpdate": 1699892701527,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -80412,6 +80412,42 @@ window.BENCHMARK_DATA = {
             "value": 6918393,
             "unit": "ns/op",
             "extra": "174 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cfc339548fcdebcb44c2bca9d1cd5c3893e94a51",
+          "message": "core/config: disable strict-transport-security header with staging autocert (#4741)",
+          "timestamp": "2023-11-13T09:21:44-07:00",
+          "tree_id": "70f303105b0151ed4473dfecb6d871beb88c284d",
+          "url": "https://github.com/pomerium/pomerium/commit/cfc339548fcdebcb44c2bca9d1cd5c3893e94a51"
+        },
+        "date": 1699892695969,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11799025,
+            "unit": "ns/op",
+            "extra": "88 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7491933,
+            "unit": "ns/op",
+            "extra": "169 times\n4 procs"
           }
         ]
       }
