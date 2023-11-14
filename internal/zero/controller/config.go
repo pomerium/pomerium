@@ -72,7 +72,6 @@ func newControllerConfig(opts ...Option) *controllerConfig {
 	for _, opt := range []Option{
 		WithClusterAPIEndpoint("https://console.pomerium.com/cluster/v1"),
 		WithConnectAPIEndpoint("https://connect.pomerium.com"),
-		WithBootstrapConfigFileName("/var/cache/pomerium-bootstrap.dat"),
 		WithDatabrokerLeaseDuration(time.Second * 30),
 		WithDatabrokerRequestTimeout(time.Second * 30),
 	} {

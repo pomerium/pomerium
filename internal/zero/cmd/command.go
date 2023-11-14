@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/mattn/go-isatty"
@@ -28,11 +29,17 @@ func Run(ctx context.Context) error {
 		return errors.New("no token provided")
 	}
 
+	bootstrapConfigFileName, err := getBootstrapConfigFileName()
+	if err != nil {
+		return fmt.Errorf("error getting bootstrap config path: %w", err)
+	}
+
 	return controller.Run(
 		withInterrupt(ctx),
 		controller.WithAPIToken(token),
 		controller.WithClusterAPIEndpoint(getClusterAPIEndpoint()),
 		controller.WithConnectAPIEndpoint(getConnectAPIEndpoint()),
+		controller.WithBootstrapConfigFileName(bootstrapConfigFileName),
 	)
 }
 
@@ -80,4 +87,18 @@ func setupLogger() error {
 	// set the default context logger
 	zerolog.DefaultContextLogger = &log.Logger
 	return nil
+}
+
+func getBootstrapConfigFileName() (string, error) {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+
+	dir := filepath.Join(cacheDir, "pomerium")
+	if err := os.MkdirAll(dir, 0644); err != nil {
+		return "", err
+	}
+
+	return filepath.Join(dir, "bootstrap.dat"), nil
 }
