@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1700085753773,
+  "lastUpdate": 1700085997908,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -81128,6 +81128,42 @@ window.BENCHMARK_DATA = {
             "value": 6558781,
             "unit": "ns/op",
             "extra": "181 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "59bd8b3dfa4f2e55da477d9e8d8a91f1924287cf",
+          "message": "zero/reconciler: fix restart behavior (#4753)\n\nCurrently the RunWithRestart() loop may not exit when execFn returns an\r\nerror unrelated to its context cancellation. Add an additional check for\r\nthis case.",
+          "timestamp": "2023-11-15T14:03:22-08:00",
+          "tree_id": "a01fdf66a39f6f70488d3f3230809ed77d89cb64",
+          "url": "https://github.com/pomerium/pomerium/commit/59bd8b3dfa4f2e55da477d9e8d8a91f1924287cf"
+        },
+        "date": 1700085992446,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11761189,
+            "unit": "ns/op",
+            "extra": "92 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7380504,
+            "unit": "ns/op",
+            "extra": "164 times\n4 procs"
           }
         ]
       }
