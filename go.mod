@@ -26,7 +26,7 @@ require (
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang/mock v1.6.0
 	github.com/google/btree v1.1.2
-	github.com/google/go-cmp v0.5.9
+	github.com/google/go-cmp v0.6.0
 	github.com/google/go-jsonnet v0.20.0
 	github.com/google/uuid v1.3.1
 	github.com/gorilla/mux v1.8.0
@@ -57,7 +57,7 @@ require (
 	github.com/prometheus/procfs v0.12.0
 	github.com/rs/cors v1.10.1
 	github.com/rs/zerolog v1.31.0
-	github.com/shirou/gopsutil/v3 v3.23.9
+	github.com/shirou/gopsutil/v3 v3.23.10
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f
