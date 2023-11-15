@@ -2,14 +2,15 @@ package reconciler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 )
 
 // RunWithRestart executes execFn.
-// The execution would be restarted, by means of canceling the context provided to execFn, each time restartFn quits.
+// The execution would be restarted, by means of canceling the context provided to execFn, each time restartFn returns.
 // the error returned by restartFn is purely informational and does not affect the execution; may be nil.
-// the loop is stopped when the context provided to RunWithRestart is canceled or a genuine error is returned by execFn, not caused by the context.
+// the loop is stopped when the context provided to RunWithRestart is canceled or execFn returns an error unrelated to its context cancellation.
 func RunWithRestart(
 	ctx context.Context,
 	execFn func(context.Context) error,
@@ -64,7 +65,7 @@ func restartWithContext(
 	var err error
 	for ctx := range contexts {
 		err = execFn(ctx)
-		if ctx.Err() == nil {
+		if ctx.Err() == nil || !errors.Is(err, ctx.Err()) {
 			return err
 		}
 	}
