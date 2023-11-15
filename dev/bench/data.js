@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1700084389661,
+  "lastUpdate": 1700085753773,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -81094,6 +81094,38 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 6774537,
+            "unit": "ns/op",
+            "extra": "181 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "928fc12ff3d476ccf99d8b0250d1d56c11b7ee9e",
+          "message": "zero: use os.UserCacheDir for boostrap config path",
+          "timestamp": "2023-11-15T12:00:13Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4744/commits/928fc12ff3d476ccf99d8b0250d1d56c11b7ee9e"
+        },
+        "date": 1700085748302,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10453526,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6558781,
             "unit": "ns/op",
             "extra": "181 times\n4 procs"
           }
