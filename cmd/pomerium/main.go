@@ -32,8 +32,8 @@ func main() {
 
 	ctx := context.Background()
 	runFn := run
-	if zero_cmd.IsManagedMode() {
-		runFn = zero_cmd.Run
+	if zero_cmd.IsManagedMode(*configFile) {
+		runFn = func(ctx context.Context) error { return zero_cmd.Run(ctx, *configFile) }
 	}
 
 	if err := runFn(ctx); err != nil && !errors.Is(err, context.Canceled) {

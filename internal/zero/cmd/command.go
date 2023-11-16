@@ -17,13 +17,13 @@ import (
 )
 
 // Run runs the pomerium zero command.
-func Run(ctx context.Context) error {
+func Run(ctx context.Context, configFile string) error {
 	err := setupLogger()
 	if err != nil {
 		return fmt.Errorf("error setting up logger: %w", err)
 	}
 
-	token := getToken()
+	token := getToken(configFile)
 	if token == "" {
 		return errors.New("no token provided")
 	}
@@ -37,8 +37,8 @@ func Run(ctx context.Context) error {
 }
 
 // IsManagedMode returns true if Pomerium should start in managed mode using this command.
-func IsManagedMode() bool {
-	return getToken() != ""
+func IsManagedMode(configFile string) bool {
+	return getToken(configFile) != ""
 }
 
 func withInterrupt(ctx context.Context) context.Context {
