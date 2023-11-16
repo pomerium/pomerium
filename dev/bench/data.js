@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1700159980696,
+  "lastUpdate": 1700164143336,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -81264,6 +81264,38 @@ window.BENCHMARK_DATA = {
             "value": 6945400,
             "unit": "ns/op",
             "extra": "168 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "78f2793d38bb6384a6abfe50900307de20ec20fb",
+          "message": "core/zero: add support for managed mode from config file",
+          "timestamp": "2023-11-15T12:00:13Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4756/commits/78f2793d38bb6384a6abfe50900307de20ec20fb"
+        },
+        "date": 1700164137236,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12089369,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6950754,
+            "unit": "ns/op",
+            "extra": "170 times\n4 procs"
           }
         ]
       }
