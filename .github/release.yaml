@@ -1,0 +1,28 @@
+changelog:
+  exclude:
+    labels:
+      - ci
+      - ignore-changelog
+  categories:
+    - title: Breaking
+      labels:
+        - breaking
+    - title: Security
+      labels:
+        - security
+    - title: New
+      labels:
+        - enhancement
+        - feature
+    - title: Fixes
+      labels:
+        - bug
+    - title: Changed
+      labels:
+        - "*"
+      exclude:
+        labels:
+          - dependencies
+    - title: Dependency Updates
+      labels:
+        - dependencies
