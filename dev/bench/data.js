@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1700164143336,
+  "lastUpdate": 1700237310011,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -81296,6 +81296,42 @@ window.BENCHMARK_DATA = {
             "value": 6950754,
             "unit": "ns/op",
             "extra": "170 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6810091d3897910ef447a377a6136c767e671ce0",
+          "message": "core/zero: add support for managed mode from config file (#4756)",
+          "timestamp": "2023-11-17T09:04:59-07:00",
+          "tree_id": "d67ce73031d8c030f3a16ba1f14f6cf719d36166",
+          "url": "https://github.com/pomerium/pomerium/commit/6810091d3897910ef447a377a6136c767e671ce0"
+        },
+        "date": 1700237303899,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10448182,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6682833,
+            "unit": "ns/op",
+            "extra": "176 times\n4 procs"
           }
         ]
       }
