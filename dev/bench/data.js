@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1700237310011,
+  "lastUpdate": 1700261251744,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -81330,6 +81330,42 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 6682833,
+            "unit": "ns/op",
+            "extra": "176 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "14b13bb791a6aca7829c81b39f3cc06822e4a90c",
+          "message": "zero: use os.UserCacheDir for boostrap config path (#4744)",
+          "timestamp": "2023-11-17T14:44:32-08:00",
+          "tree_id": "486d204bbbaac9fd0c638e34c0176f2eed3781fe",
+          "url": "https://github.com/pomerium/pomerium/commit/14b13bb791a6aca7829c81b39f3cc06822e4a90c"
+        },
+        "date": 1700261246388,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10937845,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6901277,
             "unit": "ns/op",
             "extra": "176 times\n4 procs"
           }
