@@ -3,10 +3,11 @@ package proxy
 import (
 	"context"
 	"crypto/cipher"
-	"fmt"
+	"net/http"
 	"net/url"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/sessions"
@@ -14,10 +15,14 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
+
+type authenticateFlow interface {
+	AuthenticateSignInURL(ctx context.Context, queryParams url.Values, redirectURL *url.URL, idpID string) (string, error)
+	Callback(w http.ResponseWriter, r *http.Request) error
+}
 
 type proxyState struct {
 	sharedKey    []byte
@@ -28,16 +33,16 @@ type proxyState struct {
 	authenticateSigninURL    *url.URL
 	authenticateRefreshURL   *url.URL
 
-	encoder                encoding.MarshalUnmarshaler
-	cookieSecret           []byte
-	sessionStore           sessions.SessionStore
-	jwtClaimHeaders        config.JWTClaimHeaders
-	hpkePrivateKey         *hpke.PrivateKey
-	authenticateKeyFetcher hpke.KeyFetcher
+	encoder         encoding.MarshalUnmarshaler
+	cookieSecret    []byte
+	sessionStore    sessions.SessionStore
+	jwtClaimHeaders config.JWTClaimHeaders
 
 	dataBrokerClient databroker.DataBrokerServiceClient
 
 	programmaticRedirectDomainWhitelist []string
+
+	authenticateFlow authenticateFlow
 }
 
 func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
@@ -51,16 +56,6 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	state.sharedKey, err = cfg.Options.GetSharedKey()
 	if err != nil {
 		return nil, err
-	}
-
-	state.hpkePrivateKey, err = cfg.Options.GetHPKEPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-
-	state.authenticateKeyFetcher, err = cfg.GetAuthenticateKeyFetcher()
-	if err != nil {
-		return nil, fmt.Errorf("authorize: get authenticate JWKS key fetcher: %w", err)
 	}
 
 	state.sharedCipher, err = cryptutil.NewAEADCipher(state.sharedKey)
@@ -118,6 +113,12 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	state.dataBrokerClient = databroker.NewDataBrokerServiceClient(dataBrokerConn)
 
 	state.programmaticRedirectDomainWhitelist = cfg.Options.ProgrammaticRedirectDomainWhitelist
+
+	state.authenticateFlow, err = authenticateflow.NewStateless(
+		cfg, state.sessionStore, nil, nil, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return state, nil
 }

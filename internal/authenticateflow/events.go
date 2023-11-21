@@ -1,4 +1,4 @@
-package authenticate
+package authenticateflow
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
-	"github.com/pomerium/pomerium/pkg/grpc/identity"
+	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
@@ -45,14 +45,15 @@ type AuthEvent struct {
 // AuthEventFn is a function that handles an authentication event
 type AuthEventFn func(context.Context, AuthEvent)
 
-func (a *Authenticate) logAuthenticateEvent(r *http.Request, profile *identity.Profile) {
-	if a.cfg.authEventFn == nil {
+// TODO: move into stateless.go; this is here for now just so that Git will
+// track the file history as a rename from authenticate/events.go.
+func (s *Stateless) logAuthenticateEvent(r *http.Request, profile *identitypb.Profile) {
+	if s.authEventFn == nil {
 		return
 	}
 
-	state := a.state.Load()
 	ctx := r.Context()
-	pub, params, err := hpke.DecryptURLValues(state.hpkePrivateKey, r.Form)
+	pub, params, err := hpke.DecryptURLValues(s.hpkePrivateKey, r.Form)
 	if err != nil {
 		log.Warn(ctx).Err(err).Msg("log authenticate event: failed to decrypt request params")
 	}
@@ -82,20 +83,5 @@ func (a *Authenticate) logAuthenticateEvent(r *http.Request, profile *identity.P
 		evt.Domain = &domain
 	}
 
-	a.cfg.authEventFn(ctx, evt)
-}
-
-func getUserClaim(profile *identity.Profile, field string) *string {
-	if profile == nil {
-		return nil
-	}
-	if profile.Claims == nil {
-		return nil
-	}
-	val, ok := profile.Claims.Fields[field]
-	if !ok || val == nil {
-		return nil
-	}
-	txt := val.GetStringValue()
-	return &txt
+	s.authEventFn(ctx, evt)
 }
