@@ -20,6 +20,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/retry"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 // Sync synchronizes the bundles between their cloud source and the databroker.
@@ -154,7 +155,7 @@ func (c *service) syncBundle(ctx context.Context, key string) error {
 		return fmt.Errorf("seek to start: %w", err)
 	}
 
-	bundleRecordTypes, err := c.syncBundleToDatabroker(ctx, fd, cached.GetRecordTypes())
+	bundleRecordTypes, err := c.syncBundleToDatabroker(ctx, key, fd, cached.GetRecordTypes())
 	if err != nil {
 		c.ReportBundleAppliedFailure(ctx, key, BundleStatusFailureDatabrokerError, err)
 		return fmt.Errorf("apply bundle to databroker: %w", err)
@@ -198,7 +199,7 @@ func strUnion(a, b []string) []string {
 	return out
 }
 
-func (c *service) syncBundleToDatabroker(ctx context.Context, src io.Reader, currentRecordTypes []string) ([]string, error) {
+func (c *service) syncBundleToDatabroker(ctx context.Context, key string, src io.Reader, currentRecordTypes []string) ([]string, error) {
 	bundleRecords, err := ReadBundleRecords(src)
 	if err != nil {
 		return nil, fmt.Errorf("read bundle records: %w", err)
@@ -212,7 +213,18 @@ func (c *service) syncBundleToDatabroker(ctx context.Context, src io.Reader, cur
 		return nil, fmt.Errorf("get databroker records: %w", err)
 	}
 
-	err = Reconcile(ctx, c.config.databrokerClient, bundleRecords, databrokerRecords)
+	err = databroker.NewReconciler(
+		fmt.Sprintf("bundle-%s", key),
+		c.config.databrokerClient,
+		func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			return databrokerRecords, nil
+		},
+		func(ctx context.Context) (databroker.RecordSetBundle, error) {
+			return bundleRecords, nil
+		},
+		func(_ []*databroker.Record) {},
+		EqualRecord,
+	).Reconcile(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("reconcile databroker records: %w", err)
 	}

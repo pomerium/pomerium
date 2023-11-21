@@ -103,7 +103,7 @@ func (r *Reconciler) RunLeased(ctx context.Context) error {
 
 func (r *Reconciler) reconcileLoop(ctx context.Context) error {
 	for {
-		err := r.reconcile(ctx)
+		err := r.Reconcile(ctx)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("reconcile")
 		}
@@ -116,7 +116,8 @@ func (r *Reconciler) reconcileLoop(ctx context.Context) error {
 	}
 }
 
-func (r *Reconciler) reconcile(ctx context.Context) error {
+// Reconcile brings databroker state in line with the target state.
+func (r *Reconciler) Reconcile(ctx context.Context) error {
 	current, target, err := r.getRecordSets(ctx)
 	if err != nil {
 		return fmt.Errorf("get config record sets: %w", err)
