@@ -96,8 +96,8 @@ func getBootstrapConfigFileName() (string, error) {
 	}
 
 	dir := filepath.Join(cacheDir, "pomerium")
-	if err := os.MkdirAll(dir, 0644); err != nil {
-		return "", err
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", fmt.Errorf("error creating cache directory: %w", err)
 	}
 
 	return filepath.Join(dir, "bootstrap.dat"), nil
