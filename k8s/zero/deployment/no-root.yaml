@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pomerium
+spec:
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: pomerium
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsGroup: 1000
+            runAsUser: 1000

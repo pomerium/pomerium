@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pomerium
+spec:
+  template:
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+        - name: pomerium
+          securityContext:
+            readOnlyRootFilesystem: true
+          env:
+            - name: TMPDIR
+              value: "/tmp/pomerium"
+            - name: XDG_CACHE_HOME
+              value: "/tmp"
+          volumeMounts:
+            - mountPath: "/tmp/pomerium"
+              name: tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

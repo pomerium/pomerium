@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pomerium
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: pomerium
+          image: pomerium/pomerium:main
+          imagePullPolicy: Always

@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pomerium
+spec:
+  template:
+    spec:
+      containers:
+        - name: pomerium
+          resources:
+            limits:
+              cpu: 5000m
+              memory: 1Gi
+            requests:
+              cpu: 300m
+              memory: 200Mi

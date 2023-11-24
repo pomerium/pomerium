@@ -1,0 +1,9 @@
+resources:
+  - base.yaml
+patchesStrategicMerge:
+  - env.yaml
+  - image.yaml
+  - ports.yaml
+  - resources.yaml
+  - no-root.yaml
+  - readonly-root-fs.yaml
