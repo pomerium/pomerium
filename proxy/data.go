@@ -67,18 +67,16 @@ func (p *Proxy) getUserInfoData(r *http.Request) (handlers.UserInfoData, error) 
 	}
 
 	ss, err := p.getSessionState(r)
-	if err != nil {
-		return handlers.UserInfoData{}, err
-	}
+	if err == nil {
+		data.Session, data.IsImpersonated, err = p.getSession(r.Context(), ss.ID)
+		if err != nil {
+			data.Session = &session.Session{Id: ss.ID}
+		}
 
-	data.Session, data.IsImpersonated, err = p.getSession(r.Context(), ss.ID)
-	if err != nil {
-		data.Session = &session.Session{Id: ss.ID}
-	}
-
-	data.User, err = p.getUser(r.Context(), data.Session.GetUserId())
-	if err != nil {
-		data.User = &user.User{Id: data.Session.GetUserId()}
+		data.User, err = p.getUser(r.Context(), data.Session.GetUserId())
+		if err != nil {
+			data.User = &user.User{Id: data.Session.GetUserId()}
+		}
 	}
 
 	data.WebAuthnCreationOptions, data.WebAuthnRequestOptions, _ = p.webauthn.GetOptions(r)
