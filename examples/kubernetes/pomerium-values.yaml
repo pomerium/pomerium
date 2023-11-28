@@ -14,24 +14,9 @@ proxy:
 
 databroker:
   existingTLSSecret: pomerium-tls
-  storage:
-    connectionString: rediss://pomerium-redis-master.pomerium.svc.cluster.local
-    type: redis
-    clientTLS:
-      existingSecretName: pomerium-tls
-      existingCASecretKey: ca.crt
 
 authorize:
   existingTLSSecret: pomerium-tls
-
-redis:
-  enabled: true
-  auth:
-    enabled: false
-  usePassword: false
-  generateTLS: false
-  tls:
-    certificateSecret: pomerium-redis-tls
 
 ingressController:
   enabled: true

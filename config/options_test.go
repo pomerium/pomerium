@@ -59,8 +59,6 @@ func Test_Validate(t *testing.T) {
 	badPolicyFile.PolicyFile = "file"
 	invalidStorageType := testOptions()
 	invalidStorageType.DataBrokerStorageType = "foo"
-	redisStorageType := testOptions()
-	redisStorageType.DataBrokerStorageType = "redis"
 	missingStorageDSN := testOptions()
 	missingStorageDSN.DataBrokerStorageType = "postgres"
 	badSignoutRedirectURL := testOptions()
@@ -80,7 +78,6 @@ func Test_Validate(t *testing.T) {
 		{"missing shared secret but all service", badSecretAllServices, false},
 		{"policy file specified", badPolicyFile, true},
 		{"invalid databroker storage type", invalidStorageType, true},
-		{"redis databroker storage type", redisStorageType, true},
 		{"missing databroker storage dsn", missingStorageDSN, true},
 		{"invalid signout redirect url", badSignoutRedirectURL, true},
 		{"CookieSameSite none with CookieSecure fale", badCookieSettings, true},
@@ -358,7 +355,7 @@ downstream_mtls:
     - dns: '.*\.example-2'
 `
 	cfg := filepath.Join(t.TempDir(), "config.yaml")
-	err := os.WriteFile(cfg, []byte(yaml), 0644)
+	err := os.WriteFile(cfg, []byte(yaml), 0o644)
 	require.NoError(t, err)
 
 	o, err := optionsFromViper(cfg)
@@ -721,7 +718,7 @@ func TestCompareByteSliceSlice(t *testing.T) {
 func TestDeprecatedClientCAOptions(t *testing.T) {
 	fakeCACert := []byte("--- FAKE CA CERT ---")
 	caFile := filepath.Join(t.TempDir(), "CA.pem")
-	os.WriteFile(caFile, fakeCACert, 0644)
+	os.WriteFile(caFile, fakeCACert, 0o644)
 
 	var logOutput bytes.Buffer
 	zl := zerolog.New(&logOutput)
@@ -1266,7 +1263,7 @@ func TestOptions_RequestParams(t *testing.T) {
 	for i := range cases {
 		c := &cases[i]
 		t.Run(c.label, func(t *testing.T) {
-			err := os.WriteFile(cfg, []byte(c.config), 0644)
+			err := os.WriteFile(cfg, []byte(c.config), 0o644)
 			require.NoError(t, err)
 			o, err := newOptionsFromConfig(cfg)
 			require.NoError(t, err)

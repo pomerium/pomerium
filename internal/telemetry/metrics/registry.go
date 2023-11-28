@@ -121,33 +121,3 @@ func (r *metricRegistry) setConfigChecksum(service string, configName string, ch
 	}
 	m.Set(float64(checksum))
 }
-
-func (r *metricRegistry) addInt64DerivedGaugeMetric(name, desc, service string, f func() int64) {
-	m, err := r.registry.AddInt64DerivedGauge(name, metric.WithDescription(desc),
-		metric.WithLabelKeys(metrics.ServiceLabel))
-	if err != nil {
-		log.Error(context.TODO()).Err(err).Str("service", service).Msg("telemetry/metrics: failed to register metric")
-		return
-	}
-
-	err = m.UpsertEntry(f, metricdata.NewLabelValue(service))
-	if err != nil {
-		log.Error(context.TODO()).Err(err).Str("service", service).Msg("telemetry/metrics: failed to update metric")
-		return
-	}
-}
-
-func (r *metricRegistry) addInt64DerivedCumulativeMetric(name, desc, service string, f func() int64) {
-	m, err := r.registry.AddInt64DerivedCumulative(name, metric.WithDescription(desc),
-		metric.WithLabelKeys(metrics.ServiceLabel))
-	if err != nil {
-		log.Error(context.TODO()).Err(err).Str("service", service).Msg("telemetry/metrics: failed to register metric")
-		return
-	}
-
-	err = m.UpsertEntry(f, metricdata.NewLabelValue(service))
-	if err != nil {
-		log.Error(context.TODO()).Err(err).Str("service", service).Msg("telemetry/metrics: failed to update metric")
-		return
-	}
-}
