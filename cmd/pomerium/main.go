@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog"
+	_ "go.uber.org/automaxprocs" // set max procs for containers
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"

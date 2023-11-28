@@ -20,7 +20,7 @@ func Build[T any](
 	builders ...BuilderFunc[T],
 ) ([]*T, []error) {
 	eg, ctx := errgroup.WithContext(ctx)
-	eg.SetLimit(runtime.NumCPU()/2 + 1)
+	eg.SetLimit(runtime.GOMAXPROCS(0)/2 + 1)
 
 	results := make([]*T, len(builders))
 	errors := make([]error, len(builders))

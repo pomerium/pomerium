@@ -64,6 +64,7 @@ require (
 	github.com/volatiletech/null/v9 v9.0.0
 	github.com/yuin/gopher-lua v1.1.0
 	go.opencensus.io v0.24.0
+	go.uber.org/automaxprocs v1.5.3
 	go.uber.org/zap v1.26.0
 	golang.org/x/crypto v0.14.0
 	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1
