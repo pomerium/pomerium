@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701200568902,
+  "lastUpdate": 1701201964813,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -81696,6 +81696,38 @@ window.BENCHMARK_DATA = {
             "value": 6294953,
             "unit": "ns/op",
             "extra": "186 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "54257ab43a4a512d756395341300206f27373d41",
+          "message": "zero: update pomerium/zero-sdk to support gzipped blobs",
+          "timestamp": "2023-11-26T15:41:54Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4767/commits/54257ab43a4a512d756395341300206f27373d41"
+        },
+        "date": 1701201959144,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10430017,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6460920,
+            "unit": "ns/op",
+            "extra": "188 times\n4 procs"
           }
         ]
       }
