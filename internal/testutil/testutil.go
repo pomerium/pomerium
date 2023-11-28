@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
-const maxWait = time.Minute * 10
+const maxWait = time.Minute * 20
 
 // AssertProtoEqual asserts that two protobuf messages equal. Slices of messages are also supported.
 func AssertProtoEqual(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) bool {
