@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701289959137,
+  "lastUpdate": 1701299232883,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -82020,6 +82020,38 @@ window.BENCHMARK_DATA = {
             "value": 6426621,
             "unit": "ns/op",
             "extra": "186 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "533a52b5bf1b9bbc66d2adc085f12cd8fd0a304d",
+          "message": "make stateless authenticate optional",
+          "timestamp": "2023-11-29T14:34:22Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4765/commits/533a52b5bf1b9bbc66d2adc085f12cd8fd0a304d"
+        },
+        "date": 1701299227496,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9729410,
+            "unit": "ns/op",
+            "extra": "122 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7497752,
+            "unit": "ns/op",
+            "extra": "175 times\n4 procs"
           }
         ]
       }
