@@ -51,7 +51,7 @@ require (
 	github.com/pomerium/webauthn v0.0.0-20221118023040-00a9c430578b
 	github.com/pomerium/zero-sdk v0.0.0-20231127153820-dcd408d87b54
 	github.com/prometheus/client_golang v1.17.0
-	github.com/prometheus/client_model v0.4.1-0.20230718164431-9a2bf3000d16
+	github.com/prometheus/client_model v0.5.0
 	github.com/prometheus/common v0.44.0
 	github.com/prometheus/procfs v0.12.0
 	github.com/rs/cors v1.10.1
