@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701311205677,
+  "lastUpdate": 1701311229431,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -82252,6 +82252,42 @@ window.BENCHMARK_DATA = {
             "value": 6657776,
             "unit": "ns/op",
             "extra": "159 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c62ae2dfebec58955d25d2cb80249c65e39dcbde",
+          "message": "chore(deps): bump github.com/google/go-cmp from 0.5.9 to 0.6.0 (#4685)\n\nBumps [github.com/google/go-cmp](https://github.com/google/go-cmp) from 0.5.9 to 0.6.0.\r\n- [Release notes](https://github.com/google/go-cmp/releases)\r\n- [Commits](https://github.com/google/go-cmp/compare/v0.5.9...v0.6.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/google/go-cmp\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-11-29T21:24:00-05:00",
+          "tree_id": "14a81a164ad5a9978c7068a69704fd582b45676e",
+          "url": "https://github.com/pomerium/pomerium/commit/c62ae2dfebec58955d25d2cb80249c65e39dcbde"
+        },
+        "date": 1701311223339,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10664234,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6825813,
+            "unit": "ns/op",
+            "extra": "181 times\n4 procs"
           }
         ]
       }
