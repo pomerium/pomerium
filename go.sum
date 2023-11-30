@@ -630,8 +630,8 @@ github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524 h1:3YQY1sb5
 github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524/go.mod h1:7fGbUYJnU8RcxZJvUvhukOIBv1G7LWDAHMfDxAf5+Y0=
 github.com/pomerium/webauthn v0.0.0-20221118023040-00a9c430578b h1:oll/aOfJudnqFAwCvoXK9+WN2zVjTzHVPLXCggHQmHk=
 github.com/pomerium/webauthn v0.0.0-20221118023040-00a9c430578b/go.mod h1:KswTenBBh4y1pmhU2dpm8VgJQCgSErCg7OOFTeebrNc=
-github.com/pomerium/zero-sdk v0.0.0-20231006190436-fa42b41aa1a9 h1:vnD0LJMOOZ388Tx4OKOOPd7pnTiUA+Li/kdhYleA7Ys=
-github.com/pomerium/zero-sdk v0.0.0-20231006190436-fa42b41aa1a9/go.mod h1:abFyZev+/xx+KBg2OD3oJxhcMH96pfChFw6lOnCsvfc=
+github.com/pomerium/zero-sdk v0.0.0-20231127153820-dcd408d87b54 h1:pIjWOs15zJq9XhU1uHKhBjqc6X7cJHRYbx+OW4v3EiA=
+github.com/pomerium/zero-sdk v0.0.0-20231127153820-dcd408d87b54/go.mod h1:b3979nx45mwDaeIQQe5T11XjxMUQntc4H3v+szdsHUc=
 github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c h1:ncq/mPwQF4JjgDlrVEn3C11VoGHZN7m8qihwgMEtzYw=
 github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c/go.mod h1:OmDBASR4679mdNQnz2pUhc2G8CO2JrUAVFDRBDP/hJE=
 github.com/prometheus/client_golang v0.9.1/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
