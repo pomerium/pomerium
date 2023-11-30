@@ -196,6 +196,8 @@ func ocExport(name string, exporter *ocprom.Exporter, r *http.Request, labels []
 	return func(context.Context) promProducerResult {
 		// Ensure we don't get entangled with compression from ocprom
 		r.Header.Del("Accept-Encoding")
+		// Request metrics in text format.
+		r.Header.Set("Accept", "text/plain")
 
 		rec := httptest.NewRecorder()
 		exporter.ServeHTTP(rec, r)
