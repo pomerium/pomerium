@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701311873422,
+  "lastUpdate": 1701314363079,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -82612,6 +82612,42 @@ window.BENCHMARK_DATA = {
             "value": 6617204,
             "unit": "ns/op",
             "extra": "178 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e49fbf58fabea2d38944d9f1d11c3a79a53af731",
+          "message": "update to Go 1.21.4 (#4770)",
+          "timestamp": "2023-11-29T19:16:12-08:00",
+          "tree_id": "d7b6ad154e3f991a2f16aa654e10361ba95f7f0b",
+          "url": "https://github.com/pomerium/pomerium/commit/e49fbf58fabea2d38944d9f1d11c3a79a53af731"
+        },
+        "date": 1701314357419,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12185210,
+            "unit": "ns/op",
+            "extra": "90 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7163476,
+            "unit": "ns/op",
+            "extra": "163 times\n4 procs"
           }
         ]
       }
