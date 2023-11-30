@@ -586,8 +586,6 @@ func (o *Options) Validate() error {
 
 	switch o.DataBrokerStorageType {
 	case StorageInMemoryName:
-	case StorageRedisName:
-		return errors.New("config: redis databroker storage backend is no longer supported")
 	case StoragePostgresName:
 		if o.DataBrokerStorageConnectionString == "" {
 			return errors.New("config: missing databroker storage backend dsn")

@@ -39,6 +39,9 @@ func (svc *Source) Run(
 	api *sdk.API,
 	fileCachePath string,
 ) error {
+	log.Ctx(ctx).Info().Str("bootstrap-config-path", fileCachePath).
+		Msg("initializing bootstrap config source")
+
 	svc.api = api
 	svc.fileCachePath = fileCachePath
 

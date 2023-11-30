@@ -15,9 +15,9 @@ var unmarshalOpts = protodelim.UnmarshalOptions{}
 
 // ReadBundleRecords reads records in a protobuf wire format from src.
 // Each record is expected to be a databroker.Record.
-func ReadBundleRecords(src io.Reader) (RecordSetBundle[DatabrokerRecord], error) {
+func ReadBundleRecords(src io.Reader) (databroker.RecordSetBundle, error) {
 	r := bufio.NewReader(src)
-	rsb := make(RecordSetBundle[DatabrokerRecord])
+	rsb := make(databroker.RecordSetBundle)
 	for {
 		record := new(databroker.Record)
 		err := unmarshalOpts.UnmarshalFrom(r, record)
@@ -28,7 +28,7 @@ func ReadBundleRecords(src io.Reader) (RecordSetBundle[DatabrokerRecord], error)
 			return nil, fmt.Errorf("error reading protobuf record: %w", err)
 		}
 
-		rsb.Add(DatabrokerRecord{record})
+		rsb.Add(record)
 	}
 
 	return rsb, nil

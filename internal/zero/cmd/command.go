@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/mattn/go-isatty"
@@ -17,15 +18,20 @@ import (
 )
 
 // Run runs the pomerium zero command.
-func Run(ctx context.Context) error {
+func Run(ctx context.Context, configFile string) error {
 	err := setupLogger()
 	if err != nil {
 		return fmt.Errorf("error setting up logger: %w", err)
 	}
 
-	token := getToken()
+	token := getToken(configFile)
 	if token == "" {
 		return errors.New("no token provided")
+	}
+
+	bootstrapConfigFileName, err := getBootstrapConfigFileName()
+	if err != nil {
+		return fmt.Errorf("error getting bootstrap config path: %w", err)
 	}
 
 	return controller.Run(
@@ -33,12 +39,13 @@ func Run(ctx context.Context) error {
 		controller.WithAPIToken(token),
 		controller.WithClusterAPIEndpoint(getClusterAPIEndpoint()),
 		controller.WithConnectAPIEndpoint(getConnectAPIEndpoint()),
+		controller.WithBootstrapConfigFileName(bootstrapConfigFileName),
 	)
 }
 
 // IsManagedMode returns true if Pomerium should start in managed mode using this command.
-func IsManagedMode() bool {
-	return getToken() != ""
+func IsManagedMode(configFile string) bool {
+	return getToken(configFile) != ""
 }
 
 func withInterrupt(ctx context.Context) context.Context {
@@ -80,4 +87,18 @@ func setupLogger() error {
 	// set the default context logger
 	zerolog.DefaultContextLogger = &log.Logger
 	return nil
+}
+
+func getBootstrapConfigFileName() (string, error) {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+
+	dir := filepath.Join(cacheDir, "pomerium")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", fmt.Errorf("error creating cache directory: %w", err)
+	}
+
+	return filepath.Join(dir, "bootstrap.dat"), nil
 }
