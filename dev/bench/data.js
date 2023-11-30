@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701311194684,
+  "lastUpdate": 1701311205677,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -82216,6 +82216,42 @@ window.BENCHMARK_DATA = {
             "value": 7709920,
             "unit": "ns/op",
             "extra": "154 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6a614c522135b7b721a96728206a09d6f30f2344",
+          "message": "chore(deps): bump github.com/aws/aws-sdk-go-v2/service/s3 from 1.40.0 to 1.42.1 (#4751)\n\nchore(deps): bump github.com/aws/aws-sdk-go-v2/service/s3\r\n\r\nBumps [github.com/aws/aws-sdk-go-v2/service/s3](https://github.com/aws/aws-sdk-go-v2) from 1.40.0 to 1.42.1.\r\n- [Release notes](https://github.com/aws/aws-sdk-go-v2/releases)\r\n- [Commits](https://github.com/aws/aws-sdk-go-v2/compare/service/s3/v1.40.0...service/s3/v1.42.1)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/aws/aws-sdk-go-v2/service/s3\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-11-29T18:23:28-08:00",
+          "tree_id": "a0b31d707b4d306872cb550925032ce34183ec19",
+          "url": "https://github.com/pomerium/pomerium/commit/6a614c522135b7b721a96728206a09d6f30f2344"
+        },
+        "date": 1701311199692,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10587286,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6657776,
+            "unit": "ns/op",
+            "extra": "159 times\n4 procs"
           }
         ]
       }
