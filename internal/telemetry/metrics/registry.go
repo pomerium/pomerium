@@ -75,6 +75,8 @@ func (r *metricRegistry) init() {
 			if err != nil {
 				log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to register autocert metrics")
 			}
+
+			registerPgxpoolStatMetrics(r.registry)
 		})
 }
 

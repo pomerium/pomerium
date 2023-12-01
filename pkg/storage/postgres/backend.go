@@ -15,6 +15,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -399,6 +400,7 @@ func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *p
 
 	backend.serverVersion = serverVersion
 	backend.pool = pool
+	metrics.ConnectPgxpoolStatMetrics(pool)
 	return serverVersion, pool, nil
 }
 
