@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701449319482,
+  "lastUpdate": 1701449512640,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -83228,6 +83228,38 @@ window.BENCHMARK_DATA = {
             "value": 7005867,
             "unit": "ns/op",
             "extra": "174 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "797ffecda7432bcc020e3837d5802259866b61d2",
+          "message": "chore(deps): bump github.com/gorilla/mux from 1.8.0 to 1.8.1",
+          "timestamp": "2023-11-30T21:37:06Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4790/commits/797ffecda7432bcc020e3837d5802259866b61d2"
+        },
+        "date": 1701449506367,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10513568,
+            "unit": "ns/op",
+            "extra": "110 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6815053,
+            "unit": "ns/op",
+            "extra": "181 times\n4 procs"
           }
         ]
       }
