@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701449316342,
+  "lastUpdate": 1701449319482,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -83196,6 +83196,38 @@ window.BENCHMARK_DATA = {
             "value": 8124667,
             "unit": "ns/op",
             "extra": "145 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "644a947fccb294e2f98b3fe0d9770c1efb38e67c",
+          "message": "chore(deps-dev): bump typescript from 5.1.3 to 5.3.2 in /ui",
+          "timestamp": "2023-11-30T21:37:06Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4789/commits/644a947fccb294e2f98b3fe0d9770c1efb38e67c"
+        },
+        "date": 1701449313492,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11499606,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7005867,
+            "unit": "ns/op",
+            "extra": "174 times\n4 procs"
           }
         ]
       }
