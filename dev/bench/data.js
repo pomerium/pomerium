@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701389865093,
+  "lastUpdate": 1701389877931,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -82744,6 +82744,42 @@ window.BENCHMARK_DATA = {
             "value": 6271282,
             "unit": "ns/op",
             "extra": "192 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a246466a87f09a9c95400bed01d4dffcec197e64",
+          "message": "metrics: explicitly set Accept header (#4774)\n\nIf a request is made to the Pomerium metrics endpoint with an Accept\r\nheader requesting the Prometheus protobuf exposition format, some\r\nmetrics will be missing from the response.\r\n\r\nThese missing metrics are obtained by replaying the incoming request to \r\nan OpenCensus metrics exporter. This exporter honors the request for the\r\nprotobuf format, however Pomerium expects this response to be in the \r\ntext format.\r\n\r\nWe can avoid this mismatch by explicitly requesting the text format from\r\nthe OpenCensus exporter, regardless of the incoming request's Accept\r\nheader.\r\n\r\n(Note: the Pomerium metrics endpoint always responds with text format \r\nmetrics, even if the protobuf format is requested.)",
+          "timestamp": "2023-11-30T16:14:24-08:00",
+          "tree_id": "2a6d99e28677d5192becdb36908a344935aa0be2",
+          "url": "https://github.com/pomerium/pomerium/commit/a246466a87f09a9c95400bed01d4dffcec197e64"
+        },
+        "date": 1701389870633,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9188578,
+            "unit": "ns/op",
+            "extra": "112 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6508706,
+            "unit": "ns/op",
+            "extra": "187 times\n4 procs"
           }
         ]
       }
