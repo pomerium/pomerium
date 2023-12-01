@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701449537424,
+  "lastUpdate": 1701449539949,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -83356,6 +83356,38 @@ window.BENCHMARK_DATA = {
             "value": 8018442,
             "unit": "ns/op",
             "extra": "150 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "26bb3418f6a4c5885c34ac3aeeb4f0777fa6d42e",
+          "message": "chore(deps): bump github.com/gorilla/websocket from 1.5.0 to 1.5.1",
+          "timestamp": "2023-11-30T21:37:06Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4793/commits/26bb3418f6a4c5885c34ac3aeeb4f0777fa6d42e"
+        },
+        "date": 1701449533194,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10288343,
+            "unit": "ns/op",
+            "extra": "120 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6613503,
+            "unit": "ns/op",
+            "extra": "181 times\n4 procs"
           }
         ]
       }
