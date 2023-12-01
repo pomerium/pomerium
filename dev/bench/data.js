@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701449673971,
+  "lastUpdate": 1701449703494,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -83516,6 +83516,38 @@ window.BENCHMARK_DATA = {
             "value": 6259723,
             "unit": "ns/op",
             "extra": "183 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "9390d4ddb3f270ee3ac29d21033a6f3cf7b5657e",
+          "message": "chore(deps): bump github.com/mattn/go-isatty from 0.0.19 to 0.0.20",
+          "timestamp": "2023-11-30T21:37:06Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4801/commits/9390d4ddb3f270ee3ac29d21033a6f3cf7b5657e"
+        },
+        "date": 1701449697542,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10411354,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6513475,
+            "unit": "ns/op",
+            "extra": "182 times\n4 procs"
           }
         ]
       }
