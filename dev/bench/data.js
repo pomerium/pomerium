@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701449671644,
+  "lastUpdate": 1701449673971,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -83484,6 +83484,38 @@ window.BENCHMARK_DATA = {
             "value": 7313618,
             "unit": "ns/op",
             "extra": "157 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "fe8b970a4ba0482e7543fea788f9331f1ee713b1",
+          "message": "chore(deps): bump github.com/open-policy-agent/opa from 0.57.0 to 0.59.0",
+          "timestamp": "2023-11-30T21:37:06Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4799/commits/fe8b970a4ba0482e7543fea788f9331f1ee713b1"
+        },
+        "date": 1701449666776,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10902361,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6259723,
+            "unit": "ns/op",
+            "extra": "183 times\n4 procs"
           }
         ]
       }
