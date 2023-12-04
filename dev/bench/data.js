@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701470889207,
+  "lastUpdate": 1701698119802,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -83740,6 +83740,42 @@ window.BENCHMARK_DATA = {
             "value": 7031436,
             "unit": "ns/op",
             "extra": "170 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "455932046316747360cc5673e581db19df91d97f",
+          "message": "metrics: add linear probabilistic counter (#4776)\n\n* metrics: add linear probabilistic counter\r\n\r\n* add pkg",
+          "timestamp": "2023-12-04T08:51:41-05:00",
+          "tree_id": "412e9f6b1bcb9a619e381d373a1c18fd068a5426",
+          "url": "https://github.com/pomerium/pomerium/commit/455932046316747360cc5673e581db19df91d97f"
+        },
+        "date": 1701698109236,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10711229,
+            "unit": "ns/op",
+            "extra": "99 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6392146,
+            "unit": "ns/op",
+            "extra": "184 times\n4 procs"
           }
         ]
       }
