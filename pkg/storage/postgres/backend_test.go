@@ -195,6 +195,9 @@ func TestBackend(t *testing.T) {
 			storagetest.TestBackendPatch(t, ctx, backend)
 		})
 
+		assert.Equal(t, int32(0), backend.pool.Stat().AcquiredConns(),
+			"acquired connections should be released")
+
 		return nil
 	}))
 }
