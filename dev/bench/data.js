@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701707548688,
+  "lastUpdate": 1701707566437,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -83908,6 +83908,38 @@ window.BENCHMARK_DATA = {
             "value": 6477915,
             "unit": "ns/op",
             "extra": "184 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "148f9fcc0656e81715873845423c2c5992de0303",
+          "message": "core/storage: hijack connections for notification listeners",
+          "timestamp": "2023-12-03T08:09:23Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4811/commits/148f9fcc0656e81715873845423c2c5992de0303"
+        },
+        "date": 1701707555931,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11234482,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7238825,
+            "unit": "ns/op",
+            "extra": "165 times\n4 procs"
           }
         ]
       }
