@@ -9,6 +9,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/zero/analytics"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -41,6 +42,7 @@ func Run(ctx context.Context, opts ...Option) error {
 	eg.Go(func() error { return run(ctx, "pomerium-core", c.runPomeriumCore, src.WaitReady) })
 	eg.Go(func() error { return run(ctx, "zero-reconciler", c.RunReconciler, src.WaitReady) })
 	eg.Go(func() error { return run(ctx, "connect-log", c.RunConnectLog, nil) })
+	eg.Go(func() error { return run(ctx, "zero-analytics", c.runAnalytics(), src.WaitReady) })
 	return eg.Wait()
 }
 
@@ -96,4 +98,24 @@ func (c *controller) runPomeriumCore(ctx context.Context) error {
 
 func (c *controller) runConnect(ctx context.Context) error {
 	return c.api.Connect(ctx)
+}
+
+func (c *controller) runAnalytics() func(ctx context.Context) error {
+	disable := false
+	return func(ctx context.Context) error {
+		if disable {
+			log.Ctx(ctx).Info().Msg("analytics disabled due to previous error")
+			<-ctx.Done()
+			return nil
+		}
+
+		err := analytics.Collect(ctx, c.GetDataBrokerServiceClient())
+		if err != nil && ctx.Err() == nil {
+			disable = true
+			log.Ctx(ctx).Error().Err(err).Msg("error collecting analytics, disabling")
+			return nil
+		}
+
+		return err
+	}
 }
