@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	updateInterval = time.Second * 30
+	updateInterval = time.Hour * 6
 )
 
 // Collect collects metrics and reports them to the cloud

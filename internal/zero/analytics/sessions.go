@@ -14,7 +14,7 @@ var (
 	sessionTypeURL = protoutil.GetTypeURL(new(session.Session))
 )
 
-// CurrentUsers returns a list of currently active user IDs from the databroker
+// CurrentUsers returns a list of users active within the current UTC day
 func CurrentUsers(
 	ctx context.Context,
 	client databroker.DataBrokerServiceClient,
@@ -28,7 +28,7 @@ func CurrentUsers(
 
 	var users []string
 	utcNow := time.Now().UTC()
-	threshold := time.Date(utcNow.Year(), utcNow.Month(), utcNow.Day(), utcNow.Hour(), 0, 0, 0, time.UTC)
+	threshold := time.Date(utcNow.Year(), utcNow.Month(), utcNow.Day(), 0, 0, 0, 0, time.UTC)
 
 	for _, record := range records {
 		var s session.Session
