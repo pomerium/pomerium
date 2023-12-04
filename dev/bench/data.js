@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701698441695,
+  "lastUpdate": 1701699495142,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -83838,6 +83838,38 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 6713321,
+            "unit": "ns/op",
+            "extra": "170 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "fa7d9fdf999625bd18fa423d1d38b20a83079654",
+          "message": "zero/telemetry: calculate DAU and MAU",
+          "timestamp": "2023-12-03T08:09:23Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4810/commits/fa7d9fdf999625bd18fa423d1d38b20a83079654"
+        },
+        "date": 1701699489340,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10853330,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6982604,
             "unit": "ns/op",
             "extra": "170 times\n4 procs"
           }
