@@ -29,3 +29,17 @@ func getToken(configFile string) string {
 	// we will fallback to normal pomerium if empty
 	return ""
 }
+
+func getConnectAPIEndpoint() string {
+	if endpoint := os.Getenv("CONNECT_SERVER_ENDPOINT"); endpoint != "" {
+		return endpoint
+	}
+	return "https://connect.pomerium.app"
+}
+
+func getClusterAPIEndpoint() string {
+	if endpoint := os.Getenv("CLUSTER_API_ENDPOINT"); endpoint != "" {
+		return endpoint
+	}
+	return "https://console.pomerium.app/cluster/v1"
+}
