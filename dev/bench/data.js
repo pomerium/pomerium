@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701722882065,
+  "lastUpdate": 1701722914399,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -84008,6 +84008,42 @@ window.BENCHMARK_DATA = {
             "value": 6405857,
             "unit": "ns/op",
             "extra": "192 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6426d449f909ebedf96678c55a3e1076481a834e",
+          "message": "chore(deps): bump github.com/mattn/go-isatty from 0.0.19 to 0.0.20 (#4801)\n\nBumps [github.com/mattn/go-isatty](https://github.com/mattn/go-isatty) from 0.0.19 to 0.0.20.\r\n- [Commits](https://github.com/mattn/go-isatty/compare/v0.0.19...v0.0.20)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/mattn/go-isatty\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-12-04T15:45:19-05:00",
+          "tree_id": "8cff2fa572d4cbba6d4256484944130a9432bcd3",
+          "url": "https://github.com/pomerium/pomerium/commit/6426d449f909ebedf96678c55a3e1076481a834e"
+        },
+        "date": 1701722907823,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10185953,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6713511,
+            "unit": "ns/op",
+            "extra": "182 times\n4 procs"
           }
         ]
       }
