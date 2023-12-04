@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701717005227,
+  "lastUpdate": 1701722882065,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -83970,6 +83970,42 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 6167622,
+            "unit": "ns/op",
+            "extra": "192 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e59fd87d62c485d91f23f1ccb9b0fa95f0771709",
+          "message": "chore(deps): bump golang.org/x/time from 0.3.0 to 0.5.0 (#4796)\n\nBumps [golang.org/x/time](https://github.com/golang/time) from 0.3.0 to 0.5.0.\r\n- [Commits](https://github.com/golang/time/compare/v0.3.0...v0.5.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golang.org/x/time\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-12-04T15:44:51-05:00",
+          "tree_id": "8d9c6ab6b58dab33a0b9c718fc523dab066b373e",
+          "url": "https://github.com/pomerium/pomerium/commit/e59fd87d62c485d91f23f1ccb9b0fa95f0771709"
+        },
+        "date": 1701722871492,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10533186,
+            "unit": "ns/op",
+            "extra": "116 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6405857,
             "unit": "ns/op",
             "extra": "192 times\n4 procs"
           }
