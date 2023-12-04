@@ -29,18 +29,7 @@ func (a *Authenticate) buildIdentityProfile(
 	claims identity.SessionClaims,
 	oauthToken *oauth2.Token,
 ) (*identitypb.Profile, error) {
-	options := a.options.Load()
 	idpID := r.FormValue(urlutil.QueryIdentityProviderID)
-
-	authenticator, err := a.cfg.getIdentityProvider(options, idpID)
-	if err != nil {
-		return nil, fmt.Errorf("authenticate: error getting identity provider authenticator: %w", err)
-	}
-
-	err = authenticator.UpdateUserInfo(ctx, oauthToken, &claims)
-	if err != nil {
-		return nil, fmt.Errorf("authenticate: error retrieving user info: %w", err)
-	}
 
 	rawIDToken := []byte(claims.RawIDToken)
 	rawOAuthToken, err := json.Marshal(oauthToken)
