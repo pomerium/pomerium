@@ -14,7 +14,6 @@ import (
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
@@ -23,9 +22,7 @@ import (
 var cookieChunker = httputil.NewCookieChunker()
 
 func (a *Authenticate) buildIdentityProfile(
-	ctx context.Context,
 	r *http.Request,
-	_ *sessions.State,
 	claims identity.SessionClaims,
 	oauthToken *oauth2.Token,
 ) (*identitypb.Profile, error) {

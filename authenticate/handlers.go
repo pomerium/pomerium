@@ -451,7 +451,7 @@ Or contact your administrator.
 	}
 
 	// save the session and access token to the databroker
-	profile, err := a.buildIdentityProfile(ctx, r, &newState, claims, accessToken)
+	profile, err := a.buildIdentityProfile(r, claims, accessToken)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusInternalServerError, err)
 	}
