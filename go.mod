@@ -37,7 +37,7 @@ require (
 	github.com/jackc/pgx/v5 v5.4.3
 	github.com/klauspost/compress v1.17.0
 	github.com/martinlindhe/base36 v1.1.1
-	github.com/mattn/go-isatty v0.0.19
+	github.com/mattn/go-isatty v0.0.20
 	github.com/mholt/acmez v1.2.0
 	github.com/minio/minio-go/v7 v7.0.63
 	github.com/mitchellh/hashstructure/v2 v2.0.2
