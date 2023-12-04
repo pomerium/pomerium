@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701723229882,
+  "lastUpdate": 1701723237946,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -84444,6 +84444,38 @@ window.BENCHMARK_DATA = {
             "value": 6480113,
             "unit": "ns/op",
             "extra": "187 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "bc68ce6ea4f9fc2e22e3300cefb92fef11adccbb",
+          "message": "chore(deps): bump github.com/klauspost/compress from 1.17.0 to 1.17.4",
+          "timestamp": "2023-12-04T18:10:41Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4798/commits/bc68ce6ea4f9fc2e22e3300cefb92fef11adccbb"
+        },
+        "date": 1701723226379,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10580391,
+            "unit": "ns/op",
+            "extra": "128 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6947884,
+            "unit": "ns/op",
+            "extra": "175 times\n4 procs"
           }
         ]
       }
