@@ -74,7 +74,7 @@ local KubernetesService(name) =
   };
 
 
-local Environment(mode, idp, dns_suffix) =
+local Environment(mode, idp, authentication_flow, dns_suffix) =
   {
     AUTHENTICATE_SERVICE_URL: 'https://authenticate.localhost.pomerium.io',
     CERTIFICATE: std.base64(importstr '../files/trusted.pem'),
@@ -104,6 +104,8 @@ local Environment(mode, idp, dns_suffix) =
     DATABROKER_SERVICE_URL: 'https://pomerium-databroker:5443',
     GRPC_ADDRESS: ':5443',
     GRPC_INSECURE: 'false',
+  } else {} + if authentication_flow == 'stateless' then {
+    DEBUG_FORCE_AUTHENTICATE_FLOW: 'stateless',
   } else {};
 
 local ComposeService(name, definition, additionalAliases=[]) =
@@ -128,10 +130,10 @@ local ComposeService(name, definition, additionalAliases=[]) =
     },
   }, additionalAliases);
 
-function(mode, idp, dns_suffix='') {
+function(mode, idp, authentication_flow, dns_suffix='') {
   local name = 'pomerium',
   local image = 'pomerium/pomerium:${POMERIUM_TAG:-main}',
-  local environment = Environment(mode, idp, dns_suffix),
+  local environment = Environment(mode, idp, authentication_flow, dns_suffix),
 
   compose: {
     services: if mode == 'multi' then

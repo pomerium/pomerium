@@ -16,6 +16,7 @@ jobs:
         node-version: [16.x]
         platform: [ubuntu-latest]
         deployment: [multi, single]
+        authenticate-flow: [stateful, stateless]
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
@@ -41,12 +42,12 @@ jobs:
       - name: start cluster
         run: |
           export POMERIUM_TAG=dev
-          cd ./integration/clusters/${{matrix.deployment}}
+          cd ./integration/clusters/${{matrix.deployment}}-${{matrix.authenticate-flow}}
           docker-compose up -d
 
       - name: integration tests
         run: |
-          (cd ./integration/clusters/${{matrix.deployment}} && docker-compose logs -f &)
+          (cd ./integration/clusters/${{matrix.deployment}}-${{matrix.authenticate-flow}} && docker-compose logs -f &)
           go test -v ./integration/...
 
   build:
