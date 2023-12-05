@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: pomerium
 spec:
@@ -7,10 +7,10 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+        runAsGroup: 1000
+        runAsUser: 1000
+        fsGroup: 1000
       containers:
         - name: pomerium
           securityContext:
             allowPrivilegeEscalation: false
-            runAsNonRoot: true
-            runAsGroup: 1000
-            runAsUser: 1000

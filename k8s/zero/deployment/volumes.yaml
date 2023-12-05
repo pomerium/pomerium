@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pomerium
+spec:
+  template:
+    spec:
+      nodeSelector:
+        kubernetes.io/os: linux
+      containers:
+        - name: pomerium
+          env:
+            - name: TMPDIR
+              value: "/tmp/pomerium"
+            - name: XDG_CACHE_HOME
+              value: "/var/cache"
+          volumeMounts:
+            - mountPath: "/tmp/pomerium"
+              name: tmp
+            - mountPath: "/var/cache"
+              name: pomerium-cache
+      volumes:
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+  - metadata:
+      name: pomerium-cache
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 100Mi
