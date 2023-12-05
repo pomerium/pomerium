@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701809196561,
+  "lastUpdate": 1701809539523,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -85200,6 +85200,42 @@ window.BENCHMARK_DATA = {
             "value": 7290272,
             "unit": "ns/op",
             "extra": "158 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8068890e579f8e04d92c9ecada25bcdfd779af87",
+          "message": "integration: re-generate test configurations (#4816)\n\nAn unused Redis TCP route was removed from the integration test\r\nconfiguration template in commit bcddbff. Re-generate the test\r\nconfigurations to incorporate this template change.",
+          "timestamp": "2023-12-05T12:49:03-08:00",
+          "tree_id": "0ed9b41124d205924df4da627cc67e6a9406c9af",
+          "url": "https://github.com/pomerium/pomerium/commit/8068890e579f8e04d92c9ecada25bcdfd779af87"
+        },
+        "date": 1701809532857,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10224549,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6440003,
+            "unit": "ns/op",
+            "extra": "186 times\n4 procs"
           }
         ]
       }
