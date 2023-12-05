@@ -7,6 +7,10 @@ import (
 	"fmt"
 	"reflect"
 	"time"
+
+	"github.com/rs/zerolog"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 // Retry retries a function (with exponential back-off) until it succeeds.
@@ -20,6 +24,10 @@ func Retry(
 	fn func(context.Context) error,
 	opts ...Option,
 ) error {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("control-loop", name)
+	})
+
 	watches, backoff := newConfig(opts...)
 	ticker := time.NewTicker(backoff.NextBackOff())
 	defer ticker.Stop()
@@ -32,16 +40,22 @@ restart:
 		if err == nil {
 			return nil
 		}
+
 		if IsTerminalError(err) {
+			log.Ctx(ctx).Error().Err(err).Msg("terminal error")
 			return err
 		}
+		log.Ctx(ctx).Warn().Msg(err.Error())
 
 		backoff.Reset()
 	backoff:
 		for {
-			ticker.Reset(backoff.NextBackOff())
+			interval := backoff.NextBackOff()
+			ticker.Reset(interval)
+			log.Ctx(ctx).Warn().Msgf("backing off for %s...", interval.String())
 
 			next, err := s.Exec(ctx)
+			logNext(ctx, next, err)
 			switch next {
 			case nextRestart:
 				continue restart
@@ -53,6 +67,24 @@ restart:
 				panic("unreachable")
 			}
 		}
+	}
+}
+
+func logNext(ctx context.Context, next next, err error) {
+	evt := log.Ctx(ctx).Info()
+	if err != nil {
+		evt = log.Ctx(ctx).Warn().Err(err)
+	}
+
+	switch next {
+	case nextRestart:
+		evt.Msg("retrying...")
+	case nextBackoff:
+		evt.Msg("will retry after backoff")
+	case nextExit:
+		evt.Msg("exiting")
+	default:
+		evt.Msg("unknown next state")
 	}
 }
 
@@ -132,7 +164,7 @@ func onError(w watch, err error) (next, error) {
 	}
 
 	if w.this {
-		return nextBackoff, fmt.Errorf("retry %s failed: %w", w.name, err)
+		return nextBackoff, err
 	}
 
 	panic("unreachable, as watches are wrapped in retries and may only return terminal errors")
