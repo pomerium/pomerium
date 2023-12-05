@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701749641710,
+  "lastUpdate": 1701791583740,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -85026,6 +85026,38 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 6471361,
+            "unit": "ns/op",
+            "extra": "186 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "55cce29741df743f5812a6ff5585390c0f1ed43a",
+          "message": "zero: add more verbose logging about background control loops",
+          "timestamp": "2023-12-05T14:47:54Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4815/commits/55cce29741df743f5812a6ff5585390c0f1ed43a"
+        },
+        "date": 1701791577693,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10445728,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6553891,
             "unit": "ns/op",
             "extra": "186 times\n4 procs"
           }
