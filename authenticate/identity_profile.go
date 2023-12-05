@@ -14,7 +14,6 @@ import (
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
@@ -23,24 +22,11 @@ import (
 var cookieChunker = httputil.NewCookieChunker()
 
 func (a *Authenticate) buildIdentityProfile(
-	ctx context.Context,
 	r *http.Request,
-	_ *sessions.State,
 	claims identity.SessionClaims,
 	oauthToken *oauth2.Token,
 ) (*identitypb.Profile, error) {
-	options := a.options.Load()
 	idpID := r.FormValue(urlutil.QueryIdentityProviderID)
-
-	authenticator, err := a.cfg.getIdentityProvider(options, idpID)
-	if err != nil {
-		return nil, fmt.Errorf("authenticate: error getting identity provider authenticator: %w", err)
-	}
-
-	err = authenticator.UpdateUserInfo(ctx, oauthToken, &claims)
-	if err != nil {
-		return nil, fmt.Errorf("authenticate: error retrieving user info: %w", err)
-	}
 
 	rawIDToken := []byte(claims.RawIDToken)
 	rawOAuthToken, err := json.Marshal(oauthToken)
