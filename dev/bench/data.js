@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701793508194,
+  "lastUpdate": 1701797135543,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -85132,6 +85132,42 @@ window.BENCHMARK_DATA = {
             "value": 6245190,
             "unit": "ns/op",
             "extra": "187 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3c4b03f1d263252e5d1d72746b128db6f66fb2fb",
+          "message": "authenticate: remove extra UpdateUserInfo() call (#4813)\n\nThe buildIdentityProfile() method is called only from\r\nAuthenticate.getOAuthCallback(), which has previously called\r\nAuthenticator.Authenticate(). It looks like all implementations of the\r\nAuthenticator interface already call UpdateUserInfo(), so we shouldn't\r\nneed to call UpdateUserInfo() a second time from buildIdentityProfile().\r\n\r\nThis should simplify the code a little and provide a slight performance\r\nimprovement (by avoiding one network request).",
+          "timestamp": "2023-12-05T09:22:35-08:00",
+          "tree_id": "9699430c9d368e5032a77c72ad450c079bd3a996",
+          "url": "https://github.com/pomerium/pomerium/commit/3c4b03f1d263252e5d1d72746b128db6f66fb2fb"
+        },
+        "date": 1701797129532,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10886804,
+            "unit": "ns/op",
+            "extra": "99 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6947264,
+            "unit": "ns/op",
+            "extra": "159 times\n4 procs"
           }
         ]
       }
