@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701792272822,
+  "lastUpdate": 1701793508194,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -85096,6 +85096,42 @@ window.BENCHMARK_DATA = {
             "value": 7355150,
             "unit": "ns/op",
             "extra": "151 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8a2cf3faf2321739eae7528c1892f06bcab4a269",
+          "message": "zero: add more verbose logging about background control loops (#4815)",
+          "timestamp": "2023-12-05T11:22:01-05:00",
+          "tree_id": "2f7bd136a8bf9f3abb64891b2971e5c1d3d998df",
+          "url": "https://github.com/pomerium/pomerium/commit/8a2cf3faf2321739eae7528c1892f06bcab4a269"
+        },
+        "date": 1701793501673,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10484154,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6245190,
+            "unit": "ns/op",
+            "extra": "187 times\n4 procs"
           }
         ]
       }
