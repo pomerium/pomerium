@@ -98,12 +98,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
 	sr.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
 	sr.Path("/device-enrolled").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		userInfoData, err := a.getUserInfoData(r)
-		if err != nil {
-			return err
-		}
-
-		handlers.DeviceEnrolled(userInfoData).ServeHTTP(w, r)
+		handlers.DeviceEnrolled(a.getUserInfoData(r)).ServeHTTP(w, r)
 		return nil
 	}))
 
@@ -502,16 +497,11 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		return nil
 	}
 
-	userInfoData, err := a.getUserInfoData(r)
-	if err != nil {
-		return err
-	}
-
-	handlers.UserInfo(userInfoData).ServeHTTP(w, r)
+	handlers.UserInfo(a.getUserInfoData(r)).ServeHTTP(w, r)
 	return nil
 }
 
-func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, error) {
+func (a *Authenticate) getUserInfoData(r *http.Request) handlers.UserInfoData {
 	state := a.state.Load()
 
 	s, err := a.getSessionFromCtx(r.Context())
@@ -527,7 +517,7 @@ func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, 
 
 		BrandingOptions: a.options.Load().BrandingOptions,
 	}
-	return data, nil
+	return data
 }
 
 // revokeSession always clears the local session and tries to revoke the associated session stored in the
