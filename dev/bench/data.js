@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701815528683,
+  "lastUpdate": 1701816713013,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -85268,6 +85268,42 @@ window.BENCHMARK_DATA = {
             "value": 6539522,
             "unit": "ns/op",
             "extra": "181 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3b2bdd059a02b20654d19e2e9b04a3359d0e28cc",
+          "message": "authenticate: getUserInfoData() cleanup (#4818)\n\nThe Authenticate.getUserInfoData() method has an error return value, but\r\nalways returns nil for this value. Let's remove this return value from\r\nthe method signature.",
+          "timestamp": "2023-12-05T14:48:56-08:00",
+          "tree_id": "2a10c820218fc6f4f36a7b67570b799d6a1e3aae",
+          "url": "https://github.com/pomerium/pomerium/commit/3b2bdd059a02b20654d19e2e9b04a3359d0e28cc"
+        },
+        "date": 1701816706872,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10067632,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6743731,
+            "unit": "ns/op",
+            "extra": "178 times\n4 procs"
           }
         ]
       }
