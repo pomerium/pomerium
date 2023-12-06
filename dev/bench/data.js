@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701828472477,
+  "lastUpdate": 1701887274892,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -85400,6 +85400,38 @@ window.BENCHMARK_DATA = {
             "value": 6541429,
             "unit": "ns/op",
             "extra": "176 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "743cd37050b0a1d4c205cddf4941c2775bef6266",
+          "message": "authenticateflow: move stateless flow logic",
+          "timestamp": "2023-12-06T10:39:42Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4820/commits/743cd37050b0a1d4c205cddf4941c2775bef6266"
+        },
+        "date": 1701887268175,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10399280,
+            "unit": "ns/op",
+            "extra": "121 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6466900,
+            "unit": "ns/op",
+            "extra": "178 times\n4 procs"
           }
         ]
       }
