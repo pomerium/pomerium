@@ -13,6 +13,11 @@ type signatureVerifier struct {
 	sharedKey []byte
 }
 
+// VerifySignature checks that the provided request has a valid signature.
+func (v signatureVerifier) VerifySignature(r *http.Request) error {
+	return middleware.ValidateRequestURL(r, v.sharedKey)
+}
+
 // VerifyAuthenticateSignature checks that the provided request has a valid
 // signature (for the authenticate service).
 func (v signatureVerifier) VerifyAuthenticateSignature(r *http.Request) error {
