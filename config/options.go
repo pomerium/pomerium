@@ -827,6 +827,16 @@ func (o *Options) GetInternalAuthenticateURL() (*url.URL, error) {
 	return urlutil.ParseAndValidateURL(o.AuthenticateInternalURLString)
 }
 
+// UseStatelessAuthenticateFlow returns true if the stateless authentication
+// flow should be used (i.e. for hosted authenticate).
+func (o *Options) UseStatelessAuthenticateFlow() bool {
+	u, err := o.GetInternalAuthenticateURL()
+	if err != nil {
+		return false
+	}
+	return urlutil.IsHostedAuthenticateDomain(u.Hostname())
+}
+
 // GetAuthorizeURLs returns the AuthorizeURLs in the options or 127.0.0.1:5443.
 func (o *Options) GetAuthorizeURLs() ([]*url.URL, error) {
 	if IsAll(o.Services) && o.AuthorizeURLString == "" && len(o.AuthorizeURLStrings) == 0 {

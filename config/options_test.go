@@ -856,6 +856,21 @@ func TestOptions_DefaultURL(t *testing.T) {
 	}
 }
 
+func TestOptions_UseStatelessAuthenticateFlow(t *testing.T) {
+	t.Run("enabled by default", func(t *testing.T) {
+		options := &Options{}
+		assert.True(t, options.UseStatelessAuthenticateFlow())
+	})
+	t.Run("enabled explicitly", func(t *testing.T) {
+		options := &Options{AuthenticateURLString: "https://authenticate.pomerium.app"}
+		assert.True(t, options.UseStatelessAuthenticateFlow())
+	})
+	t.Run("disabled", func(t *testing.T) {
+		options := &Options{AuthenticateURLString: "https://authenticate.example.com"}
+		assert.False(t, options.UseStatelessAuthenticateFlow())
+	})
+}
+
 func TestOptions_GetOauthOptions(t *testing.T) {
 	opts := &Options{AuthenticateURLString: "https://authenticate.example.com"}
 	oauthOptions, err := opts.GetOauthOptions()
