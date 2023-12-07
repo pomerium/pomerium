@@ -284,6 +284,45 @@ func (s *Stateless) LogAuthenticateEvent(r *http.Request) {
 	s.logAuthenticateEvent(r, nil)
 }
 
+func (s *Stateless) logAuthenticateEvent(r *http.Request, profile *identitypb.Profile) {
+	if s.authEventFn == nil {
+		return
+	}
+
+	ctx := r.Context()
+	pub, params, err := hpke.DecryptURLValues(s.hpkePrivateKey, r.Form)
+	if err != nil {
+		log.Warn(ctx).Err(err).Msg("log authenticate event: failed to decrypt request params")
+	}
+
+	evt := AuthEvent{
+		IP:          httputil.GetClientIP(r),
+		Version:     params.Get(urlutil.QueryVersion),
+		RequestUUID: params.Get(urlutil.QueryRequestUUID),
+		PubKey:      pub.String(),
+	}
+
+	if uid := getUserClaim(profile, "sub"); uid != nil {
+		evt.UID = uid
+	}
+	if email := getUserClaim(profile, "email"); email != nil {
+		evt.Email = email
+	}
+
+	if evt.UID != nil {
+		evt.Event = AuthEventSignInComplete
+	} else {
+		evt.Event = AuthEventSignInRequest
+	}
+
+	if redirectURL, err := url.Parse(params.Get(urlutil.QueryRedirectURI)); err == nil {
+		domain := redirectURL.Hostname()
+		evt.Domain = &domain
+	}
+
+	s.authEventFn(ctx, evt)
+}
+
 func getUserClaim(profile *identitypb.Profile, field string) *string {
 	if profile == nil {
 		return nil
