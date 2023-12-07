@@ -192,17 +192,7 @@ func (a *Authorize) requireLoginResponse(
 		return a.deniedResponse(ctx, in, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), nil)
 	}
 
-	authenticateURL, err := options.GetAuthenticateURL()
-	if err != nil {
-		return nil, err
-	}
-
 	idp, err := options.GetIdentityProviderForPolicy(request.Policy)
-	if err != nil {
-		return nil, err
-	}
-
-	authenticateHPKEPublicKey, err := state.authenticateKeyFetcher.FetchPublicKey(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -211,13 +201,8 @@ func (a *Authorize) requireLoginResponse(
 	checkRequestURL := getCheckRequestURL(in)
 	checkRequestURL.Scheme = "https"
 
-	redirectTo, err := urlutil.SignInURL(
-		state.hpkePrivateKey,
-		authenticateHPKEPublicKey,
-		authenticateURL,
-		&checkRequestURL,
-		idp.GetId(),
-	)
+	redirectTo, err := state.authenticateFlow.AuthenticateSignInURL(
+		ctx, nil, &checkRequestURL, idp.GetId())
 	if err != nil {
 		return nil, err
 	}

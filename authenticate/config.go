@@ -2,6 +2,7 @@ package authenticate
 
 import (
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/internal/identity"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 )
@@ -9,7 +10,7 @@ import (
 type authenticateConfig struct {
 	getIdentityProvider func(options *config.Options, idpID string) (identity.Authenticator, error)
 	profileTrimFn       func(*identitypb.Profile)
-	authEventFn         AuthEventFn
+	authEventFn         authenticateflow.AuthEventFn
 }
 
 // An Option customizes the Authenticate config.
@@ -39,7 +40,7 @@ func WithProfileTrimFn(profileTrimFn func(*identitypb.Profile)) Option {
 }
 
 // WithOnAuthenticationEventHook sets the authEventFn function in the config
-func WithOnAuthenticationEventHook(fn AuthEventFn) Option {
+func WithOnAuthenticationEventHook(fn authenticateflow.AuthEventFn) Option {
 	return func(cfg *authenticateConfig) {
 		cfg.authEventFn = fn
 	}

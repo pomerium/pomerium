@@ -26,6 +26,7 @@ func TestNew(t *testing.T) {
 			config.Options{
 				AuthenticateURLString: "https://authN.example.com",
 				DataBrokerURLString:   "https://databroker.example.com",
+				CookieSecret:          "15WXae6fvK9Hal0RGZ600JlCaflYHtNy9bAyOLTlvmc=",
 				SharedKey:             "2p/Wi2Q6bYDfzmoSEbKqYKtg+DUoLWTEHHs7vOhvL7w=",
 				Policies:              policies,
 			},
@@ -36,6 +37,7 @@ func TestNew(t *testing.T) {
 			config.Options{
 				AuthenticateURLString: "https://authN.example.com",
 				DataBrokerURLString:   "https://databroker.example.com",
+				CookieSecret:          "15WXae6fvK9Hal0RGZ600JlCaflYHtNy9bAyOLTlvmc=",
 				SharedKey:             "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
 				Policies:              policies,
 			},
@@ -46,6 +48,7 @@ func TestNew(t *testing.T) {
 			config.Options{
 				AuthenticateURLString: "https://authN.example.com",
 				DataBrokerURLString:   "https://databroker.example.com",
+				CookieSecret:          "15WXae6fvK9Hal0RGZ600JlCaflYHtNy9bAyOLTlvmc=",
 				SharedKey:             "sup",
 				Policies:              policies,
 			},
@@ -56,6 +59,7 @@ func TestNew(t *testing.T) {
 			config.Options{
 				AuthenticateURLString: "https://authN.example.com",
 				DataBrokerURLString:   "https://databroker.example.com",
+				CookieSecret:          "15WXae6fvK9Hal0RGZ600JlCaflYHtNy9bAyOLTlvmc=",
 				SharedKey:             "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
 				Policies:              policies,
 			},
@@ -67,6 +71,7 @@ func TestNew(t *testing.T) {
 			config.Options{
 				AuthenticateURLString: "https://authN.example.com",
 				DataBrokerURLString:   "BAD",
+				CookieSecret:          "15WXae6fvK9Hal0RGZ600JlCaflYHtNy9bAyOLTlvmc=",
 				SharedKey:             "AZA85podM73CjLCjViDNz1EUvvejKpWp7Hysr0knXA==",
 				Policies:              policies,
 			},
@@ -105,6 +110,7 @@ func TestAuthorize_OnConfigChange(t *testing.T) {
 			o := &config.Options{
 				AuthenticateURLString: "https://authN.example.com",
 				DataBrokerURLString:   "https://databroker.example.com",
+				CookieSecret:          "15WXae6fvK9Hal0RGZ600JlCaflYHtNy9bAyOLTlvmc=",
 				SharedKey:             tc.SharedKey,
 				Policies:              tc.Policies,
 			}

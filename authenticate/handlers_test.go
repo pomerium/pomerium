@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
+	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/identity/oidc"
@@ -40,6 +40,7 @@ func testAuthenticate() *Authenticate {
 	auth.state = atomicutil.NewValue(&authenticateState{
 		redirectURL:  redirectURL,
 		cookieSecret: cryptutil.NewKey(),
+		flow:         new(stubFlow),
 	})
 	auth.options = config.NewAtomicOptions()
 	auth.options.Store(&config.Options{
@@ -205,6 +206,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 				state: atomicutil.NewValue(&authenticateState{
 					sessionStore:  tt.sessionStore,
 					sharedEncoder: mock.Encoder{},
+					flow:          new(stubFlow),
 				}),
 				options: config.NewAtomicOptions(),
 			}
@@ -301,6 +303,7 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 					redirectURL:  authURL,
 					sessionStore: tt.session,
 					cookieCipher: aead,
+					flow:         new(stubFlow),
 				}),
 				options: config.NewAtomicOptions(),
 			}
@@ -414,6 +417,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 					sessionStore:  tt.session,
 					cookieCipher:  aead,
 					sharedEncoder: signer,
+					flow:          new(stubFlow),
 				}),
 				options: config.NewAtomicOptions(),
 			}
@@ -452,6 +456,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 		var a Authenticate
 		a.state = atomicutil.NewValue(&authenticateState{
 			cookieSecret: cryptutil.NewKey(),
+			flow:         new(stubFlow),
 		})
 		a.options = config.NewAtomicOptions()
 		a.options.Store(&config.Options{
@@ -467,36 +472,32 @@ func TestAuthenticate_userInfo(t *testing.T) {
 
 	now := time.Now()
 	tests := []struct {
-		name         string
-		url          *url.URL
-		method       string
-		sessionStore sessions.SessionStore
-		wantCode     int
-		wantBody     string
+		name           string
+		url            string
+		validSignature bool
+		sessionStore   sessions.SessionStore
+		wantCode       int
 	}{
 		{
-			"good",
-			mustParseURL("/"),
-			http.MethodGet,
+			"not a redirect",
+			"/",
+			true,
 			&mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}},
 			http.StatusOK,
-			"",
 		},
 		{
-			"missing signature",
-			mustParseURL("/?pomerium_redirect_uri=http://example.com"),
-			http.MethodGet,
+			"signed redirect",
+			"/?pomerium_redirect_uri=http://example.com",
+			true,
 			&mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}},
-			http.StatusBadRequest,
-			"",
+			http.StatusFound,
 		},
 		{
-			"bad signature",
-			urlutil.NewSignedURL([]byte("BAD KEY"), mustParseURL("/?pomerium_redirect_uri=http://example.com")).Sign(),
-			http.MethodGet,
+			"invalid redirect",
+			"/?pomerium_redirect_uri=http://example.com",
+			false,
 			&mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}},
 			http.StatusBadRequest,
-			"",
 		},
 	}
 	for _, tt := range tests {
@@ -513,14 +514,19 @@ func TestAuthenticate_userInfo(t *testing.T) {
 				AuthenticateURLString: "https://authenticate.localhost.pomerium.io",
 				SharedKey:             "SHARED KEY",
 			})
+			f := new(stubFlow)
+			if !tt.validSignature {
+				f.verifySignatureErr = errors.New("bad signature")
+			}
 			a := &Authenticate{
 				options: o,
 				state: atomicutil.NewValue(&authenticateState{
 					sessionStore:  tt.sessionStore,
 					sharedEncoder: signer,
+					flow:          f,
 				}),
 			}
-			r := httptest.NewRequest(tt.method, tt.url.String(), nil)
+			r := httptest.NewRequest(http.MethodGet, tt.url, nil)
 			state, err := tt.sessionStore.LoadSession(r)
 			if err != nil {
 				t.Fatal(err)
@@ -534,10 +540,6 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			a.requireValidSignatureOnRedirect(a.userInfo).ServeHTTP(w, r)
 			if status := w.Code; status != tt.wantCode {
 				t.Errorf("handler returned wrong status code: got %v want %v", status, tt.wantCode)
-			}
-			body := w.Body.String()
-			if !strings.Contains(body, tt.wantBody) {
-				t.Errorf("Unexpected body, contains: %s, got: %s", tt.wantBody, body)
 			}
 		})
 	}
@@ -564,4 +566,43 @@ func mustParseURL(rawurl string) *url.URL {
 		panic(err)
 	}
 	return u
+}
+
+// stubFlow is a stub implementation of the flow interface.
+type stubFlow struct {
+	verifySignatureErr error
+}
+
+func (f *stubFlow) VerifyAuthenticateSignature(*http.Request) error {
+	return f.verifySignatureErr
+}
+
+func (*stubFlow) SignIn(http.ResponseWriter, *http.Request, *sessions.State) error {
+	return nil
+}
+
+func (*stubFlow) PersistSession(
+	context.Context, http.ResponseWriter, *sessions.State, identity.SessionClaims, *oauth2.Token,
+) error {
+	return nil
+}
+
+func (*stubFlow) VerifySession(context.Context, *http.Request, *sessions.State) error {
+	return nil
+}
+
+func (*stubFlow) RevokeSession(
+	context.Context, *http.Request, identity.Authenticator, *sessions.State,
+) string {
+	return ""
+}
+
+func (*stubFlow) GetUserInfoData(*http.Request, *sessions.State) handlers.UserInfoData {
+	return handlers.UserInfoData{}
+}
+
+func (*stubFlow) LogAuthenticateEvent(*http.Request) {}
+
+func (*stubFlow) GetIdentityProviderIDForURLValues(url.Values) string {
+	return ""
 }
