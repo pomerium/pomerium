@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701982494627,
+  "lastUpdate": 1701982595919,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -87226,6 +87226,42 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 6402995,
+            "unit": "ns/op",
+            "extra": "181 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b2d0b454c9d1ac5b27572768a12651ed4776e4dc",
+          "message": "chore(deps): bump github.com/shirou/gopsutil/v3 from 3.23.9 to 3.23.11 (#4794)\n\nBumps [github.com/shirou/gopsutil/v3](https://github.com/shirou/gopsutil) from 3.23.9 to 3.23.11.\r\n- [Release notes](https://github.com/shirou/gopsutil/releases)\r\n- [Commits](https://github.com/shirou/gopsutil/compare/v3.23.9...v3.23.11)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/shirou/gopsutil/v3\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-12-07T13:51:00-07:00",
+          "tree_id": "2f210fb9c426a0a1f42a527a8155aaa9f9d521b4",
+          "url": "https://github.com/pomerium/pomerium/commit/b2d0b454c9d1ac5b27572768a12651ed4776e4dc"
+        },
+        "date": 1701982589697,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10602777,
+            "unit": "ns/op",
+            "extra": "97 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6303483,
             "unit": "ns/op",
             "extra": "181 times\n4 procs"
           }
