@@ -1,3 +1,0 @@
-FROM bitnami/redis:latest@sha256:35347816a3d837db19cdf37f98346ab53aa2fc3389bbd1935ddc39e7d7f1dbff
-
-Add tls /tls

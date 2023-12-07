@@ -1,7 +1,6 @@
 package proxy
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -10,17 +9,11 @@ import (
 
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/gorilla/mux"
-	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/urlutil"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/identity"
-	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
-	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
 // registerDashboardHandlers returns the proxy service's ServeMux
@@ -110,89 +103,7 @@ func (p *Proxy) deviceEnrolled(w http.ResponseWriter, r *http.Request) error {
 // Callback handles the result of a successful call to the authenticate service
 // and is responsible setting per-route sessions.
 func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) error {
-	state := p.state.Load()
-	options := p.currentOptions.Load()
-
-	if err := r.ParseForm(); err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-
-	// decrypt the URL values
-	senderPublicKey, values, err := hpke.DecryptURLValues(state.hpkePrivateKey, r.Form)
-	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, fmt.Errorf("invalid encrypted query string: %w", err))
-	}
-
-	// confirm this request came from the authenticate service
-	err = p.validateSenderPublicKey(r.Context(), senderPublicKey)
-	if err != nil {
-		return err
-	}
-
-	// validate that the request has not expired
-	err = urlutil.ValidateTimeParameters(values)
-	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-
-	profile, err := getProfileFromValues(values)
-	if err != nil {
-		return err
-	}
-
-	ss := newSessionStateFromProfile(profile)
-	s, err := session.Get(r.Context(), state.dataBrokerClient, ss.ID)
-	if err != nil {
-		s = &session.Session{Id: ss.ID}
-	}
-	populateSessionFromProfile(s, profile, ss, options.CookieExpire)
-	u, err := user.Get(r.Context(), state.dataBrokerClient, ss.UserID())
-	if err != nil {
-		u = &user.User{Id: ss.UserID()}
-	}
-	populateUserFromProfile(u, profile, ss)
-
-	redirectURI, err := getRedirectURIFromValues(values)
-	if err != nil {
-		return err
-	}
-
-	// save the records
-	res, err := state.dataBrokerClient.Put(r.Context(), &databroker.PutRequest{
-		Records: []*databroker.Record{
-			databroker.NewRecord(s),
-			databroker.NewRecord(u),
-		},
-	})
-	if err != nil {
-		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving databroker records: %w", err))
-	}
-	ss.DatabrokerServerVersion = res.GetServerVersion()
-	for _, record := range res.GetRecords() {
-		if record.GetVersion() > ss.DatabrokerRecordVersion {
-			ss.DatabrokerRecordVersion = record.GetVersion()
-		}
-	}
-
-	// save the session state
-	rawJWT, err := state.encoder.Marshal(ss)
-	if err != nil {
-		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error marshaling session state: %w", err))
-	}
-	if err = state.sessionStore.SaveSession(w, r, rawJWT); err != nil {
-		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("proxy: error saving session state: %w", err))
-	}
-
-	// if programmatic, encode the session jwt as a query param
-	if isProgrammatic := values.Get(urlutil.QueryIsProgrammatic); isProgrammatic == "true" {
-		q := redirectURI.Query()
-		q.Set(urlutil.QueryPomeriumJWT, string(rawJWT))
-		redirectURI.RawQuery = q.Encode()
-	}
-
-	// redirect
-	httputil.Redirect(w, r, redirectURI.String(), http.StatusFound)
-	return nil
+	return p.state.Load().authenticateFlow.Callback(w, r)
 }
 
 // ProgrammaticLogin returns a signed url that can be used to login
@@ -215,20 +126,14 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}
 
-	hpkeAuthenticateKey, err := state.authenticateKeyFetcher.FetchPublicKey(r.Context())
-	if err != nil {
-		return httputil.NewError(http.StatusInternalServerError, err)
-	}
-
-	signinURL := *state.authenticateSigninURL
 	callbackURI := urlutil.GetAbsoluteURL(r)
 	callbackURI.Path = dashboardPath + "/callback/"
-	q := signinURL.Query()
+	q := url.Values{}
 	q.Set(urlutil.QueryCallbackURI, callbackURI.String())
 	q.Set(urlutil.QueryIsProgrammatic, "true")
-	signinURL.RawQuery = q.Encode()
 
-	rawURL, err := urlutil.SignInURL(state.hpkePrivateKey, hpkeAuthenticateKey, &signinURL, redirectURI, idp.GetId())
+	rawURL, err := state.authenticateFlow.AuthenticateSignInURL(
+		r.Context(), q, redirectURI, idp.GetId())
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}
@@ -262,45 +167,4 @@ func (p *Proxy) jwtAssertion(w http.ResponseWriter, r *http.Request) error {
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.WriteString(w, rawAssertionJWT)
 	return nil
-}
-
-func (p *Proxy) validateSenderPublicKey(ctx context.Context, senderPublicKey *hpke.PublicKey) error {
-	state := p.state.Load()
-
-	authenticatePublicKey, err := state.authenticateKeyFetcher.FetchPublicKey(ctx)
-	if err != nil {
-		return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("hpke: error retrieving authenticate service public key: %w", err))
-	}
-
-	if !authenticatePublicKey.Equals(senderPublicKey) {
-		return httputil.NewError(http.StatusBadRequest, fmt.Errorf("hpke: invalid authenticate service public key"))
-	}
-
-	return nil
-}
-
-func getProfileFromValues(values url.Values) (*identity.Profile, error) {
-	rawProfile := values.Get(urlutil.QueryIdentityProfile)
-	if rawProfile == "" {
-		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("missing %s", urlutil.QueryIdentityProfile))
-	}
-
-	var profile identity.Profile
-	err := protojson.Unmarshal([]byte(rawProfile), &profile)
-	if err != nil {
-		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("invalid %s: %w", urlutil.QueryIdentityProfile, err))
-	}
-	return &profile, nil
-}
-
-func getRedirectURIFromValues(values url.Values) (*url.URL, error) {
-	rawRedirectURI := values.Get(urlutil.QueryRedirectURI)
-	if rawRedirectURI == "" {
-		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("missing %s", urlutil.QueryRedirectURI))
-	}
-	redirectURI, err := urlutil.ParseAndValidateURL(rawRedirectURI)
-	if err != nil {
-		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("invalid %s: %w", urlutil.QueryRedirectURI, err))
-	}
-	return redirectURI, nil
 }

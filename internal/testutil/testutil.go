@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -14,6 +15,8 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/testing/protocmp"
 )
+
+const maxWait = time.Minute * 20
 
 // AssertProtoEqual asserts that two protobuf messages equal. Slices of messages are also supported.
 func AssertProtoEqual(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) bool {
@@ -69,9 +72,4 @@ func ModRoot() string {
 		dir = d
 	}
 	return ""
-}
-
-// TestDataRoot returns the testdata directory.
-func TestDataRoot() string {
-	return filepath.Join(ModRoot(), "internal", "testutil", "testdata")
 }

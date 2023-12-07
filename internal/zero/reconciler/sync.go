@@ -170,6 +170,7 @@ func (c *service) syncBundle(ctx context.Context, key string) error {
 		Strs("record_types", bundleRecordTypes).
 		Str("etag", current.ETag).
 		Str("last_modified", current.LastModified).
+		Interface("metadata", result.Metadata).
 		Msg("bundle synced")
 
 	err = c.SetBundleCacheEntry(ctx, key, current)
