@@ -36,6 +36,7 @@ linters:
     - tenv
     - unconvert
     - unused
+    - usestdlibvars
 
 issues:
   # List of regexps of issue texts to exclude, empty list by default.
