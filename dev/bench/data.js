@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701986539556,
+  "lastUpdate": 1701988033417,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -88548,6 +88548,42 @@ window.BENCHMARK_DATA = {
             "value": 6101350,
             "unit": "ns/op",
             "extra": "194 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5ccd7a520ad98407da8520875bcfcb599d8c79a0",
+          "message": "support both stateful and stateless authenticate (#4765)\n\nUpdate the initialization logic for the authenticate, authorize, and\r\nproxy services to automatically select between the stateful\r\nauthentication flow and the stateless authentication flow, depending on\r\nwhether Pomerium is configured to use the hosted authenticate service.\r\n\r\nAdd a unit test case to verify that the sign_out handler does not \r\ntrigger a sign in redirect.",
+          "timestamp": "2023-12-07T14:24:13-08:00",
+          "tree_id": "be7bb9521599e48341bcaf375f19fbe2c9ea7f7c",
+          "url": "https://github.com/pomerium/pomerium/commit/5ccd7a520ad98407da8520875bcfcb599d8c79a0"
+        },
+        "date": 1701988026973,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8734744,
+            "unit": "ns/op",
+            "extra": "134 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6372196,
+            "unit": "ns/op",
+            "extra": "195 times\n4 procs"
           }
         ]
       }
