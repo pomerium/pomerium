@@ -269,12 +269,12 @@ func (backend *Backend) Patch(
 			// Skip any record that does not currently exist.
 			continue
 		} else if err != nil {
-			return
+			return serverVersion, patchedRecords, err
 		}
 		patchedRecords = append(patchedRecords, record)
 	}
 
-	return
+	return serverVersion, patchedRecords, nil
 }
 
 // patch updates the specified fields of an existing record, assuming the RWMutex is held.
