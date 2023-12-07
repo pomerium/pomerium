@@ -83,7 +83,11 @@ func newAuthorizeStateFromConfig(
 		return nil, fmt.Errorf("authorize: invalid session store: %w", err)
 	}
 
-	state.authenticateFlow, err = authenticateflow.NewStateless(cfg, nil, nil, nil, nil)
+	if cfg.Options.UseStatelessAuthenticateFlow() {
+		state.authenticateFlow, err = authenticateflow.NewStateless(cfg, nil, nil, nil, nil)
+	} else {
+		state.authenticateFlow, err = authenticateflow.NewStateful(cfg, nil)
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -246,6 +247,40 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAuthenticate_SignOutDoesNotRequireSession(t *testing.T) {
+	// A direct sign_out request would not be signed.
+	f := new(stubFlow)
+	f.verifySignatureErr = errors.New("no signature")
+
+	sessionStore := &mstore.Store{LoadError: errors.New("no session")}
+	a := &Authenticate{
+		cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
+			return identity.MockProvider{}, nil
+		})),
+		state: atomicutil.NewValue(&authenticateState{
+			cookieSecret:  cryptutil.NewKey(),
+			sessionLoader: sessionStore,
+			sessionStore:  sessionStore,
+			sharedEncoder: mock.Encoder{},
+			flow:          f,
+		}),
+		options: config.NewAtomicOptions(),
+	}
+	r := httptest.NewRequest(http.MethodGet, "/.pomerium/sign_out", nil)
+	w := httptest.NewRecorder()
+
+	a.Handler().ServeHTTP(w, r)
+	result := w.Result()
+
+	// The handler should serve a sign out confirmation page, not a login redirect.
+	expectedStatus := "200 OK"
+	if result.Status != expectedStatus {
+		t.Fatalf("wrong status code: got %q want %q", result.Status, expectedStatus)
+	}
+	body, _ := io.ReadAll(result.Body)
+	assert.Contains(t, string(body), `"page":"SignOutConfirm"`)
 }
 
 func TestAuthenticate_OAuthCallback(t *testing.T) {
