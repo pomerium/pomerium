@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701983754807,
+  "lastUpdate": 1701985441956,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -88280,6 +88280,42 @@ window.BENCHMARK_DATA = {
             "value": 6380582,
             "unit": "ns/op",
             "extra": "188 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7a9272c4853516abb5afc66039c34090f5843c75",
+          "message": "chore(deps): bump github.com/gorilla/websocket from 1.5.0 to 1.5.1 (#4793)\n\nBumps [github.com/gorilla/websocket](https://github.com/gorilla/websocket) from 1.5.0 to 1.5.1.\r\n- [Release notes](https://github.com/gorilla/websocket/releases)\r\n- [Commits](https://github.com/gorilla/websocket/compare/v1.5.0...v1.5.1)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/gorilla/websocket\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-12-07T14:40:49-07:00",
+          "tree_id": "9acdc110531270dda4ebc1680c7ffa4cd7689272",
+          "url": "https://github.com/pomerium/pomerium/commit/7a9272c4853516abb5afc66039c34090f5843c75"
+        },
+        "date": 1701985435072,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10797351,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6792586,
+            "unit": "ns/op",
+            "extra": "175 times\n4 procs"
           }
         ]
       }
