@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701982290613,
+  "lastUpdate": 1701982293454,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -87084,6 +87084,42 @@ window.BENCHMARK_DATA = {
             "value": 7084082,
             "unit": "ns/op",
             "extra": "168 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "479d8ac5e705a9c32ed7c287f2d48e60a1aaaad1",
+          "message": "chore(deps): bump github.com/yuin/gopher-lua from 1.1.0 to 1.1.1 (#4832)\n\nBumps [github.com/yuin/gopher-lua](https://github.com/yuin/gopher-lua) from 1.1.0 to 1.1.1.\r\n- [Release notes](https://github.com/yuin/gopher-lua/releases)\r\n- [Commits](https://github.com/yuin/gopher-lua/compare/v1.1.0...v1.1.1)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/yuin/gopher-lua\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-12-07T13:48:34-07:00",
+          "tree_id": "5b5a841f68635fa43d0bc8b3c5d9becbf07daa57",
+          "url": "https://github.com/pomerium/pomerium/commit/479d8ac5e705a9c32ed7c287f2d48e60a1aaaad1"
+        },
+        "date": 1701982287304,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11037496,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7177141,
+            "unit": "ns/op",
+            "extra": "170 times\n4 procs"
           }
         ]
       }
