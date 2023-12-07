@@ -37,10 +37,8 @@ const (
 	BundleCacheEntryRecordType = "pomerium.io/BundleCacheEntry"
 )
 
-var (
-	// ErrBundleCacheEntryNotFound is returned when a bundle cache entry is not found
-	ErrBundleCacheEntryNotFound = errors.New("bundle cache entry not found")
-)
+// ErrBundleCacheEntryNotFound is returned when a bundle cache entry is not found
+var ErrBundleCacheEntryNotFound = errors.New("bundle cache entry not found")
 
 // GetBundleCacheEntry gets a bundle cache entry from the databroker
 func (c *service) GetBundleCacheEntry(ctx context.Context, id string) (*BundleCacheEntry, error) {

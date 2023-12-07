@@ -57,7 +57,7 @@ func TestReadFileUpTo(t *testing.T) {
 	d := t.TempDir()
 	input := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}
 	fname := path.Join(d, "test")
-	require.NoError(t, os.WriteFile(fname, input, 0600))
+	require.NoError(t, os.WriteFile(fname, input, 0o600))
 
 	for _, tc := range []struct {
 		size        int

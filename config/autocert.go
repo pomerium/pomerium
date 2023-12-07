@@ -59,7 +59,6 @@ type AutocertOptions struct {
 
 // Validate ensures the Options fields are valid, and hydrated.
 func (o *AutocertOptions) Validate() error {
-
 	// validate ACME EAB settings
 	if o.EABKeyID != "" && o.EABMACKey == "" {
 		return errors.New("config: Autocert EAB MAC Key required when Key ID is provided")

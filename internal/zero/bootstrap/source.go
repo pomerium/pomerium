@@ -12,16 +12,12 @@ import (
 	cluster_api "github.com/pomerium/zero-sdk/cluster"
 )
 
-var (
-	_ = config.Source(new(source))
-)
+var _ = config.Source(new(source))
 
-var (
-	cmpOpts = []cmp.Option{
-		cmpopts.IgnoreUnexported(config.Options{}),
-		cmpopts.EquateEmpty(),
-	}
-)
+var cmpOpts = []cmp.Option{
+	cmpopts.IgnoreUnexported(config.Options{}),
+	cmpopts.EquateEmpty(),
+}
 
 type source struct {
 	cfg atomicutil.Value[*config.Config]

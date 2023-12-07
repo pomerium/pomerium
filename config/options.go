@@ -269,7 +269,7 @@ type Options struct {
 
 	// GoogleCloudServerlessAuthenticationServiceAccount is the service account to use for GCP serverless authentication.
 	// If unset, the GCP metadata server will be used to query for identity tokens.
-	GoogleCloudServerlessAuthenticationServiceAccount string `mapstructure:"google_cloud_serverless_authentication_service_account" yaml:"google_cloud_serverless_authentication_service_account,omitempty"` //nolint
+	GoogleCloudServerlessAuthenticationServiceAccount string `mapstructure:"google_cloud_serverless_authentication_service_account" yaml:"google_cloud_serverless_authentication_service_account,omitempty"`
 
 	// UseProxyProtocol configures the HTTP listener to require the HAProxy proxy protocol (either v1 or v2) on incoming requests.
 	UseProxyProtocol bool `mapstructure:"use_proxy_protocol" yaml:"use_proxy_protocol,omitempty" json:"use_proxy_protocol,omitempty"`
@@ -293,7 +293,7 @@ type Options struct {
 	EnvoyBindConfigFreebind      null.Bool `mapstructure:"envoy_bind_config_freebind" yaml:"envoy_bind_config_freebind,omitempty"`
 
 	// ProgrammaticRedirectDomainWhitelist restricts the allowed redirect URLs when using programmatic login.
-	ProgrammaticRedirectDomainWhitelist []string `mapstructure:"programmatic_redirect_domain_whitelist" yaml:"programmatic_redirect_domain_whitelist,omitempty" json:"programmatic_redirect_domain_whitelist,omitempty"` //nolint
+	ProgrammaticRedirectDomainWhitelist []string `mapstructure:"programmatic_redirect_domain_whitelist" yaml:"programmatic_redirect_domain_whitelist,omitempty" json:"programmatic_redirect_domain_whitelist,omitempty"`
 
 	// CodecType is the codec to use for downstream connections.
 	CodecType CodecType `mapstructure:"codec_type" yaml:"codec_type"`

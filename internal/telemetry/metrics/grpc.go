@@ -124,7 +124,8 @@ func GRPCClientInterceptor(service string) grpc.UnaryClientInterceptor {
 		reply interface{},
 		cc *grpc.ClientConn,
 		invoker grpc.UnaryInvoker,
-		opts ...grpc.CallOption) error {
+		opts ...grpc.CallOption,
+	) error {
 		// Split the method into parts for better slicing
 		rpcInfo := strings.SplitN(method, "/", 3)
 		var rpcMethod string

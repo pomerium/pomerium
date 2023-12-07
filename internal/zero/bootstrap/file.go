@@ -46,7 +46,7 @@ func SaveBootstrapConfigToFile(src *cluster_api.BootstrapConfig, fp string, ciph
 	}
 
 	ciphertext := cryptutil.Encrypt(cipher, plaintext, nil)
-	err = os.WriteFile(fp, ciphertext, 0600)
+	err = os.WriteFile(fp, ciphertext, 0o600)
 	if err != nil {
 		return fmt.Errorf("write bootstrap config: %w", err)
 	}

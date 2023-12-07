@@ -20,7 +20,7 @@ type retryableError struct {
 }
 
 func (err retryableError) Is(target error) bool {
-	if _, ok := target.(retryableError); ok { //nolint:errorlint
+	if _, ok := target.(retryableError); ok {
 		return true
 	}
 	return false

@@ -31,7 +31,6 @@ func TestBuilder_buildACMETLSALPNCluster(t *testing.T) {
 		b.buildACMETLSALPNCluster(&config.Config{
 			ACMETLSALPNPort: "1234",
 		}))
-
 }
 
 func TestBuilder_buildACMETLSALPNFilterChain(t *testing.T) {

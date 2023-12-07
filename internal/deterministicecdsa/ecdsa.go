@@ -125,13 +125,13 @@ func Sign(rand io.Reader, priv *ecdsa.PrivateKey, hash []byte) (r, s *big.Int, e
 	c := priv.PublicKey.Curve
 	N := c.Params().N
 
-	var k, kInv *big.Int //nolint
+	var k, kInv *big.Int
 	for {
 		for {
 			k, err = randFieldElement(c, rand)
 			if err != nil {
 				r = nil
-				return
+				return r, s, err
 			}
 
 			kInv = new(big.Int).ModInverse(k, N)
@@ -152,5 +152,5 @@ func Sign(rand io.Reader, priv *ecdsa.PrivateKey, hash []byte) (r, s *big.Int, e
 		}
 	}
 
-	return //nolint
+	return r, s, err
 }
