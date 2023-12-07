@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701966862179,
+  "lastUpdate": 1701967459268,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -85924,6 +85924,42 @@ window.BENCHMARK_DATA = {
             "value": 7167094,
             "unit": "ns/op",
             "extra": "168 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "98c6603f3b9c789cc37a494fd326338a0458f8b5",
+          "message": "core/ci: disable dependabot for npm (#4823)",
+          "timestamp": "2023-12-07T09:41:09-07:00",
+          "tree_id": "63a27f225d23b68c15cdb9a90bb546093d1ed50d",
+          "url": "https://github.com/pomerium/pomerium/commit/98c6603f3b9c789cc37a494fd326338a0458f8b5"
+        },
+        "date": 1701967448017,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 13603835,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6462802,
+            "unit": "ns/op",
+            "extra": "187 times\n4 procs"
           }
         ]
       }
