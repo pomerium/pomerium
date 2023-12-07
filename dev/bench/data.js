@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701917256290,
+  "lastUpdate": 1701923558653,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -85760,6 +85760,38 @@ window.BENCHMARK_DATA = {
             "value": 6229143,
             "unit": "ns/op",
             "extra": "194 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "b073dd4f821c44618bbdbdf9adc97b9beff702fc",
+          "message": "WIP: update integration tests to exercise both stateful and stateless authentication flows",
+          "timestamp": "2023-12-06T10:39:42Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4817/commits/b073dd4f821c44618bbdbdf9adc97b9beff702fc"
+        },
+        "date": 1701923552748,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8704935,
+            "unit": "ns/op",
+            "extra": "136 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6151843,
+            "unit": "ns/op",
+            "extra": "188 times\n4 procs"
           }
         ]
       }
