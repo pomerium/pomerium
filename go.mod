@@ -34,7 +34,7 @@ require (
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru/v2 v2.0.7
-	github.com/jackc/pgx/v5 v5.4.3
+	github.com/jackc/pgx/v5 v5.5.0
 	github.com/klauspost/compress v1.17.4
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/mattn/go-isatty v0.0.20
