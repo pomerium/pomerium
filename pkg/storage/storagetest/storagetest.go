@@ -5,9 +5,7 @@ package storagetest
 import (
 	"context"
 	"fmt"
-	"os"
 	"runtime"
-	"strconv"
 	"sync"
 	"testing"
 
@@ -115,7 +113,7 @@ func TestBackendPatch(t *testing.T, ctx context.Context, backend storage.Backend
 	})
 
 	t.Run("concurrent", func(t *testing.T) {
-		if n := gomaxprocs(); n < 2 {
+		if n := runtime.GOMAXPROCS(0); n < 2 {
 			t.Skipf("skipping concurrent test (GOMAXPROCS = %d)", n)
 		}
 
@@ -176,12 +174,4 @@ func truncateTimestamps(ts ...*timestamppb.Timestamp) {
 	for _, t := range ts {
 		t.Nanos = (t.Nanos / 1000) * 1000
 	}
-}
-
-func gomaxprocs() int {
-	env := os.Getenv("GOMAXPROCS")
-	if n, err := strconv.Atoi(env); err == nil {
-		return n
-	}
-	return runtime.NumCPU()
 }
