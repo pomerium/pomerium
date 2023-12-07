@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701983464075,
+  "lastUpdate": 1701983560806,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -88144,6 +88144,42 @@ window.BENCHMARK_DATA = {
             "value": 6291913,
             "unit": "ns/op",
             "extra": "182 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "98c19f924dd57993cc0b6c9fcb41ca14ca1ee9a2",
+          "message": "chore(deps): bump github.com/cloudflare/circl from 1.3.3 to 1.3.6 (#4674)\n\nBumps [github.com/cloudflare/circl](https://github.com/cloudflare/circl) from 1.3.3 to 1.3.6.\r\n- [Release notes](https://github.com/cloudflare/circl/releases)\r\n- [Commits](https://github.com/cloudflare/circl/compare/v1.3.3...v1.3.6)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/cloudflare/circl\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-12-07T14:03:11-07:00",
+          "tree_id": "85364ee962e618bad453796680a6bd30691a52e4",
+          "url": "https://github.com/pomerium/pomerium/commit/98c19f924dd57993cc0b6c9fcb41ca14ca1ee9a2"
+        },
+        "date": 1701983554257,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10387157,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7674559,
+            "unit": "ns/op",
+            "extra": "172 times\n4 procs"
           }
         ]
       }
