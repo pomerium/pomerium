@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701982595919,
+  "lastUpdate": 1701982611989,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -87264,6 +87264,42 @@ window.BENCHMARK_DATA = {
             "value": 6303483,
             "unit": "ns/op",
             "extra": "181 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "58fddfe6e23ad801bc373b3aa372558b6a6d321d",
+          "message": "chore(deps): bump github.com/gorilla/mux from 1.8.0 to 1.8.1 (#4790)\n\nBumps [github.com/gorilla/mux](https://github.com/gorilla/mux) from 1.8.0 to 1.8.1.\r\n- [Release notes](https://github.com/gorilla/mux/releases)\r\n- [Commits](https://github.com/gorilla/mux/compare/v1.8.0...v1.8.1)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/gorilla/mux\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-12-07T13:51:32-07:00",
+          "tree_id": "80682c13a017c6ab8a8ab23ccb940635939e8c79",
+          "url": "https://github.com/pomerium/pomerium/commit/58fddfe6e23ad801bc373b3aa372558b6a6d321d"
+        },
+        "date": 1701982605869,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10806290,
+            "unit": "ns/op",
+            "extra": "99 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6383185,
+            "unit": "ns/op",
+            "extra": "177 times\n4 procs"
           }
         ]
       }
