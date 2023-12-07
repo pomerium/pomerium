@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701983091404,
+  "lastUpdate": 1701983146246,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -87804,6 +87804,42 @@ window.BENCHMARK_DATA = {
             "value": 6415929,
             "unit": "ns/op",
             "extra": "189 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5da9f52a5e7798b0b42f0527cdbf89da8288bc45",
+          "message": "chore(deps): bump github.com/fsnotify/fsnotify from 1.6.0 to 1.7.0 (#4680)\n\nBumps [github.com/fsnotify/fsnotify](https://github.com/fsnotify/fsnotify) from 1.6.0 to 1.7.0.\r\n- [Release notes](https://github.com/fsnotify/fsnotify/releases)\r\n- [Changelog](https://github.com/fsnotify/fsnotify/blob/main/CHANGELOG.md)\r\n- [Commits](https://github.com/fsnotify/fsnotify/compare/v1.6.0...v1.7.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/fsnotify/fsnotify\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-12-07T13:55:50-07:00",
+          "tree_id": "c9906ba4b8dd18228349c1462a6767300ea24df9",
+          "url": "https://github.com/pomerium/pomerium/commit/5da9f52a5e7798b0b42f0527cdbf89da8288bc45"
+        },
+        "date": 1701983139805,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11100423,
+            "unit": "ns/op",
+            "extra": "98 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7103142,
+            "unit": "ns/op",
+            "extra": "170 times\n4 procs"
           }
         ]
       }
