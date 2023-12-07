@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701989210730,
+  "lastUpdate": 1701989702111,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -88616,6 +88616,38 @@ window.BENCHMARK_DATA = {
             "value": 6238301,
             "unit": "ns/op",
             "extra": "194 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "ee7dae25ea4fee4bc1d3abd1b0223456106d27fd",
+          "message": "core/ci: update linting",
+          "timestamp": "2023-12-07T14:56:56Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4844/commits/ee7dae25ea4fee4bc1d3abd1b0223456106d27fd"
+        },
+        "date": 1701989690012,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9524623,
+            "unit": "ns/op",
+            "extra": "124 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6605545,
+            "unit": "ns/op",
+            "extra": "178 times\n4 procs"
           }
         ]
       }
