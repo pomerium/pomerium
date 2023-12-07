@@ -62,7 +62,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f
 	github.com/volatiletech/null/v9 v9.0.0
-	github.com/yuin/gopher-lua v1.1.0
+	github.com/yuin/gopher-lua v1.1.1
 	go.opencensus.io v0.24.0
 	go.uber.org/automaxprocs v1.5.3
 	go.uber.org/zap v1.26.0
