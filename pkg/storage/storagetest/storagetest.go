@@ -32,6 +32,17 @@ func TestBackendPatch(t *testing.T, ctx context.Context, backend storage.Backend
 		}
 	}
 
+	t.Run("not found", func(t *testing.T) {
+		mask, err := fieldmaskpb.New(&session.Session{}, "oauth_token")
+		require.NoError(t, err)
+
+		s := &session.Session{Id: "session-id-that-does-not-exist"}
+
+		_, updated, err := backend.Patch(ctx, []*databroker.Record{mkRecord(s)}, mask)
+		require.NoError(t, err)
+		assert.Empty(t, updated)
+	})
+
 	t.Run("basic", func(t *testing.T) {
 		// Populate an initial set of session records.
 		s1 := &session.Session{
