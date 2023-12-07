@@ -127,7 +127,7 @@ jobs:
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump test environment
-        uses: mikefarah/yq@c11a53322bce866fbfa3032e326f58c89e8c0759
+        uses: mikefarah/yq@1c3d55106075bd37df197b4bc03cb4a413fdb903
         with:
           cmd: yq eval '.pomerium.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i projects/pomerium-demo/pomerium-demo/values.yaml
 
