@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701979553302,
+  "lastUpdate": 1701980688407,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -86980,6 +86980,42 @@ window.BENCHMARK_DATA = {
             "value": 6480789,
             "unit": "ns/op",
             "extra": "184 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a771b82a7246ccab3d40dc0fe9d49ce683367ca1",
+          "message": "storage/inmemory: fix Patch() error handling (#4838)\n\nThe Patch() method was intended to skip any records that do not\r\ncurrently exist. However, currently inmemory.Backend.Patch() will return\r\nErrNotFound if the last record in the records slice is not found (it\r\nwill ignore any other previous records that are not found).\r\n\r\nUpdate the error handling logic here to be consistent with the postgres\r\nbackend, and add a unit test to exercise this case.",
+          "timestamp": "2023-12-07T12:21:10-08:00",
+          "tree_id": "7a8c4103e2060a54b1e8e805de231dcf0f0ade25",
+          "url": "https://github.com/pomerium/pomerium/commit/a771b82a7246ccab3d40dc0fe9d49ce683367ca1"
+        },
+        "date": 1701980676619,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11122443,
+            "unit": "ns/op",
+            "extra": "93 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6489974,
+            "unit": "ns/op",
+            "extra": "178 times\n4 procs"
           }
         ]
       }
