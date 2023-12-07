@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701910816667,
+  "lastUpdate": 1701911856519,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -85660,6 +85660,42 @@ window.BENCHMARK_DATA = {
             "value": 6228056,
             "unit": "ns/op",
             "extra": "189 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9db828ffd4f663f442a737acdd5352c7e89bc54d",
+          "message": "authenticateflow: move logAuthenticateEvent (#4821)\n\nMove the Stateless.logAuthenticateEvent() method into the main\r\nstateless.go file.\r\n\r\n(This was in events.go temporarily so that Git would track the file\r\nhistory as a rename from authenticate/events.go.)",
+          "timestamp": "2023-12-06T17:14:20-08:00",
+          "tree_id": "e8ddfd5656c9734bbffeb675ceb86b048df08ab6",
+          "url": "https://github.com/pomerium/pomerium/commit/9db828ffd4f663f442a737acdd5352c7e89bc54d"
+        },
+        "date": 1701911849781,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10366850,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6550800,
+            "unit": "ns/op",
+            "extra": "181 times\n4 procs"
           }
         ]
       }
