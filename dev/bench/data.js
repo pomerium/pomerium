@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701909998708,
+  "lastUpdate": 1701910736099,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -85592,6 +85592,42 @@ window.BENCHMARK_DATA = {
             "value": 6800030,
             "unit": "ns/op",
             "extra": "174 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b7896b3153ecf2c6f309265a653773d19c863c85",
+          "message": "authenticateflow: move stateless flow logic (#4820)\n\nConsolidate all logic specific to the stateless authenticate flow into a\r\na new Stateless type in a new package internal/authenticateflow. This is\r\nin preparation for adding a new Stateful type implementing the older\r\nstateful authenticate flow (from Pomerium v0.20 and previous).\r\n\r\nThis change is intended as a pure refactoring of existing logic, with no\r\nchanges in functionality.",
+          "timestamp": "2023-12-06T16:55:57-08:00",
+          "tree_id": "4728fa524bdd691e5d6196b86da77ebb0ea0f7b7",
+          "url": "https://github.com/pomerium/pomerium/commit/b7896b3153ecf2c6f309265a653773d19c863c85"
+        },
+        "date": 1701910730213,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10379893,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6332935,
+            "unit": "ns/op",
+            "extra": "187 times\n4 procs"
           }
         ]
       }
