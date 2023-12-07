@@ -310,7 +310,11 @@ func (s *Stateless) AuthenticateSignInURL(
 	}
 
 	authenticateURLWithParams := *s.authenticateURL
-	authenticateURLWithParams.RawQuery = queryParams.Encode()
+	q := authenticateURLWithParams.Query()
+	for k, v := range queryParams {
+		q[k] = v
+	}
+	authenticateURLWithParams.RawQuery = q.Encode()
 
 	return urlutil.SignInURL(
 		s.hpkePrivateKey,
