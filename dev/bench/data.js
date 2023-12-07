@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701989702111,
+  "lastUpdate": 1701989901591,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -88648,6 +88648,42 @@ window.BENCHMARK_DATA = {
             "value": 6605545,
             "unit": "ns/op",
             "extra": "178 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "73c27e88e05e1a90c17578fefed7bf30e2554373",
+          "message": "core/redis: remove comment (#4843)",
+          "timestamp": "2023-12-07T15:55:02-07:00",
+          "tree_id": "ab3067ae5df3e5d046454afba3843bb9e3f96cee",
+          "url": "https://github.com/pomerium/pomerium/commit/73c27e88e05e1a90c17578fefed7bf30e2554373"
+        },
+        "date": 1701989894605,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9087011,
+            "unit": "ns/op",
+            "extra": "130 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6405838,
+            "unit": "ns/op",
+            "extra": "184 times\n4 procs"
           }
         ]
       }
