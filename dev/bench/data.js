@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701911856519,
+  "lastUpdate": 1701916853023,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -85696,6 +85696,38 @@ window.BENCHMARK_DATA = {
             "value": 6550800,
             "unit": "ns/op",
             "extra": "181 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "ff1ef94b6313317cddb929a35c0989c99e1ecc58",
+          "message": "authenticateflow: add stateful flow",
+          "timestamp": "2023-12-06T10:39:42Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4822/commits/ff1ef94b6313317cddb929a35c0989c99e1ecc58"
+        },
+        "date": 1701916841490,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12669446,
+            "unit": "ns/op",
+            "extra": "86 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7475661,
+            "unit": "ns/op",
+            "extra": "156 times\n4 procs"
           }
         ]
       }
