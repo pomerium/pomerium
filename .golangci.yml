@@ -19,6 +19,7 @@ linters:
     - errorlint
     - exportloopref
     - gci
+    - gocheckcompilerdirectives
     - gofumpt
     - goimports
     - goprintffuncname
