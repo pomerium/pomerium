@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701970487874,
+  "lastUpdate": 1701971883590,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -86880,6 +86880,42 @@ window.BENCHMARK_DATA = {
             "value": 6665286,
             "unit": "ns/op",
             "extra": "184 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c01d0e045d59976731c2266202e5b180bbaef445",
+          "message": "authenticateflow: add stateful flow (#4822)\n\nAdd a new Stateful type implementing the stateful authentication flow\r\nfrom Pomerium v0.20 and earlier.\r\n\r\nThis consists mainly of logic from authenticate/handlers.go prior to\r\ncommits 57217af and 539fd51.\r\n\r\nOne significant change is to set the default IdP ID when an IdP ID is\r\nnot provided in the request URL (e.g. when signing in directly at the\r\nauthenticate service domain). Otherwise, if session state is stored with\r\nan empty IdP ID, it won't be valid for any route.",
+          "timestamp": "2023-12-07T09:54:42-08:00",
+          "tree_id": "50fe96739d52a2312a12456c7e261d816bce881b",
+          "url": "https://github.com/pomerium/pomerium/commit/c01d0e045d59976731c2266202e5b180bbaef445"
+        },
+        "date": 1701971876616,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10562346,
+            "unit": "ns/op",
+            "extra": "118 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6538857,
+            "unit": "ns/op",
+            "extra": "186 times\n4 procs"
           }
         ]
       }
