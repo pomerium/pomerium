@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701982293454,
+  "lastUpdate": 1701982470257,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -87120,6 +87120,42 @@ window.BENCHMARK_DATA = {
             "value": 7177141,
             "unit": "ns/op",
             "extra": "170 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3e851cadc25dbda51861698431dacb43f48d6f6c",
+          "message": "chore(deps): bump docker/metadata-action from 5.0.0 to 5.3.0 (#4826)\n\nBumps [docker/metadata-action](https://github.com/docker/metadata-action) from 5.0.0 to 5.3.0.\r\n- [Release notes](https://github.com/docker/metadata-action/releases)\r\n- [Commits](https://github.com/docker/metadata-action/compare/96383f45573cb7f253c731d3b3ab81c87ef81934...31cebacef4805868f9ce9a0cb03ee36c32df2ac4)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: docker/metadata-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-12-07T13:49:24-07:00",
+          "tree_id": "d5d9f5a90caae8077b1da02daa69c5ad15267b69",
+          "url": "https://github.com/pomerium/pomerium/commit/3e851cadc25dbda51861698431dacb43f48d6f6c"
+        },
+        "date": 1701982458512,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11305508,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6625290,
+            "unit": "ns/op",
+            "extra": "183 times\n4 procs"
           }
         ]
       }
