@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701983204242,
+  "lastUpdate": 1701983233835,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -87940,6 +87940,42 @@ window.BENCHMARK_DATA = {
             "value": 6610970,
             "unit": "ns/op",
             "extra": "180 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "21999f376042b898d74f329d1c742e5aaf6494d6",
+          "message": "chore(deps): bump stefanzweifel/git-auto-commit-action from 4.16.0 to 5.0.0 (#4693)\n\nchore(deps): bump stefanzweifel/git-auto-commit-action\r\n\r\nBumps [stefanzweifel/git-auto-commit-action](https://github.com/stefanzweifel/git-auto-commit-action) from 4.16.0 to 5.0.0.\r\n- [Release notes](https://github.com/stefanzweifel/git-auto-commit-action/releases)\r\n- [Changelog](https://github.com/stefanzweifel/git-auto-commit-action/blob/master/CHANGELOG.md)\r\n- [Commits](https://github.com/stefanzweifel/git-auto-commit-action/compare/3ea6ae190baf489ba007f7c92608f33ce20ef04a...8756aa072ef5b4a080af5dc8fef36c5d586e521d)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: stefanzweifel/git-auto-commit-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-major\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-12-07T13:57:36-07:00",
+          "tree_id": "87ff7cd31c088a2ca0ed9677b0f20789b099a872",
+          "url": "https://github.com/pomerium/pomerium/commit/21999f376042b898d74f329d1c742e5aaf6494d6"
+        },
+        "date": 1701983227618,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10840675,
+            "unit": "ns/op",
+            "extra": "126 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7109571,
+            "unit": "ns/op",
+            "extra": "163 times\n4 procs"
           }
         ]
       }
