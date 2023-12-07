@@ -1,4 +1,4 @@
-FROM node:lts-bookworm@sha256:42a4d97d4abf2f278c323370cf9c8dbccc2a238acceebceb53711926ecfb4110 as ui
+FROM node:lts-bookworm@sha256:445acd9b2ef7e9de665424053bf95652e0b8995ef36500557d48faf29300170a as ui
 WORKDIR /build
 
 COPY .git ./.git
