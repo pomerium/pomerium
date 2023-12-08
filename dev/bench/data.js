@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701994184479,
+  "lastUpdate": 1701998887710,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -88860,6 +88860,38 @@ window.BENCHMARK_DATA = {
             "value": 6249363,
             "unit": "ns/op",
             "extra": "198 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "469358138c2c9703f8b8a900273ee7548bf65471",
+          "message": "integration: fix multi-stateless configuration",
+          "timestamp": "2023-12-07T14:56:56Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4845/commits/469358138c2c9703f8b8a900273ee7548bf65471"
+        },
+        "date": 1701998881348,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9677871,
+            "unit": "ns/op",
+            "extra": "122 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6561750,
+            "unit": "ns/op",
+            "extra": "182 times\n4 procs"
           }
         ]
       }
