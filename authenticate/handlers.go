@@ -3,7 +3,6 @@ package authenticate
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,9 +13,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
-	"golang.org/x/oauth2"
 
 	"github.com/pomerium/csrf"
+	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity"
@@ -27,7 +26,6 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
 // Handler returns the authenticate service's handler chain.
@@ -76,7 +74,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	c := cors.New(cors.Options{
 		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
 			state := a.state.Load()
-			err := middleware.ValidateRequestURL(a.getExternalRequest(r), state.sharedKey)
+			err := state.flow.VerifyAuthenticateSignature(r)
 			if err != nil {
 				log.FromRequest(r).Info().Err(err).Msg("authenticate: origin blocked")
 			}
@@ -86,6 +84,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 		AllowedHeaders:   []string{"*"},
 	})
 	sr.Use(c.Handler)
+	sr.Use(a.RetrieveSession)
 
 	// routes that don't need a session:
 	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
@@ -93,17 +92,11 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 
 	// routes that need a session:
 	sr = sr.NewRoute().Subrouter()
-	sr.Use(a.RetrieveSession)
 	sr.Use(a.VerifySession)
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
 	sr.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
 	sr.Path("/device-enrolled").Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		userInfoData, err := a.getUserInfoData(r)
-		if err != nil {
-			return err
-		}
-
-		handlers.DeviceEnrolled(userInfoData).ServeHTTP(w, r)
+		handlers.DeviceEnrolled(a.getUserInfoData(r)).ServeHTTP(w, r)
 		return nil
 	}))
 
@@ -144,21 +137,11 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
-		profile, err := a.loadIdentityProfile(r, state.cookieCipher)
-		if err != nil {
+		if err := state.flow.VerifySession(ctx, r, sessionState); err != nil {
 			log.FromRequest(r).Info().
 				Err(err).
 				Str("idp_id", idpID).
-				Msg("authenticate: identity profile load error")
-			return a.reauthenticateOrFail(w, r, err)
-		}
-
-		err = a.validateIdentityProfile(ctx, profile)
-		if err != nil {
-			log.FromRequest(r).Info().
-				Err(err).
-				Str("idp_id", idpID).
-				Msg("authenticate: invalid identity profile")
+				Msg("authenticate: couldn't verify session")
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
@@ -181,62 +164,20 @@ func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
 
 	state := a.state.Load()
 
-	if err := r.ParseForm(); err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-	proxyPublicKey, requestParams, err := hpke.DecryptURLValues(state.hpkePrivateKey, r.Form)
-	if err != nil {
-		return err
-	}
-
-	idpID := requestParams.Get(urlutil.QueryIdentityProviderID)
-
 	s, err := a.getSessionFromCtx(ctx)
 	if err != nil {
 		state.sessionStore.ClearSession(w, r)
 		return err
 	}
 
-	// start over if this is a different identity provider
-	if s == nil || s.IdentityProviderID != idpID {
-		s = sessions.NewState(idpID)
-	}
-
-	// re-persist the session, useful when session was evicted from session
-	if err := state.sessionStore.SaveSession(w, r, s); err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-
-	profile, err := a.loadIdentityProfile(r, state.cookieCipher)
-	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-
-	if a.cfg.profileTrimFn != nil {
-		a.cfg.profileTrimFn(profile)
-	}
-
-	a.logAuthenticateEvent(r, profile)
-
-	encryptURLValues := hpke.EncryptURLValuesV1
-	if hpke.IsEncryptedURLV2(r.Form) {
-		encryptURLValues = hpke.EncryptURLValuesV2
-	}
-
-	redirectTo, err := urlutil.CallbackURL(state.hpkePrivateKey, proxyPublicKey, requestParams, profile, encryptURLValues)
-	if err != nil {
-		return httputil.NewError(http.StatusInternalServerError, err)
-	}
-
-	httputil.Redirect(w, r, redirectTo, http.StatusFound)
-	return nil
+	return state.flow.SignIn(w, r, s)
 }
 
 // SignOut signs the user out and attempts to revoke the user's identity session
 // Handles both GET and POST.
 func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 	// check for an HMAC'd URL. If none is found, show a confirmation page.
-	err := middleware.ValidateRequestURL(a.getExternalRequest(r), a.state.Load().sharedKey)
+	err := a.state.Load().flow.VerifyAuthenticateSignature(r)
 	if err != nil {
 		authenticateURL, err := a.options.Load().GetAuthenticateURL()
 		if err != nil {
@@ -324,7 +265,7 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 		return err
 	}
 
-	a.logAuthenticateEvent(r, nil)
+	state.flow.LogAuthenticateEvent(r)
 
 	state.sessionStore.ClearSession(w, r)
 	redirectURL := state.redirectURL.ResolveReference(r.URL)
@@ -423,7 +364,7 @@ Or contact your administrator.
 `, redirectURL.String(), redirectURL.String()))
 	}
 
-	idpID := a.getIdentityProviderIDForURLValues(redirectURL.Query())
+	idpID := state.flow.GetIdentityProviderIDForURLValues(redirectURL.Query())
 
 	authenticator, err := a.cfg.getIdentityProvider(options, idpID)
 	if err != nil {
@@ -450,13 +391,9 @@ Or contact your administrator.
 		newState.Audience = append(newState.Audience, nextRedirectURL.Hostname())
 	}
 
-	// save the session and access token to the databroker
-	profile, err := a.buildIdentityProfile(ctx, r, &newState, claims, accessToken)
-	if err != nil {
-		return nil, httputil.NewError(http.StatusInternalServerError, err)
-	}
-	if err := a.storeIdentityProfile(w, state.cookieCipher, profile); err != nil {
-		log.Error(r.Context()).Err(err).Msg("failed to store identity profile")
+	// save the session and access token to the databroker/cookie store
+	if err := state.flow.PersistSession(ctx, w, &newState, claims, accessToken); err != nil {
+		return nil, fmt.Errorf("failed saving new session: %w", err)
 	}
 
 	// ...  and the user state to local storage.
@@ -483,10 +420,11 @@ func (a *Authenticate) getSessionFromCtx(ctx context.Context) (*sessions.State, 
 func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 	ctx, span := trace.StartSpan(r.Context(), "authenticate.userInfo")
 	defer span.End()
-	r = r.WithContext(ctx)
-	r = a.getExternalRequest(r)
 
 	options := a.options.Load()
+
+	r = r.WithContext(ctx)
+	r = authenticateflow.GetExternalAuthenticateRequest(r, options)
 
 	// if we came in with a redirect URI, save it to a cookie so it doesn't expire with the HMAC
 	if redirectURI := r.FormValue(urlutil.QueryRedirectURI); redirectURI != "" {
@@ -502,16 +440,11 @@ func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
 		return nil
 	}
 
-	userInfoData, err := a.getUserInfoData(r)
-	if err != nil {
-		return err
-	}
-
-	handlers.UserInfo(userInfoData).ServeHTTP(w, r)
+	handlers.UserInfo(a.getUserInfoData(r)).ServeHTTP(w, r)
 	return nil
 }
 
-func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, error) {
+func (a *Authenticate) getUserInfoData(r *http.Request) handlers.UserInfoData {
 	state := a.state.Load()
 
 	s, err := a.getSessionFromCtx(r.Context())
@@ -519,15 +452,10 @@ func (a *Authenticate) getUserInfoData(r *http.Request) (handlers.UserInfoData, 
 		s.ID = uuid.New().String()
 	}
 
-	profile, _ := a.loadIdentityProfile(r, state.cookieCipher)
-
-	data := handlers.UserInfoData{
-		CSRFToken: csrf.Token(r),
-		Profile:   profile,
-
-		BrandingOptions: a.options.Load().BrandingOptions,
-	}
-	return data, nil
+	data := state.flow.GetUserInfoData(r, s)
+	data.CSRFToken = csrf.Token(r)
+	data.BrandingOptions = a.options.Load().BrandingOptions
+	return data
 }
 
 // revokeSession always clears the local session and tries to revoke the associated session stored in the
@@ -547,18 +475,9 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 		return ""
 	}
 
-	profile, err := a.loadIdentityProfile(r, a.state.Load().cookieCipher)
-	if err != nil {
-		return ""
-	}
+	sessionState, _ := a.getSessionFromCtx(ctx)
 
-	oauthToken := new(oauth2.Token)
-	_ = json.Unmarshal(profile.GetOauthToken(), oauthToken)
-	if err := authenticator.Revoke(ctx, oauthToken); err != nil {
-		log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to revoke access token")
-	}
-
-	return string(profile.GetIdToken())
+	return state.flow.RevokeSession(ctx, r, authenticator, sessionState)
 }
 
 // Callback handles the result of a successful call to the authenticate service
@@ -613,19 +532,5 @@ func (a *Authenticate) getIdentityProviderIDForRequest(r *http.Request) string {
 	if err := r.ParseForm(); err != nil {
 		return ""
 	}
-	return a.getIdentityProviderIDForURLValues(r.Form)
-}
-
-func (a *Authenticate) getIdentityProviderIDForURLValues(vs url.Values) string {
-	state := a.state.Load()
-	idpID := ""
-	if _, requestParams, err := hpke.DecryptURLValues(state.hpkePrivateKey, vs); err == nil {
-		if idpID == "" {
-			idpID = requestParams.Get(urlutil.QueryIdentityProviderID)
-		}
-	}
-	if idpID == "" {
-		idpID = vs.Get(urlutil.QueryIdentityProviderID)
-	}
-	return idpID
+	return a.state.Load().flow.GetIdentityProviderIDForURLValues(r.Form)
 }

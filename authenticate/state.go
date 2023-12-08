@@ -1,23 +1,41 @@
 package authenticate
 
 import (
+	"context"
 	"crypto/cipher"
 	"fmt"
+	"net/http"
 	"net/url"
 
 	"github.com/go-jose/go-jose/v3"
+	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
+	"github.com/pomerium/pomerium/internal/handlers"
+	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/hpke"
 )
 
+type flow interface {
+	VerifyAuthenticateSignature(r *http.Request) error
+	SignIn(w http.ResponseWriter, r *http.Request, sessionState *sessions.State) error
+	PersistSession(ctx context.Context, w http.ResponseWriter, sessionState *sessions.State, claims identity.SessionClaims, accessToken *oauth2.Token) error
+	VerifySession(ctx context.Context, r *http.Request, sessionState *sessions.State) error
+	RevokeSession(ctx context.Context, r *http.Request, authenticator identity.Authenticator, sessionState *sessions.State) string
+	GetUserInfoData(r *http.Request, sessionState *sessions.State) handlers.UserInfoData
+	LogAuthenticateEvent(r *http.Request)
+	GetIdentityProviderIDForURLValues(url.Values) string
+}
+
 type authenticateState struct {
+	flow flow
+
 	redirectURL *url.URL
 	// sharedEncoder is the encoder to use to serialize data to be consumed
 	// by other services
@@ -34,8 +52,7 @@ type authenticateState struct {
 	sessionStore sessions.SessionStore
 	// sessionLoaders are a collection of session loaders to attempt to pull
 	// a user's session state from
-	sessionLoader  sessions.SessionLoader
-	hpkePrivateKey *hpke.PrivateKey
+	sessionLoader sessions.SessionLoader
 
 	jwk *jose.JSONWebKeySet
 }
@@ -46,7 +63,9 @@ func newAuthenticateState() *authenticateState {
 	}
 }
 
-func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, error) {
+func newAuthenticateStateFromConfig(
+	cfg *config.Config, authenticateConfig *authenticateConfig,
+) (*authenticateState, error) {
 	err := ValidateOptions(cfg.Options)
 	if err != nil {
 		return nil, err
@@ -125,12 +144,20 @@ func newAuthenticateStateFromConfig(cfg *config.Config) (*authenticateState, err
 		}
 	}
 
-	sharedKey, err := cfg.Options.GetSharedKey()
+	if cfg.Options.UseStatelessAuthenticateFlow() {
+		state.flow, err = authenticateflow.NewStateless(
+			cfg,
+			cookieStore,
+			authenticateConfig.getIdentityProvider,
+			authenticateConfig.profileTrimFn,
+			authenticateConfig.authEventFn,
+		)
+	} else {
+		state.flow, err = authenticateflow.NewStateful(cfg, cookieStore)
+	}
 	if err != nil {
 		return nil, err
 	}
-
-	state.hpkePrivateKey = hpke.DerivePrivateKey(sharedKey)
 
 	return state, nil
 }

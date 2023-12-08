@@ -20,8 +20,3 @@ updates:
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 50
-  - package-ecosystem: "npm"
-    directory: "/ui"
-    schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 50

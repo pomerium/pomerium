@@ -5,9 +5,7 @@ package storagetest
 import (
 	"context"
 	"fmt"
-	"os"
 	"runtime"
-	"strconv"
 	"sync"
 	"testing"
 
@@ -33,6 +31,17 @@ func TestBackendPatch(t *testing.T, ctx context.Context, backend storage.Backend
 			Data: a,
 		}
 	}
+
+	t.Run("not found", func(t *testing.T) {
+		mask, err := fieldmaskpb.New(&session.Session{}, "oauth_token")
+		require.NoError(t, err)
+
+		s := &session.Session{Id: "session-id-that-does-not-exist"}
+
+		_, updated, err := backend.Patch(ctx, []*databroker.Record{mkRecord(s)}, mask)
+		require.NoError(t, err)
+		assert.Empty(t, updated)
+	})
 
 	t.Run("basic", func(t *testing.T) {
 		// Populate an initial set of session records.
@@ -115,7 +124,7 @@ func TestBackendPatch(t *testing.T, ctx context.Context, backend storage.Backend
 	})
 
 	t.Run("concurrent", func(t *testing.T) {
-		if n := gomaxprocs(); n < 2 {
+		if n := runtime.GOMAXPROCS(0); n < 2 {
 			t.Skipf("skipping concurrent test (GOMAXPROCS = %d)", n)
 		}
 
@@ -176,12 +185,4 @@ func truncateTimestamps(ts ...*timestamppb.Timestamp) {
 	for _, t := range ts {
 		t.Nanos = (t.Nanos / 1000) * 1000
 	}
-}
-
-func gomaxprocs() int {
-	env := os.Getenv("GOMAXPROCS")
-	if n, err := strconv.Atoi(env); err == nil {
-		return n
-	}
-	return runtime.NumCPU()
 }

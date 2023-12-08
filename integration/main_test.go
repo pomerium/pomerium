@@ -23,7 +23,7 @@ import (
 	"golang.org/x/net/publicsuffix"
 )
 
-var IDP, ClusterType string
+var IDP, ClusterType, AuthenticateFlow string
 
 func TestMain(m *testing.M) {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	setIDPAndClusterType(ctx)
+	setClusterInfo(ctx)
 
 	status := m.Run()
 	os.Exit(status)
@@ -169,9 +169,10 @@ func waitForHealthy(ctx context.Context) error {
 	}
 }
 
-func setIDPAndClusterType(ctx context.Context) {
+func setClusterInfo(ctx context.Context) {
 	IDP = "oidc"
 	ClusterType = "single"
+	AuthenticateFlow = "stateful"
 
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -185,14 +186,19 @@ func setIDPAndClusterType(ctx context.Context) {
 	}
 	for _, container := range containers {
 		for _, name := range container.Names {
-			parts := regexp.MustCompile(`^/(\w+?)[-_]pomerium.*$`).FindStringSubmatch(name)
-			if len(parts) == 2 {
+			parts := regexp.MustCompile(`^/(\w+?)-(\w+?)[-_]pomerium.*$`).FindStringSubmatch(name)
+			if len(parts) == 3 {
 				ClusterType = parts[1]
+				AuthenticateFlow = parts[2]
 			}
 		}
 	}
 
-	log.Info().Str("idp", IDP).Str("cluster-type", ClusterType).Send()
+	log.Info().
+		Str("idp", IDP).
+		Str("cluster-type", ClusterType).
+		Str("authenticate-flow", AuthenticateFlow).
+		Send()
 }
 
 func mustParseURL(str string) *url.URL {

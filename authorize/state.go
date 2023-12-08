@@ -3,19 +3,24 @@ package authorize
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	googlegrpc "google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
+
+type authenticateFlow interface {
+	AuthenticateSignInURL(ctx context.Context, queryParams url.Values, redirectURL *url.URL, idpID string) (string, error)
+}
 
 type authorizeState struct {
 	sharedKey                  []byte
@@ -24,8 +29,7 @@ type authorizeState struct {
 	dataBrokerClient           databroker.DataBrokerServiceClient
 	auditEncryptor             *protoutil.Encryptor
 	sessionStore               *config.SessionStore
-	hpkePrivateKey             *hpke.PrivateKey
-	authenticateKeyFetcher     hpke.KeyFetcher
+	authenticateFlow           authenticateFlow
 }
 
 func newAuthorizeStateFromConfig(
@@ -79,10 +83,13 @@ func newAuthorizeStateFromConfig(
 		return nil, fmt.Errorf("authorize: invalid session store: %w", err)
 	}
 
-	state.hpkePrivateKey = hpke.DerivePrivateKey(sharedKey)
-	state.authenticateKeyFetcher, err = cfg.GetAuthenticateKeyFetcher()
+	if cfg.Options.UseStatelessAuthenticateFlow() {
+		state.authenticateFlow, err = authenticateflow.NewStateless(cfg, nil, nil, nil, nil)
+	} else {
+		state.authenticateFlow, err = authenticateflow.NewStateful(cfg, nil)
+	}
 	if err != nil {
-		return nil, fmt.Errorf("authorize: get authenticate JWKS key fetcher: %w", err)
+		return nil, err
 	}
 
 	return state, nil

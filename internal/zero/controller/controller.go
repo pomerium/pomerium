@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/zero/analytics"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
+	"github.com/pomerium/pomerium/internal/zero/reconciler"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	sdk "github.com/pomerium/zero-sdk"
@@ -40,7 +42,7 @@ func Run(ctx context.Context, opts ...Option) error {
 	eg.Go(func() error { return run(ctx, "connect", c.runConnect, nil) })
 	eg.Go(func() error { return run(ctx, "zero-bootstrap", c.runBootstrap, nil) })
 	eg.Go(func() error { return run(ctx, "pomerium-core", c.runPomeriumCore, src.WaitReady) })
-	eg.Go(func() error { return run(ctx, "zero-reconciler", c.RunReconciler, src.WaitReady) })
+	eg.Go(func() error { return run(ctx, "zero-reconciler", c.runReconciler, src.WaitReady) })
 	eg.Go(func() error { return run(ctx, "connect-log", c.RunConnectLog, nil) })
 	eg.Go(func() error { return run(ctx, "zero-analytics", c.runAnalytics(), src.WaitReady) })
 	return eg.Wait()
@@ -89,6 +91,9 @@ func run(ctx context.Context, name string, runFn func(context.Context) error, wa
 }
 
 func (c *controller) runBootstrap(ctx context.Context) error {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "zero-bootstrap")
+	})
 	return c.bootstrapConfig.Run(ctx, c.api, c.cfg.bootstrapConfigFileName)
 }
 
@@ -97,7 +102,22 @@ func (c *controller) runPomeriumCore(ctx context.Context) error {
 }
 
 func (c *controller) runConnect(ctx context.Context) error {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "zero-connect")
+	})
+
 	return c.api.Connect(ctx)
+}
+
+func (c *controller) runReconciler(ctx context.Context) error {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "zero-reconciler")
+	})
+
+	return reconciler.Run(ctx,
+		reconciler.WithAPI(c.api),
+		reconciler.WithDataBrokerClient(c.GetDataBrokerServiceClient()),
+	)
 }
 
 func (c *controller) runAnalytics() func(ctx context.Context) error {

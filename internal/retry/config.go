@@ -61,6 +61,7 @@ func newConfig(opts ...Option) ([]watch, backoff.BackOff) {
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxInterval = cfg.maxInterval
 	bo.MaxElapsedTime = 0
+	bo.Multiplier = 2
 
 	return cfg.watches, bo
 }

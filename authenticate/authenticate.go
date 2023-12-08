@@ -45,15 +45,16 @@ type Authenticate struct {
 
 // New validates and creates a new authenticate service from a set of Options.
 func New(cfg *config.Config, options ...Option) (*Authenticate, error) {
+	authenticateConfig := getAuthenticateConfig(options...)
 	a := &Authenticate{
-		cfg:     getAuthenticateConfig(options...),
+		cfg:     authenticateConfig,
 		options: config.NewAtomicOptions(),
 		state:   atomicutil.NewValue(newAuthenticateState()),
 	}
 
 	a.options.Store(cfg.Options)
 
-	state, err := newAuthenticateStateFromConfig(cfg)
+	state, err := newAuthenticateStateFromConfig(cfg, authenticateConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +70,7 @@ func (a *Authenticate) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	}
 
 	a.options.Store(cfg.Options)
-	if state, err := newAuthenticateStateFromConfig(cfg); err != nil {
+	if state, err := newAuthenticateStateFromConfig(cfg, a.cfg); err != nil {
 		log.Error(ctx).Err(err).Msg("authenticate: failed to update state")
 	} else {
 		a.state.Store(state)

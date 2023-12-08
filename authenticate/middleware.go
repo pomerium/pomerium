@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -13,7 +12,7 @@ import (
 func (a *Authenticate) requireValidSignatureOnRedirect(next httputil.HandlerFunc) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 		if r.FormValue(urlutil.QueryRedirectURI) != "" || r.FormValue(urlutil.QueryHmacSignature) != "" {
-			err := middleware.ValidateRequestURL(a.getExternalRequest(r), a.state.Load().sharedKey)
+			err := a.state.Load().flow.VerifyAuthenticateSignature(r)
 			if err != nil {
 				return httputil.NewError(http.StatusBadRequest, err)
 			}
@@ -25,26 +24,10 @@ func (a *Authenticate) requireValidSignatureOnRedirect(next httputil.HandlerFunc
 // requireValidSignature validates the pomerium_signature.
 func (a *Authenticate) requireValidSignature(next httputil.HandlerFunc) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		err := middleware.ValidateRequestURL(a.getExternalRequest(r), a.state.Load().sharedKey)
+		err := a.state.Load().flow.VerifyAuthenticateSignature(r)
 		if err != nil {
 			return err
 		}
 		return next(w, r)
 	})
-}
-
-func (a *Authenticate) getExternalRequest(r *http.Request) *http.Request {
-	options := a.options.Load()
-
-	externalURL, err := options.GetAuthenticateURL()
-	if err != nil {
-		return r
-	}
-
-	internalURL, err := options.GetInternalAuthenticateURL()
-	if err != nil {
-		return r
-	}
-
-	return urlutil.GetExternalRequest(internalURL, externalURL, r)
 }
