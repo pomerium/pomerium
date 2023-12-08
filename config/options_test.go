@@ -869,6 +869,16 @@ func TestOptions_UseStatelessAuthenticateFlow(t *testing.T) {
 		options := &Options{AuthenticateURLString: "https://authenticate.example.com"}
 		assert.False(t, options.UseStatelessAuthenticateFlow())
 	})
+	t.Run("force enabled", func(t *testing.T) {
+		options := &Options{AuthenticateURLString: "https://authenticate.example.com"}
+		t.Setenv("DEBUG_FORCE_AUTHENTICATE_FLOW", "stateless")
+		assert.True(t, options.UseStatelessAuthenticateFlow())
+	})
+	t.Run("force disabled", func(t *testing.T) {
+		options := &Options{}
+		t.Setenv("DEBUG_FORCE_AUTHENTICATE_FLOW", "stateful")
+		assert.False(t, options.UseStatelessAuthenticateFlow())
+	})
 }
 
 func TestOptions_GetOauthOptions(t *testing.T) {

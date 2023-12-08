@@ -830,6 +830,15 @@ func (o *Options) GetInternalAuthenticateURL() (*url.URL, error) {
 // UseStatelessAuthenticateFlow returns true if the stateless authentication
 // flow should be used (i.e. for hosted authenticate).
 func (o *Options) UseStatelessAuthenticateFlow() bool {
+	if flow := os.Getenv("DEBUG_FORCE_AUTHENTICATE_FLOW"); flow != "" {
+		if flow == "stateless" {
+			return true
+		} else if flow == "stateful" {
+			return false
+		}
+		log.Warn(context.Background()).
+			Msgf("ignoring unknown DEBUG_FORCE_AUTHENTICATE_FLOW setting %q", flow)
+	}
 	u, err := o.GetInternalAuthenticateURL()
 	if err != nil {
 		return false
