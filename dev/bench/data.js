@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701991312997,
+  "lastUpdate": 1701994184479,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -88824,6 +88824,42 @@ window.BENCHMARK_DATA = {
             "value": 6518380,
             "unit": "ns/op",
             "extra": "181 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "08c186a72eac41c0299011f703e2a275bf1c11e3",
+          "message": "integration: test with both authentication flows (#4817)\n\nAdd an environment variable to allow forcing either the stateful or the\r\nstateless authenticate flow.\r\n\r\nSplit the existing integration test clusters \"single\" and \"multi\" into\r\nfour new clusters: \"single-stateful\", \"single-stateless\",\r\n\"multi-stateful\", and \"multi-stateless\", so that the integration tests\r\nwill run for both the stateful and the stateless authenticate flows.\r\n\r\n(The \"kubernetes\" cluster is not currently being run, so I've left it\r\nalone for now.)",
+          "timestamp": "2023-12-07T16:06:41-08:00",
+          "tree_id": "16904561fd93772813fa5fbe0eaab74d26c3520f",
+          "url": "https://github.com/pomerium/pomerium/commit/08c186a72eac41c0299011f703e2a275bf1c11e3"
+        },
+        "date": 1701994178144,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8746513,
+            "unit": "ns/op",
+            "extra": "138 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6249363,
+            "unit": "ns/op",
+            "extra": "198 times\n4 procs"
           }
         ]
       }
