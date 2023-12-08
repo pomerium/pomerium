@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701998887710,
+  "lastUpdate": 1702055730835,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -88892,6 +88892,42 @@ window.BENCHMARK_DATA = {
             "value": 6561750,
             "unit": "ns/op",
             "extra": "182 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e0ac870442b3fb4d723443475b16c0fc345b989c",
+          "message": "integration: fix multi-stateless configuration (#4845)\n\nCommit 08c186a contains a bug in the integration configuration template,\r\npreventing the multi-stateless cluster from actually setting the\r\nDEBUG_FORCE_AUTHENTICATE_FLOW environment variable. As a result this\r\ncluster was not exercising the stateless authentication flow.\r\n\r\nFix the template so that this variable is applied as intended.\r\n\r\nAdd an integration test case to verify that the intended authentication\r\nflow is in use: for the stateful flow, different routes should share the\r\nsame underlying session, but for the stateless flow, different routes\r\nshould receive different sessions.",
+          "timestamp": "2023-12-08T09:12:15-08:00",
+          "tree_id": "a06826ef0a96a5637c7f044e2466246dccbaa279",
+          "url": "https://github.com/pomerium/pomerium/commit/e0ac870442b3fb4d723443475b16c0fc345b989c"
+        },
+        "date": 1702055723925,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9427305,
+            "unit": "ns/op",
+            "extra": "127 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6579528,
+            "unit": "ns/op",
+            "extra": "181 times\n4 procs"
           }
         ]
       }
