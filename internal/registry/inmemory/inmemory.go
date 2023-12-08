@@ -33,7 +33,7 @@ type inMemoryKey struct {
 }
 
 // New constructs a new registry tracking service that operates in RAM
-// as such, it is not usable for multi-node deployment where REDIS or other alternative should be used
+// as such, it is not usable for multi-node deployment.
 func New(ctx context.Context, ttl time.Duration) registry.Interface {
 	srv := &inMemoryServer{
 		ttl:      ttl,

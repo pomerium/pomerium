@@ -84,6 +84,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 		AllowedHeaders:   []string{"*"},
 	})
 	sr.Use(c.Handler)
+	sr.Use(a.RetrieveSession)
 
 	// routes that don't need a session:
 	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
@@ -91,7 +92,6 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 
 	// routes that need a session:
 	sr = sr.NewRoute().Subrouter()
-	sr.Use(a.RetrieveSession)
 	sr.Use(a.VerifySession)
 	sr.Path("/").Handler(a.requireValidSignatureOnRedirect(a.userInfo))
 	sr.Path("/sign_in").Handler(httputil.HandlerFunc(a.SignIn))
@@ -475,7 +475,9 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 		return ""
 	}
 
-	return state.flow.RevokeSession(ctx, r, authenticator, nil)
+	sessionState, _ := a.getSessionFromCtx(ctx)
+
+	return state.flow.RevokeSession(ctx, r, authenticator, sessionState)
 }
 
 // Callback handles the result of a successful call to the authenticate service

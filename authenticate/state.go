@@ -144,13 +144,17 @@ func newAuthenticateStateFromConfig(
 		}
 	}
 
-	state.flow, err = authenticateflow.NewStateless(
-		cfg,
-		cookieStore,
-		authenticateConfig.getIdentityProvider,
-		authenticateConfig.profileTrimFn,
-		authenticateConfig.authEventFn,
-	)
+	if cfg.Options.UseStatelessAuthenticateFlow() {
+		state.flow, err = authenticateflow.NewStateless(
+			cfg,
+			cookieStore,
+			authenticateConfig.getIdentityProvider,
+			authenticateConfig.profileTrimFn,
+			authenticateConfig.authEventFn,
+		)
+	} else {
+		state.flow, err = authenticateflow.NewStateful(cfg, cookieStore)
+	}
 	if err != nil {
 		return nil, err
 	}

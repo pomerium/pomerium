@@ -114,8 +114,12 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 
 	state.programmaticRedirectDomainWhitelist = cfg.Options.ProgrammaticRedirectDomainWhitelist
 
-	state.authenticateFlow, err = authenticateflow.NewStateless(
-		cfg, state.sessionStore, nil, nil, nil)
+	if cfg.Options.UseStatelessAuthenticateFlow() {
+		state.authenticateFlow, err = authenticateflow.NewStateless(
+			cfg, state.sessionStore, nil, nil, nil)
+	} else {
+		state.authenticateFlow, err = authenticateflow.NewStateful(cfg, state.sessionStore)
+	}
 	if err != nil {
 		return nil, err
 	}
