@@ -17,21 +17,21 @@ func TestActiveUsers(t *testing.T) {
 	// Create a new counter that resets on a daily interval
 	c := analytics.NewActiveUsersCounter(analytics.ResetDailyUTC, startTime)
 
-	wasReset := c.Update([]string{"user1", "user2"}, startTime.Add(time.Minute))
+	count, wasReset := c.Update([]string{"user1", "user2"}, startTime.Add(time.Minute))
 	assert.False(t, wasReset)
-	assert.EqualValues(t, 2, c.Count())
+	assert.EqualValues(t, 2, count)
 
-	wasReset = c.Update([]string{"user1", "user2", "user3"}, startTime.Add(time.Minute*2))
+	count, wasReset = c.Update([]string{"user1", "user2", "user3"}, startTime.Add(time.Minute*2))
 	assert.False(t, wasReset)
-	assert.EqualValues(t, 3, c.Count())
+	assert.EqualValues(t, 3, count)
 
 	// Update the counter with a new user after lapse
-	wasReset = c.Update([]string{"user1", "user2", "user3", "user4"}, startTime.Add(time.Hour*25))
+	count, wasReset = c.Update([]string{"user1", "user2", "user3", "user4"}, startTime.Add(time.Hour*25))
 	assert.True(t, wasReset)
-	assert.EqualValues(t, 4, c.Count())
+	assert.EqualValues(t, 4, count)
 
 	// Update the counter with a new user after lapse
-	wasReset = c.Update([]string{"user4"}, startTime.Add(time.Hour*25*2))
+	count, wasReset = c.Update([]string{"user4"}, startTime.Add(time.Hour*25*2))
 	assert.True(t, wasReset)
-	assert.EqualValues(t, 1, c.Count())
+	assert.EqualValues(t, 1, count)
 }

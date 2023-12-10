@@ -23,6 +23,7 @@ func SaveMetricState(
 	client databroker.DataBrokerServiceClient,
 	id string,
 	data []byte,
+	value uint,
 	lastReset time.Time,
 ) error {
 	_, err := client.Put(ctx, &databroker.PutRequest{
@@ -32,6 +33,7 @@ func SaveMetricState(
 			Data: (&MetricState{
 				Data:      data,
 				LastReset: lastReset,
+				Count:     value,
 			}).ToAny(),
 		}},
 	})
@@ -63,9 +65,11 @@ func LoadMetricState(
 type MetricState struct {
 	Data      []byte
 	LastReset time.Time
+	Count     uint
 }
 
 const (
+	countKey     = "count"
 	dataKey      = "data"
 	lastResetKey = "last_reset"
 )
@@ -74,6 +78,7 @@ const (
 func (r *MetricState) ToAny() *anypb.Any {
 	return protoutil.NewAny(&structpb.Struct{
 		Fields: map[string]*structpb.Value{
+			countKey:     structpb.NewNumberValue(float64(r.Count)),
 			dataKey:      structpb.NewStringValue(base64.StdEncoding.EncodeToString(r.Data)),
 			lastResetKey: structpb.NewStringValue(r.LastReset.Format(time.RFC3339)),
 		},
@@ -108,9 +113,14 @@ func (r *MetricState) FromAny(any *anypb.Any) error {
 	if err != nil {
 		return fmt.Errorf("parse last reset: %w", err)
 	}
+	vCount, ok := s.GetFields()[countKey]
+	if !ok {
+		return fmt.Errorf("missing %s field", countKey)
+	}
 
 	r.Data = data
 	r.LastReset = lastReset
+	r.Count = uint(vCount.GetNumberValue())
 
 	return nil
 }

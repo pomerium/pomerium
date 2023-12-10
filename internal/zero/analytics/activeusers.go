@@ -7,6 +7,8 @@ import (
 )
 
 const (
+	// activeUsersCap is the number of active users we would be able to track.
+	// for counter to work within the 1% error limit, actual number should be 80% of the cap.
 	activeUsersCap = 10_000
 )
 
@@ -60,7 +62,7 @@ func LoadActiveUsersCounter(state []byte, lastReset time.Time, resetFn IntervalR
 }
 
 // Update updates the counter with the current users
-func (c *ActiveUsersCounter) Update(users []string, now time.Time) (wasReset bool) {
+func (c *ActiveUsersCounter) Update(users []string, now time.Time) (current uint, wasReset bool) {
 	if c.needsReset(c.lastReset, now) {
 		c.Counter.Reset()
 		c.lastReset = now
@@ -69,7 +71,7 @@ func (c *ActiveUsersCounter) Update(users []string, now time.Time) (wasReset boo
 	for _, user := range users {
 		c.Mark(user)
 	}
-	return wasReset
+	return c.Count(), wasReset
 }
 
 // GetLastReset returns the last time the counter was reset

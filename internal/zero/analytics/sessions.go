@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/sets"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -26,7 +27,7 @@ func CurrentUsers(
 		return nil, fmt.Errorf("fetching sessions: %w", err)
 	}
 
-	var users []string
+	users := sets.NewHash[string]()
 	utcNow := time.Now().UTC()
 	threshold := time.Date(utcNow.Year(), utcNow.Month(), utcNow.Day(), 0, 0, 0, 0, time.UTC)
 
@@ -45,8 +46,8 @@ func CurrentUsers(
 		if s.AccessedAt.AsTime().Before(threshold) {
 			continue
 		}
-		users = append(users, s.UserId)
+		users.Add(s.UserId)
 	}
 
-	return users, nil
+	return users.Items(), nil
 }
