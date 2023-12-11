@@ -1,0 +1,10 @@
+package: cluster
+generate:
+  client: true
+  models: false
+output: client.gen.go
+output-options:
+  skip-prune: true
+  # We use Response suffix internally throughout the response objects,
+  # that conflicts with generated client
+  response-type-suffix: Resp

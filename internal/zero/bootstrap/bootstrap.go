@@ -20,8 +20,8 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/retry"
-	sdk "github.com/pomerium/zero-sdk"
-	connect_mux "github.com/pomerium/zero-sdk/connect-mux"
+	sdk "github.com/pomerium/pomerium/pkg/zero"
+	connect_mux "github.com/pomerium/pomerium/pkg/zero/connect-mux"
 )
 
 const (

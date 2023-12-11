@@ -6,7 +6,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/internal/log"
-	connect_mux "github.com/pomerium/zero-sdk/connect-mux"
+	connect_mux "github.com/pomerium/pomerium/pkg/zero/connect-mux"
 )
 
 func (c *controller) RunConnectLog(ctx context.Context) error {

@@ -9,7 +9,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
-	cluster_api "github.com/pomerium/zero-sdk/cluster"
+	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 )
 
 var (

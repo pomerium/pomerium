@@ -15,7 +15,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
-	zero_sdk "github.com/pomerium/zero-sdk"
+	zero_sdk "github.com/pomerium/pomerium/pkg/zero"
 )
 
 // BundleCacheEntry is a cache entry for a bundle

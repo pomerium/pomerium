@@ -15,7 +15,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	connect_mux "github.com/pomerium/zero-sdk/connect-mux"
+	connect_mux "github.com/pomerium/pomerium/pkg/zero/connect-mux"
 )
 
 type service struct {

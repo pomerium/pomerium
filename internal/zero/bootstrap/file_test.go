@@ -8,7 +8,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	cluster_api "github.com/pomerium/zero-sdk/cluster"
+	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 )
 
 func TestFile(t *testing.T) {
