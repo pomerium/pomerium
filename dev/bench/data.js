@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702329161120,
+  "lastUpdate": 1702334082673,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -89156,6 +89156,42 @@ window.BENCHMARK_DATA = {
             "value": 6740476,
             "unit": "ns/op",
             "extra": "192 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ea64902a739883df3a4b4f405e91f5ea63e38ade",
+          "message": "zero: merge pomerium/zero-sdk (#4848)",
+          "timestamp": "2023-12-11T17:31:39-05:00",
+          "tree_id": "60353c070d6064e18c5c731d57b5ed1b7c4ed0f1",
+          "url": "https://github.com/pomerium/pomerium/commit/ea64902a739883df3a4b4f405e91f5ea63e38ade"
+        },
+        "date": 1702334076102,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10928566,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7349550,
+            "unit": "ns/op",
+            "extra": "166 times\n4 procs"
           }
         ]
       }
