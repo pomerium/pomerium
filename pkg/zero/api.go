@@ -1,5 +1,5 @@
-// Package zerosdk contains the pomerium zero configuration API client
-package zerosdk
+// Package zero contains the pomerium zero configuration API client
+package zero
 
 import (
 	"context"

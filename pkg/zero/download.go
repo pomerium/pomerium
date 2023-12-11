@@ -1,4 +1,4 @@
-package zerosdk
+package zero
 
 import (
 	"bytes"
