@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/pomerium/pomerium/internal/log"
-	cluster_api "github.com/pomerium/zero-sdk/cluster"
+	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 )
 
 const (

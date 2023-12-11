@@ -1,0 +1,269 @@
+openapi: 3.0.0
+
+info:
+  title: "Pomerium Zero SDK API"
+  version: 0.1.0
+
+servers:
+  - url: /cluster/v1
+
+security:
+  - bearerAuth: []
+
+paths:
+  /bootstrap:
+    get:
+      description: Get cluster bootstrap configuration
+      operationId: getClusterBootstrapConfig
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetBootstrapConfigResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /bundles:
+    get:
+      description: Get all cluster resource bundles
+      operationId: getClusterResourceBundles
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetBundlesResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /bundles/{bundleId}/download:
+    get:
+      description: Download cluster resource bundle
+      operationId: downloadClusterResourceBundle
+      parameters:
+        - $ref: "#/components/parameters/bundleId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadBundleResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /bundles/{bundleId}/status:
+    post:
+      description: Report cluster resource bundle status
+      operationId: reportClusterResourceBundleStatus
+      parameters:
+        - $ref: "#/components/parameters/bundleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BundleStatus"
+      responses:
+        "204":
+          description: OK
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /exchangeToken:
+    post:
+      description: Exchange cluster identity token for bearer token
+      operationId: exchangeClusterIdentityToken
+      tags: [token]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExchangeTokenRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExchangeTokenResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  parameters:
+    bundleId:
+      name: bundleId
+      in: path
+      description: bundle id
+      required: true
+      schema:
+        type: string
+
+  schemas:
+    BootstrapConfig:
+      type: object
+      properties:
+        databrokerStorageConnection:
+          type: string
+          description: databroker storage connection string
+
+    Bundle:
+      type: object
+      properties:
+        id:
+          type: string
+          description: bundle id
+      required:
+        - id
+    BundleStatus:
+      type: object
+      properties:
+        success:
+          $ref: "#/components/schemas/BundleStatusSuccess"
+        failure:
+          $ref: "#/components/schemas/BundleStatusFailure"
+    BundleStatusSuccess:
+      type: object
+      properties:
+        metadata:
+          type: object
+          description: bundle metadata
+          additionalProperties:
+            type: string
+      required:
+        - metadata
+    BundleStatusFailure:
+      type: object
+      properties:
+        message:
+          type: string
+        source:
+          type: string
+          description: source of the failure
+          enum:
+            - download_error
+            - io_error
+            - invalid_bundle
+            - databroker_error
+            - unknown_error
+      required:
+        - source
+        - message
+
+    DownloadBundleResponse:
+      type: object
+      properties:
+        url:
+          type: string
+          description: download URL
+        expiresInSeconds:
+          type: string
+          format: int64
+        captureMetadataHeaders:
+          type: array
+          items:
+            type: string
+          description: bundle metadata that need be picked up by the client from the download URL
+      required:
+        - url
+        - expiresInSeconds
+        - captureMetadataHeaders
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+      required:
+        - error
+    ExchangeTokenRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          description: cluster identity token
+      required:
+        - refreshToken
+    ExchangeTokenResponse:
+      type: object
+      properties:
+        idToken:
+          type: string
+          description: ID token
+        expiresInSeconds:
+          type: string
+          format: int64
+      required:
+        - idToken
+        - expiresInSeconds
+    GetBootstrapConfigResponse:
+      $ref: "#/components/schemas/BootstrapConfig"
+    GetBundlesResponse:
+      type: object
+      properties:
+        bundles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Bundle"
+      required:
+        - bundles

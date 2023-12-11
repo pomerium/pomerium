@@ -1,0 +1,8 @@
+version: v1
+build: {}
+lint:
+  use:
+    - DEFAULT
+breaking:
+  use:
+    - FILE

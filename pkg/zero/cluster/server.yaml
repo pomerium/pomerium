@@ -1,0 +1,8 @@
+package: cluster
+generate:
+  chi-server: true
+  strict-server: true
+  models: false
+compatibility:
+  apply-chi-middleware-first-to-last: true
+output: server.gen.go

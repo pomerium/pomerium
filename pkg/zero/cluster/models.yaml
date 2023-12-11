@@ -1,0 +1,4 @@
+package: cluster
+generate:
+  models: true
+output: models.gen.go

@@ -15,7 +15,7 @@ import (
 	"os"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	cluster_api "github.com/pomerium/zero-sdk/cluster"
+	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 )
 
 // LoadBootstrapConfigFromFile loads the bootstrap configuration from a file.

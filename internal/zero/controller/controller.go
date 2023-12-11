@@ -14,7 +14,7 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	sdk "github.com/pomerium/zero-sdk"
+	sdk "github.com/pomerium/pomerium/pkg/zero"
 )
 
 // Run runs Pomerium is managed mode using the provided token.

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	sdk "github.com/pomerium/zero-sdk"
+	sdk "github.com/pomerium/pomerium/pkg/zero"
 )
 
 // reconcilerConfig contains the configuration for the resource bundles reconciler.

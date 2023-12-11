@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package pomerium.zero;
+option go_package = "github.com/pomerium/pomerium/pkg/zero/connect";
+
+// SubscribeRequest is used to subscribe to a stream of messages
+// from the Zero Cloud to the Pomerium Core.
+//
+// The Authorization: Bearer header must contain a valid token,
+// that belongs to a cluster identity with appropriate claims set.
+message SubscribeRequest {}
+
+// Message is an aggregate of all possible messages that can be sent
+// from the cloud to the core in managed mode.
+message Message {
+  oneof message {
+    ConfigUpdated config_updated = 1;
+    BootstrapConfigUpdated bootstrap_config_updated = 2;
+  }
+}
+
+// ConfigUpdated is sent when the configuration has been updated
+// for the connected Pomerium Core deployment
+message ConfigUpdated {
+  // version of the configuration changeset
+  int64 changeset_version = 1;
+}
+
+// BootstrapConfigUpdated is sent when the bootstrap configuration has been
+// updated. Bootstrap configuration is received via cluster API directly, and
+// does not involve long running operations to construct it, like with a regular
+// config.
+message BootstrapConfigUpdated {}
+
+// Connect service is used to maintain a persistent connection between the
+// Pomerium Core and Zero Cloud and receive messages from the cloud.
+service Connect {
+  // Subscribe is used to send a stream of messages from the Zero Cloud to the
+  // Pomerium Core in managed mode.
+  rpc Subscribe(SubscribeRequest) returns (stream Message);
+}
