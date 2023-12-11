@@ -5,11 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/zero/analytics"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
@@ -43,6 +45,7 @@ func Run(ctx context.Context, opts ...Option) error {
 	eg.Go(func() error { return run(ctx, "pomerium-core", c.runPomeriumCore, src.WaitReady) })
 	eg.Go(func() error { return run(ctx, "zero-reconciler", c.runReconciler, src.WaitReady) })
 	eg.Go(func() error { return run(ctx, "connect-log", c.RunConnectLog, nil) })
+	eg.Go(func() error { return run(ctx, "zero-analytics", c.runAnalytics, src.WaitReady) })
 	return eg.Wait()
 }
 
@@ -116,4 +119,14 @@ func (c *controller) runReconciler(ctx context.Context) error {
 		reconciler.WithAPI(c.api),
 		reconciler.WithDataBrokerClient(c.GetDataBrokerServiceClient()),
 	)
+}
+
+func (c *controller) runAnalytics(ctx context.Context) error {
+	err := analytics.Collect(ctx, c.GetDataBrokerServiceClient(), time.Second*30)
+	if err != nil && ctx.Err() == nil {
+		log.Ctx(ctx).Error().Err(err).Msg("error collecting analytics, disabling")
+		return nil
+	}
+
+	return err
 }
