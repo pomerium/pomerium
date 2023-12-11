@@ -43,7 +43,7 @@ require (
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/natefinch/atomic v1.0.1
-	github.com/oapi-codegen/runtime v1.1.0
+	github.com/oapi-codegen/runtime v1.0.0
 	github.com/open-policy-agent/opa v0.59.0
 	github.com/openzipkin/zipkin-go v0.4.2
 	github.com/ory/dockertest/v3 v3.10.0
