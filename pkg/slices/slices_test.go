@@ -1,10 +1,22 @@
 package slices
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestMap(t *testing.T) {
+	t.Parallel()
+
+	in := []string{"one", "two", "three", "four"}
+
+	assert.Equal(t, []string{"ONE", "TWO", "THREE", "FOUR"}, Map(in, strings.ToUpper))
+
+	stringLen := func(s string) int { return len(s) }
+	assert.Equal(t, []int{3, 3, 5, 4}, Map(in, stringLen))
+}
 
 func TestReverse(t *testing.T) {
 	t.Parallel()

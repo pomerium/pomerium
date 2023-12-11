@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/integration/flows"
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 func TestRouteSessions(t *testing.T) {
@@ -48,6 +49,14 @@ func TestRouteSessions(t *testing.T) {
 		// Under the stateful authenticate flow, the two routes should share
 		// the same session.
 		assert.Equal(t, claims1.ID, claims2.ID)
+
+		// The only cookies set on the authenticate service domain should be
+		// "_pomerium_authenticate" and "_pomerium_csrf". (No identity profile
+		// cookies should be present.)
+		c := client.Jar.Cookies(mustParseURL("https://authenticate.localhost.pomerium.io"))
+		assert.Equal(t, 2, len(c))
+		cookieNames := slices.Map(c, func(c *http.Cookie) string { return c.Name })
+		assert.ElementsMatch(t, []string{"_pomerium_authenticate", "_pomerium_csrf"}, cookieNames)
 	}
 }
 

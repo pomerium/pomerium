@@ -22,6 +22,16 @@ func Filter[S ~[]E, E any](s S, f func(E) bool) S {
 	return ns
 }
 
+// Map constructs a new slice containing the elements obtained by invoking the
+// function f on each element of s.
+func Map[S ~[]E, E, T any](s S, f func(E) T) []T {
+	ns := make([]T, len(s))
+	for i := range s {
+		ns[i] = f(s[i])
+	}
+	return ns
+}
+
 // Remove removes e from s.
 func Remove[S ~[]E, E comparable](s S, e E) S {
 	var ns S
