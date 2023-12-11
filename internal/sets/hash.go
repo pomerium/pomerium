@@ -31,3 +31,12 @@ func (s *Hash[T]) Has(element T) bool {
 func (s *Hash[T]) Size() int {
 	return len(s.m)
 }
+
+// Items returns the set's elements as a slice.
+func (s *Hash[T]) Items() []T {
+	items := make([]T, 0, len(s.m))
+	for item := range s.m {
+		items = append(items, item)
+	}
+	return items
+}
