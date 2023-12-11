@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702336083349,
+  "lastUpdate": 1702337268895,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -89320,6 +89320,42 @@ window.BENCHMARK_DATA = {
             "value": 6482295,
             "unit": "ns/op",
             "extra": "178 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c5f7519c061640b4ea21a4b97c036d537532bca9",
+          "message": "zero/openapi: pin v1.0.0 of a runtime (#4851)",
+          "timestamp": "2023-12-11T18:24:44-05:00",
+          "tree_id": "29533b6e25d605d1bba04c00f1127f132b5154fc",
+          "url": "https://github.com/pomerium/pomerium/commit/c5f7519c061640b4ea21a4b97c036d537532bca9"
+        },
+        "date": 1702337262470,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8869241,
+            "unit": "ns/op",
+            "extra": "138 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6242561,
+            "unit": "ns/op",
+            "extra": "196 times\n4 procs"
           }
         ]
       }
