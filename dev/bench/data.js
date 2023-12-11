@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702317772886,
+  "lastUpdate": 1702320025411,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -89024,6 +89024,42 @@ window.BENCHMARK_DATA = {
             "value": 6448377,
             "unit": "ns/op",
             "extra": "177 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c4dd965f2d63a7cb4f9bf58757e51966be90dc9d",
+          "message": "zero/telemetry: calculate DAU and MAU (#4810)",
+          "timestamp": "2023-12-11T13:37:01-05:00",
+          "tree_id": "08e4872df9c3fcefcb48a36c37f5a3ddc2cb686f",
+          "url": "https://github.com/pomerium/pomerium/commit/c4dd965f2d63a7cb4f9bf58757e51966be90dc9d"
+        },
+        "date": 1702320018234,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10358051,
+            "unit": "ns/op",
+            "extra": "121 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6575818,
+            "unit": "ns/op",
+            "extra": "184 times\n4 procs"
           }
         ]
       }
