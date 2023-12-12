@@ -1,4 +1,4 @@
-package authenticateflow
+package events
 
 import (
 	"context"

@@ -12,6 +12,7 @@ import (
 	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/encoding/protojson"
 
+	"github.com/pomerium/pomerium/authenticate/events"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -57,7 +58,7 @@ type Stateless struct {
 
 	getIdentityProvider func(options *config.Options, idpID string) (identity.Authenticator, error)
 	profileTrimFn       func(*identitypb.Profile)
-	authEventFn         AuthEventFn
+	authEventFn         events.AuthEventFn
 }
 
 // NewStateless initializes the authentication flow for the given
@@ -67,7 +68,7 @@ func NewStateless(
 	sessionStore sessions.SessionStore,
 	getIdentityProvider func(options *config.Options, idpID string) (identity.Authenticator, error),
 	profileTrimFn func(*identitypb.Profile),
-	authEventFn AuthEventFn,
+	authEventFn events.AuthEventFn,
 ) (*Stateless, error) {
 	s := &Stateless{
 		options:             cfg.Options,
@@ -295,7 +296,7 @@ func (s *Stateless) logAuthenticateEvent(r *http.Request, profile *identitypb.Pr
 		log.Warn(ctx).Err(err).Msg("log authenticate event: failed to decrypt request params")
 	}
 
-	evt := AuthEvent{
+	evt := events.AuthEvent{
 		IP:          httputil.GetClientIP(r),
 		Version:     params.Get(urlutil.QueryVersion),
 		RequestUUID: params.Get(urlutil.QueryRequestUUID),
@@ -310,9 +311,9 @@ func (s *Stateless) logAuthenticateEvent(r *http.Request, profile *identitypb.Pr
 	}
 
 	if evt.UID != nil {
-		evt.Event = AuthEventSignInComplete
+		evt.Event = events.AuthEventSignInComplete
 	} else {
-		evt.Event = AuthEventSignInRequest
+		evt.Event = events.AuthEventSignInRequest
 	}
 
 	if redirectURL, err := url.Parse(params.Get(urlutil.QueryRedirectURI)); err == nil {
