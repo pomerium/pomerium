@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702407918715,
+  "lastUpdate": 1702409275261,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -89592,6 +89592,42 @@ window.BENCHMARK_DATA = {
             "value": 6448010,
             "unit": "ns/op",
             "extra": "182 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b66634d1e6e05f79ff1c3562e2b5540bd758438b",
+          "message": "zero: only leave public packages in pkg/zero (#4854)",
+          "timestamp": "2023-12-12T14:24:37-05:00",
+          "tree_id": "c0d9ed91c67917ba65699d5b4cafd725a04f14d6",
+          "url": "https://github.com/pomerium/pomerium/commit/b66634d1e6e05f79ff1c3562e2b5540bd758438b"
+        },
+        "date": 1702409268095,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8969067,
+            "unit": "ns/op",
+            "extra": "134 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6733282,
+            "unit": "ns/op",
+            "extra": "180 times\n4 procs"
           }
         ]
       }
