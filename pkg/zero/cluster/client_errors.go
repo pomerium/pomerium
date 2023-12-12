@@ -3,7 +3,7 @@ package cluster
 import (
 	"net/http"
 
-	"github.com/pomerium/pomerium/pkg/zero/apierror"
+	"github.com/pomerium/pomerium/internal/zero/apierror"
 )
 
 // EmptyResponse is an empty response

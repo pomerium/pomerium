@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/pomerium/pomerium/internal/zero/token"
 	api "github.com/pomerium/pomerium/pkg/zero/cluster"
-	"github.com/pomerium/pomerium/pkg/zero/token"
 )
 
 func TestAPIClient(t *testing.T) {

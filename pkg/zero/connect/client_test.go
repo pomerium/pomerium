@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pomerium/pomerium/internal/zero/token"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 	"github.com/pomerium/pomerium/pkg/zero/connect"
-	"github.com/pomerium/pomerium/pkg/zero/token"
 )
 
 func TestConfig(t *testing.T) {

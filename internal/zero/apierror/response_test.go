@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/pomerium/pomerium/pkg/zero/apierror"
+	"github.com/pomerium/pomerium/internal/zero/apierror"
 	"github.com/pomerium/pomerium/pkg/zero/cluster"
 )
 

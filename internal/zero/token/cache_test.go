@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/pomerium/pomerium/pkg/zero/token"
+	"github.com/pomerium/pomerium/internal/zero/token"
 )
 
 func TestCache(t *testing.T) {

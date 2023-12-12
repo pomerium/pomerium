@@ -5,12 +5,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pomerium/pomerium/internal/zero/apierror"
+	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
+	token_api "github.com/pomerium/pomerium/internal/zero/token"
 	"github.com/pomerium/pomerium/pkg/fanout"
-	"github.com/pomerium/pomerium/pkg/zero/apierror"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 	connect_api "github.com/pomerium/pomerium/pkg/zero/connect"
-	connect_mux "github.com/pomerium/pomerium/pkg/zero/connect-mux"
-	token_api "github.com/pomerium/pomerium/pkg/zero/token"
 )
 
 // API is a Pomerium Zero Cluster API client

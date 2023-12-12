@@ -14,8 +14,8 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/pomerium/pomerium/internal/atomicutil"
+	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	connect_mux "github.com/pomerium/pomerium/pkg/zero/connect-mux"
 )
 
 type service struct {

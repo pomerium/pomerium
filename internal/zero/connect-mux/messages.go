@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pomerium/pomerium/pkg/zero/apierror"
+	"github.com/pomerium/pomerium/internal/zero/apierror"
 	"github.com/pomerium/pomerium/pkg/zero/connect"
 )
 
