@@ -1,3 +1,4 @@
+// Package events defines authentication flow event types.
 package events
 
 import (
