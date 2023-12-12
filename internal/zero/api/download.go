@@ -15,7 +15,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/pomerium/pomerium/pkg/zero/apierror"
+	"github.com/pomerium/pomerium/internal/zero/apierror"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 )
 

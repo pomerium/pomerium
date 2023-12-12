@@ -13,9 +13,9 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/internal/log"
+	zero_sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
-	zero_sdk "github.com/pomerium/pomerium/pkg/zero"
 )
 
 // BundleCacheEntry is a cache entry for a bundle

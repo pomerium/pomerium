@@ -14,9 +14,9 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/deterministicecdsa"
+	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/netutil"
-	sdk "github.com/pomerium/pomerium/pkg/zero"
 )
 
 // Source is a base config layer for Pomerium

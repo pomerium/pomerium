@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	zero_sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
-	zero_sdk "github.com/pomerium/pomerium/pkg/zero"
 )
 
 func TestCacheEntryProto(t *testing.T) {

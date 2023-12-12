@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pomerium/pomerium/pkg/zero/apierror"
-	"github.com/pomerium/pomerium/pkg/zero/token"
+	"github.com/pomerium/pomerium/internal/zero/apierror"
+	"github.com/pomerium/pomerium/internal/zero/token"
 )
 
 // NewTokenFetcher creates a new authorization token fetcher
