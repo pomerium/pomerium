@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702402852137,
+  "lastUpdate": 1702404086781,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -89488,6 +89488,42 @@ window.BENCHMARK_DATA = {
             "value": 6463944,
             "unit": "ns/op",
             "extra": "189 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fe46ed33f46dd46889ccb44d898a58ef0dbce103",
+          "message": "config: no longer stub out HPKE public key fetch (#4853)\n\nThis partially reverts commit a1388592d8627368ef9421c98d43d500e20beb37.\r\n\r\nFetching the authenticate service HPKE public key is required only for \r\nthe stateless authentication flow. Now that Pomerium will instead use \r\nthe older (stateful) authentication flow when configured for a\r\nself-hosted authenticate service, this logic shouldn't be needed at all.\r\n\r\nRemoving this logic should also make it easier to test against a local\r\ninstance of the hosted authenticate service.",
+          "timestamp": "2023-12-12T09:57:58-08:00",
+          "tree_id": "adb7c97e031fac4271ce240a14c6209b725ed67c",
+          "url": "https://github.com/pomerium/pomerium/commit/fe46ed33f46dd46889ccb44d898a58ef0dbce103"
+        },
+        "date": 1702404079624,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9338398,
+            "unit": "ns/op",
+            "extra": "126 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6638947,
+            "unit": "ns/op",
+            "extra": "178 times\n4 procs"
           }
         ]
       }
