@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702345586436,
+  "lastUpdate": 1702352763247,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -89420,6 +89420,42 @@ window.BENCHMARK_DATA = {
             "value": 6114466,
             "unit": "ns/op",
             "extra": "193 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1dbe4410d736f2888572505994238f58b2140a9f",
+          "message": "move events.go out of internal/authenticateflow (#4852)\n\nCommit b7896b3153 moved events.go from the 'authenticate' package to\r\n'internal/authenticateflow' in order to avoid an import cycle. However\r\nthis location is not actually suitable, as the hosted authenticate\r\nservice refers to AuthEvent and AuthEventFn.\r\n\r\nMove events.go back out from under 'internal', to a new package\r\n'authenticate/events'. This should still avoid an import cycle between\r\n'authenticate' and 'internal/authenticateflow', while also allowing the\r\nhosted authenticate service to use the events types.",
+          "timestamp": "2023-12-11T19:42:56-08:00",
+          "tree_id": "064a46dc8d414ba763efbb1fc0f385994116ac2c",
+          "url": "https://github.com/pomerium/pomerium/commit/1dbe4410d736f2888572505994238f58b2140a9f"
+        },
+        "date": 1702352751471,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10343020,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6783833,
+            "unit": "ns/op",
+            "extra": "174 times\n4 procs"
           }
         ]
       }
