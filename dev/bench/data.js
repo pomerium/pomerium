@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702404086781,
+  "lastUpdate": 1702404613166,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -89524,6 +89524,42 @@ window.BENCHMARK_DATA = {
             "value": 6638947,
             "unit": "ns/op",
             "extra": "178 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a6ae9d3f2d7b3b8b3c5849e2b503dac01dbe00df",
+          "message": "integration: check for profile cookies (#4847)\n\nUpdate the authentication flow integration test to verify that the\r\npomerium_identity_profile cookies are not present for the stateful\r\nauthentication flow.",
+          "timestamp": "2023-12-12T10:07:13-08:00",
+          "tree_id": "3ad790994b6699f98af435efffc67f9ab86f4a6f",
+          "url": "https://github.com/pomerium/pomerium/commit/a6ae9d3f2d7b3b8b3c5849e2b503dac01dbe00df"
+        },
+        "date": 1702404606029,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9402819,
+            "unit": "ns/op",
+            "extra": "126 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6752596,
+            "unit": "ns/op",
+            "extra": "170 times\n4 procs"
           }
         ]
       }
