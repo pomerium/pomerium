@@ -9,6 +9,7 @@ type controllerConfig struct {
 	apiToken           string
 	clusterAPIEndpoint string
 	connectAPIEndpoint string
+	otelEndpoint       string
 
 	tmpDir                  string
 	bootstrapConfigFileName string
@@ -35,6 +36,13 @@ func WithClusterAPIEndpoint(endpoint string) Option {
 func WithConnectAPIEndpoint(endpoint string) Option {
 	return func(c *controllerConfig) {
 		c.connectAPIEndpoint = endpoint
+	}
+}
+
+// WithOTELAPIEndpoint sets the endpoint to use for the OTEL API
+func WithOTELAPIEndpoint(endpoint string) Option {
+	return func(c *controllerConfig) {
+		c.otelEndpoint = endpoint
 	}
 }
 

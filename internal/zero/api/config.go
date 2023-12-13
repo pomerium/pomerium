@@ -12,6 +12,7 @@ type Option func(*config)
 type config struct {
 	clusterAPIEndpoint  string
 	connectAPIEndpoint  string
+	otelEndpoint        string
 	apiToken            string
 	httpClient          *http.Client
 	downloadURLCacheTTL time.Duration
@@ -28,6 +29,13 @@ func WithClusterAPIEndpoint(endpoint string) Option {
 func WithConnectAPIEndpoint(endpoint string) Option {
 	return func(cfg *config) {
 		cfg.connectAPIEndpoint = endpoint
+	}
+}
+
+// WithOTELEndpoint sets the OTEL API endpoint
+func WithOTELEndpoint(endpoint string) Option {
+	return func(cfg *config) {
+		cfg.otelEndpoint = endpoint
 	}
 }
 
@@ -76,6 +84,9 @@ func (c *config) validate() error {
 	}
 	if c.connectAPIEndpoint == "" {
 		return fmt.Errorf("connect API endpoint is required")
+	}
+	if c.otelEndpoint == "" {
+		return fmt.Errorf("OTEL API endpoint is required")
 	}
 	if c.apiToken == "" {
 		return fmt.Errorf("API token is required")

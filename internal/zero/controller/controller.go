@@ -15,6 +15,7 @@ import (
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
+	"github.com/pomerium/pomerium/internal/zero/reporter"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
@@ -46,6 +47,7 @@ func Run(ctx context.Context, opts ...Option) error {
 	eg.Go(func() error { return run(ctx, "zero-reconciler", c.runReconciler, src.WaitReady) })
 	eg.Go(func() error { return run(ctx, "connect-log", c.RunConnectLog, nil) })
 	eg.Go(func() error { return run(ctx, "zero-analytics", c.runAnalytics, src.WaitReady) })
+	eg.Go(func() error { return run(ctx, "zero-reporter", c.runReporter, src.WaitReady) })
 	return eg.Wait()
 }
 
@@ -64,6 +66,7 @@ func (c *controller) initAPI(ctx context.Context) error {
 		sdk.WithClusterAPIEndpoint(c.cfg.clusterAPIEndpoint),
 		sdk.WithAPIToken(c.cfg.apiToken),
 		sdk.WithConnectAPIEndpoint(c.cfg.connectAPIEndpoint),
+		sdk.WithOTELEndpoint(c.cfg.otelEndpoint),
 	)
 	if err != nil {
 		return fmt.Errorf("error initializing cloud api: %w", err)
@@ -122,11 +125,26 @@ func (c *controller) runReconciler(ctx context.Context) error {
 }
 
 func (c *controller) runAnalytics(ctx context.Context) error {
-	err := analytics.Collect(ctx, c.GetDataBrokerServiceClient(), time.Second*30)
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "zero-analytics")
+	})
+
+	err := analytics.Collect(ctx, c.GetDataBrokerServiceClient(), time.Hour)
 	if err != nil && ctx.Err() == nil {
 		log.Ctx(ctx).Error().Err(err).Msg("error collecting analytics, disabling")
 		return nil
 	}
 
 	return err
+}
+
+func (c *controller) runReporter(ctx context.Context) error {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "zero-reporter")
+	})
+
+	return c.api.Report(ctx,
+		reporter.WithCollectInterval(time.Hour),
+		reporter.WithMetrics(analytics.Metrics(c.GetDataBrokerServiceClient)...),
+	)
 }

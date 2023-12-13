@@ -1,4 +1,4 @@
-package connect
+package grpcconn
 
 import (
 	"crypto/tls"
@@ -13,8 +13,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// Config is the configuration for the gRPC client
-type Config struct {
+// config is the configuration for the gRPC client
+type config struct {
 	connectionURI string
 	// requireTLS is whether TLS should be used or cleartext
 	requireTLS bool
@@ -25,8 +25,8 @@ type Config struct {
 // NewConfig returns a new Config from an endpoint string, that has to be in a URL format.
 // The endpoint can be either http:// or https:// that will be used to determine whether TLS should be used.
 // if port is not specified, it will be inferred from the scheme (80 for http, 443 for https).
-func NewConfig(endpoint string) (*Config, error) {
-	c := new(Config)
+func getConfig(endpoint string) (*config, error) {
+	c := new(config)
 	err := c.parseEndpoint(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("invalid endpoint: %w", err)
@@ -36,26 +36,26 @@ func NewConfig(endpoint string) (*Config, error) {
 }
 
 // GetConnectionURI returns connection string conforming to https://github.com/grpc/grpc/blob/master/doc/naming.md
-func (c *Config) GetConnectionURI() string {
+func (c *config) GetConnectionURI() string {
 	return c.connectionURI
 }
 
 // GetDialTimeout returns the timeout for the dial operation
-func (c *Config) GetDialTimeout() time.Duration {
-	return defaultDialTimeout
+func (c *config) GetDialTimeout() time.Duration {
+	return time.Hour
 }
 
 // RequireTLS returns whether TLS should be used or cleartext
-func (c *Config) RequireTLS() bool {
+func (c *config) RequireTLS() bool {
 	return c.requireTLS
 }
 
 // GetDialOptions returns the dial options to pass to the gRPC client
-func (c *Config) GetDialOptions() []grpc.DialOption {
+func (c *config) GetDialOptions() []grpc.DialOption {
 	return c.opts
 }
 
-func (c *Config) buildTLSOptions() {
+func (c *config) buildTLSOptions() {
 	creds := insecure.NewCredentials()
 	if c.requireTLS {
 		creds = credentials.NewTLS(&tls.Config{
@@ -65,7 +65,7 @@ func (c *Config) buildTLSOptions() {
 	c.opts = append(c.opts, grpc.WithTransportCredentials(creds))
 }
 
-func (c *Config) parseEndpoint(endpoint string) error {
+func (c *config) parseEndpoint(endpoint string) error {
 	u, err := url.Parse(endpoint)
 	if err != nil {
 		return fmt.Errorf("error parsing endpoint url: %w", err)

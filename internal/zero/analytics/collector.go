@@ -10,7 +10,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
-// Collect collects metrics and reports them to the cloud
+// Collect collects metrics and stores them in the databroker
 func Collect(
 	ctx context.Context,
 	client databroker.DataBrokerServiceClient,
