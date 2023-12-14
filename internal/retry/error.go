@@ -28,7 +28,6 @@ func (e *terminalError) Unwrap() error {
 
 // Is implements errors.Is for terminalError
 func (e *terminalError) Is(err error) bool {
-	//nolint:errorlint
 	_, ok := err.(*terminalError)
 	return ok
 }

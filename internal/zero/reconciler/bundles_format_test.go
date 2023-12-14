@@ -16,7 +16,6 @@ import (
 )
 
 func TestReadRecords(t *testing.T) {
-
 	dir := t.TempDir()
 	fd, err := os.CreateTemp(dir, "config")
 	require.NoError(t, err)
@@ -34,7 +33,7 @@ func TestReadRecords(t *testing.T) {
 }
 
 func writeSampleRecords(dst io.Writer) error {
-	var marshalOpts = protodelim.MarshalOptions{
+	marshalOpts := protodelim.MarshalOptions{
 		MarshalOptions: proto.MarshalOptions{
 			AllowPartial:  false,
 			Deterministic: true,

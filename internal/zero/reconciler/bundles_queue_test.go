@@ -73,7 +73,6 @@ func TestQueueMarkForSyncLater(t *testing.T) {
 	assert.Equal(t, "bundle1", id4)
 	assert.False(t, ok5, "Expected no more bundles to sync")
 	assert.Empty(t, id5)
-
 }
 
 func TestQueueGetNextBundleToSync(t *testing.T) {

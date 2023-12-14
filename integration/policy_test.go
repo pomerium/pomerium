@@ -527,7 +527,7 @@ func TestPomeriumJWT(t *testing.T) {
 	// format of the iat and exp timestamps.
 	// (https://github.com/pomerium/pomerium/issues/4149)
 	p := rawJWTPayload(t, headerJWT)
-	var digitsOnly = regexp.MustCompile(`^\d+$`)
+	digitsOnly := regexp.MustCompile(`^\d+$`)
 	assert.Regexp(t, digitsOnly, p["iat"])
 	assert.Regexp(t, digitsOnly, p["exp"])
 

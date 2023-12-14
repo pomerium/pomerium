@@ -10,8 +10,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 )
 
-type healthCheckSrv struct {
-}
+type healthCheckSrv struct{}
 
 // NewHealthCheckServer returns a basic health checker
 func NewHealthCheckServer() grpc_health.HealthServer {

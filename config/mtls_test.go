@@ -14,7 +14,7 @@ func TestDownstreamMTLSSettingsGetCA(t *testing.T) {
 
 	fakeCACert := []byte("--- FAKE CA CERT ---")
 	caFile := filepath.Join(t.TempDir(), "CA.pem")
-	os.WriteFile(caFile, fakeCACert, 0644)
+	os.WriteFile(caFile, fakeCACert, 0o644)
 
 	cases := []struct {
 		label    string
@@ -41,7 +41,7 @@ func TestDownstreamMTLSSettingsGetCRL(t *testing.T) {
 
 	fakeCRL := []byte("--- FAKE CRL ---")
 	crlFile := filepath.Join(t.TempDir(), "CRL.pem")
-	os.WriteFile(crlFile, fakeCRL, 0644)
+	os.WriteFile(crlFile, fakeCRL, 0o644)
 
 	cases := []struct {
 		label    string
@@ -71,17 +71,23 @@ func TestDownstreamMTLSSettingsGetEnforcement(t *testing.T) {
 		settings DownstreamMTLSSettings
 		expected MTLSEnforcement
 	}{
-		{"default",
-			DownstreamMTLSSettings{}, MTLSEnforcementPolicyWithDefaultDeny,
+		{
+			"default",
+			DownstreamMTLSSettings{},
+			MTLSEnforcementPolicyWithDefaultDeny,
 		},
-		{"policy",
-			DownstreamMTLSSettings{Enforcement: "policy"}, MTLSEnforcementPolicy,
+		{
+			"policy",
+			DownstreamMTLSSettings{Enforcement: "policy"},
+			MTLSEnforcementPolicy,
 		},
-		{"policy_with_default_deny",
+		{
+			"policy_with_default_deny",
 			DownstreamMTLSSettings{Enforcement: "policy_with_default_deny"},
 			MTLSEnforcementPolicyWithDefaultDeny,
 		},
-		{"reject_connection",
+		{
+			"reject_connection",
 			DownstreamMTLSSettings{Enforcement: "reject_connection"},
 			MTLSEnforcementRejectConnection,
 		},
@@ -122,20 +128,41 @@ func TestDownstreamMTLSSettingsValidate(t *testing.T) {
 		errorMsg string
 	}{
 		{"not set", DownstreamMTLSSettings{}, ""},
-		{"both CA and CA file", DownstreamMTLSSettings{CA: "CA", CAFile: "CAFile"},
-			"cannot set both ca and ca_file"},
-		{"bad CA", DownstreamMTLSSettings{CA: "not%valid%base64%data"},
-			"CA: illegal base64 data at input byte 3"},
-		{"bad CA file", DownstreamMTLSSettings{CAFile: "-"},
-			"CA file: open -: no such file or directory"},
-		{"both CRL and CRL file", DownstreamMTLSSettings{CRL: "CRL", CRLFile: "CRLFile"},
-			"cannot set both crl and crl_file"},
-		{"bad CRL", DownstreamMTLSSettings{CRL: "dGhpc2lzZmluZQo="},
-			"CRL: cryptutil: non-PEM data in CRL bundle"},
-		{"bad CRL file", DownstreamMTLSSettings{CRLFile: "-"},
-			"CRL file: open -: no such file or directory"},
-		{"bad enforcement mode", DownstreamMTLSSettings{Enforcement: "whatever"},
-			"unknown enforcement option"},
+		{
+			"both CA and CA file",
+			DownstreamMTLSSettings{CA: "CA", CAFile: "CAFile"},
+			"cannot set both ca and ca_file",
+		},
+		{
+			"bad CA",
+			DownstreamMTLSSettings{CA: "not%valid%base64%data"},
+			"CA: illegal base64 data at input byte 3",
+		},
+		{
+			"bad CA file",
+			DownstreamMTLSSettings{CAFile: "-"},
+			"CA file: open -: no such file or directory",
+		},
+		{
+			"both CRL and CRL file",
+			DownstreamMTLSSettings{CRL: "CRL", CRLFile: "CRLFile"},
+			"cannot set both crl and crl_file",
+		},
+		{
+			"bad CRL",
+			DownstreamMTLSSettings{CRL: "dGhpc2lzZmluZQo="},
+			"CRL: cryptutil: non-PEM data in CRL bundle",
+		},
+		{
+			"bad CRL file",
+			DownstreamMTLSSettings{CRLFile: "-"},
+			"CRL file: open -: no such file or directory",
+		},
+		{
+			"bad enforcement mode",
+			DownstreamMTLSSettings{Enforcement: "whatever"},
+			"unknown enforcement option",
+		},
 		{"bad SAN type", DownstreamMTLSSettings{MatchSubjectAltNames: []SANMatcher{
 			{Type: "whatever"},
 		}}, `unknown SAN type "whatever"`},
