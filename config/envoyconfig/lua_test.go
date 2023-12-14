@@ -3,8 +3,11 @@ package envoyconfig
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
 	"testing"
 
+	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	lua "github.com/yuin/gopher-lua"
@@ -83,6 +86,48 @@ func TestLuaRewriteHeaders(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "https://frontend/one/some/uri/", headers["Location"])
+}
+
+func FuzzLuaRemovePomeriumCookie(f *testing.F) {
+	L := lua.NewState()
+	defer L.Close()
+
+	bs, err := luaFS.ReadFile("luascripts/clean-upstream.lua")
+	require.NoError(f, err)
+
+	err = L.DoString(string(bs))
+	require.NoError(f, err)
+
+	metadata := map[string]interface{}{"remove_pomerium_cookie": "_pomerium"}
+	dynamicMetadata := map[string]map[string]interface{}{}
+
+	f.Add("cookieA=aaa_pomerium=123; cookieb=bbb; _pomerium_other=stillhere; _pomerium=removed")
+	f.Fuzz(func(t *testing.T, s string) {
+		referenceOutput := slices.Filter(parseCookieString(s),
+			func(c *http.Cookie) bool { return c.Name != "_pomerium" })
+		referenceString := strings.Join(slices.Map(referenceOutput, (*http.Cookie).String), "; ")
+
+		headers := map[string]string{"cookie": s}
+		handle := newLuaResponseHandle(L, headers, metadata, dynamicMetadata)
+		err = L.CallByParam(lua.P{
+			Fn:      L.GetGlobal("envoy_on_request"),
+			NRet:    0,
+			Protect: true,
+		}, handle)
+		require.NoError(t, err)
+
+		luaOutput := parseCookieString(headers["cookie"])
+		luaString := strings.Join(slices.Map(luaOutput, (*http.Cookie).String), "; ")
+
+		assert.Equalf(t, referenceString, luaString, "input: %q", s)
+	})
+}
+
+func parseCookieString(s string) []*http.Cookie {
+	header := http.Header{}
+	header.Set("Cookie", s)
+	request := http.Request{Header: header}
+	return request.Cookies()
 }
 
 func newLuaResponseHandle(L *lua.LState,
