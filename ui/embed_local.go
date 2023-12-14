@@ -10,10 +10,8 @@ import (
 	"path/filepath"
 )
 
-var (
-	//go:embed dist/*
-	uiFS embed.FS
-)
+//go:embed dist/*
+var uiFS embed.FS
 
 func openFile(name string) (f fs.File, etag string, err error) {
 	f, err = os.Open(filepath.Join("ui", name))

@@ -29,7 +29,6 @@ func TestNewServer(t *testing.T) {
 		// want        *http.Server
 		wantErr bool
 	}{
-
 		{
 			"good basic http handler",
 			&ServerOptions{
