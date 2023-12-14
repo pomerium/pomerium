@@ -722,7 +722,7 @@ func TestDeprecatedClientCAOptions(t *testing.T) {
 
 	var logOutput bytes.Buffer
 	zl := zerolog.New(&logOutput)
-	testutil.SetLogger(t, &zl)
+	testutil.SetLogger(t, zl)
 
 	t.Run("CA", func(t *testing.T) {
 		logOutput.Reset()

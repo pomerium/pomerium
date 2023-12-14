@@ -138,7 +138,6 @@ message Settings {
   message StringList { repeated string values = 1; }
 
   optional string installation_id = 71;
-  optional bool debug = 2;
   optional string log_level = 3;
   optional StringList access_log_fields = 114;
   optional StringList authorize_log_fields = 115;

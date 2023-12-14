@@ -10,10 +10,9 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/mattn/go-isatty"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/zero/controller"
 )
 
@@ -68,24 +67,14 @@ func withInterrupt(ctx context.Context) context.Context {
 }
 
 func setupLogger() error {
-	if isatty.IsTerminal(os.Stdin.Fd()) {
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	} else {
-		log.Logger = zerolog.New(os.Stderr)
-	}
-
 	if rawLvl, ok := os.LookupEnv("LOG_LEVEL"); ok {
 		lvl, err := zerolog.ParseLevel(rawLvl)
 		if err != nil {
 			return err
 		}
-		log.Logger = log.Logger.Level(lvl)
-	} else {
-		log.Logger = log.Logger.Level(zerolog.InfoLevel)
+		log.SetLevel(lvl)
 	}
 
-	// set the default context logger
-	zerolog.DefaultContextLogger = &log.Logger
 	return nil
 }
 
