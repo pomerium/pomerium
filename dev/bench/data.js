@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702575623242,
+  "lastUpdate": 1702576212317,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -89728,6 +89728,42 @@ window.BENCHMARK_DATA = {
             "value": 6327414,
             "unit": "ns/op",
             "extra": "189 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ddc9d957ba145134cac9c6f4ec8b6a52787f0d8b",
+          "message": "core/ci: fix linting issues (#4856)",
+          "timestamp": "2023-12-14T10:47:13-07:00",
+          "tree_id": "ded32452320813149f319085e1b273c9b9cec970",
+          "url": "https://github.com/pomerium/pomerium/commit/ddc9d957ba145134cac9c6f4ec8b6a52787f0d8b"
+        },
+        "date": 1702576205847,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10393599,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6056226,
+            "unit": "ns/op",
+            "extra": "201 times\n4 procs"
           }
         ]
       }
