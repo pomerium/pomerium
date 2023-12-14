@@ -11,9 +11,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
-var (
-	sessionTypeURL = protoutil.GetTypeURL(new(session.Session))
-)
+var sessionTypeURL = protoutil.GetTypeURL(new(session.Session))
 
 // CurrentUsers returns a list of users active within the current UTC day
 func CurrentUsers(
