@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702482973481,
+  "lastUpdate": 1702573876013,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -89658,6 +89658,42 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 6636407,
+            "unit": "ns/op",
+            "extra": "184 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a2fd95aae6a6532b8c74e8ee192cd4759a5cd84f",
+          "message": "core/ci: update linting (#4844)\n\n* core/ci: update linting\r\n\r\n* re-add exportloopref\r\n\r\n* re-add gocheckcompilerdirectives\r\n\r\n* re-add stylecheck\r\n\r\n* re-add usestdlibvars\r\n\r\n* upgrade lint\r\n\r\n---------\r\n\r\nCo-authored-by: Denis Mishin <dmishin@pomerium.com>",
+          "timestamp": "2023-12-14T09:07:54-08:00",
+          "tree_id": "5ba729221d6fbe070f81b3a897cedb7329f9a211",
+          "url": "https://github.com/pomerium/pomerium/commit/a2fd95aae6a6532b8c74e8ee192cd4759a5cd84f"
+        },
+        "date": 1702573868941,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9328189,
+            "unit": "ns/op",
+            "extra": "127 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6421020,
             "unit": "ns/op",
             "extra": "184 times\n4 procs"
           }
