@@ -55,7 +55,7 @@ issues:
 
   exclude-rules:
     # Exclude some linters from running on test files.
-    - path: _test\.go$|^tests/|^integration/|^samples/|templates\.go$
+    - path: _test\.go$|^tests/|^integration/|^samples/|^internal/testutil/|templates\.go$
       linters:
         - bodyclose
         - errcheck

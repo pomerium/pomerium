@@ -142,6 +142,10 @@ func (b *Builder) buildInternalCluster(
 ) (*envoy_config_cluster_v3.Cluster, error) {
 	cluster := newDefaultEnvoyClusterConfig()
 	cluster.DnsLookupFamily = config.GetEnvoyDNSLookupFamily(cfg.Options.DNSLookupFamily)
+	cluster.UpstreamConnectionOptions = &envoy_config_cluster_v3.UpstreamConnectionOptions{
+		// Enable TCP keepalive with OS default settings.
+		TcpKeepalive: &envoy_config_core_v3.TcpKeepalive{},
+	}
 	var endpoints []Endpoint
 	for _, dst := range dsts {
 		ts, err := b.buildInternalTransportSocket(ctx, cfg, dst)
