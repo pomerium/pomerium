@@ -26,7 +26,6 @@ func (e *RequestIDError) Unwrap() error {
 
 // Is implements errors.Is for RequestIDError
 func (e *RequestIDError) Is(err error) bool {
-	//nolint:errorlint
 	_, ok := err.(*RequestIDError)
 	return ok
 }

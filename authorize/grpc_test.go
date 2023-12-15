@@ -257,7 +257,7 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 
 	var logOutput bytes.Buffer
 	zl := zerolog.New(&logOutput)
-	testutil.SetLogger(t, &zl)
+	testutil.SetLogger(t, zl)
 
 	ctx := context.Background()
 	for i := range cases {

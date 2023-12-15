@@ -2,68 +2,31 @@ run:
   deadline: 20m
 
 linters-settings:
-  dupl:
-    threshold: 100
-  funlen:
-    lines: 100
-    statements: 50
   gci:
-    local-prefixes: github.com/pomerium
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - dupImport # https://github.com/go-critic/go-critic/issues/845
-      - ifElseChain
-      - octalLiteral
-      - whyNoLint
-      - wrapperFunc
-  gocyclo:
-    min-complexity: 15
-  goimports:
-    local-prefixes: github.com/pomerium
-  govet:
-    check-shadowing: false
-  lll:
-    line-length: 160
-  maligned:
-    suggest-new: true
-  misspell:
-    locale: US
-  nolintlint:
-    allow-leading-space: true # don't require machine-readable nolint directives (i.e. with no leading space)
-    allow-unused: false # report any unused nolint directives
-    require-explanation: false # don't require an explanation for nolint directives
-    require-specific: false # don't require nolint directives to be specific about which linter is being skipped
+    custom-order: true
+    sections:
+      - standard
+      - default
+      - prefix(github.com/pomerium)
 
 linters:
   disable-all: true
   enable:
     - asasalint
     - bodyclose
-    - depguard
     - dogsled
     - errcheck
     - errorlint
     - exportloopref
     - gci
     - gocheckcompilerdirectives
-    - gofmt
+    - gofumpt
     - goimports
     - goprintffuncname
     - gosec
     - gosimple
     - govet
     - ineffassign
-    - lll
-    - loggercheck
     - misspell
     - nakedret
     - nolintlint
@@ -71,13 +34,11 @@ linters:
     - staticcheck
     - stylecheck
     - tenv
-    - typecheck
     - unconvert
     - unused
     - usestdlibvars
 
 issues:
-  exclude-use-default: false
   # List of regexps of issue texts to exclude, empty list by default.
   # But independently from this option we use default exclude patterns,
   # it can be disabled by `exclude-use-default: false`. To list all
@@ -86,51 +47,13 @@ issues:
     ## Defaults we want from golangci-lint
     # errcheck: Almost all programs ignore errors on these functions and in most cases it's ok
     - Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv). is not checked
-    # golint: False positive when tests are defined in package 'test'
-    - func name will be used as test\.Test.* by other packages, and that stutters; consider calling this
-    # govet: Common false positives
-    - (possible misuse of unsafe.Pointer|should have signature)
-    # staticcheck: Developers tend to write in C-style with an explicit 'break' in a 'switch', so it's ok to ignore
-    - ineffective break statement. Did you mean to break out of the outer loop
-    # gosec: Too many false-positives on 'unsafe' usage
-    - Use of unsafe calls should be audited
-    # gosec: Too many false-positives for parametrized shell calls
-    - Subprocess launch(ed with variable|ing should be audited)
-    # gosec: Duplicated errcheck checks
-    - G104
-    # gosec: unsafe close on file errors
-    - G307
-    # gosec: Too many issues in popular repos
-    - (Expect directory permissions to be 0750 or less|Expect file permissions to be 0600 or less)
-    # gosec: False positive is triggered by 'src, err := os.ReadFile(filename)'
-    - Potential file inclusion via variable
     - empty-block
-
-    ##
-    ## Custom
-    ##
-    # Mostly harmless buffer writes where we skip error checking
-    # https://golang.org/pkg/bytes/#Buffer.Write
-    - "Error return value of `w.Write` is not checked"
-    - "Error return value of `io.WriteString` is not checked"
-    - "Error return value of `viper.BindEnv` is not checked"
-    - "Error return value of `h.Write` is not checked"
-    - "ExecuteTemplate` is not checked"
 
     # go sec : we want to allow skipping tls auth
     - "TLS InsecureSkipVerify set true."
-    - "goroutine calls T.Fatalf, which must be called in the same goroutine as the test"
-    # good job Protobuffs!
-    - "method XXX"
     - "SA1019"
-    # EXC0001 errcheck: Almost all programs ignore errors on these functions and in most cases it's ok
-    - Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*print(f|ln)?|os\.(Un)?Setenv). is not checked
 
   exclude-rules:
-    # https://github.com/go-critic/go-critic/issues/926
-    - linters:
-        - gocritic
-      text: "unnecessaryDefer:"
     # Exclude some linters from running on test files.
     - path: _test\.go$|^tests/|^integration/|^samples/|templates\.go$
       linters:
@@ -146,26 +69,10 @@ issues:
         - scopelint
         - gosec
         - gosimple
-    # Exclude lll issues for long lines with go:generate
-    - linters:
-        - lll
-      source: "^//go:generate "
-    # erroneously thinks google api url is a cred
-    - path: internal/identity/google.go
-      text: "Potential hardcoded credentials"
-      linters:
-        - gosec
-    # deprecated but every example still uses New
-    - path: internal/identity/google.go
-      text: "please use NewService instead"
-      linters:
-        - staticcheck
     - path: internal/identity/oauth/github/github.go
       text: "Potential hardcoded credentials"
       linters:
         - gosec
-    - linters: [golint]
-      text: "should have a package comment"
     - text: "G112:"
       linters:
         - gosec

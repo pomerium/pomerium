@@ -20,9 +20,7 @@ type LayeredSource struct {
 	ChangeDispatcher
 }
 
-var (
-	_ = Source(&LayeredSource{})
-)
+var _ = Source(&LayeredSource{})
 
 // NewLayeredSource creates a new config source that is watching the underlying source for changes
 func NewLayeredSource(ctx context.Context, underlying Source, builder func(*Config) error) (*LayeredSource, error) {

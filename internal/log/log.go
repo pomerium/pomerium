@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -14,7 +15,6 @@ import (
 )
 
 var (
-	logger    = atomicutil.NewValue(new(zerolog.Logger))
 	zapLogger = atomicutil.NewValue(new(zap.Logger))
 	zapLevel  zap.AtomicLevel
 )
@@ -32,31 +32,16 @@ func init() {
 		zapLevel,
 	)))
 
-	DisableDebug()
-}
-
-// DisableDebug tells the logger to use stdout and json output.
-func DisableDebug() {
 	l := zerolog.New(os.Stdout).With().Timestamp().Logger()
-	SetLogger(&l)
+	log.Logger = l
+	// set the default context logger
+	zerolog.DefaultContextLogger = &l
 	zapLevel.SetLevel(zapcore.InfoLevel)
 }
 
-// EnableDebug tells the logger to use stdout and pretty print output.
-func EnableDebug() {
-	l := zerolog.New(os.Stdout).With().Timestamp().Logger().Output(zerolog.ConsoleWriter{Out: os.Stdout})
-	SetLogger(&l)
-	zapLevel.SetLevel(zapcore.DebugLevel)
-}
-
-// SetLogger sets zerolog the logger.
-func SetLogger(l *zerolog.Logger) {
-	logger.Store(l)
-}
-
-// Logger returns the global logger.
+// Logger returns the zerolog Logger.
 func Logger() *zerolog.Logger {
-	return logger.Load()
+	return &log.Logger
 }
 
 // ZapLogger returns the global zap logger.

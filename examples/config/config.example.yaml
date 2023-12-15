@@ -2,7 +2,6 @@
 
 #
 # address: ":8443" # optional, default is 443
-# pomerium_debug: true # optional, default is false
 # service: "all" # optional, default is all
 # log_level: info # optional, default is debug
 

@@ -32,7 +32,8 @@ func TestClientCertificate(t *testing.T) {
 		cert     string
 		expected A
 	}{
-		{"no certificate",
+		{
+			"no certificate",
 			`allow:
   or:
     - client_certificate:
@@ -40,7 +41,8 @@ func TestClientCertificate(t *testing.T) {
 			"",
 			A{false, A{ReasonClientCertificateUnauthorized}, M{}},
 		},
-		{"no fingerprint match",
+		{
+			"no fingerprint match",
 			`allow:
   or:
     - client_certificate:
@@ -48,7 +50,8 @@ func TestClientCertificate(t *testing.T) {
 			testCert,
 			A{false, A{ReasonClientCertificateUnauthorized}, M{}},
 		},
-		{"fingerprint match",
+		{
+			"fingerprint match",
 			`allow:
   or:
     - client_certificate:
@@ -56,7 +59,8 @@ func TestClientCertificate(t *testing.T) {
 			testCert,
 			A{true, A{ReasonClientCertificateOK}, M{}},
 		},
-		{"fingerprint list match",
+		{
+			"fingerprint list match",
 			`allow:
   or:
     - client_certificate:
@@ -66,7 +70,8 @@ func TestClientCertificate(t *testing.T) {
 			testCert,
 			A{true, A{ReasonClientCertificateOK}, M{}},
 		},
-		{"spki hash match",
+		{
+			"spki hash match",
 			`allow:
   or:
     - client_certificate:
@@ -74,7 +79,8 @@ func TestClientCertificate(t *testing.T) {
 			testCert,
 			A{true, A{ReasonClientCertificateOK}, M{}},
 		},
-		{"spki hash list match",
+		{
+			"spki hash list match",
 			`allow:
   or:
     - client_certificate:
@@ -114,29 +120,36 @@ func TestCanonicalCertFingerprint(t *testing.T) {
 		output string
 		err    string
 	}{
-		{"object",
+		{
+			"object",
 			`{}`, "", "certificate fingerprint must be a string (was {})",
 		},
-		{"empty",
+		{
+			"empty",
 			`""`, "", "certificate fingerprint must not be empty",
 		},
-		{"SHA-1 fingerprint",
+		{
+			"SHA-1 fingerprint",
 			`"B1:E6:A2:DC:DD:6B:87:A4:9B:C5:7C:3B:7C:7F:1C:74:9A:DB:88:36"`,
 			"", "unsupported certificate fingerprint format (B1:E6:A2:DC:DD:6B:87:A4:9B:C5:7C:3B:7C:7F:1C:74:9A:DB:88:36)",
 		},
-		{"uppercase short",
+		{
+			"uppercase short",
 			`"DF6FF72FE9116521268F6F2DD4966F51DF479883FE7037B39F75916AC3049D1A"`,
 			"", "unsupported certificate fingerprint format (DF6FF72FE9116521268F6F2DD4966F51DF479883FE7037B39F75916AC3049D1A)",
 		},
-		{"valid short",
+		{
+			"valid short",
 			`"df6ff72fe9116521268f6f2dd4966f51df479883fe7037b39f75916ac3049d1a"`,
 			"df6ff72fe9116521268f6f2dd4966f51df479883fe7037b39f75916ac3049d1a", "",
 		},
-		{"lowercase long",
+		{
+			"lowercase long",
 			`"df:6f:f7:2f:e9:11:65:21:26:8f:6f:2d:d4:96:6f:51:df:47:98:83:fe:70:37:b3:9f:75:91:6a:c3:04:9d:1a"`,
 			"", "unsupported certificate fingerprint format (df:6f:f7:2f:e9:11:65:21:26:8f:6f:2d:d4:96:6f:51:df:47:98:83:fe:70:37:b3:9f:75:91:6a:c3:04:9d:1a)",
 		},
-		{"valid long",
+		{
+			"valid long",
 			`"DF:6F:F7:2F:E9:11:65:21:26:8F:6F:2D:D4:96:6F:51:DF:47:98:83:FE:70:37:B3:9F:75:91:6A:C3:04:9D:1A"`,
 			"df6ff72fe9116521268f6f2dd4966f51df479883fe7037b39f75916ac3049d1a", "",
 		},
@@ -169,16 +182,20 @@ func TestSPKIHashFormatErrors(t *testing.T) {
 		input string
 		err   string
 	}{
-		{"object",
+		{
+			"object",
 			`{}`, "certificate SPKI hash condition expects a string or array of strings",
 		},
-		{"not base64",
+		{
+			"not base64",
 			`"not%valid%base64%data"`, "certificate SPKI hash must be a base64-encoded SHA-256 hash (was not%valid%base64%data)",
 		},
-		{"SHA-1 hash",
+		{
+			"SHA-1 hash",
 			`"VYby3BAoHawLLtsyckwo5Q=="`, "certificate SPKI hash must be a base64-encoded SHA-256 hash (was VYby3BAoHawLLtsyckwo5Q==)",
 		},
-		{"valid",
+		{
+			"valid",
 			`"FsDbM0rUYIiL3V339eIKqiz6HPSB+Pz2WeAWhqlqh8U="`, "",
 		},
 	}

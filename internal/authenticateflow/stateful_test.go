@@ -248,7 +248,7 @@ func TestStatefulCallback(t *testing.T) {
 			}
 
 			r := httptest.NewRequest(http.MethodGet, uri.String(), nil)
-			//fmt.Println(uri.String())
+			// fmt.Println(uri.String())
 			r.Host = r.URL.Host
 
 			r.Header.Set("Accept", "application/json")

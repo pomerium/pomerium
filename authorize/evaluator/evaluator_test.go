@@ -649,8 +649,10 @@ func TestPolicyEvaluatorReuse(t *testing.T) {
 		// Make changes to some of the policies.
 		newPolicies := []config.Policy{
 			{To: singleToURL("https://to1.example.com")},
-			{To: singleToURL("https://to2.example.com"),
-				AllowedUsers: []string{"user-id-1"}}, // change just the policy itself
+			{
+				To:           singleToURL("https://to2.example.com"),
+				AllowedUsers: []string{"user-id-1"},
+			}, // change just the policy itself
 			{To: singleToURL("https://to3.example.com")},
 			{To: singleToURL("https://foo.example.com"), // change route ID too
 				AllowAnyAuthenticatedUser: true},

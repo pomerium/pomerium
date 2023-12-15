@@ -34,12 +34,6 @@ func (mgr *LogManager) OnConfigChange(_ context.Context, cfg *Config) {
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 
-	if cfg.Options.Debug {
-		log.EnableDebug()
-	} else {
-		log.DisableDebug()
-	}
-
 	if cfg.Options.LogLevel != "" {
 		log.SetLevel(cfg.Options.LogLevel.ToZerolog())
 	}

@@ -252,7 +252,8 @@ func TestManager_refreshSession(t *testing.T) {
 			FieldMask: &fieldmaskpb.FieldMask{
 				Paths: []string{"oauth_token", "id_token", "claims"},
 			},
-		}}).
+		},
+	}).
 		Return(nil /* this result is currently unused */, nil)
 	mgr.refreshSession(context.Background(), "user-id", "session-id")
 
