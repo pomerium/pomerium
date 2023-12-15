@@ -53,9 +53,11 @@ func TestProvider(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, p)
 
-	t.Run("GetSignOutURL", func(t *testing.T) {
-		signOutURL, err := p.GetSignOutURL("", "https://www.example.com?a=b")
+	t.Run("SignOut", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "https://authenticate.example.com/.pomerium/sign_out", nil)
+		err := p.SignOut(w, r, "", "https://authenticate.example.com/.pomerium/signed_out", "https://www.example.com?a=b")
 		assert.NoError(t, err)
-		assert.Equal(t, srv.URL+"/logout?client_id=CLIENT_ID&logout_uri=https%3A%2F%2Fwww.example.com%3Fa%3Db", signOutURL)
+		assert.Equal(t, srv.URL+"/logout?client_id=CLIENT_ID&logout_uri=https%3A%2F%2Fauthenticate.example.com%2F.pomerium%2Fsigned_out", w.Header().Get("Location"))
 	})
 }

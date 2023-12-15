@@ -96,56 +96,26 @@ func New(ctx context.Context, o *oauth.Options, options ...Option) (*Provider, e
 	return p, nil
 }
 
-// GetSignInURL returns the url of the provider's OAuth 2.0 consent page
+// SignIn redirects to the url of the provider's OAuth 2.0 consent page
 // that asks for permissions for the required scopes explicitly.
 //
 // State is a token to protect the user from CSRF attacks. You must
 // always provide a non-empty string and validate that it matches the
 // the state query parameter on your redirect callback.
 // See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
-func (p *Provider) GetSignInURL(state string) (string, error) {
+func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) error {
 	oa, err := p.GetOauthConfig()
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	opts := defaultAuthCodeOptions
 	for k, v := range p.AuthCodeOptions {
 		opts = append(opts, oauth2.SetAuthURLParam(k, v))
 	}
-	return oa.AuthCodeURL(state, opts...), nil
-}
-
-// GetSignOutURL returns the EndSessionURL endpoint to allow a logout
-// session to be initiated.
-// https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPInitiated
-func (p *Provider) GetSignOutURL(idTokenHint, redirectToURL string) (string, error) {
-	_, err := p.GetProvider()
-	if err != nil {
-		return "", err
-	}
-
-	if p.EndSessionURL == "" {
-		return "", ErrSignoutNotImplemented
-	}
-
-	endSessionURL, err := urlutil.ParseAndValidateURL(p.EndSessionURL)
-	if err != nil {
-		return "", err
-	}
-
-	params := endSessionURL.Query()
-	if idTokenHint != "" {
-		params.Add("id_token_hint", idTokenHint)
-	}
-	if oa, err := p.GetOauthConfig(); err == nil {
-		params.Add("client_id", oa.ClientID)
-	}
-	if redirectToURL != "" {
-		params.Add("post_logout_redirect_uri", redirectToURL)
-	}
-	endSessionURL.RawQuery = params.Encode()
-	return endSessionURL.String(), nil
+	signInURL := oa.AuthCodeURL(state, opts...)
+	httputil.Redirect(w, r, signInURL, http.StatusFound)
+	return nil
 }
 
 // Authenticate converts an authorization code returned from the identity
@@ -339,4 +309,39 @@ func (p *Provider) GetOauthConfig() (*oauth2.Config, error) {
 		return nil, err
 	}
 	return p.cfg.getOauthConfig(pp), nil
+}
+
+// SignOut uses the EndSessionURL endpoint to allow a logout session to be initiated.
+// https://openid.net/specs/openid-connect-frontchannel-1_0.html#RPInitiated
+func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, idTokenHint, authenticateSignedOutURL, redirectToURL string) error {
+	_, err := p.GetProvider()
+	if err != nil {
+		return err
+	}
+
+	if p.EndSessionURL == "" {
+		return ErrSignoutNotImplemented
+	}
+
+	endSessionURL, err := urlutil.ParseAndValidateURL(p.EndSessionURL)
+	if err != nil {
+		return err
+	}
+
+	params := endSessionURL.Query()
+	if idTokenHint != "" {
+		params.Add("id_token_hint", idTokenHint)
+	}
+	if oa, err := p.GetOauthConfig(); err == nil {
+		params.Add("client_id", oa.ClientID)
+	}
+	if redirectToURL != "" {
+		params.Add("post_logout_redirect_uri", redirectToURL)
+	} else if authenticateSignedOutURL != "" {
+		params.Add("post_logout_redirect_uri", authenticateSignedOutURL)
+	}
+	endSessionURL.RawQuery = params.Encode()
+
+	httputil.Redirect(w, r, endSessionURL.String(), http.StatusFound)
+	return nil
 }
