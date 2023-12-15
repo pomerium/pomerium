@@ -57,7 +57,7 @@ type Options struct {
 	// InstallationID is used to indicate a unique installation of pomerium. Useful for telemetry.
 	InstallationID string `mapstructure:"installation_id" yaml:"installation_id,omitempty"`
 
-	// Debug outputs human-readable logs to Stdout.
+	// Debug is deprecated.
 	Debug bool `mapstructure:"pomerium_debug" yaml:"pomerium_debug,omitempty"`
 
 	// LogLevel sets the global override for log level. All Loggers will use at least this value.
@@ -313,7 +313,6 @@ type certificateFilePair struct {
 
 // DefaultOptions are the default configuration options for pomerium
 var defaultOptions = Options{
-	Debug:                    false,
 	LogLevel:                 LogLevelInfo,
 	Services:                 "all",
 	CookieHTTPOnly:           true,
@@ -1438,7 +1437,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	}
 
 	set(&o.InstallationID, settings.InstallationId)
-	set(&o.Debug, settings.Debug)
 	setLogLevel(&o.LogLevel, settings.LogLevel)
 	setAccessLogFields(&o.AccessLogFields, settings.AccessLogFields)
 	setAuthorizeLogFields(&o.AuthorizeLogFields, settings.AuthorizeLogFields)
