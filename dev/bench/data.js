@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702680367876,
+  "lastUpdate": 1702940816771,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -89928,6 +89928,38 @@ window.BENCHMARK_DATA = {
             "value": 7076084,
             "unit": "ns/op",
             "extra": "175 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "b869f9940a8ba15f1d0809ccdbd32de831cb3fbc",
+          "message": "core/ci: tag docker images with vMAJOR.MINOR",
+          "timestamp": "2023-12-18T07:40:27Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4859/commits/b869f9940a8ba15f1d0809ccdbd32de831cb3fbc"
+        },
+        "date": 1702940810359,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9882692,
+            "unit": "ns/op",
+            "extra": "118 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7164727,
+            "unit": "ns/op",
+            "extra": "162 times\n4 procs"
           }
         ]
       }
