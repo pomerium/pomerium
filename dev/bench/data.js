@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1702944580032,
+  "lastUpdate": 1703002152248,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -89992,6 +89992,42 @@ window.BENCHMARK_DATA = {
             "value": 6206790,
             "unit": "ns/op",
             "extra": "187 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9515d99ce981051ce99b82f6b1fc7a2ccd9cca88",
+          "message": "core/ci: tag docker images with vMAJOR.MINOR (#4859)",
+          "timestamp": "2023-12-19T09:05:54-07:00",
+          "tree_id": "aa16e4b5cef4698019daa062589550d293b08a13",
+          "url": "https://github.com/pomerium/pomerium/commit/9515d99ce981051ce99b82f6b1fc7a2ccd9cca88"
+        },
+        "date": 1703002145065,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9276257,
+            "unit": "ns/op",
+            "extra": "126 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6754799,
+            "unit": "ns/op",
+            "extra": "166 times\n4 procs"
           }
         ]
       }
