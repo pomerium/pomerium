@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1703012503763,
+  "lastUpdate": 1703012850258,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -90128,6 +90128,42 @@ window.BENCHMARK_DATA = {
             "value": 6787843,
             "unit": "ns/op",
             "extra": "171 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3adbc65d371d896c07844d3d641d7d25f10634bf",
+          "message": "core/authenticate: refactor identity authenticators to initiate redirect (#4858)\n\n* core/authenticate: refactor identity authenticators to initiate redirect, use cookie for redirect url for cognito\r\n\r\n* set secure and http only, update test",
+          "timestamp": "2023-12-19T12:04:23-07:00",
+          "tree_id": "4d427ee2085960f8e7484f5004ac02e990435032",
+          "url": "https://github.com/pomerium/pomerium/commit/3adbc65d371d896c07844d3d641d7d25f10634bf"
+        },
+        "date": 1703012843648,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9589152,
+            "unit": "ns/op",
+            "extra": "122 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6525583,
+            "unit": "ns/op",
+            "extra": "187 times\n4 procs"
           }
         ]
       }
