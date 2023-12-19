@@ -18,6 +18,12 @@ func (data SignedOutData) ToJSON() map[string]interface{} {
 // SignedOut returns a handler that renders the signed out page.
 func SignedOut(data SignedOutData) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+		if redirectURI, ok := httputil.GetSignedOutRedirectURICookie(w, r); ok {
+			httputil.Redirect(w, r, redirectURI, http.StatusFound)
+			return nil
+		}
+
+		// otherwise show the signed-out page
 		return ui.ServePage(w, r, "SignedOut", data.ToJSON())
 	})
 }

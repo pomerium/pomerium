@@ -83,31 +83,6 @@ func (p *Provider) Name() string {
 	return Name
 }
 
-// GetSignInURL returns the url of the provider's OAuth 2.0 consent page
-// that asks for permissions for the required scopes explicitly.
-//
-// State is a token to protect the user from CSRF attacks. You must
-// always provide a non-empty string and validate that it matches the
-// the state query parameter on your redirect callback.
-// See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
-func (p *Provider) GetSignInURL(state string) (string, error) {
-	opts := []oauth2.AuthCodeOption{}
-	for k, v := range p.authCodeOptions {
-		opts = append(opts, oauth2.SetAuthURLParam(k, v))
-	}
-	authURL := p.oauth.AuthCodeURL(state, opts...)
-
-	// Apple is very picky here and we need to use %20 instead of +
-	authURL = strings.ReplaceAll(authURL, "+", "%20")
-
-	return authURL, nil
-}
-
-// GetSignOutURL is not implemented.
-func (p *Provider) GetSignOutURL(_, _ string) (string, error) {
-	return "", oidc.ErrSignoutNotImplemented
-}
-
 // Authenticate converts an authorization code returned from the identity
 // provider into a token which is then converted into a user session.
 func (p *Provider) Authenticate(ctx context.Context, code string, v identity.State) (*oauth2.Token, error) {
@@ -180,4 +155,30 @@ func (p *Provider) UpdateUserInfo(_ context.Context, t *oauth2.Token, v interfac
 	}
 
 	return idToken.UnsafeClaimsWithoutVerification(v)
+}
+
+// SignIn redirects to the url of the provider's OAuth 2.0 consent page
+// that asks for permissions for the required scopes explicitly.
+//
+// State is a token to protect the user from CSRF attacks. You must
+// always provide a non-empty string and validate that it matches the
+// the state query parameter on your redirect callback.
+// See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
+func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) error {
+	opts := []oauth2.AuthCodeOption{}
+	for k, v := range p.authCodeOptions {
+		opts = append(opts, oauth2.SetAuthURLParam(k, v))
+	}
+	authURL := p.oauth.AuthCodeURL(state, opts...)
+
+	// Apple is very picky here and we need to use %20 instead of +
+	authURL = strings.ReplaceAll(authURL, "+", "%20")
+
+	httputil.Redirect(w, r, authURL, http.StatusFound)
+	return nil
+}
+
+// SignOut is not implemented.
+func (p *Provider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ string) error {
+	return oidc.ErrSignoutNotImplemented
 }

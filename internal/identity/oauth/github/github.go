@@ -239,18 +239,20 @@ func (p *Provider) Revoke(ctx context.Context, token *oauth2.Token) error {
 	return nil
 }
 
-// GetSignInURL returns a URL to OAuth 2.0 provider's consent page
-// that asks for permissions for the required scopes explicitly.
-func (p *Provider) GetSignInURL(state string) (string, error) {
-	return p.Oauth.AuthCodeURL(state, oauth2.AccessTypeOffline), nil
-}
-
-// GetSignOutURL is not implemented.
-func (p *Provider) GetSignOutURL(_, _ string) (string, error) {
-	return "", oidc.ErrSignoutNotImplemented
-}
-
 // Name returns the provider name.
 func (p *Provider) Name() string {
 	return Name
+}
+
+// SignIn redirects to the OAuth 2.0 provider's consent page
+// that asks for permissions for the required scopes explicitly.
+func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) error {
+	signInURL := p.Oauth.AuthCodeURL(state, oauth2.AccessTypeOffline)
+	httputil.Redirect(w, r, signInURL, http.StatusFound)
+	return nil
+}
+
+// SignOut is not implemented.
+func (p *Provider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ string) error {
+	return oidc.ErrSignoutNotImplemented
 }

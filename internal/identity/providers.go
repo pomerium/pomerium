@@ -5,6 +5,7 @@ package identity
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"golang.org/x/oauth2"
 
@@ -28,10 +29,11 @@ type Authenticator interface {
 	Authenticate(context.Context, string, identity.State) (*oauth2.Token, error)
 	Refresh(context.Context, *oauth2.Token, identity.State) (*oauth2.Token, error)
 	Revoke(context.Context, *oauth2.Token) error
-	GetSignInURL(state string) (string, error)
-	GetSignOutURL(idTokenHint, redirectToURL string) (string, error)
 	Name() string
 	UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error
+
+	SignIn(w http.ResponseWriter, r *http.Request, state string) error
+	SignOut(w http.ResponseWriter, r *http.Request, idTokenHint, authenticateSignedOutURL, redirectToURL string) error
 }
 
 // NewAuthenticator returns a new identity provider based on its name.

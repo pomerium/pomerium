@@ -2,6 +2,7 @@ package identity
 
 import (
 	"context"
+	"net/http"
 
 	"golang.org/x/oauth2"
 
@@ -10,15 +11,14 @@ import (
 
 // MockProvider provides a mocked implementation of the providers interface.
 type MockProvider struct {
-	AuthenticateResponse  oauth2.Token
-	AuthenticateError     error
-	RefreshResponse       oauth2.Token
-	RefreshError          error
-	RevokeError           error
-	GetSignInURLResponse  string
-	GetSignOutURLResponse string
-	GetSignOutURLError    error
-	UpdateUserInfoError   error
+	AuthenticateResponse oauth2.Token
+	AuthenticateError    error
+	RefreshResponse      oauth2.Token
+	RefreshError         error
+	RevokeError          error
+	UpdateUserInfoError  error
+	SignInError          error
+	SignOutError         error
 }
 
 // Authenticate is a mocked providers function.
@@ -36,14 +36,6 @@ func (mp MockProvider) Revoke(_ context.Context, _ *oauth2.Token) error {
 	return mp.RevokeError
 }
 
-// GetSignInURL is a mocked providers function.
-func (mp MockProvider) GetSignInURL(_ string) (string, error) { return mp.GetSignInURLResponse, nil }
-
-// GetSignOutURL is a mocked providers function.
-func (mp MockProvider) GetSignOutURL(_, _ string) (string, error) {
-	return mp.GetSignOutURLResponse, mp.GetSignOutURLError
-}
-
 // UpdateUserInfo is a mocked providers function.
 func (mp MockProvider) UpdateUserInfo(_ context.Context, _ *oauth2.Token, _ interface{}) error {
 	return mp.UpdateUserInfoError
@@ -52,4 +44,14 @@ func (mp MockProvider) UpdateUserInfo(_ context.Context, _ *oauth2.Token, _ inte
 // Name returns the provider name.
 func (mp MockProvider) Name() string {
 	return "mock"
+}
+
+// SignOut is a mocked providers function.
+func (mp MockProvider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ string) error {
+	return mp.SignOutError
+}
+
+// SignIn is a mocked providers function.
+func (mp MockProvider) SignIn(_ http.ResponseWriter, _ *http.Request, _ string) error {
+	return mp.SignInError
 }

@@ -4,8 +4,10 @@ package cognito
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -51,27 +53,31 @@ func New(ctx context.Context, opts *oauth.Options) (*Provider, error) {
 	return &p, nil
 }
 
-// GetSignOutURL gets the sign out URL according to https://docs.aws.amazon.com/cognito/latest/developerguide/logout-endpoint.html.
-func (p *Provider) GetSignOutURL(_, returnToURL string) (string, error) {
+// SignOut implements sign out according to https://docs.aws.amazon.com/cognito/latest/developerguide/logout-endpoint.html.
+func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, _, authenticateSignedOutURL, returnToURL string) error {
 	oa, err := p.GetOauthConfig()
 	if err != nil {
-		return "", fmt.Errorf("error getting cognito oauth config: %w", err)
+		return fmt.Errorf("error getting cognito oauth config: %w", err)
 	}
 
 	authURL, err := urlutil.ParseAndValidateURL(oa.Endpoint.AuthURL)
 	if err != nil {
-		return "", fmt.Errorf("error getting cognito endpoint auth url: %w", err)
+		return fmt.Errorf("error getting cognito endpoint auth url: %w", err)
 	}
 
 	logOutQuery := url.Values{
 		"client_id": []string{oa.ClientID},
 	}
+	if authenticateSignedOutURL != "" {
+		logOutQuery.Set("logout_uri", authenticateSignedOutURL)
+	}
 	if returnToURL != "" {
-		logOutQuery.Set("logout_uri", returnToURL)
+		httputil.SetSignedOutRedirectURICookie(w, returnToURL)
 	}
 	logOutURL := authURL.ResolveReference(&url.URL{
 		Path:     "/logout",
 		RawQuery: logOutQuery.Encode(),
 	})
-	return logOutURL.String(), nil
+	httputil.Redirect(w, r, logOutURL.String(), http.StatusFound)
+	return nil
 }
