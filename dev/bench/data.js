@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1703002152248,
+  "lastUpdate": 1703002185550,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -90028,6 +90028,42 @@ window.BENCHMARK_DATA = {
             "value": 6754799,
             "unit": "ns/op",
             "extra": "166 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4c15b202d1eb6819d21a0d63701177feb88ada33",
+          "message": "chore(deps): bump golang.org/x/crypto from 0.16.0 to 0.17.0 (#4860)\n\nBumps [golang.org/x/crypto](https://github.com/golang/crypto) from 0.16.0 to 0.17.0.\r\n- [Commits](https://github.com/golang/crypto/compare/v0.16.0...v0.17.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golang.org/x/crypto\r\n  dependency-type: direct:production\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2023-12-19T09:06:20-07:00",
+          "tree_id": "5df2c9f9300f7d8f028f8543a89a494743a345b0",
+          "url": "https://github.com/pomerium/pomerium/commit/4c15b202d1eb6819d21a0d63701177feb88ada33"
+        },
+        "date": 1703002178875,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8864641,
+            "unit": "ns/op",
+            "extra": "132 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6152438,
+            "unit": "ns/op",
+            "extra": "198 times\n4 procs"
           }
         ]
       }
