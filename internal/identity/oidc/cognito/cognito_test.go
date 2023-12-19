@@ -59,5 +59,13 @@ func TestProvider(t *testing.T) {
 		err := p.SignOut(w, r, "", "https://authenticate.example.com/.pomerium/signed_out", "https://www.example.com?a=b")
 		assert.NoError(t, err)
 		assert.Equal(t, srv.URL+"/logout?client_id=CLIENT_ID&logout_uri=https%3A%2F%2Fauthenticate.example.com%2F.pomerium%2Fsigned_out", w.Header().Get("Location"))
+		assert.Equal(t, []*http.Cookie{{
+			Name:     "_pomerium_signed_out_redirect_uri",
+			Value:    "https://www.example.com?a=b",
+			MaxAge:   300,
+			Secure:   true,
+			HttpOnly: true,
+			Raw:      "_pomerium_signed_out_redirect_uri=https://www.example.com?a=b; Max-Age=300; HttpOnly; Secure",
+		}}, w.Result().Cookies())
 	})
 }

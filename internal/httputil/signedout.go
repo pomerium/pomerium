@@ -19,8 +19,10 @@ func GetSignedOutRedirectURICookie(w http.ResponseWriter, r *http.Request) (stri
 // SetSignedOutRedirectURICookie sets the redirect uri cookie for the signed-out page.
 func SetSignedOutRedirectURICookie(w http.ResponseWriter, redirectURI string) {
 	http.SetCookie(w, &http.Cookie{
-		Name:   signedOutRedirectURICookieName,
-		Value:  redirectURI,
-		MaxAge: 5 * 60,
+		Name:     signedOutRedirectURICookieName,
+		Value:    redirectURI,
+		MaxAge:   5 * 60,
+		HttpOnly: true,
+		Secure:   true,
 	})
 }
