@@ -223,14 +223,14 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 		signOutURL = uri
 	} else if signOutRedirectURL != nil {
 		signOutURL = signOutRedirectURL.String()
-	} else {
-		signOutURL = authenticateURL.ResolveReference(&url.URL{
-			Path: "/.pomerium/signed_out",
-		}).String()
 	}
 
-	if idpSignOutURL, err := authenticator.GetSignOutURL(rawIDToken, signOutURL); err == nil {
-		signOutURL = idpSignOutURL
+	authenticateSignedOutURL := authenticateURL.ResolveReference(&url.URL{
+		Path: "/.pomerium/signed_out",
+	}).String()
+
+	if err := authenticator.SignOut(w, r, rawIDToken, authenticateSignedOutURL, signOutURL); err == nil {
+		return nil
 	} else if !errors.Is(err, oidc.ErrSignoutNotImplemented) {
 		log.Warn(r.Context()).Err(err).Msg("authenticate: failed to get sign out url for authenticator")
 	}
@@ -275,12 +275,12 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 	enc := cryptutil.Encrypt(state.cookieCipher, []byte(redirectURL.String()), b)
 	b = append(b, enc...)
 	encodedState := base64.URLEncoding.EncodeToString(b)
-	signinURL, err := authenticator.GetSignInURL(encodedState)
+
+	err = authenticator.SignIn(w, r, encodedState)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError,
-			fmt.Errorf("failed to get sign in url: %w", err))
+			fmt.Errorf("failed to sign in: %w", err))
 	}
-	httputil.Redirect(w, r, signinURL, http.StatusFound)
 	return nil
 }
 

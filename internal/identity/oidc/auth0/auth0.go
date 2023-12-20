@@ -6,9 +6,11 @@ package auth0
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -50,16 +52,16 @@ func (p *Provider) Name() string {
 	return Name
 }
 
-// GetSignOutURL implements logout as described in https://auth0.com/docs/api/authentication#logout.
-func (p *Provider) GetSignOutURL(_, redirectToURL string) (string, error) {
+// SignOut implements logout as described in https://auth0.com/docs/api/authentication#logout.
+func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, _, authenticateSignedOutURL, redirectToURL string) error {
 	oa, err := p.GetOauthConfig()
 	if err != nil {
-		return "", fmt.Errorf("error getting auth0 oauth config: %w", err)
+		return fmt.Errorf("error getting auth0 oauth config: %w", err)
 	}
 
 	authURL, err := urlutil.ParseAndValidateURL(oa.Endpoint.AuthURL)
 	if err != nil {
-		return "", fmt.Errorf("error parsing auth0 endpoint auth url: %w", err)
+		return fmt.Errorf("error parsing auth0 endpoint auth url: %w", err)
 	}
 
 	logoutQuery := url.Values{
@@ -67,10 +69,14 @@ func (p *Provider) GetSignOutURL(_, redirectToURL string) (string, error) {
 	}
 	if redirectToURL != "" {
 		logoutQuery.Set("returnTo", redirectToURL)
+	} else if authenticateSignedOutURL != "" {
+		logoutQuery.Set("returnTo", authenticateSignedOutURL)
 	}
 	logoutURL := authURL.ResolveReference(&url.URL{
 		Path:     "/v2/logout",
 		RawQuery: logoutQuery.Encode(),
 	})
-	return logoutURL.String(), nil
+
+	httputil.Redirect(w, r, logoutURL.String(), http.StatusFound)
+	return nil
 }

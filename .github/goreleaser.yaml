@@ -63,6 +63,7 @@ snapshot:
 dockers:
   - image_templates:
       - "pomerium/pomerium:amd64-{{ .Tag }}"
+      - "pomerium/pomerium:amd64-v{{ .Major }}.{{ .Minor }}"
     dockerfile: .github/Dockerfile-release
     use: buildx
     build_flag_templates:
@@ -78,6 +79,7 @@ dockers:
 
   - image_templates:
       - "pomerium/pomerium:nonroot-amd64-{{ .Tag }}"
+      - "pomerium/pomerium:nonroot-amd64-v{{ .Major }}.{{ .Minor }}"
     dockerfile: .github/Dockerfile-release-nonroot
     use: buildx
     build_flag_templates:
@@ -93,6 +95,7 @@ dockers:
 
   - image_templates:
       - "pomerium/pomerium:debug-amd64-{{ .Tag }}"
+      - "pomerium/pomerium:debug-amd64-v{{ .Major }}.{{ .Minor }}"
     dockerfile: .github/Dockerfile-release-debug
     use: buildx
     build_flag_templates:
@@ -108,6 +111,7 @@ dockers:
 
   - image_templates:
       - "pomerium/pomerium:debug-nonroot-amd64-{{ .Tag }}"
+      - "pomerium/pomerium:debug-nonroot-amd64-v{{ .Major }}.{{ .Minor }}"
     dockerfile: .github/Dockerfile-release-debug-nonroot
     use: buildx
     build_flag_templates:
@@ -123,6 +127,7 @@ dockers:
 
   - image_templates:
       - "gcr.io/pomerium-io/pomerium:{{ .Tag }}-cloudrun"
+      - "gcr.io/pomerium-io/pomerium:v{{ .Major }}.{{ .Minor }}-cloudrun"
     dockerfile: .github/Dockerfile-cloudrun
     use: buildx
     build_flag_templates:
@@ -138,6 +143,7 @@ dockers:
   - goarch: arm64
     image_templates:
       - "pomerium/pomerium:arm64v8-{{ .Tag }}"
+      - "pomerium/pomerium:arm64v8-v{{ .Major }}.{{ .Minor }}"
     dockerfile: .github/Dockerfile-release
     use: buildx
     build_flag_templates:
@@ -154,6 +160,7 @@ dockers:
   - goarch: arm64
     image_templates:
       - "pomerium/pomerium:nonroot-arm64v8-{{ .Tag }}"
+      - "pomerium/pomerium:nonroot-arm64v8-v{{ .Major }}.{{ .Minor }}"
     dockerfile: .github/Dockerfile-release-nonroot
     use: buildx
     build_flag_templates:
@@ -170,6 +177,7 @@ dockers:
   - goarch: arm64
     image_templates:
       - "pomerium/pomerium:debug-arm64v8-{{ .Tag }}"
+      - "pomerium/pomerium:debug-arm64v8-v{{ .Major }}.{{ .Minor }}"
     dockerfile: .github/Dockerfile-release-debug
     use: buildx
     build_flag_templates:
@@ -186,6 +194,7 @@ dockers:
   - goarch: arm64
     image_templates:
       - "pomerium/pomerium:debug-nonroot-arm64v8-{{ .Tag }}"
+      - "pomerium/pomerium:debug-nonroot-arm64v8-v{{ .Major }}.{{ .Minor }}"
     dockerfile: .github/Dockerfile-release-debug-nonroot
     use: buildx
     build_flag_templates:
@@ -205,20 +214,40 @@ docker_manifests:
       - pomerium/pomerium:arm64v8-{{ .Tag }}
       - pomerium/pomerium:amd64-{{ .Tag }}
 
+  - name_template: "pomerium/pomerium:v{{ .Major }}.{{ .Minor }}"
+    image_templates:
+      - pomerium/pomerium:arm64v8-v{{ .Major }}.{{ .Minor }}
+      - pomerium/pomerium:amd64-v{{ .Major }}.{{ .Minor }}
+
   - name_template: "pomerium/pomerium:nonroot-{{ .Tag }}"
     image_templates:
       - pomerium/pomerium:nonroot-arm64v8-{{ .Tag }}
       - pomerium/pomerium:nonroot-amd64-{{ .Tag }}
+
+  - name_template: "pomerium/pomerium:nonroot-v{{ .Major }}.{{ .Minor }}"
+    image_templates:
+      - pomerium/pomerium:nonroot-arm64v8-v{{ .Major }}.{{ .Minor }}
+      - pomerium/pomerium:nonroot-amd64-v{{ .Major }}.{{ .Minor }}
 
   - name_template: "pomerium/pomerium:debug-{{ .Tag }}"
     image_templates:
       - pomerium/pomerium:debug-arm64v8-{{ .Tag }}
       - pomerium/pomerium:debug-amd64-{{ .Tag }}
 
+  - name_template: "pomerium/pomerium:debug-v{{ .Major }}.{{ .Minor }}"
+    image_templates:
+      - pomerium/pomerium:debug-arm64v8-v{{ .Major }}.{{ .Minor }}
+      - pomerium/pomerium:debug-amd64-v{{ .Major }}.{{ .Minor }}
+
   - name_template: "pomerium/pomerium:debug-nonroot-{{ .Tag }}"
     image_templates:
       - pomerium/pomerium:debug-nonroot-arm64v8-{{ .Tag }}
       - pomerium/pomerium:debug-nonroot-amd64-{{ .Tag }}
+
+  - name_template: "pomerium/pomerium:debug-nonroot-v{{ .Major }}.{{ .Minor }}"
+    image_templates:
+      - pomerium/pomerium:debug-nonroot-arm64v8-v{{ .Major }}.{{ .Minor }}
+      - pomerium/pomerium:debug-nonroot-amd64-v{{ .Major }}.{{ .Minor }}
 
 brews:
   - # Name template of the recipe
