@@ -8,9 +8,12 @@ import (
 
 	export_grpc "go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	metric_sdk "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/version"
 )
 
 // Run starts loop that pushes metrics via OTEL protocol until ctx is canceled
@@ -28,6 +31,10 @@ func Run(
 	defer shutdown(exporter.Shutdown, cfg.shutdownTimeout)
 
 	provider := metric_sdk.NewMeterProvider(
+		metric_sdk.WithResource(resource.NewSchemaless(
+			semconv.ServiceNameKey.String("pomerium-managed-core"),
+			semconv.ServiceVersionKey.String(version.FullVersion()),
+		)),
 		metric_sdk.WithReader(
 			metric_sdk.NewPeriodicReader(
 				exporter,

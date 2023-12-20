@@ -36,10 +36,10 @@ func metricCallback(
 	clientProvider func() databroker.DataBrokerServiceClient,
 ) metric.Int64Callback {
 	return func(ctx context.Context, result metric.Int64Observer) error {
-		state, err := LoadMetricState(context.Background(), clientProvider(), id)
+		state, err := LoadMetricState(ctx, clientProvider(), id)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Str("metric", id).Msg("error loading metric state")
-			return nil // returning an error would block export of other metrics
+			return nil // returning an error would block export of other metrics according to SDK design
 		}
 		result.Observe(int64(state.Count))
 		return nil

@@ -6,9 +6,10 @@ import (
 	"fmt"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
-	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 type client struct {
@@ -89,7 +90,7 @@ func (c *client) logConnectionState(ctx context.Context, conn *grpc.ClientConn) 
 	for ctx.Err() == nil && state != connectivity.Shutdown {
 		_ = conn.WaitForStateChange(ctx, state)
 		state = conn.GetState()
-		log.Info().
+		log.Ctx(ctx).Info().
 			Str("endpoint", c.config.connectionURI).
 			Str("state", state.String()).
 			Msg("grpc connection state")

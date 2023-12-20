@@ -48,5 +48,5 @@ func getOTELAPIEndpoint() string {
 	if endpoint := os.Getenv("POMERIUM_OTEL_ENDPOINT"); endpoint != "" {
 		return endpoint
 	}
-	return "https://otel.pomerium.app"
+	return "https://telemetry.pomerium.app"
 }
