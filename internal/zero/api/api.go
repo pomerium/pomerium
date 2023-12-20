@@ -4,9 +4,12 @@ package zero
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/pomerium/pomerium/internal/zero/apierror"
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
+	"github.com/pomerium/pomerium/internal/zero/grpcconn"
+	"github.com/pomerium/pomerium/internal/zero/reporter"
 	token_api "github.com/pomerium/pomerium/internal/zero/token"
 	"github.com/pomerium/pomerium/pkg/fanout"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
@@ -19,7 +22,17 @@ type API struct {
 	cluster          cluster_api.ClientWithResponsesInterface
 	mux              *connect_mux.Mux
 	downloadURLCache *cluster_api.URLCache
+	tokenFn          func(ctx context.Context, ttl time.Duration) (string, error)
 }
+
+const (
+	// access tokens are only good for an hour,
+	// and they define the maximum connection time,
+	// so we want it to be as close to the max as possible for the streaming gRPC connection
+	minConnectTokenTTL = time.Minute * 55
+
+	minTelemetryTokenTTL = time.Minute * 5
+)
 
 // WatchOption defines which events to watch for
 type WatchOption = connect_mux.WatchOption
@@ -45,17 +58,31 @@ func NewAPI(ctx context.Context, opts ...Option) (*API, error) {
 		return nil, fmt.Errorf("error creating cluster client: %w", err)
 	}
 
-	connectClient, err := connect_api.NewAuthorizedConnectClient(ctx, cfg.connectAPIEndpoint, tokenCache.GetToken)
+	connectGRPCConn, err := grpcconn.New(ctx, cfg.connectAPIEndpoint, func(ctx context.Context) (string, error) {
+		return tokenCache.GetToken(ctx, minConnectTokenTTL)
+	})
 	if err != nil {
-		return nil, fmt.Errorf("error creating connect client: %w", err)
+		return nil, fmt.Errorf("error creating connect grpc client: %w", err)
 	}
 
 	return &API{
 		cfg:              cfg,
 		cluster:          clusterClient,
-		mux:              connect_mux.New(connectClient),
+		mux:              connect_mux.New(connect_api.NewConnectClient(connectGRPCConn)),
 		downloadURLCache: cluster_api.NewURLCache(),
+		tokenFn:          tokenCache.GetToken,
 	}, nil
+}
+
+// Report runs metrics reporting to the cloud
+func (api *API) Report(ctx context.Context, opts ...reporter.Option) error {
+	conn, err := grpcconn.New(ctx, api.cfg.otelEndpoint, func(ctx context.Context) (string, error) {
+		return api.tokenFn(ctx, minTelemetryTokenTTL)
+	})
+	if err != nil {
+		return fmt.Errorf("error creating OTEL exporter grpc client: %w", err)
+	}
+	return reporter.Run(ctx, conn, opts...)
 }
 
 // Connect connects to the connect API and allows watching for changes

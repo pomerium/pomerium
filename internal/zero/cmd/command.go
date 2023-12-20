@@ -38,6 +38,7 @@ func Run(ctx context.Context, configFile string) error {
 		controller.WithAPIToken(token),
 		controller.WithClusterAPIEndpoint(getClusterAPIEndpoint()),
 		controller.WithConnectAPIEndpoint(getConnectAPIEndpoint()),
+		controller.WithOTELAPIEndpoint(getOTELAPIEndpoint()),
 		controller.WithBootstrapConfigFileName(bootstrapConfigFileName),
 	)
 }

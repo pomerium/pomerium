@@ -43,3 +43,10 @@ func getClusterAPIEndpoint() string {
 	}
 	return "https://console.pomerium.app/cluster/v1"
 }
+
+func getOTELAPIEndpoint() string {
+	if endpoint := os.Getenv("POMERIUM_OTEL_ENDPOINT"); endpoint != "" {
+		return endpoint
+	}
+	return "https://telemetry.pomerium.app"
+}
