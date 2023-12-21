@@ -7,7 +7,6 @@ package reconciler
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -15,7 +14,6 @@ import (
 
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 type service struct {
@@ -42,11 +40,6 @@ func Run(ctx context.Context, opts ...Option) error {
 	}
 	c.periodicUpdateInterval.Store(config.checkForUpdateIntervalWhenDisconnected)
 
-	return c.runMainLoop(ctx)
-}
-
-// RunLeased implements the databroker.LeaseHandler interface
-func (c *service) RunLeased(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error { return c.watchUpdates(ctx) })
 	eg.Go(func() error { return c.SyncLoop(ctx) })
@@ -54,48 +47,6 @@ func (c *service) RunLeased(ctx context.Context) error {
 	return eg.Wait()
 }
 
-// GetDataBrokerServiceClient implements the databroker.LeaseHandler interface.
-func (c *service) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
-	return c.config.databrokerClient
-}
-
-func (c *service) runMainLoop(ctx context.Context) error {
-	leaser := databroker.NewLeaser("zero-reconciler", time.Second*30, c)
-	return RunWithRestart(ctx, func(ctx context.Context) error {
-		return leaser.Run(ctx)
-	}, c.databrokerChangeMonitor)
-}
-
-// databrokerChangeMonitor runs infinite sync loop to see if there is any change in databroker
-func (c *service) databrokerChangeMonitor(ctx context.Context) error {
-	_, recordVersion, serverVersion, err := databroker.InitialSync(ctx, c.GetDataBrokerServiceClient(), &databroker.SyncLatestRequest{
-		Type: BundleCacheEntryRecordType,
-	})
-	if err != nil {
-		return fmt.Errorf("error during initial sync: %w", err)
-	}
-
-	stream, err := c.GetDataBrokerServiceClient().Sync(ctx, &databroker.SyncRequest{
-		Type:          BundleCacheEntryRecordType,
-		ServerVersion: serverVersion,
-		RecordVersion: recordVersion,
-	})
-	if err != nil {
-		return fmt.Errorf("error calling sync: %w", err)
-	}
-
-	for {
-		_, err := stream.Recv()
-		if err != nil {
-			return fmt.Errorf("error receiving record: %w", err)
-		}
-	}
-}
-
-// run is a main control loop.
-// it is very simple and sequential download and reconcile.
-// it may be later optimized by splitting between download and reconciliation process,
-// as we would get more resource bundles beyond the config.
 func (c *service) watchUpdates(ctx context.Context) error {
 	return c.config.api.Watch(ctx,
 		connect_mux.WithOnConnected(func(ctx context.Context) {

@@ -14,6 +14,7 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/analytics"
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
+	"github.com/pomerium/pomerium/internal/zero/leaser"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
 	"github.com/pomerium/pomerium/internal/zero/reporter"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
@@ -42,12 +43,10 @@ func Run(ctx context.Context, opts ...Option) error {
 	}
 
 	eg.Go(func() error { return run(ctx, "connect", c.runConnect, nil) })
+	eg.Go(func() error { return run(ctx, "connect-log", c.RunConnectLog, nil) })
 	eg.Go(func() error { return run(ctx, "zero-bootstrap", c.runBootstrap, nil) })
 	eg.Go(func() error { return run(ctx, "pomerium-core", c.runPomeriumCore, src.WaitReady) })
-	eg.Go(func() error { return run(ctx, "zero-reconciler", c.runReconciler, src.WaitReady) })
-	eg.Go(func() error { return run(ctx, "connect-log", c.RunConnectLog, nil) })
-	eg.Go(func() error { return run(ctx, "zero-analytics", c.runAnalytics, src.WaitReady) })
-	eg.Go(func() error { return run(ctx, "zero-reporter", c.runReporter, src.WaitReady) })
+	eg.Go(func() error { return c.runZeroControlLoop(ctx, src.WaitReady) })
 	return eg.Wait()
 }
 
@@ -111,6 +110,19 @@ func (c *controller) runConnect(ctx context.Context) error {
 	})
 
 	return c.api.Connect(ctx)
+}
+
+func (c *controller) runZeroControlLoop(ctx context.Context, waitFn func(context.Context) error) error {
+	err := waitFn(ctx)
+	if err != nil {
+		return fmt.Errorf("error waiting for initial configuration: %w", err)
+	}
+
+	return leaser.Run(ctx, c.databrokerClient,
+		c.runReconciler,
+		c.runAnalytics,
+		c.runReporter,
+	)
 }
 
 func (c *controller) runReconciler(ctx context.Context) error {
