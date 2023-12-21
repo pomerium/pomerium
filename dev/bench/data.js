@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1703131572217,
+  "lastUpdate": 1703177093999,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -90264,6 +90264,42 @@ window.BENCHMARK_DATA = {
             "value": 6730128,
             "unit": "ns/op",
             "extra": "182 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "07d608792ffb52a2d922903c639ec1a2340242e3",
+          "message": "zero: group funcs that need run within a lease (#4862)",
+          "timestamp": "2023-12-21T11:41:41-05:00",
+          "tree_id": "d67accc5e7d85645b783bcf83bca67a2fa63b3a6",
+          "url": "https://github.com/pomerium/pomerium/commit/07d608792ffb52a2d922903c639ec1a2340242e3"
+        },
+        "date": 1703177082415,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9218590,
+            "unit": "ns/op",
+            "extra": "123 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6359241,
+            "unit": "ns/op",
+            "extra": "181 times\n4 procs"
           }
         ]
       }
