@@ -1,10 +1,15 @@
-package reconciler
+package leaser
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"sync"
+	"time"
+
+	"github.com/cenkalti/backoff/v4"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 // RunWithRestart executes execFn.
@@ -44,8 +49,15 @@ func restartContexts(
 	contexts chan<- context.Context,
 	restartFn func(context.Context) error,
 ) {
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 0 // never stop
+
+	ticker := time.NewTicker(bo.InitialInterval)
+	defer ticker.Stop()
+
 	defer close(contexts)
 	for base.Err() == nil {
+		start := time.Now()
 		ctx, cancel := context.WithCancelCause(base)
 		select {
 		case contexts <- ctx:
@@ -54,6 +66,20 @@ func restartContexts(
 		case <-base.Done():
 			cancel(fmt.Errorf("parent context canceled: %w", base.Err()))
 			return
+		}
+
+		if time.Since(start) > bo.MaxInterval {
+			bo.Reset()
+		}
+		next := bo.NextBackOff()
+		ticker.Reset(next)
+
+		log.Ctx(ctx).Info().Msgf("restarting zero control loop in %s", next.String())
+
+		select {
+		case <-base.Done():
+			return
+		case <-ticker.C:
 		}
 	}
 }

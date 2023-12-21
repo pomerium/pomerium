@@ -1,4 +1,4 @@
-package reconciler_test
+package leaser_test
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/pomerium/pomerium/internal/zero/reconciler"
+	"github.com/pomerium/pomerium/internal/zero/leaser"
 )
 
 func TestRestart(t *testing.T) {
@@ -20,7 +20,7 @@ func TestRestart(t *testing.T) {
 
 			errExpected := errors.New("execFn error")
 			count := 0
-			err := reconciler.RunWithRestart(context.Background(),
+			err := leaser.RunWithRestart(context.Background(),
 				func(context.Context) error {
 					count++
 					if count == 1 {
@@ -40,7 +40,7 @@ func TestRestart(t *testing.T) {
 			t.Parallel()
 
 			count := 0
-			err := reconciler.RunWithRestart(context.Background(),
+			err := leaser.RunWithRestart(context.Background(),
 				func(context.Context) error {
 					count++
 					if count == 1 {
@@ -63,7 +63,7 @@ func TestRestart(t *testing.T) {
 			t.Cleanup(cancel)
 
 			ready := make(chan struct{})
-			err := reconciler.RunWithRestart(ctx,
+			err := leaser.RunWithRestart(ctx,
 				func(context.Context) error {
 					<-ready
 					cancel()
@@ -87,7 +87,7 @@ func TestRestart(t *testing.T) {
 			errExpected := errors.New("execFn error")
 			count := 0
 			ready := make(chan struct{})
-			err := reconciler.RunWithRestart(ctx,
+			err := leaser.RunWithRestart(ctx,
 				func(ctx context.Context) error {
 					count++
 					if count == 1 { // wait for us to be restarted
