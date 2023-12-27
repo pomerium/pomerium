@@ -1,23 +1,50 @@
 package testutil
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"sync"
 	"testing"
 
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	"github.com/pomerium/pomerium/internal/log"
 )
 
-// SetLogger sets the given logger as the global logger for the remainder of
-// the current test. Because the logger is global, this must not be called from
-// parallel tests.
-func SetLogger(t *testing.T, logger zerolog.Logger) {
+// CaptureLogs captures any logs made during the test. Time will be stripped.
+// Any tests that use it should not be run in parallel.
+func CaptureLogs(t *testing.T, f func()) string {
 	t.Helper()
 
-	originalLogger := log.Logger
-	t.Cleanup(func() { log.Logger = originalLogger })
-	log.Logger = logger
+	pr, pw := io.Pipe()
+	log.Writer.Add(pw)
+	defer log.Writer.Remove(pw)
 
-	originalContextLogger := zerolog.DefaultContextLogger
-	t.Cleanup(func() { zerolog.DefaultContextLogger = originalContextLogger })
-	zerolog.DefaultContextLogger = &logger
+	var buf bytes.Buffer
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+
+		d := json.NewDecoder(pr)
+		for {
+			var m map[string]any
+			if d.Decode(&m) != nil {
+				break
+			}
+			delete(m, "time")
+			bs, _ := json.Marshal(m)
+			buf.Write(bs)
+			buf.WriteByte('\n')
+		}
+	}()
+	go func() {
+		defer wg.Done()
+
+		f()
+
+		pw.Close()
+	}()
+	wg.Wait()
+
+	return buf.String()
 }

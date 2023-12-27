@@ -1,7 +1,6 @@
 package authorize
 
 import (
-	"bytes"
 	"context"
 	"net/http"
 	"net/url"
@@ -9,7 +8,6 @@ import (
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -240,8 +238,7 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 			false,
 			"invalid%URL%encoding",
 			evaluator.ClientCertificateInfo{},
-			`{"level":"warn","chain":"invalid%URL%encoding","error":"invalid URL escape \"%UR\"","message":"received unexpected client certificate \"chain\" value"}
-`,
+			`{"chain":"invalid%URL%encoding","error":"invalid URL escape \"%UR\"","level":"warn","message":"received unexpected client certificate \"chain\" value"}`,
 		},
 		{
 			"invalid chain PEM encoding",
@@ -250,19 +247,13 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 			evaluator.ClientCertificateInfo{
 				Presented: true,
 			},
-			`{"level":"warn","chain":"not valid PEM data","message":"received unexpected client certificate \"chain\" value (no PEM block found)"}
-`,
+			`{"chain":"not valid PEM data","level":"warn","message":"received unexpected client certificate \"chain\" value (no PEM block found)"}`,
 		},
 	}
-
-	var logOutput bytes.Buffer
-	zl := zerolog.New(&logOutput)
-	testutil.SetLogger(t, zl)
 
 	ctx := context.Background()
 	for i := range cases {
 		c := &cases[i]
-		logOutput.Reset()
 		t.Run(c.label, func(t *testing.T) {
 			metadata := &structpb.Struct{
 				Fields: map[string]*structpb.Value{
@@ -270,9 +261,12 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 					"chain":     structpb.NewStringValue(c.chain),
 				},
 			}
-			info := getClientCertificateInfo(ctx, metadata)
+			var info evaluator.ClientCertificateInfo
+			logOutput := testutil.CaptureLogs(t, func() {
+				info = getClientCertificateInfo(ctx, metadata)
+			})
 			assert.Equal(t, c.expected, info)
-			assert.Equal(t, c.expectedLog, logOutput.String())
+			assert.Contains(t, logOutput, c.expectedLog)
 		})
 	}
 }

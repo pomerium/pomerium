@@ -14,12 +14,18 @@ import (
 	"github.com/pomerium/pomerium/internal/atomicutil"
 )
 
+// Writer is where logs are written.
+var Writer *MultiWriter
+
 var (
 	zapLogger = atomicutil.NewValue(new(zap.Logger))
 	zapLevel  zap.AtomicLevel
 )
 
 func init() {
+	Writer = &MultiWriter{}
+	Writer.Add(os.Stdout)
+
 	zapLevel = zap.NewAtomicLevel()
 
 	zapCfg := zap.NewProductionEncoderConfig()
@@ -32,7 +38,7 @@ func init() {
 		zapLevel,
 	)))
 
-	l := zerolog.New(os.Stdout).With().Timestamp().Logger()
+	l := zerolog.New(Writer).With().Timestamp().Logger()
 	log.Logger = l
 	// set the default context logger
 	zerolog.DefaultContextLogger = &l
