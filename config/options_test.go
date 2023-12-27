@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -20,7 +19,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -720,40 +718,34 @@ func TestDeprecatedClientCAOptions(t *testing.T) {
 	caFile := filepath.Join(t.TempDir(), "CA.pem")
 	os.WriteFile(caFile, fakeCACert, 0o644)
 
-	var logOutput bytes.Buffer
-	zl := zerolog.New(&logOutput)
-	testutil.SetLogger(t, zl)
-
 	t.Run("CA", func(t *testing.T) {
-		logOutput.Reset()
-
 		o := NewDefaultOptions()
 		o.AutocertOptions.Enable = true // suppress an unrelated warning
 		o.ClientCA = "LS0tIEZBS0UgQ0EgQ0VSVCAtLS0="
 
-		err := o.Validate()
+		var err error
+		logOutput := testutil.CaptureLogs(t, func() {
+			err = o.Validate()
+		})
 
 		require.NoError(t, err)
 		assert.Equal(t, "LS0tIEZBS0UgQ0EgQ0VSVCAtLS0=", o.DownstreamMTLS.CA)
-		assert.Equal(t, `{"level":"warn","message":"config: client_ca is deprecated, set downstream_mtls.ca instead"}
-`,
-			logOutput.String())
+		assert.Contains(t, logOutput, `{"level":"warn","message":"config: client_ca is deprecated, set downstream_mtls.ca instead"}`)
 	})
 
 	t.Run("CAFile", func(t *testing.T) {
-		logOutput.Reset()
-
 		o := NewDefaultOptions()
 		o.AutocertOptions.Enable = true // suppress an unrelated warning
 		o.ClientCAFile = caFile
 
-		err := o.Validate()
+		var err error
+		logOutput := testutil.CaptureLogs(t, func() {
+			err = o.Validate()
+		})
 
 		require.NoError(t, err)
 		assert.Equal(t, caFile, o.DownstreamMTLS.CAFile)
-		assert.Equal(t, `{"level":"warn","message":"config: client_ca_file is deprecated, set downstream_mtls.ca_file instead"}
-`,
-			logOutput.String())
+		assert.Contains(t, logOutput, `{"level":"warn","message":"config: client_ca_file is deprecated, set downstream_mtls.ca_file instead"}`)
 	})
 }
 
