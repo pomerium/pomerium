@@ -115,10 +115,15 @@ func (s *s3Storage) Stat(ctx context.Context, key string) (certmagic.KeyInfo, er
 		return certmagic.KeyInfo{}, err
 	}
 
+	var size int64
+	if output.ContentLength != nil {
+		size = *output.ContentLength
+	}
+
 	return certmagic.KeyInfo{
 		Key:        key,
 		Modified:   *output.LastModified,
-		Size:       output.ContentLength,
+		Size:       size,
 		IsTerminal: true,
 	}, nil
 }
