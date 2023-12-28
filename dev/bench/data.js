@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1703720827535,
+  "lastUpdate": 1703778246792,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -90496,6 +90496,42 @@ window.BENCHMARK_DATA = {
             "value": 6847371,
             "unit": "ns/op",
             "extra": "172 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c9df5156d440004f3a8be92d59f7604a8bf26a4c",
+          "message": "chore(deps): bump github.com/aws/aws-sdk-go-v2 from 1.22.2 to 1.24.0 (#4840)\n\n* chore(deps): bump github.com/aws/aws-sdk-go-v2 from 1.22.2 to 1.24.0\r\n\r\nBumps [github.com/aws/aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2) from 1.22.2 to 1.24.0.\r\n- [Release notes](https://github.com/aws/aws-sdk-go-v2/releases)\r\n- [Commits](https://github.com/aws/aws-sdk-go-v2/compare/v1.22.2...v1.24.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/aws/aws-sdk-go-v2\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\n* upgrade all aws deps\r\n\r\n---------\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Caleb Doxsey <cdoxsey@pomerium.com>",
+          "timestamp": "2023-12-28T08:40:54-07:00",
+          "tree_id": "07a690aa7aa1cc8d0b430127497bebef9ee6b3da",
+          "url": "https://github.com/pomerium/pomerium/commit/c9df5156d440004f3a8be92d59f7604a8bf26a4c"
+        },
+        "date": 1703778234901,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9572882,
+            "unit": "ns/op",
+            "extra": "120 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7116982,
+            "unit": "ns/op",
+            "extra": "171 times\n4 procs"
           }
         ]
       }
