@@ -180,31 +180,7 @@ func (srv *Server) Run(ctx context.Context) error {
 	// start the gRPC server
 	eg.Go(func() error {
 		log.Info(ctx).Str("addr", srv.GRPCListener.Addr().String()).Msg("starting control-plane gRPC server")
-		return srv.GRPCServer.Serve(srv.GRPCListener)
-	})
-
-	// gracefully stop the gRPC server on context cancellation
-	eg.Go(func() error {
-		<-ctx.Done()
-
-		ctx, cancel := context.WithCancel(ctx)
-		ctx, cleanup := context.WithTimeout(ctx, time.Second*5)
-		defer cleanup()
-
-		go func() {
-			srv.GRPCServer.GracefulStop()
-			cancel()
-		}()
-
-		go func() {
-			<-ctx.Done()
-			srv.GRPCServer.Stop()
-			cancel()
-		}()
-
-		<-ctx.Done()
-
-		return nil
+		return grpcutil.ServeWithGracefulStop(ctx, srv.GRPCServer, srv.GRPCListener, time.Second*5)
 	})
 
 	for _, entry := range []struct {
