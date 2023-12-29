@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1703870488129,
+  "lastUpdate": 1703870502181,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -90600,6 +90600,38 @@ window.BENCHMARK_DATA = {
             "value": 6740610,
             "unit": "ns/op",
             "extra": "182 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "2c91ea6dfad880433cc6c00c42993a50346e0f01",
+          "message": "core: fix graceful stop",
+          "timestamp": "2023-12-29T15:26:09Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4866/commits/2c91ea6dfad880433cc6c00c42993a50346e0f01"
+        },
+        "date": 1703870494778,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10918274,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6864055,
+            "unit": "ns/op",
+            "extra": "175 times\n4 procs"
           }
         ]
       }
