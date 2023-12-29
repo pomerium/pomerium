@@ -33,6 +33,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	pom_grpc "github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/httputil"
 )
 
 // A Service can be mounted on the control plane.
@@ -180,31 +181,7 @@ func (srv *Server) Run(ctx context.Context) error {
 	// start the gRPC server
 	eg.Go(func() error {
 		log.Info(ctx).Str("addr", srv.GRPCListener.Addr().String()).Msg("starting control-plane gRPC server")
-		return srv.GRPCServer.Serve(srv.GRPCListener)
-	})
-
-	// gracefully stop the gRPC server on context cancellation
-	eg.Go(func() error {
-		<-ctx.Done()
-
-		ctx, cancel := context.WithCancel(ctx)
-		ctx, cleanup := context.WithTimeout(ctx, time.Second*5)
-		defer cleanup()
-
-		go func() {
-			srv.GRPCServer.GracefulStop()
-			cancel()
-		}()
-
-		go func() {
-			<-ctx.Done()
-			srv.GRPCServer.Stop()
-			cancel()
-		}()
-
-		<-ctx.Done()
-
-		return nil
+		return grpcutil.ServeWithGracefulStop(ctx, srv.GRPCServer, srv.GRPCListener, time.Second*5)
 	})
 
 	for _, entry := range []struct {
@@ -219,29 +196,13 @@ func (srv *Server) Run(ctx context.Context) error {
 		{"metrics", srv.MetricsListener, srv.MetricsRouter},
 	} {
 		entry := entry
-		hsrv := (&http.Server{
-			BaseContext: func(li net.Listener) context.Context {
-				return ctx
-			},
-			Handler: entry.Handler,
-		})
 
 		// start the HTTP server
 		eg.Go(func() error {
 			log.Info(ctx).
 				Str("addr", entry.Listener.Addr().String()).
 				Msgf("starting control-plane %s server", entry.Name)
-			return hsrv.Serve(entry.Listener)
-		})
-
-		// gracefully stop the HTTP server on context cancellation
-		eg.Go(func() error {
-			<-ctx.Done()
-
-			ctx, cleanup := context.WithTimeout(ctx, time.Second*5)
-			defer cleanup()
-
-			return hsrv.Shutdown(ctx)
+			return httputil.ServeWithGracefulStop(ctx, entry.Handler, entry.Listener, time.Second*5)
 		})
 	}
 
