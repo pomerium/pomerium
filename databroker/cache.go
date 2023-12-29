@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
@@ -128,12 +129,7 @@ func (c *DataBroker) Register(grpcServer *grpc.Server) {
 func (c *DataBroker) Run(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		return c.localGRPCServer.Serve(c.localListener)
-	})
-	eg.Go(func() error {
-		<-ctx.Done()
-		c.localGRPCServer.Stop()
-		return nil
+		return grpcutil.ServeWithGracefulStop(ctx, c.localGRPCServer, c.localListener, time.Second*5)
 	})
 	eg.Go(func() error {
 		return c.manager.Run(ctx)
