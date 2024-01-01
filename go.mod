@@ -13,7 +13,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.24.0
 	github.com/aws/aws-sdk-go-v2/config v1.26.2
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.47.7
-	github.com/bits-and-blooms/bitset v1.11.0
+	github.com/bits-and-blooms/bitset v1.13.0
 	github.com/caddyserver/certmagic v0.20.0
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/cespare/xxhash/v2 v2.2.0
