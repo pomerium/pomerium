@@ -18,7 +18,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/cloudflare/circl v1.3.6
-	github.com/coreos/go-oidc/v3 v3.8.0
+	github.com/coreos/go-oidc/v3 v3.9.0
 	github.com/docker/docker v24.0.7+incompatible
 	github.com/envoyproxy/go-control-plane v0.11.1
 	github.com/envoyproxy/protoc-gen-validate v1.0.2
