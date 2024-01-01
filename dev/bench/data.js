@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704127204279,
+  "lastUpdate": 1704127285887,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -91016,6 +91016,38 @@ window.BENCHMARK_DATA = {
             "value": 6733971,
             "unit": "ns/op",
             "extra": "177 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "f856e1f7316d6ec6b76bbe80759f7c0aa9eb5dd7",
+          "message": "chore(deps): bump github.com/coreos/go-oidc/v3 from 3.8.0 to 3.9.0",
+          "timestamp": "2024-01-01T15:41:41Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4880/commits/f856e1f7316d6ec6b76bbe80759f7c0aa9eb5dd7"
+        },
+        "date": 1704127279306,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8934914,
+            "unit": "ns/op",
+            "extra": "132 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6444682,
+            "unit": "ns/op",
+            "extra": "192 times\n4 procs"
           }
         ]
       }
