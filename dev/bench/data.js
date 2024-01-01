@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704127181527,
+  "lastUpdate": 1704127191922,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -90952,6 +90952,38 @@ window.BENCHMARK_DATA = {
             "value": 6311760,
             "unit": "ns/op",
             "extra": "184 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "140e63f41e738b8747c33efeaa31b95b2c4f8b83",
+          "message": "chore(deps): bump github.com/bits-and-blooms/bitset from 1.11.0 to 1.13.0",
+          "timestamp": "2024-01-01T15:41:41Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4876/commits/140e63f41e738b8747c33efeaa31b95b2c4f8b83"
+        },
+        "date": 1704127184463,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10043236,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6853374,
+            "unit": "ns/op",
+            "extra": "176 times\n4 procs"
           }
         ]
       }
