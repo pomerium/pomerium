@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704218631720,
+  "lastUpdate": 1704218915485,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -92200,6 +92200,42 @@ window.BENCHMARK_DATA = {
             "value": 7082450,
             "unit": "ns/op",
             "extra": "171 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ded6dcefbd868b7ee0cc0765991e85f8d24f04c8",
+          "message": "chore(deps): bump golang from `a6b787c` to `1415bb0` (#4883)\n\n* chore(deps): bump golang from `a6b787c` to `1415bb0`\r\n\r\nBumps golang from `a6b787c` to `1415bb0`.\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golang\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\n* fix flaky test\r\n\r\n---------\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Caleb Doxsey <cdoxsey@pomerium.com>",
+          "timestamp": "2024-01-02T11:05:37-07:00",
+          "tree_id": "4eb380a420bddd9cb95f43efa0d152d95e92fec9",
+          "url": "https://github.com/pomerium/pomerium/commit/ded6dcefbd868b7ee0cc0765991e85f8d24f04c8"
+        },
+        "date": 1704218908775,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10462250,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7223272,
+            "unit": "ns/op",
+            "extra": "163 times\n4 procs"
           }
         ]
       }
