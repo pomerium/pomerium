@@ -2,6 +2,7 @@ package grpcutil
 
 import (
 	"context"
+	"errors"
 	"net"
 	"time"
 
@@ -34,5 +35,9 @@ func ServeWithGracefulStop(ctx context.Context, srv *grpc.Server, li net.Listene
 		srv.Stop()
 	}()
 
-	return srv.Serve(li)
+	err := srv.Serve(li)
+	if errors.Is(err, grpc.ErrServerStopped) {
+		err = nil
+	}
+	return err
 }
