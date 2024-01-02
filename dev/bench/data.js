@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704213285130,
+  "lastUpdate": 1704213299619,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -91684,6 +91684,42 @@ window.BENCHMARK_DATA = {
             "value": 6546878,
             "unit": "ns/op",
             "extra": "169 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "344bbbc08063c3335b77ff121c34ff7d87dbf996",
+          "message": "chore(deps): bump distroless/base-debian12 from `1dfdb5e` to `0a93daa` in /.github (#4886)\n\nchore(deps): bump distroless/base-debian12 in /.github\r\n\r\nBumps distroless/base-debian12 from `1dfdb5e` to `0a93daa`.\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: distroless/base-debian12\r\n  dependency-type: direct:production\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-01-02T09:31:33-07:00",
+          "tree_id": "b89c4a054d9b6d70f6eb5c6a82d1d632f5545ea5",
+          "url": "https://github.com/pomerium/pomerium/commit/344bbbc08063c3335b77ff121c34ff7d87dbf996"
+        },
+        "date": 1704213292376,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9124366,
+            "unit": "ns/op",
+            "extra": "130 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6288552,
+            "unit": "ns/op",
+            "extra": "187 times\n4 procs"
           }
         ]
       }
