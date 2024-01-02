@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704219100781,
+  "lastUpdate": 1704238881270,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -92452,6 +92452,38 @@ window.BENCHMARK_DATA = {
             "value": 7284951,
             "unit": "ns/op",
             "extra": "169 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "c536a4019720fd1934c1c9bfdbf7037f6d5a0098",
+          "message": "authenticateflow: change how sessions are deleted",
+          "timestamp": "2024-01-02T16:49:57Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4893/commits/c536a4019720fd1934c1c9bfdbf7037f6d5a0098"
+        },
+        "date": 1704238874498,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9505551,
+            "unit": "ns/op",
+            "extra": "121 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6311313,
+            "unit": "ns/op",
+            "extra": "182 times\n4 procs"
           }
         ]
       }
