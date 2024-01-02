@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704214033688,
+  "lastUpdate": 1704218308707,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -92132,6 +92132,42 @@ window.BENCHMARK_DATA = {
             "value": 6266642,
             "unit": "ns/op",
             "extra": "188 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ed6f5e72148c5cd1f3a9bc7007f70c2d664b499e",
+          "message": "chore(deps): bump github.com/oapi-codegen/runtime from 1.0.0 to 1.1.0 (#4870)\n\nBumps [github.com/oapi-codegen/runtime](https://github.com/oapi-codegen/runtime) from 1.0.0 to 1.1.0.\r\n- [Release notes](https://github.com/oapi-codegen/runtime/releases)\r\n- [Commits](https://github.com/oapi-codegen/runtime/compare/v1.0.0...v1.1.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/oapi-codegen/runtime\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-01-02T10:55:20-07:00",
+          "tree_id": "5807fd8ec80aebb00915a1ccf64dde61583db311",
+          "url": "https://github.com/pomerium/pomerium/commit/ed6f5e72148c5cd1f3a9bc7007f70c2d664b499e"
+        },
+        "date": 1704218302058,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10078441,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7145684,
+            "unit": "ns/op",
+            "extra": "166 times\n4 procs"
           }
         ]
       }
