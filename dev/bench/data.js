@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704218949400,
+  "lastUpdate": 1704218983062,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -92308,6 +92308,42 @@ window.BENCHMARK_DATA = {
             "value": 6598478,
             "unit": "ns/op",
             "extra": "189 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8b6a67b4094d822763dda2f2c1cb637abde93d8d",
+          "message": "chore(deps): bump google.golang.org/protobuf from 1.31.1-0.20231027082548-f4a6c1f6e5c1 to 1.32.0 (#4877)\n\nchore(deps): bump google.golang.org/protobuf\r\n\r\nBumps google.golang.org/protobuf from 1.31.1-0.20231027082548-f4a6c1f6e5c1 to 1.32.0.\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: google.golang.org/protobuf\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-01-02T11:06:38-07:00",
+          "tree_id": "e109d55d6a3838720d03231bb166a8b9a2001fff",
+          "url": "https://github.com/pomerium/pomerium/commit/8b6a67b4094d822763dda2f2c1cb637abde93d8d"
+        },
+        "date": 1704218976085,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9469918,
+            "unit": "ns/op",
+            "extra": "124 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6930246,
+            "unit": "ns/op",
+            "extra": "177 times\n4 procs"
           }
         ]
       }
