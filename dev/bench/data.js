@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704238881270,
+  "lastUpdate": 1704304280570,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -92484,6 +92484,42 @@ window.BENCHMARK_DATA = {
             "value": 6311313,
             "unit": "ns/op",
             "extra": "182 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fb9eb31be9e5f1e27d47dec5a602a16b0d248e6e",
+          "message": "authenticateflow: change how sessions are deleted (#4893)\n\nThe identity manager expects to be able to read session ID and user ID\r\nfrom any deleted databroker session records. The session.Delete()\r\nwrapper method is not compatible with this expectation, as it calls\r\nPut() with a record containing an empty session. The stateful\r\nauthentication flow currently calls session.Delete() from its\r\nRevokeSession() method.\r\n\r\nThe result is that the identity manager will not correctly track\r\nsessions deleted by the the stateful authentication flow, and will still\r\ntry to use them during session refresh and user info refresh.\r\n\r\nInstead, let's change the stateful authentication flow RevokeSession()\r\nmethod to perform deletions in a way that is compatible with the current\r\nidentity manager code. That is, include the existing session data in the\r\nPut() call to delete the revoked session.",
+          "timestamp": "2024-01-03T09:48:11-08:00",
+          "tree_id": "cc295015d88348dc36e4ef55b23c7c237c3526c1",
+          "url": "https://github.com/pomerium/pomerium/commit/fb9eb31be9e5f1e27d47dec5a602a16b0d248e6e"
+        },
+        "date": 1704304267891,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10830025,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7000935,
+            "unit": "ns/op",
+            "extra": "169 times\n4 procs"
           }
         ]
       }
