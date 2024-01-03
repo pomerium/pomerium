@@ -30,11 +30,11 @@ package pomerium.headers
 five_minutes := round((time.now_ns() / 1e9) + (60 * 5))
 
 # get the session
-session = v {
+session := v if {
 	# try a service account
 	v = get_databroker_record("type.googleapis.com/user.ServiceAccount", input.session.id)
 	v != null
-} else = iv {
+} else := iv if {
 	# try an impersonated session
 	v = get_databroker_record("type.googleapis.com/session.Session", input.session.id)
 	v != null
@@ -42,89 +42,89 @@ session = v {
 
 	iv = get_databroker_record("type.googleapis.com/session.Session", v.impersonate_session_id)
 	iv != null
-} else = v {
+} else := v if {
 	# try a normal session
 	v = get_databroker_record("type.googleapis.com/session.Session", input.session.id)
 	v != null
 	object.get(v, "impersonate_session_id", "") == ""
-} else = {}
+} else := {}
 
-user = u {
+user := u if {
 	u = get_databroker_record("type.googleapis.com/user.User", session.user_id)
 	u != null
-} else = {}
+} else := {}
 
-directory_user = du {
+directory_user := du if {
 	du = get_databroker_record("pomerium.io/DirectoryUser", session.user_id)
 	du != null
-} else = {}
+} else := {}
 
-group_ids = gs {
+group_ids := gs if {
 	gs = directory_user.group_ids
 	gs != null
-} else = []
+} else := []
 
 groups := array.concat(group_ids, array.concat(get_databroker_group_names(group_ids), get_databroker_group_emails(group_ids)))
 
-jwt_headers = {
+jwt_headers := {
 	"typ": "JWT",
 	"alg": data.signing_key.alg,
 	"kid": data.signing_key.kid,
 }
 
-jwt_payload_aud = v {
+jwt_payload_aud := v if {
 	v := input.issuer
-} else = ""
+} else := ""
 
-jwt_payload_iss = v {
+jwt_payload_iss := v if {
 	v := input.issuer
-} else = ""
+} else := ""
 
-jwt_payload_jti = v {
+jwt_payload_jti := v if {
 	v = session.id
-} else = ""
+} else := ""
 
-jwt_payload_exp = v {
+jwt_payload_exp := v if {
 	v = min([five_minutes, round(session.expires_at.seconds)])
-} else = v {
+} else := v if {
 	v = five_minutes
-} else = null
+} else := null
 
-jwt_payload_iat = v {
+jwt_payload_iat := v if {
 	# sessions store the issued_at on the id_token
 	v = round(session.id_token.issued_at.seconds)
-} else = v {
+} else := v if {
 	# service accounts store the issued at directly
 	v = round(session.issued_at.seconds)
-} else = null
+} else := null
 
-jwt_payload_sub = v {
+jwt_payload_sub := v if {
 	v = session.user_id
-} else = ""
+} else := ""
 
-jwt_payload_user = v {
+jwt_payload_user := v if {
 	v = session.user_id
-} else = ""
+} else := ""
 
-jwt_payload_email = v {
+jwt_payload_email := v if {
 	v = directory_user.email
-} else = v {
+} else := v if {
 	v = user.email
-} else = ""
+} else := ""
 
-jwt_payload_groups = v {
+jwt_payload_groups := v if {
 	v = array.concat(group_ids, get_databroker_group_names(group_ids))
 	v != []
-} else = v {
+} else := v if {
 	v = session.claims.groups
 	v != null
-} else = []
+} else := []
 
-jwt_payload_name = v {
+jwt_payload_name := v if {
 	v = get_header_string_value(session.claims.name)
-} else = v {
+} else := v if {
 	v = get_header_string_value(user.claims.name)
-} else = ""
+} else := ""
 
 # the session id is always set to the input session id, even if impersonating
 jwt_payload_sid := input.session.id
@@ -162,62 +162,62 @@ additional_jwt_claims := [[k, v] |
 
 jwt_claims := array.concat(base_jwt_claims, additional_jwt_claims)
 
-jwt_payload = {key: value |
+jwt_payload := {key: value |
 	# use a comprehension over an array to remove nil values
 	[key, value] := jwt_claims[_]
 	value != null
 }
 
-signed_jwt = io.jwt.encode_sign(jwt_headers, jwt_payload, data.signing_key)
+signed_jwt := io.jwt.encode_sign(jwt_headers, jwt_payload, data.signing_key)
 
-kubernetes_headers = h {
+kubernetes_headers := h if {
 	input.kubernetes_service_account_token != ""
 	h := [
 		["Authorization", concat(" ", ["Bearer", input.kubernetes_service_account_token])],
 		["Impersonate-User", jwt_payload_email],
 		["Impersonate-Group", get_header_string_value(jwt_payload_groups)],
 	]
-} else = []
+} else := []
 
-google_cloud_serverless_authentication_service_account = s {
+google_cloud_serverless_authentication_service_account := s if {
 	s := data.google_cloud_serverless_authentication_service_account
-} else = ""
+} else := ""
 
-google_cloud_serverless_headers = h {
+google_cloud_serverless_headers := h if {
 	input.enable_google_cloud_serverless_authentication
 	h := get_google_cloud_serverless_headers(google_cloud_serverless_authentication_service_account, input.to_audience)
-} else = {}
+} else := {}
 
-routing_key_headers = h {
+routing_key_headers := h if {
 	input.enable_routing_key
 	h := [["x-pomerium-routing-key", crypto.sha256(input.session.id)]]
-} else = []
+} else := []
 
-session_id_token = v {
+session_id_token := v if {
 	v := session.id_token.raw
-} else = ""
+} else := ""
 
-session_access_token = v {
+session_access_token := v if {
 	v := session.oauth_token.access_token
-} else = ""
+} else := ""
 
-client_cert_fingerprint = v {
-    cert := crypto.x509.parse_certificates(trim_space(input.client_certificate.leaf))[0]
-    v := crypto.sha256(base64.decode(cert.Raw))
-} else = ""
+client_cert_fingerprint := v if {
+	cert := crypto.x509.parse_certificates(trim_space(input.client_certificate.leaf))[0]
+	v := crypto.sha256(base64.decode(cert.Raw))
+} else := ""
 
-set_request_headers = h {
-    replacements := {
-        "pomerium.id_token": session_id_token,
-        "pomerium.access_token": session_access_token,
+set_request_headers := h if {
+	replacements := {
+		"pomerium.id_token": session_id_token,
+		"pomerium.access_token": session_access_token,
 		"pomerium.client_cert_fingerprint": client_cert_fingerprint,
-    }
+	}
 	h := [[header_name, header_value] |
 		some header_name
 		v := input.set_request_headers[header_name]
 		header_value := pomerium.variable_substitution(v, replacements)
 	]
-} else = []
+} else := []
 
 identity_headers := {key: values |
 	h1 := [["x-pomerium-jwt-assertion", signed_jwt]]
@@ -251,17 +251,17 @@ identity_headers := {key: values |
 	]
 }
 
-get_databroker_group_names(ids) = gs {
+get_databroker_group_names(ids) := gs if {
 	gs := [name | id := ids[i]; group := get_databroker_record("pomerium.io/DirectoryGroup", id); name := group.name]
 }
 
-get_databroker_group_emails(ids) = gs {
+get_databroker_group_emails(ids) := gs if {
 	gs := [email | id := ids[i]; group := get_databroker_record("pomerium.io/DirectoryGroup", id); email := group.email]
 }
 
-get_header_string_value(obj) = s {
+get_header_string_value(obj) := s if {
 	is_array(obj)
 	s := concat(",", obj)
-} else = s {
+} else := s if {
 	s := concat(",", [obj])
 }
