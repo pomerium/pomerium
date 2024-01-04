@@ -115,6 +115,9 @@ func (g *Generator) Generate(policy *parser.Policy) (*ast.Module, error) {
 				ast.StringTerm("policy"),
 			},
 		},
+		Imports: []*ast.Import{{
+			Path: ast.RefTerm(ast.VarTerm("rego"), ast.StringTerm("v1")),
+		}},
 		Rules: rs,
 	}
 

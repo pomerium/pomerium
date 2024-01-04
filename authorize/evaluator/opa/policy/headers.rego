@@ -1,5 +1,7 @@
 package pomerium.headers
 
+import rego.v1
+
 # input:
 #   enable_google_cloud_serverless_authentication: boolean
 #   enable_routing_key: boolean
