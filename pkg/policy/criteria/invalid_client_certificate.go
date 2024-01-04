@@ -35,17 +35,13 @@ func (c invalidClientCertificateCriterion) GenerateRule(_ string, _ parser.Value
 	r1.Body = validClientCertificateBody
 
 	r2 := &ast.Rule{
-		Head: &ast.Head{
-			Value: NewCriterionTerm(true, ReasonClientCertificateRequired),
-		},
+		Head: generator.NewHead("", NewCriterionTerm(true, ReasonClientCertificateRequired)),
 		Body: noClientCertificateBody,
 	}
 	r1.Else = r2
 
 	r3 := &ast.Rule{
-		Head: &ast.Head{
-			Value: NewCriterionTerm(true, ReasonInvalidClientCertificate),
-		},
+		Head: generator.NewHead("", NewCriterionTerm(true, ReasonInvalidClientCertificate)),
 	}
 	r2.Else = r3
 

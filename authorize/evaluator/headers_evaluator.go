@@ -104,10 +104,11 @@ func NewHeadersEvaluator(ctx context.Context, store *store.Store) (*HeadersEvalu
 	r := rego.New(
 		rego.Store(store),
 		rego.Module("pomerium.headers", opa.HeadersRego),
-		rego.Query("result = data.pomerium.headers"),
+		rego.Query("result := data.pomerium.headers"),
 		getGoogleCloudServerlessHeadersRegoOption,
 		variableSubstitutionFunctionRegoOption,
 		store.GetDataBrokerRecordOption(),
+		rego.SetRegoVersion(ast.RegoV1),
 	)
 
 	q, err := r.PrepareForEval(ctx)
