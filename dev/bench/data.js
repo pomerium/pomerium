@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704312361382,
+  "lastUpdate": 1704331286726,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -92552,6 +92552,42 @@ window.BENCHMARK_DATA = {
             "value": 6285985,
             "unit": "ns/op",
             "extra": "194 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "915c230d8d4e34f0fd5c1e284c8803c99d69b140",
+          "message": "authenticateflow: verify redirect in Callback test (#4894)\n\nAdd assertions for the redirect URL in the unit test for the stateful\r\nauthentication flow Callback() method. Remove a commented-out line of\r\ndebug logging.",
+          "timestamp": "2024-01-03T17:18:18-08:00",
+          "tree_id": "355c6799d5062f7a21742584eb062faf367c0356",
+          "url": "https://github.com/pomerium/pomerium/commit/915c230d8d4e34f0fd5c1e284c8803c99d69b140"
+        },
+        "date": 1704331279968,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9205793,
+            "unit": "ns/op",
+            "extra": "127 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6382301,
+            "unit": "ns/op",
+            "extra": "182 times\n4 procs"
           }
         ]
       }
