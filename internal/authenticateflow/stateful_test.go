@@ -1,24 +1,37 @@
 package authenticateflow
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/mock"
+	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/sessions"
 	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker/mock_databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 func TestStatefulSignIn(t *testing.T) {
@@ -248,7 +261,6 @@ func TestStatefulCallback(t *testing.T) {
 			}
 
 			r := httptest.NewRequest(http.MethodGet, uri.String(), nil)
-			// fmt.Println(uri.String())
 			r.Host = r.URL.Host
 
 			r.Header.Set("Accept", "application/json")
@@ -259,13 +271,118 @@ func TestStatefulCallback(t *testing.T) {
 				if err != nil {
 					t.Errorf("unexpected error: %v", err)
 				}
+				location, _ := url.Parse(w.Result().Header.Get("Location"))
+				assert.Equal(t, "example.com", location.Host)
+				assert.Equal(t, "ok", location.Query().Get("pomerium_callback_uri"))
 			} else {
 				if err == nil || !strings.Contains(err.Error(), tt.wantErrorMsg) {
 					t.Errorf("expected error containing %q; got %v", tt.wantErrorMsg, err)
 				}
 			}
-
-			// XXX: assert redirect URL
 		})
 	}
+}
+
+func TestStatefulRevokeSession(t *testing.T) {
+	opts := config.NewDefaultOptions()
+	flow, err := NewStateful(&config.Config{Options: opts}, nil)
+	require.NoError(t, err)
+
+	ctrl := gomock.NewController(t)
+	client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
+	flow.dataBrokerClient = client
+
+	// Exercise the happy path (no errors): calling RevokeSession() should
+	// fetch and delete a session record from the databroker and make a request
+	// to the identity provider to revoke the corresponding OAuth2 token.
+
+	ctx := context.Background()
+	authenticator := &mockAuthenticator{}
+	sessionState := &sessions.State{ID: "session-id"}
+	tokenExpiry := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	client.EXPECT().Get(ctx, protoEqualMatcher{
+		&databroker.GetRequest{
+			Type: "type.googleapis.com/session.Session",
+			Id:   "session-id",
+		},
+	}).Return(&databroker.GetResponse{
+		Record: &databroker.Record{
+			Version: 123456,
+			Type:    "type.googleapis.com/session.Session",
+			Id:      "session-id",
+			Data: protoutil.NewAny(&session.Session{
+				Id:     "session-id",
+				UserId: "user-id",
+				IdToken: &session.IDToken{
+					Raw: "[raw-id-token]",
+				},
+				OauthToken: &session.OAuthToken{
+					AccessToken:  "[oauth-access-token]",
+					TokenType:    "Bearer",
+					RefreshToken: "[oauth-refresh-token]",
+					ExpiresAt:    timestamppb.New(tokenExpiry),
+				},
+			}),
+		},
+	}, nil)
+
+	client.EXPECT().Put(ctx, gomock.Any()).DoAndReturn(
+		func(_ context.Context, r *databroker.PutRequest, _ ...grpc.CallOption) (*databroker.PutResponse, error) {
+			require.Len(t, r.Records, 1)
+			record := r.GetRecord()
+			assert.Equal(t, "type.googleapis.com/session.Session", record.Type)
+			assert.Equal(t, "session-id", record.Id)
+			assert.Equal(t, uint64(123456), record.Version)
+
+			// The session record received in this PutRequest should have a
+			// DeletedAt timestamp, as well as the same session ID and user ID
+			// as was returned in the previous GetResponse.
+			assert.NotNil(t, record.DeletedAt)
+			var s session.Session
+			record.GetData().UnmarshalTo(&s)
+			assert.Equal(t, "session-id", s.Id)
+			assert.Equal(t, "user-id", s.UserId)
+			return nil, nil
+		})
+
+	idToken := flow.RevokeSession(ctx, nil, authenticator, sessionState)
+
+	assert.Equal(t, "[raw-id-token]", idToken)
+	assert.Equal(t, &oauth2.Token{
+		AccessToken:  "[oauth-access-token]",
+		TokenType:    "Bearer",
+		RefreshToken: "[oauth-refresh-token]",
+		Expiry:       tokenExpiry,
+	}, authenticator.revokedToken)
+}
+
+// protoEqualMatcher implements gomock.Matcher using proto.Equal.
+// TODO: move this to a testutil package?
+type protoEqualMatcher struct {
+	expected proto.Message
+}
+
+func (m protoEqualMatcher) Matches(x interface{}) bool {
+	p, ok := x.(proto.Message)
+	if !ok {
+		return false
+	}
+	return proto.Equal(m.expected, p)
+}
+
+func (m protoEqualMatcher) String() string {
+	return fmt.Sprintf("is equal to %v (%T)", m.expected, m.expected)
+}
+
+type mockAuthenticator struct {
+	identity.Authenticator
+
+	revokedToken *oauth2.Token
+	revokeError  error
+}
+
+func (a *mockAuthenticator) Revoke(_ context.Context, token *oauth2.Token) error {
+	a.revokedToken = token
+	return a.revokeError
 }

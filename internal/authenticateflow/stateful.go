@@ -27,6 +27,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
 // Stateful implements the stateful authentication flow. In this flow, the
@@ -261,15 +262,44 @@ func (s *Stateful) RevokeSession(
 		return ""
 	}
 
+	// Note: session.Delete() cannot be used safely, because the identity
+	// manager expects to be able to read both session ID and user ID from
+	// deleted session records. Instead, we match the behavior used in the
+	// identity manager itself: fetch the existing databroker session record,
+	// explicitly set the DeletedAt timestamp, and Put() that record back.
+
+	res, err := s.dataBrokerClient.Get(ctx, &databroker.GetRequest{
+		Type: grpcutil.GetTypeURL(new(session.Session)),
+		Id:   sessionState.ID,
+	})
+	if err != nil {
+		err = fmt.Errorf("couldn't get session to be revoked: %w", err)
+		log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to revoke access token")
+		return ""
+	}
+
+	record := res.GetRecord()
+
+	var sess session.Session
+	if err := record.GetData().UnmarshalTo(&sess); err != nil {
+		err = fmt.Errorf("couldn't unmarshal data of session to be revoked: %w", err)
+		log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to revoke access token")
+		return ""
+	}
+
 	var rawIDToken string
-	sess, _ := session.Get(ctx, s.dataBrokerClient, sessionState.ID)
-	if sess != nil && sess.OauthToken != nil {
+	if sess.OauthToken != nil {
 		rawIDToken = sess.GetIdToken().GetRaw()
 		if err := authenticator.Revoke(ctx, manager.FromOAuthToken(sess.OauthToken)); err != nil {
 			log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to revoke access token")
 		}
 	}
-	if err := session.Delete(ctx, s.dataBrokerClient, sessionState.ID); err != nil {
+
+	record.DeletedAt = timestamppb.Now()
+	_, err = s.dataBrokerClient.Put(ctx, &databroker.PutRequest{
+		Records: []*databroker.Record{record},
+	})
+	if err != nil {
 		log.Ctx(ctx).Warn().Err(err).
 			Msg("authenticate: failed to delete session from session store")
 	}
