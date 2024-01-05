@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704468987305,
+  "lastUpdate": 1704479310723,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -92812,6 +92812,38 @@ window.BENCHMARK_DATA = {
             "value": 7681807,
             "unit": "ns/op",
             "extra": "157 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "93634d70c5f22d871a85c494fd62eeb76f03d2f6",
+          "message": "core/zero: update oapi-codegen",
+          "timestamp": "2024-01-04T16:29:22Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4898/commits/93634d70c5f22d871a85c494fd62eeb76f03d2f6"
+        },
+        "date": 1704479296441,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9367766,
+            "unit": "ns/op",
+            "extra": "123 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6704887,
+            "unit": "ns/op",
+            "extra": "183 times\n4 procs"
           }
         ]
       }
