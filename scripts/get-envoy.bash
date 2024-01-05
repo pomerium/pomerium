@@ -5,10 +5,16 @@ PATH="$PATH:$(go env GOPATH)/bin"
 export PATH
 
 _project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/.."
-_envoy_version=1.25.5
+declare -A _envoy_versions=(
+  ['linux-amd64']=1.25.10
+  ['linux-arm64']=1.25.10
+  ['darwin-amd64']=1.25.5
+  ['darwin-arm64']=1.25.5
+)
 _dir="$_project_root/pkg/envoy/files"
 
 for _target in darwin-amd64 darwin-arm64 linux-amd64 linux-arm64; do
+  _envoy_version=${_envoy_versions["$_target"]}
   _url="https://github.com/pomerium/envoy-binaries/releases/download/v${_envoy_version}/envoy-${_target}"
 
   curl \
