@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/google/uuid"
 	"github.com/mholt/acmez/acme"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -215,12 +217,12 @@ func TestConfig(t *testing.T) {
 
 	mockACME = newMockACME(ca, srv)
 
-	tmpdir := t.TempDir()
+	tmpdir := filepath.Join(os.TempDir(), uuid.New().String())
+	_ = os.MkdirAll(tmpdir, 0o755)
+	defer os.RemoveAll(tmpdir)
 
 	li, err := net.Listen("tcp", "127.0.0.1:0")
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	addr := li.Addr().String()
 	_ = li.Close()
 
