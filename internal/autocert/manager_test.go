@@ -217,6 +217,7 @@ func TestConfig(t *testing.T) {
 
 	mockACME = newMockACME(ca, srv)
 
+	// avoid using t.TempDir so tests don't fail: https://github.com/pomerium/pomerium/issues/4757
 	tmpdir := filepath.Join(os.TempDir(), uuid.New().String())
 	_ = os.MkdirAll(tmpdir, 0o755)
 	defer os.RemoveAll(tmpdir)
