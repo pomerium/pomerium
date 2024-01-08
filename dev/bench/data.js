@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704733015134,
+  "lastUpdate": 1704733616338,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -93140,6 +93140,42 @@ window.BENCHMARK_DATA = {
             "value": 6353620,
             "unit": "ns/op",
             "extra": "192 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ca71b3ae60c093c6bd8ac2cecb0a7ac08f756115",
+          "message": "chore(deps): bump github.com/cloudflare/circl from 1.3.6 to 1.3.7 (#4901)\n\nBumps [github.com/cloudflare/circl](https://github.com/cloudflare/circl) from 1.3.6 to 1.3.7.\r\n- [Release notes](https://github.com/cloudflare/circl/releases)\r\n- [Commits](https://github.com/cloudflare/circl/compare/v1.3.6...v1.3.7)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/cloudflare/circl\r\n  dependency-type: direct:production\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-01-08T10:03:48-07:00",
+          "tree_id": "0ee4adda41685362f9a747a131c7cc8a5da415f4",
+          "url": "https://github.com/pomerium/pomerium/commit/ca71b3ae60c093c6bd8ac2cecb0a7ac08f756115"
+        },
+        "date": 1704733603429,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9585123,
+            "unit": "ns/op",
+            "extra": "121 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6857133,
+            "unit": "ns/op",
+            "extra": "176 times\n4 procs"
           }
         ]
       }
