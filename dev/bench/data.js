@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704670185231,
+  "lastUpdate": 1704722836239,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -93008,6 +93008,42 @@ window.BENCHMARK_DATA = {
             "value": 6538265,
             "unit": "ns/op",
             "extra": "186 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2dbcf32cc68c804de50a8a819f06eba5f6d70c9f",
+          "message": "core/proxy: handle missing session for user info endpoint (#4769)",
+          "timestamp": "2024-01-08T07:03:49-07:00",
+          "tree_id": "5a8956e938a2f0ea02dccaaee444597b76ceca32",
+          "url": "https://github.com/pomerium/pomerium/commit/2dbcf32cc68c804de50a8a819f06eba5f6d70c9f"
+        },
+        "date": 1704722828749,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9260186,
+            "unit": "ns/op",
+            "extra": "133 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6282443,
+            "unit": "ns/op",
+            "extra": "192 times\n4 procs"
           }
         ]
       }
