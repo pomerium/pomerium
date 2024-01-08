@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704733616338,
+  "lastUpdate": 1704733893086,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -93176,6 +93176,42 @@ window.BENCHMARK_DATA = {
             "value": 6857133,
             "unit": "ns/op",
             "extra": "176 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c84a251c933dd674211d0a96605e56abcb63fde1",
+          "message": "zero/k8s: deployment manifests (#4763)\n\n* zero/k8s: deployment manifests\r\n\r\n* convert to statefulset so that it has persistent volume claim\r\n\r\n* use standard ports to avoid config customization for k8s\r\n\r\n* add XDG_DATA_HOME mapping",
+          "timestamp": "2024-01-08T12:08:14-05:00",
+          "tree_id": "bc43360c01a5fedf58d5fd78c5ee27f7093c530b",
+          "url": "https://github.com/pomerium/pomerium/commit/c84a251c933dd674211d0a96605e56abcb63fde1"
+        },
+        "date": 1704733880477,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9201909,
+            "unit": "ns/op",
+            "extra": "128 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6464310,
+            "unit": "ns/op",
+            "extra": "186 times\n4 procs"
           }
         ]
       }
