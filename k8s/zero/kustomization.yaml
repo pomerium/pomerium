@@ -1,0 +1,7 @@
+namespace: pomerium-zero
+commonLabels:
+  app.kubernetes.io/name: pomerium-zero
+resources:
+  - namespace.yaml
+  - ./deployment
+  - ./service
