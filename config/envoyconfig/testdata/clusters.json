@@ -62,7 +62,10 @@
       }
     },
     "upstreamConnectionOptions": {
-      "tcpKeepalive": {}
+      "tcpKeepalive": {
+        "keepaliveInterval": 15,
+        "keepaliveTime": 15
+      }
     }
   },
   {
@@ -110,7 +113,10 @@
       }
     },
     "upstreamConnectionOptions": {
-      "tcpKeepalive": {}
+      "tcpKeepalive": {
+        "keepaliveInterval": 15,
+        "keepaliveTime": 15
+      }
     }
   },
   {
@@ -158,7 +164,10 @@
       }
     },
     "upstreamConnectionOptions": {
-      "tcpKeepalive": {}
+      "tcpKeepalive": {
+        "keepaliveInterval": 15,
+        "keepaliveTime": 15
+      }
     }
   },
   {
@@ -202,7 +211,10 @@
       }
     },
     "upstreamConnectionOptions": {
-      "tcpKeepalive": {}
+      "tcpKeepalive": {
+        "keepaliveInterval": 15,
+        "keepaliveTime": 15
+      }
     }
   },
   {
@@ -246,7 +258,10 @@
       }
     },
     "upstreamConnectionOptions": {
-      "tcpKeepalive": {}
+      "tcpKeepalive": {
+        "keepaliveInterval": 15,
+        "keepaliveTime": 15
+      }
     }
   },
   {

@@ -142,9 +142,13 @@ func (b *Builder) buildInternalCluster(
 ) (*envoy_config_cluster_v3.Cluster, error) {
 	cluster := newDefaultEnvoyClusterConfig()
 	cluster.DnsLookupFamily = config.GetEnvoyDNSLookupFamily(cfg.Options.DNSLookupFamily)
+	// Match the Go standard library default TCP keepalive settings.
+	const keepaliveTimeSeconds = 15
 	cluster.UpstreamConnectionOptions = &envoy_config_cluster_v3.UpstreamConnectionOptions{
-		// Enable TCP keepalive with OS default settings.
-		TcpKeepalive: &envoy_config_core_v3.TcpKeepalive{},
+		TcpKeepalive: &envoy_config_core_v3.TcpKeepalive{
+			KeepaliveTime:     wrapperspb.UInt32(keepaliveTimeSeconds),
+			KeepaliveInterval: wrapperspb.UInt32(keepaliveTimeSeconds),
+		},
 	}
 	var endpoints []Endpoint
 	for _, dst := range dsts {
