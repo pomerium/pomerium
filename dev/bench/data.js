@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704769080613,
+  "lastUpdate": 1704770030776,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -93276,6 +93276,38 @@ window.BENCHMARK_DATA = {
             "value": 6880045,
             "unit": "ns/op",
             "extra": "176 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "78fe503b57bcb0528d22dcd40489f29a4b9f62a3",
+          "message": "envoy: enable TCP keepalive for internal clusters",
+          "timestamp": "2024-01-07T19:05:48Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4902/commits/78fe503b57bcb0528d22dcd40489f29a4b9f62a3"
+        },
+        "date": 1704770023152,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9015801,
+            "unit": "ns/op",
+            "extra": "129 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6182101,
+            "unit": "ns/op",
+            "extra": "192 times\n4 procs"
           }
         ]
       }
