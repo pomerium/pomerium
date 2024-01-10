@@ -845,6 +845,24 @@ func (o *Options) UseStatelessAuthenticateFlow() bool {
 	return urlutil.IsHostedAuthenticateDomain(u.Hostname())
 }
 
+// SupportsUserRefresh returns true if the config options support refreshing of user sessions.
+func (o *Options) SupportsUserRefresh() bool {
+	if o == nil {
+		return false
+	}
+
+	if o.Provider == "" {
+		return false
+	}
+
+	u, err := o.GetInternalAuthenticateURL()
+	if err != nil {
+		return false
+	}
+
+	return !urlutil.IsHostedAuthenticateDomain(u.Hostname())
+}
+
 // GetAuthorizeURLs returns the AuthorizeURLs in the options or 127.0.0.1:5443.
 func (o *Options) GetAuthorizeURLs() ([]*url.URL, error) {
 	if IsAll(o.Services) && o.AuthorizeURLString == "" && len(o.AuthorizeURLStrings) == 0 {
