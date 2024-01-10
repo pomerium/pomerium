@@ -2,12 +2,14 @@ package authorize
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -132,34 +134,51 @@ func (a *Authorize) deniedResponse(
 ) (*envoy_service_auth_v3.CheckResponse, error) {
 	respHeader := []*envoy_config_core_v3.HeaderValueOption{}
 
-	// create a http response writer recorder
-	w := httptest.NewRecorder()
-	r := getHTTPRequestFromCheckRequest(in)
+	var respBody []byte
+	switch {
+	case isJSONWebRequest(in):
+		respBody, _ = json.Marshal(map[string]any{
+			"error":      reason,
+			"request_id": requestid.FromContext(ctx),
+		})
+		respHeader = append(respHeader,
+			mkHeader("Content-Type", "application/json"))
+	case isGRPCWebRequest(in):
+		respHeader = append(respHeader,
+			mkHeader("Content-Type", "application/grpc-web+json"),
+			mkHeader("grpc-status", strconv.Itoa(int(codes.Unauthenticated))),
+			mkHeader("grpc-message", codes.Unauthenticated.String()))
+	default:
+		// create a http response writer recorder
+		w := httptest.NewRecorder()
+		r := getHTTPRequestFromCheckRequest(in)
 
-	// build the user info / debug endpoint
-	debugEndpoint, _ := a.userInfoEndpointURL(in) // if there's an error, we just wont display it
+		// build the user info / debug endpoint
+		debugEndpoint, _ := a.userInfoEndpointURL(in) // if there's an error, we just wont display it
 
-	// run the request through our go error handler
-	httpErr := httputil.HTTPError{
-		Status:          int(code),
-		Err:             errors.New(reason),
-		DebugURL:        debugEndpoint,
-		RequestID:       requestid.FromContext(ctx),
-		BrandingOptions: a.currentOptions.Load().BrandingOptions,
+		// run the request through our go error handler
+		httpErr := httputil.HTTPError{
+			Status:          int(code),
+			Err:             errors.New(reason),
+			DebugURL:        debugEndpoint,
+			RequestID:       requestid.FromContext(ctx),
+			BrandingOptions: a.currentOptions.Load().BrandingOptions,
+		}
+		httpErr.ErrorResponse(ctx, w, r)
+
+		// transpose the go http response writer into a envoy response
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		var err error
+		respBody, err = io.ReadAll(resp.Body)
+		if err != nil {
+			log.Error(ctx).Err(err).Msg("error executing error template")
+			return nil, err
+		}
+		// convert go headers to envoy headers
+		respHeader = append(respHeader, toEnvoyHeaders(resp.Header)...)
 	}
-	httpErr.ErrorResponse(ctx, w, r)
-
-	// transpose the go http response writer into a envoy response
-	resp := w.Result()
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Error(ctx).Err(err).Msg("error executing error template")
-		return nil, err
-	}
-	// convert go headers to envoy headers
-	respHeader = append(respHeader, toEnvoyHeaders(resp.Header)...)
 
 	// add any additional headers
 	for k, v := range headers {
@@ -332,4 +351,51 @@ func (a *Authorize) shouldRedirect(in *envoy_service_auth_v3.CheckRequest) bool 
 	}
 
 	return mediaType == "text/html"
+}
+
+func isGRPCWebRequest(in *envoy_service_auth_v3.CheckRequest) bool {
+	hdrs := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
+	if hdrs == nil {
+		return false
+	}
+
+	v := getHeader(hdrs, "Accept")
+	if v == "" {
+		return false
+	}
+
+	accept, err := rfc7231.ParseAccept(v)
+	if err != nil {
+		return false
+	}
+
+	return accept.Acceptable("application/grpc-web-text")
+}
+
+func isJSONWebRequest(in *envoy_service_auth_v3.CheckRequest) bool {
+	hdrs := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
+	if hdrs == nil {
+		return false
+	}
+
+	v := getHeader(hdrs, "Accept")
+	if v == "" {
+		return false
+	}
+
+	accept, err := rfc7231.ParseAccept(v)
+	if err != nil {
+		return false
+	}
+
+	return accept.Acceptable("application/json")
+}
+
+func getHeader(hdrs map[string]string, key string) string {
+	for k, v := range hdrs {
+		if strings.EqualFold(k, key) {
+			return v
+		}
+	}
+	return ""
 }
