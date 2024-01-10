@@ -30,6 +30,7 @@ import (
 	"github.com/pomerium/pomerium/internal/identity/oidc"
 	"github.com/pomerium/pomerium/internal/sessions"
 	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -578,6 +579,44 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAuthenticate_CORS(t *testing.T) {
+	f := new(stubFlow)
+	auth := testAuthenticate()
+	state := auth.state.Load()
+	state.sessionLoader = &mstore.Store{Session: &sessions.State{}}
+	state.sharedEncoder = mock.Encoder{}
+	state.flow = f
+	auth.state.Store(state)
+
+	t.Run("unsigned", func(t *testing.T) {
+		f.verifySignatureErr = errors.New("no signature")
+		req, _ := http.NewRequest(http.MethodGet, "/.pomerium/", nil)
+		req.Header.Set("Origin", "foo.example.com")
+		rr := httptest.NewRecorder()
+		logOutput := testutil.CaptureLogs(t, func() {
+			auth.Handler().ServeHTTP(rr, req)
+		})
+		assert.NotContains(t, logOutput, "authenticate: signed URL")
+		h := rr.Result().Header
+		assert.Empty(t, h.Get("Access-Control-Allow-Credentials"))
+		assert.Empty(t, h.Get("Access-Control-Allow-Origin"))
+	})
+	t.Run("signed", func(t *testing.T) {
+		f.verifySignatureErr = nil
+		req, _ := http.NewRequest(http.MethodGet, "/.pomerium/", nil)
+		req.Header.Set("Origin", "foo.example.com")
+		rr := httptest.NewRecorder()
+		logOutput := testutil.CaptureLogs(t, func() {
+			auth.Handler().ServeHTTP(rr, req)
+		})
+		assert.Contains(t, logOutput,
+			`{"level":"info","message":"authenticate: signed URL, adding CORS headers"}`)
+		h := rr.Result().Header
+		assert.Equal(t, "true", h.Get("Access-Control-Allow-Credentials"))
+		assert.Equal(t, "foo.example.com", h.Get("Access-Control-Allow-Origin"))
+	})
 }
 
 type mockDataBrokerServiceClient struct {
