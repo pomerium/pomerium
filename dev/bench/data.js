@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704911899566,
+  "lastUpdate": 1704912166023,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -93408,6 +93408,42 @@ window.BENCHMARK_DATA = {
             "value": 6835195,
             "unit": "ns/op",
             "extra": "170 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6efef022aff00920e75b7318236554656ff86923",
+          "message": "authenticate: rework CORS headers log entry (#4900)\n\nCurrently most requests to the authenticate service will result in a log\r\nentry with the message \"authenticate: origin blocked\". This may be\r\nconfusing, as the request is not in fact blocked; instead, what happens\r\nis that no special CORS headers are added to the response.\r\n\r\nLet's reverse the logging behavior, and instead log a message only for\r\nthose requests with a valid signature, where we do add CORS headers to\r\nthe response.\r\n\r\nAdd a unit test case exercising the CORS middleware.",
+          "timestamp": "2024-01-10T10:39:25-08:00",
+          "tree_id": "25bf3adb1eaf2b32271865885564154b3277766d",
+          "url": "https://github.com/pomerium/pomerium/commit/6efef022aff00920e75b7318236554656ff86923"
+        },
+        "date": 1704912152378,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9156313,
+            "unit": "ns/op",
+            "extra": "132 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6575705,
+            "unit": "ns/op",
+            "extra": "183 times\n4 procs"
           }
         ]
       }
