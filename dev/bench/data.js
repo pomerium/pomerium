@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1704924814165,
+  "lastUpdate": 1704993359693,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -93476,6 +93476,42 @@ window.BENCHMARK_DATA = {
             "value": 6474827,
             "unit": "ns/op",
             "extra": "187 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c7c2087483fda6fd1e13f14756b1393bb3fcbc95",
+          "message": "envoy: enable TCP keepalive for internal clusters (#4902)\n\nIn split service mode, and during periods of inactivity, the gRPC\r\nconnections to the databroker may fall idle. Some network firewalls may\r\neventually time out an idle TCP connection and even start dropping\r\nsubsequent packets once connection traffic resumes. Combined with Linux\r\ndefault TCP retransmission settings, this could cause a broken\r\nconnection to persist for over 15 minutes.\r\n\r\nIn an attempt to avoid this scenario, enable TCP keepalive for outbound\r\ngRPC connections, matching the Go standard library default settings for\r\ntime & interval: 15 seconds for both. (The probe count does not appear\r\nto be set, so it will remain at the OS default.)\r\n\r\nAdd a test case exercising the BuildClusters() method with the default\r\nconfiguration options, comparing the results with a reference \"golden\"\r\nfile in the testdata directory. Also add an '-update' flag to make it\r\neasier to update the reference golden when needed:\r\n\r\n  go test ./config/envoyconfig -update",
+          "timestamp": "2024-01-11T09:12:45-08:00",
+          "tree_id": "1b4a243f0b36e3640211f8346059b557ef9b752c",
+          "url": "https://github.com/pomerium/pomerium/commit/c7c2087483fda6fd1e13f14756b1393bb3fcbc95"
+        },
+        "date": 1704993346908,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8981793,
+            "unit": "ns/op",
+            "extra": "127 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6354159,
+            "unit": "ns/op",
+            "extra": "192 times\n4 procs"
           }
         ]
       }
