@@ -4,7 +4,7 @@ set -euo pipefail
 _project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/.."
 for _f in $(find "$_project_root" -name "*Dockerfile*"); do
     echo "checking $_f"
-    for _img in $(sed -n -r -e 's/^FROM ([^:]*)(:[^@]*)(@sha256[^ ]*) as .*$/\1\2\3/p' "$_f"); do
+    for _img in $(sed -n -r -e 's/^FROM ([^:]*)(:[^@]*)(@sha256[^ ]*).*$/\1\2\3/p' "$_f"); do
         echo "- $_img"
         _media_type="$(
             docker buildx imagetools inspect \
