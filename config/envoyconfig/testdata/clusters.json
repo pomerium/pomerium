@@ -1,0 +1,289 @@
+[
+  {
+    "loadAssignment": {
+      "clusterName": "pomerium-acme-tls-alpn",
+      "endpoints": [
+        {
+          "lbEndpoints": [
+            {
+              "endpoint": {
+                "address": {
+                  "socketAddress": {
+                    "address": "127.0.0.1",
+                    "portValue": 0
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "name": "pomerium-acme-tls-alpn"
+  },
+  {
+    "connectTimeout": "10s",
+    "dnsLookupFamily": "V4_PREFERRED",
+    "loadAssignment": {
+      "clusterName": "pomerium-control-plane-grpc",
+      "endpoints": [
+        {
+          "lbEndpoints": [
+            {
+              "endpoint": {
+                "address": {
+                  "socketAddress": {
+                    "address": "local-grpc",
+                    "portValue": 80
+                  }
+                }
+              },
+              "loadBalancingWeight": 1
+            }
+          ]
+        }
+      ]
+    },
+    "name": "pomerium-control-plane-grpc",
+    "perConnectionBufferLimitBytes": 32768,
+    "respectDnsTtl": true,
+    "type": "STRICT_DNS",
+    "typedExtensionProtocolOptions": {
+      "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
+        "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
+        "explicitHttpConfig": {
+          "http2ProtocolOptions": {
+            "allowConnect": true,
+            "initialConnectionWindowSize": 1048576,
+            "initialStreamWindowSize": 65536,
+            "maxConcurrentStreams": 100
+          }
+        }
+      }
+    },
+    "upstreamConnectionOptions": {
+      "tcpKeepalive": {
+        "keepaliveInterval": 15,
+        "keepaliveTime": 15
+      }
+    }
+  },
+  {
+    "connectTimeout": "10s",
+    "dnsLookupFamily": "V4_PREFERRED",
+    "loadAssignment": {
+      "clusterName": "pomerium-control-plane-http",
+      "endpoints": [
+        {
+          "lbEndpoints": [
+            {
+              "endpoint": {
+                "address": {
+                  "socketAddress": {
+                    "address": "local-http",
+                    "portValue": 80
+                  }
+                }
+              },
+              "loadBalancingWeight": 1
+            }
+          ]
+        }
+      ]
+    },
+    "name": "pomerium-control-plane-http",
+    "perConnectionBufferLimitBytes": 32768,
+    "respectDnsTtl": true,
+    "type": "STRICT_DNS",
+    "typedExtensionProtocolOptions": {
+      "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
+        "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
+        "explicitHttpConfig": {
+          "httpProtocolOptions": {
+            "headerKeyFormat": {
+              "statefulFormatter": {
+                "name": "preserve_case",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.http.header_formatters.preserve_case.v3.PreserveCaseFormatterConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "upstreamConnectionOptions": {
+      "tcpKeepalive": {
+        "keepaliveInterval": 15,
+        "keepaliveTime": 15
+      }
+    }
+  },
+  {
+    "connectTimeout": "10s",
+    "dnsLookupFamily": "V4_PREFERRED",
+    "loadAssignment": {
+      "clusterName": "pomerium-control-plane-metrics",
+      "endpoints": [
+        {
+          "lbEndpoints": [
+            {
+              "endpoint": {
+                "address": {
+                  "socketAddress": {
+                    "address": "local-metrics",
+                    "portValue": 80
+                  }
+                }
+              },
+              "loadBalancingWeight": 1
+            }
+          ]
+        }
+      ]
+    },
+    "name": "pomerium-control-plane-metrics",
+    "perConnectionBufferLimitBytes": 32768,
+    "respectDnsTtl": true,
+    "type": "STRICT_DNS",
+    "typedExtensionProtocolOptions": {
+      "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
+        "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
+        "explicitHttpConfig": {
+          "httpProtocolOptions": {
+            "headerKeyFormat": {
+              "statefulFormatter": {
+                "name": "preserve_case",
+                "typedConfig": {
+                  "@type": "type.googleapis.com/envoy.extensions.http.header_formatters.preserve_case.v3.PreserveCaseFormatterConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "upstreamConnectionOptions": {
+      "tcpKeepalive": {
+        "keepaliveInterval": 15,
+        "keepaliveTime": 15
+      }
+    }
+  },
+  {
+    "connectTimeout": "10s",
+    "dnsLookupFamily": "V4_PREFERRED",
+    "loadAssignment": {
+      "clusterName": "pomerium-authorize",
+      "endpoints": [
+        {
+          "lbEndpoints": [
+            {
+              "endpoint": {
+                "address": {
+                  "socketAddress": {
+                    "address": "local-grpc",
+                    "portValue": 80
+                  }
+                }
+              },
+              "loadBalancingWeight": 1
+            }
+          ]
+        }
+      ]
+    },
+    "name": "pomerium-authorize",
+    "perConnectionBufferLimitBytes": 32768,
+    "respectDnsTtl": true,
+    "type": "STRICT_DNS",
+    "typedExtensionProtocolOptions": {
+      "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
+        "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
+        "explicitHttpConfig": {
+          "http2ProtocolOptions": {
+            "allowConnect": true,
+            "initialConnectionWindowSize": 1048576,
+            "initialStreamWindowSize": 65536,
+            "maxConcurrentStreams": 100
+          }
+        }
+      }
+    },
+    "upstreamConnectionOptions": {
+      "tcpKeepalive": {
+        "keepaliveInterval": 15,
+        "keepaliveTime": 15
+      }
+    }
+  },
+  {
+    "connectTimeout": "10s",
+    "dnsLookupFamily": "V4_PREFERRED",
+    "loadAssignment": {
+      "clusterName": "pomerium-databroker",
+      "endpoints": [
+        {
+          "lbEndpoints": [
+            {
+              "endpoint": {
+                "address": {
+                  "socketAddress": {
+                    "address": "local-grpc",
+                    "portValue": 80
+                  }
+                }
+              },
+              "loadBalancingWeight": 1
+            }
+          ]
+        }
+      ]
+    },
+    "name": "pomerium-databroker",
+    "perConnectionBufferLimitBytes": 32768,
+    "respectDnsTtl": true,
+    "type": "STRICT_DNS",
+    "typedExtensionProtocolOptions": {
+      "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
+        "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
+        "explicitHttpConfig": {
+          "http2ProtocolOptions": {
+            "allowConnect": true,
+            "initialConnectionWindowSize": 1048576,
+            "initialStreamWindowSize": 65536,
+            "maxConcurrentStreams": 100
+          }
+        }
+      }
+    },
+    "upstreamConnectionOptions": {
+      "tcpKeepalive": {
+        "keepaliveInterval": 15,
+        "keepaliveTime": 15
+      }
+    }
+  },
+  {
+    "connectTimeout": "10s",
+    "loadAssignment": {
+      "clusterName": "pomerium-envoy-admin",
+      "endpoints": [
+        {
+          "lbEndpoints": [
+            {
+              "endpoint": {
+                "address": {
+                  "pipe": {
+                    "path": "/tmp/pomerium-envoy-admin.sock"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "name": "pomerium-envoy-admin"
+  }
+]

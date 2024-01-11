@@ -3,6 +3,7 @@ package testutil
 
 import (
 	"encoding/json"
+	"flag"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -29,6 +31,11 @@ func AssertProtoEqual(t *testing.T, expected, actual interface{}, msgAndArgs ...
 // of protobuf messages.
 func AssertProtoJSONEqual(t *testing.T, expected string, protoMsg interface{}, msgAndArgs ...interface{}) bool {
 	t.Helper()
+	formattedJSON := formattedProtoJSON(protoMsg)
+	return assert.Equal(t, reformatJSON(json.RawMessage(expected)), formattedJSON, msgAndArgs...)
+}
+
+func formattedProtoJSON(protoMsg interface{}) string {
 	protoMsgVal := reflect.ValueOf(protoMsg)
 	if protoMsgVal.Kind() == reflect.Slice {
 		var protoMsgs []json.RawMessage
@@ -36,10 +43,9 @@ func AssertProtoJSONEqual(t *testing.T, expected string, protoMsg interface{}, m
 			protoMsgs = append(protoMsgs, toProtoJSON(protoMsgVal.Index(i).Interface()))
 		}
 		bs, _ := json.Marshal(protoMsgs)
-		return assert.Equal(t, reformatJSON(json.RawMessage(expected)), reformatJSON(bs), msgAndArgs...)
+		return reformatJSON(bs)
 	}
-
-	return assert.Equal(t, reformatJSON(json.RawMessage(expected)), reformatJSON(toProtoJSON(protoMsg)), msgAndArgs...)
+	return reformatJSON(toProtoJSON(protoMsg))
 }
 
 func reformatJSON(raw json.RawMessage) string {
@@ -52,6 +58,31 @@ func reformatJSON(raw json.RawMessage) string {
 func toProtoJSON(protoMsg interface{}) json.RawMessage {
 	bs, _ := protojson.Marshal(protoMsg.(protoreflect.ProtoMessage))
 	return bs
+}
+
+var updateFlag = flag.Bool("update", false,
+	"when enabled, reference files will be updated to match current behavior")
+
+// AssertProtoJSONFileEqual asserts that a protobuf message (or slice of
+// messages) matches the given reference JSON file.
+//
+// To update a reference JSON file, pass the test argument '-update'. This will
+// overwrite the reference output to match the current behavior.
+func AssertProtoJSONFileEqual(
+	t *testing.T, file string, protoMsg interface{}, msgAndArgs ...interface{},
+) bool {
+	t.Helper()
+
+	if *updateFlag {
+		updatedJSON := formattedProtoJSON(protoMsg) + "\n"
+		err := os.WriteFile(file, []byte(updatedJSON), 0o644)
+		return assert.NoError(t, err)
+	}
+
+	expected, err := os.ReadFile(file)
+	require.NoError(t, err)
+
+	return AssertProtoJSONEqual(t, string(expected), protoMsg, msgAndArgs...)
 }
 
 // ModRoot returns the directory containing the go.mod file.
