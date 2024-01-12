@@ -90,7 +90,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 		return cookie.Options{
 			Name:     cfg.Options.CookieName,
 			Domain:   cfg.Options.CookieDomain,
-			Secure:   cfg.Options.CookieSecure,
+			Secure:   true,
 			HTTPOnly: cfg.Options.CookieHTTPOnly,
 			Expire:   cfg.Options.CookieExpire,
 			SameSite: cfg.Options.GetCookieSameSite(),
