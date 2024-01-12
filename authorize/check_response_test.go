@@ -266,6 +266,8 @@ func TestRequireLogin(t *testing.T) {
 			&evaluator.Request{})
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
+		testutil.AssertProtoEqual(t, mkHeader("Cache-Control", "no-store"),
+			getDeniedResponseHeader(res, "Cache-Control"))
 	})
 	t.Run("accept html", func(t *testing.T) {
 		res, err := a.requireLoginResponse(context.Background(),
@@ -283,6 +285,8 @@ func TestRequireLogin(t *testing.T) {
 			&evaluator.Request{})
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusFound, int(res.GetDeniedResponse().GetStatus().GetCode()))
+		testutil.AssertProtoEqual(t, mkHeader("Cache-Control", "no-store"),
+			getDeniedResponseHeader(res, "Cache-Control"))
 	})
 	t.Run("accept json", func(t *testing.T) {
 		res, err := a.requireLoginResponse(context.Background(),
@@ -300,5 +304,18 @@ func TestRequireLogin(t *testing.T) {
 			&evaluator.Request{})
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, int(res.GetDeniedResponse().GetStatus().GetCode()))
+		assert.Nil(t, getDeniedResponseHeader(res, "Cache-Control"))
+		assert.Nil(t, getDeniedResponseHeader(res, "Location"))
 	})
+}
+
+func getDeniedResponseHeader(
+	res *envoy_service_auth_v3.CheckResponse, header string,
+) *envoy_config_core_v3.HeaderValueOption {
+	for _, h := range res.GetDeniedResponse().GetHeaders() {
+		if h.GetHeader().GetKey() == header {
+			return h
+		}
+	}
+	return nil
 }
