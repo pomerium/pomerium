@@ -261,7 +261,6 @@ func TestStatefulCallback(t *testing.T) {
 			}
 
 			r := httptest.NewRequest(http.MethodGet, uri.String(), nil)
-			// fmt.Println(uri.String())
 			r.Host = r.URL.Host
 
 			r.Header.Set("Accept", "application/json")
@@ -272,13 +271,14 @@ func TestStatefulCallback(t *testing.T) {
 				if err != nil {
 					t.Errorf("unexpected error: %v", err)
 				}
+				location, _ := url.Parse(w.Result().Header.Get("Location"))
+				assert.Equal(t, "example.com", location.Host)
+				assert.Equal(t, "ok", location.Query().Get("pomerium_callback_uri"))
 			} else {
 				if err == nil || !strings.Contains(err.Error(), tt.wantErrorMsg) {
 					t.Errorf("expected error containing %q; got %v", tt.wantErrorMsg, err)
 				}
 			}
-
-			// XXX: assert redirect URL
 		})
 	}
 }

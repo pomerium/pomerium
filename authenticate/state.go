@@ -117,7 +117,7 @@ func newAuthenticateStateFromConfig(
 		return cookie.Options{
 			Name:     cfg.Options.CookieName + "_authenticate",
 			Domain:   cfg.Options.CookieDomain,
-			Secure:   cfg.Options.CookieSecure,
+			Secure:   true,
 			HTTPOnly: cfg.Options.CookieHTTPOnly,
 			Expire:   cfg.Options.CookieExpire,
 			SameSite: cfg.Options.GetCookieSameSite(),

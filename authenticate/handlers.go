@@ -44,7 +44,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 		state := a.state.Load()
 		csrfKey := fmt.Sprintf("%s_csrf", options.CookieName)
 		csrfOptions := []csrf.Option{
-			csrf.Secure(options.CookieSecure),
+			csrf.Secure(true),
 			csrf.Path("/"),
 			csrf.UnsafePaths(
 				[]string{
@@ -75,8 +75,8 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 		AllowOriginRequestFunc: func(r *http.Request, _ string) bool {
 			state := a.state.Load()
 			err := state.flow.VerifyAuthenticateSignature(r)
-			if err != nil {
-				log.FromRequest(r).Info().Err(err).Msg("authenticate: origin blocked")
+			if err == nil {
+				log.FromRequest(r).Info().Msg("authenticate: signed URL, adding CORS headers")
 			}
 			return err == nil
 		},

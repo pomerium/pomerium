@@ -63,7 +63,6 @@ func Test_Validate(t *testing.T) {
 	badSignoutRedirectURL.SignOutRedirectURLString = "--"
 	badCookieSettings := testOptions()
 	badCookieSettings.CookieSameSite = "none"
-	badCookieSettings.CookieSecure = false
 
 	tests := []struct {
 		name     string
@@ -78,7 +77,6 @@ func Test_Validate(t *testing.T) {
 		{"invalid databroker storage type", invalidStorageType, true},
 		{"missing databroker storage dsn", missingStorageDSN, true},
 		{"invalid signout redirect url", badSignoutRedirectURL, true},
-		{"CookieSameSite none with CookieSecure fale", badCookieSettings, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -404,7 +402,6 @@ func TestOptionsFromViper(t *testing.T) {
 			&Options{
 				Policies:                 []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
 				CookieName:               "_pomerium",
-				CookieSecure:             true,
 				InsecureServer:           true,
 				CookieHTTPOnly:           true,
 				AuthenticateCallbackPath: "/oauth2/callback",
@@ -421,7 +418,6 @@ func TestOptionsFromViper(t *testing.T) {
 				Policies:                 []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
 				CookieName:               "_pomerium",
 				AuthenticateCallbackPath: "/oauth2/callback",
-				CookieSecure:             true,
 				CookieHTTPOnly:           true,
 				InsecureServer:           true,
 				SetResponseHeaders:       map[string]string{"disable": "true"},

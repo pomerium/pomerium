@@ -1,0 +1,88 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+inspect-manifest() {
+    local _image
+    _image="${1?"image is required"}"
+
+    local _temp_dir
+    _temp_dir="${TMPDIR-/tmp}"
+    local _image_hash
+    _image_hash="$(echo -n "$_image" | shasum | cut -f1 -d' ')"
+    local _temp_file
+    _temp_file="${_temp_dir}/check-docker-image-${_image_hash}.json"
+
+    if [ ! -f "$_temp_file" ]; then
+        docker buildx imagetools inspect \
+            --format='{{json .}}' \
+            "$_image" >"$_temp_file"
+    fi
+
+    cat "$_temp_file"
+}
+
+check-image() {
+    local _image
+    _image="${1?"image is required"}"
+
+    echo "checking image=$_image"
+
+    local _manifest
+    _manifest="$(inspect-manifest "$_image")"
+
+    local _has_arm64
+    _has_arm64="$(echo "$_manifest" | jq '
+        .manifest.manifests
+        | map(select(.platform.architecture == "arm64" and .platform.os == "linux"))
+        | length >= 1
+    ')"
+
+    if [[ "$_has_arm64" != "true" ]]; then
+        echo "- missing ARM64 in $_manifest"
+        exit 1
+    fi
+
+    local _has_amd64
+    _has_amd64="$(echo "$_manifest" | jq '
+        .manifest.manifests
+        | map(select(.platform.architecture == "amd64" and .platform.os == "linux"))
+        | length >= 1
+    ')"
+
+    if [[ "$_has_amd64" != "true" ]]; then
+        echo "- missing AMD64 in $_manifest"
+        exit 1
+    fi
+}
+
+check-dockerfile() {
+    local _file
+    _file="${1?"file is required"}"
+
+    echo "checking dockerfile=$_file"
+
+    while IFS= read -r _image; do
+        check-image "$_image"
+    done < <(sed -n -r -e 's/^FROM ([^:]*)(:[^@]*)(@sha256[^ ]*).*$/\1\2\3/p' "$_file")
+}
+
+check-directory() {
+    local _directory
+    _directory="${1?"directory is required"}"
+
+    echo "checking directory=$_directory"
+
+    local _file
+    while IFS= read -r -d '' _file; do
+        check-dockerfile "$_file"
+    done < <(find "$_directory" -name "*Dockerfile*" -print0)
+}
+
+main() {
+    local _project_root
+    _project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)/.."
+
+    check-directory "$_project_root"
+}
+
+main

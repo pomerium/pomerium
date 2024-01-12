@@ -143,7 +143,6 @@ type Options struct {
 	CookieSecret     string        `mapstructure:"cookie_secret" yaml:"cookie_secret,omitempty"`
 	CookieSecretFile string        `mapstructure:"cookie_secret_file" yaml:"cookie_secret_file,omitempty"`
 	CookieDomain     string        `mapstructure:"cookie_domain" yaml:"cookie_domain,omitempty"`
-	CookieSecure     bool          `mapstructure:"cookie_secure" yaml:"cookie_secure,omitempty"`
 	CookieHTTPOnly   bool          `mapstructure:"cookie_http_only" yaml:"cookie_http_only,omitempty"`
 	CookieExpire     time.Duration `mapstructure:"cookie_expire" yaml:"cookie_expire,omitempty"`
 	CookieSameSite   string        `mapstructure:"cookie_same_site" yaml:"cookie_same_site,omitempty"`
@@ -316,7 +315,6 @@ var defaultOptions = Options{
 	LogLevel:                 LogLevelInfo,
 	Services:                 "all",
 	CookieHTTPOnly:           true,
-	CookieSecure:             true,
 	CookieExpire:             14 * time.Hour,
 	CookieName:               "_pomerium",
 	DefaultUpstreamTimeout:   30 * time.Second,
@@ -773,8 +771,6 @@ func (o *Options) Validate() error {
 
 	if err := ValidateCookieSameSite(o.CookieSameSite); err != nil {
 		return fmt.Errorf("config: invalid cookie_same_site: %w", err)
-	} else if !o.CookieSecure && o.GetCookieSameSite() == http.SameSiteNoneMode {
-		return errors.New("config: cannot use cookie_same_site: none with cookie_secure: false")
 	}
 
 	if err := ValidateLogLevel(o.LogLevel); err != nil {
@@ -843,6 +839,24 @@ func (o *Options) UseStatelessAuthenticateFlow() bool {
 		return false
 	}
 	return urlutil.IsHostedAuthenticateDomain(u.Hostname())
+}
+
+// SupportsUserRefresh returns true if the config options support refreshing of user sessions.
+func (o *Options) SupportsUserRefresh() bool {
+	if o == nil {
+		return false
+	}
+
+	if o.Provider == "" {
+		return false
+	}
+
+	u, err := o.GetInternalAuthenticateURL()
+	if err != nil {
+		return false
+	}
+
+	return !urlutil.IsHostedAuthenticateDomain(u.Hostname())
 }
 
 // GetAuthorizeURLs returns the AuthorizeURLs in the options or 127.0.0.1:5443.
@@ -1402,7 +1416,7 @@ func (o *Options) NewCookie() *http.Cookie {
 		Name:     o.CookieName,
 		Domain:   o.CookieDomain,
 		Expires:  time.Now().Add(o.CookieExpire),
-		Secure:   o.CookieSecure,
+		Secure:   true,
 		SameSite: o.GetCookieSameSite(),
 		HttpOnly: o.CookieHTTPOnly,
 	}
@@ -1458,7 +1472,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.CookieName, settings.CookieName)
 	set(&o.CookieSecret, settings.CookieSecret)
 	set(&o.CookieDomain, settings.CookieDomain)
-	set(&o.CookieSecure, settings.CookieSecure)
 	set(&o.CookieHTTPOnly, settings.CookieHttpOnly)
 	setDuration(&o.CookieExpire, settings.CookieExpire)
 	set(&o.CookieSameSite, settings.CookieSameSite)

@@ -20,6 +20,23 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
+func Test_BuildClusters(t *testing.T) {
+	// The admin address path is based on os.TempDir(), which will vary from
+	// system to system, so replace this with a stable location.
+	originalEnvoyAdminAddressPath := envoyAdminAddressPath
+	envoyAdminAddressPath = "/tmp/pomerium-envoy-admin.sock"
+	t.Cleanup(func() {
+		envoyAdminAddressPath = originalEnvoyAdminAddressPath
+	})
+
+	opts := config.NewDefaultOptions()
+	ctx := context.Background()
+	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
+	clusters, err := b.BuildClusters(ctx, &config.Config{Options: opts})
+	require.NoError(t, err)
+	testutil.AssertProtoJSONFileEqual(t, "testdata/clusters.json", clusters)
+}
+
 func Test_buildPolicyTransportSocket(t *testing.T) {
 	ctx := context.Background()
 	cacheDir, _ := os.UserCacheDir()
