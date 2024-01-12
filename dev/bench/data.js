@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1705091495367,
+  "lastUpdate": 1705091587123,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -93940,6 +93940,42 @@ window.BENCHMARK_DATA = {
             "value": 6267796,
             "unit": "ns/op",
             "extra": "189 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5e0079c6498002f6eb5aa000439923be04a1b92f",
+          "message": "core/databroker: disable identity manager user refresh when hosted authenticate is used (#4905)",
+          "timestamp": "2024-01-12T13:30:03-07:00",
+          "tree_id": "15d40270170f284306ab4c78b5b706eb238b826e",
+          "url": "https://github.com/pomerium/pomerium/commit/5e0079c6498002f6eb5aa000439923be04a1b92f"
+        },
+        "date": 1705091580004,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10364624,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6634805,
+            "unit": "ns/op",
+            "extra": "175 times\n4 procs"
           }
         ]
       }
