@@ -159,7 +159,7 @@ message Settings {
   optional string cookie_name = 16;
   optional string cookie_secret = 17;
   optional string cookie_domain = 18;
-  optional bool cookie_secure = 19;
+  // optional bool cookie_secure = 19;
   optional bool cookie_http_only = 20;
   optional google.protobuf.Duration cookie_expire = 21;
   optional string cookie_same_site = 113;

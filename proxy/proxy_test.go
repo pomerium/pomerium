@@ -25,7 +25,6 @@ func testOptions(t *testing.T) *config.Options {
 	testPolicy := config.Policy{From: "https://corp.example.example", To: to}
 	opts.Policies = []config.Policy{testPolicy}
 	opts.InsecureServer = true
-	opts.CookieSecure = false
 	opts.Services = config.ServiceAll
 	opts.SharedKey = "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
 	opts.CookieSecret = "OromP1gurwGWjQPYb1nNgSxtbVB5NnLzX6z5WOKr0Yw="

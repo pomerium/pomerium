@@ -40,7 +40,7 @@ func NewSessionStore(options *Options) (*SessionStore, error) {
 		return cookie.Options{
 			Name:     options.CookieName,
 			Domain:   options.CookieDomain,
-			Secure:   options.CookieSecure,
+			Secure:   true,
 			HTTPOnly: options.CookieHTTPOnly,
 			Expire:   options.CookieExpire,
 			SameSite: options.GetCookieSameSite(),

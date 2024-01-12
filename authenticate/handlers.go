@@ -44,7 +44,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 		state := a.state.Load()
 		csrfKey := fmt.Sprintf("%s_csrf", options.CookieName)
 		csrfOptions := []csrf.Option{
-			csrf.Secure(options.CookieSecure),
+			csrf.Secure(true),
 			csrf.Path("/"),
 			csrf.UnsafePaths(
 				[]string{
