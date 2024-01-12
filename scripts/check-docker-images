@@ -49,7 +49,7 @@ check-image() {
         | length >= 1
     ')"
 
-    if [[ "$_has_arm64" != "true" ]]; then
+    if [[ "$_has_amd64" != "true" ]]; then
         echo "- missing AMD64 in $_manifest"
         exit 1
     fi
