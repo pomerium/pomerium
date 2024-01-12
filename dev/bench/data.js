@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1705087413849,
+  "lastUpdate": 1705087730603,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -93832,6 +93832,42 @@ window.BENCHMARK_DATA = {
             "value": 8199131,
             "unit": "ns/op",
             "extra": "146 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d5b4910951c96b8db2bc3a9b4668933bd682dea8",
+          "message": "core/ci: check docker base images (#4906)\n\n* check docker base images\r\n\r\n* test bad image\r\n\r\n* debugging\r\n\r\n* fix missing gcr image\r\n\r\n* restore hash\r\n\r\n* fix docker tag\r\n\r\n* improved check\r\n\r\n* fix variable\r\n\r\n* fix check",
+          "timestamp": "2024-01-12T12:25:28-07:00",
+          "tree_id": "45faa72b26445cf849bc52ed3c33e110b39caf01",
+          "url": "https://github.com/pomerium/pomerium/commit/d5b4910951c96b8db2bc3a9b4668933bd682dea8"
+        },
+        "date": 1705087717260,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9251648,
+            "unit": "ns/op",
+            "extra": "126 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6533612,
+            "unit": "ns/op",
+            "extra": "177 times\n4 procs"
           }
         ]
       }
