@@ -30,7 +30,7 @@ check-image() {
     local _manifest
     _manifest="$(inspect-manifest "$_image")"
 
-    local _hasARM64
+    local _has_arm64
     _has_arm64="$(echo "$_manifest" | jq '
         .manifest.manifests
         | map(select(.platform.architecture == "arm64" and .platform.os == "linux"))
@@ -42,7 +42,7 @@ check-image() {
         exit 1
     fi
 
-    local _hasAMD64
+    local _has_amd64
     _has_amd64="$(echo "$_manifest" | jq '
         .manifest.manifests
         | map(select(.platform.architecture == "amd64" and .platform.os == "linux"))
