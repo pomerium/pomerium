@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1705101953047,
+  "lastUpdate": 1705423606681,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -94040,6 +94040,42 @@ window.BENCHMARK_DATA = {
             "value": 7130877,
             "unit": "ns/op",
             "extra": "177 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "24b04bed3594ecc9329ddc2dd5b2f94c7936e557",
+          "message": "core/opa: update for rego 1.0 (#4895)\n\n* core/opa: update headers rego script\r\n\r\n* core/opa: update ppl\r\n\r\n* further updates",
+          "timestamp": "2024-01-16T09:43:35-07:00",
+          "tree_id": "b9daac5258ee3ea2abe17cb2b09ee885a0013e0f",
+          "url": "https://github.com/pomerium/pomerium/commit/24b04bed3594ecc9329ddc2dd5b2f94c7936e557"
+        },
+        "date": 1705423599608,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9732634,
+            "unit": "ns/op",
+            "extra": "122 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6522289,
+            "unit": "ns/op",
+            "extra": "192 times\n4 procs"
           }
         ]
       }
