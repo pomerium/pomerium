@@ -49,8 +49,8 @@ func (g *Generator) GetCriterion(name string) (Criterion, bool) {
 // Generate generates the rego module from a policy.
 func (g *Generator) Generate(policy *parser.Policy) (*ast.Module, error) {
 	rs := ast.NewRuleSet()
-	rs.Add(ast.MustParseRule(`default allow = [false, set()]`))
-	rs.Add(ast.MustParseRule(`default deny = [false, set()]`))
+	rs.Add(rules.MustParse(`default allow := [false, set()]`))
+	rs.Add(rules.MustParse(`default deny := [false, set()]`))
 	rs.Add(rules.InvertCriterionResult())
 	rs.Add(rules.NormalizeCriterionResult())
 	rs.Add(rules.ObjectUnion())
@@ -95,10 +95,7 @@ func (g *Generator) Generate(policy *parser.Policy) (*ast.Module, error) {
 		}
 		if len(terms) > 0 {
 			rule := &ast.Rule{
-				Head: &ast.Head{
-					Name:  ast.Var(action),
-					Value: ast.VarTerm("v"),
-				},
+				Head: NewHead(ast.Var(action), ast.VarTerm("v")),
 				Body: append(ast.Body{
 					ast.Assign.Expr(ast.VarTerm("results"), ast.ArrayTerm(terms...)),
 				}, orBody...),
@@ -115,6 +112,9 @@ func (g *Generator) Generate(policy *parser.Policy) (*ast.Module, error) {
 				ast.StringTerm("policy"),
 			},
 		},
+		Imports: []*ast.Import{{
+			Path: ast.RefTerm(ast.VarTerm("rego"), ast.StringTerm("v1")),
+		}},
 		Rules: rs,
 	}
 
@@ -148,8 +148,15 @@ func (g *Generator) NewRule(name string) *ast.Rule {
 	id := g.ids[name]
 	g.ids[name]++
 	return &ast.Rule{
-		Head: &ast.Head{
-			Name: ast.Var(fmt.Sprintf("%s_%d", name, id)),
-		},
+		Head: NewHead(ast.Var(fmt.Sprintf("%s_%d", name, id)), nil),
+	}
+}
+
+// NewHead creates a new AST Head.
+func NewHead(name ast.Var, value *ast.Term) *ast.Head {
+	return &ast.Head{
+		Name:   name,
+		Value:  value,
+		Assign: true,
 	}
 }

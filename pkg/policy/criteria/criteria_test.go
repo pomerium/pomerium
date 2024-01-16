@@ -121,6 +121,7 @@ func evaluate(t *testing.T,
 			return nil, nil
 		}),
 		rego.Input(input),
+		rego.SetRegoVersion(ast.RegoV1),
 	)
 	preparedQuery, err := r.PrepareForEval(context.Background())
 	if err != nil {

@@ -66,9 +66,7 @@ func NewCriterionRule(
 	r1.Body = body
 
 	r2 := &ast.Rule{
-		Head: &ast.Head{
-			Value: NewCriterionTerm(false, failReason),
-		},
+		Head: generator.NewHead("", NewCriterionTerm(false, failReason)),
 		Body: ast.Body{
 			ast.NewExpr(ast.BooleanTerm(true)),
 		},
@@ -107,9 +105,7 @@ func NewCriterionDeviceRule(
 
 	// case 2: rule fails, session exists, device exists
 	r2 := &ast.Rule{
-		Head: &ast.Head{
-			Value: NewCriterionTermWithAdditionalData(false, failReason, additionalData),
-		},
+		Head: generator.NewHead("", NewCriterionTermWithAdditionalData(false, failReason, additionalData)),
 		Body: append(sharedBody, ast.Body{
 			ast.MustParseExpr(`session.id != ""`),
 			ast.MustParseExpr(`device_credential.id != ""`),
@@ -120,9 +116,7 @@ func NewCriterionDeviceRule(
 
 	// case 3: device not authenticated, session exists, device does not exist
 	r3 := &ast.Rule{
-		Head: &ast.Head{
-			Value: NewCriterionTermWithAdditionalData(false, ReasonDeviceUnauthenticated, additionalData),
-		},
+		Head: generator.NewHead("", NewCriterionTermWithAdditionalData(false, ReasonDeviceUnauthenticated, additionalData)),
 		Body: append(sharedBody, ast.Body{
 			ast.MustParseExpr(`session.id != ""`),
 		}...),
@@ -131,9 +125,7 @@ func NewCriterionDeviceRule(
 
 	// case 4: user not authenticated, session does not exist
 	r4 := &ast.Rule{
-		Head: &ast.Head{
-			Value: NewCriterionTermWithAdditionalData(false, ReasonUserUnauthenticated, additionalData),
-		},
+		Head: generator.NewHead("", NewCriterionTermWithAdditionalData(false, ReasonUserUnauthenticated, additionalData)),
 		Body: ast.Body{
 			ast.NewExpr(ast.BooleanTerm(true)),
 		},
@@ -157,9 +149,7 @@ func NewCriterionSessionRule(
 	r1.Body = body
 
 	r2 := &ast.Rule{
-		Head: &ast.Head{
-			Value: NewCriterionTerm(false, failReason),
-		},
+		Head: generator.NewHead("", NewCriterionTerm(false, failReason)),
 		Body: ast.Body{
 			ast.MustParseExpr(`session := get_session(input.session.id)`),
 			ast.MustParseExpr(`session.id != ""`),
@@ -168,9 +158,7 @@ func NewCriterionSessionRule(
 	r1.Else = r2
 
 	r3 := &ast.Rule{
-		Head: &ast.Head{
-			Value: NewCriterionTerm(false, ReasonUserUnauthenticated),
-		},
+		Head: generator.NewHead("", NewCriterionTerm(false, ReasonUserUnauthenticated)),
 		Body: ast.Body{
 			ast.NewExpr(ast.BooleanTerm(true)),
 		},
