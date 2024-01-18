@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1705423606681,
+  "lastUpdate": 1705597808384,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -94076,6 +94076,42 @@ window.BENCHMARK_DATA = {
             "value": 6522289,
             "unit": "ns/op",
             "extra": "192 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "803baeb9e18e1344b6241d247b23afc797de00a0",
+          "message": "core/authorize: return non-html errors on denied (#4904)",
+          "timestamp": "2024-01-18T10:07:03-07:00",
+          "tree_id": "e8f77f5183d213430753eed021d9fc7cde1f4b99",
+          "url": "https://github.com/pomerium/pomerium/commit/803baeb9e18e1344b6241d247b23afc797de00a0"
+        },
+        "date": 1705597801382,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9819157,
+            "unit": "ns/op",
+            "extra": "124 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6986221,
+            "unit": "ns/op",
+            "extra": "168 times\n4 procs"
           }
         ]
       }
