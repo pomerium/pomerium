@@ -16,10 +16,10 @@ import (
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
-	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/testutil"
 	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
 func TestAuthorize_handleResult(t *testing.T) {

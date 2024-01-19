@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
 func Test_populateLogEvent(t *testing.T) {

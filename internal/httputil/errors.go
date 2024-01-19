@@ -6,8 +6,8 @@ import (
 	"net/url"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/contextutil"
+	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"github.com/pomerium/pomerium/ui"
 )
 

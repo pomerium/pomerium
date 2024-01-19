@@ -8,7 +8,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/internal/middleware/responsewriter"
-	"github.com/pomerium/pomerium/internal/telemetry/requestid"
+	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
 // NewHandler injects log into requests context.
