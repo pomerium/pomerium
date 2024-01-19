@@ -15,8 +15,8 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
-	"github.com/pomerium/pomerium/internal/telemetry/requestid"
 	"github.com/pomerium/pomerium/internal/tripper"
+	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
 // ErrTokenRevoked signifies a token revocation or expiration error
