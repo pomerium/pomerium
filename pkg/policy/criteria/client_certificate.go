@@ -50,6 +50,12 @@ func (c clientCertificateCriterion) GenerateRule(
 			err = addCertFingerprintCondition(&body, v)
 		case "spki_hash":
 			err = addCertSPKIHashCondition(&body, v)
+		case "san_email":
+			err = matchString(&body, ast.VarTerm("cert.EmailAddresses[_]"), v)
+		case "san_dns":
+			err = matchString(&body, ast.VarTerm("cert.DNSNames[_]"), v)
+		case "san_uri":
+			err = matchString(&body, ast.VarTerm("cert.URIStrings[_]"), v)
 		default:
 			err = fmt.Errorf("unsupported certificate matcher condition: %s", k)
 		}
