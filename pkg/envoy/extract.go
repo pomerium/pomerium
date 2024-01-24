@@ -12,12 +12,15 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 )
 
 const (
 	ownerRX              = os.FileMode(0o500)
 	maxExpandedEnvoySize = 1 << 30
+	envoyPrefix          = "pomerium-envoy"
 )
 
 type hashReader struct {
@@ -53,17 +56,20 @@ func Extract() (fullEnvoyPath string, err error) {
 		return setupFullEnvoyPath, setupErr
 	}
 
-	dir, err := os.MkdirTemp(os.TempDir(), "pomerium-envoy")
+	tmpDir := os.TempDir()
+
+	cleanTempDir(tmpDir)
+	dir, err := os.MkdirTemp(tmpDir, envoyPrefix)
 	if err != nil {
 		setupErr = fmt.Errorf("envoy: failed making temporary working dir: %w", err)
-		return
+		return setupFullEnvoyPath, setupErr
 	}
 	setupFullEnvoyPath = filepath.Join(dir, "envoy")
 
 	err = extract(setupFullEnvoyPath)
 	if err != nil {
 		setupErr = fmt.Errorf("envoy: failed to extract embedded envoy binary: %w", err)
-		return
+		return setupFullEnvoyPath, setupErr
 	}
 
 	setupDone = true
@@ -96,4 +102,28 @@ func extract(dstName string) (err error) {
 		return fmt.Errorf("expected %x, got %x checksum", checksum, sum)
 	}
 	return nil
+}
+
+func cleanTempDir(tmpDir string) {
+	d, err := os.Open(tmpDir)
+	if err != nil {
+		log.Warn().Msg("envoy: failed to open temp directory for clean up")
+		return
+	}
+	defer d.Close()
+
+	fs, err := d.Readdir(-1)
+	if err != nil {
+		log.Warn().Msg("envoy: failed to read files in temporary directory")
+		return
+	}
+
+	for _, f := range fs {
+		if f.IsDir() && strings.HasPrefix(f.Name(), envoyPrefix) {
+			err := os.RemoveAll(filepath.Join(tmpDir, f.Name()))
+			if err != nil {
+				log.Warn().Err(err).Msg("envoy: failed to delete previous extracted envoy")
+			}
+		}
+	}
 }
