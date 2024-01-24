@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1705971121326,
+  "lastUpdate": 1706136071619,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -94212,6 +94212,38 @@ window.BENCHMARK_DATA = {
             "value": 6117579,
             "unit": "ns/op",
             "extra": "184 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "55146563c8a4202f86a8e8aff1289821f0dbda49",
+          "message": "core/envoy: clean up temporary directory on start",
+          "timestamp": "2024-01-24T18:17:38Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4914/commits/55146563c8a4202f86a8e8aff1289821f0dbda49"
+        },
+        "date": 1706136057963,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9310805,
+            "unit": "ns/op",
+            "extra": "124 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6613745,
+            "unit": "ns/op",
+            "extra": "182 times\n4 procs"
           }
         ]
       }
