@@ -201,6 +201,9 @@ func strUnion(a, b []string) []string {
 }
 
 func (c *service) syncBundleToDatabroker(ctx context.Context, key string, src io.Reader, currentRecordTypes []string) ([]string, error) {
+	log.Ctx(ctx).Info().Msg("sleeping before databroker sync...")
+	time.Sleep(time.Second * 40)
+
 	bundleRecords, err := ReadBundleRecords(src)
 	if err != nil {
 		return nil, fmt.Errorf("read bundle records: %w", err)

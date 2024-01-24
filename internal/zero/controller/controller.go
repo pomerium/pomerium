@@ -141,7 +141,7 @@ func (c *controller) runAnalytics(ctx context.Context) error {
 		return c.Str("service", "zero-analytics")
 	})
 
-	err := analytics.Collect(ctx, c.GetDataBrokerServiceClient(), time.Hour)
+	err := analytics.Collect(ctx, c.GetDataBrokerServiceClient(), time.Second*30)
 	if err != nil && ctx.Err() == nil {
 		log.Ctx(ctx).Error().Err(err).Msg("error collecting analytics, disabling")
 		return nil
@@ -156,7 +156,7 @@ func (c *controller) runReporter(ctx context.Context) error {
 	})
 
 	return c.api.Report(ctx,
-		reporter.WithCollectInterval(time.Hour),
+		reporter.WithCollectInterval(time.Second*30),
 		reporter.WithMetrics(analytics.Metrics(c.GetDataBrokerServiceClient)...),
 	)
 }
