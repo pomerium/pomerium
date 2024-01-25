@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1706141318372,
+  "lastUpdate": 1706142277872,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -94348,6 +94348,42 @@ window.BENCHMARK_DATA = {
             "value": 6661868,
             "unit": "ns/op",
             "extra": "184 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3ca2f2462d982d2b8751536c5aea2125efea2229",
+          "message": "zero/reconciler: remove unused changeset code (#4915)",
+          "timestamp": "2024-01-24T19:21:34-05:00",
+          "tree_id": "5a661fbd2995a83f396353a046e3ad22f8934bd6",
+          "url": "https://github.com/pomerium/pomerium/commit/3ca2f2462d982d2b8751536c5aea2125efea2229"
+        },
+        "date": 1706142270892,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9113661,
+            "unit": "ns/op",
+            "extra": "127 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6595182,
+            "unit": "ns/op",
+            "extra": "178 times\n4 procs"
           }
         ]
       }
