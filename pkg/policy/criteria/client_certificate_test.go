@@ -23,6 +23,25 @@ RAIgProROtxpvKS/qjrjonSvacnhdU0JwoXj2DgYvF/qjrUCIAXlHkdEzyXmTLuu
 /YxuOibV35vlaIzj21GRj4pYmVR1
 -----END CERTIFICATE-----`
 
+// testCertWithSANs is a certificate with 6 Subject Alternative Names:
+// DNS:1.example.com, DNS:2.example.com, email:email-1@example.com,
+// email:email-2@example.com, URI:https://example.com/uri-1, and
+// URI:https://example.com/uri-2.
+const testCertWithSANs = `
+-----BEGIN CERTIFICATE-----
+MIIB9TCCAZugAwIBAgIDAIABMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD1RydXN0
+ZWQgUm9vdCBDQTAeFw0yNDAxMjIyMzU1NTNaFw0zNDAxMTkyMzU1NTNaMCUxIzAh
+BgNVBAMTGmNsaWVudCBjZXJ0IHdpdGggbWFueSBTQU5zMFkwEwYHKoZIzj0CAQYI
+KoZIzj0DAQcDQgAEJNVizgh7I/609xD6Dik7QrIzwSp6zIgSeKEfekic7r3rd8fC
+0W84UORBjFXxRa4nxj8tyanN4PreD1veACPjHqOBxDCBwTATBgNVHSUEDDAKBggr
+BgEFBQcDAjAfBgNVHSMEGDAWgBQ1yn6j/DJdpmqyNIV8/lJBYsIuyzCBiAYDVR0R
+BIGAMH6CDTEuZXhhbXBsZS5jb22CDTIuZXhhbXBsZS5jb22BE2VtYWlsLTFAZXhh
+bXBsZS5jb22BE2VtYWlsLTJAZXhhbXBsZS5jb22GGWh0dHBzOi8vZXhhbXBsZS5j
+b20vdXJpLTGGGWh0dHBzOi8vZXhhbXBsZS5jb20vdXJpLTIwCgYIKoZIzj0EAwID
+SAAwRQIgKqRs9N3EOmzW2ZPQgJh2un6XaQbXtyE9O9TZEQGFr2gCIQCC16tr754m
+z60udX689FtwwnWYmteZsZstBoEbPSTzWw==
+-----END CERTIFICATE-----`
+
 func TestClientCertificate(t *testing.T) {
 	t.Parallel()
 
@@ -88,6 +107,66 @@ func TestClientCertificate(t *testing.T) {
           - FsDbM0rUYIiL3V339eIKqiz6HPSB+Pz2WeAWhqlqh8U=
           - NvqYIYSbgK2vCJpQhObf77vv+bQWtc5ek5RIOwPiC9A=`,
 			testCert,
+			A{true, A{ReasonClientCertificateOK}, M{}},
+		},
+		{
+			"no email match",
+			`allow:
+  or:
+    - client_certificate:
+        san_email:
+          is: not-present@example.com`,
+			testCertWithSANs,
+			A{false, A{ReasonClientCertificateUnauthorized}, M{}},
+		},
+		{
+			"email match",
+			`allow:
+  or:
+    - client_certificate:
+        san_email:
+          is: email-1@example.com`,
+			testCertWithSANs,
+			A{true, A{ReasonClientCertificateOK}, M{}},
+		},
+		{
+			"no dns match",
+			`allow:
+  or:
+    - client_certificate:
+        san_dns:
+          is: not-present.example.com`,
+			testCertWithSANs,
+			A{false, A{ReasonClientCertificateUnauthorized}, M{}},
+		},
+		{
+			"dns match",
+			`allow:
+  or:
+    - client_certificate:
+        san_dns:
+          is: 1.example.com`,
+			testCertWithSANs,
+			A{true, A{ReasonClientCertificateOK}, M{}},
+		},
+		{
+			"no uri match",
+			`allow:
+  or:
+    - client_certificate:
+        san_uri:
+          is: https://example.com/not-present`,
+			testCertWithSANs,
+			A{false, A{ReasonClientCertificateUnauthorized}, M{}},
+		},
+		{
+			"uri match",
+			`allow:
+  or:
+    - client_certificate:
+        san_uri:
+          is: 'https://example.com/uri-1'`,
+			testCertWithSANs,
 			A{true, A{ReasonClientCertificateOK}, M{}},
 		},
 	}
