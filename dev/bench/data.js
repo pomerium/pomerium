@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1706139991363,
+  "lastUpdate": 1706141318372,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -94312,6 +94312,42 @@ window.BENCHMARK_DATA = {
             "value": 6893672,
             "unit": "ns/op",
             "extra": "170 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "acbad4fb96f9a81dc2897c2e72b6189dde2327de",
+          "message": "policy: add client cert SAN match criteria (#4913)\n\nExpand the Certificate Matcher to support matching on DNS, email, or URI\r\nSubject Alternative Names, using the existing String Matcher conditions.",
+          "timestamp": "2024-01-24T16:05:22-08:00",
+          "tree_id": "fbc960f6b86a4f69a1c469f6f8f6caaf4e38bf97",
+          "url": "https://github.com/pomerium/pomerium/commit/acbad4fb96f9a81dc2897c2e72b6189dde2327de"
+        },
+        "date": 1706141310454,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9287695,
+            "unit": "ns/op",
+            "extra": "130 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6661868,
+            "unit": "ns/op",
+            "extra": "184 times\n4 procs"
           }
         ]
       }
