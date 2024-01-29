@@ -14,7 +14,6 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/types"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -72,16 +71,6 @@ func generateRegoFromYAML(raw string) (string, error) {
 		return "", err
 	}
 	return string(bs), nil
-}
-
-type dataBrokerRecord interface {
-	proto.Message
-	GetId() string
-}
-
-type structRecord struct {
-	*structpb.Struct
-	id string
 }
 
 func makeRecord(object interface {
