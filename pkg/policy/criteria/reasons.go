@@ -21,6 +21,8 @@ const (
 	ReasonDomainUnauthorized            = "domain-unauthorized"
 	ReasonEmailOK                       = "email-ok"
 	ReasonEmailUnauthorized             = "email-unauthorized"
+	ReasonGroupsOK                      = "groups-ok"
+	ReasonGroupsUnauthorized            = "groups-unauthorized"
 	ReasonHTTPMethodOK                  = "http-method-ok"
 	ReasonHTTPMethodUnauthorized        = "http-method-unauthorized"
 	ReasonHTTPPathOK                    = "http-path-ok"

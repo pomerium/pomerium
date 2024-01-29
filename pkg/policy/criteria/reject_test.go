@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 func TestReject(t *testing.T) {
@@ -11,7 +13,7 @@ func TestReject(t *testing.T) {
 allow:
   and:
     - reject: 1
-`, []dataBrokerRecord{}, Input{})
+`, []*databroker.Record{}, Input{})
 	require.NoError(t, err)
 	require.Equal(t, A{false, A{ReasonReject}, M{}}, res["allow"])
 	require.Equal(t, A{false, A{}}, res["deny"])

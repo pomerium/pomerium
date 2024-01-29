@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 func TestInvalidClientCertificate(t *testing.T) {
@@ -51,7 +53,7 @@ deny:
 		t.Run(c.label, func(t *testing.T) {
 			t.Parallel()
 
-			res, err := evaluate(t, policy, []dataBrokerRecord{}, c.input)
+			res, err := evaluate(t, policy, []*databroker.Record{}, c.input)
 			require.NoError(t, err)
 			assert.Equal(t, A{false, A{}}, res["allow"])
 			assert.Equal(t, c.expected, res["deny"])

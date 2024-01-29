@@ -14,7 +14,10 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/open-policy-agent/opa/types"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/policy/generator"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -76,9 +79,38 @@ type dataBrokerRecord interface {
 	GetId() string
 }
 
+type structRecord struct {
+	*structpb.Struct
+	id string
+}
+
+func makeRecord(object interface {
+	proto.Message
+	GetId() string
+},
+) *databroker.Record {
+	a := protoutil.NewAny(object)
+	return &databroker.Record{
+		Type:       a.GetTypeUrl(),
+		Id:         object.GetId(),
+		Data:       a,
+		ModifiedAt: timestamppb.Now(),
+	}
+}
+
+func makeStructRecord(recordType, recordID string, object interface{}) *databroker.Record {
+	s := protoutil.ToStruct(object).GetStructValue()
+	return &databroker.Record{
+		Type:       recordType,
+		Id:         recordID,
+		Data:       protoutil.NewAny(s),
+		ModifiedAt: timestamppb.Now(),
+	}
+}
+
 func evaluate(t *testing.T,
 	rawPolicy string,
-	dataBrokerRecords []dataBrokerRecord,
+	dataBrokerRecords []*databroker.Record,
 	input Input,
 ) (rego.Vars, error) {
 	regoPolicy, err := generateRegoFromYAML(rawPolicy)
@@ -106,10 +138,10 @@ func evaluate(t *testing.T,
 			}
 
 			for _, record := range dataBrokerRecords {
-				data := protoutil.NewAny(record)
-				if string(recordType) == data.GetTypeUrl() &&
+				if string(recordType) == record.GetType() &&
 					string(recordID) == record.GetId() {
-					bs, _ := json.Marshal(record)
+					msg, _ := record.GetData().UnmarshalNew()
+					bs, _ := json.Marshal(msg)
 					v, err := ast.ValueFromReader(bytes.NewReader(bs))
 					if err != nil {
 						return nil, err

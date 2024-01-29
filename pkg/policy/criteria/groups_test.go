@@ -5,36 +5,44 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
-func TestAuthenticatedUser(t *testing.T) {
+func TestGroups(t *testing.T) {
 	t.Run("no session", func(t *testing.T) {
 		res, err := evaluate(t, `
 allow:
   and:
-    - authenticated_user: 1
-`, nil, Input{Session: InputSession{ID: "SESSION_ID"}})
+    - groups:
+        has: group1
+    - groups:
+        has: group2
+`, []*databroker.Record{}, Input{Session: InputSession{ID: "session1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonUserUnauthenticated}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
 	})
-	t.Run("by domain", func(t *testing.T) {
+	t.Run("by id", func(t *testing.T) {
 		res, err := evaluate(t, `
 allow:
   and:
-    - authenticated_user: 1
+    - groups:
+        has: group1
 `,
 			[]*databroker.Record{
 				makeRecord(&session.Session{
-					Id:     "SESSION_ID",
-					UserId: "USER_ID",
+					Id:     "session1",
+					UserId: "user1",
+				}),
+				makeStructRecord(directory.UserRecordType, "user1", map[string]any{
+					"group_ids": []any{"group1"},
 				}),
 			},
-			Input{Session: InputSession{ID: "SESSION_ID"}})
+			Input{Session: InputSession{ID: "session1"}})
 		require.NoError(t, err)
-		require.Equal(t, A{true, A{ReasonUserOK}, M{}}, res["allow"])
+		require.Equal(t, A{true, A{ReasonGroupsOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
 	})
 }
