@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1706650099766,
+  "lastUpdate": 1706652941859,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -94516,6 +94516,42 @@ window.BENCHMARK_DATA = {
             "value": 6654023,
             "unit": "ns/op",
             "extra": "182 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e83b14bcd5dae5e5b3c96a582c8b865616a73cf7",
+          "message": "config: remove deprecated client_ca option (#4918)\n\nThe client_ca and client_ca_file settings were deprecated in v0.23.\r\nRemove these options and add a link to the corresponding explanation on\r\nthe Upgrading docs page.",
+          "timestamp": "2024-01-30T14:12:23-08:00",
+          "tree_id": "3e3df3d3f3f740f81931377dafed2ea7a2a0acaa",
+          "url": "https://github.com/pomerium/pomerium/commit/e83b14bcd5dae5e5b3c96a582c8b865616a73cf7"
+        },
+        "date": 1706652933983,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10222224,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6819848,
+            "unit": "ns/op",
+            "extra": "160 times\n4 procs"
           }
         ]
       }
