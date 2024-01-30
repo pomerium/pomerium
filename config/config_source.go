@@ -270,7 +270,6 @@ func getAllConfigFilePaths(cfg *Config) []string {
 	fs := []string{
 		cfg.Options.CAFile,
 		cfg.Options.CertFile,
-		cfg.Options.ClientCAFile,
 		cfg.Options.ClientSecretFile,
 		cfg.Options.CookieSecretFile,
 		cfg.Options.DataBrokerStorageCAFile,

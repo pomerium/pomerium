@@ -254,15 +254,6 @@ type Options struct {
 	DataBrokerStorageCAFile           string `mapstructure:"databroker_storage_ca_file" yaml:"databroker_storage_ca_file,omitempty"`
 	DataBrokerStorageCertSkipVerify   bool   `mapstructure:"databroker_storage_tls_skip_verify" yaml:"databroker_storage_tls_skip_verify,omitempty"`
 
-	// ClientCA is the base64-encoded certificate authority to validate client mTLS certificates against.
-	//
-	// Deprecated: Use DownstreamMTLS.CA instead.
-	ClientCA string `mapstructure:"client_ca" yaml:"client_ca,omitempty"`
-	// ClientCAFile points to a file that contains the certificate authority to validate client mTLS certificates against.
-	//
-	// Deprecated: Use DownstreamMTLS.CAFile instead.
-	ClientCAFile string `mapstructure:"client_ca_file" yaml:"client_ca_file,omitempty"`
-
 	// DownstreamMTLS holds all downstream mTLS settings.
 	DownstreamMTLS DownstreamMTLSSettings `mapstructure:"downstream_mtls" yaml:"downstream_mtls,omitempty"`
 
@@ -697,21 +688,6 @@ func (o *Options) Validate() error {
 	if o.DataBrokerStorageCAFile != "" {
 		if _, err := os.Stat(o.DataBrokerStorageCAFile); err != nil {
 			return fmt.Errorf("config: bad databroker ca file: %w", err)
-		}
-	}
-
-	if o.ClientCA != "" {
-		log.Warn(context.Background()).Msg("config: client_ca is deprecated, set " +
-			"downstream_mtls.ca instead")
-		if o.DownstreamMTLS.CA == "" {
-			o.DownstreamMTLS.CA = o.ClientCA
-		}
-	}
-	if o.ClientCAFile != "" {
-		log.Warn(context.Background()).Msg("config: client_ca_file is deprecated, set " +
-			"downstream_mtls.ca_file instead")
-		if o.DownstreamMTLS.CAFile == "" {
-			o.DownstreamMTLS.CAFile = o.ClientCAFile
 		}
 	}
 

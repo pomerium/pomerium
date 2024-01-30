@@ -26,7 +26,6 @@ import (
 
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/identity/oauth/apple"
-	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
 )
@@ -470,9 +469,9 @@ func Test_NewOptionsFromConfigEnvVar(t *testing.T) {
 		{"bad cert files", map[string]string{"INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM=", "CERTIFICATES": "./test-data/example-cert.pem"}, true},
 		{"good cert file", map[string]string{"CERTIFICATE_FILE": "./testdata/example-cert.pem", "CERTIFICATE_KEY_FILE": "./testdata/example-key.pem", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
 		{"bad cert file", map[string]string{"CERTIFICATE_FILE": "./testdata/example-cert-bad.pem", "CERTIFICATE_KEY_FILE": "./testdata/example-key-bad.pem", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
-		{"good client ca file", map[string]string{"CLIENT_CA_FILE": "./testdata/ca.pem", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
-		{"bad client ca file", map[string]string{"CLIENT_CA_FILE": "./testdata/bad-ca.pem", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
-		{"bad client ca b64", map[string]string{"CLIENT_CA": "bad cert", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
+		{"good client ca file", map[string]string{"DOWNSTREAM_MTLS_CA_FILE": "./testdata/ca.pem", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, false},
+		{"bad client ca file", map[string]string{"DOWNSTREAM_MTLS_CA_FILE": "./testdata/bad-ca.pem", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
+		{"bad client ca b64", map[string]string{"DOWNSTREAM_MTLS_CA": "bad cert", "INSECURE_SERVER": "true", "SHARED_SECRET": "YixWi1MYh77NMECGGIJQevoonYtVF+ZPRkQZrrmeRqM="}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -707,42 +706,6 @@ func TestCompareByteSliceSlice(t *testing.T) {
 				tt.a, tt.b, tt.expect, actual)
 		}
 	}
-}
-
-func TestDeprecatedClientCAOptions(t *testing.T) {
-	fakeCACert := []byte("--- FAKE CA CERT ---")
-	caFile := filepath.Join(t.TempDir(), "CA.pem")
-	os.WriteFile(caFile, fakeCACert, 0o644)
-
-	t.Run("CA", func(t *testing.T) {
-		o := NewDefaultOptions()
-		o.AutocertOptions.Enable = true // suppress an unrelated warning
-		o.ClientCA = "LS0tIEZBS0UgQ0EgQ0VSVCAtLS0="
-
-		var err error
-		logOutput := testutil.CaptureLogs(t, func() {
-			err = o.Validate()
-		})
-
-		require.NoError(t, err)
-		assert.Equal(t, "LS0tIEZBS0UgQ0EgQ0VSVCAtLS0=", o.DownstreamMTLS.CA)
-		assert.Contains(t, logOutput, `{"level":"warn","message":"config: client_ca is deprecated, set downstream_mtls.ca instead"}`)
-	})
-
-	t.Run("CAFile", func(t *testing.T) {
-		o := NewDefaultOptions()
-		o.AutocertOptions.Enable = true // suppress an unrelated warning
-		o.ClientCAFile = caFile
-
-		var err error
-		logOutput := testutil.CaptureLogs(t, func() {
-			err = o.Validate()
-		})
-
-		require.NoError(t, err)
-		assert.Equal(t, caFile, o.DownstreamMTLS.CAFile)
-		assert.Contains(t, logOutput, `{"level":"warn","message":"config: client_ca_file is deprecated, set downstream_mtls.ca_file instead"}`)
-	})
 }
 
 func TestHasAnyDownstreamMTLSClientCA(t *testing.T) {
