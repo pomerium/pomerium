@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
@@ -14,7 +15,7 @@ func TestAuthenticatedUser(t *testing.T) {
 allow:
   and:
     - authenticated_user: 1
-`, []dataBrokerRecord{}, Input{Session: InputSession{ID: "SESSION_ID"}})
+`, nil, Input{Session: InputSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonUserUnauthenticated}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -25,11 +26,11 @@ allow:
   and:
     - authenticated_user: 1
 `,
-			[]dataBrokerRecord{
-				&session.Session{
+			[]*databroker.Record{
+				makeRecord(&session.Session{
 					Id:     "SESSION_ID",
 					UserId: "USER_ID",
-				},
+				}),
 			},
 			Input{Session: InputSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)

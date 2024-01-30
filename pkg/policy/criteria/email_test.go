@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
@@ -17,7 +18,7 @@ allow:
   and:
     - email:
         is: test@example.com
-`, []dataBrokerRecord{}, Input{Session: InputSession{ID: "SESSION_ID"}})
+`, []*databroker.Record{}, Input{Session: InputSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonUserUnauthenticated}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -29,15 +30,15 @@ allow:
     - email:
         is: test@example.com
 `,
-			[]dataBrokerRecord{
-				&session.Session{
+			[]*databroker.Record{
+				makeRecord(&session.Session{
 					Id:     "SESSION_ID",
 					UserId: "USER_ID",
-				},
-				&user.User{
+				}),
+				makeRecord(&user.User{
 					Id:    "USER_ID",
 					Email: "test@example.com",
-				},
+				}),
 			},
 			Input{Session: InputSession{ID: "SESSION_ID"}})
 		require.NoError(t, err)
@@ -51,24 +52,24 @@ allow:
     - email:
         is: test2@example.com
 `,
-			[]dataBrokerRecord{
-				&session.Session{
+			[]*databroker.Record{
+				makeRecord(&session.Session{
 					Id:                   "SESSION1",
 					UserId:               "USER1",
 					ImpersonateSessionId: proto.String("SESSION2"),
-				},
-				&session.Session{
+				}),
+				makeRecord(&session.Session{
 					Id:     "SESSION2",
 					UserId: "USER2",
-				},
-				&user.User{
+				}),
+				makeRecord(&user.User{
 					Id:    "USER1",
 					Email: "test1@example.com",
-				},
-				&user.User{
+				}),
+				makeRecord(&user.User{
 					Id:    "USER2",
 					Email: "test2@example.com",
-				},
+				}),
 			},
 			Input{Session: InputSession{ID: "SESSION1"}})
 		require.NoError(t, err)

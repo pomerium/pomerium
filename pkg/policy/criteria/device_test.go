@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/device"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
@@ -25,7 +26,7 @@ allow:
   and:
     - device:
         is: dc1
-`, []dataBrokerRecord{}, Input{Session: InputSession{ID: "s1"}})
+`, nil, Input{Session: InputSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonUserUnauthenticated}, M{"device_type": "any"}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
@@ -36,8 +37,8 @@ allow:
   and:
     - device:
         is: dc1
-`, []dataBrokerRecord{
-			mkDeviceSession("s1", "any", "dc1"),
+`, []*databroker.Record{
+			makeRecord(mkDeviceSession("s1", "any", "dc1")),
 		}, Input{Session: InputSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonDeviceUnauthenticated}, M{"device_type": "any"}}, res["allow"])
@@ -49,10 +50,10 @@ allow:
   and:
     - device:
         is: dc1
-`, []dataBrokerRecord{
-			mkDeviceSession("s1", "any", "dc1"),
-			&device.Credential{Id: "dc1", EnrollmentId: "de1"},
-			&device.Enrollment{Id: "de1"},
+`, []*databroker.Record{
+			makeRecord(mkDeviceSession("s1", "any", "dc1")),
+			makeRecord(&device.Credential{Id: "dc1", EnrollmentId: "de1"}),
+			makeRecord(&device.Enrollment{Id: "de1"}),
 		}, Input{Session: InputSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonDeviceOK}, M{"device_type": "any"}}, res["allow"])
@@ -64,12 +65,12 @@ allow:
   and:
     - device:
         is: dc2
-`, []dataBrokerRecord{
-			mkDeviceSession("s1", "any", "dc1"),
-			&device.Credential{Id: "dc1", EnrollmentId: "de1"},
-			&device.Enrollment{Id: "de1"},
-			&device.Credential{Id: "dc2", EnrollmentId: "de2"},
-			&device.Enrollment{Id: "de2"},
+`, []*databroker.Record{
+			makeRecord(mkDeviceSession("s1", "any", "dc1")),
+			makeRecord(&device.Credential{Id: "dc1", EnrollmentId: "de1"}),
+			makeRecord(&device.Enrollment{Id: "de1"}),
+			makeRecord(&device.Credential{Id: "dc2", EnrollmentId: "de2"}),
+			makeRecord(&device.Enrollment{Id: "de2"}),
 		}, Input{Session: InputSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonDeviceUnauthorized}, M{"device_type": "any"}}, res["allow"])
@@ -81,10 +82,10 @@ allow:
   and:
     - device:
         approved: true
-`, []dataBrokerRecord{
-			mkDeviceSession("s1", "any", "dc1"),
-			&device.Credential{Id: "dc1", EnrollmentId: "de1"},
-			&device.Enrollment{Id: "de1", ApprovedBy: "u1"},
+`, []*databroker.Record{
+			makeRecord(mkDeviceSession("s1", "any", "dc1")),
+			makeRecord(&device.Credential{Id: "dc1", EnrollmentId: "de1"}),
+			makeRecord(&device.Enrollment{Id: "de1", ApprovedBy: "u1"}),
 		}, Input{Session: InputSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonDeviceOK}, M{"device_type": "any"}}, res["allow"])
@@ -96,10 +97,10 @@ allow:
   and:
     - device:
         approved: true
-`, []dataBrokerRecord{
-			mkDeviceSession("s1", "any", "dc1"),
-			&device.Credential{Id: "dc1", EnrollmentId: "de1"},
-			&device.Enrollment{Id: "de1"},
+`, []*databroker.Record{
+			makeRecord(mkDeviceSession("s1", "any", "dc1")),
+			makeRecord(&device.Credential{Id: "dc1", EnrollmentId: "de1"}),
+			makeRecord(&device.Enrollment{Id: "de1"}),
 		}, Input{Session: InputSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonDeviceUnauthorized}, M{"device_type": "any"}}, res["allow"])
@@ -111,10 +112,10 @@ allow:
   and:
     - device:
         approved: false
-`, []dataBrokerRecord{
-			mkDeviceSession("s1", "any", "dc1"),
-			&device.Credential{Id: "dc1", EnrollmentId: "de1"},
-			&device.Enrollment{Id: "de1"},
+`, []*databroker.Record{
+			makeRecord(mkDeviceSession("s1", "any", "dc1")),
+			makeRecord(&device.Credential{Id: "dc1", EnrollmentId: "de1"}),
+			makeRecord(&device.Enrollment{Id: "de1"}),
 		}, Input{Session: InputSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonDeviceOK}, M{"device_type": "any"}}, res["allow"])
@@ -126,10 +127,10 @@ allow:
   and:
     - device:
         approved: false
-`, []dataBrokerRecord{
-			mkDeviceSession("s1", "any", "dc1"),
-			&device.Credential{Id: "dc1", EnrollmentId: "de1"},
-			&device.Enrollment{Id: "de1", ApprovedBy: "u1"},
+`, []*databroker.Record{
+			makeRecord(mkDeviceSession("s1", "any", "dc1")),
+			makeRecord(&device.Credential{Id: "dc1", EnrollmentId: "de1"}),
+			makeRecord(&device.Enrollment{Id: "de1", ApprovedBy: "u1"}),
 		}, Input{Session: InputSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonDeviceUnauthorized}, M{"device_type": "any"}}, res["allow"])
@@ -141,10 +142,10 @@ allow:
   and:
     - device:
         type: t1
-`, []dataBrokerRecord{
-			mkDeviceSession("s1", "t1", "dc1"),
-			&device.Credential{Id: "dc1", EnrollmentId: "de1", TypeId: "t1"},
-			&device.Enrollment{Id: "de1", ApprovedBy: "u1"},
+`, []*databroker.Record{
+			makeRecord(mkDeviceSession("s1", "t1", "dc1")),
+			makeRecord(&device.Credential{Id: "dc1", EnrollmentId: "de1", TypeId: "t1"}),
+			makeRecord(&device.Enrollment{Id: "de1", ApprovedBy: "u1"}),
 		}, Input{Session: InputSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonDeviceOK}, M{"device_type": "t1"}}, res["allow"])
@@ -156,10 +157,10 @@ allow:
   and:
     - device:
         type: t2
-`, []dataBrokerRecord{
-			mkDeviceSession("s1", "t1", "dc1"),
-			&device.Credential{Id: "dc1", EnrollmentId: "de1", TypeId: "t1"},
-			&device.Enrollment{Id: "de1", ApprovedBy: "u1"},
+`, []*databroker.Record{
+			makeRecord(mkDeviceSession("s1", "t1", "dc1")),
+			makeRecord(&device.Credential{Id: "dc1", EnrollmentId: "de1", TypeId: "t1"}),
+			makeRecord(&device.Enrollment{Id: "de1", ApprovedBy: "u1"}),
 		}, Input{Session: InputSession{ID: "s1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{false, A{ReasonDeviceUnauthenticated}, M{"device_type": "t2"}}, res["allow"])
