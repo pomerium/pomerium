@@ -37,12 +37,33 @@ allow:
 					UserId: "user1",
 				}),
 				makeStructRecord(directory.UserRecordType, "user1", map[string]any{
-					"group_ids": []any{"group1"},
+					"group_ids": []any{"group1", "group2"},
 				}),
 			},
 			Input{Session: InputSession{ID: "session1"}})
 		require.NoError(t, err)
 		require.Equal(t, A{true, A{ReasonGroupsOK}, M{}}, res["allow"])
+		require.Equal(t, A{false, A{}}, res["deny"])
+	})
+	t.Run("not allowed", func(t *testing.T) {
+		res, err := evaluate(t, `
+allow:
+  and:
+    - groups:
+        has: group1
+`,
+			[]*databroker.Record{
+				makeRecord(&session.Session{
+					Id:     "session1",
+					UserId: "user1",
+				}),
+				makeStructRecord(directory.UserRecordType, "user1", map[string]any{
+					"group_ids": []any{"group2"},
+				}),
+			},
+			Input{Session: InputSession{ID: "session1"}})
+		require.NoError(t, err)
+		require.Equal(t, A{false, A{ReasonGroupsUnauthorized}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
 	})
 }
