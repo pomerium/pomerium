@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1706632658285,
+  "lastUpdate": 1706633010382,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -94448,6 +94448,42 @@ window.BENCHMARK_DATA = {
             "value": 7231110,
             "unit": "ns/op",
             "extra": "169 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6a833b365a1d3d1516b5344bbef25f7b1c71f3c1",
+          "message": "core/ppl: add groups criterion (#4916)\n\n* core/ppl: add groups criterion\r\n\r\n* remove dead code\r\n\r\n* add additional test",
+          "timestamp": "2024-01-30T09:40:15-07:00",
+          "tree_id": "0ec6014454cb48796357f87015bb6fb3741ca468",
+          "url": "https://github.com/pomerium/pomerium/commit/6a833b365a1d3d1516b5344bbef25f7b1c71f3c1"
+        },
+        "date": 1706633002551,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10116422,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6780822,
+            "unit": "ns/op",
+            "extra": "180 times\n4 procs"
           }
         ]
       }
