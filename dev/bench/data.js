@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1706633010382,
+  "lastUpdate": 1706650099766,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -94484,6 +94484,38 @@ window.BENCHMARK_DATA = {
             "value": 6780822,
             "unit": "ns/op",
             "extra": "180 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "b45565fd4447c8f5de40dd50517b6cce2af4d5e5",
+          "message": "config: remove deprecated client_ca option",
+          "timestamp": "2024-01-30T07:50:19Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4918/commits/b45565fd4447c8f5de40dd50517b6cce2af4d5e5"
+        },
+        "date": 1706650092565,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9516772,
+            "unit": "ns/op",
+            "extra": "127 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6654023,
+            "unit": "ns/op",
+            "extra": "182 times\n4 procs"
           }
         ]
       }
