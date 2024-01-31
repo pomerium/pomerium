@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1706741782222,
+  "lastUpdate": 1706745373887,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -94584,6 +94584,42 @@ window.BENCHMARK_DATA = {
             "value": 6149163,
             "unit": "ns/op",
             "extra": "189 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d38874c7f71b195cdd39b2ea305cc345b72218a7",
+          "message": "chore(deps): bump github.com/opencontainers/runc from 1.1.5 to 1.1.12 (#4919)\n\nBumps [github.com/opencontainers/runc](https://github.com/opencontainers/runc) from 1.1.5 to 1.1.12.\r\n- [Release notes](https://github.com/opencontainers/runc/releases)\r\n- [Changelog](https://github.com/opencontainers/runc/blob/v1.1.12/CHANGELOG.md)\r\n- [Commits](https://github.com/opencontainers/runc/compare/v1.1.5...v1.1.12)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/opencontainers/runc\r\n  dependency-type: indirect\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-01-31T15:52:50-08:00",
+          "tree_id": "10f67cc230bf7d62061fdb4e2a7fc8482d089850",
+          "url": "https://github.com/pomerium/pomerium/commit/d38874c7f71b195cdd39b2ea305cc345b72218a7"
+        },
+        "date": 1706745366196,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9497132,
+            "unit": "ns/op",
+            "extra": "124 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6787168,
+            "unit": "ns/op",
+            "extra": "181 times\n4 procs"
           }
         ]
       }
