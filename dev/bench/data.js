@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1706811227610,
+  "lastUpdate": 1706811315900,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -96328,6 +96328,42 @@ window.BENCHMARK_DATA = {
             "value": 7207249,
             "unit": "ns/op",
             "extra": "170 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "454361d714fc4ef5eac4069665e497e781a22787",
+          "message": "chore(deps): bump go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc from 0.44.0 to 0.45.0 (#4947)\n\nchore(deps): bump go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc\r\n\r\nBumps [go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc](https://github.com/open-telemetry/opentelemetry-go) from 0.44.0 to 0.45.0.\r\n- [Release notes](https://github.com/open-telemetry/opentelemetry-go/releases)\r\n- [Changelog](https://github.com/open-telemetry/opentelemetry-go/blob/main/CHANGELOG.md)\r\n- [Commits](https://github.com/open-telemetry/opentelemetry-go/compare/bridge/opencensus/v0.44.0...bridge/opencensus/v0.45.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-02-01T11:10:40-07:00",
+          "tree_id": "f328979cd90f7298219ccbf396e6f0330987266d",
+          "url": "https://github.com/pomerium/pomerium/commit/454361d714fc4ef5eac4069665e497e781a22787"
+        },
+        "date": 1706811308599,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8935517,
+            "unit": "ns/op",
+            "extra": "134 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6214345,
+            "unit": "ns/op",
+            "extra": "188 times\n4 procs"
           }
         ]
       }
