@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1706805341070,
+  "lastUpdate": 1706805405948,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -94980,6 +94980,38 @@ window.BENCHMARK_DATA = {
             "value": 7171972,
             "unit": "ns/op",
             "extra": "160 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "602dd6e95dac70376768254373136f10f125b4cb",
+          "message": "chore(deps): bump go.opentelemetry.io/otel from 1.21.0 to 1.22.0",
+          "timestamp": "2024-02-01T06:54:34Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4929/commits/602dd6e95dac70376768254373136f10f125b4cb"
+        },
+        "date": 1706805398809,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 11271948,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7528892,
+            "unit": "ns/op",
+            "extra": "154 times\n4 procs"
           }
         ]
       }
