@@ -20,7 +20,7 @@ require (
 	github.com/cloudflare/circl v1.3.7
 	github.com/coreos/go-oidc/v3 v3.9.0
 	github.com/docker/docker v24.0.7+incompatible
-	github.com/envoyproxy/go-control-plane v0.11.1
+	github.com/envoyproxy/go-control-plane v0.12.0
 	github.com/envoyproxy/protoc-gen-validate v1.0.2
 	github.com/go-chi/chi/v5 v5.0.11
 	github.com/go-jose/go-jose/v3 v3.0.1
