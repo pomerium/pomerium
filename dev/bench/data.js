@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1706825846215,
+  "lastUpdate": 1706825941719,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -96844,6 +96844,42 @@ window.BENCHMARK_DATA = {
             "value": 6530045,
             "unit": "ns/op",
             "extra": "184 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d5d0af1d451cce97705d2f23622706e66ad415f0",
+          "message": "chore(deps): bump github.com/envoyproxy/go-control-plane from 0.11.1 to 0.12.0 (#4935)\n\nchore(deps): bump github.com/envoyproxy/go-control-plane\r\n\r\nBumps [github.com/envoyproxy/go-control-plane](https://github.com/envoyproxy/go-control-plane) from 0.11.1 to 0.12.0.\r\n- [Release notes](https://github.com/envoyproxy/go-control-plane/releases)\r\n- [Changelog](https://github.com/envoyproxy/go-control-plane/blob/main/CHANGELOG.md)\r\n- [Commits](https://github.com/envoyproxy/go-control-plane/compare/v0.11.1...v0.12.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/envoyproxy/go-control-plane\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-02-01T17:15:54-05:00",
+          "tree_id": "74eebbc8c3af0912e11c26356b03cf3839ccc50a",
+          "url": "https://github.com/pomerium/pomerium/commit/d5d0af1d451cce97705d2f23622706e66ad415f0"
+        },
+        "date": 1706825929441,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8904289,
+            "unit": "ns/op",
+            "extra": "133 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6145280,
+            "unit": "ns/op",
+            "extra": "190 times\n4 procs"
           }
         ]
       }
