@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -41,13 +40,6 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 		Methods(http.MethodGet)
 
 	return r
-}
-
-// RobotsTxt sets the User-Agent header in the response to be "Disallow"
-func (p *Proxy) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "User-agent: *\nDisallow: /")
 }
 
 // SignOut clears the local session and redirects the request to the sign out url.

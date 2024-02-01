@@ -68,10 +68,6 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 			b.buildControlPlanePathRoute(options, "/.well-known/pomerium"),
 			b.buildControlPlanePrefixRoute(options, "/.well-known/pomerium/"),
 		)
-		// per #837, only add robots.txt if there are no unauthenticated routes
-		if !hasPublicPolicyMatchingURL(options, url.URL{Scheme: "https", Host: host, Path: "/robots.txt"}) {
-			routes = append(routes, b.buildControlPlanePathRoute(options, "/robots.txt"))
-		}
 	}
 
 	authRoutes, err := b.buildPomeriumAuthenticateHTTPRoutes(options, host)

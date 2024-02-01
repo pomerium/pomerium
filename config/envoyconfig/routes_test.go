@@ -110,7 +110,6 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			`+routeString("prefix", "/.pomerium/")+`,
 			`+routeString("path", "/.well-known/pomerium")+`,
 			`+routeString("prefix", "/.well-known/pomerium/")+`,
-			`+routeString("path", "/robots.txt")+`,
 			`+routeString("path", "/oauth2/callback")+`,
 			`+routeString("path", "/")+`
 		]`, routes)
@@ -147,7 +146,6 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			`+routeString("prefix", "/.pomerium/")+`,
 			`+routeString("path", "/.well-known/pomerium")+`,
 			`+routeString("prefix", "/.well-known/pomerium/")+`,
-			`+routeString("path", "/robots.txt")+`
 		]`, routes)
 	})
 

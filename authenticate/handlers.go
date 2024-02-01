@@ -62,7 +62,6 @@ func (a *Authenticate) Mount(r *mux.Router) {
 	// redirect / to /.pomerium/
 	r.Path("/").Handler(http.RedirectHandler("/.pomerium/", http.StatusFound))
 
-	r.Path("/robots.txt").HandlerFunc(a.RobotsTxt).Methods(http.MethodGet)
 	// Identity Provider (IdP) endpoints
 	r.Path("/oauth2/callback").Handler(httputil.HandlerFunc(a.OAuthCallback)).Methods(http.MethodGet, http.MethodPost)
 
@@ -148,13 +147,6 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 		return nil
 	})
-}
-
-// RobotsTxt handles the /robots.txt route.
-func (a *Authenticate) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "User-agent: *\nDisallow: /")
 }
 
 // SignIn handles authenticating a user.

@@ -47,7 +47,6 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 					`+protojson.Format(b.buildControlPlanePrefixRoute(cfg.Options, "/.pomerium/"))+`,
 					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/.well-known/pomerium"))+`,
 					`+protojson.Format(b.buildControlPlanePrefixRoute(cfg.Options, "/.well-known/pomerium/"))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/robots.txt"))+`,
 					{
 						"name": "policy-0",
 						"match": {

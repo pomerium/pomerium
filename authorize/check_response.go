@@ -136,6 +136,10 @@ func (a *Authorize) deniedResponse(
 
 	var respBody []byte
 	switch {
+	case getCheckRequestURL(in).Path == "/robots.txt":
+		respBody = []byte("User-agent: *\nDisallow: /")
+		respHeader = append(respHeader,
+			mkHeader("Content-Type", "text/plain"))
 	case isJSONWebRequest(in):
 		respBody, _ = json.Marshal(map[string]any{
 			"error":      reason,
@@ -369,7 +373,11 @@ func isGRPCWebRequest(in *envoy_service_auth_v3.CheckRequest) bool {
 		return false
 	}
 
-	return accept.Acceptable("application/grpc-web-text")
+	mediaType, _ := accept.MostAcceptable([]string{
+		"text/html",
+		"application/grpc-web-text",
+	})
+	return mediaType == "application/grpc-web-text"
 }
 
 func isJSONWebRequest(in *envoy_service_auth_v3.CheckRequest) bool {
@@ -388,7 +396,11 @@ func isJSONWebRequest(in *envoy_service_auth_v3.CheckRequest) bool {
 		return false
 	}
 
-	return accept.Acceptable("application/json")
+	mediaType, _ := accept.MostAcceptable([]string{
+		"text/html",
+		"application/json",
+	})
+	return mediaType == "application/json"
 }
 
 func getHeader(hdrs map[string]string, key string) string {
