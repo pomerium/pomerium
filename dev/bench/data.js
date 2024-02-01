@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1706811322787,
+  "lastUpdate": 1706811348047,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -96396,6 +96396,42 @@ window.BENCHMARK_DATA = {
             "value": 6554463,
             "unit": "ns/op",
             "extra": "183 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c82272faa978aed3d700bb99ee57459024ab48fd",
+          "message": "chore(deps): bump go.opentelemetry.io/otel/sdk/metric from 1.21.0 to 1.22.0 (#4946)\n\nchore(deps): bump go.opentelemetry.io/otel/sdk/metric\r\n\r\nBumps [go.opentelemetry.io/otel/sdk/metric](https://github.com/open-telemetry/opentelemetry-go) from 1.21.0 to 1.22.0.\r\n- [Release notes](https://github.com/open-telemetry/opentelemetry-go/releases)\r\n- [Changelog](https://github.com/open-telemetry/opentelemetry-go/blob/main/CHANGELOG.md)\r\n- [Commits](https://github.com/open-telemetry/opentelemetry-go/compare/v1.21.0...v1.22.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: go.opentelemetry.io/otel/sdk/metric\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-02-01T11:10:55-07:00",
+          "tree_id": "f328979cd90f7298219ccbf396e6f0330987266d",
+          "url": "https://github.com/pomerium/pomerium/commit/c82272faa978aed3d700bb99ee57459024ab48fd"
+        },
+        "date": 1706811340478,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10297718,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6991577,
+            "unit": "ns/op",
+            "extra": "174 times\n4 procs"
           }
         ]
       }
