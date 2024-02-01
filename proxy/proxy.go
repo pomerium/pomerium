@@ -112,7 +112,6 @@ func (p *Proxy) setHandlers(opts *config.Options) error {
 	})
 	r.SkipClean(true)
 	r.StrictSlash(true)
-	r.HandleFunc("/robots.txt", p.RobotsTxt).Methods(http.MethodGet)
 	// dashboard handlers are registered to all routes
 	r = p.registerDashboardHandlers(r)
 

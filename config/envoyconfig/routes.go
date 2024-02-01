@@ -68,10 +68,6 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 			b.buildControlPlanePathRoute(options, "/.well-known/pomerium"),
 			b.buildControlPlanePrefixRoute(options, "/.well-known/pomerium/"),
 		)
-		// per #837, only add robots.txt if there are no unauthenticated routes
-		if !hasPublicPolicyMatchingURL(options, url.URL{Scheme: "https", Host: host, Path: "/robots.txt"}) {
-			routes = append(routes, b.buildControlPlanePathRoute(options, "/robots.txt"))
-		}
 	}
 
 	authRoutes, err := b.buildPomeriumAuthenticateHTTPRoutes(options, host)
@@ -102,6 +98,7 @@ func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(
 			return []*envoy_config_route_v3.Route{
 				b.buildControlPlanePathRoute(options, options.AuthenticateCallbackPath),
 				b.buildControlPlanePathRoute(options, "/"),
+				b.buildControlPlanePathRoute(options, "/robots.txt"),
 			}, nil
 		}
 	}
@@ -607,15 +604,6 @@ func setHostRewriteOptions(policy *config.Policy, action *envoy_config_route_v3.
 			AutoHostRewrite: wrapperspb.Bool(true),
 		}
 	}
-}
-
-func hasPublicPolicyMatchingURL(options *config.Options, requestURL url.URL) bool {
-	for _, policy := range options.GetAllPolicies() {
-		if policy.AllowPublicUnauthenticatedAccess && policy.Matches(requestURL) {
-			return true
-		}
-	}
-	return false
 }
 
 func isProxyFrontingAuthenticate(options *config.Options, host string) (bool, error) {
