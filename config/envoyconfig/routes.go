@@ -606,15 +606,6 @@ func setHostRewriteOptions(policy *config.Policy, action *envoy_config_route_v3.
 	}
 }
 
-func hasPublicPolicyMatchingURL(options *config.Options, requestURL url.URL) bool {
-	for _, policy := range options.GetAllPolicies() {
-		if policy.AllowPublicUnauthenticatedAccess && policy.Matches(requestURL) {
-			return true
-		}
-	}
-	return false
-}
-
 func isProxyFrontingAuthenticate(options *config.Options, host string) (bool, error) {
 	authenticateURL, err := options.GetAuthenticateURL()
 	if err != nil {

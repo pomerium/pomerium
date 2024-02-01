@@ -111,7 +111,8 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			`+routeString("path", "/.well-known/pomerium")+`,
 			`+routeString("prefix", "/.well-known/pomerium/")+`,
 			`+routeString("path", "/oauth2/callback")+`,
-			`+routeString("path", "/")+`
+			`+routeString("path", "/")+`,
+			`+routeString("path", "/robots.txt")+`
 		]`, routes)
 	})
 	t.Run("proxy fronting authenticate", func(t *testing.T) {
@@ -123,55 +124,6 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, "null", routes)
-	})
-
-	t.Run("with robots", func(t *testing.T) {
-		options := &config.Options{
-			Services:                 "all",
-			AuthenticateURLString:    "https://authenticate.example.com",
-			AuthenticateCallbackPath: "/oauth2/callback",
-			Policies: []config.Policy{{
-				From: "https://from.example.com",
-				To:   mustParseWeightedURLs(t, "https://to.example.com"),
-			}},
-		}
-		_ = options.Policies[0].Validate()
-		routes, err := b.buildPomeriumHTTPRoutes(options, "from.example.com")
-		require.NoError(t, err)
-
-		testutil.AssertProtoJSONEqual(t, `[
-			`+routeString("path", "/ping")+`,
-			`+routeString("path", "/healthz")+`,
-			`+routeString("path", "/.pomerium")+`,
-			`+routeString("prefix", "/.pomerium/")+`,
-			`+routeString("path", "/.well-known/pomerium")+`,
-			`+routeString("prefix", "/.well-known/pomerium/")+`,
-		]`, routes)
-	})
-
-	t.Run("without robots", func(t *testing.T) {
-		options := &config.Options{
-			Services:                 "all",
-			AuthenticateURLString:    "https://authenticate.example.com",
-			AuthenticateCallbackPath: "/oauth2/callback",
-			Policies: []config.Policy{{
-				From:                             "https://from.example.com",
-				To:                               mustParseWeightedURLs(t, "https://to.example.com"),
-				AllowPublicUnauthenticatedAccess: true,
-			}},
-		}
-		_ = options.Policies[0].Validate()
-		routes, err := b.buildPomeriumHTTPRoutes(options, "from.example.com")
-		require.NoError(t, err)
-
-		testutil.AssertProtoJSONEqual(t, `[
-			`+routeString("path", "/ping")+`,
-			`+routeString("path", "/healthz")+`,
-			`+routeString("path", "/.pomerium")+`,
-			`+routeString("prefix", "/.pomerium/")+`,
-			`+routeString("path", "/.well-known/pomerium")+`,
-			`+routeString("prefix", "/.well-known/pomerium/")+`
-		]`, routes)
 	})
 }
 

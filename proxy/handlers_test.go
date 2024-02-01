@@ -16,20 +16,6 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
-func TestProxy_RobotsTxt(t *testing.T) {
-	proxy := Proxy{}
-	req := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
-	rr := httptest.NewRecorder()
-	proxy.RobotsTxt(rr, req)
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-	}
-	expected := "User-agent: *\nDisallow: /"
-	if rr.Body.String() != expected {
-		t.Errorf("handler returned wrong body: got %v want %v", rr.Body.String(), expected)
-	}
-}
-
 func TestProxy_SignOut(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
