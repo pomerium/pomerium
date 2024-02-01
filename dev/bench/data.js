@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1706829057452,
+  "lastUpdate": 1706829582836,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -97076,6 +97076,42 @@ window.BENCHMARK_DATA = {
             "value": 6799871,
             "unit": "ns/op",
             "extra": "172 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "55eb2fa3dc921ac19e7c22907bcac6e40a77c9fb",
+          "message": "core/authorize: result denied improvements (#4952)\n\n* core/authorize: result denied improvements\r\n\r\n* add authenticate robots.txt\r\n\r\n* fix tests",
+          "timestamp": "2024-02-01T16:16:33-07:00",
+          "tree_id": "cc62569004d8609b78be23baa6b8e44e1d07861a",
+          "url": "https://github.com/pomerium/pomerium/commit/55eb2fa3dc921ac19e7c22907bcac6e40a77c9fb"
+        },
+        "date": 1706829570211,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10815606,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7483705,
+            "unit": "ns/op",
+            "extra": "165 times\n4 procs"
           }
         ]
       }
