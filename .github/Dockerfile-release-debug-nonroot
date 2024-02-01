@@ -1,4 +1,4 @@
-FROM busybox:latest@sha256:ba76950ac9eaa407512c9d859cea48114eeff8a6f12ebaa5d32ce79d4a017dd8 as build
+FROM busybox:latest@sha256:6d9ac9237a84afe1516540f40a0fafdc86859b2141954b4d643af7066d598b74 as build
 RUN touch /config.yaml
 
 FROM gcr.io/distroless/base-debian12:debug-nonroot@sha256:8548e3041a2cc583998c6a6beabf13ae93e6b006a5f6a6194966b4327ea741f5
