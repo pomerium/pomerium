@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1706805747784,
+  "lastUpdate": 1706805754969,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -95172,6 +95172,38 @@ window.BENCHMARK_DATA = {
             "value": 6634254,
             "unit": "ns/op",
             "extra": "174 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "61d5ca50cc0ba10dcb683a3da6516b4dee5c9254",
+          "message": "chore(deps): bump github.com/envoyproxy/go-control-plane from 0.11.1 to 0.12.0",
+          "timestamp": "2024-02-01T06:54:34Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4935/commits/61d5ca50cc0ba10dcb683a3da6516b4dee5c9254"
+        },
+        "date": 1706805746758,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9230842,
+            "unit": "ns/op",
+            "extra": "128 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6516377,
+            "unit": "ns/op",
+            "extra": "178 times\n4 procs"
           }
         ]
       }
