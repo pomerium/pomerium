@@ -98,6 +98,7 @@ func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(
 			return []*envoy_config_route_v3.Route{
 				b.buildControlPlanePathRoute(options, options.AuthenticateCallbackPath),
 				b.buildControlPlanePathRoute(options, "/"),
+				b.buildControlPlanePathRoute(options, "/robots.txt"),
 			}, nil
 		}
 	}

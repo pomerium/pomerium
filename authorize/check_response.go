@@ -137,6 +137,7 @@ func (a *Authorize) deniedResponse(
 	var respBody []byte
 	switch {
 	case getCheckRequestURL(in).Path == "/robots.txt":
+		code = 200
 		respBody = []byte("User-agent: *\nDisallow: /")
 		respHeader = append(respHeader,
 			mkHeader("Content-Type", "text/plain"))
