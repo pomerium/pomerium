@@ -45,7 +45,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: gcloud authenticate
-        uses: google-github-actions/auth@67e9c72af6e0492df856527b474995862b7b6591
+        uses: google-github-actions/auth@5a50e581162a13f4baa8916d01180d2acbc04363
         with:
           project_id: ${{ secrets.GCP_PRODUCTION_PROJECT_ID }}
           credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
