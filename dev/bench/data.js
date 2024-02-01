@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1706826163281,
+  "lastUpdate": 1706828907692,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -97008,6 +97008,42 @@ window.BENCHMARK_DATA = {
             "value": 6815821,
             "unit": "ns/op",
             "extra": "177 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "61a9bd7c6b975e7f777e4aac0f0f7a6995e86591",
+          "message": "chore(deps): bump github.com/envoyproxy/protoc-gen-validate from 1.0.2 to 1.0.4 (#4945)\n\nchore(deps): bump github.com/envoyproxy/protoc-gen-validate\r\n\r\nBumps [github.com/envoyproxy/protoc-gen-validate](https://github.com/envoyproxy/protoc-gen-validate) from 1.0.2 to 1.0.4.\r\n- [Release notes](https://github.com/envoyproxy/protoc-gen-validate/releases)\r\n- [Changelog](https://github.com/bufbuild/protoc-gen-validate/blob/main/.goreleaser.yaml)\r\n- [Commits](https://github.com/envoyproxy/protoc-gen-validate/compare/v1.0.2...v1.0.4)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/envoyproxy/protoc-gen-validate\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-02-01T15:05:17-08:00",
+          "tree_id": "17a5d3cc97282a569fa7ba4da3282c4a5b4f0da9",
+          "url": "https://github.com/pomerium/pomerium/commit/61a9bd7c6b975e7f777e4aac0f0f7a6995e86591"
+        },
+        "date": 1706828894575,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10221853,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7821370,
+            "unit": "ns/op",
+            "extra": "151 times\n4 procs"
           }
         ]
       }
