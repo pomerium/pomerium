@@ -55,6 +55,43 @@ const (
 	ConfigDBErrors = "config_db_errors"
 	// ConfigDBErrorsHelp is the help text for ConfigDBErrors.
 	ConfigDBErrorsHelp = "amount of errors observed while applying databroker config; -1 if validation failed and was rejected altogether"
+
+	// PgxpoolAcquireCount is the cumulative count of successful acquires from
+	// the current database connection pool.
+	PgxpoolAcquireCount = "pgxpool_acquire_count"
+	// PgxpoolAcquireDuration is the total duration of all successful acquires
+	// from the current database connection pool.
+	PgxpoolAcquireDurationSeconds = "pgxpool_acquire_duration_seconds"
+	// PgxpoolAcquiredConns is the number of currently acquired connections in
+	// the current database connection pool.
+	PgxpoolAcquiredConns = "pgxpool_acquired_conns"
+	// PgxpoolCanceledAcquireCount is the cumulative count of acquires from the
+	// current database connection pool that were canceled by a context.
+	PgxpoolCanceledAcquireCount = "pgxpool_canceled_acquire_count"
+	// PgxpoolConstructingConns is the number of conns with construction in
+	// progress in the current database connection pool.
+	PgxpoolConstructingConns = "pgxpool_constructing_conns"
+	// PgxpoolEmptyAcquireCount is the cumulative count of successful acquires
+	// from the current database connection pool that waited for a resource to
+	// be released or constructed because the pool was empty.
+	PgxpoolEmptyAcquireCount = "pgxpool_empty_acquire_count"
+	// PgxpoolIdleConns is the number of currently idle conns in the current
+	// database connection pool.
+	PgxpoolIdleConns = "pgxpool_idle_conns"
+	// PgxpoolMaxConns is the maximum size of the current database connection
+	// pool.
+	PgxpoolMaxConns = "pgxpool_max_conns"
+	// PgxpoolMaxIdleDestroyCount is the cumulative count of connections
+	// destroyed by the current database connection pool because they exceeded
+	// the MaxConnIdleTime.
+	PgxpoolMaxIdleDestroyCount = "pgxpool_max_idle_destroy_count"
+	// PgxpoolMaxLifetimeDestroyCount is the cumulative count of connections
+	// destroyed by the current database connection pool because they exceeded
+	// the MaxConnLifetime.
+	PgxpoolMaxLifetimeDestroyCount = "pgxpool_max_lifetime_destroy_count"
+	// PgxpoolNewConnsCount is the cumulative count of new connections opened
+	// by the current database connection pool.
+	PgxpoolNewConnsCount = "pgxpool_new_conns_count"
 )
 
 // labels
