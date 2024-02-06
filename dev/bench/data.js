@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1707188379571,
+  "lastUpdate": 1707238624149,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -97284,6 +97284,42 @@ window.BENCHMARK_DATA = {
             "value": 7380714,
             "unit": "ns/op",
             "extra": "160 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f9808a73baa585e7d70a954f82e734ea8cee8167",
+          "message": "integration: unauthorized response Content-Type (#4956)\n\nModify the request 'Accept' header to behave more like a web browser,\r\nand add an assertion to verify that Pomerium serves an HTML response for\r\nthe unauthorized error page.",
+          "timestamp": "2024-02-06T08:53:58-08:00",
+          "tree_id": "7f4a42eb9a08a01476cb5b9ce27b583cbb94338c",
+          "url": "https://github.com/pomerium/pomerium/commit/f9808a73baa585e7d70a954f82e734ea8cee8167"
+        },
+        "date": 1707238616764,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9270151,
+            "unit": "ns/op",
+            "extra": "120 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6692766,
+            "unit": "ns/op",
+            "extra": "186 times\n4 procs"
           }
         ]
       }
