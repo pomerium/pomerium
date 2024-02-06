@@ -28,6 +28,7 @@ type authenticateConfig struct {
 	groups          []string
 	tokenExpiration time.Duration
 	apiPath         string
+	requestHeaders  http.Header
 }
 
 // An AuthenticateOption is an option for authentication.
@@ -36,6 +37,7 @@ type AuthenticateOption func(cfg *authenticateConfig)
 func getAuthenticateConfig(options ...AuthenticateOption) *authenticateConfig {
 	cfg := &authenticateConfig{
 		tokenExpiration: time.Hour * 24,
+		requestHeaders:  http.Header{},
 	}
 	for _, option := range options {
 		if option != nil {
@@ -70,6 +72,12 @@ func WithTokenExpiration(tokenExpiration time.Duration) AuthenticateOption {
 func WithAPI() AuthenticateOption {
 	return func(cfg *authenticateConfig) {
 		cfg.apiPath = pomeriumAPIPath
+	}
+}
+
+func WithRequestHeader(name, value string) AuthenticateOption {
+	return func(cfg *authenticateConfig) {
+		cfg.requestHeaders.Set(name, value)
 	}
 }
 
@@ -168,6 +176,7 @@ func Authenticate(ctx context.Context, client *http.Client, url *url.URL, option
 			if err != nil {
 				return nil, err
 			}
+			addRequestHeaders(req, cfg.requestHeaders)
 		} else {
 			req, err = requestFromRedirectResponse(ctx, res, req)
 			if err != nil {
@@ -238,5 +247,12 @@ func requestFromRedirectResponse(ctx context.Context, res *http.Response, req *h
 	if err != nil {
 		return nil, err
 	}
+	addRequestHeaders(newreq, req.Header)
 	return newreq, nil
+}
+
+func addRequestHeaders(req *http.Request, headers http.Header) {
+	for h := range headers {
+		req.Header[h] = headers[h]
+	}
 }
