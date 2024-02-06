@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1707158856636,
+  "lastUpdate": 1707182330716,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -97216,6 +97216,42 @@ window.BENCHMARK_DATA = {
             "value": 7411026,
             "unit": "ns/op",
             "extra": "166 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7edd538be770d5f655eaa763c761e0877e1aa5d7",
+          "message": "zero/bootstrap: reset back to inmem databroker if connection string is empty (#4955)",
+          "timestamp": "2024-02-05T20:15:33-05:00",
+          "tree_id": "6523fe84442969c03b6eecc5951a55e9053ba053",
+          "url": "https://github.com/pomerium/pomerium/commit/7edd538be770d5f655eaa763c761e0877e1aa5d7"
+        },
+        "date": 1707182322081,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9648617,
+            "unit": "ns/op",
+            "extra": "120 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6953224,
+            "unit": "ns/op",
+            "extra": "174 times\n4 procs"
           }
         ]
       }
