@@ -83,7 +83,10 @@ func (src *source) notifyListeners(ctx context.Context, cfg *config.Config) {
 
 func applyBootstrapConfig(dst *config.Options, src *cluster_api.BootstrapConfig) {
 	if src.DatabrokerStorageConnection != nil {
-		dst.DataBrokerStorageType = "postgres"
+		dst.DataBrokerStorageType = config.StoragePostgresName
 		dst.DataBrokerStorageConnectionString = *src.DatabrokerStorageConnection
+	} else {
+		dst.DataBrokerStorageType = config.StorageInMemoryName
+		dst.DataBrokerStorageConnectionString = ""
 	}
 }
