@@ -291,6 +291,11 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			ResponseCode:   pb.Redirect.ResponseCode,
 			StripQuery:     pb.Redirect.StripQuery,
 		}
+	} else if pb.Response != nil {
+		p.Response = &DirectResponse{
+			Status: int(pb.Response.GetStatus()),
+			Body:   pb.Response.GetBody(),
+		}
 	} else {
 		to, err := ParseWeightedUrls(pb.GetTo()...)
 		if err != nil {
@@ -411,6 +416,11 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 			PrefixRewrite:  p.Redirect.PrefixRewrite,
 			ResponseCode:   p.Redirect.ResponseCode,
 			StripQuery:     p.Redirect.StripQuery,
+		}
+	} else if p.Response != nil {
+		pb.Response = &configpb.RouteDirectResponse{
+			Status: uint32(p.Response.Status),
+			Body:   p.Response.Body,
 		}
 	} else {
 		to, weights, err := p.To.Flatten()
