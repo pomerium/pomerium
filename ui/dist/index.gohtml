@@ -25,14 +25,14 @@
       name="viewport"
       content="width=device-width, initial-scale=1, shrink-to-fit=no"
     />
-    <title>User info dashboard</title>
+    <title>{{.Title}}</title>
     <link rel="stylesheet" href="/.pomerium/index.css" />
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
     <script>
-      window.POMERIUM_DATA = {};
+      window.POMERIUM_DATA = {{.Data}};
     </script>
     <script src="/.pomerium/index.js"></script>
   </body>
