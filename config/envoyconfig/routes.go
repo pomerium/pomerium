@@ -282,6 +282,9 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 			return nil, err
 		}
 		route.Action = &envoy_config_route_v3.Route_Redirect{Redirect: action}
+	} else if policy.Response != nil {
+		action := b.buildPolicyRouteDirectResponseAction(policy.Response)
+		route.Action = &envoy_config_route_v3.Route_DirectResponse{DirectResponse: action}
 	} else {
 		action, err := b.buildPolicyRouteRouteAction(cfg.Options, policy)
 		if err != nil {
@@ -341,6 +344,17 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		"envoy.filters.http.lua": {Fields: luaMetadata},
 	}
 	return route, nil
+}
+
+func (b *Builder) buildPolicyRouteDirectResponseAction(r *config.DirectResponse) *envoy_config_route_v3.DirectResponseAction {
+	return &envoy_config_route_v3.DirectResponseAction{
+		Status: uint32(r.Status),
+		Body: &envoy_config_core_v3.DataSource{
+			Specifier: &envoy_config_core_v3.DataSource_InlineString{
+				InlineString: r.Body,
+			},
+		},
+	}
 }
 
 func (b *Builder) buildPolicyRouteRedirectAction(r *config.PolicyRedirect) (*envoy_config_route_v3.RedirectAction, error) {

@@ -28,8 +28,9 @@ import (
 type Policy struct {
 	ID string `mapstructure:"-" yaml:"-" json:"-"`
 
-	From string       `mapstructure:"from" yaml:"from"`
-	To   WeightedURLs `mapstructure:"to" yaml:"to"`
+	From     string          `mapstructure:"from" yaml:"from"`
+	To       WeightedURLs    `mapstructure:"to" yaml:"to"`
+	Response *DirectResponse `mapstructure:"response" yaml:"response,omitempty" json:"response,omitempty"`
 
 	// LbWeights are optional load balancing weights applied to endpoints specified in To
 	// this field exists for compatibility with mapstructure
@@ -211,6 +212,12 @@ type PolicyRedirect struct {
 	PrefixRewrite  *string `mapstructure:"prefix_rewrite" yaml:"prefix_rewrite,omitempty" json:"prefix_rewrite,omitempty"`
 	ResponseCode   *int32  `mapstructure:"response_code" yaml:"response_code,omitempty" json:"response_code,omitempty"`
 	StripQuery     *bool   `mapstructure:"strip_query" yaml:"strip_query,omitempty" json:"strip_query,omitempty"`
+}
+
+// A DirectResponse is the response to an HTTP request.
+type DirectResponse struct {
+	Status int    `mapstructure:"status" yaml:"status,omitempty" json:"status,omitempty"`
+	Body   string `mapstructure:"body" yaml:"body,omitempty" json:"body,omitempty"`
 }
 
 // NewPolicyFromProto creates a new Policy from a protobuf policy config route.
@@ -446,8 +453,8 @@ func (p *Policy) Validate() error {
 			source.String())
 	}
 
-	if len(p.To) == 0 && p.Redirect == nil {
-		return errEitherToOrRedirectRequired
+	if len(p.To) == 0 && p.Redirect == nil && p.Response == nil {
+		return errEitherToOrRedirectOrResponseRequired
 	}
 
 	for _, u := range p.To {
@@ -567,8 +574,11 @@ func (p *Policy) RouteID() (uint64, error) {
 		id.To = dst
 	} else if p.Redirect != nil {
 		id.Redirect = p.Redirect
+	} else if p.Response != nil {
+		id.DirectResponseStatus = p.Response.Status
+		id.DirectResponseBody = p.Response.Body
 	} else {
-		return 0, errEitherToOrRedirectRequired
+		return 0, errEitherToOrRedirectOrResponseRequired
 	}
 
 	return hashutil.Hash(id)
@@ -679,12 +689,14 @@ func (p *Policy) GetPassIdentityHeaders(options *Options) bool {
 }
 
 type routeID struct {
-	From     string
-	To       []string
-	Prefix   string
-	Path     string
-	Regex    string
-	Redirect *PolicyRedirect
+	From                 string
+	To                   []string
+	Prefix               string
+	Path                 string
+	Regex                string
+	Redirect             *PolicyRedirect
+	DirectResponseStatus int
+	DirectResponseBody   string
 }
 
 /*

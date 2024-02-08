@@ -33,12 +33,18 @@ message RouteRedirect {
   optional bool strip_query = 8;
 }
 
-// Next ID: 62.
+message RouteDirectResponse {
+  uint32 status = 1;
+  string body = 2;
+}
+
+// Next ID: 63.
 message Route {
   string name = 1;
 
   string from = 2;
   repeated string to = 3;
+  RouteDirectResponse response = 62;
 
   // https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/endpoint/v3/endpoint_components.proto#envoy-v3-api-msg-config-endpoint-v3-lbendpoint
   // optional load balancing weights assigned to upstream servers defined in TO
