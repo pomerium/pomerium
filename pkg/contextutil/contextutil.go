@@ -64,25 +64,3 @@ func (mc *mergedCtx) Value(key interface{}) interface{} {
 	}
 	return mc.doneCtx.Value(key)
 }
-
-type onlyValues struct {
-	context.Context
-}
-
-// OnlyValues returns a derived context that removes deadlines and cancellation,
-// but keeps values.
-func OnlyValues(ctx context.Context) context.Context {
-	return onlyValues{ctx}
-}
-
-func (o onlyValues) Deadline() (time.Time, bool) {
-	return time.Time{}, false
-}
-
-func (o onlyValues) Done() <-chan struct{} {
-	return nil
-}
-
-func (o onlyValues) Err() error {
-	return nil
-}
