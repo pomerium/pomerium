@@ -7,8 +7,6 @@ import (
 	"net"
 	"net/http"
 	"time"
-
-	"github.com/pomerium/pomerium/pkg/contextutil"
 )
 
 // ServeWithGracefulStop serves the HTTP listener until ctx.Done(), and then gracefully stops and waits for gracefulTimeout
@@ -17,7 +15,7 @@ func ServeWithGracefulStop(ctx context.Context, handler http.Handler, li net.Lis
 	// create a context that will be used for the http requests
 	// it will only be cancelled when baseCancel is called but will
 	// preserve the values from ctx
-	baseCtx, baseCancel := context.WithCancelCause(contextutil.OnlyValues(ctx))
+	baseCtx, baseCancel := context.WithCancelCause(context.WithoutCancel(ctx))
 
 	srv := http.Server{
 		Handler: handler,
