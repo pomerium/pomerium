@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1707444674106,
+  "lastUpdate": 1707497665942,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -97452,6 +97452,42 @@ window.BENCHMARK_DATA = {
             "value": 6330237,
             "unit": "ns/op",
             "extra": "190 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6b245d2a24a75536821f09de24cde11d324e8516",
+          "message": "ci: switch to regular runners (#4958)\n\nSwitch to regular GitHub Actions runners in the 'Docker Release\r\nBranches' workflow, matching how the 'Docker Main' workflow is\r\nconfigured.",
+          "timestamp": "2024-02-09T08:51:01-08:00",
+          "tree_id": "b9b4c76830ad40bb78cf26336e2477f1c6961f5a",
+          "url": "https://github.com/pomerium/pomerium/commit/6b245d2a24a75536821f09de24cde11d324e8516"
+        },
+        "date": 1707497657942,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9955285,
+            "unit": "ns/op",
+            "extra": "120 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7071102,
+            "unit": "ns/op",
+            "extra": "160 times\n4 procs"
           }
         ]
       }
