@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"html/template"
 	"io"
+	"io/fs"
 	"net/http"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/pomerium/csrf"
@@ -33,7 +35,7 @@ func ServePage(w http.ResponseWriter, r *http.Request, page, title string, data 
 	data["csrfToken"] = csrf.Token(r)
 	data["page"] = page
 
-	bs, err := renderTemplate("dist/index.gohtml", map[string]any{
+	bs, err := renderIndex(map[string]any{
 		"Title": title,
 		"Data":  data,
 	})
@@ -47,18 +49,8 @@ func ServePage(w http.ResponseWriter, r *http.Request, page, title string, data 
 
 var startTime = time.Now()
 
-func renderTemplate(name string, data any) ([]byte, error) {
-	f, _, err := openFile(name)
-	if err != nil {
-		return nil, err
-	}
-	bs, err := io.ReadAll(f)
-	_ = f.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	tpl, err := template.New("").Parse(string(bs))
+func renderIndex(data any) ([]byte, error) {
+	tpl, err := parseIndex()
 	if err != nil {
 		return nil, err
 	}
@@ -66,4 +58,29 @@ func renderTemplate(name string, data any) ([]byte, error) {
 	var buf bytes.Buffer
 	err = tpl.Execute(&buf, data)
 	return buf.Bytes(), err
+}
+
+var (
+	parseIndexOnce     sync.Once
+	parseIndexTemplate *template.Template
+	parseIndexError    error
+)
+
+func parseIndex() (*template.Template, error) {
+	parseIndexOnce.Do(func() {
+		var f fs.File
+		f, _, parseIndexError = openFile("dist/index.gohtml")
+		if parseIndexError != nil {
+			return
+		}
+		var bs []byte
+		bs, parseIndexError = io.ReadAll(f)
+		_ = f.Close()
+		if parseIndexError != nil {
+			return
+		}
+
+		parseIndexTemplate, parseIndexError = template.New("").Parse(string(bs))
+	})
+	return parseIndexTemplate, parseIndexError
 }
