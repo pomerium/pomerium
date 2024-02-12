@@ -3,10 +3,12 @@ package ui
 
 import (
 	"bytes"
-	"encoding/json"
+	"html/template"
 	"io"
+	"io/fs"
 	"net/http"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/pomerium/csrf"
@@ -26,35 +28,59 @@ func ServeFile(w http.ResponseWriter, r *http.Request, filePath string) error {
 }
 
 // ServePage serves the index.html page.
-func ServePage(w http.ResponseWriter, r *http.Request, page string, data map[string]interface{}) error {
+func ServePage(w http.ResponseWriter, r *http.Request, page, title string, data map[string]interface{}) error {
 	if data == nil {
-		data = make(map[string]interface{})
+		data = make(map[string]any)
 	}
 	data["csrfToken"] = csrf.Token(r)
 	data["page"] = page
 
-	jsonData, err := json.Marshal(data)
+	bs, err := renderIndex(map[string]any{
+		"Title": title,
+		"Data":  data,
+	})
 	if err != nil {
 		return err
 	}
-
-	f, _, err := openFile("dist/index.html")
-	if err != nil {
-		return err
-	}
-	bs, err := io.ReadAll(f)
-	_ = f.Close()
-	if err != nil {
-		return err
-	}
-
-	bs = bytes.Replace(bs,
-		[]byte("window.POMERIUM_DATA = {}"),
-		append([]byte("window.POMERIUM_DATA = "), jsonData...),
-		1)
 
 	http.ServeContent(w, r, "index.html", time.Now(), bytes.NewReader(bs))
 	return nil
 }
 
 var startTime = time.Now()
+
+func renderIndex(data any) ([]byte, error) {
+	tpl, err := parseIndex()
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	err = tpl.Execute(&buf, data)
+	return buf.Bytes(), err
+}
+
+var (
+	parseIndexOnce     sync.Once
+	parseIndexTemplate *template.Template
+	parseIndexError    error
+)
+
+func parseIndex() (*template.Template, error) {
+	parseIndexOnce.Do(func() {
+		var f fs.File
+		f, _, parseIndexError = openFile("dist/index.gohtml")
+		if parseIndexError != nil {
+			return
+		}
+		var bs []byte
+		bs, parseIndexError = io.ReadAll(f)
+		_ = f.Close()
+		if parseIndexError != nil {
+			return
+		}
+
+		parseIndexTemplate, parseIndexError = template.New("").Parse(string(bs))
+	})
+	return parseIndexTemplate, parseIndexError
+}

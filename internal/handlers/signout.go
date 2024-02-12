@@ -22,6 +22,6 @@ func (data SignOutConfirmData) ToJSON() map[string]interface{} {
 // SignOutConfirm returns a handler that renders the sign out confirm page.
 func SignOutConfirm(data SignOutConfirmData) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		return ui.ServePage(w, r, "SignOutConfirm", data.ToJSON())
+		return ui.ServePage(w, r, "SignOutConfirm", "Confirm Sign Out", data.ToJSON())
 	})
 }

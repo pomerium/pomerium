@@ -65,6 +65,6 @@ func (data UserInfoData) ToJSON() map[string]any {
 // UserInfo returns a handler that renders the user info page.
 func UserInfo(data UserInfoData) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		return ui.ServePage(w, r, "UserInfo", data.ToJSON())
+		return ui.ServePage(w, r, "UserInfo", "User Info Dashboard", data.ToJSON())
 	})
 }

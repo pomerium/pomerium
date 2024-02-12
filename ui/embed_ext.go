@@ -7,10 +7,8 @@ import (
 	"io/fs"
 )
 
-var (
-	// ExtUIFS must be set to provide access to UI dist/ files
-	ExtUIFS fs.FS
-)
+// ExtUIFS must be set to provide access to UI dist/ files
+var ExtUIFS fs.FS
 
 func openFile(name string) (f fs.File, etag string, err error) {
 	if ExtUIFS == nil {
