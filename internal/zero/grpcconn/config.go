@@ -25,8 +25,11 @@ type config struct {
 // NewConfig returns a new Config from an endpoint string, that has to be in a URL format.
 // The endpoint can be either http:// or https:// that will be used to determine whether TLS should be used.
 // if port is not specified, it will be inferred from the scheme (80 for http, 443 for https).
-func getConfig(endpoint string) (*config, error) {
-	c := new(config)
+func getConfig(
+	endpoint string,
+	opts ...grpc.DialOption,
+) (*config, error) {
+	c := &config{opts: opts}
 	err := c.parseEndpoint(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("invalid endpoint: %w", err)
