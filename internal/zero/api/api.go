@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
+
 	"github.com/pomerium/pomerium/internal/zero/apierror"
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 	"github.com/pomerium/pomerium/internal/zero/grpcconn"
@@ -34,6 +37,13 @@ const (
 	minTelemetryTokenTTL = time.Minute * 5
 )
 
+// see https://github.com/pomerium/pomerium-zero/issues/1711
+var connectClientKeepaliveParams = keepalive.ClientParameters{
+	Time:                time.Minute, // send pings every minute
+	Timeout:             time.Minute, // wait 1 minute for ping ack
+	PermitWithoutStream: false,
+}
+
 // WatchOption defines which events to watch for
 type WatchOption = connect_mux.WatchOption
 
@@ -60,7 +70,7 @@ func NewAPI(ctx context.Context, opts ...Option) (*API, error) {
 
 	connectGRPCConn, err := grpcconn.New(ctx, cfg.connectAPIEndpoint, func(ctx context.Context) (string, error) {
 		return tokenCache.GetToken(ctx, minConnectTokenTTL)
-	})
+	}, grpc.WithKeepaliveParams(connectClientKeepaliveParams))
 	if err != nil {
 		return nil, fmt.Errorf("error creating connect grpc client: %w", err)
 	}

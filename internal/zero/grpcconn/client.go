@@ -25,8 +25,9 @@ func New(
 	ctx context.Context,
 	endpoint string,
 	tokenProvider TokenProviderFn,
+	dialOpts ...grpc.DialOption,
 ) (*grpc.ClientConn, error) {
-	cfg, err := getConfig(endpoint)
+	cfg, err := getConfig(endpoint, dialOpts...)
 	if err != nil {
 		return nil, err
 	}
