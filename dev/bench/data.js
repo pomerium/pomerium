@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1707861317420,
+  "lastUpdate": 1707866964351,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -97720,6 +97720,42 @@ window.BENCHMARK_DATA = {
             "value": 6558751,
             "unit": "ns/op",
             "extra": "175 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2db2bd09a1e6632c47457a95f3c681849c619e92",
+          "message": "connect: add gRPC keep-alive (#4961)",
+          "timestamp": "2024-02-13T18:26:14-05:00",
+          "tree_id": "00af923c7ca0663090e29963576475bf6b26e8c0",
+          "url": "https://github.com/pomerium/pomerium/commit/2db2bd09a1e6632c47457a95f3c681849c619e92"
+        },
+        "date": 1707866951637,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10128374,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6896609,
+            "unit": "ns/op",
+            "extra": "171 times\n4 procs"
           }
         ]
       }
