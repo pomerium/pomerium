@@ -44,6 +44,7 @@ message Route {
 
   string from = 2;
   repeated string to = 3;
+  RouteRedirect redirect = 34;
   RouteDirectResponse response = 62;
 
   // https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/endpoint/v3/endpoint_components.proto#envoy-v3-api-msg-config-endpoint-v3-lbendpoint
@@ -52,8 +53,6 @@ message Route {
   // if provided, load_balancing_weights[i] >= 1 and len(to) ==
   // len(load_balancing_weights)
   repeated uint32 load_balancing_weights = 37;
-
-  RouteRedirect redirect = 34;
 
   repeated string allowed_users = 4 [ deprecated = true ];
   // repeated string allowed_groups = 5 [ deprecated = true ];

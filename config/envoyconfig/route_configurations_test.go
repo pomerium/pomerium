@@ -77,7 +77,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 						],
 						"route": {
 							"autoHostRewrite": true,
-							"cluster": "route-2d64558829968bfa",
+							"cluster": "route-5d678ee30d16332b",
 							"hashPolicy": [
 								{ "header": { "headerName": "x-pomerium-routing-key" }, "terminal": true },
 								{ "connectionProperties": { "sourceIp": true }, "terminal": true }
@@ -94,7 +94,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 								"checkSettings": {
 									"contextExtensions": {
 										"internal": "false",
-										"route_id": "3270833272679468026"
+										"route_id": "6730505273956774699"
 									}
 								}
 							}
@@ -130,7 +130,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 						],
 						"route": {
 							"autoHostRewrite": true,
-							"cluster": "route-2d64558829968bfa",
+							"cluster": "route-5d678ee30d16332b",
 							"hashPolicy": [
 								{ "header": { "headerName": "x-pomerium-routing-key" }, "terminal": true },
 								{ "connectionProperties": { "sourceIp": true }, "terminal": true }
@@ -147,7 +147,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 								"checkSettings": {
 									"contextExtensions": {
 										"internal": "false",
-										"route_id": "3270833272679468026"
+										"route_id": "6730505273956774699"
 									}
 								}
 							}

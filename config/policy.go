@@ -28,16 +28,15 @@ import (
 type Policy struct {
 	ID string `mapstructure:"-" yaml:"-" json:"-"`
 
-	From     string          `mapstructure:"from" yaml:"from"`
-	To       WeightedURLs    `mapstructure:"to" yaml:"to"`
+	From string       `mapstructure:"from" yaml:"from"`
+	To   WeightedURLs `mapstructure:"to" yaml:"to"`
+	// Redirect is used for a redirect action instead of `To`
+	Redirect *PolicyRedirect `mapstructure:"redirect" yaml:"redirect"`
 	Response *DirectResponse `mapstructure:"response" yaml:"response,omitempty" json:"response,omitempty"`
 
 	// LbWeights are optional load balancing weights applied to endpoints specified in To
 	// this field exists for compatibility with mapstructure
 	LbWeights []uint32 `mapstructure:"_to_weights,omitempty" json:"-" yaml:"-"`
-
-	// Redirect is used for a redirect action instead of `To`
-	Redirect *PolicyRedirect `mapstructure:"redirect" yaml:"redirect"`
 
 	// Identity related policy
 	AllowedUsers     []string                 `mapstructure:"allowed_users" yaml:"allowed_users,omitempty" json:"allowed_users,omitempty"`
@@ -585,8 +584,7 @@ func (p *Policy) RouteID() (uint64, error) {
 	} else if p.Redirect != nil {
 		id.Redirect = p.Redirect
 	} else if p.Response != nil {
-		id.DirectResponseStatus = p.Response.Status
-		id.DirectResponseBody = p.Response.Body
+		id.Response = p.Response
 	} else {
 		return 0, errEitherToOrRedirectOrResponseRequired
 	}
@@ -699,14 +697,13 @@ func (p *Policy) GetPassIdentityHeaders(options *Options) bool {
 }
 
 type routeID struct {
-	From                 string
-	To                   []string
-	Prefix               string
-	Path                 string
-	Regex                string
-	Redirect             *PolicyRedirect
-	DirectResponseStatus int
-	DirectResponseBody   string
+	From     string
+	To       []string
+	Prefix   string
+	Path     string
+	Regex    string
+	Redirect *PolicyRedirect
+	Response *DirectResponse
 }
 
 /*
