@@ -30,13 +30,13 @@ type Policy struct {
 
 	From string       `mapstructure:"from" yaml:"from"`
 	To   WeightedURLs `mapstructure:"to" yaml:"to"`
+	// Redirect is used for a redirect action instead of `To`
+	Redirect *PolicyRedirect `mapstructure:"redirect" yaml:"redirect"`
+	Response *DirectResponse `mapstructure:"response" yaml:"response,omitempty" json:"response,omitempty"`
 
 	// LbWeights are optional load balancing weights applied to endpoints specified in To
 	// this field exists for compatibility with mapstructure
 	LbWeights []uint32 `mapstructure:"_to_weights,omitempty" json:"-" yaml:"-"`
-
-	// Redirect is used for a redirect action instead of `To`
-	Redirect *PolicyRedirect `mapstructure:"redirect" yaml:"redirect"`
 
 	// Identity related policy
 	AllowedUsers     []string                 `mapstructure:"allowed_users" yaml:"allowed_users,omitempty" json:"allowed_users,omitempty"`
@@ -213,6 +213,12 @@ type PolicyRedirect struct {
 	StripQuery     *bool   `mapstructure:"strip_query" yaml:"strip_query,omitempty" json:"strip_query,omitempty"`
 }
 
+// A DirectResponse is the response to an HTTP request.
+type DirectResponse struct {
+	Status int    `mapstructure:"status" yaml:"status,omitempty" json:"status,omitempty"`
+	Body   string `mapstructure:"body" yaml:"body,omitempty" json:"body,omitempty"`
+}
+
 // NewPolicyFromProto creates a new Policy from a protobuf policy config route.
 func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	var timeout *time.Duration
@@ -283,6 +289,11 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			PrefixRewrite:  pb.Redirect.PrefixRewrite,
 			ResponseCode:   pb.Redirect.ResponseCode,
 			StripQuery:     pb.Redirect.StripQuery,
+		}
+	} else if pb.Response != nil {
+		p.Response = &DirectResponse{
+			Status: int(pb.Response.GetStatus()),
+			Body:   pb.Response.GetBody(),
 		}
 	} else {
 		to, err := ParseWeightedUrls(pb.GetTo()...)
@@ -405,6 +416,11 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 			ResponseCode:   p.Redirect.ResponseCode,
 			StripQuery:     p.Redirect.StripQuery,
 		}
+	} else if p.Response != nil {
+		pb.Response = &configpb.RouteDirectResponse{
+			Status: uint32(p.Response.Status),
+			Body:   p.Response.Body,
+		}
 	} else {
 		to, weights, err := p.To.Flatten()
 		if err != nil {
@@ -446,8 +462,8 @@ func (p *Policy) Validate() error {
 			source.String())
 	}
 
-	if len(p.To) == 0 && p.Redirect == nil {
-		return errEitherToOrRedirectRequired
+	if len(p.To) == 0 && p.Redirect == nil && p.Response == nil {
+		return errEitherToOrRedirectOrResponseRequired
 	}
 
 	for _, u := range p.To {
@@ -567,8 +583,10 @@ func (p *Policy) RouteID() (uint64, error) {
 		id.To = dst
 	} else if p.Redirect != nil {
 		id.Redirect = p.Redirect
+	} else if p.Response != nil {
+		id.Response = p.Response
 	} else {
-		return 0, errEitherToOrRedirectRequired
+		return 0, errEitherToOrRedirectOrResponseRequired
 	}
 
 	return hashutil.Hash(id)
@@ -685,6 +703,7 @@ type routeID struct {
 	Path     string
 	Regex    string
 	Redirect *PolicyRedirect
+	Response *DirectResponse
 }
 
 /*
