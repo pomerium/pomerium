@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1708032547576,
+  "lastUpdate": 1708033038572,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -97820,6 +97820,42 @@ window.BENCHMARK_DATA = {
             "value": 6395806,
             "unit": "ns/op",
             "extra": "181 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "513d8bf615518a99518873b1d269530917caea17",
+          "message": "core/config: implement direct response (#4960)\n\n* implement direct response\r\n\r\n* proto\r\n\r\n* fix tests\r\n\r\n* update",
+          "timestamp": "2024-02-15T14:33:56-07:00",
+          "tree_id": "738c3343b26e8f7a4de19720367a2a43de02fc52",
+          "url": "https://github.com/pomerium/pomerium/commit/513d8bf615518a99518873b1d269530917caea17"
+        },
+        "date": 1708033030684,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9484086,
+            "unit": "ns/op",
+            "extra": "124 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7315327,
+            "unit": "ns/op",
+            "extra": "170 times\n4 procs"
           }
         ]
       }
