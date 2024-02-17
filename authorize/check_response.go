@@ -232,7 +232,8 @@ func (a *Authorize) requireLoginResponse(
 	}
 
 	return a.deniedResponse(ctx, in, http.StatusFound, "Login", map[string]string{
-		"Location": redirectTo,
+		"Cache-Control": "no-store",
+		"Location":      redirectTo,
 	})
 }
 
