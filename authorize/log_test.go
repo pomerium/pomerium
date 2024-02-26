@@ -87,6 +87,7 @@ func Test_populateLogEvent(t *testing.T) {
 		{log.AuthorizeLogFieldSessionID, s, `{"session-id":"SESSION-ID"}`},
 		{log.AuthorizeLogFieldUser, s, `{"user":"USER-ID"}`},
 		{log.AuthorizeLogFieldUser, sa, `{"user":"SERVICE-ACCOUNT-USER-ID"}`},
+		{log.AuthorizeLogFieldUser, nil, `{"user":""}`},
 	} {
 
 		tc := tc
