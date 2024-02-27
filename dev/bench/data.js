@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1708981086527,
+  "lastUpdate": 1709071500971,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -98020,6 +98020,42 @@ window.BENCHMARK_DATA = {
             "value": 6564287,
             "unit": "ns/op",
             "extra": "177 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b182ef350efb81d917d30fede17d23d77a491b0d",
+          "message": "authorize: log service account user ID (#4964)\n\nCurrently the 'user-id' field of the authorize logs is empty for\r\nrequests authenticated via a service account, as there is no associated\r\nUser object. Instead, populate this log field directly from the the\r\nsessionOrServiceAccount value, to handle both types of user.",
+          "timestamp": "2024-02-27T14:01:19-08:00",
+          "tree_id": "e53d25f596973399766ad07c885543e2e320486c",
+          "url": "https://github.com/pomerium/pomerium/commit/b182ef350efb81d917d30fede17d23d77a491b0d"
+        },
+        "date": 1709071493830,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9203855,
+            "unit": "ns/op",
+            "extra": "129 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6294549,
+            "unit": "ns/op",
+            "extra": "184 times\n4 procs"
           }
         ]
       }
