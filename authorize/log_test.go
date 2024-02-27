@@ -49,9 +49,11 @@ func Test_populateLogEvent(t *testing.T) {
 		IdToken: &session.IDToken{
 			Raw: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJPbmxpbmUgSldUIEJ1aWxkZXIiLCJpYXQiOjE2OTAzMTU4NjIsImV4cCI6MTcyMTg1MTg2MiwiYXVkIjoid3d3LmV4YW1wbGUuY29tIiwic3ViIjoianJvY2tldEBleGFtcGxlLmNvbSIsIkdpdmVuTmFtZSI6IkpvaG5ueSIsIlN1cm5hbWUiOiJSb2NrZXQiLCJFbWFpbCI6Impyb2NrZXRAZXhhbXBsZS5jb20iLCJSb2xlIjpbIk1hbmFnZXIiLCJQcm9qZWN0IEFkbWluaXN0cmF0b3IiXX0.AAojgaG0fjMFwMCAC6YALHHMFIZEedFSP_vMGhiHhso",
 		},
+		UserId: "USER-ID",
 	}
 	sa := &user.ServiceAccount{
-		Id: "SERVICE-ACCOUNT-ID",
+		Id:     "SERVICE-ACCOUNT-ID",
+		UserId: "SERVICE-ACCOUNT-USER-ID",
 	}
 	u := &user.User{
 		Id:    "USER-ID",
@@ -84,6 +86,8 @@ func Test_populateLogEvent(t *testing.T) {
 		{log.AuthorizeLogFieldServiceAccountID, sa, `{"service-account-id":"SERVICE-ACCOUNT-ID"}`},
 		{log.AuthorizeLogFieldSessionID, s, `{"session-id":"SESSION-ID"}`},
 		{log.AuthorizeLogFieldUser, s, `{"user":"USER-ID"}`},
+		{log.AuthorizeLogFieldUser, sa, `{"user":"SERVICE-ACCOUNT-USER-ID"}`},
+		{log.AuthorizeLogFieldUser, nil, `{"user":""}`},
 	} {
 
 		tc := tc

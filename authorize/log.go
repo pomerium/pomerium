@@ -212,7 +212,11 @@ func populateLogEvent(
 		}
 		return evt
 	case log.AuthorizeLogFieldUser:
-		return evt.Str(string(field), u.GetId())
+		var userID string
+		if s != nil {
+			userID = s.GetUserId()
+		}
+		return evt.Str(string(field), userID)
 	default:
 		return evt
 	}
