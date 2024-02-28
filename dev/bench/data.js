@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709134755327,
+  "lastUpdate": 1709150599305,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -98088,6 +98088,42 @@ window.BENCHMARK_DATA = {
             "value": 6130547,
             "unit": "ns/op",
             "extra": "199 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "61360b7bbf40ffa0700d657cecd51932a4e421f8",
+          "message": "ci: upgrade to Go 1.22 (#4967)",
+          "timestamp": "2024-02-28T14:58:31-05:00",
+          "tree_id": "b43a0344e861f9116fd1c279a8f0c9d2e40d7a7a",
+          "url": "https://github.com/pomerium/pomerium/commit/61360b7bbf40ffa0700d657cecd51932a4e421f8"
+        },
+        "date": 1709150592062,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8577580,
+            "unit": "ns/op",
+            "extra": "141 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5880690,
+            "unit": "ns/op",
+            "extra": "201 times\n4 procs"
           }
         ]
       }
