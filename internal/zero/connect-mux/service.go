@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"sync/atomic"
-	"time"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/hashicorp/go-multierror"
@@ -52,28 +51,16 @@ func (svc *Mux) Run(ctx context.Context, opts ...fanout.Option) error {
 }
 
 func (svc *Mux) run(ctx context.Context) error {
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 0
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 0
 
-	ticker := time.NewTicker(time.Microsecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-		}
-
-		err := svc.subscribeAndDispatch(ctx, bo.Reset)
-		if err != nil {
-			ticker.Reset(bo.NextBackOff())
-		}
-
+	return backoff.Retry(func() error {
+		err := svc.subscribeAndDispatch(ctx, b.Reset)
 		if apierror.IsTerminalError(err) {
-			return err
+			return backoff.Permanent(err)
 		}
-	}
+		return err
+	}, backoff.WithContext(b, ctx))
 }
 
 func (svc *Mux) subscribeAndDispatch(ctx context.Context, onConnected func()) (err error) {

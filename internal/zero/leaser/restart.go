@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/cenkalti/backoff/v4"
 
@@ -49,15 +48,14 @@ func restartContexts(
 	contexts chan<- context.Context,
 	restartFn func(context.Context) error,
 ) {
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 0 // never stop
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 0 // never stop
 
-	ticker := time.NewTicker(bo.InitialInterval)
+	ticker := backoff.NewTicker(b)
 	defer ticker.Stop()
 
 	defer close(contexts)
 	for base.Err() == nil {
-		start := time.Now()
 		ctx, cancel := context.WithCancelCause(base)
 		select {
 		case contexts <- ctx:
@@ -68,13 +66,7 @@ func restartContexts(
 			return
 		}
 
-		if time.Since(start) > bo.MaxInterval {
-			bo.Reset()
-		}
-		next := bo.NextBackOff()
-		ticker.Reset(next)
-
-		log.Ctx(ctx).Info().Msgf("restarting zero control loop in %s", next.String())
+		log.Ctx(ctx).Info().Msgf("restarting zero control loop")
 
 		select {
 		case <-base.Done():
