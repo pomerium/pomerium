@@ -17,6 +17,7 @@ import (
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
@@ -58,6 +59,13 @@ func (b *Builder) BuildListeners(
 		li, err := b.buildMainListener(ctx, cfg, fullyStatic)
 		if err != nil {
 			return nil, err
+		}
+		listeners = append(listeners, li)
+		li = proto.Clone(li).(*envoy_config_listener_v3.Listener)
+		li.Name = "http-ingress-internal-listener"
+		li.Address = nil
+		li.ListenerSpecifier = &envoy_config_listener_v3.Listener_InternalListener{
+			InternalListener: &envoy_config_listener_v3.Listener_InternalListenerConfig{},
 		}
 		listeners = append(listeners, li)
 	}
@@ -154,22 +162,70 @@ func (b *Builder) buildMainListener(
 			return nil, err
 		}
 
+		sock, err := b.buildTLSSocket(ctx, cfg, allCertificates)
+		if err != nil {
+			return nil, fmt.Errorf("error building TLS socket: %w", err)
+		}
+
+		fp := b.buildForwardProxyFilterChain(ctx, cfg)
+		fp.TransportSocket = sock
+		li.FilterChains = append(li.FilterChains, fp)
+
 		filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
 		if err != nil {
 			return nil, err
 		}
 		filterChain := &envoy_config_listener_v3.FilterChain{
-			Filters: []*envoy_config_listener_v3.Filter{filter},
+			Filters:         []*envoy_config_listener_v3.Filter{filter},
+			TransportSocket: sock,
 		}
 		li.FilterChains = append(li.FilterChains, filterChain)
-
-		sock, err := b.buildTLSSocket(ctx, cfg, allCertificates)
-		if err != nil {
-			return nil, fmt.Errorf("error building TLS socket: %w", err)
-		}
-		filterChain.TransportSocket = sock
 	}
 	return li, nil
+}
+
+func (b *Builder) buildForwardProxyFilterChain(
+	ctx context.Context, cfg *config.Config,
+) *envoy_config_listener_v3.FilterChain {
+	rc := &envoy_config_route_v3.RouteConfiguration{
+		Name: "forward-proxy",
+		VirtualHosts: []*envoy_config_route_v3.VirtualHost{{
+			Name:    "forward-proxy",
+			Domains: []string{"*"},
+			Routes: []*envoy_config_route_v3.Route{{
+				Name: "forward-proxy",
+				Match: &envoy_config_route_v3.RouteMatch{
+					PathSpecifier: &envoy_config_route_v3.RouteMatch_ConnectMatcher_{},
+				},
+				Action: &envoy_config_route_v3.Route_Route{
+					Route: &envoy_config_route_v3.RouteAction{
+						ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+							Cluster: "forward-proxy-cluster",
+						},
+						UpgradeConfigs: []*envoy_config_route_v3.RouteAction_UpgradeConfig{{
+							UpgradeType:   "CONNECT",
+							ConnectConfig: &envoy_config_route_v3.RouteAction_UpgradeConfig_ConnectConfig{},
+						}},
+					},
+				},
+			}},
+		}},
+	}
+	filter := HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
+		StatPrefix: "forward-proxy",
+		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
+			RouteConfig: rc,
+		},
+		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
+			HTTPRouterFilter(),
+		},
+	})
+	return &envoy_config_listener_v3.FilterChain{
+		FilterChainMatch: &envoy_config_listener_v3.FilterChainMatch{
+			ServerNames: []string{"forward-proxy.localhost.pomerium.io"}, // XXX
+		},
+		Filters: []*envoy_config_listener_v3.Filter{filter},
+	}
 }
 
 func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {

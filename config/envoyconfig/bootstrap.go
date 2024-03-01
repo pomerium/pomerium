@@ -13,6 +13,8 @@ import (
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_config_metrics_v3 "github.com/envoyproxy/go-control-plane/envoy/config/metrics/v3"
 	envoy_extensions_access_loggers_file_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/file/v3"
+	envoy_extensions_bootstrap_internal_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/bootstrap/internal_listener/v3"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -67,6 +69,12 @@ func (b *Builder) BuildBootstrap(
 	if err != nil {
 		return nil, err
 	}
+
+	il, _ := anypb.New(&envoy_extensions_bootstrap_internal_listener_v3.InternalListener{})
+	bootstrap.BootstrapExtensions = []*envoy_config_core_v3.TypedExtensionConfig{{
+		Name:        "envoy.bootstrap.internal_listener",
+		TypedConfig: il,
+	}}
 
 	return bootstrap, nil
 }
@@ -223,6 +231,31 @@ func (b *Builder) BuildBootstrapStaticResources(
 	}
 
 	staticResources.Clusters = append(staticResources.Clusters, controlPlaneCluster)
+
+	forwardProxyCluster := &envoy_config_cluster_v3.Cluster{
+		Name: "forward-proxy-cluster",
+		LoadAssignment: &envoy_config_endpoint_v3.ClusterLoadAssignment{
+			ClusterName: "forward-proxy-cluster",
+			Endpoints: []*envoy_config_endpoint_v3.LocalityLbEndpoints{{
+				LbEndpoints: []*envoy_config_endpoint_v3.LbEndpoint{{
+					HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
+						Endpoint: &envoy_config_endpoint_v3.Endpoint{
+							Address: &envoy_config_core_v3.Address{
+								Address: &envoy_config_core_v3.Address_EnvoyInternalAddress{
+									EnvoyInternalAddress: &envoy_config_core_v3.EnvoyInternalAddress{
+										AddressNameSpecifier: &envoy_config_core_v3.EnvoyInternalAddress_ServerListenerName{
+											ServerListenerName: "http-ingress-internal-listener",
+										},
+									},
+								},
+							},
+						},
+					},
+				}},
+			}},
+		},
+	}
+	staticResources.Clusters = append(staticResources.Clusters, forwardProxyCluster)
 
 	return staticResources, nil
 }
