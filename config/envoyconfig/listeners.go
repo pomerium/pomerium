@@ -6,6 +6,7 @@ import (
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
@@ -29,6 +30,13 @@ func (b *Builder) BuildListeners(
 		li, err := b.buildMainListener(ctx, cfg, fullyStatic, false)
 		if err != nil {
 			return nil, err
+		}
+		listeners = append(listeners, li)
+		li = proto.Clone(li).(*envoy_config_listener_v3.Listener)
+		li.Name = "http-ingress-internal-listener"
+		li.Address = nil
+		li.ListenerSpecifier = &envoy_config_listener_v3.Listener_InternalListener{
+			InternalListener: &envoy_config_listener_v3.Listener_InternalListenerConfig{},
 		}
 		listeners = append(listeners, li)
 		// for HTTP/3 we add another main listener that listens on UDP

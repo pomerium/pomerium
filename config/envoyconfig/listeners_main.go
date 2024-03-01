@@ -8,8 +8,10 @@ import (
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
 	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
@@ -123,6 +125,10 @@ func (b *Builder) buildMainTLSListener(
 		return nil, err
 	}
 	li.FilterChains = append(li.FilterChains, filterChain)
+
+	fp := b.buildForwardProxyFilterChain(ctx, cfg)
+	fp.TransportSocket = transportSocket
+	li.FilterChains = append(li.FilterChains, fp)
 
 	return li, nil
 }
@@ -262,4 +268,48 @@ func newListenerAccessLog() *envoy_config_accesslog_v3.AccessLog {
 
 func shouldStartMainListener(options *config.Options) bool {
 	return config.IsAuthenticate(options.Services) || config.IsProxy(options.Services)
+}
+
+func (b *Builder) buildForwardProxyFilterChain(
+	ctx context.Context, cfg *config.Config,
+) *envoy_config_listener_v3.FilterChain {
+	rc := &envoy_config_route_v3.RouteConfiguration{
+		Name: "forward-proxy",
+		VirtualHosts: []*envoy_config_route_v3.VirtualHost{{
+			Name:    "forward-proxy",
+			Domains: []string{"*"},
+			Routes: []*envoy_config_route_v3.Route{{
+				Name: "forward-proxy",
+				Match: &envoy_config_route_v3.RouteMatch{
+					PathSpecifier: &envoy_config_route_v3.RouteMatch_ConnectMatcher_{},
+				},
+				Action: &envoy_config_route_v3.Route_Route{
+					Route: &envoy_config_route_v3.RouteAction{
+						ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+							Cluster: "forward-proxy-cluster",
+						},
+						UpgradeConfigs: []*envoy_config_route_v3.RouteAction_UpgradeConfig{{
+							UpgradeType:   "CONNECT",
+							ConnectConfig: &envoy_config_route_v3.RouteAction_UpgradeConfig_ConnectConfig{},
+						}},
+					},
+				},
+			}},
+		}},
+	}
+	filter := HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
+		StatPrefix: "forward-proxy",
+		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
+			RouteConfig: rc,
+		},
+		HttpFilters: []*envoy_http_connection_manager.HttpFilter{
+			HTTPRouterFilter(),
+		},
+	})
+	return &envoy_config_listener_v3.FilterChain{
+		FilterChainMatch: &envoy_config_listener_v3.FilterChainMatch{
+			ServerNames: []string{"forward-proxy.localhost.pomerium.io"}, // XXX
+		},
+		Filters: []*envoy_config_listener_v3.Filter{filter},
+	}
 }

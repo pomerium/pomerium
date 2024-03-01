@@ -15,13 +15,16 @@ import (
 	envoy_config_metrics_v3 "github.com/envoyproxy/go-control-plane/envoy/config/metrics/v3"
 	envoy_config_overload_v3 "github.com/envoyproxy/go-control-plane/envoy/config/overload/v3"
 	envoy_extensions_access_loggers_file_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/file/v3"
+	envoy_extensions_bootstrap_internal_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/bootstrap/internal_listener/v3"
 	envoy_extensions_resource_monitors_downstream_connections_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/resource_monitors/downstream_connections/v3"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/structpb"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/otelconfig"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 const maxActiveDownstreamConnections = 50000
@@ -83,6 +86,12 @@ func (b *Builder) BuildBootstrap(
 			},
 		}},
 	}
+
+	il, _ := anypb.New(&envoy_extensions_bootstrap_internal_listener_v3.InternalListener{})
+	bootstrap.BootstrapExtensions = []*envoy_config_core_v3.TypedExtensionConfig{{
+		Name:        "envoy.bootstrap.internal_listener",
+		TypedConfig: il,
+	}}
 
 	return bootstrap, nil
 }
@@ -262,6 +271,31 @@ func (b *Builder) BuildBootstrapStaticResources(
 	}
 
 	staticResources.Clusters = append(staticResources.Clusters, controlPlaneCluster)
+
+	forwardProxyCluster := &envoy_config_cluster_v3.Cluster{
+		Name: "forward-proxy-cluster",
+		LoadAssignment: &envoy_config_endpoint_v3.ClusterLoadAssignment{
+			ClusterName: "forward-proxy-cluster",
+			Endpoints: []*envoy_config_endpoint_v3.LocalityLbEndpoints{{
+				LbEndpoints: []*envoy_config_endpoint_v3.LbEndpoint{{
+					HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
+						Endpoint: &envoy_config_endpoint_v3.Endpoint{
+							Address: &envoy_config_core_v3.Address{
+								Address: &envoy_config_core_v3.Address_EnvoyInternalAddress{
+									EnvoyInternalAddress: &envoy_config_core_v3.EnvoyInternalAddress{
+										AddressNameSpecifier: &envoy_config_core_v3.EnvoyInternalAddress_ServerListenerName{
+											ServerListenerName: "http-ingress-internal-listener",
+										},
+									},
+								},
+							},
+						},
+					},
+				}},
+			}},
+		},
+	}
+	staticResources.Clusters = append(staticResources.Clusters, forwardProxyCluster)
 
 	return staticResources, nil
 }
