@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709310011267,
+  "lastUpdate": 1709310142795,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -98544,6 +98544,38 @@ window.BENCHMARK_DATA = {
             "value": 6001486,
             "unit": "ns/op",
             "extra": "199 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "4fffc651d8b7d4b8c7c8dcacaf60114aeb4024cf",
+          "message": "zero: simplify control loop lease retry code",
+          "timestamp": "2024-03-01T08:32:48Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4979/commits/4fffc651d8b7d4b8c7c8dcacaf60114aeb4024cf"
+        },
+        "date": 1709310134215,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9036096,
+            "unit": "ns/op",
+            "extra": "134 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6062094,
+            "unit": "ns/op",
+            "extra": "187 times\n4 procs"
           }
         ]
       }
