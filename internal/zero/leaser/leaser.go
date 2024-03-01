@@ -5,6 +5,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -23,7 +24,7 @@ func (c *service) GetDataBrokerServiceClient() databroker.DataBrokerServiceClien
 // RunLeased implements the databroker.LeaseHandler interface.
 func (c *service) RunLeased(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
-	for _, fn := range c.funcs {
+	for _, fn := range append(c.funcs, c.databrokerChangeMonitor) {
 		fn := fn
 		eg.Go(func() error {
 			return fn(ctx)
@@ -42,8 +43,11 @@ func Run(
 		client: client,
 		funcs:  funcs,
 	}
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 0
 	leaser := databroker.NewLeaser("zero-ctrl", time.Second*30, srv)
-	return RunWithRestart(ctx, func(ctx context.Context) error {
-		return leaser.Run(ctx)
-	}, srv.databrokerChangeMonitor)
+	return backoff.Retry(
+		func() error { return leaser.Run(ctx) },
+		backoff.WithContext(b, ctx),
+	)
 }
