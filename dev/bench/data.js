@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709310278082,
+  "lastUpdate": 1709311156439,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -98640,6 +98640,42 @@ window.BENCHMARK_DATA = {
             "value": 6522969,
             "unit": "ns/op",
             "extra": "192 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d405a53b90bac04085bd65bc497399660fa689f8",
+          "message": "zero: simplify control loop lease retry code (#4979)\n\nzero: simplify lease control loop",
+          "timestamp": "2024-03-01T11:36:08-05:00",
+          "tree_id": "eb946319fffb25e09177a60337cdf4e22e5772e8",
+          "url": "https://github.com/pomerium/pomerium/commit/d405a53b90bac04085bd65bc497399660fa689f8"
+        },
+        "date": 1709311149109,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8522113,
+            "unit": "ns/op",
+            "extra": "141 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6057661,
+            "unit": "ns/op",
+            "extra": "206 times\n4 procs"
           }
         ]
       }
