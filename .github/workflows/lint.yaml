@@ -20,7 +20,7 @@ jobs:
 
       - run: make deps-build
 
-      - uses: golangci/golangci-lint-action@3a919529898de77ec3da873e3063ca4b10e7f5cc
+      - uses: golangci/golangci-lint-action@3cfe3a4abbb849e10058ce4af15d205b6da42804
         with:
           version: v1.55
           args: --timeout=10m
