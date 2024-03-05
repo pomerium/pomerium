@@ -549,7 +549,8 @@ func Test_buildCluster(t *testing.T) {
 										"address": "example.com",
 										"portValue": 80
 									}
-								}
+								},
+								"hostname": "example.com"
 							}
 						}, {
 							"endpoint": {
@@ -558,7 +559,8 @@ func Test_buildCluster(t *testing.T) {
 										"address": "1.2.3.4",
 										"portValue": 80
 									}
-								}
+								},
+								"hostname": "1.2.3.4"
 							}
 						}]
 					}]
@@ -704,7 +706,8 @@ func Test_buildCluster(t *testing.T) {
 										"address": "example.com",
 										"portValue": 443
 									}
-								}
+								},
+								"hostname": "example.com"
 							},
 							"metadata": {
 								"filterMetadata": {
@@ -720,7 +723,8 @@ func Test_buildCluster(t *testing.T) {
 										"address": "example.com",
 										"portValue": 443
 									}
-								}
+								},
+								"hostname": "example.com"
 							},
 							"metadata": {
 								"filterMetadata": {
@@ -774,7 +778,8 @@ func Test_buildCluster(t *testing.T) {
 										"address": "127.0.0.1",
 										"portValue": 80
 									}
-								}
+								},
+								"hostname": "127.0.0.1"
 							}
 						},{
 							"endpoint": {
@@ -783,7 +788,8 @@ func Test_buildCluster(t *testing.T) {
 										"address": "127.0.0.2",
 										"portValue": 80
 									}
-								}
+								},
+								"hostname": "127.0.0.2"
 							}
 						}]
 					}]
@@ -830,7 +836,8 @@ func Test_buildCluster(t *testing.T) {
 										"address": "127.0.0.1",
 										"portValue": 8080
 									}
-								}
+								},
+								"hostname": "127.0.0.1:8080"
 							},
 							"loadBalancingWeight": 1
 						},{
@@ -840,7 +847,8 @@ func Test_buildCluster(t *testing.T) {
 										"address": "127.0.0.2",
 										"portValue": 80
 									}
-								}
+								},
+								"hostname": "127.0.0.2"
 							},
 							"loadBalancingWeight": 2
 						}]
@@ -888,7 +896,8 @@ func Test_buildCluster(t *testing.T) {
 										"address": "127.0.0.1",
 										"portValue": 80
 									}
-								}
+								},
+								"hostname": "localhost"
 							}
 						}]
 					}]
@@ -944,7 +953,8 @@ func Test_buildCluster(t *testing.T) {
 										"address": "example.com",
 										"portValue": 80
 									}
-								}
+								},
+								"hostname": "example.com"
 							}
 						}]
 					}]

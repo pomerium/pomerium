@@ -36,7 +36,8 @@
                     "address": "local-grpc",
                     "portValue": 80
                   }
-                }
+                },
+                "hostname": "local-grpc"
               },
               "loadBalancingWeight": 1
             }
@@ -83,7 +84,8 @@
                     "address": "local-http",
                     "portValue": 80
                   }
-                }
+                },
+                "hostname": "local-http"
               },
               "loadBalancingWeight": 1
             }
@@ -134,7 +136,8 @@
                     "address": "local-metrics",
                     "portValue": 80
                   }
-                }
+                },
+                "hostname": "local-metrics"
               },
               "loadBalancingWeight": 1
             }
@@ -185,7 +188,8 @@
                     "address": "local-grpc",
                     "portValue": 80
                   }
-                }
+                },
+                "hostname": "local-grpc"
               },
               "loadBalancingWeight": 1
             }
@@ -232,7 +236,8 @@
                     "address": "local-grpc",
                     "portValue": 80
                   }
-                }
+                },
+                "hostname": "local-grpc"
               },
               "loadBalancingWeight": 1
             }
