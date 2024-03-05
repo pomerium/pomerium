@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709674000634,
+  "lastUpdate": 1709674082892,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -100588,6 +100588,42 @@ window.BENCHMARK_DATA = {
             "value": 5785451,
             "unit": "ns/op",
             "extra": "199 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "33bc62c422ca7bc76afc4ab43fbfb2914058e94a",
+          "message": "chore(deps): bump github.com/rs/zerolog from 1.31.0 to 1.32.0 (#5004)\n\nBumps [github.com/rs/zerolog](https://github.com/rs/zerolog) from 1.31.0 to 1.32.0.\r\n- [Release notes](https://github.com/rs/zerolog/releases)\r\n- [Commits](https://github.com/rs/zerolog/compare/v1.31.0...v1.32.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/rs/zerolog\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-03-05T14:12:32-07:00",
+          "tree_id": "1c3540636f4c452760d0e4c2979d1b8f6409095b",
+          "url": "https://github.com/pomerium/pomerium/commit/33bc62c422ca7bc76afc4ab43fbfb2914058e94a"
+        },
+        "date": 1709674074839,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9105280,
+            "unit": "ns/op",
+            "extra": "129 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6413923,
+            "unit": "ns/op",
+            "extra": "181 times\n4 procs"
           }
         ]
       }
