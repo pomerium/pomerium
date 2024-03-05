@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709673896770,
+  "lastUpdate": 1709673987699,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -100488,6 +100488,42 @@ window.BENCHMARK_DATA = {
             "value": 6136245,
             "unit": "ns/op",
             "extra": "180 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d417be1ece73c470daf95cde9dac3cc72d2233e5",
+          "message": "chore(deps): bump go.uber.org/zap from 1.26.0 to 1.27.0 (#4987)\n\nBumps [go.uber.org/zap](https://github.com/uber-go/zap) from 1.26.0 to 1.27.0.\r\n- [Release notes](https://github.com/uber-go/zap/releases)\r\n- [Changelog](https://github.com/uber-go/zap/blob/master/CHANGELOG.md)\r\n- [Commits](https://github.com/uber-go/zap/compare/v1.26.0...v1.27.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: go.uber.org/zap\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-03-05T14:12:10-07:00",
+          "tree_id": "26461657220c0d98ea719a666cccb76422d6b4c0",
+          "url": "https://github.com/pomerium/pomerium/commit/d417be1ece73c470daf95cde9dac3cc72d2233e5"
+        },
+        "date": 1709673975655,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8586127,
+            "unit": "ns/op",
+            "extra": "139 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6032573,
+            "unit": "ns/op",
+            "extra": "202 times\n4 procs"
           }
         ]
       }
