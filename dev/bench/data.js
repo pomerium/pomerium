@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709673131422,
+  "lastUpdate": 1709673161323,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -99844,6 +99844,42 @@ window.BENCHMARK_DATA = {
             "value": 5872349,
             "unit": "ns/op",
             "extra": "205 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bd8aac444c4c16c6fa2410904bec5fce05d22959",
+          "message": "chore(deps): bump actions/upload-artifact from 4.3.0 to 4.3.1 (#4972)\n\nBumps [actions/upload-artifact](https://github.com/actions/upload-artifact) from 4.3.0 to 4.3.1.\r\n- [Release notes](https://github.com/actions/upload-artifact/releases)\r\n- [Commits](https://github.com/actions/upload-artifact/compare/26f96dfa697d77e81fd5907df203aa23a56210a8...5d5d22a31266ced268874388b861e4b58bb5c2f3)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: actions/upload-artifact\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-03-05T14:09:16-07:00",
+          "tree_id": "2b6e3241e30706430b95a024e8a2817db2cd8fa9",
+          "url": "https://github.com/pomerium/pomerium/commit/bd8aac444c4c16c6fa2410904bec5fce05d22959"
+        },
+        "date": 1709673153005,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8767930,
+            "unit": "ns/op",
+            "extra": "132 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6313886,
+            "unit": "ns/op",
+            "extra": "192 times\n4 procs"
           }
         ]
       }
