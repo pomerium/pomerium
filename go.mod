@@ -44,7 +44,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/natefinch/atomic v1.0.1
 	github.com/oapi-codegen/runtime v1.1.1
-	github.com/open-policy-agent/opa v0.61.0
+	github.com/open-policy-agent/opa v0.62.0
 	github.com/openzipkin/zipkin-go v0.4.2
 	github.com/ory/dockertest/v3 v3.10.0
 	github.com/peterbourgon/ff/v3 v3.4.0
@@ -71,9 +71,9 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.22.0
 	go.uber.org/automaxprocs v1.5.3
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.18.0
+	golang.org/x/crypto v0.19.0
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
-	golang.org/x/net v0.20.0
+	golang.org/x/net v0.21.0
 	golang.org/x/oauth2 v0.16.0
 	golang.org/x/sync v0.6.0
 	golang.org/x/time v0.5.0
@@ -160,7 +160,7 @@ require (
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/miekg/dns v1.1.55 // indirect
+	github.com/miekg/dns v1.1.57 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/moby/term v0.5.0 // indirect
@@ -169,7 +169,7 @@ require (
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.1.0-rc5 // indirect
+	github.com/opencontainers/image-spec v1.1.0-rc6 // indirect
 	github.com/opencontainers/runc v1.1.12 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/philhofer/fwd v1.0.0 // indirect
