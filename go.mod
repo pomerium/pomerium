@@ -56,7 +56,7 @@ require (
 	github.com/prometheus/common v0.48.0
 	github.com/prometheus/procfs v0.12.0
 	github.com/rs/cors v1.10.1
-	github.com/rs/zerolog v1.31.0
+	github.com/rs/zerolog v1.32.0
 	github.com/shirou/gopsutil/v3 v3.24.2
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.8.4
