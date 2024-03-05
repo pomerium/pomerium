@@ -76,7 +76,7 @@ jobs:
           make build
 
       - name: save binary
-        uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3
         with:
           path: bin/pomerium*
           name: pomerium ${{ github.run_id }} ${{ matrix.platform }}
