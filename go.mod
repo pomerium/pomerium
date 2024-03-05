@@ -22,7 +22,7 @@ require (
 	github.com/docker/docker v25.0.3+incompatible
 	github.com/envoyproxy/go-control-plane v0.12.0
 	github.com/envoyproxy/protoc-gen-validate v1.0.4
-	github.com/go-chi/chi/v5 v5.0.11
+	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-jose/go-jose/v3 v3.0.1
 	github.com/golang/mock v1.6.0
 	github.com/google/btree v1.1.2
