@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709671892109,
+  "lastUpdate": 1709672500035,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -99572,6 +99572,42 @@ window.BENCHMARK_DATA = {
             "value": 6008305,
             "unit": "ns/op",
             "extra": "190 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "be46c2e28bd0f151a111809f16cfa902630537e1",
+          "message": "chore(deps): bump google.golang.org/protobuf from 1.32.0 to 1.33.0 (#5009)\n\nThis includes a fix for CVE-2024-24786.\r\n\r\nSee https://pkg.go.dev/vuln/GO-2024-2611 for more details.",
+          "timestamp": "2024-03-05T12:58:15-08:00",
+          "tree_id": "2186aad66a814729a0ce6b93b7602ecc47230a45",
+          "url": "https://github.com/pomerium/pomerium/commit/be46c2e28bd0f151a111809f16cfa902630537e1"
+        },
+        "date": 1709672492625,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9102150,
+            "unit": "ns/op",
+            "extra": "127 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6470338,
+            "unit": "ns/op",
+            "extra": "177 times\n4 procs"
           }
         ]
       }
