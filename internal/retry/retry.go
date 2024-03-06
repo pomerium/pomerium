@@ -29,10 +29,6 @@ func Retry(
 	})
 
 	watches, backoff := newConfig(opts...)
-	ticker := time.NewTicker(backoff.NextBackOff())
-	defer ticker.Stop()
-
-	s := makeSelect(ctx, watches, name, ticker.C, fn)
 
 restart:
 	for {
@@ -51,10 +47,11 @@ restart:
 	backoff:
 		for {
 			interval := backoff.NextBackOff()
-			ticker.Reset(interval)
 			log.Ctx(ctx).Warn().Msgf("backing off for %s...", interval.String())
-
+			timer := time.NewTimer(interval)
+			s := makeSelect(ctx, watches, name, timer.C, fn)
 			next, err := s.Exec(ctx)
+			timer.Stop()
 			logNext(ctx, next, err)
 			switch next {
 			case nextRestart:
