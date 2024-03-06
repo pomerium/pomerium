@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709760268351,
+  "lastUpdate": 1709760700813,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -102952,6 +102952,42 @@ window.BENCHMARK_DATA = {
             "value": 5734854,
             "unit": "ns/op",
             "extra": "216 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "67d1362a90b8c9dbe8113c9e38e3518c8f91cf49",
+          "message": "core/zero: fix ticker usage (#4969)",
+          "timestamp": "2024-03-06T14:28:21-07:00",
+          "tree_id": "bbef22b945e1f4457fa0be8a20cdf1edcfc49484",
+          "url": "https://github.com/pomerium/pomerium/commit/67d1362a90b8c9dbe8113c9e38e3518c8f91cf49"
+        },
+        "date": 1709760691132,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9252348,
+            "unit": "ns/op",
+            "extra": "128 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6330676,
+            "unit": "ns/op",
+            "extra": "190 times\n4 procs"
           }
         ]
       }
