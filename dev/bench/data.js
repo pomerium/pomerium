@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709765219099,
+  "lastUpdate": 1709765250642,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -103152,6 +103152,42 @@ window.BENCHMARK_DATA = {
             "value": 6461933,
             "unit": "ns/op",
             "extra": "181 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8c154a778fa4dfc25df31b31c0152c67febde335",
+          "message": "chore(deps): bump github.com/klauspost/compress from 1.17.5 to 1.17.7 (#4995)\n\nBumps [github.com/klauspost/compress](https://github.com/klauspost/compress) from 1.17.5 to 1.17.7.\r\n- [Release notes](https://github.com/klauspost/compress/releases)\r\n- [Changelog](https://github.com/klauspost/compress/blob/master/.goreleaser.yml)\r\n- [Commits](https://github.com/klauspost/compress/compare/v1.17.5...v1.17.7)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/klauspost/compress\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-03-06T15:44:23-07:00",
+          "tree_id": "0ad28f39ef779ba822322c30712848b0d45021fe",
+          "url": "https://github.com/pomerium/pomerium/commit/8c154a778fa4dfc25df31b31c0152c67febde335"
+        },
+        "date": 1709765242628,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9161075,
+            "unit": "ns/op",
+            "extra": "124 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6174096,
+            "unit": "ns/op",
+            "extra": "195 times\n4 procs"
           }
         ]
       }
