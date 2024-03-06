@@ -133,7 +133,7 @@ jobs:
         with:
           python-version: "3.x"
 
-      - uses: pre-commit/action@646c83fcd040023954eafda54b4db0192ce70507
+      - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd
         with:
           extra_args: --show-diff-on-failure --from-ref ${{
             github.event.pull_request.base.sha }} --to-ref ${{
