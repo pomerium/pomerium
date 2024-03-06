@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709751156985,
+  "lastUpdate": 1709751502004,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -102412,6 +102412,38 @@ window.BENCHMARK_DATA = {
             "value": 6349070,
             "unit": "ns/op",
             "extra": "187 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "b4ded136fed21c297ea740581fc17d6184be6e35",
+          "message": "envoy: set explicit hostname on cluster endpoints",
+          "timestamp": "2024-03-06T18:22:15Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5018/commits/b4ded136fed21c297ea740581fc17d6184be6e35"
+        },
+        "date": 1709751493375,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8569610,
+            "unit": "ns/op",
+            "extra": "135 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5943422,
+            "unit": "ns/op",
+            "extra": "208 times\n4 procs"
           }
         ]
       }
