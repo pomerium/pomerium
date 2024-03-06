@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709755794408,
+  "lastUpdate": 1709755854115,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -102588,6 +102588,38 @@ window.BENCHMARK_DATA = {
             "value": 30421615,
             "unit": "ns/op",
             "extra": "205 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "aae7e265b6fdc94e743b357a20b3679e641da4e6",
+          "message": "chore(deps): bump go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc from 0.45.0 to 1.24.0",
+          "timestamp": "2024-03-06T18:22:15Z",
+          "url": "https://github.com/pomerium/pomerium/pull/4983/commits/aae7e265b6fdc94e743b357a20b3679e641da4e6"
+        },
+        "date": 1709755846081,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9478170,
+            "unit": "ns/op",
+            "extra": "129 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6411348,
+            "unit": "ns/op",
+            "extra": "184 times\n4 procs"
           }
         ]
       }
