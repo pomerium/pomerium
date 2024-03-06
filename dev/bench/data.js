@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709747114218,
+  "lastUpdate": 1709747161935,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -102152,6 +102152,38 @@ window.BENCHMARK_DATA = {
             "value": 6495279,
             "unit": "ns/op",
             "extra": "181 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "531c88078777a0cf5076e1357c6cb357a27dd41a",
+          "message": "chore(deps): bump github.com/aws/aws-sdk-go-v2/config from 1.26.6 to 1.27.6",
+          "timestamp": "2024-03-06T16:18:51Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5015/commits/531c88078777a0cf5076e1357c6cb357a27dd41a"
+        },
+        "date": 1709747153470,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8782559,
+            "unit": "ns/op",
+            "extra": "135 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6202337,
+            "unit": "ns/op",
+            "extra": "196 times\n4 procs"
           }
         ]
       }
