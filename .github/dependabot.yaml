@@ -5,18 +5,34 @@ updates:
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 50
+    groups:
+      docker:
+        patterns:
+          - "*"
   - package-ecosystem: "docker"
     directory: "/.github/"
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 50
+    groups:
+      docker:
+        patterns:
+          - "*"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 50
+    groups:
+      github-actions:
+        patterns:
+          - "*"
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 50
+    groups:
+      go:
+        patterns:
+          - "*"
