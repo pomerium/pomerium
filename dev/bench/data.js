@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709939214440,
+  "lastUpdate": 1709939256707,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -103596,6 +103596,42 @@ window.BENCHMARK_DATA = {
             "value": 5837905,
             "unit": "ns/op",
             "extra": "196 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9d305248b9ce0c6628da1f45458c3fba8173998a",
+          "message": "chore(deps): bump the docker group in /.github with 2 updates (#5023)\n\nBumps the docker group in /.github with 2 updates: busybox and distroless/base-debian12.\r\n\r\n\r\nUpdates `busybox` from `6d9ac92` to `650fd57`\r\n\r\nUpdates `distroless/base-debian12` from `5eae9ef` to `5eae9ef`\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: busybox\r\n  dependency-type: direct:production\r\n  dependency-group: docker\r\n- dependency-name: distroless/base-debian12\r\n  dependency-type: direct:production\r\n  dependency-group: docker\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-03-08T16:04:25-07:00",
+          "tree_id": "071d4b7cba4fc1c5ffc8841e7141db3f59034b37",
+          "url": "https://github.com/pomerium/pomerium/commit/9d305248b9ce0c6628da1f45458c3fba8173998a"
+        },
+        "date": 1709939248076,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8568036,
+            "unit": "ns/op",
+            "extra": "132 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5827936,
+            "unit": "ns/op",
+            "extra": "202 times\n4 procs"
           }
         ]
       }
