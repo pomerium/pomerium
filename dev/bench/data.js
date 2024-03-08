@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709910031360,
+  "lastUpdate": 1709934741746,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -103324,6 +103324,42 @@ window.BENCHMARK_DATA = {
             "value": 6454949,
             "unit": "ns/op",
             "extra": "190 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e352b277c6745f4395680e739155d07de528d654",
+          "message": "ci: group dependabot updates (#5022)",
+          "timestamp": "2024-03-08T14:49:08-07:00",
+          "tree_id": "3860a0b661d536c1d34f64efabb4c50e3d742caf",
+          "url": "https://github.com/pomerium/pomerium/commit/e352b277c6745f4395680e739155d07de528d654"
+        },
+        "date": 1709934733735,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8272383,
+            "unit": "ns/op",
+            "extra": "144 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5796588,
+            "unit": "ns/op",
+            "extra": "207 times\n4 procs"
           }
         ]
       }
