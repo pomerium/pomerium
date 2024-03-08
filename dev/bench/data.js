@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709934881479,
+  "lastUpdate": 1709935088400,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -103456,6 +103456,42 @@ window.BENCHMARK_DATA = {
             "value": 6229908,
             "unit": "ns/op",
             "extra": "199 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c5b04c2b4fc8e8796082056fbb24bf9d548a6907",
+          "message": "chore(deps): bump the docker group with 2 updates (#5024)",
+          "timestamp": "2024-03-08T16:55:07-05:00",
+          "tree_id": "1b5ae17fba9b858a1c192a83b5f9b5d992b9d40c",
+          "url": "https://github.com/pomerium/pomerium/commit/c5b04c2b4fc8e8796082056fbb24bf9d548a6907"
+        },
+        "date": 1709935080371,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8771968,
+            "unit": "ns/op",
+            "extra": "128 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6316864,
+            "unit": "ns/op",
+            "extra": "193 times\n4 procs"
           }
         ]
       }
