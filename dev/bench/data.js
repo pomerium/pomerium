@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1709935778694,
+  "lastUpdate": 1709939094777,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -103524,6 +103524,42 @@ window.BENCHMARK_DATA = {
             "value": 6741030,
             "unit": "ns/op",
             "extra": "180 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "91413bdaae194f15c037e2f831101e7667e052b8",
+          "message": "chore(deps): bump the go group with 10 updates (#5026)\n\nBumps the go group with 10 updates:\r\n\r\n| Package | From | To |\r\n| --- | --- | --- |\r\n| [github.com/aws/aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2) | `1.25.2` | `1.25.3` |\r\n| [github.com/aws/aws-sdk-go-v2/config](https://github.com/aws/aws-sdk-go-v2) | `1.27.6` | `1.27.7` |\r\n| [github.com/aws/aws-sdk-go-v2/service/s3](https://github.com/aws/aws-sdk-go-v2) | `1.51.3` | `1.51.4` |\r\n| [github.com/docker/docker](https://github.com/docker/docker) | `25.0.3+incompatible` | `25.0.4+incompatible` |\r\n| [github.com/go-jose/go-jose/v3](https://github.com/go-jose/go-jose) | `3.0.2` | `3.0.3` |\r\n| [github.com/jackc/pgx/v5](https://github.com/jackc/pgx) | `5.5.3` | `5.5.4` |\r\n| [github.com/minio/minio-go/v7](https://github.com/minio/minio-go) | `7.0.67` | `7.0.68` |\r\n| [github.com/prometheus/common](https://github.com/prometheus/common) | `0.49.0` | `0.50.0` |\r\n| [github.com/prometheus/procfs](https://github.com/prometheus/procfs) | `0.12.0` | `0.13.0` |\r\n| [google.golang.org/api](https://github.com/googleapis/google-api-go-client) | `0.168.0` | `0.169.0` |\r\n\r\n\r\nUpdates `github.com/aws/aws-sdk-go-v2` from 1.25.2 to 1.25.3\r\n- [Release notes](https://github.com/aws/aws-sdk-go-v2/releases)\r\n- [Commits](https://github.com/aws/aws-sdk-go-v2/compare/v1.25.2...v1.25.3)\r\n\r\nUpdates `github.com/aws/aws-sdk-go-v2/config` from 1.27.6 to 1.27.7\r\n- [Release notes](https://github.com/aws/aws-sdk-go-v2/releases)\r\n- [Commits](https://github.com/aws/aws-sdk-go-v2/compare/config/v1.27.6...config/v1.27.7)\r\n\r\nUpdates `github.com/aws/aws-sdk-go-v2/service/s3` from 1.51.3 to 1.51.4\r\n- [Release notes](https://github.com/aws/aws-sdk-go-v2/releases)\r\n- [Commits](https://github.com/aws/aws-sdk-go-v2/compare/service/s3/v1.51.3...service/s3/v1.51.4)\r\n\r\nUpdates `github.com/docker/docker` from 25.0.3+incompatible to 25.0.4+incompatible\r\n- [Release notes](https://github.com/docker/docker/releases)\r\n- [Commits](https://github.com/docker/docker/compare/v25.0.3...v25.0.4)\r\n\r\nUpdates `github.com/go-jose/go-jose/v3` from 3.0.2 to 3.0.3\r\n- [Release notes](https://github.com/go-jose/go-jose/releases)\r\n- [Changelog](https://github.com/go-jose/go-jose/blob/v3.0.3/CHANGELOG.md)\r\n- [Commits](https://github.com/go-jose/go-jose/compare/v3.0.2...v3.0.3)\r\n\r\nUpdates `github.com/jackc/pgx/v5` from 5.5.3 to 5.5.4\r\n- [Changelog](https://github.com/jackc/pgx/blob/master/CHANGELOG.md)\r\n- [Commits](https://github.com/jackc/pgx/compare/v5.5.3...v5.5.4)\r\n\r\nUpdates `github.com/minio/minio-go/v7` from 7.0.67 to 7.0.68\r\n- [Release notes](https://github.com/minio/minio-go/releases)\r\n- [Commits](https://github.com/minio/minio-go/compare/v7.0.67...v7.0.68)\r\n\r\nUpdates `github.com/prometheus/common` from 0.49.0 to 0.50.0\r\n- [Release notes](https://github.com/prometheus/common/releases)\r\n- [Commits](https://github.com/prometheus/common/compare/v0.49.0...v0.50.0)\r\n\r\nUpdates `github.com/prometheus/procfs` from 0.12.0 to 0.13.0\r\n- [Release notes](https://github.com/prometheus/procfs/releases)\r\n- [Commits](https://github.com/prometheus/procfs/compare/v0.12.0...v0.13.0)\r\n\r\nUpdates `google.golang.org/api` from 0.168.0 to 0.169.0\r\n- [Release notes](https://github.com/googleapis/google-api-go-client/releases)\r\n- [Changelog](https://github.com/googleapis/google-api-go-client/blob/main/CHANGES.md)\r\n- [Commits](https://github.com/googleapis/google-api-go-client/compare/v0.168.0...v0.169.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: github.com/aws/aws-sdk-go-v2\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: go\r\n- dependency-name: github.com/aws/aws-sdk-go-v2/config\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: go\r\n- dependency-name: github.com/aws/aws-sdk-go-v2/service/s3\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: go\r\n- dependency-name: github.com/docker/docker\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: go\r\n- dependency-name: github.com/go-jose/go-jose/v3\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: go\r\n- dependency-name: github.com/jackc/pgx/v5\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: go\r\n- dependency-name: github.com/minio/minio-go/v7\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: go\r\n- dependency-name: github.com/prometheus/common\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: go\r\n- dependency-name: github.com/prometheus/procfs\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: go\r\n- dependency-name: google.golang.org/api\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: go\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-03-08T16:01:37-07:00",
+          "tree_id": "71928e603efe3c0ba030eb48d337ff207c96f289",
+          "url": "https://github.com/pomerium/pomerium/commit/91413bdaae194f15c037e2f831101e7667e052b8"
+        },
+        "date": 1709939085980,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9129744,
+            "unit": "ns/op",
+            "extra": "128 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6217893,
+            "unit": "ns/op",
+            "extra": "182 times\n4 procs"
           }
         ]
       }
