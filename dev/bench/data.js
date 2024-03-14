@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1710286675800,
+  "lastUpdate": 1710450236691,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -103824,6 +103824,42 @@ window.BENCHMARK_DATA = {
             "value": 6778872,
             "unit": "ns/op",
             "extra": "172 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "79d5657742b323b8c770d2360456b3a1a3c12258",
+          "message": "envoy: set explicit hostname on cluster endpoints (#5018)\n\nEnvoy has an option 'auto_host_rewrite' that rewrites the Host header of\r\nan incoming request to match the upstream domain that the proxied\r\nrequest is sent to. Pomerium sets the 'auto_host_rewrite' option for all\r\nPomerium routes that do not set one of the \"Host Rewrite options\" (see\r\nhttps://www.pomerium.com/docs/reference/routes/headers#host-rewrite-options).\r\n\r\nWhen Envoy rewrites the Host header, it does not include the upstream\r\nport, even when it is a non-standard port for the scheme (i.e. a port\r\nother than 80 for http or a port other than 443 for https).\r\n\r\nI think this behavior does not conform to RFC 9110. The nearest thing I\r\ncan find in the text is this statement about http and https URIs:\r\n\"If the port is equal to the default port for a scheme, the normal form\r\nis to omit the port subcomponent.\"\r\n(from https://datatracker.ietf.org/doc/html/rfc9110#section-4.2.3)\r\n\r\nI take this to mean that the port should be specified in other cases.\r\n\r\nThere is a work-around: we can set an explicit hostname on each cluster\r\nendpoint. Let's set this hostname based on the 'to' URL(s) from the\r\nPomerium route.\r\n\r\nThis should change the current behavior in two cases:\r\n\r\n - When a route has a 'to' URL with a port number, this port number will\r\n   now be included in the Host header in the requests made by Pomerium.\r\n\r\n - When a route has a 'to' URL with 'localhost' or an IP address as the\r\n   host, Pomerium will now rewrite the Host header to match the 'to'\r\n   URL.\r\n\r\nThere should be no change in behavior for routes where one of the \"Host\r\nRewrite options\" is set.",
+          "timestamp": "2024-03-14T14:00:32-07:00",
+          "tree_id": "169f87d753f987cbb809811756abbe67c4474a2f",
+          "url": "https://github.com/pomerium/pomerium/commit/79d5657742b323b8c770d2360456b3a1a3c12258"
+        },
+        "date": 1710450228094,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10547754,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7326093,
+            "unit": "ns/op",
+            "extra": "164 times\n4 procs"
           }
         ]
       }
