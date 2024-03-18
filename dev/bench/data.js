@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1710450236691,
+  "lastUpdate": 1710778239764,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -103860,6 +103860,38 @@ window.BENCHMARK_DATA = {
             "value": 7326093,
             "unit": "ns/op",
             "extra": "164 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "9f6b6cd513213f73a5ac37b486ce1d8a8a131b1b",
+          "message": "cluster api: add shared secret to the cluster bootstrap params",
+          "timestamp": "2024-03-18T10:24:24Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5030/commits/9f6b6cd513213f73a5ac37b486ce1d8a8a131b1b"
+        },
+        "date": 1710778231854,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9487384,
+            "unit": "ns/op",
+            "extra": "126 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 56535409,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
           }
         ]
       }
