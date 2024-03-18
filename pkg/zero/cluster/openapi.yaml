@@ -166,6 +166,12 @@ components:
         databrokerStorageConnection:
           type: string
           description: databroker storage connection string
+        sharedSecret:
+          type: string
+          format: byte
+          description: shared secret
+      required:
+        - sharedSecret
 
     Bundle:
       type: object

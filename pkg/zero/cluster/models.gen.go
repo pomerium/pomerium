@@ -20,6 +20,9 @@ const (
 type BootstrapConfig struct {
 	// DatabrokerStorageConnection databroker storage connection string
 	DatabrokerStorageConnection *string `json:"databrokerStorageConnection,omitempty"`
+
+	// SharedSecret shared secret
+	SharedSecret []byte `json:"sharedSecret"`
 }
 
 // Bundle defines model for Bundle.
