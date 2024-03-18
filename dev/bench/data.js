@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1710778239764,
+  "lastUpdate": 1710794030438,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -103892,6 +103892,42 @@ window.BENCHMARK_DATA = {
             "value": 56535409,
             "unit": "ns/op",
             "extra": "100 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "181d5b171d3e6351ba8178e67292b5e3d2537fd8",
+          "message": "cluster api: add shared secret to the cluster bootstrap params (#5030)",
+          "timestamp": "2024-03-18T16:30:39-04:00",
+          "tree_id": "196274fd4689e1ec949f8d852d8799c0c0435279",
+          "url": "https://github.com/pomerium/pomerium/commit/181d5b171d3e6351ba8178e67292b5e3d2537fd8"
+        },
+        "date": 1710794022567,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9079826,
+            "unit": "ns/op",
+            "extra": "132 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6535784,
+            "unit": "ns/op",
+            "extra": "181 times\n4 procs"
           }
         ]
       }
