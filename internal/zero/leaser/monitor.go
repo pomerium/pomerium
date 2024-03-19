@@ -11,15 +11,15 @@ const typeStr = "pomerium.io/zero/leaser"
 
 // databrokerChangeMonitor runs infinite sync loop to see if there is any change in databroker
 // it doesn't really syncs anything, just checks if the underlying databroker has changed
-func (c *service) databrokerChangeMonitor(ctx context.Context) error {
-	_, recordVersion, serverVersion, err := databroker.InitialSync(ctx, c.GetDataBrokerServiceClient(), &databroker.SyncLatestRequest{
+func databrokerChangeMonitor(ctx context.Context, client databroker.DataBrokerServiceClient) error {
+	_, recordVersion, serverVersion, err := databroker.InitialSync(ctx, client, &databroker.SyncLatestRequest{
 		Type: typeStr,
 	})
 	if err != nil {
 		return fmt.Errorf("error during initial sync: %w", err)
 	}
 
-	stream, err := c.GetDataBrokerServiceClient().Sync(ctx, &databroker.SyncRequest{
+	stream, err := client.Sync(ctx, &databroker.SyncRequest{
 		Type:          typeStr,
 		ServerVersion: serverVersion,
 		RecordVersion: recordVersion,

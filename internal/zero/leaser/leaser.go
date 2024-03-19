@@ -13,7 +13,7 @@ import (
 
 type service struct {
 	client databroker.DataBrokerServiceClient
-	funcs  []func(ctx context.Context) error
+	funcs  []func(ctx context.Context, client databroker.DataBrokerServiceClient) error
 }
 
 // GetDataBrokerServiceClient implements the databroker.LeaseHandler interface.
@@ -24,10 +24,10 @@ func (c *service) GetDataBrokerServiceClient() databroker.DataBrokerServiceClien
 // RunLeased implements the databroker.LeaseHandler interface.
 func (c *service) RunLeased(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
-	for _, fn := range append(c.funcs, c.databrokerChangeMonitor) {
+	for _, fn := range append(c.funcs, databrokerChangeMonitor) {
 		fn := fn
 		eg.Go(func() error {
-			return fn(ctx)
+			return fn(ctx, c.client)
 		})
 	}
 	return eg.Wait()
@@ -37,7 +37,7 @@ func (c *service) RunLeased(ctx context.Context) error {
 func Run(
 	ctx context.Context,
 	client databroker.DataBrokerServiceClient,
-	funcs ...func(ctx context.Context) error,
+	funcs ...func(context.Context, databroker.DataBrokerServiceClient) error,
 ) error {
 	srv := &service{
 		client: client,

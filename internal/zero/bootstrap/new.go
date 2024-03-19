@@ -108,17 +108,11 @@ func initSecrets(cfg *config.Config, r io.Reader) error {
 		return fmt.Errorf("pem: %w", err)
 	}
 
-	sharedKey, err := readKey(r)
-	if err != nil {
-		return fmt.Errorf("read key: %w", err)
-	}
-
 	cookieSecret, err := readKey(r)
 	if err != nil {
 		return fmt.Errorf("read key: %w", err)
 	}
 
-	cfg.Options.SharedKey = base64.StdEncoding.EncodeToString(sharedKey)
 	cfg.Options.CookieSecret = base64.StdEncoding.EncodeToString(cookieSecret)
 	cfg.Options.SigningKey = base64.StdEncoding.EncodeToString(signingKeyEncoded)
 
