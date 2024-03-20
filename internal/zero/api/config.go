@@ -4,6 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"google.golang.org/grpc"
+
+	"github.com/pomerium/pomerium/internal/featureflags"
 )
 
 // Option is a functional option for the SDK
@@ -16,6 +20,7 @@ type config struct {
 	apiToken            string
 	httpClient          *http.Client
 	downloadURLCacheTTL time.Duration
+	dialOptions         []grpc.DialOption
 }
 
 // WithClusterAPIEndpoint sets the cluster API endpoint
@@ -67,6 +72,10 @@ func newConfig(opts ...Option) (*config, error) {
 		WithDownloadURLCacheTTL(15 * time.Minute),
 	} {
 		opt(cfg)
+	}
+
+	if !featureflags.IsSet(featureflags.GRPCConnectDisableKeepalive) {
+		cfg.dialOptions = append(cfg.dialOptions, grpc.WithKeepaliveParams(connectClientKeepaliveParams))
 	}
 
 	for _, opt := range opts {
