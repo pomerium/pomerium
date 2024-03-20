@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1710968488112,
+  "lastUpdate": 1710968768618,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -104060,6 +104060,42 @@ window.BENCHMARK_DATA = {
             "value": 6101746,
             "unit": "ns/op",
             "extra": "192 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4193583301df9ca5442b4cf1b2b0ba0ad9792767",
+          "message": "zero: add service accounts support (#5031)\n\n* zero: add service accounts support\r\n\r\n* quit on terminal errors",
+          "timestamp": "2024-03-20T17:03:03-04:00",
+          "tree_id": "193a02935faa9c990d8b399f339ae127c2785c28",
+          "url": "https://github.com/pomerium/pomerium/commit/4193583301df9ca5442b4cf1b2b0ba0ad9792767"
+        },
+        "date": 1710968760224,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9309302,
+            "unit": "ns/op",
+            "extra": "129 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6585875,
+            "unit": "ns/op",
+            "extra": "181 times\n4 procs"
           }
         ]
       }
