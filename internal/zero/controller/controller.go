@@ -102,14 +102,11 @@ func (c *controller) runConnect(ctx context.Context) error {
 }
 
 func (c *controller) runZeroControlLoop(ctx context.Context) error {
-	return bootstrap.Run(ctx, c.bootstrapConfig,
-		func(ctx context.Context, client databroker.DataBrokerServiceClient) error {
-			return leaser.Run(ctx, client,
-				c.runReconciler,
-				c.runAnalytics,
-				c.runReporter,
-			)
-		})
+	return leaser.Run(ctx, c.bootstrapConfig,
+		c.runReconciler,
+		c.runAnalytics,
+		c.runReporter,
+	)
 }
 
 func (c *controller) runReconciler(ctx context.Context, client databroker.DataBrokerServiceClient) error {

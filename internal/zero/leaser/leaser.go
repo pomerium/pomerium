@@ -5,49 +5,52 @@ import (
 	"context"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/pomerium/pomerium/internal/retry"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
-type service struct {
+type leaser struct {
+	cancel context.CancelCauseFunc
 	client databroker.DataBrokerServiceClient
 	funcs  []func(ctx context.Context, client databroker.DataBrokerServiceClient) error
 }
 
 // GetDataBrokerServiceClient implements the databroker.LeaseHandler interface.
-func (c *service) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+func (c *leaser) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
 	return c.client
 }
 
 // RunLeased implements the databroker.LeaseHandler interface.
-func (c *service) RunLeased(ctx context.Context) error {
+func (c *leaser) RunLeased(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	for _, fn := range append(c.funcs, databrokerChangeMonitor) {
 		fn := fn
 		eg.Go(func() error {
-			return fn(ctx, c.client)
+			err := fn(ctx, c.client)
+			if retry.IsTerminalError(err) {
+				c.cancel(err)
+			}
+			return err
 		})
 	}
 	return eg.Wait()
 }
 
-// Run runs services within a lease
-func Run(
+func runWithLease(
 	ctx context.Context,
 	client databroker.DataBrokerServiceClient,
 	funcs ...func(context.Context, databroker.DataBrokerServiceClient) error,
 ) error {
-	srv := &service{
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(context.Canceled)
+
+	srv := &leaser{
+		cancel: cancel,
 		client: client,
 		funcs:  funcs,
 	}
-	b := backoff.NewExponentialBackOff()
-	b.MaxElapsedTime = 0
 	leaser := databroker.NewLeaser("zero-ctrl", time.Second*30, srv)
-	return backoff.Retry(
-		func() error { return leaser.Run(ctx) },
-		backoff.WithContext(b, ctx),
-	)
+	return leaser.Run(ctx)
 }
