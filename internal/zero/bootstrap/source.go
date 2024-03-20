@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"encoding/base64"
 	"sync"
 
 	"github.com/google/go-cmp/cmp"
@@ -56,13 +57,12 @@ func (src *source) UpdateBootstrap(ctx context.Context, cfg cluster_api.Bootstra
 	incoming := current.Clone()
 	applyBootstrapConfig(incoming.Options, &cfg)
 
-	src.markReady.Do(func() { close(src.ready) })
-
 	if cmp.Equal(incoming.Options, current.Options, cmpOpts...) {
 		return false
 	}
 
 	src.cfg.Store(incoming)
+	src.markReady.Do(func() { close(src.ready) })
 
 	src.notifyListeners(ctx, incoming)
 
@@ -82,6 +82,7 @@ func (src *source) notifyListeners(ctx context.Context, cfg *config.Config) {
 }
 
 func applyBootstrapConfig(dst *config.Options, src *cluster_api.BootstrapConfig) {
+	dst.SharedKey = base64.StdEncoding.EncodeToString(src.SharedSecret)
 	if src.DatabrokerStorageConnection != nil {
 		dst.DataBrokerStorageType = config.StoragePostgresName
 		dst.DataBrokerStorageConnectionString = *src.DatabrokerStorageConnection

@@ -37,16 +37,11 @@ func Run(ctx context.Context, opts ...Option) error {
 	}
 	c.bootstrapConfig = src
 
-	err = c.InitDatabrokerClient(ctx, src.GetConfig())
-	if err != nil {
-		return fmt.Errorf("init databroker client: %w", err)
-	}
-
-	eg.Go(func() error { return run(ctx, "connect", c.runConnect, nil) })
-	eg.Go(func() error { return run(ctx, "connect-log", c.RunConnectLog, nil) })
-	eg.Go(func() error { return run(ctx, "zero-bootstrap", c.runBootstrap, nil) })
-	eg.Go(func() error { return run(ctx, "pomerium-core", c.runPomeriumCore, src.WaitReady) })
-	eg.Go(func() error { return c.runZeroControlLoop(ctx, src.WaitReady) })
+	eg.Go(func() error { return run(ctx, "connect", c.runConnect) })
+	eg.Go(func() error { return run(ctx, "connect-log", c.RunConnectLog) })
+	eg.Go(func() error { return run(ctx, "zero-bootstrap", c.runBootstrap) })
+	eg.Go(func() error { return run(ctx, "pomerium-core", c.runPomeriumCore) })
+	eg.Go(func() error { return run(ctx, "zero-control-loop", c.runZeroControlLoop) })
 	return eg.Wait()
 }
 
@@ -56,8 +51,6 @@ type controller struct {
 	api *sdk.API
 
 	bootstrapConfig *bootstrap.Source
-
-	databrokerClient databroker.DataBrokerServiceClient
 }
 
 func (c *controller) initAPI(ctx context.Context) error {
@@ -76,15 +69,7 @@ func (c *controller) initAPI(ctx context.Context) error {
 	return nil
 }
 
-func run(ctx context.Context, name string, runFn func(context.Context) error, waitFn func(context.Context) error) error {
-	if waitFn != nil {
-		log.Ctx(ctx).Info().Str("name", name).Msg("waiting for initial configuration")
-		err := waitFn(ctx)
-		if err != nil {
-			return fmt.Errorf("%s: error waiting for initial configuration: %w", name, err)
-		}
-	}
-
+func run(ctx context.Context, name string, runFn func(context.Context) error) error {
 	log.Ctx(ctx).Info().Str("name", name).Msg("starting")
 	err := runFn(ctx)
 	if err != nil && !errors.Is(err, context.Canceled) {
@@ -101,6 +86,10 @@ func (c *controller) runBootstrap(ctx context.Context) error {
 }
 
 func (c *controller) runPomeriumCore(ctx context.Context) error {
+	err := c.bootstrapConfig.WaitReady(ctx)
+	if err != nil {
+		return fmt.Errorf("waiting for config source to be ready: %w", err)
+	}
 	return pomerium.Run(ctx, c.bootstrapConfig)
 }
 
@@ -112,36 +101,31 @@ func (c *controller) runConnect(ctx context.Context) error {
 	return c.api.Connect(ctx)
 }
 
-func (c *controller) runZeroControlLoop(ctx context.Context, waitFn func(context.Context) error) error {
-	err := waitFn(ctx)
-	if err != nil {
-		return fmt.Errorf("error waiting for initial configuration: %w", err)
-	}
-
-	return leaser.Run(ctx, c.databrokerClient,
+func (c *controller) runZeroControlLoop(ctx context.Context) error {
+	return leaser.Run(ctx, c.bootstrapConfig,
 		c.runReconciler,
 		c.runAnalytics,
 		c.runReporter,
 	)
 }
 
-func (c *controller) runReconciler(ctx context.Context) error {
+func (c *controller) runReconciler(ctx context.Context, client databroker.DataBrokerServiceClient) error {
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "zero-reconciler")
 	})
 
 	return reconciler.Run(ctx,
 		reconciler.WithAPI(c.api),
-		reconciler.WithDataBrokerClient(c.GetDataBrokerServiceClient()),
+		reconciler.WithDataBrokerClient(client),
 	)
 }
 
-func (c *controller) runAnalytics(ctx context.Context) error {
+func (c *controller) runAnalytics(ctx context.Context, client databroker.DataBrokerServiceClient) error {
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "zero-analytics")
 	})
 
-	err := analytics.Collect(ctx, c.GetDataBrokerServiceClient(), time.Hour)
+	err := analytics.Collect(ctx, client, time.Hour)
 	if err != nil && ctx.Err() == nil {
 		log.Ctx(ctx).Error().Err(err).Msg("error collecting analytics, disabling")
 		return nil
@@ -150,13 +134,13 @@ func (c *controller) runAnalytics(ctx context.Context) error {
 	return err
 }
 
-func (c *controller) runReporter(ctx context.Context) error {
+func (c *controller) runReporter(ctx context.Context, client databroker.DataBrokerServiceClient) error {
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "zero-reporter")
 	})
 
 	return c.api.Report(ctx,
 		reporter.WithCollectInterval(time.Hour),
-		reporter.WithMetrics(analytics.Metrics(c.GetDataBrokerServiceClient)...),
+		reporter.WithMetrics(analytics.Metrics(func() databroker.DataBrokerServiceClient { return client })...),
 	)
 }
