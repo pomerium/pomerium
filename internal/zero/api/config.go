@@ -74,7 +74,7 @@ func newConfig(opts ...Option) (*config, error) {
 		opt(cfg)
 	}
 
-	if !featureflags.IsSet(featureflags.GRPCConnectKeepalive) {
+	if featureflags.IsSet(featureflags.GRPCConnectKeepalive) {
 		cfg.dialOptions = append(cfg.dialOptions, grpc.WithKeepaliveParams(connectClientKeepaliveParams))
 	}
 
