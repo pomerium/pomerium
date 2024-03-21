@@ -20,6 +20,7 @@ var flags = make(map[string]struct{})
 func init() {
 	for _, env := range []string{
 		GRPCLogConnectionState,
+		GRPCConnectDisableKeepalive,
 	} {
 		if _, ok := os.LookupEnv(fmt.Sprintf("POMERIUM_%s", env)); ok {
 			flags[env] = struct{}{}
