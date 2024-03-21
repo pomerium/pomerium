@@ -11,7 +11,7 @@ import (
 func TestConfigDeterministic(t *testing.T) {
 	secret := []byte("secret")
 
-	src, err := bootstrap.New(secret)
+	src, err := bootstrap.New(secret, nil, nil)
 	require.NoError(t, err)
 	cfg := src.GetConfig()
 	require.NotNil(t, cfg)
@@ -20,7 +20,7 @@ func TestConfigDeterministic(t *testing.T) {
 	require.NoError(t, cfg.Options.Validate())
 
 	// test that the config is deterministic
-	src2, err := bootstrap.New(secret)
+	src2, err := bootstrap.New(secret, nil, nil)
 	require.NoError(t, err)
 
 	cfg2 := src2.GetConfig()

@@ -28,19 +28,22 @@ func Run(ctx context.Context, configFile string) error {
 		return errors.New("no token provided")
 	}
 
-	bootstrapConfigFileName, err := getBootstrapConfigFileName()
-	if err != nil {
-		return fmt.Errorf("error getting bootstrap config path: %w", err)
-	}
-
-	return controller.Run(
-		withInterrupt(ctx),
+	opts := []controller.Option{
 		controller.WithAPIToken(token),
 		controller.WithClusterAPIEndpoint(getClusterAPIEndpoint()),
 		controller.WithConnectAPIEndpoint(getConnectAPIEndpoint()),
 		controller.WithOTELAPIEndpoint(getOTELAPIEndpoint()),
-		controller.WithBootstrapConfigFileName(bootstrapConfigFileName),
-	)
+	}
+
+	bootstrapConfigFileName, err := getBootstrapConfigFileName()
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("would not be able to save cluster bootstrap config, that will prevent Pomerium from starting independent from the control plane")
+	} else {
+		log.Ctx(ctx).Info().Str("file", bootstrapConfigFileName).Msg("cluster bootstrap config path")
+		opts = append(opts, controller.WithBootstrapConfigFileName(bootstrapConfigFileName))
+	}
+
+	return controller.Run(withInterrupt(ctx), opts...)
 }
 
 // IsManagedMode returns true if Pomerium should start in managed mode using this command.
