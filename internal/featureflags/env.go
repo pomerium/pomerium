@@ -13,7 +13,7 @@ var (
 	// GRPCLogConnectionState connection logs gRPC connection state transitions
 	// which is less verbose than logs enabled via https://github.com/grpc/grpc-go/blob/master/README.md#how-to-turn-on-logging
 	GRPCLogConnectionState = option("GRPC_LOG_CONNECTION_STATE", false)
-	// GRPCConnectKeepalive disables gRPC keepalive to zero connect service
+	// GRPCConnectKeepalive enables gRPC keepalive to zero connect service
 	GRPCConnectKeepalive = option("GRPC_CONNECT_KEEPALIVE", true)
 )
 
