@@ -219,7 +219,7 @@ func (b *Builder) BuildBootstrapStaticResources(
 				},
 			},
 		},
-		TypedExtensionProtocolOptions: buildTypedExtensionProtocolOptions(nil, upstreamProtocolHTTP2),
+		TypedExtensionProtocolOptions: buildTypedExtensionProtocolOptions(nil, upstreamProtocolHTTP2, Keepalive(false)),
 	}
 
 	staticResources.Clusters = append(staticResources.Clusters, controlPlaneCluster)

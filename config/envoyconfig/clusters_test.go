@@ -516,7 +516,7 @@ func Test_buildCluster(t *testing.T) {
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
 		cluster.DnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2)
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, Keepalive(false))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -577,7 +577,7 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2)
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, Keepalive(true))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -690,7 +690,15 @@ func Test_buildCluster(t *testing.T) {
 								"allowConnect": true,
 								"initialConnectionWindowSize": 1048576,
 								"initialStreamWindowSize": 65536,
-								"maxConcurrentStreams": 100
+								"maxConcurrentStreams": 100,
+								"connectionKeepalive": {
+									"connectionIdleInterval": "300s",
+									"interval": "60s",
+									"intervalJitter": {
+										"value": 15
+									},
+									"timeout": "60s"
+								}
 							}
 						}
 					}
@@ -745,7 +753,7 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2)
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, Keepalive(false))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -803,7 +811,7 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2)
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, Keepalive(false))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -863,7 +871,7 @@ func Test_buildCluster(t *testing.T) {
 		})
 		require.NoError(t, err)
 		cluster := newDefaultEnvoyClusterConfig()
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2)
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, Keepalive(false))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{
@@ -916,7 +924,7 @@ func Test_buildCluster(t *testing.T) {
 			EnforcingConsecutive_5Xx:       wrapperspb.UInt32(17),
 			SplitExternalLocalOriginErrors: true,
 		}
-		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2)
+		err = b.buildCluster(cluster, "example", endpoints, upstreamProtocolHTTP2, Keepalive(false))
 		require.NoErrorf(t, err, "cluster %+v", cluster)
 		testutil.AssertProtoJSONEqual(t, `
 			{

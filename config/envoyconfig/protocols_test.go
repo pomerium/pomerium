@@ -32,5 +32,5 @@ func Test_buildUpstreamProtocolOptions(t *testing.T) {
 					},
 				},
 			},
-		}, buildUpstreamProtocolOptions(nil, upstreamProtocolHTTP1), protocmp.Transform()))
+		}, buildUpstreamProtocolOptions(nil, upstreamProtocolHTTP1, Keepalive(false)), protocmp.Transform()))
 }

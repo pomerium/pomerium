@@ -15,6 +15,8 @@ var (
 	GRPCLogConnectionState = option("GRPC_LOG_CONNECTION_STATE", false)
 	// GRPCConnectKeepalive enables gRPC keepalive to zero connect service
 	GRPCConnectKeepalive = option("GRPC_CONNECT_KEEPALIVE", true)
+	// GRPCDatabrokerKeepalive enables gRPC keepalive to the databroker service
+	GRPCDatabrokerKeepalive = option("GRPC_DATABROKER_KEEPALIVE", false)
 )
 
 // Option is a feature flag option.
