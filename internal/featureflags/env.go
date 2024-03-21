@@ -1,35 +1,54 @@
 // Package featureflags enables feature flags that are set via environment variables.
-// the feature flags are used to enable or disable experimental features.
+// the feature flags are used to enable or disable experimental or debug features.
+// there are no guarantees of stability or backward compatibility for these features.
 package featureflags
 
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
-const (
+var (
 	// GRPCLogConnectionState connection logs gRPC connection state transitions
 	// which is less verbose than logs enabled via https://github.com/grpc/grpc-go/blob/master/README.md#how-to-turn-on-logging
-	GRPCLogConnectionState = "GRPC_LOG_CONNECTION_STATE"
-	// GRPCConnectDisableKeepalive disables gRPC keepalive to zero connect service
-	GRPCConnectDisableKeepalive = "GRPC_CONNECT_DISABLE_KEEPALIVE"
+	GRPCLogConnectionState = option("GRPC_LOG_CONNECTION_STATE", false)
+	// GRPCConnectKeepalive disables gRPC keepalive to zero connect service
+	GRPCConnectKeepalive = option("GRPC_CONNECT_KEEPALIVE", true)
 )
 
-var flags = make(map[string]struct{})
+// Option is a feature flag option.
+type Option string
+
+func option(name string, defaultValue bool) Option {
+	k := Option(name)
+	flags[k] = defaultValue
+	return k
+}
+
+var flags = make(map[Option]bool)
 
 func init() {
-	for _, env := range []string{
-		GRPCLogConnectionState,
-		GRPCConnectDisableKeepalive,
-	} {
-		if _, ok := os.LookupEnv(fmt.Sprintf("POMERIUM_%s", env)); ok {
-			flags[env] = struct{}{}
+	for k := range flags {
+		if txt, ok := os.LookupEnv(fmt.Sprintf("POMERIUM_%s", k)); ok {
+			v, err := strconv.ParseBool(txt)
+			if err == nil {
+				flags[k] = v
+			}
 		}
 	}
 }
 
 // IsSet returns true if the feature flag is set.
-func IsSet(flag string) bool {
-	_, ok := flags[flag]
-	return ok
+func IsSet(k Option) bool {
+	return flags[k]
+}
+
+// Flags returns the current feature flags
+func Flags() map[string]bool {
+	dst := make(map[string]bool, len(flags))
+	for k, v := range flags {
+		dst[string(k)] = v
+	}
+	return dst
 }
