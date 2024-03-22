@@ -300,11 +300,12 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 			Provider:       tracingProvider,
 		},
 		// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-for
-		UseRemoteAddress:  &wrapperspb.BoolValue{Value: true},
-		SkipXffAppend:     cfg.Options.SkipXffAppend,
-		XffNumTrustedHops: cfg.Options.XffNumTrustedHops,
-		LocalReplyConfig:  b.buildLocalReplyConfig(cfg.Options),
-		NormalizePath:     wrapperspb.Bool(true),
+		UseRemoteAddress:             &wrapperspb.BoolValue{Value: true},
+		SkipXffAppend:                cfg.Options.SkipXffAppend,
+		XffNumTrustedHops:            cfg.Options.XffNumTrustedHops,
+		LocalReplyConfig:             b.buildLocalReplyConfig(cfg.Options),
+		NormalizePath:                wrapperspb.Bool(true),
+		PathWithEscapedSlashesAction: envoy_http_connection_manager.HttpConnectionManager_UNESCAPE_AND_REDIRECT,
 	}
 
 	if fullyStatic {

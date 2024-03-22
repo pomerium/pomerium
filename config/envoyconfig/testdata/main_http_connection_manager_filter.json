@@ -132,6 +132,7 @@
     },
     "requestTimeout": "30s",
     "normalizePath": true,
+    "pathWithEscapedSlashesAction": "UNESCAPE_AND_REDIRECT",
     "rds": {
       "configSource": {
         "ads": {},
