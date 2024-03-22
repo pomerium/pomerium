@@ -3,6 +3,7 @@
 package header
 
 import (
+	"encoding/base64"
 	"net/http"
 	"strings"
 
@@ -47,17 +48,27 @@ func TokenFromHeaders(r *http.Request) string {
 		return jwt
 	}
 
-	bearer := r.Header.Get(httputil.HeaderAuthorization)
+	authHeader := r.Header.Get(httputil.HeaderAuthorization)
+	// Authorization: Basic enc64<user:password>
+	prefix := "Basic "
+	if strings.HasPrefix(authHeader, prefix) {
+		userPassword, _ := base64.StdEncoding.DecodeString(authHeader[len(prefix):])
+		userPrefix := "pomerium:"
+		if strings.HasPrefix(string(userPassword), userPrefix) {
+			return string(userPassword[len(userPrefix):])
+		}
+	}
+
 	// Authorization: Pomerium <JWT>
-	prefix := httputil.AuthorizationTypePomerium + " "
-	if strings.HasPrefix(bearer, prefix) {
-		return bearer[len(prefix):]
+	prefix = httputil.AuthorizationTypePomerium + " "
+	if strings.HasPrefix(authHeader, prefix) {
+		return authHeader[len(prefix):]
 	}
 
 	// Authorization: Bearer Pomerium-<JWT>
 	prefix = "Bearer " + httputil.AuthorizationTypePomerium + "-"
-	if strings.HasPrefix(bearer, prefix) {
-		return bearer[len(prefix):]
+	if strings.HasPrefix(authHeader, prefix) {
+		return authHeader[len(prefix):]
 	}
 
 	return ""
