@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711057486484,
+  "lastUpdate": 1711068187130,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -104352,6 +104352,42 @@ window.BENCHMARK_DATA = {
             "value": 5950078,
             "unit": "ns/op",
             "extra": "210 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d20e99ca8cb88d037b2823dc102afded760d8aca",
+          "message": "zero: fix bootstrap config path (#5035)",
+          "timestamp": "2024-03-21T20:39:52-04:00",
+          "tree_id": "9dcc2c7c3592237c75a73a9583f5d257283ee8da",
+          "url": "https://github.com/pomerium/pomerium/commit/d20e99ca8cb88d037b2823dc102afded760d8aca"
+        },
+        "date": 1711068179034,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8917248,
+            "unit": "ns/op",
+            "extra": "141 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5722351,
+            "unit": "ns/op",
+            "extra": "207 times\n4 procs"
           }
         ]
       }
