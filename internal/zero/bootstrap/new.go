@@ -25,7 +25,7 @@ type Source struct {
 
 	api *sdk.API
 
-	fileCachePath string
+	fileCachePath *string
 	fileCipher    cipher.AEAD
 
 	checkForUpdate chan struct{}
@@ -33,7 +33,7 @@ type Source struct {
 }
 
 // New creates a new bootstrap config source
-func New(secret []byte) (*Source, error) {
+func New(secret []byte, fileCachePath *string, api *sdk.API) (*Source, error) {
 	cfg := new(config.Config)
 
 	err := setConfigDefaults(cfg)
@@ -54,7 +54,9 @@ func New(secret []byte) (*Source, error) {
 	}
 
 	svc := &Source{
+		api:            api,
 		source:         source{ready: make(chan struct{})},
+		fileCachePath:  fileCachePath,
 		fileCipher:     cipher,
 		checkForUpdate: make(chan struct{}, 1),
 	}

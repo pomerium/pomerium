@@ -12,7 +12,7 @@ type controllerConfig struct {
 	otelEndpoint       string
 
 	tmpDir                  string
-	bootstrapConfigFileName string
+	bootstrapConfigFileName *string
 
 	reconcilerLeaseDuration  time.Duration
 	databrokerRequestTimeout time.Duration
@@ -56,7 +56,7 @@ func WithAPIToken(token string) Option {
 // WithBootstrapConfigFileName sets the name of the file to store the bootstrap config in.
 func WithBootstrapConfigFileName(name string) Option {
 	return func(c *controllerConfig) {
-		c.bootstrapConfigFileName = name
+		c.bootstrapConfigFileName = &name
 	}
 }
 

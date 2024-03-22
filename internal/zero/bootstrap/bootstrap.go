@@ -20,7 +20,6 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/retry"
-	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 )
 
@@ -34,17 +33,7 @@ const (
 )
 
 // Run initializes the bootstrap config source
-func (svc *Source) Run(
-	ctx context.Context,
-	api *sdk.API,
-	fileCachePath string,
-) error {
-	log.Ctx(ctx).Info().Str("bootstrap-config-path", fileCachePath).
-		Msg("initializing bootstrap config source")
-
-	svc.api = api
-	svc.fileCachePath = fileCachePath
-
+func (svc *Source) Run(ctx context.Context) error {
 	svc.tryLoadFromFile(ctx)
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -109,18 +98,27 @@ func (svc *Source) updateAndSave(ctx context.Context) error {
 		return fmt.Errorf("load bootstrap config from API: %w", err)
 	}
 
-	err = SaveBootstrapConfigToFile(cfg, svc.fileCachePath, svc.fileCipher)
+	svc.UpdateBootstrap(ctx, *cfg)
+
+	if svc.fileCachePath == nil {
+		return nil
+	}
+
+	err = SaveBootstrapConfigToFile(cfg, *svc.fileCachePath, svc.fileCipher)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).
 			Msg("failed to save bootstrap config to file, note it may prevent Pomerium from starting up in case of connectivity issues")
 	}
 
-	svc.UpdateBootstrap(ctx, *cfg)
 	return nil
 }
 
 func (svc *Source) tryLoadFromFile(ctx context.Context) {
-	cfg, err := LoadBootstrapConfigFromFile(svc.fileCachePath, svc.fileCipher)
+	if svc.fileCachePath == nil {
+		return
+	}
+
+	cfg, err := LoadBootstrapConfigFromFile(*svc.fileCachePath, svc.fileCipher)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("failed to load bootstrap config from file")
 		return

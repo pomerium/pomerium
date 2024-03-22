@@ -31,7 +31,7 @@ func Run(ctx context.Context, opts ...Option) error {
 		return fmt.Errorf("init api: %w", err)
 	}
 
-	src, err := bootstrap.New([]byte(c.cfg.apiToken))
+	src, err := bootstrap.New([]byte(c.cfg.apiToken), c.cfg.bootstrapConfigFileName, c.api)
 	if err != nil {
 		return fmt.Errorf("error creating bootstrap config: %w", err)
 	}
@@ -82,7 +82,7 @@ func (c *controller) runBootstrap(ctx context.Context) error {
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "zero-bootstrap")
 	})
-	return c.bootstrapConfig.Run(ctx, c.api, c.cfg.bootstrapConfigFileName)
+	return c.bootstrapConfig.Run(ctx)
 }
 
 func (c *controller) runPomeriumCore(ctx context.Context) error {
