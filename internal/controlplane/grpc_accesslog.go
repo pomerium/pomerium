@@ -1,6 +1,7 @@
 package controlplane
 
 import (
+	"context"
 	"strings"
 
 	envoy_data_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3"
@@ -16,6 +17,7 @@ func (srv *Server) registerAccessLogHandlers() {
 
 // StreamAccessLogs receives logs from envoy and prints them to stdout.
 func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogService_StreamAccessLogsServer) error {
+	var logName string
 	for {
 		msg, err := stream.Recv()
 		if err != nil {
@@ -23,26 +25,57 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogS
 			return err
 		}
 
-		for _, entry := range msg.GetHttpLogs().LogEntry {
-			reqPath := entry.GetRequest().GetPath()
-			var evt *zerolog.Event
-			if reqPath == "/ping" || reqPath == "/healthz" {
-				evt = log.Debug(stream.Context())
-			} else {
-				evt = log.Info(stream.Context())
-			}
-			evt = evt.Str("service", "envoy")
-
-			fields := srv.currentConfig.Load().Options.GetAccessLogFields()
-			for _, field := range fields {
-				evt = populateLogEvent(field, evt, entry)
-			}
-			// headers are selected in the envoy access logs config, so we can log all of them here
-			if len(entry.GetRequest().GetRequestHeaders()) > 0 {
-				evt = evt.Interface("headers", entry.GetRequest().GetRequestHeaders())
-			}
-			evt.Msg("http-request")
+		if msg.Identifier != nil {
+			logName = msg.Identifier.LogName
 		}
+
+		if logName == "ingress-http-listener" {
+			accessLogListener(stream.Context(), msg)
+		} else {
+			srv.accessLogHTTP(stream.Context(), msg)
+		}
+	}
+}
+
+func accessLogListener(
+	ctx context.Context, msg *envoy_service_accesslog_v3.StreamAccessLogsMessage,
+) {
+	/*for _, entry := range msg.GetTcpLogs().LogEntry {
+		log.Info(ctx).
+			Str("service", "envoy").
+			Interface("log", entry).
+			Msg("listener connect TCP")
+	}*/
+	for _, entry := range msg.GetHttpLogs().LogEntry {
+		log.Info(ctx).
+			Str("service", "envoy").
+			Interface("log", entry).
+			Msg("listener connect")
+	}
+}
+
+func (srv *Server) accessLogHTTP(
+	ctx context.Context, msg *envoy_service_accesslog_v3.StreamAccessLogsMessage,
+) {
+	for _, entry := range msg.GetHttpLogs().LogEntry {
+		reqPath := entry.GetRequest().GetPath()
+		var evt *zerolog.Event
+		if reqPath == "/ping" || reqPath == "/healthz" {
+			evt = log.Debug(ctx)
+		} else {
+			evt = log.Info(ctx)
+		}
+		evt = evt.Str("service", "envoy")
+
+		fields := srv.currentConfig.Load().Options.GetAccessLogFields()
+		for _, field := range fields {
+			evt = populateLogEvent(field, evt, entry)
+		}
+		// headers are selected in the envoy access logs config, so we can log all of them here
+		if len(entry.GetRequest().GetRequestHeaders()) > 0 {
+			evt = evt.Interface("headers", entry.GetRequest().GetRequestHeaders())
+		}
+		evt.Msg("http-request")
 	}
 }
 
