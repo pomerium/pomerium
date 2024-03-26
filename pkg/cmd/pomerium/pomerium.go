@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	"go.uber.org/automaxprocs/maxprocs"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/authenticate"
@@ -31,6 +32,8 @@ import (
 
 // Run runs the main pomerium application.
 func Run(ctx context.Context, src config.Source) error {
+	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...interface{}) { log.Debug(context.Background()).Msgf(s, i...) }))
+
 	log.Info(ctx).
 		Str("envoy_version", files.FullVersion()).
 		Str("version", version.FullVersion()).

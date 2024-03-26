@@ -24,6 +24,9 @@ func (c certMagicLoggerCore) With(fs []zapcore.Field) zapcore.Core {
 }
 
 func (c certMagicLoggerCore) Check(e zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
+	if e.Level == zap.InfoLevel {
+		e.Level = zap.DebugLevel
+	}
 	if !c.Enabled(e.Level) {
 		return ce
 	}
@@ -31,6 +34,9 @@ func (c certMagicLoggerCore) Check(e zapcore.Entry, ce *zapcore.CheckedEntry) *z
 }
 
 func (c certMagicLoggerCore) Write(e zapcore.Entry, fs []zapcore.Field) error {
+	if e.Level == zap.InfoLevel {
+		e.Level = zap.DebugLevel
+	}
 	fs = append(c.fields, fs...)
 	for _, f := range fs {
 		if f.Type == zapcore.ErrorType && errors.Is(f.Interface.(error), certmagic.ErrNoOCSPServerSpecified) {

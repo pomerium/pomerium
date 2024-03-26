@@ -165,7 +165,7 @@ func (c *service) syncBundle(ctx context.Context, key string) error {
 		RecordTypes:         bundleRecordTypes,
 	}
 
-	log.Ctx(ctx).Info().
+	log.Ctx(ctx).Debug().
 		Str("bundle", key).
 		Strs("record_types", bundleRecordTypes).
 		Str("etag", current.ETag).
