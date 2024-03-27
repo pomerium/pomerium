@@ -14,16 +14,16 @@ func (c *controller) RunConnectLog(ctx context.Context) error {
 
 	return c.api.Watch(ctx,
 		connect_mux.WithOnConnected(func(ctx context.Context) {
-			logger.Info().Msg("connected")
+			logger.Debug().Msg("connected")
 		}),
 		connect_mux.WithOnDisconnected(func(ctx context.Context) {
-			logger.Info().Msg("disconnected")
+			logger.Debug().Msg("disconnected")
 		}),
 		connect_mux.WithOnBootstrapConfigUpdated(func(ctx context.Context) {
-			logger.Info().Msg("bootstrap config updated")
+			logger.Debug().Msg("bootstrap config updated")
 		}),
 		connect_mux.WithOnBundleUpdated(func(ctx context.Context, key string) {
-			logger.Info().Str("key", key).Msg("bundle updated")
+			logger.Debug().Str("key", key).Msg("bundle updated")
 		}),
 	)
 }

@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog"
-	"go.uber.org/automaxprocs/maxprocs"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -30,8 +29,6 @@ func main() {
 		fmt.Println("envoy:", files.FullVersion())
 		return
 	}
-
-	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...interface{}) { log.Info(context.Background()).Msgf(s, i...) }))
 
 	ctx := context.Background()
 	runFn := run

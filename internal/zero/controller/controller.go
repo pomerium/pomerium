@@ -70,7 +70,7 @@ func (c *controller) initAPI(ctx context.Context) error {
 }
 
 func run(ctx context.Context, name string, runFn func(context.Context) error) error {
-	log.Ctx(ctx).Info().Str("name", name).Msg("starting")
+	log.Ctx(ctx).Debug().Str("name", name).Msg("starting")
 	err := runFn(ctx)
 	if err != nil && !errors.Is(err, context.Canceled) {
 		return fmt.Errorf("%s: %w", name, err)

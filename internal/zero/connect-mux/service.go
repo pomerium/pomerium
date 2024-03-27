@@ -80,7 +80,7 @@ func (svc *Mux) subscribeAndDispatch(ctx context.Context, onConnected func()) (e
 		err = multierror.Append(err, svc.onDisconnected(ctx)).ErrorOrNil()
 	}()
 
-	log.Ctx(ctx).Info().Msg("subscribed to connect service")
+	log.Ctx(ctx).Debug().Msg("subscribed to connect service")
 	for {
 		msg, err := stream.Recv()
 		log.Ctx(ctx).Info().Interface("msg", msg).Err(err).Msg("receive")

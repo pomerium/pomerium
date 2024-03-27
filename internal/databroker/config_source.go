@@ -90,7 +90,7 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 	now := time.Now()
 	src.mu.Lock()
 	defer src.mu.Unlock()
-	log.Info(ctx).Str("lock-wait", time.Since(now).String()).Msg("databroker: rebuilding configuration")
+	log.Debug(ctx).Str("lock-wait", time.Since(now).String()).Msg("databroker: rebuilding configuration")
 
 	cfg := src.underlyingConfig.Clone()
 
@@ -103,7 +103,7 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 		log.Error(ctx).Err(err).Msg("databroker: failed to build new config")
 		return
 	}
-	log.Info(ctx).Str("elapsed", time.Since(now).String()).Msg("databroker: built new config")
+	log.Debug(ctx).Str("elapsed", time.Since(now).String()).Msg("databroker: built new config")
 
 	src.computedConfig = cfg
 	if !firstTime {
@@ -278,7 +278,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 			databrokerURLs = append(databrokerURLs, url.String())
 		}
 
-		log.Info(ctx).
+		log.Debug(ctx).
 			Str("outbound_port", cfg.OutboundPort).
 			Strs("databroker_urls", databrokerURLs).
 			Msg("config: starting databroker config source syncer")

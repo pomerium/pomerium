@@ -75,7 +75,7 @@ func (srv *Server) UpdateConfig(options ...ServerOption) {
 func (srv *Server) AcquireLease(ctx context.Context, req *databroker.AcquireLeaseRequest) (*databroker.AcquireLeaseResponse, error) {
 	ctx, span := trace.StartSpan(ctx, "databroker.grpc.AcquireLease")
 	defer span.End()
-	log.Info(ctx).
+	log.Debug(ctx).
 		Str("name", req.GetName()).
 		Dur("duration", req.GetDuration().AsDuration()).
 		Msg("acquire lease")
@@ -102,7 +102,7 @@ func (srv *Server) AcquireLease(ctx context.Context, req *databroker.AcquireLeas
 func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databroker.GetResponse, error) {
 	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Get")
 	defer span.End()
-	log.Info(ctx).
+	log.Debug(ctx).
 		Str("type", req.GetType()).
 		Str("id", req.GetId()).
 		Msg("get")
@@ -129,7 +129,7 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 func (srv *Server) ListTypes(ctx context.Context, _ *emptypb.Empty) (*databroker.ListTypesResponse, error) {
 	ctx, span := trace.StartSpan(ctx, "databroker.grpc.ListTypes")
 	defer span.End()
-	log.Info(ctx).Msg("list types")
+	log.Debug(ctx).Msg("list types")
 
 	db, err := srv.getBackend()
 	if err != nil {
@@ -146,7 +146,7 @@ func (srv *Server) ListTypes(ctx context.Context, _ *emptypb.Empty) (*databroker
 func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*databroker.QueryResponse, error) {
 	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Query")
 	defer span.End()
-	log.Info(ctx).
+	log.Debug(ctx).
 		Str("type", req.GetType()).
 		Str("query", req.GetQuery()).
 		Int64("offset", req.GetOffset()).
@@ -202,7 +202,7 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 
 	records := req.GetRecords()
 	if len(records) == 1 {
-		log.Info(ctx).
+		log.Debug(ctx).
 			Str("record-type", records[0].GetType()).
 			Str("record-id", records[0].GetId()).
 			Msg("put")
@@ -211,7 +211,7 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 		for _, record := range records {
 			recordType = record.GetType()
 		}
-		log.Info(ctx).
+		log.Debug(ctx).
 			Int("record-count", len(records)).
 			Str("record-type", recordType).
 			Msg("put")
@@ -241,7 +241,7 @@ func (srv *Server) Patch(ctx context.Context, req *databroker.PatchRequest) (*da
 
 	records := req.GetRecords()
 	if len(records) == 1 {
-		log.Info(ctx).
+		log.Debug(ctx).
 			Str("record-type", records[0].GetType()).
 			Str("record-id", records[0].GetId()).
 			Msg("patch")
@@ -250,7 +250,7 @@ func (srv *Server) Patch(ctx context.Context, req *databroker.PatchRequest) (*da
 		for _, record := range records {
 			recordType = record.GetType()
 		}
-		log.Info(ctx).
+		log.Debug(ctx).
 			Int("record-count", len(records)).
 			Str("record-type", recordType).
 			Msg("patch")
@@ -277,7 +277,7 @@ func (srv *Server) Patch(ctx context.Context, req *databroker.PatchRequest) (*da
 func (srv *Server) ReleaseLease(ctx context.Context, req *databroker.ReleaseLeaseRequest) (*emptypb.Empty, error) {
 	ctx, span := trace.StartSpan(ctx, "databroker.grpc.ReleaseLease")
 	defer span.End()
-	log.Info(ctx).
+	log.Debug(ctx).
 		Str("name", req.GetName()).
 		Str("id", req.GetId()).
 		Msg("release lease")
@@ -351,7 +351,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	log.Info(ctx).
+	log.Debug(ctx).
 		Uint64("server_version", req.GetServerVersion()).
 		Uint64("record_version", req.GetRecordVersion()).
 		Msg("sync")
@@ -388,7 +388,7 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	log.Info(ctx).
+	log.Debug(ctx).
 		Str("type", req.GetType()).
 		Msg("sync latest")
 
