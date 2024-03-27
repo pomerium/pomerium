@@ -3,6 +3,7 @@ package grpcutil
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"net/url"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
@@ -77,7 +79,7 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 	dialOptions = append(dialOptions, other...)
 
 	if opts.Address.Scheme == "http" {
-		dialOptions = append(dialOptions, grpc.WithInsecure())
+		dialOptions = append(dialOptions, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else {
 		rootCAs, err := cryptutil.GetCertPool(opts.CA, opts.CAFile)
 		if err != nil {
@@ -93,16 +95,19 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 
 		// override allowed certificate name string, typically used when doing behind ingress connection
 		if opts.OverrideCertificateName != "" {
-			err := cert.OverrideServerName(opts.OverrideCertificateName)
-			if err != nil {
-				return nil, err
-			}
+			dialOptions = append(dialOptions, grpc.WithAuthority(opts.OverrideCertificateName))
 		}
 		// finally add our credential
 		dialOptions = append(dialOptions, grpc.WithTransportCredentials(cert))
 	}
 
-	return grpc.DialContext(ctx, hostport, dialOptions...)
+	conn, err := grpc.DialContext(ctx, hostport, dialOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("grpc: failed to dial %s: %w", hostport, err)
+	}
+
+	go LogConnectionState(ctx, conn)
+	return conn, nil
 }
 
 // grpcTimeoutInterceptor enforces per-RPC request timeouts

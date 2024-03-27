@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -52,11 +53,16 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 		grpc.WithChainStreamInterceptor(streamClientInterceptors...),
 		grpc.WithStatsHandler(clientStatsHandler.Handler),
 		grpc.WithDisableServiceConfig(),
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	dialOptions = append(dialOptions, other...)
 	log.Info(ctx).Str("address", opts.Address).Msg("grpc: dialing")
-	return grpc.DialContext(ctx, opts.Address, dialOptions...)
+	conn, err := grpc.DialContext(ctx, opts.Address, dialOptions...)
+	if err != nil {
+		return nil, err
+	}
+	go grpcutil.LogConnectionState(ctx, conn)
+	return conn, nil
 }
 
 // grpcTimeoutInterceptor enforces per-RPC request timeouts

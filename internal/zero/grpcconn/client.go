@@ -7,9 +7,9 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
 type client struct {
@@ -65,7 +65,7 @@ func (c *client) getGRPCConn(ctx context.Context) (*grpc.ClientConn, error) {
 		return nil, fmt.Errorf("error dialing grpc server: %w", err)
 	}
 
-	go c.logConnectionState(ctx, conn)
+	go grpcutil.LogConnectionState(ctx, conn)
 
 	return conn, nil
 }
@@ -84,18 +84,6 @@ func (c *client) GetRequestMetadata(ctx context.Context, _ ...string) (map[strin
 // RequireTransportSecurity implements credentials.PerRPCCredentials
 func (c *client) RequireTransportSecurity() bool {
 	return c.config.RequireTLS()
-}
-
-func (c *client) logConnectionState(ctx context.Context, conn *grpc.ClientConn) {
-	var state connectivity.State = -1
-	for ctx.Err() == nil && state != connectivity.Shutdown {
-		_ = conn.WaitForStateChange(ctx, state)
-		state = conn.GetState()
-		log.Ctx(ctx).Info().
-			Str("endpoint", c.config.connectionURI).
-			Str("state", state.String()).
-			Msg("grpc connection state")
-	}
 }
 
 func interceptorLogger(ctx context.Context, lvl logging.Level, msg string, fields ...any) {

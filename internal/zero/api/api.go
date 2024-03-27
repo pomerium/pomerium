@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 
 	"github.com/pomerium/pomerium/internal/zero/apierror"
@@ -70,7 +69,7 @@ func NewAPI(ctx context.Context, opts ...Option) (*API, error) {
 
 	connectGRPCConn, err := grpcconn.New(ctx, cfg.connectAPIEndpoint, func(ctx context.Context) (string, error) {
 		return tokenCache.GetToken(ctx, minConnectTokenTTL)
-	}, grpc.WithKeepaliveParams(connectClientKeepaliveParams))
+	}, cfg.dialOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("error creating connect grpc client: %w", err)
 	}

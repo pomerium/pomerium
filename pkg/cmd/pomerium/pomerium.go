@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
@@ -20,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/controlplane"
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/events"
+	"github.com/pomerium/pomerium/internal/featureflags"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/version"
@@ -32,8 +34,10 @@ import (
 // Run runs the main pomerium application.
 func Run(ctx context.Context, src config.Source) error {
 	log.Info(ctx).
+		Str("go_version", runtime.Version()).
 		Str("envoy_version", files.FullVersion()).
 		Str("version", version.FullVersion()).
+		Interface("feature_flags", featureflags.Flags()).
 		Msg("cmd/pomerium")
 
 	src, err := config.NewLayeredSource(ctx, src, derivecert_config.NewBuilder())
