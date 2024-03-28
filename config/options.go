@@ -231,6 +231,7 @@ type Options struct {
 
 	// GRPCAddr specifies the host and port on which the server should serve
 	// gRPC requests. If running in all-in-one mode, ":5443" (localhost:5443) is used.
+	// The special value "-" will disable the gRPC listener entirely.
 	GRPCAddr string `mapstructure:"grpc_address" yaml:"grpc_address,omitempty"`
 
 	// GRPCInsecure disables transport security.

@@ -62,7 +62,7 @@ func (b *Builder) BuildListeners(
 		listeners = append(listeners, li)
 	}
 
-	if config.IsAuthorize(cfg.Options.Services) || config.IsDataBroker(cfg.Options.Services) {
+	if cfg.Options.GRPCAddr != "-" && (config.IsAuthorize(cfg.Options.Services) || config.IsDataBroker(cfg.Options.Services)) {
 		li, err := b.buildGRPCListener(ctx, cfg)
 		if err != nil {
 			return nil, err
