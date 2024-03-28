@@ -126,23 +126,30 @@ func (b *Builder) buildTLSSocket(ctx context.Context, cfg *config.Config, certs 
 }
 
 func listenerAccessLog() []*envoy_config_accesslog_v3.AccessLog {
-	tc := marshalAny(&envoy_extensions_access_loggers_grpc_v3.HttpGrpcAccessLogConfig{
-		CommonConfig: &envoy_extensions_access_loggers_grpc_v3.CommonGrpcAccessLogConfig{
-			LogName: "ingress-http-listener",
-			GrpcService: &envoy_config_core_v3.GrpcService{
-				TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
-					EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
-						ClusterName: "pomerium-control-plane-grpc",
-					},
+	cc := &envoy_extensions_access_loggers_grpc_v3.CommonGrpcAccessLogConfig{
+		LogName: "ingress-http-listener",
+		GrpcService: &envoy_config_core_v3.GrpcService{
+			TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
+				EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
+					ClusterName: "pomerium-control-plane-grpc",
 				},
 			},
-			TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
 		},
-	})
-	return []*envoy_config_accesslog_v3.AccessLog{{
-		Name:       "envoy.access_loggers.http_grpc",
-		ConfigType: &envoy_config_accesslog_v3.AccessLog_TypedConfig{TypedConfig: tc},
-	}}
+		TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
+	}
+	tcp := marshalAny(
+		&envoy_extensions_access_loggers_grpc_v3.TcpGrpcAccessLogConfig{CommonConfig: cc})
+	http := marshalAny(
+		&envoy_extensions_access_loggers_grpc_v3.HttpGrpcAccessLogConfig{CommonConfig: cc})
+	return []*envoy_config_accesslog_v3.AccessLog{
+		{
+			Name:       "envoy.access_loggers.tcp_grpc",
+			ConfigType: &envoy_config_accesslog_v3.AccessLog_TypedConfig{TypedConfig: tcp},
+		}, {
+			Name:       "envoy.access_loggers.http_grpc",
+			ConfigType: &envoy_config_accesslog_v3.AccessLog_TypedConfig{TypedConfig: http},
+		},
+	}
 }
 
 func (b *Builder) buildMainListener(

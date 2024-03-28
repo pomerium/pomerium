@@ -2,11 +2,13 @@ package controlplane
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	envoy_data_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3"
 	envoy_service_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v3"
 	"github.com/rs/zerolog"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/internal/log"
 )
@@ -40,17 +42,19 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogS
 func accessLogListener(
 	ctx context.Context, msg *envoy_service_accesslog_v3.StreamAccessLogsMessage,
 ) {
-	/*for _, entry := range msg.GetTcpLogs().LogEntry {
+	for _, entry := range msg.GetTcpLogs().GetLogEntry() {
+		e, _ := protojson.Marshal(entry)
 		log.Info(ctx).
 			Str("service", "envoy").
-			Interface("log", entry).
-			Msg("listener connect TCP")
-	}*/
-	for _, entry := range msg.GetHttpLogs().LogEntry {
+			Interface("log", json.RawMessage(e)).
+			Msg("listener connect (TCP log)")
+	}
+	for _, entry := range msg.GetHttpLogs().GetLogEntry() {
+		e, _ := protojson.Marshal(entry)
 		log.Info(ctx).
 			Str("service", "envoy").
-			Interface("log", entry).
-			Msg("listener connect")
+			Interface("log", json.RawMessage(e)).
+			Msg("listener connect (HTTP log)")
 	}
 }
 
