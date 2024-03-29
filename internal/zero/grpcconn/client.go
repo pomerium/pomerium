@@ -91,7 +91,7 @@ func (c *client) logConnectionState(ctx context.Context, conn *grpc.ClientConn) 
 	for ctx.Err() == nil && state != connectivity.Shutdown {
 		_ = conn.WaitForStateChange(ctx, state)
 		state = conn.GetState()
-		log.Ctx(ctx).Info().
+		log.Ctx(ctx).Debug().
 			Str("endpoint", c.config.connectionURI).
 			Str("state", state.String()).
 			Msg("grpc connection state")
@@ -103,7 +103,7 @@ func interceptorLogger(ctx context.Context, lvl logging.Level, msg string, field
 
 	switch lvl {
 	case logging.LevelDebug:
-		l.Info().Msg(msg)
+		l.Debug().Msg(msg)
 	case logging.LevelInfo:
 		l.Info().Msg(msg)
 	case logging.LevelWarn:

@@ -76,7 +76,7 @@ func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Buil
 	src.OnConfigChange(ctx, srv.onConfigChange)
 	srv.onConfigChange(ctx, src.GetConfig())
 
-	log.Info(ctx).
+	log.Debug(ctx).
 		Str("path", envoyPath).
 		Str("checksum", files.Checksum()).
 		Msg("running envoy")
@@ -122,7 +122,7 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 	}
 	srv.options = options
 
-	log.Info(ctx).Msg("envoy: starting envoy process")
+	log.Debug(ctx).Msg("envoy: starting envoy process")
 	if err := srv.run(ctx, cfg); err != nil {
 		log.Error(ctx).Err(err).Str("service", "envoy").Msg("envoy: failed to run envoy process")
 		return
@@ -249,6 +249,9 @@ func (srv *Server) handleLogs(ctx context.Context, rc io.ReadCloser) {
 		if x, err := zerolog.ParseLevel(logLevel); err == nil {
 			lvl = x
 		}
+		if lvl == zerolog.InfoLevel {
+			lvl = zerolog.DebugLevel
+		}
 		if msg == "" {
 			msg = ln
 		}
@@ -270,7 +273,7 @@ func (srv *Server) handleLogs(ctx context.Context, rc io.ReadCloser) {
 }
 
 func (srv *Server) monitorProcess(ctx context.Context, pid int32) {
-	log.Info(ctx).
+	log.Debug(ctx).
 		Int32("pid", pid).
 		Msg("envoy: start monitoring subprocess")
 
