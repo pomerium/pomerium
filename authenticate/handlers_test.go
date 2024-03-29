@@ -16,9 +16,11 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
@@ -33,6 +35,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	configproto "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -616,6 +619,49 @@ func TestAuthenticate_CORS(t *testing.T) {
 		h := rr.Result().Header
 		assert.Equal(t, "true", h.Get("Access-Control-Allow-Credentials"))
 		assert.Equal(t, "foo.example.com", h.Get("Access-Control-Allow-Origin"))
+	})
+}
+
+func TestSignOutBranding(t *testing.T) {
+	t.Parallel()
+
+	auth := testAuthenticate()
+	auth.state.Load().flow.(*stubFlow).verifySignatureErr = errors.New("unsigned URL")
+	auth.options.Store(&config.Options{
+		BrandingOptions: &configproto.Settings{
+			PrimaryColor:   proto.String("red"),
+			SecondaryColor: proto.String("orange"),
+		},
+	})
+
+	t.Run("sign_out", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/.pomerium/sign_out", nil)
+		err := auth.SignOut(w, r)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		b, err := io.ReadAll(w.Body)
+		require.NoError(t, err)
+
+		assert.Contains(t, string(b), `"primaryColor":"red","secondaryColor":"orange"`)
+	})
+
+	t.Run("signed_out", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/.pomerium/signed_out", nil)
+		err := auth.signedOut(w, r)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		b, err := io.ReadAll(w.Body)
+		require.NoError(t, err)
+
+		assert.Contains(t, string(b), `"primaryColor":"red","secondaryColor":"orange"`)
 	})
 }
 
