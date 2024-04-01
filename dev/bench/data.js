@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711996552491,
+  "lastUpdate": 1712001505859,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -104796,6 +104796,38 @@ window.BENCHMARK_DATA = {
             "value": 6210629,
             "unit": "ns/op",
             "extra": "187 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "3435ebff147ff5c7a302b7fa2216393827c4f9e9",
+          "message": "core/authorize: add support for rego print statements",
+          "timestamp": "2024-03-31T20:40:00Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5049/commits/3435ebff147ff5c7a302b7fa2216393827c4f9e9"
+        },
+        "date": 1712001496650,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8436712,
+            "unit": "ns/op",
+            "extra": "145 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5765980,
+            "unit": "ns/op",
+            "extra": "210 times\n4 procs"
           }
         ]
       }
