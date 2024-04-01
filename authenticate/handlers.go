@@ -89,7 +89,7 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 
 	// routes that don't need a session:
 	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
-	sr.Path("/signed_out").Handler(handlers.SignedOut(handlers.SignedOutData{})).Methods(http.MethodGet)
+	sr.Path("/signed_out").Handler(httputil.HandlerFunc(a.signedOut)).Methods(http.MethodGet)
 
 	// routes that need a session:
 	sr = sr.NewRoute().Subrouter()
@@ -186,7 +186,8 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 		}
 
 		handlers.SignOutConfirm(handlers.SignOutConfirmData{
-			URL: urlutil.SignOutURL(r, authenticateURL, a.state.Load().sharedKey),
+			URL:             urlutil.SignOutURL(r, authenticateURL, a.state.Load().sharedKey),
+			BrandingOptions: a.options.Load().BrandingOptions,
 		}).ServeHTTP(w, r)
 		return nil
 	}
@@ -237,6 +238,13 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 	}
 
 	httputil.Redirect(w, r, signOutURL, http.StatusFound)
+	return nil
+}
+
+func (a *Authenticate) signedOut(w http.ResponseWriter, r *http.Request) error {
+	handlers.SignedOut(handlers.SignedOutData{
+		BrandingOptions: a.options.Load().BrandingOptions,
+	}).ServeHTTP(w, r)
 	return nil
 }
 

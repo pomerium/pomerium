@@ -9,14 +9,17 @@ import (
 
 // SignOutConfirmData is the data for the SignOutConfirm page.
 type SignOutConfirmData struct {
-	URL string
+	URL             string
+	BrandingOptions httputil.BrandingOptions
 }
 
 // ToJSON converts the data into a JSON map.
 func (data SignOutConfirmData) ToJSON() map[string]interface{} {
-	return map[string]interface{}{
+	m := map[string]interface{}{
 		"url": data.URL,
 	}
+	httputil.AddBrandingOptionsToMap(m, data.BrandingOptions)
+	return m
 }
 
 // SignOutConfirm returns a handler that renders the sign out confirm page.

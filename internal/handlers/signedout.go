@@ -8,11 +8,15 @@ import (
 )
 
 // SignedOutData is the data for the SignedOut page.
-type SignedOutData struct{}
+type SignedOutData struct {
+	BrandingOptions httputil.BrandingOptions
+}
 
 // ToJSON converts the data into a JSON map.
 func (data SignedOutData) ToJSON() map[string]interface{} {
-	return map[string]interface{}{}
+	m := map[string]interface{}{}
+	httputil.AddBrandingOptionsToMap(m, data.BrandingOptions)
+	return m
 }
 
 // SignedOut returns a handler that renders the signed out page.
