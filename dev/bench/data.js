@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712001505859,
+  "lastUpdate": 1712002850138,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -104828,6 +104828,42 @@ window.BENCHMARK_DATA = {
             "value": 5765980,
             "unit": "ns/op",
             "extra": "210 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "84b44ae2e606f7039252240df4c55fe00b45e5ac",
+          "message": "core/authorize: add support for rego print statements (#5049)",
+          "timestamp": "2024-04-01T14:17:14-06:00",
+          "tree_id": "d99244dbc941688b0c987156e0875f882b658311",
+          "url": "https://github.com/pomerium/pomerium/commit/84b44ae2e606f7039252240df4c55fe00b45e5ac"
+        },
+        "date": 1712002836591,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8460137,
+            "unit": "ns/op",
+            "extra": "136 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5958250,
+            "unit": "ns/op",
+            "extra": "199 times\n4 procs"
           }
         ]
       }
