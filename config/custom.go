@@ -543,6 +543,52 @@ func decodeStringToMapHookFunc() mapstructure.DecodeHookFunc {
 	})
 }
 
+var (
+	ErrRuntimeFlagUnknown         = fmt.Errorf("decoding runtime flags: unknown flag")
+	ErrRuntimeFlagsInvalidValue   = fmt.Errorf("decoding runtime flags: expected map[string]bool")
+	ErrRuntimeFlagInvalidMapValue = fmt.Errorf("decoding runtime flags: unknown flag value (expected bool)")
+)
+
+// only for RuntimeFlags decoding
+func decodeRuntimeFlagsHookFunc() mapstructure.DecodeHookFunc {
+	return mapstructure.DecodeHookFuncType(func(from, to reflect.Type, data any) (any, error) {
+		if to != reflect.TypeOf(RuntimeFlags{}) {
+			return data, nil
+		}
+		if from.Kind() != reflect.Map {
+			return nil, fmt.Errorf("%w: got %s", ErrRuntimeFlagsInvalidValue, from.Kind())
+		}
+
+		src, ok := data.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("decoding runtime flags: expected map[string]interface{}, got %T", from.String())
+		}
+
+		dst := make(RuntimeFlags)
+		// copy default flags first
+		// this is to ensure we don't lose any default flags and only override the ones that are provided
+		for k, v := range defaultRuntimeFlags {
+			dst[k] = v
+		}
+
+		for k, v := range src {
+			key := RuntimeFlag(k)
+			if _, ok := dst[key]; !ok {
+				return nil, fmt.Errorf("%s: %w", k, ErrRuntimeFlagUnknown)
+			}
+
+			b, ok := v.(bool)
+			if !ok {
+				return nil, fmt.Errorf("%w: got %T", ErrRuntimeFlagInvalidMapValue, v)
+			}
+
+			dst[key] = b
+		}
+
+		return dst, nil
+	})
+}
+
 // serializable converts mapstructure nested map into map[string]interface{} that is serializable to JSON
 func serializable(in interface{}) (interface{}, error) {
 	switch typed := in.(type) {

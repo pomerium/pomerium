@@ -384,7 +384,7 @@ func Test_Checksum(t *testing.T) {
 
 func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
-		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "DataBrokerURLStrings", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin", "TracingSampleRate", "ProgrammaticRedirectDomainWhitelist"),
+		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "DataBrokerURLStrings", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin", "TracingSampleRate", "ProgrammaticRedirectDomainWhitelist", "RuntimeFlags"),
 		cmpopts.IgnoreFields(Policy{}, "EnvoyOpts"),
 		cmpOptIgnoreUnexported,
 	}
@@ -404,6 +404,22 @@ func TestOptionsFromViper(t *testing.T) {
 				InsecureServer:           true,
 				CookieHTTPOnly:           true,
 				AuthenticateCallbackPath: "/oauth2/callback",
+				DataBrokerStorageType:    "memory",
+				EnvoyAdminAccessLogPath:  os.DevNull,
+				EnvoyAdminProfilePath:    os.DevNull,
+			},
+			false,
+		},
+		{
+			"good disable header",
+			[]byte(`{"autocert_dir":"","insecure_server":true,"set_response_headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
+			&Options{
+				Policies:                 []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
+				CookieName:               "_pomerium",
+				AuthenticateCallbackPath: "/oauth2/callback",
+				CookieHTTPOnly:           true,
+				InsecureServer:           true,
+				SetResponseHeaders:       map[string]string{"disable": "true"},
 				DataBrokerStorageType:    "memory",
 				EnvoyAdminAccessLogPath:  os.DevNull,
 				EnvoyAdminProfilePath:    os.DevNull,

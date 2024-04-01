@@ -55,22 +55,22 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		}
 	}
 
-	controlGRPC, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-grpc", grpcURLs, upstreamProtocolHTTP2)
+	controlGRPC, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-grpc", grpcURLs, upstreamProtocolHTTP2, Keepalive(false))
 	if err != nil {
 		return nil, err
 	}
 
-	controlHTTP, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-http", []*url.URL{httpURL}, upstreamProtocolAuto)
+	controlHTTP, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-http", []*url.URL{httpURL}, upstreamProtocolAuto, Keepalive(false))
 	if err != nil {
 		return nil, err
 	}
 
-	controlMetrics, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-metrics", []*url.URL{metricsURL}, upstreamProtocolAuto)
+	controlMetrics, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-metrics", []*url.URL{metricsURL}, upstreamProtocolAuto, Keepalive(false))
 	if err != nil {
 		return nil, err
 	}
 
-	authorizeCluster, err := b.buildInternalCluster(ctx, cfg, "pomerium-authorize", authorizeURLs, upstreamProtocolHTTP2)
+	authorizeCluster, err := b.buildInternalCluster(ctx, cfg, "pomerium-authorize", authorizeURLs, upstreamProtocolHTTP2, Keepalive(false))
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,8 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		authorizeCluster.OutlierDetection = grpcOutlierDetection()
 	}
 
-	databrokerCluster, err := b.buildInternalCluster(ctx, cfg, "pomerium-databroker", databrokerURLs, upstreamProtocolHTTP2)
+	databrokerKeepalive := Keepalive(cfg.Options.IsRuntimeFlagSet(config.GRPCDatabrokerKeepalive))
+	databrokerCluster, err := b.buildInternalCluster(ctx, cfg, "pomerium-databroker", databrokerURLs, upstreamProtocolHTTP2, databrokerKeepalive)
 	if err != nil {
 		return nil, err
 	}
@@ -139,6 +140,7 @@ func (b *Builder) buildInternalCluster(
 	name string,
 	dsts []*url.URL,
 	upstreamProtocol upstreamProtocolConfig,
+	keepalive Keepalive,
 ) (*envoy_config_cluster_v3.Cluster, error) {
 	cluster := newDefaultEnvoyClusterConfig()
 	cluster.DnsLookupFamily = config.GetEnvoyDNSLookupFamily(cfg.Options.DNSLookupFamily)
@@ -158,7 +160,7 @@ func (b *Builder) buildInternalCluster(
 		}
 		endpoints = append(endpoints, NewEndpoint(dst, ts, 1))
 	}
-	if err := b.buildCluster(cluster, name, endpoints, upstreamProtocol); err != nil {
+	if err := b.buildCluster(cluster, name, endpoints, upstreamProtocol, keepalive); err != nil {
 		return nil, err
 	}
 
@@ -207,7 +209,7 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 		cluster.DnsLookupFamily = envoy_config_cluster_v3.Cluster_V4_ONLY
 	}
 
-	if err := b.buildCluster(cluster, name, endpoints, upstreamProtocol); err != nil {
+	if err := b.buildCluster(cluster, name, endpoints, upstreamProtocol, Keepalive(false)); err != nil {
 		return nil, err
 	}
 
@@ -388,6 +390,7 @@ func (b *Builder) buildCluster(
 	name string,
 	endpoints []Endpoint,
 	upstreamProtocol upstreamProtocolConfig,
+	keepalive Keepalive,
 ) error {
 	if len(endpoints) == 0 {
 		return errNoEndpoints
@@ -418,7 +421,7 @@ func (b *Builder) buildCluster(
 		cluster.TransportSocket = cluster.TransportSocketMatches[0].TransportSocket
 	}
 
-	cluster.TypedExtensionProtocolOptions = buildTypedExtensionProtocolOptions(endpoints, upstreamProtocol)
+	cluster.TypedExtensionProtocolOptions = buildTypedExtensionProtocolOptions(endpoints, upstreamProtocol, keepalive)
 	cluster.ClusterDiscoveryType = getClusterDiscoveryType(lbEndpoints)
 
 	return cluster.Validate()

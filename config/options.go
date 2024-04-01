@@ -293,6 +293,8 @@ type Options struct {
 	BrandingOptions httputil.BrandingOptions
 
 	PassIdentityHeaders *bool `mapstructure:"pass_identity_headers" yaml:"pass_identity_headers"`
+
+	RuntimeFlags RuntimeFlags `mapstructure:"runtime_flags" yaml:"runtime_flags,omitempty"`
 }
 
 type certificateFilePair struct {
@@ -328,6 +330,13 @@ var defaultOptions = Options{
 	EnvoyAdminAccessLogPath:             os.DevNull,
 	EnvoyAdminProfilePath:               os.DevNull,
 	ProgrammaticRedirectDomainWhitelist: []string{"localhost"},
+
+	RuntimeFlags: DefaultRuntimeFlags(),
+}
+
+// IsRuntimeFlagSet returns true if the runtime flag is sets
+func (o *Options) IsRuntimeFlagSet(flag RuntimeFlag) bool {
+	return o.RuntimeFlags[flag]
 }
 
 var defaultSetResponseHeaders = map[string]string{
@@ -1504,6 +1513,9 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	setCodecType(&o.CodecType, settings.CodecType)
 	setOptional(&o.PassIdentityHeaders, settings.PassIdentityHeaders)
 	o.BrandingOptions = settings
+	copyMap(&o.RuntimeFlags, settings.RuntimeFlags, func(k string, v bool) (RuntimeFlag, bool) {
+		return RuntimeFlag(k), v
+	})
 }
 
 func dataDir() string {
@@ -1629,6 +1641,21 @@ func setMap[TKey comparable, TValue any, TMap ~map[TKey]TValue](dst *TMap, src m
 		return
 	}
 	*dst = src
+}
+
+func copyMap[T1Key comparable, T1Value any, T2Key comparable, T2Value any, TMap1 ~map[T1Key]T1Value, TMap2 ~map[T2Key]T2Value](
+	dst *TMap1,
+	src TMap2,
+	convert func(T2Key, T2Value) (T1Key, T1Value),
+) {
+	if len(src) == 0 {
+		return
+	}
+	*dst = make(TMap1, len(src))
+	for k, v := range src {
+		k1, v1 := convert(k, v)
+		(*dst)[k1] = v1
+	}
 }
 
 func setCertificate(
