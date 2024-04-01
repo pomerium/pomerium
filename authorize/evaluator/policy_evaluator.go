@@ -157,6 +157,7 @@ func NewPolicyEvaluator(
 			rego.Store(store),
 			rego.Module("pomerium.policy", e.queries[i].script),
 			rego.Query("result = data.pomerium.policy"),
+			rego.EnablePrintStatements(true),
 			getGoogleCloudServerlessHeadersRegoOption,
 			store.GetDataBrokerRecordOption(),
 		)
@@ -168,6 +169,7 @@ func NewPolicyEvaluator(
 				rego.Store(store),
 				rego.Module("pomerium.policy", "package pomerium.policy\n\n"+e.queries[i].script),
 				rego.Query("result = data.pomerium.policy"),
+				rego.EnablePrintStatements(true),
 				getGoogleCloudServerlessHeadersRegoOption,
 				store.GetDataBrokerRecordOption(),
 			)
@@ -210,7 +212,11 @@ func (e *PolicyEvaluator) evaluateQuery(ctx context.Context, req *PolicyRequest,
 	defer span.End()
 	span.AddAttributes(octrace.StringAttribute("script_checksum", query.checksum()))
 
-	rs, err := safeEval(ctx, query.PreparedEvalQuery, rego.EvalInput(req))
+	rs, err := safeEval(ctx, query.PreparedEvalQuery,
+		rego.EvalInput(req),
+		rego.EvalPrintHook(regoPrintHook{
+			logger: *log.Logger(),
+		}))
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error evaluating policy.rego: %w", err)
 	}

@@ -105,6 +105,7 @@ func NewHeadersEvaluator(ctx context.Context, store *store.Store) (*HeadersEvalu
 		rego.Store(store),
 		rego.Module("pomerium.headers", opa.HeadersRego),
 		rego.Query("result := data.pomerium.headers"),
+		rego.EnablePrintStatements(true),
 		getGoogleCloudServerlessHeadersRegoOption,
 		variableSubstitutionFunctionRegoOption,
 		store.GetDataBrokerRecordOption(),
