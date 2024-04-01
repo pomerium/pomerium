@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711989380841,
+  "lastUpdate": 1711993208532,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -104688,6 +104688,42 @@ window.BENCHMARK_DATA = {
             "value": 5754631,
             "unit": "ns/op",
             "extra": "210 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "78db594e654f1971ff71f3e0773e5d05cde9e4b7",
+          "message": "chore(deps): bump the github-actions group with 6 updates (#5047)\n\nBumps the github-actions group with 6 updates:\r\n\r\n| Package | From | To |\r\n| --- | --- | --- |\r\n| [actions/checkout](https://github.com/actions/checkout) | `4.1.1` | `4.1.2` |\r\n| [docker/setup-buildx-action](https://github.com/docker/setup-buildx-action) | `3.1.0` | `3.2.0` |\r\n| [docker/login-action](https://github.com/docker/login-action) | `3.0.0` | `3.1.0` |\r\n| [docker/build-push-action](https://github.com/docker/build-push-action) | `5.2.0` | `5.3.0` |\r\n| [mikefarah/yq](https://github.com/mikefarah/yq) | `4.42.1` | `4.43.1` |\r\n| [actions/setup-python](https://github.com/actions/setup-python) | `5.0.0` | `5.1.0` |\r\n\r\n\r\nUpdates `actions/checkout` from 4.1.1 to 4.1.2\r\n- [Release notes](https://github.com/actions/checkout/releases)\r\n- [Changelog](https://github.com/actions/checkout/blob/main/CHANGELOG.md)\r\n- [Commits](https://github.com/actions/checkout/compare/b4ffde65f46336ab88eb53be808477a3936bae11...9bb56186c3b09b4f86b1c65136769dd318469633)\r\n\r\nUpdates `docker/setup-buildx-action` from 3.1.0 to 3.2.0\r\n- [Release notes](https://github.com/docker/setup-buildx-action/releases)\r\n- [Commits](https://github.com/docker/setup-buildx-action/compare/0d103c3126aa41d772a8362f6aa67afac040f80c...2b51285047da1547ffb1b2203d8be4c0af6b1f20)\r\n\r\nUpdates `docker/login-action` from 3.0.0 to 3.1.0\r\n- [Release notes](https://github.com/docker/login-action/releases)\r\n- [Commits](https://github.com/docker/login-action/compare/343f7c4344506bcbf9b4de18042ae17996df046d...e92390c5fb421da1463c202d546fed0ec5c39f20)\r\n\r\nUpdates `docker/build-push-action` from 5.2.0 to 5.3.0\r\n- [Release notes](https://github.com/docker/build-push-action/releases)\r\n- [Commits](https://github.com/docker/build-push-action/compare/af5a7ed5ba88268d5278f7203fb52cd833f66d6e...2cdde995de11925a030ce8070c3d77a52ffcf1c0)\r\n\r\nUpdates `mikefarah/yq` from 4.42.1 to 4.43.1\r\n- [Release notes](https://github.com/mikefarah/yq/releases)\r\n- [Changelog](https://github.com/mikefarah/yq/blob/master/release_notes.txt)\r\n- [Commits](https://github.com/mikefarah/yq/compare/9adde1ac14bb283b8955d2b0d567bcaf3c69e639...c35ec752e38ea0c096d3c44e13cfc0797ac394d8)\r\n\r\nUpdates `actions/setup-python` from 5.0.0 to 5.1.0\r\n- [Release notes](https://github.com/actions/setup-python/releases)\r\n- [Commits](https://github.com/actions/setup-python/compare/0a5c61591373683505ea898e09a3ea4f39ef2b9c...82c7e631bb3cdc910f68e0081d67478d79c6982d)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: actions/checkout\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: github-actions\r\n- dependency-name: docker/setup-buildx-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: github-actions\r\n- dependency-name: docker/login-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: github-actions\r\n- dependency-name: docker/build-push-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: github-actions\r\n- dependency-name: mikefarah/yq\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: github-actions\r\n- dependency-name: actions/setup-python\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: github-actions\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-04-01T11:37:05-06:00",
+          "tree_id": "c949c89a4b68c7a89579dee979b609771773c9ce",
+          "url": "https://github.com/pomerium/pomerium/commit/78db594e654f1971ff71f3e0773e5d05cde9e4b7"
+        },
+        "date": 1711993200468,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9029407,
+            "unit": "ns/op",
+            "extra": "129 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6586982,
+            "unit": "ns/op",
+            "extra": "183 times\n4 procs"
           }
         ]
       }
