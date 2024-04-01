@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712007431749,
+  "lastUpdate": 1712008661551,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -104928,6 +104928,42 @@ window.BENCHMARK_DATA = {
             "value": 6232681,
             "unit": "ns/op",
             "extra": "195 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "be9bfd9c3f62b1e9f68703200dacb9ac5540d574",
+          "message": "chore(deps): bump the go group with 15 updates (#5048)\n\n* chore(deps): bump the go group with 15 updates\r\n\r\nBumps the go group with 15 updates:\r\n\r\n| Package | From | To |\r\n| --- | --- | --- |\r\n| [cloud.google.com/go/storage](https://github.com/googleapis/google-cloud-go) | `1.39.0` | `1.40.0` |\r\n| [github.com/aws/aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2) | `1.25.3` | `1.26.1` |\r\n| [github.com/aws/aws-sdk-go-v2/config](https://github.com/aws/aws-sdk-go-v2) | `1.27.7` | `1.27.10` |\r\n| [github.com/aws/aws-sdk-go-v2/service/s3](https://github.com/aws/aws-sdk-go-v2) | `1.51.4` | `1.53.1` |\r\n| [github.com/cenkalti/backoff/v4](https://github.com/cenkalti/backoff) | `4.2.1` | `4.3.0` |\r\n| [github.com/coreos/go-oidc/v3](https://github.com/coreos/go-oidc) | `3.9.0` | `3.10.0` |\r\n| [github.com/docker/docker](https://github.com/docker/docker) | `25.0.5+incompatible` | `26.0.0+incompatible` |\r\n| [github.com/grpc-ecosystem/go-grpc-middleware/v2](https://github.com/grpc-ecosystem/go-grpc-middleware) | `2.0.1` | `2.1.0` |\r\n| [github.com/jackc/pgx/v5](https://github.com/jackc/pgx) | `5.5.4` | `5.5.5` |\r\n| [github.com/minio/minio-go/v7](https://github.com/minio/minio-go) | `7.0.68` | `7.0.69` |\r\n| [github.com/open-policy-agent/opa](https://github.com/open-policy-agent/opa) | `0.62.1` | `0.63.0` |\r\n| [github.com/prometheus/common](https://github.com/prometheus/common) | `0.50.0` | `0.51.1` |\r\n| [github.com/shirou/gopsutil/v3](https://github.com/shirou/gopsutil) | `3.24.2` | `3.24.3` |\r\n| [google.golang.org/api](https://github.com/googleapis/google-api-go-client) | `0.169.0` | `0.170.0` |\r\n| [google.golang.org/genproto/googleapis/rpc](https://github.com/googleapis/go-genproto) | `0.0.0-20240304161311-37d4d3c04a78` | `0.0.0-20240311132316-a219d84964c2` |\r\n\r\n\r\nUpdates `cloud.google.com/go/storage` from 1.39.0 to 1.40.0\r\n- [Release notes](https://github.com/googleapis/google-cloud-go/releases)\r\n- [Changelog](https://github.com/googleapis/google-cloud-go/blob/main/CHANGES.md)\r\n- [Commits](https://github.com/googleapis/google-cloud-go/compare/spanner/v1.39.0...spanner/v1.40.0)\r\n\r\nUpdates `github.com/aws/aws-sdk-go-v2` from 1.25.3 to 1.26.1\r\n- [Release notes](https://github.com/aws/aws-sdk-go-v2/releases)\r\n- [Commits](https://github.com/aws/aws-sdk-go-v2/compare/v1.25.3...v1.26.1)\r\n\r\nUpdates `github.com/aws/aws-sdk-go-v2/config` from 1.27.7 to 1.27.10\r\n- [Release notes](https://github.com/aws/aws-sdk-go-v2/releases)\r\n- [Commits](https://github.com/aws/aws-sdk-go-v2/compare/config/v1.27.7...config/v1.27.10)\r\n\r\nUpdates `github.com/aws/aws-sdk-go-v2/service/s3` from 1.51.4 to 1.53.1\r\n- [Release notes](https://github.com/aws/aws-sdk-go-v2/releases)\r\n- [Commits](https://github.com/aws/aws-sdk-go-v2/compare/service/s3/v1.51.4...service/s3/v1.53.1)\r\n\r\nUpdates `github.com/cenkalti/backoff/v4` from 4.2.1 to 4.3.0\r\n- [Commits](https://github.com/cenkalti/backoff/compare/v4.2.1...v4.3.0)\r\n\r\nUpdates `github.com/coreos/go-oidc/v3` from 3.9.0 to 3.10.0\r\n- [Release notes](https://github.com/coreos/go-oidc/releases)\r\n- [Commits](https://github.com/coreos/go-oidc/compare/v3.9.0...v3.10.0)\r\n\r\nUpdates `github.com/docker/docker` from 25.0.5+incompatible to 26.0.0+incompatible\r\n- [Release notes](https://github.com/docker/docker/releases)\r\n- [Commits](https://github.com/docker/docker/compare/v25.0.5...v26.0.0)\r\n\r\nUpdates `github.com/grpc-ecosystem/go-grpc-middleware/v2` from 2.0.1 to 2.1.0\r\n- [Release notes](https://github.com/grpc-ecosystem/go-grpc-middleware/releases)\r\n- [Commits](https://github.com/grpc-ecosystem/go-grpc-middleware/compare/v2.0.1...v2.1.0)\r\n\r\nUpdates `github.com/jackc/pgx/v5` from 5.5.4 to 5.5.5\r\n- [Changelog](https://github.com/jackc/pgx/blob/master/CHANGELOG.md)\r\n- [Commits](https://github.com/jackc/pgx/compare/v5.5.4...v5.5.5)\r\n\r\nUpdates `github.com/minio/minio-go/v7` from 7.0.68 to 7.0.69\r\n- [Release notes](https://github.com/minio/minio-go/releases)\r\n- [Commits](https://github.com/minio/minio-go/compare/v7.0.68...v7.0.69)\r\n\r\nUpdates `github.com/open-policy-agent/opa` from 0.62.1 to 0.63.0\r\n- [Release notes](https://github.com/open-policy-agent/opa/releases)\r\n- [Changelog](https://github.com/open-policy-agent/opa/blob/main/CHANGELOG.md)\r\n- [Commits](https://github.com/open-policy-agent/opa/compare/v0.62.1...v0.63.0)\r\n\r\nUpdates `github.com/prometheus/common` from 0.50.0 to 0.51.1\r\n- [Release notes](https://github.com/prometheus/common/releases)\r\n- [Commits](https://github.com/prometheus/common/compare/v0.50.0...v0.51.1)\r\n\r\nUpdates `github.com/shirou/gopsutil/v3` from 3.24.2 to 3.24.3\r\n- [Release notes](https://github.com/shirou/gopsutil/releases)\r\n- [Commits](https://github.com/shirou/gopsutil/compare/v3.24.2...v3.24.3)\r\n\r\nUpdates `google.golang.org/api` from 0.169.0 to 0.170.0\r\n- [Release notes](https://github.com/googleapis/google-api-go-client/releases)\r\n- [Changelog](https://github.com/googleapis/google-api-go-client/blob/main/CHANGES.md)\r\n- [Commits](https://github.com/googleapis/google-api-go-client/compare/v0.169.0...v0.170.0)\r\n\r\nUpdates `google.golang.org/genproto/googleapis/rpc` from 0.0.0-20240304161311-37d4d3c04a78 to 0.0.0-20240311132316-a219d84964c2\r\n- [Commits](https://github.com/googleapis/go-genproto/commits)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: cloud.google.com/go/storage\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: go\r\n- dependency-name: github.com/aws/aws-sdk-go-v2\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: go\r\n- dependency-name: github.com/aws/aws-sdk-go-v2/config\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: go\r\n- dependency-name: github.com/aws/aws-sdk-go-v2/service/s3\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: go\r\n- dependency-name: github.com/cenkalti/backoff/v4\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: go\r\n- dependency-name: github.com/coreos/go-oidc/v3\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: go\r\n- dependency-name: github.com/docker/docker\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-major\r\n  dependency-group: go\r\n- dependency-name: github.com/grpc-ecosystem/go-grpc-middleware/v2\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: go\r\n- dependency-name: github.com/jackc/pgx/v5\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: go\r\n- dependency-name: github.com/minio/minio-go/v7\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: go\r\n- dependency-name: github.com/open-policy-agent/opa\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: go\r\n- dependency-name: github.com/prometheus/common\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: go\r\n- dependency-name: github.com/shirou/gopsutil/v3\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: go\r\n- dependency-name: google.golang.org/api\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: go\r\n- dependency-name: google.golang.org/genproto/googleapis/rpc\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: go\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\n\r\n* fix list call\r\n\r\n---------\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\r\nCo-authored-by: Caleb Doxsey <cdoxsey@pomerium.com>",
+          "timestamp": "2024-04-01T15:53:46-06:00",
+          "tree_id": "d6a4bf58ac2501da598da55abc82d2118ff097e2",
+          "url": "https://github.com/pomerium/pomerium/commit/be9bfd9c3f62b1e9f68703200dacb9ac5540d574"
+        },
+        "date": 1712008648463,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 12086698,
+            "unit": "ns/op",
+            "extra": "103 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 8694560,
+            "unit": "ns/op",
+            "extra": "140 times\n4 procs"
           }
         ]
       }
