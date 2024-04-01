@@ -20,7 +20,7 @@ jobs:
       tag: ${{ steps.tagName.outputs.tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633
 
       - name: Unshallow
         run: git fetch --prune --unshallow
@@ -121,13 +121,13 @@ jobs:
     needs: goreleaser
     steps:
       - name: Checkout Gitops Repo
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633
         with:
           repository: pomerium/gitops-argocd
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump test environment
-        uses: mikefarah/yq@9adde1ac14bb283b8955d2b0d567bcaf3c69e639
+        uses: mikefarah/yq@c35ec752e38ea0c096d3c44e13cfc0797ac394d8
         with:
           cmd: yq eval '.pomerium.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i projects/pomerium-demo/pomerium-demo/values.yaml
 
