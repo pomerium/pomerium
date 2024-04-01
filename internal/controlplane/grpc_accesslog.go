@@ -57,6 +57,8 @@ func populateLogEvent(
 	switch field {
 	case log.AccessLogFieldAuthority:
 		return evt.Str(string(field), entry.GetRequest().GetAuthority())
+	case log.AccessLogFieldClientCertSubject:
+		return evt.Str(string(field), entry.GetCommonProperties().GetTlsProperties().GetPeerCertificateProperties().GetSubject())
 	case log.AccessLogFieldDuration:
 		dur := entry.GetCommonProperties().GetTimeToLastDownstreamTxByte().AsDuration()
 		return evt.Dur(string(field), dur)

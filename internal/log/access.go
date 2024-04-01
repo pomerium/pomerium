@@ -11,6 +11,7 @@ type AccessLogField string
 // known access log fields
 const (
 	AccessLogFieldAuthority           AccessLogField = "authority"
+	AccessLogFieldClientCertSubject   AccessLogField = "client-cert-subject"
 	AccessLogFieldDuration            AccessLogField = "duration"
 	AccessLogFieldForwardedFor        AccessLogField = "forwarded-for"
 	AccessLogFieldIP                  AccessLogField = "ip"
@@ -51,6 +52,7 @@ var ErrUnknownAccessLogField = errors.New("unknown access log field")
 
 var accessLogFieldLookup = map[AccessLogField]struct{}{
 	AccessLogFieldAuthority:           {},
+	AccessLogFieldClientCertSubject:   {},
 	AccessLogFieldDuration:            {},
 	AccessLogFieldForwardedFor:        {},
 	AccessLogFieldIP:                  {},
