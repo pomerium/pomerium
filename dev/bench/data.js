@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1711993226336,
+  "lastUpdate": 1711996552491,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -104760,6 +104760,42 @@ window.BENCHMARK_DATA = {
             "value": 5949444,
             "unit": "ns/op",
             "extra": "201 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e8edb465f49540cee1689af60218da43a7e7c73e",
+          "message": "authenticate: apply branding to sign out pages (#5044)\n\nAdd support for the Enterprise branding options to the sign_out and\r\nsigned_out page handlers.",
+          "timestamp": "2024-04-01T11:32:29-07:00",
+          "tree_id": "67c3591deb6d609890a6231e128b4f1b20239c67",
+          "url": "https://github.com/pomerium/pomerium/commit/e8edb465f49540cee1689af60218da43a7e7c73e"
+        },
+        "date": 1711996543069,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8642878,
+            "unit": "ns/op",
+            "extra": "134 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6210629,
+            "unit": "ns/op",
+            "extra": "187 times\n4 procs"
           }
         ]
       }
