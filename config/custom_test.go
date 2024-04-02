@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/base64"
 	"encoding/json"
-	"strings"
 	"testing"
 
 	"github.com/mitchellh/mapstructure"
@@ -183,103 +182,4 @@ func TestDecodePPLPolicyHookFunc(t *testing.T) {
 			}},
 		},
 	}, withPolicy.Policy)
-}
-
-func TestDecodeRuntimeFlagsHookFunc(t *testing.T) {
-	t.Parallel()
-
-	t.Run("valid", func(t *testing.T) {
-		t.Parallel()
-
-		defaults := DefaultRuntimeFlags()
-		withMap := struct {
-			SomethingElse map[string]bool `mapstructure:"something_else"`
-			RuntimeFlags  RuntimeFlags    `mapstructure:"runtime_flags"`
-		}{
-			RuntimeFlags: defaults,
-		}
-
-		decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-			DecodeHook: decodeRuntimeFlagsHookFunc(),
-			Result:     &withMap,
-		})
-		require.NoError(t, err)
-
-		expect := DefaultRuntimeFlags()
-		expect[GRPCDatabrokerKeepalive] = !expect[GRPCDatabrokerKeepalive]
-
-		err = decoder.Decode(map[string]interface{}{
-			"something_else": map[string]bool{
-				"hello": true,
-			},
-			"runtime_flags": map[string]interface{}{
-				string(GRPCDatabrokerKeepalive): expect[GRPCDatabrokerKeepalive],
-			},
-		})
-		assert.NoError(t, err)
-		assert.Equal(t, expect, withMap.RuntimeFlags)
-	})
-
-	t.Run("dont override if unset", func(t *testing.T) {
-		t.Parallel()
-
-		defaults := DefaultRuntimeFlags()
-		withMap := struct {
-			RuntimeFlags RuntimeFlags `mapstructure:"runtime_flags"`
-		}{
-			RuntimeFlags: defaults,
-		}
-
-		decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-			DecodeHook: decodeRuntimeFlagsHookFunc(),
-			Result:     &withMap,
-		})
-		require.NoError(t, err)
-
-		err = decoder.Decode(map[string]interface{}{})
-		assert.NoError(t, err)
-		assert.Equal(t, defaults, withMap.RuntimeFlags)
-	})
-
-	// mapstructure does not correctly wrap errors, so we will have to just search for the error text
-	// https://github.com/mitchellh/mapstructure/blob/ab69d8d93410fce4361f4912bb1ff88110a81311/error.go#L35-L38
-	assertErrorIs := func(t *testing.T, err error, target error) {
-		t.Helper()
-		if assert.Error(t, err) {
-			strings.Contains(err.Error(), target.Error())
-		}
-	}
-
-	t.Run("invalid input", func(t *testing.T) {
-		t.Parallel()
-
-		var withMap struct {
-			RuntimeFlags RuntimeFlags `mapstructure:"runtime_flags"`
-		}
-
-		decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-			DecodeHook: decodeRuntimeFlagsHookFunc(),
-			Result:     &withMap,
-		})
-		require.NoError(t, err)
-
-		err = decoder.Decode(map[string]interface{}{
-			"runtime_flags": "hello world",
-		})
-		assertErrorIs(t, err, ErrRuntimeFlagsInvalidValue)
-
-		err = decoder.Decode(map[string]interface{}{
-			"runtime_flags": map[string]interface{}{
-				"no_such_flag": true,
-			},
-		})
-		assertErrorIs(t, err, ErrRuntimeFlagUnknown)
-
-		err = decoder.Decode(map[string]interface{}{
-			"runtime_flags": map[string]interface{}{
-				string(GRPCDatabrokerKeepalive): "hello world",
-			},
-		})
-		assertErrorIs(t, err, ErrRuntimeFlagInvalidMapValue)
-	})
 }

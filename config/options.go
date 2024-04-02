@@ -389,7 +389,7 @@ func optionsFromViper(configFile string) (*Options, error) {
 	if err := v.Unmarshal(o, ViperPolicyHooks, func(c *mapstructure.DecoderConfig) { c.Metadata = &metadata }); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
-	if err := checkConfigKeysErrors(configFile, metadata.Unused); err != nil {
+	if err := checkConfigKeysErrors(configFile, o, metadata.Unused); err != nil {
 		return nil, err
 	}
 
@@ -402,7 +402,7 @@ func optionsFromViper(configFile string) (*Options, error) {
 	return o, nil
 }
 
-func checkConfigKeysErrors(configFile string, unused []string) error {
+func checkConfigKeysErrors(configFile string, o *Options, unused []string) error {
 	checks := CheckUnknownConfigFields(unused)
 	ctx := context.Background()
 	errInvalidConfigKeys := errors.New("some configuration options are no longer supported, please check logs for details")
@@ -423,6 +423,14 @@ func checkConfigKeysErrors(configFile string, unused []string) error {
 		}
 		evt.Msg(string(check.FieldCheckMsg))
 	}
+
+	// check for unknown runtime flags
+	for flag := range o.RuntimeFlags {
+		if _, ok := defaultRuntimeFlags[flag]; !ok {
+			log.Warn(ctx).Str("config_file", configFile).Str("flag", string(flag)).Msg("unknown runtime flag")
+		}
+	}
+
 	return err
 }
 

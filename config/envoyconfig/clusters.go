@@ -79,7 +79,7 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		authorizeCluster.OutlierDetection = grpcOutlierDetection()
 	}
 
-	databrokerKeepalive := Keepalive(cfg.Options.IsRuntimeFlagSet(config.GRPCDatabrokerKeepalive))
+	databrokerKeepalive := Keepalive(cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagGRPCDatabrokerKeepalive))
 	databrokerCluster, err := b.buildInternalCluster(ctx, cfg, "pomerium-databroker", databrokerURLs, upstreamProtocolHTTP2, databrokerKeepalive)
 	if err != nil {
 		return nil, err
