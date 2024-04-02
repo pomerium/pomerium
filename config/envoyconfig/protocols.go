@@ -8,6 +8,7 @@ import (
 	envoy_extensions_http_header_formatters_preserve_case_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/http/header_formatters/preserve_case/v3"
 	envoy_extensions_upstreams_http_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/upstreams/http/v3"
 	typev3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -54,17 +55,15 @@ var http2ProtocolOptions = &envoy_config_core_v3.Http2ProtocolOptions{
 	InitialConnectionWindowSize: wrapperspb.UInt32(initialConnectionWindowSizeLimit),
 }
 
-var http2ProtocolOptionsWithKeepalive = &envoy_config_core_v3.Http2ProtocolOptions{
-	AllowConnect:                true,
-	MaxConcurrentStreams:        wrapperspb.UInt32(maxConcurrentStreams),
-	InitialStreamWindowSize:     wrapperspb.UInt32(initialStreamWindowSizeLimit),
-	InitialConnectionWindowSize: wrapperspb.UInt32(initialConnectionWindowSizeLimit),
-	ConnectionKeepalive: &envoy_config_core_v3.KeepaliveSettings{
+func WithKeepalive(src *envoy_config_core_v3.Http2ProtocolOptions) *envoy_config_core_v3.Http2ProtocolOptions {
+	dst := proto.Clone(src).(*envoy_config_core_v3.Http2ProtocolOptions)
+	dst.ConnectionKeepalive = &envoy_config_core_v3.KeepaliveSettings{
 		Interval:               durationpb.New(time.Minute),
 		Timeout:                durationpb.New(time.Minute),
 		IntervalJitter:         &typev3.Percent{Value: 15}, // envoy's default
 		ConnectionIdleInterval: durationpb.New(5 * time.Minute),
-	},
+	}
+	return dst
 }
 
 func buildTypedExtensionProtocolOptions(
@@ -86,7 +85,7 @@ func buildUpstreamProtocolOptions(
 	case upstreamProtocolHTTP2:
 		h2opt := http2ProtocolOptions
 		if keepalive {
-			h2opt = http2ProtocolOptionsWithKeepalive
+			h2opt = WithKeepalive(http2ProtocolOptions)
 		}
 		// when explicitly configured, force HTTP/2
 		return &envoy_extensions_upstreams_http_v3.HttpProtocolOptions{
