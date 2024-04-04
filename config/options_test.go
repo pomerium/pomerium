@@ -384,7 +384,7 @@ func Test_Checksum(t *testing.T) {
 
 func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
-		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "DataBrokerURLStrings", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin", "TracingSampleRate", "ProgrammaticRedirectDomainWhitelist"),
+		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "DataBrokerURLStrings", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "GRPCClientDNSRoundRobin", "TracingSampleRate", "ProgrammaticRedirectDomainWhitelist", "RuntimeFlags"),
 		cmpopts.IgnoreFields(Policy{}, "EnvoyOpts"),
 		cmpOptIgnoreUnexported,
 	}
@@ -404,6 +404,22 @@ func TestOptionsFromViper(t *testing.T) {
 				InsecureServer:           true,
 				CookieHTTPOnly:           true,
 				AuthenticateCallbackPath: "/oauth2/callback",
+				DataBrokerStorageType:    "memory",
+				EnvoyAdminAccessLogPath:  os.DevNull,
+				EnvoyAdminProfilePath:    os.DevNull,
+			},
+			false,
+		},
+		{
+			"good disable header",
+			[]byte(`{"autocert_dir":"","insecure_server":true,"set_response_headers": {"disable":"true"},"policy":[{"from": "https://from.example","to":"https://to.example"}]}`),
+			&Options{
+				Policies:                 []Policy{{From: "https://from.example", To: mustParseWeightedURLs(t, "https://to.example")}},
+				CookieName:               "_pomerium",
+				AuthenticateCallbackPath: "/oauth2/callback",
+				CookieHTTPOnly:           true,
+				InsecureServer:           true,
+				SetResponseHeaders:       map[string]string{"disable": "true"},
 				DataBrokerStorageType:    "memory",
 				EnvoyAdminAccessLogPath:  os.DevNull,
 				EnvoyAdminProfilePath:    os.DevNull,
@@ -1254,6 +1270,33 @@ func TestOptions_RequestParamsFromEnv(t *testing.T) {
 	options, err := newOptionsFromConfig("")
 	if assert.NoError(t, err) {
 		assert.Equal(t, map[string]string{"x": "y"}, options.RequestParams)
+	}
+}
+
+func TestOptions_RuntimeFlags(t *testing.T) {
+	t.Parallel()
+
+	extra := DefaultRuntimeFlags()
+	extra["another"] = true
+
+	cases := []struct {
+		label    string
+		config   string
+		expected RuntimeFlags
+	}{
+		{"not present", "", DefaultRuntimeFlags()},
+		{"explicitly empty", `{"runtime_flags": {}}`, DefaultRuntimeFlags()},
+		{"all", `{"runtime_flags":{"another":true}}`, extra},
+	}
+	cfg := filepath.Join(t.TempDir(), "config.yaml")
+	for _, c := range cases {
+		t.Run(c.label, func(t *testing.T) {
+			err := os.WriteFile(cfg, []byte(c.config), 0o644)
+			require.NoError(t, err)
+			o, err := newOptionsFromConfig(cfg)
+			require.NoError(t, err)
+			assert.Equal(t, c.expected, o.RuntimeFlags)
+		})
 	}
 }
 

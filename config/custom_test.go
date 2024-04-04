@@ -114,6 +114,8 @@ func TestStringSlice_UnmarshalJSON(t *testing.T) {
 }
 
 func TestStringSlice_UnmarshalYAML(t *testing.T) {
+	t.Parallel()
+
 	t.Run("string", func(t *testing.T) {
 		var slc StringSlice
 		yaml.Unmarshal([]byte(`hello world`), &slc)

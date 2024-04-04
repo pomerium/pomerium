@@ -293,6 +293,8 @@ type Options struct {
 	BrandingOptions httputil.BrandingOptions
 
 	PassIdentityHeaders *bool `mapstructure:"pass_identity_headers" yaml:"pass_identity_headers"`
+
+	RuntimeFlags RuntimeFlags `mapstructure:"runtime_flags" yaml:"runtime_flags,omitempty"`
 }
 
 type certificateFilePair struct {
@@ -330,6 +332,11 @@ var defaultOptions = Options{
 	ProgrammaticRedirectDomainWhitelist: []string{"localhost"},
 }
 
+// IsRuntimeFlagSet returns true if the runtime flag is sets
+func (o *Options) IsRuntimeFlagSet(flag RuntimeFlag) bool {
+	return o.RuntimeFlags[flag]
+}
+
 var defaultSetResponseHeaders = map[string]string{
 	"X-Frame-Options":           "SAMEORIGIN",
 	"X-XSS-Protection":          "1; mode=block",
@@ -340,6 +347,7 @@ var defaultSetResponseHeaders = map[string]string{
 // responsibility to do a follow up Validate call.
 func NewDefaultOptions() *Options {
 	newOpts := defaultOptions
+	newOpts.RuntimeFlags = DefaultRuntimeFlags()
 	newOpts.viper = viper.New()
 	return &newOpts
 }
@@ -380,7 +388,7 @@ func optionsFromViper(configFile string) (*Options, error) {
 	if err := v.Unmarshal(o, ViperPolicyHooks, func(c *mapstructure.DecoderConfig) { c.Metadata = &metadata }); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
-	if err := checkConfigKeysErrors(configFile, metadata.Unused); err != nil {
+	if err := checkConfigKeysErrors(configFile, o, metadata.Unused); err != nil {
 		return nil, err
 	}
 
@@ -393,7 +401,7 @@ func optionsFromViper(configFile string) (*Options, error) {
 	return o, nil
 }
 
-func checkConfigKeysErrors(configFile string, unused []string) error {
+func checkConfigKeysErrors(configFile string, o *Options, unused []string) error {
 	checks := CheckUnknownConfigFields(unused)
 	ctx := context.Background()
 	errInvalidConfigKeys := errors.New("some configuration options are no longer supported, please check logs for details")
@@ -414,6 +422,14 @@ func checkConfigKeysErrors(configFile string, unused []string) error {
 		}
 		evt.Msg(string(check.FieldCheckMsg))
 	}
+
+	// check for unknown runtime flags
+	for flag := range o.RuntimeFlags {
+		if _, ok := defaultRuntimeFlags[flag]; !ok {
+			log.Warn(ctx).Str("config_file", configFile).Str("flag", string(flag)).Msg("unknown runtime flag")
+		}
+	}
+
 	return err
 }
 
@@ -1504,6 +1520,9 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	setCodecType(&o.CodecType, settings.CodecType)
 	setOptional(&o.PassIdentityHeaders, settings.PassIdentityHeaders)
 	o.BrandingOptions = settings
+	copyMap(&o.RuntimeFlags, settings.RuntimeFlags, func(k string, v bool) (RuntimeFlag, bool) {
+		return RuntimeFlag(k), v
+	})
 }
 
 func dataDir() string {
@@ -1629,6 +1648,21 @@ func setMap[TKey comparable, TValue any, TMap ~map[TKey]TValue](dst *TMap, src m
 		return
 	}
 	*dst = src
+}
+
+func copyMap[T1Key comparable, T1Value any, T2Key comparable, T2Value any, TMap1 ~map[T1Key]T1Value, TMap2 ~map[T2Key]T2Value](
+	dst *TMap1,
+	src TMap2,
+	convert func(T2Key, T2Value) (T1Key, T1Value),
+) {
+	if len(src) == 0 {
+		return
+	}
+	*dst = make(TMap1, len(src))
+	for k, v := range src {
+		k1, v1 := convert(k, v)
+		(*dst)[k1] = v1
+	}
 }
 
 func setCertificate(
