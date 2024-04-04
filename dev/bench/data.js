@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712267654105,
+  "lastUpdate": 1712272654465,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -105096,6 +105096,38 @@ window.BENCHMARK_DATA = {
             "value": 9616456,
             "unit": "ns/op",
             "extra": "181 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "a240b8b81b86b7c34a07f09336171599c468ce25",
+          "message": "config: add support for TCP proxy chaining",
+          "timestamp": "2024-04-04T19:27:09Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5053/commits/a240b8b81b86b7c34a07f09336171599c468ce25"
+        },
+        "date": 1712272644565,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9108908,
+            "unit": "ns/op",
+            "extra": "129 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6424777,
+            "unit": "ns/op",
+            "extra": "190 times\n4 procs"
           }
         ]
       }
