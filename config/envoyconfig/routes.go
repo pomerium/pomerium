@@ -415,11 +415,14 @@ func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *c
 	}
 
 	if policy.IsTCP() {
-		upgradeConfigs = append(upgradeConfigs, &envoy_config_route_v3.RouteAction_UpgradeConfig{
-			UpgradeType:   "CONNECT",
-			Enabled:       &wrapperspb.BoolValue{Value: true},
-			ConnectConfig: &envoy_config_route_v3.RouteAction_UpgradeConfig_ConnectConfig{},
-		})
+		uc := &envoy_config_route_v3.RouteAction_UpgradeConfig{
+			UpgradeType: "CONNECT",
+			Enabled:     &wrapperspb.BoolValue{Value: true},
+		}
+		if policy.IsTCPUpstream() {
+			uc.ConnectConfig = &envoy_config_route_v3.RouteAction_UpgradeConfig_ConnectConfig{}
+		}
+		upgradeConfigs = append(upgradeConfigs, uc)
 	}
 	action := &envoy_config_route_v3.RouteAction{
 		ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
