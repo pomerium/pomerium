@@ -330,8 +330,6 @@ var defaultOptions = Options{
 	EnvoyAdminAccessLogPath:             os.DevNull,
 	EnvoyAdminProfilePath:               os.DevNull,
 	ProgrammaticRedirectDomainWhitelist: []string{"localhost"},
-
-	RuntimeFlags: DefaultRuntimeFlags(),
 }
 
 // IsRuntimeFlagSet returns true if the runtime flag is sets
@@ -349,6 +347,7 @@ var defaultSetResponseHeaders = map[string]string{
 // responsibility to do a follow up Validate call.
 func NewDefaultOptions() *Options {
 	newOpts := defaultOptions
+	newOpts.RuntimeFlags = DefaultRuntimeFlags()
 	newOpts.viper = viper.New()
 	return &newOpts
 }

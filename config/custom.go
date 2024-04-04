@@ -543,12 +543,6 @@ func decodeStringToMapHookFunc() mapstructure.DecodeHookFunc {
 	})
 }
 
-var (
-	ErrRuntimeFlagUnknown         = fmt.Errorf("decoding runtime flags: unknown flag")
-	ErrRuntimeFlagsInvalidValue   = fmt.Errorf("decoding runtime flags: expected map[string]bool")
-	ErrRuntimeFlagInvalidMapValue = fmt.Errorf("decoding runtime flags: unknown flag value (expected bool)")
-)
-
 // serializable converts mapstructure nested map into map[string]interface{} that is serializable to JSON
 func serializable(in interface{}) (interface{}, error) {
 	switch typed := in.(type) {

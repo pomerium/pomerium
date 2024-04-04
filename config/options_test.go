@@ -1273,6 +1273,33 @@ func TestOptions_RequestParamsFromEnv(t *testing.T) {
 	}
 }
 
+func TestOptions_RuntimeFlags(t *testing.T) {
+	t.Parallel()
+
+	extra := DefaultRuntimeFlags()
+	extra["another"] = true
+
+	cases := []struct {
+		label    string
+		config   string
+		expected RuntimeFlags
+	}{
+		{"not present", "", DefaultRuntimeFlags()},
+		{"explicitly empty", `{"runtime_flags": {}}`, DefaultRuntimeFlags()},
+		{"all", `{"runtime_flags":{"another":true}}`, extra},
+	}
+	cfg := filepath.Join(t.TempDir(), "config.yaml")
+	for _, c := range cases {
+		t.Run(c.label, func(t *testing.T) {
+			err := os.WriteFile(cfg, []byte(c.config), 0o644)
+			require.NoError(t, err)
+			o, err := newOptionsFromConfig(cfg)
+			require.NoError(t, err)
+			assert.Equal(t, c.expected, o.RuntimeFlags)
+		})
+	}
+}
+
 func encodeCert(cert *tls.Certificate) []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Certificate[0]})
 }
