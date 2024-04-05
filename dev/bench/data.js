@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712279840159,
+  "lastUpdate": 1712345113407,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -105160,6 +105160,42 @@ window.BENCHMARK_DATA = {
             "value": 6449890,
             "unit": "ns/op",
             "extra": "181 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e9b6298cb530988ce2be7cadd30aa7c1c65a9260",
+          "message": "chore(deps): bump @trivago/prettier-plugin-sort-imports from 2.0.4 to 4.3.0 (#5054)\n\nThis should resolve a security vulnerability alert on the transitive\r\ndependency @babel/traverse.",
+          "timestamp": "2024-04-05T12:21:41-07:00",
+          "tree_id": "4fb35e477f14e32942b21251dee4ce43e05aaa0b",
+          "url": "https://github.com/pomerium/pomerium/commit/e9b6298cb530988ce2be7cadd30aa7c1c65a9260"
+        },
+        "date": 1712345097392,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9248690,
+            "unit": "ns/op",
+            "extra": "127 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6326964,
+            "unit": "ns/op",
+            "extra": "190 times\n4 procs"
           }
         ]
       }
