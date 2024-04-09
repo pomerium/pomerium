@@ -71,7 +71,7 @@ func TestBuildListeners(t *testing.T) {
 		for _, li := range lis {
 			hasGRPC = hasGRPC || li.Name == "grpc-ingress"
 		}
-		assert.False(t, hasGRPC, "expected grpc-ingress to be disable when grpc address is set to the empty string")
+		assert.False(t, hasGRPC, "expected grpc-ingress to be disabled when grpc address is set to the empty string")
 	})
 }
 
