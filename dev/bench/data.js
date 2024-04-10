@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712783657114,
+  "lastUpdate": 1712789140135,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -105864,6 +105864,38 @@ window.BENCHMARK_DATA = {
             "value": 6460489,
             "unit": "ns/op",
             "extra": "175 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "20c229baaabe0cdfc51946f9242f169f8b504c0a",
+          "message": "zero/healthchecks: add checks for ability to save bootstrap parameter and bundle status reporting",
+          "timestamp": "2024-04-08T18:50:11Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5064/commits/20c229baaabe0cdfc51946f9242f169f8b504c0a"
+        },
+        "date": 1712789131894,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8738587,
+            "unit": "ns/op",
+            "extra": "129 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6031023,
+            "unit": "ns/op",
+            "extra": "195 times\n4 procs"
           }
         ]
       }
