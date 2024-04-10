@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712778188306,
+  "lastUpdate": 1712778983064,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -105692,6 +105692,42 @@ window.BENCHMARK_DATA = {
             "value": 6916333,
             "unit": "ns/op",
             "extra": "164 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "322e11e60d907178f7c5c0ad8162d1c43e8c6e1c",
+          "message": "core/config: disable gRPC ingress when address is the empty string (#5058)\n\n* core/config: disable gRPC ingress when address is the empty string\r\n\r\n* add test\r\n\r\n* typo",
+          "timestamp": "2024-04-10T13:53:08-06:00",
+          "tree_id": "b55d23499ed8cbe3887def9a62194a0cdf70f30f",
+          "url": "https://github.com/pomerium/pomerium/commit/322e11e60d907178f7c5c0ad8162d1c43e8c6e1c"
+        },
+        "date": 1712778974001,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8113283,
+            "unit": "ns/op",
+            "extra": "141 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5589275,
+            "unit": "ns/op",
+            "extra": "204 times\n4 procs"
           }
         ]
       }
