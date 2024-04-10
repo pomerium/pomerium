@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712781847524,
+  "lastUpdate": 1712783657114,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -105828,6 +105828,42 @@ window.BENCHMARK_DATA = {
             "value": 6259879,
             "unit": "ns/op",
             "extra": "193 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "25aceea626acb5ccf7883b6c8937cbb4018d507a",
+          "message": "go.mod: update to a valid go version (#5061)",
+          "timestamp": "2024-04-10T14:10:58-07:00",
+          "tree_id": "835b6cc7e431f530b4549837728554cedde1d954",
+          "url": "https://github.com/pomerium/pomerium/commit/25aceea626acb5ccf7883b6c8937cbb4018d507a"
+        },
+        "date": 1712783647712,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9935843,
+            "unit": "ns/op",
+            "extra": "121 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6460489,
+            "unit": "ns/op",
+            "extra": "175 times\n4 procs"
           }
         ]
       }
