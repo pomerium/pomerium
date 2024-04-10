@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712780654675,
+  "lastUpdate": 1712781303952,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -105760,6 +105760,42 @@ window.BENCHMARK_DATA = {
             "value": 5768713,
             "unit": "ns/op",
             "extra": "216 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cc0d855843bbfd22d69cd7b2014e2d029e482886",
+          "message": "update dev Dockerfiles to use Go 1.22.2 (#5063)",
+          "timestamp": "2024-04-10T13:32:05-07:00",
+          "tree_id": "a3e0d5ff4201588a530fb446c639677169756307",
+          "url": "https://github.com/pomerium/pomerium/commit/cc0d855843bbfd22d69cd7b2014e2d029e482886"
+        },
+        "date": 1712781295593,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9316353,
+            "unit": "ns/op",
+            "extra": "127 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7169187,
+            "unit": "ns/op",
+            "extra": "176 times\n4 procs"
           }
         ]
       }
