@@ -13,7 +13,7 @@ RUN make yarn
 COPY ./ui/ ./ui/
 RUN make build-ui
 
-FROM golang:1.22.1-bookworm@sha256:d996c645c9934e770e64f05fc2bc103755197b43fd999b3aa5419142e1ee6d78 as build
+FROM golang:1.22.2-bookworm@sha256:3c7ad81405250a6b8027c7c9c2a9ab23cd8d4f9870994bf350ee6045704d47a5 as build
 WORKDIR /go/src/github.com/pomerium/pomerium
 
 RUN apt-get update \
