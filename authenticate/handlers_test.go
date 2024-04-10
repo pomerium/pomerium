@@ -128,6 +128,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 		sessionStore sessions.SessionStore
 		wantCode     int
 		wantBody     string
+		wantLocation string
 	}{
 		{
 			"good post",
@@ -141,6 +142,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			&mstore.Store{Encrypted: true, Session: &sessions.State{}},
 			http.StatusFound,
 			"",
+			"https://corp.pomerium.io/",
 		},
 		{
 			"signout redirect url",
@@ -154,6 +156,21 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			&mstore.Store{Encrypted: true, Session: &sessions.State{}},
 			http.StatusFound,
 			"",
+			"https://signout-redirect-url.example.com",
+		},
+		{
+			"empty redirect url",
+			http.MethodPost,
+			nil,
+			"",
+			"",
+			"sig",
+			"ts",
+			identity.MockProvider{SignOutError: oidc.ErrSignoutNotImplemented},
+			&mstore.Store{Encrypted: true, Session: &sessions.State{}},
+			http.StatusFound,
+			"",
+			"https://authenticate.pomerium.app/.pomerium/signed_out",
 		},
 		{
 			"failed revoke",
@@ -167,6 +184,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			&mstore.Store{Encrypted: true, Session: &sessions.State{}},
 			http.StatusFound,
 			"",
+			"https://corp.pomerium.io/",
 		},
 		{
 			"load session error",
@@ -180,6 +198,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			&mstore.Store{Encrypted: true, Session: &sessions.State{}},
 			http.StatusFound,
 			"",
+			"https://corp.pomerium.io/",
 		},
 		{
 			"bad redirect uri",
@@ -193,6 +212,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			&mstore.Store{Encrypted: true, Session: &sessions.State{}},
 			http.StatusFound,
 			"",
+			"/corp.pomerium.io/",
 		},
 	}
 	for _, tt := range tests {
@@ -220,7 +240,9 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			params, _ := url.ParseQuery(u.RawQuery)
 			params.Add("sig", tt.sig)
 			params.Add("ts", tt.ts)
-			params.Add(urlutil.QueryRedirectURI, tt.redirectURL)
+			if tt.redirectURL != "" {
+				params.Add(urlutil.QueryRedirectURI, tt.redirectURL)
+			}
 			u.RawQuery = params.Encode()
 			r := httptest.NewRequest(tt.method, u.String(), nil)
 			state, err := tt.sessionStore.LoadSession(r)
@@ -241,10 +263,8 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			if diff := cmp.Diff(body, tt.wantBody); diff != "" {
 				t.Errorf("handler returned wrong body Body: %s", diff)
 			}
-			if tt.signoutRedirectURL != "" {
-				loc := w.Header().Get("Location")
-				assert.Contains(t, loc, tt.signoutRedirectURL)
-			}
+			loc := w.Header().Get("Location")
+			assert.Equal(t, tt.wantLocation, loc)
 		})
 	}
 }
