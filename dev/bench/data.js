@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712776991821,
+  "lastUpdate": 1712777092770,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -105556,6 +105556,42 @@ window.BENCHMARK_DATA = {
             "value": 5729362,
             "unit": "ns/op",
             "extra": "214 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "991fca496cff29ca0f0520ecc5063da68381f588",
+          "message": "healthcheck: add common package, zero reporter and first xds check (#5059)",
+          "timestamp": "2024-04-10T15:21:39-04:00",
+          "tree_id": "ef45e897caf341017ff1aad2a2fb9a5798573780",
+          "url": "https://github.com/pomerium/pomerium/commit/991fca496cff29ca0f0520ecc5063da68381f588"
+        },
+        "date": 1712777083512,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10245806,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7072444,
+            "unit": "ns/op",
+            "extra": "177 times\n4 procs"
           }
         ]
       }
