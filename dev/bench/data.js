@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712666838600,
+  "lastUpdate": 1712763534237,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -105492,6 +105492,38 @@ window.BENCHMARK_DATA = {
             "value": 5957057,
             "unit": "ns/op",
             "extra": "195 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "5f6edb009316a5a87417756c7d1df4657c3a253e",
+          "message": "healthcheck: add common package, zero reporter and first xds check",
+          "timestamp": "2024-04-08T18:50:11Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5059/commits/5f6edb009316a5a87417756c7d1df4657c3a253e"
+        },
+        "date": 1712763525669,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10017444,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6885668,
+            "unit": "ns/op",
+            "extra": "171 times\n4 procs"
           }
         ]
       }
