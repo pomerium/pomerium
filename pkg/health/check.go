@@ -1,5 +1,7 @@
 package health
 
+import "fmt"
+
 type Check string
 
 const (
@@ -11,4 +13,11 @@ const (
 	XDSRouteConfiguration = Check("xds.route-configuration")
 	// XDSOther is a catch-all for other XDS resources
 	XDSOther = Check("xds.other")
+	// ZeroBootstrapConfigSave checks whether the Zero bootstrap config was saved
+	ZeroBootstrapConfigSave = Check("zero.bootstrap-config.save")
 )
+
+// ZeroResourceBundle checks whether the Zero resource bundle was applied
+func ZeroResourceBundle(bundleID string) Check {
+	return Check(fmt.Sprintf("zero.resource-bundle.%s", bundleID))
+}
