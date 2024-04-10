@@ -39,6 +39,42 @@ func testData(t *testing.T, name string, data interface{}) string {
 	return buf.String()
 }
 
+func TestBuildListeners(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	cfg := &config.Config{
+		Options: config.NewDefaultOptions(),
+
+		GRPCPort:     "10001",
+		HTTPPort:     "10002",
+		OutboundPort: "10003",
+		MetricsPort:  "10004",
+	}
+	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
+	t.Run("enable grpc by default", func(t *testing.T) {
+		cfg := cfg.Clone()
+		lis, err := b.BuildListeners(ctx, cfg, false)
+		assert.NoError(t, err)
+		var hasGRPC bool
+		for _, li := range lis {
+			hasGRPC = hasGRPC || li.Name == "grpc-ingress"
+		}
+		assert.True(t, hasGRPC, "expected grpc-ingress to be enabled by default")
+	})
+	t.Run("disable grpc for empty string", func(t *testing.T) {
+		cfg := cfg.Clone()
+		cfg.Options.GRPCAddr = ""
+		lis, err := b.BuildListeners(ctx, cfg, false)
+		assert.NoError(t, err)
+		var hasGRPC bool
+		for _, li := range lis {
+			hasGRPC = hasGRPC || li.Name == "grpc-ingress"
+		}
+		assert.False(t, hasGRPC, "expected grpc-ingress to be disabled when grpc address is set to the empty string")
+	})
+}
+
 func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 	cacheDir, _ := os.UserCacheDir()
 	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-32375a484d4f49594c4d374830.pem")
