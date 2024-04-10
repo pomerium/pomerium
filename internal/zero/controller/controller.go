@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 
@@ -42,6 +43,7 @@ func Run(ctx context.Context, opts ...Option) error {
 	eg.Go(func() error { return run(ctx, "zero-bootstrap", c.runBootstrap) })
 	eg.Go(func() error { return run(ctx, "pomerium-core", c.runPomeriumCore) })
 	eg.Go(func() error { return run(ctx, "zero-control-loop", c.runZeroControlLoop) })
+	eg.Go(func() error { return run(ctx, "healh-check-reporter", c.runHealthCheckReporter) })
 	return eg.Wait()
 }
 
@@ -103,13 +105,13 @@ func (c *controller) runConnect(ctx context.Context) error {
 
 func (c *controller) runZeroControlLoop(ctx context.Context) error {
 	return leaser.Run(ctx, c.bootstrapConfig,
-		c.runReconciler,
-		c.runAnalytics,
-		c.runReporter,
+		c.runReconcilerLeased,
+		c.runAnalyticsLeased,
+		c.runMetricsReporterLeased,
 	)
 }
 
-func (c *controller) runReconciler(ctx context.Context, client databroker.DataBrokerServiceClient) error {
+func (c *controller) runReconcilerLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "zero-reconciler")
 	})
@@ -120,7 +122,7 @@ func (c *controller) runReconciler(ctx context.Context, client databroker.DataBr
 	)
 }
 
-func (c *controller) runAnalytics(ctx context.Context, client databroker.DataBrokerServiceClient) error {
+func (c *controller) runAnalyticsLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "zero-analytics")
 	})
@@ -134,13 +136,31 @@ func (c *controller) runAnalytics(ctx context.Context, client databroker.DataBro
 	return err
 }
 
-func (c *controller) runReporter(ctx context.Context, client databroker.DataBrokerServiceClient) error {
+func (c *controller) runMetricsReporterLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "zero-reporter")
 	})
 
-	return c.api.Report(ctx,
+	return c.api.ReportMetrics(ctx,
 		reporter.WithCollectInterval(time.Hour),
 		reporter.WithMetrics(analytics.Metrics(func() databroker.DataBrokerServiceClient { return client })...),
+	)
+}
+
+func (c *controller) runHealthCheckReporter(ctx context.Context) error {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "zero-health-check-reporter")
+	})
+
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxElapsedTime = 0
+	return backoff.RetryNotify(
+		func() error {
+			return c.api.ReportHealthChecks(ctx)
+		},
+		backoff.WithContext(bo, ctx),
+		func(err error, next time.Duration) {
+			log.Ctx(ctx).Warn().Err(err).Dur("next", next).Msg("health check reporter backoff")
+		},
 	)
 }

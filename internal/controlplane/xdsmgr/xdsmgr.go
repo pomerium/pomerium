@@ -107,26 +107,21 @@ func (mgr *Manager) DeltaAggregatedResources(
 		case req.GetResponseNonce() == "":
 			// neither an ACK or a NACK
 		case req.GetErrorDetail() != nil:
-			log.Debug(ctx).
-				Str("type-url", req.GetTypeUrl()).
-				Any("error-detail", req.GetErrorDetail()).
-				Msg("xdsmgr: nack")
 			// a NACK
 			// - set the client resource versions to the current resource versions
 			state.clientResourceVersions = make(map[string]string)
 			for _, resource := range mgr.resources[req.GetTypeUrl()] {
 				state.clientResourceVersions[resource.Name] = resource.Version
 			}
+			logNACK(req)
 		case req.GetResponseNonce() == mgr.nonce:
-			log.Debug(ctx).
-				Str("type-url", req.GetTypeUrl()).
-				Msg("xdsmgr: ack")
 			// an ACK for the last response
 			// - set the client resource versions to the current resource versions
 			state.clientResourceVersions = make(map[string]string)
 			for _, resource := range mgr.resources[req.GetTypeUrl()] {
 				state.clientResourceVersions[resource.Name] = resource.Version
 			}
+			logACK(req)
 		default:
 			// an ACK for a response that's not the last response
 			log.Debug(ctx).

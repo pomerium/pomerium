@@ -54,7 +54,7 @@ func (b *Builder) BuildListeners(
 
 	var listeners []*envoy_config_listener_v3.Listener
 
-	if config.IsAuthenticate(cfg.Options.Services) || config.IsProxy(cfg.Options.Services) {
+	if shouldStartMainListener(cfg.Options) {
 		li, err := b.buildMainListener(ctx, cfg, fullyStatic)
 		if err != nil {
 			return nil, err
@@ -62,7 +62,7 @@ func (b *Builder) BuildListeners(
 		listeners = append(listeners, li)
 	}
 
-	if config.IsAuthorize(cfg.Options.Services) || config.IsDataBroker(cfg.Options.Services) {
+	if shouldStartGRPCListener(cfg.Options) {
 		li, err := b.buildGRPCListener(ctx, cfg)
 		if err != nil {
 			return nil, err
@@ -677,4 +677,16 @@ func newEnvoyListener(name string) *envoy_config_listener_v3.Listener {
 		Name:                          name,
 		PerConnectionBufferLimitBytes: wrapperspb.UInt32(listenerBufferLimit),
 	}
+}
+
+func shouldStartMainListener(options *config.Options) bool {
+	return config.IsAuthenticate(options.Services) || config.IsProxy(options.Services)
+}
+
+func shouldStartGRPCListener(options *config.Options) bool {
+	if options.GetGRPCAddr() == "" {
+		return false
+	}
+
+	return config.IsAuthorize(options.Services) || config.IsDataBroker(options.Services)
 }

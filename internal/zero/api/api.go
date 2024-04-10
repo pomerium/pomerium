@@ -12,7 +12,8 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/apierror"
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 	"github.com/pomerium/pomerium/internal/zero/grpcconn"
-	"github.com/pomerium/pomerium/internal/zero/reporter"
+	"github.com/pomerium/pomerium/internal/zero/healthcheck"
+	metrics_reporter "github.com/pomerium/pomerium/internal/zero/reporter"
 	token_api "github.com/pomerium/pomerium/internal/zero/token"
 	"github.com/pomerium/pomerium/pkg/fanout"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
@@ -23,6 +24,7 @@ import (
 type API struct {
 	cfg              *config
 	cluster          cluster_api.ClientWithResponsesInterface
+	telemetryConn    *grpc.ClientConn
 	mux              *connect_mux.Mux
 	downloadURLCache *cluster_api.URLCache
 	tokenFn          func(ctx context.Context, ttl time.Duration) (string, error)
@@ -75,24 +77,31 @@ func NewAPI(ctx context.Context, opts ...Option) (*API, error) {
 		return nil, fmt.Errorf("error creating connect grpc client: %w", err)
 	}
 
+	telemetryGRPCConn, err := grpcconn.New(ctx, cfg.otelEndpoint, func(ctx context.Context) (string, error) {
+		return tokenCache.GetToken(ctx, minTelemetryTokenTTL)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error creating OTEL exporter grpc client: %w", err)
+	}
+
 	return &API{
 		cfg:              cfg,
 		cluster:          clusterClient,
 		mux:              connect_mux.New(connect_api.NewConnectClient(connectGRPCConn)),
+		telemetryConn:    telemetryGRPCConn,
 		downloadURLCache: cluster_api.NewURLCache(),
 		tokenFn:          tokenCache.GetToken,
 	}, nil
 }
 
-// Report runs metrics reporting to the cloud
-func (api *API) Report(ctx context.Context, opts ...reporter.Option) error {
-	conn, err := grpcconn.New(ctx, api.cfg.otelEndpoint, func(ctx context.Context) (string, error) {
-		return api.tokenFn(ctx, minTelemetryTokenTTL)
-	})
-	if err != nil {
-		return fmt.Errorf("error creating OTEL exporter grpc client: %w", err)
-	}
-	return reporter.Run(ctx, conn, opts...)
+// ReportMetrics runs metrics reporting to the cloud
+func (api *API) ReportMetrics(ctx context.Context, opts ...metrics_reporter.Option) error {
+	return metrics_reporter.Run(ctx, api.telemetryConn, opts...)
+}
+
+// ReportHealthChecks runs health check reporting to the cloud
+func (api *API) ReportHealthChecks(ctx context.Context) error {
+	return healthcheck.NewReporter(api.telemetryConn).Run(ctx)
 }
 
 // Connect connects to the connect API and allows watching for changes
