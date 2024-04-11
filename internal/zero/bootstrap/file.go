@@ -15,6 +15,7 @@ import (
 	"os"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/health"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 )
 
@@ -40,6 +41,16 @@ func LoadBootstrapConfigFromFile(fp string, cipher cipher.AEAD) (*cluster_api.Bo
 
 // SaveBootstrapConfigToFile saves the bootstrap configuration to a file.
 func SaveBootstrapConfigToFile(src *cluster_api.BootstrapConfig, fp string, cipher cipher.AEAD) error {
+	err := saveBootstrapConfigToFile(src, fp, cipher)
+	if err != nil {
+		health.ReportError(health.ZeroBootstrapConfigSave, err)
+	} else {
+		health.ReportOK(health.ZeroBootstrapConfigSave)
+	}
+	return err
+}
+
+func saveBootstrapConfigToFile(src *cluster_api.BootstrapConfig, fp string, cipher cipher.AEAD) error {
 	plaintext, err := json.Marshal(src)
 	if err != nil {
 		return fmt.Errorf("marshal file config: %w", err)
