@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"runtime"
 	"strings"
 	"time"
 
@@ -676,6 +677,11 @@ func newEnvoyListener(name string) *envoy_config_listener_v3.Listener {
 	return &envoy_config_listener_v3.Listener{
 		Name:                          name,
 		PerConnectionBufferLimitBytes: wrapperspb.UInt32(listenerBufferLimit),
+
+		// SO_REUSEPORT only works properly on linux and is force-disabled by
+		// envoy on mac and windows, so we disable it explitly to avoid a
+		// noisy log message
+		EnableReusePort: wrapperspb.Bool(runtime.GOOS == "linux"),
 	}
 }
 

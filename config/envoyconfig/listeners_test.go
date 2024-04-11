@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"text/template"
 
@@ -89,7 +90,10 @@ func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 		},
 	})
 
-	expect := testData(t, "metrics_http_connection_manager.json", struct{ CertFile, KeyFile string }{certFileName, keyFileName})
+	expect := testData(t, "metrics_http_connection_manager.json", struct {
+		CertFile, KeyFile string
+		EnableReusePort   bool
+	}{certFileName, keyFileName, runtime.GOOS == "linux"})
 	require.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, expect, li)
 }
