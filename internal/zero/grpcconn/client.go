@@ -105,7 +105,7 @@ func interceptorLogger(ctx context.Context, lvl logging.Level, msg string, field
 	case logging.LevelDebug:
 		l.Debug().Msg(msg)
 	case logging.LevelInfo:
-		l.Info().Msg(msg)
+		l.Debug().Msg(msg)
 	case logging.LevelWarn:
 		l.Warn().Msg(msg)
 	case logging.LevelError:

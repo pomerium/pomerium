@@ -83,7 +83,7 @@ func (svc *Mux) subscribeAndDispatch(ctx context.Context, onConnected func()) (e
 	log.Ctx(ctx).Debug().Msg("subscribed to connect service")
 	for {
 		msg, err := stream.Recv()
-		log.Ctx(ctx).Info().Interface("msg", msg).Err(err).Msg("receive")
+		log.Ctx(ctx).Debug().Interface("msg", msg).Err(err).Msg("receive")
 		if err != nil {
 			return fmt.Errorf("receive: %w", err)
 		}

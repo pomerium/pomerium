@@ -36,19 +36,19 @@ func (c *service) SyncLoop(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-c.bundleSyncRequest:
-			log.Ctx(ctx).Info().Msg("bundle sync triggered")
+			log.Ctx(ctx).Debug().Msg("bundle sync triggered")
 			err := c.syncBundles(ctx)
 			if err != nil {
 				return fmt.Errorf("reconciler: sync bundles: %w", err)
 			}
 		case <-c.fullSyncRequest:
-			log.Ctx(ctx).Info().Msg("full sync triggered")
+			log.Ctx(ctx).Debug().Msg("full sync triggered")
 			err := c.syncAll(ctx)
 			if err != nil {
 				return fmt.Errorf("reconciler: sync all: %w", err)
 			}
 		case <-ticker.C:
-			log.Ctx(ctx).Info().Msg("periodic sync triggered")
+			log.Ctx(ctx).Debug().Msg("periodic sync triggered")
 			err := c.syncAll(ctx)
 			if err != nil {
 				return fmt.Errorf("reconciler: sync all: %w", err)
