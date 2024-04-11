@@ -25,23 +25,21 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 		return nil, fmt.Errorf("error building outbound http connection manager filter: %w", err)
 	}
 
-	li := &envoy_config_listener_v3.Listener{
-		Name: "outbound-ingress",
-		Address: &envoy_config_core_v3.Address{
-			Address: &envoy_config_core_v3.Address_SocketAddress{
-				SocketAddress: &envoy_config_core_v3.SocketAddress{
-					Address: "127.0.0.1",
-					PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
-						PortValue: uint32(outboundPort),
-					},
+	li := newEnvoyListener("outbound-ingress")
+	li.Address = &envoy_config_core_v3.Address{
+		Address: &envoy_config_core_v3.Address_SocketAddress{
+			SocketAddress: &envoy_config_core_v3.SocketAddress{
+				Address: "127.0.0.1",
+				PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
+					PortValue: uint32(outboundPort),
 				},
 			},
 		},
-		FilterChains: []*envoy_config_listener_v3.FilterChain{{
-			Name:    "outbound-ingress",
-			Filters: []*envoy_config_listener_v3.Filter{filter},
-		}},
 	}
+	li.FilterChains = []*envoy_config_listener_v3.FilterChain{{
+		Name:    "outbound-ingress",
+		Filters: []*envoy_config_listener_v3.Filter{filter},
+	}}
 	return li, nil
 }
 
