@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712789140135,
+  "lastUpdate": 1712847072939,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -105896,6 +105896,42 @@ window.BENCHMARK_DATA = {
             "value": 6031023,
             "unit": "ns/op",
             "extra": "195 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dc7820ea3ec8e253100b3ca1bd4d45f437c5b604",
+          "message": "zero/healthchecks: add checks for ability to save bootstrap parameter and bundle status reporting (#5064)",
+          "timestamp": "2024-04-11T10:47:52-04:00",
+          "tree_id": "e27efbd7b28151d62ecd86d7fe59f7a871247d36",
+          "url": "https://github.com/pomerium/pomerium/commit/dc7820ea3ec8e253100b3ca1bd4d45f437c5b604"
+        },
+        "date": 1712847064666,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10984251,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7165364,
+            "unit": "ns/op",
+            "extra": "163 times\n4 procs"
           }
         ]
       }
