@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712871282752,
+  "lastUpdate": 1712872039828,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -106000,6 +106000,38 @@ window.BENCHMARK_DATA = {
             "value": 6410344,
             "unit": "ns/op",
             "extra": "184 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "13a52b924a014037bb60328a6a30222033f0cf10",
+          "message": "core/envoy: only enable port reuse on linux",
+          "timestamp": "2024-04-11T16:29:53Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5066/commits/13a52b924a014037bb60328a6a30222033f0cf10"
+        },
+        "date": 1712872031554,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8379945,
+            "unit": "ns/op",
+            "extra": "141 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5661853,
+            "unit": "ns/op",
+            "extra": "205 times\n4 procs"
           }
         ]
       }
