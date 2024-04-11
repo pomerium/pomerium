@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1712873515713,
+  "lastUpdate": 1712874158448,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -106064,6 +106064,42 @@ window.BENCHMARK_DATA = {
             "value": 6122107,
             "unit": "ns/op",
             "extra": "195 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f03b1cd9ffc2402fe0584da98c44a667ee3bae3f",
+          "message": "core/envoy: only enable port reuse on linux (#5066)\n\n* core/envoy: only enable port reuse on linux\r\n\r\n* fix alert",
+          "timestamp": "2024-04-11T16:19:20-06:00",
+          "tree_id": "d68231ffd520285043c56e7162c68d7792357264",
+          "url": "https://github.com/pomerium/pomerium/commit/f03b1cd9ffc2402fe0584da98c44a667ee3bae3f"
+        },
+        "date": 1712874149265,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8619276,
+            "unit": "ns/op",
+            "extra": "133 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6204287,
+            "unit": "ns/op",
+            "extra": "199 times\n4 procs"
           }
         ]
       }
