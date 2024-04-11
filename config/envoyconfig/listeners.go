@@ -284,6 +284,11 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		return nil, err
 	}
 
+	localReply, err := b.buildLocalReplyConfig(cfg.Options)
+	if err != nil {
+		return nil, err
+	}
+
 	mgr := &envoy_http_connection_manager.HttpConnectionManager{
 		AlwaysSetRequestIdInResponse: true,
 		CodecType:                    cfg.Options.GetCodecType().ToEnvoy(),
@@ -304,7 +309,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		UseRemoteAddress:  &wrapperspb.BoolValue{Value: true},
 		SkipXffAppend:     cfg.Options.SkipXffAppend,
 		XffNumTrustedHops: cfg.Options.XffNumTrustedHops,
-		LocalReplyConfig:  b.buildLocalReplyConfig(cfg.Options),
+		LocalReplyConfig:  localReply,
 		NormalizePath:     wrapperspb.Bool(true),
 	}
 

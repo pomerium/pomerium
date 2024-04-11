@@ -27,18 +27,27 @@ func ServeFile(w http.ResponseWriter, r *http.Request, filePath string) error {
 	return nil
 }
 
+// RenderPage rends the index.html page.
+func RenderPage(page, title string, data map[string]any) ([]byte, error) {
+	if data == nil {
+		data = make(map[string]any)
+	}
+	data["page"] = page
+
+	return renderIndex(map[string]any{
+		"Title": title,
+		"Data":  data,
+	})
+}
+
 // ServePage serves the index.html page.
-func ServePage(w http.ResponseWriter, r *http.Request, page, title string, data map[string]interface{}) error {
+func ServePage(w http.ResponseWriter, r *http.Request, page, title string, data map[string]any) error {
 	if data == nil {
 		data = make(map[string]any)
 	}
 	data["csrfToken"] = csrf.Token(r)
-	data["page"] = page
 
-	bs, err := renderIndex(map[string]any{
-		"Title": title,
-		"Data":  data,
-	})
+	bs, err := RenderPage(page, title, data)
 	if err != nil {
 		return err
 	}
