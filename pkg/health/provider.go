@@ -39,7 +39,7 @@ type Provider interface {
 
 // SetProvider sets the health check provider
 func SetProvider(p Provider) {
-	defaultProvider.Store(p)
+	defaultProvider.Store(NewDeduplicator(p))
 }
 
 type providerStore struct {
