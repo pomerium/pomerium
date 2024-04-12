@@ -37,3 +37,17 @@ func TestDeduplicate(t *testing.T) {
 	dp.ReportOK(check1, health.StrAttr("k1", "v2"))
 	dp.ReportOK(check1, health.StrAttr("k1", "v1"))
 }
+
+func TestDefault(t *testing.T) {
+	t.Parallel()
+
+	p := NewMockProvider(gomock.NewController(t))
+	health.SetProvider(p)
+
+	check1 := health.Check("check-1")
+	p.EXPECT().ReportOK(check1).Times(1)
+	health.ReportOK(check1)
+
+	health.SetProvider(nil)
+	health.ReportOK(check1)
+}
