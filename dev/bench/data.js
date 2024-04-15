@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1713205545859,
+  "lastUpdate": 1713215213045,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -106260,6 +106260,42 @@ window.BENCHMARK_DATA = {
             "value": 6498379,
             "unit": "ns/op",
             "extra": "177 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1aa062b37b5c78efacc3a17bbae3db612e332a58",
+          "message": "update README: link to Contributing page (#5072)\n\nRemove the inline integration test instructions in favor of a link to\r\nthe Contributing page on the documentation site. Remove some unused link\r\ndefinitions and update the godoc.org link to use pkg.go.dev instead.",
+          "timestamp": "2024-04-15T14:03:38-07:00",
+          "tree_id": "43eaa73841d5decb8f3c226aebfc45c2fbb65468",
+          "url": "https://github.com/pomerium/pomerium/commit/1aa062b37b5c78efacc3a17bbae3db612e332a58"
+        },
+        "date": 1713215204080,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9053005,
+            "unit": "ns/op",
+            "extra": "136 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6123355,
+            "unit": "ns/op",
+            "extra": "190 times\n4 procs"
           }
         ]
       }
