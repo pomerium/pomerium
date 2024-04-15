@@ -26,4 +26,3 @@ See [Contributing] for information on how you can contribute to Pomerium.
 [contributing]: https://www.pomerium.com/docs/community/contributing
 [documentation]: https://www.pomerium.com/docs/
 [godocs]: https://pkg.go.dev/github.com/pomerium/pomerium
-
