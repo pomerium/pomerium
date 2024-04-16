@@ -37,12 +37,6 @@ GORELEASER_VERSION = v0.174.2
 .PHONY: all
 all: clean build-deps test lint build ## Runs a clean, build, fmt, lint, test, and vet.
 
-
-.PHONY: generate-mocks
-generate-mocks: ## Generate mocks
-	@echo "==> $@"
-	@go run github.com/golang/mock/mockgen@v1.6.0 -destination internal/directory/auth0/mock_auth0/mock.go github.com/pomerium/pomerium/internal/directory/auth0 RoleManager
-
 .PHONY: get-envoy
 get-envoy: ## Fetch envoy binaries
 	@echo "==> $@"

@@ -4,12 +4,12 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/golang/mock/gomock"
+	"go.uber.org/mock/gomock"
 
 	health "github.com/pomerium/pomerium/pkg/health"
 )
 
-//go:generate go run github.com/golang/mock/mockgen -package health_test -destination provider_mock_test.go github.com/pomerium/pomerium/pkg/health Provider
+//go:generate go run go.uber.org/mock/mockgen -package health_test -destination provider_mock_test.go github.com/pomerium/pomerium/pkg/health Provider
 
 func TestDeduplicate(t *testing.T) {
 	t.Parallel()
