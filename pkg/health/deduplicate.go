@@ -2,6 +2,8 @@ package health
 
 import (
 	"sync"
+
+	"golang.org/x/exp/maps"
 )
 
 var _ Provider = (*deduplicator)(nil)
@@ -37,7 +39,7 @@ func newRecord(err *string, attrs []Attr) *record {
 
 func (r *record) Equals(other *record) bool {
 	return r.equalError(other) &&
-		r.equalAttrs(other)
+		maps.Equal(r.attr, other.attr)
 }
 
 func (r *record) equalError(other *record) bool {
@@ -45,18 +47,6 @@ func (r *record) equalError(other *record) bool {
 		return r.err == other.err
 	}
 	return *r.err == *other.err
-}
-
-func (r *record) equalAttrs(other *record) bool {
-	if len(r.attr) != len(other.attr) {
-		return false
-	}
-	for k, v := range r.attr {
-		if other.attr[k] != v {
-			return false
-		}
-	}
-	return true
 }
 
 func NewDeduplicator(provider Provider) Provider {
