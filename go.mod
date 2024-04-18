@@ -19,7 +19,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/cloudflare/circl v1.3.7
 	github.com/coreos/go-oidc/v3 v3.10.0
-	github.com/docker/docker v26.0.0+incompatible
+	github.com/docker/docker v26.0.2+incompatible
 	github.com/envoyproxy/go-control-plane v0.12.0
 	github.com/envoyproxy/protoc-gen-validate v1.0.4
 	github.com/go-chi/chi/v5 v5.0.12
