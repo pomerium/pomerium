@@ -1,12 +1,16 @@
 package envoyconfig
 
 import (
+	"fmt"
+
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/ui"
 )
 
 func (b *Builder) buildVirtualHost(
@@ -33,12 +37,24 @@ func (b *Builder) buildVirtualHost(
 // coming directly from envoy
 func (b *Builder) buildLocalReplyConfig(
 	options *config.Options,
-) *envoy_http_connection_manager.LocalReplyConfig {
+) (*envoy_http_connection_manager.LocalReplyConfig, error) {
 	// add global headers for HSTS headers (#2110)
 	var headers []*envoy_config_core_v3.HeaderValueOption
 	// if we're the proxy or authenticate service, add our global headers
 	if config.IsProxy(options.Services) || config.IsAuthenticate(options.Services) {
 		headers = toEnvoyHeaders(options.GetSetResponseHeaders())
+	}
+
+	data := map[string]any{
+		"status":     "%RESPONSE_CODE%",
+		"statusText": "%RESPONSE_CODE_DETAILS%",
+		"requestId":  "%STREAM_ID%",
+	}
+	httputil.AddBrandingOptionsToMap(data, options.BrandingOptions)
+
+	bs, err := ui.RenderPage("Error", "Error", data)
+	if err != nil {
+		return nil, fmt.Errorf("error rendering error page for local reply: %w", err)
 	}
 
 	return &envoy_http_connection_manager.LocalReplyConfig{
@@ -48,7 +64,17 @@ func (b *Builder) buildLocalReplyConfig(
 					ResponseFlagFilter: &envoy_config_accesslog_v3.ResponseFlagFilter{},
 				},
 			},
+			BodyFormatOverride: &envoy_config_core_v3.SubstitutionFormatString{
+				ContentType: "text/html; charset=UTF-8",
+				Format: &envoy_config_core_v3.SubstitutionFormatString_TextFormatSource{
+					TextFormatSource: &envoy_config_core_v3.DataSource{
+						Specifier: &envoy_config_core_v3.DataSource_InlineBytes{
+							InlineBytes: bs,
+						},
+					},
+				},
+			},
 			HeadersToAdd: headers,
 		}},
-	}
+	}, nil
 }
