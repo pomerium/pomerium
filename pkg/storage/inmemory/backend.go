@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -86,6 +87,9 @@ func New(options ...Option) *Backend {
 			}
 		}()
 	}
+
+	health.ReportOK(health.StorageBackend, health.StrAttr("backend", "in-memory"))
+
 	return backend
 }
 

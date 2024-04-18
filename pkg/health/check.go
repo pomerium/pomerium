@@ -15,6 +15,8 @@ const (
 	XDSOther = Check("xds.other")
 	// ZeroBootstrapConfigSave checks whether the Zero bootstrap config was saved
 	ZeroBootstrapConfigSave = Check("zero.bootstrap-config.save")
+	// StorageBackend checks whether the storage backend is healthy
+	StorageBackend = Check("storage.backend")
 )
 
 // ZeroResourceBundle checks whether the Zero resource bundle was applied
