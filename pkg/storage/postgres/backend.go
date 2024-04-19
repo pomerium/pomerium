@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/internal/signal"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -77,6 +78,16 @@ func New(dsn string, options ...Option) *Backend {
 	go backend.doPeriodically(func(ctx context.Context) error {
 		return backend.listenForNotifications(ctx)
 	}, time.Millisecond*100)
+
+	go backend.doPeriodically(func(ctx context.Context) error {
+		err := backend.ping(ctx)
+		if err != nil {
+			health.ReportError(health.StorageBackend, err, health.StrAttr("backend", "postgres"))
+		} else {
+			health.ReportOK(health.StorageBackend, health.StrAttr("backend", "postgres"))
+		}
+		return nil
+	}, time.Minute)
 
 	return backend
 }
@@ -438,6 +449,15 @@ func (backend *Backend) listenForNotifications(ctx context.Context) error {
 			backend.onServiceChange.Broadcast(ctx)
 		}
 	}
+}
+
+func (backend *Backend) ping(ctx context.Context) error {
+	_, pool, err := backend.init(ctx)
+	if err != nil {
+		return err
+	}
+
+	return pool.Ping(ctx)
 }
 
 // ParseConfig parses a DSN into a pgxpool.Config.
