@@ -6,11 +6,15 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/pomerium/pomerium/internal/version"
 )
 
 const (
 	defaultMinTokenTTL = time.Minute * 5
 )
+
+var userAgent = version.UserAgent()
 
 type client struct {
 	tokenProvider TokenProviderFn
@@ -44,6 +48,7 @@ func (c *client) Do(req *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("error getting token: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("User-Agent", userAgent)
 
 	return c.httpClient.Do(req)
 }

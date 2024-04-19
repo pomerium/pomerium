@@ -1,8 +1,6 @@
 package reconciler
 
 import (
-	"fmt"
-
 	"github.com/pomerium/pomerium/pkg/health"
 )
 
@@ -12,7 +10,7 @@ func (c *service) ReportBundleAppliedSuccess(
 ) {
 	var attr []health.Attr
 	for k, v := range metadata {
-		attr = append(attr, health.StrAttr(fmt.Sprintf("download-metadata-%s", k), v))
+		attr = append(attr, health.StrAttr(k, v))
 	}
 	health.ReportOK(health.ZeroResourceBundle(bundleID), attr...)
 }
