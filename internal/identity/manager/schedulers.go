@@ -63,8 +63,12 @@ func (uuis *updateUserInfoScheduler) run(ctx context.Context) {
 }
 
 type refreshSessionScheduler struct {
-	mgr         *Manager
-	sessionID   string
+	now                           func() time.Time
+	sessionRefreshGracePeriod     time.Duration
+	sessionRefreshCoolOffDuration time.Duration
+	refreshSession                func(ctx context.Context, sesionID string)
+	sessionID                     string
+
 	lastRefresh atomic.Pointer[time.Time]
 	next        chan time.Time
 	cancel      context.CancelFunc
@@ -72,16 +76,22 @@ type refreshSessionScheduler struct {
 
 func newRefreshSessionScheduler(
 	ctx context.Context,
-	mgr *Manager,
+	now func() time.Time,
+	sessionRefreshGracePeriod time.Duration,
+	sessionRefreshCoolOffDuration time.Duration,
+	refreshSession func(ctx context.Context, sesionID string),
 	sessionID string,
 ) *refreshSessionScheduler {
 	rss := &refreshSessionScheduler{
-		mgr:       mgr,
-		sessionID: sessionID,
-		next:      make(chan time.Time, 1),
+		now:                           now,
+		sessionRefreshGracePeriod:     sessionRefreshGracePeriod,
+		sessionRefreshCoolOffDuration: sessionRefreshCoolOffDuration,
+		refreshSession:                refreshSession,
+		sessionID:                     sessionID,
+		next:                          make(chan time.Time, 1),
 	}
-	now := rss.mgr.cfg.Load().now()
-	rss.lastRefresh.Store(&now)
+	tm := now()
+	rss.lastRefresh.Store(&tm)
 	ctx = context.WithoutCancel(ctx)
 	ctx, rss.cancel = context.WithCancel(ctx)
 	go rss.run(ctx)
@@ -92,8 +102,8 @@ func (rss *refreshSessionScheduler) Update(s *session.Session) {
 	due := nextSessionRefresh(
 		s,
 		*rss.lastRefresh.Load(),
-		rss.mgr.cfg.Load().sessionRefreshGracePeriod,
-		rss.mgr.cfg.Load().sessionRefreshCoolOffDuration,
+		rss.sessionRefreshGracePeriod,
+		rss.sessionRefreshCoolOffDuration,
 	)
 	for {
 		select {
@@ -114,6 +124,12 @@ func (rss *refreshSessionScheduler) Stop() {
 
 func (rss *refreshSessionScheduler) run(ctx context.Context) {
 	var timer *time.Timer
+	// ensure we clean up any orphaned timers
+	defer func() {
+		if timer != nil {
+			timer.Stop()
+		}
+	}()
 
 	// wait for the first update
 	select {
@@ -122,7 +138,6 @@ func (rss *refreshSessionScheduler) run(ctx context.Context) {
 	case due := <-rss.next:
 		delay := max(time.Until(due), 0)
 		timer = time.NewTimer(delay)
-		defer timer.Stop()
 	}
 
 	// wait for updates or for the timer to trigger
@@ -132,15 +147,13 @@ func (rss *refreshSessionScheduler) run(ctx context.Context) {
 			return
 		case due := <-rss.next:
 			delay := max(time.Until(due), 0)
-			// stop the current timer and reset it
-			if !timer.Stop() {
-				<-timer.C
-			}
-			timer.Reset(delay)
+			// stop the existing timer and start a new one
+			timer.Stop()
+			timer = time.NewTimer(delay)
 		case <-timer.C:
-			now := rss.mgr.cfg.Load().now()
-			rss.lastRefresh.Store(&now)
-			rss.mgr.refreshSession(ctx, rss.sessionID)
+			tm := rss.now()
+			rss.lastRefresh.Store(&tm)
+			rss.refreshSession(ctx, rss.sessionID)
 		}
 	}
 }

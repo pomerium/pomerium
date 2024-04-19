@@ -148,7 +148,14 @@ func (mgr *Manager) onUpdateSession(ctx context.Context, s *session.Session) {
 	mgr.dataStore.putSession(s)
 	rss, ok := mgr.refreshSessionSchedulers[s.GetId()]
 	if !ok {
-		rss = newRefreshSessionScheduler(ctx, mgr, s.GetId())
+		rss = newRefreshSessionScheduler(
+			ctx,
+			mgr.cfg.Load().now,
+			mgr.cfg.Load().sessionRefreshGracePeriod,
+			mgr.cfg.Load().sessionRefreshCoolOffDuration,
+			mgr.refreshSession,
+			s.GetId(),
+		)
 		mgr.refreshSessionSchedulers[s.GetId()] = rss
 	}
 	rss.Update(s)
@@ -162,7 +169,12 @@ func (mgr *Manager) onUpdateUser(ctx context.Context, u *user.User) {
 	mgr.dataStore.putUser(u)
 	_, ok := mgr.updateUserInfoSchedulers[u.GetId()]
 	if !ok {
-		uuis := newUpdateUserInfoScheduler(ctx, mgr.cfg.Load().updateUserInfoInterval, mgr.updateUserInfo, u.GetId())
+		uuis := newUpdateUserInfoScheduler(
+			ctx,
+			mgr.cfg.Load().updateUserInfoInterval,
+			mgr.updateUserInfo,
+			u.GetId(),
+		)
 		mgr.updateUserInfoSchedulers[u.GetId()] = uuis
 	}
 	mgr.mu.Unlock()
