@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1713532981650,
+  "lastUpdate": 1713538101187,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -106664,6 +106664,42 @@ window.BENCHMARK_DATA = {
             "value": 5924620,
             "unit": "ns/op",
             "extra": "201 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "86c82c0374985efbbb0d7f00d1972359a152cbde",
+          "message": "chore(deps): bump golang.org/x/net from 0.22.0 to 0.23.0 (#5077)\n\nBumps [golang.org/x/net](https://github.com/golang/net) from 0.22.0 to 0.23.0.\r\n- [Commits](https://github.com/golang/net/compare/v0.22.0...v0.23.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: golang.org/x/net\r\n  dependency-type: direct:production\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-04-19T10:45:03-04:00",
+          "tree_id": "1b1ed6c6a324ce19b9c587d0050d465b6e69d8da",
+          "url": "https://github.com/pomerium/pomerium/commit/86c82c0374985efbbb0d7f00d1972359a152cbde"
+        },
+        "date": 1713538084847,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8279217,
+            "unit": "ns/op",
+            "extra": "134 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5820641,
+            "unit": "ns/op",
+            "extra": "213 times\n4 procs"
           }
         ]
       }
