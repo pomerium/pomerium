@@ -11,6 +11,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/pomerium/pomerium/internal/version"
 )
 
 // config is the configuration for the gRPC client
@@ -29,6 +31,7 @@ func getConfig(
 	endpoint string,
 	opts ...grpc.DialOption,
 ) (*config, error) {
+	opts = append(opts, grpc.WithUserAgent(version.UserAgent()))
 	c := &config{opts: opts}
 	err := c.parseEndpoint(endpoint)
 	if err != nil {
