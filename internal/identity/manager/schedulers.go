@@ -9,17 +9,25 @@ import (
 )
 
 type updateUserInfoScheduler struct {
-	mgr    *Manager
-	userID string
+	updateUserInfoInterval time.Duration
+	updateUserInfo         func(ctx context.Context, userID string)
+	userID                 string
+
 	reset  chan struct{}
 	cancel context.CancelFunc
 }
 
-func newUpdateUserInfoScheduler(ctx context.Context, mgr *Manager, userID string) *updateUserInfoScheduler {
+func newUpdateUserInfoScheduler(
+	ctx context.Context,
+	updateUserInfoInterval time.Duration,
+	updateUserInfo func(ctx context.Context, userID string),
+	userID string,
+) *updateUserInfoScheduler {
 	uuis := &updateUserInfoScheduler{
-		mgr:    mgr,
-		userID: userID,
-		reset:  make(chan struct{}, 1),
+		updateUserInfoInterval: updateUserInfoInterval,
+		updateUserInfo:         updateUserInfo,
+		userID:                 userID,
+		reset:                  make(chan struct{}, 1),
 	}
 	ctx = context.WithoutCancel(ctx)
 	ctx, uuis.cancel = context.WithCancel(ctx)
@@ -39,7 +47,7 @@ func (uuis *updateUserInfoScheduler) Stop() {
 }
 
 func (uuis *updateUserInfoScheduler) run(ctx context.Context) {
-	ticker := time.NewTicker(uuis.mgr.cfg.Load().updateUserInfoInterval)
+	ticker := time.NewTicker(uuis.updateUserInfoInterval)
 	defer ticker.Stop()
 
 	for {
@@ -47,9 +55,9 @@ func (uuis *updateUserInfoScheduler) run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-uuis.reset:
-			ticker.Reset(uuis.mgr.cfg.Load().updateUserInfoInterval)
+			ticker.Reset(uuis.updateUserInfoInterval)
 		case <-ticker.C:
-			uuis.mgr.updateUserInfo(ctx, uuis.userID)
+			uuis.updateUserInfo(ctx, uuis.userID)
 		}
 	}
 }

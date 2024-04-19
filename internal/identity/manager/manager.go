@@ -162,7 +162,7 @@ func (mgr *Manager) onUpdateUser(ctx context.Context, u *user.User) {
 	mgr.dataStore.putUser(u)
 	_, ok := mgr.updateUserInfoSchedulers[u.GetId()]
 	if !ok {
-		uuis := newUpdateUserInfoScheduler(ctx, mgr, u.GetId())
+		uuis := newUpdateUserInfoScheduler(ctx, mgr.cfg.Load().updateUserInfoInterval, mgr.updateUserInfo, u.GetId())
 		mgr.updateUserInfoSchedulers[u.GetId()] = uuis
 	}
 	mgr.mu.Unlock()
