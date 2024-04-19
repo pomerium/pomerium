@@ -3,10 +3,9 @@ package manager
 
 import (
 	"context"
-	"errors"
+	"sync"
 	"time"
 
-	"github.com/google/btree"
 	"github.com/rs/zerolog"
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
@@ -19,7 +18,6 @@ import (
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/identity/identity"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/scheduler"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -35,21 +33,14 @@ type Authenticator interface {
 	UpdateUserInfo(context.Context, *oauth2.Token, interface{}) error
 }
 
-type (
-	updateRecordsMessage struct {
-		records []*databroker.Record
-	}
-)
-
 // A Manager refreshes identity information using session and user data.
 type Manager struct {
 	cfg *atomicutil.Value[*config]
 
-	sessionScheduler *scheduler.Scheduler
-	userScheduler    *scheduler.Scheduler
-
-	sessions sessionCollection
-	users    userCollection
+	mu                       sync.Mutex
+	dataStore                *dataStore
+	refreshSessionSchedulers map[string]*refreshSessionScheduler
+	updateUserInfoSchedulers map[string]*updateUserInfoScheduler
 }
 
 // New creates a new identity manager.
@@ -59,23 +50,22 @@ func New(
 	mgr := &Manager{
 		cfg: atomicutil.NewValue(newConfig()),
 
-		sessionScheduler: scheduler.New(),
-		userScheduler:    scheduler.New(),
+		dataStore:                newDataStore(),
+		refreshSessionSchedulers: make(map[string]*refreshSessionScheduler),
+		updateUserInfoSchedulers: make(map[string]*updateUserInfoScheduler),
 	}
-	mgr.reset()
 	mgr.UpdateConfig(options...)
 	return mgr
-}
-
-func withLog(ctx context.Context) context.Context {
-	return log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("service", "identity_manager")
-	})
 }
 
 // UpdateConfig updates the manager with the new options.
 func (mgr *Manager) UpdateConfig(options ...Option) {
 	mgr.cfg.Store(newConfig(options...))
+}
+
+// GetDataBrokerServiceClient gets the databroker client.
+func (mgr *Manager) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	return mgr.cfg.Load().dataBrokerClient
 }
 
 // Run runs the manager. This method blocks until an error occurs or the given context is canceled.
@@ -86,173 +76,144 @@ func (mgr *Manager) Run(ctx context.Context) error {
 
 // RunLeased runs the identity manager when a lease is acquired.
 func (mgr *Manager) RunLeased(ctx context.Context) error {
-	ctx = withLog(ctx)
-	update := make(chan updateRecordsMessage, 1)
-	clear := make(chan struct{}, 1)
-
-	syncer := newDataBrokerSyncer(ctx, mgr.cfg, update, clear)
-
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "identity_manager")
+	})
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		return syncer.Run(ctx)
+		sessionSyncer := newSessionSyncer(mgr)
+		defer sessionSyncer.Close()
+		return sessionSyncer.Run(ctx)
 	})
 	eg.Go(func() error {
-		return mgr.refreshLoop(ctx, update, clear)
+		userSyncer := newUserSyncer(mgr)
+		defer userSyncer.Close()
+		return userSyncer.Run(ctx)
 	})
-
 	return eg.Wait()
 }
 
-// GetDataBrokerServiceClient gets the databroker client.
-func (mgr *Manager) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
-	return mgr.cfg.Load().dataBrokerClient
+func (mgr *Manager) onDeleteAllSessions(ctx context.Context) {
+	log.Ctx(ctx).Debug().Msg("all session deleted")
+
+	mgr.mu.Lock()
+	mgr.dataStore.deleteAllSessions()
+	for sID, rss := range mgr.refreshSessionSchedulers {
+		rss.Stop()
+		delete(mgr.refreshSessionSchedulers, sID)
+	}
+	mgr.mu.Unlock()
 }
 
-func (mgr *Manager) now() time.Time {
-	return mgr.cfg.Load().now()
+func (mgr *Manager) onDeleteAllUsers(ctx context.Context) {
+	log.Ctx(ctx).Debug().Msg("all users deleted")
+
+	mgr.mu.Lock()
+	mgr.dataStore.deleteAllUsers()
+	for uID, uuis := range mgr.updateUserInfoSchedulers {
+		uuis.Stop()
+		delete(mgr.updateUserInfoSchedulers, uID)
+	}
+	mgr.mu.Unlock()
 }
 
-func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecordsMessage, clear <-chan struct{}) error {
-	// wait for initial sync
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-clear:
-		mgr.reset()
+func (mgr *Manager) onDeleteSession(ctx context.Context, sessionID string) {
+	log.Ctx(ctx).Debug().Str("session_id", sessionID).Msg("session deleted")
+
+	mgr.mu.Lock()
+	mgr.dataStore.deleteSession(sessionID)
+	if rss, ok := mgr.refreshSessionSchedulers[sessionID]; ok {
+		rss.Stop()
+		delete(mgr.refreshSessionSchedulers, sessionID)
 	}
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case msg := <-update:
-		mgr.onUpdateRecords(ctx, msg)
-	}
-
-	log.Debug(ctx).
-		Int("sessions", mgr.sessions.Len()).
-		Int("users", mgr.users.Len()).
-		Msg("initial sync complete")
-
-	// start refreshing
-	maxWait := time.Minute * 10
-	var nextTime time.Time
-
-	timer := time.NewTimer(0)
-	defer timer.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-clear:
-			mgr.reset()
-		case msg := <-update:
-			mgr.onUpdateRecords(ctx, msg)
-		case <-timer.C:
-		}
-
-		now := mgr.now()
-		nextTime = now.Add(maxWait)
-
-		// refresh sessions
-		for {
-			tm, key := mgr.sessionScheduler.Next()
-			if now.Before(tm) {
-				if tm.Before(nextTime) {
-					nextTime = tm
-				}
-				break
-			}
-			mgr.sessionScheduler.Remove(key)
-
-			userID, sessionID := fromSessionSchedulerKey(key)
-			mgr.refreshSession(ctx, userID, sessionID)
-		}
-
-		// refresh users
-		for {
-			tm, key := mgr.userScheduler.Next()
-			if now.Before(tm) {
-				if tm.Before(nextTime) {
-					nextTime = tm
-				}
-				break
-			}
-			mgr.userScheduler.Remove(key)
-
-			mgr.refreshUser(ctx, key)
-		}
-
-		metrics.RecordIdentityManagerLastRefresh(ctx)
-		timer.Reset(time.Until(nextTime))
-	}
+	mgr.mu.Unlock()
 }
 
-// refreshSession handles two distinct session lifecycle events:
-//
-//  1. If the session itself has expired, delete the session.
-//  2. If the session's underlying OAuth2 access token is nearing expiration
-//     (but the session itself is still valid), refresh the access token.
-//
-// After a successful access token refresh, this method will also trigger a
-// user info refresh. If an access token refresh or a user info refresh fails
-// with a permanent error, the session will be deleted.
-func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string) {
-	log.Info(ctx).
-		Str("user_id", userID).
+func (mgr *Manager) onDeleteUser(ctx context.Context, userID string) {
+	log.Ctx(ctx).Debug().Str("user_id", userID).Msg("user deleted")
+
+	mgr.mu.Lock()
+	mgr.dataStore.deleteUser(userID)
+	if uuis, ok := mgr.updateUserInfoSchedulers[userID]; ok {
+		uuis.Stop()
+		delete(mgr.updateUserInfoSchedulers, userID)
+	}
+	mgr.mu.Unlock()
+}
+
+func (mgr *Manager) onUpdateSession(ctx context.Context, s *session.Session) {
+	log.Ctx(ctx).Debug().Str("session_id", s.GetId()).Msg("session updated")
+
+	mgr.mu.Lock()
+	mgr.dataStore.putSession(s)
+	rss, ok := mgr.refreshSessionSchedulers[s.GetId()]
+	if !ok {
+		rss = newRefreshSessionScheduler(ctx, mgr, s.GetId())
+		mgr.refreshSessionSchedulers[s.GetId()] = rss
+	}
+	rss.Update(s)
+	mgr.mu.Unlock()
+}
+
+func (mgr *Manager) onUpdateUser(ctx context.Context, u *user.User) {
+	log.Ctx(ctx).Debug().Str("user_id", u.GetId()).Msg("user updated")
+
+	mgr.mu.Lock()
+	mgr.dataStore.putUser(u)
+	_, ok := mgr.updateUserInfoSchedulers[u.GetId()]
+	if !ok {
+		uuis := newUpdateUserInfoScheduler(ctx, mgr, u.GetId())
+		mgr.updateUserInfoSchedulers[u.GetId()] = uuis
+	}
+	mgr.mu.Unlock()
+}
+
+func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
+	log.Ctx(ctx).Debug().
 		Str("session_id", sessionID).
 		Msg("refreshing session")
 
-	s, ok := mgr.sessions.Get(userID, sessionID)
-	if !ok {
-		log.Warn(ctx).
-			Str("user_id", userID).
+	mgr.mu.Lock()
+	s, u := mgr.dataStore.getSessionAndUser(sessionID)
+	mgr.mu.Unlock()
+
+	if s == nil {
+		log.Ctx(ctx).Warn().
+			Str("user_id", u.GetId()).
 			Str("session_id", sessionID).
 			Msg("no session found for refresh")
 		return
 	}
 
-	s.lastRefresh = mgr.now()
-
-	if mgr.refreshSessionInternal(ctx, userID, sessionID, &s) {
-		mgr.sessions.ReplaceOrInsert(s)
-		mgr.sessionScheduler.Add(s.NextRefresh(), toSessionSchedulerKey(userID, sessionID))
-	}
-}
-
-// refreshSessionInternal performs the core refresh logic and returns true if
-// the session should be scheduled for refresh again, or false if not.
-func (mgr *Manager) refreshSessionInternal(
-	ctx context.Context, userID, sessionID string, s *Session,
-) bool {
 	authenticator := mgr.cfg.Load().authenticator
 	if authenticator == nil {
-		log.Info(ctx).
-			Str("user_id", userID).
-			Str("session_id", sessionID).
+		log.Ctx(ctx).Info().
+			Str("user_id", s.GetUserId()).
+			Str("session_id", s.GetId()).
 			Msg("no authenticator defined, deleting session")
-		mgr.deleteSession(ctx, userID, sessionID)
-		return false
+		mgr.deleteSession(ctx, sessionID)
+		return
 	}
 
 	expiry := s.GetExpiresAt().AsTime()
-	if !expiry.After(mgr.now()) {
+	if !expiry.After(mgr.cfg.Load().now()) {
 		log.Info(ctx).
-			Str("user_id", userID).
-			Str("session_id", sessionID).
+			Str("user_id", s.GetUserId()).
+			Str("session_id", s.GetId()).
 			Msg("deleting expired session")
-		mgr.deleteSession(ctx, userID, sessionID)
-		return false
+		mgr.deleteSession(ctx, sessionID)
+		return
 	}
 
-	if s.Session == nil || s.Session.OauthToken == nil {
+	if s.GetOauthToken() == nil {
 		log.Warn(ctx).
-			Str("user_id", userID).
-			Str("session_id", sessionID).
+			Str("user_id", s.GetUserId()).
+			Str("session_id", s.GetId()).
 			Msg("no session oauth2 token found for refresh")
-		return false
+		return
 	}
 
-	newToken, err := authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), s)
+	newToken, err := authenticator.Refresh(ctx, FromOAuthToken(s.OauthToken), newSessionUnmarshaler(s))
 	metrics.RecordIdentityManagerSessionRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastSessionRefreshError, err)
 	if isTemporaryError(err) {
@@ -260,18 +221,18 @@ func (mgr *Manager) refreshSessionInternal(
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to refresh oauth2 token")
-		return true
+		return
 	} else if err != nil {
 		log.Error(ctx).Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to refresh oauth2 token, deleting session")
-		mgr.deleteSession(ctx, userID, sessionID)
-		return false
+		mgr.deleteSession(ctx, sessionID)
+		return
 	}
 	s.OauthToken = ToOAuthToken(newToken)
 
-	err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), s)
+	err = authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), newMultiUnmarshaler(newUserUnmarshaler(u), newSessionUnmarshaler(s)))
 	metrics.RecordIdentityManagerUserRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 	if isTemporaryError(err) {
@@ -279,184 +240,162 @@ func (mgr *Manager) refreshSessionInternal(
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to update user info")
-		return true
+		return
 	} else if err != nil {
 		log.Error(ctx).Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to update user info, deleting session")
-		mgr.deleteSession(ctx, userID, sessionID)
-		return false
+		mgr.deleteSession(ctx, sessionID)
+		return
 	}
 
-	fm, err := fieldmaskpb.New(s.Session, "oauth_token", "id_token", "claims")
-	if err != nil {
-		log.Error(ctx).Err(err).Msg("internal error")
-		return false
+	mgr.updateSession(ctx, s)
+	if u != nil {
+		mgr.updateUser(ctx, u)
 	}
-
-	if _, err := session.Patch(ctx, mgr.cfg.Load().dataBrokerClient, s.Session, fm); err != nil {
-		log.Error(ctx).Err(err).
-			Str("user_id", s.GetUserId()).
-			Str("session_id", s.GetId()).
-			Msg("failed to update session")
-	}
-	return true
 }
 
-func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
-	log.Info(ctx).
-		Str("user_id", userID).
-		Msg("refreshing user")
+func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
+	log.Ctx(ctx).Info().Str("user_id", userID).Msg("updating user info")
 
 	authenticator := mgr.cfg.Load().authenticator
 	if authenticator == nil {
 		return
 	}
 
-	u, ok := mgr.users.Get(userID)
-	if !ok {
-		log.Warn(ctx).
+	mgr.mu.Lock()
+	u, ss := mgr.dataStore.getUserAndSessions(userID)
+	mgr.mu.Unlock()
+
+	if u == nil {
+		log.Ctx(ctx).Warn().
 			Str("user_id", userID).
-			Msg("no user found for refresh")
+			Msg("no user found for update")
 		return
 	}
-	u.lastRefresh = mgr.now()
-	mgr.userScheduler.Add(u.NextRefresh(), u.GetId())
 
-	for _, s := range mgr.sessions.GetSessionsForUser(userID) {
-		if s.Session == nil || s.Session.OauthToken == nil {
-			log.Warn(ctx).
-				Str("user_id", userID).
-				Msg("no session oauth2 token found for refresh")
+	for _, s := range ss {
+		if s.GetOauthToken() == nil {
+			log.Ctx(ctx).Warn().
+				Str("user_id", s.GetUserId()).
+				Str("session_id", s.GetId()).
+				Msg("no session oauth2 token found for updating user info")
 			continue
 		}
 
-		err := authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.OauthToken), &u)
+		err := authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.GetOauthToken()), newMultiUnmarshaler(newUserUnmarshaler(u), newSessionUnmarshaler(s)))
 		metrics.RecordIdentityManagerUserRefresh(ctx, err)
 		mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 		if isTemporaryError(err) {
-			log.Error(ctx).Err(err).
+			log.Ctx(ctx).Error().Err(err).
 				Str("user_id", s.GetUserId()).
 				Str("session_id", s.GetId()).
 				Msg("failed to update user info")
-			return
+			continue
 		} else if err != nil {
-			log.Error(ctx).Err(err).
+			log.Ctx(ctx).Error().Err(err).
 				Str("user_id", s.GetUserId()).
 				Str("session_id", s.GetId()).
 				Msg("failed to update user info, deleting session")
-			mgr.deleteSession(ctx, userID, s.GetId())
+			mgr.deleteSession(ctx, s.GetId())
 			continue
 		}
 
-		res, err := databroker.Put(ctx, mgr.cfg.Load().dataBrokerClient, u.User)
-		if err != nil {
-			log.Error(ctx).Err(err).
-				Str("user_id", s.GetUserId()).
-				Str("session_id", s.GetId()).
-				Msg("failed to update user")
-			continue
-		}
-
-		mgr.onUpdateUser(ctx, res.GetRecords()[0], u.User)
+		mgr.updateSession(ctx, s)
+		mgr.updateUser(ctx, u)
 	}
 }
 
-func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessage) {
-	for _, record := range msg.records {
-		switch record.GetType() {
-		case grpcutil.GetTypeURL(new(session.Session)):
-			var pbSession session.Session
-			err := record.GetData().UnmarshalTo(&pbSession)
-			if err != nil {
-				log.Warn(ctx).Msgf("error unmarshaling session: %s", err)
-				continue
-			}
-			mgr.onUpdateSession(record, &pbSession)
-		case grpcutil.GetTypeURL(new(user.User)):
-			var pbUser user.User
-			err := record.GetData().UnmarshalTo(&pbUser)
-			if err != nil {
-				log.Warn(ctx).Msgf("error unmarshaling user: %s", err)
-				continue
-			}
-			mgr.onUpdateUser(ctx, record, &pbUser)
-		}
+// deleteSession deletes a session from the databroke, the local data store, and the schedulers
+func (mgr *Manager) deleteSession(ctx context.Context, sessionID string) {
+	log.Ctx(ctx).Debug().
+		Str("session_id", sessionID).
+		Msg("deleting session")
+
+	mgr.mu.Lock()
+	mgr.dataStore.deleteSession(sessionID)
+	if rss, ok := mgr.refreshSessionSchedulers[sessionID]; ok {
+		rss.Stop()
+		delete(mgr.refreshSessionSchedulers, sessionID)
 	}
-}
+	mgr.mu.Unlock()
 
-func (mgr *Manager) onUpdateSession(record *databroker.Record, session *session.Session) {
-	mgr.sessionScheduler.Remove(toSessionSchedulerKey(session.GetUserId(), session.GetId()))
-
-	if record.GetDeletedAt() != nil {
-		mgr.sessions.Delete(session.GetUserId(), session.GetId())
-		return
-	}
-
-	// update session
-	s, _ := mgr.sessions.Get(session.GetUserId(), session.GetId())
-	if s.lastRefresh.IsZero() {
-		s.lastRefresh = mgr.now()
-	}
-	s.gracePeriod = mgr.cfg.Load().sessionRefreshGracePeriod
-	s.coolOffDuration = mgr.cfg.Load().sessionRefreshCoolOffDuration
-	s.Session = session
-	mgr.sessions.ReplaceOrInsert(s)
-	mgr.sessionScheduler.Add(s.NextRefresh(), toSessionSchedulerKey(session.GetUserId(), session.GetId()))
-}
-
-func (mgr *Manager) onUpdateUser(_ context.Context, record *databroker.Record, user *user.User) {
-	mgr.userScheduler.Remove(user.GetId())
-
-	if record.GetDeletedAt() != nil {
-		mgr.users.Delete(user.GetId())
-		return
-	}
-
-	u, _ := mgr.users.Get(user.GetId())
-	u.lastRefresh = mgr.cfg.Load().now()
-	u.User = user
-	mgr.users.ReplaceOrInsert(u)
-	mgr.userScheduler.Add(u.NextRefresh(), u.GetId())
-}
-
-func (mgr *Manager) deleteSession(ctx context.Context, userID, sessionID string) {
-	mgr.sessionScheduler.Remove(toSessionSchedulerKey(userID, sessionID))
-	mgr.sessions.Delete(userID, sessionID)
-
-	client := mgr.cfg.Load().dataBrokerClient
-	res, err := client.Get(ctx, &databroker.GetRequest{
+	res, err := mgr.cfg.Load().dataBrokerClient.Get(ctx, &databroker.GetRequest{
 		Type: grpcutil.GetTypeURL(new(session.Session)),
 		Id:   sessionID,
 	})
 	if status.Code(err) == codes.NotFound {
-		return
-	} else if err != nil {
-		log.Error(ctx).Err(err).
-			Str("session_id", sessionID).
-			Msg("failed to delete session")
 		return
 	}
 
 	record := res.GetRecord()
 	record.DeletedAt = timestamppb.Now()
 
-	_, err = client.Put(ctx, &databroker.PutRequest{
+	_, err = mgr.cfg.Load().dataBrokerClient.Put(ctx, &databroker.PutRequest{
 		Records: []*databroker.Record{record},
 	})
 	if err != nil {
-		log.Error(ctx).Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("session_id", sessionID).
 			Msg("failed to delete session")
 		return
 	}
 }
 
-// reset resets all the manager datastructures to their initial state
-func (mgr *Manager) reset() {
-	mgr.sessions = sessionCollection{BTree: btree.New(8)}
-	mgr.users = userCollection{BTree: btree.New(8)}
+func (mgr *Manager) updateSession(ctx context.Context, s *session.Session) {
+	log.Ctx(ctx).Debug().
+		Str("user_id", s.GetUserId()).
+		Str("session_id", s.GetId()).
+		Msg("updating session")
+
+	fm, err := fieldmaskpb.New(s, "oauth_token", "id_token", "claims")
+	if err != nil {
+		log.Error(ctx).Err(err).
+			Str("user_id", s.GetUserId()).
+			Str("session_id", s.GetId()).
+			Msg("failed to create fieldmask for session")
+		return
+	}
+
+	_, err = session.Patch(ctx, mgr.cfg.Load().dataBrokerClient, s, fm)
+	if err != nil {
+		log.Error(ctx).Err(err).
+			Str("user_id", s.GetUserId()).
+			Str("session_id", s.GetId()).
+			Msg("failed to patch updated session record")
+		return
+	}
+
+	mgr.mu.Lock()
+	mgr.dataStore.putSession(s)
+	if rss, ok := mgr.refreshSessionSchedulers[s.GetId()]; ok {
+		rss.Update(s)
+	}
+	mgr.mu.Unlock()
+}
+
+// updateUser updates the user in the databroker, the local data store, and resets the scheduler
+func (mgr *Manager) updateUser(ctx context.Context, u *user.User) {
+	log.Ctx(ctx).Debug().
+		Str("user_id", u.GetId()).
+		Msg("updating user")
+
+	_, err := databroker.Put(ctx, mgr.cfg.Load().dataBrokerClient, u)
+	if err != nil {
+		log.Ctx(ctx).Error().
+			Str("user_id", u.GetId()).
+			Err(err).
+			Msg("failed to store updated user record")
+		return
+	}
+
+	mgr.mu.Lock()
+	mgr.dataStore.putUser(u)
+	if uuis, ok := mgr.updateUserInfoSchedulers[u.GetId()]; ok {
+		uuis.Reset()
+	}
+	mgr.mu.Unlock()
 }
 
 func (mgr *Manager) recordLastError(id string, err error) {
@@ -472,18 +411,4 @@ func (mgr *Manager) recordLastError(id string, err error) {
 		Message: err.Error(),
 		Id:      id,
 	})
-}
-
-func isTemporaryError(err error) bool {
-	if err == nil {
-		return false
-	}
-	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-		return true
-	}
-	var hasTemporary interface{ Temporary() bool }
-	if errors.As(err, &hasTemporary) && hasTemporary.Temporary() {
-		return true
-	}
-	return false
 }

@@ -10,6 +10,7 @@ import (
 var (
 	defaultSessionRefreshGracePeriod     = 1 * time.Minute
 	defaultSessionRefreshCoolOffDuration = 10 * time.Second
+	defaultUpdateUserInfoInterval        = 10 * time.Minute
 )
 
 type config struct {
@@ -17,6 +18,7 @@ type config struct {
 	dataBrokerClient              databroker.DataBrokerServiceClient
 	sessionRefreshGracePeriod     time.Duration
 	sessionRefreshCoolOffDuration time.Duration
+	updateUserInfoInterval        time.Duration
 	now                           func() time.Time
 	eventMgr                      *events.Manager
 }
@@ -26,6 +28,7 @@ func newConfig(options ...Option) *config {
 	WithSessionRefreshGracePeriod(defaultSessionRefreshGracePeriod)(cfg)
 	WithSessionRefreshCoolOffDuration(defaultSessionRefreshCoolOffDuration)(cfg)
 	WithNow(time.Now)(cfg)
+	WithUpdateUserInfoInterval(defaultUpdateUserInfoInterval)(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
@@ -74,5 +77,12 @@ func WithNow(now func() time.Time) Option {
 func WithEventManager(mgr *events.Manager) Option {
 	return func(c *config) {
 		c.eventMgr = mgr
+	}
+}
+
+// WithUpdateUserInfoInterval sets the update user info interval in the config.
+func WithUpdateUserInfoInterval(dur time.Duration) Option {
+	return func(cfg *config) {
+		cfg.updateUserInfoInterval = dur
 	}
 }
