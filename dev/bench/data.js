@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1713813175406,
+  "lastUpdate": 1713823072175,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -106936,6 +106936,38 @@ window.BENCHMARK_DATA = {
             "value": 6808311,
             "unit": "ns/op",
             "extra": "180 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "a161dac7c2db14f1e576409d5573a38183c36aa2",
+          "message": "envoy: migrate deprecated overload setting",
+          "timestamp": "2024-04-22T21:53:26Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5082/commits/a161dac7c2db14f1e576409d5573a38183c36aa2"
+        },
+        "date": 1713823063768,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8522507,
+            "unit": "ns/op",
+            "extra": "135 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5965045,
+            "unit": "ns/op",
+            "extra": "202 times\n4 procs"
           }
         ]
       }
