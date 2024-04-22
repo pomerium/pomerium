@@ -3,6 +3,7 @@ package manager
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -81,14 +82,14 @@ func (mgr *Manager) RunLeased(ctx context.Context) error {
 	})
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		sessionSyncer := newSessionSyncer(mgr)
+		sessionSyncer := newSessionSyncer(ctx, mgr)
 		defer sessionSyncer.Close()
-		return sessionSyncer.Run(ctx)
+		return fmt.Errorf("session syncer error: %w", sessionSyncer.Run(ctx))
 	})
 	eg.Go(func() error {
-		userSyncer := newUserSyncer(mgr)
+		userSyncer := newUserSyncer(ctx, mgr)
 		defer userSyncer.Close()
-		return userSyncer.Run(ctx)
+		return fmt.Errorf("user syncer error: %w", userSyncer.Run(ctx))
 	})
 	return eg.Wait()
 }
@@ -296,7 +297,7 @@ func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
 			continue
 		}
 
-		err := authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.GetOauthToken()), newMultiUnmarshaler(newUserUnmarshaler(u), newSessionUnmarshaler(s)))
+		err := authenticator.UpdateUserInfo(ctx, FromOAuthToken(s.GetOauthToken()), newUserUnmarshaler(u))
 		metrics.RecordIdentityManagerUserRefresh(ctx, err)
 		mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 		if isTemporaryError(err) {
@@ -314,7 +315,6 @@ func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
 			continue
 		}
 
-		mgr.updateSession(ctx, s)
 		mgr.updateUser(ctx, u)
 	}
 }
