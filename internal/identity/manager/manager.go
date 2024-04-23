@@ -339,6 +339,11 @@ func (mgr *Manager) deleteSession(ctx context.Context, sessionID string) {
 	})
 	if status.Code(err) == codes.NotFound {
 		return
+	} else if err != nil {
+		log.Ctx(ctx).Error().Err(err).
+			Str("session_id", sessionID).
+			Msg("failed to delete session")
+		return
 	}
 
 	record := res.GetRecord()
