@@ -82,12 +82,12 @@ func (mgr *Manager) RunLeased(ctx context.Context) error {
 	})
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		sessionSyncer := newSessionSyncer(mgr)
+		sessionSyncer := newSessionSyncer(ctx, mgr)
 		defer sessionSyncer.Close()
 		return fmt.Errorf("session syncer error: %w", sessionSyncer.Run(ctx))
 	})
 	eg.Go(func() error {
-		userSyncer := newUserSyncer(mgr)
+		userSyncer := newUserSyncer(ctx, mgr)
 		defer userSyncer.Close()
 		return fmt.Errorf("user syncer error: %w", userSyncer.Run(ctx))
 	})

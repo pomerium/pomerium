@@ -11,11 +11,12 @@ import (
 )
 
 type sessionSyncerHandler struct {
-	mgr *Manager
+	baseCtx context.Context
+	mgr     *Manager
 }
 
-func newSessionSyncer(mgr *Manager) *databroker.Syncer {
-	return databroker.NewSyncer("identity_manager/sessions", sessionSyncerHandler{mgr: mgr},
+func newSessionSyncer(ctx context.Context, mgr *Manager) *databroker.Syncer {
+	return databroker.NewSyncer("identity_manager/sessions", sessionSyncerHandler{baseCtx: ctx, mgr: mgr},
 		databroker.WithTypeURL(grpcutil.GetTypeURL(new(session.Session))))
 }
 
@@ -30,25 +31,26 @@ func (h sessionSyncerHandler) GetDataBrokerServiceClient() databroker.DataBroker
 func (h sessionSyncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*databroker.Record) {
 	for _, record := range records {
 		if record.GetDeletedAt() != nil {
-			h.mgr.onDeleteSession(ctx, record.GetId())
+			h.mgr.onDeleteSession(h.baseCtx, record.GetId())
 		} else {
 			var s session.Session
 			err := record.Data.UnmarshalTo(&s)
 			if err != nil {
 				log.Ctx(ctx).Warn().Err(err).Msg("invalid data in session record, ignoring")
 			} else {
-				h.mgr.onUpdateSession(ctx, &s)
+				h.mgr.onUpdateSession(h.baseCtx, &s)
 			}
 		}
 	}
 }
 
 type userSyncerHandler struct {
-	mgr *Manager
+	baseCtx context.Context
+	mgr     *Manager
 }
 
-func newUserSyncer(mgr *Manager) *databroker.Syncer {
-	return databroker.NewSyncer("identity_manager/users", userSyncerHandler{mgr: mgr},
+func newUserSyncer(ctx context.Context, mgr *Manager) *databroker.Syncer {
+	return databroker.NewSyncer("identity_manager/users", userSyncerHandler{baseCtx: ctx, mgr: mgr},
 		databroker.WithTypeURL(grpcutil.GetTypeURL(new(user.User))))
 }
 
@@ -63,14 +65,14 @@ func (h userSyncerHandler) GetDataBrokerServiceClient() databroker.DataBrokerSer
 func (h userSyncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*databroker.Record) {
 	for _, record := range records {
 		if record.GetDeletedAt() != nil {
-			h.mgr.onDeleteUser(ctx, record.GetId())
+			h.mgr.onDeleteUser(h.baseCtx, record.GetId())
 		} else {
 			var u user.User
 			err := record.Data.UnmarshalTo(&u)
 			if err != nil {
 				log.Ctx(ctx).Warn().Err(err).Msg("invalid data in user record, ignoring")
 			} else {
-				h.mgr.onUpdateUser(ctx, &u)
+				h.mgr.onUpdateUser(h.baseCtx, &u)
 			}
 		}
 	}
