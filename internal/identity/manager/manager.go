@@ -91,7 +91,9 @@ func (mgr *Manager) RunLeased(ctx context.Context) error {
 		defer userSyncer.Close()
 		return fmt.Errorf("user syncer error: %w", userSyncer.Run(ctx))
 	})
-	return eg.Wait()
+	err := eg.Wait()
+	log.Ctx(ctx).Info().Err(err).Msg("identity manager stopped")
+	return err
 }
 
 func (mgr *Manager) onDeleteAllSessions(ctx context.Context) {
