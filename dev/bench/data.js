@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1713823072175,
+  "lastUpdate": 1713837388325,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -106968,6 +106968,42 @@ window.BENCHMARK_DATA = {
             "value": 5965045,
             "unit": "ns/op",
             "extra": "202 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "05e077fe0407012b3e3bc654472622aaed7401e0",
+          "message": "envoy: migrate deprecated overload setting (#5082)\n\nMigrate from overload.global_downstream_max_connections to the suggested\r\nenvoy.resource_monitors.global_downstream_max_connections replacement.",
+          "timestamp": "2024-04-22T18:53:24-07:00",
+          "tree_id": "f1b3cc7c59e49e3736e7f21755dd6de6e67d8d06",
+          "url": "https://github.com/pomerium/pomerium/commit/05e077fe0407012b3e3bc654472622aaed7401e0"
+        },
+        "date": 1713837379896,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8874728,
+            "unit": "ns/op",
+            "extra": "135 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6284067,
+            "unit": "ns/op",
+            "extra": "199 times\n4 procs"
           }
         ]
       }
