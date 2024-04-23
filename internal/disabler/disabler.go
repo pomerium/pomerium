@@ -4,8 +4,6 @@ package disabler
 import (
 	"context"
 	"errors"
-
-	"github.com/pomerium/pomerium/internal/log"
 )
 
 var errDisabled = errors.New("disabled")
@@ -49,10 +47,8 @@ func (d disabler) Run(ctx context.Context) error {
 			continue
 		}
 
-		log.Ctx(ctx).Debug().Msg("enabled")
 		err := d.runEnabledOnce(ctx)
 		if errors.Is(err, errDisabled) {
-			log.Ctx(ctx).Debug().Msg("disabled")
 			continue
 		}
 

@@ -27,6 +27,7 @@ func newConfig(options ...Option) *config {
 	WithSessionRefreshGracePeriod(defaultSessionRefreshGracePeriod)(cfg)
 	WithSessionRefreshCoolOffDuration(defaultSessionRefreshCoolOffDuration)(cfg)
 	WithNow(time.Now)(cfg)
+	WithEnabled(true)(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
