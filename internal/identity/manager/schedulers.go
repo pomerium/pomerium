@@ -9,6 +9,7 @@ import (
 )
 
 type updateUserInfoScheduler struct {
+	baseCtx                context.Context
 	updateUserInfoInterval time.Duration
 	updateUserInfo         func(ctx context.Context, userID string)
 	userID                 string
@@ -24,13 +25,13 @@ func newUpdateUserInfoScheduler(
 	userID string,
 ) *updateUserInfoScheduler {
 	uuis := &updateUserInfoScheduler{
+		baseCtx:                ctx,
 		updateUserInfoInterval: updateUserInfoInterval,
 		updateUserInfo:         updateUserInfo,
 		userID:                 userID,
 		reset:                  make(chan struct{}, 1),
 	}
-	ctx = context.WithoutCancel(ctx)
-	ctx, uuis.cancel = context.WithCancel(ctx)
+	ctx, uuis.cancel = context.WithCancel(context.WithoutCancel(uuis.baseCtx))
 	go uuis.run(ctx)
 	return uuis
 }
@@ -57,12 +58,13 @@ func (uuis *updateUserInfoScheduler) run(ctx context.Context) {
 		case <-uuis.reset:
 			ticker.Reset(uuis.updateUserInfoInterval)
 		case <-ticker.C:
-			uuis.updateUserInfo(ctx, uuis.userID)
+			uuis.updateUserInfo(uuis.baseCtx, uuis.userID)
 		}
 	}
 }
 
 type refreshSessionScheduler struct {
+	baseCtx                       context.Context
 	now                           func() time.Time
 	sessionRefreshGracePeriod     time.Duration
 	sessionRefreshCoolOffDuration time.Duration
@@ -83,6 +85,7 @@ func newRefreshSessionScheduler(
 	sessionID string,
 ) *refreshSessionScheduler {
 	rss := &refreshSessionScheduler{
+		baseCtx:                       ctx,
 		now:                           now,
 		sessionRefreshGracePeriod:     sessionRefreshGracePeriod,
 		sessionRefreshCoolOffDuration: sessionRefreshCoolOffDuration,
@@ -92,8 +95,7 @@ func newRefreshSessionScheduler(
 	}
 	tm := now()
 	rss.lastRefresh.Store(&tm)
-	ctx = context.WithoutCancel(ctx)
-	ctx, rss.cancel = context.WithCancel(ctx)
+	ctx, rss.cancel = context.WithCancel(context.WithoutCancel(rss.baseCtx))
 	go rss.run(ctx)
 	return rss
 }
@@ -153,7 +155,7 @@ func (rss *refreshSessionScheduler) run(ctx context.Context) {
 		case <-timer.C:
 			tm := rss.now()
 			rss.lastRefresh.Store(&tm)
-			rss.refreshSession(ctx, rss.sessionID)
+			rss.refreshSession(rss.baseCtx, rss.sessionID)
 		}
 	}
 }
