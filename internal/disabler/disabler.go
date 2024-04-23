@@ -4,6 +4,8 @@ package disabler
 import (
 	"context"
 	"errors"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 var errDisabled = errors.New("disabled")
@@ -19,6 +21,7 @@ type Disabler interface {
 }
 
 type disabler struct {
+	name            string
 	handler         Handler
 	onChangeEnabled chan bool
 }
@@ -27,8 +30,8 @@ type disabler struct {
 // RunEnabled will be called. If the Disabler is subsequently disabled the
 // context passed to RunEnabled will be canceled. If the Disabler is subseqently
 // enabled, RunEnabled will be started again.
-func New(handler Handler, enabled bool) Disabler {
-	d := disabler{handler: handler, onChangeEnabled: make(chan bool, 1)}
+func New(name string, handler Handler, enabled bool) Disabler {
+	d := disabler{name: name, handler: handler, onChangeEnabled: make(chan bool, 1)}
 	d.change(enabled)
 	return d
 }
@@ -47,8 +50,10 @@ func (d disabler) Run(ctx context.Context) error {
 			continue
 		}
 
+		log.Ctx(ctx).Info().Msgf("enabled %s", d.name)
 		err := d.runEnabledOnce(ctx)
 		if errors.Is(err, errDisabled) {
+			log.Ctx(ctx).Info().Msgf("disabled %s", d.name)
 			continue
 		}
 

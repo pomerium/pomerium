@@ -64,7 +64,7 @@ func New(
 		sessionScheduler: scheduler.New(),
 		userScheduler:    scheduler.New(),
 	}
-	mgr.Disabler = disabler.New(mgr, true)
+	mgr.Disabler = disabler.New("identity_manager", mgr, true)
 	mgr.reset()
 	mgr.UpdateConfig(options...)
 	return mgr
