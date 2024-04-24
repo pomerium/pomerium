@@ -1042,7 +1042,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			Policies: []config.Policy{
 				{
 					From:                "tcp+https://example.com:22",
-					To:                  mustParseWeightedURLs(t, "https://to.example.com"),
+					To:                  mustParseWeightedURLs(t, "tcp://to.example.com"),
 					PassIdentityHeaders: ptr(true),
 				},
 				{
@@ -1123,7 +1123,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "15730681265277585877"
+								"route_id": "10474912405080199536"
 							}
 						}
 					}
@@ -1166,7 +1166,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					"upgradeConfigs": [
 						{ "enabled": false, "upgradeType": "websocket"},
 						{ "enabled": false, "upgradeType": "spdy/3.1"},
-						{ "enabled": true, "upgradeType": "CONNECT", "connectConfig": {} }
+						{ "enabled": true, "upgradeType": "CONNECT" }
 					]
 				},
 				"requestHeadersToRemove": [
