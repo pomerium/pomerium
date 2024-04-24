@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714000044124,
+  "lastUpdate": 1714001897660,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -107162,6 +107162,42 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 5854446,
+            "unit": "ns/op",
+            "extra": "201 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "498c3aa1085da1267c1fce989562fbfc9493fad8",
+          "message": "config: add support for TCP proxy chaining (#5053)\n\nAdd a distinction between TCP routes depending on whether the To URL(s)\r\nhave the scheme tcp://. For routes with a TCP upstream, configure Envoy\r\nto terminate CONNECT requests and open a TCP tunnel to the upstream\r\nservice (this is the current behavior). For routes without a TCP\r\nupstream, configure Envoy to proxy CONNECT requests to the upstream.\r\n\r\nThis new mode can allow an upstream proxy server to terminate a CONNECT\r\nrequest and open its own TCP tunnel to the final destination server.\r\n(Note that this will typically require setting the preserve_host_header\r\noption as well.)\r\n\r\nNote that this requires Envoy 1.30 or later.",
+          "timestamp": "2024-04-24T16:35:18-07:00",
+          "tree_id": "8f4a374b6a97a14355d7af07a616db08966a3eea",
+          "url": "https://github.com/pomerium/pomerium/commit/498c3aa1085da1267c1fce989562fbfc9493fad8"
+        },
+        "date": 1714001889137,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8392380,
+            "unit": "ns/op",
+            "extra": "140 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5719245,
             "unit": "ns/op",
             "extra": "201 times\n4 procs"
           }
