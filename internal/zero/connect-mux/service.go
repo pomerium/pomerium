@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/rs/zerolog/log"
 
+	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/internal/zero/apierror"
 	"github.com/pomerium/pomerium/pkg/fanout"
 	"github.com/pomerium/pomerium/pkg/zero/connect"
@@ -67,7 +68,7 @@ func (svc *Mux) subscribeAndDispatch(ctx context.Context, onConnected func()) (e
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	stream, err := svc.client.Subscribe(ctx, &connect.SubscribeRequest{})
+	stream, err := svc.client.Subscribe(ctx, &connect.SubscribeRequest{Version: version.FullVersion()})
 	if err != nil {
 		return fmt.Errorf("subscribe: %w", err)
 	}

@@ -8,7 +8,10 @@ option go_package = "github.com/pomerium/pomerium/pkg/zero/connect";
 //
 // The Authorization: Bearer header must contain a valid token,
 // that belongs to a cluster identity with appropriate claims set.
-message SubscribeRequest {}
+message SubscribeRequest {
+  // version of the connecting Pomerium Core, in the semver format
+  string version = 1;
+}
 
 // Message is an aggregate of all possible messages that can be sent
 // from the cloud to the core in managed mode.
