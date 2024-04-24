@@ -669,7 +669,7 @@ func urlsMatchHost(urls []*url.URL, host string) bool {
 }
 
 func urlMatchesHost(u *url.URL, host string) bool {
-	for _, h := range urlutil.GetDomainsForURL(u) {
+	for _, h := range urlutil.GetDomainsForURL(u, true) {
 		if h == host {
 			return true
 		}

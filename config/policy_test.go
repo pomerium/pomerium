@@ -245,7 +245,7 @@ func TestPolicy_Matches(t *testing.T) {
 		}
 		assert.NoError(t, p.Validate())
 
-		assert.False(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/foo/bar`)),
+		assert.False(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/foo/bar`), true),
 			"regex should only match full string")
 	})
 	t.Run("issue2952", func(t *testing.T) {
@@ -256,7 +256,7 @@ func TestPolicy_Matches(t *testing.T) {
 		}
 		assert.NoError(t, p.Validate())
 
-		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/foo/bar/0`)))
+		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/foo/bar/0`), true))
 	})
 	t.Run("issue2592-test2", func(t *testing.T) {
 		p := &Policy{
@@ -266,8 +266,8 @@ func TestPolicy_Matches(t *testing.T) {
 		}
 		assert.NoError(t, p.Validate())
 
-		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/admin/foo`)))
-		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/admin/bar`)))
+		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/admin/foo`), true))
+		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/admin/bar`), true))
 	})
 	t.Run("tcp", func(t *testing.T) {
 		p := &Policy{
@@ -276,7 +276,7 @@ func TestPolicy_Matches(t *testing.T) {
 		}
 		assert.NoError(t, p.Validate())
 
-		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://tcp.example.com:6379`)))
+		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://tcp.example.com:6379`), true))
 	})
 }
 

@@ -2,6 +2,7 @@ package envoyconfig
 
 import (
 	"fmt"
+	"strings"
 
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -21,6 +22,15 @@ func (b *Builder) buildVirtualHost(
 	vh := &envoy_config_route_v3.VirtualHost{
 		Name:    name,
 		Domains: []string{host},
+	}
+
+	// if we're stripping the port from incoming requests
+	// and this host doesn't have a port or wildcard in it
+	// then we will add :* to match on any port
+	if options.IsRuntimeFlagSet(config.RuntimeFlagStripFromPort) &&
+		!strings.Contains(host, "*") &&
+		!strings.Contains(host, ":") {
+		vh.Domains = append(vh.Domains, host+":*")
 	}
 
 	// these routes match /.pomerium/... and similar paths
