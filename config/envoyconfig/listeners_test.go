@@ -493,7 +493,7 @@ func Test_getAllDomains(t *testing.T) {
 		}
 		actual, err := getAllRouteableHosts(options, ":443")
 		require.NoError(t, err)
-		assert.Equal(t, []string{"a.example.com", "a.example.com:443"}, actual)
+		assert.Equal(t, []string{"a.example.com"}, actual)
 	})
 }
 
