@@ -11,6 +11,8 @@ option go_package = "github.com/pomerium/pomerium/pkg/zero/connect";
 message SubscribeRequest {
   // version of the connecting Pomerium Core, in the semver format
   string version = 1;
+  // hostname of the connecting Pomerium Core
+  string hostname = 2;
 }
 
 // Message is an aggregate of all possible messages that can be sent
