@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714080562287,
+  "lastUpdate": 1714080734481,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -107264,6 +107264,38 @@ window.BENCHMARK_DATA = {
             "value": 6718494,
             "unit": "ns/op",
             "extra": "181 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "e5d9e5ec7207e8f1a7e78d7145713c62e700ac1b",
+          "message": "core/config: add support for stripping the port for matching routes",
+          "timestamp": "2024-04-24T23:35:22Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5085/commits/e5d9e5ec7207e8f1a7e78d7145713c62e700ac1b"
+        },
+        "date": 1714080725052,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9123687,
+            "unit": "ns/op",
+            "extra": "130 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6510254,
+            "unit": "ns/op",
+            "extra": "187 times\n4 procs"
           }
         ]
       }
