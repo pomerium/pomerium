@@ -36,6 +36,18 @@ func TestWildcardToRegex(t *testing.T) {
 	re, err := regexp.Compile(WildcardToRegex("*.internal.*.example.com", true))
 	assert.NoError(t, err)
 	assert.True(t, re.MatchString("a.internal.b.example.com"))
+	assert.True(t, re.MatchString("a.internal.b.example.com:1234"))
+
+	re, err = regexp.Compile(WildcardToRegex("*.internal.*.example.com:1234", true))
+	assert.NoError(t, err)
+	assert.False(t, re.MatchString("a.internal.b.example.com"))
+	assert.True(t, re.MatchString("a.internal.b.example.com:1234"))
+	assert.False(t, re.MatchString("a.internal.b.example.com:5678"))
+
+	re, err = regexp.Compile(WildcardToRegex("*.internal.*.example.com", false))
+	assert.NoError(t, err)
+	assert.True(t, re.MatchString("a.internal.b.example.com"))
+	assert.False(t, re.MatchString("a.internal.b.example.com:1234"))
 }
 
 func TestHasPort(t *testing.T) {
