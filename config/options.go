@@ -1259,7 +1259,7 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 			if err != nil {
 				return nil, err
 			}
-			hosts.Add(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagStripFromPort))...)
+			hosts.Add(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
 		}
 
 		if o.AuthenticateURLString != "" {
@@ -1267,7 +1267,7 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 			if err != nil {
 				return nil, err
 			}
-			hosts.Add(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagStripFromPort))...)
+			hosts.Add(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
 		}
 	}
 
@@ -1279,10 +1279,10 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 				return nil, err
 			}
 
-			hosts.Add(urlutil.GetDomainsForURL(fromURL, !o.IsRuntimeFlagSet(RuntimeFlagStripFromPort))...)
+			hosts.Add(urlutil.GetDomainsForURL(fromURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
 			if policy.TLSDownstreamServerName != "" {
 				tlsURL := fromURL.ResolveReference(&url.URL{Host: policy.TLSDownstreamServerName})
-				hosts.Add(urlutil.GetDomainsForURL(tlsURL, !o.IsRuntimeFlagSet(RuntimeFlagStripFromPort))...)
+				hosts.Add(urlutil.GetDomainsForURL(tlsURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
 			}
 		}
 	}

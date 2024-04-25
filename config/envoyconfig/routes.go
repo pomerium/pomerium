@@ -236,7 +236,7 @@ func (b *Builder) buildRoutesForPolicy(
 	var routes []*envoy_config_route_v3.Route
 	if strings.Contains(fromURL.Host, "*") {
 		// we have to match '*.example.com' and '*.example.com:443', so there are two routes
-		for _, host := range urlutil.GetDomainsForURL(fromURL, !cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagStripFromPort)) {
+		for _, host := range urlutil.GetDomainsForURL(fromURL, !cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMatchAnyIncomingPort)) {
 			route, err := b.buildRouteForPolicyAndMatch(cfg, policy, name, mkRouteMatchForHost(cfg.Options, policy, host))
 			if err != nil {
 				return nil, err
@@ -518,7 +518,7 @@ func mkRouteMatchForHost(
 			StringMatch: &envoy_type_matcher_v3.StringMatcher{
 				MatchPattern: &envoy_type_matcher_v3.StringMatcher_SafeRegex{
 					SafeRegex: &envoy_type_matcher_v3.RegexMatcher{
-						Regex: config.WildcardToRegex(host, options.IsRuntimeFlagSet(config.RuntimeFlagStripFromPort)),
+						Regex: config.WildcardToRegex(host, options.IsRuntimeFlagSet(config.RuntimeFlagMatchAnyIncomingPort)),
 					},
 				},
 			},

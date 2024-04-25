@@ -27,9 +27,9 @@ func (b *Builder) buildVirtualHost(
 	// if we're stripping the port from incoming requests
 	// and this host doesn't have a port or wildcard in it
 	// then we will add :* to match on any port
-	if options.IsRuntimeFlagSet(config.RuntimeFlagStripFromPort) &&
+	if options.IsRuntimeFlagSet(config.RuntimeFlagMatchAnyIncomingPort) &&
 		!strings.Contains(host, "*") &&
-		!strings.Contains(host, ":") {
+		!config.HasPort(host) {
 		vh.Domains = append(vh.Domains, host+":*")
 	}
 

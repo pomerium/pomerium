@@ -6,8 +6,8 @@ var (
 	// RuntimeFlagGRPCDatabrokerKeepalive enables gRPC keepalive to the databroker service
 	RuntimeFlagGRPCDatabrokerKeepalive = runtimeFlag("grpc_databroker_keepalive", false)
 
-	// RuntimeFlagStripFromPort enables stripping the port from incoming requests for matching from addresses
-	RuntimeFlagStripFromPort = runtimeFlag("strip_from_port", true)
+	// RuntimeFlagMatchAnyIncomingPort enables ignoring the incoming port when matching routes
+	RuntimeFlagMatchAnyIncomingPort = runtimeFlag("match_any_incoming_port", true)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features

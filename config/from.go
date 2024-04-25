@@ -42,9 +42,22 @@ func WildcardToRegex(wildcard string, stripPort bool) string {
 		wildcard = wildcard[idx+1:]
 	}
 	b.WriteString(regexp.QuoteMeta(wildcard))
-	if stripPort && !strings.Contains(wildcard, ":") {
+	if stripPort && !HasPort(wildcard) {
 		b.WriteString("(:(.+))?")
 	}
 	b.WriteByte('$')
 	return b.String()
+}
+
+// HasPort returns true if the host has a port specifier.
+func HasPort(host string) bool {
+	idx := strings.LastIndex(host, ":")
+	if idx < 0 {
+		return false
+	}
+	if strings.HasPrefix(host, "[") {
+		bracketIdx := strings.LastIndex(host, "]")
+		return idx > bracketIdx
+	}
+	return true
 }

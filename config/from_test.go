@@ -37,3 +37,20 @@ func TestWildcardToRegex(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, re.MatchString("a.internal.b.example.com"))
 }
+
+func TestHasPort(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		in     string
+		expect bool
+	}{
+		{"example.com:1234", true},
+		{"example.com", false},
+		{"[::]:1234", true},
+		{"[::]", false},
+	} {
+		actual := HasPort(tc.in)
+		assert.Equal(t, tc.expect, actual, "expected %s to be %v", tc.in, tc.expect)
+	}
+}
