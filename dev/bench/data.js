@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714160154425,
+  "lastUpdate": 1714165616983,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -107600,6 +107600,38 @@ window.BENCHMARK_DATA = {
             "value": 5993851,
             "unit": "ns/op",
             "extra": "199 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "19c32a8dbd160a08e1c0861a3df58aa4f3cd5955",
+          "message": "core/kubernetes: fix impersonate group header",
+          "timestamp": "2024-04-26T19:32:23Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5090/commits/19c32a8dbd160a08e1c0861a3df58aa4f3cd5955"
+        },
+        "date": 1714165600547,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8513422,
+            "unit": "ns/op",
+            "extra": "136 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6039507,
+            "unit": "ns/op",
+            "extra": "210 times\n4 procs"
           }
         ]
       }
