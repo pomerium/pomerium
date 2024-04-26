@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714165616983,
+  "lastUpdate": 1714165713153,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -107632,6 +107632,42 @@ window.BENCHMARK_DATA = {
             "value": 6039507,
             "unit": "ns/op",
             "extra": "210 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "99a5dbd65b469d4a9015f6450134210e5cf4931c",
+          "message": "core/identity: add enabler (#5084)\n\n* core/identity: add disabler\r\n\r\n* enable by default\r\n\r\n* add name\r\n\r\n* rename to enabler, use mutex instead of goroutine\r\n\r\n* rename method, add comments",
+          "timestamp": "2024-04-26T15:05:22-06:00",
+          "tree_id": "69837fce45c8cb844a26a7f5c098180d1c34708e",
+          "url": "https://github.com/pomerium/pomerium/commit/99a5dbd65b469d4a9015f6450134210e5cf4931c"
+        },
+        "date": 1714165696404,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9228596,
+            "unit": "ns/op",
+            "extra": "133 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6405705,
+            "unit": "ns/op",
+            "extra": "188 times\n4 procs"
           }
         ]
       }
