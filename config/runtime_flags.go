@@ -2,8 +2,13 @@ package config
 
 import "golang.org/x/exp/maps"
 
-// RuntimeFlagGRPCDatabrokerKeepalive enables gRPC keepalive to the databroker service
-var RuntimeFlagGRPCDatabrokerKeepalive = runtimeFlag("grpc_databroker_keepalive", false)
+var (
+	// RuntimeFlagGRPCDatabrokerKeepalive enables gRPC keepalive to the databroker service
+	RuntimeFlagGRPCDatabrokerKeepalive = runtimeFlag("grpc_databroker_keepalive", false)
+
+	// RuntimeFlagMatchAnyIncomingPort enables ignoring the incoming port when matching routes
+	RuntimeFlagMatchAnyIncomingPort = runtimeFlag("match_any_incoming_port", true)
+)
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features
 type RuntimeFlag string

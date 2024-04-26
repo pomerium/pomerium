@@ -9,8 +9,8 @@ import (
 )
 
 // FromURLMatchesRequestURL returns true if the from URL matches the request URL.
-func FromURLMatchesRequestURL(fromURL, requestURL *url.URL) bool {
-	for _, domain := range urlutil.GetDomainsForURL(fromURL) {
+func FromURLMatchesRequestURL(fromURL, requestURL *url.URL, stripPort bool) bool {
+	for _, domain := range urlutil.GetDomainsForURL(fromURL, true) {
 		if domain == requestURL.Host {
 			return true
 		}
@@ -19,7 +19,7 @@ func FromURLMatchesRequestURL(fromURL, requestURL *url.URL) bool {
 			continue
 		}
 
-		reStr := WildcardToRegex(domain)
+		reStr := WildcardToRegex(domain, stripPort)
 		re := regexp.MustCompile(reStr)
 		if re.MatchString(requestURL.Host) {
 			return true
@@ -29,7 +29,7 @@ func FromURLMatchesRequestURL(fromURL, requestURL *url.URL) bool {
 }
 
 // WildcardToRegex converts a wildcard string to a regular expression.
-func WildcardToRegex(wildcard string) string {
+func WildcardToRegex(wildcard string, stripPort bool) string {
 	var b strings.Builder
 	b.WriteByte('^')
 	for {
@@ -42,6 +42,22 @@ func WildcardToRegex(wildcard string) string {
 		wildcard = wildcard[idx+1:]
 	}
 	b.WriteString(regexp.QuoteMeta(wildcard))
+	if stripPort && !HasPort(wildcard) {
+		b.WriteString("(:(.+))?")
+	}
 	b.WriteByte('$')
 	return b.String()
+}
+
+// HasPort returns true if the host has a port specifier.
+func HasPort(host string) bool {
+	idx := strings.LastIndex(host, ":")
+	if idx < 0 {
+		return false
+	}
+	if strings.HasPrefix(host, "[") {
+		bracketIdx := strings.LastIndex(host, "]")
+		return idx > bracketIdx
+	}
+	return true
 }
