@@ -5,6 +5,8 @@ import "fmt"
 type Check string
 
 const (
+	// StorageBackend checks whether the storage backend is healthy
+	StorageBackend = Check("storage.backend")
 	// XDSCluster checks whether the XDS Cluster resources were applied
 	XDSCluster = Check("xds.cluster")
 	// XDSListener checks whether the XDS Listener resources were applied
@@ -15,8 +17,8 @@ const (
 	XDSOther = Check("xds.other")
 	// ZeroBootstrapConfigSave checks whether the Zero bootstrap config was saved
 	ZeroBootstrapConfigSave = Check("zero.bootstrap-config.save")
-	// StorageBackend checks whether the storage backend is healthy
-	StorageBackend = Check("storage.backend")
+	// ZeroConnect checks whether the Zero Connect service is connected
+	ZeroConnect = Check("zero.connect")
 )
 
 // ZeroResourceBundle checks whether the Zero resource bundle was applied
