@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714139460461,
+  "lastUpdate": 1714141687386,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -107424,6 +107424,42 @@ window.BENCHMARK_DATA = {
             "value": 5909555,
             "unit": "ns/op",
             "extra": "188 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5373e25ac4c7e864d284139025057d6ab9a20ec9",
+          "message": "core/config: add support for stripping the port for matching routes (#5085)\n\n* core/config: add support for stripping the port for matching routes\r\n\r\n* fix test\r\n\r\n* rename option, improve port detection\r\n\r\n* add more test cases",
+          "timestamp": "2024-04-26T08:24:46-06:00",
+          "tree_id": "80e2769d0745bdcaaeb972ad9f04b2bc22ab0b4e",
+          "url": "https://github.com/pomerium/pomerium/commit/5373e25ac4c7e864d284139025057d6ab9a20ec9"
+        },
+        "date": 1714141670592,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10136593,
+            "unit": "ns/op",
+            "extra": "122 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6534210,
+            "unit": "ns/op",
+            "extra": "176 times\n4 procs"
           }
         ]
       }
