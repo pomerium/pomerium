@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714147182281,
+  "lastUpdate": 1714149703960,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -107496,6 +107496,42 @@ window.BENCHMARK_DATA = {
             "value": 6670944,
             "unit": "ns/op",
             "extra": "175 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a3149363a67c023863f2ee021f394936f7c27b13",
+          "message": "envoyconfig: address strconv.Atoi warnings (#5076)\n\nReplace Atoi() calls with ParseUint(), and update the buildAddress()\r\ndefaultPort parameter to be a uint32. (A uint16 would arguably make more\r\nsense for a port number, but uint32 matches the Envoy proto field.)\r\n\r\nDelete a ParseAddress() method that appears to be unused.",
+          "timestamp": "2024-04-26T09:38:41-07:00",
+          "tree_id": "2398509d88f7fcddf2a6ba3acad21a107b95c830",
+          "url": "https://github.com/pomerium/pomerium/commit/a3149363a67c023863f2ee021f394936f7c27b13"
+        },
+        "date": 1714149695052,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8852560,
+            "unit": "ns/op",
+            "extra": "134 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6206087,
+            "unit": "ns/op",
+            "extra": "194 times\n4 procs"
           }
         ]
       }
