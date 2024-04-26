@@ -41,9 +41,6 @@ func TestBuilder_BuildBootstrapLayeredRuntime(t *testing.T) {
 		{ "layers": [{
 			"name": "static_layer_0",
 			"staticLayer": {
-				"overload": {
-					"global_downstream_max_connections": 50000
-				},
 				"re2": {
 					"max_program_size": {
 						"error_level": 1048576,
@@ -124,5 +121,30 @@ func TestBuilder_BuildBootstrapStatsConfig(t *testing.T) {
 				}]
 			}
 		`, statsCfg)
+	})
+}
+
+func TestBuilder_BuildBootstrap(t *testing.T) {
+	b := New("localhost:1111", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil)
+	t.Run("OverloadManager", func(t *testing.T) {
+		bootstrap, err := b.BuildBootstrap(context.Background(), &config.Config{
+			Options: &config.Options{
+				EnvoyAdminAddress: "localhost:9901",
+			},
+		}, false)
+		assert.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `
+			{
+				"resourceMonitors": [
+					{
+						"name": "envoy.resource_monitors.global_downstream_max_connections",
+						"typedConfig": {
+							"@type": "type.googleapis.com/envoy.extensions.resource_monitors.downstream_connections.v3.DownstreamConnectionsConfig",
+							"maxActiveDownstreamConnections": "50000"
+						}
+					}
+				]
+			}
+		`, bootstrap.OverloadManager)
 	})
 }

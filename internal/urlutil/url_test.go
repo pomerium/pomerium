@@ -179,7 +179,7 @@ func TestGetDomainsForURL(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := GetDomainsForURL(tc.u)
+			got := GetDomainsForURL(tc.u, true)
 			if diff := cmp.Diff(got, tc.want); diff != "" {
 				t.Errorf("GetDomainsForURL() = %v", diff)
 			}

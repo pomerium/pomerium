@@ -1216,7 +1216,7 @@ func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
 			return nil, err
 		}
 		for _, u := range authorizeURLs {
-			hosts.Add(urlutil.GetDomainsForURL(u)...)
+			hosts.Add(urlutil.GetDomainsForURL(u, true)...)
 		}
 	} else if IsAuthorize(o.Services) {
 		authorizeURLs, err := o.GetInternalAuthorizeURLs()
@@ -1224,7 +1224,7 @@ func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
 			return nil, err
 		}
 		for _, u := range authorizeURLs {
-			hosts.Add(urlutil.GetDomainsForURL(u)...)
+			hosts.Add(urlutil.GetDomainsForURL(u, true)...)
 		}
 	}
 
@@ -1235,7 +1235,7 @@ func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
 			return nil, err
 		}
 		for _, u := range dataBrokerURLs {
-			hosts.Add(urlutil.GetDomainsForURL(u)...)
+			hosts.Add(urlutil.GetDomainsForURL(u, true)...)
 		}
 	} else if IsDataBroker(o.Services) {
 		dataBrokerURLs, err := o.GetInternalDataBrokerURLs()
@@ -1243,7 +1243,7 @@ func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
 			return nil, err
 		}
 		for _, u := range dataBrokerURLs {
-			hosts.Add(urlutil.GetDomainsForURL(u)...)
+			hosts.Add(urlutil.GetDomainsForURL(u, true)...)
 		}
 	}
 
@@ -1259,7 +1259,7 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 			if err != nil {
 				return nil, err
 			}
-			hosts.Add(urlutil.GetDomainsForURL(authenticateURL)...)
+			hosts.Add(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
 		}
 
 		if o.AuthenticateURLString != "" {
@@ -1267,7 +1267,7 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 			if err != nil {
 				return nil, err
 			}
-			hosts.Add(urlutil.GetDomainsForURL(authenticateURL)...)
+			hosts.Add(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
 		}
 	}
 
@@ -1279,10 +1279,10 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 				return nil, err
 			}
 
-			hosts.Add(urlutil.GetDomainsForURL(fromURL)...)
+			hosts.Add(urlutil.GetDomainsForURL(fromURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
 			if policy.TLSDownstreamServerName != "" {
 				tlsURL := fromURL.ResolveReference(&url.URL{Host: policy.TLSDownstreamServerName})
-				hosts.Add(urlutil.GetDomainsForURL(tlsURL)...)
+				hosts.Add(urlutil.GetDomainsForURL(tlsURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
 			}
 		}
 	}

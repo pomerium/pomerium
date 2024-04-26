@@ -50,6 +50,8 @@ func Test_PolicyValidate(t *testing.T) {
 		{"bad kube service account token file", Policy{From: "https://httpbin.corp.example", To: mustParseWeightedURLs(t, "https://internal-host-name"), KubernetesServiceAccountTokenFile: "testdata/missing.token"}, true},
 		{"good kube service account token", Policy{From: "https://httpbin.corp.example", To: mustParseWeightedURLs(t, "https://internal-host-name"), KubernetesServiceAccountToken: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJPbmxpbmUgSldUIEJ1aWxkZXIiLCJpYXQiOjE1OTY1MDk4MjIsImV4cCI6MTYyODA0NTgyMiwiYXVkIjoid3d3LmV4YW1wbGUuY29tIiwic3ViIjoianJvY2tldEBleGFtcGxlLmNvbSIsIkdpdmVuTmFtZSI6IkpvaG5ueSIsIlN1cm5hbWUiOiJSb2NrZXQiLCJFbWFpbCI6Impyb2NrZXRAZXhhbXBsZS5jb20iLCJSb2xlIjpbIk1hbmFnZXIiLCJQcm9qZWN0IEFkbWluaXN0cmF0b3IiXX0.H0I6ccQrL6sKobsKQj9dqNcLw_INhU9_xJsVyCkgkiY"}, false},
 		{"bad kube service account token and file", Policy{From: "https://httpbin.corp.example", To: mustParseWeightedURLs(t, "https://internal-host-name"), KubernetesServiceAccountToken: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJPbmxpbmUgSldUIEJ1aWxkZXIiLCJpYXQiOjE1OTY1MDk4MjIsImV4cCI6MTYyODA0NTgyMiwiYXVkIjoid3d3LmV4YW1wbGUuY29tIiwic3ViIjoianJvY2tldEBleGFtcGxlLmNvbSIsIkdpdmVuTmFtZSI6IkpvaG5ueSIsIlN1cm5hbWUiOiJSb2NrZXQiLCJFbWFpbCI6Impyb2NrZXRAZXhhbXBsZS5jb20iLCJSb2xlIjpbIk1hbmFnZXIiLCJQcm9qZWN0IEFkbWluaXN0cmF0b3IiXX0.H0I6ccQrL6sKobsKQj9dqNcLw_INhU9_xJsVyCkgkiY", KubernetesServiceAccountTokenFile: "testdata/kubeserviceaccount.token"}, true},
+		{"TCP To URLs", Policy{From: "tcp+https://httpbin.corp.example:4000", To: mustParseWeightedURLs(t, "tcp://one.example.com:5000", "tcp://two.example.com:5000")}, false},
+		{"mix of TCP and non-TCP To URLs", Policy{From: "tcp+https://httpbin.corp.example:4000", To: mustParseWeightedURLs(t, "https://example.com", "tcp://example.com:5000")}, true},
 	}
 
 	for _, tt := range tests {
@@ -245,7 +247,7 @@ func TestPolicy_Matches(t *testing.T) {
 		}
 		assert.NoError(t, p.Validate())
 
-		assert.False(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/foo/bar`)),
+		assert.False(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/foo/bar`), true),
 			"regex should only match full string")
 	})
 	t.Run("issue2952", func(t *testing.T) {
@@ -256,7 +258,7 @@ func TestPolicy_Matches(t *testing.T) {
 		}
 		assert.NoError(t, p.Validate())
 
-		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/foo/bar/0`)))
+		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/foo/bar/0`), true))
 	})
 	t.Run("issue2592-test2", func(t *testing.T) {
 		p := &Policy{
@@ -266,8 +268,8 @@ func TestPolicy_Matches(t *testing.T) {
 		}
 		assert.NoError(t, p.Validate())
 
-		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/admin/foo`)))
-		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/admin/bar`)))
+		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/admin/foo`), true))
+		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://www.example.com/admin/bar`), true))
 	})
 	t.Run("tcp", func(t *testing.T) {
 		p := &Policy{
@@ -276,7 +278,7 @@ func TestPolicy_Matches(t *testing.T) {
 		}
 		assert.NoError(t, p.Validate())
 
-		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://tcp.example.com:6379`)))
+		assert.True(t, p.Matches(urlutil.MustParseAndValidateURL(`https://tcp.example.com:6379`), true))
 	})
 }
 
@@ -339,4 +341,31 @@ func TestPolicy_SortOrder(t *testing.T) {
 			assert.Equal(t, tt.wantIDs, gotIDs)
 		})
 	}
+}
+
+func TestPolicy_IsTCP(t *testing.T) {
+	p1 := Policy{From: "https://example.com"}
+	assert.False(t, p1.IsTCP())
+
+	p2 := Policy{From: "tcp+https://example.com"}
+	assert.True(t, p2.IsTCP())
+}
+
+func TestPolicy_IsTCPUpstream(t *testing.T) {
+	p1 := Policy{
+		From: "tcp+https://example.com:1234",
+		To:   mustParseWeightedURLs(t, "https://one.example.com", "https://two.example.com"),
+	}
+	assert.False(t, p1.IsTCPUpstream())
+
+	p2 := Policy{
+		From: "tcp+https://example.com:1234",
+		To:   mustParseWeightedURLs(t, "tcp://one.example.com:4000", "tcp://two.example.com:4000"),
+	}
+	assert.True(t, p2.IsTCPUpstream())
+
+	p3 := Policy{
+		From: "tcp+https://example.com:1234",
+	}
+	assert.False(t, p3.IsTCPUpstream())
 }

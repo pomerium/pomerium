@@ -19,7 +19,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/cloudflare/circl v1.3.7
 	github.com/coreos/go-oidc/v3 v3.10.0
-	github.com/docker/docker v26.0.0+incompatible
+	github.com/docker/docker v26.0.2+incompatible
 	github.com/envoyproxy/go-control-plane v0.12.0
 	github.com/envoyproxy/protoc-gen-validate v1.0.4
 	github.com/go-chi/chi/v5 v5.0.12
@@ -76,7 +76,7 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.21.0
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
-	golang.org/x/net v0.22.0
+	golang.org/x/net v0.23.0
 	golang.org/x/oauth2 v0.18.0
 	golang.org/x/sync v0.6.0
 	golang.org/x/time v0.5.0

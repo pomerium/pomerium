@@ -12,7 +12,9 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_config_metrics_v3 "github.com/envoyproxy/go-control-plane/envoy/config/metrics/v3"
+	envoy_config_overload_v3 "github.com/envoyproxy/go-control-plane/envoy/config/overload/v3"
 	envoy_extensions_access_loggers_file_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/file/v3"
+	envoy_extensions_resource_monitors_downstream_connections_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/resource_monitors/downstream_connections/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -20,6 +22,8 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
+
+const maxActiveDownstreamConnections = 50000
 
 var (
 	envoyAdminAddressPath = filepath.Join(os.TempDir(), "pomerium-envoy-admin.sock")
@@ -66,6 +70,17 @@ func (b *Builder) BuildBootstrap(
 	bootstrap.StatsConfig, err = b.BuildBootstrapStatsConfig(cfg)
 	if err != nil {
 		return nil, err
+	}
+
+	bootstrap.OverloadManager = &envoy_config_overload_v3.OverloadManager{
+		ResourceMonitors: []*envoy_config_overload_v3.ResourceMonitor{{
+			Name: "envoy.resource_monitors.global_downstream_max_connections",
+			ConfigType: &envoy_config_overload_v3.ResourceMonitor_TypedConfig{
+				TypedConfig: marshalAny(&envoy_extensions_resource_monitors_downstream_connections_v3.DownstreamConnectionsConfig{
+					MaxActiveDownstreamConnections: maxActiveDownstreamConnections,
+				}),
+			},
+		}},
 	}
 
 	return bootstrap, nil
@@ -135,9 +150,6 @@ func (b *Builder) BuildBootstrapDynamicResources(
 // BuildBootstrapLayeredRuntime builds the layered runtime for the envoy bootstrap.
 func (b *Builder) BuildBootstrapLayeredRuntime() (*envoy_config_bootstrap_v3.LayeredRuntime, error) {
 	layer, err := structpb.NewStruct(map[string]interface{}{
-		"overload": map[string]interface{}{
-			"global_downstream_max_connections": 50000,
-		},
 		"re2": map[string]any{
 			"max_program_size": map[string]any{
 				"error_level": 1024 * 1024,

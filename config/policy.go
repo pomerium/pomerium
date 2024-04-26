@@ -466,10 +466,17 @@ func (p *Policy) Validate() error {
 		return errEitherToOrRedirectOrResponseRequired
 	}
 
+	toSchemes := make(map[string]struct{})
 	for _, u := range p.To {
 		if err = u.Validate(); err != nil {
 			return fmt.Errorf("config: %s: %w", u.URL.String(), err)
 		}
+		toSchemes[u.URL.Scheme] = struct{}{}
+	}
+
+	// It is an error to mix TCP and non-TCP To URLs.
+	if _, hasTCP := toSchemes["tcp"]; hasTCP && len(toSchemes) > 1 {
+		return fmt.Errorf("config: cannot mix tcp and non-tcp To URLs")
 	}
 
 	// Only allow public access if no other whitelists are in place
@@ -606,14 +613,14 @@ func (p *Policy) String() string {
 }
 
 // Matches returns true if the policy would match the given URL.
-func (p *Policy) Matches(requestURL url.URL) bool {
+func (p *Policy) Matches(requestURL url.URL, stripPort bool) bool {
 	// an invalid from URL should not match anything
 	fromURL, err := urlutil.ParseAndValidateURL(p.From)
 	if err != nil {
 		return false
 	}
 
-	if !FromURLMatchesRequestURL(fromURL, &requestURL) {
+	if !FromURLMatchesRequestURL(fromURL, &requestURL, stripPort) {
 		return false
 	}
 
@@ -646,6 +653,11 @@ func (p *Policy) IsForKubernetes() bool {
 // IsTCP returns true if the route is for TCP.
 func (p *Policy) IsTCP() bool {
 	return strings.HasPrefix(p.From, "tcp")
+}
+
+// IsTCPUpstream returns true if the route has a TCP upstream (To) URL
+func (p *Policy) IsTCPUpstream() bool {
+	return len(p.To) > 0 && p.To[0].URL.Scheme == "tcp"
 }
 
 // AllAllowedDomains returns all the allowed domains.

@@ -106,9 +106,9 @@ func GetServerNamesForURL(u *url.URL) []string {
 
 // GetDomainsForURL returns the available domains for given url.
 //
-// For standard HTTP (80)/HTTPS (443) ports, it returns `example.com` and `example.com:<port>`.
-// Otherwise, return the URL.Host value.
-func GetDomainsForURL(u *url.URL) []string {
+// For standard HTTP (80)/HTTPS (443) ports, it returns `example.com` and `example.com:<port>`,
+// if includeDefaultPort is set. Otherwise, return the URL.Host value.
+func GetDomainsForURL(u *url.URL, includeDefaultPort bool) []string {
 	if u == nil {
 		return nil
 	}
@@ -139,6 +139,10 @@ func GetDomainsForURL(u *url.URL) []string {
 		if p != defaultPort {
 			return []string{u.Host}
 		}
+	}
+
+	if !includeDefaultPort {
+		return []string{u.Hostname()}
 	}
 
 	// for everything else we return two routes: 'example.com' and 'example.com:443'

@@ -119,15 +119,15 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 	}}
 }
 
-func buildAddress(hostport string, defaultPort int) *envoy_config_core_v3.Address {
+func buildAddress(hostport string, defaultPort uint32) *envoy_config_core_v3.Address {
 	host, strport, err := net.SplitHostPort(hostport)
 	if err != nil {
 		host = hostport
 		strport = fmt.Sprint(defaultPort)
 	}
-	port, err := strconv.Atoi(strport)
-	if err != nil {
-		port = defaultPort
+	port := defaultPort
+	if p, err := strconv.ParseUint(strport, 10, 32); err == nil {
+		port = uint32(p)
 	}
 	if host == "" {
 		if nettest.SupportsIPv6() {
@@ -145,7 +145,7 @@ func buildAddress(hostport string, defaultPort int) *envoy_config_core_v3.Addres
 	return &envoy_config_core_v3.Address{
 		Address: &envoy_config_core_v3.Address_SocketAddress{SocketAddress: &envoy_config_core_v3.SocketAddress{
 			Address:       host,
-			PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{PortValue: uint32(port)},
+			PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{PortValue: port},
 			Ipv4Compat:    host == "::" || is4in6,
 		}},
 	}
@@ -256,7 +256,7 @@ func parseAddress(raw string) (*envoy_config_core_v3.Address, error) {
 			host = "127.0.0.1"
 		}
 
-		if port, err := strconv.Atoi(portstr); err == nil {
+		if port, err := strconv.ParseUint(portstr, 10, 32); err == nil {
 			return &envoy_config_core_v3.Address{
 				Address: &envoy_config_core_v3.Address_SocketAddress{
 					SocketAddress: &envoy_config_core_v3.SocketAddress{
