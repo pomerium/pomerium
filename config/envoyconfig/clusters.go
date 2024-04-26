@@ -473,7 +473,7 @@ func grpcHealthChecks(name string) []*envoy_config_core_v3.HealthCheck {
 func (b *Builder) buildLbEndpoints(endpoints []Endpoint) ([]*envoy_config_endpoint_v3.LbEndpoint, error) {
 	var lbes []*envoy_config_endpoint_v3.LbEndpoint
 	for _, e := range endpoints {
-		defaultPort := 80
+		defaultPort := uint32(80)
 		if e.transportSocket != nil && e.transportSocket.Name == "tls" {
 			defaultPort = 443
 		}
