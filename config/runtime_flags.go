@@ -8,6 +8,9 @@ var (
 
 	// RuntimeFlagMatchAnyIncomingPort enables ignoring the incoming port when matching routes
 	RuntimeFlagMatchAnyIncomingPort = runtimeFlag("match_any_incoming_port", true)
+
+	// RuntimeFlagLegacyIdentityManager enables the legacy identity manager
+	RuntimeFlagLegacyIdentityManager = runtimeFlag("legacy_identity_manager", false)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features
