@@ -16,6 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/atomicutil"
+	"github.com/pomerium/pomerium/internal/enabler"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/identity/identity"
 	"github.com/pomerium/pomerium/internal/log"
@@ -36,6 +37,7 @@ type Authenticator interface {
 
 // A Manager refreshes identity information using session and user data.
 type Manager struct {
+	enabler.Enabler
 	cfg *atomicutil.Value[*config]
 
 	mu                       sync.Mutex
@@ -55,6 +57,7 @@ func New(
 		refreshSessionSchedulers: make(map[string]*refreshSessionScheduler),
 		updateUserInfoSchedulers: make(map[string]*updateUserInfoScheduler),
 	}
+	mgr.Enabler = enabler.New("identity_manager", mgr, true)
 	mgr.UpdateConfig(options...)
 	return mgr
 }
@@ -62,6 +65,11 @@ func New(
 // UpdateConfig updates the manager with the new options.
 func (mgr *Manager) UpdateConfig(options ...Option) {
 	mgr.cfg.Store(newConfig(options...))
+	if mgr.cfg.Load().enabled {
+		mgr.Enable()
+	} else {
+		mgr.Disable()
+	}
 }
 
 // GetDataBrokerServiceClient gets the databroker client.
@@ -69,8 +77,8 @@ func (mgr *Manager) GetDataBrokerServiceClient() databroker.DataBrokerServiceCli
 	return mgr.cfg.Load().dataBrokerClient
 }
 
-// Run runs the manager. This method blocks until an error occurs or the given context is canceled.
-func (mgr *Manager) Run(ctx context.Context) error {
+// RunEnabled runs the manager. This method blocks until an error occurs or the given context is canceled.
+func (mgr *Manager) RunEnabled(ctx context.Context) error {
 	leaser := databroker.NewLeaser("identity_manager", time.Second*30, mgr)
 	return leaser.Run(ctx)
 }
