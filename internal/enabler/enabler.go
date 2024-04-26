@@ -58,20 +58,21 @@ func New(name string, handler Handler, enabled bool) Enabler {
 // Run calls RunEnabled if enabled, otherwise it waits until enabled.
 func (d *enabler) Run(ctx context.Context) error {
 	for {
-		err := d.runOnce(ctx)
-		if errors.Is(err, errCauseEnabler) {
-			continue
+		err := d.runOrWaitForEnabled(ctx)
+		// if we received any error but our own, exit with that error
+		if !errors.Is(err, errCauseEnabler) {
+			return err
 		}
-		return err
 	}
 }
 
-func (d *enabler) runOnce(ctx context.Context) error {
+func (d *enabler) runOrWaitForEnabled(ctx context.Context) error {
 	d.mu.Lock()
 	enabled := d.enabled
 	ctx, d.cancel = context.WithCancelCause(ctx)
 	d.mu.Unlock()
 
+	// we're enabled so call RunEnabled. If Disabled is called it will cancel ctx.
 	if enabled {
 		log.Ctx(ctx).Info().Msgf("enabled %s", d.name)
 		err := d.handler.RunEnabled(ctx)
@@ -83,7 +84,7 @@ func (d *enabler) runOnce(ctx context.Context) error {
 		return err
 	}
 
-	// wait for a transition from disabled -> enabled
+	// wait until Enabled is called
 	<-ctx.Done()
 	return context.Cause(ctx)
 }
