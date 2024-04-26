@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714159517449,
+  "lastUpdate": 1714160154425,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -107564,6 +107564,42 @@ window.BENCHMARK_DATA = {
             "value": 5932814,
             "unit": "ns/op",
             "extra": "198 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a518435c17cc5cee8aa4e86f9370681bf7ac7e8f",
+          "message": "chore(deps): update UI dependencies (#5088)\n\nRun `yarn upgrade-interactive` to update UI dependencies:\r\n\r\ndependencies\r\n  name                              range     from        to\r\n  @babel/core                       ^7.0.0    7.17.0   ❯  7.24.4\r\n  @emotion/react                    ^11.7.1   11.7.1   ❯  11.11.4\r\n  @emotion/styled                   ^11.11.0  11.11.0  ❯  11.11.5\r\n  @fontsource/dm-mono               ^5.0.14   5.0.14   ❯  5.0.20\r\n  @fontsource/dm-sans               ^5.0.13   5.0.13   ❯  5.0.21\r\n  @mui/icons-material               ^5.14.9   5.14.9   ❯  5.15.15\r\n  @mui/material                     ^5.4.0    5.4.0    ❯  5.15.15\r\n  markdown-to-jsx                   ^7.2.1    7.2.1    ❯  7.4.7\r\n\r\ndevDependencies\r\n  name                              range     from        to\r\n  @types/luxon                      ^2.0.9    2.0.9    ❯  2.4.0\r\n  @types/node                       ^17.0.14  17.0.14  ❯  17.0.45\r\n  @types/react                      ^17.0.34  17.0.38  ❯  17.0.80\r\n  @types/react-dom                  ^17.0.11  17.0.11  ❯  17.0.25\r\n  @typescript-eslint/eslint-plugin  ^5.10.2   5.10.2   ❯  5.62.0\r\n  @typescript-eslint/parser         ^5.59.11  5.59.11  ❯  5.62.0\r\n  eslint-config-prettier            ^8.3.0    8.3.0    ❯  8.10.0\r\n  eslint-plugin-react               ^7.28.0   7.28.0   ❯  7.34.1\r\n  prettier                          ^2.4.1    2.5.1    ❯  2.8.8\r\n  ts-node                           ^10.9.1   10.9.1   ❯  10.9.2\r\n  typescript                        ^5.1.3    5.1.3    ❯  5.4.5",
+          "timestamp": "2024-04-26T12:32:18-07:00",
+          "tree_id": "a016dfe876fe945ff45d99b41a8bc9d0c3fadc1d",
+          "url": "https://github.com/pomerium/pomerium/commit/a518435c17cc5cee8aa4e86f9370681bf7ac7e8f"
+        },
+        "date": 1714160137464,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8520679,
+            "unit": "ns/op",
+            "extra": "140 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5993851,
+            "unit": "ns/op",
+            "extra": "199 times\n4 procs"
           }
         ]
       }
