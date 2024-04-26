@@ -269,7 +269,7 @@ get_header_string_value(obj) := s if {
 	s := concat(",", [obj])
 }
 
-remove_empty_header_values(arr) := [[k,v]|
+remove_empty_header_values(arr) := [[k, v] |
 	some idx
 	k := arr[idx][0]
 	v := arr[idx][1]
