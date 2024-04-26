@@ -19,6 +19,7 @@ type config struct {
 	sessionRefreshCoolOffDuration time.Duration
 	now                           func() time.Time
 	eventMgr                      *events.Manager
+	enabled                       bool
 }
 
 func newConfig(options ...Option) *config {
@@ -26,6 +27,7 @@ func newConfig(options ...Option) *config {
 	WithSessionRefreshGracePeriod(defaultSessionRefreshGracePeriod)(cfg)
 	WithSessionRefreshCoolOffDuration(defaultSessionRefreshCoolOffDuration)(cfg)
 	WithNow(time.Now)(cfg)
+	WithEnabled(true)(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
@@ -72,7 +74,14 @@ func WithNow(now func() time.Time) Option {
 
 // WithEventManager passes an event manager to record events
 func WithEventManager(mgr *events.Manager) Option {
-	return func(c *config) {
-		c.eventMgr = mgr
+	return func(cfg *config) {
+		cfg.eventMgr = mgr
+	}
+}
+
+// WithEnabled sets the enabled option in the config.
+func WithEnabled(enabled bool) Option {
+	return func(cfg *config) {
+		cfg.enabled = enabled
 	}
 }
