@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714165713153,
+  "lastUpdate": 1714167003699,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -107668,6 +107668,42 @@ window.BENCHMARK_DATA = {
             "value": 6405705,
             "unit": "ns/op",
             "extra": "188 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8b3a79152b0588cd87f22a323c819e74e4e84cf5",
+          "message": "core/kubernetes: fix impersonate group header (#5090)\n\n* core/kubernetes: fix impersonate group header\r\n\r\n* formatting",
+          "timestamp": "2024-04-26T15:26:41-06:00",
+          "tree_id": "13752107721f2d97e273db55f8abfb25fd80ed28",
+          "url": "https://github.com/pomerium/pomerium/commit/8b3a79152b0588cd87f22a323c819e74e4e84cf5"
+        },
+        "date": 1714166994657,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10599602,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7662809,
+            "unit": "ns/op",
+            "extra": "159 times\n4 procs"
           }
         ]
       }
