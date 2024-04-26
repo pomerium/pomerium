@@ -3,15 +3,16 @@ package mux
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync/atomic"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/hashicorp/go-multierror"
 	"github.com/rs/zerolog/log"
 
 	"github.com/pomerium/pomerium/internal/zero/apierror"
 	"github.com/pomerium/pomerium/pkg/fanout"
+	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/zero/connect"
 )
 
@@ -56,6 +57,7 @@ func (svc *Mux) run(ctx context.Context) error {
 
 	return backoff.Retry(func() error {
 		err := svc.subscribeAndDispatch(ctx, b.Reset)
+		health.ReportError(health.ZeroConnect, err)
 		if apierror.IsTerminalError(err) {
 			return backoff.Permanent(err)
 		}
@@ -71,13 +73,14 @@ func (svc *Mux) subscribeAndDispatch(ctx context.Context, onConnected func()) (e
 	if err != nil {
 		return fmt.Errorf("subscribe: %w", err)
 	}
+	health.ReportOK(health.ZeroConnect)
 	onConnected()
 
 	if err = svc.onConnected(ctx); err != nil {
-		return err
+		return fmt.Errorf("onConnected: %w", err)
 	}
 	defer func() {
-		err = multierror.Append(err, svc.onDisconnected(ctx)).ErrorOrNil()
+		err = errors.Join(err, svc.onDisconnected(ctx))
 	}()
 
 	log.Ctx(ctx).Debug().Msg("subscribed to connect service")
@@ -89,7 +92,7 @@ func (svc *Mux) subscribeAndDispatch(ctx context.Context, onConnected func()) (e
 		}
 		err = svc.onMessage(ctx, msg)
 		if err != nil {
-			return err
+			return fmt.Errorf("onMessage: %w", err)
 		}
 	}
 }
