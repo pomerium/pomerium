@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -58,6 +60,8 @@ func TestNewHeadersRequestFromPolicy_nil(t *testing.T) {
 }
 
 func TestHeadersEvaluator(t *testing.T) {
+	t.Parallel()
+
 	type A = []interface{}
 	type M = map[string]interface{}
 
@@ -230,6 +234,26 @@ func TestHeadersEvaluator(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, "", output.Headers.Get("fingerprint"))
+	})
+
+	t.Run("kubernetes", func(t *testing.T) {
+		t.Parallel()
+
+		output, err := eval(t,
+			[]protoreflect.ProtoMessage{
+				&session.Session{Id: "s1", UserId: "u1"},
+				&user.User{Id: "u1", Email: "u1@example.com"},
+			},
+			&HeadersRequest{
+				Issuer:                        "from.example.com",
+				ToAudience:                    "to.example.com",
+				KubernetesServiceAccountToken: "TOKEN",
+				Session:                       RequestSession{ID: "s1"},
+			})
+		require.NoError(t, err)
+		assert.Equal(t, "Bearer TOKEN", output.Headers.Get("Authorization"))
+		assert.Equal(t, "u1@example.com", output.Headers.Get("Impersonate-User"))
+		assert.Empty(t, output.Headers["Impersonate-Group"])
 	})
 }
 
