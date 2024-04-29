@@ -172,11 +172,12 @@ signed_jwt = io.jwt.encode_sign(jwt_headers, jwt_payload, data.signing_key)
 
 kubernetes_headers = h {
 	input.kubernetes_service_account_token != ""
-	h := [
+
+	h := remove_empty_header_values([
 		["Authorization", concat(" ", ["Bearer", input.kubernetes_service_account_token])],
 		["Impersonate-User", jwt_payload_email],
 		["Impersonate-Group", get_header_string_value(jwt_payload_groups)],
-	]
+	])
 } else = []
 
 google_cloud_serverless_authentication_service_account = s {
@@ -265,3 +266,10 @@ get_header_string_value(obj) = s {
 } else = s {
 	s := concat(",", [obj])
 }
+
+remove_empty_header_values(arr) := [[k, v] |
+	some idx
+	k := arr[idx][0]
+	v := arr[idx][1]
+	v != ""
+]
