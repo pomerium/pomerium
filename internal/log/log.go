@@ -42,7 +42,8 @@ func init() {
 	log.Logger = l
 	// set the default context logger
 	zerolog.DefaultContextLogger = &l
-	zapLevel.SetLevel(zapcore.InfoLevel)
+
+	SetLevel(zerolog.InfoLevel)
 }
 
 // Logger returns the zerolog Logger.
