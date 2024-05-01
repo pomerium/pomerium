@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714589461556,
+  "lastUpdate": 1714590271196,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -108360,6 +108360,42 @@ window.BENCHMARK_DATA = {
             "value": 7339806,
             "unit": "ns/op",
             "extra": "159 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e30d90206df925781b69c08b9441e729a7ff40be",
+          "message": "log/grpc: use standard logger (#5096)\n\n* log/grpc: use standard logger\r\n\r\n* fix levels and tests\r\n\r\n* set default info level in main.go\r\n\r\n* fix level check",
+          "timestamp": "2024-05-01T15:01:22-04:00",
+          "tree_id": "b8d364b57312b974a9e035a28ddca71482e47445",
+          "url": "https://github.com/pomerium/pomerium/commit/e30d90206df925781b69c08b9441e729a7ff40be"
+        },
+        "date": 1714590262351,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9512392,
+            "unit": "ns/op",
+            "extra": "126 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6838952,
+            "unit": "ns/op",
+            "extra": "181 times\n4 procs"
           }
         ]
       }
