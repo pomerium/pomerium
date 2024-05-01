@@ -48,6 +48,8 @@ func nextSessionRefresh(
 	return tm
 }
 
+// a multiUnmarshaler is used as the target of the json Unmarshal function to
+// unmarshal a single JSON value into multiple destinations.
 type multiUnmarshaler []any
 
 func newMultiUnmarshaler(args ...any) *multiUnmarshaler {
