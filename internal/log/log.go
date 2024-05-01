@@ -55,6 +55,10 @@ func ZapLogger() *zap.Logger {
 	return zapLogger.Load()
 }
 
+func GetLevel() zerolog.Level {
+	return zerolog.GlobalLevel()
+}
+
 // SetLevel sets the minimum global log level.
 func SetLevel(level zerolog.Level) {
 	zerolog.SetGlobalLevel(level)
