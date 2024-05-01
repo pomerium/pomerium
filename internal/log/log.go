@@ -42,8 +42,7 @@ func init() {
 	log.Logger = l
 	// set the default context logger
 	zerolog.DefaultContextLogger = &l
-
-	SetLevel(zerolog.InfoLevel)
+	zapLevel.SetLevel(zapcore.InfoLevel)
 }
 
 // Logger returns the zerolog Logger.
@@ -54,6 +53,10 @@ func Logger() *zerolog.Logger {
 // ZapLogger returns the global zap logger.
 func ZapLogger() *zap.Logger {
 	return zapLogger.Load()
+}
+
+func GetLevel() zerolog.Level {
+	return zerolog.GlobalLevel()
 }
 
 // SetLevel sets the minimum global log level.

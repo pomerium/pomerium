@@ -3,6 +3,7 @@ package log
 import (
 	"fmt"
 
+	"github.com/rs/zerolog"
 	"google.golang.org/grpc/grpclog"
 )
 
@@ -13,39 +14,57 @@ func init() {
 type grpcLogger struct{}
 
 func (c *grpcLogger) Info(args ...interface{}) {
-	Logger().Debug().Msg(fmt.Sprint(args...))
+	if GetLevel() == zerolog.DebugLevel {
+		Logger().Info().Msg(fmt.Sprint(args...))
+	}
 }
 
 func (c *grpcLogger) Infoln(args ...interface{}) {
-	Logger().Debug().Msg(fmt.Sprintln(args...))
+	if GetLevel() == zerolog.DebugLevel {
+		Logger().Info().Msg(fmt.Sprintln(args...))
+	}
 }
 
 func (c *grpcLogger) Infof(format string, args ...interface{}) {
-	Logger().Debug().Msg(fmt.Sprintf(format, args...))
+	if GetLevel() == zerolog.DebugLevel {
+		Logger().Info().Msg(fmt.Sprintf(format, args...))
+	}
 }
 
 func (c *grpcLogger) Warning(args ...interface{}) {
-	Logger().Debug().Msg(fmt.Sprint(args...))
+	if GetLevel() == zerolog.DebugLevel {
+		Logger().Warn().Msg(fmt.Sprint(args...))
+	}
 }
 
 func (c *grpcLogger) Warningln(args ...interface{}) {
-	Logger().Debug().Msg(fmt.Sprintln(args...))
+	if GetLevel() == zerolog.DebugLevel {
+		Logger().Warn().Msg(fmt.Sprintln(args...))
+	}
 }
 
 func (c *grpcLogger) Warningf(format string, args ...interface{}) {
-	Logger().Debug().Msg(fmt.Sprintf(format, args...))
+	if GetLevel() == zerolog.DebugLevel {
+		Logger().Warn().Msg(fmt.Sprintf(format, args...))
+	}
 }
 
 func (c *grpcLogger) Error(args ...interface{}) {
-	Logger().Debug().Msg(fmt.Sprint(args...))
+	if GetLevel() == zerolog.DebugLevel {
+		Logger().Error().Msg(fmt.Sprint(args...))
+	}
 }
 
 func (c *grpcLogger) Errorln(args ...interface{}) {
-	Logger().Debug().Msg(fmt.Sprintln(args...))
+	if GetLevel() == zerolog.DebugLevel {
+		Logger().Error().Msg(fmt.Sprintln(args...))
+	}
 }
 
 func (c *grpcLogger) Errorf(format string, args ...interface{}) {
-	Logger().Debug().Msg(fmt.Sprintf(format, args...))
+	if GetLevel() == zerolog.DebugLevel {
+		Logger().Error().Msg(fmt.Sprintf(format, args...))
+	}
 }
 
 func (c *grpcLogger) Fatal(args ...interface{}) {

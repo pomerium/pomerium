@@ -43,6 +43,7 @@ func main() {
 }
 
 func run(ctx context.Context) error {
+	log.SetLevel(zerolog.InfoLevel)
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("config_file_source", *configFile).Bool("bootstrap", true)
 	})
