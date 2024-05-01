@@ -15,6 +15,7 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/analytics"
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
+	"github.com/pomerium/pomerium/internal/zero/healthcheck"
 	"github.com/pomerium/pomerium/internal/zero/leaser"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
 	"github.com/pomerium/pomerium/internal/zero/reporter"
@@ -108,6 +109,7 @@ func (c *controller) runZeroControlLoop(ctx context.Context) error {
 		c.runReconcilerLeased,
 		c.runAnalyticsLeased,
 		c.runMetricsReporterLeased,
+		c.runHealthChecksLeased,
 	)
 }
 
@@ -145,6 +147,14 @@ func (c *controller) runMetricsReporterLeased(ctx context.Context, client databr
 		reporter.WithCollectInterval(time.Hour),
 		reporter.WithMetrics(analytics.Metrics(func() databroker.DataBrokerServiceClient { return client })...),
 	)
+}
+
+func (c *controller) runHealthChecksLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("service", "zero-health-checks")
+	})
+
+	return healthcheck.RunChecks(ctx, c.bootstrapConfig, client)
 }
 
 func (c *controller) runHealthCheckReporter(ctx context.Context) error {
