@@ -37,6 +37,9 @@ func newUpdateUserInfoScheduler(
 }
 
 func (uuis *updateUserInfoScheduler) Reset() {
+	// trigger a reset by sending to the reset channel, which is buffered,
+	// so if we can't proceed there's already a pending reset and no need
+	// to wait
 	select {
 	case uuis.reset <- struct{}{}:
 	default:
