@@ -27,7 +27,7 @@ func TestDataStore(t *testing.T) {
 	ds.putSession(s)
 	s1, u1 := ds.getSessionAndUser("S1")
 	assert.NotNil(t, s1, "should return a non-nil session")
-	assert.False(t, s == s1, "should return different pointers")
+	assert.NotSame(t, s, s1, "should return different pointers")
 	assert.Empty(t, cmp.Diff(s, s1, protocmp.Transform()), "should be the same as was entered")
 	assert.Nil(t, u1, "should return a nil user when only the session exists")
 
