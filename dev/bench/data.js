@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714586481879,
+  "lastUpdate": 1714586713456,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -108256,6 +108256,42 @@ window.BENCHMARK_DATA = {
             "value": 6312070,
             "unit": "ns/op",
             "extra": "180 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "506642f88ca289afd4d792cf5ffd4948f501f2b8",
+          "message": "chore(deps): bump the github-actions group with 5 updates (#5094)\n\nBumps the github-actions group with 5 updates:\r\n\r\n| Package | From | To |\r\n| --- | --- | --- |\r\n| [actions/checkout](https://github.com/actions/checkout) | `4.1.2` | `4.1.4` |\r\n| [docker/setup-buildx-action](https://github.com/docker/setup-buildx-action) | `3.2.0` | `3.3.0` |\r\n| [stefanzweifel/git-auto-commit-action](https://github.com/stefanzweifel/git-auto-commit-action) | `5.0.0` | `5.0.1` |\r\n| [golangci/golangci-lint-action](https://github.com/golangci/golangci-lint-action) | `4.0.0` | `5.1.0` |\r\n| [actions/upload-artifact](https://github.com/actions/upload-artifact) | `4.3.1` | `4.3.3` |\r\n\r\n\r\nUpdates `actions/checkout` from 4.1.2 to 4.1.4\r\n- [Release notes](https://github.com/actions/checkout/releases)\r\n- [Changelog](https://github.com/actions/checkout/blob/main/CHANGELOG.md)\r\n- [Commits](https://github.com/actions/checkout/compare/9bb56186c3b09b4f86b1c65136769dd318469633...0ad4b8fadaa221de15dcec353f45205ec38ea70b)\r\n\r\nUpdates `docker/setup-buildx-action` from 3.2.0 to 3.3.0\r\n- [Release notes](https://github.com/docker/setup-buildx-action/releases)\r\n- [Commits](https://github.com/docker/setup-buildx-action/compare/2b51285047da1547ffb1b2203d8be4c0af6b1f20...d70bba72b1f3fd22344832f00baa16ece964efeb)\r\n\r\nUpdates `stefanzweifel/git-auto-commit-action` from 5.0.0 to 5.0.1\r\n- [Release notes](https://github.com/stefanzweifel/git-auto-commit-action/releases)\r\n- [Changelog](https://github.com/stefanzweifel/git-auto-commit-action/blob/master/CHANGELOG.md)\r\n- [Commits](https://github.com/stefanzweifel/git-auto-commit-action/compare/8756aa072ef5b4a080af5dc8fef36c5d586e521d...8621497c8c39c72f3e2a999a26b4ca1b5058a842)\r\n\r\nUpdates `golangci/golangci-lint-action` from 4.0.0 to 5.1.0\r\n- [Release notes](https://github.com/golangci/golangci-lint-action/releases)\r\n- [Commits](https://github.com/golangci/golangci-lint-action/compare/3cfe3a4abbb849e10058ce4af15d205b6da42804...9d1e0624a798bb64f6c3cea93db47765312263dc)\r\n\r\nUpdates `actions/upload-artifact` from 4.3.1 to 4.3.3\r\n- [Release notes](https://github.com/actions/upload-artifact/releases)\r\n- [Commits](https://github.com/actions/upload-artifact/compare/5d5d22a31266ced268874388b861e4b58bb5c2f3...65462800fd760344b1a7b4382951275a0abb4808)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: actions/checkout\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: github-actions\r\n- dependency-name: docker/setup-buildx-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: github-actions\r\n- dependency-name: stefanzweifel/git-auto-commit-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: github-actions\r\n- dependency-name: golangci/golangci-lint-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-major\r\n  dependency-group: github-actions\r\n- dependency-name: actions/upload-artifact\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: github-actions\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-05-01T12:01:57-06:00",
+          "tree_id": "f7ae7e879947b383d773b0b9a0754c3fe3306fbc",
+          "url": "https://github.com/pomerium/pomerium/commit/506642f88ca289afd4d792cf5ffd4948f501f2b8"
+        },
+        "date": 1714586704754,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8411781,
+            "unit": "ns/op",
+            "extra": "136 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6009622,
+            "unit": "ns/op",
+            "extra": "204 times\n4 procs"
           }
         ]
       }
