@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714585604451,
+  "lastUpdate": 1714586481879,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -108220,6 +108220,42 @@ window.BENCHMARK_DATA = {
             "value": 5938353,
             "unit": "ns/op",
             "extra": "195 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "efb04189947508a84aa4aeb6de071baa5243d009",
+          "message": "chore(deps): bump the docker group with 3 updates (#5098)\n\nBumps the docker group with 3 updates: node, golang and distroless/base-debian12.\r\n\r\n\r\nUpdates `node` from `bf0ef06` to `3864be2`\r\n\r\nUpdates `golang` from `3c7ad81` to `d0902ba`\r\n\r\nUpdates `distroless/base-debian12` from `e0cc8fa` to `c7852ef`\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: node\r\n  dependency-type: direct:production\r\n  dependency-group: docker\r\n- dependency-name: golang\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: docker\r\n- dependency-name: distroless/base-debian12\r\n  dependency-type: direct:production\r\n  dependency-group: docker\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-05-01T11:57:58-06:00",
+          "tree_id": "e884a176ffe607a1e018eac4e4637ccad6309d28",
+          "url": "https://github.com/pomerium/pomerium/commit/efb04189947508a84aa4aeb6de071baa5243d009"
+        },
+        "date": 1714586472062,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9306424,
+            "unit": "ns/op",
+            "extra": "123 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6312070,
+            "unit": "ns/op",
+            "extra": "180 times\n4 procs"
           }
         ]
       }
