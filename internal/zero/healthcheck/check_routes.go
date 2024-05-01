@@ -2,7 +2,6 @@ package healthcheck
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -44,9 +43,6 @@ func getPingHTTPClient() *http.Client {
 	return &http.Client{
 		Timeout: connectionTimeout,
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return (&net.Dialer{
 					Timeout: connectionTimeout,
