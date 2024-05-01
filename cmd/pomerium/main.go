@@ -31,6 +31,7 @@ func main() {
 	}
 
 	ctx := context.Background()
+	log.SetLevel(zerolog.InfoLevel)
 	runFn := run
 	if zero_cmd.IsManagedMode(*configFile) {
 		runFn = func(ctx context.Context) error { return zero_cmd.Run(ctx, *configFile) }
@@ -43,7 +44,6 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	log.SetLevel(zerolog.InfoLevel)
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("config_file_source", *configFile).Bool("bootstrap", true)
 	})

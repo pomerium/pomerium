@@ -77,8 +77,6 @@ func setupLogger() error {
 			return err
 		}
 		log.SetLevel(lvl)
-	} else {
-		log.SetLevel(zerolog.InfoLevel)
 	}
 
 	return nil
