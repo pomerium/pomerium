@@ -3,53 +3,77 @@ package manager
 import (
 	"context"
 
-	"github.com/pomerium/pomerium/internal/atomicutil"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
 
-type dataBrokerSyncer struct {
-	cfg *atomicutil.Value[*config]
-
-	update chan<- updateRecordsMessage
-	clear  chan<- struct{}
-
-	syncer *databroker.Syncer
+type sessionSyncerHandler struct {
+	baseCtx context.Context
+	mgr     *Manager
 }
 
-func newDataBrokerSyncer(
-	_ context.Context,
-	cfg *atomicutil.Value[*config],
-	update chan<- updateRecordsMessage,
-	clear chan<- struct{},
-) *dataBrokerSyncer {
-	syncer := &dataBrokerSyncer{
-		cfg: cfg,
-
-		update: update,
-		clear:  clear,
-	}
-	syncer.syncer = databroker.NewSyncer("identity_manager", syncer)
-	return syncer
+func newSessionSyncer(ctx context.Context, mgr *Manager) *databroker.Syncer {
+	return databroker.NewSyncer("identity_manager/sessions", sessionSyncerHandler{baseCtx: ctx, mgr: mgr},
+		databroker.WithTypeURL(grpcutil.GetTypeURL(new(session.Session))))
 }
 
-func (syncer *dataBrokerSyncer) Run(ctx context.Context) (err error) {
-	return syncer.syncer.Run(ctx)
+func (h sessionSyncerHandler) ClearRecords(ctx context.Context) {
+	h.mgr.onDeleteAllSessions(ctx)
 }
 
-func (syncer *dataBrokerSyncer) ClearRecords(ctx context.Context) {
-	select {
-	case <-ctx.Done():
-	case syncer.clear <- struct{}{}:
+func (h sessionSyncerHandler) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	return h.mgr.cfg.Load().dataBrokerClient
+}
+
+func (h sessionSyncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*databroker.Record) {
+	for _, record := range records {
+		if record.GetDeletedAt() != nil {
+			h.mgr.onDeleteSession(h.baseCtx, record.GetId())
+		} else {
+			var s session.Session
+			err := record.Data.UnmarshalTo(&s)
+			if err != nil {
+				log.Ctx(ctx).Warn().Err(err).Msg("invalid data in session record, ignoring")
+			} else {
+				h.mgr.onUpdateSession(h.baseCtx, &s)
+			}
+		}
 	}
 }
 
-func (syncer *dataBrokerSyncer) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
-	return syncer.cfg.Load().dataBrokerClient
+type userSyncerHandler struct {
+	baseCtx context.Context
+	mgr     *Manager
 }
 
-func (syncer *dataBrokerSyncer) UpdateRecords(ctx context.Context, _ uint64, records []*databroker.Record) {
-	select {
-	case <-ctx.Done():
-	case syncer.update <- updateRecordsMessage{records: records}:
+func newUserSyncer(ctx context.Context, mgr *Manager) *databroker.Syncer {
+	return databroker.NewSyncer("identity_manager/users", userSyncerHandler{baseCtx: ctx, mgr: mgr},
+		databroker.WithTypeURL(grpcutil.GetTypeURL(new(user.User))))
+}
+
+func (h userSyncerHandler) ClearRecords(ctx context.Context) {
+	h.mgr.onDeleteAllUsers(ctx)
+}
+
+func (h userSyncerHandler) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+	return h.mgr.cfg.Load().dataBrokerClient
+}
+
+func (h userSyncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*databroker.Record) {
+	for _, record := range records {
+		if record.GetDeletedAt() != nil {
+			h.mgr.onDeleteUser(h.baseCtx, record.GetId())
+		} else {
+			var u user.User
+			err := record.Data.UnmarshalTo(&u)
+			if err != nil {
+				log.Ctx(ctx).Warn().Err(err).Msg("invalid data in user record, ignoring")
+			} else {
+				h.mgr.onUpdateUser(h.baseCtx, &u)
+			}
+		}
 	}
 }
