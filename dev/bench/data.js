@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714681937187,
+  "lastUpdate": 1714682230926,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -108628,6 +108628,42 @@ window.BENCHMARK_DATA = {
             "value": 6762472,
             "unit": "ns/op",
             "extra": "175 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1a5b8b606f5af207e66d1fe808f8866aa62dae51",
+          "message": "core/lint: upgrade golangci-lint, replace interface{} with any (#5099)\n\n* core/lint: upgrade golangci-lint, replace interface{} with any\r\n\r\n* regen proto",
+          "timestamp": "2024-05-02T14:33:52-06:00",
+          "tree_id": "9e0a38d6de04c6c53c413e13b82bec8c2f1c2ff4",
+          "url": "https://github.com/pomerium/pomerium/commit/1a5b8b606f5af207e66d1fe808f8866aa62dae51"
+        },
+        "date": 1714682221951,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9564002,
+            "unit": "ns/op",
+            "extra": "124 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6391714,
+            "unit": "ns/op",
+            "extra": "188 times\n4 procs"
           }
         ]
       }
