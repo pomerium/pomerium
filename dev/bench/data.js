@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714667719931,
+  "lastUpdate": 1714671311972,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -108560,6 +108560,42 @@ window.BENCHMARK_DATA = {
             "value": 6602733,
             "unit": "ns/op",
             "extra": "184 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "614048ae9c4c71c78615106fc3b049fdf620e200",
+          "message": "health-checks: add route reachability (#5093)\n\n* health-checks: add route reachability\r\n\r\n* rm tls check bypass",
+          "timestamp": "2024-05-02T13:31:48-04:00",
+          "tree_id": "5b2ecd50de1ca9865688fa9b52662277cec4ca09",
+          "url": "https://github.com/pomerium/pomerium/commit/614048ae9c4c71c78615106fc3b049fdf620e200"
+        },
+        "date": 1714671302438,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9336347,
+            "unit": "ns/op",
+            "extra": "126 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6104558,
+            "unit": "ns/op",
+            "extra": "193 times\n4 procs"
           }
         ]
       }
