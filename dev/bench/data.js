@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714665370350,
+  "lastUpdate": 1714667415334,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -108492,6 +108492,42 @@ window.BENCHMARK_DATA = {
             "value": 6009697,
             "unit": "ns/op",
             "extra": "200 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a95423b310e3951578cbb094b0653e90d1c8e27f",
+          "message": "core/identity: refactor identity manager (#5091)\n\n* core/identity: add data store for thread-safe storage of sessions and users\r\n\r\n* wip\r\n\r\n* add test\r\n\r\n* wip\r\n\r\n* clean up context\r\n\r\n* fix nil session error\r\n\r\n* add stop message\r\n\r\n* remove log\r\n\r\n* use origin context\r\n\r\n* use base context for manager calls\r\n\r\n* use manager context for syncers too\r\n\r\n* add runtime flag\r\n\r\n* rename legacy lease\r\n\r\n* add comment\r\n\r\n* use NotSame\r\n\r\n* add comment\r\n\r\n* Update internal/identity/manager/manager.go\r\n\r\nCo-authored-by: Kenneth Jenkins <51246568+kenjenkins@users.noreply.github.com>\r\n\r\n* lint\r\n\r\n---------\r\n\r\nCo-authored-by: Kenneth Jenkins <51246568+kenjenkins@users.noreply.github.com>",
+          "timestamp": "2024-05-02T10:27:06-06:00",
+          "tree_id": "c268129cc42034c7c5a7beef041f0f9bbbe145c0",
+          "url": "https://github.com/pomerium/pomerium/commit/a95423b310e3951578cbb094b0653e90d1c8e27f"
+        },
+        "date": 1714667406276,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10180827,
+            "unit": "ns/op",
+            "extra": "126 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6535035,
+            "unit": "ns/op",
+            "extra": "183 times\n4 procs"
           }
         ]
       }
