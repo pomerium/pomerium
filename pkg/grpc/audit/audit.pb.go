@@ -111,7 +111,7 @@ func file_audit_proto_rawDescGZIP() []byte {
 }
 
 var file_audit_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_audit_proto_goTypes = []any{
+var file_audit_proto_goTypes = []interface{}{
 	(*Record)(nil),           // 0: pomerium.audit.Record
 	(*v3.CheckRequest)(nil),  // 1: envoy.service.auth.v3.CheckRequest
 	(*v3.CheckResponse)(nil), // 2: envoy.service.auth.v3.CheckResponse
@@ -132,7 +132,7 @@ func file_audit_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_audit_proto_msgTypes[0].Exporter = func(v any, i int) any {
+		file_audit_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Record); i {
 			case 0:
 				return &v.state

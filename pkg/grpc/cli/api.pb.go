@@ -1203,7 +1203,7 @@ func file_api_proto_rawDescGZIP() []byte {
 
 var file_api_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_api_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
-var file_api_proto_goTypes = []any{
+var file_api_proto_goTypes = []interface{}{
 	(ExportRequest_Format)(0),                     // 0: pomerium.cli.ExportRequest.Format
 	(ConnectionStatusUpdates_ConnectionStatus)(0), // 1: pomerium.cli.ConnectionStatusUpdates.ConnectionStatus
 	(*Record)(nil),                                // 2: pomerium.cli.Record
@@ -1261,7 +1261,7 @@ func file_api_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_api_proto_msgTypes[0].Exporter = func(v any, i int) any {
+		file_api_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Record); i {
 			case 0:
 				return &v.state
@@ -1273,7 +1273,7 @@ func file_api_proto_init() {
 				return nil
 			}
 		}
-		file_api_proto_msgTypes[1].Exporter = func(v any, i int) any {
+		file_api_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Selector); i {
 			case 0:
 				return &v.state
@@ -1285,7 +1285,7 @@ func file_api_proto_init() {
 				return nil
 			}
 		}
-		file_api_proto_msgTypes[2].Exporter = func(v any, i int) any {
+		file_api_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ListRecordsResponse); i {
 			case 0:
 				return &v.state
@@ -1297,7 +1297,7 @@ func file_api_proto_init() {
 				return nil
 			}
 		}
-		file_api_proto_msgTypes[3].Exporter = func(v any, i int) any {
+		file_api_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*DeleteRecordsResponse); i {
 			case 0:
 				return &v.state
@@ -1309,7 +1309,7 @@ func file_api_proto_init() {
 				return nil
 			}
 		}
-		file_api_proto_msgTypes[4].Exporter = func(v any, i int) any {
+		file_api_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ExportRequest); i {
 			case 0:
 				return &v.state
@@ -1321,7 +1321,7 @@ func file_api_proto_init() {
 				return nil
 			}
 		}
-		file_api_proto_msgTypes[5].Exporter = func(v any, i int) any {
+		file_api_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ConfigData); i {
 			case 0:
 				return &v.state
@@ -1333,7 +1333,7 @@ func file_api_proto_init() {
 				return nil
 			}
 		}
-		file_api_proto_msgTypes[6].Exporter = func(v any, i int) any {
+		file_api_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ImportRequest); i {
 			case 0:
 				return &v.state
@@ -1345,7 +1345,7 @@ func file_api_proto_init() {
 				return nil
 			}
 		}
-		file_api_proto_msgTypes[7].Exporter = func(v any, i int) any {
+		file_api_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ImportResponse); i {
 			case 0:
 				return &v.state
@@ -1357,7 +1357,7 @@ func file_api_proto_init() {
 				return nil
 			}
 		}
-		file_api_proto_msgTypes[8].Exporter = func(v any, i int) any {
+		file_api_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ListenerUpdateRequest); i {
 			case 0:
 				return &v.state
@@ -1369,7 +1369,7 @@ func file_api_proto_init() {
 				return nil
 			}
 		}
-		file_api_proto_msgTypes[9].Exporter = func(v any, i int) any {
+		file_api_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ListenerStatus); i {
 			case 0:
 				return &v.state
@@ -1381,7 +1381,7 @@ func file_api_proto_init() {
 				return nil
 			}
 		}
-		file_api_proto_msgTypes[10].Exporter = func(v any, i int) any {
+		file_api_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*StatusUpdatesRequest); i {
 			case 0:
 				return &v.state
@@ -1393,7 +1393,7 @@ func file_api_proto_init() {
 				return nil
 			}
 		}
-		file_api_proto_msgTypes[11].Exporter = func(v any, i int) any {
+		file_api_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ConnectionStatusUpdates); i {
 			case 0:
 				return &v.state
@@ -1405,7 +1405,7 @@ func file_api_proto_init() {
 				return nil
 			}
 		}
-		file_api_proto_msgTypes[12].Exporter = func(v any, i int) any {
+		file_api_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Connection); i {
 			case 0:
 				return &v.state
@@ -1417,7 +1417,7 @@ func file_api_proto_init() {
 				return nil
 			}
 		}
-		file_api_proto_msgTypes[13].Exporter = func(v any, i int) any {
+		file_api_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Selector_IdFilter); i {
 			case 0:
 				return &v.state
@@ -1429,7 +1429,7 @@ func file_api_proto_init() {
 				return nil
 			}
 		}
-		file_api_proto_msgTypes[14].Exporter = func(v any, i int) any {
+		file_api_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Selector_TagFilter); i {
 			case 0:
 				return &v.state
@@ -1442,15 +1442,15 @@ func file_api_proto_init() {
 			}
 		}
 	}
-	file_api_proto_msgTypes[0].OneofWrappers = []any{}
-	file_api_proto_msgTypes[1].OneofWrappers = []any{
+	file_api_proto_msgTypes[0].OneofWrappers = []interface{}{}
+	file_api_proto_msgTypes[1].OneofWrappers = []interface{}{
 		(*Selector_All)(nil),
 		(*Selector_Tag)(nil),
 		(*Selector_IdFilter_)(nil),
 	}
-	file_api_proto_msgTypes[6].OneofWrappers = []any{}
-	file_api_proto_msgTypes[11].OneofWrappers = []any{}
-	file_api_proto_msgTypes[12].OneofWrappers = []any{
+	file_api_proto_msgTypes[6].OneofWrappers = []interface{}{}
+	file_api_proto_msgTypes[11].OneofWrappers = []interface{}{}
+	file_api_proto_msgTypes[12].OneofWrappers = []interface{}{
 		(*Connection_DisableTlsVerification)(nil),
 		(*Connection_CaCert)(nil),
 	}
@@ -1580,7 +1580,7 @@ func RegisterConfigServer(s *grpc.Server, srv ConfigServer) {
 	s.RegisterService(&_Config_serviceDesc, srv)
 }
 
-func _Config_List_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Config_List_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Selector)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -1592,13 +1592,13 @@ func _Config_List_Handler(srv any, ctx context.Context, dec func(any) error, int
 		Server:     srv,
 		FullMethod: "/pomerium.cli.Config/List",
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigServer).List(ctx, req.(*Selector))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Config_Delete_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Config_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Selector)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -1610,13 +1610,13 @@ func _Config_Delete_Handler(srv any, ctx context.Context, dec func(any) error, i
 		Server:     srv,
 		FullMethod: "/pomerium.cli.Config/Delete",
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigServer).Delete(ctx, req.(*Selector))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Config_Upsert_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Config_Upsert_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Record)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -1628,13 +1628,13 @@ func _Config_Upsert_Handler(srv any, ctx context.Context, dec func(any) error, i
 		Server:     srv,
 		FullMethod: "/pomerium.cli.Config/Upsert",
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigServer).Upsert(ctx, req.(*Record))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Config_Export_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Config_Export_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ExportRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -1646,13 +1646,13 @@ func _Config_Export_Handler(srv any, ctx context.Context, dec func(any) error, i
 		Server:     srv,
 		FullMethod: "/pomerium.cli.Config/Export",
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigServer).Export(ctx, req.(*ExportRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Config_Import_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Config_Import_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ImportRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -1664,7 +1664,7 @@ func _Config_Import_Handler(srv any, ctx context.Context, dec func(any) error, i
 		Server:     srv,
 		FullMethod: "/pomerium.cli.Config/Import",
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigServer).Import(ctx, req.(*ImportRequest))
 	}
 	return interceptor(ctx, in, info, handler)
@@ -1785,7 +1785,7 @@ func RegisterListenerServer(s *grpc.Server, srv ListenerServer) {
 	s.RegisterService(&_Listener_serviceDesc, srv)
 }
 
-func _Listener_Update_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+func _Listener_Update_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListenerUpdateRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -1797,13 +1797,13 @@ func _Listener_Update_Handler(srv any, ctx context.Context, dec func(any) error,
 		Server:     srv,
 		FullMethod: "/pomerium.cli.Listener/Update",
 	}
-	handler := func(ctx context.Context, req any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ListenerServer).Update(ctx, req.(*ListenerUpdateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Listener_StatusUpdates_Handler(srv any, stream grpc.ServerStream) error {
+func _Listener_StatusUpdates_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(Selector)
 	if err := stream.RecvMsg(m); err != nil {
 		return err

@@ -243,7 +243,7 @@ func file_identity_proto_rawDescGZIP() []byte {
 }
 
 var file_identity_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
-var file_identity_proto_goTypes = []any{
+var file_identity_proto_goTypes = []interface{}{
 	(*Provider)(nil),        // 0: pomerium.identity.Provider
 	(*Profile)(nil),         // 1: pomerium.identity.Profile
 	nil,                     // 2: pomerium.identity.Provider.RequestParamsEntry
@@ -265,7 +265,7 @@ func file_identity_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_identity_proto_msgTypes[0].Exporter = func(v any, i int) any {
+		file_identity_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Provider); i {
 			case 0:
 				return &v.state
@@ -277,7 +277,7 @@ func file_identity_proto_init() {
 				return nil
 			}
 		}
-		file_identity_proto_msgTypes[1].Exporter = func(v any, i int) any {
+		file_identity_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Profile); i {
 			case 0:
 				return &v.state

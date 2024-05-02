@@ -501,7 +501,7 @@ func file_session_proto_rawDescGZIP() []byte {
 }
 
 var file_session_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
-var file_session_proto_goTypes = []any{
+var file_session_proto_goTypes = []interface{}{
 	(*IDToken)(nil),                  // 0: session.IDToken
 	(*OAuthToken)(nil),               // 1: session.OAuthToken
 	(*Session)(nil),                  // 2: session.Session
@@ -537,7 +537,7 @@ func file_session_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_session_proto_msgTypes[0].Exporter = func(v any, i int) any {
+		file_session_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*IDToken); i {
 			case 0:
 				return &v.state
@@ -549,7 +549,7 @@ func file_session_proto_init() {
 				return nil
 			}
 		}
-		file_session_proto_msgTypes[1].Exporter = func(v any, i int) any {
+		file_session_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*OAuthToken); i {
 			case 0:
 				return &v.state
@@ -561,7 +561,7 @@ func file_session_proto_init() {
 				return nil
 			}
 		}
-		file_session_proto_msgTypes[2].Exporter = func(v any, i int) any {
+		file_session_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Session); i {
 			case 0:
 				return &v.state
@@ -573,7 +573,7 @@ func file_session_proto_init() {
 				return nil
 			}
 		}
-		file_session_proto_msgTypes[3].Exporter = func(v any, i int) any {
+		file_session_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Session_DeviceCredential); i {
 			case 0:
 				return &v.state
@@ -586,8 +586,8 @@ func file_session_proto_init() {
 			}
 		}
 	}
-	file_session_proto_msgTypes[2].OneofWrappers = []any{}
-	file_session_proto_msgTypes[3].OneofWrappers = []any{
+	file_session_proto_msgTypes[2].OneofWrappers = []interface{}{}
+	file_session_proto_msgTypes[3].OneofWrappers = []interface{}{
 		(*Session_DeviceCredential_Unavailable)(nil),
 		(*Session_DeviceCredential_Id)(nil),
 	}
