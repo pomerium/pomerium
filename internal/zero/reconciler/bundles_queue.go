@@ -25,12 +25,12 @@ func (h bundleHeap) Less(i, j int) bool {
 
 func (h bundleHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
 
-func (h *bundleHeap) Push(x interface{}) {
+func (h *bundleHeap) Push(x any) {
 	item := x.(bundle)
 	*h = append(*h, item)
 }
 
-func (h *bundleHeap) Pop() interface{} {
+func (h *bundleHeap) Pop() any {
 	old := *h
 	n := len(old)
 	x := old[n-1]

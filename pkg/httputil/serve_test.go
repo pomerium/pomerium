@@ -27,7 +27,7 @@ func TestServeWithGracefulStop(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		})
 
 		now := time.Now()

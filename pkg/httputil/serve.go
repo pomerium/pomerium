@@ -19,7 +19,7 @@ func ServeWithGracefulStop(ctx context.Context, handler http.Handler, li net.Lis
 
 	srv := http.Server{
 		Handler: handler,
-		BaseContext: func(l net.Listener) context.Context {
+		BaseContext: func(_ net.Listener) context.Context {
 			return baseCtx
 		},
 	}

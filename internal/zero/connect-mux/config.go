@@ -45,7 +45,7 @@ func newConfig(opts ...WatchOption) *config {
 	for _, opt := range []WatchOption{
 		WithOnConnected(func(_ context.Context) {}),
 		WithOnDisconnected(func(_ context.Context) {}),
-		WithOnBundleUpdated(func(_ context.Context, key string) {}),
+		WithOnBundleUpdated(func(_ context.Context, _ string) {}),
 		WithOnBootstrapConfigUpdated(func(_ context.Context) {}),
 	} {
 		opt(cfg)

@@ -21,7 +21,7 @@ func TestLayeredConfig(t *testing.T) {
 
 	t.Run("error on initial build", func(t *testing.T) {
 		underlying := config.NewStaticSource(&config.Config{})
-		_, err := config.NewLayeredSource(ctx, underlying, func(c *config.Config) error {
+		_, err := config.NewLayeredSource(ctx, underlying, func(_ *config.Config) error {
 			return errors.New("error")
 		})
 		require.Error(t, err)
@@ -39,7 +39,7 @@ func TestLayeredConfig(t *testing.T) {
 
 		var dst atomic.Pointer[config.Config]
 		dst.Store(layered.GetConfig())
-		layered.OnConfigChange(ctx, func(ctx context.Context, c *config.Config) {
+		layered.OnConfigChange(ctx, func(_ context.Context, c *config.Config) {
 			dst.Store(c)
 		})
 

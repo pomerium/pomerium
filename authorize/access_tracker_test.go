@@ -55,7 +55,7 @@ func TestAccessTracker(t *testing.T) {
 	}
 	tracker := NewAccessTracker(&testAccessTrackerProvider{
 		dataBrokerServiceClient: &mockDataBrokerServiceClient{
-			get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
+			get: func(_ context.Context, in *databroker.GetRequest, _ ...grpc.CallOption) (*databroker.GetResponse, error) {
 				mu.Lock()
 				defer mu.Unlock()
 
@@ -88,7 +88,7 @@ func TestAccessTracker(t *testing.T) {
 					return nil, status.Errorf(codes.InvalidArgument, "unknown type: %s", in.GetType())
 				}
 			},
-			put: func(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
+			put: func(_ context.Context, in *databroker.PutRequest, _ ...grpc.CallOption) (*databroker.PutResponse, error) {
 				mu.Lock()
 				defer mu.Unlock()
 

@@ -11,7 +11,7 @@ import (
 func TestToValue(t *testing.T) {
 	testCases := []struct {
 		name   string
-		value  interface{}
+		value  any
 		expect string
 	}{
 		{"bool", true, "true"},
@@ -28,8 +28,8 @@ func TestToValue(t *testing.T) {
 		{"uint16", uint16(1), "1"},
 		{"uint32", uint32(1), "1"},
 		{"uint64", uint64(1), "1"},
-		{"[]interface{}", []interface{}{1, 2, 3, 4}, `[1,2,3,4]`},
-		{"map[string]interface{}", map[string]interface{}{"k1": "v1", "k2": "v2"}, `{"k1":"v1","k2":"v2"}`},
+		{"[]any", []any{1, 2, 3, 4}, `[1,2,3,4]`},
+		{"map[string]any", map[string]any{"k1": "v1", "k2": "v2"}, `{"k1":"v1","k2":"v2"}`},
 		{"Message", &apipb.Method{Name: "example"}, `{"name": "example"}`},
 	}
 	for _, tc := range testCases {

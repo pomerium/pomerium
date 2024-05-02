@@ -16,7 +16,7 @@ import (
 )
 
 func TestMiddleware(t *testing.T) {
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		io.WriteString(w, "NEXT")
 	})
 
@@ -38,7 +38,7 @@ func TestMiddleware(t *testing.T) {
 	t.Run("proxy", func(t *testing.T) {
 		h := New()
 
-		srv1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			io.WriteString(w, "SERVER1")
 		}))
 		defer srv1.Close()

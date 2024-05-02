@@ -9,8 +9,8 @@ import (
 )
 
 func TestFilterExpressionFromStruct(t *testing.T) {
-	type M = map[string]interface{}
-	type A = []interface{}
+	type M = map[string]any
+	type A = []any
 
 	s, err := structpb.NewStruct(M{
 		"$and": A{

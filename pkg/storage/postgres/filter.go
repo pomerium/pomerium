@@ -8,7 +8,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
-func addFilterExpressionToQuery(query *string, args *[]interface{}, expr storage.FilterExpression) error {
+func addFilterExpressionToQuery(query *string, args *[]any, expr storage.FilterExpression) error {
 	compoundExpression := func(subexprs []storage.FilterExpression, op string) error {
 		*query += "( "
 		for i, subexpr := range subexprs {

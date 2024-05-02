@@ -52,7 +52,7 @@ func (transport *userInfoRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 		return nil, err
 	}
 
-	var userInfo map[string]interface{}
+	var userInfo map[string]any
 	if err := json.Unmarshal(bs, &userInfo); err == nil {
 		// AWS Cognito returns email_verified as a string, so we'll make it a bool
 		if ev, ok := userInfo["email_verified"]; ok {

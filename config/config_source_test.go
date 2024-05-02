@@ -38,7 +38,7 @@ func TestFileWatcherSource(t *testing.T) {
 	src := NewFileWatcherSource(ctx, ssrc)
 	var closeOnce sync.Once
 	ch := make(chan struct{})
-	src.OnConfigChange(context.Background(), func(ctx context.Context, cfg *Config) {
+	src.OnConfigChange(context.Background(), func(_ context.Context, _ *Config) {
 		closeOnce.Do(func() {
 			close(ch)
 		})

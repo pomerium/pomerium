@@ -25,7 +25,7 @@ func TestFanOutStopped(t *testing.T) {
 		return errors.Is(f.Publish(context.Background(), 1), fanout.ErrStopped)
 	}, 5*time.Second, 10*time.Millisecond)
 
-	err := f.Receive(context.Background(), func(ctx context.Context, msg int) error {
+	err := f.Receive(context.Background(), func(_ context.Context, _ int) error {
 		return nil
 	})
 	assert.ErrorIs(t, err, fanout.ErrStopped)
@@ -47,7 +47,7 @@ func TestFanOutEvictSlowSubscriber(t *testing.T) {
 
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		err := f.Receive(ctx, func(ctx context.Context, msg int) error {
+		err := f.Receive(ctx, func(ctx context.Context, _ int) error {
 			select {
 			case <-ctx.Done():
 				// context was canceled as expected
@@ -91,7 +91,7 @@ func TestFanOutReceiverCancelOnError(t *testing.T) {
 
 	ready := make(chan struct{})
 	go func() {
-		errch <- f.Receive(ctx, func(ctx context.Context, msg int) error {
+		errch <- f.Receive(ctx, func(_ context.Context, _ int) error {
 			return receiverErr
 		}, fanout.WithOnSubscriberAdded[int](func() { close(ready) }))
 	}()
@@ -111,7 +111,7 @@ func TestFanOutFilter(t *testing.T) {
 	ready := make(chan struct{})
 	results := make(chan int)
 	go func() {
-		_ = f.Receive(ctx, func(ctx context.Context, msg int) error {
+		_ = f.Receive(ctx, func(_ context.Context, msg int) error {
 			results <- msg
 			return nil
 		},
@@ -146,7 +146,7 @@ func BenchmarkFanout(b *testing.B) {
 		want := i
 		eg.Go(func() error {
 			seen := 0
-			err := f.Receive(ctx, func(ctx context.Context, _ int) error {
+			err := f.Receive(ctx, func(_ context.Context, _ int) error {
 				if seen++; seen == cycles {
 					return errStopReceiver
 				}

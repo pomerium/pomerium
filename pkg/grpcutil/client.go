@@ -107,7 +107,7 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 
 // grpcTimeoutInterceptor enforces per-RPC request timeouts
 func grpcTimeoutInterceptor(timeout time.Duration) grpc.UnaryClientInterceptor {
-	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		if timeout <= 0 {
 			return invoker(ctx, method, req, reply, cc, opts...)
 		}

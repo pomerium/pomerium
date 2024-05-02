@@ -102,7 +102,7 @@ func TestTraceManager(t *testing.T) {
 
 	incoming := make(chan Request, 100)
 
-	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		var objs []struct {
 			Name string
 		}

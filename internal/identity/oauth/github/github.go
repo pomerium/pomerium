@@ -109,7 +109,7 @@ func (p *Provider) Authenticate(ctx context.Context, code string, v identity.Sta
 // UpdateUserInfo will get the user information from github and also retrieve the user's team(s)
 //
 // https://developer.github.com/v3/users/#get-the-authenticated-user
-func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error {
+func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v any) error {
 	err := p.userInfo(ctx, t, v)
 	if err != nil {
 		return fmt.Errorf("github: could not retrieve user info %w", err)
@@ -134,7 +134,7 @@ func (p *Provider) Refresh(_ context.Context, t *oauth2.Token, _ identity.State)
 //
 // https://developer.github.com/v3/users/emails/#list-email-addresses-for-a-user
 // https://developer.github.com/v3/auth/
-func (p *Provider) userEmail(ctx context.Context, t *oauth2.Token, v interface{}) error {
+func (p *Provider) userEmail(ctx context.Context, t *oauth2.Token, v any) error {
 	// response represents the github user email
 	// https://developer.github.com/v3/users/emails/#response
 	var response []struct {
@@ -167,7 +167,7 @@ func (p *Provider) userEmail(ctx context.Context, t *oauth2.Token, v interface{}
 	return json.Unmarshal(b, v)
 }
 
-func (p *Provider) userInfo(ctx context.Context, t *oauth2.Token, v interface{}) error {
+func (p *Provider) userInfo(ctx context.Context, t *oauth2.Token, v any) error {
 	var response struct {
 		ID        int    `json:"id"`
 		Login     string `json:"login"`

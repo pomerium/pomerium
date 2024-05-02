@@ -60,7 +60,7 @@ func (qp *Store) ClearSession(_ http.ResponseWriter, r *http.Request) {
 }
 
 // SaveSession sets a session to a request's query param key `pomerium_session`
-func (qp *Store) SaveSession(_ http.ResponseWriter, r *http.Request, x interface{}) error {
+func (qp *Store) SaveSession(_ http.ResponseWriter, r *http.Request, x any) error {
 	data, err := qp.encoder.Marshal(x)
 	if err != nil {
 		return err

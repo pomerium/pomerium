@@ -47,13 +47,13 @@ func RecordStreamFilterFromFilterExpression(
 	expr FilterExpression,
 ) (filter RecordStreamFilter, err error) {
 	if expr == nil {
-		return func(record *databroker.Record) (keep bool) { return true }, nil
+		return func(_ *databroker.Record) (keep bool) { return true }, nil
 	}
 
 	switch expr := expr.(type) {
 	case AndFilterExpression:
 		if len(expr) == 0 {
-			return func(record *databroker.Record) (keep bool) { return true }, nil
+			return func(_ *databroker.Record) (keep bool) { return true }, nil
 		}
 
 		fs := make([]RecordStreamFilter, len(expr))
@@ -73,7 +73,7 @@ func RecordStreamFilterFromFilterExpression(
 		}, nil
 	case OrFilterExpression:
 		if len(expr) == 0 {
-			return func(record *databroker.Record) (keep bool) { return true }, nil
+			return func(_ *databroker.Record) (keep bool) { return true }, nil
 		}
 
 		fs := make([]RecordStreamFilter, len(expr))

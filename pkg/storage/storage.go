@@ -112,7 +112,7 @@ func matchProtoListValue(fd protoreflect.FieldDescriptor, l protoreflect.List, q
 
 func matchProtoMapValue(fd protoreflect.FieldDescriptor, m protoreflect.Map, query string) bool {
 	matches := false
-	m.Range(func(k protoreflect.MapKey, v protoreflect.Value) bool {
+	m.Range(func(_ protoreflect.MapKey, v protoreflect.Value) bool {
 		matches = matches || matchProtoSingularValue(fd, v, query)
 		return !matches
 	})

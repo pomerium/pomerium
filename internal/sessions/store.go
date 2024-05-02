@@ -11,7 +11,7 @@ import (
 type SessionStore interface {
 	SessionLoader
 	ClearSession(http.ResponseWriter, *http.Request)
-	SaveSession(http.ResponseWriter, *http.Request, interface{}) error
+	SaveSession(http.ResponseWriter, *http.Request, any) error
 }
 
 // SessionLoader defines an interface for loading a session.

@@ -37,7 +37,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 )
 
-type M = map[string]interface{}
+type M = map[string]any
 
 type testCA struct {
 	key     *ecdsa.PrivateKey
@@ -94,7 +94,7 @@ func newMockACME(ca *testCA, srv *httptest.Server) http.Handler {
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
-	r.Get("/acme/directory", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/acme/directory", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(M{
 			"keyChange":  srv.URL + "/acme/key-change",
@@ -104,11 +104,11 @@ func newMockACME(ca *testCA, srv *httptest.Server) http.Handler {
 			"revokeCert": srv.URL + "/acme/revoke-cert",
 		})
 	})
-	r.Head("/acme/new-nonce", func(w http.ResponseWriter, r *http.Request) {
+	r.Head("/acme/new-nonce", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Replay-Nonce", "NONCE")
 		w.WriteHeader(http.StatusOK)
 	})
-	r.Post("/acme/new-acct", func(w http.ResponseWriter, r *http.Request) {
+	r.Post("/acme/new-acct", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Replay-Nonce", "NONCE")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
@@ -188,13 +188,13 @@ func newMockACME(ca *testCA, srv *httptest.Server) http.Handler {
 			"certificate": srv.URL + "/acme/certificate",
 		})
 	})
-	r.Post("/acme/certificate", func(w http.ResponseWriter, r *http.Request) {
+	r.Post("/acme/certificate", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Replay-Nonce", "NONCE")
 		w.Header().Set("Content-Type", "application/pem-certificate-chain")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(certBuffer.Bytes())
 	})
-	r.Get("/certs/ca", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/certs/ca", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/pkix-cert")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(ca.cert.Raw)
@@ -326,7 +326,7 @@ func TestRedirect(t *testing.T) {
 	}
 
 	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
@@ -358,7 +358,7 @@ func waitFor(addr string) error {
 	return err
 }
 
-func readJWSPayload(r io.Reader, dst interface{}) {
+func readJWSPayload(r io.Reader, dst any) {
 	var req struct {
 		Protected string `json:"protected"`
 		Payload   string `json:"payload"`
@@ -388,7 +388,7 @@ func Test_configureCertificateAuthority(t *testing.T) {
 		wantErr  bool
 	}
 	tests := map[string]func(t *testing.T) test{
-		"ok/default": func(t *testing.T) test {
+		"ok/default": func(_ *testing.T) test {
 			return test{
 				args: args{
 					acmeMgr: newACMEIssuer(),
@@ -403,7 +403,7 @@ func Test_configureCertificateAuthority(t *testing.T) {
 				wantErr: false,
 			}
 		},
-		"ok/staging": func(t *testing.T) test {
+		"ok/staging": func(_ *testing.T) test {
 			return test{
 				args: args{
 					acmeMgr: newACMEIssuer(),
@@ -420,7 +420,7 @@ func Test_configureCertificateAuthority(t *testing.T) {
 				wantErr: false,
 			}
 		},
-		"ok/custom-ca-staging": func(t *testing.T) test {
+		"ok/custom-ca-staging": func(_ *testing.T) test {
 			return test{
 				args: args{
 					acmeMgr: newACMEIssuer(),
@@ -464,7 +464,7 @@ func Test_configureExternalAccountBinding(t *testing.T) {
 		wantErr  bool
 	}
 	tests := map[string]func(t *testing.T) test{
-		"ok": func(t *testing.T) test {
+		"ok": func(_ *testing.T) test {
 			return test{
 				args: args{
 					acmeMgr: newACMEIssuer(),
@@ -484,7 +484,7 @@ func Test_configureExternalAccountBinding(t *testing.T) {
 				wantErr: false,
 			}
 		},
-		"fail/error-decoding-mac-key": func(t *testing.T) test {
+		"fail/error-decoding-mac-key": func(_ *testing.T) test {
 			return test{
 				args: args{
 					acmeMgr: newACMEIssuer(),

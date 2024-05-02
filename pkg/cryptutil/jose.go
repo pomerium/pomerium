@@ -75,7 +75,7 @@ func loadKeys(data []byte, unmarshal func([]byte) (any, error)) ([]*jose.JSONWeb
 	return jwks, nil
 }
 
-func loadPrivateKey(b []byte) (interface{}, error) {
+func loadPrivateKey(b []byte) (any, error) {
 	var wrappedErr error
 	var err error
 	var key any
@@ -99,7 +99,7 @@ func loadPrivateKey(b []byte) (interface{}, error) {
 }
 
 // https://github.com/square/go-jose/tree/v2.5.1#supported-key-types
-func loadPublicKey(b []byte) (interface{}, error) {
+func loadPublicKey(b []byte) (any, error) {
 	var wrappedErr error
 	var err error
 	var key any
@@ -130,7 +130,7 @@ func loadPublicKey(b []byte) (interface{}, error) {
 }
 
 // SignatureAlgorithmForKey returns the signature algorithm for the given key.
-func SignatureAlgorithmForKey(key interface{}) (jose.SignatureAlgorithm, error) {
+func SignatureAlgorithmForKey(key any) (jose.SignatureAlgorithm, error) {
 	switch key.(type) {
 	case *ecdsa.PrivateKey, *ecdsa.PublicKey:
 		return jose.ES256, nil

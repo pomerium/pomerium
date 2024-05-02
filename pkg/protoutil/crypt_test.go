@@ -77,9 +77,9 @@ func assertProtoEqual(t *testing.T, x, y proto.Message) {
 }
 
 func BenchmarkEncrypt(b *testing.B) {
-	m := map[string]interface{}{}
+	m := map[string]any{}
 	for i := 0; i < 10; i++ {
-		mm := map[string]interface{}{}
+		mm := map[string]any{}
 		for j := 0; j < 10; j++ {
 			mm[fmt.Sprintf("key%d", j)] = fmt.Sprintf("value%d", j)
 		}

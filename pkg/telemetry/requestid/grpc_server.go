@@ -19,7 +19,7 @@ func (ss grpcStream) Context() context.Context {
 // StreamServerInterceptor returns a new gRPC StreamServerInterceptor which populates the request id
 // from the incoming metadata.
 func StreamServerInterceptor() grpc.StreamServerInterceptor {
-	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	return func(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		ctx := ss.Context()
 		requestID := fromMetadata(ctx)
 		ctx = WithValue(ctx, requestID)
@@ -34,7 +34,7 @@ func StreamServerInterceptor() grpc.StreamServerInterceptor {
 // UnaryServerInterceptor returns a new gRPC UnaryServerInterceptor which populates the request id
 // from the incoming metadata.
 func UnaryServerInterceptor() grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 		requestID := fromMetadata(ctx)
 		ctx = WithValue(ctx, requestID)
 		return handler(ctx, req)

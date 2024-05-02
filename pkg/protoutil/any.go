@@ -8,7 +8,7 @@ import (
 )
 
 // ToAny converts any type into an any value.
-func ToAny(value interface{}) *anypb.Any {
+func ToAny(value any) *anypb.Any {
 	switch v := value.(type) {
 	case bool:
 		return NewAnyBool(v)

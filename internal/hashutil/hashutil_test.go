@@ -11,7 +11,7 @@ func TestHash(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name    string
-		v       interface{}
+		v       any
 		want    uint64
 		wantErr bool
 	}{

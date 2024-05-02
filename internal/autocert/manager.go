@@ -93,7 +93,7 @@ func newManager(ctx context.Context,
 		return nil, err
 	}
 	mgr.certmagic = certmagic.New(certmagic.NewCache(certmagic.CacheOptions{
-		GetConfigForCert: func(c certmagic.Certificate) (*certmagic.Config, error) {
+		GetConfigForCert: func(_ certmagic.Certificate) (*certmagic.Config, error) {
 			return mgr.certmagic, nil
 		},
 		Logger: logger,

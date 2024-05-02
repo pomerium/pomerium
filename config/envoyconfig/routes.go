@@ -645,7 +645,7 @@ func getRewriteHeadersMetadata(headers []config.RewriteHeader) *structpb.Value {
 			},
 		}
 	}
-	var obj interface{}
+	var obj any
 	bs, _ := json.Marshal(headers)
 	_ = json.Unmarshal(bs, &obj)
 	v, _ := structpb.NewValue(obj)

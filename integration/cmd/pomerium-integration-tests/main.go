@@ -20,13 +20,13 @@ import (
 func main() {
 	generateCmd := &ffcli.Command{
 		Name: "generate-configuration",
-		Exec: func(ctx context.Context, args []string) error {
+		Exec: func(ctx context.Context, _ []string) error {
 			return runGenerateConfiguration(ctx)
 		},
 	}
 	rootCmd := &ffcli.Command{
 		Subcommands: []*ffcli.Command{generateCmd},
-		Exec: func(ctx context.Context, args []string) error {
+		Exec: func(_ context.Context, _ []string) error {
 			return flag.ErrHelp
 		},
 	}

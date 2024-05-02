@@ -514,11 +514,11 @@ func TestPomeriumJWT(t *testing.T) {
 	require.NoError(t, err)
 	defer res.Body.Close()
 
-	var m map[string]interface{}
+	var m map[string]any
 	err = json.NewDecoder(res.Body).Decode(&m)
 	require.NoError(t, err)
 
-	headers, ok := m["headers"].(map[string]interface{})
+	headers, ok := m["headers"].(map[string]any)
 	require.True(t, ok)
 	headerJWT, ok := headers["x-pomerium-jwt-assertion"].(string)
 	require.True(t, ok)
@@ -554,7 +554,7 @@ func TestPomeriumJWT(t *testing.T) {
 	assert.Equal(t, p, p2)
 }
 
-func rawJWTPayload(t *testing.T, jwt string) map[string]interface{} {
+func rawJWTPayload(t *testing.T, jwt string) map[string]any {
 	t.Helper()
 	s := strings.Split(jwt, ".")
 	require.Equal(t, 3, len(s), "unexpected JWT format")
@@ -562,7 +562,7 @@ func rawJWTPayload(t *testing.T, jwt string) map[string]interface{} {
 	require.NoError(t, err, "JWT payload could not be decoded")
 	d := json.NewDecoder(bytes.NewReader(payload))
 	d.UseNumber()
-	var decoded map[string]interface{}
+	var decoded map[string]any
 	err = d.Decode(&decoded)
 	require.NoError(t, err, "JWT payload could not be deserialized")
 	return decoded

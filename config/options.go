@@ -474,7 +474,7 @@ func (o *Options) parsePolicy() error {
 	return nil
 }
 
-func (o *Options) viperSet(key string, value interface{}) {
+func (o *Options) viperSet(key string, value any) {
 	o.viper.Set(key, value)
 }
 

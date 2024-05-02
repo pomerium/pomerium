@@ -18,7 +18,7 @@ func TestEnabler(t *testing.T) {
 	t.Run("enabled immediately", func(t *testing.T) {
 		t.Parallel()
 
-		e := enabler.New("test", enabler.HandlerFunc(func(ctx context.Context) error {
+		e := enabler.New("test", enabler.HandlerFunc(func(_ context.Context) error {
 			return errors.New("ERROR")
 		}), true)
 		err := e.Run(context.Background())
@@ -27,7 +27,7 @@ func TestEnabler(t *testing.T) {
 	t.Run("enabled delayed", func(t *testing.T) {
 		t.Parallel()
 
-		e := enabler.New("test", enabler.HandlerFunc(func(ctx context.Context) error {
+		e := enabler.New("test", enabler.HandlerFunc(func(_ context.Context) error {
 			return errors.New("ERROR")
 		}), false)
 		time.AfterFunc(time.Millisecond*10, e.Enable)

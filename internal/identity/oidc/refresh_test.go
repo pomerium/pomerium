@@ -18,7 +18,7 @@ func TestRefresh(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(clearTimeout)
 
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{
 			"access_token": "NEW_TOKEN",
@@ -52,7 +52,7 @@ func TestRefresh_errors(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(clearTimeout)
 
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("{}"))
 	}))
 	t.Cleanup(s.Close)

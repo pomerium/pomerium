@@ -158,7 +158,7 @@ func (p *Provider) Authenticate(ctx context.Context, code string, v identity.Sta
 // groups endpoint (non-spec) to populate the rest of the user's information.
 //
 // https://openid.net/specs/openid-connect-core-1_0.html#UserInfo
-func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error {
+func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v any) error {
 	pp, err := p.GetProvider()
 	if err != nil {
 		return err
@@ -255,7 +255,7 @@ func (p *Provider) Revoke(ctx context.Context, t *oauth2.Token) error {
 }
 
 // GetSubject gets the RFC 7519 Subject claim (`sub`) from a
-func (p *Provider) GetSubject(v interface{}) (string, error) {
+func (p *Provider) GetSubject(v any) (string, error) {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return "", err

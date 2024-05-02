@@ -7,7 +7,7 @@ import (
 )
 
 // DecodeBase64OrJSON decodes a JSON string that can optionally be base64 encoded.
-func DecodeBase64OrJSON(in string, out interface{}) error {
+func DecodeBase64OrJSON(in string, out any) error {
 	in = strings.TrimSpace(in)
 
 	// the data can be base64 encoded

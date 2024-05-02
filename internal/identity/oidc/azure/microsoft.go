@@ -115,7 +115,7 @@ func (transport *wellKnownConfiguration) RoundTrip(req *http.Request) (*http.Res
 		return nil, err
 	}
 
-	var wk map[string]interface{}
+	var wk map[string]any
 	if err := json.Unmarshal(bs, &wk); err == nil {
 		if issuerVar, ok := wk["issuer"]; ok {
 			if fmt.Sprint(issuerVar) == nonSpecIssuerURL {

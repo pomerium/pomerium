@@ -11,7 +11,7 @@ import (
 )
 
 // ToStruct converts any value into a structpb Value.
-func ToStruct(value interface{}) *structpb.Value {
+func ToStruct(value any) *structpb.Value {
 	if value == nil {
 		return NewStructNull()
 	}

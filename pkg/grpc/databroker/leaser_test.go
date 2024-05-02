@@ -126,7 +126,7 @@ func TestLeaser(t *testing.T) {
 			AnyTimes()
 		handler.EXPECT().
 			RunLeased(gomock.Any()).
-			DoAndReturn(func(ctx context.Context) error {
+			DoAndReturn(func(_ context.Context) error {
 				time.Sleep(time.Millisecond * 20)
 				return exitErr
 			}).
@@ -162,7 +162,7 @@ func TestLeasers(t *testing.T) {
 		Times(1)
 
 	var counter int64
-	fn1 := func(ctx context.Context) error {
+	fn1 := func(_ context.Context) error {
 		atomic.AddInt64(&counter, 1)
 		return exitErr
 	}

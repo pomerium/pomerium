@@ -35,7 +35,7 @@ func TestNewServer(t *testing.T) {
 				Addr:     ":0",
 				Insecure: true,
 			},
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
 			false,
@@ -45,7 +45,7 @@ func TestNewServer(t *testing.T) {
 			&ServerOptions{
 				Addr: ":0",
 			},
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
 			true,
@@ -55,7 +55,7 @@ func TestNewServer(t *testing.T) {
 			&ServerOptions{
 				Insecure: true,
 			},
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
 			false,
@@ -63,7 +63,7 @@ func TestNewServer(t *testing.T) {
 		{
 			"empty handler",
 			nil,
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
 			true,
@@ -73,7 +73,7 @@ func TestNewServer(t *testing.T) {
 			&ServerOptions{
 				Addr:     ":65536",
 				Insecure: true,
-			}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			}, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
 			true,
@@ -83,7 +83,7 @@ func TestNewServer(t *testing.T) {
 			&ServerOptions{
 				TLSConfig: &tls.Config{},
 			},
-			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				fmt.Fprintln(w, "Hello, http")
 			}),
 			false,

@@ -22,7 +22,7 @@ func TestMetricsManager(t *testing.T) {
 	mgr := NewMetricsManager(ctx, src)
 	srv1 := httptest.NewServer(mgr)
 	defer srv1.Close()
-	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "ERROR", http.StatusInternalServerError)
 	}))
 	defer srv2.Close()

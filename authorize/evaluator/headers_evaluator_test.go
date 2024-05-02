@@ -62,8 +62,8 @@ func TestNewHeadersRequestFromPolicy_nil(t *testing.T) {
 func TestHeadersEvaluator(t *testing.T) {
 	t.Parallel()
 
-	type A = []interface{}
-	type M = map[string]interface{}
+	type A = []any
+	type M = map[string]any
 
 	signingKey, err := cryptutil.NewSigningKey()
 	require.NoError(t, err)
@@ -114,7 +114,7 @@ func TestHeadersEvaluator(t *testing.T) {
 		// between numeric formats.
 		d := json.NewDecoder(bytes.NewReader(decodeJWSPayload(t, jwtHeader)))
 		d.UseNumber()
-		var jwtPayloadDecoded map[string]interface{}
+		var jwtPayloadDecoded map[string]any
 		err = d.Decode(&jwtPayloadDecoded)
 		require.NoError(t, err)
 

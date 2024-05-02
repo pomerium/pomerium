@@ -21,7 +21,7 @@ type streamState struct {
 	unsubscribedResources  map[string]struct{}
 }
 
-var onHandleDeltaRequest = func(state *streamState) {}
+var onHandleDeltaRequest = func(_ *streamState) {}
 
 // A Manager manages xDS resources.
 type Manager struct {
@@ -51,7 +51,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 
 	stateByTypeURL := map[string]*streamState{}
 
-	getDeltaResponse := func(ctx context.Context, typeURL string) *envoy_service_discovery_v3.DeltaDiscoveryResponse {
+	getDeltaResponse := func(_ context.Context, typeURL string) *envoy_service_discovery_v3.DeltaDiscoveryResponse {
 		mgr.mu.Lock()
 		defer mgr.mu.Unlock()
 

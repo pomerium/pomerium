@@ -23,13 +23,13 @@ func (claims *SessionClaims) SetRawIDToken(rawIDToken string) {
 }
 
 // Claims are JWT claims.
-type Claims map[string]interface{}
+type Claims map[string]any
 
 // NewClaimsFromRaw creates a new Claims map from a map of raw messages.
 func NewClaimsFromRaw(raw map[string]json.RawMessage) Claims {
 	claims := make(Claims)
 	for k, rawv := range raw {
-		var v interface{}
+		var v any
 		if err := json.Unmarshal(rawv, &v); err == nil {
 			claims[k] = v
 		}
@@ -43,7 +43,7 @@ func (claims *Claims) UnmarshalJSON(data []byte) error {
 		*claims = make(Claims)
 	}
 
-	var m map[string]interface{}
+	var m map[string]any
 	err := json.Unmarshal(data, &m)
 	if err != nil {
 		return err
@@ -55,7 +55,7 @@ func (claims *Claims) UnmarshalJSON(data []byte) error {
 }
 
 // Claims takes the claims data and fills v.
-func (claims Claims) Claims(v interface{}) error {
+func (claims Claims) Claims(v any) error {
 	bs, err := json.Marshal(claims)
 	if err != nil {
 		return err
@@ -81,13 +81,13 @@ func (claims Claims) Flatten() FlattenedClaims {
 				flattened[k+"."+sk] = sv
 			}
 		case reflect.Slice:
-			slc := make([]interface{}, rv.Len())
+			slc := make([]any, rv.Len())
 			for i := 0; i < rv.Len(); i++ {
 				slc[i] = rv.Index(i).Interface()
 			}
 			flattened[k] = slc
 		default:
-			flattened[k] = []interface{}{v}
+			flattened[k] = []any{v}
 		}
 	}
 	return flattened
@@ -103,7 +103,7 @@ func (claims Claims) ToAnyMap() map[string]*anypb.Any {
 }
 
 // FlattenedClaims are a set claims flattened into a single-level map.
-type FlattenedClaims map[string][]interface{}
+type FlattenedClaims map[string][]any
 
 // NewFlattenedClaimsFromPB creates a new FlattenedClaims from the protobuf struct type.
 func NewFlattenedClaimsFromPB(m map[string]*structpb.ListValue) FlattenedClaims {

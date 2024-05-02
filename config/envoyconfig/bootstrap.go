@@ -149,7 +149,7 @@ func (b *Builder) BuildBootstrapDynamicResources(
 
 // BuildBootstrapLayeredRuntime builds the layered runtime for the envoy bootstrap.
 func (b *Builder) BuildBootstrapLayeredRuntime() (*envoy_config_bootstrap_v3.LayeredRuntime, error) {
-	layer, err := structpb.NewStruct(map[string]interface{}{
+	layer, err := structpb.NewStruct(map[string]any{
 		"re2": map[string]any{
 			"max_program_size": map[string]any{
 				"error_level": 1024 * 1024,

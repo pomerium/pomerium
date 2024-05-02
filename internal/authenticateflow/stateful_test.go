@@ -363,7 +363,7 @@ type protoEqualMatcher struct {
 	expected proto.Message
 }
 
-func (m protoEqualMatcher) Matches(x interface{}) bool {
+func (m protoEqualMatcher) Matches(x any) bool {
 	p, ok := x.(proto.Message)
 	if !ok {
 		return false

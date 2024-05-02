@@ -104,7 +104,7 @@ func TestStore_SaveSession(t *testing.T) {
 	}
 	tests := []struct {
 		name        string
-		State       interface{}
+		State       any
 		encoder     encoding.Marshaler
 		decoder     encoding.Unmarshaler
 		wantErr     bool

@@ -24,7 +24,7 @@ func TestRefreshSessionScheduler(t *testing.T) {
 		time.Now,
 		sessionRefreshGracePeriod,
 		sessionRefreshCoolOffDuration,
-		func(ctx context.Context, sesionID string) {
+		func(_ context.Context, _ string) {
 			calls.Append(time.Now())
 		},
 		"S1",
@@ -51,7 +51,7 @@ func TestUpdateUserInfoScheduler(t *testing.T) {
 
 	ctx := context.Background()
 	userUpdateInfoInterval := 100 * time.Millisecond
-	uuis := newUpdateUserInfoScheduler(ctx, userUpdateInfoInterval, func(ctx context.Context, userID string) {
+	uuis := newUpdateUserInfoScheduler(ctx, userUpdateInfoInterval, func(_ context.Context, _ string) {
 		calls.Append(time.Now())
 	}, "U1")
 	t.Cleanup(uuis.Stop)

@@ -18,7 +18,7 @@ func getLocalCertPEM(s *httptest.Server) []byte {
 }
 
 func TestHTTPTransport(t *testing.T) {
-	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer s.Close()
@@ -44,7 +44,7 @@ func TestPolicyHTTPTransport(t *testing.T) {
 	src := NewStaticSource(&Config{Options: &Options{}})
 	http.DefaultTransport = NewHTTPTransport(src)
 
-	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer s.Close()

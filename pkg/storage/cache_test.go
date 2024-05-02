@@ -14,7 +14,7 @@ func TestLocalCache(t *testing.T) {
 	defer clearTimeout()
 
 	callCount := 0
-	update := func(ctx context.Context) ([]byte, error) {
+	update := func(_ context.Context) ([]byte, error) {
 		callCount++
 		return []byte("v1"), nil
 	}
@@ -42,7 +42,7 @@ func TestGlobalCache(t *testing.T) {
 	defer clearTimeout()
 
 	callCount := 0
-	update := func(ctx context.Context) ([]byte, error) {
+	update := func(_ context.Context) ([]byte, error) {
 		callCount++
 		return []byte("v1"), nil
 	}
@@ -65,7 +65,7 @@ func TestGlobalCache(t *testing.T) {
 	assert.Equal(t, 2, callCount)
 
 	assert.Eventually(t, func() bool {
-		_, err := c.GetOrUpdate(ctx, []byte("k1"), func(ctx context.Context) ([]byte, error) {
+		_, err := c.GetOrUpdate(ctx, []byte("k1"), func(_ context.Context) ([]byte, error) {
 			return nil, fmt.Errorf("ERROR")
 		})
 		return err != nil

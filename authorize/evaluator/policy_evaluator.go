@@ -43,7 +43,7 @@ func NewPolicyResponse() *PolicyResponse {
 type RuleResult struct {
 	Value          bool
 	Reasons        criteria.Reasons
-	AdditionalData map[string]interface{}
+	AdditionalData map[string]any
 }
 
 // NewRuleResult creates a new RuleResult.
@@ -51,7 +51,7 @@ func NewRuleResult(value bool, reasons ...criteria.Reason) RuleResult {
 	return RuleResult{
 		Value:          value,
 		Reasons:        criteria.NewReasons(reasons...),
-		AdditionalData: map[string]interface{}{},
+		AdditionalData: map[string]any{},
 	}
 }
 
@@ -236,7 +236,7 @@ func (e *PolicyEvaluator) evaluateQuery(ctx context.Context, req *PolicyRequest,
 func (e *PolicyEvaluator) getRuleResult(name string, vars rego.Vars) (result RuleResult) {
 	result = NewRuleResult(false)
 
-	m, ok := vars["result"].(map[string]interface{})
+	m, ok := vars["result"].(map[string]any)
 	if !ok {
 		return result
 	}
@@ -244,10 +244,10 @@ func (e *PolicyEvaluator) getRuleResult(name string, vars rego.Vars) (result Rul
 	switch t := m[name].(type) {
 	case bool:
 		result.Value = t
-	case []interface{}:
+	case []any:
 		switch len(t) {
 		case 3:
-			v, ok := t[2].(map[string]interface{})
+			v, ok := t[2].(map[string]any)
 			if ok {
 				for k, vv := range v {
 					result.AdditionalData[k] = vv
@@ -256,7 +256,7 @@ func (e *PolicyEvaluator) getRuleResult(name string, vars rego.Vars) (result Rul
 			fallthrough
 		case 2:
 			// fill in the reasons
-			v, ok := t[1].([]interface{})
+			v, ok := t[1].([]any)
 			if ok {
 				for _, vv := range v {
 					result.Reasons.Add(criteria.Reason(fmt.Sprint(vv)))

@@ -57,7 +57,7 @@ func (codecType CodecType) ToEnvoy() envoy_http_connection_manager.HttpConnectio
 }
 
 func decodeCodecTypeHookFunc() mapstructure.DecodeHookFunc {
-	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
+	return func(_, t reflect.Type, data any) (any, error) {
 		if t != reflect.TypeOf(CodecType("")) {
 			return data, nil
 		}

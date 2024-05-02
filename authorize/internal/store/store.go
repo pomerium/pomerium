@@ -58,7 +58,7 @@ func (s *Store) UpdateSigningKey(signingKey *jose.JSONWebKey) {
 	s.write("/signing_key", signingKey)
 }
 
-func (s *Store) write(rawPath string, value interface{}) {
+func (s *Store) write(rawPath string, value any) {
 	ctx := context.TODO()
 	err := opastorage.Txn(ctx, s.Store, opastorage.WriteParams, func(txn opastorage.Transaction) error {
 		return s.writeTxn(txn, rawPath, value)
@@ -69,7 +69,7 @@ func (s *Store) write(rawPath string, value interface{}) {
 	}
 }
 
-func (s *Store) writeTxn(txn opastorage.Transaction, rawPath string, value interface{}) error {
+func (s *Store) writeTxn(txn opastorage.Transaction, rawPath string, value any) error {
 	p, ok := opastorage.ParsePath(rawPath)
 	if !ok {
 		return fmt.Errorf("invalid path")
@@ -157,9 +157,9 @@ func (s *Store) GetDataBrokerRecordOption() func(*rego.Rego) {
 	})
 }
 
-func toMap(msg proto.Message) map[string]interface{} {
+func toMap(msg proto.Message) map[string]any {
 	bs, _ := json.Marshal(msg)
-	var obj map[string]interface{}
+	var obj map[string]any
 	_ = json.Unmarshal(bs, &obj)
 	return obj
 }

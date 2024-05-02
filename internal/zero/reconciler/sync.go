@@ -217,10 +217,10 @@ func (c *service) syncBundleToDatabroker(ctx context.Context, key string, src io
 	err = databroker.NewReconciler(
 		fmt.Sprintf("bundle-%s", key),
 		c.config.databrokerClient,
-		func(ctx context.Context) (databroker.RecordSetBundle, error) {
+		func(_ context.Context) (databroker.RecordSetBundle, error) {
 			return databrokerRecords, nil
 		},
-		func(ctx context.Context) (databroker.RecordSetBundle, error) {
+		func(_ context.Context) (databroker.RecordSetBundle, error) {
 			return bundleRecords, nil
 		},
 		func(_ []*databroker.Record) {},

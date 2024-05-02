@@ -162,13 +162,13 @@ func Log(_ context.Context) *zerolog.Event {
 
 // Print sends a log event using debug level and no extra field.
 // Arguments are handled in the manner of fmt.Print.
-func Print(v ...interface{}) {
+func Print(v ...any) {
 	Logger().Print(v...)
 }
 
 // Printf sends a log event using debug level and no extra field.
 // Arguments are handled in the manner of fmt.Printf.
-func Printf(format string, v ...interface{}) {
+func Printf(format string, v ...any) {
 	Logger().Printf(format, v...)
 }
 

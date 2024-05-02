@@ -24,7 +24,7 @@ import (
 )
 
 func decodeNullBoolHookFunc() mapstructure.DecodeHookFunc {
-	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
+	return func(_, t reflect.Type, data any) (any, error) {
 		if t != reflect.TypeOf(null.Bool{}) {
 			return data, nil
 		}
@@ -57,7 +57,7 @@ func NewJWTClaimHeaders(claims ...string) JWTClaimHeaders {
 
 // UnmarshalJSON unmarshals JSON data into the JWTClaimHeaders.
 func (hdrs *JWTClaimHeaders) UnmarshalJSON(data []byte) error {
-	var m map[string]interface{}
+	var m map[string]any
 	if json.Unmarshal(data, &m) == nil {
 		*hdrs = make(map[string]string)
 		for k, v := range m {
@@ -67,7 +67,7 @@ func (hdrs *JWTClaimHeaders) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	var a []interface{}
+	var a []any
 	if json.Unmarshal(data, &a) == nil {
 		var vs []string
 		for _, v := range a {
@@ -89,8 +89,8 @@ func (hdrs *JWTClaimHeaders) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalYAML uses UnmarshalJSON to unmarshal YAML data into the JWTClaimHeaders.
-func (hdrs *JWTClaimHeaders) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var i interface{}
+func (hdrs *JWTClaimHeaders) UnmarshalYAML(unmarshal func(any) error) error {
+	var i any
 	err := unmarshal(&i)
 	if err != nil {
 		return err
@@ -110,7 +110,7 @@ func (hdrs *JWTClaimHeaders) UnmarshalYAML(unmarshal func(interface{}) error) er
 }
 
 func decodeJWTClaimHeadersHookFunc() mapstructure.DecodeHookFunc {
-	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
+	return func(_, t reflect.Type, data any) (any, error) {
 		if t != reflect.TypeOf(JWTClaimHeaders{}) {
 			return data, nil
 		}
@@ -198,8 +198,8 @@ func (slc *StringSlice) UnmarshalJSON(data []byte) error {
 
 // UnmarshalYAML unmarshals a YAML document into the string slice. UnmarshalJSON is
 // reused as the actual implementation.
-func (slc *StringSlice) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var i interface{}
+func (slc *StringSlice) UnmarshalYAML(unmarshal func(any) error) error {
+	var i any
 	err := unmarshal(&i)
 	if err != nil {
 		return err
@@ -350,8 +350,8 @@ func (ppl *PPLPolicy) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalYAML parses YAML into a PPL policy.
-func (ppl *PPLPolicy) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var i interface{}
+func (ppl *PPLPolicy) UnmarshalYAML(unmarshal func(any) error) error {
+	var i any
 	err := unmarshal(&i)
 	if err != nil {
 		return err
@@ -364,7 +364,7 @@ func (ppl *PPLPolicy) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func decodePPLPolicyHookFunc() mapstructure.DecodeHookFunc {
-	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
+	return func(_, t reflect.Type, data any) (any, error) {
 		if t != reflect.TypeOf(&PPLPolicy{}) {
 			return data, nil
 		}
@@ -383,7 +383,7 @@ func decodePPLPolicyHookFunc() mapstructure.DecodeHookFunc {
 
 // DecodePolicyBase64Hook returns a mapstructure decode hook for base64 data.
 func DecodePolicyBase64Hook() mapstructure.DecodeHookFunc {
-	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
+	return func(_, t reflect.Type, data any) (any, error) {
 		if t != reflect.TypeOf([]Policy{}) {
 			return data, nil
 		}
@@ -402,7 +402,7 @@ func DecodePolicyBase64Hook() mapstructure.DecodeHookFunc {
 			return nil, fmt.Errorf("base64 decoding policy data: %w", err)
 		}
 
-		var out []map[interface{}]interface{}
+		var out []map[any]any
 		if err = yaml.Unmarshal(bytes, &out); err != nil {
 			return nil, fmt.Errorf("parsing base64-encoded policy data as yaml: %w", err)
 		}
@@ -413,7 +413,7 @@ func DecodePolicyBase64Hook() mapstructure.DecodeHookFunc {
 
 // DecodePolicyHookFunc returns a Decode Hook for mapstructure.
 func DecodePolicyHookFunc() mapstructure.DecodeHookFunc {
-	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
+	return func(_, t reflect.Type, data any) (any, error) {
 		if t != reflect.TypeOf(Policy{}) {
 			return data, nil
 		}
@@ -424,7 +424,7 @@ func DecodePolicyHookFunc() mapstructure.DecodeHookFunc {
 		if err != nil {
 			return nil, err
 		}
-		ms, ok := mp.(map[string]interface{})
+		ms, ok := mp.(map[string]any)
 		if !ok {
 			return nil, errKeysMustBeStrings
 		}
@@ -433,8 +433,8 @@ func DecodePolicyHookFunc() mapstructure.DecodeHookFunc {
 	}
 }
 
-func parsePolicy(src map[string]interface{}) (out map[string]interface{}, err error) {
-	out = make(map[string]interface{}, len(src))
+func parsePolicy(src map[string]any) (out map[string]any, err error) {
+	out = make(map[string]any, len(src))
 	for k, v := range src {
 		if k == toKey {
 			if v, err = parseTo(v); err != nil {
@@ -453,7 +453,7 @@ func parsePolicy(src map[string]interface{}) (out map[string]interface{}, err er
 	return out, nil
 }
 
-func parseTo(raw interface{}) ([]WeightedURL, error) {
+func parseTo(raw any) ([]WeightedURL, error) {
 	rawBS, err := json.Marshal(raw)
 	if err != nil {
 		return nil, err
@@ -488,7 +488,7 @@ func weightedString(str string) (string, uint32, error) {
 
 // parseEnvoyClusterOpts parses src as envoy cluster spec https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/cluster/v3/cluster.proto
 // on top of some pre-filled default values
-func parseEnvoyClusterOpts(src map[string]interface{}) (*envoy_config_cluster_v3.Cluster, error) {
+func parseEnvoyClusterOpts(src map[string]any) (*envoy_config_cluster_v3.Cluster, error) {
 	c := new(envoy_config_cluster_v3.Cluster)
 	if err := parseJSONPB(src, c, protoPartial); err != nil {
 		return nil, err
@@ -499,7 +499,7 @@ func parseEnvoyClusterOpts(src map[string]interface{}) (*envoy_config_cluster_v3
 
 // parseJSONPB takes an intermediate representation and parses it using protobuf parser
 // that correctly handles oneof and other data types
-func parseJSONPB(src map[string]interface{}, dst proto.Message, opts protojson.UnmarshalOptions) error {
+func parseJSONPB(src map[string]any, dst proto.Message, opts protojson.UnmarshalOptions) error {
 	data, err := json.Marshal(src)
 	if err != nil {
 		return err
@@ -510,7 +510,7 @@ func parseJSONPB(src map[string]interface{}, dst proto.Message, opts protojson.U
 
 // decodeSANMatcherHookFunc returns a decode hook for the SANMatcher type.
 func decodeSANMatcherHookFunc() mapstructure.DecodeHookFunc {
-	return func(f, t reflect.Type, data interface{}) (interface{}, error) {
+	return func(_, t reflect.Type, data any) (any, error) {
 		if t != reflect.TypeOf(SANMatcher{}) {
 			return data, nil
 		}
@@ -543,11 +543,11 @@ func decodeStringToMapHookFunc() mapstructure.DecodeHookFunc {
 	})
 }
 
-// serializable converts mapstructure nested map into map[string]interface{} that is serializable to JSON
-func serializable(in interface{}) (interface{}, error) {
+// serializable converts mapstructure nested map into map[string]any that is serializable to JSON
+func serializable(in any) (any, error) {
 	switch typed := in.(type) {
-	case map[interface{}]interface{}:
-		m := make(map[string]interface{})
+	case map[any]any:
+		m := make(map[string]any)
 		for k, v := range typed {
 			kstr, ok := k.(string)
 			if !ok {
@@ -560,8 +560,8 @@ func serializable(in interface{}) (interface{}, error) {
 			m[kstr] = val
 		}
 		return m, nil
-	case []interface{}:
-		out := make([]interface{}, 0, len(typed))
+	case []any:
+		out := make([]any, 0, len(typed))
 		for _, elem := range typed {
 			val, err := serializable(elem)
 			if err != nil {

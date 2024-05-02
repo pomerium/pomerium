@@ -396,7 +396,7 @@ func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *Stat
 		return err
 	}
 
-	m := map[string]interface{}{
+	m := map[string]any{
 		"creationOptions": creationOptions,
 		"requestOptions":  requestOptions,
 		"selfUrl":         r.URL.String(),

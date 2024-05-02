@@ -64,7 +64,7 @@ func TestAutocertOptions_Validate(t *testing.T) {
 		cleanup func()
 	}
 	tests := map[string]func(t *testing.T) test{
-		"ok/custom-ca": func(t *testing.T) test {
+		"ok/custom-ca": func(_ *testing.T) test {
 			return test{
 				fields: fields{
 					CA: "test-ca.example.com/directory",
@@ -72,7 +72,7 @@ func TestAutocertOptions_Validate(t *testing.T) {
 				wantErr: false,
 			}
 		},
-		"ok/eab": func(t *testing.T) test {
+		"ok/eab": func(_ *testing.T) test {
 			return test{
 				fields: fields{
 					EABKeyID:  "keyID",
@@ -81,7 +81,7 @@ func TestAutocertOptions_Validate(t *testing.T) {
 				wantErr: false,
 			}
 		},
-		"ok/trusted-ca": func(t *testing.T) test {
+		"ok/trusted-ca": func(_ *testing.T) test {
 			return test{
 				fields: fields{
 					TrustedCA: base64.StdEncoding.EncodeToString(certPEM),
@@ -103,7 +103,7 @@ func TestAutocertOptions_Validate(t *testing.T) {
 				cleanup: func() { os.Remove(f.Name()) },
 			}
 		},
-		"fail/missing-eab-key": func(t *testing.T) test {
+		"fail/missing-eab-key": func(_ *testing.T) test {
 			return test{
 				fields: fields{
 					EABKeyID: "keyID",
@@ -111,7 +111,7 @@ func TestAutocertOptions_Validate(t *testing.T) {
 				wantErr: true,
 			}
 		},
-		"fail/missing-eab-key-id": func(t *testing.T) test {
+		"fail/missing-eab-key-id": func(_ *testing.T) test {
 			return test{
 				fields: fields{
 					EABMACKey: "29D7t6-mOuEV5vvBRX0UYF5T7x6fomidhM1kMJco-yw",
@@ -119,7 +119,7 @@ func TestAutocertOptions_Validate(t *testing.T) {
 				wantErr: true,
 			}
 		},
-		"fail/invalid-mac-key": func(t *testing.T) test {
+		"fail/invalid-mac-key": func(_ *testing.T) test {
 			return test{
 				fields: fields{
 					EABMACKey: ">invalid-base64-url-encoded-mac-key<",
@@ -142,7 +142,7 @@ func TestAutocertOptions_Validate(t *testing.T) {
 				cleanup: func() { os.Remove(f.Name()) },
 			}
 		},
-		"fail/trusted-ca-invalid-base64-pem": func(t *testing.T) test {
+		"fail/trusted-ca-invalid-base64-pem": func(_ *testing.T) test {
 			return test{
 				fields: fields{
 					TrustedCA: ">invalid-base-64-data<",
@@ -150,7 +150,7 @@ func TestAutocertOptions_Validate(t *testing.T) {
 				wantErr: true,
 			}
 		},
-		"fail/trusted-ca-missing-file": func(t *testing.T) test {
+		"fail/trusted-ca-missing-file": func(_ *testing.T) test {
 			return test{
 				fields: fields{
 					TrustedCAFile: "some-non-existing-file",

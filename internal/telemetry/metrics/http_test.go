@@ -44,7 +44,7 @@ func testDataRetrieval(v *view.View, t *testing.T, want string) {
 
 func newTestMux() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/good", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/good", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintf(w, "Hello")
 	})
 
@@ -123,7 +123,7 @@ func newTestTransport() http.RoundTripper {
 }
 
 func newFailingTestTransport() http.RoundTripper {
-	return tripper.RoundTripperFunc(func(r *http.Request) (*http.Response, error) {
+	return tripper.RoundTripperFunc(func(_ *http.Request) (*http.Response, error) {
 		return nil, errors.New("failure")
 	})
 }
