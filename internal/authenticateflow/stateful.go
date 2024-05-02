@@ -196,16 +196,15 @@ func (s *Stateful) PersistSession(
 	sess.SetRawIDToken(claims.RawIDToken)
 	sess.AddClaims(claims.Flatten())
 
-	var managerUser manager.User
-	managerUser.User, _ = user.Get(ctx, s.dataBrokerClient, sess.GetUserId())
-	if managerUser.User == nil {
+	u, _ := user.Get(ctx, s.dataBrokerClient, sess.GetUserId())
+	if u == nil {
 		// if no user exists yet, create a new one
-		managerUser.User = &user.User{
+		u = &user.User{
 			Id: sess.GetUserId(),
 		}
 	}
-	populateUserFromClaims(managerUser.User, claims.Claims)
-	_, err := databroker.Put(ctx, s.dataBrokerClient, managerUser.User)
+	populateUserFromClaims(u, claims.Claims)
+	_, err := databroker.Put(ctx, s.dataBrokerClient, u)
 	if err != nil {
 		return fmt.Errorf("authenticate: error saving user: %w", err)
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/identity"
+	"github.com/pomerium/pomerium/internal/identity/legacymanager"
 	"github.com/pomerium/pomerium/internal/identity/manager"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -34,6 +35,7 @@ import (
 type DataBroker struct {
 	dataBrokerServer *dataBrokerServer
 	manager          *manager.Manager
+	legacyManager    *legacymanager.Manager
 	eventsMgr        *events.Manager
 
 	localListener       net.Listener
@@ -158,6 +160,12 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 	options := []manager.Option{
 		manager.WithDataBrokerClient(dataBrokerClient),
 		manager.WithEventManager(c.eventsMgr),
+		manager.WithEnabled(!cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagLegacyIdentityManager)),
+	}
+	legacyOptions := []legacymanager.Option{
+		legacymanager.WithDataBrokerClient(dataBrokerClient),
+		legacymanager.WithEventManager(c.eventsMgr),
+		legacymanager.WithEnabled(cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagLegacyIdentityManager)),
 	}
 
 	if cfg.Options.SupportsUserRefresh() {
@@ -166,6 +174,7 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 			log.Error(ctx).Err(err).Msg("databroker: failed to create authenticator")
 		} else {
 			options = append(options, manager.WithAuthenticator(authenticator))
+			legacyOptions = append(legacyOptions, legacymanager.WithAuthenticator(authenticator))
 		}
 	} else {
 		log.Info(ctx).Msg("databroker: disabling refresh of user sessions")
@@ -175,6 +184,12 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 		c.manager = manager.New(options...)
 	} else {
 		c.manager.UpdateConfig(options...)
+	}
+
+	if c.legacyManager == nil {
+		c.legacyManager = legacymanager.New(legacyOptions...)
+	} else {
+		c.legacyManager.UpdateConfig(legacyOptions...)
 	}
 
 	return nil

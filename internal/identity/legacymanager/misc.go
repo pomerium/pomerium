@@ -1,14 +1,28 @@
-package manager
+package legacymanager
 
 import (
-	"context"
-	"errors"
+	"strings"
 
 	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
+
+func toSessionSchedulerKey(userID, sessionID string) string {
+	return userID + "\037" + sessionID
+}
+
+func fromSessionSchedulerKey(key string) (userID, sessionID string) {
+	idx := strings.Index(key, "\037")
+	if idx >= 0 {
+		userID = key[:idx]
+		sessionID = key[idx+1:]
+	} else {
+		userID = key
+	}
+	return userID, sessionID
+}
 
 // FromOAuthToken converts a session oauth token to oauth2.Token.
 func FromOAuthToken(token *session.OAuthToken) *oauth2.Token {
@@ -29,18 +43,4 @@ func ToOAuthToken(token *oauth2.Token) *session.OAuthToken {
 		RefreshToken: token.RefreshToken,
 		ExpiresAt:    expiry,
 	}
-}
-
-func isTemporaryError(err error) bool {
-	if err == nil {
-		return false
-	}
-	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-		return true
-	}
-	var hasTemporary interface{ Temporary() bool }
-	if errors.As(err, &hasTemporary) && hasTemporary.Temporary() {
-		return true
-	}
-	return false
 }
