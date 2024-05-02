@@ -400,7 +400,9 @@ func (mgr *Manager) updateSession(ctx context.Context, s *session.Session) {
 	mgr.mu.Unlock()
 }
 
-// updateUser updates the user in the databroker, the local data store, and resets the scheduler
+// updateUser updates the user in the databroker, the local data store, and resets the scheduler.
+// (Whenever we refresh a session, we also refresh the user info. By resetting the user info 
+// scheduler here we can avoid refreshing user info more often than necessary.)
 func (mgr *Manager) updateUser(ctx context.Context, u *user.User) {
 	log.Ctx(ctx).Debug().
 		Str("user_id", u.GetId()).
