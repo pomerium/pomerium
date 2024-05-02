@@ -14,8 +14,8 @@ type SignOutConfirmData struct {
 }
 
 // ToJSON converts the data into a JSON map.
-func (data SignOutConfirmData) ToJSON() map[string]interface{} {
-	m := map[string]interface{}{
+func (data SignOutConfirmData) ToJSON() map[string]any {
+	m := map[string]any{
 		"url": data.URL,
 	}
 	httputil.AddBrandingOptionsToMap(m, data.BrandingOptions)

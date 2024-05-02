@@ -26,11 +26,11 @@ func TestLuaCleanUpstream(t *testing.T) {
 		"x-pomerium-authorization": "JWT",
 		"cookie":                   "cookieA=aaa_pomerium=123; cookieb=bbb; _pomerium=ey;_pomerium_test1=stillhere ; _pomerium_test2=stillhere",
 	}
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"remove_pomerium_authorization": true,
 		"remove_pomerium_cookie":        "_pomerium",
 	}
-	dynamicMetadata := map[string]map[string]interface{}{}
+	dynamicMetadata := map[string]map[string]any{}
 	handle := newLuaResponseHandle(L, headers, metadata, dynamicMetadata)
 
 	err = L.CallByParam(lua.P{
@@ -59,14 +59,14 @@ func TestLuaRewriteHeaders(t *testing.T) {
 	headers := map[string]string{
 		"Location": "https://domain-with-dashes:8080/two/some/uri/",
 	}
-	metadata := map[string]interface{}{
-		"rewrite_response_headers": []interface{}{
-			map[string]interface{}{
+	metadata := map[string]any{
+		"rewrite_response_headers": []any{
+			map[string]any{
 				"header": "Location",
 				"prefix": "https://domain-with-dashes:8080/two/",
 				"value":  "https://frontend/one/",
 			},
-			map[string]interface{}{
+			map[string]any{
 				"header": "SomeOtherHeader",
 				"prefix": "x",
 				"value":  "y",
@@ -87,8 +87,8 @@ func TestLuaRewriteHeaders(t *testing.T) {
 
 func newLuaResponseHandle(L *lua.LState,
 	headers map[string]string,
-	metadata map[string]interface{},
-	dynamicMetadata map[string]map[string]interface{},
+	metadata map[string]any,
+	dynamicMetadata map[string]map[string]any,
 ) lua.LValue {
 	return newLuaType(L, map[string]lua.LGFunction{
 		"headers": func(L *lua.LState) int {
@@ -145,7 +145,7 @@ func newLuaHeaders(L *lua.LState, headers map[string]string) lua.LValue {
 	return tbl
 }
 
-func newLuaMetadata(L *lua.LState, metadata map[string]interface{}) lua.LValue {
+func newLuaMetadata(L *lua.LState, metadata map[string]any) lua.LValue {
 	return newLuaType(L, map[string]lua.LGFunction{
 		"get": func(L *lua.LState) int {
 			_ = L.CheckTable(1)
@@ -163,7 +163,7 @@ func newLuaMetadata(L *lua.LState, metadata map[string]interface{}) lua.LValue {
 	})
 }
 
-func newLuaDynamicMetadata(L *lua.LState, metadata map[string]map[string]interface{}) lua.LValue {
+func newLuaDynamicMetadata(L *lua.LState, metadata map[string]map[string]any) lua.LValue {
 	return newLuaType(L, map[string]lua.LGFunction{
 		"get": func(L *lua.LState) int {
 			_ = L.CheckTable(1)
@@ -186,7 +186,7 @@ func newLuaDynamicMetadata(L *lua.LState, metadata map[string]map[string]interfa
 
 			m, ok := metadata[filterName]
 			if !ok {
-				m = make(map[string]interface{})
+				m = make(map[string]any)
 				metadata[filterName] = m
 			}
 			m[key] = fromLua(L, value)
@@ -196,7 +196,7 @@ func newLuaDynamicMetadata(L *lua.LState, metadata map[string]map[string]interfa
 	})
 }
 
-func newLuaStreamInfo(L *lua.LState, dynamicMetadata map[string]map[string]interface{}) lua.LValue {
+func newLuaStreamInfo(L *lua.LState, dynamicMetadata map[string]map[string]any) lua.LValue {
 	return newLuaType(L, map[string]lua.LGFunction{
 		"dynamicMetadata": func(L *lua.LState) int {
 			L.Push(newLuaDynamicMetadata(L, dynamicMetadata))
@@ -215,7 +215,7 @@ func newLuaType(L *lua.LState, funcs map[string]lua.LGFunction) lua.LValue {
 	return tbl
 }
 
-func fromLua(L *lua.LState, v lua.LValue) interface{} {
+func fromLua(L *lua.LState, v lua.LValue) any {
 	switch v.Type() {
 	case lua.LTNil:
 		return nil
@@ -226,8 +226,8 @@ func fromLua(L *lua.LState, v lua.LValue) interface{} {
 	case lua.LTString:
 		return string(v.(lua.LString))
 	case lua.LTTable:
-		a := []interface{}{}
-		m := map[string]interface{}{}
+		a := []any{}
+		m := map[string]any{}
 		v.(*lua.LTable).ForEach(func(key, value lua.LValue) {
 			if key.Type() == lua.LTNumber {
 				a = append(a, fromLua(L, value))
@@ -244,9 +244,9 @@ func fromLua(L *lua.LState, v lua.LValue) interface{} {
 	}
 }
 
-func toLua(L *lua.LState, obj interface{}) lua.LValue {
+func toLua(L *lua.LState, obj any) lua.LValue {
 	// send the object through JSON to remove custom types
-	var normalized interface{}
+	var normalized any
 	bs, err := json.Marshal(obj)
 	if err != nil {
 		panic(err)
@@ -261,13 +261,13 @@ func toLua(L *lua.LState, obj interface{}) lua.LValue {
 	}
 
 	switch t := normalized.(type) {
-	case []interface{}:
+	case []any:
 		tbl := L.NewTable()
 		for _, v := range t {
 			tbl.Append(toLua(L, v))
 		}
 		return tbl
-	case map[string]interface{}:
+	case map[string]any:
 		tbl := L.NewTable()
 		for k, v := range t {
 			L.SetField(tbl, k, toLua(L, v))

@@ -67,7 +67,7 @@ func TestAuthorization(t *testing.T) {
 	}
 }
 
-func assertDeniedAccess(t *testing.T, res *http.Response, msgAndArgs ...interface{}) bool {
+func assertDeniedAccess(t *testing.T, res *http.Response, msgAndArgs ...any) bool {
 	return assert.Condition(t, func() bool {
 		return res.StatusCode == http.StatusForbidden || res.StatusCode == http.StatusUnauthorized
 	}, msgAndArgs...)

@@ -328,7 +328,7 @@ func file_user_proto_rawDescGZIP() []byte {
 }
 
 var file_user_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_user_proto_goTypes = []interface{}{
+var file_user_proto_goTypes = []any{
 	(*Claim)(nil),                 // 0: user.Claim
 	(*User)(nil),                  // 1: user.User
 	(*ServiceAccount)(nil),        // 2: user.ServiceAccount
@@ -355,7 +355,7 @@ func file_user_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_user_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_user_proto_msgTypes[0].Exporter = func(v any, i int) any {
 			switch v := v.(*Claim); i {
 			case 0:
 				return &v.state
@@ -367,7 +367,7 @@ func file_user_proto_init() {
 				return nil
 			}
 		}
-		file_user_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+		file_user_proto_msgTypes[1].Exporter = func(v any, i int) any {
 			switch v := v.(*User); i {
 			case 0:
 				return &v.state
@@ -379,7 +379,7 @@ func file_user_proto_init() {
 				return nil
 			}
 		}
-		file_user_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+		file_user_proto_msgTypes[2].Exporter = func(v any, i int) any {
 			switch v := v.(*ServiceAccount); i {
 			case 0:
 				return &v.state
@@ -392,7 +392,7 @@ func file_user_proto_init() {
 			}
 		}
 	}
-	file_user_proto_msgTypes[2].OneofWrappers = []interface{}{}
+	file_user_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

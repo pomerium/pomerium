@@ -1112,7 +1112,7 @@ func file_device_proto_rawDescGZIP() []byte {
 
 var file_device_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
 var file_device_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
-var file_device_proto_goTypes = []interface{}{
+var file_device_proto_goTypes = []any{
 	(WebAuthnOptions_AttestationConveyancePreference)(0),   // 0: pomerium.device.WebAuthnOptions.AttestationConveyancePreference
 	(WebAuthnOptions_AuthenticatorAttachment)(0),           // 1: pomerium.device.WebAuthnOptions.AuthenticatorAttachment
 	(WebAuthnOptions_PublicKeyCredentialType)(0),           // 2: pomerium.device.WebAuthnOptions.PublicKeyCredentialType
@@ -1154,7 +1154,7 @@ func file_device_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_device_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_device_proto_msgTypes[0].Exporter = func(v any, i int) any {
 			switch v := v.(*WebAuthnOptions); i {
 			case 0:
 				return &v.state
@@ -1166,7 +1166,7 @@ func file_device_proto_init() {
 				return nil
 			}
 		}
-		file_device_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+		file_device_proto_msgTypes[1].Exporter = func(v any, i int) any {
 			switch v := v.(*Type); i {
 			case 0:
 				return &v.state
@@ -1178,7 +1178,7 @@ func file_device_proto_init() {
 				return nil
 			}
 		}
-		file_device_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+		file_device_proto_msgTypes[2].Exporter = func(v any, i int) any {
 			switch v := v.(*Enrollment); i {
 			case 0:
 				return &v.state
@@ -1190,7 +1190,7 @@ func file_device_proto_init() {
 				return nil
 			}
 		}
-		file_device_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+		file_device_proto_msgTypes[3].Exporter = func(v any, i int) any {
 			switch v := v.(*Credential); i {
 			case 0:
 				return &v.state
@@ -1202,7 +1202,7 @@ func file_device_proto_init() {
 				return nil
 			}
 		}
-		file_device_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+		file_device_proto_msgTypes[4].Exporter = func(v any, i int) any {
 			switch v := v.(*OwnerCredentialRecord); i {
 			case 0:
 				return &v.state
@@ -1214,7 +1214,7 @@ func file_device_proto_init() {
 				return nil
 			}
 		}
-		file_device_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+		file_device_proto_msgTypes[5].Exporter = func(v any, i int) any {
 			switch v := v.(*WebAuthnOptions_AuthenticatorSelectionCriteria); i {
 			case 0:
 				return &v.state
@@ -1226,7 +1226,7 @@ func file_device_proto_init() {
 				return nil
 			}
 		}
-		file_device_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+		file_device_proto_msgTypes[6].Exporter = func(v any, i int) any {
 			switch v := v.(*WebAuthnOptions_PublicKeyCredentialParameters); i {
 			case 0:
 				return &v.state
@@ -1238,7 +1238,7 @@ func file_device_proto_init() {
 				return nil
 			}
 		}
-		file_device_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+		file_device_proto_msgTypes[7].Exporter = func(v any, i int) any {
 			switch v := v.(*Type_WebAuthn); i {
 			case 0:
 				return &v.state
@@ -1250,7 +1250,7 @@ func file_device_proto_init() {
 				return nil
 			}
 		}
-		file_device_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+		file_device_proto_msgTypes[8].Exporter = func(v any, i int) any {
 			switch v := v.(*Credential_WebAuthn); i {
 			case 0:
 				return &v.state
@@ -1263,14 +1263,14 @@ func file_device_proto_init() {
 			}
 		}
 	}
-	file_device_proto_msgTypes[0].OneofWrappers = []interface{}{}
-	file_device_proto_msgTypes[1].OneofWrappers = []interface{}{
+	file_device_proto_msgTypes[0].OneofWrappers = []any{}
+	file_device_proto_msgTypes[1].OneofWrappers = []any{
 		(*Type_Webauthn)(nil),
 	}
-	file_device_proto_msgTypes[3].OneofWrappers = []interface{}{
+	file_device_proto_msgTypes[3].OneofWrappers = []any{
 		(*Credential_Webauthn)(nil),
 	}
-	file_device_proto_msgTypes[5].OneofWrappers = []interface{}{}
+	file_device_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

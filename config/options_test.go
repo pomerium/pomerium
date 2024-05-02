@@ -205,7 +205,7 @@ func Test_parseHeaders(t *testing.T) {
 		name         string
 		want         map[string]string
 		envHeaders   string
-		viperHeaders interface{}
+		viperHeaders any
 		wantErr      bool
 	}{
 		{
@@ -513,7 +513,7 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 	}
 
 	tests := map[string]func(t *testing.T) test{
-		"ok/simple": func(t *testing.T) test {
+		"ok/simple": func(_ *testing.T) test {
 			envs := map[string]string{
 				"AUTOCERT":             "true",
 				"AUTOCERT_DIR":         "/test",

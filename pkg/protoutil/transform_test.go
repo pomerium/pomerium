@@ -75,7 +75,7 @@ func TestTransform(t *testing.T) {
 			},
 		},
 	}
-	transformed, err := Transform(original, func(fd protoreflect.FieldDescriptor, v protoreflect.Value) (protoreflect.Value, error) {
+	transformed, err := Transform(original, func(_ protoreflect.FieldDescriptor, v protoreflect.Value) (protoreflect.Value, error) {
 		switch vv := v.Interface().(type) {
 		case []byte:
 			return protoreflect.ValueOfBytes(append([]byte("TRANSFORM_"), vv...)), nil

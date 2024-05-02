@@ -7,7 +7,7 @@ import (
 	"go.opencensus.io/metric/metricdata"
 )
 
-func testMetricRetrieval(metrics []*metricdata.Metric, t *testing.T, labels []metricdata.LabelValue, value interface{}, name string) {
+func testMetricRetrieval(metrics []*metricdata.Metric, t *testing.T, labels []metricdata.LabelValue, value any, name string) {
 	t.Helper()
 
 	switch value.(type) {

@@ -69,7 +69,7 @@ func GetCertMagicStorage(ctx context.Context, dst string) (certmagic.Storage, er
 			prefix = strings.TrimPrefix(match[3][1:], "/")
 			options = append(options,
 				config.WithRegion("us-east-1"),
-				config.WithEndpointResolver(aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+				config.WithEndpointResolver(aws.EndpointResolverFunc(func(_, _ string) (aws.Endpoint, error) {
 					return aws.Endpoint{
 						PartitionID:       "aws",
 						URL:               "http://" + host,

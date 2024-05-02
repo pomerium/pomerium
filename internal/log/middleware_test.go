@@ -24,7 +24,7 @@ func TestNewHandler(t *testing.T) {
 		Str("foo", "bar").
 		Logger()
 	lh := NewHandler(func() *zerolog.Logger { return &log })
-	h := lh(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := lh(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		l := FromRequest(r)
 		if !reflect.DeepEqual(*l, log) {
 			t.Fail()
@@ -38,7 +38,7 @@ func TestRemoteAddrHandler(t *testing.T) {
 	r := &http.Request{
 		RemoteAddr: "1.2.3.4:1234",
 	}
-	h := RemoteAddrHandler("ip")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := RemoteAddrHandler("ip")(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		l := FromRequest(r)
 		l.Log().Msg("")
 	}))
@@ -55,7 +55,7 @@ func TestRemoteAddrHandlerIPv6(t *testing.T) {
 	r := &http.Request{
 		RemoteAddr: "[2001:db8:a0b:12f0::1]:1234",
 	}
-	h := RemoteAddrHandler("ip")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := RemoteAddrHandler("ip")(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		l := FromRequest(r)
 		l.Log().Msg("")
 	}))
@@ -74,7 +74,7 @@ func TestUserAgentHandler(t *testing.T) {
 			"User-Agent": []string{"some user agent string"},
 		},
 	}
-	h := UserAgentHandler("ua")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := UserAgentHandler("ua")(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		l := FromRequest(r)
 		l.Log().Msg("")
 	}))
@@ -93,7 +93,7 @@ func TestRefererHandler(t *testing.T) {
 			"Referer": []string{"http://foo.com/bar"},
 		},
 	}
-	h := RefererHandler("referer")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := RefererHandler("referer")(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		l := FromRequest(r)
 		l.Log().Msg("")
 	}))
@@ -112,7 +112,7 @@ func TestRequestIDHandler(t *testing.T) {
 			"X-Request-Id": []string{"1234"},
 		},
 	}
-	h := RequestIDHandler("request-id")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := RequestIDHandler("request-id")(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		requestID := requestid.FromContext(r.Context())
 		l := FromRequest(r)
 		l.Log().Msg("")
@@ -131,7 +131,7 @@ func BenchmarkDataRace(b *testing.B) {
 		Str("foo", "bar").
 		Logger()
 	lh := NewHandler(func() *zerolog.Logger { return &log })
-	h := lh(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := lh(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		l := FromRequest(r)
 		l.UpdateContext(func(c zerolog.Context) zerolog.Context {
 			return c.Str("bar", "baz")
@@ -153,7 +153,7 @@ func TestLogHeadersHandler(t *testing.T) {
 
 	r.Header.Set("X-Forwarded-For", "proxy1,proxy2,proxy3")
 
-	h := HeadersHandler([]string{"X-Forwarded-For"})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := HeadersHandler([]string{"X-Forwarded-For"})(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		l := FromRequest(r)
 		l.Log().Msg("")
 	}))
@@ -170,7 +170,7 @@ func TestAccessHandler(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 
-	h := AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
+	h := AccessHandler(func(r *http.Request, status, size int, _ time.Duration) {
 		l := FromRequest(r)
 		l.Log().Int("status", status).Int("size", size).Msg("info")
 	})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

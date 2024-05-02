@@ -87,7 +87,7 @@ func TestSyncer(t *testing.T) {
 			}
 			return nil
 		},
-		syncLatest: func(req *SyncLatestRequest, server DataBrokerService_SyncLatestServer) error {
+		syncLatest: func(_ *SyncLatestRequest, server DataBrokerService_SyncLatestServer) error {
 			syncLatestCount++
 			switch syncLatestCount {
 			case 1:
@@ -161,10 +161,10 @@ func TestSyncer(t *testing.T) {
 		getDataBrokerServiceClient: func() DataBrokerServiceClient {
 			return NewDataBrokerServiceClient(gc)
 		},
-		clearRecords: func(ctx context.Context) {
+		clearRecords: func(_ context.Context) {
 			clearCh <- struct{}{}
 		},
-		updateRecords: func(ctx context.Context, serverVersion uint64, records []*Record) {
+		updateRecords: func(_ context.Context, _ uint64, records []*Record) {
 			updateCh <- records
 		},
 	})

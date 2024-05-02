@@ -101,7 +101,7 @@ func (p *Parser) ParseJSON(r io.Reader) (*Policy, error) {
 
 // ParseYAML parses a raw YAML document into a policy.
 func (p *Parser) ParseYAML(r io.Reader) (*Policy, error) {
-	var obj interface{}
+	var obj any
 	err := yaml.NewDecoder(r).Decode(&obj)
 	if err != nil {
 		return nil, err

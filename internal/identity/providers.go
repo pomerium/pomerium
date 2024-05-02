@@ -30,7 +30,7 @@ type Authenticator interface {
 	Refresh(context.Context, *oauth2.Token, identity.State) (*oauth2.Token, error)
 	Revoke(context.Context, *oauth2.Token) error
 	Name() string
-	UpdateUserInfo(ctx context.Context, t *oauth2.Token, v interface{}) error
+	UpdateUserInfo(ctx context.Context, t *oauth2.Token, v any) error
 
 	SignIn(w http.ResponseWriter, r *http.Request, state string) error
 	SignOut(w http.ResponseWriter, r *http.Request, idTokenHint, authenticateSignedOutURL, redirectToURL string) error

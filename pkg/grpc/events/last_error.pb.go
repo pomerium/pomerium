@@ -118,7 +118,7 @@ func file_last_error_proto_rawDescGZIP() []byte {
 }
 
 var file_last_error_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_last_error_proto_goTypes = []interface{}{
+var file_last_error_proto_goTypes = []any{
 	(*LastError)(nil),             // 0: pomerium.events.LastError
 	(*timestamppb.Timestamp)(nil), // 1: google.protobuf.Timestamp
 }
@@ -137,7 +137,7 @@ func file_last_error_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_last_error_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_last_error_proto_msgTypes[0].Exporter = func(v any, i int) any {
 			switch v := v.(*LastError); i {
 			case 0:
 				return &v.state

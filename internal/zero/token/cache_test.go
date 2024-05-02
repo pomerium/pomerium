@@ -19,7 +19,7 @@ func TestCache(t *testing.T) {
 
 		var testToken *token.Token
 		var testError error
-		fetcher := func(ctx context.Context, refreshToken string) (*token.Token, error) {
+		fetcher := func(_ context.Context, _ string) (*token.Token, error) {
 			if testToken != nil {
 				token := *testToken
 				return &token, nil
@@ -54,7 +54,7 @@ func TestCache(t *testing.T) {
 	t.Run("token cannot fit minTTL", func(t *testing.T) {
 		t.Parallel()
 
-		fetcher := func(ctx context.Context, refreshToken string) (*token.Token, error) {
+		fetcher := func(_ context.Context, _ string) (*token.Token, error) {
 			return &token.Token{"ok-bearer", time.Now().Add(time.Minute)}, nil
 		}
 

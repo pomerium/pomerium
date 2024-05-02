@@ -55,7 +55,7 @@ func (mc *mergedCtx) Err() error {
 	return mc.doneCtx.Err()
 }
 
-func (mc *mergedCtx) Value(key interface{}) interface{} {
+func (mc *mergedCtx) Value(key any) any {
 	if value := mc.ctx1.Value(key); value != nil {
 		return value
 	}

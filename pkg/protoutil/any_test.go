@@ -9,7 +9,7 @@ import (
 func TestToAny(t *testing.T) {
 	testCases := []struct {
 		name   string
-		value  interface{}
+		value  any
 		expect string
 	}{
 		{"bool", true, `{
@@ -68,11 +68,11 @@ func TestToAny(t *testing.T) {
 			"@type": "type.googleapis.com/google.protobuf.UInt64Value",
 			"value": "1"
 		}`},
-		{"[]interface{}", []interface{}{1, 2, 3, 4}, `{
+		{"[]any", []any{1, 2, 3, 4}, `{
 			"@type": "type.googleapis.com/google.protobuf.Value",
 			"value": [1,2,3,4]
 		}`},
-		{"map[string]interface{}", map[string]interface{}{"k1": "v1", "k2": "v2"}, `{
+		{"map[string]any", map[string]any{"k1": "v1", "k2": "v2"}, `{
 			"@type": "type.googleapis.com/google.protobuf.Value",
 			"value": {"k1": "v1", "k2": "v2"}
 		}`},

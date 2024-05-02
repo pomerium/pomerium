@@ -136,7 +136,7 @@ func (cs *Store) LoadSession(r *http.Request) (string, error) {
 }
 
 // SaveSession saves a session state to a request's cookie store.
-func (cs *Store) SaveSession(w http.ResponseWriter, _ *http.Request, x interface{}) error {
+func (cs *Store) SaveSession(w http.ResponseWriter, _ *http.Request, x any) error {
 	var value string
 	switch v := x.(type) {
 	case []byte:

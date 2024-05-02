@@ -1513,7 +1513,7 @@ func file_databroker_proto_rawDescGZIP() []byte {
 }
 
 var file_databroker_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
-var file_databroker_proto_goTypes = []interface{}{
+var file_databroker_proto_goTypes = []any{
 	(*Record)(nil),                // 0: databroker.Record
 	(*Versions)(nil),              // 1: databroker.Versions
 	(*Options)(nil),               // 2: databroker.Options
@@ -1597,7 +1597,7 @@ func file_databroker_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_databroker_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[0].Exporter = func(v any, i int) any {
 			switch v := v.(*Record); i {
 			case 0:
 				return &v.state
@@ -1609,7 +1609,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[1].Exporter = func(v any, i int) any {
 			switch v := v.(*Versions); i {
 			case 0:
 				return &v.state
@@ -1621,7 +1621,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[2].Exporter = func(v any, i int) any {
 			switch v := v.(*Options); i {
 			case 0:
 				return &v.state
@@ -1633,7 +1633,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[3].Exporter = func(v any, i int) any {
 			switch v := v.(*GetRequest); i {
 			case 0:
 				return &v.state
@@ -1645,7 +1645,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[4].Exporter = func(v any, i int) any {
 			switch v := v.(*GetResponse); i {
 			case 0:
 				return &v.state
@@ -1657,7 +1657,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[5].Exporter = func(v any, i int) any {
 			switch v := v.(*ListTypesResponse); i {
 			case 0:
 				return &v.state
@@ -1669,7 +1669,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[6].Exporter = func(v any, i int) any {
 			switch v := v.(*QueryRequest); i {
 			case 0:
 				return &v.state
@@ -1681,7 +1681,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[7].Exporter = func(v any, i int) any {
 			switch v := v.(*QueryResponse); i {
 			case 0:
 				return &v.state
@@ -1693,7 +1693,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[8].Exporter = func(v any, i int) any {
 			switch v := v.(*PutRequest); i {
 			case 0:
 				return &v.state
@@ -1705,7 +1705,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[9].Exporter = func(v any, i int) any {
 			switch v := v.(*PutResponse); i {
 			case 0:
 				return &v.state
@@ -1717,7 +1717,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[10].Exporter = func(v any, i int) any {
 			switch v := v.(*PatchRequest); i {
 			case 0:
 				return &v.state
@@ -1729,7 +1729,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[11].Exporter = func(v any, i int) any {
 			switch v := v.(*PatchResponse); i {
 			case 0:
 				return &v.state
@@ -1741,7 +1741,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[12].Exporter = func(v any, i int) any {
 			switch v := v.(*SetOptionsRequest); i {
 			case 0:
 				return &v.state
@@ -1753,7 +1753,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[13].Exporter = func(v any, i int) any {
 			switch v := v.(*SetOptionsResponse); i {
 			case 0:
 				return &v.state
@@ -1765,7 +1765,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[14].Exporter = func(v any, i int) any {
 			switch v := v.(*SyncRequest); i {
 			case 0:
 				return &v.state
@@ -1777,7 +1777,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[15].Exporter = func(v any, i int) any {
 			switch v := v.(*SyncResponse); i {
 			case 0:
 				return &v.state
@@ -1789,7 +1789,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[16].Exporter = func(v any, i int) any {
 			switch v := v.(*SyncLatestRequest); i {
 			case 0:
 				return &v.state
@@ -1801,7 +1801,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[17].Exporter = func(v any, i int) any {
 			switch v := v.(*SyncLatestResponse); i {
 			case 0:
 				return &v.state
@@ -1813,7 +1813,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[18].Exporter = func(v any, i int) any {
 			switch v := v.(*AcquireLeaseRequest); i {
 			case 0:
 				return &v.state
@@ -1825,7 +1825,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[19].Exporter = func(v any, i int) any {
 			switch v := v.(*AcquireLeaseResponse); i {
 			case 0:
 				return &v.state
@@ -1837,7 +1837,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[20].Exporter = func(v any, i int) any {
 			switch v := v.(*ReleaseLeaseRequest); i {
 			case 0:
 				return &v.state
@@ -1849,7 +1849,7 @@ func file_databroker_proto_init() {
 				return nil
 			}
 		}
-		file_databroker_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
+		file_databroker_proto_msgTypes[21].Exporter = func(v any, i int) any {
 			switch v := v.(*RenewLeaseRequest); i {
 			case 0:
 				return &v.state
@@ -1862,8 +1862,8 @@ func file_databroker_proto_init() {
 			}
 		}
 	}
-	file_databroker_proto_msgTypes[2].OneofWrappers = []interface{}{}
-	file_databroker_proto_msgTypes[17].OneofWrappers = []interface{}{
+	file_databroker_proto_msgTypes[2].OneofWrappers = []any{}
+	file_databroker_proto_msgTypes[17].OneofWrappers = []any{
 		(*SyncLatestResponse_Record)(nil),
 		(*SyncLatestResponse_Versions)(nil),
 	}
@@ -2144,7 +2144,7 @@ func RegisterDataBrokerServiceServer(s *grpc.Server, srv DataBrokerServiceServer
 	s.RegisterService(&_DataBrokerService_serviceDesc, srv)
 }
 
-func _DataBrokerService_AcquireLease_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _DataBrokerService_AcquireLease_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(AcquireLeaseRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2156,13 +2156,13 @@ func _DataBrokerService_AcquireLease_Handler(srv interface{}, ctx context.Contex
 		Server:     srv,
 		FullMethod: "/databroker.DataBrokerService/AcquireLease",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(DataBrokerServiceServer).AcquireLease(ctx, req.(*AcquireLeaseRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DataBrokerService_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _DataBrokerService_Get_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(GetRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2174,13 +2174,13 @@ func _DataBrokerService_Get_Handler(srv interface{}, ctx context.Context, dec fu
 		Server:     srv,
 		FullMethod: "/databroker.DataBrokerService/Get",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(DataBrokerServiceServer).Get(ctx, req.(*GetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DataBrokerService_ListTypes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _DataBrokerService_ListTypes_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2192,13 +2192,13 @@ func _DataBrokerService_ListTypes_Handler(srv interface{}, ctx context.Context, 
 		Server:     srv,
 		FullMethod: "/databroker.DataBrokerService/ListTypes",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(DataBrokerServiceServer).ListTypes(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DataBrokerService_Put_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _DataBrokerService_Put_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(PutRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2210,13 +2210,13 @@ func _DataBrokerService_Put_Handler(srv interface{}, ctx context.Context, dec fu
 		Server:     srv,
 		FullMethod: "/databroker.DataBrokerService/Put",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(DataBrokerServiceServer).Put(ctx, req.(*PutRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DataBrokerService_Patch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _DataBrokerService_Patch_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(PatchRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2228,13 +2228,13 @@ func _DataBrokerService_Patch_Handler(srv interface{}, ctx context.Context, dec 
 		Server:     srv,
 		FullMethod: "/databroker.DataBrokerService/Patch",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(DataBrokerServiceServer).Patch(ctx, req.(*PatchRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DataBrokerService_Query_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _DataBrokerService_Query_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(QueryRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2246,13 +2246,13 @@ func _DataBrokerService_Query_Handler(srv interface{}, ctx context.Context, dec 
 		Server:     srv,
 		FullMethod: "/databroker.DataBrokerService/Query",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(DataBrokerServiceServer).Query(ctx, req.(*QueryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DataBrokerService_ReleaseLease_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _DataBrokerService_ReleaseLease_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(ReleaseLeaseRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2264,13 +2264,13 @@ func _DataBrokerService_ReleaseLease_Handler(srv interface{}, ctx context.Contex
 		Server:     srv,
 		FullMethod: "/databroker.DataBrokerService/ReleaseLease",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(DataBrokerServiceServer).ReleaseLease(ctx, req.(*ReleaseLeaseRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DataBrokerService_RenewLease_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _DataBrokerService_RenewLease_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(RenewLeaseRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2282,13 +2282,13 @@ func _DataBrokerService_RenewLease_Handler(srv interface{}, ctx context.Context,
 		Server:     srv,
 		FullMethod: "/databroker.DataBrokerService/RenewLease",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(DataBrokerServiceServer).RenewLease(ctx, req.(*RenewLeaseRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DataBrokerService_SetOptions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _DataBrokerService_SetOptions_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(SetOptionsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -2300,13 +2300,13 @@ func _DataBrokerService_SetOptions_Handler(srv interface{}, ctx context.Context,
 		Server:     srv,
 		FullMethod: "/databroker.DataBrokerService/SetOptions",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(DataBrokerServiceServer).SetOptions(ctx, req.(*SetOptionsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DataBrokerService_Sync_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _DataBrokerService_Sync_Handler(srv any, stream grpc.ServerStream) error {
 	m := new(SyncRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
@@ -2327,7 +2327,7 @@ func (x *dataBrokerServiceSyncServer) Send(m *SyncResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func _DataBrokerService_SyncLatest_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _DataBrokerService_SyncLatest_Handler(srv any, stream grpc.ServerStream) error {
 	m := new(SyncLatestRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err

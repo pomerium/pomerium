@@ -225,7 +225,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			a := &Authenticate{
-				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
+				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ *config.Options, _ string) (identity.Authenticator, error) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{
@@ -280,7 +280,7 @@ func TestAuthenticate_SignOutDoesNotRequireSession(t *testing.T) {
 
 	sessionStore := &mstore.Store{LoadError: errors.New("no session")}
 	a := &Authenticate{
-		cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
+		cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ *config.Options, _ string) (identity.Authenticator, error) {
 			return identity.MockProvider{}, nil
 		})),
 		state: atomicutil.NewValue(&authenticateState{
@@ -355,7 +355,7 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			}
 			authURL, _ := url.Parse(tt.authenticateURL)
 			a := &Authenticate{
-				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
+				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ *config.Options, _ string) (identity.Authenticator, error) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{
@@ -401,7 +401,7 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 
 func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 	t.Parallel()
-	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	fn := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		fmt.Fprintln(w, "RVSI FILIVS CAISAR")
 		w.WriteHeader(http.StatusOK)
@@ -467,7 +467,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 				t.Fatal(err)
 			}
 			a := &Authenticate{
-				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(options *config.Options, idpID string) (identity.Authenticator, error) {
+				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ *config.Options, _ string) (identity.Authenticator, error) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{

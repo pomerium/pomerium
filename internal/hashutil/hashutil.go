@@ -11,7 +11,7 @@ import (
 // MustHash returns the xxhash of an arbitrary value or struct. Returns 0
 // on error.
 // NOT SUITABLE FOR CRYTOGRAPHIC HASHING.
-func MustHash(v interface{}) uint64 {
+func MustHash(v any) uint64 {
 	hash, err := Hash(v)
 	if err != nil {
 		hash = 0
@@ -21,7 +21,7 @@ func MustHash(v interface{}) uint64 {
 
 // Hash returns the xxhash of an arbitrary value or struct.
 // NOT SUITABLE FOR CRYTOGRAPHIC HASHING.
-func Hash(v interface{}) (uint64, error) {
+func Hash(v any) (uint64, error) {
 	opts := &hashstructure.HashOptions{
 		Hasher: xxhash.New(),
 	}

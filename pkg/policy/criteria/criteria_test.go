@@ -23,8 +23,8 @@ import (
 )
 
 type (
-	A = []interface{}
-	M = map[string]interface{}
+	A = []any
+	M = map[string]any
 )
 
 var testingNow = time.Date(2021, 5, 11, 13, 43, 0, 0, time.Local)
@@ -87,7 +87,7 @@ func makeRecord(object interface {
 	}
 }
 
-func makeStructRecord(recordType, recordID string, object interface{}) *databroker.Record {
+func makeStructRecord(recordType, recordID string, object any) *databroker.Record {
 	s := protoutil.ToStruct(object).GetStructValue()
 	return &databroker.Record{
 		Type:       recordType,
@@ -115,7 +115,7 @@ func evaluate(t *testing.T,
 			Decl: types.NewFunction([]types.Type{
 				types.S, types.S,
 			}, types.A),
-		}, func(bctx rego.BuiltinContext, op1, op2 *ast.Term) (*ast.Term, error) {
+		}, func(_ rego.BuiltinContext, op1, op2 *ast.Term) (*ast.Term, error) {
 			recordType, ok := op1.Value.(ast.String)
 			if !ok {
 				return nil, fmt.Errorf("invalid type for record_type: %T", op1)
@@ -159,7 +159,7 @@ func evaluate(t *testing.T,
 	if len(resultSet) == 0 {
 		return make(rego.Vars), nil
 	}
-	vars, ok := resultSet[0].Bindings["result"].(map[string]interface{})
+	vars, ok := resultSet[0].Bindings["result"].(map[string]any)
 	if !ok {
 		return make(rego.Vars), nil
 	}

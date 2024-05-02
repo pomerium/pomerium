@@ -92,7 +92,7 @@ func (su *SignedURL) Validate() error {
 
 // hmacURL takes a redirect url string and timestamp and returns the base64
 // encoded HMAC result.
-func hmacURL(key []byte, data ...interface{}) string {
+func hmacURL(key []byte, data ...any) string {
 	h := cryptutil.GenerateHMAC([]byte(fmt.Sprint(data...)), key)
 	return base64.URLEncoding.EncodeToString(h)
 }

@@ -206,7 +206,7 @@ func (m *RegisterRequest) validate(all bool) error {
 		_, _ = idx, item
 
 		if all {
-			switch v := interface{}(item).(type) {
+			switch v := any(item).(type) {
 			case interface{ ValidateAll() error }:
 				if err := v.ValidateAll(); err != nil {
 					errors = append(errors, RegisterRequestValidationError{
@@ -224,7 +224,7 @@ func (m *RegisterRequest) validate(all bool) error {
 					})
 				}
 			}
-		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+		} else if v, ok := any(item).(interface{ Validate() error }); ok {
 			if err := v.Validate(); err != nil {
 				return RegisterRequestValidationError{
 					field:  fmt.Sprintf("Services[%v]", idx),
@@ -251,7 +251,7 @@ func (m *RegisterRequest) validate(all bool) error {
 			// no validation rules for Metadata[key]
 
 			if all {
-				switch v := interface{}(val).(type) {
+				switch v := any(val).(type) {
 				case interface{ ValidateAll() error }:
 					if err := v.ValidateAll(); err != nil {
 						errors = append(errors, RegisterRequestValidationError{
@@ -269,7 +269,7 @@ func (m *RegisterRequest) validate(all bool) error {
 						})
 					}
 				}
-			} else if v, ok := interface{}(val).(interface{ Validate() error }); ok {
+			} else if v, ok := any(val).(interface{ Validate() error }); ok {
 				if err := v.Validate(); err != nil {
 					return RegisterRequestValidationError{
 						field:  fmt.Sprintf("Metadata[%v]", key),
@@ -383,7 +383,7 @@ func (m *RegisterResponse) validate(all bool) error {
 	var errors []error
 
 	if all {
-		switch v := interface{}(m.GetCallBackAfter()).(type) {
+		switch v := any(m.GetCallBackAfter()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
 				errors = append(errors, RegisterResponseValidationError{
@@ -401,7 +401,7 @@ func (m *RegisterResponse) validate(all bool) error {
 				})
 			}
 		}
-	} else if v, ok := interface{}(m.GetCallBackAfter()).(interface{ Validate() error }); ok {
+	} else if v, ok := any(m.GetCallBackAfter()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return RegisterResponseValidationError{
 				field:  "CallBackAfter",
@@ -611,7 +611,7 @@ func (m *ServiceRegistration) validate(all bool) error {
 	var errors []error
 
 	if all {
-		switch v := interface{}(m.GetService()).(type) {
+		switch v := any(m.GetService()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
 				errors = append(errors, ServiceRegistrationValidationError{
@@ -629,7 +629,7 @@ func (m *ServiceRegistration) validate(all bool) error {
 				})
 			}
 		}
-	} else if v, ok := interface{}(m.GetService()).(interface{ Validate() error }); ok {
+	} else if v, ok := any(m.GetService()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return ServiceRegistrationValidationError{
 				field:  "Service",
@@ -640,7 +640,7 @@ func (m *ServiceRegistration) validate(all bool) error {
 	}
 
 	if all {
-		switch v := interface{}(m.GetExpiresAt()).(type) {
+		switch v := any(m.GetExpiresAt()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
 				errors = append(errors, ServiceRegistrationValidationError{
@@ -658,7 +658,7 @@ func (m *ServiceRegistration) validate(all bool) error {
 				})
 			}
 		}
-	} else if v, ok := interface{}(m.GetExpiresAt()).(interface{ Validate() error }); ok {
+	} else if v, ok := any(m.GetExpiresAt()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return ServiceRegistrationValidationError{
 				field:  "ExpiresAt",
@@ -774,7 +774,7 @@ func (m *ServiceList) validate(all bool) error {
 		_, _ = idx, item
 
 		if all {
-			switch v := interface{}(item).(type) {
+			switch v := any(item).(type) {
 			case interface{ ValidateAll() error }:
 				if err := v.ValidateAll(); err != nil {
 					errors = append(errors, ServiceListValidationError{
@@ -792,7 +792,7 @@ func (m *ServiceList) validate(all bool) error {
 					})
 				}
 			}
-		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+		} else if v, ok := any(item).(interface{ Validate() error }); ok {
 			if err := v.Validate(); err != nil {
 				return ServiceListValidationError{
 					field:  fmt.Sprintf("Services[%v]", idx),

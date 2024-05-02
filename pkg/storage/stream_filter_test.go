@@ -12,7 +12,7 @@ import (
 )
 
 func TestRecordStreamFilterFromFilterExpression(t *testing.T) {
-	type M = map[string]interface{}
+	type M = map[string]any
 
 	s, err := structpb.NewStruct(M{
 		"$index": M{

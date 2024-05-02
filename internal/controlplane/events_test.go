@@ -51,11 +51,11 @@ func TestEvents(t *testing.T) {
 
 		grpcSrv := grpc.NewServer()
 		databrokerpb.RegisterDataBrokerServiceServer(grpcSrv, &mockDataBrokerServer{
-			put: func(ctx context.Context, req *databrokerpb.PutRequest) (*databrokerpb.PutResponse, error) {
+			put: func(_ context.Context, req *databrokerpb.PutRequest) (*databrokerpb.PutResponse, error) {
 				putRequest = req
 				return new(databrokerpb.PutResponse), nil
 			},
-			setOptions: func(ctx context.Context, req *databrokerpb.SetOptionsRequest) (*databrokerpb.SetOptionsResponse, error) {
+			setOptions: func(_ context.Context, req *databrokerpb.SetOptionsRequest) (*databrokerpb.SetOptionsResponse, error) {
 				setOptionsRequest = req
 				return new(databrokerpb.SetOptionsResponse), nil
 			},

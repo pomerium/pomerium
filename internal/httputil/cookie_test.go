@@ -18,14 +18,14 @@ func TestCookieChunker(t *testing.T) {
 		t.Parallel()
 
 		cc := NewCookieChunker(WithCookieChunkerChunkSize(16))
-		srv1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			assert.NoError(t, cc.SetCookie(w, &http.Cookie{
 				Name:  "example",
 				Value: strings.Repeat("x", 77),
 			}))
 		}))
 		defer srv1.Close()
-		srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv2 := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 			cookie, err := cc.LoadCookie(r, "example")
 			if assert.NoError(t, err) {
 				assert.Equal(t, &http.Cookie{
@@ -57,7 +57,7 @@ func TestCookieChunker(t *testing.T) {
 		t.Parallel()
 
 		cc := NewCookieChunker(WithCookieChunkerChunkSize(2), WithCookieChunkerMaxChunks(2))
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			assert.Error(t, cc.SetCookie(w, &http.Cookie{
 				Name:  "example",
 				Value: strings.Repeat("x", 1024),
@@ -71,7 +71,7 @@ func TestCookieChunker(t *testing.T) {
 		t.Parallel()
 
 		cc1 := NewCookieChunker(WithCookieChunkerChunkSize(64))
-		srv1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			assert.NoError(t, cc1.SetCookie(w, &http.Cookie{
 				Name:  "example",
 				Value: strings.Repeat("x", 1024),
@@ -80,7 +80,7 @@ func TestCookieChunker(t *testing.T) {
 		defer srv1.Close()
 
 		cc2 := NewCookieChunker(WithCookieChunkerChunkSize(64), WithCookieChunkerMaxChunks(2))
-		srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv2 := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 			cookie, err := cc2.LoadCookie(r, "example")
 			assert.Error(t, err)
 			assert.Nil(t, cookie)

@@ -47,7 +47,7 @@ func (cache *localCache) GetOrUpdate(
 		return cached, nil
 	}
 
-	v, err, _ := cache.singleflight.Do(strkey, func() (interface{}, error) {
+	v, err, _ := cache.singleflight.Do(strkey, func() (any, error) {
 		cache.mu.RLock()
 		cached, ok := cache.m[strkey]
 		cache.mu.RUnlock()
@@ -105,7 +105,7 @@ func (cache *globalCache) GetOrUpdate(
 		return data, nil
 	}
 
-	v, err, _ := cache.singleflight.Do(string(key), func() (interface{}, error) {
+	v, err, _ := cache.singleflight.Do(string(key), func() (any, error) {
 		data, expiry, ok := cache.get(key)
 		if ok && now.Before(expiry) {
 			return data, nil

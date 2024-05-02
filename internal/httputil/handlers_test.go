@@ -46,8 +46,8 @@ func TestHandlerFunc_ServeHTTP(t *testing.T) {
 		f        HandlerFunc
 		wantBody string
 	}{
-		{"good http error", func(w http.ResponseWriter, r *http.Request) error { return NewError(404, errors.New("404")) }, "{\"Status\":404}\n"},
-		{"good std error", func(w http.ResponseWriter, r *http.Request) error { return errors.New("404") }, "{\"Status\":500}\n"},
+		{"good http error", func(_ http.ResponseWriter, _ *http.Request) error { return NewError(404, errors.New("404")) }, "{\"Status\":404}\n"},
+		{"good std error", func(_ http.ResponseWriter, _ *http.Request) error { return errors.New("404") }, "{\"Status\":500}\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -66,7 +66,7 @@ func TestRenderJSON(t *testing.T) {
 	tests := []struct {
 		name     string
 		code     int
-		v        interface{}
+		v        any
 		wantBody string
 		wantCode int
 	}{
@@ -88,7 +88,7 @@ func TestRenderJSON(t *testing.T) {
 		{
 			"map",
 			http.StatusOK,
-			map[string]interface{}{
+			map[string]any{
 				"C": 1, // notice order does not matter
 				"A": "A",
 				"B": "B",
@@ -99,7 +99,7 @@ func TestRenderJSON(t *testing.T) {
 		{
 			"bad!",
 			http.StatusOK,
-			map[string]interface{}{
+			map[string]any{
 				"BAD BOI": math.Inf(1),
 			},
 			`{"error":"json: unsupported value: +Inf"}`, http.StatusInternalServerError,

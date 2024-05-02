@@ -38,6 +38,6 @@ func (ms Store) LoadSession(*http.Request) (string, error) {
 }
 
 // SaveSession returns a save error.
-func (ms Store) SaveSession(http.ResponseWriter, *http.Request, interface{}) error {
+func (ms Store) SaveSession(http.ResponseWriter, *http.Request, any) error {
 	return ms.SaveError
 }

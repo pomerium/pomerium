@@ -19,7 +19,7 @@ func Redirect(w http.ResponseWriter, r *http.Request, url string, code int) {
 // It does not otherwise end the request; the caller should ensure no further
 // writes are done to w.
 // The error message should be application/json.
-func RenderJSON(w http.ResponseWriter, code int, v interface{}) {
+func RenderJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	b := new(bytes.Buffer)

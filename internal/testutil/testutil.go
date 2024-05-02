@@ -21,7 +21,7 @@ import (
 const maxWait = time.Minute * 20
 
 // AssertProtoEqual asserts that two protobuf messages equal. Slices of messages are also supported.
-func AssertProtoEqual(t *testing.T, expected, actual interface{}, msgAndArgs ...interface{}) bool {
+func AssertProtoEqual(t *testing.T, expected, actual any, msgAndArgs ...any) bool {
 	t.Helper()
 	return assert.True(t, cmp.Equal(expected, actual, protocmp.Transform()),
 		append(msgAndArgs, cmp.Diff(expected, actual, protocmp.Transform()))...)
@@ -29,13 +29,13 @@ func AssertProtoEqual(t *testing.T, expected, actual interface{}, msgAndArgs ...
 
 // AssertProtoJSONEqual asserts that a protobuf message matches the given JSON. The protoMsg can also be a slice
 // of protobuf messages.
-func AssertProtoJSONEqual(t *testing.T, expected string, protoMsg interface{}, msgAndArgs ...interface{}) bool {
+func AssertProtoJSONEqual(t *testing.T, expected string, protoMsg any, msgAndArgs ...any) bool {
 	t.Helper()
 	formattedJSON := formattedProtoJSON(protoMsg)
 	return assert.Equal(t, reformatJSON(json.RawMessage(expected)), formattedJSON, msgAndArgs...)
 }
 
-func formattedProtoJSON(protoMsg interface{}) string {
+func formattedProtoJSON(protoMsg any) string {
 	protoMsgVal := reflect.ValueOf(protoMsg)
 	if protoMsgVal.Kind() == reflect.Slice {
 		var protoMsgs []json.RawMessage
@@ -49,13 +49,13 @@ func formattedProtoJSON(protoMsg interface{}) string {
 }
 
 func reformatJSON(raw json.RawMessage) string {
-	var obj interface{}
+	var obj any
 	_ = json.Unmarshal(raw, &obj)
 	bs, _ := json.MarshalIndent(obj, "", "  ")
 	return string(bs)
 }
 
-func toProtoJSON(protoMsg interface{}) json.RawMessage {
+func toProtoJSON(protoMsg any) json.RawMessage {
 	bs, _ := protojson.Marshal(protoMsg.(protoreflect.ProtoMessage))
 	return bs
 }
@@ -69,7 +69,7 @@ var updateFlag = flag.Bool("update", false,
 // To update a reference JSON file, pass the test argument '-update'. This will
 // overwrite the reference output to match the current behavior.
 func AssertProtoJSONFileEqual(
-	t *testing.T, file string, protoMsg interface{}, msgAndArgs ...interface{},
+	t *testing.T, file string, protoMsg any, msgAndArgs ...any,
 ) bool {
 	t.Helper()
 

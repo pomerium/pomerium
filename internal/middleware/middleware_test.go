@@ -26,7 +26,7 @@ func TestSetHeaders(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			testHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				for k, want := range tt.securityHeaders {
 					if got := w.Header().Get(k); want != got {
 						t.Errorf("want %s got %q", want, got)
@@ -42,7 +42,7 @@ func TestSetHeaders(t *testing.T) {
 
 func TestValidateSignature(t *testing.T) {
 	t.Parallel()
-	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	fn := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprint(w, http.StatusText(http.StatusOK))
 		w.WriteHeader(http.StatusOK)
 	})
@@ -81,7 +81,7 @@ func TestValidateSignature(t *testing.T) {
 func TestRequireBasicAuth(t *testing.T) {
 	t.Parallel()
 
-	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	fn := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprint(w, http.StatusText(http.StatusOK))
 		w.WriteHeader(http.StatusOK)
 	})

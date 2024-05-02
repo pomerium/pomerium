@@ -39,9 +39,9 @@ var (
 )
 
 type querier interface {
-	Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error)
-	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
-	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
+	Exec(ctx context.Context, sql string, arguments ...any) (commandTag pgconn.CommandTag, err error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
 func deleteChangesBefore(ctx context.Context, q querier, cutoff time.Time) error {
@@ -207,7 +207,7 @@ func getRecord(
 }
 
 func listRecords(ctx context.Context, q querier, expr storage.FilterExpression, offset, limit int) ([]*databroker.Record, error) {
-	args := []interface{}{offset, limit}
+	args := []any{offset, limit}
 	query := `
 		SELECT type, id, version, data, modified_at
 		FROM ` + schemaName + `.` + recordsTableName + `

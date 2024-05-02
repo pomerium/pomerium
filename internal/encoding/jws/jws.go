@@ -14,7 +14,7 @@ import (
 type JSONWebSigner struct {
 	Signer jose.Signer
 
-	key interface{}
+	key any
 }
 
 // NewHS256Signer creates a SHA256 JWT signer from a 32 byte key.
@@ -28,13 +28,13 @@ func NewHS256Signer(key []byte) (encoding.MarshalUnmarshaler, error) {
 }
 
 // Marshal signs, and serializes a JWT.
-func (c *JSONWebSigner) Marshal(x interface{}) ([]byte, error) {
+func (c *JSONWebSigner) Marshal(x any) ([]byte, error) {
 	s, err := jwt.Signed(c.Signer).Claims(x).CompactSerialize()
 	return []byte(s), err
 }
 
 // Unmarshal parses and validates a signed JWT.
-func (c *JSONWebSigner) Unmarshal(value []byte, s interface{}) error {
+func (c *JSONWebSigner) Unmarshal(value []byte, s any) error {
 	tok, err := jwt.ParseSigned(string(value))
 	if err != nil {
 		return err

@@ -67,7 +67,7 @@ func TestServerSync(t *testing.T) {
 		serverVersion = res.GetServerVersion()
 	}
 
-	t.Run("Sync ok", func(t *testing.T) {
+	t.Run("Sync ok", func(_ *testing.T) {
 		client, _ := c.Sync(ctx, &databroker.SyncRequest{
 			ServerVersion: serverVersion,
 		})

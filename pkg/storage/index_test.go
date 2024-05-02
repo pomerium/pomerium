@@ -11,7 +11,7 @@ import (
 )
 
 func TestGetRecordIndex(t *testing.T) {
-	type M = map[string]interface{}
+	type M = map[string]any
 	t.Run("missing", func(t *testing.T) {
 		v, err := structpb.NewStruct(M{
 			"notindex": "value",

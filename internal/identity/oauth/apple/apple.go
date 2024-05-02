@@ -143,7 +143,7 @@ func (p *Provider) Revoke(ctx context.Context, t *oauth2.Token) error {
 }
 
 // UpdateUserInfo gets claims from the oauth token.
-func (p *Provider) UpdateUserInfo(_ context.Context, t *oauth2.Token, v interface{}) error {
+func (p *Provider) UpdateUserInfo(_ context.Context, t *oauth2.Token, v any) error {
 	rawIDToken, ok := t.Extra("id_token").(string)
 	if !ok {
 		return nil

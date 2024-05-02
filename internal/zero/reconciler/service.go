@@ -49,7 +49,7 @@ func Run(ctx context.Context, opts ...Option) error {
 
 func (c *service) watchUpdates(ctx context.Context) error {
 	return c.config.api.Watch(ctx,
-		connect_mux.WithOnConnected(func(ctx context.Context) {
+		connect_mux.WithOnConnected(func(_ context.Context) {
 			c.triggerFullUpdate(true)
 		}),
 		connect_mux.WithOnDisconnected(func(_ context.Context) {

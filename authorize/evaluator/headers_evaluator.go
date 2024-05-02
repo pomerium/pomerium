@@ -62,7 +62,7 @@ var variableSubstitutionFunctionRegoOption = rego.Function2(&rego.Function{
 		),
 		types.Named("output", types.S),
 	),
-}, func(bctx rego.BuiltinContext, op1 *ast.Term, op2 *ast.Term) (*ast.Term, error) {
+}, func(_ rego.BuiltinContext, op1 *ast.Term, op2 *ast.Term) (*ast.Term, error) {
 	inputString, ok := op1.Value.(ast.String)
 	if !ok {
 		return nil, fmt.Errorf("invalid input_string type: %T", op1.Value)
@@ -143,18 +143,18 @@ func (e *HeadersEvaluator) Evaluate(ctx context.Context, req *HeadersRequest) (*
 func (e *HeadersEvaluator) getHeader(vars rego.Vars) http.Header {
 	h := make(http.Header)
 
-	m, ok := vars["result"].(map[string]interface{})
+	m, ok := vars["result"].(map[string]any)
 	if !ok {
 		return h
 	}
 
-	m, ok = m["identity_headers"].(map[string]interface{})
+	m, ok = m["identity_headers"].(map[string]any)
 	if !ok {
 		return h
 	}
 
 	for k := range m {
-		vs, ok := m[k].([]interface{})
+		vs, ok := m[k].([]any)
 		if !ok {
 			continue
 		}

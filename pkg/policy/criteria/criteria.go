@@ -88,7 +88,7 @@ func NewCriterionDeviceRule(
 ) *ast.Rule {
 	r1 := g.NewRule(name)
 
-	additionalData := map[string]interface{}{
+	additionalData := map[string]any{
 		"device_type": deviceType,
 	}
 
@@ -185,7 +185,7 @@ func NewCriterionTerm(value bool, reasons ...Reason) *ast.Term {
 // NewCriterionTermWithAdditionalData creates a new rego term for a criterion with additional data:
 //
 //	[true, {"reason"}, {"key": "value"}]
-func NewCriterionTermWithAdditionalData(value bool, reason Reason, additionalData map[string]interface{}) *ast.Term {
+func NewCriterionTermWithAdditionalData(value bool, reason Reason, additionalData map[string]any) *ast.Term {
 	var kvs [][2]*ast.Term
 	for k, v := range additionalData {
 		kvs = append(kvs, [2]*ast.Term{

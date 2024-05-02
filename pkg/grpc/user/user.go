@@ -61,8 +61,8 @@ func (x *User) AddClaims(claims identity.FlattenedClaims) {
 // GetClaim returns a claim.
 //
 // This method is used by the dashboard template HTML to display claim data.
-func (x *User) GetClaim(claim string) []interface{} {
-	var vs []interface{}
+func (x *User) GetClaim(claim string) []any {
+	var vs []any
 	for _, sv := range x.GetClaims()[claim].GetValues() {
 		vs = append(vs, sv.AsInterface())
 	}

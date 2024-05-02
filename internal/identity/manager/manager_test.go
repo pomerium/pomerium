@@ -348,10 +348,10 @@ type recordable interface {
 // is especially helpful when working with pointers, as it will compare the
 // underlying values rather than the pointers themselves.
 type objectsAreEqualMatcher struct {
-	expected interface{}
+	expected any
 }
 
-func (m objectsAreEqualMatcher) Matches(x interface{}) bool {
+func (m objectsAreEqualMatcher) Matches(x any) bool {
 	return assert.ObjectsAreEqual(m.expected, x)
 }
 

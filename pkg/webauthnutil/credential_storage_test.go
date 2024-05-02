@@ -31,7 +31,7 @@ func (m mockDataBrokerServiceClient) Put(ctx context.Context, in *databroker.Put
 func TestCredentialStorage(t *testing.T) {
 	m := map[string]*databroker.Record{}
 	client := &mockDataBrokerServiceClient{
-		get: func(ctx context.Context, in *databroker.GetRequest, opts ...grpc.CallOption) (*databroker.GetResponse, error) {
+		get: func(_ context.Context, in *databroker.GetRequest, _ ...grpc.CallOption) (*databroker.GetResponse, error) {
 			record, ok := m[in.GetType()+"/"+in.GetId()]
 			if !ok {
 				return nil, status.Error(codes.NotFound, "record not found")
@@ -40,7 +40,7 @@ func TestCredentialStorage(t *testing.T) {
 				Record: record,
 			}, nil
 		},
-		put: func(ctx context.Context, in *databroker.PutRequest, opts ...grpc.CallOption) (*databroker.PutResponse, error) {
+		put: func(_ context.Context, in *databroker.PutRequest, _ ...grpc.CallOption) (*databroker.PutResponse, error) {
 			for _, record := range in.GetRecords() {
 				m[record.GetType()+"/"+record.GetId()] = record
 			}

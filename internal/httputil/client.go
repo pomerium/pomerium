@@ -91,7 +91,7 @@ func getDefaultClient() *httpClient {
 }
 
 // Do provides a simple helper interface to make HTTP requests
-func Do(ctx context.Context, method, endpoint, userAgent string, headers map[string]string, params url.Values, response interface{}) error {
+func Do(ctx context.Context, method, endpoint, userAgent string, headers map[string]string, params url.Values, response any) error {
 	var body io.Reader
 	switch method {
 	case http.MethodPost:

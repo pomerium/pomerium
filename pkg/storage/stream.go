@@ -107,7 +107,7 @@ func RecordStreamToList(recordStream RecordStream) ([]*databroker.Record, error)
 // RecordListToStream converts a record list to a stream.
 func RecordListToStream(ctx context.Context, records []*databroker.Record) RecordStream {
 	return NewRecordStream(ctx, nil, []RecordStreamGenerator{
-		func(ctx context.Context, block bool) (*databroker.Record, error) {
+		func(_ context.Context, _ bool) (*databroker.Record, error) {
 			if len(records) == 0 {
 				return nil, ErrStreamDone
 			}

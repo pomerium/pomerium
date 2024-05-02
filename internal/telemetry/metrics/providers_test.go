@@ -11,7 +11,7 @@ import (
 )
 
 func newEnvoyMetricsHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte(`
 # TYPE envoy_server_initialization_time_ms histogram
 envoy_server_initialization_time_ms_bucket{le="0.5"} 0

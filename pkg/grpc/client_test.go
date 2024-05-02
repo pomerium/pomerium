@@ -10,7 +10,7 @@ import (
 
 func Test_grpcTimeoutInterceptor(t *testing.T) {
 	mockInvoker := func(sleepTime time.Duration, wantFail bool) grpc.UnaryInvoker {
-		return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
+		return func(ctx context.Context, _ string, _, _ any, _ *grpc.ClientConn, _ ...grpc.CallOption) error {
 			time.Sleep(sleepTime)
 			deadline, ok := ctx.Deadline()
 			if !ok {

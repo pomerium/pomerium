@@ -24,7 +24,7 @@ func newSyncLatestRecordStream(
 	}
 
 	var ready []*databroker.Record
-	generator := func(ctx context.Context, block bool) (*databroker.Record, error) {
+	generator := func(_ context.Context, _ bool) (*databroker.Record, error) {
 		backend.mu.RLock()
 		for _, co := range backend.lookup {
 			for _, record := range co.List() {
@@ -39,7 +39,7 @@ func newSyncLatestRecordStream(
 
 	return storage.NewRecordStream(ctx, backend.closed, []storage.RecordStreamGenerator{
 		generator,
-		func(ctx context.Context, block bool) (*databroker.Record, error) {
+		func(_ context.Context, _ bool) (*databroker.Record, error) {
 			if len(ready) == 0 {
 				return nil, storage.ErrStreamDone
 			}

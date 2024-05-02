@@ -136,7 +136,7 @@ func TestSerializable(t *testing.T) {
 	data, err := base64.StdEncoding.DecodeString("aGVhbHRoX2NoZWNrOgogIHRpbWVvdXQ6IDVzCiAgaW50ZXJ2YWw6IDYwcwogIGhlYWx0aHlUaHJlc2hvbGQ6IDEKICB1bmhlYWx0aHlUaHJlc2hvbGQ6IDIKICBodHRwX2hlYWx0aF9jaGVjazogCiAgICBob3N0OiAiaHR0cDovL2xvY2FsaG9zdDo4MDgwIgogICAgcGF0aDogIi8iCg==")
 	require.NoError(t, err, "decode")
 
-	var mi map[interface{}]interface{}
+	var mi map[any]any
 
 	err = yaml.Unmarshal(data, &mi)
 	require.NoError(t, err, "unmarshal")
@@ -158,11 +158,11 @@ func TestDecodePPLPolicyHookFunc(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = decoder.Decode(map[string]interface{}{
-		"policy": map[string]interface{}{
-			"allow": map[string]interface{}{
-				"or": []map[string]interface{}{
-					{"email": map[string]interface{}{
+	err = decoder.Decode(map[string]any{
+		"policy": map[string]any{
+			"allow": map[string]any{
+				"or": []map[string]any{
+					{"email": map[string]any{
 						"is": "user1@example.com",
 					}},
 				},

@@ -32,7 +32,7 @@ var (
 	testDataTemplate = template.Must(template.ParseFS(testDataFS, "testdata/*.json"))
 )
 
-func testData(t *testing.T, name string, data interface{}) string {
+func testData(t *testing.T, name string, data any) string {
 	t.Helper()
 	var buf bytes.Buffer
 	err := testDataTemplate.ExecuteTemplate(&buf, name, data)

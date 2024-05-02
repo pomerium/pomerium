@@ -33,7 +33,7 @@ import (
 type Authenticator interface {
 	Refresh(context.Context, *oauth2.Token, identity.State) (*oauth2.Token, error)
 	Revoke(context.Context, *oauth2.Token) error
-	UpdateUserInfo(context.Context, *oauth2.Token, interface{}) error
+	UpdateUserInfo(context.Context, *oauth2.Token, any) error
 }
 
 type (

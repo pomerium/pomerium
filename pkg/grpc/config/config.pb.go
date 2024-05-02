@@ -2732,7 +2732,7 @@ func file_config_proto_rawDescGZIP() []byte {
 
 var file_config_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
-var file_config_proto_goTypes = []interface{}{
+var file_config_proto_goTypes = []any{
 	(MtlsEnforcementMode)(0),                 // 0: pomerium.config.MtlsEnforcementMode
 	(*Config)(nil),                           // 1: pomerium.config.Config
 	(*RouteRewriteHeader)(nil),               // 2: pomerium.config.RouteRewriteHeader
@@ -2805,7 +2805,7 @@ func file_config_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_config_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_config_proto_msgTypes[0].Exporter = func(v any, i int) any {
 			switch v := v.(*Config); i {
 			case 0:
 				return &v.state
@@ -2817,7 +2817,7 @@ func file_config_proto_init() {
 				return nil
 			}
 		}
-		file_config_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+		file_config_proto_msgTypes[1].Exporter = func(v any, i int) any {
 			switch v := v.(*RouteRewriteHeader); i {
 			case 0:
 				return &v.state
@@ -2829,7 +2829,7 @@ func file_config_proto_init() {
 				return nil
 			}
 		}
-		file_config_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+		file_config_proto_msgTypes[2].Exporter = func(v any, i int) any {
 			switch v := v.(*RouteRedirect); i {
 			case 0:
 				return &v.state
@@ -2841,7 +2841,7 @@ func file_config_proto_init() {
 				return nil
 			}
 		}
-		file_config_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+		file_config_proto_msgTypes[3].Exporter = func(v any, i int) any {
 			switch v := v.(*RouteDirectResponse); i {
 			case 0:
 				return &v.state
@@ -2853,7 +2853,7 @@ func file_config_proto_init() {
 				return nil
 			}
 		}
-		file_config_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+		file_config_proto_msgTypes[4].Exporter = func(v any, i int) any {
 			switch v := v.(*Route); i {
 			case 0:
 				return &v.state
@@ -2865,7 +2865,7 @@ func file_config_proto_init() {
 				return nil
 			}
 		}
-		file_config_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+		file_config_proto_msgTypes[5].Exporter = func(v any, i int) any {
 			switch v := v.(*Policy); i {
 			case 0:
 				return &v.state
@@ -2877,7 +2877,7 @@ func file_config_proto_init() {
 				return nil
 			}
 		}
-		file_config_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
+		file_config_proto_msgTypes[6].Exporter = func(v any, i int) any {
 			switch v := v.(*Settings); i {
 			case 0:
 				return &v.state
@@ -2889,7 +2889,7 @@ func file_config_proto_init() {
 				return nil
 			}
 		}
-		file_config_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+		file_config_proto_msgTypes[7].Exporter = func(v any, i int) any {
 			switch v := v.(*DownstreamMtlsSettings); i {
 			case 0:
 				return &v.state
@@ -2901,7 +2901,7 @@ func file_config_proto_init() {
 				return nil
 			}
 		}
-		file_config_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
+		file_config_proto_msgTypes[12].Exporter = func(v any, i int) any {
 			switch v := v.(*Settings_Certificate); i {
 			case 0:
 				return &v.state
@@ -2913,7 +2913,7 @@ func file_config_proto_init() {
 				return nil
 			}
 		}
-		file_config_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
+		file_config_proto_msgTypes[13].Exporter = func(v any, i int) any {
 			switch v := v.(*Settings_StringList); i {
 			case 0:
 				return &v.state
@@ -2926,13 +2926,13 @@ func file_config_proto_init() {
 			}
 		}
 	}
-	file_config_proto_msgTypes[1].OneofWrappers = []interface{}{
+	file_config_proto_msgTypes[1].OneofWrappers = []any{
 		(*RouteRewriteHeader_Prefix)(nil),
 	}
-	file_config_proto_msgTypes[2].OneofWrappers = []interface{}{}
-	file_config_proto_msgTypes[4].OneofWrappers = []interface{}{}
-	file_config_proto_msgTypes[6].OneofWrappers = []interface{}{}
-	file_config_proto_msgTypes[7].OneofWrappers = []interface{}{}
+	file_config_proto_msgTypes[2].OneofWrappers = []any{}
+	file_config_proto_msgTypes[4].OneofWrappers = []any{}
+	file_config_proto_msgTypes[6].OneofWrappers = []any{}
+	file_config_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

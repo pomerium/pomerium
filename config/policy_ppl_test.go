@@ -17,21 +17,21 @@ func TestPolicy_ToPPL(t *testing.T) {
 		AllowAnyAuthenticatedUser:        true,
 		AllowedDomains:                   []string{"a.example.com", "b.example.com"},
 		AllowedUsers:                     []string{"user1", "user2"},
-		AllowedIDPClaims: map[string][]interface{}{
+		AllowedIDPClaims: map[string][]any{
 			"family_name": {"Smith", "Jones"},
 		},
 		SubPolicies: []SubPolicy{
 			{
 				AllowedDomains: []string{"c.example.com", "d.example.com"},
 				AllowedUsers:   []string{"user3", "user4"},
-				AllowedIDPClaims: map[string][]interface{}{
+				AllowedIDPClaims: map[string][]any{
 					"given_name": {"John"},
 				},
 			},
 			{
 				AllowedDomains: []string{"e.example.com"},
 				AllowedUsers:   []string{"user5"},
-				AllowedIDPClaims: map[string][]interface{}{
+				AllowedIDPClaims: map[string][]any{
 					"timezone": {"EST"},
 				},
 			},

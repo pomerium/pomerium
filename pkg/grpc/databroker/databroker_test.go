@@ -69,7 +69,7 @@ func TestInitialSync(t *testing.T) {
 	r2 := new(Record)
 
 	m := &mockServer{
-		syncLatest: func(req *SyncLatestRequest, stream DataBrokerService_SyncLatestServer) error {
+		syncLatest: func(_ *SyncLatestRequest, stream DataBrokerService_SyncLatestServer) error {
 			stream.Send(&SyncLatestResponse{
 				Response: &SyncLatestResponse_Record{
 					Record: r1,

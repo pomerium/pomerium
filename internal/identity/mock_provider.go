@@ -37,7 +37,7 @@ func (mp MockProvider) Revoke(_ context.Context, _ *oauth2.Token) error {
 }
 
 // UpdateUserInfo is a mocked providers function.
-func (mp MockProvider) UpdateUserInfo(_ context.Context, _ *oauth2.Token, _ interface{}) error {
+func (mp MockProvider) UpdateUserInfo(_ context.Context, _ *oauth2.Token, _ any) error {
 	return mp.UpdateUserInfoError
 }
 

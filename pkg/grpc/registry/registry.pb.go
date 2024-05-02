@@ -513,7 +513,7 @@ func file_registry_proto_rawDescGZIP() []byte {
 
 var file_registry_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
-var file_registry_proto_goTypes = []interface{}{
+var file_registry_proto_goTypes = []any{
 	(ServiceKind)(0),              // 0: registry.ServiceKind
 	(*Service)(nil),               // 1: registry.Service
 	(*RegisterRequest)(nil),       // 2: registry.RegisterRequest
@@ -555,7 +555,7 @@ func file_registry_proto_init() {
 		return
 	}
 	if !protoimpl.UnsafeEnabled {
-		file_registry_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+		file_registry_proto_msgTypes[0].Exporter = func(v any, i int) any {
 			switch v := v.(*Service); i {
 			case 0:
 				return &v.state
@@ -567,7 +567,7 @@ func file_registry_proto_init() {
 				return nil
 			}
 		}
-		file_registry_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+		file_registry_proto_msgTypes[1].Exporter = func(v any, i int) any {
 			switch v := v.(*RegisterRequest); i {
 			case 0:
 				return &v.state
@@ -579,7 +579,7 @@ func file_registry_proto_init() {
 				return nil
 			}
 		}
-		file_registry_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+		file_registry_proto_msgTypes[2].Exporter = func(v any, i int) any {
 			switch v := v.(*RegisterResponse); i {
 			case 0:
 				return &v.state
@@ -591,7 +591,7 @@ func file_registry_proto_init() {
 				return nil
 			}
 		}
-		file_registry_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
+		file_registry_proto_msgTypes[3].Exporter = func(v any, i int) any {
 			switch v := v.(*ListRequest); i {
 			case 0:
 				return &v.state
@@ -603,7 +603,7 @@ func file_registry_proto_init() {
 				return nil
 			}
 		}
-		file_registry_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
+		file_registry_proto_msgTypes[4].Exporter = func(v any, i int) any {
 			switch v := v.(*ServiceRegistration); i {
 			case 0:
 				return &v.state
@@ -615,7 +615,7 @@ func file_registry_proto_init() {
 				return nil
 			}
 		}
-		file_registry_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+		file_registry_proto_msgTypes[5].Exporter = func(v any, i int) any {
 			switch v := v.(*ServiceList); i {
 			case 0:
 				return &v.state
@@ -761,7 +761,7 @@ func RegisterRegistryServer(s *grpc.Server, srv RegistryServer) {
 	s.RegisterService(&_Registry_serviceDesc, srv)
 }
 
-func _Registry_Report_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Registry_Report_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(RegisterRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -773,13 +773,13 @@ func _Registry_Report_Handler(srv interface{}, ctx context.Context, dec func(int
 		Server:     srv,
 		FullMethod: "/registry.Registry/Report",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(RegistryServer).Report(ctx, req.(*RegisterRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Registry_List_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Registry_List_Handler(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
 	in := new(ListRequest)
 	if err := dec(in); err != nil {
 		return nil, err
@@ -791,13 +791,13 @@ func _Registry_List_Handler(srv interface{}, ctx context.Context, dec func(inter
 		Server:     srv,
 		FullMethod: "/registry.Registry/List",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return srv.(RegistryServer).List(ctx, req.(*ListRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Registry_Watch_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _Registry_Watch_Handler(srv any, stream grpc.ServerStream) error {
 	m := new(ListRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err

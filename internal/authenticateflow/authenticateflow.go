@@ -15,7 +15,7 @@ import (
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
 
-func populateUserFromClaims(u *user.User, claims map[string]interface{}) {
+func populateUserFromClaims(u *user.User, claims map[string]any) {
 	if v, ok := claims["name"]; ok {
 		u.Name = fmt.Sprint(v)
 	}

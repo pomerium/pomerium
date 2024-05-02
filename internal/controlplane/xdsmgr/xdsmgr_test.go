@@ -27,7 +27,7 @@ func TestManager(t *testing.T) {
 	stateChanged := signal.New()
 	origOnHandleDeltaRequest := onHandleDeltaRequest
 	defer func() { onHandleDeltaRequest = origOnHandleDeltaRequest }()
-	onHandleDeltaRequest = func(state *streamState) {
+	onHandleDeltaRequest = func(_ *streamState) {
 		stateChanged.Broadcast(ctx)
 	}
 
@@ -44,7 +44,7 @@ func TestManager(t *testing.T) {
 
 	cc, err := grpc.Dial("test",
 		grpc.WithInsecure(),
-		grpc.WithContextDialer(func(ctx context.Context, target string) (net.Conn, error) {
+		grpc.WithContextDialer(func(_ context.Context, _ string) (net.Conn, error) {
 			return li.Dial()
 		}))
 	if !assert.NoError(t, err) {
