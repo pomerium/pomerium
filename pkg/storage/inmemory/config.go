@@ -5,6 +5,7 @@ import "time"
 type config struct {
 	degree int
 	expiry time.Duration
+	file   string
 }
 
 // An Option customizes the in-memory backend.
@@ -14,6 +15,7 @@ func getConfig(options ...Option) *config {
 	cfg := &config{
 		degree: 16,
 		expiry: time.Hour,
+		file:   "pomerium.db",
 	}
 	for _, option := range options {
 		option(cfg)
@@ -32,5 +34,11 @@ func WithBTreeDegree(degree int) Option {
 func WithExpiry(expiry time.Duration) Option {
 	return func(cfg *config) {
 		cfg.expiry = expiry
+	}
+}
+
+func WithFile(file string) Option {
+	return func(cfg *config) {
+		cfg.file = file
 	}
 }

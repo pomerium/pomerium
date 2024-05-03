@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/btree"
 	"github.com/rs/zerolog"
+	"go.etcd.io/bbolt"
 	"golang.org/x/exp/maps"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -52,6 +53,8 @@ type Backend struct {
 	closeOnce   sync.Once
 	closed      chan struct{}
 
+	db *bbolt.DB
+
 	mu       sync.RWMutex
 	lookup   map[string]*RecordCollection
 	capacity map[string]*uint64
@@ -86,6 +89,11 @@ func New(options ...Option) *Backend {
 				backend.removeChangesBefore(time.Now().Add(-cfg.expiry))
 			}
 		}()
+	}
+
+	err := backend.openAndLoad()
+	if err != nil {
+		log.Error(context.Background()).Err(err).Msg("in-memory: failed to open and load")
 	}
 
 	health.ReportOK(health.StorageBackend, health.StrAttr("backend", "in-memory"))
@@ -127,6 +135,8 @@ func (backend *Backend) Close() error {
 		backend.lookup = map[string]*RecordCollection{}
 		backend.capacity = map[string]*uint64{}
 		backend.changes = btree.New(backend.cfg.degree)
+
+		_ = backend.close()
 	})
 	return nil
 }
@@ -251,8 +261,10 @@ func (backend *Backend) update(record *databroker.Record) {
 
 	if record.GetDeletedAt() != nil {
 		c.Delete(record.GetId())
+		_ = backend.delete(record)
 	} else {
 		c.Put(dup(record))
+		_ = backend.store(record)
 	}
 }
 
