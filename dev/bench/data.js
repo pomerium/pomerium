@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714682230926,
+  "lastUpdate": 1714769072576,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -108662,6 +108662,38 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 6391714,
+            "unit": "ns/op",
+            "extra": "188 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "c4d8ae3f90b31266ca6416f167592c2e39acddd0",
+          "message": "envoy: preserve Go's max file limit for Envoy",
+          "timestamp": "2024-05-03T19:14:45Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5102/commits/c4d8ae3f90b31266ca6416f167592c2e39acddd0"
+        },
+        "date": 1714769063237,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9597532,
+            "unit": "ns/op",
+            "extra": "128 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6666852,
             "unit": "ns/op",
             "extra": "188 times\n4 procs"
           }
