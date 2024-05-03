@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -57,6 +58,10 @@ type Server struct {
 
 // NewServer creates a new server with traffic routed by envoy.
 func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Builder) (*Server, error) {
+	if err := preserveRlimitNofile(); err != nil {
+		log.Debug(ctx).Err(err).Msg("couldn't preserve RLIMIT_NOFILE before starting Envoy")
+	}
+
 	envoyPath, err := Extract()
 	if err != nil {
 		return nil, fmt.Errorf("extracting envoy: %w", err)
@@ -299,4 +304,18 @@ func (srv *Server) monitorProcess(ctx context.Context, pid int32) {
 		case <-ticker.C:
 		}
 	}
+}
+
+func preserveRlimitNofile() error {
+	// Go raises the "max open files" soft limit to match the hard limit for
+	// itself, but has special logic to reset the original soft limit before
+	// forking a child process. This logic does not apply if the file limit is
+	// set explicitly. This pair of Getrlimit / Setrlimit calls is intended to
+	// (1) preserve the default Go limit behavior for ourselves, and
+	// (2) keep these same limits when launching Envoy.
+	var lim syscall.Rlimit
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lim); err != nil {
+		return err
+	}
+	return syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lim)
 }
