@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1714771608589,
+  "lastUpdate": 1714781973231,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -108728,6 +108728,42 @@ window.BENCHMARK_DATA = {
             "value": 6261311,
             "unit": "ns/op",
             "extra": "210 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b1feff5d56eaefe8a356ae41b2fa68569cf2bbeb",
+          "message": "envoy: preserve Go's max file limit for Envoy (#5102)\n\nGo raises the \"max open files\" soft limit to match the hard limit for\r\nitself, but has special logic to reset the original soft limit before\r\nforking a child process. This logic does not apply if the file limit is\r\nset explicitly. Add a pair of Getrlimit / Setrlimit calls so that we\r\n(1) preserve the default Go limit behavior for ourselves, and\r\n(2) keep these same limits when launching Envoy.",
+          "timestamp": "2024-05-03T17:15:59-07:00",
+          "tree_id": "6b43cc0ed0eb540a81029a009b6b6231af9f93e8",
+          "url": "https://github.com/pomerium/pomerium/commit/b1feff5d56eaefe8a356ae41b2fa68569cf2bbeb"
+        },
+        "date": 1714781963725,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8914893,
+            "unit": "ns/op",
+            "extra": "130 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6046099,
+            "unit": "ns/op",
+            "extra": "192 times\n4 procs"
           }
         ]
       }
