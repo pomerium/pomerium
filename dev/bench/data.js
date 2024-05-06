@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715010222165,
+  "lastUpdate": 1715021437802,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -108796,6 +108796,42 @@ window.BENCHMARK_DATA = {
             "value": 6034573,
             "unit": "ns/op",
             "extra": "189 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4031f4a96291a16c8887cf06175f71744b055860",
+          "message": "health-check: building config from databroker source (#5104)",
+          "timestamp": "2024-05-06T14:47:20-04:00",
+          "tree_id": "583e9826cb241b4068cb224825ba8361dac42220",
+          "url": "https://github.com/pomerium/pomerium/commit/4031f4a96291a16c8887cf06175f71744b055860"
+        },
+        "date": 1715021428405,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8701321,
+            "unit": "ns/op",
+            "extra": "139 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6095787,
+            "unit": "ns/op",
+            "extra": "194 times\n4 procs"
           }
         ]
       }
