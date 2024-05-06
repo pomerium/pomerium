@@ -47,6 +47,7 @@ type Server struct {
 	cmd *exec.Cmd
 
 	builder            *envoyconfig.Builder
+	resourceMonitor    ResourceMonitor
 	grpcPort, httpPort string
 	envoyPath          string
 
@@ -77,6 +78,12 @@ func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Buil
 		monitorProcessCancel: func() {},
 	}
 	go srv.runProcessCollector(ctx)
+
+	if rm, err := NewSharedResourceMonitor(srv.wd); err == nil {
+		srv.resourceMonitor = rm
+	} else {
+		log.Error(ctx).Err(err).Str("service", "envoy").Msg("not starting resource monitor")
+	}
 
 	src.OnConfigChange(ctx, srv.onConfigChange)
 	srv.onConfigChange(ctx, src.GetConfig())
@@ -181,6 +188,10 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	monitorProcessCtx, srv.monitorProcessCancel = context.WithCancel(context.Background())
 	go srv.monitorProcess(monitorProcessCtx, int32(cmd.Process.Pid))
 
+	if srv.resourceMonitor != nil {
+		log.Debug(ctx).Str("service", "envoy").Msg("starting resource monitor")
+		go srv.resourceMonitor.Run(ctx, cmd.Process.Pid)
+	}
 	srv.cmd = cmd
 
 	return nil
@@ -202,6 +213,9 @@ func (srv *Server) buildBootstrapConfig(ctx context.Context, cfg *config.Config)
 	bootstrapCfg, err := srv.builder.BuildBootstrap(ctx, cfg, false)
 	if err != nil {
 		return nil, err
+	}
+	if srv.resourceMonitor != nil {
+		srv.resourceMonitor.ApplyBootstrapConfig(bootstrapCfg)
 	}
 
 	jsonBytes, err := protojson.Marshal(bootstrapCfg)
