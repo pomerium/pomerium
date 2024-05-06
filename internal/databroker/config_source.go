@@ -21,6 +21,7 @@ import (
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/health"
 )
 
 // ConfigSource provides a new Config source that decorates an underlying config with
@@ -100,9 +101,11 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 	now = time.Now()
 	err := src.buildNewConfigLocked(ctx, cfg)
 	if err != nil {
+		health.ReportError(health.BuildDatabrokerConfig, err)
 		log.Error(ctx).Err(err).Msg("databroker: failed to build new config")
 		return
 	}
+	health.ReportOK(health.BuildDatabrokerConfig)
 	log.Debug(ctx).Str("elapsed", time.Since(now).String()).Msg("databroker: built new config")
 
 	src.computedConfig = cfg

@@ -5,6 +5,8 @@ import "fmt"
 type Check string
 
 const (
+	// BuildDatabrokerConfig checks whether the Databroker config was applied
+	BuildDatabrokerConfig = Check("config.databroker.build")
 	// StorageBackend checks whether the storage backend is healthy
 	StorageBackend = Check("storage.backend")
 	// XDSCluster checks whether the XDS Cluster resources were applied
