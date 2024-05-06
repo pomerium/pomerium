@@ -2,9 +2,9 @@ package authenticate
 
 import (
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/identity"
-	"github.com/pomerium/pomerium/internal/identity/oauth"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/identity"
+	"github.com/pomerium/pomerium/pkg/identity/oauth"
 )
 
 func defaultGetIdentityProvider(options *config.Options, idpID string) (identity.Authenticator, error) {

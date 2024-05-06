@@ -25,9 +25,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/csrf"
-	"github.com/pomerium/pomerium/internal/identity/oauth/apple"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
 )
 
 var cmpOptIgnoreUnexported = cmpopts.IgnoreUnexported(Options{}, Policy{})

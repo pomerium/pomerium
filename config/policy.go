@@ -17,11 +17,11 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
-	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/identity"
 )
 
 // Policy contains route specific configuration and access settings.

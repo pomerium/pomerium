@@ -27,8 +27,6 @@ import (
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/identity/oauth"
-	"github.com/pomerium/pomerium/internal/identity/oauth/apple"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sets"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -38,6 +36,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/crypt"
 	"github.com/pomerium/pomerium/pkg/hpke"
+	"github.com/pomerium/pomerium/pkg/identity/oauth"
+	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
 )
 
 // DisableHeaderKey is the key used to check whether to disable setting header
