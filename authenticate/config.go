@@ -3,8 +3,8 @@ package authenticate
 import (
 	"github.com/pomerium/pomerium/authenticate/events"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/identity"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
+	"github.com/pomerium/pomerium/pkg/identity"
 )
 
 type authenticateConfig struct {

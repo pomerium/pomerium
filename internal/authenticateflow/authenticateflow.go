@@ -8,9 +8,9 @@ import (
 
 	"google.golang.org/protobuf/types/known/structpb"
 
-	"github.com/pomerium/pomerium/internal/identity"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/identity"
 )
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
