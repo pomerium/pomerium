@@ -41,6 +41,14 @@ const (
 	// IdentityManagerLastSessionRefreshSuccess is a counter of last session refresh success
 	IdentityManagerLastSessionRefreshSuccess = "identity_manager_last_session_refresh_success"
 
+	// EnvoyOverloadActionState tracks the current state of envoy overload actions
+	EnvoyOverloadActionState = "envoy_overload_action_state"
+	// EnvoyOverloadActionThreshold tracks container memory usage minimum thresholds for envoy overload actions
+	EnvoyOverloadActionThreshold = "envoy_overload_action_threshold"
+	// EnvoyCgroupMemorySaturation tracks the memory usage percent (0.0-1.0) of the cgroup in which envoy is running.
+	// This metric is computed by pomerium and used as an injected resource in envoy's overload manager.
+	EnvoyCgroupMemorySaturation = "envoy_cgroup_memory_saturation"
+
 	// BuildInfo is a gauge that may be used to detect whether component is live, and also has version
 	BuildInfo = "build_info"
 	// PolicyCountTotal is total amount of routes currently configured
