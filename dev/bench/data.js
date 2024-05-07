@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715033241804,
+  "lastUpdate": 1715122170073,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -108928,6 +108928,42 @@ window.BENCHMARK_DATA = {
             "value": 6738113,
             "unit": "ns/op",
             "extra": "178 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d225288ab3b9224861a7a750aab03e52468017d5",
+          "message": "core/identity: dynamic authenticator registration (#5105)",
+          "timestamp": "2024-05-07T16:45:39-06:00",
+          "tree_id": "ea22469e035ac2f795837fae517630dee646051d",
+          "url": "https://github.com/pomerium/pomerium/commit/d225288ab3b9224861a7a750aab03e52468017d5"
+        },
+        "date": 1715122160595,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8576715,
+            "unit": "ns/op",
+            "extra": "140 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5967142,
+            "unit": "ns/op",
+            "extra": "205 times\n4 procs"
           }
         ]
       }
