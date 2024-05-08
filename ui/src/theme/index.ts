@@ -1,13 +1,18 @@
-import { softShadows } from "./shadows";
 import "@fontsource/dm-mono";
 import "@fontsource/dm-sans";
-import common from "@mui/material/colors/common";
-import muiCreateTheme, {
+import {
   Theme as MuiTheme,
-} from "@mui/material/styles/createTheme";
+  createTheme as muiCreateTheme,
+} from "@mui/material";
+import common from "@mui/material/colors/common";
 
-export const createTheme = (primaryColor: string, secondaryColor: string): MuiTheme => {
-  return  muiCreateTheme({
+import { softShadows } from "./shadows";
+
+export const createTheme = (
+  primaryColor: string,
+  secondaryColor: string
+): MuiTheme => {
+  return muiCreateTheme({
     components: {
       MuiBackdrop: {
         styleOverrides: {
@@ -117,7 +122,7 @@ export const createTheme = (primaryColor: string, secondaryColor: string): MuiTh
     },
     shadows: softShadows,
     shape: {
-      borderRadius: "16px",
+      borderRadius: 16,
     },
     typography: {
       fontFamily: [
@@ -159,4 +164,4 @@ export const createTheme = (primaryColor: string, secondaryColor: string): MuiTh
       },
     },
   });
-}
+};

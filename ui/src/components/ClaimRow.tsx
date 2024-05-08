@@ -1,6 +1,6 @@
-import TableCell from "@mui/material/TableCell";
-import TableRow from "@mui/material/TableRow";
-import { isArray, startCase } from "lodash";
+import { TableCell, TableRow } from "@mui/material";
+import isArray from "lodash/isArray";
+import startCase from "lodash/startCase";
 import React, { FC } from "react";
 
 import ClaimValue from "./ClaimValue";

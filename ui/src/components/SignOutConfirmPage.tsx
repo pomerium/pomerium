@@ -1,13 +1,15 @@
-import Button from "@mui/material/Button";
-import Container from "@mui/material/Container";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
-import styled from "@mui/material/styles/styled";
+import {
+  Button,
+  Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+} from "@mui/material";
 import React, { FC } from "react";
-import { SignOutConfirmPageData } from "src/types";
+
+import { SignOutConfirmPageData } from "../types";
 
 type SignOutConfirmPageProps = {
   data: SignOutConfirmPageData;

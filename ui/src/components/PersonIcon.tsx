@@ -1,4 +1,4 @@
-import SvgIcon, { SvgIconProps } from "@mui/material/SvgIcon";
+import { SvgIcon, SvgIconProps } from "@mui/material";
 import React, { FC } from "react";
 import { User } from "react-feather";
 

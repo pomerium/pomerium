@@ -32,7 +32,9 @@ func DashboardSubrouter(parent *mux.Router) *mux.Router {
 		"favicon-32x32.png",
 		"favicon.ico",
 		"index.css",
+		"index.css.map",
 		"index.js",
+		"index.js.map",
 	} {
 		fileName := fileName
 		r.Path("/" + fileName).Handler(HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {

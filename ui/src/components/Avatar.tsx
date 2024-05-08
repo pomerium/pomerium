@@ -1,5 +1,5 @@
-import MuiAvatar from "@mui/material/Avatar";
-import { isArray } from "lodash";
+import { Avatar as MuiAvatar } from "@mui/material";
+import isArray from "lodash/isArray";
 import React from "react";
 import { User } from "react-feather";
 

@@ -1,6 +1,7 @@
-import IDField from "./IDField";
 import { DateTime } from "luxon";
 import React, { FC } from "react";
+
+import IDField from "./IDField";
 
 const unixSecondTimestampFields = new Set(["exp", "iat", "nbf", "auth_time"]);
 

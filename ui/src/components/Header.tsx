@@ -1,16 +1,16 @@
 import {
+  AppBar,
+  Box,
   Drawer,
   IconButton,
   Menu,
   MenuItem,
+  Toolbar,
+  styled,
   useMediaQuery,
+  useTheme,
 } from "@mui/material";
-import AppBar from "@mui/material/AppBar";
-import Box from "@mui/material/Box";
-import Toolbar from "@mui/material/Toolbar";
-import { useTheme } from "@mui/material/styles";
-import styled from "@mui/material/styles/styled";
-import { get } from "lodash";
+import get from "lodash/get";
 import React, { FC, useState } from "react";
 import { ChevronLeft, ChevronRight, Menu as MenuIcon } from "react-feather";
 
