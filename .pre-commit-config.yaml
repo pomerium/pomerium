@@ -21,3 +21,10 @@ repos:
         args: ["lint"]
         types: ["go"]
         pass_filenames: false
+      - id: ui
+        name: ui
+        language: system
+        entry: make
+        args: ["build-ui"]
+        files: "^ui/.*$"
+        pass_filenames: false

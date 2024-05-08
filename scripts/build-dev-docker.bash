@@ -5,7 +5,7 @@ _dir=/tmp/pomerium-dev-docker
 mkdir -p "$_dir"
 
 # build linux binary
-env GOOS=linux make build
+env GOOS=linux make build-go
 cp bin/pomerium $_dir/
 
 # build docker image

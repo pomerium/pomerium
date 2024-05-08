@@ -13,7 +13,6 @@ jobs:
       fail-fast: false
       matrix:
         go-version: [1.22.x]
-        node-version: [16.x]
         platform: [ubuntu-latest]
         deployment: [multi, single]
         authenticate-flow: [stateful, stateless]
@@ -25,12 +24,6 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
           cache: false
-
-      - uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: yarn
-          cache-dependency-path: ui/yarn.lock
 
       - name: set env vars
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
@@ -64,16 +57,10 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      - uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: yarn
-          cache-dependency-path: ui/yarn.lock
-
       - name: build
         run: |
           make build-deps
-          make build
+          make build-go
 
       - name: save binary
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
@@ -128,6 +115,12 @@ jobs:
         with:
           go-version: 1.22.x
           cache: false
+
+      - uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
+        with:
+          node-version: 16.x
+          cache: yarn
+          cache-dependency-path: ui/yarn.lock
 
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d
         with:
