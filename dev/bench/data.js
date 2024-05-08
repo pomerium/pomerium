@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715126598310,
+  "lastUpdate": 1715189849608,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -108996,6 +108996,38 @@ window.BENCHMARK_DATA = {
             "value": 6136118,
             "unit": "ns/op",
             "extra": "188 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "3a1fb34a930e3763fbc9db33ab54c3240e244414",
+          "message": "core/ci: store ui bundles in lfs",
+          "timestamp": "2024-05-07T22:45:44Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5107/commits/3a1fb34a930e3763fbc9db33ab54c3240e244414"
+        },
+        "date": 1715189840819,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9349046,
+            "unit": "ns/op",
+            "extra": "126 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6823004,
+            "unit": "ns/op",
+            "extra": "169 times\n4 procs"
           }
         ]
       }
