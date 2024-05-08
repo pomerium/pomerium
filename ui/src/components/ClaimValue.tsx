@@ -1,4 +1,3 @@
-import { DateTime } from "luxon";
 import React, { FC } from "react";
 
 import IDField from "./IDField";
@@ -13,7 +12,7 @@ type ClaimValueProps = {
 };
 const ClaimValue: FC<ClaimValueProps> = ({ claimKey, claimValue }) => {
   if (unixSecondTimestampFields.has(claimKey)) {
-    return <>{DateTime.fromMillis((claimValue as number) * 1000).toISO()}</>;
+    return <>{new Date((claimValue as number) * 1000).toISOString()}</>;
   }
 
   if (idFields.has(claimKey)) {
