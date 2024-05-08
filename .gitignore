@@ -41,12 +41,10 @@ _testmain.go
 # Without this, the *.[568vq] above ignores this folder.
 !**/graphrbac/1.6
 
-
 .DS_Store
 .idea
 .vscode
 
-dist/*
 bin/*
 tags
 
@@ -59,16 +57,8 @@ tags
 *.ipr
 *.iml
 
-
-# dependencies
-ui/node_modules
-ui/bower_components
-ui/dist/index.js
-ui/dist/index.css
-
 # for building static assets
 node_modules
-package-lock.json
 
 # docs
 
