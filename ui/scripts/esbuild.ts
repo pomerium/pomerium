@@ -2,12 +2,14 @@
 import { BuildOptions, build, context } from "esbuild";
 
 async function run() {
+  const watching = process.argv.includes("--watch");
+
   const cfg: BuildOptions = {
     entryPoints: ["src/index.tsx"],
     bundle: true,
     outdir: "dist",
-    sourcemap: "linked",
-    minify: !process.argv.includes("--watch"),
+    sourcemap: watching ? "inline" : false,
+    minify: !watching,
     logLevel: "info",
     loader: {
       ".svg": "dataurl",
@@ -16,7 +18,7 @@ async function run() {
     },
   };
 
-  if (process.argv.includes("--watch")) {
+  if (watching) {
     await (await context(cfg)).watch();
   } else {
     await build(cfg);

@@ -62,9 +62,7 @@ tags
 ui/node_modules
 ui/bower_components
 ui/dist/index.js
-ui/dist/index.js.map
 ui/dist/index.css
-ui/dist/index.css.map
 
 # for building static assets
 node_modules
