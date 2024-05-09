@@ -1,8 +1,12 @@
-import Alert, { AlertColor } from "@mui/material/Alert";
-import Dialog, { DialogProps } from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
+import {
+  Alert,
+  AlertColor,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogProps,
+  DialogTitle,
+} from "@mui/material";
 import React, { FC } from "react";
 
 export type AlertDialogProps = DialogProps & {

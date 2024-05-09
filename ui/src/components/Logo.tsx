@@ -1,7 +1,6 @@
-import React from "react";
-import type { FC } from "react";
+import React, { FC } from "react";
 
-const Logo: FC<{src: string}> = ({src}) => {
+const Logo: FC<{ src: string }> = ({ src }) => {
   return <img alt="Logo" src={src} height="30px" />;
 };
 

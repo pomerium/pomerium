@@ -1,6 +1,4 @@
-import Paper from "@mui/material/Paper";
-import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
+import { Paper, Stack, Typography } from "@mui/material";
 import React, { FC } from "react";
 
 export type HeroSectionProps = {

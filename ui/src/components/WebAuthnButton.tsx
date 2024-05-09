@@ -1,4 +1,4 @@
-import Button, { ButtonProps } from "@mui/material/Button";
+import { Button, ButtonProps } from "@mui/material";
 import React, { FC, useRef, useState } from "react";
 
 import AlertDialog from "./AlertDialog";

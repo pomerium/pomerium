@@ -1,13 +1,16 @@
-import IDField from "./IDField";
-import Alert from "@mui/material/Alert";
-import Button from "@mui/material/Button";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
+import {
+  Alert,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+} from "@mui/material";
 import React, { FC } from "react";
+
+import IDField from "./IDField";
 
 export type DeviceCredentialsTableProps = {
   csrfToken: string;
@@ -17,7 +20,7 @@ export type DeviceCredentialsTableProps = {
 export const DeviceCredentialsTable: FC<DeviceCredentialsTableProps> = ({
   csrfToken,
   ids,
-  webAuthnUrl
+  webAuthnUrl,
 }) => {
   return (
     <TableContainer>

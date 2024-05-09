@@ -1,20 +1,20 @@
 import {
   Button,
+  Container,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
   Drawer,
+  Stack,
   useMediaQuery,
+  useTheme,
 } from "@mui/material";
-import Container from "@mui/material/Container";
-import Stack from "@mui/material/Stack";
-import { useTheme } from "@mui/material/styles";
 import React, { FC, useContext, useEffect, useState } from "react";
-import { UserInfoData } from "src/types";
 
 import { SubpageContext } from "../context/Subpage";
+import { UserInfoData } from "../types";
 import GroupDetails from "./GroupDetails";
 import SessionDetails from "./SessionDetails";
 import SessionDeviceCredentials from "./SessionDeviceCredentials";

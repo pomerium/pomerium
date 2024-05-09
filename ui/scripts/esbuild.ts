@@ -1,16 +1,28 @@
-import { build } from "esbuild";
+/// <reference types="node" />
+import { BuildOptions, build, context } from "esbuild";
 
-build({
-  entryPoints: ["src/index.tsx"],
-  bundle: true,
-  outfile: "dist/index.js",
-  sourcemap: "inline",
-  watch: process.argv.includes("--watch"),
-  minify: !process.argv.includes("--watch"),
-  logLevel: "info",
-  loader: {
-    ".svg": "dataurl",
-    ".woff": "dataurl",
-    ".woff2": "dataurl",
-  },
-});
+async function run() {
+  const watching = process.argv.includes("--watch");
+
+  const cfg: BuildOptions = {
+    entryPoints: ["src/index.tsx"],
+    bundle: true,
+    outdir: "dist",
+    sourcemap: watching ? "inline" : false,
+    minify: !watching,
+    logLevel: "info",
+    loader: {
+      ".svg": "dataurl",
+      ".woff": "dataurl",
+      ".woff2": "dataurl",
+    },
+  };
+
+  if (watching) {
+    await (await context(cfg)).watch();
+  } else {
+    await build(cfg);
+  }
+}
+
+run();

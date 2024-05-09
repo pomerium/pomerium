@@ -1,7 +1,7 @@
-import Stack from "@mui/material/Stack";
+import { Stack } from "@mui/material";
 import React, { FC } from "react";
-import { WebAuthnRegistrationPageData } from "src/types";
 
+import { WebAuthnRegistrationPageData } from "../types";
 import ExperimentalIcon from "./ExperimentalIcon";
 import Section from "./Section";
 import WebAuthnAuthenticateButton from "./WebAuthnAuthenticateButton";

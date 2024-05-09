@@ -1,6 +1,4 @@
-import Box from "@mui/material/Box";
-import CssBaseline from "@mui/material/CssBaseline";
-import { ThemeProvider } from "@mui/material/styles";
+import { Box, CssBaseline, ThemeProvider } from "@mui/material";
 import React, { FC, useLayoutEffect } from "react";
 
 import ErrorPage from "./components/ErrorPage";

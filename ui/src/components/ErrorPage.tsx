@@ -1,14 +1,17 @@
-import { ListItemProps, TableCell } from "@mui/material";
-import Alert from "@mui/material/Alert";
-import AlertTitle from "@mui/material/AlertTitle";
-import Box from "@mui/material/Box";
-import Container from "@mui/material/Container";
-import Paper from "@mui/material/Paper";
-import Stack from "@mui/material/Stack";
-import Table from "@mui/material/Table";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import Typography from "@mui/material/Typography";
+import {
+  Alert,
+  AlertTitle,
+  Box,
+  Container,
+  ListItemProps,
+  Paper,
+  Stack,
+  Table,
+  TableCell,
+  TableHead,
+  TableRow,
+  Typography,
+} from "@mui/material";
 import Markdown from "markdown-to-jsx";
 import React, { FC } from "react";
 import { CheckCircle, MinusCircle, XCircle } from "react-feather";
@@ -20,7 +23,7 @@ type PolicyEvaluationTraceDetailsProps = {
   trace: PolicyEvaluationTrace;
 } & ListItemProps;
 const PolicyEvaluationTraceDetails: FC<PolicyEvaluationTraceDetailsProps> = ({
-  trace
+  trace,
 }) => {
   return (
     <TableRow>
@@ -58,10 +61,11 @@ export const ErrorPage: FC<ErrorPageProps> = ({ data }) => {
       <Paper sx={{ overflow: "hidden" }}>
         <Stack>
           <Box sx={{ padding: "16px" }}>
-            <Alert severity={status < 200 || status >= 300 ? "error" : "success"}>
+            <Alert
+              severity={status < 200 || status >= 300 ? "error" : "success"}
+            >
               <AlertTitle>
-                {status}{" "}
-                {data?.statusText || "Internal Server Error"}
+                {status} {data?.statusText || "Internal Server Error"}
               </AlertTitle>
               {data?.description ? (
                 <Markdown>{data.description}</Markdown>

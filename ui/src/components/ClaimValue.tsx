@@ -1,6 +1,6 @@
-import IDField from "./IDField";
-import { DateTime } from "luxon";
 import React, { FC } from "react";
+
+import IDField from "./IDField";
 
 const unixSecondTimestampFields = new Set(["exp", "iat", "nbf", "auth_time"]);
 
@@ -12,7 +12,7 @@ type ClaimValueProps = {
 };
 const ClaimValue: FC<ClaimValueProps> = ({ claimKey, claimValue }) => {
   if (unixSecondTimestampFields.has(claimKey)) {
-    return <>{DateTime.fromMillis((claimValue as number) * 1000).toISO()}</>;
+    return <>{new Date((claimValue as number) * 1000).toISOString()}</>;
   }
 
   if (idFields.has(claimKey)) {

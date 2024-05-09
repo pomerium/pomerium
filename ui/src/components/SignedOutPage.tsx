@@ -1,7 +1,7 @@
-import { Alert } from "@mui/material";
-import Container from "@mui/material/Container";
+import { Alert, Container } from "@mui/material";
 import React, { FC } from "react";
-import { SignedOutPageData } from "src/types";
+
+import { SignedOutPageData } from "../types";
 
 type SignedOutPageProps = {
   data: SignedOutPageData;
