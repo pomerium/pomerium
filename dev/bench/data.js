@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715256515030,
+  "lastUpdate": 1715260429400,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -109156,6 +109156,42 @@ window.BENCHMARK_DATA = {
             "value": 6174114,
             "unit": "ns/op",
             "extra": "195 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ab388211f225884b3d57b3b373a02f88e4fd6dbb",
+          "message": "core/ui: improve frontend build size (#5109)\n\n* core/ui: improve frontend build size\r\n\r\n* remove luxon\r\n\r\n* add lodash\r\n\r\n* remove console.log\r\n\r\n* only generate sourcemap when watching",
+          "timestamp": "2024-05-09T07:10:00-06:00",
+          "tree_id": "14b3a894b493de06c352cbae6592676c68affb30",
+          "url": "https://github.com/pomerium/pomerium/commit/ab388211f225884b3d57b3b373a02f88e4fd6dbb"
+        },
+        "date": 1715260412299,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10432950,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6917683,
+            "unit": "ns/op",
+            "extra": "171 times\n4 procs"
           }
         ]
       }
