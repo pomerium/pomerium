@@ -3,11 +3,12 @@ package metrics
 import (
 	"context"
 
-	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/metrics"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
+
+	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/metrics"
 )
 
 var (

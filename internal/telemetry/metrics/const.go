@@ -20,7 +20,7 @@ var (
 	TagKeyStorageBackend   = tag.MustNewKey("backend")
 
 	TagKeyCgroup     = tag.MustNewKey("cgroup")
-	TagKeyActionName = tag.MustNewKey("name")
+	TagKeyActionName = tag.MustNewKey("action_name")
 )
 
 // Default distributions used by views in this package.

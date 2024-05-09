@@ -22,10 +22,11 @@ import (
 	envoy_extensions_resource_monitors_injected_resource_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/resource_monitors/injected_resource/v3"
 	typev3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	atomicfs "github.com/natefinch/atomic"
-	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
+
+	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 )
 
 type ResourceMonitor interface {
@@ -51,14 +52,35 @@ type CgroupDriver interface {
 
 var (
 	overloadActions = []struct {
-		Name    string
-		Trigger *envoy_config_overload_v3.Trigger
+		ActionName string
+		Trigger    *envoy_config_overload_v3.Trigger
 	}{
-		{"shrink_heap", memUsageScaled(0.8, 0.9)},
+		// At 90%, envoy will shrink its heap every 10 seconds
+		// https://github.com/envoyproxy/envoy/blob/v1.30.1/source/common/memory/heap_shrinker.cc
+		{"shrink_heap", memUsageThreshold(0.9)},
+
+		// At >85% memory usage, gradually start reducing timeouts, by up to 50%.
+		// https://www.envoyproxy.io/docs/envoy/latest/configuration/operations/overload_manager/overload_manager#reducing-timeouts
+		// https://github.com/envoyproxy/envoy/blob/v1.30.1/source/server/overload_manager_impl.cc#L565-L572
 		{"reduce_timeouts", memUsageScaled(0.85, 0.95)},
-		{"reset_high_memory_stream", memUsageScaled(0.90, 0.95)},
+
+		// At 90%, start resetting streams using the most memory. As memory usage
+		// increases, the eligibility threshold is reduced.
+		// https://www.envoyproxy.io/docs/envoy/latest/configuration/operations/overload_manager/overload_manager#reset-streams
+		// https://github.com/envoyproxy/envoy/blob/v1.30.1/source/server/worker_impl.cc#L180
+		{"reset_high_memory_stream", memUsageScaled(0.90, 0.98)},
+
+		// At 95%, stop accepting new connections, but keep existing ones open.
+		// https://github.com/envoyproxy/envoy/blob/v1.30.1/source/server/worker_impl.cc#L168-L174
 		{"stop_accepting_connections", memUsageThreshold(0.95)},
-		{"disable_http_keepalive", memUsageThreshold(0.97)},
+
+		// At 98%, disable HTTP keepalive. This prevents new http/2 streams and
+		// ends all existing ones.
+		// https://github.com/envoyproxy/envoy/blob/v1.30.1/source/common/http/conn_manager_impl.cc#L1735-L1755
+		{"disable_http_keepalive", memUsageThreshold(0.98)},
+
+		// At 99%, drop all new requests.
+		// https://github.com/envoyproxy/envoy/blob/v1.30.1/source/common/http/conn_manager_impl.cc#L1203-L1225
 		{"stop_accepting_requests", memUsageThreshold(0.99)},
 	}
 	overloadActionConfigs = map[string]*anypb.Any{
@@ -68,7 +90,7 @@ var (
 					Timer: envoy_config_overload_v3.ScaleTimersOverloadActionConfig_HTTP_DOWNSTREAM_CONNECTION_IDLE,
 					OverloadAdjust: &envoy_config_overload_v3.ScaleTimersOverloadActionConfig_ScaleTimer_MinScale{
 						MinScale: &typev3.Percent{
-							Value: 50, // reduce the idle timeout by 50%
+							Value: 50, // reduce the idle timeout by 50% at most
 						},
 					},
 				},
@@ -88,7 +110,7 @@ func init() {
 		case *envoy_config_overload_v3.Trigger_Threshold:
 			minThreshold = trigger.Threshold.Value
 		}
-		computedActionThresholds[action.Name] = minThreshold
+		computedActionThresholds[action.ActionName] = minThreshold
 	}
 }
 
@@ -194,14 +216,15 @@ func (s *sharedResourceMonitor) ApplyBootstrapConfig(bootstrap *envoy_config_boo
 	for _, action := range overloadActions {
 		bootstrap.OverloadManager.Actions = append(bootstrap.OverloadManager.Actions,
 			&envoy_config_overload_v3.OverloadAction{
-				Name:        fmt.Sprintf("envoy.overload_actions.%s", action.Name),
+				Name:        fmt.Sprintf("envoy.overload_actions.%s", action.ActionName),
 				Triggers:    []*envoy_config_overload_v3.Trigger{action.Trigger},
-				TypedConfig: overloadActionConfigs[action.Name],
+				TypedConfig: overloadActionConfigs[action.ActionName],
 			},
 		)
 	}
 
 	bootstrap.OverloadManager.BufferFactoryConfig = &envoy_config_overload_v3.BufferFactoryConfig{
+		// https://www.envoyproxy.io/docs/envoy/latest/api-v3/config/overload/v3/overload.proto#config-overload-v3-bufferfactoryconfig
 		MinimumAccountToTrackPowerOfTwo: 20,
 	}
 }
@@ -263,7 +286,9 @@ func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
 
 			if saturationStr != lastValue {
 				lastValue = saturationStr
-				s.writeMetricFile(groupMemory, metricCgroupMemorySaturation, saturationStr, 0o644)
+				if err := s.writeMetricFile(groupMemory, metricCgroupMemorySaturation, saturationStr, 0o644); err != nil {
+					log.Error(ctx).Err(err).Msg("failed to write metric file")
+				}
 				s.updateActionStates(ctx, saturation)
 				metrics.RecordEnvoyCgroupMemorySaturation(ctx, s.cgroup, saturation)
 				log.Debug(ctx).
@@ -560,7 +585,7 @@ func parseCgroupName(contents []byte) (string, error) {
 	for scan.Scan() {
 		line := scan.Text()
 		if strings.HasPrefix(line, "0::") {
-			return strings.Split(strings.TrimPrefix(strings.TrimSpace(string(line)), "0::"), " ")[0], nil
+			return strings.Split(strings.TrimPrefix(strings.TrimSpace(line), "0::"), " ")[0], nil
 		}
 	}
 	return "", errors.New("cgroup not found")

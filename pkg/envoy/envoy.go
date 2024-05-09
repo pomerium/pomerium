@@ -190,7 +190,16 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 
 	if srv.resourceMonitor != nil {
 		log.Debug(ctx).Str("service", "envoy").Msg("starting resource monitor")
-		go srv.resourceMonitor.Run(ctx, cmd.Process.Pid)
+		go func() {
+			err := srv.resourceMonitor.Run(ctx, cmd.Process.Pid)
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					log.Debug(ctx).Err(err).Str("service", "envoy").Msg("resource monitor stopped")
+				} else {
+					log.Error(ctx).Err(err).Str("service", "envoy").Msg("resource monitor exited with error")
+				}
+			}
+		}()
 	}
 	srv.cmd = cmd
 
