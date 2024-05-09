@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -20,7 +21,7 @@ import (
 	envoy_config_overload_v3 "github.com/envoyproxy/go-control-plane/envoy/config/overload/v3"
 	envoy_extensions_resource_monitors_injected_resource_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/resource_monitors/injected_resource/v3"
 	typev3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
-	"github.com/natefinch/atomic"
+	atomicfs "github.com/natefinch/atomic"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"google.golang.org/protobuf/proto"
@@ -32,11 +33,20 @@ type ResourceMonitor interface {
 	ApplyBootstrapConfig(bootstrap *envoy_config_bootstrap_v3.Bootstrap)
 }
 
+type CgroupFilePath int
+
+const (
+	RootPath CgroupFilePath = iota
+	MemoryUsagePath
+	MemoryLimitPath
+)
+
 type CgroupDriver interface {
-	Root() string
 	CgroupForPid(pid int) (string, error)
-	MemorySaturation(cgroup string) (float64, error)
+	Path(cgroup string, kind CgroupFilePath) string
 	Validate(cgroup string) error
+	MemoryUsage(cgroup string) (uint64, error)
+	MemoryLimit(cgroup string) (uint64, error)
 }
 
 var (
@@ -206,6 +216,13 @@ func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
 	}
 	log.Info(ctx).Str("service", "envoy").Str("cgroup", s.cgroup).Msg("starting resource monitor")
 
+	limitWatcher := &memoryLimitWatcher{
+		limitFilePath: s.driver.Path(s.cgroup, MemoryLimitPath),
+	}
+	if err := limitWatcher.Watch(ctx); err != nil {
+		return fmt.Errorf("failed to start watch on cgroup memory limit: %w", err)
+	}
+
 	// Set initial values for state metrics
 	s.updateActionStates(ctx, 0)
 
@@ -230,23 +247,29 @@ func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
 			tick.Stop()
 			return ctx.Err()
 		case <-tick.C:
-			val, err := s.driver.MemorySaturation(s.cgroup)
+			usage, err := s.driver.MemoryUsage(s.cgroup)
 			if err != nil {
 				log.Error(ctx).Err(err).Msg("failed to get memory saturation")
 				continue
 			}
-			ratioStr := fmt.Sprintf("%.6f", val)
-			nextInterval := (maxTickDuration - (time.Duration(float64(maxTickDuration-minTickDuration) * val))).Round(time.Millisecond)
+			var saturation float64
+			if limit := limitWatcher.Value(); limit > 0 {
+				saturation = float64(usage) / float64(limit)
+			}
 
-			if ratioStr != lastValue {
-				lastValue = ratioStr
-				s.writeMetricFile(groupMemory, metricCgroupMemorySaturation, ratioStr, 0o644)
-				s.updateActionStates(ctx, val)
-				metrics.RecordEnvoyCgroupMemorySaturation(ctx, s.cgroup, val)
+			saturationStr := fmt.Sprintf("%.6f", saturation)
+			nextInterval := (maxTickDuration - (time.Duration(float64(maxTickDuration-minTickDuration) * saturation))).
+				Round(time.Millisecond)
+
+			if saturationStr != lastValue {
+				lastValue = saturationStr
+				s.writeMetricFile(groupMemory, metricCgroupMemorySaturation, saturationStr, 0o644)
+				s.updateActionStates(ctx, saturation)
+				metrics.RecordEnvoyCgroupMemorySaturation(ctx, s.cgroup, saturation)
 				log.Debug(ctx).
 					Str("service", "envoy").
 					Str("metric", metricCgroupMemorySaturation).
-					Str("value", ratioStr).
+					Str("value", saturationStr).
 					Dur("interval_ms", nextInterval).
 					Msg("updated metric")
 			}
@@ -296,7 +319,7 @@ func (s *sharedResourceMonitor) writeMetricFile(group, name, data string, mode f
 	if err := os.Chmod(tempFilename, mode); err != nil {
 		return err
 	}
-	if err := atomic.ReplaceFile(tempFilename, filepath.Join(s.tempDir, group, name)); err != nil {
+	if err := atomicfs.ReplaceFile(tempFilename, filepath.Join(s.tempDir, group, name)); err != nil {
 		return err
 	}
 	return nil
@@ -306,11 +329,19 @@ type cgroupV2Driver struct {
 	root string
 }
 
-func (d cgroupV2Driver) Root() string {
-	return d.root
+func (d *cgroupV2Driver) Path(cgroup string, kind CgroupFilePath) string {
+	switch kind {
+	case RootPath:
+		return d.root
+	case MemoryUsagePath:
+		return filepath.Join(d.root, cgroup, "memory.current")
+	case MemoryLimitPath:
+		return filepath.Join(d.root, cgroup, "memory.max")
+	}
+	return ""
 }
 
-func (cgroupV2Driver) CgroupForPid(pid int) (string, error) {
+func (*cgroupV2Driver) CgroupForPid(pid int) (string, error) {
 	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/cgroup", pid))
 	if err != nil {
 		return "", err
@@ -318,35 +349,30 @@ func (cgroupV2Driver) CgroupForPid(pid int) (string, error) {
 	return parseCgroupName(data)
 }
 
-// MemorySaturation implements CgroupDriver.
-func (d cgroupV2Driver) MemorySaturation(cgroup string) (float64, error) {
-	path := filepath.Join(d.Root(), cgroup, "memory.current")
-	current, err := os.ReadFile(path)
+// MemoryUsage implements CgroupDriver.
+func (d *cgroupV2Driver) MemoryUsage(cgroup string) (uint64, error) {
+	current, err := os.ReadFile(d.Path(cgroup, MemoryUsagePath))
 	if err != nil {
 		return 0, err
 	}
-	max, err := os.ReadFile(filepath.Join(d.Root(), cgroup, "memory.max"))
+	return strconv.ParseUint(strings.TrimSpace(string(current)), 10, 64)
+}
+
+// MemoryLimit implements CgroupDriver.
+func (d *cgroupV2Driver) MemoryLimit(cgroup string) (uint64, error) {
+	max, err := os.ReadFile(d.Path(cgroup, MemoryLimitPath))
 	if err != nil {
 		return 0, err
 	}
 	if string(max) == "max" {
-		// no limit set
 		return 0, nil
 	}
-	curNum, err := strconv.ParseUint(strings.TrimSpace(string(current)), 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	maxNum, err := strconv.ParseUint(strings.TrimSpace(string(max)), 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return float64(curNum) / float64(maxNum), nil
+	return strconv.ParseUint(strings.TrimSpace(string(max)), 10, 64)
 }
 
 // Validate implements CgroupDriver.
-func (d cgroupV2Driver) Validate(cgroup string) error {
-	if typ, err := os.ReadFile(filepath.Join(d.Root(), cgroup, "cgroup.type")); err != nil {
+func (d *cgroupV2Driver) Validate(cgroup string) error {
+	if typ, err := os.ReadFile(filepath.Join(d.root, cgroup, "cgroup.type")); err != nil {
 		return err
 	} else if strings.TrimSpace(string(typ)) != "domain" {
 		return errors.New("not a domain cgroup")
@@ -367,16 +393,16 @@ func (d cgroupV2Driver) Validate(cgroup string) error {
 	return nil
 }
 
-func (d cgroupV2Driver) enabledControllers(cgroup string) ([]string, error) {
-	data, err := os.ReadFile(filepath.Join(d.Root(), cgroup, "cgroup.controllers"))
+func (d *cgroupV2Driver) enabledControllers(cgroup string) ([]string, error) {
+	data, err := os.ReadFile(filepath.Join(d.root, cgroup, "cgroup.controllers"))
 	if err != nil {
 		return nil, err
 	}
 	return strings.Fields(string(data)), nil
 }
 
-func (d cgroupV2Driver) enabledSubtreeControllers(cgroup string) ([]string, error) {
-	data, err := os.ReadFile(filepath.Join(d.Root(), cgroup, "cgroup.subtree_control"))
+func (d *cgroupV2Driver) enabledSubtreeControllers(cgroup string) ([]string, error) {
+	data, err := os.ReadFile(filepath.Join(d.root, cgroup, "cgroup.subtree_control"))
 	if err != nil {
 		return nil, err
 	}
@@ -389,11 +415,19 @@ type cgroupV1Driver struct {
 	root string
 }
 
-func (d cgroupV1Driver) Root() string {
-	return d.root
+func (d *cgroupV1Driver) Path(cgroup string, kind CgroupFilePath) string {
+	switch kind {
+	case RootPath:
+		return d.root
+	case MemoryUsagePath:
+		return filepath.Join(d.root, "memory", cgroup, "memory.usage_in_bytes")
+	case MemoryLimitPath:
+		return filepath.Join(d.root, "memory", cgroup, "memory.limit_in_bytes")
+	}
+	return ""
 }
 
-func (d cgroupV1Driver) CgroupForPid(pid int) (string, error) {
+func (d *cgroupV1Driver) CgroupForPid(pid int) (string, error) {
 	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/cgroup", pid))
 	if err != nil {
 		return "", err
@@ -417,7 +451,7 @@ func (d cgroupV1Driver) CgroupForPid(pid int) (string, error) {
 		// each resource will contain a separate mountpoint for the same path, so
 		// we can just pick the first one.
 		if line[3] == name {
-			mountpoint, err := filepath.Rel(d.Root(), filepath.Dir(line[4]))
+			mountpoint, err := filepath.Rel(d.root, filepath.Dir(line[4]))
 			if err != nil {
 				return "", err
 			}
@@ -427,34 +461,30 @@ func (d cgroupV1Driver) CgroupForPid(pid int) (string, error) {
 	return "", errors.New("cgroup not found")
 }
 
-// MemorySaturation implements CgroupDriver.
-func (d cgroupV1Driver) MemorySaturation(cgroup string) (float64, error) {
-	current, err := os.ReadFile(filepath.Join(d.Root(), "memory", cgroup, "memory.usage_in_bytes"))
+// MemoryUsage implements CgroupDriver.
+func (d *cgroupV1Driver) MemoryUsage(cgroup string) (uint64, error) {
+	current, err := os.ReadFile(d.Path(cgroup, MemoryUsagePath))
 	if err != nil {
 		return 0, err
 	}
-	max, err := os.ReadFile(filepath.Join(d.Root(), "memory", cgroup, "memory.limit_in_bytes"))
+	return strconv.ParseUint(strings.TrimSpace(string(current)), 10, 64)
+}
+
+// MemoryLimit implements CgroupDriver.
+func (d *cgroupV1Driver) MemoryLimit(cgroup string) (uint64, error) {
+	max, err := os.ReadFile(d.Path(cgroup, MemoryLimitPath))
 	if err != nil {
 		return 0, err
 	}
 	if string(max) == "max" {
-		// no limit set
 		return 0, nil
 	}
-	curNum, err := strconv.ParseUint(strings.TrimSpace(string(current)), 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	maxNum, err := strconv.ParseUint(strings.TrimSpace(string(max)), 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return float64(curNum) / float64(maxNum), nil
+	return strconv.ParseUint(strings.TrimSpace(string(max)), 10, 64)
 }
 
 // Validate implements CgroupDriver.
-func (d cgroupV1Driver) Validate(cgroup string) error {
-	memoryPath := filepath.Join(d.Root(), "memory", cgroup)
+func (d *cgroupV1Driver) Validate(cgroup string) error {
+	memoryPath := filepath.Join(d.root, "memory", cgroup)
 	info, err := os.Stat(memoryPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -468,7 +498,7 @@ func (d cgroupV1Driver) Validate(cgroup string) error {
 	return nil
 }
 
-var _ CgroupDriver = cgroupV1Driver{}
+var _ CgroupDriver = (*cgroupV1Driver)(nil)
 
 func SystemCgroupDriver() (CgroupDriver, error) {
 	const cgv2Magic = 0x63677270
@@ -478,7 +508,7 @@ func SystemCgroupDriver() (CgroupDriver, error) {
 			var stat syscall.Statfs_t
 			err := syscall.Statfs(path, &stat)
 			if err != nil {
-				if err == syscall.EINTR {
+				if errors.Is(err, syscall.EINTR) {
 					continue
 				}
 				return 0, err
@@ -493,7 +523,7 @@ func SystemCgroupDriver() (CgroupDriver, error) {
 		return nil, err
 	}
 	if t == cgv2Magic {
-		return cgroupV2Driver{root: "/sys/fs/cgroup"}, nil
+		return &cgroupV2Driver{root: "/sys/fs/cgroup"}, nil
 	}
 
 	// find the unified mountpoint, or fall back to v1
@@ -510,7 +540,7 @@ func SystemCgroupDriver() (CgroupDriver, error) {
 		}
 		switch line[2] {
 		case "cgroup2":
-			return cgroupV2Driver{root: line[1]}, nil
+			return &cgroupV2Driver{root: line[1]}, nil
 		case "cgroup":
 			if cgv1Root == "" {
 				cgv1Root = filepath.Dir(line[1])
@@ -519,7 +549,7 @@ func SystemCgroupDriver() (CgroupDriver, error) {
 	}
 
 	if cgv1Root != "" {
-		return cgroupV1Driver{root: cgv1Root}, nil
+		return &cgroupV1Driver{root: cgv1Root}, nil
 	}
 
 	return nil, errors.New("no cgroup mount found")
@@ -543,4 +573,81 @@ func marshalAny(msg proto.Message) *anypb.Any {
 		Deterministic: true,
 	})
 	return data
+}
+
+type memoryLimitWatcher struct {
+	limitFilePath string
+
+	value atomic.Int64
+}
+
+func (w *memoryLimitWatcher) Value() int64 {
+	return w.value.Load()
+}
+
+func (w *memoryLimitWatcher) readValue() (int64, error) {
+	data, err := os.ReadFile(w.limitFilePath)
+	if err != nil {
+		return 0, err
+	}
+	if string(data) == "max" {
+		// no limit set
+		return 0, nil
+	}
+	return strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
+}
+
+func (w *memoryLimitWatcher) Watch(ctx context.Context) error {
+	fd, err := syscall.InotifyInit1(syscall.IN_CLOEXEC)
+	if err != nil {
+		return err
+	}
+	closeWatch := sync.OnceFunc(func() {
+		log.Debug(ctx).Msg("stopping memory limit watcher")
+		for {
+			if err := syscall.Close(fd); !errors.Is(err, syscall.EINTR) {
+				return
+			}
+		}
+	})
+	if _, err := syscall.InotifyAddWatch(fd, w.limitFilePath, syscall.IN_MODIFY); err != nil {
+		closeWatch()
+		return err
+	}
+
+	// perform the initial read synchronously and only after setting up the watch
+	v, err := w.readValue()
+	if err != nil {
+		closeWatch()
+		return err
+	}
+	w.value.Store(v)
+	log.Debug(ctx).Int64("bytes", v).Msg("current memory limit")
+
+	context.AfterFunc(ctx, closeWatch) // to unblock syscall.Read below
+	go func() {
+		defer closeWatch()
+		var buf [syscall.SizeofInotifyEvent]byte
+		for {
+			v, err := w.readValue()
+			if err != nil {
+				return
+			}
+			if prev := w.value.Swap(v); prev != v {
+				log.Debug(ctx).
+					Int64("prev", prev).
+					Int64("current", v).
+					Msg("memory limit updated")
+			}
+			_, err = syscall.Read(fd, buf[:])
+			if err != nil {
+				if errors.Is(err, syscall.EINTR) {
+					continue
+				}
+				return
+			}
+		}
+	}()
+
+	return nil
 }
