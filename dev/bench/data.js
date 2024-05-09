@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715274815325,
+  "lastUpdate": 1715278082946,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -109228,6 +109228,38 @@ window.BENCHMARK_DATA = {
             "value": 6201820,
             "unit": "ns/op",
             "extra": "183 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "642f296bee2a68fe28a1c103eb84e63b5597dc33",
+          "message": "[WIP] Envoy resource monitoring & overload manager configuration",
+          "timestamp": "2024-05-09T17:09:43Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5106/commits/642f296bee2a68fe28a1c103eb84e63b5597dc33"
+        },
+        "date": 1715278066203,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9006738,
+            "unit": "ns/op",
+            "extra": "126 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6522200,
+            "unit": "ns/op",
+            "extra": "188 times\n4 procs"
           }
         ]
       }
