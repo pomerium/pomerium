@@ -54,6 +54,16 @@ archives:
       - goos: windows
         format: zip
 
+sboms:
+- documents:
+  - "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}.json"
+  artifacts: binary
+  cmd: cyclonedx-gomod
+  args: ["bin", "-json", "-output", "$document", "$artifact"]
+  env:
+  - GOARCH={{ .Arch }}
+  - GOOS={{ .Os }}
+
 checksum:
   name_template: "{{ .ProjectName }}_checksums.txt"
 
