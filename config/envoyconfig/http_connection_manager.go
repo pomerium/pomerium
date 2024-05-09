@@ -56,9 +56,10 @@ func (b *Builder) buildLocalReplyConfig(
 	}
 
 	data := map[string]any{
-		"status":     "%RESPONSE_CODE%",
-		"statusText": "%RESPONSE_CODE_DETAILS%",
-		"requestId":  "%STREAM_ID%",
+		"status":        "%RESPONSE_CODE%",
+		"statusText":    "%RESPONSE_CODE_DETAILS%",
+		"requestId":     "%STREAM_ID%",
+		"responseFlags": "%RESPONSE_FLAGS%",
 	}
 	httputil.AddBrandingOptionsToMap(data, options.BrandingOptions)
 
@@ -71,7 +72,38 @@ func (b *Builder) buildLocalReplyConfig(
 		Mappers: []*envoy_http_connection_manager.ResponseMapper{{
 			Filter: &envoy_config_accesslog_v3.AccessLogFilter{
 				FilterSpecifier: &envoy_config_accesslog_v3.AccessLogFilter_ResponseFlagFilter{
-					ResponseFlagFilter: &envoy_config_accesslog_v3.ResponseFlagFilter{},
+					ResponseFlagFilter: &envoy_config_accesslog_v3.ResponseFlagFilter{
+						Flags: []string{
+							"DC",
+							"DF",
+							"DI",
+							"DO",
+							"DPE",
+							"DT",
+							"FI",
+							"IH",
+							"LH",
+							"LR",
+							"NC",
+							"NFCF",
+							"NR",
+							"OM",
+							"RFCF",
+							"RL",
+							"RLSE",
+							"SI",
+							// "UAEX", // excluded because this response is handled in the authorize service
+							"UC",
+							"UF",
+							"UH",
+							"UMSDR",
+							"UO",
+							"UPE",
+							"UR",
+							"URX",
+							"UT",
+						},
+					},
 				},
 			},
 			BodyFormatOverride: &envoy_config_core_v3.SubstitutionFormatString{
