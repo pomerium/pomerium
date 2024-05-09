@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715211407500,
+  "lastUpdate": 1715256515030,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -109124,6 +109124,38 @@ window.BENCHMARK_DATA = {
             "value": 6153114,
             "unit": "ns/op",
             "extra": "200 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "cde7433fe6d067794ff1d6a6bb16401087460bab",
+          "message": "core/ui: improve frontend build size",
+          "timestamp": "2024-05-07T22:45:44Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5109/commits/cde7433fe6d067794ff1d6a6bb16401087460bab"
+        },
+        "date": 1715256506034,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9044803,
+            "unit": "ns/op",
+            "extra": "135 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6174114,
+            "unit": "ns/op",
+            "extra": "195 times\n4 procs"
           }
         ]
       }
