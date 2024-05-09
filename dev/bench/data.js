@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715260429400,
+  "lastUpdate": 1715274815325,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -109192,6 +109192,42 @@ window.BENCHMARK_DATA = {
             "value": 6917683,
             "unit": "ns/op",
             "extra": "171 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "568e99fdd4fe130002fbe8e9f1225880fa5d840b",
+          "message": "core/envoy: exclude unauthorized access from local replies (#5108)\n\n* core/envoy: exclude unauthorized access from local replies\r\n\r\n* fix test",
+          "timestamp": "2024-05-09T11:09:38-06:00",
+          "tree_id": "fed74a3ef35381f8732c3a9edbb9c4aed091dd43",
+          "url": "https://github.com/pomerium/pomerium/commit/568e99fdd4fe130002fbe8e9f1225880fa5d840b"
+        },
+        "date": 1715274805970,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9759703,
+            "unit": "ns/op",
+            "extra": "121 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6201820,
+            "unit": "ns/op",
+            "extra": "183 times\n4 procs"
           }
         ]
       }
