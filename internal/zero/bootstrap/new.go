@@ -28,7 +28,6 @@ type Source struct {
 	fileCachePath *string
 	fileCipher    cipher.AEAD
 
-	checkForUpdate chan struct{}
 	updateInterval atomicutil.Value[time.Duration]
 }
 
@@ -54,11 +53,10 @@ func New(secret []byte, fileCachePath *string, api *sdk.API) (*Source, error) {
 	}
 
 	svc := &Source{
-		api:            api,
-		source:         source{ready: make(chan struct{})},
-		fileCachePath:  fileCachePath,
-		fileCipher:     cipher,
-		checkForUpdate: make(chan struct{}, 1),
+		api:           api,
+		source:        source{ready: make(chan struct{})},
+		fileCachePath: fileCachePath,
+		fileCipher:    cipher,
 	}
 	svc.cfg.Store(cfg)
 	svc.updateInterval.Store(DefaultCheckForUpdateIntervalWhenDisconnected)

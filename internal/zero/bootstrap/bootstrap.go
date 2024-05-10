@@ -13,13 +13,15 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/retry"
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 )
 
@@ -36,59 +38,61 @@ const (
 func (svc *Source) Run(ctx context.Context) error {
 	svc.tryLoadFromFile(ctx)
 
+	var restartFn atomic.Pointer[context.CancelFunc]
+
 	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error { return svc.watchUpdates(ctx) })
-	eg.Go(func() error { return svc.updateLoop(ctx) })
+	eg.Go(func() error { return svc.watchUpdates(ctx, &restartFn) })
+	eg.Go(func() error { return svc.updateLoop(ctx, &restartFn) })
 
 	return eg.Wait()
 }
 
-func (svc *Source) watchUpdates(ctx context.Context) error {
+func (svc *Source) watchUpdates(
+	ctx context.Context, restartFn *atomic.Pointer[context.CancelFunc],
+) error {
+	restart := func() {
+		if f := restartFn.Load(); f != nil {
+			(*f)()
+		}
+	}
 	return svc.api.Watch(ctx,
 		connect_mux.WithOnConnected(func(_ context.Context) {
-			svc.triggerUpdate(DefaultCheckForUpdateIntervalWhenConnected)
+			svc.updateInterval.Store(DefaultCheckForUpdateIntervalWhenConnected)
+			restart()
 		}),
 		connect_mux.WithOnDisconnected(func(_ context.Context) {
 			svc.updateInterval.Store(DefaultCheckForUpdateIntervalWhenDisconnected)
 		}),
 		connect_mux.WithOnBootstrapConfigUpdated(func(_ context.Context) {
-			svc.triggerUpdate(DefaultCheckForUpdateIntervalWhenConnected)
+			svc.updateInterval.Store(DefaultCheckForUpdateIntervalWhenConnected)
+			restart()
 		}),
 	)
 }
 
-func (svc *Source) updateLoop(ctx context.Context) error {
-	ticker := time.NewTicker(svc.updateInterval.Load())
-	defer ticker.Stop()
-
+func (svc *Source) updateLoop(
+	ctx context.Context, restartFn *atomic.Pointer[context.CancelFunc],
+) error {
 	for {
-		err := retry.Retry(ctx,
-			"update bootstrap", svc.updateAndSave,
-			retry.WithWatch("bootstrap config updated", svc.checkForUpdate, nil),
-		)
-		if err != nil {
+		attemptCtx, cancel := context.WithTimeout(ctx, svc.updateInterval.Load())
+		restartFn.Store(&cancel)
+
+		e := backoff.NewExponentialBackOff()
+		e.MaxInterval = 5 * time.Minute
+		e.MaxElapsedTime = 0
+		e.Multiplier = 2
+		b := backoff.WithContext(e, attemptCtx)
+
+		err := backoff.Retry(func() error { return svc.updateAndSave(attemptCtx) }, b)
+		if err != nil && !errors.Is(err, context.Canceled) {
 			return fmt.Errorf("update bootstrap config: %w", err)
 		}
-
-		ticker.Reset(svc.updateInterval.Load())
 
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-svc.checkForUpdate:
-		case <-ticker.C:
+		case <-attemptCtx.Done():
 		}
-	}
-}
-
-// triggerUpdate triggers an update of the bootstrap config
-// and sets the interval for the next update
-func (svc *Source) triggerUpdate(newUpdateInterval time.Duration) {
-	svc.updateInterval.Store(newUpdateInterval)
-
-	select {
-	case svc.checkForUpdate <- struct{}{}:
-	default:
 	}
 }
 
