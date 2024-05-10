@@ -79,7 +79,7 @@ func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Buil
 	}
 	go srv.runProcessCollector(ctx)
 
-	if rm, err := NewSharedResourceMonitor(srv.wd); err == nil {
+	if rm, err := NewSharedResourceMonitor(ctx, src, srv.wd); err == nil {
 		srv.resourceMonitor = rm
 	} else {
 		log.Error(ctx).Err(err).Str("service", "envoy").Msg("not starting resource monitor")

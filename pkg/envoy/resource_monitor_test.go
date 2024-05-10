@@ -605,7 +605,8 @@ func TestSharedResourceMonitor(t *testing.T) {
 		},
 	}
 
-	monitor, err := NewSharedResourceMonitor(tempDir, WithCgroupDriver(driver))
+	configSrc := config.NewStaticSource(&config.Config{})
+	monitor, err := NewSharedResourceMonitor(context.Background(), configSrc, tempDir, WithCgroupDriver(driver))
 	require.NoError(t, err)
 
 	readMemorySaturation := func(t assert.TestingT) string {
@@ -650,6 +651,31 @@ func TestSharedResourceMonitor(t *testing.T) {
 		assert.Equal(c, "1.000000", readMemorySaturation(c))
 	}, timeout, interval)
 
+	configSrc.SetConfig(ctx, &config.Config{
+		Options: &config.Options{
+			RuntimeFlags: config.RuntimeFlags{
+				config.RuntimeFlagEnvoyResourceManagerEnabled: false,
+			},
+		},
+	})
+
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Equal(c, "0.000000", readMemorySaturation(c))
+	}, timeout, interval)
+
+	configSrc.SetConfig(ctx, &config.Config{
+		Options: &config.Options{
+			RuntimeFlags: config.RuntimeFlags{
+				config.RuntimeFlagEnvoyResourceManagerEnabled: true,
+			},
+		},
+	})
+
+	updateMemoryMax("150")
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Equal(c, "1.000000", readMemorySaturation(c))
+	}, timeout, interval)
+
 	ca()
 	assert.ErrorIs(t, <-errC, context.Canceled)
 }
@@ -658,7 +684,7 @@ func TestBootstrapConfig(t *testing.T) {
 	b := envoyconfig.New("localhost:1111", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil)
 	testEnvoyPid := 99
 	tempDir := t.TempDir()
-	monitor, err := NewSharedResourceMonitor(tempDir, WithCgroupDriver(&cgroupV2Driver{
+	monitor, err := NewSharedResourceMonitor(context.Background(), config.NewStaticSource(nil), tempDir, WithCgroupDriver(&cgroupV2Driver{
 		root: "sys/fs/cgroup",
 		fs: &hybridTestFS{
 			base: with(v2Fs, fstest.MapFS{

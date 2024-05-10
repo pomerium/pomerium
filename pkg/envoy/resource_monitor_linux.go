@@ -27,6 +27,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 )
@@ -150,7 +151,7 @@ func WithCgroupDriver(driver CgroupDriver) ResourceMonitorOption {
 // memory saturation to envoy as an injected resource. This allows envoy to
 // react to actual memory pressure in the cgroup, taking into account memory
 // usage from pomerium itself.
-func NewSharedResourceMonitor(tempDir string, opts ...ResourceMonitorOption) (ResourceMonitor, error) {
+func NewSharedResourceMonitor(ctx context.Context, src config.Source, tempDir string, opts ...ResourceMonitorOption) (ResourceMonitor, error) {
 	options := ResourceMonitorOptions{}
 	options.apply(opts...)
 	if options.driver == nil {
@@ -179,6 +180,13 @@ func NewSharedResourceMonitor(tempDir string, opts ...ResourceMonitorOption) (Re
 		cgroup:                 selfCgroup,
 		tempDir:                filepath.Join(tempDir, "resource_monitor"),
 	}
+	readInitialConfig := make(chan struct{})
+	src.OnConfigChange(ctx, func(ctx context.Context, c *config.Config) {
+		<-readInitialConfig
+		s.onConfigChange(ctx, c)
+	})
+	s.onConfigChange(ctx, src.GetConfig())
+	close(readInitialConfig)
 
 	if err := s.writeMetricFile(groupMemory, metricCgroupMemorySaturation, "0", 0o644); err != nil {
 		return nil, fmt.Errorf("failed to initialize metrics: %w", err)
@@ -190,6 +198,15 @@ type sharedResourceMonitor struct {
 	ResourceMonitorOptions
 	cgroup  string
 	tempDir string
+	enabled atomic.Bool
+}
+
+func (s *sharedResourceMonitor) onConfigChange(_ context.Context, cfg *config.Config) {
+	if cfg == nil || cfg.Options == nil {
+		s.enabled.Store(config.DefaultRuntimeFlags()[config.RuntimeFlagEnvoyResourceManagerEnabled])
+		return
+	}
+	s.enabled.Store(cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagEnvoyResourceManagerEnabled))
 }
 
 func (s *sharedResourceMonitor) metricFilename(group, name string) string {
@@ -253,7 +270,7 @@ func (s *sharedResourceMonitor) ApplyBootstrapConfig(bootstrap *envoy_config_boo
 
 var (
 	monitorInitialTickDelay = 1 * time.Second
-	monitorMaxTickInterval  = 5 * time.Second
+	monitorMaxTickInterval  = 10 * time.Second
 	monitorMinTickInterval  = 250 * time.Millisecond
 )
 
@@ -301,14 +318,16 @@ func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
 			tick.Stop()
 			return ctx.Err()
 		case <-tick.C:
-			usage, err := s.driver.MemoryUsage(s.cgroup)
-			if err != nil {
-				log.Error(ctx).Err(err).Msg("failed to get memory saturation")
-				continue
-			}
 			var saturation float64
-			if limit := limitWatcher.Value(); limit > 0 {
-				saturation = float64(usage) / float64(limit)
+			if s.enabled.Load() {
+				if limit := limitWatcher.Value(); limit > 0 {
+					usage, err := s.driver.MemoryUsage(s.cgroup)
+					if err != nil {
+						log.Error(ctx).Err(err).Msg("failed to get memory saturation")
+						continue
+					}
+					saturation = float64(usage) / float64(limit)
+				}
 			}
 
 			saturationStr := fmt.Sprintf("%.6f", saturation)
