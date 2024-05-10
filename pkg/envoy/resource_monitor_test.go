@@ -14,12 +14,13 @@ import (
 	"testing/fstest"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -549,14 +550,14 @@ func (d *pathOverrideDriver) Path(name string, path CgroupFilePath) string {
 
 func TestSharedResourceMonitor(t *testing.T) {
 	// set shorter intervals for testing
-	var prevInitial, prevMin, prevMax time.Duration
-	monitorInitialTickDuration, prevInitial = 0, monitorInitialTickDuration
-	monitorMaxTickDuration, prevMax = 100*time.Millisecond, monitorMaxTickDuration
-	monitorMinTickDuration, prevMin = 10*time.Millisecond, monitorMinTickDuration
+	var prevInitialDelay, prevMinInterval, prevMaxInterval time.Duration
+	monitorInitialTickDelay, prevInitialDelay = 0, monitorInitialTickDelay
+	monitorMaxTickInterval, prevMaxInterval = 100*time.Millisecond, monitorMaxTickInterval
+	monitorMinTickInterval, prevMinInterval = 10*time.Millisecond, monitorMinTickInterval
 	t.Cleanup(func() {
-		monitorInitialTickDuration = prevInitial
-		monitorMaxTickDuration = prevMax
-		monitorMinTickDuration = prevMin
+		monitorInitialTickDelay = prevInitialDelay
+		monitorMaxTickInterval = prevMaxInterval
+		monitorMinTickInterval = prevMinInterval
 	})
 
 	testEnvoyPid := 99

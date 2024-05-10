@@ -252,9 +252,9 @@ func (s *sharedResourceMonitor) ApplyBootstrapConfig(bootstrap *envoy_config_boo
 }
 
 var (
-	monitorInitialTickDuration = 1 * time.Second
-	monitorMaxTickDuration     = 5 * time.Second
-	monitorMinTickDuration     = 250 * time.Millisecond
+	monitorInitialTickDelay = 1 * time.Second
+	monitorMaxTickInterval  = 5 * time.Second
+	monitorMinTickInterval  = 250 * time.Millisecond
 )
 
 func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
@@ -293,7 +293,7 @@ func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
 
 	// the envoy default interval for the builtin heap monitor is 1s
 
-	tick := time.NewTimer(monitorInitialTickDuration)
+	tick := time.NewTimer(monitorInitialTickDelay)
 	var lastValue string
 	for {
 		select {
@@ -312,7 +312,7 @@ func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
 			}
 
 			saturationStr := fmt.Sprintf("%.6f", saturation)
-			nextInterval := (monitorMaxTickDuration - (time.Duration(float64(monitorMaxTickDuration-monitorMinTickDuration) * saturation))).
+			nextInterval := (monitorMaxTickInterval - (time.Duration(float64(monitorMaxTickInterval-monitorMinTickInterval) * saturation))).
 				Round(time.Millisecond)
 
 			if saturationStr != lastValue {
@@ -690,7 +690,9 @@ func (w *memoryLimitWatcher) Watch(ctx context.Context) error {
 	w.watches.Add(1)
 	closeWatch := sync.OnceFunc(func() {
 		log.Debug(ctx).Str("file", w.limitFilePath).Msg("stopping watch")
-		syscall.InotifyRmWatch(fd, uint32(wd))
+		if _, err := syscall.InotifyRmWatch(fd, uint32(wd)); err != nil {
+			log.Error(ctx).Err(err).Msg("failed to remove watch")
+		}
 		closeInotify()
 		w.watches.Done()
 	})
