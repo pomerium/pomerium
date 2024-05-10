@@ -2,6 +2,7 @@ package healthcheck
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -14,13 +15,10 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
-	"github.com/pomerium/pomerium/pkg/protoutil"
 	clusterping "github.com/pomerium/pomerium/pkg/zero/ping"
 )
 
@@ -28,11 +26,20 @@ import (
 // it resolves the DNS entry and tries to access a pomerium jwks route
 // we should hit ourselves and observe the same public key that we have in our configuration
 // otherwise, something is misconfigured on the DNS level
-func (c *checker) CheckRoutes(ctx context.Context) {
-	err := checkRoutesReachable(ctx, c.bootstrap.GetConfig(), c.databrokerClient)
+func (c *checker) CheckRoutes(ctx context.Context) error {
+	key, err := getClusterPublicKey(c.bootstrap.GetConfig())
 	if err != nil {
-		log.Warn(ctx).Err(err).Msg("routes reachability check failed")
+		health.ReportInternalError(health.RoutesReachable, err)
+		return err
 	}
+
+	err = checkRoutesReachable(ctx, key, c.GetConfigs())
+	if err == nil {
+		health.ReportOK(health.RoutesReachable)
+	} else if ctx.Err() == nil {
+		health.ReportError(health.RoutesReachable, err)
+	}
+	return err
 }
 
 const (
@@ -43,6 +50,9 @@ func getPingHTTPClient() *http.Client {
 	return &http.Client{
 		Timeout: connectionTimeout,
 		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return (&net.Dialer{
 					Timeout: connectionTimeout,
@@ -54,15 +64,10 @@ func getPingHTTPClient() *http.Client {
 
 func checkRoutesReachable(
 	ctx context.Context,
-	cfg *config.Config,
-	databrokerClient databroker.DataBrokerServiceClient,
+	key *jose.JSONWebKey,
+	configs []*configpb.Config,
 ) error {
-	key, err := getClusterPublicKey(cfg)
-	if err != nil {
-		return fmt.Errorf("error getting cluster public key: %w", err)
-	}
-
-	hosts, err := getRouteHosts(ctx, databrokerClient)
+	hosts, err := getHosts(configs)
 	if err != nil {
 		return fmt.Errorf("error getting route hosts: %w", err)
 	}
@@ -77,13 +82,7 @@ func checkRoutesReachable(
 		}
 	}
 
-	if len(errs) == 0 {
-		health.ReportOK(health.RoutesReachable)
-	} else {
-		health.ReportError(health.RoutesReachable, errors.Join(errs...))
-	}
-
-	return nil
+	return errors.Join(errs...)
 }
 
 func getClusterPublicKey(cfg *config.Config) (*jose.JSONWebKey, error) {
@@ -100,27 +99,20 @@ func getClusterPublicKey(cfg *config.Config) (*jose.JSONWebKey, error) {
 	return key, nil
 }
 
-func getRouteHosts(ctx context.Context, databrokerClient databroker.DataBrokerServiceClient) ([]string, error) {
-	records, _, _, err := databroker.InitialSync(ctx, databrokerClient, &databroker.SyncLatestRequest{
-		Type: protoutil.GetTypeURL(new(configpb.Config)),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error during initial sync: %w", err)
-	}
-
+func getHosts(configs []*configpb.Config) ([]string, error) {
 	hosts := make(map[string]struct{})
-	for _, record := range records {
-		var cfg configpb.Config
-		if err := record.Data.UnmarshalTo(&cfg); err != nil {
-			return nil, fmt.Errorf("error unmarshalling config: %w", err)
-		}
-
+	for _, cfg := range configs {
 		for _, route := range cfg.GetRoutes() {
 			if route.GetTlsCustomCa() != "" {
 				continue
 			}
 			u, err := urlutil.ParseAndValidateURL(route.GetFrom())
 			if err != nil {
+				continue
+			}
+			if u.Scheme != "https" {
+				// there's a complication with TCP+HTTPS routes as in general we may not know the host address for them
+				// and we can't rely on the config's server address port part, as it may be different from actual externally reachable port
 				continue
 			}
 			hosts[u.Host] = struct{}{}
