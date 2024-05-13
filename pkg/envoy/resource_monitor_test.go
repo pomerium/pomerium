@@ -627,25 +627,36 @@ func TestSharedResourceMonitor(t *testing.T) {
 
 	timeout := 1 * time.Second
 	interval := 10 * time.Millisecond
+	// 100/200
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, "0.500000", readMemorySaturation(c))
 	}, timeout, interval)
 
+	// 150/200
 	updateMemoryCurrent("150")
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, "0.750000", readMemorySaturation(c))
 	}, timeout, interval)
 
+	// 150/300
 	updateMemoryMax("300")
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, "0.500000", readMemorySaturation(c))
 	}, timeout, interval)
 
+	// 150/unlimited
 	updateMemoryMax("max")
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, "0.000000", readMemorySaturation(c))
 	}, timeout, interval)
 
+	// 150/145 (over limit)
+	updateMemoryMax("145")
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Equal(c, "1.000000", readMemorySaturation(c))
+	}, timeout, interval)
+
+	// 150/150
 	updateMemoryMax("150")
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, "1.000000", readMemorySaturation(c))
@@ -811,4 +822,44 @@ func TestBootstrapConfig(t *testing.T) {
 			]
 		}
 		`, tempDir), bootstrap.OverloadManager)
+}
+
+func TestComputeScaledTickInterval(t *testing.T) {
+	cases := []struct {
+		saturation float64
+		expected   time.Duration
+	}{
+		0: {
+			saturation: 0.0,
+			expected:   10000 * time.Millisecond,
+		},
+		1: {
+			saturation: 1.0,
+			expected:   250 * time.Millisecond,
+		},
+		2: {
+			saturation: 0.5,
+			expected:   5125 * time.Millisecond,
+		},
+		3: {
+			// duration should round to the nearest millisecond
+			saturation: 0.3333,
+			expected:   6750 * time.Millisecond,
+		},
+		4: {
+			saturation: -1.0,
+			expected:   10000 * time.Millisecond,
+		},
+		5: {
+			// saturation > 1 should be clamped to 1
+			saturation: 1.5,
+			expected:   250 * time.Millisecond,
+		},
+	}
+
+	for i, c := range cases {
+		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
+			assert.Equal(t, c.expected, computeScaledTickInterval(c.saturation))
+		})
+	}
 }

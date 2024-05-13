@@ -326,13 +326,12 @@ func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
 						log.Error(ctx).Err(err).Msg("failed to get memory saturation")
 						continue
 					}
-					saturation = float64(usage) / float64(limit)
+					saturation = max(0.0, min(1.0, float64(usage)/float64(limit)))
 				}
 			}
 
 			saturationStr := fmt.Sprintf("%.6f", saturation)
-			nextInterval := (monitorMaxTickInterval - (time.Duration(float64(monitorMaxTickInterval-monitorMinTickInterval) * saturation))).
-				Round(time.Millisecond)
+			nextInterval := computeScaledTickInterval(saturation)
 
 			if saturationStr != lastValue {
 				lastValue = saturationStr
@@ -352,6 +351,13 @@ func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
 			tick.Reset(nextInterval)
 		}
 	}
+}
+
+// Returns a value between monitorMinTickInterval and monitorMaxTickInterval, based
+// on the given saturation value in the range [0.0, 1.0].
+func computeScaledTickInterval(saturation float64) time.Duration {
+	return monitorMaxTickInterval - (time.Duration(float64(monitorMaxTickInterval-monitorMinTickInterval) * max(0.0, min(1.0, saturation)))).
+		Round(time.Millisecond)
 }
 
 func (s *sharedResourceMonitor) updateActionStates(ctx context.Context, pct float64) {
