@@ -36,6 +36,41 @@ func IsReadableFile(path string) (bool, error) {
 	return true, nil // Item exists and is readable.
 }
 
+// IsPollableFile reports whether the file is pollable; that is, whether
+// it is a regular file or a symbolic link to a regular file, and has
+// functional timestamps.
+func IsPollableFile(path string) (bool, error) {
+	stat, err := os.Stat(path)
+	if err != nil {
+		return false, err
+	}
+	if stat.IsDir() {
+		return false, errors.New("is directory")
+	}
+
+	// Verify that the file has functional timestamps by checking to see
+	// if stat() updates the modification time. If we can stat twice in a row
+	// and the modification time is the same, the file is good. Otherwise,
+	// we can't rely on timestamps to detect changes.
+	mtime := stat.ModTime()
+	ok := false
+	for i := 0; i < 10; i++ {
+		stat, err := os.Stat(path)
+		if err != nil {
+			return false, err
+		}
+		if stat.ModTime().Equal(mtime) {
+			ok = true
+			break
+		}
+		mtime = stat.ModTime()
+	}
+	if !ok {
+		return false, errors.New("file has non-functional timestamps")
+	}
+	return true, nil
+}
+
 // Getwd returns a rooted path name corresponding to the
 // current directory. If the current directory can be
 // reached via multiple paths (due to symbolic links),

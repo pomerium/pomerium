@@ -54,6 +54,10 @@ func (watcher *Watcher) Watch(ctx context.Context, filePaths []string) {
 		watcher.watching[filePath] = struct{}{}
 
 		if watcher.pollingWatcher != nil {
+			if ok, err := IsPollableFile(filePath); !ok {
+				log.Warn(ctx).Err(err).Str("file", filePath).Msg("fileutil/watcher: file cannot be polled for changes")
+				continue
+			}
 			err := watcher.pollingWatcher.Add(filePath)
 			if err != nil {
 				log.Error(ctx).Err(err).Str("file", filePath).Msg("fileutil/watcher: failed to add file to polling-based file watcher")
