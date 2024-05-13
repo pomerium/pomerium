@@ -134,7 +134,12 @@ func NewFileOrEnvironmentSource(
 		config:     cfg,
 	}
 	if configFile != "" {
-		src.watcher.Watch(ctx, []string{configFile})
+		if cfg.Options.IsRuntimeFlagSet(RuntimeFlagConfigHotReload) {
+			src.watcher.Watch(ctx, []string{configFile})
+		} else {
+			log.Warn(ctx).Msg("hot reload disabled")
+			src.watcher.Watch(ctx, nil)
+		}
 	}
 	ch := src.watcher.Bind()
 	go func() {
@@ -223,7 +228,11 @@ func (src *FileWatcherSource) GetConfig() *Config {
 
 func (src *FileWatcherSource) onConfigChange(ctx context.Context, cfg *Config) {
 	// update the file watcher with paths from the config
-	src.watcher.Watch(ctx, getAllConfigFilePaths(cfg))
+	if cfg.Options.IsRuntimeFlagSet(RuntimeFlagConfigHotReload) {
+		src.watcher.Watch(ctx, getAllConfigFilePaths(cfg))
+	} else {
+		src.watcher.Watch(ctx, nil)
+	}
 
 	src.mu.Lock()
 	defer src.mu.Unlock()
