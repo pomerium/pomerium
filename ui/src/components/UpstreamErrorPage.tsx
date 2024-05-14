@@ -125,6 +125,7 @@ export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
                     underline="hover"
                     color="primary.main"
                     variant="body2"
+                    target="_blank"
                 >
                   Additional troubleshooting information.
                 </Link>
