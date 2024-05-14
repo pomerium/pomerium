@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715703134524,
+  "lastUpdate": 1715704007567,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -109644,6 +109644,42 @@ window.BENCHMARK_DATA = {
             "value": 6568050,
             "unit": "ns/op",
             "extra": "189 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "nhayfield@yahoo.com",
+            "name": "Nathan Hayfield",
+            "username": "nhayfield"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "adb5f781a65f0f06305e5988b4b98959c7a48a0d",
+          "message": "adds upstream error page (#5113)\n\n* adds upstream error page\r\n\r\n* help docs in new tab",
+          "timestamp": "2024-05-14T18:23:24+02:00",
+          "tree_id": "8f20c5397a56b8bca4fe6daf1ac478ba0eaaad6e",
+          "url": "https://github.com/pomerium/pomerium/commit/adb5f781a65f0f06305e5988b4b98959c7a48a0d"
+        },
+        "date": 1715703998175,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9647554,
+            "unit": "ns/op",
+            "extra": "120 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6577754,
+            "unit": "ns/op",
+            "extra": "188 times\n4 procs"
           }
         ]
       }
