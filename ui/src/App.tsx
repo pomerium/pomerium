@@ -12,6 +12,7 @@ import WebAuthnRegistrationPage from "./components/WebAuthnRegistrationPage";
 import { SubpageContextProvider } from "./context/Subpage";
 import { createTheme } from "./theme";
 import { PageData } from "./types";
+import UpstreamErrorPage from "./components/UpstreamErrorPage";
 
 const App: FC = () => {
   const data = (window["POMERIUM_DATA"] || {}) as PageData;
@@ -19,7 +20,13 @@ const App: FC = () => {
   const secondary = data?.secondaryColor || "#49AAA1";
   const theme = createTheme(primary, secondary);
   let body: React.ReactNode = <></>;
+  if(data?.page === 'Error' && data?.statusText?.toLowerCase().includes('upstream')) {
+    data.page = 'UpstreamError';
+  }
   switch (data?.page) {
+    case "UpstreamError":
+      body = <UpstreamErrorPage data={data} />;
+      break;
     case "Error":
       body = <ErrorPage data={data} />;
       break;
