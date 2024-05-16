@@ -182,3 +182,11 @@ func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) 
 func (p *Provider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ string) error {
 	return oidc.ErrSignoutNotImplemented
 }
+
+func (p *Provider) DeviceAuth(_ http.ResponseWriter, _ *http.Request) (*oauth2.DeviceAuthResponse, error) {
+	return nil, oidc.ErrDeviceAuthNotImplemented
+}
+
+func (p *Provider) DeviceAccessToken(_ context.Context, _ *oauth2.DeviceAuthResponse, _ identity.State) (*oauth2.Token, error) {
+	return nil, oidc.ErrDeviceAuthNotImplemented
+}
