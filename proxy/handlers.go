@@ -69,7 +69,6 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 		}))
 
 	a.Path("/v1/device_auth").Handler(httputil.HandlerFunc(p.DeviceAuthLogin)).
-		Queries(urlutil.QueryDeviceAuthRouteURI, "").
 		Methods(http.MethodGet, http.MethodPost)
 
 	return r
@@ -169,10 +168,7 @@ func (p *Proxy) DeviceAuthLogin(w http.ResponseWriter, r *http.Request) error {
 	options := p.currentOptions.Load()
 
 	params := url.Values{}
-	routeUri, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryDeviceAuthRouteURI))
-	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
+	routeUri := urlutil.GetAbsoluteURL(r)
 	params.Set(urlutil.QueryDeviceAuthRouteURI, routeUri.String())
 
 	idp, err := options.GetIdentityProviderForRequestURL(routeUri.String())
