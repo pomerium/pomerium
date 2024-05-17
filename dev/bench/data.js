@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715713363856,
+  "lastUpdate": 1715979034335,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -109712,6 +109712,42 @@ window.BENCHMARK_DATA = {
             "value": 33089480,
             "unit": "ns/op",
             "extra": "187 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8269a723ecd05c3921fac40d04e9704181385778",
+          "message": "health-checks: zero route availability improvements (#5111)",
+          "timestamp": "2024-05-17T16:47:27-04:00",
+          "tree_id": "fc2c01e238a12cf34ab9ba6a8287bf8b9fcdc1d9",
+          "url": "https://github.com/pomerium/pomerium/commit/8269a723ecd05c3921fac40d04e9704181385778"
+        },
+        "date": 1715979025455,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9165846,
+            "unit": "ns/op",
+            "extra": "128 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6116496,
+            "unit": "ns/op",
+            "extra": "189 times\n4 procs"
           }
         ]
       }
