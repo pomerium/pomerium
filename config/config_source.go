@@ -137,7 +137,7 @@ func NewFileOrEnvironmentSource(
 		if cfg.Options.IsRuntimeFlagSet(RuntimeFlagConfigHotReload) {
 			src.watcher.Watch(ctx, []string{configFile})
 		} else {
-			log.Warn(ctx).Msg("hot reload disabled")
+			log.Info(ctx).Msg("hot reload disabled")
 			src.watcher.Watch(ctx, nil)
 		}
 	}
