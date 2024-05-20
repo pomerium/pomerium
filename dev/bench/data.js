@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1715979034335,
+  "lastUpdate": 1716225490593,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -109748,6 +109748,38 @@ window.BENCHMARK_DATA = {
             "value": 6116496,
             "unit": "ns/op",
             "extra": "189 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "2a1db3b1aee463c91259d733bf67bcb19448e15b",
+          "message": "Add runtime flag to allow disabling config hot-reload (#5079)",
+          "timestamp": "2024-05-20T16:06:54Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5112/commits/2a1db3b1aee463c91259d733bf67bcb19448e15b"
+        },
+        "date": 1716225481823,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9032079,
+            "unit": "ns/op",
+            "extra": "128 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6394610,
+            "unit": "ns/op",
+            "extra": "194 times\n4 procs"
           }
         ]
       }
