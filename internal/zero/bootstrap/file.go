@@ -9,11 +9,13 @@ package bootstrap
  *
  */
 import (
+	"context"
 	"crypto/cipher"
 	"encoding/json"
 	"fmt"
 	"os"
 
+	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/health"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
@@ -39,27 +41,13 @@ func LoadBootstrapConfigFromFile(fp string, cipher cipher.AEAD) (*cluster_api.Bo
 	return &dst, nil
 }
 
-// SaveBootstrapConfigToFile saves the bootstrap configuration to a file.
-func SaveBootstrapConfigToFile(src *cluster_api.BootstrapConfig, fp string, cipher cipher.AEAD) error {
-	err := saveBootstrapConfigToFile(src, fp, cipher)
+// SaveBootstrapConfig saves the bootstrap configuration to a file.
+func SaveBootstrapConfig(ctx context.Context, writer writers.ConfigWriter, src *cluster_api.BootstrapConfig, cipher cipher.AEAD) error {
+	err := writer.WriteConfig(ctx, src, cipher)
 	if err != nil {
 		health.ReportError(health.ZeroBootstrapConfigSave, err)
 	} else {
 		health.ReportOK(health.ZeroBootstrapConfigSave)
 	}
 	return err
-}
-
-func saveBootstrapConfigToFile(src *cluster_api.BootstrapConfig, fp string, cipher cipher.AEAD) error {
-	plaintext, err := json.Marshal(src)
-	if err != nil {
-		return fmt.Errorf("marshal file config: %w", err)
-	}
-
-	ciphertext := cryptutil.Encrypt(cipher, plaintext, nil)
-	err = os.WriteFile(fp, ciphertext, 0o600)
-	if err != nil {
-		return fmt.Errorf("write bootstrap config: %w", err)
-	}
-	return nil
 }

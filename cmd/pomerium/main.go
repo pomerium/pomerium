@@ -18,8 +18,9 @@ import (
 )
 
 var (
-	versionFlag = flag.Bool("version", false, "prints the version")
-	configFile  = flag.String("config", "", "Specify configuration file location")
+	versionFlag        = flag.Bool("version", false, "prints the version")
+	configFile         = flag.String("config", "", "Specify configuration file location")
+	configWritebackURI = flag.String("config-writeback-uri", "", "Scheme and location for persisting updates to the bootstrap config")
 )
 
 func main() {
@@ -34,7 +35,9 @@ func main() {
 	log.SetLevel(zerolog.InfoLevel)
 	runFn := run
 	if zero_cmd.IsManagedMode(*configFile) {
-		runFn = func(ctx context.Context) error { return zero_cmd.Run(ctx, *configFile) }
+		runFn = func(ctx context.Context) error {
+			return zero_cmd.Run(ctx, *configFile, *configWritebackURI)
+		}
 	}
 
 	if err := runFn(ctx); err != nil && !errors.Is(err, context.Canceled) {

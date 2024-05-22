@@ -1,0 +1,155 @@
+package k8s
+
+import (
+	"bytes"
+	"context"
+	"encoding/base64"
+	"encoding/pem"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+
+	"github.com/pomerium/pomerium/internal/zero/bootstrap"
+	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
+	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
+)
+
+func TestInClusterConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	var prevTokenFile, prevRootCAFile string
+	tokenFile, prevTokenFile = tempDir+"/token", tokenFile
+	rootCAFile, prevRootCAFile = tempDir+"/ca.crt", rootCAFile
+	t.Cleanup(func() {
+		tokenFile = prevTokenFile
+		rootCAFile = prevRootCAFile
+	})
+
+	requests := make(chan *http.Request, 1)
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		req := r.Clone(context.Background())
+		contents, _ := io.ReadAll(r.Body)
+		req.Body = io.NopCloser(bytes.NewReader(contents))
+		requests <- req
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	server.StartTLS()
+	defer server.Close()
+
+	require.NoError(t, os.WriteFile(tokenFile, []byte("token"), 0o600))
+
+	require.NoError(t, os.WriteFile(rootCAFile, pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: server.TLS.Certificates[0].Certificate[0],
+	}), 0o600))
+
+	host, port, err := net.SplitHostPort(server.Listener.Addr().String())
+	require.NoError(t, err)
+
+	t.Setenv("KUBERNETES_SERVICE_HOST", host)
+	t.Setenv("KUBERNETES_SERVICE_PORT", port)
+
+	writer, err := writers.NewForURI("secret://pomerium/bootstrap/bootstrap.dat")
+	require.NoError(t, err)
+
+	t.Run("InClusterConfig", func(t *testing.T) {
+		cipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
+		require.NoError(t, err)
+
+		txt := "test"
+		src := cluster_api.BootstrapConfig{
+			DatabrokerStorageConnection: &txt,
+		}
+
+		require.NoError(t, bootstrap.SaveBootstrapConfig(context.Background(), writer, &src, cipher))
+
+		r := <-requests
+		assert.Equal(t, "PATCH", r.Method)
+		assert.Equal(t, "application/apply-patch+yaml", r.Header.Get("Content-Type"))
+		assert.Equal(t, "/api/v1/namespaces/pomerium/secrets/bootstrap?fieldManager=pomerium", r.RequestURI)
+
+		unstructured := make(map[string]any)
+		require.NoError(t, yaml.NewDecoder(r.Body).Decode(&unstructured))
+
+		// decrypt data["bootstrap.dat"] and replace it with the plaintext, so
+		// it can be compared (the ciphertext will be different each time)
+		encoded, err := base64.StdEncoding.DecodeString(unstructured["data"].(map[string]any)["bootstrap.dat"].(string))
+		require.NoError(t, err)
+		plaintext, err := cryptutil.Decrypt(cipher, encoded, nil)
+		require.NoError(t, err)
+		unstructured["data"].(map[string]any)["bootstrap.dat"] = string(plaintext)
+
+		require.Equal(t, map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata": map[string]any{
+				"name":      "bootstrap",
+				"namespace": "pomerium",
+			},
+			"data": map[string]any{
+				"bootstrap.dat": `{"databrokerStorageConnection":"test","sharedSecret":null}`,
+			},
+		}, unstructured)
+	})
+
+	t.Run("NewForURI", func(t *testing.T) {
+		for _, tc := range []struct {
+			uris []string
+			errf string
+		}{
+			{
+				uris: []string{
+					"secret://namespace",
+					"secret://namespace/name",
+					"secret:///",
+					"secret:////",
+					"secret://namespace//",
+					"secret://namespace/name/",
+				},
+				errf: `invalid secret uri "%s", expecting format "secret://namespace/name/key"`,
+			},
+			{
+				uris: []string{"secret:///namespace/name/key"},
+				errf: `invalid secret uri "%s" (did you mean "secret://namespace/name/key"?)`,
+			},
+			{
+				uris: []string{"secret:///namespace/name/key/with/slashes"},
+				errf: `invalid secret uri "%s" (did you mean "secret://namespace/name/key/with/slashes"?)`,
+			},
+			{
+				uris: []string{
+					"secret://namespace/name/key",
+					"secret://namespace/name/key/with/slashes",
+					"secret://namespace/name/key.with.dots",
+					"secret://namespace/name/key_with_underscores",
+					"secret://namespace/name/key-with-dashes",
+					"secret://namespace-with-dashes/name-with-dashes/key-with-dashes",
+					"secret://namespace_with_underscores/name_with_underscores/key_with_underscores",
+					"secret://namespace.with.dots/name.with.dots/key.with.dots",
+					"secret://namespace-with-dashes/name/key/with/slashes",
+					"secret://namespace_with_underscores/name.with.dots/_key/with_/_slashes_and_underscores",
+				},
+			},
+		} {
+			for _, uri := range tc.uris {
+
+				w, err := writers.NewForURI(uri)
+				if tc.errf == "" {
+					assert.NoError(t, err)
+					assert.NotNil(t, w)
+				} else {
+					assert.EqualError(t, err, fmt.Sprintf(tc.errf, uri))
+					assert.Nil(t, w)
+				}
+			}
+		}
+	})
+}

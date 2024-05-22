@@ -15,6 +15,7 @@ import (
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/deterministicecdsa"
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
+	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/netutil"
 )
@@ -27,13 +28,14 @@ type Source struct {
 
 	fileCachePath *string
 	fileCipher    cipher.AEAD
+	writer        writers.ConfigWriter
 
 	checkForUpdate chan struct{}
 	updateInterval atomicutil.Value[time.Duration]
 }
 
 // New creates a new bootstrap config source
-func New(secret []byte, fileCachePath *string, api *sdk.API) (*Source, error) {
+func New(secret []byte, fileCachePath *string, writer writers.ConfigWriter, api *sdk.API) (*Source, error) {
 	cfg := new(config.Config)
 
 	err := setConfigDefaults(cfg)
@@ -59,6 +61,7 @@ func New(secret []byte, fileCachePath *string, api *sdk.API) (*Source, error) {
 		fileCachePath:  fileCachePath,
 		fileCipher:     cipher,
 		checkForUpdate: make(chan struct{}, 1),
+		writer:         writer,
 	}
 	svc.cfg.Store(cfg)
 	svc.updateInterval.Store(DefaultCheckForUpdateIntervalWhenDisconnected)

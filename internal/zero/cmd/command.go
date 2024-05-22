@@ -17,7 +17,7 @@ import (
 )
 
 // Run runs the pomerium zero command.
-func Run(ctx context.Context, configFile string) error {
+func Run(ctx context.Context, configFile, configWritebackURI string) error {
 	err := setupLogger()
 	if err != nil {
 		return fmt.Errorf("error setting up logger: %w", err)
