@@ -16,14 +16,15 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
+	"unsafe"
 
 	envoy_config_bootstrap_v3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
 	envoy_config_overload_v3 "github.com/envoyproxy/go-control-plane/envoy/config/overload/v3"
 	envoy_extensions_resource_monitors_injected_resource_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/resource_monitors/injected_resource/v3"
 	typev3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	atomicfs "github.com/natefinch/atomic"
+	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 
@@ -284,17 +285,21 @@ func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
 	}
 	log.Info(ctx).Str("service", "envoy").Str("cgroup", s.cgroup).Msg("starting resource monitor")
 
+	ctx, ca := context.WithCancelCause(ctx)
+
 	limitWatcher := &memoryLimitWatcher{
-		limitFilePath: "/" + s.driver.Path(s.cgroup, MemoryLimitPath),
+		limitFilePath: filepath.Clean("/" + s.driver.Path(s.cgroup, MemoryLimitPath)),
 	}
-	lwCtx, lwCancel := context.WithCancel(ctx)
-	defer func() {
-		lwCancel()
-		limitWatcher.Wait()
-	}()
-	if err := limitWatcher.Watch(lwCtx); err != nil {
+
+	watcherExited := make(chan struct{})
+	if err := limitWatcher.Watch(ctx); err != nil {
 		return fmt.Errorf("failed to start watch on cgroup memory limit: %w", err)
 	}
+	go func() {
+		limitWatcher.Wait()
+		ca(errors.New("memory limit watcher stopped"))
+		close(watcherExited)
+	}()
 
 	// Set initial values for state metrics
 	s.updateActionStates(ctx, 0)
@@ -312,11 +317,12 @@ func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
 
 	tick := time.NewTimer(monitorInitialTickDelay)
 	var lastValue string
+LOOP:
 	for {
 		select {
 		case <-ctx.Done():
 			tick.Stop()
-			return ctx.Err()
+			break LOOP
 		case <-tick.C:
 			var saturation float64
 			if s.enabled.Load() {
@@ -351,6 +357,9 @@ func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
 			tick.Reset(nextInterval)
 		}
 	}
+
+	<-watcherExited
+	return context.Cause(ctx)
 }
 
 // Returns a value between monitorMinTickInterval and monitorMaxTickInterval, based
@@ -587,29 +596,14 @@ func (d *cgroupV1Driver) Validate(cgroup string) error {
 var _ CgroupDriver = (*cgroupV1Driver)(nil)
 
 func DetectCgroupDriver() (CgroupDriver, error) {
-	const cgv2Magic = 0x63677270
-
-	fsType := func(path string) (int64, error) {
-		for {
-			var stat syscall.Statfs_t
-			err := syscall.Statfs(path, &stat)
-			if err != nil {
-				if errors.Is(err, syscall.EINTR) {
-					continue
-				}
-				return 0, err
-			}
-			return stat.Type, nil
-		}
-	}
 	osFs := os.DirFS("/")
 
 	// fast path: cgroup2 only
-	t, err := fsType("/sys/fs/cgroup")
-	if err != nil {
+	var stat unix.Statfs_t
+	if err := unix.Statfs("/sys/fs/cgroup", &stat); err != nil {
 		return nil, err
 	}
-	if t == cgv2Magic {
+	if stat.Type == unix.CGROUP2_SUPER_MAGIC {
 		return &cgroupV2Driver{root: "sys/fs/cgroup", fs: osFs}, nil
 	}
 
@@ -694,20 +688,16 @@ func (w *memoryLimitWatcher) readValue() (uint64, error) {
 }
 
 func (w *memoryLimitWatcher) Watch(ctx context.Context) error {
-	fd, err := syscall.InotifyInit1(syscall.IN_CLOEXEC)
+	fd, err := unix.InotifyInit1(unix.IN_CLOEXEC)
 	if err != nil {
 		return err
 	}
 	closeInotify := sync.OnceFunc(func() {
 		log.Debug(ctx).Msg("stopping memory limit watcher")
-		for {
-			if err := syscall.Close(fd); !errors.Is(err, syscall.EINTR) {
-				return
-			}
-		}
+		unix.Close(fd)
 	})
 	log.Debug(ctx).Str("file", w.limitFilePath).Msg("starting watch")
-	wd, err := syscall.InotifyAddWatch(fd, w.limitFilePath, syscall.IN_MODIFY)
+	wd, err := unix.InotifyAddWatch(fd, w.limitFilePath, unix.IN_MODIFY)
 	if err != nil {
 		closeInotify()
 		return fmt.Errorf("failed to watch %s: %w", w.limitFilePath, err)
@@ -715,9 +705,7 @@ func (w *memoryLimitWatcher) Watch(ctx context.Context) error {
 	w.watches.Add(1)
 	closeWatch := sync.OnceFunc(func() {
 		log.Debug(ctx).Str("file", w.limitFilePath).Msg("stopping watch")
-		if _, err := syscall.InotifyRmWatch(fd, uint32(wd)); err != nil {
-			log.Error(ctx).Err(err).Msg("failed to remove watch")
-		}
+		_, _ = unix.InotifyRmWatch(fd, uint32(wd))
 		closeInotify()
 		w.watches.Done()
 	})
@@ -731,10 +719,10 @@ func (w *memoryLimitWatcher) Watch(ctx context.Context) error {
 	w.value.Store(v)
 	log.Debug(ctx).Uint64("bytes", v).Msg("current memory limit")
 
-	context.AfterFunc(ctx, closeWatch) // to unblock syscall.Read below
+	context.AfterFunc(ctx, closeWatch) // to unblock unix.Read below
 	go func() {
 		defer closeWatch()
-		var buf [syscall.SizeofInotifyEvent]byte
+		var buf [unix.SizeofInotifyEvent]byte
 		for ctx.Err() == nil {
 			v, err := w.readValue()
 			if err != nil {
@@ -745,12 +733,23 @@ func (w *memoryLimitWatcher) Watch(ctx context.Context) error {
 					Uint64("current", v).
 					Msg("memory limit updated")
 			}
-			_, err = syscall.Read(fd, buf[:])
+			// After ctx is canceled, inotify_rm_watch sends an IN_IGNORED event,
+			// which unblocks this read and allows the loop to exit.
+			n, err := unix.Read(fd, buf[:])
 			if err != nil {
-				if errors.Is(err, syscall.EINTR) {
+				if errors.Is(err, unix.EINTR) {
 					continue
 				}
 				return
+			}
+			if n == unix.SizeofInotifyEvent {
+				event := (*unix.InotifyEvent)(unsafe.Pointer(&buf))
+				if (event.Mask & unix.IN_IGNORED) != 0 {
+					// watch was removed, or the file was deleted (this can happen if
+					// the memory controller is removed from the parent's subtree_control)
+					log.Info(ctx).Str("file", w.limitFilePath).Msg("watched file removed")
+					return
+				}
 			}
 		}
 	}()

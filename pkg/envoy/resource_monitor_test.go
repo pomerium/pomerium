@@ -689,6 +689,27 @@ func TestSharedResourceMonitor(t *testing.T) {
 
 	ca()
 	assert.ErrorIs(t, <-errC, context.Canceled)
+
+	// test deletion of memory.max
+	updateMemoryCurrent("150")
+	updateMemoryMax("300")
+	monitor, err = NewSharedResourceMonitor(context.Background(), configSrc, tempDir, WithCgroupDriver(driver))
+	require.NoError(t, err)
+
+	errC = make(chan error)
+	go func() {
+		defer close(errC)
+		errC <- monitor.Run(context.Background(), testEnvoyPid)
+	}()
+
+	// 150/300
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Equal(c, "0.500000", readMemorySaturation(c))
+	}, timeout, interval)
+
+	require.NoError(t, os.Remove(testMemoryMaxPath))
+
+	assert.EqualError(t, <-errC, "memory limit watcher stopped")
 }
 
 func TestBootstrapConfig(t *testing.T) {
