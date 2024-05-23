@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716493500227,
+  "lastUpdate": 1716502710813,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -110068,6 +110068,38 @@ window.BENCHMARK_DATA = {
             "value": 6516602,
             "unit": "ns/op",
             "extra": "166 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "2ed0eeb05aac84a9672fc10779d718ef344f968c",
+          "message": "Ensure k3s runs as pid 1 in docker",
+          "timestamp": "2024-05-23T07:12:37Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5116/commits/2ed0eeb05aac84a9672fc10779d718ef344f968c"
+        },
+        "date": 1716502702074,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9361782,
+            "unit": "ns/op",
+            "extra": "130 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6451946,
+            "unit": "ns/op",
+            "extra": "174 times\n4 procs"
           }
         ]
       }
