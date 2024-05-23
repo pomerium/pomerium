@@ -3,8 +3,9 @@ package writers_test
 import (
 	"testing"
 
-	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
 )
 
 func TestNewForURI(t *testing.T) {

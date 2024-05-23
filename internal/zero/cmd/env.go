@@ -13,8 +13,10 @@ const (
 	//nolint: gosec
 	PomeriumZeroTokenEnv = "POMERIUM_ZERO_TOKEN"
 
+	// BootstrapConfigFileName can be set to override the default location of the bootstrap config file.
 	BootstrapConfigFileName = "BOOTSTRAP_CONFIG_FILE"
-
+	// BootstrapConfigWritebackURI controls how changes to the bootstrap config are persisted.
+	// See controller.WithBootstrapConfigWritebackURI for details.
 	BootstrapConfigWritebackURI = "BOOTSTRAP_CONFIG_WRITEBACK_URI"
 )
 

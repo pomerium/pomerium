@@ -13,13 +13,14 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
+
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 )
 
 func TestInClusterConfig(t *testing.T) {

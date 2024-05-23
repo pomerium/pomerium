@@ -24,23 +24,21 @@ import (
 )
 
 func init() {
-	// dest is a kubernetes secret name in the format "namespace/name",
-	// e.g. "pomerium/bootstrap"
 	writers.RegisterBuilder("secret", func(uri *url.URL) (writers.ConfigWriter, error) {
-		return NewSecretWriter(uri)
+		return newSecretWriter(uri)
 	})
 }
 
 type secretWriter struct {
 	client       *http.Client
-	apiserverUrl *url.URL
+	apiserverURL *url.URL
 	namespace    string
 	name         string
 	key          string
 }
 
-func NewSecretWriter(uri *url.URL) (*secretWriter, error) {
-	client, apiserverUrl, err := inClusterConfig()
+func newSecretWriter(uri *url.URL) (*secretWriter, error) {
+	client, apiserverURL, err := inClusterConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +51,7 @@ func NewSecretWriter(uri *url.URL) (*secretWriter, error) {
 	}
 	return &secretWriter{
 		client:       client,
-		apiserverUrl: apiserverUrl,
+		apiserverURL: apiserverURL,
 		namespace:    parts[0],
 		name:         parts[1],
 		key:          parts[2],
@@ -61,9 +59,9 @@ func NewSecretWriter(uri *url.URL) (*secretWriter, error) {
 }
 
 // WriteConfig implements ConfigWriter.
-func (f *secretWriter) WriteConfig(ctx context.Context, src *cluster_api.BootstrapConfig, cipher cipher.AEAD) error {
-	u := f.apiserverUrl.ResolveReference(&url.URL{
-		Path: path.Join("/api/v1/namespaces", f.namespace, "secrets", f.name),
+func (w *secretWriter) WriteConfig(ctx context.Context, src *cluster_api.BootstrapConfig, cipher cipher.AEAD) error {
+	u := w.apiserverURL.ResolveReference(&url.URL{
+		Path: path.Join("/api/v1/namespaces", w.namespace, "secrets", w.name),
 		RawQuery: url.Values{
 			"fieldManager": {"pomerium-zero"},
 			"force":        {"true"},
@@ -84,14 +82,14 @@ metadata:
   namespace: %q
 data:
   %q: %q
-`, f.name, f.namespace, f.key, encodedCiphertext)
+`, w.name, w.namespace, w.key, encodedCiphertext)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, u.String(), strings.NewReader(patch))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/apply-patch+yaml")
 
-	resp, err := f.client.Do(req)
+	resp, err := w.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -115,11 +113,12 @@ data:
 
 var _ writers.ConfigWriter = (*secretWriter)(nil)
 
-// from k8s.io/client-go/rest/config.go
+// code below adapted from k8s.io/client-go/rest/config.go
+
 var ErrNotInCluster = errors.New("unable to load in-cluster configuration, KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT must be defined")
 
 var (
-	tokenFile  = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	tokenFile  = "/var/run/secrets/kubernetes.io/serviceaccount/token" //nolint:gosec
 	rootCAFile = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 )
 
@@ -155,12 +154,12 @@ func inClusterConfig() (*http.Client, *url.URL, error) {
 		},
 	}
 
-	apiserverUrl := &url.URL{
+	apiserverURL := &url.URL{
 		Scheme: "https",
 		Host:   net.JoinHostPort(host, port),
 	}
 
-	return client, apiserverUrl, nil
+	return client, apiserverURL, nil
 }
 
 type roundTripper struct {

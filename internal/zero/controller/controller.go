@@ -22,9 +22,6 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/reporter"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-
-	_ "github.com/pomerium/pomerium/internal/zero/bootstrap/writers/filesystem"
-	_ "github.com/pomerium/pomerium/internal/zero/bootstrap/writers/k8s"
 )
 
 // Run runs Pomerium is managed mode using the provided token.

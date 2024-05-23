@@ -14,24 +14,23 @@ import (
 )
 
 func init() {
-	// dest is a directory (without the filename), e.g. "/var/run/pomerium"
 	writers.RegisterBuilder("file", func(uri *url.URL) (writers.ConfigWriter, error) {
 		if uri.Host != "" {
 			// prevent the common mistake of "file://path/to/file"
 			return nil, fmt.Errorf(`invalid file uri %q (did you mean "file:///%s%s"?)`, uri.String(), uri.Host, uri.Path)
 		}
-		return &dirWriter{
+		return &fileWriter{
 			filePath: uri.Path,
 		}, nil
 	})
 }
 
-type dirWriter struct {
+type fileWriter struct {
 	filePath string
 }
 
 // WriteConfig implements ConfigWriter.
-func (w *dirWriter) WriteConfig(_ context.Context, src *cluster_api.BootstrapConfig, cipher cipher.AEAD) error {
+func (w *fileWriter) WriteConfig(_ context.Context, src *cluster_api.BootstrapConfig, cipher cipher.AEAD) error {
 	plaintext, err := json.Marshal(src)
 	if err != nil {
 		return fmt.Errorf("marshal file config: %w", err)
@@ -45,4 +44,4 @@ func (w *dirWriter) WriteConfig(_ context.Context, src *cluster_api.BootstrapCon
 	return nil
 }
 
-var _ writers.ConfigWriter = (*dirWriter)(nil)
+var _ writers.ConfigWriter = (*fileWriter)(nil)

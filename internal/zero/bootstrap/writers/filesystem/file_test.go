@@ -15,7 +15,7 @@ import (
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 )
 
-func TestDirWriter(t *testing.T) {
+func TestFileWriter(t *testing.T) {
 	cipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
 	require.NoError(t, err)
 
