@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716489353742,
+  "lastUpdate": 1716491470748,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -109972,6 +109972,38 @@ window.BENCHMARK_DATA = {
             "value": 6473228,
             "unit": "ns/op",
             "extra": "187 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "fcadd3b83ede4978715becbd118880a36d8d4985",
+          "message": "Add new configurable bootstrap writers (#2405)",
+          "timestamp": "2024-05-23T07:12:37Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5114/commits/fcadd3b83ede4978715becbd118880a36d8d4985"
+        },
+        "date": 1716491453753,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9629336,
+            "unit": "ns/op",
+            "extra": "124 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7024543,
+            "unit": "ns/op",
+            "extra": "170 times\n4 procs"
           }
         ]
       }
