@@ -15,7 +15,7 @@ local Command() =
           done
         ' &
       fi
-      k3s "$$@"
+      exec k3s "$$@"
     |||,
     'k3s',
   ];
@@ -30,7 +30,7 @@ local InstallManifest(manifest) =
     'kubectl wait --for=condition=available deployment/' + manifest.metadata.name,
   ] else []);
 
-local k3s_tag = 'v1.21.14-k3s1';
+local k3s_tag = 'v1.30.0-k3s1';
 
 function(idp, manifests) {
   compose: {
