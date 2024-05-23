@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/viper"
 )
@@ -10,6 +12,10 @@ const (
 	// PomeriumZeroTokenEnv is the environment variable name for the API token.
 	//nolint: gosec
 	PomeriumZeroTokenEnv = "POMERIUM_ZERO_TOKEN"
+
+	BootstrapConfigFileName = "BOOTSTRAP_CONFIG_FILE"
+
+	BootstrapConfigWritebackURI = "BOOTSTRAP_CONFIG_WRITEBACK_URI"
 )
 
 func getToken(configFile string) string {
@@ -49,4 +55,27 @@ func getOTELAPIEndpoint() string {
 		return endpoint
 	}
 	return "https://telemetry.pomerium.app"
+}
+
+func getBootstrapConfigFileName() (string, error) {
+	if filename := os.Getenv(BootstrapConfigFileName); filename != "" {
+		return filename, nil
+	}
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(cacheDir, "pomerium")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", fmt.Errorf("error creating cache directory: %w", err)
+	}
+
+	return filepath.Join(dir, "bootstrap.dat"), nil
+}
+
+func getBootstrapConfigWritebackURI() string {
+	if uri := os.Getenv(BootstrapConfigWritebackURI); uri != "" {
+		return uri
+	}
+	return ""
 }

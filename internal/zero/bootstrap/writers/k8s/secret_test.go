@@ -74,7 +74,7 @@ func TestInClusterConfig(t *testing.T) {
 		r := <-requests
 		assert.Equal(t, "PATCH", r.Method)
 		assert.Equal(t, "application/apply-patch+yaml", r.Header.Get("Content-Type"))
-		assert.Equal(t, "/api/v1/namespaces/pomerium/secrets/bootstrap?fieldManager=pomerium", r.RequestURI)
+		assert.Equal(t, "/api/v1/namespaces/pomerium/secrets/bootstrap?fieldManager=pomerium-zero&force=true", r.RequestURI)
 
 		unstructured := make(map[string]any)
 		require.NoError(t, yaml.NewDecoder(r.Body).Decode(&unstructured))

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -16,6 +17,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
@@ -63,7 +65,8 @@ func (f *secretWriter) WriteConfig(ctx context.Context, src *cluster_api.Bootstr
 	u := f.apiserverUrl.ResolveReference(&url.URL{
 		Path: path.Join("/api/v1/namespaces", f.namespace, "secrets", f.name),
 		RawQuery: url.Values{
-			"fieldManager": {"pomerium"},
+			"fieldManager": {"pomerium-zero"},
+			"force":        {"true"},
 		}.Encode(),
 	})
 	plaintext, err := json.Marshal(src)
@@ -96,6 +99,16 @@ data:
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated:
 		return nil
+	case http.StatusForbidden:
+		if resp.Header.Get("Content-Type") == "application/json" {
+			// log the detailed status message if available
+			status, err := io.ReadAll(resp.Body)
+			if err != nil && len(status) > 0 {
+				log.Ctx(ctx).Error().
+					RawJSON("response", status).
+					Msg("forbidden")
+			}
+		}
 	}
 	return fmt.Errorf("unexpected status: %s", resp.Status)
 }

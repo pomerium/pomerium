@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 
 	"github.com/rs/zerolog"
@@ -17,7 +16,7 @@ import (
 )
 
 // Run runs the pomerium zero command.
-func Run(ctx context.Context, configFile, configWritebackURI string) error {
+func Run(ctx context.Context, configFile string) error {
 	err := setupLogger()
 	if err != nil {
 		return fmt.Errorf("error setting up logger: %w", err)
@@ -41,6 +40,11 @@ func Run(ctx context.Context, configFile, configWritebackURI string) error {
 	} else {
 		log.Ctx(ctx).Info().Str("file", bootstrapConfigFileName).Msg("cluster bootstrap config path")
 		opts = append(opts, controller.WithBootstrapConfigFileName(bootstrapConfigFileName))
+
+		if uri := getBootstrapConfigWritebackURI(); uri != "" {
+			log.Ctx(ctx).Info().Str("uri", uri).Msg("cluster bootstrap config writeback URI")
+			opts = append(opts, controller.WithBootstrapConfigWritebackURI(uri))
+		}
 	}
 
 	return controller.Run(withInterrupt(ctx), opts...)
@@ -80,18 +84,4 @@ func setupLogger() error {
 	}
 
 	return nil
-}
-
-func getBootstrapConfigFileName() (string, error) {
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		return "", err
-	}
-
-	dir := filepath.Join(cacheDir, "pomerium")
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return "", fmt.Errorf("error creating cache directory: %w", err)
-	}
-
-	return filepath.Join(dir, "bootstrap.dat"), nil
 }
