@@ -1,5 +1,7 @@
 resources:
   - base.yaml
+  - role.yaml
+  - rolebinding.yaml
 patchesStrategicMerge:
   - env.yaml
   - image.yaml

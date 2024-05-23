@@ -24,11 +24,5 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
-  volumeClaimTemplates:
-  - metadata:
-      name: pomerium-cache
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 100Mi
+        - name: pomerium-cache
+          emptyDir: {}
