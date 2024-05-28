@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716924508442,
+  "lastUpdate": 1716924582347,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -110420,6 +110420,42 @@ window.BENCHMARK_DATA = {
             "value": 6415103,
             "unit": "ns/op",
             "extra": "182 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joekralicky@gmail.com",
+            "name": "Joe Kralicky",
+            "username": "kralicky"
+          },
+          "committer": {
+            "email": "joekralicky@gmail.com",
+            "name": "Joe Kralicky",
+            "username": "kralicky"
+          },
+          "distinct": true,
+          "id": "aa3b7906015772a73729ab394ee803e4e458b3cb",
+          "message": "Ensure k3s runs as pid 1 in docker\n\nThis fixes the k3s entrypoint script in the docker compose integration\ntests to ensure k3s runs as pid 1. This is required when running k3s in\ndocker if the host is using cgroup2.",
+          "timestamp": "2024-05-28T15:26:32-04:00",
+          "tree_id": "848e70bee112a5435f09a0ed7301dbe7d1908857",
+          "url": "https://github.com/pomerium/pomerium/commit/aa3b7906015772a73729ab394ee803e4e458b3cb"
+        },
+        "date": 1716924572951,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9101202,
+            "unit": "ns/op",
+            "extra": "127 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6386482,
+            "unit": "ns/op",
+            "extra": "180 times\n4 procs"
           }
         ]
       }
