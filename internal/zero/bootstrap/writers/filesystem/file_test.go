@@ -31,7 +31,10 @@ func TestFileWriter(t *testing.T) {
 	writer, err := writers.NewForURI(fmt.Sprintf("file://%s", fd.Name()))
 	require.NoError(t, err)
 
-	require.NoError(t, bootstrap.SaveBootstrapConfig(context.Background(), writer, &src, cipher))
+	writer = writer.WithOptions(writers.ConfigWriterOptions{
+		Cipher: cipher,
+	})
+	require.NoError(t, bootstrap.SaveBootstrapConfig(context.Background(), writer, &src))
 
 	dst, err := bootstrap.LoadBootstrapConfigFromFile(fd.Name(), cipher)
 	require.NoError(t, err)

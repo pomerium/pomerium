@@ -42,8 +42,8 @@ func LoadBootstrapConfigFromFile(fp string, cipher cipher.AEAD) (*cluster_api.Bo
 }
 
 // SaveBootstrapConfig saves the bootstrap configuration to a file.
-func SaveBootstrapConfig(ctx context.Context, writer writers.ConfigWriter, src *cluster_api.BootstrapConfig, cipher cipher.AEAD) error {
-	err := writer.WriteConfig(ctx, src, cipher)
+func SaveBootstrapConfig(ctx context.Context, writer writers.ConfigWriter, src *cluster_api.BootstrapConfig) error {
+	err := writer.WriteConfig(ctx, src)
 	if err != nil {
 		health.ReportError(health.ZeroBootstrapConfigSave, err)
 	} else {

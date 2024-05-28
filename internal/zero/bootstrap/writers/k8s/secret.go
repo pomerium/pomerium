@@ -1,8 +1,8 @@
 package k8s
 
 import (
+	"bytes"
 	"context"
-	"crypto/cipher"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -21,15 +21,15 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
+	"gopkg.in/yaml.v3"
 )
 
 func init() {
-	writers.RegisterBuilder("secret", func(uri *url.URL) (writers.ConfigWriter, error) {
-		return newSecretWriter(uri)
-	})
+	writers.RegisterBuilder("secret", newSecretWriter)
 }
 
 type secretWriter struct {
+	opts         writers.ConfigWriterOptions
 	client       *http.Client
 	apiserverURL *url.URL
 	namespace    string
@@ -37,7 +37,14 @@ type secretWriter struct {
 	key          string
 }
 
-func newSecretWriter(uri *url.URL) (*secretWriter, error) {
+// WithOptions implements writers.ConfigWriter.
+func (w *secretWriter) WithOptions(opts writers.ConfigWriterOptions) writers.ConfigWriter {
+	clone := *w
+	clone.opts = opts
+	return &clone
+}
+
+func newSecretWriter(uri *url.URL) (writers.ConfigWriter, error) {
 	client, apiserverURL, err := inClusterConfig()
 	if err != nil {
 		return nil, err
@@ -59,7 +66,7 @@ func newSecretWriter(uri *url.URL) (*secretWriter, error) {
 }
 
 // WriteConfig implements ConfigWriter.
-func (w *secretWriter) WriteConfig(ctx context.Context, src *cluster_api.BootstrapConfig, cipher cipher.AEAD) error {
+func (w *secretWriter) WriteConfig(ctx context.Context, src *cluster_api.BootstrapConfig) error {
 	u := w.apiserverURL.ResolveReference(&url.URL{
 		Path: path.Join("/api/v1/namespaces", w.namespace, "secrets", w.name),
 		RawQuery: url.Values{
@@ -67,23 +74,29 @@ func (w *secretWriter) WriteConfig(ctx context.Context, src *cluster_api.Bootstr
 			"force":        {"true"},
 		}.Encode(),
 	})
-	plaintext, err := json.Marshal(src)
+	data, err := json.Marshal(src)
 	if err != nil {
 		return err
 	}
-	ciphertext := cryptutil.Encrypt(cipher, plaintext, nil)
-	encodedCiphertext := base64.StdEncoding.EncodeToString(ciphertext)
 
-	patch := fmt.Sprintf(`---
-apiVersion: v1
-kind: Secret
-metadata:
-  name: %q
-  namespace: %q
-data:
-  %q: %q
-`, w.name, w.namespace, w.key, encodedCiphertext)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, u.String(), strings.NewReader(patch))
+	if w.opts.Cipher != nil {
+		data = cryptutil.Encrypt(w.opts.Cipher, data, nil)
+	}
+	encodedData := base64.StdEncoding.EncodeToString(data)
+
+	patch, _ := yaml.Marshal(map[string]any{
+		"apiVersion": "v1",
+		"kind":       "Secret",
+		"metadata": map[string]any{
+			"name":      w.name,
+			"namespace": w.namespace,
+		},
+		"data": map[string]string{
+			w.key: encodedData,
+		},
+	})
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, u.String(), bytes.NewReader(patch))
 	if err != nil {
 		return err
 	}
@@ -101,11 +114,17 @@ data:
 		if resp.Header.Get("Content-Type") == "application/json" {
 			// log the detailed status message if available
 			status, err := io.ReadAll(resp.Body)
-			if err != nil && len(status) > 0 {
-				log.Ctx(ctx).Error().
-					RawJSON("response", status).
-					Msg("forbidden")
+			if err != nil {
+				break
 			}
+			var buf bytes.Buffer
+			err = json.Compact(&buf, status)
+			if err != nil {
+				break
+			}
+			log.Ctx(ctx).Error().
+				RawJSON("response", buf.Bytes()).
+				Msgf("%s %s: %s", req.Method, req.URL, resp.Status)
 		}
 	}
 	return fmt.Errorf("unexpected status: %s", resp.Status)

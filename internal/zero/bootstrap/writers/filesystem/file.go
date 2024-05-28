@@ -2,7 +2,6 @@ package filesystem
 
 import (
 	"context"
-	"crypto/cipher"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -14,30 +13,42 @@ import (
 )
 
 func init() {
-	writers.RegisterBuilder("file", func(uri *url.URL) (writers.ConfigWriter, error) {
-		if uri.Host != "" {
-			// prevent the common mistake of "file://path/to/file"
-			return nil, fmt.Errorf(`invalid file uri %q (did you mean "file:///%s%s"?)`, uri.String(), uri.Host, uri.Path)
-		}
-		return &fileWriter{
-			filePath: uri.Path,
-		}, nil
-	})
+	writers.RegisterBuilder("file", newFileWriter)
+}
+
+func newFileWriter(uri *url.URL) (writers.ConfigWriter, error) {
+	if uri.Host != "" {
+		// prevent the common mistake of "file://path/to/file"
+		return nil, fmt.Errorf(`invalid file uri %q (did you mean "file:///%s%s"?)`, uri.String(), uri.Host, uri.Path)
+	}
+	return &fileWriter{
+		filePath: uri.Path,
+	}, nil
 }
 
 type fileWriter struct {
+	opts     writers.ConfigWriterOptions
 	filePath string
 }
 
+// WithOptions implements writers.ConfigWriter.
+func (w *fileWriter) WithOptions(opts writers.ConfigWriterOptions) writers.ConfigWriter {
+	clone := *w
+	clone.opts = opts
+	return &clone
+}
+
 // WriteConfig implements ConfigWriter.
-func (w *fileWriter) WriteConfig(_ context.Context, src *cluster_api.BootstrapConfig, cipher cipher.AEAD) error {
-	plaintext, err := json.Marshal(src)
+func (w *fileWriter) WriteConfig(_ context.Context, src *cluster_api.BootstrapConfig) error {
+	data, err := json.Marshal(src)
 	if err != nil {
 		return fmt.Errorf("marshal file config: %w", err)
 	}
 
-	ciphertext := cryptutil.Encrypt(cipher, plaintext, nil)
-	err = os.WriteFile(w.filePath, ciphertext, 0o600)
+	if w.opts.Cipher != nil {
+		data = cryptutil.Encrypt(w.opts.Cipher, data, nil)
+	}
+	err = os.WriteFile(w.filePath, data, 0o600)
 	if err != nil {
 		return fmt.Errorf("write bootstrap config: %w", err)
 	}

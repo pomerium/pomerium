@@ -104,7 +104,7 @@ func (svc *Source) updateAndSave(ctx context.Context) error {
 		return nil
 	}
 
-	err = SaveBootstrapConfig(ctx, svc.writer, cfg, svc.fileCipher)
+	err = SaveBootstrapConfig(ctx, svc.writer, cfg)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).
 			Msg("failed to save bootstrap config to file, note it may prevent Pomerium from starting up in case of connectivity issues")

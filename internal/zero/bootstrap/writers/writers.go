@@ -11,7 +11,14 @@ import (
 )
 
 type ConfigWriter interface {
-	WriteConfig(ctx context.Context, src *cluster_api.BootstrapConfig, cipher cipher.AEAD) error
+	WriteConfig(ctx context.Context, src *cluster_api.BootstrapConfig) error
+	WithOptions(opts ConfigWriterOptions) ConfigWriter
+}
+
+type ConfigWriterOptions struct {
+	// A cipher used to encrypt the configuration before writing it.
+	// If nil, the configuration will be written in plaintext.
+	Cipher cipher.AEAD
 }
 
 // A WriterBuilder creates and initializes a new ConfigWriter previously

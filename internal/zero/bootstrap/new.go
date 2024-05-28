@@ -55,6 +55,12 @@ func New(secret []byte, fileCachePath *string, writer writers.ConfigWriter, api 
 		return nil, fmt.Errorf("init cypher: %w", err)
 	}
 
+	if writer != nil {
+		writer = writer.WithOptions(writers.ConfigWriterOptions{
+			Cipher: cipher,
+		})
+	}
+
 	svc := &Source{
 		api:            api,
 		source:         source{ready: make(chan struct{})},

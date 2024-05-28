@@ -70,7 +70,11 @@ func TestInClusterConfig(t *testing.T) {
 			DatabrokerStorageConnection: &txt,
 		}
 
-		require.NoError(t, bootstrap.SaveBootstrapConfig(context.Background(), writer, &src, cipher))
+		writer := writer.WithOptions(writers.ConfigWriterOptions{
+			Cipher: cipher,
+		})
+
+		require.NoError(t, bootstrap.SaveBootstrapConfig(context.Background(), writer, &src))
 
 		r := <-requests
 		assert.Equal(t, "PATCH", r.Method)
@@ -141,7 +145,6 @@ func TestInClusterConfig(t *testing.T) {
 			},
 		} {
 			for _, uri := range tc.uris {
-
 				w, err := writers.NewForURI(uri)
 				if tc.errf == "" {
 					assert.NoError(t, err)
