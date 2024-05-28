@@ -76,8 +76,5 @@ func getBootstrapConfigFileName() (string, error) {
 }
 
 func getBootstrapConfigWritebackURI() string {
-	if uri := os.Getenv(BootstrapConfigWritebackURI); uri != "" {
-		return uri
-	}
-	return ""
+	return os.Getenv(BootstrapConfigWritebackURI)
 }

@@ -17,11 +17,12 @@ import (
 	"path"
 	"strings"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
-	"gopkg.in/yaml.v3"
 )
 
 func init() {

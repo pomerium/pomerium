@@ -42,7 +42,7 @@ func Run(ctx context.Context, configFile string) error {
 		opts = append(opts, controller.WithBootstrapConfigFileName(bootstrapConfigFileName))
 
 		if uri := getBootstrapConfigWritebackURI(); uri != "" {
-			log.Ctx(ctx).Info().Str("uri", uri).Msg("cluster bootstrap config writeback URI")
+			log.Ctx(ctx).Debug().Str("uri", uri).Msg("cluster bootstrap config writeback URI")
 			opts = append(opts, controller.WithBootstrapConfigWritebackURI(uri))
 		}
 	}
