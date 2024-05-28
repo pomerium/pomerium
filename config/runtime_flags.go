@@ -11,6 +11,8 @@ var (
 
 	// RuntimeFlagLegacyIdentityManager enables the legacy identity manager
 	RuntimeFlagLegacyIdentityManager = runtimeFlag("legacy_identity_manager", false)
+
+	RuntimeFlagEnvoyResourceManagerEnabled = runtimeFlag("envoy_resource_manager_enabled", true)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features
