@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716924317551,
+  "lastUpdate": 1716924357880,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -110260,6 +110260,38 @@ window.BENCHMARK_DATA = {
             "value": 6932236,
             "unit": "ns/op",
             "extra": "177 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "21faff5a9988144416be7c5ffe9d391f893e2986",
+          "message": "Replace PVC with secrets storage in zero manifests (#2405)",
+          "timestamp": "2024-05-28T04:54:34Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5115/commits/21faff5a9988144416be7c5ffe9d391f893e2986"
+        },
+        "date": 1716924349016,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8804918,
+            "unit": "ns/op",
+            "extra": "135 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5997827,
+            "unit": "ns/op",
+            "extra": "200 times\n4 procs"
           }
         ]
       }
