@@ -3,14 +3,14 @@ package k8s
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,20 +19,12 @@ import (
 
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
+	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers/k8s/rest"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 )
 
-func TestInClusterConfig(t *testing.T) {
-	tempDir := t.TempDir()
-	var prevTokenFile, prevRootCAFile string
-	tokenFile, prevTokenFile = tempDir+"/token", tokenFile
-	rootCAFile, prevRootCAFile = tempDir+"/ca.crt", rootCAFile
-	t.Cleanup(func() {
-		tokenFile = prevTokenFile
-		rootCAFile = prevRootCAFile
-	})
-
+func TestSecretWriter(t *testing.T) {
 	requests := make(chan *http.Request, 1)
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		req := r.Clone(context.Background())
@@ -45,23 +37,26 @@ func TestInClusterConfig(t *testing.T) {
 	server.StartTLS()
 	defer server.Close()
 
-	require.NoError(t, os.WriteFile(tokenFile, []byte("token"), 0o600))
+	pool := x509.NewCertPool()
+	pool.AddCert(server.Certificate())
 
-	require.NoError(t, os.WriteFile(rootCAFile, pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: server.TLS.Certificates[0].Certificate[0],
-	}), 0o600))
+	restConfig := &rest.Config{
+		Host: server.URL,
+		TLSClientConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
+			RootCAs:    pool,
+		},
+		BearerToken: "token",
+	}
 
-	host, port, err := net.SplitHostPort(server.Listener.Addr().String())
-	require.NoError(t, err)
+	// replace the default in-cluster builder with one that uses the test server
+	writers.RegisterBuilder("secret", func(uri *url.URL) (writers.ConfigWriter, error) {
+		return newSecretWriterForConfig(uri, restConfig)
+	})
 
-	t.Setenv("KUBERNETES_SERVICE_HOST", host)
-	t.Setenv("KUBERNETES_SERVICE_PORT", port)
-
-	writer, err := writers.NewForURI("secret://pomerium/bootstrap/bootstrap.dat")
-	require.NoError(t, err)
-
-	t.Run("InClusterConfig", func(t *testing.T) {
+	t.Run("Writer", func(t *testing.T) {
+		writer, err := writers.NewForURI("secret://pomerium/bootstrap/bootstrap.dat")
+		require.NoError(t, err)
 		cipher, err := cryptutil.NewAEADCipher(cryptutil.NewKey())
 		require.NoError(t, err)
 
@@ -70,7 +65,7 @@ func TestInClusterConfig(t *testing.T) {
 			DatabrokerStorageConnection: &txt,
 		}
 
-		writer := writer.WithOptions(writers.ConfigWriterOptions{
+		writer = writer.WithOptions(writers.ConfigWriterOptions{
 			Cipher: cipher,
 		})
 
