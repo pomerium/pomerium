@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1716924582347,
+  "lastUpdate": 1716930030706,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -110456,6 +110456,42 @@ window.BENCHMARK_DATA = {
             "value": 6386482,
             "unit": "ns/op",
             "extra": "180 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joekralicky@gmail.com",
+            "name": "Joe Kralicky",
+            "username": "kralicky"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "927f24e1ffbf59dc54eee69faed65f353c2328b4",
+          "message": "Envoy resource monitoring & overload manager configuration (#5106)\n\n* Initial envoy cgroup resource monitor implementation\r\n\r\n* Add cgroupv1 support; add metrics instrumentation\r\n\r\n* Slight refactor for more efficient memory limit detection\r\n\r\nInstead of reading memory.max/limit_in_bytes on every tick, we\r\nread it once, then again only when it is modified.\r\n\r\nTo support this change, logic for computing the saturation was moved out\r\nof the cgroup driver and into the resource monitor, and the driver\r\ninterface now has separate methods for reading memory usage and limit.\r\n\r\n* Code cleanup/lint fixes\r\n\r\n* Add platform build tags\r\n\r\n* Add unit tests\r\n\r\n* Fix lint issues\r\n\r\n* Add runtime flag to allow disabling resource monitor\r\n\r\n* Clamp saturation values to the range [0.0, 1.0]\r\n\r\n* Switch to x/sys/unix; handle inotify IN_IGNORED events",
+          "timestamp": "2024-05-28T16:57:09-04:00",
+          "tree_id": "9f05275e90c66b10783afd62b09a5ab5e0ef2950",
+          "url": "https://github.com/pomerium/pomerium/commit/927f24e1ffbf59dc54eee69faed65f353c2328b4"
+        },
+        "date": 1716930021744,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8608915,
+            "unit": "ns/op",
+            "extra": "139 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5930745,
+            "unit": "ns/op",
+            "extra": "206 times\n4 procs"
           }
         ]
       }
