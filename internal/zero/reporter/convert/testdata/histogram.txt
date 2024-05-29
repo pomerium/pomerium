@@ -1,0 +1,23 @@
+# TYPE envoy_cluster_upstream_rq_time histogram
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="0.5"} 0
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="1"} 0
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="5"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="10"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="25"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="50"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="100"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="250"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="500"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="1000"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="2500"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="5000"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="10000"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="30000"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="60000"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="300000"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="600000"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="1.8e+06"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="3.6e+06"} 2
+envoy_cluster_upstream_rq_time_bucket{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb",le="+Inf"} 2
+envoy_cluster_upstream_rq_time_sum{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb"} 4.1
+envoy_cluster_upstream_rq_time_count{service="pomerium-proxy",envoy_cluster_name="metrics-00083",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb"} 2
