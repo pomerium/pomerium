@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717101898499,
+  "lastUpdate": 1717102905413,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -110652,6 +110652,38 @@ window.BENCHMARK_DATA = {
             "value": 6263899,
             "unit": "ns/op",
             "extra": "195 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "1bc10bbf9f260ad0bf876da1d9fa5f6382a66b07",
+          "message": "telemetry: add prometheus to otel types converter",
+          "timestamp": "2024-05-30T19:56:13Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5118/commits/1bc10bbf9f260ad0bf876da1d9fa5f6382a66b07"
+        },
+        "date": 1717102895679,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8724795,
+            "unit": "ns/op",
+            "extra": "130 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6089212,
+            "unit": "ns/op",
+            "extra": "189 times\n4 procs"
           }
         ]
       }
