@@ -1,4 +1,4 @@
-package convert
+package prometheus
 
 import (
 	"errors"
@@ -19,10 +19,10 @@ type FilterFn func(metricname string) (string, bool)
 // returns the new attribute name and true if the attribute should be included
 type RelabelFn func(metricname string) (string, bool)
 
-// PrometheusToOTLP converts a prometheus metric stream to OTLP metrics
+// ToOTLP converts a prometheus metric stream to OTLP metrics
 // the filter function is used to filter out unwanted metrics
 // the relabel function is used to relabel metric attributes
-func PrometheusToOTLP(
+func ToOTLP(
 	src io.Reader,
 	filter FilterFn,
 	relabel RelabelFn,

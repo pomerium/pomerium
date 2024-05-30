@@ -1,4 +1,4 @@
-package convert_test
+package prometheus_test
 
 import (
 	"embed"
@@ -14,7 +14,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 
-	"github.com/pomerium/pomerium/internal/zero/reporter/convert"
+	"github.com/pomerium/pomerium/internal/zero/telemetry/prometheus"
 )
 
 //go:embed testdata
@@ -105,7 +105,7 @@ func TestConvert(t *testing.T) {
 			require.NoError(t, err)
 			defer fd.Close()
 
-			got, err := convert.PrometheusToOTLP(fd,
+			got, err := prometheus.ToOTLP(fd,
 				func(name string) (string, bool) {
 					return name, true
 				}, func(label string) (string, bool) {

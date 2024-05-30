@@ -1,4 +1,4 @@
-package convert_test
+package prometheus_test
 
 import (
 	"errors"
@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 
-	"github.com/pomerium/pomerium/internal/zero/reporter/convert"
+	"github.com/pomerium/pomerium/internal/zero/telemetry/prometheus"
 )
 
 func TestMetricFamilyStream(t *testing.T) {
@@ -89,7 +89,7 @@ cpu_seconds_total 12345.6
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reader := strings.NewReader(tt.input)
-			metricStream := convert.NewMetricFamilyStream(reader)
+			metricStream := prometheus.NewMetricFamilyStream(reader)
 
 			var got []*dto.MetricFamily
 			for {

@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/pomerium/pomerium/internal/zero/analytics"
+	"github.com/pomerium/pomerium/internal/zero/telemetry/analytics"
 )
 
 func TestActiveUsers(t *testing.T) {

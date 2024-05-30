@@ -13,7 +13,7 @@ import (
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 	"github.com/pomerium/pomerium/internal/zero/grpcconn"
 	"github.com/pomerium/pomerium/internal/zero/healthcheck"
-	metrics_reporter "github.com/pomerium/pomerium/internal/zero/reporter"
+	metrics_reporter "github.com/pomerium/pomerium/internal/zero/telemetry/reporter"
 	token_api "github.com/pomerium/pomerium/internal/zero/token"
 	"github.com/pomerium/pomerium/pkg/fanout"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"

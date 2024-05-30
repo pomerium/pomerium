@@ -12,13 +12,13 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/zero/analytics"
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/internal/zero/healthcheck"
 	"github.com/pomerium/pomerium/internal/zero/leaser"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
-	"github.com/pomerium/pomerium/internal/zero/reporter"
+	"github.com/pomerium/pomerium/internal/zero/telemetry/analytics"
+	"github.com/pomerium/pomerium/internal/zero/telemetry/reporter"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
