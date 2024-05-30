@@ -17,8 +17,8 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/healthcheck"
 	"github.com/pomerium/pomerium/internal/zero/leaser"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
-	"github.com/pomerium/pomerium/internal/zero/telemetry/analytics"
 	"github.com/pomerium/pomerium/internal/zero/telemetry/reporter"
+	sessions_analytics "github.com/pomerium/pomerium/internal/zero/telemetry/sessions"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
@@ -129,7 +129,7 @@ func (c *controller) runAnalyticsLeased(ctx context.Context, client databroker.D
 		return c.Str("service", "zero-analytics")
 	})
 
-	err := analytics.Collect(ctx, client, time.Hour)
+	err := sessions_analytics.Collect(ctx, client, time.Hour)
 	if err != nil && ctx.Err() == nil {
 		log.Ctx(ctx).Error().Err(err).Msg("error collecting analytics, disabling")
 		return nil
@@ -145,7 +145,7 @@ func (c *controller) runMetricsReporterLeased(ctx context.Context, client databr
 
 	return c.api.ReportPeriodicMetrics(ctx,
 		reporter.WithCollectInterval(time.Hour),
-		reporter.WithMetrics(analytics.Metrics(func() databroker.DataBrokerServiceClient { return client })...),
+		reporter.WithMetrics(sessions_analytics.Metrics(func() databroker.DataBrokerServiceClient { return client })...),
 	)
 }
 

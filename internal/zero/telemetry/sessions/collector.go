@@ -1,5 +1,5 @@
-// Package analytics collects active user metrics and reports them to the cloud dashboard
-package analytics
+// Package sessions collects daily and monthly active user sessions and reports them to the cloud dashboard
+package sessions
 
 import (
 	"context"

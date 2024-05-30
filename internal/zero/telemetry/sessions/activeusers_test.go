@@ -1,4 +1,4 @@
-package analytics_test
+package sessions_test
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/pomerium/pomerium/internal/zero/telemetry/analytics"
+	analytics "github.com/pomerium/pomerium/internal/zero/telemetry/sessions"
 )
 
 func TestActiveUsers(t *testing.T) {
