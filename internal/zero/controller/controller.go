@@ -143,7 +143,7 @@ func (c *controller) runMetricsReporterLeased(ctx context.Context, client databr
 		return c.Str("service", "zero-reporter")
 	})
 
-	return c.api.ReportMetrics(ctx,
+	return c.api.ReportPeriodicMetrics(ctx,
 		reporter.WithCollectInterval(time.Hour),
 		reporter.WithMetrics(analytics.Metrics(func() databroker.DataBrokerServiceClient { return client })...),
 	)
