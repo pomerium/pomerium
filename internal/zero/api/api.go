@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 
@@ -13,7 +14,7 @@ import (
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 	"github.com/pomerium/pomerium/internal/zero/grpcconn"
 	"github.com/pomerium/pomerium/internal/zero/healthcheck"
-	metrics_reporter "github.com/pomerium/pomerium/internal/zero/reporter"
+	"github.com/pomerium/pomerium/internal/zero/reporter"
 	token_api "github.com/pomerium/pomerium/internal/zero/token"
 	"github.com/pomerium/pomerium/pkg/fanout"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
@@ -25,6 +26,7 @@ type API struct {
 	cfg              *config
 	cluster          cluster_api.ClientWithResponsesInterface
 	telemetryConn    *grpc.ClientConn
+	reporter         *reporter.Reporter
 	mux              *connect_mux.Mux
 	downloadURLCache *cluster_api.URLCache
 	tokenFn          func(ctx context.Context, ttl time.Duration) (string, error)
@@ -84,19 +86,29 @@ func NewAPI(ctx context.Context, opts ...Option) (*API, error) {
 		return nil, fmt.Errorf("error creating OTEL exporter grpc client: %w", err)
 	}
 
+	reporter, err := reporter.New(ctx, telemetryGRPCConn)
+	if err != nil {
+		return nil, fmt.Errorf("error creating metrics reporter: %w", err)
+	}
+
 	return &API{
 		cfg:              cfg,
 		cluster:          clusterClient,
 		mux:              connect_mux.New(connect_api.NewConnectClient(connectGRPCConn)),
 		telemetryConn:    telemetryGRPCConn,
+		reporter:         reporter,
 		downloadURLCache: cluster_api.NewURLCache(),
 		tokenFn:          tokenCache.GetToken,
 	}, nil
 }
 
-// ReportMetrics runs metrics reporting to the cloud
-func (api *API) ReportMetrics(ctx context.Context, opts ...metrics_reporter.Option) error {
-	return metrics_reporter.Run(ctx, api.telemetryConn, opts...)
+// ReportPeriodicMetrics runs periodic metrics collection and reporting to the cloud
+func (api *API) ReportPeriodicMetrics(ctx context.Context, opts ...reporter.Option) error {
+	return api.reporter.RunPeriodicMetricReporter(ctx, opts...)
+}
+
+func (api *API) ReportMetrics(ctx context.Context, metrics []metricdata.Metrics) error {
+	return api.reporter.ReportMetrics(ctx, metrics)
 }
 
 // ReportHealthChecks runs health check reporting to the cloud
