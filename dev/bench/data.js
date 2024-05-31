@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717177349813,
+  "lastUpdate": 1717178982847,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -110784,6 +110784,42 @@ window.BENCHMARK_DATA = {
             "value": 7198478,
             "unit": "ns/op",
             "extra": "175 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joekralicky@gmail.com",
+            "name": "Joe Kralicky",
+            "username": "kralicky"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d859e884c02919156cc24106f146870d3a71a36c",
+          "message": "Add support for using the standard grpc env vars to control log severity and verbosity (#5120)",
+          "timestamp": "2024-05-31T14:06:38-04:00",
+          "tree_id": "2fe01a8538d1923f8006e9a9b62416a72dca8ee4",
+          "url": "https://github.com/pomerium/pomerium/commit/d859e884c02919156cc24106f146870d3a71a36c"
+        },
+        "date": 1717178972925,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8326850,
+            "unit": "ns/op",
+            "extra": "136 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5864634,
+            "unit": "ns/op",
+            "extra": "213 times\n4 procs"
           }
         ]
       }
