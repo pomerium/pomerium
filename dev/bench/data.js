@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717102905413,
+  "lastUpdate": 1717172974869,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -110684,6 +110684,42 @@ window.BENCHMARK_DATA = {
             "value": 6089212,
             "unit": "ns/op",
             "extra": "189 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joekralicky@gmail.com",
+            "name": "Joe Kralicky",
+            "username": "kralicky"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "de603f87dec34f27f0f6449c5ec91d2279b6f28f",
+          "message": "Add new configurable bootstrap writers (#2405) (#5114)\n\n* Add new configurable bootstrap writers (#2405)\r\n\r\nThis PR adds the ability to configure different backends to use for\r\nstoring modifications to the zero bootstrap config. The two currently\r\nimplemented backends allow writing changes to a file or to a Kubernetes\r\nsecret. Backend selection is determined by the scheme in a URI passed to\r\nthe flag '--config-writeback-uri'.\r\n\r\nIn a Kubernetes environment, where the bootstrap config is mounted into\r\nthe pod from a secret, this option allows Pomerium to write changes back\r\nto the secret, as writes to the mounted secret file on disk are not\r\npersisted.\r\n\r\n* Use env vars for bootstrap config filepath/writeback uri\r\n\r\n* linter pass and code cleanup\r\n\r\n* Add new config writer options mechanism\r\n\r\nThis moves the encryption cipher parameter out of the WriteConfig()\r\nmethod in the ConfigWriter interface and into a new ConfigWriterOptions\r\nstruct. Options (e.g. cipher) can be applied to an existing ConfigWriter\r\nto allow customizing implementation-specific behavior.\r\n\r\n* Code cleanup/lint fixes\r\n\r\n* Move vendored k8s code into separate package, and add license header and package comment",
+          "timestamp": "2024-05-31T12:26:17-04:00",
+          "tree_id": "2a6b907cd8d56af64bbf39f829aa2a6f1522a6c3",
+          "url": "https://github.com/pomerium/pomerium/commit/de603f87dec34f27f0f6449c5ec91d2279b6f28f"
+        },
+        "date": 1717172965427,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8925719,
+            "unit": "ns/op",
+            "extra": "138 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5867993,
+            "unit": "ns/op",
+            "extra": "212 times\n4 procs"
           }
         ]
       }
