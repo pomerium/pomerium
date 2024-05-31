@@ -15,6 +15,7 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/analytics"
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
+	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
 	"github.com/pomerium/pomerium/internal/zero/healthcheck"
 	"github.com/pomerium/pomerium/internal/zero/leaser"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
@@ -33,7 +34,24 @@ func Run(ctx context.Context, opts ...Option) error {
 		return fmt.Errorf("init api: %w", err)
 	}
 
-	src, err := bootstrap.New([]byte(c.cfg.apiToken), c.cfg.bootstrapConfigFileName, c.api)
+	var writer writers.ConfigWriter
+	if c.cfg.bootstrapConfigFileName != nil {
+		var err error
+		var uri string
+		if c.cfg.bootstrapConfigWritebackURI != nil {
+			// if there is an explicitly configured writeback URI, use it
+			uri = *c.cfg.bootstrapConfigWritebackURI
+		} else {
+			// otherwise, default to "file://<filename>"
+			uri = "file://" + *c.cfg.bootstrapConfigFileName
+		}
+		writer, err = writers.NewForURI(uri)
+		if err != nil {
+			return fmt.Errorf("error creating bootstrap config writer: %w", err)
+		}
+	}
+
+	src, err := bootstrap.New([]byte(c.cfg.apiToken), c.cfg.bootstrapConfigFileName, writer, c.api)
 	if err != nil {
 		return fmt.Errorf("error creating bootstrap config: %w", err)
 	}

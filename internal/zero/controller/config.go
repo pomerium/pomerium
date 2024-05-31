@@ -11,8 +11,9 @@ type controllerConfig struct {
 	connectAPIEndpoint string
 	otelEndpoint       string
 
-	tmpDir                  string
-	bootstrapConfigFileName *string
+	tmpDir                      string
+	bootstrapConfigFileName     *string
+	bootstrapConfigWritebackURI *string
 
 	reconcilerLeaseDuration  time.Duration
 	databrokerRequestTimeout time.Duration
@@ -57,6 +58,41 @@ func WithAPIToken(token string) Option {
 func WithBootstrapConfigFileName(name string) Option {
 	return func(c *controllerConfig) {
 		c.bootstrapConfigFileName = &name
+	}
+}
+
+// WithBootstrapConfigWritebackURI sets the URI to use for persisting changes made to the
+// bootstrap config read from a filename specified by WithBootstrapConfigFileName.
+// Accepts a URI with a non-empty scheme and path.
+//
+// The following schemes are supported:
+//
+// # file
+//
+// Writes the config to a file on disk.
+//
+// Example: "file:///path/to/file" would write the config to "/path/to/file"
+// on disk.
+//
+// # secret
+//
+// Writes the config to a Kubernetes Secret. Uses the format
+// "secret://namespace/name/key".
+//
+// Example: "secret://pomerium/bootstrap/bootstrap.dat" would
+// write the config to a secret named "bootstrap" in the "pomerium" namespace,
+// under the key "bootstrap.dat", as if created with the following YAML:
+//
+//	apiVersion: v1
+//	kind: Secret
+//	metadata:
+//	  name: bootstrap
+//	  namespace: pomerium
+//	data:
+//	  bootstrap.dat: <base64 encoded config>
+func WithBootstrapConfigWritebackURI(uri string) Option {
+	return func(c *controllerConfig) {
+		c.bootstrapConfigWritebackURI = &uri
 	}
 }
 
