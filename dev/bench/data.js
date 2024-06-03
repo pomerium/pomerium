@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717427071029,
+  "lastUpdate": 1717427219970,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -110952,6 +110952,42 @@ window.BENCHMARK_DATA = {
             "value": 6041534,
             "unit": "ns/op",
             "extra": "194 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e1fba7d190aa932394fc5ba908d8367d2d3be992",
+          "message": "chore(deps): bump the github-actions group with 9 updates (#5121)\n\nBumps the github-actions group with 9 updates:\r\n\r\n| Package | From | To |\r\n| --- | --- | --- |\r\n| [actions/checkout](https://github.com/actions/checkout) | `4.1.4` | `4.1.6` |\r\n| [actions/setup-go](https://github.com/actions/setup-go) | `5.0.0` | `5.0.1` |\r\n| [docker/login-action](https://github.com/docker/login-action) | `3.1.0` | `3.2.0` |\r\n| [mikefarah/yq](https://github.com/mikefarah/yq) | `4.43.1` | `4.44.1` |\r\n| [golangci/golangci-lint-action](https://github.com/golangci/golangci-lint-action) | `5.1.0` | `6.0.1` |\r\n| [azure/docker-login](https://github.com/azure/docker-login) | `1.0.1` | `2` |\r\n| [google-github-actions/auth](https://github.com/google-github-actions/auth) | `2.1.2` | `2.1.3` |\r\n| [goreleaser/goreleaser-action](https://github.com/goreleaser/goreleaser-action) | `5.0.0` | `5.1.0` |\r\n| [coverallsapp/github-action](https://github.com/coverallsapp/github-action) | `2.2.3` | `2.3.0` |\r\n\r\n\r\nUpdates `actions/checkout` from 4.1.4 to 4.1.6\r\n- [Release notes](https://github.com/actions/checkout/releases)\r\n- [Changelog](https://github.com/actions/checkout/blob/main/CHANGELOG.md)\r\n- [Commits](https://github.com/actions/checkout/compare/0ad4b8fadaa221de15dcec353f45205ec38ea70b...a5ac7e51b41094c92402da3b24376905380afc29)\r\n\r\nUpdates `actions/setup-go` from 5.0.0 to 5.0.1\r\n- [Release notes](https://github.com/actions/setup-go/releases)\r\n- [Commits](https://github.com/actions/setup-go/compare/0c52d547c9bc32b1aa3301fd7a9cb496313a4491...cdcb36043654635271a94b9a6d1392de5bb323a7)\r\n\r\nUpdates `docker/login-action` from 3.1.0 to 3.2.0\r\n- [Release notes](https://github.com/docker/login-action/releases)\r\n- [Commits](https://github.com/docker/login-action/compare/e92390c5fb421da1463c202d546fed0ec5c39f20...0d4c9c5ea7693da7b068278f7b52bda2a190a446)\r\n\r\nUpdates `mikefarah/yq` from 4.43.1 to 4.44.1\r\n- [Release notes](https://github.com/mikefarah/yq/releases)\r\n- [Changelog](https://github.com/mikefarah/yq/blob/master/release_notes.txt)\r\n- [Commits](https://github.com/mikefarah/yq/compare/c35ec752e38ea0c096d3c44e13cfc0797ac394d8...557dcb87b8efe786f89a12c09e9046b4753ab72e)\r\n\r\nUpdates `golangci/golangci-lint-action` from 5.1.0 to 6.0.1\r\n- [Release notes](https://github.com/golangci/golangci-lint-action/releases)\r\n- [Commits](https://github.com/golangci/golangci-lint-action/compare/9d1e0624a798bb64f6c3cea93db47765312263dc...a4f60bb28d35aeee14e6880718e0c85ff1882e64)\r\n\r\nUpdates `azure/docker-login` from 1.0.1 to 2\r\n- [Release notes](https://github.com/azure/docker-login/releases)\r\n- [Commits](https://github.com/azure/docker-login/compare/83efeb77770c98b620c73055fbb59b2847e17dc0...15c4aadf093404726ab2ff205b2cdd33fa6d054c)\r\n\r\nUpdates `google-github-actions/auth` from 2.1.2 to 2.1.3\r\n- [Release notes](https://github.com/google-github-actions/auth/releases)\r\n- [Changelog](https://github.com/google-github-actions/auth/blob/main/CHANGELOG.md)\r\n- [Commits](https://github.com/google-github-actions/auth/compare/55bd3a7c6e2ae7cf1877fd1ccb9d54c0503c457c...71fee32a0bb7e97b4d33d548e7d957010649d8fa)\r\n\r\nUpdates `goreleaser/goreleaser-action` from 5.0.0 to 5.1.0\r\n- [Release notes](https://github.com/goreleaser/goreleaser-action/releases)\r\n- [Commits](https://github.com/goreleaser/goreleaser-action/compare/v5.0.0...v5.1.0)\r\n\r\nUpdates `coverallsapp/github-action` from 2.2.3 to 2.3.0\r\n- [Release notes](https://github.com/coverallsapp/github-action/releases)\r\n- [Commits](https://github.com/coverallsapp/github-action/compare/3dfc5567390f6fa9267c0ee9c251e4c8c3f18949...643bc377ffa44ace6394b2b5d0d3950076de9f63)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: actions/checkout\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: github-actions\r\n- dependency-name: actions/setup-go\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: github-actions\r\n- dependency-name: docker/login-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: github-actions\r\n- dependency-name: mikefarah/yq\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: github-actions\r\n- dependency-name: golangci/golangci-lint-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-major\r\n  dependency-group: github-actions\r\n- dependency-name: azure/docker-login\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-major\r\n  dependency-group: github-actions\r\n- dependency-name: google-github-actions/auth\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: github-actions\r\n- dependency-name: goreleaser/goreleaser-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: github-actions\r\n- dependency-name: coverallsapp/github-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-minor\r\n  dependency-group: github-actions\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-06-03T08:03:47-07:00",
+          "tree_id": "9f05f59f3028fd56a21babe5f88186e388d7f2c2",
+          "url": "https://github.com/pomerium/pomerium/commit/e1fba7d190aa932394fc5ba908d8367d2d3be992"
+        },
+        "date": 1717427210469,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9602139,
+            "unit": "ns/op",
+            "extra": "127 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6637589,
+            "unit": "ns/op",
+            "extra": "187 times\n4 procs"
           }
         ]
       }
