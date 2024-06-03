@@ -37,7 +37,7 @@ require (
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/klauspost/compress v1.17.8
 	github.com/martinlindhe/base36 v1.1.1
-	github.com/mholt/acmez v1.2.0
+	github.com/mholt/acmez/v2 v2.0.1
 	github.com/minio/minio-go/v7 v7.0.70
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/mitchellh/mapstructure v1.5.0
@@ -167,7 +167,6 @@ require (
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mholt/acmez/v2 v2.0.1 // indirect
 	github.com/miekg/dns v1.1.59 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect

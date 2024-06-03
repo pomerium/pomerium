@@ -9,6 +9,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 )
 
-func NewSharedResourceMonitor(ctx context.Context, src config.Source, tempDir string) (ResourceMonitor, error) {
+func NewSharedResourceMonitor(_ context.Context, _ config.Source, _ string) (ResourceMonitor, error) {
 	return nil, errors.New("unsupported platform")
 }

@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/caddyserver/certmagic"
-	"github.com/mholt/acmez/acme"
+	"github.com/mholt/acmez/v2/acme"
 	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/config"
