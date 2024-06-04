@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717532764955,
+  "lastUpdate": 1717534185306,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -111156,6 +111156,42 @@ window.BENCHMARK_DATA = {
             "value": 6803575,
             "unit": "ns/op",
             "extra": "176 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "503966a577d3bfff9de10634495ff96537581880",
+          "message": "update the pomerium/webauthn dependency (#5125)",
+          "timestamp": "2024-06-04T13:46:23-07:00",
+          "tree_id": "458ce3708abd9caf65720425cdce906d9a9f3835",
+          "url": "https://github.com/pomerium/pomerium/commit/503966a577d3bfff9de10634495ff96537581880"
+        },
+        "date": 1717534175980,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8381364,
+            "unit": "ns/op",
+            "extra": "141 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5759487,
+            "unit": "ns/op",
+            "extra": "214 times\n4 procs"
           }
         ]
       }
