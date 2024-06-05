@@ -25,20 +25,22 @@ export const SessionDetails: FC<SessionDetailsProps> = ({
 }) => {
   return (
     <>
-      {session?.id ? (
+      {session?.id || profile?.claims ? (
         <Section title="User Details">
           <Stack spacing={3}>
             <TableContainer>
               <Table size="small">
                 <TableBody>
-                  <TableRow>
-                    <TableCell width={"18%"} variant="head">
-                      Session ID
-                    </TableCell>
-                    <TableCell align="left">
-                      <IDField value={session?.id} />
-                    </TableCell>
-                  </TableRow>
+                  {session?.id && (
+                    <TableRow>
+                      <TableCell width={"18%"} variant="head">
+                        Session ID
+                      </TableCell>
+                      <TableCell align="left">
+                        <IDField value={session?.id} />
+                      </TableCell>
+                    </TableRow>
+                  )}
                   <TableRow>
                     <TableCell variant="head">User ID</TableCell>
                     <TableCell align="left">
@@ -49,12 +51,12 @@ export const SessionDetails: FC<SessionDetailsProps> = ({
                       />
                     </TableCell>
                   </TableRow>
-                  <TableRow>
-                    <TableCell variant="head">Expires At</TableCell>
-                    <TableCell align="left">
-                      {session?.expiresAt || ""}
-                    </TableCell>
-                  </TableRow>
+                  {session?.expiresAt && (
+                    <TableRow>
+                      <TableCell variant="head">Expires At</TableCell>
+                      <TableCell align="left">{session?.expiresAt}</TableCell>
+                    </TableRow>
+                  )}
                   {Object.entries(session?.claims || {}).map(
                     ([key, values]) => (
                       <ClaimRow

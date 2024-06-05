@@ -1,3 +1,4 @@
+import isArray from "lodash/isArray";
 import React, { FC } from "react";
 
 import IDField from "./IDField";
@@ -11,6 +12,19 @@ type ClaimValueProps = {
   claimValue: unknown;
 };
 const ClaimValue: FC<ClaimValueProps> = ({ claimKey, claimValue }) => {
+  if (isArray(claimValue)) {
+    return (
+      <>
+        {claimValue?.map((v, i) => (
+          <React.Fragment key={`${v}`}>
+            {i > 0 ? <br /> : <></>}
+            <ClaimValue claimKey={claimKey} claimValue={v} />
+          </React.Fragment>
+        ))}
+      </>
+    );
+  }
+
   if (unixSecondTimestampFields.has(claimKey)) {
     return <>{new Date((claimValue as number) * 1000).toISOString()}</>;
   }

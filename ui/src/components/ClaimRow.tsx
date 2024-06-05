@@ -1,5 +1,5 @@
 import { TableCell, TableRow } from "@mui/material";
-import isArray from "lodash/isArray";
+import isPlainObject from "lodash/isPlainObject";
 import startCase from "lodash/startCase";
 import React, { FC } from "react";
 
@@ -10,20 +10,25 @@ export type ClaimRowProps = {
   claimValue: unknown;
 };
 export const ClaimRow: FC<ClaimRowProps> = ({ claimKey, claimValue }) => {
+  if (isPlainObject(claimValue)) {
+    return (
+      <>
+        {Object.entries(claimValue).map(([k, v]) => (
+          <ClaimRow
+            key={`${claimKey}/${k}`}
+            claimKey={`${claimKey} ${k}`}
+            claimValue={v}
+          />
+        ))}
+      </>
+    );
+  }
+
   return (
     <TableRow>
       <TableCell variant="head">{startCase(claimKey)}</TableCell>
       <TableCell align="left">
-        {isArray(claimValue) ? (
-          claimValue?.map((v, i) => (
-            <React.Fragment key={`${v}`}>
-              {i > 0 ? <br /> : <></>}
-              <ClaimValue claimKey={claimKey} claimValue={v} />
-            </React.Fragment>
-          ))
-        ) : (
-          <ClaimValue claimKey={claimKey} claimValue={claimValue} />
-        )}
+        <ClaimValue claimKey={claimKey} claimValue={claimValue} />
       </TableCell>
     </TableRow>
   );
