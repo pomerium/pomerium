@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717621273512,
+  "lastUpdate": 1717625600513,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -111328,6 +111328,38 @@ window.BENCHMARK_DATA = {
             "value": 6531686,
             "unit": "ns/op",
             "extra": "188 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "fb7440a607bd79058bc7f6f536b1bc4bbbe07391",
+          "message": "[wip] Device Auth flow",
+          "timestamp": "2024-06-05T20:57:59Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5129/commits/fb7440a607bd79058bc7f6f536b1bc4bbbe07391"
+        },
+        "date": 1717625590893,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9132056,
+            "unit": "ns/op",
+            "extra": "135 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6036882,
+            "unit": "ns/op",
+            "extra": "196 times\n4 procs"
           }
         ]
       }
