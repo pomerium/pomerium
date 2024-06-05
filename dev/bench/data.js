@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717618847713,
+  "lastUpdate": 1717621273512,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -111292,6 +111292,42 @@ window.BENCHMARK_DATA = {
             "value": 6324705,
             "unit": "ns/op",
             "extra": "186 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "990517a89ef864afb41444350d8f114542a9cd77",
+          "message": "core/ui: user info dashboard improvements (#5128)",
+          "timestamp": "2024-06-05T14:57:55-06:00",
+          "tree_id": "184182277c337d340d92519c72a75415ef558411",
+          "url": "https://github.com/pomerium/pomerium/commit/990517a89ef864afb41444350d8f114542a9cd77"
+        },
+        "date": 1717621256477,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9154174,
+            "unit": "ns/op",
+            "extra": "128 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6531686,
+            "unit": "ns/op",
+            "extra": "188 times\n4 procs"
           }
         ]
       }
