@@ -1,25 +1,27 @@
 syntax = "proto3";
 
 package pomerium.identity;
-option go_package = "github.com/pomerium/pomerium/pkg/grpc/identity";
 
 import "google/protobuf/struct.proto";
 
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/identity";
+
 message Provider {
-  string id = 1;
-  string authenticate_service_url = 9;
-  string client_id = 2;
-  string client_secret = 3;
-  string type = 4;
-  repeated string scopes = 5;
+  string          id                       = 1;
+  string          authenticate_service_url = 9;
+  string          client_id                = 2;
+  string          client_secret            = 3;
+  string          type                     = 4;
+  repeated string scopes                   = 5;
   // string service_account = 6;
-  string url = 7;
-  map<string, string> request_params = 8;
+  string              url                     = 7;
+  map<string, string> request_params          = 8;
+  optional string     device_auth_client_type = 10;
 }
 
 message Profile {
-  string provider_id = 1;
-  bytes id_token = 2;
-  bytes oauth_token = 3;
-  google.protobuf.Struct claims = 4;
+  string                 provider_id = 1;
+  bytes                  id_token    = 2;
+  bytes                  oauth_token = 3;
+  google.protobuf.Struct claims      = 4;
 }

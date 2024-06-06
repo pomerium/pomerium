@@ -63,13 +63,16 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 					return nil
 				}
 				return p.routesPortalJSON(w, r)
+			case dashboardPath + "/v1/device_auth":
+				if r.Method != http.MethodGet {
+					http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+					return nil
+				}
+				return p.DeviceAuthLogin(w, r)
 			}
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return nil
 		}))
-
-	a.Path("/v1/device_auth").Handler(httputil.HandlerFunc(p.DeviceAuthLogin)).
-		Methods(http.MethodGet, http.MethodPost)
 
 	return r
 }

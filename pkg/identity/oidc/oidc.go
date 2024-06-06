@@ -49,6 +49,8 @@ type Provider struct {
 	// to the request flow signin url.
 	AuthCodeOptions map[string]string
 
+	DeviceAuthClientType string
+
 	mu       sync.Mutex
 	provider *go_oidc.Provider
 }
@@ -65,6 +67,9 @@ func New(ctx context.Context, o *oauth.Options, options ...Option) (*Provider, e
 	}
 	if len(o.AuthCodeOptions) != 0 {
 		p.AuthCodeOptions = o.AuthCodeOptions
+	}
+	if o.DeviceAuthClientType != "" {
+		p.DeviceAuthClientType = o.DeviceAuthClientType
 	}
 
 	p.cfg = getConfig(append([]Option{
@@ -132,6 +137,11 @@ func (p *Provider) DeviceAuth(w http.ResponseWriter, r *http.Request) (*oauth2.D
 	opts := defaultAuthCodeOptions
 	for k, v := range p.AuthCodeOptions {
 		opts = append(opts, oauth2.SetAuthURLParam(k, v))
+	}
+	switch p.DeviceAuthClientType {
+	case "", "public":
+	case "confidential":
+		opts = append(opts, oauth2.SetAuthURLParam("client_secret", oa.ClientSecret))
 	}
 
 	resp, err := oa.DeviceAuth(r.Context(), opts...)

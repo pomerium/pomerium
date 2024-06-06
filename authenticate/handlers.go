@@ -587,7 +587,7 @@ func (a *Authenticate) DeviceAuthLogin(w http.ResponseWriter, r *http.Request) e
 
 	routeUri := r.FormValue(urlutil.QueryDeviceAuthRouteURI)
 	ad := []byte(fmt.Sprintf("%s|%s|", routeUri, idpID))
-	authenticator, err := a.cfg.getIdentityProvider(options, idpID)
+	authenticator, err := a.cfg.getIdentityProvider(r.Context(), a.tracerProvider, options, idpID)
 	if err != nil {
 		return err
 	}
