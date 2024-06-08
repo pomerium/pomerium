@@ -16,6 +16,7 @@ message Message {
   oneof message {
     ConfigUpdated config_updated = 1;
     BootstrapConfigUpdated bootstrap_config_updated = 2;
+    TelemetryRequest telemetry_request = 3;
   }
 }
 
@@ -31,6 +32,30 @@ message ConfigUpdated {
 // does not involve long running operations to construct it, like with a regular
 // config.
 message BootstrapConfigUpdated {}
+
+// TelemetryRequest is sent to request current telemetry data from the Pomerium Core to be sent to the Zero Cloud.
+message TelemetryRequest {
+  // include_session_analytics requests current MAU/DAU data
+  optional SessionAnalyticsRequest session_analytics = 1;
+  // envoy_metrics requests current envoy metrics
+  optional EnvoyMetricsRequest envoy_metrics = 2;
+  // pomerium_metrics requests current pomerium metrics
+  optional PomeriumMetricsRequest pomerium_metrics = 3;
+}
+
+// SessionAnalyticsRequest is used to request current MAU/DAU data
+message SessionAnalyticsRequest {}
+
+// EnvoyMetricsRequest is used to request current envoy metrics
+message EnvoyMetricsRequest {
+  // only include metrics that match the provided labels, and relabel them with the provided labels
+  map<string, string> metrics = 1;
+  // only include labels that match the provided labels
+  map<string, string> labels = 2;
+}
+
+// PomeriumMetricsRequest is used to request current pomerium metrics
+message PomeriumMetricsRequest {}
 
 // Connect service is used to maintain a persistent connection between the
 // Pomerium Core and Zero Cloud and receive messages from the cloud.
