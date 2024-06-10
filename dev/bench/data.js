@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1717812758141,
+  "lastUpdate": 1718048536073,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -111456,6 +111456,42 @@ window.BENCHMARK_DATA = {
             "value": 6327089,
             "unit": "ns/op",
             "extra": "193 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2b1dcf7355a5ff9698599f688f7eb3aa7b469ed9",
+          "message": "telemetry: add prometheus streaming converter to OTLP (#5132)",
+          "timestamp": "2024-06-10T15:39:09-04:00",
+          "tree_id": "7afc5fbf1972a6fe74241245b2d6f32306bcec87",
+          "url": "https://github.com/pomerium/pomerium/commit/2b1dcf7355a5ff9698599f688f7eb3aa7b469ed9"
+        },
+        "date": 1718048526752,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8265376,
+            "unit": "ns/op",
+            "extra": "140 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5730836,
+            "unit": "ns/op",
+            "extra": "204 times\n4 procs"
           }
         ]
       }
