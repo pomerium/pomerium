@@ -4,20 +4,20 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"os"
 	"time"
 
 	"golang.org/x/sync/errgroup"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 func main() {
 	ctx := context.Background()
 	err := run(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, err.Error())
-		os.Exit(1)
+		log.Fatal().Err(err).Send()
 	}
 }
 
@@ -61,7 +61,7 @@ func download(
 		}
 
 		if timesMatch(fi.ModTime(), lastModified) {
-			slog.DebugContext(ctx, "skipping download", "url", srcURL, "dst", dstPath)
+			log.Debug(ctx).Str("url", srcURL).Str("dst", dstPath).Msg("skipping download")
 			return nil
 		}
 
@@ -69,7 +69,7 @@ func download(
 		return fmt.Errorf("error reading destination path file info (dst=%s): %w", dstPath, err)
 	}
 
-	slog.InfoContext(ctx, "downloading", "url", srcURL, "dst", dstPath)
+	log.Info(ctx).Str("url", srcURL).Str("dst", dstPath).Msg("downloading")
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srcURL, nil)
 	if err != nil {
