@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718074022423,
+  "lastUpdate": 1718074654914,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -111556,6 +111556,42 @@ window.BENCHMARK_DATA = {
             "value": 5772676,
             "unit": "ns/op",
             "extra": "204 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e12532ba5293e8e9e8e28c1d03fd3d6faca5f280",
+          "message": "zero/connect: add telemetry request command (#5131)\n\n* zero/connect: add telemetry request command\r\n\r\n* rm relabeling",
+          "timestamp": "2024-06-10T22:54:02-04:00",
+          "tree_id": "561c39d0d5aa92bc55dee39684bcb54c868bd25b",
+          "url": "https://github.com/pomerium/pomerium/commit/e12532ba5293e8e9e8e28c1d03fd3d6faca5f280"
+        },
+        "date": 1718074644738,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9918000,
+            "unit": "ns/op",
+            "extra": "130 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6111786,
+            "unit": "ns/op",
+            "extra": "196 times\n4 procs"
           }
         ]
       }
