@@ -48,6 +48,8 @@ func dispatch(ctx context.Context, cfg *config, msg message) error {
 			cfg.onBundleUpdated(ctx, "config")
 		case *connect.Message_BootstrapConfigUpdated:
 			cfg.onBootstrapConfigUpdated(ctx)
+		case *connect.Message_TelemetryRequest:
+			cfg.onTelemetryRequested(ctx, msg.Message.GetTelemetryRequest())
 		default:
 			return fmt.Errorf("unknown message type")
 		}

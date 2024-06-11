@@ -1,12 +1,17 @@
 package mux
 
-import "context"
+import (
+	"context"
+
+	"github.com/pomerium/pomerium/pkg/zero/connect"
+)
 
 type config struct {
 	onConnected              func(ctx context.Context)
 	onDisconnected           func(ctx context.Context)
 	onBundleUpdated          func(ctx context.Context, key string)
 	onBootstrapConfigUpdated func(ctx context.Context)
+	onTelemetryRequested     func(ctx context.Context, req *connect.TelemetryRequest)
 }
 
 // WatchOption allows to specify callbacks for various events
@@ -40,6 +45,12 @@ func WithOnBootstrapConfigUpdated(onBootstrapConfigUpdated func(context.Context)
 	}
 }
 
+func WithOnTelemetryRequested(onTelemetryRequested func(context.Context, *connect.TelemetryRequest)) WatchOption {
+	return func(cfg *config) {
+		cfg.onTelemetryRequested = onTelemetryRequested
+	}
+}
+
 func newConfig(opts ...WatchOption) *config {
 	cfg := &config{}
 	for _, opt := range []WatchOption{
@@ -47,6 +58,7 @@ func newConfig(opts ...WatchOption) *config {
 		WithOnDisconnected(func(_ context.Context) {}),
 		WithOnBundleUpdated(func(_ context.Context, _ string) {}),
 		WithOnBootstrapConfigUpdated(func(_ context.Context) {}),
+		WithOnTelemetryRequested(func(_ context.Context, _ *connect.TelemetryRequest) {}),
 	} {
 		opt(cfg)
 	}
