@@ -49,9 +49,9 @@ message SessionAnalyticsRequest {}
 // EnvoyMetricsRequest is used to request current envoy metrics
 message EnvoyMetricsRequest {
   // only include metrics that match the provided labels, and relabel them with the provided labels
-  map<string, string> metrics = 1;
+  repeated string metrics = 1;
   // only include labels that match the provided labels
-  map<string, string> labels = 2;
+  repeated string labels = 2;
 }
 
 // PomeriumMetricsRequest is used to request current pomerium metrics
