@@ -15,6 +15,8 @@ var (
 	// RuntimeFlagConfigHotReload enables the hot-reloading mechanism for the config file
 	// and any other files referenced within it
 	RuntimeFlagConfigHotReload = runtimeFlag("config_hot_reload", true)
+
+	RuntimeFlagEnvoyResourceManagerEnabled = runtimeFlag("envoy_resource_manager_enabled", true)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features

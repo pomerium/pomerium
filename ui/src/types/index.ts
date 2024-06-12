@@ -97,7 +97,7 @@ type BasePageData = {
 };
 
 export type ErrorPageData = BasePageData & {
-  page: "Error";
+  page: "Error" | "UpstreamError";
 
   canDebug?: boolean;
   debugUrl?: string;

@@ -37,7 +37,7 @@ const PolicyEvaluationTraceDetails: FC<PolicyEvaluationTraceDetailsProps> = ({
         )}
       </TableCell>
       <TableCell>
-        <Markdown>{trace.explanation || trace.id}</Markdown>
+        <Markdown>{trace.explanation || `Policy ID ${trace.id}`}</Markdown>
       </TableCell>
       <TableCell>
         <Markdown>

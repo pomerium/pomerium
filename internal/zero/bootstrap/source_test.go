@@ -18,7 +18,7 @@ func TestConfigChanges(t *testing.T) {
 
 	secret := []byte("secret")
 
-	src, err := bootstrap.New(secret, nil, nil)
+	src, err := bootstrap.New(secret, nil, nil, nil)
 	require.NoError(t, err)
 
 	ptr := func(s string) *string { return &s }

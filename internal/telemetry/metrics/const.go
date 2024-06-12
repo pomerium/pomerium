@@ -18,6 +18,9 @@ var (
 	TagKeyStorageOperation = tag.MustNewKey("operation")
 	TagKeyStorageResult    = tag.MustNewKey("result")
 	TagKeyStorageBackend   = tag.MustNewKey("backend")
+
+	TagKeyCgroup     = tag.MustNewKey("cgroup")
+	TagKeyActionName = tag.MustNewKey("action_name")
 )
 
 // Default distributions used by views in this package.
@@ -44,5 +47,6 @@ var (
 		HTTPServerViews,
 		InfoViews,
 		StorageViews,
+		EnvoyViews,
 	}
 )

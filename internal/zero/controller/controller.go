@@ -15,8 +15,8 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/analytics"
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
+	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
 	"github.com/pomerium/pomerium/internal/zero/healthcheck"
-	"github.com/pomerium/pomerium/internal/zero/leaser"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
 	"github.com/pomerium/pomerium/internal/zero/reporter"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
@@ -33,7 +33,24 @@ func Run(ctx context.Context, opts ...Option) error {
 		return fmt.Errorf("init api: %w", err)
 	}
 
-	src, err := bootstrap.New([]byte(c.cfg.apiToken), c.cfg.bootstrapConfigFileName, c.api)
+	var writer writers.ConfigWriter
+	if c.cfg.bootstrapConfigFileName != nil {
+		var err error
+		var uri string
+		if c.cfg.bootstrapConfigWritebackURI != nil {
+			// if there is an explicitly configured writeback URI, use it
+			uri = *c.cfg.bootstrapConfigWritebackURI
+		} else {
+			// otherwise, default to "file://<filename>"
+			uri = "file://" + *c.cfg.bootstrapConfigFileName
+		}
+		writer, err = writers.NewForURI(uri)
+		if err != nil {
+			return fmt.Errorf("error creating bootstrap config writer: %w", err)
+		}
+	}
+
+	src, err := bootstrap.New([]byte(c.cfg.apiToken), c.cfg.bootstrapConfigFileName, writer, c.api)
 	if err != nil {
 		return fmt.Errorf("error creating bootstrap config: %w", err)
 	}
@@ -105,11 +122,25 @@ func (c *controller) runConnect(ctx context.Context) error {
 }
 
 func (c *controller) runZeroControlLoop(ctx context.Context) error {
-	return leaser.Run(ctx, c.bootstrapConfig,
-		c.runReconcilerLeased,
-		c.runAnalyticsLeased,
-		c.runMetricsReporterLeased,
-		c.runHealthChecksLeased,
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("control-group", "zero-cluster")
+	})
+
+	err := c.bootstrapConfig.WaitReady(ctx)
+	if err != nil {
+		return fmt.Errorf("waiting for config source to be ready: %w", err)
+	}
+
+	r := c.NewDatabrokerRestartRunner(ctx)
+	defer r.Close()
+
+	return r.Run(ctx,
+		WithLease(
+			c.runReconcilerLeased,
+			c.runAnalyticsLeased,
+			c.runMetricsReporterLeased,
+			c.runHealthChecksLeased,
+		),
 	)
 }
 
