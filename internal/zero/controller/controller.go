@@ -5,21 +5,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/zero/analytics"
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
-	"github.com/pomerium/pomerium/internal/zero/healthcheck"
 	"github.com/pomerium/pomerium/internal/zero/leaser"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
-	"github.com/pomerium/pomerium/internal/zero/reporter"
+	"github.com/pomerium/pomerium/internal/zero/telemetry/reporter"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
@@ -62,7 +58,7 @@ func Run(ctx context.Context, opts ...Option) error {
 	eg.Go(func() error { return run(ctx, "zero-bootstrap", c.runBootstrap) })
 	eg.Go(func() error { return run(ctx, "pomerium-core", c.runPomeriumCore) })
 	eg.Go(func() error { return run(ctx, "zero-control-loop", c.runZeroControlLoop) })
-	eg.Go(func() error { return run(ctx, "healh-check-reporter", c.runHealthCheckReporter) })
+	eg.Go(func() error { return run(ctx, "telemetry-reporter", c.runTelemetryReporter) })
 	return eg.Wait()
 }
 
@@ -71,7 +67,8 @@ type controller struct {
 
 	api *sdk.API
 
-	bootstrapConfig *bootstrap.Source
+	bootstrapConfig   *bootstrap.Source
+	telemetryReporter *reporter.Reporter
 }
 
 func (c *controller) initAPI(ctx context.Context) error {
@@ -86,7 +83,7 @@ func (c *controller) initAPI(ctx context.Context) error {
 	}
 
 	c.api = api
-
+	_ = c.initTelemetry(ctx, nil) // temp
 	return nil
 }
 
@@ -125,8 +122,8 @@ func (c *controller) runConnect(ctx context.Context) error {
 func (c *controller) runZeroControlLoop(ctx context.Context) error {
 	return leaser.Run(ctx, c.bootstrapConfig,
 		c.runReconcilerLeased,
-		c.runAnalyticsLeased,
-		c.runMetricsReporterLeased,
+		c.runSessionAnalyticsLeased,
+		c.enableSessionAnalyticsReporting,
 		c.runHealthChecksLeased,
 	)
 }
@@ -139,56 +136,5 @@ func (c *controller) runReconcilerLeased(ctx context.Context, client databroker.
 	return reconciler.Run(ctx,
 		reconciler.WithAPI(c.api),
 		reconciler.WithDataBrokerClient(client),
-	)
-}
-
-func (c *controller) runAnalyticsLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
-	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("service", "zero-analytics")
-	})
-
-	err := analytics.Collect(ctx, client, time.Hour)
-	if err != nil && ctx.Err() == nil {
-		log.Ctx(ctx).Error().Err(err).Msg("error collecting analytics, disabling")
-		return nil
-	}
-
-	return err
-}
-
-func (c *controller) runMetricsReporterLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
-	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("service", "zero-reporter")
-	})
-
-	return c.api.ReportMetrics(ctx,
-		reporter.WithCollectInterval(time.Hour),
-		reporter.WithMetrics(analytics.Metrics(func() databroker.DataBrokerServiceClient { return client })...),
-	)
-}
-
-func (c *controller) runHealthChecksLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
-	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("service", "zero-health-checks")
-	})
-
-	return healthcheck.RunChecks(ctx, c.bootstrapConfig, client)
-}
-
-func (c *controller) runHealthCheckReporter(ctx context.Context) error {
-	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("service", "zero-health-check-reporter")
-	})
-
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 0
-	return backoff.RetryNotify(
-		func() error {
-			return c.api.ReportHealthChecks(ctx)
-		},
-		backoff.WithContext(bo, ctx),
-		func(err error, next time.Duration) {
-			log.Ctx(ctx).Warn().Err(err).Dur("next", next).Msg("health check reporter backoff")
-		},
 	)
 }
