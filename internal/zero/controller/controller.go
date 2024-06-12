@@ -17,7 +17,6 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
 	"github.com/pomerium/pomerium/internal/zero/healthcheck"
-	"github.com/pomerium/pomerium/internal/zero/leaser"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
 	"github.com/pomerium/pomerium/internal/zero/reporter"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
@@ -123,11 +122,25 @@ func (c *controller) runConnect(ctx context.Context) error {
 }
 
 func (c *controller) runZeroControlLoop(ctx context.Context) error {
-	return leaser.Run(ctx, c.bootstrapConfig,
-		c.runReconcilerLeased,
-		c.runAnalyticsLeased,
-		c.runMetricsReporterLeased,
-		c.runHealthChecksLeased,
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("control-group", "zero-cluster")
+	})
+
+	err := c.bootstrapConfig.WaitReady(ctx)
+	if err != nil {
+		return fmt.Errorf("waiting for config source to be ready: %w", err)
+	}
+
+	r := c.NewDatabrokerRestartRunner(ctx)
+	defer r.Close()
+
+	return r.Run(ctx,
+		WithLease(
+			c.runReconcilerLeased,
+			c.runAnalyticsLeased,
+			c.runMetricsReporterLeased,
+			c.runHealthChecksLeased,
+		),
 	)
 }
 
