@@ -32,6 +32,16 @@ func (c *controller) initTelemetry(ctx context.Context, clientProvider func() (d
 	return nil
 }
 
+func (c *controller) shutdownTelemetry(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), c.cfg.shutdownTimeout)
+	defer cancel()
+
+	err := c.telemetryReporter.Shutdown(ctx)
+	if err != nil {
+		log.Warn(ctx).Err(err).Msg("telemetry reporter shutdown error")
+	}
+}
+
 func (c *controller) runSessionAnalyticsLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "zero-analytics")

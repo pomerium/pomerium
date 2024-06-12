@@ -17,6 +17,7 @@ type controllerConfig struct {
 
 	reconcilerLeaseDuration  time.Duration
 	databrokerRequestTimeout time.Duration
+	shutdownTimeout          time.Duration
 }
 
 // WithTmpDir sets the temporary directory to use.

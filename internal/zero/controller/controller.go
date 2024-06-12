@@ -13,10 +13,12 @@ import (
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
+	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
 	"github.com/pomerium/pomerium/internal/zero/telemetry/reporter"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/zero/connect"
 )
 
 // Run runs Pomerium is managed mode using the provided token.
@@ -57,7 +59,6 @@ func Run(ctx context.Context, opts ...Option) error {
 	eg.Go(func() error { return run(ctx, "zero-bootstrap", c.runBootstrap) })
 	eg.Go(func() error { return run(ctx, "pomerium-core", c.runPomeriumCore) })
 	eg.Go(func() error { return run(ctx, "zero-control-loop", c.runZeroControlLoop) })
-	eg.Go(func() error { return run(ctx, "telemetry-reporter", c.runTelemetryReporter) })
 	return eg.Wait()
 }
 
@@ -137,15 +138,28 @@ func (c *controller) runZeroControlLoop(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("init telemetry: %w", err)
 	}
+	defer c.shutdownTelemetry(ctx)
 
-	return r.Run(ctx,
-		WithLease(
-			c.runReconcilerLeased,
-			c.runSessionAnalyticsLeased,
-			c.enableSessionAnalyticsReporting,
-			c.runHealthChecksLeased,
-		),
-	)
+	err = c.api.Watch(ctx, connect_mux.WithOnTelemetryRequested(func(ctx context.Context, _ *connect.TelemetryRequest) {
+		c.telemetryReporter.CollectAndExportMetrics(ctx)
+	}))
+	if err != nil {
+		return fmt.Errorf("watch telemetry: %w", err)
+	}
+
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		return r.Run(ctx,
+			WithLease(
+				c.runReconcilerLeased,
+				c.runSessionAnalyticsLeased,
+				c.enableSessionAnalyticsReporting,
+				c.runHealthChecksLeased,
+			),
+		)
+	})
+	eg.Go(func() error { return c.runTelemetryReporter(ctx) })
+	return eg.Wait()
 }
 
 func (c *controller) runReconcilerLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
