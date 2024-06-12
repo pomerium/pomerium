@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718219734735,
+  "lastUpdate": 1718224508515,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -111688,6 +111688,42 @@ window.BENCHMARK_DATA = {
             "value": 6506959,
             "unit": "ns/op",
             "extra": "184 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cc636be70745b7271b90584c2508e476dcb61a40",
+          "message": "zero: refactor controller (#5134)",
+          "timestamp": "2024-06-12T16:31:42-04:00",
+          "tree_id": "89acfa5f05a38a5615ae9c16aa0d76bd145cf147",
+          "url": "https://github.com/pomerium/pomerium/commit/cc636be70745b7271b90584c2508e476dcb61a40"
+        },
+        "date": 1718224498580,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 10380066,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7479884,
+            "unit": "ns/op",
+            "extra": "144 times\n4 procs"
           }
         ]
       }
