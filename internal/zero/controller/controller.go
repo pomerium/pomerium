@@ -13,7 +13,6 @@ import (
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
-	"github.com/pomerium/pomerium/internal/zero/leaser"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
 	"github.com/pomerium/pomerium/internal/zero/telemetry/reporter"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
@@ -83,7 +82,6 @@ func (c *controller) initAPI(ctx context.Context) error {
 	}
 
 	c.api = api
-	_ = c.initTelemetry(ctx, nil) // temp
 	return nil
 }
 
@@ -120,11 +118,33 @@ func (c *controller) runConnect(ctx context.Context) error {
 }
 
 func (c *controller) runZeroControlLoop(ctx context.Context) error {
-	return leaser.Run(ctx, c.bootstrapConfig,
-		c.runReconcilerLeased,
-		c.runSessionAnalyticsLeased,
-		c.enableSessionAnalyticsReporting,
-		c.runHealthChecksLeased,
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("control-group", "zero-cluster")
+	})
+
+	err := c.bootstrapConfig.WaitReady(ctx)
+	if err != nil {
+		return fmt.Errorf("waiting for config source to be ready: %w", err)
+	}
+
+	r := c.NewDatabrokerRestartRunner(ctx)
+	defer r.Close()
+
+	err = c.initTelemetry(ctx, func() (databroker.DataBrokerServiceClient, error) {
+		client, _, err := r.getDatabrokerClient()
+		return client, err
+	})
+	if err != nil {
+		return fmt.Errorf("init telemetry: %w", err)
+	}
+
+	return r.Run(ctx,
+		WithLease(
+			c.runReconcilerLeased,
+			c.runSessionAnalyticsLeased,
+			c.enableSessionAnalyticsReporting,
+			c.runHealthChecksLeased,
+		),
 	)
 }
 
