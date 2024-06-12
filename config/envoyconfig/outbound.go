@@ -135,7 +135,7 @@ func (b *Builder) buildOutboundRoutes() []*envoy_config_route_v3.Route {
 	routes = append(routes, &envoy_config_route_v3.Route{
 		Name: "envoy-metrics",
 		Match: &envoy_config_route_v3.RouteMatch{
-			PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/stats/prometheus"},
+			PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/envoy/stats/prometheus"},
 		},
 		Action: &envoy_config_route_v3.Route_Route{
 			Route: &envoy_config_route_v3.RouteAction{
