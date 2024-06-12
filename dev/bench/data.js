@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718163917147,
+  "lastUpdate": 1718219734735,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -111656,6 +111656,38 @@ window.BENCHMARK_DATA = {
             "value": 6777592,
             "unit": "ns/op",
             "extra": "178 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "903f4abd9a6a29f837d21fd061c7a4a9a81d0a8a",
+          "message": "zero: refactor telemetry and controller",
+          "timestamp": "2024-06-12T09:48:48Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5135/commits/903f4abd9a6a29f837d21fd061c7a4a9a81d0a8a"
+        },
+        "date": 1718219725137,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9329100,
+            "unit": "ns/op",
+            "extra": "129 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6506959,
+            "unit": "ns/op",
+            "extra": "184 times\n4 procs"
           }
         ]
       }
