@@ -8,7 +8,6 @@ type config struct {
 	producers map[string]*metricsProducer
 }
 
-// Option is a functional option for configuring the dialhome package.
 type Option func(*config)
 
 // WithProducer adds a metric producer to the reporter
