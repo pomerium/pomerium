@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718246281204,
+  "lastUpdate": 1718249025220,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -112016,6 +112016,42 @@ window.BENCHMARK_DATA = {
             "value": 6310273,
             "unit": "ns/op",
             "extra": "192 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "joekralicky@gmail.com",
+            "name": "Joe Kralicky",
+            "username": "kralicky"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c3534df885de6d8818e904d9b5d3afc2f0f048ba",
+          "message": "Add runtime flag to allow disabling config hot-reload (#5079) (#5112)\n\n* Add runtime flag to allow disabling config hot-reload (#5079)\n\n* Add unit tests\n\n* Log at info level instead of warning",
+          "timestamp": "2024-06-12T23:20:30-04:00",
+          "tree_id": "04557112901134669dc457c84d280399f0de769c",
+          "url": "https://github.com/pomerium/pomerium/commit/c3534df885de6d8818e904d9b5d3afc2f0f048ba"
+        },
+        "date": 1718249007893,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8801004,
+            "unit": "ns/op",
+            "extra": "128 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6284640,
+            "unit": "ns/op",
+            "extra": "188 times\n4 procs"
           }
         ]
       }
