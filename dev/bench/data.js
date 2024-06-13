@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718243679417,
+  "lastUpdate": 1718244155967,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -111916,6 +111916,42 @@ window.BENCHMARK_DATA = {
             "value": 5808410,
             "unit": "ns/op",
             "extra": "208 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dmishin@pomerium.com",
+            "name": "Denis Mishin",
+            "username": "wasaga"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "114f730dba683dea2ab7ef667f6e26034a9b3250",
+          "message": "zero: refactor telemetry and controller (#5135)\n\n* zero: refactor controller\r\n\r\n* refactor zero telemetry and controller\r\n\r\n* wire with connect handler\r\n\r\n* cr",
+          "timestamp": "2024-06-12T21:59:25-04:00",
+          "tree_id": "93758463f40bab4bb16d544291db3d0a56698e8e",
+          "url": "https://github.com/pomerium/pomerium/commit/114f730dba683dea2ab7ef667f6e26034a9b3250"
+        },
+        "date": 1718244146512,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8551771,
+            "unit": "ns/op",
+            "extra": "135 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5764596,
+            "unit": "ns/op",
+            "extra": "206 times\n4 procs"
           }
         ]
       }
