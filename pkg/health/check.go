@@ -7,6 +7,8 @@ type Check string
 const (
 	// BuildDatabrokerConfig checks whether the Databroker config was applied
 	BuildDatabrokerConfig = Check("config.databroker.build")
+	// CollectAndSendTelemetry checks whether telemetry was collected and sent
+	CollectAndSendTelemetry = Check("zero.telemetry.collect-and-send")
 	// StorageBackend checks whether the storage backend is healthy
 	StorageBackend = Check("storage.backend")
 	// XDSCluster checks whether the XDS Cluster resources were applied

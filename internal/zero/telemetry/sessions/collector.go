@@ -1,5 +1,5 @@
 // Package analytics collects active user metrics and reports them to the cloud dashboard
-package analytics
+package sessions
 
 import (
 	"context"
@@ -22,8 +22,7 @@ func Collect(
 		updateInterval: updateInterval,
 	}
 
-	leaser := databroker.NewLeaser("pomerium-zero-analytics", c.leaseTTL(), c)
-	return leaser.Run(ctx)
+	return c.run(ctx)
 }
 
 type collector struct {
@@ -32,7 +31,7 @@ type collector struct {
 	updateInterval time.Duration
 }
 
-func (c *collector) RunLeased(ctx context.Context) error {
+func (c *collector) run(ctx context.Context) error {
 	err := c.loadCounters(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to load counters: %w", err)
@@ -44,10 +43,6 @@ func (c *collector) RunLeased(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (c *collector) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
-	return c.client
 }
 
 func (c *collector) loadCounters(ctx context.Context) error {
@@ -120,12 +115,4 @@ func (c *collector) update(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (c *collector) leaseTTL() time.Duration {
-	const defaultTTL = time.Minute * 5
-	if defaultTTL < c.updateInterval {
-		return defaultTTL
-	}
-	return c.updateInterval
 }

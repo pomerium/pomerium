@@ -17,6 +17,7 @@ type controllerConfig struct {
 
 	reconcilerLeaseDuration  time.Duration
 	databrokerRequestTimeout time.Duration
+	shutdownTimeout          time.Duration
 }
 
 // WithTmpDir sets the temporary directory to use.
@@ -110,6 +111,13 @@ func WithDatabrokerRequestTimeout(timeout time.Duration) Option {
 	}
 }
 
+// WithShutdownTimeout sets the timeout for shutting down and cleanup.
+func WithShutdownTimeout(timeout time.Duration) Option {
+	return func(c *controllerConfig) {
+		c.shutdownTimeout = timeout
+	}
+}
+
 func newControllerConfig(opts ...Option) *controllerConfig {
 	c := new(controllerConfig)
 
@@ -118,6 +126,7 @@ func newControllerConfig(opts ...Option) *controllerConfig {
 		WithConnectAPIEndpoint("https://connect.pomerium.com"),
 		WithDatabrokerLeaseDuration(time.Second * 30),
 		WithDatabrokerRequestTimeout(time.Second * 30),
+		WithShutdownTimeout(time.Second * 10),
 	} {
 		opt(c)
 	}
