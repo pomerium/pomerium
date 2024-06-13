@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/sdk/instrumentation"
-	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
@@ -63,6 +62,12 @@ func WithIncludeLabels(labels ...string) ProducerOption {
 	}
 }
 
+func WithScrapeURL(scrapeURL string) ProducerOption {
+	return func(cfg *producerConfig) {
+		cfg.scrapeURL = scrapeURL
+	}
+}
+
 func (cfg *producerConfig) Validate() error {
 	if cfg.client == nil {
 		return fmt.Errorf("HTTP client is required")
@@ -89,31 +94,37 @@ func newProducerConfig(opts ...ProducerOption) (*producerConfig, error) {
 	return cfg, nil
 }
 
-type producer struct {
+type Producer struct {
 	producerConfig atomic.Value
 }
 
-func NewProducer(opts ...ProducerOption) (metric.Producer, error) {
+func NewProducer(opts ...ProducerOption) (*Producer, error) {
 	cfg, err := newProducerConfig(opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	p := new(producer)
+	p := new(Producer)
 	p.setConfig(cfg)
 	return p, nil
 }
 
-func (p *producer) SetConfig(opts ...ProducerOption) {
+func (p *Producer) SetConfig(opts ...ProducerOption) error {
 	cfg, err := newProducerConfig(opts...)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	p.setConfig(cfg)
+	return nil
 }
 
-func (p *producer) Produce(ctx context.Context) ([]metricdata.ScopeMetrics, error) {
+func (p *Producer) Produce(ctx context.Context) ([]metricdata.ScopeMetrics, error) {
 	cfg := p.loadConfig()
+
+	if len(cfg.metrics) == 0 {
+		return nil, nil
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, cfg.scrapeURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -135,11 +146,11 @@ func (p *producer) Produce(ctx context.Context) ([]metricdata.ScopeMetrics, erro
 	}, nil
 }
 
-func (p *producer) setConfig(cfg *producerConfig) {
+func (p *Producer) setConfig(cfg *producerConfig) {
 	p.producerConfig.Store(cfg)
 }
 
-func (p *producer) loadConfig() *producerConfig {
+func (p *Producer) loadConfig() *producerConfig {
 	return p.producerConfig.Load().(*producerConfig)
 }
 

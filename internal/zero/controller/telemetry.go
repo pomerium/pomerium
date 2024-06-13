@@ -3,33 +3,81 @@ package controller
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/url"
 	"time"
 
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/sdk/instrumentation"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/prometheus"
+	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 	"github.com/pomerium/pomerium/internal/zero/healthcheck"
 	"github.com/pomerium/pomerium/internal/zero/telemetry/reporter"
 	"github.com/pomerium/pomerium/internal/zero/telemetry/sessions"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
+	"github.com/pomerium/pomerium/pkg/zero/connect"
 )
 
 const (
 	producerSessionAnalytics = "session-analytics"
+	producerEnvoy            = "envoy"
 )
 
 func (c *controller) initTelemetry(ctx context.Context, clientProvider func() (databroker.DataBrokerServiceClient, error)) error {
-	sessionMetricProducer := sessions.NewProducer(instrumentation.Scope{}, clientProvider)
+	startTime := time.Now()
+
+	sessionMetricProducer := sessions.NewProducer(instrumentation.Scope{Name: "cluster"}, clientProvider)
+	envoyMetricProducer, err := prometheus.NewProducer(c.buildEnvoyMetricProducerOptions(nil, nil, startTime)...)
+	if err != nil {
+		return fmt.Errorf("error creating envoy metric producer: %w", err)
+	}
+
 	r, err := reporter.New(ctx, c.api.GetTelemetryConn(),
 		reporter.WithProducer(producerSessionAnalytics, sessionMetricProducer),
+		reporter.WithProducer(producerEnvoy, envoyMetricProducer),
 	)
 	if err != nil {
 		return fmt.Errorf("error creating telemetry metrics reporter: %w", err)
 	}
+
+	err = c.api.Watch(ctx, connect_mux.WithOnTelemetryRequested(func(ctx context.Context, req *connect.TelemetryRequest) {
+		sessionMetricProducer.SetEnabled(req.GetSessionAnalytics() != nil)
+
+		if envoyMetricRequest := req.GetEnvoyMetrics(); envoyMetricRequest != nil {
+			opts := c.buildEnvoyMetricProducerOptions(envoyMetricRequest.GetMetrics(), envoyMetricRequest.GetLabels(), startTime)
+			err := envoyMetricProducer.SetConfig(opts...)
+			if err != nil {
+				log.Warn(ctx).Err(err).Msg("failed to set envoy metric producer options")
+			}
+		} else {
+			_ = envoyMetricProducer.SetConfig(c.buildEnvoyMetricProducerOptions(nil, nil, startTime)...)
+		}
+
+		c.telemetryReporter.CollectAndExportMetrics(ctx)
+	}))
+	if err != nil {
+		return fmt.Errorf("watch telemetry: %w", err)
+	}
+
 	c.telemetryReporter = r
 	return nil
+}
+
+func (c *controller) buildEnvoyMetricProducerOptions(metrics, labels []string, startTime time.Time) []prometheus.ProducerOption {
+	return []prometheus.ProducerOption{
+		prometheus.WithIncludeMetrics(metrics...),
+		prometheus.WithIncludeLabels(labels...),
+		prometheus.WithScope(instrumentation.Scope{Name: "envoy"}),
+		prometheus.WithScrapeURL((&url.URL{
+			Scheme: "http",
+			Host:   net.JoinHostPort("localhost", c.bootstrapConfig.GetConfig().OutboundPort),
+			Path:   "/envoy/stats/prometheus",
+		}).String()),
+		prometheus.WithStartTime(startTime),
+	}
 }
 
 func (c *controller) shutdownTelemetry(ctx context.Context) {

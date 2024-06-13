@@ -3,32 +3,37 @@ package sessions
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/otel/sdk/instrumentation"
-	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
-type producer struct {
+type Producer struct {
 	scope          instrumentation.Scope
 	clientProvider func() (databroker.DataBrokerServiceClient, error)
+	enabled        atomic.Bool
 }
 
 func NewProducer(
 	scope instrumentation.Scope,
 	clientProvider func() (databroker.DataBrokerServiceClient, error),
-) metric.Producer {
-	return &producer{
+) *Producer {
+	return &Producer{
 		clientProvider: clientProvider,
 		scope:          scope,
 	}
 }
 
-func (p *producer) Produce(ctx context.Context) ([]metricdata.ScopeMetrics, error) {
+func (p *Producer) Produce(ctx context.Context) ([]metricdata.ScopeMetrics, error) {
+	if !p.enabled.Load() {
+		return nil, nil
+	}
+
 	client, err := p.clientProvider()
 	if err != nil {
 		return nil, fmt.Errorf("error getting client: %w", err)
@@ -72,4 +77,8 @@ func (p *producer) Produce(ctx context.Context) ([]metricdata.ScopeMetrics, erro
 			Metrics: metrics,
 		},
 	}, nil
+}
+
+func (p *Producer) SetEnabled(enabled bool) {
+	p.enabled.Store(enabled)
 }
