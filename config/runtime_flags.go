@@ -12,6 +12,10 @@ var (
 	// RuntimeFlagLegacyIdentityManager enables the legacy identity manager
 	RuntimeFlagLegacyIdentityManager = runtimeFlag("legacy_identity_manager", false)
 
+	// RuntimeFlagConfigHotReload enables the hot-reloading mechanism for the config file
+	// and any other files referenced within it
+	RuntimeFlagConfigHotReload = runtimeFlag("config_hot_reload", true)
+
 	RuntimeFlagEnvoyResourceManagerEnabled = runtimeFlag("envoy_resource_manager_enabled", true)
 )
 
