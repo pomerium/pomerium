@@ -14,14 +14,10 @@ export type Group = {
 };
 
 export type Profile = {
-  providerId: string;
-  idToken: string;
-  oauthToken: string;
   claims: Record<string, unknown>;
 };
 
 export type Session = {
-  audience: string[];
   claims: Claims;
   deviceCredentials: Array<{
     typeId: string;
@@ -29,20 +25,6 @@ export type Session = {
   }>;
   expiresAt: string;
   id: string;
-  idToken: {
-    expiresAt: string;
-    issuedAt: string;
-    issuer: string;
-    raw: string;
-    subject: string;
-  };
-  issuedAt: string;
-  oauthToken: {
-    accessToken: string;
-    expiresAt: string;
-    refreshToken: string;
-    tokenType: string;
-  };
   userId: string;
 };
 
