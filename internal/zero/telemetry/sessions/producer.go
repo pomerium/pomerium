@@ -3,20 +3,21 @@ package sessions
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/otel/sdk/instrumentation"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 type Producer struct {
 	scope          instrumentation.Scope
 	clientProvider func() (databroker.DataBrokerServiceClient, error)
-	enabled        atomic.Bool
 }
 
 func NewProducer(
@@ -30,10 +31,6 @@ func NewProducer(
 }
 
 func (p *Producer) Produce(ctx context.Context) ([]metricdata.ScopeMetrics, error) {
-	if !p.enabled.Load() {
-		return nil, nil
-	}
-
 	client, err := p.clientProvider()
 	if err != nil {
 		return nil, fmt.Errorf("error getting client: %w", err)
@@ -48,6 +45,9 @@ func (p *Producer) Produce(ctx context.Context) ([]metricdata.ScopeMetrics, erro
 		eg.Go(func() error {
 			state, err := LoadMetricState(ctx, client, ids[i])
 			if err != nil {
+				if status.Code(err) == codes.NotFound {
+					return nil
+				}
 				return err
 			}
 			metrics[i] = metricdata.Metrics{
@@ -71,14 +71,15 @@ func (p *Producer) Produce(ctx context.Context) ([]metricdata.ScopeMetrics, erro
 		return nil, err
 	}
 
+	metrics = slices.Filter(metrics, func(v metricdata.Metrics) bool { return v.Name != "" })
+	if len(metrics) == 0 {
+		return nil, nil
+	}
+
 	return []metricdata.ScopeMetrics{
 		{
 			Scope:   p.scope,
 			Metrics: metrics,
 		},
 	}, nil
-}
-
-func (p *Producer) SetEnabled(enabled bool) {
-	p.enabled.Store(enabled)
 }

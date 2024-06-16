@@ -68,54 +68,34 @@ func WithScrapeURL(scrapeURL string) ProducerOption {
 	}
 }
 
-func (cfg *producerConfig) Validate() error {
-	if cfg.client == nil {
-		return fmt.Errorf("HTTP client is required")
-	}
-	if cfg.scrapeURL == "" {
-		return fmt.Errorf("scrape URL is required")
-	}
-	if cfg.startTime.IsZero() {
-		return fmt.Errorf("start time is required")
-	}
-	return nil
-}
-
-func newProducerConfig(opts ...ProducerOption) (*producerConfig, error) {
+func newProducerConfig(opts ...ProducerOption) *producerConfig {
 	cfg := &producerConfig{
 		client: http.DefaultClient,
 	}
 	for _, opt := range opts {
 		opt(cfg)
 	}
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+	return cfg
 }
 
 type Producer struct {
 	producerConfig atomic.Value
 }
 
-func NewProducer(opts ...ProducerOption) (*Producer, error) {
-	cfg, err := newProducerConfig(opts...)
-	if err != nil {
-		return nil, err
-	}
+func NewProducer(opts ...ProducerOption) *Producer {
+	cfg := newProducerConfig(opts...)
 
 	p := new(Producer)
 	p.setConfig(cfg)
-	return p, nil
+	return p
 }
 
-func (p *Producer) SetConfig(opts ...ProducerOption) error {
-	cfg, err := newProducerConfig(opts...)
-	if err != nil {
-		return err
+func (p *Producer) UpdateConfig(opts ...ProducerOption) {
+	cfg := *p.loadConfig()
+	for _, opt := range opts {
+		opt(&cfg)
 	}
-	p.setConfig(cfg)
-	return nil
+	p.setConfig(&cfg)
 }
 
 func (p *Producer) Produce(ctx context.Context) ([]metricdata.ScopeMetrics, error) {

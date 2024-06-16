@@ -5,16 +5,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
+	"time"
 
 	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/retry"
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
+	"github.com/pomerium/pomerium/internal/zero/healthcheck"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
-	"github.com/pomerium/pomerium/internal/zero/telemetry/reporter"
+	"github.com/pomerium/pomerium/internal/zero/telemetry"
+	"github.com/pomerium/pomerium/internal/zero/telemetry/sessions"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
@@ -65,8 +71,7 @@ type controller struct {
 
 	api *sdk.API
 
-	bootstrapConfig   *bootstrap.Source
-	telemetryReporter *reporter.Reporter
+	bootstrapConfig *bootstrap.Source
 }
 
 func (c *controller) initAPI(ctx context.Context) error {
@@ -126,40 +131,70 @@ func (c *controller) runZeroControlLoop(ctx context.Context) error {
 		return fmt.Errorf("waiting for config source to be ready: %w", err)
 	}
 
-	r := c.NewDatabrokerRestartRunner(ctx)
+	r := NewDatabrokerRestartRunner(ctx, c.bootstrapConfig)
 	defer r.Close()
 
-	err = c.initTelemetry(ctx, func() (databroker.DataBrokerServiceClient, error) {
-		client, _, err := r.getDatabrokerClient()
-		return client, err
-	})
+	var leaseStatus LeaseStatus
+	tm, err := telemetry.New(ctx, c.api,
+		r.GetDatabrokerClient,
+		leaseStatus.HasLease,
+		c.getEnvoyScrapeURL(),
+	)
 	if err != nil {
 		return fmt.Errorf("init telemetry: %w", err)
 	}
-	defer c.shutdownTelemetry(ctx)
+	defer c.shutdownTelemetry(ctx, tm)
 
 	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error { return tm.Run(ctx) })
 	eg.Go(func() error {
 		return r.Run(ctx,
 			WithLease(
 				c.runReconcilerLeased,
 				c.runSessionAnalyticsLeased,
-				c.enableSessionAnalyticsReporting,
-				c.runHealthChecksLeased,
+				c.runPeriodicHealthChecksLeased,
+				leaseStatus.MonitorLease,
 			),
 		)
 	})
-	eg.Go(func() error { return c.runTelemetryReporter(ctx) })
 	return eg.Wait()
 }
 
-func (c *controller) runReconcilerLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
-	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("service", "zero-reconciler")
-	})
+func (c *controller) shutdownTelemetry(ctx context.Context, tm *telemetry.Telemetry) {
+	ctx, cancel := context.WithTimeout(ctx, c.cfg.shutdownTimeout)
+	defer cancel()
 
-	return reconciler.Run(ctx,
-		reconciler.WithAPI(c.api),
-		reconciler.WithDataBrokerClient(client),
-	)
+	err := tm.Shutdown(ctx)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("error shutting down telemetry")
+	}
+}
+
+func (c *controller) runReconcilerLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
+	return retry.WithBackoff(ctx, "zero-reconciler", func(ctx context.Context) error {
+		return reconciler.Run(ctx,
+			reconciler.WithAPI(c.api),
+			reconciler.WithDataBrokerClient(client),
+		)
+	})
+}
+
+func (c *controller) runSessionAnalyticsLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
+	return retry.WithBackoff(ctx, "zero-analytics", func(ctx context.Context) error {
+		return sessions.Collect(ctx, client, time.Hour)
+	})
+}
+
+func (c *controller) runPeriodicHealthChecksLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
+	return retry.WithBackoff(ctx, "zero-healthcheck", func(ctx context.Context) error {
+		return healthcheck.RunChecks(ctx, c.bootstrapConfig, client)
+	})
+}
+
+func (c *controller) getEnvoyScrapeURL() string {
+	return (&url.URL{
+		Scheme: "http",
+		Host:   net.JoinHostPort("localhost", c.bootstrapConfig.GetConfig().OutboundPort),
+		Path:   "/envoy/stats/prometheus",
+	}).String()
 }
