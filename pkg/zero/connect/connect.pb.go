@@ -364,7 +364,7 @@ type EnvoyMetricsRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// only include metrics that match the provided labels, and relabel them with the provided labels
+	// only include metrics that match the provided labels
 	Metrics []string `protobuf:"bytes,1,rep,name=metrics,proto3" json:"metrics,omitempty"`
 	// only include labels that match the provided labels
 	Labels []string `protobuf:"bytes,2,rep,name=labels,proto3" json:"labels,omitempty"`
@@ -422,7 +422,7 @@ type PomeriumMetricsRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// only include metrics that match the provided labels, and relabel them with the provided labels
+	// only include metrics that match the provided labels
 	Metrics []string `protobuf:"bytes,1,rep,name=metrics,proto3" json:"metrics,omitempty"`
 }
 
