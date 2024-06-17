@@ -13,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/prometheus"
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
+	"github.com/pomerium/pomerium/internal/zero/telemetry/opencensus"
 	"github.com/pomerium/pomerium/internal/zero/telemetry/reporter"
 	"github.com/pomerium/pomerium/internal/zero/telemetry/sessions"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -26,6 +27,7 @@ type Telemetry struct {
 
 	envoyMetrics           *metricsProducer[*prometheus.Producer]
 	sessionMetrics         *metricsProducer[*sessions.Producer]
+	coreMetrics            *metricsProducer[*opencensus.Producer]
 	hasSessionMetricsLease func() bool
 }
 
@@ -40,10 +42,12 @@ func New(
 
 	sessionMetricProducer := newMetricsProducer("sessions", buildSessionMetricsProducer(clientProvider))
 	envoyMetricProducer := newMetricsProducer("envoy", buildEnvoyMetricsProducer(envoyScrapeURL, startTime))
+	coreMetricsProducer := newMetricsProducer("core", opencensus.New())
 
 	r, err := reporter.New(ctx, api.GetTelemetryConn(),
 		reporter.WithProducer(sessionMetricProducer),
 		reporter.WithProducer(envoyMetricProducer),
+		reporter.WithProducer(coreMetricsProducer),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error creating telemetry metrics reporter: %w", err)
@@ -54,6 +58,7 @@ func New(
 		reporter:               r,
 		sessionMetrics:         sessionMetricProducer,
 		envoyMetrics:           envoyMetricProducer,
+		coreMetrics:            coreMetricsProducer,
 		hasSessionMetricsLease: hasSessionMetricsLease,
 	}, nil
 }
@@ -108,6 +113,7 @@ func (srv *Telemetry) handleRequests(ctx context.Context) error {
 func (srv *Telemetry) handleRequest(ctx context.Context, req *connect.TelemetryRequest) {
 	srv.configureEnvoyMetricsProducer(req.GetEnvoyMetrics())
 	srv.configureSessionMetricsProducer(req.GetSessionAnalytics())
+	srv.configureCoreMetricsProducer(req.GetPomeriumMetrics())
 
 	err := srv.reporter.CollectAndExportMetrics(ctx)
 	if err != nil {
@@ -143,4 +149,13 @@ func (srv *Telemetry) configureEnvoyMetricsProducer(req *connect.EnvoyMetricsReq
 		prometheus.WithIncludeLabels(req.GetLabels()...),
 	)
 	srv.envoyMetrics.SetEnabled(true)
+}
+
+func (srv *Telemetry) configureCoreMetricsProducer(req *connect.PomeriumMetricsRequest) {
+	if req == nil {
+		srv.coreMetrics.SetEnabled(false)
+		return
+	}
+	srv.coreMetrics.Producer().SetFilter(req.Metrics)
+	srv.coreMetrics.SetEnabled(true)
 }
