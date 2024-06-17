@@ -2,18 +2,17 @@ package controller
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/retry"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 type leaser struct {
 	client databroker.DataBrokerServiceClient
-	funcs  []DbcFunc
+	funcs  []func(context.Context, databroker.DataBrokerServiceClient) error
 }
 
 // GetDataBrokerServiceClient implements the databroker.LeaseHandler interface.
@@ -23,20 +22,18 @@ func (c *leaser) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
 
 // RunLeased implements the databroker.LeaseHandler interface.
 func (c *leaser) RunLeased(ctx context.Context) error {
-	log.Debug(ctx).Msg("leaser: running leased functions")
-
 	eg, ctx := errgroup.WithContext(ctx)
 	for _, fn := range c.funcs {
-		eg.Go(func() error {
-			return retry.WithBackoff(ctx, func(ctx context.Context) error { return fn(ctx, c.client) })
-		})
+		fn := fn
+		eg.Go(func() error { return fn(ctx, c.client) })
 	}
 	err := eg.Wait()
-	log.Debug(ctx).Err(err).Msg("leaser: done running leased functions")
 	return err
 }
 
-func WithLease(funcs ...DbcFunc) DbcFunc {
+func WithLease(
+	funcs ...func(context.Context, databroker.DataBrokerServiceClient) error,
+) func(context.Context, databroker.DataBrokerServiceClient) error {
 	return func(ctx context.Context, client databroker.DataBrokerServiceClient) error {
 		srv := &leaser{
 			client: client,
@@ -45,4 +42,19 @@ func WithLease(funcs ...DbcFunc) DbcFunc {
 		leaser := databroker.NewLeaser("zero-ctrl", time.Second*30, srv)
 		return leaser.Run(ctx)
 	}
+}
+
+type LeaseStatus struct {
+	v atomic.Bool
+}
+
+func (w *LeaseStatus) HasLease() bool {
+	return w.v.Load()
+}
+
+func (w *LeaseStatus) MonitorLease(ctx context.Context, _ databroker.DataBrokerServiceClient) error {
+	w.v.Store(true)
+	<-ctx.Done()
+	w.v.Store(false)
+	return ctx.Err()
 }

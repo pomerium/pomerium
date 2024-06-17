@@ -5,16 +5,14 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 
-	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/retry"
 	"github.com/pomerium/pomerium/internal/version"
 )
 
@@ -52,8 +50,8 @@ func New(
 func (r *Reporter) Run(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 
-	eg.Go(func() error { return withBackoff(ctx, "metrics reporter", r.metricsReporter.Run) })
-	eg.Go(func() error { return withBackoff(ctx, "health check reporter", r.healthCheckReporter.Run) })
+	eg.Go(func() error { return retry.WithBackoff(ctx, "metrics reporter", r.metricsReporter.Run) })
+	eg.Go(func() error { return retry.WithBackoff(ctx, "health check reporter", r.healthCheckReporter.Run) })
 
 	return eg.Wait()
 }
@@ -80,20 +78,4 @@ func getResource() *resource.Resource {
 	}
 
 	return resource.NewSchemaless(attr...)
-}
-
-func withBackoff(ctx context.Context, name string, f func(context.Context) error) error {
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 0
-	return backoff.RetryNotify(
-		func() error { return f(ctx) },
-		backoff.WithContext(bo, ctx),
-		func(err error, d time.Duration) {
-			log.Warn(ctx).
-				Str("name", name).
-				Err(err).
-				Dur("backoff", d).
-				Msg("retrying")
-		},
-	)
 }
