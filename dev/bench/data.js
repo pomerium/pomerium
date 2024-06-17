@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718585132705,
+  "lastUpdate": 1718586152082,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -112152,6 +112152,38 @@ window.BENCHMARK_DATA = {
             "value": 7707841,
             "unit": "ns/op",
             "extra": "156 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "fae778d3b0d2a7887980b529d0279f88bc411cea",
+          "message": "chore(deps): bump braces from 3.0.2 to 3.0.3 in /ui",
+          "timestamp": "2024-06-17T00:41:10Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5139/commits/fae778d3b0d2a7887980b529d0279f88bc411cea"
+        },
+        "date": 1718586142018,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9313918,
+            "unit": "ns/op",
+            "extra": "124 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6182696,
+            "unit": "ns/op",
+            "extra": "188 times\n4 procs"
           }
         ]
       }
