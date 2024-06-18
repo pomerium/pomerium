@@ -64,6 +64,7 @@ require (
 	github.com/yuin/gopher-lua v1.1.1
 	go.opencensus.io v0.24.0
 	go.opentelemetry.io/otel v1.27.0
+	go.opentelemetry.io/otel/bridge/opencensus v1.27.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.27.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.27.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.27.0

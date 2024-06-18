@@ -48,14 +48,17 @@ message SessionAnalyticsRequest {}
 
 // EnvoyMetricsRequest is used to request current envoy metrics
 message EnvoyMetricsRequest {
-  // only include metrics that match the provided labels, and relabel them with the provided labels
+  // only include metrics that match the provided labels
   repeated string metrics = 1;
   // only include labels that match the provided labels
   repeated string labels = 2;
 }
 
 // PomeriumMetricsRequest is used to request current pomerium metrics
-message PomeriumMetricsRequest {}
+message PomeriumMetricsRequest {
+  // only include metrics that match the provided labels
+  repeated string metrics = 1;
+}
 
 // Connect service is used to maintain a persistent connection between the
 // Pomerium Core and Zero Cloud and receive messages from the cloud.
