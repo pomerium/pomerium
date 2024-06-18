@@ -1,4 +1,4 @@
-package analytics_test
+package sessions_test
 
 import (
 	"testing"
@@ -6,14 +6,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/pomerium/pomerium/internal/zero/analytics"
+	"github.com/pomerium/pomerium/internal/zero/telemetry/sessions"
 )
 
 func TestStorage(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2020, 1, 2, 3, 4, 5, 6, time.UTC)
-	state := &analytics.MetricState{
+	state := &sessions.MetricState{
 		Data:      []byte("data"),
 		LastReset: now,
 	}
@@ -21,7 +21,7 @@ func TestStorage(t *testing.T) {
 	pbany := state.ToAny()
 	assert.NotNil(t, pbany)
 
-	var newState analytics.MetricState
+	var newState sessions.MetricState
 	err := newState.FromAny(pbany)
 	assert.NoError(t, err)
 	assert.EqualValues(t, state.Data, newState.Data)

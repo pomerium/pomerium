@@ -3,6 +3,9 @@ package mux
 import (
 	"context"
 	"fmt"
+	"strings"
+
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/internal/zero/apierror"
 	"github.com/pomerium/pomerium/pkg/zero/connect"
@@ -48,6 +51,8 @@ func dispatch(ctx context.Context, cfg *config, msg message) error {
 			cfg.onBundleUpdated(ctx, "config")
 		case *connect.Message_BootstrapConfigUpdated:
 			cfg.onBootstrapConfigUpdated(ctx)
+		case *connect.Message_TelemetryRequest:
+			cfg.onTelemetryRequested(ctx, msg.Message.GetTelemetryRequest())
 		default:
 			return fmt.Errorf("unknown message type")
 		}
@@ -60,6 +65,19 @@ func dispatch(ctx context.Context, cfg *config, msg message) error {
 type message struct {
 	*stateChange
 	*connect.Message
+}
+
+func (msg message) String() string {
+	var b strings.Builder
+	if msg.stateChange != nil {
+		b.WriteString("stateChange: ")
+		b.WriteString(string(*msg.stateChange))
+	}
+	if msg.Message != nil {
+		b.WriteString("message: ")
+		b.WriteString(protojson.Format(msg.Message))
+	}
+	return b.String()
 }
 
 type stateChange string

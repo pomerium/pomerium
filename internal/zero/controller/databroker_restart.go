@@ -1,4 +1,4 @@
-package leaser
+package controller
 
 import (
 	"context"
@@ -9,12 +9,10 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/cenkalti/backoff/v4"
 	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/retry"
-	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
@@ -22,38 +20,7 @@ import (
 // ErrBootstrapConfigurationChanged is returned when the bootstrap configuration has changed and the function needs to be restarted.
 var ErrBootstrapConfigurationChanged = errors.New("bootstrap configuration changed")
 
-// Run runs the given function with a databroker client.
-// the function would be restarted if the databroker connection has to be re-established.
-func Run(
-	ctx context.Context,
-	source *bootstrap.Source,
-	funcs ...func(ctx context.Context, client databroker.DataBrokerServiceClient) error,
-) error {
-	err := source.WaitReady(ctx)
-	if err != nil {
-		return fmt.Errorf("waiting for config source to be ready: %w", err)
-	}
-
-	p := newRunner(ctx, source)
-	defer p.Close()
-
-	b := backoff.NewExponentialBackOff()
-	b.MaxElapsedTime = 0
-	return backoff.Retry(
-		func() error {
-			err := p.runOnce(ctx, funcs...)
-			if retry.IsTerminalError(err) {
-				return backoff.Permanent(err)
-			}
-			return err
-		},
-		backoff.WithContext(b, ctx),
-	)
-}
-
-type runner struct {
-	source *bootstrap.Source
-
+type DatabrokerRestartRunner struct {
 	lock      sync.RWMutex
 	cancel    chan struct{}
 	conn      *grpc.ClientConn
@@ -61,25 +28,39 @@ type runner struct {
 	initError error
 }
 
-func newRunner(ctx context.Context, source *bootstrap.Source) *runner {
-	p := &runner{
-		source: source,
-	}
-	p.initLocked(ctx, source.GetConfig())
-	source.OnConfigChange(context.Background(), p.onConfigChange)
+// NewDatabrokerRestartRunner is a helper to run a function that needs to be restarted when the underlying databroker configuration changes.
+func NewDatabrokerRestartRunner(
+	ctx context.Context,
+	src config.Source,
+) *DatabrokerRestartRunner {
+	p := new(DatabrokerRestartRunner)
+	p.initLocked(ctx, src.GetConfig())
+	src.OnConfigChange(ctx, p.onConfigChange)
 	return p
 }
 
+func (p *DatabrokerRestartRunner) Run(
+	ctx context.Context,
+	fn func(context.Context, databroker.DataBrokerServiceClient) error,
+) error {
+	return retry.WithBackoff(ctx, "databroker-restart", func(ctx context.Context) error { return p.runUntilDatabrokerChanges(ctx, fn) })
+}
+
 // Close releases the resources used by the databroker provider.
-func (p *runner) Close() {
+func (p *DatabrokerRestartRunner) Close() {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
 	p.closeLocked()
 }
 
+func (p *DatabrokerRestartRunner) GetDatabrokerClient() (databroker.DataBrokerServiceClient, error) {
+	client, _, err := p.getDatabrokerClient()
+	return client, err
+}
+
 // GetDatabrokerClient returns the databroker client and a channel that will be closed when the client is no longer valid.
-func (p *runner) getDatabrokerClient() (databroker.DataBrokerServiceClient, <-chan struct{}, error) {
+func (p *DatabrokerRestartRunner) getDatabrokerClient() (databroker.DataBrokerServiceClient, <-chan struct{}, error) {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
@@ -90,7 +71,7 @@ func (p *runner) getDatabrokerClient() (databroker.DataBrokerServiceClient, <-ch
 	return p.client, p.cancel, nil
 }
 
-func (p *runner) onConfigChange(ctx context.Context, cfg *config.Config) {
+func (p *DatabrokerRestartRunner) onConfigChange(ctx context.Context, cfg *config.Config) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -98,7 +79,7 @@ func (p *runner) onConfigChange(ctx context.Context, cfg *config.Config) {
 	p.initLocked(ctx, cfg)
 }
 
-func (p *runner) initLocked(ctx context.Context, cfg *config.Config) {
+func (p *DatabrokerRestartRunner) initLocked(ctx context.Context, cfg *config.Config) {
 	conn, err := newDataBrokerConnection(ctx, cfg)
 	if err != nil {
 		p.initError = fmt.Errorf("databroker connection: %w", err)
@@ -111,7 +92,7 @@ func (p *runner) initLocked(ctx context.Context, cfg *config.Config) {
 	p.initError = nil
 }
 
-func (p *runner) closeLocked() {
+func (p *DatabrokerRestartRunner) closeLocked() {
 	if p.conn != nil {
 		p.conn.Close()
 		p.conn = nil
@@ -123,9 +104,9 @@ func (p *runner) closeLocked() {
 	p.initError = errors.New("databroker connection closed")
 }
 
-func (p *runner) runOnce(
+func (p *DatabrokerRestartRunner) runUntilDatabrokerChanges(
 	ctx context.Context,
-	funcs ...func(ctx context.Context, client databroker.DataBrokerServiceClient) error,
+	fn func(context.Context, databroker.DataBrokerServiceClient) error,
 ) error {
 	client, cancelCh, err := p.getDatabrokerClient()
 	if err != nil {
@@ -143,7 +124,7 @@ func (p *runner) runOnce(
 		}
 	}()
 
-	return runWithLease(ctx, client, funcs...)
+	return fn(ctx, client)
 }
 
 func newDataBrokerConnection(ctx context.Context, cfg *config.Config) (*grpc.ClientConn, error) {

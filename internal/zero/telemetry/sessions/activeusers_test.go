@@ -1,4 +1,4 @@
-package analytics_test
+package sessions_test
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/pomerium/pomerium/internal/zero/analytics"
+	"github.com/pomerium/pomerium/internal/zero/telemetry/sessions"
 )
 
 func TestActiveUsers(t *testing.T) {
@@ -15,7 +15,7 @@ func TestActiveUsers(t *testing.T) {
 	startTime := time.Now().UTC()
 
 	// Create a new counter that resets on a daily interval
-	c := analytics.NewActiveUsersCounter(analytics.ResetDailyUTC, startTime)
+	c := sessions.NewActiveUsersCounter(sessions.ResetDailyUTC, startTime)
 
 	count, wasReset := c.Update([]string{"user1", "user2"}, startTime.Add(time.Minute))
 	assert.False(t, wasReset)

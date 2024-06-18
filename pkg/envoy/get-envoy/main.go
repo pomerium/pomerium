@@ -24,7 +24,7 @@ func main() {
 func run(
 	ctx context.Context,
 ) error {
-	envoyVersion := "1.30.1"
+	envoyVersion := "1.30.2"
 	targets := []string{
 		"darwin-amd64",
 		"darwin-arm64",

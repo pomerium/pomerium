@@ -12,8 +12,6 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/apierror"
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 	"github.com/pomerium/pomerium/internal/zero/grpcconn"
-	"github.com/pomerium/pomerium/internal/zero/healthcheck"
-	metrics_reporter "github.com/pomerium/pomerium/internal/zero/reporter"
 	token_api "github.com/pomerium/pomerium/internal/zero/token"
 	"github.com/pomerium/pomerium/pkg/fanout"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
@@ -94,16 +92,6 @@ func NewAPI(ctx context.Context, opts ...Option) (*API, error) {
 	}, nil
 }
 
-// ReportMetrics runs metrics reporting to the cloud
-func (api *API) ReportMetrics(ctx context.Context, opts ...metrics_reporter.Option) error {
-	return metrics_reporter.Run(ctx, api.telemetryConn, opts...)
-}
-
-// ReportHealthChecks runs health check reporting to the cloud
-func (api *API) ReportHealthChecks(ctx context.Context) error {
-	return healthcheck.NewReporter(api.telemetryConn).Run(ctx)
-}
-
 // Connect connects to the connect API and allows watching for changes
 func (api *API) Connect(ctx context.Context, opts ...fanout.Option) error {
 	return api.mux.Run(ctx, opts...)
@@ -126,4 +114,8 @@ func (api *API) GetClusterResourceBundles(ctx context.Context) (*cluster_api.Get
 	return apierror.CheckResponse[cluster_api.GetBundlesResponse](
 		api.cluster.GetClusterResourceBundlesWithResponse(ctx),
 	)
+}
+
+func (api *API) GetTelemetryConn() *grpc.ClientConn {
+	return api.telemetryConn
 }
