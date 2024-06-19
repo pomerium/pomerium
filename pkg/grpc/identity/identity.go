@@ -6,7 +6,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/pomerium/pomerium/pkg/encoding/base58"
+	"github.com/akamensky/base58"
 )
 
 // Clone clones the Provider.

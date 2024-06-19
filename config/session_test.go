@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"encoding/base64"
 	"net/http"
 	"net/url"
@@ -70,7 +71,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 	t.Run("mssing", func(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "https://p1.example.com", nil)
 		require.NoError(t, err)
-		s, err := store.LoadSessionState(r)
+		s, err := store.LoadSessionState(context.TODO(), r)
 		assert.ErrorIs(t, err, sessions.ErrNoSessionFound)
 		assert.Nil(t, s)
 	})
@@ -85,7 +86,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 			urlutil.QuerySession: {rawJWS},
 		}.Encode(), nil)
 		require.NoError(t, err)
-		s, err := store.LoadSessionState(r)
+		s, err := store.LoadSessionState(context.TODO(), r)
 		assert.NoError(t, err)
 		assert.Empty(t, cmp.Diff(&sessions.State{
 			Issuer:             "authenticate.example.com",
@@ -103,7 +104,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "https://p2.example.com", nil)
 		require.NoError(t, err)
 		r.Header.Set(httputil.HeaderPomeriumAuthorization, rawJWS)
-		s, err := store.LoadSessionState(r)
+		s, err := store.LoadSessionState(context.TODO(), r)
 		assert.NoError(t, err)
 		assert.Empty(t, cmp.Diff(&sessions.State{
 			Issuer:             "authenticate.example.com",
@@ -121,7 +122,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "https://p2.example.com", nil)
 		require.NoError(t, err)
 		r.Header.Set(httputil.HeaderPomeriumAuthorization, rawJWS)
-		s, err := store.LoadSessionState(r)
+		s, err := store.LoadSessionState(context.TODO(), r)
 		assert.Error(t, err)
 		assert.Nil(t, s)
 	})
@@ -134,7 +135,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "https://p2.example.com", nil)
 		require.NoError(t, err)
 		r.Header.Set(httputil.HeaderPomeriumAuthorization, rawJWS)
-		s, err := store.LoadSessionState(r)
+		s, err := store.LoadSessionState(context.TODO(), r)
 		assert.NoError(t, err)
 		assert.Empty(t, cmp.Diff(&sessions.State{
 			Issuer: "authenticate.example.com",

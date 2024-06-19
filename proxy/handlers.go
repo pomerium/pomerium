@@ -113,7 +113,7 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 		return httputil.NewError(http.StatusBadRequest, errors.New("invalid redirect uri"))
 	}
 
-	idp, err := options.GetIdentityProviderForRequestURL(urlutil.GetAbsoluteURL(r).String())
+	idp, err := p.policyCache.Load().GetIdentityProviderForRequestURL(r.Context(), options, urlutil.GetAbsoluteURL(r).String())
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}

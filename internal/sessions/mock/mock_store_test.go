@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,7 +41,7 @@ func TestStore(t *testing.T) {
 				t.Errorf("mockstore.SaveSession() error = %v, wantSaveErr %v", err, tt.wantSaveErr)
 				return
 			}
-			got, err := ms.LoadSession(nil)
+			got, err := ms.LoadSession(context.TODO(), nil)
 			if (err != nil) != tt.wantLoadErr {
 				t.Errorf("mockstore.LoadSession() error = %v, wantLoadErr %v", err, tt.wantLoadErr)
 				return

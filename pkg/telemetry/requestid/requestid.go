@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/pomerium/pomerium/pkg/encoding/base58"
+	"github.com/akamensky/base58"
 )
 
 const headerName = "x-request-id"

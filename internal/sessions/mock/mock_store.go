@@ -2,6 +2,7 @@
 package mock
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -30,7 +31,7 @@ func (ms *Store) ClearSession(http.ResponseWriter, *http.Request) {
 }
 
 // LoadSession returns the session and a error
-func (ms Store) LoadSession(*http.Request) (string, error) {
+func (ms Store) LoadSession(context.Context, *http.Request) (string, error) {
 	var signer encoding.MarshalUnmarshaler
 	signer, _ = jws.NewHS256Signer(ms.Secret)
 	jwt, _ := signer.Marshal(ms.Session)

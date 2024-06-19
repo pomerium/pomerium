@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -10,20 +11,27 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/sessions/header"
 	"github.com/pomerium/pomerium/internal/sessions/queryparam"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 // A SessionStore saves and loads sessions based on the options.
 type SessionStore struct {
-	options *Options
-	encoder encoding.MarshalUnmarshaler
-	loader  sessions.SessionLoader
+	options     *Options
+	encoder     encoding.MarshalUnmarshaler
+	loader      sessions.SessionLoader
+	policyCache *PolicyCache
 }
 
 // NewSessionStore creates a new SessionStore from the Options.
 func NewSessionStore(options *Options) (*SessionStore, error) {
+	cache, err := NewPolicyCache(options)
+	if err != nil {
+		return nil, err
+	}
 	store := &SessionStore{
-		options: options,
+		options:     options,
+		policyCache: cache,
 	}
 
 	sharedKey, err := options.GetSharedKey()
@@ -57,8 +65,11 @@ func NewSessionStore(options *Options) (*SessionStore, error) {
 }
 
 // LoadSessionState loads the session state from a request.
-func (store *SessionStore) LoadSessionState(r *http.Request) (*sessions.State, error) {
-	rawJWT, err := store.loader.LoadSession(r)
+func (store *SessionStore) LoadSessionState(ctx context.Context, r *http.Request) (*sessions.State, error) {
+	ctx, span := trace.StartSpan(ctx, "session_store.load_session_state")
+	defer span.End()
+
+	rawJWT, err := store.loader.LoadSession(ctx, r)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +82,7 @@ func (store *SessionStore) LoadSessionState(r *http.Request) (*sessions.State, e
 
 	// confirm that the identity provider id matches the state
 	if state.IdentityProviderID != "" {
-		idp, err := store.options.GetIdentityProviderForRequestURL(urlutil.GetAbsoluteURL(r).String())
+		idp, err := store.policyCache.GetIdentityProviderForRequestURL(ctx, store.options, urlutil.GetAbsoluteURL(r).String())
 		if err != nil {
 			return nil, err
 		}

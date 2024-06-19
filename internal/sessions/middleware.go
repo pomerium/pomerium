@@ -23,7 +23,7 @@ func retrieve(s SessionLoader) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			jwt, err := s.LoadSession(r)
+			jwt, err := s.LoadSession(ctx, r)
 			ctx = NewContext(ctx, jwt, err)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}

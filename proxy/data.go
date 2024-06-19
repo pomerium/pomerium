@@ -34,7 +34,7 @@ func (p *Proxy) getSession(ctx context.Context, sessionID string) (s *session.Se
 func (p *Proxy) getSessionState(r *http.Request) (sessions.State, error) {
 	state := p.state.Load()
 
-	rawJWT, err := state.sessionStore.LoadSession(r)
+	rawJWT, err := state.sessionStore.LoadSession(r.Context(), r)
 	if err != nil {
 		return sessions.State{}, err
 	}

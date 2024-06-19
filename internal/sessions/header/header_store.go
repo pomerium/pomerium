@@ -3,6 +3,7 @@
 package header
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -31,7 +32,7 @@ func NewStore(enc encoding.Unmarshaler) *Store {
 }
 
 // LoadSession tries to retrieve the token string from the Authorization header.
-func (as *Store) LoadSession(r *http.Request) (string, error) {
+func (as *Store) LoadSession(_ context.Context, r *http.Request) (string, error) {
 	jwt := TokenFromHeaders(r)
 	if jwt == "" {
 		return "", sessions.ErrNoSessionFound

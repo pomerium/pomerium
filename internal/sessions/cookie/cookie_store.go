@@ -2,6 +2,7 @@
 package cookie
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -117,7 +118,7 @@ func getCookies(r *http.Request, name string) []*http.Cookie {
 }
 
 // LoadSession returns a State from the cookie in the request.
-func (cs *Store) LoadSession(r *http.Request) (string, error) {
+func (cs *Store) LoadSession(ctx context.Context, r *http.Request) (string, error) {
 	opts := cs.getOptions()
 	cookies := getCookies(r, opts.Name)
 	if len(cookies) == 0 {
