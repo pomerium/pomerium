@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1718752710792,
+  "lastUpdate": 1718762661031,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -112516,6 +112516,42 @@ window.BENCHMARK_DATA = {
             "value": 6021151,
             "unit": "ns/op",
             "extra": "193 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7eca91129294de944f37cf4e987e8f5dea6e1bf1",
+          "message": "core/envoy: add command to download envoy binaries (#5133)\n\n* core/envoy: add command to download envoy binaries\r\n\r\n* use internal log\r\n\r\n* remove original get-envoy script",
+          "timestamp": "2024-06-18T20:00:55-06:00",
+          "tree_id": "5eee8c49dbbe3379a1dab9ee30a44cf4ab103077",
+          "url": "https://github.com/pomerium/pomerium/commit/7eca91129294de944f37cf4e987e8f5dea6e1bf1"
+        },
+        "date": 1718762642845,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9719258,
+            "unit": "ns/op",
+            "extra": "123 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6311616,
+            "unit": "ns/op",
+            "extra": "188 times\n4 procs"
           }
         ]
       }
