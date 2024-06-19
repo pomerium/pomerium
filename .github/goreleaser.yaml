@@ -14,6 +14,7 @@ env:
 before:
   hooks:
     - go mod download
+    - make get-envoy
     - make build-deps
     - make yarn
     - make build-ui
@@ -36,12 +37,6 @@ builds:
       - -X github.com/pomerium/pomerium/internal/version.BuildMeta={{.Timestamp}}
       - -X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium
       - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://wwww.pomerium.io
-
-    hooks:
-      pre:
-        - cmd: ./scripts/get-envoy.bash
-          env:
-            - TARGET={{ .Os }}-{{ .Arch }}
 
 archives:
   - name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"

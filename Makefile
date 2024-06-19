@@ -40,7 +40,7 @@ all: clean build-deps test lint build ## Runs a clean, build, fmt, lint, test, a
 .PHONY: get-envoy
 get-envoy: ## Fetch envoy binaries
 	@echo "==> $@"
-	@./scripts/get-envoy.bash
+	@cd pkg/envoy/files && go run ../get-envoy
 
 .PHONY: deps-build
 deps-build: get-envoy ## Install build dependencies
