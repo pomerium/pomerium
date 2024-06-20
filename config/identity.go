@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -58,7 +57,7 @@ func (o *Options) GetIdentityProviderForPolicy(policy *Policy) (*identity.Provid
 }
 
 // GetIdentityProviderForRequestURL gets the identity provider associated with the given request URL.
-func (o *Options) GetIdentityProviderForRequestURL(ctx context.Context, requestURL string) (*identity.Provider, error) {
+func (o *Options) GetIdentityProviderForRequestURL(requestURL string) (*identity.Provider, error) {
 	u, err := urlutil.ParseAndValidateURL(requestURL)
 	if err != nil {
 		return nil, err
@@ -109,7 +108,7 @@ func NewPolicyCache(options *Options) (*PolicyCache, error) {
 	}, nil
 }
 
-func (pc *PolicyCache) GetIdentityProviderForRequestURL(ctx context.Context, o *Options, requestURL string) (*identity.Provider, error) {
+func (pc *PolicyCache) GetIdentityProviderForRequestURL(o *Options, requestURL string) (*identity.Provider, error) {
 	u, err := urlutil.ParseAndValidateURL(requestURL)
 	if err != nil {
 		return nil, err

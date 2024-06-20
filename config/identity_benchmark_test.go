@@ -1,7 +1,6 @@
 package config_test
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"strings"
@@ -40,7 +39,7 @@ func BenchmarkGetIdentityProviderForRequestURL_Old(b *testing.B) {
 
 			b.ResetTimer()
 			for range b.N {
-				idp, err := options.GetIdentityProviderForRequestURL(context.Background(), fmt.Sprintf(urlFormat, numPolicies-1))
+				idp, err := options.GetIdentityProviderForRequestURL(fmt.Sprintf(urlFormat, numPolicies-1))
 				require.NoError(b, err)
 				require.Equal(b, fmt.Sprintf("client_id_%d", numPolicies-1), idp.ClientId)
 				require.Equal(b, fmt.Sprintf("client_secret_%d", numPolicies-1), idp.ClientSecret)
@@ -85,8 +84,8 @@ var bench = func(fill func(i int, p *config.Policy) string, numPolicies int) fun
 		for i := range b.N {
 			// replace all *s in the url with a number, which is valid for both
 			// hostname segments and ports.
-			reqUrl := strings.ReplaceAll(allUrls[i%numPolicies], "*", fmt.Sprint(i))
-			idp, err := cache.GetIdentityProviderForRequestURL(context.Background(), options, reqUrl)
+			reqURL := strings.ReplaceAll(allUrls[i%numPolicies], "*", fmt.Sprint(i))
+			idp, err := cache.GetIdentityProviderForRequestURL(options, reqURL)
 			require.NoError(b, err)
 			require.Equal(b, fmt.Sprintf("client_id_%d", i%numPolicies), idp.ClientId)
 			require.Equal(b, fmt.Sprintf("client_secret_%d", i%numPolicies), idp.ClientSecret)

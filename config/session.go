@@ -82,7 +82,7 @@ func (store *SessionStore) LoadSessionState(ctx context.Context, r *http.Request
 
 	// confirm that the identity provider id matches the state
 	if state.IdentityProviderID != "" {
-		idp, err := store.policyCache.GetIdentityProviderForRequestURL(ctx, store.options, urlutil.GetAbsoluteURL(r).String())
+		idp, err := store.policyCache.GetIdentityProviderForRequestURL(store.options, urlutil.GetAbsoluteURL(r).String())
 		if err != nil {
 			return nil, err
 		}
