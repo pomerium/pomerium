@@ -4,9 +4,8 @@ package requestid
 import (
 	"context"
 
-	"github.com/google/uuid"
-
 	"github.com/akamensky/base58"
+	"github.com/google/uuid"
 )
 
 const headerName = "x-request-id"

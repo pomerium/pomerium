@@ -7,9 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkGetIdentityProviderForRequestURL_Old(b *testing.B) {
@@ -19,6 +20,7 @@ func BenchmarkGetIdentityProviderForRequestURL_Old(b *testing.B) {
 			options := config.NewDefaultOptions()
 			sharedKey := cryptutil.NewKey()
 			options.SharedKey = base64.StdEncoding.EncodeToString(sharedKey)
+			options.InsecureServer = true
 			options.Provider = "oidc"
 			options.ProviderURL = "https://oidc.example.com"
 			options.ClientID = "client_id"
@@ -58,6 +60,7 @@ var bench = func(fill func(i int, p *config.Policy) string, numPolicies int) fun
 		options := config.NewDefaultOptions()
 		sharedKey := cryptutil.NewKey()
 		options.SharedKey = base64.StdEncoding.EncodeToString(sharedKey)
+		options.InsecureServer = true
 		options.Provider = "oidc"
 		options.ProviderURL = "https://oidc.example.com"
 		options.ClientID = "client_id"
@@ -80,7 +83,9 @@ var bench = func(fill func(i int, p *config.Policy) string, numPolicies int) fun
 
 		b.ResetTimer()
 		for i := range b.N {
-			reqUrl := strings.Replace(allUrls[i%numPolicies], "*", fmt.Sprint(i), 1)
+			// replace all *s in the url with a number, which is valid for both
+			// hostname segments and ports.
+			reqUrl := strings.ReplaceAll(allUrls[i%numPolicies], "*", fmt.Sprint(i))
 			idp, err := cache.GetIdentityProviderForRequestURL(context.Background(), options, reqUrl)
 			require.NoError(b, err)
 			require.Equal(b, fmt.Sprintf("client_id_%d", i%numPolicies), idp.ClientId)
@@ -101,6 +106,23 @@ func BenchmarkGetIdentityProviderForRequestURL_New_DomainMatchOnly(b *testing.B)
 	b.Run("5000 policies (domain matching only)", bench(domainMatchingOnly, 5000))
 }
 
+func BenchmarkGetIdentityProviderForRequestURL_New_DomainPortMatchOnly(b *testing.B) {
+	domainPortMatchingOnly := func(i int, p *config.Policy) string {
+		p.From = fmt.Sprintf("https://*.foo.bar.test-%d.example.com", i)
+		if i%5 == 0 {
+			p.From += ":9999"
+		} else if i%2 == 0 {
+			p.From += ":443"
+		}
+		return p.From
+	}
+
+	b.Run("5 policies (domain+port matching only)", bench(domainPortMatchingOnly, 5))
+	b.Run("50 policies (domain+port matching only)", bench(domainPortMatchingOnly, 50))
+	b.Run("500 policies (domain+port matching only)", bench(domainPortMatchingOnly, 500))
+	b.Run("5000 policies (domain+port matching only)", bench(domainPortMatchingOnly, 5000))
+}
+
 func BenchmarkGetIdentityProviderForRequestURL_New_PathMatchOnly(b *testing.B) {
 	pathMatchingOnly := func(i int, p *config.Policy) string {
 		p.From = "https://example.com"
@@ -111,6 +133,18 @@ func BenchmarkGetIdentityProviderForRequestURL_New_PathMatchOnly(b *testing.B) {
 	b.Run("50 policies (path matching only)", bench(pathMatchingOnly, 50))
 	b.Run("500 policies (path matching only)", bench(pathMatchingOnly, 500))
 	b.Run("5000 policies (path matching only)", bench(pathMatchingOnly, 5000))
+}
+
+func BenchmarkGetIdentityProviderForRequestURL_New_PrefixMatchOnly(b *testing.B) {
+	prefixMatchingOnly := func(i int, p *config.Policy) string {
+		p.From = "https://example.com"
+		p.Prefix = fmt.Sprintf("/foo/bar/%d/", i)
+		return p.From + p.Prefix + "/subpath"
+	}
+	b.Run("5 policies (prefix matching only)", bench(prefixMatchingOnly, 5))
+	b.Run("50 policies (prefix matching only)", bench(prefixMatchingOnly, 50))
+	b.Run("500 policies (prefix matching only)", bench(prefixMatchingOnly, 500))
+	b.Run("5000 policies (prefix matching only)", bench(prefixMatchingOnly, 5000))
 }
 
 func BenchmarkGetIdentityProviderForRequestURL_New_DomainAndPathMatching(b *testing.B) {
@@ -159,12 +193,13 @@ func BenchmarkGetIdentityProviderForRequestURL_New_DomainAndPrefixMatching(b *te
 			domain := fmt.Sprintf("https://*.foo.bar.test-%d.example.com", i/numPathsPerDomain)
 			pathIdx := i % numPathsPerDomain
 			var prefix strings.Builder
-			for i := range pathIdx + 1 {
-				fmt.Fprintf(&prefix, "/%d", i)
+			for j := 0; j <= pathIdx; j++ {
+				fmt.Fprintf(&prefix, "/%d", j)
 			}
+			prefix.WriteString("/")
 			p.From = domain
 			p.Prefix = prefix.String()
-			return domain + p.Prefix
+			return domain + p.Prefix + "subpath"
 		}
 	}
 

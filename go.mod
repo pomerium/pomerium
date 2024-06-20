@@ -1,6 +1,6 @@
 module github.com/pomerium/pomerium
 
-go 1.22.2
+go 1.22.4
 
 require (
 	cloud.google.com/go/storage v1.41.0
@@ -10,6 +10,7 @@ require (
 	github.com/CAFxX/httpcompression v0.0.9
 	github.com/DataDog/opencensus-go-exporter-datadog v0.0.0-20200406135749-5c268882acf0
 	github.com/VictoriaMetrics/fastcache v1.12.2
+	github.com/akamensky/base58 v0.0.0-20210829145138-ce8bf8802e8f
 	github.com/aws/aws-sdk-go-v2 v1.27.0
 	github.com/aws/aws-sdk-go-v2/config v1.27.16
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.54.3
@@ -36,7 +37,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/klauspost/compress v1.17.8
-	github.com/kralicky/go-adaptive-radix-tree v0.0.0-20240619012453-a8f80032ba31
+	github.com/kralicky/go-adaptive-radix-tree v0.0.0-20240620232421-9773ec5394e9
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/mholt/acmez/v2 v2.0.1
 	github.com/minio/minio-go/v7 v7.0.70
@@ -105,7 +106,6 @@ require (
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
 	github.com/agnivade/levenshtein v1.1.1 // indirect
-	github.com/akamensky/base58 v0.0.0-20210829145138-ce8bf8802e8f // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.2 // indirect

@@ -7,9 +7,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/akamensky/base58"
+	"github.com/google/uuid"
 )
 
 // TokenLength is the length of a token.

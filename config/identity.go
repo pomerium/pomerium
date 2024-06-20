@@ -3,11 +3,11 @@ package config
 import (
 	"context"
 	"fmt"
-	"net"
 	"slices"
 	"strings"
 
 	art "github.com/kralicky/go-adaptive-radix-tree"
+
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/grpc/identity"
 )
@@ -74,41 +74,38 @@ func (o *Options) GetIdentityProviderForRequestURL(ctx context.Context, requestU
 }
 
 type PolicyCache struct {
-	domainTree art.Tree[*domainNode]
-	matchPorts bool
+	domainTree art.Tree[domainNode]
 }
 
 func NewPolicyCache(options *Options) (*PolicyCache, error) {
-	tree := art.New[*domainNode]()
-	shouldMatchPorts := !options.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)
+	tree := art.New[domainNode]()
+	emptyPortMatchesAny := options.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)
 	for _, policy := range options.GetAllPolicies() {
 		u, err := urlutil.ParseAndValidateURL(policy.From)
 		if err != nil {
 			return nil, err
 		}
-		domains := urlutil.GetDomainsForURL(u, shouldMatchPorts)
-		for _, domain := range domains {
-			host, port, err := net.SplitHostPort(domain) // todo: this is not optimal
-			if err != nil {
-				host, port = domain, ""
-			}
+
+		urlutil.AllDomainsForURL(u, !emptyPortMatchesAny)(func(host, port string) bool {
 			domainKey := radixKeyForHostPort(host, port)
-			tree.Update(domainKey, newDomainNode, func(dn **domainNode) {
+			tree.Update(art.Key(domainKey), func() domainNode {
+				return domainNode{policiesByPrefix: art.New[Policy]()}
+			}, func(dn *domainNode) {
 				if policy.Prefix != "" {
-					(*dn).policiesByPrefix.Insert(art.Key(policy.Prefix), policy)
+					dn.policiesByPrefix.Insert(art.Key(policy.Prefix), policy)
 				} else if policy.Path != "" {
-					(*dn).policiesByPrefix.Insert(art.Key(policy.Path), policy)
+					dn.policiesByPrefix.Insert(art.Key(policy.Path), policy)
 				} else if policy.compiledRegex != nil {
-					(*dn).policiesByRegex = append((*dn).policiesByRegex, policy)
+					dn.policiesByRegex = append(dn.policiesByRegex, policy)
 				} else {
-					(*dn).policiesNoPathMatching = append((*dn).policiesNoPathMatching, policy)
+					dn.policiesNoPathMatching = append(dn.policiesNoPathMatching, policy)
 				}
 			})
-		}
+			return true
+		})
 	}
 	return &PolicyCache{
 		domainTree: tree,
-		matchPorts: shouldMatchPorts,
 	}, nil
 }
 
@@ -119,20 +116,20 @@ func (pc *PolicyCache) GetIdentityProviderForRequestURL(ctx context.Context, o *
 	}
 
 	domainKey := radixKeyForHostPort(u.Hostname(), u.Port())
-	domain, ok := pc.domainTree.Resolve(domainKey, wildcardResolver)
+	domain, ok := pc.domainTree.Resolve(art.Key(domainKey), wildcardResolver)
 	if !ok {
 		return nil, fmt.Errorf("no identity provider found for request URL %s", requestURL)
 	}
 	var policy *Policy
-	if len(u.Path) == 0 || (len(u.Path) == 1 && u.Path[0] == '/') && len(domain.policiesNoPathMatching) > 0 {
+	if (len(u.Path) == 0 || (len(u.Path) == 1 && u.Path[0] == '/')) &&
+		len(domain.policiesNoPathMatching) > 0 {
 		policy = &domain.policiesNoPathMatching[0]
 	} else {
 		if domain.policiesByPrefix.Size() > 0 {
-			pathKey := art.Key(u.Path)
-			actualKey, val, found := domain.policiesByPrefix.SearchNearest(pathKey)
+			actualKey, val, found := domain.policiesByPrefix.SearchNearest(art.Key(u.Path))
 			if found {
 				// check for prefix match or exact match
-				if c := actualKey.Compare(pathKey); c < 0 {
+				if c := actualKey.Compare(art.Key(u.Path)); c < 0 {
 					if val.Prefix != "" && strings.HasPrefix(u.Path, val.Prefix) {
 						policy = &val
 					}
@@ -144,9 +141,10 @@ func (pc *PolicyCache) GetIdentityProviderForRequestURL(ctx context.Context, o *
 			}
 		}
 		if policy == nil {
-			for _, p := range domain.policiesByRegex {
+			for i := range len(domain.policiesByRegex) {
+				p := &domain.policiesByRegex[i]
 				if p.compiledRegex.MatchString(u.Path) {
-					policy = &p
+					policy = p
 					break
 				}
 			}
@@ -165,13 +163,10 @@ type domainNode struct {
 	policiesNoPathMatching []Policy
 }
 
-func newDomainNode() *domainNode {
-	return &domainNode{
-		policiesByPrefix: art.New[Policy](),
+func radixKeyForHostPort(host, port string) string {
+	if port == "" {
+		port = "*"
 	}
-}
-
-func radixKeyForHostPort(host, port string) art.Key {
 	parts := strings.Split(host, ".")
 	sb := strings.Builder{}
 	sb.WriteString(port)
@@ -179,7 +174,7 @@ func radixKeyForHostPort(host, port string) art.Key {
 		sb.WriteByte('.')
 		sb.WriteString(parts[i])
 	}
-	return art.Key(sb.String())
+	return sb.String()
 }
 
 func wildcardResolver(key art.Key, conflictIndex int) (art.Key, int) {

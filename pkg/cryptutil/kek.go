@@ -4,10 +4,9 @@ import (
 	"crypto/rand"
 	"fmt"
 
+	"github.com/akamensky/base58"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/crypto/nacl/box"
-
-	"github.com/akamensky/base58"
 )
 
 // A KeyEncryptionKey (KEK) is used to implement *envelope encryption*, similar to how data is stored at rest with
