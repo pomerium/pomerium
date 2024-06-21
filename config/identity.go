@@ -108,6 +108,8 @@ func NewPolicyCache(options *Options) (*PolicyCache, error) {
 	}, nil
 }
 
+var ErrNoIdentityProviderFound = fmt.Errorf("no identity provider found for request URL")
+
 func (pc *PolicyCache) GetIdentityProviderForRequestURL(o *Options, requestURL string) (*identity.Provider, error) {
 	u, err := urlutil.ParseAndValidateURL(requestURL)
 	if err != nil {
@@ -115,9 +117,9 @@ func (pc *PolicyCache) GetIdentityProviderForRequestURL(o *Options, requestURL s
 	}
 
 	domainKey := radixKeyForHostPort(u.Hostname(), u.Port())
-	domain, ok := pc.domainTree.Resolve(art.Key(domainKey), wildcardResolver)
+	domain, ok := pc.domainTree.Resolve(art.Key(domainKey), art.DelimiterResolver('.'))
 	if !ok {
-		return nil, fmt.Errorf("no identity provider found for request URL %s", requestURL)
+		return nil, fmt.Errorf("%w %s", ErrNoIdentityProviderFound, requestURL)
 	}
 	var policy *Policy
 	if len(u.Path) > 0 {
@@ -155,7 +157,7 @@ func (pc *PolicyCache) GetIdentityProviderForRequestURL(o *Options, requestURL s
 		return o.GetIdentityProviderForPolicy(policy)
 	}
 
-	return nil, fmt.Errorf("no identity provider found for request URL %s", requestURL)
+	return nil, fmt.Errorf("%w %s", ErrNoIdentityProviderFound, requestURL)
 }
 
 type domainNode struct {

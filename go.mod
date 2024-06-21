@@ -37,7 +37,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/klauspost/compress v1.17.8
-	github.com/kralicky/go-adaptive-radix-tree v0.0.0-20240620232421-9773ec5394e9
+	github.com/kralicky/go-adaptive-radix-tree v0.0.0-20240621232446-e019a6c4b8d7
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/mholt/acmez/v2 v2.0.1
 	github.com/minio/minio-go/v7 v7.0.70
