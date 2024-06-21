@@ -120,10 +120,7 @@ func (pc *PolicyCache) GetIdentityProviderForRequestURL(o *Options, requestURL s
 		return nil, fmt.Errorf("no identity provider found for request URL %s", requestURL)
 	}
 	var policy *Policy
-	if (len(u.Path) == 0 || (len(u.Path) == 1 && u.Path[0] == '/')) &&
-		len(domain.policiesNoPathMatching) > 0 {
-		policy = &domain.policiesNoPathMatching[0]
-	} else {
+	if len(u.Path) > 0 {
 		if domain.policiesByPrefix.Size() > 0 {
 			actualKey, val, found := domain.policiesByPrefix.SearchNearest(art.Key(u.Path))
 			if found {
@@ -147,6 +144,11 @@ func (pc *PolicyCache) GetIdentityProviderForRequestURL(o *Options, requestURL s
 					break
 				}
 			}
+		}
+	}
+	if policy == nil {
+		if len(domain.policiesNoPathMatching) > 0 {
+			policy = &domain.policiesNoPathMatching[0]
 		}
 	}
 	if policy != nil {
