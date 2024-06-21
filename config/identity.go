@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	art "github.com/kralicky/go-adaptive-radix-tree"
@@ -110,6 +109,8 @@ func NewPolicyCache(options *Options) (*PolicyCache, error) {
 
 var ErrNoIdentityProviderFound = fmt.Errorf("no identity provider found for request URL")
 
+var wildcardResolver = art.DelimiterResolver('.')
+
 func (pc *PolicyCache) GetIdentityProviderForRequestURL(o *Options, requestURL string) (*identity.Provider, error) {
 	u, err := urlutil.ParseAndValidateURL(requestURL)
 	if err != nil {
@@ -117,7 +118,7 @@ func (pc *PolicyCache) GetIdentityProviderForRequestURL(o *Options, requestURL s
 	}
 
 	domainKey := radixKeyForHostPort(u.Hostname(), u.Port())
-	domain, ok := pc.domainTree.Resolve(art.Key(domainKey), art.DelimiterResolver('.'))
+	domain, ok := pc.domainTree.Resolve(art.Key(domainKey), wildcardResolver)
 	if !ok {
 		return nil, fmt.Errorf("%w %s", ErrNoIdentityProviderFound, requestURL)
 	}
@@ -178,19 +179,4 @@ func radixKeyForHostPort(host, port string) string {
 		sb.WriteString(parts[i])
 	}
 	return sb.String()
-}
-
-func wildcardResolver(key art.Key, conflictIndex int) (art.Key, int) {
-	if conflictIndex >= len(key) {
-		return nil, -1
-	}
-	c := key[conflictIndex]
-	if c != '*' && c != '.' {
-		nextDot := slices.Index(key[conflictIndex:], '.')
-		if nextDot == -1 {
-			return art.Key("*"), len(key)
-		}
-		return art.Key("*"), conflictIndex + nextDot
-	}
-	return nil, -1
 }

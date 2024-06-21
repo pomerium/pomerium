@@ -8,11 +8,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // NB: we omit the https:// prefix in test urls so the fuzzer doesn't consider it
@@ -134,17 +135,14 @@ func FuzzGetIdentityProviderForRequestURL(f *testing.F) {
 	}
 
 	checkEmptyPort := func(u *url.URL) bool {
-		if emptyPortMatchesAll {
-			// default logic (flag enabled)
-			return true
-		} else {
+		if !emptyPortMatchesAll {
 			// flag disabled
 			if port := u.Port(); port != "" && port != "443" {
 				// should not match any non-default port
 				return false
 			}
-			return true
 		}
+		return true
 	}
 
 	testCases := []testCase{
@@ -212,7 +210,7 @@ func FuzzGetIdentityProviderForRequestURL(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, input string) {
 		input = "https://" + input // see note at the top of this file
-		inputUrl, err := urlutil.ParseAndValidateURL(input)
+		inputURL, err := urlutil.ParseAndValidateURL(input)
 		if err != nil {
 			t.SkipNow()
 		}
@@ -221,7 +219,7 @@ func FuzzGetIdentityProviderForRequestURL(f *testing.F) {
 			expected := tc.policy
 
 			actualIdp, actualErr := cache.GetIdentityProviderForRequestURL(options, input)
-			expectedMatch, expectedErr := tc.check(inputUrl)
+			expectedMatch, expectedErr := tc.check(inputURL)
 			actualErrIsNotFound := errors.Is(actualErr, config.ErrNoIdentityProviderFound)
 
 			if expectedErr != nil {
