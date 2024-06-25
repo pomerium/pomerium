@@ -1,10 +1,7 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
-
-	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -39,15 +36,9 @@ func (data UserInfoData) ToJSON() map[string]any {
 	m := map[string]any{}
 	m["csrfToken"] = data.CSRFToken
 	m["isImpersonated"] = data.IsImpersonated
-	if bs, err := protojson.Marshal(data.Session); err == nil {
-		m["session"] = json.RawMessage(bs)
-	}
-	if bs, err := protojson.Marshal(data.User); err == nil {
-		m["user"] = json.RawMessage(bs)
-	}
-	if bs, err := protojson.Marshal(data.Profile); err == nil {
-		m["profile"] = json.RawMessage(bs)
-	}
+	m["session"] = data.sessionJSON()
+	m["user"] = data.userJSON()
+	m["profile"] = data.profileJSON()
 	m["isEnterprise"] = data.IsEnterprise
 	if data.DirectoryUser != nil {
 		m["directoryUser"] = data.DirectoryUser
@@ -59,6 +50,62 @@ func (data UserInfoData) ToJSON() map[string]any {
 	m["webAuthnRequestOptions"] = data.WebAuthnRequestOptions
 	m["webAuthnUrl"] = data.WebAuthnURL
 	httputil.AddBrandingOptionsToMap(m, data.BrandingOptions)
+	return m
+}
+
+func (data UserInfoData) profileJSON() map[string]any {
+	if data.Profile == nil {
+		return nil
+	}
+
+	m := map[string]any{}
+	claims := make(map[string]any)
+	for k, v := range data.Profile.GetClaims().AsMap() {
+		claims[k] = v
+	}
+	m["claims"] = m
+	return m
+}
+
+func (data UserInfoData) sessionJSON() map[string]any {
+	if data.Session == nil {
+		return nil
+	}
+
+	m := map[string]any{}
+	claims := make(map[string]any)
+	for k, vs := range data.Session.GetClaims() {
+		claims[k] = vs.AsSlice()
+	}
+	m["claims"] = claims
+	var deviceCredentials []any
+	for _, dc := range data.Session.GetDeviceCredentials() {
+		deviceCredentials = append(deviceCredentials, map[string]any{
+			"typeId": dc.GetTypeId(),
+			"id":     dc.GetId(),
+		})
+	}
+	m["deviceCredentials"] = deviceCredentials
+	m["expiresAt"] = data.Session.GetExpiresAt().AsTime()
+	m["id"] = data.Session.GetId()
+	m["userId"] = data.Session.GetUserId()
+	return m
+}
+
+func (data UserInfoData) userJSON() map[string]any {
+	if data.User == nil {
+		return nil
+	}
+
+	m := map[string]any{}
+	claims := make(map[string]any)
+	for k, vs := range data.User.GetClaims() {
+		claims[k] = vs.AsSlice()
+	}
+	m["claims"] = claims
+	m["deviceCredentialIds"] = data.User.GetDeviceCredentialIds()
+	m["id"] = data.User.GetId()
+	m["name"] = data.User.GetName()
 	return m
 }
 
