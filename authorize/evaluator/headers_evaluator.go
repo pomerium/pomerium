@@ -100,8 +100,8 @@ type HeadersEvaluator struct {
 }
 
 // NewHeadersEvaluator creates a new HeadersEvaluator.
-func NewHeadersEvaluator(ctx context.Context, store *store.Store) (*HeadersEvaluator, error) {
-	r := rego.New(
+func NewHeadersEvaluator(ctx context.Context, store *store.Store, options ...func(rego *rego.Rego)) (*HeadersEvaluator, error) {
+	r := rego.New(append([]func(*rego.Rego){
 		rego.Store(store),
 		rego.Module("pomerium.headers", opa.HeadersRego),
 		rego.Query("result := data.pomerium.headers"),
@@ -110,7 +110,7 @@ func NewHeadersEvaluator(ctx context.Context, store *store.Store) (*HeadersEvalu
 		variableSubstitutionFunctionRegoOption,
 		store.GetDataBrokerRecordOption(),
 		rego.SetRegoVersion(ast.RegoV1),
-	)
+	}, options...)...)
 
 	q, err := r.PrepareForEval(ctx)
 	if err != nil {
