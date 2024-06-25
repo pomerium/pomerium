@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"runtime"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -13,25 +14,42 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 )
 
-func main() {
-	ctx := context.Background()
-	err := run(ctx)
-	if err != nil {
-		log.Fatal().Err(err).Send()
-	}
-}
-
-func run(
-	ctx context.Context,
-) error {
-	envoyVersion := "1.30.2"
-	targets := []string{
+var (
+	envoyVersion = "1.30.2"
+	targets      = []string{
 		"darwin-amd64",
 		"darwin-arm64",
 		"linux-amd64",
 		"linux-arm64",
 	}
-	baseURL := "https://github.com/pomerium/envoy-binaries/releases/download/v" + envoyVersion
+	baseURL = "https://github.com/pomerium/envoy-binaries/releases/download/v" + envoyVersion
+)
+
+func main() {
+	ctx := context.Background()
+	err := run(ctx, os.Args)
+	if err != nil {
+		log.Fatal().Err(err).Send()
+	}
+}
+
+func run(ctx context.Context, args []string) error {
+	mode := "all"
+	if len(args) > 1 {
+		mode = args[1]
+	}
+
+	switch mode {
+	case "all":
+		return runAll(ctx)
+	case "current":
+		return runCurrent(ctx)
+	}
+
+	return fmt.Errorf("unknown mode: %s", mode)
+}
+
+func runAll(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	for _, target := range targets {
 		target := target
@@ -46,6 +64,20 @@ func run(
 		})
 	}
 	return eg.Wait()
+}
+
+func runCurrent(ctx context.Context) error {
+	err := download(ctx, "./envoy", baseURL+"/envoy-"+runtime.GOOS+"-"+runtime.GOARCH)
+	if err != nil {
+		return err
+	}
+
+	err = os.Chmod("./envoy", 0o755)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func download(
