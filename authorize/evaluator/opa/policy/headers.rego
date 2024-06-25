@@ -28,8 +28,7 @@ import rego.v1
 # output:
 #   identity_headers: map[string][]string
 
-# 5 minutes from now in seconds
-five_minutes := round((time.now_ns() / 1e9) + (60 * 5))
+now_s := round(time.now_ns() / 1e9)
 
 # get the session
 session := v if {
@@ -82,23 +81,11 @@ jwt_payload_iss := v if {
 	v := input.issuer
 } else := ""
 
-jwt_payload_jti := v if {
-	v = session.id
-} else := ""
+jwt_payload_jti := uuid.rfc4122("jti")
 
-jwt_payload_exp := v if {
-	v = min([five_minutes, round(session.expires_at.seconds)])
-} else := v if {
-	v = five_minutes
-} else := null
+jwt_payload_iat := now_s
 
-jwt_payload_iat := v if {
-	# sessions store the issued_at on the id_token
-	v = round(session.id_token.issued_at.seconds)
-} else := v if {
-	# service accounts store the issued at directly
-	v = round(session.issued_at.seconds)
-} else := null
+jwt_payload_exp := now_s + (5*60) # 5 minutes from now
 
 jwt_payload_sub := v if {
 	v = session.user_id
@@ -135,8 +122,8 @@ base_jwt_claims := [
 	["iss", jwt_payload_iss],
 	["aud", jwt_payload_aud],
 	["jti", jwt_payload_jti],
-	["exp", jwt_payload_exp],
 	["iat", jwt_payload_iat],
+	["exp", jwt_payload_exp],
 	["sub", jwt_payload_sub],
 	["user", jwt_payload_user],
 	["email", jwt_payload_email],

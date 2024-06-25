@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"math"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/open-policy-agent/opa/rego"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -74,13 +75,15 @@ func TestHeadersEvaluator(t *testing.T) {
 	publicJWK, err := cryptutil.PublicJWKFromBytes(encodedSigningKey)
 	require.NoError(t, err)
 
+	evalTime := time.Now().Round(time.Second)
+
 	eval := func(t *testing.T, data []proto.Message, input *HeadersRequest) (*HeadersResponse, error) {
 		ctx := context.Background()
 		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
 		store := store.New()
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
-		e, err := NewHeadersEvaluator(ctx, store)
+		e, err := NewHeadersEvaluator(ctx, store, rego.Time(evalTime))
 		require.NoError(t, err)
 		return e.Evaluate(ctx, input)
 	}
@@ -118,15 +121,11 @@ func TestHeadersEvaluator(t *testing.T) {
 		err = d.Decode(&jwtPayloadDecoded)
 		require.NoError(t, err)
 
-		// The 'iat' claim is set from the session store.
-		assert.Equal(t, json.Number("1686870680"), jwtPayloadDecoded["iat"],
+		// The 'iat' and 'exp' claims are set based on the current time.
+		assert.Equal(t, json.Number(fmt.Sprint(evalTime.Unix())), jwtPayloadDecoded["iat"],
 			"unexpected 'iat' timestamp format")
-
-		// The 'exp' claim will vary with the current time, but we can still
-		// use Atoi() to verify that it can be parsed as an integer.
-		exp := string(jwtPayloadDecoded["exp"].(json.Number))
-		_, err = strconv.Atoi(exp)
-		assert.NoError(t, err, "unexpected 'exp' timestamp format")
+		assert.Equal(t, json.Number(fmt.Sprint(evalTime.Add(5*time.Minute).Unix())), jwtPayloadDecoded["exp"],
+			"unexpected 'exp' timestamp format")
 
 		rawJWT, err := jwt.ParseSigned(jwtHeader)
 		require.NoError(t, err)
@@ -135,6 +134,7 @@ func TestHeadersEvaluator(t *testing.T) {
 		err = rawJWT.Claims(publicJWK, &claims)
 		require.NoError(t, err)
 
+		assert.NotEmpty(t, claims["jti"])
 		assert.Equal(t, claims["iss"], "from.example.com")
 		assert.Equal(t, claims["aud"], "from.example.com")
 		assert.Equal(t, claims["exp"], math.Round(claims["exp"].(float64)))
