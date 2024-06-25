@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719335458252,
+  "lastUpdate": 1719336873056,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -112940,6 +112940,42 @@ window.BENCHMARK_DATA = {
             "value": 6030119,
             "unit": "ns/op",
             "extra": "194 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bf1d228131e13aca701abc6af3f53c624b6a9d0f",
+          "message": "core/authorize: use uuid for jti, current time for iat and exp (#5147)\n\n* core/authorize: use uuid for jti, current time for iat and exp\r\n\r\n* exclude the jtis\r\n\r\n* Update authorize/evaluator/headers_evaluator_test.go\r\n\r\nCo-authored-by: Kenneth Jenkins <51246568+kenjenkins@users.noreply.github.com>\r\n\r\n---------\r\n\r\nCo-authored-by: Kenneth Jenkins <51246568+kenjenkins@users.noreply.github.com>",
+          "timestamp": "2024-06-25T11:31:00-06:00",
+          "tree_id": "a102b81e946e012566e7d715200398df71b50a66",
+          "url": "https://github.com/pomerium/pomerium/commit/bf1d228131e13aca701abc6af3f53c624b6a9d0f"
+        },
+        "date": 1719336862746,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9375405,
+            "unit": "ns/op",
+            "extra": "122 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6683476,
+            "unit": "ns/op",
+            "extra": "186 times\n4 procs"
           }
         ]
       }
