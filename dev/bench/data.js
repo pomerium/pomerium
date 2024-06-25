@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719345542878,
+  "lastUpdate": 1719347954572,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -113140,6 +113140,42 @@ window.BENCHMARK_DATA = {
             "value": 5809427,
             "unit": "ns/op",
             "extra": "205 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d9c6afc16819379829028f43a054babdfdb61431",
+          "message": "core/envoy: add mode to download only the current binary (#5149)",
+          "timestamp": "2024-06-25T14:35:55-06:00",
+          "tree_id": "3fe479dc514c7a23fab15c5f3eb91076c1a7c552",
+          "url": "https://github.com/pomerium/pomerium/commit/d9c6afc16819379829028f43a054babdfdb61431"
+        },
+        "date": 1719347944178,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8988556,
+            "unit": "ns/op",
+            "extra": "128 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6125397,
+            "unit": "ns/op",
+            "extra": "183 times\n4 procs"
           }
         ]
       }
