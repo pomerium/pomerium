@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719347954572,
+  "lastUpdate": 1719355051652,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -113176,6 +113176,38 @@ window.BENCHMARK_DATA = {
             "value": 6125397,
             "unit": "ns/op",
             "extra": "183 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "21a4fa6e298f16c55f8b92041a64bdd40d1c317d",
+          "message": "core/autocert: fix filter chain, handshake",
+          "timestamp": "2024-06-25T20:35:59Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5150/commits/21a4fa6e298f16c55f8b92041a64bdd40d1c317d"
+        },
+        "date": 1719355034000,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8674258,
+            "unit": "ns/op",
+            "extra": "134 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5863370,
+            "unit": "ns/op",
+            "extra": "190 times\n4 procs"
           }
         ]
       }
