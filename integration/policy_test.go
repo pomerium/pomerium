@@ -537,7 +537,7 @@ func TestPomeriumJWT(t *testing.T) {
 
 	// Obtain a Pomerium attestation JWT from the /.pomerium/jwt endpoint. The
 	// contents should be identical to the JWT header (except possibly the
-	// timestamps). (https://github.com/pomerium/pomerium/issues/4210)
+	// timestamps and the jtis). (https://github.com/pomerium/pomerium/issues/4210)
 	res, err = client.Get("https://restricted-httpdetails.localhost.pomerium.io/.pomerium/jwt")
 	require.NoError(t, err)
 	defer res.Body.Close()
@@ -549,8 +549,10 @@ func TestPomeriumJWT(t *testing.T) {
 	// Remove timestamps before comparing.
 	delete(p, "iat")
 	delete(p, "exp")
+	delete(p, "jti")
 	delete(p2, "iat")
 	delete(p2, "exp")
+	delete(p2, "jti")
 	assert.Equal(t, p, p2)
 }
 
