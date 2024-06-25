@@ -5,11 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync/atomic"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/rs/zerolog/log"
 
+	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/internal/zero/apierror"
 	"github.com/pomerium/pomerium/pkg/fanout"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -69,7 +71,14 @@ func (svc *Mux) subscribeAndDispatch(ctx context.Context, onConnected func()) (e
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	stream, err := svc.client.Subscribe(ctx, &connect.SubscribeRequest{})
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "__unknown__"
+	}
+	stream, err := svc.client.Subscribe(ctx, &connect.SubscribeRequest{
+		Hostname: hostname,
+		Version:  version.FullVersion(),
+	})
 	if err != nil {
 		return fmt.Errorf("subscribe: %w", err)
 	}
