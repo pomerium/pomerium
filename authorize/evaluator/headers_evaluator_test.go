@@ -121,7 +121,7 @@ func TestHeadersEvaluator(t *testing.T) {
 		err = d.Decode(&jwtPayloadDecoded)
 		require.NoError(t, err)
 
-		// The 'iat' claim is set from the session store.
+		// The 'iat' and 'exp' claims are set based on the current time.
 		assert.Equal(t, json.Number(fmt.Sprint(evalTime.Unix())), jwtPayloadDecoded["iat"],
 			"unexpected 'iat' timestamp format")
 		assert.Equal(t, json.Number(fmt.Sprint(evalTime.Add(5*time.Minute).Unix())), jwtPayloadDecoded["exp"],
