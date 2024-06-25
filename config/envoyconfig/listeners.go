@@ -150,6 +150,8 @@ func (b *Builder) buildMainListener(
 		li.Address = buildAddress(cfg.Options.Addr, 443)
 		li.ListenerFilters = append(li.ListenerFilters, TLSInspectorFilter())
 
+		li.FilterChains = append(li.FilterChains, b.buildACMETLSALPNFilterChain())
+
 		allCertificates, err := getAllCertificates(cfg)
 		if err != nil {
 			return nil, err
