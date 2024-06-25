@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719273914709,
+  "lastUpdate": 1719274209565,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -112808,6 +112808,38 @@ window.BENCHMARK_DATA = {
             "value": 6549715,
             "unit": "ns/op",
             "extra": "176 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "2adf9d2f45f46410da783cf5fdb11ea972f95649",
+          "message": "authorize: hot path identity provider lookup optimizations",
+          "timestamp": "2024-06-22T15:53:37Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5143/commits/2adf9d2f45f46410da783cf5fdb11ea972f95649"
+        },
+        "date": 1719274192059,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8759903,
+            "unit": "ns/op",
+            "extra": "138 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6026777,
+            "unit": "ns/op",
+            "extra": "200 times\n4 procs"
           }
         ]
       }
