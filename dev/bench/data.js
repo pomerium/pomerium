@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719336921673,
+  "lastUpdate": 1719342974407,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -113040,6 +113040,42 @@ window.BENCHMARK_DATA = {
             "value": 6880458,
             "unit": "ns/op",
             "extra": "180 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "815353ab67deacca086b6ba8c11e6f9bccefb14e",
+          "message": "core/userinfo: remove excess userinfo data (#5137)",
+          "timestamp": "2024-06-25T21:12:53+02:00",
+          "tree_id": "63edc5de8324ab6bf1f8cb182b60a15d35fadcee",
+          "url": "https://github.com/pomerium/pomerium/commit/815353ab67deacca086b6ba8c11e6f9bccefb14e"
+        },
+        "date": 1719342964010,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8806500,
+            "unit": "ns/op",
+            "extra": "136 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5972634,
+            "unit": "ns/op",
+            "extra": "194 times\n4 procs"
           }
         ]
       }
