@@ -61,6 +61,16 @@ func Test_buildOutboundRoutes(t *testing.T) {
 				"idleTimeout": "0s",
 				"timeout": "0s"
 			}
+		},
+		{
+			"match": {
+				"prefix": "/envoy/stats/prometheus"
+			},
+			"name": "envoy-metrics",
+			"route": {
+				"cluster": "pomerium-envoy-admin",
+				"prefixRewrite": "/stats/prometheus"
+			}
 		}
 	]`, routes)
 }
