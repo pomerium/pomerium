@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719334628023,
+  "lastUpdate": 1719335458252,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -112908,6 +112908,38 @@ window.BENCHMARK_DATA = {
             "value": 5907709,
             "unit": "ns/op",
             "extra": "196 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "6aa08fbf339c1bd4606815bce3ed02655c5e874c",
+          "message": "core/authorize: use uuid for jti, current time for iat and exp",
+          "timestamp": "2024-06-25T01:33:41Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5147/commits/6aa08fbf339c1bd4606815bce3ed02655c5e874c"
+        },
+        "date": 1719335447998,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8905617,
+            "unit": "ns/op",
+            "extra": "135 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6030119,
+            "unit": "ns/op",
+            "extra": "194 times\n4 procs"
           }
         ]
       }
