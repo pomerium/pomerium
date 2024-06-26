@@ -46,12 +46,16 @@ type Manager struct {
 	src          config.Source
 	acmeTemplate certmagic.ACMEIssuer
 
-	mu                  sync.RWMutex
-	config              *config.Config
-	certmagic           *certmagic.Config
-	acmeMgr             atomic.Pointer[certmagic.ACMEIssuer]
-	srv                 *http.Server
+	mu        sync.RWMutex
+	config    *config.Config
+	certmagic *certmagic.Config
+	acmeMgr   atomic.Pointer[certmagic.ACMEIssuer]
+	srv       *http.Server
+
+	acmeTLSALPNLock     sync.Mutex
+	acmeTLSALPNPort     string
 	acmeTLSALPNListener net.Listener
+	acmeTLSALPNConfig   *tls.Config
 
 	*ocspCache
 
@@ -155,6 +159,7 @@ func (mgr *Manager) getCertMagicConfig(ctx context.Context, cfg *config.Config) 
 		}
 	}
 	acmeMgr := certmagic.NewACMEIssuer(mgr.certmagic, mgr.acmeTemplate)
+	acmeMgr.DisableHTTPChallenge = !shouldEnableHTTPChallenge(cfg)
 	err = configureCertificateAuthority(acmeMgr, cfg.Options.AutocertOptions)
 	if err != nil {
 		return nil, err
@@ -342,20 +347,34 @@ func (mgr *Manager) updateServer(ctx context.Context, cfg *config.Config) {
 }
 
 func (mgr *Manager) updateACMETLSALPNServer(ctx context.Context, cfg *config.Config) {
-	addr := net.JoinHostPort("127.0.0.1", cfg.ACMETLSALPNPort)
+	mgr.acmeTLSALPNLock.Lock()
+	defer mgr.acmeTLSALPNLock.Unlock()
+
+	// store the updated TLS config
+	mgr.acmeTLSALPNConfig = mgr.certmagic.TLSConfig().Clone()
+	// if the port hasn't changed, we're done
+	if mgr.acmeTLSALPNPort == cfg.ACMETLSALPNPort {
+		return
+	}
+
+	// store the updated port
+	mgr.acmeTLSALPNPort = cfg.ACMETLSALPNPort
+
 	if mgr.acmeTLSALPNListener != nil {
 		_ = mgr.acmeTLSALPNListener.Close()
 		mgr.acmeTLSALPNListener = nil
 	}
 
-	tlsConfig := mgr.certmagic.TLSConfig()
-	ln, err := tls.Listen("tcp", addr, tlsConfig)
+	// start the listener
+	addr := net.JoinHostPort("127.0.0.1", cfg.ACMETLSALPNPort)
+	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Error(ctx).Err(err).Msg("failed to run acme tls alpn server")
 		return
 	}
 	mgr.acmeTLSALPNListener = ln
 
+	// accept connections
 	go func() {
 		for {
 			conn, err := ln.Accept()
@@ -364,6 +383,20 @@ func (mgr *Manager) updateACMETLSALPNServer(ctx context.Context, cfg *config.Con
 			} else if err != nil {
 				continue
 			}
+
+			// initiate the TLS handshake
+			mgr.acmeTLSALPNLock.Lock()
+			tlsConfig := mgr.acmeTLSALPNConfig.Clone()
+			mgr.acmeTLSALPNLock.Unlock()
+
+			orig := tlsConfig.GetCertificate
+			tlsConfig.GetCertificate = func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
+				log.Info(ctx).Str("server-name", chi.ServerName).
+					Msg("received request for ACME TLS ALPN certificate")
+				return orig(chi)
+			}
+
+			_ = tls.Server(conn, tlsConfig).HandshakeContext(ctx)
 			_ = conn.Close()
 		}
 	}()
@@ -468,4 +501,17 @@ func sourceHostnames(cfg *config.Config) []string {
 	sort.Strings(h)
 
 	return h
+}
+
+func shouldEnableHTTPChallenge(cfg *config.Config) bool {
+	if cfg == nil || cfg.Options == nil {
+		return false
+	}
+
+	_, p, err := net.SplitHostPort(cfg.Options.HTTPRedirectAddr)
+	if err != nil {
+		return false
+	}
+
+	return p == "80"
 }
