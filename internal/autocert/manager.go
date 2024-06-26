@@ -52,9 +52,10 @@ type Manager struct {
 	acmeMgr   atomic.Pointer[certmagic.ACMEIssuer]
 	srv       *http.Server
 
-	acmeTLSALPNLock   sync.Mutex
-	acmeTLSALPNPort   string
-	acmeTLSALPNConfig *tls.Config
+	acmeTLSALPNLock     sync.Mutex
+	acmeTLSALPNPort     string
+	acmeTLSALPNListener net.Listener
+	acmeTLSALPNConfig   *tls.Config
 
 	*ocspCache
 
@@ -158,7 +159,7 @@ func (mgr *Manager) getCertMagicConfig(ctx context.Context, cfg *config.Config) 
 		}
 	}
 	acmeMgr := certmagic.NewACMEIssuer(mgr.certmagic, mgr.acmeTemplate)
-	acmeMgr.DisableHTTPChallenge = cfg.Options.HTTPRedirectAddr == ""
+	acmeMgr.DisableHTTPChallenge = !shouldEnableHTTPChallenge(cfg)
 	err = configureCertificateAuthority(acmeMgr, cfg.Options.AutocertOptions)
 	if err != nil {
 		return nil, err
@@ -359,6 +360,11 @@ func (mgr *Manager) updateACMETLSALPNServer(ctx context.Context, cfg *config.Con
 	// store the updated port
 	mgr.acmeTLSALPNPort = cfg.ACMETLSALPNPort
 
+	if mgr.acmeTLSALPNListener != nil {
+		_ = mgr.acmeTLSALPNListener.Close()
+		mgr.acmeTLSALPNListener = nil
+	}
+
 	// start the listener
 	addr := net.JoinHostPort("127.0.0.1", cfg.ACMETLSALPNPort)
 	ln, err := net.Listen("tcp", addr)
@@ -366,6 +372,7 @@ func (mgr *Manager) updateACMETLSALPNServer(ctx context.Context, cfg *config.Con
 		log.Error(ctx).Err(err).Msg("failed to run acme tls alpn server")
 		return
 	}
+	mgr.acmeTLSALPNListener = ln
 
 	// accept connections
 	go func() {
@@ -494,4 +501,17 @@ func sourceHostnames(cfg *config.Config) []string {
 	sort.Strings(h)
 
 	return h
+}
+
+func shouldEnableHTTPChallenge(cfg *config.Config) bool {
+	if cfg == nil || cfg.Options == nil {
+		return false
+	}
+
+	_, p, err := net.SplitHostPort(cfg.Options.HTTPRedirectAddr)
+	if err != nil {
+		return false
+	}
+
+	return p == "80"
 }
