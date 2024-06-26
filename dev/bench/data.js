@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719421796120,
+  "lastUpdate": 1719422448857,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -113240,6 +113240,42 @@ window.BENCHMARK_DATA = {
             "value": 6625226,
             "unit": "ns/op",
             "extra": "184 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "cdoxsey@pomerium.com",
+            "name": "Caleb Doxsey",
+            "username": "calebdoxsey"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9ebf42ad53fbe48431715b8bbe86ab1d0667cca4",
+          "message": "core/autocert: fix filter chain, handshake (#5150)\n\n* core/autocert: fix filter chain, handshake\r\n\r\n* only enable http challenges on port 80",
+          "timestamp": "2024-06-26T11:17:35-06:00",
+          "tree_id": "d68b612da6df1d77dee1842bb5ff856da87ffeea",
+          "url": "https://github.com/pomerium/pomerium/commit/9ebf42ad53fbe48431715b8bbe86ab1d0667cca4"
+        },
+        "date": 1719422438910,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9837269,
+            "unit": "ns/op",
+            "extra": "120 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6679855,
+            "unit": "ns/op",
+            "extra": "189 times\n4 procs"
           }
         ]
       }
