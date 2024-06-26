@@ -630,3 +630,23 @@ func Test_configureTrustedRoots(t *testing.T) {
 		})
 	}
 }
+
+func TestShouldEnableHTTPChallenge(t *testing.T) {
+	t.Parallel()
+
+	assert.False(t, shouldEnableHTTPChallenge(nil))
+	assert.False(t, shouldEnableHTTPChallenge(&config.Config{}))
+	assert.False(t, shouldEnableHTTPChallenge(&config.Config{Options: &config.Options{}}))
+	assert.False(t, shouldEnableHTTPChallenge(&config.Config{Options: &config.Options{
+		HTTPRedirectAddr: ":8080",
+	}}))
+	assert.False(t, shouldEnableHTTPChallenge(&config.Config{Options: &config.Options{
+		HTTPRedirectAddr: "127.0.0.1:8080",
+	}}))
+	assert.True(t, shouldEnableHTTPChallenge(&config.Config{Options: &config.Options{
+		HTTPRedirectAddr: ":80",
+	}}))
+	assert.True(t, shouldEnableHTTPChallenge(&config.Config{Options: &config.Options{
+		HTTPRedirectAddr: "127.0.0.1:80",
+	}}))
+}
