@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719448357324,
+  "lastUpdate": 1719460691488,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -113474,6 +113474,38 @@ window.BENCHMARK_DATA = {
           {
             "name": "BenchmarkLoggedOutUserAccess",
             "value": 6417346,
+            "unit": "ns/op",
+            "extra": "178 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "b4e03028cc80a574f73eb7d42b9799af8057cadd",
+          "message": "controlplane: avoid calling Close on nil listener",
+          "timestamp": "2024-06-27T00:29:40Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5156/commits/b4e03028cc80a574f73eb7d42b9799af8057cadd"
+        },
+        "date": 1719460681629,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9136766,
+            "unit": "ns/op",
+            "extra": "128 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6444160,
             "unit": "ns/op",
             "extra": "178 times\n4 procs"
           }
