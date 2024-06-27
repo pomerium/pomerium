@@ -12,7 +12,7 @@ import (
 func TestActiveUsers(t *testing.T) {
 	t.Parallel()
 
-	startTime := time.Now().UTC()
+	startTime := time.Date(2024, time.June, 26, 12, 0, 0, 0, time.UTC)
 
 	// Create a new counter that resets on a daily interval
 	c := sessions.NewActiveUsersCounter(sessions.ResetDailyUTC, startTime)
