@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719448281891,
+  "lastUpdate": 1719448357324,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -113440,6 +113440,42 @@ window.BENCHMARK_DATA = {
             "value": 6292680,
             "unit": "ns/op",
             "extra": "190 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "42a975ce44f5bee6f3d0e315c1459fd047efd2e2",
+          "message": "zero: set fixed start time for active users test (#5154)",
+          "timestamp": "2024-06-26T17:29:36-07:00",
+          "tree_id": "953a4a4663a052e3ea9a52c0b3729184b73a42a7",
+          "url": "https://github.com/pomerium/pomerium/commit/42a975ce44f5bee6f3d0e315c1459fd047efd2e2"
+        },
+        "date": 1719448347756,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9708182,
+            "unit": "ns/op",
+            "extra": "128 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6417346,
+            "unit": "ns/op",
+            "extra": "178 times\n4 procs"
           }
         ]
       }
