@@ -121,7 +121,7 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 	if err != nil {
 		_ = srv.GRPCListener.Close()
 		_ = srv.HTTPListener.Close()
-		_ = srv.DebugListener.Close()
+		_ = srv.MetricsListener.Close()
 		return nil, err
 	}
 
