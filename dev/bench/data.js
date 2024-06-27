@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719460691488,
+  "lastUpdate": 1719503514727,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -113508,6 +113508,42 @@ window.BENCHMARK_DATA = {
             "value": 6444160,
             "unit": "ns/op",
             "extra": "178 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "51246568+kenjenkins@users.noreply.github.com",
+            "name": "Kenneth Jenkins",
+            "username": "kenjenkins"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f5f5e5fddc667a732d279e5f0ddce1a0a1b8b098",
+          "message": "controlplane: avoid calling Close on nil listener (#5156)\n\nTweak the cleanup logic in controlplane.NewServer() to avoid a nil panic\r\nif the DebugListener fails to start.",
+          "timestamp": "2024-06-27T08:48:43-07:00",
+          "tree_id": "8659adde0a64bedc6e76e5971e79e55991e01f8a",
+          "url": "https://github.com/pomerium/pomerium/commit/f5f5e5fddc667a732d279e5f0ddce1a0a1b8b098"
+        },
+        "date": 1719503504447,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 9746601,
+            "unit": "ns/op",
+            "extra": "127 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6725494,
+            "unit": "ns/op",
+            "extra": "157 times\n4 procs"
           }
         ]
       }
