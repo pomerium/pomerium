@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719503514727,
+  "lastUpdate": 1719529409960,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -113544,6 +113544,38 @@ window.BENCHMARK_DATA = {
             "value": 6725494,
             "unit": "ns/op",
             "extra": "157 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "1b4dac37368a90f38d489e37eb9c52a931f097ae",
+          "message": "update the pomerium/webauthn dependency (#5125)",
+          "timestamp": "2024-06-27T19:28:51Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5157/commits/1b4dac37368a90f38d489e37eb9c52a931f097ae"
+        },
+        "date": 1719529400405,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8961804,
+            "unit": "ns/op",
+            "extra": "132 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6105716,
+            "unit": "ns/op",
+            "extra": "189 times\n4 procs"
           }
         ]
       }
