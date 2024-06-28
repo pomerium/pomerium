@@ -75,7 +75,7 @@ func TestHeadersEvaluator(t *testing.T) {
 	publicJWK, err := cryptutil.PublicJWKFromBytes(encodedSigningKey)
 	require.NoError(t, err)
 
-	evalTime := time.Now().Round(time.Second)
+	iat := time.Unix(1686870680, 0)
 
 	eval := func(t *testing.T, data []proto.Message, input *HeadersRequest) (*HeadersResponse, error) {
 		ctx := context.Background()
@@ -83,12 +83,10 @@ func TestHeadersEvaluator(t *testing.T) {
 		store := store.New()
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
-		e, err := NewHeadersEvaluator(ctx, store, rego.Time(evalTime))
+		e, err := NewHeadersEvaluator(ctx, store, rego.Time(iat))
 		require.NoError(t, err)
-		return e.Evaluate(ctx, input)
+		return e.Evaluate(ctx, input, rego.EvalTime(iat))
 	}
-
-	iat := time.Unix(1686870680, 0)
 
 	t.Run("jwt", func(t *testing.T) {
 		output, err := eval(t,
@@ -122,9 +120,9 @@ func TestHeadersEvaluator(t *testing.T) {
 		require.NoError(t, err)
 
 		// The 'iat' and 'exp' claims are set based on the current time.
-		assert.Equal(t, json.Number(fmt.Sprint(evalTime.Unix())), jwtPayloadDecoded["iat"],
+		assert.Equal(t, json.Number(fmt.Sprint(iat.Unix())), jwtPayloadDecoded["iat"],
 			"unexpected 'iat' timestamp format")
-		assert.Equal(t, json.Number(fmt.Sprint(evalTime.Add(5*time.Minute).Unix())), jwtPayloadDecoded["exp"],
+		assert.Equal(t, json.Number(fmt.Sprint(iat.Add(5*time.Minute).Unix())), jwtPayloadDecoded["exp"],
 			"unexpected 'exp' timestamp format")
 
 		rawJWT, err := jwt.ParseSigned(jwtHeader)
