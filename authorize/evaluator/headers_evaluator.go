@@ -123,10 +123,10 @@ func NewHeadersEvaluator(ctx context.Context, store *store.Store, options ...fun
 }
 
 // Evaluate evaluates the headers.rego script.
-func (e *HeadersEvaluator) Evaluate(ctx context.Context, req *HeadersRequest) (*HeadersResponse, error) {
+func (e *HeadersEvaluator) Evaluate(ctx context.Context, req *HeadersRequest, options ...rego.EvalOption) (*HeadersResponse, error) {
 	ctx, span := trace.StartSpan(ctx, "authorize.HeadersEvaluator.Evaluate")
 	defer span.End()
-	rs, err := safeEval(ctx, e.q, rego.EvalInput(req))
+	rs, err := safeEval(ctx, e.q, append([]rego.EvalOption{rego.EvalInput(req)}, options...)...)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error evaluating headers.rego: %w", err)
 	}
