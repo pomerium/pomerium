@@ -70,7 +70,7 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
 
   const handleUserInfo = (evt: React.MouseEvent): void => {
     evt.preventDefault();
-    location.href = "/.pomerium/";
+    window.open("/.pomerium/");
   };
 
   const handleLogout = (evt: React.MouseEvent): void => {
