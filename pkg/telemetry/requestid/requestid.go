@@ -4,9 +4,8 @@ package requestid
 import (
 	"context"
 
+	"github.com/akamensky/base58"
 	"github.com/google/uuid"
-
-	"github.com/pomerium/pomerium/pkg/encoding/base58"
 )
 
 const headerName = "x-request-id"

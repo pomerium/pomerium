@@ -1,6 +1,7 @@
 package cookie
 
 import (
+	"context"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -145,7 +146,7 @@ func TestStore_SaveSession(t *testing.T) {
 				r.AddCookie(cookie)
 			}
 
-			jwt, err := s.LoadSession(r)
+			jwt, err := s.LoadSession(context.TODO(), r)
 			if (err != nil) != tt.wantLoadErr {
 				t.Errorf("LoadSession() error = %v, wantErr %v", err, tt.wantLoadErr)
 				return

@@ -149,6 +149,59 @@ func GetDomainsForURL(u *url.URL, includeDefaultPort bool) []string {
 	return []string{u.Hostname(), net.JoinHostPort(u.Hostname(), defaultPort)}
 }
 
+func AllDomainsForURL(u *url.URL, includeDefaultPort bool) func(yield func(string, string) bool) {
+	return func(yield func(string, string) bool) {
+		if u == nil {
+			return
+		}
+
+		// tcp+https://ssh.example.com:22
+		// => ssh.example.com:22
+		// tcp+https://proxy.example.com/ssh.example.com:22
+		// => ssh.example.com:22
+		if strings.HasPrefix(u.Scheme, "tcp+") {
+			hosts := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
+			// if there are no domains in the path part of the URL, use the host
+			// otherwise use the path parts of the URL as the hosts
+			for _, hostport := range append(hosts, u.Host) {
+				if host, port, err := net.SplitHostPort(hostport); err == nil {
+					yield(host, port)
+				} else {
+					yield(hostport, "")
+				}
+			}
+			return
+		}
+
+		var defaultPort string
+		if u.Scheme == "http" {
+			defaultPort = "80"
+		} else {
+			defaultPort = "443"
+		}
+
+		// for hosts like 'example.com:1234' we only return one route
+		if host, port, err := net.SplitHostPort(u.Host); err == nil {
+			if port != defaultPort {
+				yield(host, port)
+				return
+			}
+		}
+
+		hostname := u.Hostname()
+		if !includeDefaultPort {
+			yield(hostname, "")
+			return
+		}
+
+		// for everything else we return two routes: 'example.com' and 'example.com:443'
+		if !yield(hostname, "") {
+			return
+		}
+		yield(hostname, defaultPort)
+	}
+}
+
 // Join joins elements of a URL with '/'.
 func Join(elements ...string) string {
 	var builder strings.Builder

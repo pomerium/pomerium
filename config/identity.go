@@ -1,6 +1,11 @@
 package config
 
 import (
+	"fmt"
+	"strings"
+
+	art "github.com/kralicky/go-adaptive-radix-tree"
+
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/grpc/identity"
 )
@@ -64,4 +69,114 @@ func (o *Options) GetIdentityProviderForRequestURL(requestURL string) (*identity
 		}
 	}
 	return o.GetIdentityProviderForPolicy(nil)
+}
+
+type PolicyCache struct {
+	domainTree art.Tree[domainNode]
+}
+
+func NewPolicyCache(options *Options) (*PolicyCache, error) {
+	tree := art.New[domainNode]()
+	emptyPortMatchesAny := options.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)
+	for _, policy := range options.GetAllPolicies() {
+		u, err := urlutil.ParseAndValidateURL(policy.From)
+		if err != nil {
+			return nil, err
+		}
+
+		urlutil.AllDomainsForURL(u, !emptyPortMatchesAny)(func(host, port string) bool {
+			domainKey := radixKeyForHostPort(host, port)
+			tree.Update(art.Key(domainKey), func() domainNode {
+				return domainNode{policiesByPrefix: art.New[Policy]()}
+			}, func(dn *domainNode) {
+				if policy.Prefix != "" {
+					dn.policiesByPrefix.Insert(art.Key(policy.Prefix), policy)
+				} else if policy.Path != "" {
+					dn.policiesByPrefix.Insert(art.Key(policy.Path), policy)
+				} else if policy.compiledRegex != nil {
+					dn.policiesByRegex = append(dn.policiesByRegex, policy)
+				} else {
+					dn.policiesNoPathMatching = append(dn.policiesNoPathMatching, policy)
+				}
+			})
+			return true
+		})
+	}
+	return &PolicyCache{
+		domainTree: tree,
+	}, nil
+}
+
+var ErrNoIdentityProviderFound = fmt.Errorf("no identity provider found for request URL")
+
+var wildcardResolver = art.DelimiterResolver('.')
+
+func (pc *PolicyCache) GetIdentityProviderForRequestURL(o *Options, requestURL string) (*identity.Provider, error) {
+	u, err := urlutil.ParseAndValidateURL(requestURL)
+	if err != nil {
+		return nil, err
+	}
+
+	domainKey := radixKeyForHostPort(u.Hostname(), u.Port())
+	domain, ok := pc.domainTree.Resolve(art.Key(domainKey), wildcardResolver)
+	if !ok {
+		return nil, fmt.Errorf("%w %s", ErrNoIdentityProviderFound, requestURL)
+	}
+	var policy *Policy
+	if len(u.Path) > 0 {
+		if domain.policiesByPrefix.Size() > 0 {
+			actualKey, val, found := domain.policiesByPrefix.SearchNearest(art.Key(u.Path))
+			if found {
+				// check for prefix match or exact match
+				if c := actualKey.Compare(art.Key(u.Path)); c < 0 {
+					if val.Prefix != "" && strings.HasPrefix(u.Path, val.Prefix) {
+						policy = &val
+					}
+				} else if c == 0 {
+					if val.Path != "" || val.Prefix != "" {
+						policy = &val
+					}
+				}
+			}
+		}
+		if policy == nil {
+			for i := range len(domain.policiesByRegex) {
+				p := &domain.policiesByRegex[i]
+				if p.compiledRegex.MatchString(u.Path) {
+					policy = p
+					break
+				}
+			}
+		}
+	}
+	if policy == nil {
+		if len(domain.policiesNoPathMatching) > 0 {
+			policy = &domain.policiesNoPathMatching[0]
+		}
+	}
+	if policy != nil {
+		return o.GetIdentityProviderForPolicy(policy)
+	}
+
+	return nil, fmt.Errorf("%w %s", ErrNoIdentityProviderFound, requestURL)
+}
+
+type domainNode struct {
+	policiesByPrefix       art.Tree[Policy]
+	policiesByRegex        []Policy
+	policiesNoPathMatching []Policy
+}
+
+func radixKeyForHostPort(host, port string) string {
+	if port == "" {
+		port = "*"
+	}
+	parts := strings.Split(host, ".")
+	sb := strings.Builder{}
+	sb.WriteString(port)
+	for i := len(parts) - 1; i >= 0; i-- {
+		sb.WriteByte('.')
+		sb.WriteString(parts[i])
+	}
+	return sb.String()
 }

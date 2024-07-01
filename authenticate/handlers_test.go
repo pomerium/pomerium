@@ -249,7 +249,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			}
 			u.RawQuery = params.Encode()
 			r := httptest.NewRequest(tt.method, u.String(), nil)
-			state, err := tt.sessionStore.LoadSession(r)
+			state, err := tt.sessionStore.LoadSession(context.TODO(), r)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -481,7 +481,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 				options: config.NewAtomicOptions(),
 			}
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
-			state, err := tt.session.LoadSession(r)
+			state, err := tt.session.LoadSession(context.TODO(), r)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -586,7 +586,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 				}),
 			}
 			r := httptest.NewRequest(http.MethodGet, tt.url, nil)
-			state, err := tt.sessionStore.LoadSession(r)
+			state, err := tt.sessionStore.LoadSession(context.TODO(), r)
 			if err != nil {
 				t.Fatal(err)
 			}

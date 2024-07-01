@@ -56,6 +56,7 @@ type Proxy struct {
 	currentOptions *atomicutil.Value[*config.Options]
 	currentRouter  *atomicutil.Value[*mux.Router]
 	webauthn       *webauthn.Handler
+	policyCache    *atomicutil.Value[*config.PolicyCache]
 }
 
 // New takes a Proxy service from options and a validation function.
@@ -66,10 +67,15 @@ func New(cfg *config.Config) (*Proxy, error) {
 		return nil, err
 	}
 
+	cache, err := config.NewPolicyCache(cfg.Options)
+	if err != nil {
+		return nil, err
+	}
 	p := &Proxy{
 		state:          atomicutil.NewValue(state),
 		currentOptions: config.NewAtomicOptions(),
 		currentRouter:  atomicutil.NewValue(httputil.NewRouter()),
+		policyCache:    atomicutil.NewValue(cache),
 	}
 	p.webauthn = webauthn.New(p.getWebauthnState)
 
@@ -91,6 +97,9 @@ func (p *Proxy) OnConfigChange(_ context.Context, cfg *config.Config) {
 		return
 	}
 
+	if cache, err := config.NewPolicyCache(cfg.Options); err == nil {
+		p.policyCache.Store(cache)
+	}
 	p.currentOptions.Store(cfg.Options)
 	if err := p.setHandlers(cfg.Options); err != nil {
 		log.Error(context.TODO()).Err(err).Msg("proxy: failed to update proxy handlers from configuration settings")

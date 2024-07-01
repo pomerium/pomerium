@@ -3,6 +3,7 @@
 package queryparam
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/pomerium/pomerium/internal/encoding"
@@ -43,7 +44,7 @@ func NewStore(enc encoding.MarshalUnmarshaler, qp string) *Store {
 }
 
 // LoadSession tries to retrieve the token string from URL query parameters.
-func (qp *Store) LoadSession(r *http.Request) (string, error) {
+func (qp *Store) LoadSession(_ context.Context, r *http.Request) (string, error) {
 	jwt := r.URL.Query().Get(qp.queryParamKey)
 	if jwt == "" {
 		return "", sessions.ErrNoSessionFound

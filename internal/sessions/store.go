@@ -3,6 +3,7 @@
 package sessions
 
 import (
+	"context"
 	"errors"
 	"net/http"
 )
@@ -16,14 +17,14 @@ type SessionStore interface {
 
 // SessionLoader defines an interface for loading a session.
 type SessionLoader interface {
-	LoadSession(*http.Request) (string, error)
+	LoadSession(context.Context, *http.Request) (string, error)
 }
 
 type multiSessionLoader []SessionLoader
 
-func (l multiSessionLoader) LoadSession(r *http.Request) (string, error) {
+func (l multiSessionLoader) LoadSession(ctx context.Context, r *http.Request) (string, error) {
 	for _, ll := range l {
-		s, err := ll.LoadSession(r)
+		s, err := ll.LoadSession(ctx, r)
 		if errors.Is(err, ErrNoSessionFound) {
 			continue
 		}
