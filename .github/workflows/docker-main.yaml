@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3
@@ -45,7 +45,7 @@ jobs:
           echo "sha-tag=${SHA_TAG}" >> $GITHUB_OUTPUT
 
       - name: Docker Publish - Main
-        uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0
+        uses: docker/build-push-action@15560696de535e4014efeff63c48f16952e52dd1
         with:
           context: .
           file: ./Dockerfile
@@ -58,7 +58,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Docker Publish - Debug
-        uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0
+        uses: docker/build-push-action@15560696de535e4014efeff63c48f16952e52dd1
         with:
           context: .
           file: ./Dockerfile.debug
@@ -75,13 +75,13 @@ jobs:
     needs: publish
     steps:
       - name: Checkout Gitops Repo
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
           repository: pomerium/gitops-argocd
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump psql environment
-        uses: mikefarah/yq@557dcb87b8efe786f89a12c09e9046b4753ab72e
+        uses: mikefarah/yq@f15500b20a1c991c8729870ba60a4dc3524b6a94
         with:
           cmd:
             yq eval '.pomerium.image.tag = "${{ needs.publish.outputs.sha-tag }}"' -i

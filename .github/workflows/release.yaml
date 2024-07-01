@@ -20,7 +20,7 @@ jobs:
       tag: ${{ steps.tagName.outputs.tag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
 
       - name: Unshallow
         run: git fetch --prune --unshallow
@@ -57,7 +57,7 @@ jobs:
         run: gcloud auth configure-docker
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v5.1.0
+        uses: goreleaser/goreleaser-action@v6.0.0
         with:
           version: v0.184.0
           args: release --config .github/goreleaser.yaml
@@ -121,13 +121,13 @@ jobs:
     needs: goreleaser
     steps:
       - name: Checkout Gitops Repo
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
           repository: pomerium/gitops-argocd
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump test environment
-        uses: mikefarah/yq@557dcb87b8efe786f89a12c09e9046b4753ab72e
+        uses: mikefarah/yq@f15500b20a1c991c8729870ba60a4dc3524b6a94
         with:
           cmd: yq eval '.pomerium.image.tag = "${{ needs.goreleaser.outputs.tag }}"' -i projects/pomerium-demo/pomerium-demo/values.yaml
 
