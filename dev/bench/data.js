@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719856560045,
+  "lastUpdate": 1719856606327,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -113904,6 +113904,42 @@ window.BENCHMARK_DATA = {
             "value": 6342020,
             "unit": "ns/op",
             "extra": "187 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "df3afdc04de241f02d7ac7730de14b8da5b2cd4c",
+          "message": "chore(deps): bump the github-actions group with 4 updates (#5160)\n\nBumps the github-actions group with 4 updates: [actions/checkout](https://github.com/actions/checkout), [docker/build-push-action](https://github.com/docker/build-push-action), [mikefarah/yq](https://github.com/mikefarah/yq) and [goreleaser/goreleaser-action](https://github.com/goreleaser/goreleaser-action).\r\n\r\n\r\nUpdates `actions/checkout` from 4.1.6 to 4.1.7\r\n- [Release notes](https://github.com/actions/checkout/releases)\r\n- [Changelog](https://github.com/actions/checkout/blob/main/CHANGELOG.md)\r\n- [Commits](https://github.com/actions/checkout/compare/a5ac7e51b41094c92402da3b24376905380afc29...692973e3d937129bcbf40652eb9f2f61becf3332)\r\n\r\nUpdates `docker/build-push-action` from 5.3.0 to 6.2.0\r\n- [Release notes](https://github.com/docker/build-push-action/releases)\r\n- [Commits](https://github.com/docker/build-push-action/compare/2cdde995de11925a030ce8070c3d77a52ffcf1c0...15560696de535e4014efeff63c48f16952e52dd1)\r\n\r\nUpdates `mikefarah/yq` from 4.44.1 to 4.44.2\r\n- [Release notes](https://github.com/mikefarah/yq/releases)\r\n- [Changelog](https://github.com/mikefarah/yq/blob/master/release_notes.txt)\r\n- [Commits](https://github.com/mikefarah/yq/compare/557dcb87b8efe786f89a12c09e9046b4753ab72e...f15500b20a1c991c8729870ba60a4dc3524b6a94)\r\n\r\nUpdates `goreleaser/goreleaser-action` from 5.1.0 to 6.0.0\r\n- [Release notes](https://github.com/goreleaser/goreleaser-action/releases)\r\n- [Commits](https://github.com/goreleaser/goreleaser-action/compare/v5.1.0...v6.0.0)\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: actions/checkout\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: github-actions\r\n- dependency-name: docker/build-push-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-major\r\n  dependency-group: github-actions\r\n- dependency-name: mikefarah/yq\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-patch\r\n  dependency-group: github-actions\r\n- dependency-name: goreleaser/goreleaser-action\r\n  dependency-type: direct:production\r\n  update-type: version-update:semver-major\r\n  dependency-group: github-actions\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-07-01T11:53:11-06:00",
+          "tree_id": "882463de8e492c259e7c241e6f7e06c2b4b60152",
+          "url": "https://github.com/pomerium/pomerium/commit/df3afdc04de241f02d7ac7730de14b8da5b2cd4c"
+        },
+        "date": 1719856588031,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 60589199,
+            "unit": "ns/op",
+            "extra": "100 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 7460441,
+            "unit": "ns/op",
+            "extra": "158 times\n4 procs"
           }
         ]
       }
