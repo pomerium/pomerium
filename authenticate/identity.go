@@ -24,12 +24,13 @@ func defaultGetIdentityProvider(options *config.Options, idpID string) (identity
 		return nil, err
 	}
 	return identity.NewAuthenticator(oauth.Options{
-		RedirectURL:     redirectURL,
-		ProviderName:    idp.GetType(),
-		ProviderURL:     idp.GetUrl(),
-		ClientID:        idp.GetClientId(),
-		ClientSecret:    idp.GetClientSecret(),
-		Scopes:          idp.GetScopes(),
-		AuthCodeOptions: idp.GetRequestParams(),
+		RedirectURL:          redirectURL,
+		ProviderName:         idp.GetType(),
+		ProviderURL:          idp.GetUrl(),
+		ClientID:             idp.GetClientId(),
+		ClientSecret:         idp.GetClientSecret(),
+		Scopes:               idp.GetScopes(),
+		AuthCodeOptions:      idp.GetRequestParams(),
+		DeviceAuthClientType: idp.GetDeviceAuthClientType(),
 	})
 }
