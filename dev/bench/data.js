@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1719851999919,
+  "lastUpdate": 1719856560045,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -113868,6 +113868,42 @@ window.BENCHMARK_DATA = {
             "value": 6573735,
             "unit": "ns/op",
             "extra": "180 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2c741ce3717e71a49948927c6692805af603d123",
+          "message": "chore(deps): bump busybox from `5eef5ed` to `9ae97d3` in /.github in the docker group (#5161)\n\nchore(deps): bump busybox in /.github in the docker group\r\n\r\nBumps the docker group in /.github with 1 update: busybox.\r\n\r\n\r\nUpdates `busybox` from `5eef5ed` to `9ae97d3`\r\n\r\n---\r\nupdated-dependencies:\r\n- dependency-name: busybox\r\n  dependency-type: direct:production\r\n  dependency-group: docker\r\n...\r\n\r\nSigned-off-by: dependabot[bot] <support@github.com>\r\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2024-07-01T11:52:49-06:00",
+          "tree_id": "ec17c7edc2fcd7d2cc6d948470b7dbdf98dd657e",
+          "url": "https://github.com/pomerium/pomerium/commit/2c741ce3717e71a49948927c6692805af603d123"
+        },
+        "date": 1719856550220,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8920639,
+            "unit": "ns/op",
+            "extra": "132 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 6342020,
+            "unit": "ns/op",
+            "extra": "187 times\n4 procs"
           }
         ]
       }
