@@ -6,6 +6,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/rs/zerolog"
 
@@ -40,6 +42,12 @@ func main() {
 	}
 
 	if err := runFn(ctx); err != nil && !errors.Is(err, context.Canceled) {
+		// if the error was due to a bad request, return 0 as the exit code
+		if strings.Contains(err.Error(), "bad request") {
+			log.Logger().WithLevel(zerolog.FatalLevel).Err(err).Msg("cmd/pomerium")
+			log.Writer.Close()
+			os.Exit(0)
+		}
 		log.Fatal().Err(err).Msg("cmd/pomerium")
 	}
 	log.Info(ctx).Msg("cmd/pomerium: exiting")

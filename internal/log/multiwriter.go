@@ -1,6 +1,7 @@
 package log
 
 import (
+	"errors"
 	"io"
 	"slices"
 	"sync"
@@ -22,6 +23,19 @@ func (m *MultiWriter) Add(w io.Writer) {
 	m.mu.Lock()
 	m.ws = append(m.ws, w)
 	m.mu.Unlock()
+}
+
+// Close closes the multi writer.
+func (m *MultiWriter) Close() error {
+	var err error
+	m.mu.Lock()
+	for _, w := range m.ws {
+		if c, ok := w.(io.Closer); ok {
+			err = errors.Join(err, c.Close())
+		}
+	}
+	m.mu.Unlock()
+	return err
 }
 
 // Remove removes a writer from the multi writer.
