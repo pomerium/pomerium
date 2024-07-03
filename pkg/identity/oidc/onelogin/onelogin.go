@@ -33,16 +33,10 @@ type Provider struct {
 
 // New instantiates an OpenID Connect (OIDC) provider for OneLogin.
 func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
+	o = GetOptions(o)
+
 	var p Provider
 	var err error
-	if o.ProviderURL == "" {
-		o.ProviderURL = defaultProviderURL
-	}
-	if strings.Contains(o.ProviderURL, "/oidc/2") {
-		o.Scopes = defaultV2Scopes
-	} else {
-		o.Scopes = defaultV1Scopes
-	}
 	genericOidc, err := pom_oidc.New(ctx, o)
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed creating oidc provider: %w", Name, err)
@@ -54,4 +48,16 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 // Name returns the provider name.
 func (p *Provider) Name() string {
 	return Name
+}
+
+// GetOptions gets the options as expected for onelogin.
+func GetOptions(o *oauth.Options) *oauth.Options {
+	o = o.SetDefaultProviderURL(defaultProviderURL).
+		TrimTrailingSlashFromProviderURL()
+	if strings.Contains(o.ProviderURL, "/oidc/2") {
+		o = o.SetDefaultScopes(defaultV2Scopes)
+	} else {
+		o = o.SetDefaultScopes(defaultV1Scopes)
+	}
+	return o
 }

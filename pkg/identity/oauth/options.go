@@ -3,7 +3,10 @@
 // authorization with Bearer JWT.
 package oauth
 
-import "net/url"
+import (
+	"net/url"
+	"strings"
+)
 
 // Options contains the fields required for an OAuth 2.0 (inc. OIDC) auth flow.
 //
@@ -29,4 +32,48 @@ type Options struct {
 	// AuthCodeOptions specifies additional key value pairs query params to add
 	// to the request flow signin url.
 	AuthCodeOptions map[string]string
+}
+
+func (o *Options) EnsureTrailingSlashOnProviderURL() *Options {
+	if strings.HasSuffix(o.ProviderURL, "/") {
+		return o
+	}
+
+	n := new(Options)
+	*n = *o
+	n.ProviderURL += "/"
+	return n
+}
+
+func (o *Options) SetDefaultProviderURL(defaultProviderURL string) *Options {
+	if o.ProviderURL != "" {
+		return o
+	}
+
+	n := new(Options)
+	*n = *o
+	n.ProviderURL = defaultProviderURL
+	return n
+}
+
+func (o *Options) SetDefaultScopes(defaultScopes []string) *Options {
+	if len(o.Scopes) != 0 {
+		return o
+	}
+
+	n := new(Options)
+	*n = *o
+	n.Scopes = defaultScopes
+	return n
+}
+
+func (o *Options) TrimTrailingSlashFromProviderURL() *Options {
+	if !strings.HasSuffix(o.ProviderURL, "/") {
+		return o
+	}
+
+	n := new(Options)
+	*n = *o
+	n.ProviderURL = strings.TrimSuffix(n.ProviderURL, "/")
+	return n
 }

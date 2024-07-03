@@ -41,11 +41,10 @@ type Provider struct {
 
 // New instantiates an OpenID Connect (OIDC) provider for Azure.
 func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
+	o = GetOptions(o)
+
 	var p Provider
 	var err error
-	if o.ProviderURL == "" {
-		o.ProviderURL = defaultProviderURL
-	}
 	genericOidc, err := newProvider(ctx, o,
 		pom_oidc.WithGetVerifier(func(provider *go_oidc.Provider) *go_oidc.IDTokenVerifier {
 			return provider.Verifier(&go_oidc.Config{
@@ -127,4 +126,10 @@ func (transport *wellKnownConfiguration) RoundTrip(req *http.Request) (*http.Res
 
 	res.Body = io.NopCloser(bytes.NewReader(bs))
 	return res, nil
+}
+
+// GetOptions gets the options as expected for azure.
+func GetOptions(o *oauth.Options) *oauth.Options {
+	return o.SetDefaultProviderURL(defaultProviderURL).
+		TrimTrailingSlashFromProviderURL()
 }

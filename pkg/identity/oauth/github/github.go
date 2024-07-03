@@ -57,10 +57,9 @@ type Provider struct {
 
 // New instantiates an OAuth2 provider for Github.
 func New(_ context.Context, o *oauth.Options) (*Provider, error) {
+	o = GetOptions(o)
+
 	p := Provider{}
-	if o.ProviderURL == "" {
-		o.ProviderURL = defaultProviderURL
-	}
 
 	// when the default provider url is used, use the Github API endpoint
 	if o.ProviderURL == defaultProviderURL {
@@ -71,9 +70,6 @@ func New(_ context.Context, o *oauth.Options) (*Provider, error) {
 		p.emailEndpoint = urlutil.Join(o.ProviderURL, emailPath)
 	}
 
-	if len(o.Scopes) == 0 {
-		o.Scopes = defaultScopes
-	}
 	p.Oauth = &oauth2.Config{
 		ClientID:     o.ClientID,
 		ClientSecret: o.ClientSecret,
@@ -255,4 +251,10 @@ func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) 
 // SignOut is not implemented.
 func (p *Provider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ string) error {
 	return oidc.ErrSignoutNotImplemented
+}
+
+// GetOptions gets the options as expected for github.
+func GetOptions(o *oauth.Options) *oauth.Options {
+	return o.SetDefaultProviderURL(defaultProviderURL).
+		SetDefaultScopes(defaultScopes)
 }

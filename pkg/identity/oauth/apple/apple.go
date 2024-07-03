@@ -48,13 +48,7 @@ type Provider struct {
 
 // New instantiates an OpenID Connect (OIDC) provider for Apple.
 func New(_ context.Context, o *oauth.Options) (*Provider, error) {
-	options := *o
-	if options.ProviderURL == "" {
-		options.ProviderURL = defaultProviderURL
-	}
-	if len(options.Scopes) == 0 {
-		options.Scopes = defaultScopes
-	}
+	options := *GetOptions(o)
 
 	p := Provider{}
 	p.authCodeOptions = make(map[string]string)
@@ -181,4 +175,10 @@ func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) 
 // SignOut is not implemented.
 func (p *Provider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ string) error {
 	return oidc.ErrSignoutNotImplemented
+}
+
+// GetOptions gets the options as expected for apple.
+func GetOptions(o *oauth.Options) *oauth.Options {
+	return o.SetDefaultProviderURL(defaultProviderURL).
+		SetDefaultScopes(defaultScopes)
 }

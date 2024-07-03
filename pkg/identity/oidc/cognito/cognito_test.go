@@ -1,4 +1,4 @@
-package cognito
+package cognito_test
 
 import (
 	"context"
@@ -13,7 +13,21 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
+	"github.com/pomerium/pomerium/pkg/identity/oidc/cognito"
 )
+
+func TestGetOptions(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t,
+		[]string{"openid", "email", "profile"},
+		cognito.GetOptions(&oauth.Options{}).Scopes,
+		"should set default scopes")
+	assert.Equal(t,
+		"https://www.example.com",
+		cognito.GetOptions(&oauth.Options{ProviderURL: "https://www.example.com/"}).ProviderURL,
+		"should trim trailing slash")
+}
 
 func TestProvider(t *testing.T) {
 	t.Parallel()
@@ -44,7 +58,7 @@ func TestProvider(t *testing.T) {
 	redirectURL, err := url.Parse(srv.URL)
 	require.NoError(t, err)
 
-	p, err := New(ctx, &oauth.Options{
+	p, err := cognito.New(ctx, &oauth.Options{
 		ProviderURL:  srv.URL,
 		RedirectURL:  redirectURL,
 		ClientID:     "CLIENT_ID",

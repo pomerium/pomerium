@@ -24,14 +24,12 @@ type Provider struct {
 }
 
 // New instantiates an OpenID Connect (OIDC) provider for AWS Cognito.
-func New(ctx context.Context, opts *oauth.Options) (*Provider, error) {
+func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
+	o = GetOptions(o)
+
 	var p Provider
 
-	if opts.Scopes == nil {
-		opts.Scopes = defaultScopes
-	}
-
-	genericOIDC, err := pom_oidc.New(ctx, opts)
+	genericOIDC, err := pom_oidc.New(ctx, o)
 	if err != nil {
 		return nil, fmt.Errorf("failed creating oidc provider: %w", err)
 	}
@@ -80,4 +78,10 @@ func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, _, authentica
 	})
 	httputil.Redirect(w, r, logOutURL.String(), http.StatusFound)
 	return nil
+}
+
+// GetOptions gets the options as expected for cognito.
+func GetOptions(o *oauth.Options) *oauth.Options {
+	return o.SetDefaultScopes(defaultScopes).
+		TrimTrailingSlashFromProviderURL()
 }

@@ -23,6 +23,8 @@ type Provider struct {
 
 // New instantiates an OpenID Connect (OIDC) provider for Okta.
 func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
+	o = GetOptions(o)
+
 	var p Provider
 	var err error
 	genericOidc, err := pom_oidc.New(ctx, o)
@@ -37,4 +39,9 @@ func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
 // Name returns the provider name.
 func (p *Provider) Name() string {
 	return Name
+}
+
+// GetOptions gets the options as expected for okta.
+func GetOptions(o *oauth.Options) *oauth.Options {
+	return o.TrimTrailingSlashFromProviderURL()
 }

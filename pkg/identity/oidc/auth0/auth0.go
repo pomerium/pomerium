@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -28,13 +27,7 @@ type Provider struct {
 
 // New instantiates an OpenID Connect (OIDC) provider for Auth0.
 func New(ctx context.Context, o *oauth.Options) (*Provider, error) {
-	// allow URLs that don't have a trailing slash
-	if !strings.HasSuffix(o.ProviderURL, "/") {
-		tmp := new(oauth.Options)
-		*tmp = *o
-		tmp.ProviderURL += "/"
-		o = tmp
-	}
+	o = GetOptions(o)
 
 	var p Provider
 	var err error
@@ -79,4 +72,9 @@ func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, _, authentica
 
 	httputil.Redirect(w, r, logoutURL.String(), http.StatusFound)
 	return nil
+}
+
+// GetOptions gets the options as expected for auth0.
+func GetOptions(o *oauth.Options) *oauth.Options {
+	return o.EnsureTrailingSlashOnProviderURL()
 }

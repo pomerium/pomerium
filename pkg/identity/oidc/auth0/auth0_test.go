@@ -1,4 +1,4 @@
-package auth0
+package auth0_test
 
 import (
 	"context"
@@ -13,7 +13,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
+	"github.com/pomerium/pomerium/pkg/identity/oidc/auth0"
 )
+
+func TestGetOptions(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t,
+		"https://www.example.com/",
+		auth0.GetOptions(&oauth.Options{ProviderURL: "https://www.example.com"}).ProviderURL,
+		"should ensure trailing slash")
+}
 
 func TestProvider(t *testing.T) {
 	t.Parallel()
@@ -44,7 +54,7 @@ func TestProvider(t *testing.T) {
 	redirectURL, err := url.Parse(srv.URL)
 	require.NoError(t, err)
 
-	p, err := New(ctx, &oauth.Options{
+	p, err := auth0.New(ctx, &oauth.Options{
 		ProviderURL:  srv.URL,
 		RedirectURL:  redirectURL,
 		ClientID:     "CLIENT_ID",
