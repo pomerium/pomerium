@@ -30,13 +30,19 @@ func (o *Options) GetIdentityProviderForPolicy(policy *Policy) (*identity.Provid
 		return nil, err
 	}
 
+	authenticateURL, err := o.GetAuthenticateURL()
+	if err != nil {
+		return nil, err
+	}
+
 	idp := &identity.Provider{
-		ClientId:      o.ClientID,
-		ClientSecret:  clientSecret,
-		Type:          o.Provider,
-		Scopes:        o.Scopes,
-		Url:           o.ProviderURL,
-		RequestParams: o.RequestParams,
+		AuthenticateServiceUrl: authenticateURL.String(),
+		ClientId:               o.ClientID,
+		ClientSecret:           clientSecret,
+		Type:                   o.Provider,
+		Scopes:                 o.Scopes,
+		Url:                    o.ProviderURL,
+		RequestParams:          o.RequestParams,
 	}
 	if policy != nil {
 		if policy.IDPClientID != "" {
