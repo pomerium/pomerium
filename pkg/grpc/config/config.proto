@@ -133,7 +133,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 119.
+// Next ID: 120.
 message Settings {
   message Certificate {
     bytes cert_bytes = 3;
@@ -172,6 +172,7 @@ message Settings {
   optional string idp_client_secret = 23;
   optional string idp_provider = 24;
   optional string idp_provider_url = 25;
+  optional string device_auth_client_type = 119;
   repeated string scopes = 26;
   // optional string idp_service_account = 27;
   // optional google.protobuf.Duration idp_refresh_directory_timeout = 28;

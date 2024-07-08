@@ -39,6 +39,9 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
 		Queries(urlutil.QueryRedirectURI, "").
 		Methods(http.MethodGet)
 
+	a.Path("/v1/device_auth").Handler(httputil.HandlerFunc(p.DeviceAuthLogin)).
+		Methods(http.MethodGet, http.MethodPost)
+
 	return r
 }
 
@@ -134,6 +137,27 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.WriteString(w, rawURL)
 	return nil
+}
+
+func (p *Proxy) DeviceAuthLogin(w http.ResponseWriter, r *http.Request) error {
+	state := p.state.Load()
+	options := p.currentOptions.Load()
+
+	params := url.Values{}
+	routeUri := urlutil.GetAbsoluteURL(r)
+	params.Set(urlutil.QueryDeviceAuthRouteURI, routeUri.String())
+
+	idp, err := options.GetIdentityProviderForRequestURL(routeUri.String())
+	if err != nil {
+		return httputil.NewError(http.StatusInternalServerError, err)
+	}
+	params.Set(urlutil.QueryIdentityProviderID, idp.Id)
+
+	if retryToken := r.FormValue(urlutil.QueryDeviceAuthRetryToken); retryToken != "" {
+		params.Set(urlutil.QueryDeviceAuthRetryToken, retryToken)
+	}
+
+	return state.authenticateFlow.AuthenticateDeviceCode(w, r, params)
 }
 
 // jwtAssertion returns the current request's JWT assertion (rfc7519#section-10.3.1).
