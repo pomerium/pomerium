@@ -9,14 +9,23 @@ import {
   Link,
   Stack,
   Typography,
+  TypographyProps,
 } from "@mui/material";
 import React, { FC } from "react";
 
 import { ErrorPageProps } from "./ErrorPage";
+import IDField from "./IDField";
+
+const TextBlock: FC<TypographyProps> = ({ children }) => {
+  return (
+    <Typography variant="body2" fontWeight={400} color="rgba(102, 112, 133, 1)">
+      {children}
+    </Typography>
+  );
+};
 
 export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
   const status = data?.status || 500;
-  console.log(data.statusText);
   return (
     <Container>
       <Card>
@@ -91,10 +100,10 @@ export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
             <Divider sx={{ color: "rgba(234, 236, 240, 1)" }} />
             <Stack gap={1} sx={{ my: 5 }}>
               <Typography variant="h5">What happened?</Typography>
-              <Typography variant="body2" color="rgba(102, 112, 133, 1)">
+              <TextBlock>
                 The web server is not returning a connection. As a result, the
                 webpage is not displaying.
-              </Typography>
+              </TextBlock>
             </Stack>
             <Divider sx={{ color: "rgba(234, 236, 240, 1)" }} />
             <Stack gap={2} sx={{ my: 5 }}>
@@ -102,30 +111,35 @@ export const UpstreamErrorPage: FC<ErrorPageProps> = ({ data }) => {
                 <Typography variant="h5">What can I do?</Typography>
               </Stack>
               <Stack>
-                <Typography variant="body2" fontWeight={700} color="rgba(102, 112, 133, 1)">
+                <Typography
+                  variant="body2"
+                  fontWeight={700}
+                  color="rgba(102, 112, 133, 1)"
+                >
                   If you are a visitor of this website:
                 </Typography>
-                <Typography variant="body2" fontWeight={400} color="rgba(102, 112, 133, 1)">
-                  Please try again in a few minutes.
-                </Typography>
+                <TextBlock>Please try again in a few minutes.</TextBlock>
               </Stack>
               <Stack>
                 <Typography variant="body2" fontWeight={700}>
                   If you are the owner of this website:
                 </Typography>
-                <Typography variant="body2" fontWeight={400} color="rgba(102, 112, 133, 1)">
+                <TextBlock>
                   Contact your hosting provider letting them know your web
                   server is not responding.
-                </Typography>
-                <Typography variant="body2" fontWeight={400} color="rgba(102, 112, 133, 1)">
-                  Error Text: {data.statusText}
-                </Typography>
+                </TextBlock>
+                <TextBlock>Error Text: {data.statusText}</TextBlock>
+                {data?.requestId && (
+                  <TextBlock>
+                    Request ID: <IDField value={data.requestId} />
+                  </TextBlock>
+                )}
                 <Link
-                    href="https://www.pomerium.com/docs/troubleshooting#envoy-error-messages"
-                    underline="hover"
-                    color="primary.main"
-                    variant="body2"
-                    target="_blank"
+                  href="https://www.pomerium.com/docs/troubleshooting#envoy-error-messages"
+                  underline="hover"
+                  color="primary.main"
+                  variant="body2"
+                  target="_blank"
                 >
                   Additional troubleshooting information.
                 </Link>
