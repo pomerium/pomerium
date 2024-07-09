@@ -124,7 +124,9 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(&config.Config{Options: tt.options})
+			p, err := New(&config.Config{Options: tt.options}, WithRouteMatcher(RouteMatcherFunc(func(_ *http.Request) (string, error) {
+				return "", nil
+			})))
 			if err != nil {
 				t.Fatal(err)
 			}

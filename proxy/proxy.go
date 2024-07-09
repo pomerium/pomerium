@@ -52,22 +52,50 @@ func ValidateOptions(o *config.Options) error {
 
 // Proxy stores all the information associated with proxying a request.
 type Proxy struct {
+	Options
 	state          *atomicutil.Value[*proxyState]
 	currentOptions *atomicutil.Value[*config.Options]
 	currentRouter  *atomicutil.Value[*mux.Router]
 	webauthn       *webauthn.Handler
 }
 
+type Options struct {
+	routeMatcher RouteMatcher
+}
+
+type Option func(*Options)
+
+func (o *Options) apply(opts ...Option) {
+	for _, op := range opts {
+		op(o)
+	}
+}
+
+func WithRouteMatcher(routeMatcher RouteMatcher) Option {
+	return func(o *Options) {
+		o.routeMatcher = routeMatcher
+	}
+}
+
 // New takes a Proxy service from options and a validation function.
 // Function returns an error if options fail to validate.
-func New(cfg *config.Config) (*Proxy, error) {
+func New(cfg *config.Config, opts ...Option) (*Proxy, error) {
+	options := Options{}
+	options.apply(opts...)
+
 	state, err := newProxyStateFromConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
+	atomicState := atomicutil.NewValue(state)
+
+	if options.routeMatcher == nil {
+		options.routeMatcher = newCheckRouteAPIMatcher(atomicState)
+	}
 
 	p := &Proxy{
-		state:          atomicutil.NewValue(state),
+		Options:        options,
+		state:          atomicState,
 		currentOptions: config.NewAtomicOptions(),
 		currentRouter:  atomicutil.NewValue(httputil.NewRouter()),
 	}
@@ -103,7 +131,7 @@ func (p *Proxy) OnConfigChange(_ context.Context, cfg *config.Config) {
 }
 
 func (p *Proxy) setHandlers(opts *config.Options) error {
-	if len(opts.GetAllPolicies()) == 0 {
+	if opts.NumPolicies() == 0 {
 		log.Warn(context.TODO()).Msg("proxy: configuration has no policies")
 	}
 	r := httputil.NewRouter()

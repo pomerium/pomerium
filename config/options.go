@@ -990,6 +990,10 @@ func (o *Options) GetAllPolicies() []Policy {
 	return policies
 }
 
+func (o *Options) NumPolicies() int {
+	return len(o.Policies) + len(o.Routes) + len(o.AdditionalPolicies)
+}
+
 // GetMetricsBasicAuth gets the metrics basic auth username and password.
 func (o *Options) GetMetricsBasicAuth() (username, password string, ok bool) {
 	if o.MetricsBasicAuth == "" {

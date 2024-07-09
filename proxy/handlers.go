@@ -102,7 +102,6 @@ func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) error {
 // using the authenticate service.
 func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error {
 	state := p.state.Load()
-	options := p.currentOptions.Load()
 
 	redirectURI, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
 	if err != nil {
@@ -113,7 +112,7 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 		return httputil.NewError(http.StatusBadRequest, errors.New("invalid redirect uri"))
 	}
 
-	idp, err := options.GetIdentityProviderForRequestURL(urlutil.GetAbsoluteURL(r).String())
+	idpID, err := p.routeMatcher.GetIdentityProviderForRequest(r)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}
@@ -125,7 +124,7 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	q.Set(urlutil.QueryIsProgrammatic, "true")
 
 	rawURL, err := state.authenticateFlow.AuthenticateSignInURL(
-		r.Context(), q, redirectURI, idp.GetId())
+		r.Context(), q, redirectURI, idpID)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}

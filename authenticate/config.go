@@ -18,7 +18,6 @@ type Option func(*authenticateConfig)
 
 func getAuthenticateConfig(options ...Option) *authenticateConfig {
 	cfg := new(authenticateConfig)
-	WithGetIdentityProvider(defaultGetIdentityProvider)(cfg)
 	for _, option := range options {
 		option(cfg)
 	}

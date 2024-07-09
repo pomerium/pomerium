@@ -15,6 +15,7 @@ const (
 	QueryIssued             = "pomerium_issued"
 	QueryPomeriumJWT        = "pomerium_jwt"
 	QueryRedirectURI        = "pomerium_redirect_uri"
+	QueryRequestPath        = "pomerium_request_path"
 	QuerySession            = "pomerium_session"
 	QuerySessionEncrypted   = "pomerium_session_encrypted"
 	QuerySessionState       = "pomerium_session_state"

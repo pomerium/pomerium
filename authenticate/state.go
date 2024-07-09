@@ -64,7 +64,8 @@ func newAuthenticateState() *authenticateState {
 }
 
 func newAuthenticateStateFromConfig(
-	cfg *config.Config, authenticateConfig *authenticateConfig,
+	cfg *config.Config,
+	authenticateConfig *authenticateConfig,
 ) (*authenticateState, error) {
 	err := ValidateOptions(cfg.Options)
 	if err != nil {

@@ -407,7 +407,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	idp, _ := new(config.Options).GetIdentityProviderForID("")
+	idp, _ := new(config.Options).GetIdentityProviderForPolicy(nil)
 
 	tests := []struct {
 		name    string

@@ -9,8 +9,9 @@ import (
 var luaFS embed.FS
 
 var luascripts struct {
-	ExtAuthzSetCookie            string
 	CleanUpstream                string
+	DropCheckRouteRequests       string
+	ExtAuthzSetCookie            string
 	RemoveImpersonateHeaders     string
 	RewriteHeaders               string
 	SetClientCertificateMetadata string
@@ -19,6 +20,7 @@ var luascripts struct {
 func init() {
 	fileToField := map[string]*string{
 		"luascripts/clean-upstream.lua":                  &luascripts.CleanUpstream,
+		"luascripts/drop-check-route-requests.lua":       &luascripts.DropCheckRouteRequests,
 		"luascripts/ext-authz-set-cookie.lua":            &luascripts.ExtAuthzSetCookie,
 		"luascripts/remove-impersonate-headers.lua":      &luascripts.RemoveImpersonateHeaders,
 		"luascripts/rewrite-headers.lua":                 &luascripts.RewriteHeaders,
