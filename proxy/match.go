@@ -42,7 +42,7 @@ func (l *checkRouteAPIMatcher) GetIdentityProviderForRequest(r *http.Request) (s
 
 	ctx, ca := context.WithTimeout(r.Context(), 10*time.Second)
 	defer ca()
-	req, _ := http.NewRequestWithContext(ctx, http.MethodTrace, requestURL.String(), nil)
+	req, _ := http.NewRequestWithContext(ctx, r.Method, requestURL.String(), nil)
 	req.Header.Set("X-Pomerium-Check-Route", "1")
 	req.Header.Set("Accept", "application/json")
 	resp, err := http.DefaultTransport.RoundTrip(req)

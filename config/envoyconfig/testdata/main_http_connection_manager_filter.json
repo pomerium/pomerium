@@ -52,7 +52,9 @@
             },
             "timeout": "10s"
           },
-          "metadataContextNamespaces": ["com.pomerium.client-certificate-info"],
+          "metadataContextNamespaces": [
+            "com.pomerium.client-certificate-info"
+          ],
           "statusOnError": {
             "code": "InternalServerError"
           },
@@ -91,7 +93,7 @@
         "typedConfig": {
           "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
           "defaultSourceCode": {
-            "inlineString": "function envoy_on_request(request_handle)\n  local headers = request_handle:headers()\n  if headers:get(\"x-pomerium-check-route\") ~= nil or headers:get(\":method\") == \"TRACE\" then\n    request_handle:logErr(\"check-route request caught by filter\")\n    request_handle:respond({[\":status\"] = \"500\"}, \"Internal Server Error\")\n  end\nend"
+            "inlineString": "function envoy_on_request(request_handle)\n  local headers = request_handle:headers()\n  if headers:get(\"x-pomerium-check-route\") ~= nil then\n    request_handle:logErr(\"check-route request caught by filter\")\n    request_handle:respond({[\":status\"] = \"500\"}, \"Internal Server Error\")\n  end\nend"
           }
         }
       },
