@@ -59,11 +59,7 @@ func (data UserInfoData) profileJSON() map[string]any {
 	}
 
 	m := map[string]any{}
-	claims := make(map[string]any)
-	for k, v := range data.Profile.GetClaims().AsMap() {
-		claims[k] = v
-	}
-	m["claims"] = m
+	m["claims"] = data.Profile.GetClaims().AsMap()
 	return m
 }
 
