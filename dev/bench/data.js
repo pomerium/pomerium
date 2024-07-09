@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1720460862399,
+  "lastUpdate": 1720561174545,
   "repoUrl": "https://github.com/pomerium/pomerium",
   "entries": {
     "Benchmark": [
@@ -114208,6 +114208,38 @@ window.BENCHMARK_DATA = {
             "value": 7584708,
             "unit": "ns/op",
             "extra": "174 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "committer": {
+            "name": "pomerium",
+            "username": "pomerium"
+          },
+          "id": "9df6f223c2984a6b0c7100d1e25728953e6af7db",
+          "message": "core/ui: fix cycle in profile data",
+          "timestamp": "2024-07-09T09:50:20Z",
+          "url": "https://github.com/pomerium/pomerium/pull/5168/commits/9df6f223c2984a6b0c7100d1e25728953e6af7db"
+        },
+        "date": 1720561164647,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkLoggedInUserAccess",
+            "value": 8635055,
+            "unit": "ns/op",
+            "extra": "141 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkLoggedOutUserAccess",
+            "value": 5969686,
+            "unit": "ns/op",
+            "extra": "204 times\n4 procs"
           }
         ]
       }
