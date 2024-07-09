@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/pomerium/pomerium/pkg/encoding/base58"
+	"github.com/akamensky/base58"
 )
 
 // TokenLength is the length of a token.
@@ -27,7 +27,7 @@ func NewRandomToken() (tok Token) {
 
 // TokenFromString parses a base58-encoded string into a token.
 func TokenFromString(rawstr string) (tok Token, ok bool) {
-	result := base58.Decode(rawstr)
+	result, _ := base58.Decode(rawstr)
 	if len(result) != TokenLength {
 		return tok, false
 	}
@@ -57,7 +57,7 @@ type SecretToken struct {
 
 // SecretTokenFromString parses a base58-encoded string into a secret token.
 func SecretTokenFromString(rawstr string) (tok SecretToken, ok bool) {
-	result := base58.Decode(rawstr)
+	result, _ := base58.Decode(rawstr)
 	if len(result) != TokenLength*2 {
 		return tok, false
 	}
@@ -104,7 +104,7 @@ func GenerateSecureToken(key []byte, expiry time.Time, token Token) SecureToken 
 
 // SecureTokenFromString parses a base58-encoded string into a SecureToken.
 func SecureTokenFromString(rawstr string) (secureToken SecureToken, ok bool) {
-	result := base58.Decode(rawstr)
+	result, _ := base58.Decode(rawstr)
 	if len(result) != SecureTokenLength {
 		return secureToken, false
 	}
