@@ -4,9 +4,8 @@ package identity
 import (
 	"crypto/sha256"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/akamensky/base58"
+	"google.golang.org/protobuf/proto"
 )
 
 // Clone clones the Provider.
