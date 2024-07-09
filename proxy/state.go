@@ -36,6 +36,7 @@ type proxyState struct {
 	encoder         encoding.MarshalUnmarshaler
 	cookieSecret    []byte
 	sessionStore    sessions.SessionStore
+	idpCache        *config.IdentityProviderCache
 	jwtClaimHeaders config.JWTClaimHeaders
 
 	dataBrokerClient databroker.DataBrokerServiceClient
@@ -82,6 +83,11 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 		return nil, err
 	}
 
+	state.idpCache, err = config.NewIdentityProviderCache(cfg.Options)
+	if err != nil {
+		return nil, err
+	}
+
 	state.authenticateDashboardURL = state.authenticateURL.ResolveReference(&url.URL{Path: "/.pomerium/"})
 	state.authenticateSigninURL = state.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
 	state.authenticateRefreshURL = state.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})
@@ -116,7 +122,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {
 		state.authenticateFlow, err = authenticateflow.NewStateless(
-			cfg, state.sessionStore, nil, nil, nil)
+			cfg, state.sessionStore, authenticateflow.IdentityProviderLookupFromCache(state.idpCache), nil, nil)
 	} else {
 		state.authenticateFlow, err = authenticateflow.NewStateful(cfg, state.sessionStore)
 	}

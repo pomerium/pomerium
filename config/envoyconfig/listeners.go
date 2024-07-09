@@ -273,6 +273,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		LuaFilter(luascripts.ExtAuthzSetCookie),
 		LuaFilter(luascripts.CleanUpstream),
 		LuaFilter(luascripts.RewriteHeaders),
+		LuaFilter(luascripts.DropCheckRouteRequests),
 	}
 	filters = append(filters, HTTPRouterFilter())
 

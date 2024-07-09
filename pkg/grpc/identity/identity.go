@@ -4,9 +4,8 @@ package identity
 import (
 	"crypto/sha256"
 
+	"github.com/akamensky/base58"
 	"google.golang.org/protobuf/proto"
-
-	"github.com/pomerium/pomerium/pkg/encoding/base58"
 )
 
 // Clone clones the Provider.

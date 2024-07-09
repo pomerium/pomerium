@@ -1,5 +1,5 @@
 run:
-  deadline: 20m
+  timeout: 20m
 
 linters-settings:
   gci:
@@ -52,6 +52,9 @@ issues:
     # go sec : we want to allow skipping tls auth
     - "TLS InsecureSkipVerify set true."
     - "SA1019"
+
+    # usestdlibvars: allow statements like `resp.StatusCode/100`
+    - '"100" can be replaced by http.StatusContinue'
 
   exclude-rules:
     # Exclude some linters from running on test files.

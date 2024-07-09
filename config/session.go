@@ -15,15 +15,17 @@ import (
 
 // A SessionStore saves and loads sessions based on the options.
 type SessionStore struct {
-	options *Options
-	encoder encoding.MarshalUnmarshaler
-	loader  sessions.SessionLoader
+	options  *Options
+	encoder  encoding.MarshalUnmarshaler
+	loader   sessions.SessionLoader
+	idpCache *IdentityProviderCache
 }
 
 // NewSessionStore creates a new SessionStore from the Options.
-func NewSessionStore(options *Options) (*SessionStore, error) {
+func NewSessionStore(options *Options, idpCache *IdentityProviderCache) (*SessionStore, error) {
 	store := &SessionStore{
-		options: options,
+		options:  options,
+		idpCache: idpCache,
 	}
 
 	sharedKey, err := options.GetSharedKey()
@@ -57,7 +59,7 @@ func NewSessionStore(options *Options) (*SessionStore, error) {
 }
 
 // LoadSessionState loads the session state from a request.
-func (store *SessionStore) LoadSessionState(r *http.Request) (*sessions.State, error) {
+func (store *SessionStore) LoadSessionState(r *http.Request, routeID uint64) (*sessions.State, error) {
 	rawJWT, err := store.loader.LoadSession(r)
 	if err != nil {
 		return nil, err
@@ -71,7 +73,7 @@ func (store *SessionStore) LoadSessionState(r *http.Request) (*sessions.State, e
 
 	// confirm that the identity provider id matches the state
 	if state.IdentityProviderID != "" {
-		idp, err := store.options.GetIdentityProviderForRequestURL(urlutil.GetAbsoluteURL(r).String())
+		idp, err := store.idpCache.GetIdentityProviderForRouteID(routeID)
 		if err != nil {
 			return nil, err
 		}

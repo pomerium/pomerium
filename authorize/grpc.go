@@ -2,17 +2,21 @@ package authorize
 
 import (
 	"context"
+	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	typev3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
+	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -47,7 +51,38 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	hreq := getHTTPRequestFromCheckRequest(in)
 	ctx = requestid.WithValue(ctx, requestid.FromHTTPHeader(hreq.Header))
 
-	sessionState, _ := state.sessionStore.LoadSessionState(hreq)
+	if hreq.Header.Get("X-Pomerium-Check-Route") != "" {
+		body, _ := json.Marshal(in.GetAttributes().GetContextExtensions())
+		if err := urlutil.NewSignedURL(state.sharedKey, urlutil.GetAbsoluteURL(hreq)).Validate(); err != nil {
+			log.Ctx(ctx).Info().Msg("ignoring route check request with missing or invalid signature")
+			return nil, err
+		}
+		return &envoy_service_auth_v3.CheckResponse{
+			Status: &status.Status{
+				// return a non-200 code to envoy to deny the request
+				Code: 299,
+			},
+			HttpResponse: &envoy_service_auth_v3.CheckResponse_DeniedResponse{
+				DeniedResponse: &envoy_service_auth_v3.DeniedHttpResponse{
+					// then return code 200 to the caller
+					Status: &typev3.HttpStatus{Code: 200},
+					Headers: toEnvoyHeaders(http.Header{
+						"Content-Type": {"application/json"},
+					}),
+					Body: string(body),
+				},
+			},
+		}, nil
+	}
+
+	routeID, ok := getRouteIDFromCheckRequest(in)
+	if !ok {
+		log.Ctx(ctx).Error().
+			Str("url", hreq.URL.String()).
+			Msg("bug: no route ID found in check request")
+		return nil, fmt.Errorf("route configuration error")
+	}
+	sessionState, _ := state.sessionStore.LoadSessionState(hreq, routeID)
 
 	var s sessionOrServiceAccount
 	var u *user.User
@@ -114,21 +149,9 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 			ID: sessionState.ID,
 		}
 	}
-	req.Policy = a.getMatchingPolicy(envoyconfig.ExtAuthzContextExtensionsRouteID(attrs.GetContextExtensions()))
+	state := a.state.Load()
+	req.Policy, _ = state.idpCache.GetPolicyByID(envoyconfig.ExtAuthzContextExtensionsRouteID(attrs.GetContextExtensions()))
 	return req, nil
-}
-
-func (a *Authorize) getMatchingPolicy(routeID uint64) *config.Policy {
-	options := a.currentOptions.Load()
-
-	for _, p := range options.GetAllPolicies() {
-		id, _ := p.RouteID()
-		if id == routeID {
-			return &p
-		}
-	}
-
-	return nil
 }
 
 func getHTTPRequestFromCheckRequest(req *envoy_service_auth_v3.CheckRequest) *http.Request {
@@ -155,6 +178,18 @@ func getCheckRequestHeaders(req *envoy_service_auth_v3.CheckRequest) map[string]
 		hdrs[httputil.CanonicalHeaderKey(k)] = v
 	}
 	return hdrs
+}
+
+func getRouteIDFromCheckRequest(req *envoy_service_auth_v3.CheckRequest) (uint64, bool) {
+	idStr := req.GetAttributes().GetContextExtensions()["route_id"]
+	if idStr == "" {
+		return 0, false
+	}
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return id, true
 }
 
 func getCheckRequestURL(req *envoy_service_auth_v3.CheckRequest) url.URL {
