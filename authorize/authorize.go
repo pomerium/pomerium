@@ -52,6 +52,7 @@ func New(cfg *config.Config) (*Authorize, error) {
 		return nil, err
 	}
 	a.state = atomicutil.NewValue(state)
+	a.currentOptions.Store(cfg.Options)
 
 	return a, nil
 }
