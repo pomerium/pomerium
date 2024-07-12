@@ -4,9 +4,8 @@ package identity
 import (
 	"crypto/sha256"
 
+	"github.com/jxskiss/base62"
 	"google.golang.org/protobuf/proto"
-
-	"github.com/pomerium/pomerium/pkg/encoding/base58"
 )
 
 // Clone clones the Provider.
@@ -23,5 +22,5 @@ func (x *Provider) Hash() string {
 		Deterministic: true,
 	}.Marshal(tmp)
 	h := sha256.Sum256(bs)
-	return base58.Encode(h[:])
+	return base62.EncodeToString(h[:])
 }

@@ -7,6 +7,7 @@ import "google/protobuf/struct.proto";
 
 message Provider {
   string id = 1;
+  string authenticate_service_url = 9;
   string client_id = 2;
   string client_secret = 3;
   string type = 4;

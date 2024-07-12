@@ -142,3 +142,25 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		}, s))
 	})
 }
+
+func TestGetIdentityProviderDetectsChangesToAuthenticateServiceURL(t *testing.T) {
+	t.Parallel()
+
+	options := NewDefaultOptions()
+	options.AuthenticateURLString = "https://authenticate.example.com"
+	options.Provider = "oidc"
+	options.ProviderURL = "https://oidc.example.com"
+	options.ClientID = "client_id"
+	options.ClientSecret = "client_secret"
+
+	idp1, err := options.GetIdentityProviderForPolicy(nil)
+	require.NoError(t, err)
+
+	options.AuthenticateURLString = ""
+
+	idp2, err := options.GetIdentityProviderForPolicy(nil)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, idp1.GetId(), idp2.GetId(),
+		"identity provider should change when authenticate service url changes")
+}

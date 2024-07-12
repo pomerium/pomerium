@@ -5,8 +5,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-
-	"github.com/pomerium/pomerium/pkg/encoding/base58"
+	"github.com/jxskiss/base62"
 )
 
 const headerName = "x-request-id"
@@ -29,5 +28,5 @@ func FromContext(ctx context.Context) string {
 // New creates a new request id.
 func New() string {
 	id := uuid.New()
-	return base58.Encode(id[:])
+	return base62.EncodeToString(id[:])
 }
