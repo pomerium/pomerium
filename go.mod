@@ -34,8 +34,9 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.1.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru/v2 v2.0.7
-	github.com/jackc/pgx/v5 v5.5.5
-	github.com/klauspost/compress v1.17.8
+	github.com/jackc/pgx/v5 v5.6.0
+	github.com/jxskiss/base62 v1.1.0
+	github.com/klauspost/compress v1.17.9
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/mholt/acmez v1.2.0
 	github.com/minio/minio-go/v7 v7.0.70
