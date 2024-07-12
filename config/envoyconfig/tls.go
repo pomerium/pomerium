@@ -16,7 +16,7 @@ import (
 
 var oidMustStaple = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 1, 24}
 
-func (b *Builder) buildSubjectAltNameMatcher(
+func (b *ScopedBuilder) buildSubjectAltNameMatcher(
 	dst *url.URL,
 	overrideName string,
 ) *envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher {
@@ -68,7 +68,7 @@ func (b *Builder) buildSubjectAltNameMatcher(
 	}
 }
 
-func (b *Builder) buildSubjectNameIndication(
+func (b *ScopedBuilder) buildSubjectNameIndication(
 	dst *url.URL,
 	overrideName string,
 ) string {

@@ -36,25 +36,28 @@ func (o *Options) GetIdentityProviderForPolicy(policy *Policy) (*identity.Provid
 
 type IdentityProviderCache struct {
 	idpsByRouteID     map[uint64]*identity.Provider
-	policiesByRouteID map[uint64]Policy
+	policiesByRouteID map[uint64]*Policy
 	idpsByID          map[string]*identity.Provider
 }
 
 func NewIdentityProviderCache(opts *Options) (*IdentityProviderCache, error) {
 	rt := &IdentityProviderCache{
 		idpsByRouteID:     make(map[uint64]*identity.Provider, opts.NumPolicies()),
-		policiesByRouteID: make(map[uint64]Policy, opts.NumPolicies()),
+		policiesByRouteID: make(map[uint64]*Policy, opts.NumPolicies()),
 		idpsByID:          make(map[string]*identity.Provider),
 	}
 
-	for _, policy := range opts.GetAllPolicies() {
+	var retErr error
+	opts.GetAllPolicies()(func(policy *Policy) bool {
 		id, err := policy.RouteID()
 		if err != nil {
-			return nil, err
+			retErr = err
+			return false
 		}
-		idp, err := opts.GetIdentityProviderForPolicy(&policy)
+		idp, err := opts.GetIdentityProviderForPolicy(policy)
 		if err != nil {
-			return nil, err
+			retErr = err
+			return false
 		}
 		rt.idpsByRouteID[id] = idp
 		rt.policiesByRouteID[id] = policy
@@ -62,7 +65,12 @@ func NewIdentityProviderCache(opts *Options) (*IdentityProviderCache, error) {
 		if _, ok := rt.idpsByID[idp.Id]; !ok {
 			rt.idpsByID[idp.Id] = idp
 		}
+		return true
+	})
+	if retErr != nil {
+		return nil, retErr
 	}
+
 	return rt, nil
 }
 
@@ -99,5 +107,5 @@ func (rt *IdentityProviderCache) GetPolicyByID(routeID uint64) (*Policy, error) 
 	if !ok {
 		return nil, fmt.Errorf("no policy found for route %d", routeID)
 	}
-	return &policy, nil
+	return policy, nil
 }

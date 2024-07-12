@@ -3,6 +3,7 @@ package evaluator
 import (
 	"context"
 	"encoding/base64"
+	"maps"
 	"net/http"
 	"net/url"
 	"testing"
@@ -573,11 +574,13 @@ func TestPolicyEvaluatorReuse(t *testing.T) {
 	initial, err := New(ctx, store, nil, options...)
 	require.NoError(t, err)
 
+	initialEvaluators := maps.Clone(initial.policyEvaluators)
+
 	assertPolicyEvaluatorReused := func(t *testing.T, e *Evaluator, p *config.Policy) {
 		t.Helper()
 		routeID, err := p.RouteID()
 		require.NoError(t, err)
-		p1 := initial.policyEvaluators[routeID]
+		p1 := initialEvaluators[routeID]
 		require.NotNil(t, p1)
 		p2 := e.policyEvaluators[routeID]
 		assert.Same(t, p1, p2, routeID)
@@ -587,7 +590,7 @@ func TestPolicyEvaluatorReuse(t *testing.T) {
 		t.Helper()
 		routeID, err := p.RouteID()
 		require.NoError(t, err)
-		p1 := initial.policyEvaluators[routeID]
+		p1 := initialEvaluators[routeID]
 		require.NotNil(t, p1)
 		p2 := e.policyEvaluators[routeID]
 		require.NotNil(t, p2)
@@ -670,7 +673,7 @@ func TestPolicyEvaluatorReuse(t *testing.T) {
 		// evaluators.
 		rid, err := newPolicies[3].RouteID()
 		require.NoError(t, err)
-		_, exists := initial.policyEvaluators[rid]
+		_, exists := initialEvaluators[rid]
 		assert.False(t, exists, "initial evaluator should not have a policy for route ID", rid)
 		assert.NotNil(t, e.policyEvaluators[rid])
 	})

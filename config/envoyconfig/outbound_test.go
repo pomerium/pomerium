@@ -3,12 +3,13 @@ package envoyconfig
 import (
 	"testing"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testutil"
 )
 
 func Test_buildOutboundRoutes(t *testing.T) {
 	b := New("local-grpc", "local-http", "local-metrics", nil, nil)
-	routes := b.buildOutboundRoutes()
+	routes := b.WithConfig(&config.Config{}).buildOutboundRoutes()
 	testutil.AssertProtoJSONEqual(t, `[
 		{
 			"match": {

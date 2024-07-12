@@ -31,7 +31,8 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 		},
 	}}
 	b := New("grpc", "http", "metrics", filemgr.NewManager(), nil)
-	routeConfiguration, err := b.buildMainRouteConfiguration(ctx, cfg)
+	sb := b.WithConfig(cfg)
+	routeConfiguration, err := sb.buildMainRouteConfiguration(ctx)
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `{
 		"name": "main",
@@ -41,12 +42,12 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 				"name": "catch-all",
 				"domains": ["*"],
 				"routes": [
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/ping"))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/healthz"))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/.pomerium"))+`,
-					`+protojson.Format(b.buildControlPlanePrefixRoute(cfg.Options, "/.pomerium/"))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/.well-known/pomerium"))+`,
-					`+protojson.Format(b.buildControlPlanePrefixRoute(cfg.Options, "/.well-known/pomerium/"))+`,
+					`+protojson.Format(sb.buildControlPlanePathRoute(context.Background(), "/ping"))+`,
+					`+protojson.Format(sb.buildControlPlanePathRoute(context.Background(), "/healthz"))+`,
+					`+protojson.Format(sb.buildControlPlanePathRoute(context.Background(), "/.pomerium"))+`,
+					`+protojson.Format(sb.buildControlPlanePrefixRoute(context.Background(), "/.pomerium/"))+`,
+					`+protojson.Format(sb.buildControlPlanePathRoute(context.Background(), "/.well-known/pomerium"))+`,
+					`+protojson.Format(sb.buildControlPlanePrefixRoute(context.Background(), "/.well-known/pomerium/"))+`,
 					{
 						"name": "policy-0",
 						"match": {

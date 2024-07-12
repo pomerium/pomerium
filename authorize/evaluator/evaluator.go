@@ -5,8 +5,12 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"math/bits"
 	"net/http"
 	"net/url"
+	"runtime"
+	rttrace "runtime/trace"
+	"sync"
 	"time"
 
 	"github.com/go-jose/go-jose/v3"
@@ -15,7 +19,6 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/errgrouputil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -105,6 +108,10 @@ type Evaluator struct {
 func New(
 	ctx context.Context, store *store.Store, previous *Evaluator, options ...Option,
 ) (*Evaluator, error) {
+	ctx, task := rttrace.NewTask(ctx, "evaluator.New")
+	defer task.End()
+	defer rttrace.StartRegion(ctx, "evaluator.New").End()
+
 	cfg := getConfig(options...)
 
 	err := updateStore(store, cfg)
@@ -123,18 +130,17 @@ func New(
 	// If there is a previous Evaluator constructed from the same settings, we
 	// can reuse the HeadersEvaluator along with any PolicyEvaluators for
 	// unchanged policies.
-	var cachedPolicyEvaluators map[uint64]*PolicyEvaluator
 	if previous != nil && previous.cfgCacheKey == e.cfgCacheKey {
 		e.headersEvaluators = previous.headersEvaluators
-		cachedPolicyEvaluators = previous.policyEvaluators
+		e.policyEvaluators = previous.policyEvaluators
 	} else {
 		e.headersEvaluators, err = NewHeadersEvaluator(ctx, store)
 		if err != nil {
 			return nil, err
 		}
+		e.policyEvaluators = make(map[uint64]*PolicyEvaluator, len(cfg.Policies))
 	}
-	e.policyEvaluators, err = getOrCreatePolicyEvaluators(ctx, cfg, store, cachedPolicyEvaluators)
-	if err != nil {
+	if err := getOrCreatePolicyEvaluators(ctx, cfg, store, e.policyEvaluators); err != nil {
 		return nil, err
 	}
 
@@ -147,56 +153,180 @@ type routeEvaluator struct {
 }
 
 func getOrCreatePolicyEvaluators(
-	ctx context.Context, cfg *evaluatorConfig, store *store.Store,
+	ctx context.Context,
+	cfg *evaluatorConfig,
+	store *store.Store,
 	cachedPolicyEvaluators map[uint64]*PolicyEvaluator,
-) (map[uint64]*PolicyEvaluator, error) {
+) error {
+	ctx, task := rttrace.NewTask(ctx, "evaluator.getOrCreatePolicyEvaluators")
+	defer task.End()
+	defer rttrace.StartRegion(ctx, "evaluator.getOrCreatePolicyEvaluators").End()
+
+	rttrace.Logf(ctx, "", "using %d cached policy evaluators", len(cachedPolicyEvaluators))
 	now := time.Now()
 
-	var reusedCount int
-	m := make(map[uint64]*PolicyEvaluator)
-	var builders []errgrouputil.BuilderFunc[routeEvaluator]
-	for i := range cfg.Policies {
-		configPolicy := cfg.Policies[i]
-		id, err := configPolicy.RouteID()
-		if err != nil {
-			return nil, fmt.Errorf("authorize: error computing policy route id: %w", err)
+	const chunkSize = 64
+	statusBits := make([]uint64, uint32(len(cfg.Policies))/chunkSize+1) // 0=no change, 1=changed
+	statusCounts := make([]uint8, len(statusBits))
+	var totalModified int
+	evaluators := make([]routeEvaluator, len(cfg.Policies))
+	if len(evaluators) == 0 {
+		return nil // nothing to do
+	}
+	numWorkers := min(runtime.NumCPU(), len(statusBits))
+	chunksPerWorker := len(statusBits) / numWorkers
+
+	errs := sync.Map{} // slice index->error
+
+	region := rttrace.StartRegion(ctx, "computing checksums")
+	// compute route checksums
+	{
+		var wg sync.WaitGroup
+		wg.Add(numWorkers)
+		for workerIdx := range numWorkers {
+			chunkStart := workerIdx * chunksPerWorker
+			chunkEnd := chunkStart + chunksPerWorker
+			go func() {
+				ctx, task := rttrace.NewTask(ctx, fmt.Sprintf("worker-%d", workerIdx))
+				defer task.End()
+				defer rttrace.StartRegion(ctx, "worker").End()
+				defer wg.Done()
+				for c := chunkStart; c < chunkEnd; c++ {
+					var chunkStatus uint64
+					off := c * chunkSize
+					limit := min(chunkSize, len(cfg.Policies)-int(off))
+					for i := 0; i < limit; i++ {
+						p := &cfg.Policies[off+i]
+						id, err := p.RouteID()
+						if err != nil {
+							errs.Store(off+i, fmt.Errorf("authorize: error computing policy route id: %w", err))
+							continue
+						}
+						evaluators[off+i].id = id
+						actual := p.Checksum()
+						cached, ok := cachedPolicyEvaluators[id]
+						if !ok {
+							rttrace.Logf(ctx, "", "policy with ID %d not found in cache", id)
+							chunkStatus |= 1 << i
+						} else if cached.policyChecksum != actual {
+							rttrace.Logf(ctx, "", "policy with ID %d changed", id)
+							chunkStatus |= 1 << i
+						}
+					}
+					statusBits[c] = chunkStatus
+					popcnt := bits.OnesCount64(chunkStatus)
+					rttrace.Logf(ctx, "", "chunk %d: %d/%d changed", c, popcnt, limit)
+					statusCounts[c] = uint8(popcnt)
+					totalModified += popcnt
+				}
+			}()
 		}
-		p := cachedPolicyEvaluators[id]
-		if p != nil && p.policyChecksum == configPolicy.Checksum() {
-			m[id] = p
-			reusedCount++
-			continue
-		}
-		builders = append(builders, func(ctx context.Context) (*routeEvaluator, error) {
-			evaluator, err := NewPolicyEvaluator(ctx, store, &configPolicy, cfg.AddDefaultClientCertificateRule)
-			if err != nil {
-				return nil, fmt.Errorf("authorize: error building evaluator for route id=%s: %w", configPolicy.ID, err)
+		wg.Wait()
+	}
+	region.End()
+
+	hasErrs := false
+	errs.Range(func(key, value any) bool {
+		errPolicy := evaluators[key.(int)]
+		delete(cachedPolicyEvaluators, errPolicy.id)
+		log.Error(ctx).Msg(value.(error).Error())
+		hasErrs = true
+		return true
+	})
+	if hasErrs {
+		return fmt.Errorf("authorize: error computing one or more policy route IDs")
+	}
+
+	if totalModified == 0 {
+		return nil
+	}
+
+	region = rttrace.StartRegion(ctx, "partitioning")
+	partitions := make([]int, numWorkers)
+	{
+		targetJobsPerWorker := uint32(totalModified / numWorkers)
+		chunk := 0
+		numChunks := len(statusCounts)
+		for worker := 0; worker < numWorkers && chunk < numChunks; worker++ {
+			// find the end partition for each worker
+			accum := uint32(0)
+			for accum < targetJobsPerWorker && chunk < numChunks {
+				accum += uint32(statusCounts[chunk])
+				chunk++
 			}
-			return &routeEvaluator{
-				id:        id,
-				evaluator: evaluator,
-			}, nil
-		})
-	}
-
-	evals, errs := errgrouputil.Build(ctx, builders...)
-	if len(errs) > 0 {
-		for _, err := range errs {
-			log.Error(ctx).Msg(err.Error())
+			partitions[worker] = chunk
 		}
-		return nil, fmt.Errorf("authorize: error building policy evaluators")
+		// add anything remaining to the last worker
+		if chunk != numChunks {
+			partitions[len(partitions)-1] = numChunks
+		}
+	}
+	region.End()
+
+	region = rttrace.StartRegion(ctx, "running workers")
+	// spawn workers
+	{
+		var wg sync.WaitGroup
+		for worker := range numWorkers {
+			partitionStart := 0
+			if worker > 0 {
+				partitionStart = partitions[worker-1]
+			}
+			partitionEnd := partitions[worker]
+			wg.Add(1)
+			go func() {
+				ctx, task := rttrace.NewTask(ctx, fmt.Sprintf("worker-%d", worker))
+				defer task.End()
+				defer rttrace.StartRegion(ctx, "worker").End()
+
+				defer wg.Done()
+				var err error
+				for c := partitionStart; c < partitionEnd; c++ {
+					stat := statusBits[c]
+					rttrace.Logf(ctx, "", "worker %d: chunk %d: status: %b", worker, c, stat)
+					for stat != 0 {
+						bit := bits.TrailingZeros64(stat)
+						stat &^= 1 << bit
+						idx := bit + (chunkSize * c)
+						p := &cfg.Policies[idx]
+						evaluators[idx].evaluator, err = NewPolicyEvaluator(ctx, store, p, cfg.AddDefaultClientCertificateRule)
+						if err != nil {
+							errs.Store(idx, err)
+						}
+					}
+				}
+			}()
+		}
+		wg.Wait()
+	}
+	region.End()
+
+	hasErrs = false
+	errs.Range(func(key, value any) bool {
+		errPolicy := evaluators[key.(int)]
+		delete(cachedPolicyEvaluators, errPolicy.id)
+		log.Error(ctx).Msg(value.(error).Error())
+		hasErrs = true
+		return true
+	})
+	if hasErrs {
+		return fmt.Errorf("authorize: error building policy evaluators")
 	}
 
-	for _, p := range evals {
-		m[p.id] = p.evaluator
+	updatedCount := 0
+	for _, p := range evaluators {
+		if p.evaluator != nil {
+			updatedCount++
+			cachedPolicyEvaluators[p.id] = p.evaluator
+		}
 	}
 
 	log.Debug(ctx).
 		Dur("duration", time.Since(now)).
-		Int("reused-policies", reusedCount).
-		Int("created-policies", len(cfg.Policies)-reusedCount).
+		Int("reused-policies", len(cfg.Policies)-totalModified).
+		Int("created-policies", len(cfg.Policies)-updatedCount).
 		Msg("updated policy evaluators")
-	return m, nil
+	return nil
 }
 
 // Evaluate evaluates the rego for the given policy and generates the identity headers.
