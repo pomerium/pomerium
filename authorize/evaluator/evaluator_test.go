@@ -3,18 +3,22 @@ package evaluator
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"maps"
 	"net/http"
 	"net/url"
 	"testing"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"gopkg.in/yaml.v3"
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -689,4 +693,34 @@ func mustParseURL(str string) *url.URL {
 		panic(err)
 	}
 	return u
+}
+
+func BenchmarkEvaluator(b *testing.B) {
+	store := store.New()
+	log.SetLevel(zerolog.WarnLevel)
+	samplePPL := `
+allow:
+  and:
+    - email:
+        is: foo@bar.com
+`
+	var pplPolicy config.PPLPolicy
+	err := yaml.Unmarshal([]byte(samplePPL), &pplPolicy)
+	require.NoError(b, err)
+
+	b.Run("append new policies", func(b *testing.B) {
+		var e *Evaluator
+		policies := make([]config.Policy, 0, 4096)
+		for i := 0; i < b.N; i++ {
+			policies = append(policies, config.Policy{
+				From:   fmt.Sprintf("https://from%d.example.com", i),
+				To:     singleToURL(fmt.Sprintf("https://to%d.example.com", i)),
+				Policy: &pplPolicy,
+			})
+			var err error
+			e, err = New(context.Background(), store, e, WithPolicies(policies))
+			require.NoError(b, err)
+			require.Equal(b, len(e.policyEvaluators), len(policies))
+		}
+	})
 }

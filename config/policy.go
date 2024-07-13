@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"net/url"
 	"os"
@@ -11,7 +12,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unsafe"
 
+	"github.com/cespare/xxhash/v2"
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -113,7 +116,7 @@ type Policy struct {
 	TLSClientKey      string           `mapstructure:"tls_client_key" yaml:"tls_client_key,omitempty"`
 	TLSClientCertFile string           `mapstructure:"tls_client_cert_file" yaml:"tls_client_cert_file,omitempty"`
 	TLSClientKeyFile  string           `mapstructure:"tls_client_key_file" yaml:"tls_client_key_file,omitempty"`
-	ClientCertificate *tls.Certificate `yaml:",omitempty" hash:"ignore"`
+	ClientCertificate *tls.Certificate `codec:"-" yaml:",omitempty" hash:"ignore"`
 
 	// TLSDownstreamClientCA defines the root certificate to use with a given route to verify
 	// downstream client certificates (e.g. from a user's browser).
@@ -575,28 +578,82 @@ func (p *Policy) Checksum() uint64 {
 
 // RouteID returns a unique identifier for a route
 func (p *Policy) RouteID() (uint64, error) {
-	id := routeID{
-		From:   p.From,
-		Prefix: p.Prefix,
-		Path:   p.Path,
-		Regex:  p.Regex,
-	}
-
+	// this function is in the hot path, try not to allocate too much memory here
+	hash := xxhash.New()
+	hash.WriteString(p.From)
+	hash.WriteString(p.Prefix)
+	hash.WriteString(p.Path)
+	hash.WriteString(p.Regex)
 	if len(p.To) > 0 {
-		dst, _, err := p.To.Flatten()
-		if err != nil {
-			return 0, err
+		for _, to := range p.To {
+			hash.WriteString(to.URL.Scheme)
+			hash.WriteString(to.URL.Opaque)
+			if to.URL.User != nil {
+				hash.WriteString(to.URL.User.Username())
+				p, _ := to.URL.User.Password()
+				hash.WriteString(p)
+			}
+			hash.WriteString(to.URL.Host)
+			hash.WriteString(to.URL.Path)
+			hash.WriteString(to.URL.RawPath)
+			writeBool(hash, to.URL.OmitHost)
+			writeBool(hash, to.URL.ForceQuery)
+			hash.WriteString(to.URL.Fragment)
+			hash.WriteString(to.URL.RawFragment)
+			writeUint32(hash, to.LbWeight)
 		}
-		id.To = dst
 	} else if p.Redirect != nil {
-		id.Redirect = p.Redirect
+		if p.Redirect.HTTPSRedirect != nil {
+			writeBool(hash, *p.Redirect.HTTPSRedirect)
+		}
+		if p.Redirect.SchemeRedirect != nil {
+			hash.WriteString(*p.Redirect.SchemeRedirect)
+		}
+		if p.Redirect.HostRedirect != nil {
+			hash.WriteString(*p.Redirect.HostRedirect)
+		}
+		if p.Redirect.PortRedirect != nil {
+			writeUint32(hash, *p.Redirect.PortRedirect)
+		}
+		if p.Redirect.PathRedirect != nil {
+			hash.WriteString(*p.Redirect.PathRedirect)
+		}
+		if p.Redirect.PrefixRewrite != nil {
+			hash.WriteString(*p.Redirect.PrefixRewrite)
+		}
+		if p.Redirect.ResponseCode != nil {
+			writeInt32(hash, *p.Redirect.ResponseCode)
+		}
+		if p.Redirect.StripQuery != nil {
+			writeBool(hash, *p.Redirect.StripQuery)
+		}
 	} else if p.Response != nil {
-		id.Response = p.Response
+		writeUint32(hash, uint32(p.Response.Status)) // this seems to be converted from uint32 anyway
+		hash.WriteString(p.Response.Body)
 	} else {
 		return 0, errEitherToOrRedirectOrResponseRequired
 	}
+	return hash.Sum64(), nil
+}
 
-	return hashutil.Hash(id)
+func writeBool(hash *xxhash.Digest, b bool) {
+	if b {
+		hash.Write([]byte{1})
+	} else {
+		hash.Write([]byte{0})
+	}
+}
+
+func writeUint32(hash *xxhash.Digest, t uint32) {
+	var buf [4]byte
+	binary.LittleEndian.PutUint32(buf[:], t)
+	hash.Write(buf[:])
+}
+
+func writeInt32(hash *xxhash.Digest, t int32) {
+	var buf [4]byte
+	binary.LittleEndian.PutUint32(buf[:], *(*uint32)(unsafe.Pointer(&t)))
+	hash.Write(buf[:])
 }
 
 func (p *Policy) String() string {
@@ -706,16 +763,6 @@ func (p *Policy) GetPassIdentityHeaders(options *Options) bool {
 	}
 
 	return false
-}
-
-type routeID struct {
-	From     string
-	To       []string
-	Prefix   string
-	Path     string
-	Regex    string
-	Redirect *PolicyRedirect
-	Response *DirectResponse
 }
 
 /*

@@ -112,10 +112,11 @@ func NewPolicyEvaluator(
 	ctx context.Context,
 	store *store.Store,
 	configPolicy *config.Policy,
+	policyChecksum uint64,
 	addDefaultClientCertificateRule bool,
 ) (*PolicyEvaluator, error) {
 	e := new(PolicyEvaluator)
-	e.policyChecksum = configPolicy.Checksum()
+	e.policyChecksum = policyChecksum
 
 	// generate the base rego script for the policy
 	ppl := configPolicy.ToPPL()

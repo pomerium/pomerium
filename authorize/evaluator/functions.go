@@ -27,7 +27,7 @@ type ClientCertConstraints struct {
 	// SANMatchers is a map of SAN type to regex match expression. When
 	// non-empty, a client certificate must contain at least one Subject
 	// Alternative Name that matches one of the expessions.
-	SANMatchers SANMatchers
+	SANMatchers map[config.SANType]*regexp.Regexp
 }
 
 // SANMatchers is a map of SAN type to regex match expression.

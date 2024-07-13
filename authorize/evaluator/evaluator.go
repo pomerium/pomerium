@@ -2,17 +2,21 @@
 package evaluator
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
+	"maps"
 	"math/bits"
 	"net/http"
 	"net/url"
 	"runtime"
 	rttrace "runtime/trace"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/alitto/pond"
 	"github.com/go-jose/go-jose/v3"
 	"github.com/open-policy-agent/opa/rego"
 	"golang.org/x/sync/errgroup"
@@ -94,53 +98,76 @@ type Result struct {
 
 // An Evaluator evaluates policies.
 type Evaluator struct {
-	store                 *store.Store
-	policyEvaluators      map[uint64]*PolicyEvaluator
-	headersEvaluators     *HeadersEvaluator
-	clientCA              []byte
-	clientCRL             []byte
-	clientCertConstraints ClientCertConstraints
+	opts             *evaluatorOptions
+	store            *store.Store
+	policyEvaluators map[uint64]*PolicyEvaluator
+	headersEvaluator *HeadersEvaluator
+}
 
-	cfgCacheKey uint64
+func withRegion0[R any](ctx context.Context, name string, fn func() R) R {
+	defer rttrace.StartRegion(ctx, name).End()
+	return fn()
+}
+
+func withRegion1[T any, R any](ctx context.Context, name string, fn func(T) R, t T) R {
+	defer rttrace.StartRegion(ctx, name).End()
+	return fn(t)
+}
+
+func withRegion2[T any, U any, R any](ctx context.Context, name string, fn func(T, U) R, t T, u U) R {
+	defer rttrace.StartRegion(ctx, name).End()
+	return fn(t, u)
 }
 
 // New creates a new Evaluator.
 func New(
-	ctx context.Context, store *store.Store, previous *Evaluator, options ...Option,
+	ctx context.Context,
+	store *store.Store,
+	previous *Evaluator,
+	options ...Option,
 ) (*Evaluator, error) {
 	ctx, task := rttrace.NewTask(ctx, "evaluator.New")
 	defer task.End()
 	defer rttrace.StartRegion(ctx, "evaluator.New").End()
 
-	cfg := getConfig(options...)
-
-	err := updateStore(store, cfg)
-	if err != nil {
-		return nil, err
-	}
+	var opts evaluatorOptions
+	opts.apply(options...)
 
 	e := &Evaluator{
-		store:                 store,
-		clientCA:              cfg.ClientCA,
-		clientCRL:             cfg.ClientCRL,
-		clientCertConstraints: cfg.ClientCertConstraints,
-		cfgCacheKey:           cfg.cacheKey(),
+		opts:  &opts,
+		store: store,
 	}
 
-	// If there is a previous Evaluator constructed from the same settings, we
-	// can reuse the HeadersEvaluator along with any PolicyEvaluators for
-	// unchanged policies.
-	if previous != nil && previous.cfgCacheKey == e.cfgCacheKey {
-		e.headersEvaluators = previous.headersEvaluators
-		e.policyEvaluators = previous.policyEvaluators
-	} else {
-		e.headersEvaluators, err = NewHeadersEvaluator(ctx, store)
+	if previous == nil || opts.cacheKey() != previous.opts.cacheKey() {
+		var err error
+		rttrace.WithRegion(ctx, "update store", func() {
+			err = updateStore(store, &opts, previous)
+		})
 		if err != nil {
 			return nil, err
 		}
-		e.policyEvaluators = make(map[uint64]*PolicyEvaluator, len(cfg.Policies))
+
+		rttrace.WithRegion(ctx, "create headers evaluator", func() {
+			e.headersEvaluator, err = NewHeadersEvaluator(ctx, store)
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		e.policyEvaluators = make(map[uint64]*PolicyEvaluator, len(opts.Policies))
+	} else {
+		// If there is a previous Evaluator constructed from the same settings, we
+		// can reuse the HeadersEvaluator along with any PolicyEvaluators for
+		// unchanged policies.
+		e.headersEvaluator = previous.headersEvaluator
+		e.policyEvaluators = previous.policyEvaluators
 	}
-	if err := getOrCreatePolicyEvaluators(ctx, cfg, store, e.policyEvaluators); err != nil {
+
+	var err error
+	rttrace.WithRegion(ctx, "update policy evaluators", func() {
+		err = getOrCreatePolicyEvaluators(ctx, &opts, store, e.policyEvaluators)
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -148,85 +175,136 @@ func New(
 }
 
 type routeEvaluator struct {
-	id        uint64
-	evaluator *PolicyEvaluator
+	id               uint64
+	evaluator        *PolicyEvaluator
+	computedChecksum uint64
+}
+
+var workerPool = pond.New(runtime.NumCPU(), runtime.NumCPU(),
+	pond.Strategy(pond.Eager()),
+	pond.MinWorkers(runtime.NumCPU()/4),
+)
+
+const chunkSize = 64
+
+type workerContext struct {
+	context.Context
+	cfg                    *evaluatorOptions
+	store                  *store.Store
+	statusBits             []uint64
+	statusCounts           []uint8
+	totalModified          *atomic.Int32
+	evaluators             []routeEvaluator
+	cachedPolicyEvaluators map[uint64]*PolicyEvaluator
+	errs                   *sync.Map
+}
+
+func computeChecksums(wctx *workerContext, chunkStart, chunkEnd int) {
+	defer rttrace.StartRegion(wctx, "worker").End()
+	for c := chunkStart; c < chunkEnd; c++ {
+		var chunkStatus uint64
+		off := c * chunkSize
+		limit := min(chunkSize, len(wctx.cfg.Policies)-int(off))
+		for i := 0; i < limit; i++ {
+			p := &wctx.cfg.Policies[off+i]
+			id, err := p.RouteID()
+			if err != nil {
+				wctx.errs.Store(off+i, fmt.Errorf("authorize: error computing policy route id: %w", err))
+				continue
+			}
+			eval := &wctx.evaluators[off+i]
+			eval.id = id
+			eval.computedChecksum = p.Checksum()
+			cached, ok := wctx.cachedPolicyEvaluators[id]
+			if !ok {
+				rttrace.Logf(wctx, "", "policy with ID %d not found in cache", id)
+				chunkStatus |= 1 << i
+			} else if cached.policyChecksum != eval.computedChecksum {
+				rttrace.Logf(wctx, "", "policy with ID %d changed", id)
+				chunkStatus |= 1 << i
+			}
+		}
+		wctx.statusBits[c] = chunkStatus
+		popcnt := bits.OnesCount64(chunkStatus)
+		rttrace.Logf(wctx, "", "chunk %d: %d/%d changed", c, popcnt, limit)
+		wctx.statusCounts[c] = uint8(popcnt)
+		wctx.totalModified.Add(int32(popcnt))
+	}
+}
+
+func buildEvaluators(wctx *workerContext, partitions []int, workerIdx int) {
+	partitionStart := partitions[workerIdx]
+	partitionEnd := partitions[workerIdx+1]
+	defer rttrace.StartRegion(wctx, "worker").End()
+	addDefaultCert := wctx.cfg.AddDefaultClientCertificateRule
+	var err error
+	for c := partitionStart; c < partitionEnd; c++ {
+		stat := wctx.statusBits[c]
+		rttrace.Logf(wctx, "", "worker %d: chunk %d: status: %b", workerIdx, c, stat)
+		for stat != 0 {
+			bit := bits.TrailingZeros64(stat)
+			stat &^= 1 << bit
+			idx := bit + (chunkSize * c)
+			p := &wctx.cfg.Policies[idx]
+			eval := &wctx.evaluators[idx]
+			eval.evaluator, err = NewPolicyEvaluator(wctx, wctx.store, p, eval.computedChecksum, addDefaultCert)
+			if err != nil {
+				wctx.errs.Store(idx, err)
+			}
+		}
+	}
 }
 
 func getOrCreatePolicyEvaluators(
 	ctx context.Context,
-	cfg *evaluatorConfig,
+	cfg *evaluatorOptions,
 	store *store.Store,
 	cachedPolicyEvaluators map[uint64]*PolicyEvaluator,
 ) error {
-	ctx, task := rttrace.NewTask(ctx, "evaluator.getOrCreatePolicyEvaluators")
-	defer task.End()
-	defer rttrace.StartRegion(ctx, "evaluator.getOrCreatePolicyEvaluators").End()
-
 	rttrace.Logf(ctx, "", "using %d cached policy evaluators", len(cachedPolicyEvaluators))
 	now := time.Now()
 
-	const chunkSize = 64
 	statusBits := make([]uint64, uint32(len(cfg.Policies))/chunkSize+1) // 0=no change, 1=changed
 	statusCounts := make([]uint8, len(statusBits))
-	var totalModified int
+	var totalModified atomic.Int32
 	evaluators := make([]routeEvaluator, len(cfg.Policies))
 	if len(evaluators) == 0 {
 		return nil // nothing to do
 	}
 	numWorkers := min(runtime.NumCPU(), len(statusBits))
 	chunksPerWorker := len(statusBits) / numWorkers
+	wctx := &workerContext{
+		Context:                ctx,
+		cfg:                    cfg,
+		store:                  store,
+		statusBits:             statusBits,
+		statusCounts:           statusCounts,
+		totalModified:          &totalModified,
+		evaluators:             evaluators,
+		cachedPolicyEvaluators: cachedPolicyEvaluators,
+		errs:                   &sync.Map{}, // slice index->error
+	}
 
-	errs := sync.Map{} // slice index->error
-
-	region := rttrace.StartRegion(ctx, "computing checksums")
 	// compute route checksums
-	{
+	rttrace.WithRegion(ctx, "computing checksums", func() {
 		var wg sync.WaitGroup
 		wg.Add(numWorkers)
 		for workerIdx := range numWorkers {
 			chunkStart := workerIdx * chunksPerWorker
 			chunkEnd := chunkStart + chunksPerWorker
-			go func() {
-				ctx, task := rttrace.NewTask(ctx, fmt.Sprintf("worker-%d", workerIdx))
-				defer task.End()
-				defer rttrace.StartRegion(ctx, "worker").End()
+			if workerIdx == numWorkers-1 {
+				chunkEnd = len(statusBits)
+			}
+			workerPool.Submit(func() {
 				defer wg.Done()
-				for c := chunkStart; c < chunkEnd; c++ {
-					var chunkStatus uint64
-					off := c * chunkSize
-					limit := min(chunkSize, len(cfg.Policies)-int(off))
-					for i := 0; i < limit; i++ {
-						p := &cfg.Policies[off+i]
-						id, err := p.RouteID()
-						if err != nil {
-							errs.Store(off+i, fmt.Errorf("authorize: error computing policy route id: %w", err))
-							continue
-						}
-						evaluators[off+i].id = id
-						actual := p.Checksum()
-						cached, ok := cachedPolicyEvaluators[id]
-						if !ok {
-							rttrace.Logf(ctx, "", "policy with ID %d not found in cache", id)
-							chunkStatus |= 1 << i
-						} else if cached.policyChecksum != actual {
-							rttrace.Logf(ctx, "", "policy with ID %d changed", id)
-							chunkStatus |= 1 << i
-						}
-					}
-					statusBits[c] = chunkStatus
-					popcnt := bits.OnesCount64(chunkStatus)
-					rttrace.Logf(ctx, "", "chunk %d: %d/%d changed", c, popcnt, limit)
-					statusCounts[c] = uint8(popcnt)
-					totalModified += popcnt
-				}
-			}()
+				computeChecksums(wctx, chunkStart, chunkEnd)
+			})
 		}
 		wg.Wait()
-	}
-	region.End()
+	})
 
 	hasErrs := false
-	errs.Range(func(key, value any) bool {
+	wctx.errs.Range(func(key, value any) bool {
 		errPolicy := evaluators[key.(int)]
 		delete(cachedPolicyEvaluators, errPolicy.id)
 		log.Error(ctx).Msg(value.(error).Error())
@@ -237,72 +315,48 @@ func getOrCreatePolicyEvaluators(
 		return fmt.Errorf("authorize: error computing one or more policy route IDs")
 	}
 
-	if totalModified == 0 {
+	if totalModified.Load() == 0 {
 		return nil
 	}
 
-	region = rttrace.StartRegion(ctx, "partitioning")
-	partitions := make([]int, numWorkers)
-	{
-		targetJobsPerWorker := uint32(totalModified / numWorkers)
-		chunk := 0
+	// partitions here represent start indexes, since it is more likely that new
+	// evaluators will be appended to the existing list, instead of prepended,
+	// so we can more easily skip to the end of the list
+	partitions := make([]int, 0, numWorkers+1)
+	rttrace.WithRegion(ctx, "partitioning", func() {
+		targetJobsPerWorker := max(uint32(totalModified.Load()/int32(numWorkers)), 1)
 		numChunks := len(statusCounts)
-		for worker := 0; worker < numWorkers && chunk < numChunks; worker++ {
-			// find the end partition for each worker
-			accum := uint32(0)
-			for accum < targetJobsPerWorker && chunk < numChunks {
-				accum += uint32(statusCounts[chunk])
-				chunk++
+		var chunkIdx int
+		for statusBits[chunkIdx] == 0 {
+			chunkIdx++
+		}
+		for chunkIdx < numChunks {
+			partitions = append(partitions, chunkIdx)
+			var accum uint32
+			for chunkIdx < numChunks && accum < targetJobsPerWorker {
+				accum += uint32(statusBits[chunkIdx])
+				chunkIdx++
 			}
-			partitions[worker] = chunk
 		}
-		// add anything remaining to the last worker
-		if chunk != numChunks {
-			partitions[len(partitions)-1] = numChunks
-		}
-	}
-	region.End()
+		numWorkers = min(numWorkers, len(partitions))
+		partitions = append(partitions, numChunks)
+	})
 
-	region = rttrace.StartRegion(ctx, "running workers")
 	// spawn workers
-	{
+	rttrace.WithRegion(ctx, "running workers", func() {
 		var wg sync.WaitGroup
-		for worker := range numWorkers {
-			partitionStart := 0
-			if worker > 0 {
-				partitionStart = partitions[worker-1]
-			}
-			partitionEnd := partitions[worker]
-			wg.Add(1)
-			go func() {
-				ctx, task := rttrace.NewTask(ctx, fmt.Sprintf("worker-%d", worker))
-				defer task.End()
-				defer rttrace.StartRegion(ctx, "worker").End()
-
+		wg.Add(numWorkers)
+		for workerIdx := range numWorkers {
+			workerPool.Submit(func() {
 				defer wg.Done()
-				var err error
-				for c := partitionStart; c < partitionEnd; c++ {
-					stat := statusBits[c]
-					rttrace.Logf(ctx, "", "worker %d: chunk %d: status: %b", worker, c, stat)
-					for stat != 0 {
-						bit := bits.TrailingZeros64(stat)
-						stat &^= 1 << bit
-						idx := bit + (chunkSize * c)
-						p := &cfg.Policies[idx]
-						evaluators[idx].evaluator, err = NewPolicyEvaluator(ctx, store, p, cfg.AddDefaultClientCertificateRule)
-						if err != nil {
-							errs.Store(idx, err)
-						}
-					}
-				}
-			}()
+				buildEvaluators(wctx, partitions, workerIdx)
+			})
 		}
 		wg.Wait()
-	}
-	region.End()
+	})
 
 	hasErrs = false
-	errs.Range(func(key, value any) bool {
+	wctx.errs.Range(func(key, value any) bool {
 		errPolicy := evaluators[key.(int)]
 		delete(cachedPolicyEvaluators, errPolicy.id)
 		log.Error(ctx).Msg(value.(error).Error())
@@ -323,7 +377,7 @@ func getOrCreatePolicyEvaluators(
 
 	log.Debug(ctx).
 		Dur("duration", time.Since(now)).
-		Int("reused-policies", len(cfg.Policies)-totalModified).
+		Int("reused-policies", len(cfg.Policies)-int(totalModified.Load())).
 		Int("created-policies", len(cfg.Policies)-updatedCount).
 		Msg("updated policy evaluators")
 	return nil
@@ -408,7 +462,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 	}
 
 	isValidClientCertificate, err := isValidClientCertificate(
-		clientCA, string(e.clientCRL), req.HTTP.ClientCertificate, e.clientCertConstraints)
+		clientCA, string(e.opts.ClientCRL), req.HTTP.ClientCertificate, e.opts.ClientCertConstraints)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error validating client certificate: %w", err)
 	}
@@ -423,7 +477,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 func (e *Evaluator) evaluateHeaders(ctx context.Context, req *Request) (*HeadersResponse, error) {
 	headersReq := NewHeadersRequestFromPolicy(req.Policy, req.HTTP)
 	headersReq.Session = req.Session
-	res, err := e.headersEvaluators.Evaluate(ctx, headersReq)
+	res, err := e.headersEvaluator.Evaluate(ctx, headersReq)
 	if err != nil {
 		return nil, err
 	}
@@ -442,29 +496,36 @@ func (e *Evaluator) getClientCA(policy *config.Policy) (string, error) {
 		return string(bs), nil
 	}
 
-	return string(e.clientCA), nil
+	return string(e.opts.ClientCA), nil
 }
 
-func updateStore(store *store.Store, cfg *evaluatorConfig) error {
-	jwk, err := getJWK(cfg)
-	if err != nil {
-		return fmt.Errorf("authorize: couldn't create signer: %w", err)
+func updateStore(store *store.Store, cfg *evaluatorOptions, previous *Evaluator) error {
+	if previous == nil || !bytes.Equal(cfg.SigningKey, previous.opts.SigningKey) {
+		jwk, err := getJWK(cfg.SigningKey)
+		if err != nil {
+			return fmt.Errorf("authorize: couldn't create signer: %w", err)
+		}
+		store.UpdateSigningKey(jwk)
 	}
 
-	store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(
-		cfg.GoogleCloudServerlessAuthenticationServiceAccount,
-	)
-	store.UpdateJWTClaimHeaders(cfg.JWTClaimsHeaders)
-	store.UpdateRoutePolicies(cfg.Policies)
-	store.UpdateSigningKey(jwk)
+	if previous == nil || cfg.GoogleCloudServerlessAuthenticationServiceAccount != previous.opts.GoogleCloudServerlessAuthenticationServiceAccount {
+		store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(
+			cfg.GoogleCloudServerlessAuthenticationServiceAccount,
+		)
+	}
 
+	if previous == nil || !maps.Equal(cfg.JWTClaimsHeaders, previous.opts.JWTClaimsHeaders) {
+		store.UpdateJWTClaimHeaders(cfg.JWTClaimsHeaders)
+	}
+
+	store.UpdateRoutePolicies(cfg.Policies)
 	return nil
 }
 
-func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
+func getJWK(signingKey []byte) (*jose.JSONWebKey, error) {
 	var decodedCert []byte
 	// if we don't have a signing key, generate one
-	if len(cfg.SigningKey) == 0 {
+	if len(signingKey) == 0 {
 		key, err := cryptutil.NewSigningKey()
 		if err != nil {
 			return nil, fmt.Errorf("couldn't generate signing key: %w", err)
@@ -474,7 +535,7 @@ func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
 			return nil, fmt.Errorf("bad signing key: %w", err)
 		}
 	} else {
-		decodedCert = cfg.SigningKey
+		decodedCert = signingKey
 	}
 
 	jwk, err := cryptutil.PrivateJWKFromBytes(decodedCert)
