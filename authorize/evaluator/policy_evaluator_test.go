@@ -40,7 +40,9 @@ func TestPolicyEvaluator(t *testing.T) {
 		store := store.New()
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
-		e, err := NewPolicyEvaluator(ctx, store, policy, policy.Checksum(), addDefaultClientCertificateRule)
+		checksum, err := policy.Checksum()
+		require.NoError(t, err)
+		e, err := NewPolicyEvaluator(ctx, store, policy, checksum, addDefaultClientCertificateRule)
 		require.NoError(t, err)
 		return e.Evaluate(ctx, input)
 	}

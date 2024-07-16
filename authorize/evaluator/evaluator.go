@@ -103,21 +103,6 @@ type Evaluator struct {
 	headersEvaluator *HeadersEvaluator
 }
 
-func withRegion0[R any](ctx context.Context, name string, fn func() R) R {
-	defer rttrace.StartRegion(ctx, name).End()
-	return fn()
-}
-
-func withRegion1[T any, R any](ctx context.Context, name string, fn func(T) R, t T) R {
-	defer rttrace.StartRegion(ctx, name).End()
-	return fn(t)
-}
-
-func withRegion2[T any, U any, R any](ctx context.Context, name string, fn func(T, U) R, t T, u U) R {
-	defer rttrace.StartRegion(ctx, name).End()
-	return fn(t, u)
-}
-
 // New creates a new Evaluator.
 func New(
 	ctx context.Context,
@@ -225,7 +210,7 @@ func computeChecksums(wctx *workerContext, chunkStart, chunkEnd int) {
 			}
 			eval := &wctx.evaluators[off+i]
 			eval.id = id
-			eval.computedChecksum = p.Checksum()
+			eval.computedChecksum = p.ChecksumWithID(id)
 			cached, ok := wctx.cachedPolicyEvaluators[id]
 			if !ok {
 				rttrace.Logf(wctx, "", "policy with ID %d not found in cache", id)
@@ -244,9 +229,9 @@ func computeChecksums(wctx *workerContext, chunkStart, chunkEnd int) {
 }
 
 func buildEvaluators(wctx *workerContext, partitions []int, workerIdx int) {
+	defer rttrace.StartRegion(wctx, "worker-build").End()
 	partitionStart := partitions[workerIdx]
 	partitionEnd := partitions[workerIdx+1]
-	defer rttrace.StartRegion(wctx, "worker-build").End()
 	addDefaultCert := wctx.cfg.AddDefaultClientCertificateRule
 	var err error
 	for c := partitionStart; c < partitionEnd; c++ {

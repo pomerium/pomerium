@@ -343,13 +343,10 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	return p, p.Validate()
 }
 
-func (p *Policy) CopyToProto(dest *configpb.Route) error {
-	routeId, err := p.RouteID()
-	if err != nil {
-		return err
-	}
-
-	dest.Name = strconv.FormatUint(routeId, 10)
+// CopyToProto copies fields from the Policy into dest, aliasing pointers and
+// reusing memory where possible. It does NOT set the Name field in dest; that
+// must be done manually.
+func (p *Policy) CopyToProto(dest *configpb.Route) {
 	dest.From = p.From
 	dest.AllowedUsers = p.AllowedUsers
 	dest.AllowedDomains = p.AllowedDomains
@@ -455,8 +452,6 @@ func (p *Policy) CopyToProto(dest *configpb.Route) error {
 			Value: rwh.Value,
 		})
 	}
-
-	return nil
 }
 
 func copySrcToOptionalDest[T comparable](dst **T, src *T) {
@@ -509,9 +504,12 @@ func copyOptionalDurationToOptionalDurationpb(dst **durationpb.Duration, src **t
 // ToProto converts the policy to a protobuf type.
 func (p *Policy) ToProto() (*configpb.Route, error) {
 	out := &configpb.Route{}
-	if err := p.CopyToProto(out); err != nil {
+	p.CopyToProto(out)
+	routeId, err := p.RouteID()
+	if err != nil {
 		return nil, err
 	}
+	out.Name = strconv.FormatUint(routeId, 10)
 	return out, nil
 }
 
@@ -641,8 +639,69 @@ func (p *Policy) Validate() error {
 
 var policyPool = sync.Pool{
 	New: func() any {
-		return &configpb.Route{}
+		return &pooledRoute{
+			Route: &configpb.Route{},
+			pooledFields: pooledFields{
+				nameBuffer:           make([]byte, 20), // longest possible name (uint64 id -> string)
+				to:                   make([]string, 0, 1),
+				loadBalancingWeights: make([]uint32, 0, 1),
+				redirect:             &configpb.RouteRedirect{},
+				response:             &configpb.RouteDirectResponse{},
+				timeout:              &durationpb.Duration{},
+				idleTimeout:          &durationpb.Duration{},
+			},
+		}
 	},
+}
+
+type pooledRoute struct {
+	*configpb.Route
+	pooledFields pooledFields
+}
+
+func (pr *pooledRoute) unsafeSetName(id uint64) {
+	clear(pr.pooledFields.nameBuffer)
+	pr.pooledFields.nameBuffer = strconv.AppendUint(pr.pooledFields.nameBuffer[:0], id, 10)
+	pr.Name = *(*string)(unsafe.Pointer(&pr.pooledFields.nameBuffer))
+}
+
+// prepare copies the [pointers to] pooled fields to the corresponding fields
+// in the Route.
+func (pr *pooledRoute) prepare() {
+	pr.To = pr.pooledFields.to
+	pr.LoadBalancingWeights = pr.pooledFields.loadBalancingWeights
+	pr.Redirect = pr.pooledFields.redirect
+	pr.Response = pr.pooledFields.response
+	pr.Timeout = pr.pooledFields.timeout
+	pr.IdleTimeout = pr.pooledFields.idleTimeout
+}
+
+func (pr *pooledRoute) reset() {
+	// Reset to clear any pointers that may be aliasing other fields in the
+	// original Policy, to avoid extending its lifetime
+	pr.Reset()
+	pr.prepare() // copy back the fields we own
+	clear(pr.To)
+	pr.To = pr.To[:0]
+	clear(pr.LoadBalancingWeights)
+	pr.LoadBalancingWeights = pr.LoadBalancingWeights[:0]
+	pr.Redirect.Reset() // contains possibly aliased pointers
+	pr.Response.Reset()
+}
+
+// pooledFields contains a subset of fields that are owned by the pooled
+// Route objects, and reused along with the Route itself.
+// The fields here are either slices for commonly used fields that are stored
+// in a different way in Policy, or proto message types that cannot be directly
+// aliased from the Policy and would need to be heap-allocated each time.
+type pooledFields struct {
+	nameBuffer           []byte
+	to                   []string
+	loadBalancingWeights []uint32
+	redirect             *configpb.RouteRedirect
+	response             *configpb.RouteDirectResponse
+	timeout              *durationpb.Duration
+	idleTimeout          *durationpb.Duration
 }
 
 var checksumBufferPool bytebufferpool.Pool
@@ -657,14 +716,24 @@ var (
 )
 
 // Checksum returns the xxhash hash for the policy.
-func (p *Policy) Checksum() uint64 {
-	pb := policyPool.Get().(*configpb.Route)
-	_ = p.CopyToProto(pb)
+func (p *Policy) Checksum() (uint64, error) {
+	routeID, err := p.RouteID()
+	if err != nil {
+		return 0, err
+	}
+	return p.ChecksumWithID(routeID), nil
+}
+
+func (p *Policy) ChecksumWithID(routeID uint64) uint64 {
+	pr := policyPool.Get().(*pooledRoute)
+	pr.prepare()
+	p.CopyToProto(pr.Route)
+	pr.unsafeSetName(routeID)
 	var setReqHeaders, setRespHeaders map[string]string
-	setReqHeaders, pb.SetRequestHeaders = pb.SetRequestHeaders, nil
-	setRespHeaders, pb.SetResponseHeaders = pb.SetResponseHeaders, nil
+	setReqHeaders, pr.SetRequestHeaders = pr.SetRequestHeaders, nil
+	setRespHeaders, pr.SetResponseHeaders = pr.SetResponseHeaders, nil
 	buf := checksumBufferPool.Get()
-	buf.B, _ = marshalOpts.MarshalAppend(buf.B, pb)
+	buf.B, _ = marshalOpts.MarshalAppend(buf.B, pr)
 	if setReqHeaders != nil {
 		buf.B = binary.BigEndian.AppendUint64(buf.B, hashutil.MapHash(setRequestHeadersIv, setReqHeaders))
 	}
@@ -673,7 +742,8 @@ func (p *Policy) Checksum() uint64 {
 	}
 	sum := xxhash.Sum64(buf.B)
 	checksumBufferPool.Put(buf)
-	policyPool.Put(pb)
+	pr.reset()
+	policyPool.Put(pr)
 	return sum
 }
 
