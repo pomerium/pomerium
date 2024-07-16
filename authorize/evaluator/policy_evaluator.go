@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/rego"
-	octrace "go.opencensus.io/trace"
-
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -17,6 +15,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/policy"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	octrace "go.opencensus.io/trace"
 )
 
 // PolicyRequest is the input to policy evaluation.
@@ -115,6 +114,7 @@ func NewPolicyEvaluator(
 	configPolicy *config.Policy,
 	policyChecksum uint64,
 	addDefaultClientCertificateRule bool,
+	cache *QueryCache,
 ) (*PolicyEvaluator, error) {
 	e := new(PolicyEvaluator)
 	e.policyChecksum = policyChecksum
@@ -156,43 +156,52 @@ func NewPolicyEvaluator(
 		}
 	}
 
+	// for each script, create a rego object and prepare a query.
 	rttrace.WithRegion(ctx, "Compile Rego", func() {
-		// for each script, create a rego object and prepare a query.
 		for i := range e.queries {
-			log.Debug(ctx).
-				Str("script", e.queries[i].script).
-				Str("from", configPolicy.From).
-				Interface("to", configPolicy.To).
-				Msg("authorize: rego script for policy evaluation")
+			var cached bool
+			e.queries[i].PreparedEvalQuery, cached, err = cache.LookupOrBuild(&e.queries[i], func() (rego.PreparedEvalQuery, error) {
+				log.Debug(ctx).
+					Str("script", e.queries[i].script).
+					Str("from", configPolicy.From).
+					Interface("to", configPolicy.To).
+					Msg("authorize: rego script for policy evaluation")
 
-			r := rego.New(
-				rego.Store(store),
-				rego.Module("pomerium.policy", e.queries[i].script),
-				rego.Query("result = data.pomerium.policy"),
-				rego.EnablePrintStatements(true),
-				getGoogleCloudServerlessHeadersRegoOption,
-				store.GetDataBrokerRecordOption(),
-			)
-
-			var q rego.PreparedEvalQuery
-			q, err = r.PrepareForEval(ctx)
-			// if no package is in the src, add it
-			if err != nil && strings.Contains(err.Error(), "package expected") {
 				r := rego.New(
 					rego.Store(store),
-					rego.Module("pomerium.policy", "package pomerium.policy\n\n"+e.queries[i].script),
+					rego.Module("pomerium.policy", e.queries[i].script),
 					rego.Query("result = data.pomerium.policy"),
 					rego.EnablePrintStatements(true),
 					getGoogleCloudServerlessHeadersRegoOption,
 					store.GetDataBrokerRecordOption(),
 				)
-				q, err = r.PrepareForEval(ctx)
-			}
+
+				q, err := r.PrepareForEval(ctx)
+				// if no package is in the src, add it
+				if err != nil && strings.Contains(err.Error(), "package expected") {
+					r := rego.New(
+						rego.Store(store),
+						rego.Module("pomerium.policy", "package pomerium.policy\n\n"+e.queries[i].script),
+						rego.Query("result = data.pomerium.policy"),
+						rego.EnablePrintStatements(true),
+						getGoogleCloudServerlessHeadersRegoOption,
+						store.GetDataBrokerRecordOption(),
+					)
+					q, err = r.PrepareForEval(ctx)
+				}
+				if err != nil {
+					return rego.PreparedEvalQuery{}, err
+				}
+				return q, nil
+			})
 			if err != nil {
 				return
 			}
-
-			e.queries[i].PreparedEvalQuery = q
+			if cached {
+				rttrace.Log(ctx, "", "query was cached")
+			} else {
+				rttrace.Log(ctx, "", "query was not cached")
+			}
 		}
 	})
 	if err != nil {

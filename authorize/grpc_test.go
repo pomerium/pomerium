@@ -61,13 +61,15 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	policy0RouteID, err := policies[0].RouteID()
 	require.NoError(t, err)
 
-	a, err := New(&config.Config{
+	cfg := &config.Config{
 		Options: &config.Options{
 			SharedKey:    cryptutil.NewBase64Key(),
 			CookieSecret: cryptutil.NewBase64Key(),
 			Policies:     policies,
 		},
-	})
+	}
+	a, err := New(cfg)
+	a.OnConfigChange(context.Background(), cfg)
 	require.NoError(t, err)
 
 	actual, err := a.getEvaluatorRequestFromCheckRequest(context.Background(),
@@ -140,13 +142,15 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 	policy0RouteID, err := policies[0].RouteID()
 	require.NoError(t, err)
 
-	a, err := New(&config.Config{
+	cfg := &config.Config{
 		Options: &config.Options{
 			SharedKey:    cryptutil.NewBase64Key(),
 			CookieSecret: cryptutil.NewBase64Key(),
 			Policies:     policies,
 		},
-	})
+	}
+	a, err := New(cfg)
+	a.OnConfigChange(context.Background(), cfg)
 	require.NoError(t, err)
 
 	actual, err := a.getEvaluatorRequestFromCheckRequest(context.Background(),
