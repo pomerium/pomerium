@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -702,55 +703,66 @@ func mustParseURL(str string) *url.URL {
 }
 
 func BenchmarkEvaluator(b *testing.B) {
-	store := store.New()
 	log.SetLevel(zerolog.WarnLevel)
-	samplePPL := `
+
+	b.Run("append new policies", func(b *testing.B) {
+		b.Run("same ppl for all routes", func(b *testing.B) {
+			store := store.New()
+			ppl := `
 allow:
   and:
     - email:
         is: foo@bar.com
 `
-	var pplPolicy config.PPLPolicy
-	err := yaml.Unmarshal([]byte(samplePPL), &pplPolicy)
-	require.NoError(b, err)
-
-	b.Run("append new policies", func(b *testing.B) {
-		var e *evaluator.Evaluator
-		policies := make([]config.Policy, 0, 4096)
-		for i := 0; i < b.N; i++ {
-			policies = append(policies, config.Policy{
-				From:   fmt.Sprintf("https://from%d.example.com", i),
-				To:     singleToURL(fmt.Sprintf("https://to%d.example.com", i)),
-				Policy: &pplPolicy,
-			})
-			var err error
-			e, err = evaluator.New(context.Background(), store, e, evaluator.WithPolicies(policies))
+			var pplPolicy config.PPLPolicy
+			err := yaml.Unmarshal([]byte(ppl), &pplPolicy)
 			require.NoError(b, err)
-			require.Equal(b, e.Cache().NumCachedEvaluators(), len(policies))
-		}
-	})
 
-	// b.Run("append new policies (large starting list)", func(b *testing.B) {
-	// 	var e *Evaluator
-	// 	initialSize := 5000
-	// 	policies := make([]config.Policy, initialSize, initialSize*2)
-	// 	for i := 0; i < initialSize; i++ {
-	// 		policies[i] = config.Policy{
-	// 			From:   fmt.Sprintf("https://from%d.example.com", i),
-	// 			To:     singleToURL(fmt.Sprintf("https://to%d.example.com", i)),
-	// 			Policy: &pplPolicy,
-	// 		}
-	// 	}
-	// 	for i := 0; i < b.N; i++ {
-	// 		policies = append(policies, config.Policy{
-	// 			From:   fmt.Sprintf("https://from%d.example.com", initialSize+i),
-	// 			To:     singleToURL(fmt.Sprintf("https://to%d.example.com", initialSize+i)),
-	// 			Policy: &pplPolicy,
-	// 		})
-	// 		var err error
-	// 		e, err = New(context.Background(), store, e, evaluator.WithPolicies(policies))
-	// 		require.NoError(b, err)
-	// 		require.Equal(b, len(e.policyEvaluators), len(policies))
-	// 	}
-	// })
+			var e *evaluator.Evaluator
+			policies := make([]config.Policy, 0, 4096)
+			for i := 0; i < b.N; i++ {
+				policies = append(policies, config.Policy{
+					From:   fmt.Sprintf("https://from%d.example.com", i),
+					To:     singleToURL(fmt.Sprintf("https://to%d.example.com", i)),
+					Policy: &pplPolicy,
+				})
+				var err error
+				e, err = evaluator.New(context.Background(), store, e, evaluator.WithPolicies(policies))
+				require.NoError(b, err)
+				require.Equal(b, e.Cache().NumCachedEvaluators(), len(policies))
+			}
+		})
+		b.Run("unique ppl per route", func(b *testing.B) {
+			store := store.New()
+			newPPLPolicy := func(i int) *config.PPLPolicy {
+				ppl := fmt.Sprintf(`
+allow:
+  and:
+    - email:
+        is: user-%d@example.com
+`, i)
+				var pplPolicy config.PPLPolicy
+				err := yaml.Unmarshal([]byte(ppl), &pplPolicy)
+				require.NoError(b, err)
+				return &pplPolicy
+			}
+
+			var e *evaluator.Evaluator
+			policies := make([]config.Policy, 0, 4096)
+			timeout := time.Minute
+			for i := 0; i < b.N; i++ {
+				policies = append(policies, config.Policy{
+					From:            fmt.Sprintf("https://from%d.example.com", i),
+					To:              singleToURL(fmt.Sprintf("https://to%d.example.com", i)),
+					Policy:          newPPLPolicy(i),
+					UpstreamTimeout: &timeout,
+					TLSSkipVerify:   true,
+				})
+				var err error
+				e, err = evaluator.New(context.Background(), store, e, evaluator.WithPolicies(policies))
+				require.NoError(b, err)
+				require.Equal(b, e.Cache().NumCachedEvaluators(), len(policies))
+			}
+		})
+	})
 }
