@@ -723,4 +723,28 @@ allow:
 			require.Equal(b, len(e.policyEvaluators), len(policies))
 		}
 	})
+
+	// b.Run("append new policies (large starting list)", func(b *testing.B) {
+	// 	var e *Evaluator
+	// 	initialSize := 5000
+	// 	policies := make([]config.Policy, initialSize, initialSize*2)
+	// 	for i := 0; i < initialSize; i++ {
+	// 		policies[i] = config.Policy{
+	// 			From:   fmt.Sprintf("https://from%d.example.com", i),
+	// 			To:     singleToURL(fmt.Sprintf("https://to%d.example.com", i)),
+	// 			Policy: &pplPolicy,
+	// 		}
+	// 	}
+	// 	for i := 0; i < b.N; i++ {
+	// 		policies = append(policies, config.Policy{
+	// 			From:   fmt.Sprintf("https://from%d.example.com", initialSize+i),
+	// 			To:     singleToURL(fmt.Sprintf("https://to%d.example.com", initialSize+i)),
+	// 			Policy: &pplPolicy,
+	// 		})
+	// 		var err error
+	// 		e, err = New(context.Background(), store, e, WithPolicies(policies))
+	// 		require.NoError(b, err)
+	// 		require.Equal(b, len(e.policyEvaluators), len(policies))
+	// 	}
+	// })
 }

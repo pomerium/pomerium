@@ -8,15 +8,15 @@ import (
 )
 
 type evaluatorOptions struct {
-	Policies                                          []config.Policy        `codec:"-" hash:"-"`
-	ClientCA                                          []byte                 `codec:"1"`
-	ClientCRL                                         []byte                 `codec:"2"`
-	AddDefaultClientCertificateRule                   bool                   `codec:"3"`
-	ClientCertConstraints                             ClientCertConstraints  `codec:"4"`
-	SigningKey                                        []byte                 `codec:"5"`
-	AuthenticateURL                                   string                 `codec:"6"`
-	GoogleCloudServerlessAuthenticationServiceAccount string                 `codec:"7"`
-	JWTClaimsHeaders                                  config.JWTClaimHeaders `codec:"8"`
+	Policies                                          []config.Policy `hash:"-"`
+	ClientCA                                          []byte
+	ClientCRL                                         []byte
+	AddDefaultClientCertificateRule                   bool
+	ClientCertConstraints                             ClientCertConstraints
+	SigningKey                                        []byte
+	AuthenticateURL                                   string
+	GoogleCloudServerlessAuthenticationServiceAccount string
+	JWTClaimsHeaders                                  config.JWTClaimHeaders
 
 	cacheKeyOnce     sync.Once
 	computedCacheKey uint64

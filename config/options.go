@@ -290,7 +290,7 @@ type Options struct {
 
 	AuditKey *PublicKeyEncryptionKeyOptions `mapstructure:"audit_key"`
 
-	BrandingOptions httputil.BrandingOptions `codec:"-"`
+	BrandingOptions httputil.BrandingOptions
 
 	PassIdentityHeaders *bool `mapstructure:"pass_identity_headers" yaml:"pass_identity_headers"`
 

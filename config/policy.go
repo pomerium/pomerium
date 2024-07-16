@@ -9,13 +9,17 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unsafe"
 
 	"github.com/cespare/xxhash/v2"
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	"github.com/valyala/bytebufferpool"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
@@ -116,7 +120,7 @@ type Policy struct {
 	TLSClientKey      string           `mapstructure:"tls_client_key" yaml:"tls_client_key,omitempty"`
 	TLSClientCertFile string           `mapstructure:"tls_client_cert_file" yaml:"tls_client_cert_file,omitempty"`
 	TLSClientKeyFile  string           `mapstructure:"tls_client_key_file" yaml:"tls_client_key_file,omitempty"`
-	ClientCertificate *tls.Certificate `codec:"-" yaml:",omitempty" hash:"ignore"`
+	ClientCertificate *tls.Certificate `yaml:",omitempty" hash:"-"`
 
 	// TLSDownstreamClientCA defines the root certificate to use with a given route to verify
 	// downstream client certificates (e.g. from a user's browser).
@@ -339,103 +343,111 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	return p, p.Validate()
 }
 
-// ToProto converts the policy to a protobuf type.
-func (p *Policy) ToProto() (*configpb.Route, error) {
-	var timeout *durationpb.Duration
-	if p.UpstreamTimeout == nil {
-		timeout = durationpb.New(defaultOptions.DefaultUpstreamTimeout)
-	} else {
-		timeout = durationpb.New(*p.UpstreamTimeout)
-	}
-	var idleTimeout *durationpb.Duration
-	if p.IdleTimeout != nil {
-		idleTimeout = durationpb.New(*p.IdleTimeout)
-	}
-	sps := make([]*configpb.Policy, 0, len(p.SubPolicies))
-	for _, sp := range p.SubPolicies {
-		sps = append(sps, &configpb.Policy{
-			Id:               sp.ID,
-			Name:             sp.Name,
-			AllowedUsers:     sp.AllowedUsers,
-			AllowedDomains:   sp.AllowedDomains,
-			AllowedIdpClaims: sp.AllowedIDPClaims.ToPB(),
-			Rego:             sp.Rego,
-		})
+func (p *Policy) CopyToProto(dest *configpb.Route) error {
+	routeId, err := p.RouteID()
+	if err != nil {
+		return err
 	}
 
-	pb := &configpb.Route{
-		Name:                             fmt.Sprint(p.RouteID()),
-		From:                             p.From,
-		AllowedUsers:                     p.AllowedUsers,
-		AllowedDomains:                   p.AllowedDomains,
-		AllowedIdpClaims:                 p.AllowedIDPClaims.ToPB(),
-		Prefix:                           p.Prefix,
-		Path:                             p.Path,
-		Regex:                            p.Regex,
-		PrefixRewrite:                    p.PrefixRewrite,
-		RegexRewritePattern:              p.RegexRewritePattern,
-		RegexRewriteSubstitution:         p.RegexRewriteSubstitution,
-		CorsAllowPreflight:               p.CORSAllowPreflight,
-		AllowPublicUnauthenticatedAccess: p.AllowPublicUnauthenticatedAccess,
-		AllowAnyAuthenticatedUser:        p.AllowAnyAuthenticatedUser,
-		Timeout:                          timeout,
-		IdleTimeout:                      idleTimeout,
-		AllowWebsockets:                  p.AllowWebsockets,
-		AllowSpdy:                        p.AllowSPDY,
-		TlsSkipVerify:                    p.TLSSkipVerify,
-		TlsServerName:                    p.TLSServerName,
-		TlsUpstreamServerName:            p.TLSUpstreamServerName,
-		TlsDownstreamServerName:          p.TLSDownstreamServerName,
-		TlsCustomCa:                      p.TLSCustomCA,
-		TlsCustomCaFile:                  p.TLSCustomCAFile,
-		TlsClientCert:                    p.TLSClientCert,
-		TlsClientKey:                     p.TLSClientKey,
-		TlsClientCertFile:                p.TLSClientCertFile,
-		TlsClientKeyFile:                 p.TLSClientKeyFile,
-		TlsDownstreamClientCa:            p.TLSDownstreamClientCA,
-		TlsDownstreamClientCaFile:        p.TLSDownstreamClientCAFile,
-		SetRequestHeaders:                p.SetRequestHeaders,
-		RemoveRequestHeaders:             p.RemoveRequestHeaders,
-		PreserveHostHeader:               p.PreserveHostHeader,
-		PassIdentityHeaders:              p.PassIdentityHeaders,
-		KubernetesServiceAccountToken:    p.KubernetesServiceAccountToken,
-		Policies:                         sps,
-		SetResponseHeaders:               p.SetResponseHeaders,
+	dest.Name = strconv.FormatUint(routeId, 10)
+	dest.From = p.From
+	dest.AllowedUsers = p.AllowedUsers
+	dest.AllowedDomains = p.AllowedDomains
+	if p.AllowedIDPClaims != nil {
+		dest.AllowedIdpClaims = p.AllowedIDPClaims.ToPB()
 	}
-	if p.IDPClientID != "" {
-		pb.IdpClientId = proto.String(p.IDPClientID)
-	}
-	if p.IDPClientSecret != "" {
-		pb.IdpClientSecret = proto.String(p.IDPClientSecret)
-	}
+	dest.Prefix = p.Prefix
+	dest.Path = p.Path
+	dest.Regex = p.Regex
+	dest.PrefixRewrite = p.PrefixRewrite
+	dest.RegexRewritePattern = p.RegexRewritePattern
+	dest.RegexRewriteSubstitution = p.RegexRewriteSubstitution
+	dest.CorsAllowPreflight = p.CORSAllowPreflight
+	dest.AllowPublicUnauthenticatedAccess = p.AllowPublicUnauthenticatedAccess
+	dest.AllowAnyAuthenticatedUser = p.AllowAnyAuthenticatedUser
+	dest.AllowWebsockets = p.AllowWebsockets
+	dest.AllowSpdy = p.AllowSPDY
+	dest.TlsSkipVerify = p.TLSSkipVerify
+	dest.TlsServerName = p.TLSServerName
+	dest.TlsUpstreamServerName = p.TLSUpstreamServerName
+	dest.TlsDownstreamServerName = p.TLSDownstreamServerName
+	dest.TlsCustomCa = p.TLSCustomCA
+	dest.TlsCustomCaFile = p.TLSCustomCAFile
+	dest.TlsClientCert = p.TLSClientCert
+	dest.TlsClientKey = p.TLSClientKey
+	dest.TlsClientCertFile = p.TLSClientCertFile
+	dest.TlsClientKeyFile = p.TLSClientKeyFile
+	dest.TlsDownstreamClientCa = p.TLSDownstreamClientCA
+	dest.TlsDownstreamClientCaFile = p.TLSDownstreamClientCAFile
+	dest.SetRequestHeaders = p.SetRequestHeaders
+	dest.RemoveRequestHeaders = p.RemoveRequestHeaders
+	dest.PreserveHostHeader = p.PreserveHostHeader
+	dest.PassIdentityHeaders = p.PassIdentityHeaders
+	dest.KubernetesServiceAccountToken = p.KubernetesServiceAccountToken
+	dest.SetResponseHeaders = p.SetResponseHeaders
+	copySrcToOptionalDest(&dest.IdpClientId, &p.IDPClientID)
+	copySrcToOptionalDest(&dest.IdpClientSecret, &p.IDPClientSecret)
 	if p.Redirect != nil {
-		pb.Redirect = &configpb.RouteRedirect{
-			HttpsRedirect:  p.Redirect.HTTPSRedirect,
-			SchemeRedirect: p.Redirect.SchemeRedirect,
-			HostRedirect:   p.Redirect.HostRedirect,
-			PortRedirect:   p.Redirect.PortRedirect,
-			PathRedirect:   p.Redirect.PathRedirect,
-			PrefixRewrite:  p.Redirect.PrefixRewrite,
-			ResponseCode:   p.Redirect.ResponseCode,
-			StripQuery:     p.Redirect.StripQuery,
+		if dest.Redirect == nil {
+			dest.Redirect = &configpb.RouteRedirect{}
 		}
-	} else if p.Response != nil {
-		pb.Response = &configpb.RouteDirectResponse{
-			Status: uint32(p.Response.Status),
-			Body:   p.Response.Body,
-		}
-	} else {
-		to, weights, err := p.To.Flatten()
-		if err != nil {
-			return nil, err
-		}
+		dest.Response = nil
+		dest.To = nil
+		dest.LoadBalancingWeights = nil
 
-		pb.To = to
-		pb.LoadBalancingWeights = weights
+		copyOptionalSrcToOptionalDest(&dest.Redirect.HttpsRedirect, &p.Redirect.HTTPSRedirect)
+		copyOptionalSrcToOptionalDest(&dest.Redirect.SchemeRedirect, &p.Redirect.SchemeRedirect)
+		copyOptionalSrcToOptionalDest(&dest.Redirect.HostRedirect, &p.Redirect.HostRedirect)
+		copyOptionalSrcToOptionalDest(&dest.Redirect.PortRedirect, &p.Redirect.PortRedirect)
+		copyOptionalSrcToOptionalDest(&dest.Redirect.PathRedirect, &p.Redirect.PathRedirect)
+		copyOptionalSrcToOptionalDest(&dest.Redirect.PrefixRewrite, &p.Redirect.PrefixRewrite)
+		copyOptionalSrcToOptionalDest(&dest.Redirect.ResponseCode, &p.Redirect.ResponseCode)
+		copyOptionalSrcToOptionalDest(&dest.Redirect.StripQuery, &p.Redirect.StripQuery)
+	} else if p.Response != nil {
+		if dest.Response == nil {
+			dest.Response = &configpb.RouteDirectResponse{}
+		}
+		dest.Redirect = nil
+		dest.To = nil
+		dest.LoadBalancingWeights = nil
+
+		dest.Response.Status = uint32(p.Response.Status)
+		dest.Response.Body = p.Response.Body
+	} else {
+		clear(dest.To)
+		dest.To = slices.Grow(dest.To[:0], len(p.To))
+		clear(dest.LoadBalancingWeights)
+		dest.LoadBalancingWeights = slices.Grow(dest.LoadBalancingWeights[:0], len(p.To))
+		dest.Redirect = nil
+		dest.Response = nil
+
+		for _, u := range p.To {
+			dest.To = append(dest.To, u.URL.String())
+			dest.LoadBalancingWeights = append(dest.LoadBalancingWeights, u.LbWeight)
+		}
+	}
+	copyOptionalDurationToOptionalDurationpb(&dest.Timeout, &p.UpstreamTimeout, &defaultOptions.DefaultUpstreamTimeout)
+	copyOptionalDurationToOptionalDurationpb(&dest.IdleTimeout, &p.IdleTimeout, nil)
+
+	clear(dest.Policies)
+	dest.Policies = slices.Grow(dest.Policies[:0], len(p.SubPolicies))
+	for _, sp := range p.SubPolicies {
+		pb := &configpb.Policy{
+			Id:             sp.ID,
+			Name:           sp.Name,
+			AllowedUsers:   sp.AllowedUsers,
+			AllowedDomains: sp.AllowedDomains,
+			Rego:           sp.Rego,
+		}
+		if sp.AllowedIDPClaims != nil {
+			pb.AllowedIdpClaims = sp.AllowedIDPClaims.ToPB()
+		}
+		dest.Policies = append(dest.Policies, pb)
 	}
 
 	for _, rwh := range p.RewriteResponseHeaders {
-		pb.RewriteResponseHeaders = append(pb.RewriteResponseHeaders, &configpb.RouteRewriteHeader{
+		clear(dest.RewriteResponseHeaders)
+		dest.RewriteResponseHeaders = append(dest.RewriteResponseHeaders[:0], &configpb.RouteRewriteHeader{
 			Header: rwh.Header,
 			Matcher: &configpb.RouteRewriteHeader_Prefix{
 				Prefix: rwh.Prefix,
@@ -444,7 +456,63 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		})
 	}
 
-	return pb, nil
+	return nil
+}
+
+func copySrcToOptionalDest[T comparable](dst **T, src *T) {
+	var zero T
+	if *src == zero {
+		*dst = nil
+	} else {
+		if *dst == nil {
+			*dst = src
+		} else {
+			**dst = *src
+		}
+	}
+}
+
+func copyOptionalSrcToOptionalDest[T comparable](dst, src **T) {
+	if *dst == nil || *src == nil {
+		*dst = *src
+		return
+	}
+	**dst = **src
+}
+
+func copyOptionalDurationToOptionalDurationpb(dst **durationpb.Duration, src **time.Duration, def *time.Duration) {
+	if *dst != nil {
+		var nanos int64
+		if *src == nil {
+			if def == nil {
+				*dst = nil
+				return
+			}
+			nanos = int64(*def)
+		} else {
+			nanos = int64(**src)
+		}
+		seconds := nanos / int64(time.Second)
+		(*dst).Seconds = seconds
+		(*dst).Nanos = int32(nanos - seconds*int64(time.Second))
+	} else {
+		if *src == nil {
+			if def != nil {
+				*dst = durationpb.New(*def)
+			}
+		} else {
+			*dst = durationpb.New(**src)
+		}
+	}
+}
+
+// ToProto converts the policy to a protobuf type.
+func (p *Policy) ToProto() (*configpb.Route, error) {
+	out := &configpb.Route{}
+	if err := p.CopyToProto(out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // Validate checks the validity of a policy.
@@ -571,9 +639,42 @@ func (p *Policy) Validate() error {
 	return nil
 }
 
+var policyPool = sync.Pool{
+	New: func() any {
+		return &configpb.Route{}
+	},
+}
+
+var checksumBufferPool bytebufferpool.Pool
+
+var marshalOpts = proto.MarshalOptions{
+	Deterministic: true,
+}
+
+var (
+	setRequestHeadersIv  = xxhash.Sum64String("Policy.SetRequestHeaders")
+	setResponseHeadersIv = xxhash.Sum64String("Policy.SetResponseHeaders")
+)
+
 // Checksum returns the xxhash hash for the policy.
 func (p *Policy) Checksum() uint64 {
-	return hashutil.MustHash(p)
+	pb := policyPool.Get().(*configpb.Route)
+	_ = p.CopyToProto(pb)
+	var setReqHeaders, setRespHeaders map[string]string
+	setReqHeaders, pb.SetRequestHeaders = pb.SetRequestHeaders, nil
+	setRespHeaders, pb.SetResponseHeaders = pb.SetResponseHeaders, nil
+	buf := checksumBufferPool.Get()
+	buf.B, _ = marshalOpts.MarshalAppend(buf.B, pb)
+	if setReqHeaders != nil {
+		buf.B = binary.BigEndian.AppendUint64(buf.B, hashutil.MapHash(setRequestHeadersIv, setReqHeaders))
+	}
+	if setRespHeaders != nil {
+		buf.B = binary.BigEndian.AppendUint64(buf.B, hashutil.MapHash(setResponseHeadersIv, setRespHeaders))
+	}
+	sum := xxhash.Sum64(buf.B)
+	checksumBufferPool.Put(buf)
+	policyPool.Put(pb)
+	return sum
 }
 
 // RouteID returns a unique identifier for a route

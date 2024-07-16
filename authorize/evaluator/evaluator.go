@@ -16,7 +16,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/alitto/pond"
 	"github.com/go-jose/go-jose/v3"
 	"github.com/open-policy-agent/opa/rego"
 	"golang.org/x/sync/errgroup"
@@ -180,10 +179,22 @@ type routeEvaluator struct {
 	computedChecksum uint64
 }
 
-var workerPool = pond.New(runtime.NumCPU(), runtime.NumCPU(),
-	pond.Strategy(pond.Eager()),
-	pond.MinWorkers(runtime.NumCPU()/4),
+var (
+	workerPoolSize      = runtime.NumCPU() - 1
+	workerPoolTaskQueue = make(chan func(), workerPoolSize)
 )
+
+func init() {
+	for i := 0; i < workerPoolSize; i++ {
+		go worker()
+	}
+}
+
+func worker() {
+	for fn := range workerPoolTaskQueue {
+		fn()
+	}
+}
 
 const chunkSize = 64
 
@@ -200,7 +211,7 @@ type workerContext struct {
 }
 
 func computeChecksums(wctx *workerContext, chunkStart, chunkEnd int) {
-	defer rttrace.StartRegion(wctx, "worker").End()
+	defer rttrace.StartRegion(wctx, "worker-checksum").End()
 	for c := chunkStart; c < chunkEnd; c++ {
 		var chunkStatus uint64
 		off := c * chunkSize
@@ -235,7 +246,7 @@ func computeChecksums(wctx *workerContext, chunkStart, chunkEnd int) {
 func buildEvaluators(wctx *workerContext, partitions []int, workerIdx int) {
 	partitionStart := partitions[workerIdx]
 	partitionEnd := partitions[workerIdx+1]
-	defer rttrace.StartRegion(wctx, "worker").End()
+	defer rttrace.StartRegion(wctx, "worker-build").End()
 	addDefaultCert := wctx.cfg.AddDefaultClientCertificateRule
 	var err error
 	for c := partitionStart; c < partitionEnd; c++ {
@@ -264,15 +275,21 @@ func getOrCreatePolicyEvaluators(
 	rttrace.Logf(ctx, "", "using %d cached policy evaluators", len(cachedPolicyEvaluators))
 	now := time.Now()
 
-	statusBits := make([]uint64, uint32(len(cfg.Policies))/chunkSize+1) // 0=no change, 1=changed
-	statusCounts := make([]uint8, len(statusBits))
+	numChunks := len(cfg.Policies) / chunkSize
+	if len(cfg.Policies)%chunkSize != 0 {
+		numChunks++
+	}
+	statusBits := make([]uint64, numChunks) // 0=no change, 1=changed
+	statusCounts := make([]uint8, numChunks)
 	var totalModified atomic.Int32
 	evaluators := make([]routeEvaluator, len(cfg.Policies))
 	if len(evaluators) == 0 {
 		return nil // nothing to do
 	}
-	numWorkers := min(runtime.NumCPU(), len(statusBits))
-	chunksPerWorker := len(statusBits) / numWorkers
+	numWorkers := min(workerPoolSize, numChunks)
+	minChunksPerWorker := numChunks / numWorkers
+	overflow := numChunks % numWorkers // number of workers which get an additional chunk
+
 	wctx := &workerContext{
 		Context:                ctx,
 		cfg:                    cfg,
@@ -289,16 +306,18 @@ func getOrCreatePolicyEvaluators(
 	rttrace.WithRegion(ctx, "computing checksums", func() {
 		var wg sync.WaitGroup
 		wg.Add(numWorkers)
+		chunkIdx := 0
 		for workerIdx := range numWorkers {
-			chunkStart := workerIdx * chunksPerWorker
-			chunkEnd := chunkStart + chunksPerWorker
-			if workerIdx == numWorkers-1 {
-				chunkEnd = len(statusBits)
+			chunkStart := chunkIdx
+			chunkEnd := chunkStart + minChunksPerWorker
+			if workerIdx < overflow {
+				chunkEnd++
 			}
-			workerPool.Submit(func() {
+			chunkIdx = chunkEnd
+			workerPoolTaskQueue <- func() {
 				defer wg.Done()
 				computeChecksums(wctx, chunkStart, chunkEnd)
-			})
+			}
 		}
 		wg.Wait()
 	})
@@ -347,10 +366,10 @@ func getOrCreatePolicyEvaluators(
 		var wg sync.WaitGroup
 		wg.Add(numWorkers)
 		for workerIdx := range numWorkers {
-			workerPool.Submit(func() {
+			workerPoolTaskQueue <- func() {
 				defer wg.Done()
 				buildEvaluators(wctx, partitions, workerIdx)
-			})
+			}
 		}
 		wg.Wait()
 	})

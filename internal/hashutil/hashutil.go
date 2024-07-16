@@ -4,11 +4,10 @@
 package hashutil
 
 import (
-	"sync"
+	"encoding/binary"
 
 	"github.com/cespare/xxhash/v2"
 	"github.com/mitchellh/hashstructure/v2"
-	"github.com/ugorji/go/codec"
 )
 
 // MustHash returns the xxhash of an arbitrary value or struct. Returns 0
@@ -25,47 +24,20 @@ func MustHash(v any) uint64 {
 // Hash returns the xxhash of an arbitrary value or struct.
 // NOT SUITABLE FOR CRYTOGRAPHIC HASHING.
 func Hash(v any) (uint64, error) {
-	if cs, ok := v.(codec.Selfer); ok {
-		return hashCodecSelfer(cs)
-	}
 	opts := &hashstructure.HashOptions{
 		Hasher: xxhash.New(),
 	}
 	return hashstructure.Hash(v, hashstructure.FormatV2, opts)
 }
 
-var msgpackHandle = &codec.MsgpackHandle{}
-
-func init() {
-	msgpackHandle.Canonical = true
-	// msgpackHandle.StructToArray = true
-	// msgpackHandle.StringToRaw = true
-}
-
-var encoderPool = sync.Pool{
-	New: func() any {
-		return codec.NewEncoder(nil, msgpackHandle)
-	},
-}
-
-var hashPool = sync.Pool{
-	New: func() any {
-		return xxhash.New()
-	},
-}
-
-func hashCodecSelfer(v codec.Selfer) (uint64, error) {
-	hash := hashPool.Get().(*xxhash.Digest)
-	hash.Reset()
-	encoder := encoderPool.Get().(*codec.Encoder)
-	encoder.Reset(hash)
-	err := encoder.Encode(v)
-	encoderPool.Put(encoder)
-	if err != nil {
-		hashPool.Put(hash)
-		return 0, err
+// MapHash efficiently computes a non-cryptographic hash of a map of strings.
+func MapHash(iv uint64, m map[string]string) uint64 {
+	accum := iv
+	var buf [16]byte
+	for k, v := range m {
+		binary.BigEndian.PutUint64(buf[0:8], xxhash.Sum64String(k))
+		binary.BigEndian.PutUint64(buf[8:16], xxhash.Sum64String(v))
+		accum ^= xxhash.Sum64(buf[:])
 	}
-	sum := hash.Sum64()
-	hashPool.Put(hash)
-	return sum, nil
+	return accum
 }

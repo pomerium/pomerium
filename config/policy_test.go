@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"testing"
+	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/google/go-cmp/cmp"
@@ -11,7 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
 func Test_PolicyValidate(t *testing.T) {
@@ -368,4 +371,120 @@ func TestPolicy_IsTCPUpstream(t *testing.T) {
 		From: "tcp+https://example.com:1234",
 	}
 	assert.False(t, p3.IsTCPUpstream())
+}
+
+func BenchmarkChecksum(b *testing.B) {
+	p := Policy{
+		ID:        "a",
+		From:      "b",
+		To:        mustParseWeightedURLs(b, "https://localhost"),
+		LbWeights: []uint32{1, 2, 3},
+		// these are deprecated
+		// AllowedUsers:   []string{"a", "b", "c"},
+		// AllowedDomains: []string{"a", "b", "c"},
+		// AllowedIDPClaims: map[string][]any{
+		// 	"a": {1, 2, 3},
+		// 	"b": {4, 5, 6},
+		// },
+		Prefix:                           "c",
+		Path:                             "d",
+		Regex:                            "e",
+		RegexPriorityOrder:               new(int64),
+		PrefixRewrite:                    "f",
+		RegexRewritePattern:              "g",
+		RegexRewriteSubstitution:         "h",
+		HostRewrite:                      "i",
+		HostRewriteHeader:                "j",
+		HostPathRegexRewritePattern:      "k",
+		HostPathRegexRewriteSubstitution: "l",
+		CORSAllowPreflight:               true,
+		AllowPublicUnauthenticatedAccess: false,
+		AllowAnyAuthenticatedUser:        true,
+		UpstreamTimeout:                  new(time.Duration),
+		IdleTimeout:                      new(time.Duration),
+		AllowWebsockets:                  false,
+		AllowSPDY:                        true,
+		TLSSkipVerify:                    false,
+		TLSServerName:                    "m",
+		TLSDownstreamServerName:          "n",
+		TLSUpstreamServerName:            "o",
+		TLSCustomCA:                      "p",
+		TLSCustomCAFile:                  "q",
+		TLSClientCert:                    "r",
+		TLSClientKey:                     "s",
+		TLSClientCertFile:                "t",
+		TLSClientKeyFile:                 "u",
+		TLSDownstreamClientCA:            "v",
+		TLSDownstreamClientCAFile:        "w",
+		TLSUpstreamAllowRenegotiation:    true,
+		SetRequestHeaders: map[string]string{
+			"a": "1",
+			"b": "2",
+			"c": "3",
+		},
+		RemoveRequestHeaders: []string{
+			"a",
+			"b",
+			"c",
+		},
+		PreserveHostHeader:                        true,
+		PassIdentityHeaders:                       new(bool),
+		KubernetesServiceAccountToken:             "x",
+		KubernetesServiceAccountTokenFile:         "y",
+		EnableGoogleCloudServerlessAuthentication: true,
+		SubPolicies:                               []SubPolicy{},
+		EnvoyOpts:                                 &envoy_config_cluster_v3.Cluster{},
+		RewriteResponseHeaders: []RewriteHeader{
+			{
+				Header: "a",
+				Prefix: "b",
+				Value:  "c",
+			},
+		},
+		SetResponseHeaders: map[string]string{
+			"a": "1",
+			"b": "2",
+			"c": "3",
+		},
+		IDPClientID:      "z",
+		IDPClientSecret:  "zz",
+		ShowErrorDetails: true,
+		Policy: &PPLPolicy{
+			Policy: &parser.Policy{
+				Rules: []parser.Rule{
+					{
+						Action: parser.ActionAllow,
+						And:    []parser.Criterion{{Name: "foo"}},
+					},
+				},
+			},
+		},
+	}
+	pNoMapFields := p
+	pNoMapFields.SetRequestHeaders = nil
+	pNoMapFields.SetResponseHeaders = nil
+	b.Run("(old) hashstructure checksum", func(b *testing.B) {
+		b.Run("with map fields", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				hashutil.MustHash(p)
+			}
+		})
+		b.Run("without map fields", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				hashutil.MustHash(pNoMapFields)
+			}
+		})
+	})
+	b.Run("(new) proto-wire checksum", func(b *testing.B) {
+		b.Run("with map fields", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				p.Checksum()
+			}
+		})
+		b.Run("without map fields", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				pNoMapFields.Checksum()
+			}
+		})
+	})
 }

@@ -2,11 +2,14 @@
 package hashutil_test
 
 import (
+	"fmt"
+	"math/rand/v2"
 	"net/url"
 	"testing"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/hashutil"
+	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -94,4 +97,24 @@ func mustParseURL(str string) *url.URL {
 		panic(err)
 	}
 	return u
+}
+
+func TestMapHash(t *testing.T) {
+	hashes := make([]uint64, 1000)
+	for i := 0; i < 1000; i++ {
+		numbers := make([]int, 1000)
+		for i := range len(numbers) {
+			numbers[i] = i
+		}
+		rand.Shuffle(len(numbers), func(i, j int) {
+			numbers[i], numbers[j] = numbers[j], numbers[i]
+		})
+
+		m := map[string]string{}
+		for _, n := range numbers {
+			m[fmt.Sprintf("key%d", n)] = fmt.Sprintf("value%d", n)
+		}
+		hashes[i] = hashutil.MapHash(0, m)
+	}
+	assert.Equal(t, slices.Unique(hashes), hashes[:1])
 }
