@@ -5,7 +5,6 @@ package oidc
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -252,23 +251,6 @@ func (p *Provider) Revoke(ctx context.Context, t *oauth2.Token) error {
 	}
 
 	return nil
-}
-
-// GetSubject gets the RFC 7519 Subject claim (`sub`) from a
-func (p *Provider) GetSubject(v any) (string, error) {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return "", err
-	}
-	var s struct {
-		Subject string `json:"sub"`
-	}
-
-	err = json.Unmarshal(b, &s)
-	if err != nil {
-		return "", err
-	}
-	return s.Subject, nil
 }
 
 // Name returns the provider name.
