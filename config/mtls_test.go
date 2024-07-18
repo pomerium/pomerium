@@ -178,6 +178,7 @@ func TestDownstreamMTLSSettingsValidate(t *testing.T) {
 				{Type: "email", Pattern: `.*@\.example\.com`},
 				{Type: "ip_address", Pattern: `192\.168\.0\..*`},
 				{Type: "uri", Pattern: `spiffe://example.com/department/.*`},
+				{Type: "user_principal_name", Pattern: `username@realm`},
 			},
 		}, ""},
 	}
