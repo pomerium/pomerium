@@ -67,11 +67,6 @@ func TestSession_UnmarshalJSON(t *testing.T) {
 		"some-other-claim": "xyz"
 	}`), newSessionUnmarshaler(s))
 	assert.NoError(t, err)
-	assert.NotNil(t, s.IdToken)
-	assert.Equal(t, "https://some.issuer.com", s.IdToken.Issuer)
-	assert.Equal(t, "subject", s.IdToken.Subject)
-	assert.Equal(t, timestamppb.New(tm), s.IdToken.ExpiresAt)
-	assert.Equal(t, timestamppb.New(tm), s.IdToken.IssuedAt)
 	assert.Equal(t, map[string]*structpb.ListValue{
 		"some-other-claim": {Values: []*structpb.Value{protoutil.ToStruct("xyz")}},
 	}, s.Claims)

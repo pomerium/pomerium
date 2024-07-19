@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-jose/go-jose/v3/jwt"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -94,10 +95,7 @@ func (x *Session) AddClaims(claims identity.FlattenedClaims) {
 
 // SetRawIDToken sets the raw id token.
 func (x *Session) SetRawIDToken(rawIDToken string) {
-	if x.IdToken == nil {
-		x.IdToken = new(IDToken)
-	}
-	x.IdToken.Raw = rawIDToken
+	x.IdToken, _ = ParseIDToken(rawIDToken)
 }
 
 // RemoveDeviceCredentialID removes a device credential id.
@@ -124,4 +122,28 @@ func (x *Session) Validate() error {
 	}
 
 	return nil
+}
+
+// ParseIDToken converts a raw ID token into an IDToken proto message.
+// Does not perform any verification of the ID token.
+func ParseIDToken(idToken string) (*IDToken, error) {
+	if idToken == "" {
+		return nil, nil
+	}
+
+	token, err := jwt.ParseSigned(idToken)
+	if err != nil {
+		return nil, err
+	}
+	var claims jwt.Claims
+	if err := token.UnsafeClaimsWithoutVerification(&claims); err != nil {
+		return nil, err
+	}
+	return &IDToken{
+		Raw:       idToken,
+		Issuer:    claims.Issuer,
+		Subject:   claims.Subject,
+		ExpiresAt: timestamppb.New(claims.Expiry.Time()),
+		IssuedAt:  timestamppb.New(claims.IssuedAt.Time()),
+	}, nil
 }
