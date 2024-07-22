@@ -5,6 +5,7 @@ package authorize
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -91,7 +92,7 @@ func newPolicyEvaluator(
 	opts *config.Options, store *store.Store, previous *evaluator.Evaluator,
 ) (*evaluator.Evaluator, error) {
 	metrics.AddPolicyCountCallback("pomerium-authorize", func() int64 {
-		return int64(len(opts.GetAllPolicies()))
+		return int64(opts.NumPolicies())
 	})
 	ctx := log.WithContext(context.Background(), func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "authorize")
@@ -131,8 +132,9 @@ func newPolicyEvaluator(
 			"authorize: internal error: couldn't build client cert constraints: %w", err)
 	}
 
+	allPolicies := slices.Collect(opts.GetAllPolicies())
 	return evaluator.New(ctx, store, previous,
-		evaluator.WithPolicies(opts.GetAllPolicies()),
+		evaluator.WithPolicies(allPolicies),
 		evaluator.WithClientCA(clientCA),
 		evaluator.WithAddDefaultClientCertificateRule(addDefaultClientCertificateRule),
 		evaluator.WithClientCRL(clientCRL),
