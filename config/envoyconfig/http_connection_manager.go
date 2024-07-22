@@ -1,6 +1,7 @@
 package envoyconfig
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -14,8 +15,8 @@ import (
 	"github.com/pomerium/pomerium/ui"
 )
 
-func (b *Builder) buildVirtualHost(
-	options *config.Options,
+func (b *ScopedBuilder) buildVirtualHost(
+	ctx context.Context,
 	name string,
 	host string,
 ) (*envoy_config_route_v3.VirtualHost, error) {
@@ -27,14 +28,14 @@ func (b *Builder) buildVirtualHost(
 	// if we're stripping the port from incoming requests
 	// and this host doesn't have a port or wildcard in it
 	// then we will add :* to match on any port
-	if options.IsRuntimeFlagSet(config.RuntimeFlagMatchAnyIncomingPort) &&
+	if b.cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMatchAnyIncomingPort) &&
 		!strings.Contains(host, "*") &&
 		!config.HasPort(host) {
 		vh.Domains = append(vh.Domains, host+":*")
 	}
 
 	// these routes match /.pomerium/... and similar paths
-	rs, err := b.buildPomeriumHTTPRoutes(options, host)
+	rs, err := b.buildPomeriumHTTPRoutes(ctx, host)
 	if err != nil {
 		return nil, err
 	}
@@ -45,14 +46,12 @@ func (b *Builder) buildVirtualHost(
 
 // buildLocalReplyConfig builds the local reply config: the config used to modify "local" replies, that is replies
 // coming directly from envoy
-func (b *Builder) buildLocalReplyConfig(
-	options *config.Options,
-) (*envoy_http_connection_manager.LocalReplyConfig, error) {
+func (b *ScopedBuilder) buildLocalReplyConfig() (*envoy_http_connection_manager.LocalReplyConfig, error) {
 	// add global headers for HSTS headers (#2110)
 	var headers []*envoy_config_core_v3.HeaderValueOption
 	// if we're the proxy or authenticate service, add our global headers
-	if config.IsProxy(options.Services) || config.IsAuthenticate(options.Services) {
-		headers = toEnvoyHeaders(options.GetSetResponseHeaders())
+	if config.IsProxy(b.cfg.Options.Services) || config.IsAuthenticate(b.cfg.Options.Services) {
+		headers = toEnvoyHeaders(b.cfg.Options.GetSetResponseHeaders())
 	}
 
 	data := map[string]any{
@@ -61,7 +60,7 @@ func (b *Builder) buildLocalReplyConfig(
 		"requestId":     "%STREAM_ID%",
 		"responseFlags": "%RESPONSE_FLAGS%",
 	}
-	httputil.AddBrandingOptionsToMap(data, options.BrandingOptions)
+	httputil.AddBrandingOptionsToMap(data, b.cfg.Options.BrandingOptions)
 
 	bs, err := ui.RenderPage("Error", "Error", data)
 	if err != nil {

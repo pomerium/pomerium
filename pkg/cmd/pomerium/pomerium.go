@@ -8,6 +8,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
+
+	xtrace "golang.org/x/exp/trace"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"go.uber.org/automaxprocs/maxprocs"
@@ -32,6 +35,30 @@ import (
 
 // Run runs the main pomerium application.
 func Run(ctx context.Context, src config.Source) error {
+	recorder := xtrace.NewFlightRecorder()
+	recorder.SetPeriod(1 * time.Minute)
+	recorder.SetSize(1024 * 1024 * 1024) // 1GB
+	if err := recorder.Start(); err != nil {
+		panic(err)
+	}
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGUSR1)
+	go func() {
+		for {
+			<-sig
+			f, err := os.Create("trace.out")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "failed to create trace output file: %v\n", err)
+				continue
+			}
+			if _, err := recorder.WriteTo(f); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to write trace output: %v\n", err)
+			}
+			f.Close()
+			fmt.Println("saved trace output to trace.out")
+		}
+	}()
+
 	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Debug(context.Background()).Msgf(s, i...) }))
 
 	log.Info(ctx).

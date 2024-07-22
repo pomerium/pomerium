@@ -1,6 +1,7 @@
 package envoyconfig
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
@@ -28,8 +29,8 @@ func policyNameFunc() func(*config.Policy) string {
 }
 
 func Test_buildGRPCRoutes(t *testing.T) {
-	b := &Builder{filemgr: filemgr.NewManager()}
-	routes, err := b.buildGRPCRoutes()
+	b := &Builder{staticBuilderConfig{filemgr: filemgr.NewManager()}}
+	routes, err := b.WithConfig(&config.Config{}).buildGRPCRoutes()
 	require.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `
 		[
@@ -54,7 +55,7 @@ func Test_buildGRPCRoutes(t *testing.T) {
 }
 
 func Test_buildPomeriumHTTPRoutes(t *testing.T) {
-	b := &Builder{filemgr: filemgr.NewManager()}
+	b := &Builder{staticBuilderConfig{filemgr: filemgr.NewManager()}}
 	routeString := func(typ, name string) string {
 		str := `{
 			"name": "pomerium-` + typ + `-` + name + `",
@@ -100,7 +101,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
 		}
-		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
+		routes, err := b.WithConfig(&config.Config{Options: options}).buildPomeriumHTTPRoutes(context.Background(), "authenticate.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `[
@@ -121,7 +122,7 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 			AuthenticateURLString:    "https://authenticate.example.com",
 			AuthenticateCallbackPath: "/oauth2/callback",
 		}
-		routes, err := b.buildPomeriumHTTPRoutes(options, "authenticate.example.com")
+		routes, err := b.WithConfig(&config.Config{Options: options}).buildPomeriumHTTPRoutes(context.Background(), "authenticate.example.com")
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, "null", routes)
 	})
@@ -129,8 +130,8 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 
 func Test_buildControlPlanePathRoute(t *testing.T) {
 	options := config.NewDefaultOptions()
-	b := &Builder{filemgr: filemgr.NewManager()}
-	route := b.buildControlPlanePathRoute(options, "/hello/world")
+	b := &Builder{staticBuilderConfig{filemgr: filemgr.NewManager()}}
+	route := b.WithConfig(&config.Config{Options: options}).buildControlPlanePathRoute(context.Background(), "/hello/world")
 	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-path-/hello/world",
@@ -173,8 +174,8 @@ func Test_buildControlPlanePathRoute(t *testing.T) {
 
 func Test_buildControlPlanePrefixRoute(t *testing.T) {
 	options := config.NewDefaultOptions()
-	b := &Builder{filemgr: filemgr.NewManager()}
-	route := b.buildControlPlanePrefixRoute(options, "/hello/world/")
+	b := &Builder{staticBuilderConfig{filemgr: filemgr.NewManager()}}
+	route := b.WithConfig(&config.Config{Options: options}).buildControlPlanePrefixRoute(context.Background(), "/hello/world/")
 	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-prefix-/hello/world/",
@@ -246,8 +247,8 @@ func TestTimeouts(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		b := &Builder{filemgr: filemgr.NewManager()}
-		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
+		b := &Builder{staticBuilderConfig{filemgr: filemgr.NewManager()}}
+		routes, err := b.WithConfig(&config.Config{Options: &config.Options{
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
 			SharedKey:              cryptutil.NewBase64Key(),
@@ -261,7 +262,7 @@ func TestTimeouts(t *testing.T) {
 					AllowWebsockets: tc.allowWebsockets,
 				},
 			},
-		}}, "example.com")
+		}}).buildRoutesForPoliciesWithHost(context.Background(), "example.com")
 		if !assert.NoError(t, err, "%v", tc) || !assert.Len(t, routes, 1, tc) || !assert.NotNil(t, routes[0].GetRoute(), "%v", tc) {
 			continue
 		}
@@ -302,8 +303,8 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	oneMinute := time.Minute
 	ten := time.Second * 10
 
-	b := &Builder{filemgr: filemgr.NewManager()}
-	routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
+	b := &Builder{staticBuilderConfig{filemgr: filemgr.NewManager()}}
+	routes, err := b.WithConfig(&config.Config{Options: &config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
 		SharedKey:              cryptutil.NewBase64Key(),
@@ -375,7 +376,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 				UpstreamTimeout:     &ten,
 			},
 		},
-	}}, "example.com")
+	}}).buildRoutesForPoliciesWithHost(context.Background(), "example.com")
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, `
@@ -444,7 +445,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "16913502743845432363"
+								"route_id": "17646041018298562268"
 							}
 						}
 					}
@@ -515,7 +516,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "911713133804109577"
+								"route_id": "10365886941185626220"
 							}
 						}
 					}
@@ -585,7 +586,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "6407864870815560799"
+								"route_id": "9041273544631654369"
 							}
 						}
 					}
@@ -657,7 +658,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "1103677309004574500"
+								"route_id": "16542454514621720875"
 							}
 						}
 					}
@@ -728,7 +729,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "6407864870815560799"
+								"route_id": "9041273544631654369"
 							}
 						}
 					}
@@ -798,7 +799,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "911713133804109577"
+								"route_id": "10365886941185626220"
 							}
 						}
 					}
@@ -869,7 +870,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "911713133804109577"
+								"route_id": "10365886941185626220"
 							}
 						}
 					}
@@ -940,7 +941,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "17831746838845374842"
+								"route_id": "15525921082478698962"
 							}
 						}
 					}
@@ -950,7 +951,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	`, routes)
 
 	t.Run("fronting-authenticate", func(t *testing.T) {
-		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
+		routes, err := b.WithConfig(&config.Config{Options: &config.Options{
 			AuthenticateURLString:  "https://authenticate.example.com",
 			Services:               "proxy",
 			CookieName:             "pomerium",
@@ -963,7 +964,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					PassIdentityHeaders: ptr(true),
 				},
 			},
-		}}, "authenticate.example.com")
+		}}).buildRoutesForPoliciesWithHost(context.Background(), "authenticate.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -1035,7 +1036,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	})
 
 	t.Run("tcp", func(t *testing.T) {
-		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
+		routes, err := b.WithConfig(&config.Config{Options: &config.Options{
 			CookieName:             "pomerium",
 			DefaultUpstreamTimeout: time.Second * 3,
 			SharedKey:              cryptutil.NewBase64Key(),
@@ -1052,7 +1053,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					UpstreamTimeout:     &ten,
 				},
 			},
-		}}, "example.com:22")
+		}}).buildRoutesForPoliciesWithHost(context.Background(), "example.com:22")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -1123,7 +1124,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "10474912405080199536"
+								"route_id": "1853558570678532702"
 							}
 						}
 					}
@@ -1195,7 +1196,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "15730681265277585877"
+								"route_id": "3410110120199695623"
 							}
 						}
 					}
@@ -1206,7 +1207,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	})
 
 	t.Run("remove-pomerium-headers", func(t *testing.T) {
-		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
+		routes, err := b.WithConfig(&config.Config{Options: &config.Options{
 			AuthenticateURLString:  "https://authenticate.example.com",
 			Services:               "proxy",
 			CookieName:             "pomerium",
@@ -1221,7 +1222,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					To:   mustParseWeightedURLs(t, "https://to.example.com"),
 				},
 			},
-		}}, "from.example.com")
+		}}).buildRoutesForPoliciesWithHost(context.Background(), "from.example.com")
 		require.NoError(t, err)
 
 		testutil.AssertProtoJSONEqual(t, `
@@ -1293,7 +1294,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_id": "16598125949405432745"
+									"route_id": "18442885336125624707"
 								}
 							}
 						}
@@ -1309,8 +1310,8 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 		getClusterID = f
 	}(getClusterID)
 	getClusterID = policyNameFunc()
-	b := &Builder{filemgr: filemgr.NewManager()}
-	routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
+	b := &Builder{staticBuilderConfig{filemgr: filemgr.NewManager()}}
+	routes, err := b.WithConfig(&config.Config{Options: &config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
 		SharedKey:              cryptutil.NewBase64Key(),
@@ -1353,7 +1354,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 				HostPathRegexRewriteSubstitution: "\\1",
 			},
 		},
-	}}, "example.com")
+	}}).buildRoutesForPoliciesWithHost(context.Background(), "example.com")
 	require.NoError(t, err)
 
 	testutil.AssertProtoJSONEqual(t, `
@@ -1423,7 +1424,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "13828028232508831592"
+								"route_id": "4985795602702748187"
 							}
 						}
 					}
@@ -1494,7 +1495,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "13828028232508831592"
+								"route_id": "4985795602702748187"
 							}
 						}
 					}
@@ -1570,7 +1571,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "13828028232508831592"
+								"route_id": "4985795602702748187"
 							}
 						}
 					}
@@ -1641,7 +1642,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "13828028232508831592"
+								"route_id": "4985795602702748187"
 							}
 						}
 					}
@@ -1712,7 +1713,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "13828028232508831592"
+								"route_id": "4985795602702748187"
 							}
 						}
 					}
@@ -1788,7 +1789,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "13828028232508831592"
+								"route_id": "4985795602702748187"
 							}
 						}
 					}
@@ -1799,9 +1800,10 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 }
 
 func Test_buildPolicyRouteRedirectAction(t *testing.T) {
-	b := &Builder{filemgr: filemgr.NewManager()}
+	b := &Builder{staticBuilderConfig{filemgr: filemgr.NewManager()}}
+	sb := b.WithConfig(&config.Config{})
 	t.Run("HTTPSRedirect", func(t *testing.T) {
-		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err := sb.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			HTTPSRedirect: proto.Bool(true),
 		})
 		require.NoError(t, err)
@@ -1811,7 +1813,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 			},
 		}, action)
 
-		action, err = b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err = sb.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			HTTPSRedirect: proto.Bool(false),
 		})
 		require.NoError(t, err)
@@ -1822,7 +1824,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 		}, action)
 	})
 	t.Run("SchemeRedirect", func(t *testing.T) {
-		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err := sb.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			SchemeRedirect: proto.String("https"),
 		})
 		require.NoError(t, err)
@@ -1833,7 +1835,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 		}, action)
 	})
 	t.Run("HostRedirect", func(t *testing.T) {
-		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err := sb.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			HostRedirect: proto.String("HOST"),
 		})
 		require.NoError(t, err)
@@ -1842,7 +1844,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 		}, action)
 	})
 	t.Run("PortRedirect", func(t *testing.T) {
-		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err := sb.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			PortRedirect: proto.Uint32(1234),
 		})
 		require.NoError(t, err)
@@ -1851,7 +1853,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 		}, action)
 	})
 	t.Run("PathRedirect", func(t *testing.T) {
-		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err := sb.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			PathRedirect: proto.String("PATH"),
 		})
 		require.NoError(t, err)
@@ -1862,7 +1864,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 		}, action)
 	})
 	t.Run("PrefixRewrite", func(t *testing.T) {
-		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err := sb.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			PrefixRewrite: proto.String("PREFIX_REWRITE"),
 		})
 		require.NoError(t, err)
@@ -1873,7 +1875,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 		}, action)
 	})
 	t.Run("ResponseCode", func(t *testing.T) {
-		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err := sb.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			ResponseCode: proto.Int32(301),
 		})
 		require.NoError(t, err)
@@ -1882,7 +1884,7 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 		}, action)
 	})
 	t.Run("StripQuery", func(t *testing.T) {
-		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+		action, err := sb.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
 			StripQuery: proto.Bool(true),
 		})
 		require.NoError(t, err)

@@ -15,6 +15,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/signal"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
@@ -111,6 +112,9 @@ func (backend *Backend) Get(
 	ctx context.Context,
 	recordType, recordID string,
 ) (*databroker.Record, error) {
+	ctx, span := trace.StartSpan(ctx, "postgres.backend.Get")
+	defer span.End()
+
 	ctx, cancel := contextutil.Merge(ctx, backend.closeCtx)
 	defer cancel()
 

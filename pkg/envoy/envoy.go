@@ -219,7 +219,7 @@ func (srv *Server) writeConfig(ctx context.Context, cfg *config.Config) error {
 }
 
 func (srv *Server) buildBootstrapConfig(ctx context.Context, cfg *config.Config) ([]byte, error) {
-	bootstrapCfg, err := srv.builder.BuildBootstrap(ctx, cfg, false)
+	bootstrapCfg, err := srv.builder.WithConfig(cfg).BuildBootstrap(ctx, false)
 	if err != nil {
 		return nil, err
 	}

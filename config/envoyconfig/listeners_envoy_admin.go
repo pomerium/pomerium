@@ -7,11 +7,9 @@ import (
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
-
-	"github.com/pomerium/pomerium/config"
 )
 
-func (b *Builder) buildEnvoyAdminListener(_ context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+func (b *ScopedBuilder) buildEnvoyAdminListener(ctx context.Context) (*envoy_config_listener_v3.Listener, error) {
 	filter, err := b.buildEnvoyAdminHTTPConnectionManagerFilter()
 	if err != nil {
 		return nil, err
@@ -23,9 +21,9 @@ func (b *Builder) buildEnvoyAdminListener(_ context.Context, cfg *config.Config)
 		},
 	}
 
-	addr, err := parseAddress(cfg.Options.EnvoyAdminAddress)
+	addr, err := parseAddress(b.cfg.Options.EnvoyAdminAddress)
 	if err != nil {
-		return nil, fmt.Errorf("envoy_admin_addr %s: %w", cfg.Options.EnvoyAdminAddress, err)
+		return nil, fmt.Errorf("envoy_admin_addr %s: %w", b.cfg.Options.EnvoyAdminAddress, err)
 	}
 
 	li := newEnvoyListener("envoy-admin")
@@ -34,7 +32,7 @@ func (b *Builder) buildEnvoyAdminListener(_ context.Context, cfg *config.Config)
 	return li, nil
 }
 
-func (b *Builder) buildEnvoyAdminHTTPConnectionManagerFilter() (*envoy_config_listener_v3.Filter, error) {
+func (b *ScopedBuilder) buildEnvoyAdminHTTPConnectionManagerFilter() (*envoy_config_listener_v3.Filter, error) {
 	rc, err := b.buildRouteConfiguration("envoy-admin", []*envoy_config_route_v3.VirtualHost{{
 		Name:    "envoy-admin",
 		Domains: []string{"*"},

@@ -17,6 +17,8 @@ const (
 	JaegerTracingProviderName = "jaeger"
 	// ZipkinTracingProviderName is the name of the tracing provider Zipkin.
 	ZipkinTracingProviderName = "zipkin"
+
+	NoneTracingProviderName = "none"
 )
 
 // Provider is a trace provider.
@@ -59,6 +61,20 @@ func (t *TracingOptions) Enabled() bool {
 	return t.Provider != ""
 }
 
+type noopProvider struct{}
+
+// Register implements Provider.
+func (n *noopProvider) Register(options *TracingOptions) error {
+	return nil
+}
+
+// Unregister implements Provider.
+func (n *noopProvider) Unregister() error {
+	return nil
+}
+
+var _ Provider = (*noopProvider)(nil)
+
 // GetProvider creates a new trace provider from TracingOptions.
 func GetProvider(opts *TracingOptions) (Provider, error) {
 	var provider Provider
@@ -69,6 +85,8 @@ func GetProvider(opts *TracingOptions) (Provider, error) {
 		provider = new(jaegerProvider)
 	case ZipkinTracingProviderName:
 		provider = new(zipkinProvider)
+	case NoneTracingProviderName:
+		provider = new(noopProvider)
 	default:
 		return nil, fmt.Errorf("telemetry/trace: provider %s unknown", opts.Provider)
 	}

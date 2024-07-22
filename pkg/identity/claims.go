@@ -121,7 +121,7 @@ func (claims FlattenedClaims) ToPB() map[string]*structpb.ListValue {
 	if claims == nil {
 		return nil
 	}
-	m := make(map[string]*structpb.ListValue)
+	m := make(map[string]*structpb.ListValue, len(claims))
 	for k, vs := range claims {
 		svs := make([]*structpb.Value, len(vs))
 		for i, v := range vs {

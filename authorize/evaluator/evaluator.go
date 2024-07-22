@@ -2,20 +2,27 @@
 package evaluator
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
+	"maps"
+	"math/bits"
 	"net/http"
 	"net/url"
+	"runtime"
+	rttrace "runtime/trace"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-jose/go-jose/v3"
 	"github.com/open-policy-agent/opa/rego"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/errgrouputil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -89,51 +96,190 @@ type Result struct {
 	Traces  []contextutil.PolicyEvaluationTrace
 }
 
+type EvaluatorCacheStats struct {
+	CacheHits   int64
+	CacheMisses int64
+}
+
+type EvaluatorCache struct {
+	evalsMu             sync.RWMutex
+	evaluatorsByRouteID map[uint64]*PolicyEvaluator
+
+	cacheHits   atomic.Int64
+	cacheMisses atomic.Int64
+}
+
+type QueryCacheStats struct {
+	CacheHits       int64
+	CacheMisses     int64
+	BuildsSucceeded int64
+	BuildsFailed    int64
+	BuildsShared    int64
+}
+
+type QueryCache struct {
+	queriesMu               sync.RWMutex
+	queriesByScriptChecksum map[string]rego.PreparedEvalQuery
+	sf                      singleflight.Group
+
+	cacheHits       atomic.Int64
+	cacheMisses     atomic.Int64
+	buildsSucceeded atomic.Int64
+	buildsFailed    atomic.Int64
+	buildsShared    atomic.Int64
+}
+
+func NewPolicyEvaluatorCache(initialSize int) *EvaluatorCache {
+	return &EvaluatorCache{
+		evaluatorsByRouteID: make(map[uint64]*PolicyEvaluator, initialSize),
+	}
+}
+
+func NewQueryCache(initialSize int) *QueryCache {
+	return &QueryCache{
+		queriesByScriptChecksum: make(map[string]rego.PreparedEvalQuery, initialSize),
+	}
+}
+
+func (c *EvaluatorCache) NumCachedEvaluators() int {
+	c.evalsMu.RLock()
+	defer c.evalsMu.RUnlock()
+	return len(c.evaluatorsByRouteID)
+}
+
+func (c *EvaluatorCache) StoreEvaluator(routeID uint64, eval *PolicyEvaluator) {
+	c.evalsMu.Lock()
+	defer c.evalsMu.Unlock()
+	c.evaluatorsByRouteID[routeID] = eval
+}
+
+func (c *EvaluatorCache) LookupEvaluator(routeID uint64) (*PolicyEvaluator, bool) {
+	c.evalsMu.RLock()
+	defer c.evalsMu.RUnlock()
+	eval, ok := c.evaluatorsByRouteID[routeID]
+	if ok {
+		c.cacheHits.Add(1)
+	} else {
+		c.cacheMisses.Add(1)
+	}
+	return eval, ok
+}
+
+func (c *EvaluatorCache) Stats() EvaluatorCacheStats {
+	return EvaluatorCacheStats{
+		CacheHits:   c.cacheHits.Load(),
+		CacheMisses: c.cacheMisses.Load(),
+	}
+}
+
+func (c *QueryCache) NumCachedQueries() int {
+	c.queriesMu.RLock()
+	defer c.queriesMu.RUnlock()
+	return len(c.queriesByScriptChecksum)
+}
+
+func (c *QueryCache) Stats() QueryCacheStats {
+	return QueryCacheStats{
+		CacheHits:       c.cacheHits.Load(),
+		CacheMisses:     c.cacheMisses.Load(),
+		BuildsSucceeded: c.buildsSucceeded.Load(),
+		BuildsFailed:    c.buildsFailed.Load(),
+		BuildsShared:    c.buildsShared.Load(),
+	}
+}
+
+func (c *QueryCache) LookupOrBuild(q *policyQuery, builder func() (rego.PreparedEvalQuery, error)) (rego.PreparedEvalQuery, bool, error) {
+	checksum := q.checksum()
+	c.queriesMu.RLock()
+	cached, ok := c.queriesByScriptChecksum[checksum]
+	c.queriesMu.RUnlock()
+	if ok {
+		c.cacheHits.Add(1)
+		return cached, true, nil
+	}
+	c.cacheMisses.Add(1)
+	var ours bool
+	pq, err, shared := c.sf.Do(checksum, func() (any, error) {
+		ours = true
+		res, err := builder()
+		if err == nil {
+			c.queriesMu.Lock()
+			c.queriesByScriptChecksum[checksum] = res
+			c.queriesMu.Unlock()
+			c.buildsSucceeded.Add(1)
+		} else {
+			c.buildsFailed.Add(1)
+		}
+		return res, err
+	})
+	if err != nil {
+		return rego.PreparedEvalQuery{}, false, err
+	}
+	if shared && !ours {
+		c.buildsShared.Add(1)
+	}
+	return pq.(rego.PreparedEvalQuery), false, nil
+}
+
 // An Evaluator evaluates policies.
 type Evaluator struct {
-	store                 *store.Store
-	policyEvaluators      map[uint64]*PolicyEvaluator
-	headersEvaluators     *HeadersEvaluator
-	clientCA              []byte
-	clientCRL             []byte
-	clientCertConstraints ClientCertConstraints
-
-	cfgCacheKey uint64
+	opts             *evaluatorOptions
+	store            *store.Store
+	evalCache        *EvaluatorCache
+	queryCache       *QueryCache
+	headersEvaluator *HeadersEvaluator
 }
 
 // New creates a new Evaluator.
 func New(
-	ctx context.Context, store *store.Store, previous *Evaluator, options ...Option,
+	ctx context.Context,
+	store *store.Store,
+	previous *Evaluator,
+	options ...Option,
 ) (*Evaluator, error) {
-	cfg := getConfig(options...)
+	ctx, task := rttrace.NewTask(ctx, "evaluator.New")
+	defer task.End()
+	defer rttrace.StartRegion(ctx, "evaluator.New").End()
 
-	err := updateStore(store, cfg)
-	if err != nil {
-		return nil, err
-	}
+	var opts evaluatorOptions
+	opts.apply(options...)
 
 	e := &Evaluator{
-		store:                 store,
-		clientCA:              cfg.ClientCA,
-		clientCRL:             cfg.ClientCRL,
-		clientCertConstraints: cfg.ClientCertConstraints,
-		cfgCacheKey:           cfg.cacheKey(),
+		opts:  &opts,
+		store: store,
 	}
 
-	// If there is a previous Evaluator constructed from the same settings, we
-	// can reuse the HeadersEvaluator along with any PolicyEvaluators for
-	// unchanged policies.
-	var cachedPolicyEvaluators map[uint64]*PolicyEvaluator
-	if previous != nil && previous.cfgCacheKey == e.cfgCacheKey {
-		e.headersEvaluators = previous.headersEvaluators
-		cachedPolicyEvaluators = previous.policyEvaluators
-	} else {
-		e.headersEvaluators, err = NewHeadersEvaluator(ctx, store)
+	if previous == nil || opts.cacheKey() != previous.opts.cacheKey() {
+		var err error
+		rttrace.WithRegion(ctx, "update store", func() {
+			err = updateStore(store, &opts, previous)
+		})
 		if err != nil {
 			return nil, err
 		}
+
+		rttrace.WithRegion(ctx, "create headers evaluator", func() {
+			e.headersEvaluator, err = NewHeadersEvaluator(ctx, store)
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		e.evalCache = NewPolicyEvaluatorCache(len(opts.Policies))
+		e.queryCache = NewQueryCache(len(opts.Policies))
+	} else {
+		// If there is a previous Evaluator constructed from the same settings, we
+		// can reuse the HeadersEvaluator along with any PolicyEvaluators for
+		// unchanged policies.
+		e.headersEvaluator = previous.headersEvaluator
+		e.evalCache = previous.evalCache
+		e.queryCache = previous.queryCache
 	}
-	e.policyEvaluators, err = getOrCreatePolicyEvaluators(ctx, cfg, store, cachedPolicyEvaluators)
+
+	var err error
+	rttrace.WithRegion(ctx, "update policy evaluators", func() {
+		err = getOrCreatePolicyEvaluators(ctx, &opts, store, e.evalCache, e.queryCache)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -142,61 +288,224 @@ func New(
 }
 
 type routeEvaluator struct {
-	id        uint64
-	evaluator *PolicyEvaluator
+	id               uint64
+	evaluator        *PolicyEvaluator
+	computedChecksum uint64
+}
+
+var (
+	workerPoolSize      = runtime.NumCPU() - 1
+	workerPoolTaskQueue = make(chan func(), (workerPoolSize+1)*2)
+)
+
+func init() {
+	for i := 0; i < workerPoolSize; i++ {
+		go worker()
+	}
+}
+
+func worker() {
+	for fn := range workerPoolTaskQueue {
+		fn()
+	}
+}
+
+const chunkSize = 64
+
+type workerContext struct {
+	context.Context
+	Cfg           *evaluatorOptions
+	Store         *store.Store
+	StatusBits    []uint64
+	StatusCounts  []uint8
+	TotalModified *atomic.Int32
+	Evaluators    []routeEvaluator
+	EvalCache     *EvaluatorCache
+	QueryCache    *QueryCache
+	Errs          *sync.Map
+}
+
+type partition struct{ Begin, End int }
+
+func computeChecksums(wctx *workerContext, part partition) {
+	defer rttrace.StartRegion(wctx, "worker-checksum").End()
+	for chunkIdx := part.Begin; chunkIdx < part.End; chunkIdx++ {
+		var chunkStatus uint64
+		off := chunkIdx * chunkSize
+		limit := min(chunkSize, len(wctx.Cfg.Policies)-int(off))
+		for i := 0; i < limit; i++ {
+			p := &wctx.Cfg.Policies[off+i]
+			id, err := p.RouteID()
+			if err != nil {
+				wctx.Errs.Store(off+i, fmt.Errorf("authorize: error computing policy route id: %w", err))
+				continue
+			}
+			eval := &wctx.Evaluators[off+i]
+			eval.id = id
+			eval.computedChecksum = p.ChecksumWithID(id)
+			cached, ok := wctx.EvalCache.LookupEvaluator(id)
+			if !ok {
+				rttrace.Logf(wctx, "", "policy for route ID %d not found in cache", id)
+				chunkStatus |= 1 << i
+			} else if cached.policyChecksum != eval.computedChecksum {
+				rttrace.Logf(wctx, "", "policy for route ID %d changed", id)
+				chunkStatus |= 1 << i
+			}
+		}
+		wctx.StatusBits[chunkIdx] = chunkStatus
+		popcnt := bits.OnesCount64(chunkStatus)
+		rttrace.Logf(wctx, "", "chunk %d: %d/%d changed", chunkIdx, popcnt, limit)
+		wctx.StatusCounts[chunkIdx] = uint8(popcnt)
+		wctx.TotalModified.Add(int32(popcnt))
+	}
+}
+
+func buildEvaluators(wctx *workerContext, part partition) {
+	defer rttrace.StartRegion(wctx, "worker-build").End()
+	addDefaultCert := wctx.Cfg.AddDefaultClientCertificateRule
+	var err error
+	for chunkIdx := part.Begin; chunkIdx < part.End; chunkIdx++ {
+		stat := wctx.StatusBits[chunkIdx]
+		rttrace.Logf(wctx, "", "chunk %d: status: %b", chunkIdx, stat)
+		for stat != 0 {
+			bit := bits.TrailingZeros64(stat)
+			stat &^= 1 << bit
+			idx := bit + (chunkSize * chunkIdx)
+			p := &wctx.Cfg.Policies[idx]
+			eval := &wctx.Evaluators[idx]
+			eval.evaluator, err = NewPolicyEvaluator(wctx, wctx.Store, p, eval.computedChecksum, addDefaultCert, wctx.QueryCache)
+			if err != nil {
+				wctx.Errs.Store(idx, err)
+			}
+		}
+	}
 }
 
 func getOrCreatePolicyEvaluators(
-	ctx context.Context, cfg *evaluatorConfig, store *store.Store,
-	cachedPolicyEvaluators map[uint64]*PolicyEvaluator,
-) (map[uint64]*PolicyEvaluator, error) {
+	ctx context.Context,
+	cfg *evaluatorOptions,
+	store *store.Store,
+	evalCache *EvaluatorCache,
+	queryCache *QueryCache,
+) error {
+	rttrace.Logf(ctx, "", "using %d cached policy evaluators", evalCache.NumCachedEvaluators())
 	now := time.Now()
 
-	var reusedCount int
-	m := make(map[uint64]*PolicyEvaluator)
-	var builders []errgrouputil.BuilderFunc[routeEvaluator]
-	for i := range cfg.Policies {
-		configPolicy := cfg.Policies[i]
-		id, err := configPolicy.RouteID()
-		if err != nil {
-			return nil, fmt.Errorf("authorize: error computing policy route id: %w", err)
-		}
-		p := cachedPolicyEvaluators[id]
-		if p != nil && p.policyChecksum == configPolicy.Checksum() {
-			m[id] = p
-			reusedCount++
-			continue
-		}
-		builders = append(builders, func(ctx context.Context) (*routeEvaluator, error) {
-			evaluator, err := NewPolicyEvaluator(ctx, store, &configPolicy, cfg.AddDefaultClientCertificateRule)
-			if err != nil {
-				return nil, fmt.Errorf("authorize: error building evaluator for route id=%s: %w", configPolicy.ID, err)
+	numChunks := len(cfg.Policies) / chunkSize
+	if len(cfg.Policies)%chunkSize != 0 {
+		numChunks++
+	}
+	statusBits := make([]uint64, numChunks) // 0=no change, 1=changed
+	statusCounts := make([]uint8, numChunks)
+	var totalModified atomic.Int32
+	evaluators := make([]routeEvaluator, len(cfg.Policies))
+	if len(evaluators) == 0 {
+		return nil // nothing to do
+	}
+	numWorkers := min(workerPoolSize, numChunks)
+	minChunksPerWorker := numChunks / numWorkers
+	overflow := numChunks % numWorkers // number of workers which get an additional chunk
+
+	wctx := &workerContext{
+		Context:       ctx,
+		Cfg:           cfg,
+		Store:         store,
+		StatusBits:    statusBits,
+		StatusCounts:  statusCounts,
+		TotalModified: &totalModified,
+		Evaluators:    evaluators,
+		EvalCache:     evalCache,
+		QueryCache:    queryCache,
+		Errs:          &sync.Map{}, // slice index->error
+	}
+
+	partitions := make([]partition, numWorkers)
+	rttrace.WithRegion(ctx, "partitioning", func() {
+		chunkIdx := 0
+		for workerIdx := range numWorkers {
+			chunkStart := chunkIdx
+			chunkEnd := chunkStart + minChunksPerWorker
+			if workerIdx < overflow {
+				chunkEnd++
 			}
-			return &routeEvaluator{
-				id:        id,
-				evaluator: evaluator,
-			}, nil
-		})
-	}
-
-	evals, errs := errgrouputil.Build(ctx, builders...)
-	if len(errs) > 0 {
-		for _, err := range errs {
-			log.Error(ctx).Msg(err.Error())
+			chunkIdx = chunkEnd
+			partitions[workerIdx] = partition{chunkStart, chunkEnd}
 		}
-		return nil, fmt.Errorf("authorize: error building policy evaluators")
+	})
+
+	// compute route checksums
+	rttrace.WithRegion(ctx, "computing checksums", func() {
+		var wg sync.WaitGroup
+		for _, part := range partitions {
+			wg.Add(1)
+			workerPoolTaskQueue <- func() {
+				defer wg.Done()
+				computeChecksums(wctx, part)
+			}
+		}
+		wg.Wait()
+	})
+
+	hasErrs := false
+	wctx.Errs.Range(func(key, value any) bool {
+		log.Error(ctx).Msg(value.(error).Error())
+		hasErrs = true
+		return true
+	})
+	if hasErrs {
+		return fmt.Errorf("authorize: error computing one or more policy route IDs")
 	}
 
-	for _, p := range evals {
-		m[p.id] = p.evaluator
+	if totalModified.Load() == 0 {
+		return nil
+	}
+
+	// spawn workers
+	rttrace.WithRegion(ctx, "running workers", func() {
+		var wg sync.WaitGroup
+		for _, part := range partitions {
+			for part.Begin < part.End && statusCounts[part.Begin] == 0 {
+				part.Begin++
+			}
+			for part.Begin < (part.End)-1 && statusCounts[part.End-1] == 0 {
+				part.End--
+			}
+			if part.Begin == part.End {
+				continue
+			}
+			wg.Add(1)
+			workerPoolTaskQueue <- func() {
+				defer wg.Done()
+				buildEvaluators(wctx, part)
+			}
+		}
+		wg.Wait()
+	})
+
+	hasErrs = false
+	wctx.Errs.Range(func(key, value any) bool {
+		log.Error(ctx).Msg(value.(error).Error())
+		hasErrs = true
+		return true
+	})
+	if hasErrs {
+		return fmt.Errorf("authorize: error building policy evaluators")
+	}
+
+	updatedCount := 0
+	for _, p := range evaluators {
+		if p.evaluator != nil {
+			updatedCount++
+			evalCache.StoreEvaluator(p.id, p.evaluator)
+		}
 	}
 
 	log.Debug(ctx).
 		Dur("duration", time.Since(now)).
-		Int("reused-policies", reusedCount).
-		Int("created-policies", len(cfg.Policies)-reusedCount).
+		Int("reused-policies", len(cfg.Policies)-updatedCount).
+		Int("created-policies", updatedCount).
 		Msg("updated policy evaluators")
-	return m, nil
+	return nil
 }
 
 // Evaluate evaluates the rego for the given policy and generates the identity headers.
@@ -265,7 +574,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 		return nil, fmt.Errorf("authorize: error computing policy route id: %w", err)
 	}
 
-	policyEvaluator, ok := e.policyEvaluators[id]
+	policyEvaluator, ok := e.evalCache.LookupEvaluator(id)
 	if !ok {
 		return &PolicyResponse{
 			Deny: NewRuleResult(true, criteria.ReasonRouteNotFound),
@@ -278,7 +587,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 	}
 
 	isValidClientCertificate, err := isValidClientCertificate(
-		clientCA, string(e.clientCRL), req.HTTP.ClientCertificate, e.clientCertConstraints)
+		clientCA, string(e.opts.ClientCRL), req.HTTP.ClientCertificate, e.opts.ClientCertConstraints)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: error validating client certificate: %w", err)
 	}
@@ -293,7 +602,7 @@ func (e *Evaluator) evaluatePolicy(ctx context.Context, req *Request) (*PolicyRe
 func (e *Evaluator) evaluateHeaders(ctx context.Context, req *Request) (*HeadersResponse, error) {
 	headersReq := NewHeadersRequestFromPolicy(req.Policy, req.HTTP)
 	headersReq.Session = req.Session
-	res, err := e.headersEvaluators.Evaluate(ctx, headersReq)
+	res, err := e.headersEvaluator.Evaluate(ctx, headersReq)
 	if err != nil {
 		return nil, err
 	}
@@ -312,29 +621,36 @@ func (e *Evaluator) getClientCA(policy *config.Policy) (string, error) {
 		return string(bs), nil
 	}
 
-	return string(e.clientCA), nil
+	return string(e.opts.ClientCA), nil
 }
 
-func updateStore(store *store.Store, cfg *evaluatorConfig) error {
-	jwk, err := getJWK(cfg)
-	if err != nil {
-		return fmt.Errorf("authorize: couldn't create signer: %w", err)
+func updateStore(store *store.Store, cfg *evaluatorOptions, previous *Evaluator) error {
+	if previous == nil || !bytes.Equal(cfg.SigningKey, previous.opts.SigningKey) {
+		jwk, err := getJWK(cfg.SigningKey)
+		if err != nil {
+			return fmt.Errorf("authorize: couldn't create signer: %w", err)
+		}
+		store.UpdateSigningKey(jwk)
 	}
 
-	store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(
-		cfg.GoogleCloudServerlessAuthenticationServiceAccount,
-	)
-	store.UpdateJWTClaimHeaders(cfg.JWTClaimsHeaders)
-	store.UpdateRoutePolicies(cfg.Policies)
-	store.UpdateSigningKey(jwk)
+	if previous == nil || cfg.GoogleCloudServerlessAuthenticationServiceAccount != previous.opts.GoogleCloudServerlessAuthenticationServiceAccount {
+		store.UpdateGoogleCloudServerlessAuthenticationServiceAccount(
+			cfg.GoogleCloudServerlessAuthenticationServiceAccount,
+		)
+	}
 
+	if previous == nil || !maps.Equal(cfg.JWTClaimsHeaders, previous.opts.JWTClaimsHeaders) {
+		store.UpdateJWTClaimHeaders(cfg.JWTClaimsHeaders)
+	}
+
+	store.UpdateRoutePolicies(cfg.Policies)
 	return nil
 }
 
-func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
+func getJWK(signingKey []byte) (*jose.JSONWebKey, error) {
 	var decodedCert []byte
 	// if we don't have a signing key, generate one
-	if len(cfg.SigningKey) == 0 {
+	if len(signingKey) == 0 {
 		key, err := cryptutil.NewSigningKey()
 		if err != nil {
 			return nil, fmt.Errorf("couldn't generate signing key: %w", err)
@@ -344,7 +660,7 @@ func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
 			return nil, fmt.Errorf("bad signing key: %w", err)
 		}
 	} else {
-		decodedCert = cfg.SigningKey
+		decodedCert = signingKey
 	}
 
 	jwk, err := cryptutil.PrivateJWKFromBytes(decodedCert)

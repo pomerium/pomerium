@@ -31,7 +31,8 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 		},
 	}}
 	b := New("grpc", "http", "metrics", filemgr.NewManager(), nil)
-	routeConfiguration, err := b.buildMainRouteConfiguration(ctx, cfg)
+	sb := b.WithConfig(cfg)
+	routeConfiguration, err := sb.buildMainRouteConfiguration(ctx)
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `{
 		"name": "main",
@@ -41,12 +42,12 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 				"name": "catch-all",
 				"domains": ["*"],
 				"routes": [
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/ping"))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/healthz"))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/.pomerium"))+`,
-					`+protojson.Format(b.buildControlPlanePrefixRoute(cfg.Options, "/.pomerium/"))+`,
-					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/.well-known/pomerium"))+`,
-					`+protojson.Format(b.buildControlPlanePrefixRoute(cfg.Options, "/.well-known/pomerium/"))+`,
+					`+protojson.Format(sb.buildControlPlanePathRoute(context.Background(), "/ping"))+`,
+					`+protojson.Format(sb.buildControlPlanePathRoute(context.Background(), "/healthz"))+`,
+					`+protojson.Format(sb.buildControlPlanePathRoute(context.Background(), "/.pomerium"))+`,
+					`+protojson.Format(sb.buildControlPlanePrefixRoute(context.Background(), "/.pomerium/"))+`,
+					`+protojson.Format(sb.buildControlPlanePathRoute(context.Background(), "/.well-known/pomerium"))+`,
+					`+protojson.Format(sb.buildControlPlanePrefixRoute(context.Background(), "/.well-known/pomerium/"))+`,
 					{
 						"name": "policy-0",
 						"match": {
@@ -77,7 +78,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 						],
 						"route": {
 							"autoHostRewrite": true,
-							"cluster": "route-5d678ee30d16332b",
+							"cluster": "route-f6a1c77f275e05b4",
 							"hashPolicy": [
 								{ "header": { "headerName": "x-pomerium-routing-key" }, "terminal": true },
 								{ "connectionProperties": { "sourceIp": true }, "terminal": true }
@@ -94,7 +95,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 								"checkSettings": {
 									"contextExtensions": {
 										"internal": "false",
-										"route_id": "6730505273956774699"
+										"route_id": "17771704953515935156"
 									}
 								}
 							}
@@ -130,7 +131,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 						],
 						"route": {
 							"autoHostRewrite": true,
-							"cluster": "route-5d678ee30d16332b",
+							"cluster": "route-f6a1c77f275e05b4",
 							"hashPolicy": [
 								{ "header": { "headerName": "x-pomerium-routing-key" }, "terminal": true },
 								{ "connectionProperties": { "sourceIp": true }, "terminal": true }
@@ -147,7 +148,7 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 								"checkSettings": {
 									"contextExtensions": {
 										"internal": "false",
-										"route_id": "6730505273956774699"
+										"route_id": "17771704953515935156"
 									}
 								}
 							}

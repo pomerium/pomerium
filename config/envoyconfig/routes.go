@@ -1,9 +1,9 @@
 package envoyconfig
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"sort"
 	"strings"
 
@@ -24,7 +24,7 @@ const (
 	httpCluster = "pomerium-control-plane-http"
 )
 
-func (b *Builder) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
+func (b *ScopedBuilder) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
 	action := &envoy_config_route_v3.Route_Route{
 		Route: &envoy_config_route_v3.RouteAction{
 			ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
@@ -47,30 +47,23 @@ func (b *Builder) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
 	}}, nil
 }
 
-func (b *Builder) buildPomeriumHTTPRoutes(
-	options *config.Options,
+func (b *ScopedBuilder) buildPomeriumHTTPRoutes(
+	ctx context.Context,
 	host string,
 ) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
 
 	// if this is the pomerium proxy in front of the the authenticate service, don't add
 	// these routes since they will be handled by authenticate
-	isFrontingAuthenticate, err := isProxyFrontingAuthenticate(options, host)
+	isFrontingAuthenticate, err := b.isProxyFrontingAuthenticate(host)
 	if err != nil {
 		return nil, err
 	}
 	if !isFrontingAuthenticate {
-		routes = append(routes,
-			b.buildControlPlanePathRoute(options, "/ping"),
-			b.buildControlPlanePathRoute(options, "/healthz"),
-			b.buildControlPlanePathRoute(options, "/.pomerium"),
-			b.buildControlPlanePrefixRoute(options, "/.pomerium/"),
-			b.buildControlPlanePathRoute(options, "/.well-known/pomerium"),
-			b.buildControlPlanePrefixRoute(options, "/.well-known/pomerium/"),
-		)
+		routes = append(routes, b.staticHttpRoutes...)
 	}
 
-	authRoutes, err := b.buildPomeriumAuthenticateHTTPRoutes(options, host)
+	authRoutes, err := b.buildPomeriumAuthenticateHTTPRoutes(ctx, host)
 	if err != nil {
 		return nil, err
 	}
@@ -78,35 +71,27 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 	return routes, nil
 }
 
-func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(
-	options *config.Options,
+func (b *ScopedBuilder) buildPomeriumAuthenticateHTTPRoutes(
+	ctx context.Context,
 	host string,
 ) ([]*envoy_config_route_v3.Route, error) {
-	if !config.IsAuthenticate(options.Services) {
+	if !config.IsAuthenticate(b.cfg.Options.Services) {
 		return nil, nil
 	}
 
-	for _, fn := range []func() (*url.URL, error){
-		options.GetAuthenticateURL,
-		options.GetInternalAuthenticateURL,
-	} {
-		u, err := fn()
-		if err != nil {
-			return nil, err
-		}
-		if urlMatchesHost(u, host) {
-			return []*envoy_config_route_v3.Route{
-				b.buildControlPlanePathRoute(options, options.AuthenticateCallbackPath),
-				b.buildControlPlanePathRoute(options, "/"),
-				b.buildControlPlanePathRoute(options, "/robots.txt"),
-			}, nil
-		}
+	if b.urlMatchesHost(b.authenticateURL, host) {
+		return b.staticAuthenticateHttpRoutes, nil
 	}
+
+	if b.urlMatchesHost(b.internalAuthenticateURL, host) {
+		return b.staticAuthenticateHttpRoutes, nil
+	}
+
 	return nil, nil
 }
 
-func (b *Builder) buildControlPlanePathRoute(
-	options *config.Options,
+func (b *ScopedBuilder) buildControlPlanePathRoute(
+	ctx context.Context,
 	path string,
 ) *envoy_config_route_v3.Route {
 	r := &envoy_config_route_v3.Route{
@@ -121,7 +106,7 @@ func (b *Builder) buildControlPlanePathRoute(
 				},
 			},
 		},
-		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders()),
+		ResponseHeadersToAdd: toEnvoyHeaders(b.cfg.Options.GetSetResponseHeaders()),
 		TypedPerFilterConfig: map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, 0)),
 		},
@@ -129,8 +114,8 @@ func (b *Builder) buildControlPlanePathRoute(
 	return r
 }
 
-func (b *Builder) buildControlPlanePrefixRoute(
-	options *config.Options,
+func (b *ScopedBuilder) buildControlPlanePrefixRoute(
+	ctx context.Context,
 	prefix string,
 ) *envoy_config_route_v3.Route {
 	r := &envoy_config_route_v3.Route{
@@ -145,7 +130,7 @@ func (b *Builder) buildControlPlanePrefixRoute(
 				},
 			},
 		},
-		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders()),
+		ResponseHeadersToAdd: toEnvoyHeaders(b.cfg.Options.GetSetResponseHeaders()),
 		TypedPerFilterConfig: map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, 0)),
 		},
@@ -172,63 +157,48 @@ func getClusterStatsName(policy *config.Policy) string {
 	return ""
 }
 
-func (b *Builder) buildRoutesForPoliciesWithHost(
-	cfg *config.Config,
+func (b *ScopedBuilder) buildRoutesForPoliciesWithHost(
+	ctx context.Context,
 	host string,
 ) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
-	for i, p := range cfg.Options.GetAllPolicies() {
-		policy := p
-		fromURL, err := urlutil.ParseAndValidateURL(policy.From)
+
+	var retErr error
+	i := -1
+	b.cfg.Options.GetAllPolicies()(func(p *config.Policy) bool {
+		i++
+		fromURL, err := urlutil.ParseAndValidateSharedURL(p.From)
 		if err != nil {
-			return nil, err
+			retErr = err
+			return false
 		}
 
-		if !urlMatchesHost(fromURL, host) {
-			continue
+		if !b.urlMatchesHost(fromURL.URL, host) {
+			return true
 		}
 
-		policyRoutes, err := b.buildRoutesForPolicy(cfg, &policy, fmt.Sprintf("policy-%d", i))
+		policyRoutes, err := b.buildRoutesForPolicy(ctx, p, fmt.Sprintf("policy-%d", i))
 		if err != nil {
-			return nil, err
+			retErr = err
+			return false
 		}
 
 		routes = append(routes, policyRoutes...)
+		return true
+	})
+	if retErr != nil {
+		return nil, retErr
 	}
 	return routes, nil
 }
 
-func (b *Builder) buildRoutesForPoliciesWithCatchAll(
-	cfg *config.Config,
-) ([]*envoy_config_route_v3.Route, error) {
-	var routes []*envoy_config_route_v3.Route
-	for i, p := range cfg.Options.GetAllPolicies() {
-		policy := p
-		fromURL, err := urlutil.ParseAndValidateURL(policy.From)
-		if err != nil {
-			return nil, err
-		}
-
-		if !strings.Contains(fromURL.Host, "*") {
-			continue
-		}
-
-		policyRoutes, err := b.buildRoutesForPolicy(cfg, &policy, fmt.Sprintf("policy-%d", i))
-		if err != nil {
-			return nil, err
-		}
-
-		routes = append(routes, policyRoutes...)
-	}
-	return routes, nil
-}
-
-func (b *Builder) buildRoutesForPolicy(
-	cfg *config.Config,
+func (b *ScopedBuilder) buildRoutesForPolicy(
+	ctx context.Context,
 	policy *config.Policy,
 	name string,
 ) ([]*envoy_config_route_v3.Route, error) {
-	fromURL, err := urlutil.ParseAndValidateURL(policy.From)
+
+	fromURL, err := urlutil.ParseAndValidateSharedURL(policy.From)
 	if err != nil {
 		return nil, err
 	}
@@ -236,15 +206,21 @@ func (b *Builder) buildRoutesForPolicy(
 	var routes []*envoy_config_route_v3.Route
 	if strings.Contains(fromURL.Host, "*") {
 		// we have to match '*.example.com' and '*.example.com:443', so there are two routes
-		for _, host := range urlutil.GetDomainsForURL(fromURL, !cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMatchAnyIncomingPort)) {
-			route, err := b.buildRouteForPolicyAndMatch(cfg, policy, name, mkRouteMatchForHost(cfg.Options, policy, host))
+		var retErr error
+		urlutil.AllDomainsForURL(fromURL.URL, !b.cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMatchAnyIncomingPort))(func(host string) bool {
+			route, err := b.buildRouteForPolicyAndMatch(ctx, policy, name, mkRouteMatchForHost(b.cfg.Options, policy, host))
 			if err != nil {
-				return nil, err
+				retErr = err
+				return false
 			}
 			routes = append(routes, route)
+			return true
+		})
+		if retErr != nil {
+			return nil, retErr
 		}
 	} else {
-		route, err := b.buildRouteForPolicyAndMatch(cfg, policy, name, mkRouteMatch(policy))
+		route, err := b.buildRouteForPolicyAndMatch(ctx, policy, name, mkRouteMatch(policy))
 		if err != nil {
 			return nil, err
 		}
@@ -253,13 +229,13 @@ func (b *Builder) buildRoutesForPolicy(
 	return routes, nil
 }
 
-func (b *Builder) buildRouteForPolicyAndMatch(
-	cfg *config.Config,
+func (b *ScopedBuilder) buildRouteForPolicyAndMatch(
+	ctx context.Context,
 	policy *config.Policy,
 	name string,
 	match *envoy_config_route_v3.RouteMatch,
 ) (*envoy_config_route_v3.Route, error) {
-	fromURL, err := urlutil.ParseAndValidateURL(policy.From)
+	fromURL, err := urlutil.ParseAndValidateSharedURL(policy.From)
 	if err != nil {
 		return nil, err
 	}
@@ -273,8 +249,8 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		Name:                   name,
 		Match:                  match,
 		Metadata:               &envoy_config_core_v3.Metadata{},
-		RequestHeadersToRemove: getRequestHeadersToRemove(cfg.Options, policy),
-		ResponseHeadersToAdd:   toEnvoyHeaders(cfg.Options.GetSetResponseHeadersForPolicy(policy)),
+		RequestHeadersToRemove: getRequestHeadersToRemove(b.cfg.Options, policy),
+		ResponseHeadersToAdd:   toEnvoyHeaders(b.cfg.Options.GetSetResponseHeadersForPolicy(policy)),
 	}
 	if policy.Redirect != nil {
 		action, err := b.buildPolicyRouteRedirectAction(policy.Redirect)
@@ -286,7 +262,7 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		action := b.buildPolicyRouteDirectResponseAction(policy.Response)
 		route.Action = &envoy_config_route_v3.Route_DirectResponse{DirectResponse: action}
 	} else {
-		action, err := b.buildPolicyRouteRouteAction(cfg.Options, policy)
+		action, err := b.buildPolicyRouteRouteAction(b.cfg.Options, policy)
 		if err != nil {
 			return nil, err
 		}
@@ -298,7 +274,7 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 	}
 
 	// disable authentication entirely when the proxy is fronting authenticate
-	isFrontingAuthenticate, err := isProxyFrontingAuthenticate(cfg.Options, fromURL.Hostname())
+	isFrontingAuthenticate, err := b.isProxyFrontingAuthenticate(fromURL.Hostname())
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +288,7 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		}
 		luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
 			Kind: &structpb.Value_StringValue{
-				StringValue: cfg.Options.CookieName,
+				StringValue: b.cfg.Options.CookieName,
 			},
 		}
 		luaMetadata["remove_pomerium_authorization"] = &structpb.Value{
@@ -346,7 +322,7 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 	return route, nil
 }
 
-func (b *Builder) buildPolicyRouteDirectResponseAction(r *config.DirectResponse) *envoy_config_route_v3.DirectResponseAction {
+func (b *ScopedBuilder) buildPolicyRouteDirectResponseAction(r *config.DirectResponse) *envoy_config_route_v3.DirectResponseAction {
 	return &envoy_config_route_v3.DirectResponseAction{
 		Status: uint32(r.Status),
 		Body: &envoy_config_core_v3.DataSource{
@@ -357,7 +333,7 @@ func (b *Builder) buildPolicyRouteDirectResponseAction(r *config.DirectResponse)
 	}
 }
 
-func (b *Builder) buildPolicyRouteRedirectAction(r *config.PolicyRedirect) (*envoy_config_route_v3.RedirectAction, error) {
+func (b *ScopedBuilder) buildPolicyRouteRedirectAction(r *config.PolicyRedirect) (*envoy_config_route_v3.RedirectAction, error) {
 	action := &envoy_config_route_v3.RedirectAction{}
 	switch {
 	case r.HTTPSRedirect != nil:
@@ -394,7 +370,7 @@ func (b *Builder) buildPolicyRouteRedirectAction(r *config.PolicyRedirect) (*env
 	return action, nil
 }
 
-func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *config.Policy) (*envoy_config_route_v3.RouteAction, error) {
+func (b *ScopedBuilder) buildPolicyRouteRouteAction(options *config.Options, policy *config.Policy) (*envoy_config_route_v3.RouteAction, error) {
 	clusterName := getClusterID(policy)
 	// kubernetes requests are sent to the http control plane to be reproxied
 	if policy.IsForKubernetes() {
@@ -624,16 +600,10 @@ func setHostRewriteOptions(policy *config.Policy, action *envoy_config_route_v3.
 	}
 }
 
-func isProxyFrontingAuthenticate(options *config.Options, host string) (bool, error) {
-	authenticateURL, err := options.GetAuthenticateURL()
-	if err != nil {
-		return false, err
-	}
-
-	if !config.IsAuthenticate(options.Services) && urlMatchesHost(authenticateURL, host) {
+func (b *ScopedBuilder) isProxyFrontingAuthenticate(host string) (bool, error) {
+	if !config.IsAuthenticate(b.cfg.Options.Services) && b.urlMatchesHost(b.authenticateURL, host) {
 		return true, nil
 	}
-
 	return false, nil
 }
 

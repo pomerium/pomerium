@@ -46,6 +46,8 @@ func NewTracingOptions(o *Options) (*TracingOptions, error) {
 		tracingOpts.ZipkinEndpoint = zipkinEndpoint
 	case "":
 		return &TracingOptions{}, nil
+	case trace.NoneTracingProviderName:
+
 	default:
 		return nil, fmt.Errorf("config: provider %s unknown", o.TracingProvider)
 	}

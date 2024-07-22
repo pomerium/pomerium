@@ -25,11 +25,11 @@ type MetricsScrapeEndpoint metrics.ScrapeEndpoint
 // Config holds pomerium configuration options.
 type Config struct {
 	Options          *Options
-	AutoCertificates []tls.Certificate
+	AutoCertificates []tls.Certificate `hash:"-"`
 	EnvoyVersion     string
 
 	// DerivedCertificates are TLS certificates derived from the shared secret
-	DerivedCertificates []tls.Certificate
+	DerivedCertificates []tls.Certificate `hash:"-"`
 	// DerivedCAPEM is a PEM-encoded certificate authority
 	// derived from the shared secret
 	DerivedCAPEM []byte

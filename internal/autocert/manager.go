@@ -471,18 +471,15 @@ func configureTrustedRoots(acmeMgr *certmagic.ACMEIssuer, opts config.AutocertOp
 }
 
 func sourceHostnames(cfg *config.Config) []string {
-	policies := cfg.Options.GetAllPolicies()
-
-	if len(policies) == 0 {
-		return nil
-	}
-
 	dedupe := map[string]struct{}{}
-	for _, p := range policies {
+
+	cfg.Options.GetAllPolicies()(func(p *config.Policy) bool {
 		if u, _ := urlutil.ParseAndValidateURL(p.From); u != nil && !strings.Contains(u.Host, "*") {
 			dedupe[u.Hostname()] = struct{}{}
 		}
-	}
+		return true
+	})
+
 	if cfg.Options.AuthenticateURLString != "" {
 		if u, _ := cfg.Options.GetAuthenticateURL(); u != nil {
 			dedupe[u.Hostname()] = struct{}{}

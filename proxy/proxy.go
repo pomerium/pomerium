@@ -102,7 +102,7 @@ func New(cfg *config.Config, opts ...Option) (*Proxy, error) {
 	p.webauthn = webauthn.New(p.getWebauthnState)
 
 	metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
-		return int64(len(p.currentOptions.Load().GetAllPolicies()))
+		return int64(p.currentOptions.Load().NumPolicies())
 	})
 
 	return p, nil
