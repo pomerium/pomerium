@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -25,52 +26,52 @@ import (
 )
 
 // BuildClusters builds envoy clusters from the given config.
-func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*envoy_config_cluster_v3.Cluster, error) {
+func (b *Builder) BuildClusters(ctx context.Context) ([]*envoy_config_cluster_v3.Cluster, error) {
 	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildClusters")
 	defer span.End()
 
 	grpcURLs := []*url.URL{{
 		Scheme: "http",
-		Host:   b.localGRPCAddress,
+		Host:   b.opts.LocalGRPCAddress,
 	}}
 	httpURL := &url.URL{
 		Scheme: "http",
-		Host:   b.localHTTPAddress,
+		Host:   b.opts.LocalHTTPAddress,
 	}
 	metricsURL := &url.URL{
 		Scheme: "http",
-		Host:   b.localMetricsAddress,
+		Host:   b.opts.LocalMetricsAddress,
 	}
 
 	authorizeURLs, databrokerURLs := grpcURLs, grpcURLs
-	if !config.IsAll(cfg.Options.Services) {
+	if !config.IsAll(b.cfg.Options.Services) {
 		var err error
-		authorizeURLs, err = cfg.Options.GetInternalAuthorizeURLs()
+		authorizeURLs, err = b.cfg.Options.GetInternalAuthorizeURLs()
 		if err != nil {
 			return nil, err
 		}
-		databrokerURLs, err = cfg.Options.GetDataBrokerURLs()
+		databrokerURLs, err = b.cfg.Options.GetDataBrokerURLs()
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	controlGRPC, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-grpc", grpcURLs, upstreamProtocolHTTP2, Keepalive(false))
+	controlGRPC, err := b.buildInternalCluster(ctx, "pomerium-control-plane-grpc", grpcURLs, upstreamProtocolHTTP2, Keepalive(false))
 	if err != nil {
 		return nil, err
 	}
 
-	controlHTTP, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-http", []*url.URL{httpURL}, upstreamProtocolAuto, Keepalive(false))
+	controlHTTP, err := b.buildInternalCluster(ctx, "pomerium-control-plane-http", []*url.URL{httpURL}, upstreamProtocolAuto, Keepalive(false))
 	if err != nil {
 		return nil, err
 	}
 
-	controlMetrics, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-metrics", []*url.URL{metricsURL}, upstreamProtocolAuto, Keepalive(false))
+	controlMetrics, err := b.buildInternalCluster(ctx, "pomerium-control-plane-metrics", []*url.URL{metricsURL}, upstreamProtocolAuto, Keepalive(false))
 	if err != nil {
 		return nil, err
 	}
 
-	authorizeCluster, err := b.buildInternalCluster(ctx, cfg, "pomerium-authorize", authorizeURLs, upstreamProtocolHTTP2, Keepalive(false))
+	authorizeCluster, err := b.buildInternalCluster(ctx, "pomerium-authorize", authorizeURLs, upstreamProtocolHTTP2, Keepalive(false))
 	if err != nil {
 		return nil, err
 	}
@@ -79,8 +80,8 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		authorizeCluster.OutlierDetection = grpcOutlierDetection()
 	}
 
-	databrokerKeepalive := Keepalive(cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagGRPCDatabrokerKeepalive))
-	databrokerCluster, err := b.buildInternalCluster(ctx, cfg, "pomerium-databroker", databrokerURLs, upstreamProtocolHTTP2, databrokerKeepalive)
+	databrokerKeepalive := Keepalive(b.cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagGRPCDatabrokerKeepalive))
+	databrokerCluster, err := b.buildInternalCluster(ctx, "pomerium-databroker", databrokerURLs, upstreamProtocolHTTP2, databrokerKeepalive)
 	if err != nil {
 		return nil, err
 	}
@@ -89,13 +90,13 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		databrokerCluster.OutlierDetection = grpcOutlierDetection()
 	}
 
-	envoyAdminCluster, err := b.buildEnvoyAdminCluster(ctx, cfg)
+	envoyAdminCluster, err := b.buildEnvoyAdminCluster()
 	if err != nil {
 		return nil, err
 	}
 
 	clusters := []*envoy_config_cluster_v3.Cluster{
-		b.buildACMETLSALPNCluster(cfg),
+		b.buildACMETLSALPNCluster(),
 		controlGRPC,
 		controlHTTP,
 		controlMetrics,
@@ -104,17 +105,18 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		envoyAdminCluster,
 	}
 
-	tracingCluster, err := buildTracingCluster(cfg.Options)
+	tracingCluster, err := buildTracingCluster(b.cfg.Options)
 	if err != nil {
 		return nil, err
 	} else if tracingCluster != nil {
 		clusters = append(clusters, tracingCluster)
 	}
 
-	if config.IsProxy(cfg.Options.Services) {
-		for policy := range cfg.Options.GetAllPolicies() {
+	if config.IsProxy(b.cfg.Options.Services) {
+		clusters = slices.Grow(clusters, b.cfg.Options.NumPolicies())
+		for policy := range b.cfg.Options.GetAllPolicies() {
 			if len(policy.To) > 0 {
-				cluster, err := b.buildPolicyCluster(ctx, cfg, policy)
+				cluster, err := b.buildPolicyCluster(ctx, policy)
 				if err != nil {
 					return nil, fmt.Errorf("policy %q: %w", policy.String(), err)
 				}
@@ -132,14 +134,13 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 
 func (b *Builder) buildInternalCluster(
 	ctx context.Context,
-	cfg *config.Config,
 	name string,
 	dsts []*url.URL,
 	upstreamProtocol upstreamProtocolConfig,
 	keepalive Keepalive,
 ) (*envoy_config_cluster_v3.Cluster, error) {
 	cluster := newDefaultEnvoyClusterConfig()
-	cluster.DnsLookupFamily = config.GetEnvoyDNSLookupFamily(cfg.Options.DNSLookupFamily)
+	cluster.DnsLookupFamily = config.GetEnvoyDNSLookupFamily(b.cfg.Options.DNSLookupFamily)
 	// Match the Go standard library default TCP keepalive settings.
 	const keepaliveTimeSeconds = 15
 	cluster.UpstreamConnectionOptions = &envoy_config_cluster_v3.UpstreamConnectionOptions{
@@ -150,7 +151,7 @@ func (b *Builder) buildInternalCluster(
 	}
 	var endpoints []Endpoint
 	for _, dst := range dsts {
-		ts, err := b.buildInternalTransportSocket(ctx, cfg, dst)
+		ts, err := b.buildInternalTransportSocket(ctx, dst)
 		if err != nil {
 			return nil, err
 		}
@@ -163,7 +164,7 @@ func (b *Builder) buildInternalCluster(
 	return cluster, nil
 }
 
-func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, policy *config.Policy) (*envoy_config_cluster_v3.Cluster, error) {
+func (b *Builder) buildPolicyCluster(ctx context.Context, policy *config.Policy) (*envoy_config_cluster_v3.Cluster, error) {
 	var cluster *envoy_config_cluster_v3.Cluster
 	if policy.EnvoyOpts != nil {
 		cluster = proto.Clone(policy.EnvoyOpts).(*envoy_config_cluster_v3.Cluster)
@@ -171,7 +172,7 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 		cluster = newDefaultEnvoyClusterConfig()
 	}
 
-	options := cfg.Options
+	options := b.cfg.Options
 
 	if options.EnvoyBindConfigFreebind.IsSet() || options.EnvoyBindConfigSourceAddress != "" {
 		cluster.UpstreamBindConfig = new(envoy_config_core_v3.BindConfig)
@@ -196,10 +197,10 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 	}
 
 	cluster.AltStatName = getClusterStatsName(policy)
-	upstreamProtocol := getUpstreamProtocolForPolicy(ctx, policy)
+	upstreamProtocol := getUpstreamProtocolForPolicy(policy)
 
 	name := getClusterID(policy)
-	endpoints, err := b.buildPolicyEndpoints(ctx, cfg, policy)
+	endpoints, err := b.buildPolicyEndpoints(ctx, policy)
 	if err != nil {
 		return nil, err
 	}
@@ -218,13 +219,12 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 
 func (b *Builder) buildPolicyEndpoints(
 	ctx context.Context,
-	cfg *config.Config,
 	policy *config.Policy,
 ) ([]Endpoint, error) {
 	var endpoints []Endpoint
 	for _, dst := range policy.To {
 		dst := dst
-		ts, err := b.buildPolicyTransportSocket(ctx, cfg, policy, dst.URL)
+		ts, err := b.buildPolicyTransportSocket(ctx, policy, dst.URL)
 		if err != nil {
 			return nil, err
 		}
@@ -235,7 +235,6 @@ func (b *Builder) buildPolicyEndpoints(
 
 func (b *Builder) buildInternalTransportSocket(
 	ctx context.Context,
-	cfg *config.Config,
 	endpoint *url.URL,
 ) (*envoy_config_core_v3.TransportSocket, error) {
 	if endpoint.Scheme != "https" {
@@ -244,14 +243,14 @@ func (b *Builder) buildInternalTransportSocket(
 
 	validationContext := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
 		MatchTypedSubjectAltNames: []*envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher{
-			b.buildSubjectAltNameMatcher(endpoint, cfg.Options.OverrideCertificateName),
+			b.buildSubjectAltNameMatcher(endpoint, b.cfg.Options.OverrideCertificateName),
 		},
 	}
-	bs, err := getCombinedCertificateAuthority(ctx, cfg)
+	bs, err := getCombinedCertificateAuthority(ctx, b.cfg)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
 	} else {
-		validationContext.TrustedCa = b.filemgr.BytesDataSource("ca.pem", bs)
+		validationContext.TrustedCa = b.opts.FileManager.BytesDataSource("ca.pem", bs)
 	}
 	tlsContext := &envoy_extensions_transport_sockets_tls_v3.UpstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
@@ -260,7 +259,7 @@ func (b *Builder) buildInternalTransportSocket(
 				ValidationContext: validationContext,
 			},
 		},
-		Sni: b.buildSubjectNameIndication(endpoint, cfg.Options.OverrideCertificateName),
+		Sni: b.buildSubjectNameIndication(endpoint, b.cfg.Options.OverrideCertificateName),
 	}
 	tlsConfig := marshalAny(tlsContext)
 	return &envoy_config_core_v3.TransportSocket{
@@ -273,7 +272,6 @@ func (b *Builder) buildInternalTransportSocket(
 
 func (b *Builder) buildPolicyTransportSocket(
 	ctx context.Context,
-	cfg *config.Config,
 	policy *config.Policy,
 	dst url.URL,
 ) (*envoy_config_core_v3.TransportSocket, error) {
@@ -281,9 +279,9 @@ func (b *Builder) buildPolicyTransportSocket(
 		return nil, nil
 	}
 
-	upstreamProtocol := getUpstreamProtocolForPolicy(ctx, policy)
+	upstreamProtocol := getUpstreamProtocolForPolicy(policy)
 
-	vc, err := b.buildPolicyValidationContext(ctx, cfg, policy, dst)
+	vc, err := b.buildPolicyValidationContext(ctx, policy, dst)
 	if err != nil {
 		return nil, err
 	}
@@ -322,7 +320,6 @@ func (b *Builder) buildPolicyTransportSocket(
 
 func (b *Builder) buildPolicyValidationContext(
 	ctx context.Context,
-	cfg *config.Config,
 	policy *config.Policy,
 	dst url.URL,
 ) (*envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext, error) {
@@ -339,19 +336,19 @@ func (b *Builder) buildPolicyValidationContext(
 		},
 	}
 	if policy.TLSCustomCAFile != "" {
-		validationContext.TrustedCa = b.filemgr.FileDataSource(policy.TLSCustomCAFile)
+		validationContext.TrustedCa = b.opts.FileManager.FileDataSource(policy.TLSCustomCAFile)
 	} else if policy.TLSCustomCA != "" {
 		bs, err := base64.StdEncoding.DecodeString(policy.TLSCustomCA)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("invalid custom CA certificate")
 		}
-		validationContext.TrustedCa = b.filemgr.BytesDataSource("custom-ca.pem", bs)
+		validationContext.TrustedCa = b.opts.FileManager.BytesDataSource("custom-ca.pem", bs)
 	} else {
-		bs, err := getCombinedCertificateAuthority(ctx, cfg)
+		bs, err := getCombinedCertificateAuthority(ctx, b.cfg)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
 		} else {
-			validationContext.TrustedCa = b.filemgr.BytesDataSource("ca.pem", bs)
+			validationContext.TrustedCa = b.opts.FileManager.BytesDataSource("ca.pem", bs)
 		}
 	}
 

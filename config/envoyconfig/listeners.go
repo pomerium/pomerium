@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/url"
 	"runtime"
-	"strings"
 	"time"
 
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
@@ -38,7 +37,6 @@ const listenerBufferLimit uint32 = 32 * 1024
 // BuildListeners builds envoy listeners from the given config.
 func (b *Builder) BuildListeners(
 	ctx context.Context,
-	cfg *config.Config,
 	fullyStatic bool,
 ) ([]*envoy_config_listener_v3.Listener, error) {
 	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildListeners")
@@ -46,39 +44,39 @@ func (b *Builder) BuildListeners(
 
 	var listeners []*envoy_config_listener_v3.Listener
 
-	if shouldStartMainListener(cfg.Options) {
-		li, err := b.buildMainListener(ctx, cfg, fullyStatic)
+	if shouldStartMainListener(b.cfg.Options) {
+		li, err := b.buildMainListener(ctx, fullyStatic)
 		if err != nil {
 			return nil, err
 		}
 		listeners = append(listeners, li)
 	}
 
-	if shouldStartGRPCListener(cfg.Options) {
-		li, err := b.buildGRPCListener(ctx, cfg)
+	if shouldStartGRPCListener(b.cfg.Options) {
+		li, err := b.buildGRPCListener(ctx)
 		if err != nil {
 			return nil, err
 		}
 		listeners = append(listeners, li)
 	}
 
-	if cfg.Options.MetricsAddr != "" {
-		li, err := b.buildMetricsListener(cfg)
+	if b.cfg.Options.MetricsAddr != "" {
+		li, err := b.buildMetricsListener(ctx)
 		if err != nil {
 			return nil, err
 		}
 		listeners = append(listeners, li)
 	}
 
-	if cfg.Options.EnvoyAdminAddress != "" {
-		li, err := b.buildEnvoyAdminListener(ctx, cfg)
+	if b.cfg.Options.EnvoyAdminAddress != "" {
+		li, err := b.buildEnvoyAdminListener()
 		if err != nil {
 			return nil, err
 		}
 		listeners = append(listeners, li)
 	}
 
-	li, err := b.buildOutboundListener(cfg)
+	li, err := b.buildOutboundListener()
 	if err != nil {
 		return nil, err
 	}
@@ -101,8 +99,8 @@ func getAllCertificates(cfg *config.Config) ([]tls.Certificate, error) {
 	return append(allCertificates, *wc), nil
 }
 
-func (b *Builder) buildTLSSocket(ctx context.Context, cfg *config.Config, certs []tls.Certificate) (*envoy_config_core_v3.TransportSocket, error) {
-	tlsContext, err := b.buildDownstreamTLSContextMulti(ctx, cfg, certs)
+func (b *Builder) buildTLSSocket(ctx context.Context, certs []tls.Certificate) (*envoy_config_core_v3.TransportSocket, error) {
+	tlsContext, err := b.buildDownstreamTLSContextMulti(ctx, certs)
 	if err != nil {
 		return nil, err
 	}
@@ -138,22 +136,21 @@ func listenerAccessLog() []*envoy_config_accesslog_v3.AccessLog {
 
 func (b *Builder) buildMainListener(
 	ctx context.Context,
-	cfg *config.Config,
 	fullyStatic bool,
 ) (*envoy_config_listener_v3.Listener, error) {
 	li := newEnvoyListener("http-ingress")
-	if cfg.Options.UseProxyProtocol {
+	if b.cfg.Options.UseProxyProtocol {
 		li.ListenerFilters = append(li.ListenerFilters, ProxyProtocolFilter())
 	}
 
-	if cfg.Options.DownstreamMTLS.Enforcement == config.MTLSEnforcementRejectConnection {
+	if b.cfg.Options.DownstreamMTLS.Enforcement == config.MTLSEnforcementRejectConnection {
 		li.AccessLog = listenerAccessLog()
 	}
 
-	if cfg.Options.InsecureServer {
-		li.Address = buildAddress(cfg.Options.Addr, 80)
+	if b.cfg.Options.InsecureServer {
+		li.Address = buildAddress(b.cfg.Options.Addr, 80)
 
-		filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
+		filter, err := b.buildMainHTTPConnectionManagerFilter(fullyStatic)
 		if err != nil {
 			return nil, err
 		}
@@ -164,17 +161,17 @@ func (b *Builder) buildMainListener(
 			},
 		}}
 	} else {
-		li.Address = buildAddress(cfg.Options.Addr, 443)
+		li.Address = buildAddress(b.cfg.Options.Addr, 443)
 		li.ListenerFilters = append(li.ListenerFilters, TLSInspectorFilter())
 
 		li.FilterChains = append(li.FilterChains, b.buildACMETLSALPNFilterChain())
 
-		allCertificates, err := getAllCertificates(cfg)
+		allCertificates, err := getAllCertificates(b.cfg)
 		if err != nil {
 			return nil, err
 		}
 
-		filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
+		filter, err := b.buildMainHTTPConnectionManagerFilter(fullyStatic)
 		if err != nil {
 			return nil, err
 		}
@@ -183,7 +180,7 @@ func (b *Builder) buildMainListener(
 		}
 		li.FilterChains = append(li.FilterChains, filterChain)
 
-		sock, err := b.buildTLSSocket(ctx, cfg, allCertificates)
+		sock, err := b.buildTLSSocket(ctx, allCertificates)
 		if err != nil {
 			return nil, fmt.Errorf("error building TLS socket: %w", err)
 		}
@@ -192,7 +189,7 @@ func (b *Builder) buildMainListener(
 	return li, nil
 }
 
-func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+func (b *Builder) buildMetricsListener(ctx context.Context) (*envoy_config_listener_v3.Listener, error) {
 	filter, err := b.buildMetricsHTTPConnectionManagerFilter()
 	if err != nil {
 		return nil, err
@@ -204,7 +201,7 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 		},
 	}
 
-	cert, err := cfg.Options.GetMetricsCertificate()
+	cert, err := b.cfg.Options.GetMetricsCertificate()
 	if err != nil {
 		return nil, err
 	}
@@ -213,14 +210,14 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 			CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 				TlsParams: tlsDownstreamParams,
 				TlsCertificates: []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{
-					b.envoyTLSCertificateFromGoTLSCertificate(context.TODO(), cert),
+					b.envoyTLSCertificateFromGoTLSCertificate(ctx, cert),
 				},
 				AlpnProtocols: []string{"h2", "http/1.1"},
 			},
 		}
 
-		if cfg.Options.MetricsClientCA != "" {
-			bs, err := base64.StdEncoding.DecodeString(cfg.Options.MetricsClientCA)
+		if b.cfg.Options.MetricsClientCA != "" {
+			bs, err := base64.StdEncoding.DecodeString(b.cfg.Options.MetricsClientCA)
 			if err != nil {
 				return nil, fmt.Errorf("xds: invalid metrics_client_ca: %w", err)
 			}
@@ -229,15 +226,15 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 			dtc.CommonTlsContext.ValidationContextType = &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
 				ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
 					TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_VERIFY_TRUST_CHAIN,
-					TrustedCa:              b.filemgr.BytesDataSource("metrics_client_ca.pem", bs),
+					TrustedCa:              b.opts.FileManager.BytesDataSource("metrics_client_ca.pem", bs),
 				},
 			}
-		} else if cfg.Options.MetricsClientCAFile != "" {
+		} else if b.cfg.Options.MetricsClientCAFile != "" {
 			dtc.RequireClientCertificate = wrapperspb.Bool(true)
 			dtc.CommonTlsContext.ValidationContextType = &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
 				ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
 					TrustChainVerification: envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_VERIFY_TRUST_CHAIN,
-					TrustedCa:              b.filemgr.FileDataSource(cfg.Options.MetricsClientCAFile),
+					TrustedCa:              b.opts.FileManager.FileDataSource(b.cfg.Options.MetricsClientCAFile),
 				},
 			}
 		}
@@ -252,12 +249,12 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 	}
 
 	// we ignore the host part of the address, only binding to
-	host, port, err := net.SplitHostPort(cfg.Options.MetricsAddr)
+	host, port, err := net.SplitHostPort(b.cfg.Options.MetricsAddr)
 	if err != nil {
-		return nil, fmt.Errorf("metrics_addr %s: %w", cfg.Options.MetricsAddr, err)
+		return nil, fmt.Errorf("metrics_addr %s: %w", b.cfg.Options.MetricsAddr, err)
 	}
 	if port == "" {
-		return nil, fmt.Errorf("metrics_addr %s: port is required", cfg.Options.MetricsAddr)
+		return nil, fmt.Errorf("metrics_addr %s: port is required", b.cfg.Options.MetricsAddr)
 	}
 	// unless an explicit IP address was provided, and bind to all interfaces if hostname was provided
 	if net.ParseIP(host) == nil {
@@ -272,13 +269,11 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 }
 
 func (b *Builder) buildMainHTTPConnectionManagerFilter(
-	ctx context.Context,
-	cfg *config.Config,
 	fullyStatic bool,
 ) (*envoy_config_listener_v3.Filter, error) {
 	var grpcClientTimeout *durationpb.Duration
-	if cfg.Options.GRPCClientTimeout != 0 {
-		grpcClientTimeout = durationpb.New(cfg.Options.GRPCClientTimeout)
+	if b.cfg.Options.GRPCClientTimeout != 0 {
+		grpcClientTimeout = durationpb.New(b.cfg.Options.GRPCClientTimeout)
 	} else {
 		grpcClientTimeout = durationpb.New(30 * time.Second)
 	}
@@ -294,46 +289,46 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	filters = append(filters, HTTPRouterFilter())
 
 	var maxStreamDuration *durationpb.Duration
-	if cfg.Options.WriteTimeout > 0 {
-		maxStreamDuration = durationpb.New(cfg.Options.WriteTimeout)
+	if b.cfg.Options.WriteTimeout > 0 {
+		maxStreamDuration = durationpb.New(b.cfg.Options.WriteTimeout)
 	}
 
-	tracingProvider, err := buildTracingHTTP(cfg.Options)
+	tracingProvider, err := buildTracingHTTP(b.cfg.Options)
 	if err != nil {
 		return nil, err
 	}
 
-	localReply, err := b.buildLocalReplyConfig(cfg.Options)
+	localReply, err := b.buildLocalReplyConfig()
 	if err != nil {
 		return nil, err
 	}
 
 	mgr := &envoy_http_connection_manager.HttpConnectionManager{
 		AlwaysSetRequestIdInResponse: true,
-		CodecType:                    cfg.Options.GetCodecType().ToEnvoy(),
+		CodecType:                    b.cfg.Options.GetCodecType().ToEnvoy(),
 		StatPrefix:                   "ingress",
 		HttpFilters:                  filters,
-		AccessLog:                    buildAccessLogs(cfg.Options),
+		AccessLog:                    buildAccessLogs(b.cfg.Options),
 		CommonHttpProtocolOptions: &envoy_config_core_v3.HttpProtocolOptions{
-			IdleTimeout:       durationpb.New(cfg.Options.IdleTimeout),
+			IdleTimeout:       durationpb.New(b.cfg.Options.IdleTimeout),
 			MaxStreamDuration: maxStreamDuration,
 		},
 		HttpProtocolOptions: http1ProtocolOptions,
-		RequestTimeout:      durationpb.New(cfg.Options.ReadTimeout),
+		RequestTimeout:      durationpb.New(b.cfg.Options.ReadTimeout),
 		Tracing: &envoy_http_connection_manager.HttpConnectionManager_Tracing{
-			RandomSampling: &envoy_type_v3.Percent{Value: cfg.Options.TracingSampleRate * 100},
+			RandomSampling: &envoy_type_v3.Percent{Value: b.cfg.Options.TracingSampleRate * 100},
 			Provider:       tracingProvider,
 		},
 		// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-for
 		UseRemoteAddress:  &wrapperspb.BoolValue{Value: true},
-		SkipXffAppend:     cfg.Options.SkipXffAppend,
-		XffNumTrustedHops: cfg.Options.XffNumTrustedHops,
+		SkipXffAppend:     b.cfg.Options.SkipXffAppend,
+		XffNumTrustedHops: b.cfg.Options.XffNumTrustedHops,
 		LocalReplyConfig:  localReply,
 		NormalizePath:     wrapperspb.Bool(true),
 	}
 
 	if fullyStatic {
-		routeConfiguration, err := b.buildMainRouteConfiguration(ctx, cfg)
+		routeConfiguration, err := b.buildMainRouteConfiguration()
 		if err != nil {
 			return nil, err
 		}
@@ -405,7 +400,7 @@ func (b *Builder) buildMetricsHTTPConnectionManagerFilter() (*envoy_config_liste
 	}), nil
 }
 
-func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
+func (b *Builder) buildGRPCListener(ctx context.Context) (*envoy_config_listener_v3.Listener, error) {
 	filter, err := b.buildGRPCHTTPConnectionManagerFilter()
 	if err != nil {
 		return nil, err
@@ -418,17 +413,17 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 	li := newEnvoyListener("grpc-ingress")
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{&filterChain}
 
-	if cfg.Options.GetGRPCInsecure() {
-		li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 80)
+	if b.cfg.Options.GetGRPCInsecure() {
+		li.Address = buildAddress(b.cfg.Options.GetGRPCAddr(), 80)
 		return li, nil
 	}
 
-	li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 443)
+	li.Address = buildAddress(b.cfg.Options.GetGRPCAddr(), 443)
 	li.ListenerFilters = []*envoy_config_listener_v3.ListenerFilter{
 		TLSInspectorFilter(),
 	}
 
-	allCertificates, err := getAllCertificates(cfg)
+	allCertificates, err := getAllCertificates(b.cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -508,15 +503,6 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() (*envoy_config_listener
 	}), nil
 }
 
-func (b *Builder) buildRouteConfiguration(name string, virtualHosts []*envoy_config_route_v3.VirtualHost) (*envoy_config_route_v3.RouteConfiguration, error) {
-	return &envoy_config_route_v3.RouteConfiguration{
-		Name:         name,
-		VirtualHosts: virtualHosts,
-		// disable cluster validation since the order of LDS/CDS updates isn't guaranteed
-		ValidateClusters: &wrapperspb.BoolValue{Value: false},
-	}, nil
-}
-
 func (b *Builder) envoyCertificates(ctx context.Context, certs []tls.Certificate) (
 	[]*envoy_extensions_transport_sockets_tls_v3.TlsCertificate, error,
 ) {
@@ -535,7 +521,6 @@ func (b *Builder) envoyCertificates(ctx context.Context, certs []tls.Certificate
 
 func (b *Builder) buildDownstreamTLSContextMulti(
 	ctx context.Context,
-	cfg *config.Config,
 	certs []tls.Certificate,
 ) (
 	*envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext,
@@ -549,10 +534,10 @@ func (b *Builder) buildDownstreamTLSContextMulti(
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
 			TlsParams:       tlsDownstreamParams,
 			TlsCertificates: envoyCerts,
-			AlpnProtocols:   getALPNProtos(cfg.Options),
+			AlpnProtocols:   getALPNProtos(b.cfg.Options),
 		},
 	}
-	b.buildDownstreamValidationContext(ctx, dtc, cfg)
+	b.buildDownstreamValidationContext(ctx, dtc)
 	return dtc, nil
 }
 
@@ -570,43 +555,42 @@ func getALPNProtos(opts *config.Options) []string {
 func (b *Builder) buildDownstreamValidationContext(
 	ctx context.Context,
 	dtc *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext,
-	cfg *config.Config,
 ) {
-	clientCA := clientCABundle(ctx, cfg)
+	clientCA := clientCABundle(ctx, b.cfg)
 	if len(clientCA) == 0 {
 		return
 	}
 
 	vc := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
-		TrustedCa: b.filemgr.BytesDataSource("client-ca.pem", clientCA),
+		TrustedCa: b.opts.FileManager.BytesDataSource("client-ca.pem", clientCA),
 		MatchTypedSubjectAltNames: make([]*envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher,
-			0, len(cfg.Options.DownstreamMTLS.MatchSubjectAltNames)),
+			0, len(b.cfg.Options.DownstreamMTLS.MatchSubjectAltNames)),
 		OnlyVerifyLeafCertCrl: true,
 	}
-	for i := range cfg.Options.DownstreamMTLS.MatchSubjectAltNames {
+	for i := range b.cfg.Options.DownstreamMTLS.MatchSubjectAltNames {
 		vc.MatchTypedSubjectAltNames = append(vc.MatchTypedSubjectAltNames,
-			cfg.Options.DownstreamMTLS.MatchSubjectAltNames[i].ToEnvoyProto())
+			b.cfg.Options.DownstreamMTLS.MatchSubjectAltNames[i].ToEnvoyProto())
 	}
 
-	if d := cfg.Options.DownstreamMTLS.GetMaxVerifyDepth(); d > 0 {
+	if d := b.cfg.Options.DownstreamMTLS.GetMaxVerifyDepth(); d > 0 {
 		vc.MaxVerifyDepth = wrapperspb.UInt32(d)
 	}
 
-	if cfg.Options.DownstreamMTLS.GetEnforcement() == config.MTLSEnforcementRejectConnection {
+	if b.cfg.Options.DownstreamMTLS.GetEnforcement() == config.MTLSEnforcementRejectConnection {
 		dtc.RequireClientCertificate = wrapperspb.Bool(true)
 	} else {
 		vc.TrustChainVerification = envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext_ACCEPT_UNTRUSTED
 	}
 
-	if crl := cfg.Options.DownstreamMTLS.CRL; crl != "" {
+	if crl := b.cfg.Options.DownstreamMTLS.CRL; crl != "" {
 		bs, err := base64.StdEncoding.DecodeString(crl)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("invalid client CRL")
 		} else {
-			vc.Crl = b.filemgr.BytesDataSource("client-crl.pem", bs)
+			vc.Crl = b.opts.FileManager.BytesDataSource("client-crl.pem", bs)
 		}
-	} else if crlf := cfg.Options.DownstreamMTLS.CRLFile; crlf != "" {
-		vc.Crl = b.filemgr.FileDataSource(crlf)
+	} else if crlf := b.cfg.Options.DownstreamMTLS.CRLFile; crlf != "" {
+		vc.Crl = b.opts.FileManager.FileDataSource(crlf)
 	}
 
 	dtc.CommonTlsContext.ValidationContextType = &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
@@ -648,44 +632,54 @@ func addCAToBundle(bundle *bytes.Buffer, ca []byte) {
 	}
 }
 
-func getAllRouteableHosts(options *config.Options, addr string) ([]string, error) {
+func getAllRouteableHosts(options *config.Options, addr string) (*set.TreeSet[string], map[string][]config.IndexedPolicy, error) {
 	allHosts := set.NewTreeSet(cmp.Compare[string])
+	var policiesByHost map[string][]config.IndexedPolicy
 
 	if addr == options.Addr {
-		hosts, err := options.GetAllRouteableHTTPHosts()
+		internalHosts, err := options.GetAllRouteableAuthenticateHTTPHosts()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		allHosts.InsertSlice(hosts)
+		policiesByHost, err = options.GetAllRouteablePolicyHTTPHosts()
+		if err != nil {
+			return nil, nil, err
+		}
+		allHosts.InsertSlice(internalHosts)
+		for host := range policiesByHost {
+			allHosts.Insert(host)
+		}
 	}
 
 	if addr == options.GetGRPCAddr() {
 		hosts, err := options.GetAllRouteableGRPCHosts()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		allHosts.InsertSlice(hosts)
 	}
 
-	var filtered []string
-	for host := range allHosts.Items() {
-		if !strings.Contains(host, "*") {
-			filtered = append(filtered, host)
-		}
-	}
-	return filtered, nil
+	return allHosts, policiesByHost, nil
 }
 
-func urlsMatchHost(urls []*url.URL, host string) bool {
+func (b *Builder) urlsMatchHost(urls []*url.URL, host string) bool {
 	for _, u := range urls {
-		if urlMatchesHost(u, host) {
+		if b.urlMatchesHost(u, host) {
 			return true
 		}
 	}
 	return false
 }
 
-func urlMatchesHost(u *url.URL, host string) bool {
+func (b *Builder) urlMatchesHost(u *url.URL, host string) bool {
+	if domains, ok := b.domainsForWellKnownURLs[u]; ok {
+		for _, d := range domains {
+			if d == host {
+				return true
+			}
+		}
+		return false
+	}
 	for _, h := range urlutil.GetDomainsForURL(u, true) {
 		if h == host {
 			return true

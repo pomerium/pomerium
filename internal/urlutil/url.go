@@ -2,11 +2,14 @@
 package urlutil
 
 import (
+	"bytes"
 	"fmt"
+	"iter"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/caddyserver/certmagic"
@@ -50,6 +53,41 @@ func ParseAndValidateURL(rawurl string) (*url.URL, error) {
 		return nil, err
 	}
 	return u, nil
+}
+
+type SharedURL struct {
+	*url.URL
+	hostname func() string
+}
+
+func (s *SharedURL) Hostname() string {
+	return s.hostname()
+}
+
+func (s *SharedURL) Mutable() *url.URL {
+	u := *s.URL
+	if u.User != nil {
+		user := *u.User
+		u.User = &user
+	}
+	return &u
+}
+
+var urlCache sync.Map // map[string]*SharedURL
+
+func ParseAndValidateSharedURL(rawurl string) (*SharedURL, error) {
+	shared, ok := urlCache.Load(rawurl)
+	if !ok {
+		u, err := ParseAndValidateURL(rawurl)
+		if err != nil {
+			return nil, err
+		}
+		shared, _ = urlCache.LoadOrStore(rawurl, &SharedURL{
+			URL:      u,
+			hostname: sync.OnceValue(u.Hostname),
+		})
+	}
+	return shared.(*SharedURL), nil
 }
 
 // MustParseAndValidateURL parses the URL via ParseAndValidateURL but panics if there is an error.
@@ -147,6 +185,87 @@ func GetDomainsForURL(u *url.URL, includeDefaultPort bool) []string {
 
 	// for everything else we return two routes: 'example.com' and 'example.com:443'
 	return []string{u.Hostname(), net.JoinHostPort(u.Hostname(), defaultPort)}
+}
+
+var (
+	b80  = []byte("80")
+	b443 = []byte("443")
+)
+
+func AllDomainsForURL(u *url.URL, includeDefaultPort bool) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		if u == nil {
+			return
+		}
+
+		// tcp+https://ssh.example.com:22
+		// => ssh.example.com:22
+		// tcp+https://proxy.example.com/ssh.example.com:22
+		// => ssh.example.com:22
+		if strings.HasPrefix(u.Scheme, "tcp+") {
+			hosts := strings.Split(u.Path, "/")[1:]
+			if len(hosts) == 0 {
+				// if there are no domains in the path part of the URL, use the host
+				yield(u.Host)
+			} else {
+				// otherwise use the path parts of the URL as the hosts
+				for _, h := range hosts {
+					if !yield(h) {
+						break
+					}
+				}
+			}
+			return
+		}
+
+		var defaultPort []byte
+		if u.Scheme == "http" {
+			defaultPort = b80
+		} else {
+			defaultPort = b443
+		}
+
+		// for hosts like 'example.com:1234' we only return one route
+		host, port := splitHostPort([]byte(u.Host))
+		if len(port) > 0 {
+			if !bytes.Equal(port, defaultPort) {
+				yield(u.Host)
+				return
+			}
+		}
+
+		if !includeDefaultPort {
+			yield(string(host))
+			return
+		}
+
+		// for everything else we return two routes: 'example.com' and 'example.com:443'
+		hostStr := string(host)
+		if !yield(hostStr) {
+			return
+		}
+		hostWithDefaultPort := strings.Builder{}
+		hostWithDefaultPort.Write(host)
+		hostWithDefaultPort.WriteByte(':')
+		hostWithDefaultPort.Write(defaultPort)
+		yield(hostWithDefaultPort.String())
+	}
+}
+
+func splitHostPort(hostport []byte) ([]byte, []byte) {
+	lastColonIdx := bytes.LastIndexByte(hostport, ':')
+	if lastColonIdx < 0 {
+		return hostport, nil
+	}
+	for i, l := lastColonIdx+1, len(hostport); i < l; i++ {
+		if hostport[i] < '0' || hostport[i] > '9' {
+			return hostport, nil
+		}
+	}
+	if lastColonIdx > 1 && hostport[0] == '[' && hostport[lastColonIdx-1] == ']' {
+		return hostport[1 : lastColonIdx-1], hostport[lastColonIdx+1:]
+	}
+	return hostport[:lastColonIdx], hostport[lastColonIdx+1:]
 }
 
 // Join joins elements of a URL with '/'.

@@ -163,12 +163,12 @@ func (b *Builder) envoyTLSCertificateFromGoTLSCertificate(
 			Bytes: cbs,
 		})
 	}
-	envoyCert.CertificateChain = b.filemgr.BytesDataSource("tls-crt.pem", chain.Bytes())
+	envoyCert.CertificateChain = b.opts.FileManager.BytesDataSource("tls-crt.pem", chain.Bytes())
 	if cert.OCSPStaple != nil {
-		envoyCert.OcspStaple = b.filemgr.BytesDataSource("ocsp-staple", cert.OCSPStaple)
+		envoyCert.OcspStaple = b.opts.FileManager.BytesDataSource("ocsp-staple", cert.OCSPStaple)
 	}
 	if bs, err := x509.MarshalPKCS8PrivateKey(cert.PrivateKey); err == nil {
-		envoyCert.PrivateKey = b.filemgr.BytesDataSource("tls-key.pem", pem.EncodeToMemory(
+		envoyCert.PrivateKey = b.opts.FileManager.BytesDataSource("tls-key.pem", pem.EncodeToMemory(
 			&pem.Block{
 				Type:  "PRIVATE KEY",
 				Bytes: bs,
@@ -179,7 +179,7 @@ func (b *Builder) envoyTLSCertificateFromGoTLSCertificate(
 	}
 	for _, scts := range cert.SignedCertificateTimestamps {
 		envoyCert.SignedCertificateTimestamp = append(envoyCert.SignedCertificateTimestamp,
-			b.filemgr.BytesDataSource("signed-certificate-timestamp", scts))
+			b.opts.FileManager.BytesDataSource("signed-certificate-timestamp", scts))
 	}
 	return envoyCert
 }

@@ -3,7 +3,6 @@ package envoyconfig
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"sort"
 	"strings"
 
@@ -48,29 +47,21 @@ func (b *Builder) buildGRPCRoutes() ([]*envoy_config_route_v3.Route, error) {
 }
 
 func (b *Builder) buildPomeriumHTTPRoutes(
-	options *config.Options,
 	host string,
 ) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
 
 	// if this is the pomerium proxy in front of the the authenticate service, don't add
 	// these routes since they will be handled by authenticate
-	isFrontingAuthenticate, err := isProxyFrontingAuthenticate(options, host)
+	isFrontingAuthenticate, err := b.isProxyFrontingAuthenticate(host)
 	if err != nil {
 		return nil, err
 	}
 	if !isFrontingAuthenticate {
-		routes = append(routes,
-			b.buildControlPlanePathRoute(options, "/ping"),
-			b.buildControlPlanePathRoute(options, "/healthz"),
-			b.buildControlPlanePathRoute(options, "/.pomerium"),
-			b.buildControlPlanePrefixRoute(options, "/.pomerium/"),
-			b.buildControlPlanePathRoute(options, "/.well-known/pomerium"),
-			b.buildControlPlanePrefixRoute(options, "/.well-known/pomerium/"),
-		)
+		routes = append(routes, b.staticHTTPRoutes...)
 	}
 
-	authRoutes, err := b.buildPomeriumAuthenticateHTTPRoutes(options, host)
+	authRoutes, err := b.buildPomeriumAuthenticateHTTPRoutes(host)
 	if err != nil {
 		return nil, err
 	}
@@ -79,34 +70,24 @@ func (b *Builder) buildPomeriumHTTPRoutes(
 }
 
 func (b *Builder) buildPomeriumAuthenticateHTTPRoutes(
-	options *config.Options,
 	host string,
 ) ([]*envoy_config_route_v3.Route, error) {
-	if !config.IsAuthenticate(options.Services) {
+	if !config.IsAuthenticate(b.cfg.Options.Services) {
 		return nil, nil
 	}
 
-	for _, fn := range []func() (*url.URL, error){
-		options.GetAuthenticateURL,
-		options.GetInternalAuthenticateURL,
-	} {
-		u, err := fn()
-		if err != nil {
-			return nil, err
-		}
-		if urlMatchesHost(u, host) {
-			return []*envoy_config_route_v3.Route{
-				b.buildControlPlanePathRoute(options, options.AuthenticateCallbackPath),
-				b.buildControlPlanePathRoute(options, "/"),
-				b.buildControlPlanePathRoute(options, "/robots.txt"),
-			}, nil
-		}
+	if b.urlMatchesHost(b.authenticateURL, host) {
+		return b.staticAuthenticateHTTPRoutes, nil
 	}
+
+	if b.urlMatchesHost(b.internalAuthenticateURL, host) {
+		return b.staticAuthenticateHTTPRoutes, nil
+	}
+
 	return nil, nil
 }
 
 func (b *Builder) buildControlPlanePathRoute(
-	options *config.Options,
 	path string,
 ) *envoy_config_route_v3.Route {
 	r := &envoy_config_route_v3.Route{
@@ -121,7 +102,7 @@ func (b *Builder) buildControlPlanePathRoute(
 				},
 			},
 		},
-		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders()),
+		ResponseHeadersToAdd: toEnvoyHeaders(b.cfg.Options.GetSetResponseHeaders()),
 		TypedPerFilterConfig: map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, 0)),
 		},
@@ -130,7 +111,6 @@ func (b *Builder) buildControlPlanePathRoute(
 }
 
 func (b *Builder) buildControlPlanePrefixRoute(
-	options *config.Options,
 	prefix string,
 ) *envoy_config_route_v3.Route {
 	r := &envoy_config_route_v3.Route{
@@ -145,7 +125,7 @@ func (b *Builder) buildControlPlanePrefixRoute(
 				},
 			},
 		},
-		ResponseHeadersToAdd: toEnvoyHeaders(options.GetSetResponseHeaders()),
+		ResponseHeadersToAdd: toEnvoyHeaders(b.cfg.Options.GetSetResponseHeaders()),
 		TypedPerFilterConfig: map[string]*anypb.Any{
 			PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzContextExtensions(MakeExtAuthzContextExtensions(true, 0)),
 		},
@@ -173,46 +153,20 @@ func getClusterStatsName(policy *config.Policy) string {
 }
 
 func (b *Builder) buildRoutesForPoliciesWithHost(
-	cfg *config.Config,
 	host string,
 ) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
-	for i, p := range cfg.Options.GetAllPoliciesIndexed() {
-		policy := p
-		fromURL, err := urlutil.ParseAndValidateURL(policy.From)
+	for i, p := range b.cfg.Options.GetAllPoliciesIndexed() {
+		fromURL, err := urlutil.ParseAndValidateSharedURL(p.From)
 		if err != nil {
 			return nil, err
 		}
 
-		if !urlMatchesHost(fromURL, host) {
+		if !b.urlMatchesHost(fromURL.URL, host) {
 			continue
 		}
 
-		policyRoutes, err := b.buildRoutesForPolicy(cfg, policy, fmt.Sprintf("policy-%d", i))
-		if err != nil {
-			return nil, err
-		}
-
-		routes = append(routes, policyRoutes...)
-	}
-	return routes, nil
-}
-
-func (b *Builder) buildRoutesForPoliciesWithCatchAll(
-	cfg *config.Config,
-) ([]*envoy_config_route_v3.Route, error) {
-	var routes []*envoy_config_route_v3.Route
-	for i, policy := range cfg.Options.GetAllPoliciesIndexed() {
-		fromURL, err := urlutil.ParseAndValidateURL(policy.From)
-		if err != nil {
-			return nil, err
-		}
-
-		if !strings.Contains(fromURL.Host, "*") {
-			continue
-		}
-
-		policyRoutes, err := b.buildRoutesForPolicy(cfg, policy, fmt.Sprintf("policy-%d", i))
+		policyRoutes, err := b.buildRoutesForPolicy(p, fmt.Sprintf("policy-%d", i))
 		if err != nil {
 			return nil, err
 		}
@@ -223,27 +177,27 @@ func (b *Builder) buildRoutesForPoliciesWithCatchAll(
 }
 
 func (b *Builder) buildRoutesForPolicy(
-	cfg *config.Config,
 	policy *config.Policy,
 	name string,
 ) ([]*envoy_config_route_v3.Route, error) {
-	fromURL, err := urlutil.ParseAndValidateURL(policy.From)
+	fromURL, err := urlutil.ParseAndValidateSharedURL(policy.From)
 	if err != nil {
 		return nil, err
 	}
 
+	matchAnyIncomingPort := b.cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMatchAnyIncomingPort)
 	var routes []*envoy_config_route_v3.Route
 	if strings.Contains(fromURL.Host, "*") {
 		// we have to match '*.example.com' and '*.example.com:443', so there are two routes
-		for _, host := range urlutil.GetDomainsForURL(fromURL, !cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMatchAnyIncomingPort)) {
-			route, err := b.buildRouteForPolicyAndMatch(cfg, policy, name, mkRouteMatchForHost(cfg.Options, policy, host))
+		for host := range urlutil.AllDomainsForURL(fromURL.URL, !matchAnyIncomingPort) {
+			route, err := b.buildRouteForPolicyAndMatch(policy, name, mkRouteMatchForHost(b.cfg.Options, policy, host))
 			if err != nil {
 				return nil, err
 			}
 			routes = append(routes, route)
 		}
 	} else {
-		route, err := b.buildRouteForPolicyAndMatch(cfg, policy, name, mkRouteMatch(policy))
+		route, err := b.buildRouteForPolicyAndMatch(policy, name, mkRouteMatch(policy))
 		if err != nil {
 			return nil, err
 		}
@@ -253,12 +207,11 @@ func (b *Builder) buildRoutesForPolicy(
 }
 
 func (b *Builder) buildRouteForPolicyAndMatch(
-	cfg *config.Config,
 	policy *config.Policy,
 	name string,
 	match *envoy_config_route_v3.RouteMatch,
 ) (*envoy_config_route_v3.Route, error) {
-	fromURL, err := urlutil.ParseAndValidateURL(policy.From)
+	fromURL, err := urlutil.ParseAndValidateSharedURL(policy.From)
 	if err != nil {
 		return nil, err
 	}
@@ -272,8 +225,8 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		Name:                   name,
 		Match:                  match,
 		Metadata:               &envoy_config_core_v3.Metadata{},
-		RequestHeadersToRemove: getRequestHeadersToRemove(cfg.Options, policy),
-		ResponseHeadersToAdd:   toEnvoyHeaders(cfg.Options.GetSetResponseHeadersForPolicy(policy)),
+		RequestHeadersToRemove: getRequestHeadersToRemove(b.cfg.Options, policy),
+		ResponseHeadersToAdd:   toEnvoyHeaders(b.cfg.Options.GetSetResponseHeadersForPolicy(policy)),
 	}
 	if policy.Redirect != nil {
 		action, err := b.buildPolicyRouteRedirectAction(policy.Redirect)
@@ -285,7 +238,7 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		action := b.buildPolicyRouteDirectResponseAction(policy.Response)
 		route.Action = &envoy_config_route_v3.Route_DirectResponse{DirectResponse: action}
 	} else {
-		action, err := b.buildPolicyRouteRouteAction(cfg.Options, policy)
+		action, err := b.buildPolicyRouteRouteAction(b.cfg.Options, policy)
 		if err != nil {
 			return nil, err
 		}
@@ -297,7 +250,7 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 	}
 
 	// disable authentication entirely when the proxy is fronting authenticate
-	isFrontingAuthenticate, err := isProxyFrontingAuthenticate(cfg.Options, fromURL.Hostname())
+	isFrontingAuthenticate, err := b.isProxyFrontingAuthenticate(fromURL.Hostname())
 	if err != nil {
 		return nil, err
 	}
@@ -311,7 +264,7 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		}
 		luaMetadata["remove_pomerium_cookie"] = &structpb.Value{
 			Kind: &structpb.Value_StringValue{
-				StringValue: cfg.Options.CookieName,
+				StringValue: b.cfg.Options.CookieName,
 			},
 		}
 		luaMetadata["remove_pomerium_authorization"] = &structpb.Value{
@@ -327,7 +280,7 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 	}
 
 	if policy.IsForKubernetes() {
-		for _, hdr := range b.reproxy.GetPolicyIDHeaders(routeID) {
+		for _, hdr := range b.opts.ReproxyHandler.GetPolicyIDHeaders(routeID) {
 			route.RequestHeadersToAdd = append(route.RequestHeadersToAdd,
 				&envoy_config_core_v3.HeaderValueOption{
 					Header: &envoy_config_core_v3.HeaderValue{
@@ -623,16 +576,10 @@ func setHostRewriteOptions(policy *config.Policy, action *envoy_config_route_v3.
 	}
 }
 
-func isProxyFrontingAuthenticate(options *config.Options, host string) (bool, error) {
-	authenticateURL, err := options.GetAuthenticateURL()
-	if err != nil {
-		return false, err
-	}
-
-	if !config.IsAuthenticate(options.Services) && urlMatchesHost(authenticateURL, host) {
+func (b *Builder) isProxyFrontingAuthenticate(host string) (bool, error) {
+	if !config.IsAuthenticate(b.cfg.Options.Services) && b.urlMatchesHost(b.authenticateURL, host) {
 		return true, nil
 	}
-
 	return false, nil
 }
 

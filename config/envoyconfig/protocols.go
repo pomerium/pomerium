@@ -1,7 +1,6 @@
 package envoyconfig
 
 import (
-	"context"
 	"time"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -153,7 +152,7 @@ func buildUpstreamALPN(upstreamProtocol upstreamProtocolConfig) []string {
 	}
 }
 
-func getUpstreamProtocolForPolicy(_ context.Context, policy *config.Policy) upstreamProtocolConfig {
+func getUpstreamProtocolForPolicy(policy *config.Policy) upstreamProtocolConfig {
 	upstreamProtocol := upstreamProtocolAuto
 	if policy.AllowWebsockets {
 		// #2388, force http/1 when using web sockets

@@ -46,7 +46,7 @@ type Server struct {
 	wd  string
 	cmd *exec.Cmd
 
-	builder            *envoyconfig.Builder
+	builder            *envoyconfig.BuilderOptions
 	resourceMonitor    ResourceMonitor
 	grpcPort, httpPort string
 	envoyPath          string
@@ -58,7 +58,7 @@ type Server struct {
 }
 
 // NewServer creates a new server with traffic routed by envoy.
-func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Builder) (*Server, error) {
+func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.BuilderOptions) (*Server, error) {
 	if err := preserveRlimitNofile(); err != nil {
 		log.Ctx(ctx).Debug().Err(err).Msg("couldn't preserve RLIMIT_NOFILE before starting Envoy")
 	}
@@ -237,7 +237,7 @@ func (srv *Server) writeConfig(ctx context.Context, cfg *config.Config) error {
 }
 
 func (srv *Server) buildBootstrapConfig(ctx context.Context, cfg *config.Config) ([]byte, error) {
-	bootstrapCfg, err := srv.builder.BuildBootstrap(ctx, cfg, false)
+	bootstrapCfg, err := srv.builder.NewForConfig(cfg).BuildBootstrap(ctx, false)
 	if err != nil {
 		return nil, err
 	}
