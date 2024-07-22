@@ -18,7 +18,6 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
@@ -34,7 +33,6 @@ var (
 // BuildBootstrap builds the bootstrap config.
 func (b *Builder) BuildBootstrap(
 	ctx context.Context,
-	cfg *config.Config,
 	fullyStatic bool,
 ) (bootstrap *envoy_config_bootstrap_v3.Bootstrap, err error) {
 	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildBootstrap")
@@ -42,12 +40,12 @@ func (b *Builder) BuildBootstrap(
 
 	bootstrap = new(envoy_config_bootstrap_v3.Bootstrap)
 
-	bootstrap.Admin, err = b.BuildBootstrapAdmin(cfg)
+	bootstrap.Admin, err = b.BuildBootstrapAdmin()
 	if err != nil {
 		return nil, fmt.Errorf("error building bootstrap admin: %w", err)
 	}
 
-	bootstrap.DynamicResources, err = b.BuildBootstrapDynamicResources(cfg, fullyStatic)
+	bootstrap.DynamicResources, err = b.BuildBootstrapDynamicResources(fullyStatic)
 	if err != nil {
 		return nil, fmt.Errorf("error building bootstrap dynamic resources: %w", err)
 	}
@@ -58,16 +56,16 @@ func (b *Builder) BuildBootstrap(
 	}
 
 	bootstrap.Node = &envoy_config_core_v3.Node{
-		Id:      telemetry.ServiceName(cfg.Options.Services),
-		Cluster: telemetry.ServiceName(cfg.Options.Services),
+		Id:      telemetry.ServiceName(b.cfg.Options.Services),
+		Cluster: telemetry.ServiceName(b.cfg.Options.Services),
 	}
 
-	bootstrap.StaticResources, err = b.BuildBootstrapStaticResources(ctx, cfg, fullyStatic)
+	bootstrap.StaticResources, err = b.BuildBootstrapStaticResources(ctx, fullyStatic)
 	if err != nil {
 		return nil, fmt.Errorf("error building bootstrap static resources: %w", err)
 	}
 
-	bootstrap.StatsConfig, err = b.BuildBootstrapStatsConfig(cfg)
+	bootstrap.StatsConfig, err = b.BuildBootstrapStatsConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -87,9 +85,9 @@ func (b *Builder) BuildBootstrap(
 }
 
 // BuildBootstrapAdmin builds the admin config for the envoy bootstrap.
-func (b *Builder) BuildBootstrapAdmin(cfg *config.Config) (admin *envoy_config_bootstrap_v3.Admin, err error) {
+func (b *Builder) BuildBootstrapAdmin() (admin *envoy_config_bootstrap_v3.Admin, err error) {
 	admin = &envoy_config_bootstrap_v3.Admin{
-		ProfilePath: cfg.Options.EnvoyAdminProfilePath,
+		ProfilePath: b.cfg.Options.EnvoyAdminProfilePath,
 	}
 
 	admin.Address = &envoy_config_core_v3.Address{
@@ -101,9 +99,9 @@ func (b *Builder) BuildBootstrapAdmin(cfg *config.Config) (admin *envoy_config_b
 		},
 	}
 
-	if cfg.Options.EnvoyAdminAccessLogPath != os.DevNull && cfg.Options.EnvoyAdminAccessLogPath != "" {
+	if b.cfg.Options.EnvoyAdminAccessLogPath != os.DevNull && b.cfg.Options.EnvoyAdminAccessLogPath != "" {
 		tc := marshalAny(&envoy_extensions_access_loggers_file_v3.FileAccessLog{
-			Path: cfg.Options.EnvoyAdminAccessLogPath,
+			Path: b.cfg.Options.EnvoyAdminAccessLogPath,
 		})
 		admin.AccessLog = append(admin.AccessLog, &envoy_config_accesslog_v3.AccessLog{
 			Name:       "envoy.access_loggers.file",
@@ -116,7 +114,6 @@ func (b *Builder) BuildBootstrapAdmin(cfg *config.Config) (admin *envoy_config_b
 
 // BuildBootstrapDynamicResources builds the dynamic resources for the envoy bootstrap.
 func (b *Builder) BuildBootstrapDynamicResources(
-	_ *config.Config,
 	fullyStatic bool,
 ) (dynamicResources *envoy_config_bootstrap_v3.Bootstrap_DynamicResources, err error) {
 	if fullyStatic {
@@ -177,7 +174,6 @@ func (b *Builder) BuildBootstrapLayeredRuntime() (*envoy_config_bootstrap_v3.Lay
 // cluster.
 func (b *Builder) BuildBootstrapStaticResources(
 	ctx context.Context,
-	cfg *config.Config,
 	fullyStatic bool,
 ) (staticResources *envoy_config_bootstrap_v3.Bootstrap_StaticResources, err error) {
 	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildBootstrapStaticResources")
@@ -186,12 +182,12 @@ func (b *Builder) BuildBootstrapStaticResources(
 	staticResources = new(envoy_config_bootstrap_v3.Bootstrap_StaticResources)
 
 	if fullyStatic {
-		staticResources.Clusters, err = b.BuildClusters(ctx, cfg)
+		staticResources.Clusters, err = b.BuildClusters(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("error building clusters: %w", err)
 		}
 
-		staticResources.Listeners, err = b.BuildListeners(ctx, cfg, fullyStatic)
+		staticResources.Listeners, err = b.BuildListeners(ctx, fullyStatic)
 		if err != nil {
 			return nil, fmt.Errorf("error building listeners: %w", err)
 		}
@@ -199,7 +195,7 @@ func (b *Builder) BuildBootstrapStaticResources(
 		return staticResources, nil
 	}
 
-	grpcAddr, err := parseAddress(b.localGRPCAddress)
+	grpcAddr, err := parseAddress(b.opts.LocalGRPCAddress)
 	if err != nil {
 		return nil, fmt.Errorf("envoyconfig: invalid local gRPC address: %w", err)
 	}
@@ -240,12 +236,12 @@ func (b *Builder) BuildBootstrapStaticResources(
 }
 
 // BuildBootstrapStatsConfig builds a the stats config the envoy bootstrap.
-func (b *Builder) BuildBootstrapStatsConfig(cfg *config.Config) (*envoy_config_metrics_v3.StatsConfig, error) {
+func (b *Builder) BuildBootstrapStatsConfig() (*envoy_config_metrics_v3.StatsConfig, error) {
 	statsCfg := &envoy_config_metrics_v3.StatsConfig{}
 	statsCfg.StatsTags = []*envoy_config_metrics_v3.TagSpecifier{{
 		TagName: "service",
 		TagValue: &envoy_config_metrics_v3.TagSpecifier_FixedValue{
-			FixedValue: telemetry.ServiceName(cfg.Options.Services),
+			FixedValue: telemetry.ServiceName(b.cfg.Options.Services),
 		},
 	}}
 	return statsCfg, nil

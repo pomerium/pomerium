@@ -1,9 +1,14 @@
 package urlutil
 
 import (
+	"crypto/rand"
+	"encoding/base64"
+	"fmt"
+	mathrand "math/rand/v2"
 	"net/http"
 	"net/url"
 	"reflect"
+	"sync/atomic"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -198,4 +203,59 @@ func TestMatchesServerName(t *testing.T) {
 	t.Run("wildcard", func(t *testing.T) {
 		assert.True(t, MatchesServerName(MustParseAndValidateURL("https://domain.example.com"), "*.example.com"))
 	})
+}
+
+func BenchmarkSharedURL(b *testing.B) {
+	randomURL := func() string {
+		randBytes := make([]byte, 32)
+		rand.Read(randBytes)
+		randStr := base64.RawURLEncoding.EncodeToString(randBytes)
+		return fmt.Sprintf("https://%s.example.com/foo/bar?baz=1#fragment", randStr)
+	}
+
+	for _, tc := range []struct {
+		name string
+		fn   func(string)
+	}{
+		{"Normal", func(rawurl string) { ParseAndValidateURL(rawurl) }},
+		{"Shared", func(rawurl string) { ParseAndValidateSharedURL(rawurl) }},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			b.Run("Same URL", func(b *testing.B) {
+				u := randomURL()
+				b.ResetTimer()
+				b.RunParallel(func(p *testing.PB) {
+					for p.Next() {
+						tc.fn(u)
+					}
+				})
+			})
+			b.Run("Unique URLs", func(b *testing.B) {
+				urls := make([]string, b.N)
+				for i := range urls {
+					urls[i] = randomURL()
+				}
+				var atomicIndex atomic.Int32
+				atomicIndex.Store(-1)
+				b.ResetTimer()
+				b.RunParallel(func(p *testing.PB) {
+					for p.Next() {
+						tc.fn(randomURL())
+					}
+				})
+			})
+			b.Run("Random URLs from set", func(b *testing.B) {
+				urls := make([]string, 10000)
+				for i := range urls {
+					urls[i] = randomURL()
+				}
+				b.ResetTimer()
+				b.RunParallel(func(p *testing.PB) {
+					for p.Next() {
+						tc.fn(urls[mathrand.IntN(len(urls))])
+					}
+				})
+			})
+		})
+	}
 }
