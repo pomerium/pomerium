@@ -1,6 +1,8 @@
 package evaluator
 
 import (
+	"sync"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/hashutil"
 )
@@ -15,22 +17,26 @@ type evaluatorConfig struct {
 	AuthenticateURL                                   string
 	GoogleCloudServerlessAuthenticationServiceAccount string
 	JWTClaimsHeaders                                  config.JWTClaimHeaders
+
+	cacheKeyOnce     sync.Once
+	computedCacheKey uint64
 }
 
 // cacheKey() returns a hash over the configuration, except for the policies.
 func (e *evaluatorConfig) cacheKey() uint64 {
-	return hashutil.MustHash(e)
+	e.cacheKeyOnce.Do(func() {
+		e.computedCacheKey = hashutil.MustHash(e)
+	})
+	return e.computedCacheKey
 }
 
 // An Option customizes the evaluator config.
 type Option func(*evaluatorConfig)
 
-func getConfig(options ...Option) *evaluatorConfig {
-	cfg := new(evaluatorConfig)
-	for _, o := range options {
-		o(cfg)
+func (e *evaluatorConfig) apply(options ...Option) {
+	for _, opt := range options {
+		opt(e)
 	}
-	return cfg
 }
 
 // WithPolicies sets the policies in the config.

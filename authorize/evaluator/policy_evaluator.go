@@ -3,11 +3,10 @@ package evaluator
 import (
 	"context"
 	"fmt"
+	rttrace "runtime/trace"
 	"strings"
 
 	"github.com/open-policy-agent/opa/rego"
-	octrace "go.opencensus.io/trace"
-
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -16,6 +15,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/policy"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	octrace "go.opencensus.io/trace"
 )
 
 // PolicyRequest is the input to policy evaluation.
@@ -109,25 +109,36 @@ type PolicyEvaluator struct {
 
 // NewPolicyEvaluator creates a new PolicyEvaluator.
 func NewPolicyEvaluator(
-	ctx context.Context, store *store.Store, configPolicy *config.Policy,
+	ctx context.Context,
+	store *store.Store,
+	configPolicy *config.Policy,
+	policyChecksum uint64,
 	addDefaultClientCertificateRule bool,
+	cache *QueryCache,
 ) (*PolicyEvaluator, error) {
 	e := new(PolicyEvaluator)
-	e.policyChecksum = configPolicy.Checksum()
+	e.policyChecksum = policyChecksum
 
-	// generate the base rego script for the policy
-	ppl := configPolicy.ToPPL()
-	if addDefaultClientCertificateRule {
-		ppl.AddDefaultClientCertificateRule()
-	}
-	base, err := policy.GenerateRegoFromPolicy(ppl)
+	var err error
+	rttrace.WithRegion(ctx, "Generate Rego", func() {
+		// generate the base rego script for the policy
+		ppl := configPolicy.ToPPL()
+		if addDefaultClientCertificateRule {
+			ppl.AddDefaultClientCertificateRule()
+		}
+		var base string
+		base, err = policy.GenerateRegoFromPolicy(ppl)
+		if err != nil {
+			return
+		}
+
+		e.queries = []policyQuery{{
+			script: base,
+		}}
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	e.queries = []policyQuery{{
-		script: base,
-	}}
 
 	// add any custom rego
 	for _, sp := range configPolicy.SubPolicies {
@@ -145,42 +156,49 @@ func NewPolicyEvaluator(
 		}
 	}
 
-	// for each script, create a rego and prepare a query.
-	for i := range e.queries {
-		log.Ctx(ctx).
-			Trace().
-			Str("script", e.queries[i].script).
-			Str("from", configPolicy.From).
-			Interface("to", configPolicy.To).
-			Msg("authorize: rego script for policy evaluation")
+	// for each script, create a rego object and prepare a query.
+	rttrace.WithRegion(ctx, "Compile Rego", func() {
+		numCached := 0
+		for i := range e.queries {
+			var cached bool
+			e.queries[i].PreparedEvalQuery, cached, err = cache.LookupOrBuild(&e.queries[i], func() (rego.PreparedEvalQuery, error) {
+				r := rego.New(
+					rego.Store(store),
+					rego.Module("pomerium.policy", e.queries[i].script),
+					rego.Query("result = data.pomerium.policy"),
+					rego.EnablePrintStatements(true),
+					getGoogleCloudServerlessHeadersRegoOption,
+					store.GetDataBrokerRecordOption(),
+				)
 
-		r := rego.New(
-			rego.Store(store),
-			rego.Module("pomerium.policy", e.queries[i].script),
-			rego.Query("result = data.pomerium.policy"),
-			rego.EnablePrintStatements(true),
-			getGoogleCloudServerlessHeadersRegoOption,
-			store.GetDataBrokerRecordOption(),
-		)
-
-		q, err := r.PrepareForEval(ctx)
-		// if no package is in the src, add it
-		if err != nil && strings.Contains(err.Error(), "package expected") {
-			r := rego.New(
-				rego.Store(store),
-				rego.Module("pomerium.policy", "package pomerium.policy\n\n"+e.queries[i].script),
-				rego.Query("result = data.pomerium.policy"),
-				rego.EnablePrintStatements(true),
-				getGoogleCloudServerlessHeadersRegoOption,
-				store.GetDataBrokerRecordOption(),
-			)
-			q, err = r.PrepareForEval(ctx)
+				q, err := r.PrepareForEval(ctx)
+				// if no package is in the src, add it
+				if err != nil && strings.Contains(err.Error(), "package expected") {
+					r := rego.New(
+						rego.Store(store),
+						rego.Module("pomerium.policy", "package pomerium.policy\n\n"+e.queries[i].script),
+						rego.Query("result = data.pomerium.policy"),
+						rego.EnablePrintStatements(true),
+						getGoogleCloudServerlessHeadersRegoOption,
+						store.GetDataBrokerRecordOption(),
+					)
+					q, err = r.PrepareForEval(ctx)
+				}
+				if err != nil {
+					return rego.PreparedEvalQuery{}, err
+				}
+				return q, nil
+			})
+			if err != nil {
+				return
+			}
+			if cached {
+				numCached++
+			}
 		}
-		if err != nil {
-			return nil, err
-		}
-
-		e.queries[i].PreparedEvalQuery = q
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return e, nil

@@ -4,6 +4,7 @@ package authorize
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"sync"
@@ -40,26 +41,29 @@ type Authorize struct {
 }
 
 // New validates and creates a new Authorize service from a set of config options.
-func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
+func New() *Authorize {
 	a := &Authorize{
 		currentOptions: config.NewAtomicOptions(),
+		state:          atomicutil.NewValue[*authorizeState](nil),
 		store:          store.New(),
 		globalCache:    storage.NewGlobalCache(time.Minute),
 	}
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 
-	state, err := newAuthorizeStateFromConfig(ctx, cfg, a.store, nil)
-	if err != nil {
-		return nil, err
-	}
-	a.state = atomicutil.NewValue(state)
+	return a
+}
 
-	return a, nil
+func (a *Authorize) HasValidState() bool {
+	return a.state.Load() != nil
 }
 
 // GetDataBrokerServiceClient returns the current DataBrokerServiceClient.
 func (a *Authorize) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
-	return a.state.Load().dataBrokerClient
+	state := a.state.Load()
+	if state == nil {
+		return nil
+	}
+	return state.dataBrokerClient
 }
 
 // Run runs the authorize service.
@@ -70,7 +74,11 @@ func (a *Authorize) Run(ctx context.Context) error {
 		return nil
 	})
 	eg.Go(func() error {
-		_ = grpc.WaitForReady(ctx, a.state.Load().dataBrokerClientConnection, time.Second*10)
+		state := a.state.Load()
+		if state == nil {
+			return errors.New("authorize: invalid configuration")
+		}
+		_ = grpc.WaitForReady(ctx, state.dataBrokerClientConnection, time.Second*10)
 		return nil
 	})
 	return eg.Wait()
@@ -151,7 +159,11 @@ func newPolicyEvaluator(
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	currentState := a.state.Load()
 	a.currentOptions.Store(cfg.Options)
-	if state, err := newAuthorizeStateFromConfig(ctx, cfg, a.store, currentState.evaluator); err != nil {
+	var prev *evaluator.Evaluator
+	if currentState != nil {
+		prev = currentState.evaluator
+	}
+	if state, err := newAuthorizeStateFromConfig(ctx, cfg, a.store, prev); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(state)
