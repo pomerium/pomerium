@@ -1122,6 +1122,40 @@ func (s *GetOrCreatePolicyEvaluatorsSuite) TestPartitioning() {
 	// chunk 1 should be skipped even though it will be partitioned into worker 0
 }
 
+func (s *GetOrCreatePolicyEvaluatorsSuite) TestStoreCacheInvalidation() {
+	// if the store changes, the query cache should not be reused.
+	routes := s.generateRoutes(0, 10, uniquePerUserPolicyFormat)
+	store1 := store.New()
+	eval, err := evaluator.New(context.Background(), store1, nil, evaluator.WithPolicies(routes))
+	s.Require().NoError(err)
+	s.Equal(evaluator.EvaluatorCacheStats{
+		CacheHits:   0,
+		CacheMisses: 10,
+	}, eval.XEvaluatorCache().Stats())
+	s.Equal(evaluator.QueryCacheStats{
+		CacheHits:       0,
+		CacheMisses:     10,
+		BuildsSucceeded: 10,
+		BuildsFailed:    0,
+		BuildsShared:    0,
+	}, eval.XQueryCache().Stats())
+
+	store2 := store.New()
+	eval2, err := evaluator.New(context.Background(), store2, eval, evaluator.WithPolicies(routes))
+	s.Require().NoError(err)
+	s.Equal(evaluator.EvaluatorCacheStats{
+		CacheHits:   0,
+		CacheMisses: 10,
+	}, eval2.XEvaluatorCache().Stats())
+	s.Equal(evaluator.QueryCacheStats{
+		CacheHits:       0,
+		CacheMisses:     10,
+		BuildsSucceeded: 10,
+		BuildsFailed:    0,
+		BuildsShared:    0,
+	}, eval2.XQueryCache().Stats())
+}
+
 func TestGetOrCreatePolicyEvaluatorsSuite(t *testing.T) {
 	suite.Run(t, &GetOrCreatePolicyEvaluatorsSuite{})
 }

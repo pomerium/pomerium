@@ -249,7 +249,7 @@ func New(
 		store: store,
 	}
 
-	if previous == nil || opts.cacheKey() != previous.opts.cacheKey() {
+	if previous == nil || opts.cacheKey() != previous.opts.cacheKey() || store != previous.store {
 		var err error
 		rttrace.WithRegion(ctx, "update store", func() {
 			err = updateStore(store, &opts, previous)
