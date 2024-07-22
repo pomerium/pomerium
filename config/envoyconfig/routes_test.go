@@ -302,79 +302,102 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	oneMinute := time.Minute
 	ten := time.Second * 10
 
+	// note: within each policy below, fields that do not affect the route ID
+	// are grouped separately, after the fields that do affect the route ID.
+	policies := []config.Policy{
+		0: { // skipped by host filter
+			From: "https://ignore.example.com",
+			To:   mustParseWeightedURLs(t, "https://to.example.com"),
+
+			PassIdentityHeaders: ptr(true),
+		},
+		1: {
+			From: "https://example.com",
+			To:   mustParseWeightedURLs(t, "https://to.example.com"),
+
+			PassIdentityHeaders: ptr(true),
+		},
+		2: {
+			From: "https://example.com",
+			To:   mustParseWeightedURLs(t, "https://to.example.com"),
+			Path: "/some/path",
+
+			AllowWebsockets:     true,
+			PreserveHostHeader:  true,
+			PassIdentityHeaders: ptr(true),
+		},
+		3: {
+			From:   "https://example.com",
+			To:     mustParseWeightedURLs(t, "https://to.example.com"),
+			Prefix: "/some/prefix/",
+
+			SetRequestHeaders:   map[string]string{"HEADER-KEY": "HEADER-VALUE"},
+			UpstreamTimeout:     &oneMinute,
+			PassIdentityHeaders: ptr(true),
+		},
+		4: {
+			From:  "https://example.com",
+			To:    mustParseWeightedURLs(t, "https://to.example.com"),
+			Regex: `^/[a]+$`,
+
+			PassIdentityHeaders: ptr(true),
+		},
+		5: { // same route ID as 3
+			From:   "https://example.com",
+			To:     mustParseWeightedURLs(t, "https://to.example.com"),
+			Prefix: "/some/prefix/",
+
+			RemoveRequestHeaders: []string{"HEADER-KEY"},
+			UpstreamTimeout:      &oneMinute,
+			PassIdentityHeaders:  ptr(true),
+		},
+		6: { // same route ID as 2
+			From: "https://example.com",
+			To:   mustParseWeightedURLs(t, "https://to.example.com"),
+			Path: "/some/path",
+
+			AllowSPDY:           true,
+			PreserveHostHeader:  true,
+			PassIdentityHeaders: ptr(true),
+		},
+		7: { // same route ID as 2
+			From: "https://example.com",
+			To:   mustParseWeightedURLs(t, "https://to.example.com"),
+			Path: "/some/path",
+
+			AllowSPDY:           true,
+			AllowWebsockets:     true,
+			PreserveHostHeader:  true,
+			PassIdentityHeaders: ptr(true),
+		},
+		8: {
+			From: "https://example.com",
+			To:   mustParseWeightedURLs(t, "https://to.example.com"),
+			Path: "/websocket-timeout",
+
+			AllowWebsockets:     true,
+			PreserveHostHeader:  true,
+			PassIdentityHeaders: ptr(true),
+			UpstreamTimeout:     &ten,
+		},
+	}
+	routeIDs := []string{
+		1: "772697672458217856",
+		2: "6032229746964560472",
+		3: "13317665674438641304",
+		4: "9768293332770157550",
+		5: "13317665674438641304", // same as 3
+		6: "6032229746964560472",  // same as 2
+		7: "6032229746964560472",  // same as 2
+		8: "1591581179179639728",
+	}
+
 	b := &Builder{filemgr: filemgr.NewManager()}
 	routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
 		SharedKey:              cryptutil.NewBase64Key(),
-		Policies: []config.Policy{
-			{
-				From:                "https://ignore.example.com",
-				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
-				PassIdentityHeaders: ptr(true),
-			},
-			{
-				From:                "https://example.com",
-				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
-				PassIdentityHeaders: ptr(true),
-			},
-			{
-				From:                "https://example.com",
-				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
-				Path:                "/some/path",
-				AllowWebsockets:     true,
-				PreserveHostHeader:  true,
-				PassIdentityHeaders: ptr(true),
-			},
-			{
-				From:                "https://example.com",
-				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
-				Prefix:              "/some/prefix/",
-				SetRequestHeaders:   map[string]string{"HEADER-KEY": "HEADER-VALUE"},
-				UpstreamTimeout:     &oneMinute,
-				PassIdentityHeaders: ptr(true),
-			},
-			{
-				From:                "https://example.com",
-				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
-				Regex:               `^/[a]+$`,
-				PassIdentityHeaders: ptr(true),
-			},
-			{
-				From:                 "https://example.com",
-				To:                   mustParseWeightedURLs(t, "https://to.example.com"),
-				Prefix:               "/some/prefix/",
-				RemoveRequestHeaders: []string{"HEADER-KEY"},
-				UpstreamTimeout:      &oneMinute,
-				PassIdentityHeaders:  ptr(true),
-			},
-			{
-				From:                "https://example.com",
-				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
-				Path:                "/some/path",
-				AllowSPDY:           true,
-				PreserveHostHeader:  true,
-				PassIdentityHeaders: ptr(true),
-			},
-			{
-				From:                "https://example.com",
-				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
-				Path:                "/some/path",
-				AllowSPDY:           true,
-				AllowWebsockets:     true,
-				PreserveHostHeader:  true,
-				PassIdentityHeaders: ptr(true),
-			},
-			{
-				From:                "https://example.com",
-				To:                  mustParseWeightedURLs(t, "https://to.example.com"),
-				Path:                "/websocket-timeout",
-				AllowWebsockets:     true,
-				PreserveHostHeader:  true,
-				PassIdentityHeaders: ptr(true),
-				UpstreamTimeout:     &ten,
-			},
-		},
+		Policies:               policies,
 	}}, "example.com")
 	require.NoError(t, err)
 
@@ -444,7 +467,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "16913502743845432363"
+								"route_id": "`+routeIDs[1]+`"
 							}
 						}
 					}
@@ -515,7 +538,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "911713133804109577"
+								"route_id": "`+routeIDs[2]+`"
 							}
 						}
 					}
@@ -585,7 +608,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "6407864870815560799"
+								"route_id": "`+routeIDs[3]+`"
 							}
 						}
 					}
@@ -657,7 +680,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "1103677309004574500"
+								"route_id": "`+routeIDs[4]+`"
 							}
 						}
 					}
@@ -728,7 +751,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "6407864870815560799"
+								"route_id": "`+routeIDs[5]+`"
 							}
 						}
 					}
@@ -798,7 +821,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "911713133804109577"
+								"route_id": "`+routeIDs[6]+`"
 							}
 						}
 					}
@@ -869,7 +892,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "911713133804109577"
+								"route_id": "`+routeIDs[7]+`"
 							}
 						}
 					}
@@ -940,7 +963,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "17831746838845374842"
+								"route_id": "`+routeIDs[8]+`"
 							}
 						}
 					}
@@ -1123,7 +1146,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "10474912405080199536"
+								"route_id": "11959552038839924732"
 							}
 						}
 					}
@@ -1195,7 +1218,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "15730681265277585877"
+								"route_id": "9444248534316924938"
 							}
 						}
 					}
@@ -1293,7 +1316,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_id": "16598125949405432745"
+									"route_id": "5652544858774142715"
 								}
 							}
 						}
@@ -1423,7 +1446,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "13828028232508831592"
+								"route_id": "1410576726089372267"
 							}
 						}
 					}
@@ -1494,7 +1517,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "13828028232508831592"
+								"route_id": "1410576726089372267"
 							}
 						}
 					}
@@ -1570,7 +1593,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "13828028232508831592"
+								"route_id": "1410576726089372267"
 							}
 						}
 					}
@@ -1641,7 +1664,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "13828028232508831592"
+								"route_id": "1410576726089372267"
 							}
 						}
 					}
@@ -1712,7 +1735,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "13828028232508831592"
+								"route_id": "1410576726089372267"
 							}
 						}
 					}
@@ -1788,7 +1811,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "13828028232508831592"
+								"route_id": "1410576726089372267"
 							}
 						}
 					}
