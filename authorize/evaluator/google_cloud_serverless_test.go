@@ -1,4 +1,4 @@
-package evaluator
+package evaluator_test
 
 import (
 	"net/http"
@@ -7,17 +7,19 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/pomerium/pomerium/authorize/evaluator"
 )
 
 func withMockGCP(t *testing.T, f func()) {
-	originalGCPIdentityDocURL := GCPIdentityDocURL
+	originalGCPIdentityDocURL := evaluator.GCPIdentityDocURL
 	defer func() {
-		GCPIdentityDocURL = originalGCPIdentityDocURL
-		GCPIdentityNow = time.Now
+		evaluator.GCPIdentityDocURL = originalGCPIdentityDocURL
+		evaluator.GCPIdentityNow = time.Now
 	}()
 
 	now := time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
-	GCPIdentityNow = func() time.Time {
+	evaluator.GCPIdentityNow = func() time.Time {
 		return now
 	}
 
@@ -28,13 +30,13 @@ func withMockGCP(t *testing.T, f func()) {
 	}))
 	defer srv.Close()
 
-	GCPIdentityDocURL = srv.URL
+	evaluator.GCPIdentityDocURL = srv.URL
 	f()
 }
 
 func TestGCPIdentityTokenSource(t *testing.T) {
 	withMockGCP(t, func() {
-		src, err := getGoogleCloudServerlessTokenSource("", "example")
+		src, err := evaluator.XGetGoogleCloudServerlessTokenSource("", "example")
 		assert.NoError(t, err)
 
 		token, err := src.Token()
@@ -62,7 +64,7 @@ func Test_normalizeServiceAccount(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			gotServiceAccount, err := normalizeServiceAccount(tc.serviceAccount)
+			gotServiceAccount, err := evaluator.XNormalizeServiceAccount(tc.serviceAccount)
 			assert.True(t, (err != nil) == tc.wantError)
 			assert.Equal(t, tc.expectedServiceAccount, gotServiceAccount)
 		})
