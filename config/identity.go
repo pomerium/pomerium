@@ -8,9 +8,8 @@ import (
 // GetIdentityProviderForID returns the identity provider associated with the given IDP id.
 // If none is found the default provider is returned.
 func (o *Options) GetIdentityProviderForID(idpID string) (*identity.Provider, error) {
-	for _, p := range o.GetAllPolicies() {
-		p := p
-		idp, err := o.GetIdentityProviderForPolicy(&p)
+	for p := range o.GetAllPolicies() {
+		idp, err := o.GetIdentityProviderForPolicy(p)
 		if err != nil {
 			return nil, err
 		}
@@ -63,10 +62,9 @@ func (o *Options) GetIdentityProviderForRequestURL(requestURL string) (*identity
 		return nil, err
 	}
 
-	for _, p := range o.GetAllPolicies() {
-		p := p
+	for p := range o.GetAllPolicies() {
 		if p.Matches(*u, o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)) {
-			return o.GetIdentityProviderForPolicy(&p)
+			return o.GetIdentityProviderForPolicy(p)
 		}
 	}
 	return o.GetIdentityProviderForPolicy(nil)

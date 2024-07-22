@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"iter"
 
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/atomicutil"
@@ -361,7 +362,7 @@ func newOptionsFromConfig(configFile string) (*Options, error) {
 	}
 	serviceName := telemetry.ServiceName(o.Services)
 	metrics.AddPolicyCountCallback(serviceName, func() int64 {
-		return int64(len(o.GetAllPolicies()))
+		return int64(o.NumPolicies())
 	})
 
 	return o, nil
@@ -979,15 +980,61 @@ func (o *Options) GetOauthOptions() (oauth.Options, error) {
 }
 
 // GetAllPolicies gets all the policies in the options.
-func (o *Options) GetAllPolicies() []Policy {
-	if o == nil {
-		return nil
+func (o *Options) GetAllPolicies() iter.Seq[*Policy] {
+	return func(yield func(*Policy) bool) {
+		if o == nil {
+			return
+		}
+		for i := range len(o.Policies) {
+			if !yield(&o.Policies[i]) {
+				return
+			}
+		}
+		for i := range len(o.Routes) {
+			if !yield(&o.Routes[i]) {
+				return
+			}
+		}
+		for i := range len(o.AdditionalPolicies) {
+			if !yield(&o.AdditionalPolicies[i]) {
+				return
+			}
+		}
 	}
-	policies := make([]Policy, 0, len(o.Policies)+len(o.Routes)+len(o.AdditionalPolicies))
-	policies = append(policies, o.Policies...)
-	policies = append(policies, o.Routes...)
-	policies = append(policies, o.AdditionalPolicies...)
-	return policies
+}
+
+// GetAllPolicies gets all the policies in the options.
+func (o *Options) GetAllPoliciesIndexed() iter.Seq2[int, *Policy] {
+	return func(yield func(int, *Policy) bool) {
+		if o == nil {
+			return
+		}
+		index := 0
+		nextIndex := func() int {
+			i := index
+			index++
+			return i
+		}
+		for i := range len(o.Policies) {
+			if !yield(nextIndex(), &o.Policies[i]) {
+				return
+			}
+		}
+		for i := range len(o.Routes) {
+			if !yield(nextIndex(), &o.Routes[i]) {
+				return
+			}
+		}
+		for i := range len(o.AdditionalPolicies) {
+			if !yield(nextIndex(), &o.AdditionalPolicies[i]) {
+				return
+			}
+		}
+	}
+}
+
+func (o *Options) NumPolicies() int {
+	return len(o.Policies) + len(o.Routes) + len(o.AdditionalPolicies)
 }
 
 // GetMetricsBasicAuth gets the metrics basic auth username and password.
@@ -1017,12 +1064,11 @@ func (o *Options) HasAnyDownstreamMTLSClientCA() bool {
 	if len(ca) > 0 {
 		return true
 	}
-	allPolicies := o.GetAllPolicies()
-	for i := range allPolicies {
+	for p := range o.GetAllPolicies() {
 		// We don't need to check TLSDownstreamClientCAFile here because
 		// Policy.Validate() will populate TLSDownstreamClientCA when
 		// TLSDownstreamClientCAFile is set.
-		if allPolicies[i].TLSDownstreamClientCA != "" {
+		if p.TLSDownstreamClientCA != "" {
 			return true
 		}
 	}
@@ -1273,7 +1319,7 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 
 	// policy urls
 	if IsProxy(o.Services) {
-		for _, policy := range o.GetAllPolicies() {
+		for policy := range o.GetAllPolicies() {
 			fromURL, err := urlutil.ParseAndValidateURL(policy.From)
 			if err != nil {
 				return nil, err

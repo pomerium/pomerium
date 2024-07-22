@@ -599,6 +599,14 @@ func (p *Policy) RouteID() (uint64, error) {
 	return hashutil.Hash(id)
 }
 
+func (p *Policy) MustRouteID() uint64 {
+	id, err := p.RouteID()
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 func (p *Policy) String() string {
 	to := "?"
 	if len(p.To) > 0 {

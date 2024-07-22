@@ -112,15 +112,14 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 	}
 
 	if config.IsProxy(cfg.Options.Services) {
-		for i, p := range cfg.Options.GetAllPolicies() {
-			policy := p
+		for policy := range cfg.Options.GetAllPolicies() {
 			if policy.EnvoyOpts == nil {
 				policy.EnvoyOpts = newDefaultEnvoyClusterConfig()
 			}
 			if len(policy.To) > 0 {
-				cluster, err := b.buildPolicyCluster(ctx, cfg, &policy)
+				cluster, err := b.buildPolicyCluster(ctx, cfg, policy)
 				if err != nil {
-					return nil, fmt.Errorf("policy #%d: %w", i, err)
+					return nil, fmt.Errorf("policy %q: %w", policy.String(), err)
 				}
 				clusters = append(clusters, cluster)
 			}

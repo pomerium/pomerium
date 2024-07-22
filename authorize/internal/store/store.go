@@ -48,7 +48,7 @@ func (s *Store) UpdateJWTClaimHeaders(jwtClaimHeaders map[string]string) {
 }
 
 // UpdateRoutePolicies updates the route policies in the store.
-func (s *Store) UpdateRoutePolicies(routePolicies []config.Policy) {
+func (s *Store) UpdateRoutePolicies(routePolicies []*config.Policy) {
 	s.write("/route_policies", routePolicies)
 }
 
