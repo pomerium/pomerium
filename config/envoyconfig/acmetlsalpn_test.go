@@ -28,9 +28,9 @@ func TestBuilder_buildACMETLSALPNCluster(t *testing.T) {
 				}]
 			}
 		}`,
-		b.buildACMETLSALPNCluster(&config.Config{
+		b.WithConfig(&config.Config{
 			ACMETLSALPNPort: "1234",
-		}))
+		}).buildACMETLSALPNCluster())
 }
 
 func TestBuilder_buildACMETLSALPNFilterChain(t *testing.T) {
@@ -49,5 +49,5 @@ func TestBuilder_buildACMETLSALPNFilterChain(t *testing.T) {
 				}
 			}]
 		}`,
-		b.buildACMETLSALPNFilterChain())
+		b.WithConfig(&config.Config{}).buildACMETLSALPNFilterChain())
 }
