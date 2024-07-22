@@ -61,6 +61,7 @@ require (
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f
+	github.com/valyala/bytebufferpool v1.0.0
 	github.com/volatiletech/null/v9 v9.0.0
 	github.com/yuin/gopher-lua v1.1.1
 	go.opencensus.io v0.24.0

@@ -1304,7 +1304,7 @@ func encodeCert(cert *tls.Certificate) []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Certificate[0]})
 }
 
-func mustParseWeightedURLs(t *testing.T, urls ...string) []WeightedURL {
+func mustParseWeightedURLs(t testing.TB, urls ...string) []WeightedURL {
 	wu, err := ParseWeightedUrls(urls...)
 	require.NoError(t, err)
 	return wu
