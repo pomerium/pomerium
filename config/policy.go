@@ -3,17 +3,24 @@ package config
 import (
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
+	"unsafe"
 
+	"github.com/cespare/xxhash/v2"
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	"github.com/valyala/bytebufferpool"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
@@ -114,7 +121,7 @@ type Policy struct {
 	TLSClientKey      string           `mapstructure:"tls_client_key" yaml:"tls_client_key,omitempty"`
 	TLSClientCertFile string           `mapstructure:"tls_client_cert_file" yaml:"tls_client_cert_file,omitempty"`
 	TLSClientKeyFile  string           `mapstructure:"tls_client_key_file" yaml:"tls_client_key_file,omitempty"`
-	ClientCertificate *tls.Certificate `yaml:",omitempty" hash:"ignore"`
+	ClientCertificate *tls.Certificate `yaml:",omitempty" hash:"-"`
 
 	// TLSDownstreamClientCA defines the root certificate to use with a given route to verify
 	// downstream client certificates (e.g. from a user's browser).
@@ -392,131 +399,137 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	return p, nil
 }
 
-// ToProto converts the policy to a protobuf type.
-func (p *Policy) ToProto() (*configpb.Route, error) {
-	var timeout *durationpb.Duration
-	if p.UpstreamTimeout == nil {
-		timeout = durationpb.New(defaultOptions.DefaultUpstreamTimeout)
+// ShallowCopyToProto copies fields from the Policy into dest, aliasing pointers
+// and reusing memory where possible. It does NOT set the Name field in dest;
+// that must be done manually.
+func (p *Policy) ShallowCopyToProto(dest *configpb.Route) {
+	dest.Id = p.ID
+	dest.From = p.From
+	dest.AllowedUsers = p.AllowedUsers
+	dest.AllowedDomains = p.AllowedDomains
+	if p.AllowedIDPClaims != nil {
+		dest.AllowedIdpClaims = p.AllowedIDPClaims.ToPB()
 	} else {
-		timeout = durationpb.New(*p.UpstreamTimeout)
+		dest.AllowedIdpClaims = nil
 	}
-	var idleTimeout *durationpb.Duration
-	if p.IdleTimeout != nil {
-		idleTimeout = durationpb.New(*p.IdleTimeout)
+	dest.Prefix = p.Prefix
+	dest.Path = p.Path
+	dest.Regex = p.Regex
+	dest.PrefixRewrite = p.PrefixRewrite
+	dest.RegexRewritePattern = p.RegexRewritePattern
+	dest.RegexRewriteSubstitution = p.RegexRewriteSubstitution
+	dest.RegexPriorityOrder = p.RegexPriorityOrder
+	copySrcToOptionalDest(&dest.HostRewrite, &p.HostRewrite)
+	copySrcToOptionalDest(&dest.HostRewriteHeader, &p.HostRewriteHeader)
+	copySrcToOptionalDest(&dest.HostPathRegexRewritePattern, &p.HostPathRegexRewritePattern)
+	copySrcToOptionalDest(&dest.HostPathRegexRewriteSubstitution, &p.HostPathRegexRewriteSubstitution)
+	dest.CorsAllowPreflight = p.CORSAllowPreflight
+	dest.AllowPublicUnauthenticatedAccess = p.AllowPublicUnauthenticatedAccess
+	dest.AllowAnyAuthenticatedUser = p.AllowAnyAuthenticatedUser
+	dest.AllowWebsockets = p.AllowWebsockets
+	dest.AllowSpdy = p.AllowSPDY
+	dest.TlsSkipVerify = p.TLSSkipVerify
+	dest.TlsServerName = p.TLSServerName
+	dest.TlsUpstreamServerName = p.TLSUpstreamServerName
+	dest.TlsDownstreamServerName = p.TLSDownstreamServerName
+	dest.TlsCustomCa = p.TLSCustomCA
+	dest.TlsCustomCaFile = p.TLSCustomCAFile
+	dest.TlsClientCert = p.TLSClientCert
+	dest.TlsClientKey = p.TLSClientKey
+	dest.TlsClientCertFile = p.TLSClientCertFile
+	dest.TlsClientKeyFile = p.TLSClientKeyFile
+	dest.TlsDownstreamClientCa = p.TLSDownstreamClientCA
+	dest.TlsDownstreamClientCaFile = p.TLSDownstreamClientCAFile
+	dest.TlsUpstreamAllowRenegotiation = p.TLSUpstreamAllowRenegotiation
+	dest.SetRequestHeaders = p.SetRequestHeaders
+	dest.RemoveRequestHeaders = p.RemoveRequestHeaders
+	dest.PreserveHostHeader = p.PreserveHostHeader
+	dest.PassIdentityHeaders = p.PassIdentityHeaders
+	dest.KubernetesServiceAccountToken = p.KubernetesServiceAccountToken
+	dest.KubernetesServiceAccountTokenFile = p.KubernetesServiceAccountTokenFile
+	dest.EnableGoogleCloudServerlessAuthentication = p.EnableGoogleCloudServerlessAuthentication
+	dest.EnvoyOpts = p.EnvoyOpts
+	dest.SetResponseHeaders = p.SetResponseHeaders
+	copySrcToOptionalDest(&dest.IdpClientId, &p.IDPClientID)
+	copySrcToOptionalDest(&dest.IdpClientSecret, &p.IDPClientSecret)
+	dest.ShowErrorDetails = p.ShowErrorDetails
+	switch p.JWTIssuerFormat {
+	case "", "hostOnly":
+		dest.JwtIssuerFormat = configpb.IssuerFormat_IssuerHostOnly
+	case "uri":
+		dest.JwtIssuerFormat = configpb.IssuerFormat_IssuerURI
 	}
-	sps := make([]*configpb.Policy, 0, len(p.SubPolicies))
+	if p.Redirect != nil {
+		if dest.Redirect == nil {
+			dest.Redirect = &configpb.RouteRedirect{}
+		}
+		dest.Response = nil
+		dest.To = nil
+		dest.LoadBalancingWeights = nil
+
+		copyOptionalSrcToOptionalDest(&dest.Redirect.HttpsRedirect, &p.Redirect.HTTPSRedirect)
+		copyOptionalSrcToOptionalDest(&dest.Redirect.SchemeRedirect, &p.Redirect.SchemeRedirect)
+		copyOptionalSrcToOptionalDest(&dest.Redirect.HostRedirect, &p.Redirect.HostRedirect)
+		copyOptionalSrcToOptionalDest(&dest.Redirect.PortRedirect, &p.Redirect.PortRedirect)
+		copyOptionalSrcToOptionalDest(&dest.Redirect.PathRedirect, &p.Redirect.PathRedirect)
+		copyOptionalSrcToOptionalDest(&dest.Redirect.PrefixRewrite, &p.Redirect.PrefixRewrite)
+		copyOptionalSrcToOptionalDest(&dest.Redirect.ResponseCode, &p.Redirect.ResponseCode)
+		copyOptionalSrcToOptionalDest(&dest.Redirect.StripQuery, &p.Redirect.StripQuery)
+	} else if p.Response != nil {
+		if dest.Response == nil {
+			dest.Response = &configpb.RouteDirectResponse{}
+		}
+		dest.Redirect = nil
+		dest.To = nil
+		dest.LoadBalancingWeights = nil
+
+		dest.Response.Status = uint32(p.Response.Status)
+		dest.Response.Body = p.Response.Body
+	} else {
+		clear(dest.To)
+		dest.To = slices.Grow(dest.To[:0], len(p.To))
+		clear(dest.LoadBalancingWeights)
+		dest.LoadBalancingWeights = slices.Grow(dest.LoadBalancingWeights[:0], len(p.To))
+		dest.Redirect = nil
+		dest.Response = nil
+
+		var skipLbWeights bool
+		for _, u := range p.To {
+			dest.To = append(dest.To, u.URL.String())
+			if skipLbWeights {
+				continue
+			}
+			if u.LbWeight == 0 {
+				skipLbWeights = true
+				clear(dest.LoadBalancingWeights)
+				dest.LoadBalancingWeights = dest.LoadBalancingWeights[:0]
+				continue
+			}
+			dest.LoadBalancingWeights = append(dest.LoadBalancingWeights, u.LbWeight)
+		}
+	}
+	copyOptionalDurationToOptionalDurationpb(&dest.Timeout, &p.UpstreamTimeout)
+	copyOptionalDurationToOptionalDurationpb(&dest.IdleTimeout, &p.IdleTimeout)
+
+	clear(dest.Policies)
+	dest.Policies = slices.Grow(dest.Policies[:0], len(p.SubPolicies))
 	for _, sp := range p.SubPolicies {
-		sps = append(sps, &configpb.Policy{
+		dest.Policies = append(dest.Policies, &configpb.Policy{
 			Id:               sp.ID,
 			Name:             sp.Name,
 			AllowedUsers:     sp.AllowedUsers,
 			AllowedDomains:   sp.AllowedDomains,
+			Rego:             sp.Rego,
 			AllowedIdpClaims: sp.AllowedIDPClaims.ToPB(),
 			Explanation:      sp.Explanation,
 			Remediation:      sp.Remediation,
-			Rego:             sp.Rego,
 		})
 	}
 
-	pb := &configpb.Route{
-		AllowAnyAuthenticatedUser:        p.AllowAnyAuthenticatedUser,
-		AllowedDomains:                   p.AllowedDomains,
-		AllowedIdpClaims:                 p.AllowedIDPClaims.ToPB(),
-		AllowedUsers:                     p.AllowedUsers,
-		AllowPublicUnauthenticatedAccess: p.AllowPublicUnauthenticatedAccess,
-		AllowSpdy:                        p.AllowSPDY,
-		AllowWebsockets:                  p.AllowWebsockets,
-		CorsAllowPreflight:               p.CORSAllowPreflight,
-		EnableGoogleCloudServerlessAuthentication: p.EnableGoogleCloudServerlessAuthentication,
-		EnvoyOpts:                         p.EnvoyOpts,
-		From:                              p.From,
-		Id:                                p.ID,
-		IdleTimeout:                       idleTimeout,
-		KubernetesServiceAccountToken:     p.KubernetesServiceAccountToken,
-		KubernetesServiceAccountTokenFile: p.KubernetesServiceAccountTokenFile,
-		Name:                              fmt.Sprint(p.RouteID()),
-		PassIdentityHeaders:               p.PassIdentityHeaders,
-		Path:                              p.Path,
-		Policies:                          sps,
-		Prefix:                            p.Prefix,
-		PrefixRewrite:                     p.PrefixRewrite,
-		PreserveHostHeader:                p.PreserveHostHeader,
-		Regex:                             p.Regex,
-		RegexPriorityOrder:                p.RegexPriorityOrder,
-		RegexRewritePattern:               p.RegexRewritePattern,
-		RegexRewriteSubstitution:          p.RegexRewriteSubstitution,
-		RemoveRequestHeaders:              p.RemoveRequestHeaders,
-		SetRequestHeaders:                 p.SetRequestHeaders,
-		SetResponseHeaders:                p.SetResponseHeaders,
-		ShowErrorDetails:                  p.ShowErrorDetails,
-		Timeout:                           timeout,
-		TlsClientCert:                     p.TLSClientCert,
-		TlsClientCertFile:                 p.TLSClientCertFile,
-		TlsClientKey:                      p.TLSClientKey,
-		TlsClientKeyFile:                  p.TLSClientKeyFile,
-		TlsCustomCa:                       p.TLSCustomCA,
-		TlsCustomCaFile:                   p.TLSCustomCAFile,
-		TlsDownstreamClientCa:             p.TLSDownstreamClientCA,
-		TlsDownstreamClientCaFile:         p.TLSDownstreamClientCAFile,
-		TlsDownstreamServerName:           p.TLSDownstreamServerName,
-		TlsServerName:                     p.TLSServerName,
-		TlsSkipVerify:                     p.TLSSkipVerify,
-		TlsUpstreamAllowRenegotiation:     p.TLSUpstreamAllowRenegotiation,
-		TlsUpstreamServerName:             p.TLSUpstreamServerName,
-	}
-	if p.HostPathRegexRewritePattern != "" {
-		pb.HostPathRegexRewritePattern = proto.String(p.HostPathRegexRewritePattern)
-	}
-	if p.HostPathRegexRewriteSubstitution != "" {
-		pb.HostPathRegexRewriteSubstitution = proto.String(p.HostPathRegexRewriteSubstitution)
-	}
-	if p.HostRewrite != "" {
-		pb.HostRewrite = proto.String(p.HostRewrite)
-	}
-	if p.HostRewriteHeader != "" {
-		pb.HostRewriteHeader = proto.String(p.HostRewriteHeader)
-	}
-	if p.IDPClientID != "" {
-		pb.IdpClientId = proto.String(p.IDPClientID)
-	}
-	if p.IDPClientSecret != "" {
-		pb.IdpClientSecret = proto.String(p.IDPClientSecret)
-	}
-	if p.Redirect != nil {
-		pb.Redirect = &configpb.RouteRedirect{
-			HttpsRedirect:  p.Redirect.HTTPSRedirect,
-			SchemeRedirect: p.Redirect.SchemeRedirect,
-			HostRedirect:   p.Redirect.HostRedirect,
-			PortRedirect:   p.Redirect.PortRedirect,
-			PathRedirect:   p.Redirect.PathRedirect,
-			PrefixRewrite:  p.Redirect.PrefixRewrite,
-			ResponseCode:   p.Redirect.ResponseCode,
-			StripQuery:     p.Redirect.StripQuery,
-		}
-	} else if p.Response != nil {
-		pb.Response = &configpb.RouteDirectResponse{
-			Status: uint32(p.Response.Status),
-			Body:   p.Response.Body,
-		}
-	} else {
-		to, weights, err := p.To.Flatten()
-		if err != nil {
-			return nil, err
-		}
-
-		pb.To = to
-		pb.LoadBalancingWeights = weights
-	}
-
-	switch p.JWTIssuerFormat {
-	case "", "hostOnly":
-		pb.JwtIssuerFormat = configpb.IssuerFormat_IssuerHostOnly
-	case "uri":
-		pb.JwtIssuerFormat = configpb.IssuerFormat_IssuerURI
-	}
-
+	clear(dest.RewriteResponseHeaders)
+	dest.RewriteResponseHeaders = slices.Grow(dest.RewriteResponseHeaders[:0], len(p.RewriteResponseHeaders))
 	for _, rwh := range p.RewriteResponseHeaders {
-		pb.RewriteResponseHeaders = append(pb.RewriteResponseHeaders, &configpb.RouteRewriteHeader{
+		dest.RewriteResponseHeaders = append(dest.RewriteResponseHeaders, &configpb.RouteRewriteHeader{
 			Header: rwh.Header,
 			Matcher: &configpb.RouteRewriteHeader_Prefix{
 				Prefix: rwh.Prefix,
@@ -524,8 +537,56 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 			Value: rwh.Value,
 		})
 	}
+}
 
-	return pb, nil
+func copySrcToOptionalDest[T comparable](dst **T, src *T) {
+	var zero T
+	if *src == zero {
+		*dst = nil
+	} else {
+		if *dst == nil {
+			*dst = src
+		} else {
+			**dst = *src
+		}
+	}
+}
+
+func copyOptionalSrcToOptionalDest[T comparable](dst, src **T) {
+	if *dst == nil || *src == nil {
+		*dst = *src
+		return
+	}
+	**dst = **src
+}
+
+func copyOptionalDurationToOptionalDurationpb(dst **durationpb.Duration, src **time.Duration) {
+	if *src == nil {
+		*dst = nil
+		return
+	}
+	if *dst != nil {
+		nanos := int64(**src)
+		seconds := nanos / int64(time.Second)
+		(*dst).Seconds = seconds
+		(*dst).Nanos = int32(nanos - seconds*int64(time.Second))
+	} else {
+		*dst = durationpb.New(**src)
+	}
+}
+
+// AsProto converts the Policy to the equivalent Route protobuf type. This
+// only performs shallow copying; the contents of some fields in the returned
+// object will be shared with the equivalent fields from the Policy.
+func (p *Policy) AsProto() (*configpb.Route, error) {
+	out := &configpb.Route{}
+	p.ShallowCopyToProto(out)
+	routeID, err := p.RouteID()
+	if err != nil {
+		return nil, err
+	}
+	out.Name = strconv.FormatUint(routeID, 10)
+	return out, nil
 }
 
 // Validate checks the validity of a policy.
@@ -649,35 +710,171 @@ func (p *Policy) Validate() error {
 	return nil
 }
 
-// Checksum returns the xxhash hash for the policy.
-func (p *Policy) Checksum() uint64 {
-	return hashutil.MustHash(p)
+var policyPool = sync.Pool{
+	New: func() any {
+		return &pooledRoute{
+			Route: &configpb.Route{},
+			pooledFields: pooledFields{
+				nameBuffer:           make([]byte, 20), // longest possible name (uint64 id -> string)
+				to:                   make([]string, 0, 1),
+				loadBalancingWeights: make([]uint32, 0, 1),
+				redirect:             &configpb.RouteRedirect{},
+				response:             &configpb.RouteDirectResponse{},
+				timeout:              &durationpb.Duration{},
+				idleTimeout:          &durationpb.Duration{},
+			},
+		}
+	},
 }
 
-// RouteID returns a unique identifier for a route
-func (p *Policy) RouteID() (uint64, error) {
-	id := routeID{
-		From:   p.From,
-		Prefix: p.Prefix,
-		Path:   p.Path,
-		Regex:  p.Regex,
-	}
+type DoNotCopy [0]sync.Mutex
 
-	if len(p.To) > 0 {
-		dst, _, err := p.To.Flatten()
-		if err != nil {
-			return 0, err
+type pooledRoute struct {
+	DoNotCopy
+	*configpb.Route
+	pooledFields pooledFields
+}
+
+func (pr *pooledRoute) unsafeSetName(id uint64) {
+	clear(pr.pooledFields.nameBuffer)
+	pr.pooledFields.nameBuffer = strconv.AppendUint(pr.pooledFields.nameBuffer[:0], id, 10)
+	pr.Name = *(*string)(unsafe.Pointer(&pr.pooledFields.nameBuffer))
+}
+
+// prepare copies the [pointers to] pooled fields to the corresponding fields
+// in the Route.
+func (pr *pooledRoute) prepare() {
+	pr.To = pr.pooledFields.to
+	pr.LoadBalancingWeights = pr.pooledFields.loadBalancingWeights
+	pr.Redirect = pr.pooledFields.redirect
+	pr.Response = pr.pooledFields.response
+	pr.Timeout = pr.pooledFields.timeout
+	pr.IdleTimeout = pr.pooledFields.idleTimeout
+}
+
+func (pr *pooledRoute) reset() {
+	// Reset to clear any pointers that may be aliasing other fields in the
+	// original Policy, to avoid extending its lifetime
+	pr.Reset()
+	pr.prepare() // copy back the fields we own
+	clear(pr.To)
+	pr.To = pr.To[:0]
+	clear(pr.LoadBalancingWeights)
+	pr.LoadBalancingWeights = pr.LoadBalancingWeights[:0]
+	pr.Redirect.Reset() // contains possibly aliased pointers
+	pr.Response.Reset()
+	pr.Timeout.Reset()
+	pr.IdleTimeout.Reset()
+}
+
+// pooledFields contains a subset of fields that are owned by the pooled
+// Route objects, and reused along with the Route itself.
+// The fields here are either slices for commonly used fields that are stored
+// in a different way in Policy, or proto message types that cannot be directly
+// aliased from the Policy and would need to be heap-allocated each time.
+type pooledFields struct {
+	DoNotCopy
+	nameBuffer           []byte
+	to                   []string
+	loadBalancingWeights []uint32
+	redirect             *configpb.RouteRedirect
+	response             *configpb.RouteDirectResponse
+	timeout              *durationpb.Duration
+	idleTimeout          *durationpb.Duration
+}
+
+var checksumBufferPool bytebufferpool.Pool
+
+var marshalOpts = proto.MarshalOptions{
+	Deterministic: true,
+}
+
+var (
+	setRequestHeadersIv  = xxhash.Sum64String("Policy.SetRequestHeaders")
+	setResponseHeadersIv = xxhash.Sum64String("Policy.SetResponseHeaders")
+)
+
+// Checksum returns the xxhash hash for the policy.
+func (p *Policy) Checksum() uint64 {
+	return p.ChecksumWithID(p.MustRouteID())
+}
+
+func (p *Policy) ChecksumWithID(routeID uint64) uint64 {
+	pr := policyPool.Get().(*pooledRoute)
+	pr.prepare()
+	p.ShallowCopyToProto(pr.Route)
+	pr.unsafeSetName(routeID)
+	var setReqHeaders, setRespHeaders map[string]string
+	setReqHeaders, pr.SetRequestHeaders = pr.SetRequestHeaders, nil
+	setRespHeaders, pr.SetResponseHeaders = pr.SetResponseHeaders, nil
+	buf := checksumBufferPool.Get()
+	buf.B, _ = marshalOpts.MarshalAppend(buf.B, pr)
+	buf.B = binary.BigEndian.AppendUint32(buf.B, uint32(len(setReqHeaders)))
+	if setReqHeaders != nil {
+		buf.B = binary.BigEndian.AppendUint64(buf.B, hashutil.MapHash(setRequestHeadersIv, setReqHeaders))
+	}
+	buf.B = binary.BigEndian.AppendUint32(buf.B, uint32(len(setRespHeaders)))
+	if setRespHeaders != nil {
+		buf.B = binary.BigEndian.AppendUint64(buf.B, hashutil.MapHash(setResponseHeadersIv, setRespHeaders))
+	}
+	sum := xxhash.Sum64(buf.B)
+	checksumBufferPool.Put(buf)
+	pr.reset()
+	policyPool.Put(pr)
+	return sum
+}
+
+// RouteID returns a unique identifier for a route.
+// Only the fields From, To, Redirect, and Response are used to compute the ID.
+func (p *Policy) RouteID() (uint64, error) {
+	// this function is in the hot path, try not to allocate too much memory here
+	hash := hashutil.NewDigest()
+	hash.WriteStringWithLen(p.From)
+	hash.WriteStringWithLen(p.Prefix)
+	hash.WriteStringWithLen(p.Path)
+	hash.WriteStringWithLen(p.Regex)
+	switch {
+	case len(p.To) > 0:
+		_, _ = hash.Write([]byte{1}) // case 1
+		hash.WriteInt32(int32(len(p.To)))
+		for _, to := range p.To {
+			hash.WriteStringWithLen(to.URL.Scheme)
+			hash.WriteStringWithLen(to.URL.Opaque)
+			if to.URL.User == nil {
+				_, _ = hash.Write([]byte{0})
+			} else {
+				_, _ = hash.Write([]byte{1})
+				hash.WriteStringWithLen(to.URL.User.Username())
+				p, _ := to.URL.User.Password()
+				hash.WriteStringWithLen(p)
+			}
+			hash.WriteStringWithLen(to.URL.Host)
+			hash.WriteStringWithLen(to.URL.Path)
+			hash.WriteStringWithLen(to.URL.RawPath)
+			hash.WriteBool(to.URL.OmitHost)
+			hash.WriteBool(to.URL.ForceQuery)
+			hash.WriteStringWithLen(to.URL.Fragment)
+			hash.WriteStringWithLen(to.URL.RawFragment)
+			hash.WriteUint32(to.LbWeight)
 		}
-		id.To = dst
-	} else if p.Redirect != nil {
-		id.Redirect = p.Redirect
-	} else if p.Response != nil {
-		id.Response = p.Response
-	} else {
+	case p.Redirect != nil:
+		_, _ = hash.Write([]byte{2}) // case 2
+		hash.WriteBoolPtr(p.Redirect.HTTPSRedirect)
+		hash.WriteStringPtrWithLen(p.Redirect.SchemeRedirect)
+		hash.WriteStringPtrWithLen(p.Redirect.HostRedirect)
+		hash.WriteUint32Ptr(p.Redirect.PortRedirect)
+		hash.WriteStringPtrWithLen(p.Redirect.PathRedirect)
+		hash.WriteStringPtrWithLen(p.Redirect.PrefixRewrite)
+		hash.WriteInt32Ptr(p.Redirect.ResponseCode)
+		hash.WriteBoolPtr(p.Redirect.StripQuery)
+	case p.Response != nil:
+		_, _ = hash.Write([]byte{3}) // case 3
+		hash.WriteInt32(int32(p.Response.Status))
+		hash.WriteStringWithLen(p.Response.Body)
+	default:
 		return 0, errEitherToOrRedirectOrResponseRequired
 	}
-
-	return hashutil.Hash(id)
+	return hash.Sum64(), nil
 }
 
 func (p *Policy) MustRouteID() uint64 {
@@ -809,16 +1006,6 @@ func (p *Policy) GetPassIdentityHeaders(options *Options) bool {
 	}
 
 	return false
-}
-
-type routeID struct {
-	From     string
-	To       []string
-	Prefix   string
-	Path     string
-	Regex    string
-	Redirect *PolicyRedirect
-	Response *DirectResponse
 }
 
 /*
