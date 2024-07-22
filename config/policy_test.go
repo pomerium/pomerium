@@ -3,7 +3,9 @@ package config
 import (
 	"encoding/json"
 	"net/url"
+	"runtime"
 	"testing"
+	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/google/go-cmp/cmp"
@@ -11,7 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
 func Test_PolicyValidate(t *testing.T) {
@@ -158,7 +162,8 @@ func TestPolicy_Checksum(t *testing.T) {
 		t.Error("Checksum() not returning data")
 	}
 
-	if p.Checksum() != newChecksum {
+	newChecksum2 := p.Checksum()
+	if newChecksum2 != newChecksum {
 		t.Error("Checksum() inconsistent")
 	}
 }
@@ -368,4 +373,267 @@ func TestPolicy_IsTCPUpstream(t *testing.T) {
 		From: "tcp+https://example.com:1234",
 	}
 	assert.False(t, p3.IsTCPUpstream())
+}
+
+func BenchmarkChecksum(b *testing.B) {
+	p := Policy{
+		ID:        "a",
+		From:      "b",
+		To:        mustParseWeightedURLs(b, "https://localhost"),
+		LbWeights: []uint32{1, 2, 3},
+		// these are deprecated
+		// AllowedUsers:   []string{"a", "b", "c"},
+		// AllowedDomains: []string{"a", "b", "c"},
+		// AllowedIDPClaims: map[string][]any{
+		// 	"a": {1, 2, 3},
+		// 	"b": {4, 5, 6},
+		// },
+		Prefix:                           "c",
+		Path:                             "d",
+		Regex:                            "e",
+		RegexPriorityOrder:               new(int64),
+		PrefixRewrite:                    "f",
+		RegexRewritePattern:              "g",
+		RegexRewriteSubstitution:         "h",
+		HostRewrite:                      "i",
+		HostRewriteHeader:                "j",
+		HostPathRegexRewritePattern:      "k",
+		HostPathRegexRewriteSubstitution: "l",
+		CORSAllowPreflight:               true,
+		AllowPublicUnauthenticatedAccess: false,
+		AllowAnyAuthenticatedUser:        true,
+		UpstreamTimeout:                  new(time.Duration),
+		IdleTimeout:                      new(time.Duration),
+		AllowWebsockets:                  false,
+		AllowSPDY:                        true,
+		TLSSkipVerify:                    false,
+		TLSServerName:                    "m",
+		TLSDownstreamServerName:          "n",
+		TLSUpstreamServerName:            "o",
+		TLSCustomCA:                      "p",
+		TLSCustomCAFile:                  "q",
+		TLSClientCert:                    "r",
+		TLSClientKey:                     "s",
+		TLSClientCertFile:                "t",
+		TLSClientKeyFile:                 "u",
+		TLSDownstreamClientCA:            "v",
+		TLSDownstreamClientCAFile:        "w",
+		TLSUpstreamAllowRenegotiation:    true,
+		SetRequestHeaders: map[string]string{
+			"a": "1",
+			"b": "2",
+			"c": "3",
+		},
+		RemoveRequestHeaders: []string{
+			"a",
+			"b",
+			"c",
+		},
+		PreserveHostHeader:                        true,
+		PassIdentityHeaders:                       new(bool),
+		KubernetesServiceAccountToken:             "x",
+		KubernetesServiceAccountTokenFile:         "y",
+		EnableGoogleCloudServerlessAuthentication: true,
+		SubPolicies:                               []SubPolicy{},
+		EnvoyOpts:                                 &envoy_config_cluster_v3.Cluster{},
+		RewriteResponseHeaders: []RewriteHeader{
+			{
+				Header: "a",
+				Prefix: "b",
+				Value:  "c",
+			},
+		},
+		SetResponseHeaders: map[string]string{
+			"a": "1",
+			"b": "2",
+			"c": "3",
+		},
+		IDPClientID:      "z",
+		IDPClientSecret:  "zz",
+		ShowErrorDetails: true,
+		Policy: &PPLPolicy{
+			Policy: &parser.Policy{
+				Rules: []parser.Rule{
+					{
+						Action: parser.ActionAllow,
+						And:    []parser.Criterion{{Name: "foo"}},
+					},
+				},
+			},
+		},
+	}
+	pRouteId, err := p.RouteID()
+	require.NoError(b, err)
+	b.Run("route id", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			p.RouteID()
+		}
+	})
+	pNoMapFields := p
+	pNoMapFields.SetRequestHeaders = nil
+	pNoMapFields.SetResponseHeaders = nil
+	pNoMapFieldsRouteId, err := pNoMapFields.RouteID()
+	require.NoError(b, err)
+	b.ResetTimer()
+	b.Run("(old) hashstructure checksum", func(b *testing.B) {
+		b.Run("with map fields", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				hashutil.MustHash(p)
+			}
+		})
+		b.Run("without map fields", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				hashutil.MustHash(pNoMapFields)
+			}
+		})
+	})
+	b.Run("(new) proto-wire checksum", func(b *testing.B) {
+		b.Run("with map fields", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				p.ChecksumWithID(pRouteId)
+			}
+		})
+		b.Run("without map fields", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				pNoMapFields.ChecksumWithID(pNoMapFieldsRouteId)
+			}
+		})
+	})
+}
+
+func BenchmarkChecksumZeroAlloc(b *testing.B) {
+	// best case is using redirect/direct-response, no sub-policies, and no
+	// response header rewrite config. using To requires one unavoidable(?) url to
+	// string conversion, sub-policies require allocations, and response header
+	// rewrites require allocating each object
+	p := &Policy{
+		ID:   "a",
+		From: "b",
+		Redirect: &PolicyRedirect{
+			HTTPSRedirect: proto.Bool(true),
+			PathRedirect:  proto.String("/bar"),
+			StripQuery:    proto.Bool(true),
+		},
+		Prefix:                           "c",
+		Path:                             "d",
+		Regex:                            "e",
+		RegexPriorityOrder:               new(int64),
+		PrefixRewrite:                    "f",
+		RegexRewritePattern:              "g",
+		RegexRewriteSubstitution:         "h",
+		HostRewrite:                      "i",
+		HostRewriteHeader:                "j",
+		HostPathRegexRewritePattern:      "k",
+		HostPathRegexRewriteSubstitution: "l",
+		CORSAllowPreflight:               true,
+		AllowPublicUnauthenticatedAccess: false,
+		AllowAnyAuthenticatedUser:        true,
+		UpstreamTimeout:                  new(time.Duration),
+		IdleTimeout:                      new(time.Duration),
+		AllowWebsockets:                  false,
+		AllowSPDY:                        true,
+		TLSSkipVerify:                    false,
+		TLSServerName:                    "m",
+		TLSDownstreamServerName:          "n",
+		TLSUpstreamServerName:            "o",
+		TLSCustomCA:                      "p",
+		TLSCustomCAFile:                  "q",
+		TLSClientCert:                    "r",
+		TLSClientKey:                     "s",
+		TLSClientCertFile:                "t",
+		TLSClientKeyFile:                 "u",
+		TLSDownstreamClientCA:            "v",
+		TLSDownstreamClientCAFile:        "w",
+		TLSUpstreamAllowRenegotiation:    true,
+		SetRequestHeaders: map[string]string{
+			"a": "1",
+			"b": "2",
+			"c": "3",
+		},
+		RemoveRequestHeaders: []string{
+			"a",
+			"b",
+			"c",
+		},
+		SetResponseHeaders: map[string]string{
+			"a": "1",
+			"b": "2",
+			"c": "3",
+		},
+		PreserveHostHeader:                        true,
+		PassIdentityHeaders:                       new(bool),
+		KubernetesServiceAccountToken:             "x",
+		KubernetesServiceAccountTokenFile:         "y",
+		EnableGoogleCloudServerlessAuthentication: true,
+		IDPClientID:                               "z",
+		IDPClientSecret:                           "zz",
+		ShowErrorDetails:                          true,
+	}
+	pRouteId, err := p.RouteID()
+	require.NoError(b, err)
+	b.Run("route id", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			p.RouteID()
+		}
+	})
+	pNoMapFields := p
+	pNoMapFields.SetRequestHeaders = nil
+	pNoMapFields.SetResponseHeaders = nil
+	pNoMapFieldsRouteId, err := pNoMapFields.RouteID()
+	require.NoError(b, err)
+
+	// these should both report 0 allocs/op
+	b.Run("(new) proto-wire checksum, best case", func(b *testing.B) {
+		b.Run("with map fields", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				p.ChecksumWithID(pRouteId) // p.Checksum() is still zero-alloc, but this is faster
+			}
+		})
+		b.Run("without map fields", func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				pNoMapFields.ChecksumWithID(pNoMapFieldsRouteId)
+			}
+		})
+	})
+}
+
+func TestChecksum(t *testing.T) {
+	timeout := 111 * time.Minute
+	idleTimeout := 222 * time.Minute
+	p := &Policy{
+		From:              "https://from",
+		To:                mustParseWeightedURLs(t, "https://foo"),
+		UpstreamTimeout:   &timeout,
+		IdleTimeout:       &idleTimeout,
+		HostRewrite:       "foo",
+		HostRewriteHeader: "bar",
+		IDPClientID:       "id",
+		IDPClientSecret:   "secret",
+		SetRequestHeaders: map[string]string{
+			"foo": "bar",
+			"bar": "baz",
+		},
+		SetResponseHeaders: map[string]string{
+			"foo": "bar",
+			"bar": "baz",
+		},
+	}
+
+	gc := make(chan struct{})
+	runtime.SetFinalizer(p, func(*Policy) {
+		close(gc)
+	})
+
+	routeId, err := p.RouteID()
+	require.NoError(t, err)
+	sum := p.ChecksumWithID(routeId)
+	assert.NotZero(t, sum)
+	p = nil
+	runtime.GC()
+	select {
+	case <-gc:
+		t.Log("finalizer hit")
+	case <-time.After(10 * time.Second):
+		t.Error("expected finalizer to run")
+	}
 }
