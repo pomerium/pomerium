@@ -43,16 +43,11 @@ type Authorize struct {
 func New(cfg *config.Config) (*Authorize, error) {
 	a := &Authorize{
 		currentOptions: config.NewAtomicOptions(),
+		state:          atomicutil.NewValue[*authorizeState](nil),
 		store:          store.New(),
 		globalCache:    storage.NewGlobalCache(time.Minute),
 	}
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
-
-	state, err := newAuthorizeStateFromConfig(cfg, a.store, nil)
-	if err != nil {
-		return nil, err
-	}
-	a.state = atomicutil.NewValue(state)
 
 	return a, nil
 }
@@ -150,7 +145,11 @@ func newPolicyEvaluator(
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	currentState := a.state.Load()
 	a.currentOptions.Store(cfg.Options)
-	if state, err := newAuthorizeStateFromConfig(cfg, a.store, currentState.evaluator); err != nil {
+	var prev *evaluator.Evaluator
+	if currentState != nil {
+		prev = currentState.evaluator
+	}
+	if state, err := newAuthorizeStateFromConfig(cfg, a.store, prev); err != nil {
 		log.Error(ctx).Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(state)
