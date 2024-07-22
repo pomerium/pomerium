@@ -8,7 +8,13 @@ import (
 )
 
 func TestBuilder_buildACMETLSALPNCluster(t *testing.T) {
-	b := New("local-grpc", "local-http", "local-metrics", nil, nil)
+	b := BuilderOptions{
+		LocalGRPCAddress:    "local-grpc",
+		LocalHTTPAddress:    "local-http",
+		LocalMetricsAddress: "local-metrics",
+		FileManager:         nil,
+		ReproxyHandler:      nil,
+	}
 	testutil.AssertProtoJSONEqual(t,
 		`{
 			"name": "pomerium-acme-tls-alpn",
@@ -28,13 +34,19 @@ func TestBuilder_buildACMETLSALPNCluster(t *testing.T) {
 				}]
 			}
 		}`,
-		b.buildACMETLSALPNCluster(&config.Config{
+		b.NewForConfig(&config.Config{
 			ACMETLSALPNPort: "1234",
-		}))
+		}).buildACMETLSALPNCluster())
 }
 
 func TestBuilder_buildACMETLSALPNFilterChain(t *testing.T) {
-	b := New("local-grpc", "local-http", "local-metrics", nil, nil)
+	b := BuilderOptions{
+		LocalGRPCAddress:    "local-grpc",
+		LocalHTTPAddress:    "local-http",
+		LocalMetricsAddress: "local-metrics",
+		FileManager:         nil,
+		ReproxyHandler:      nil,
+	}
 	testutil.AssertProtoJSONEqual(t,
 		`{
 			"filterChainMatch": {
@@ -49,5 +61,5 @@ func TestBuilder_buildACMETLSALPNFilterChain(t *testing.T) {
 				}
 			}]
 		}`,
-		b.buildACMETLSALPNFilterChain())
+		b.NewForConfig(&config.Config{}).buildACMETLSALPNFilterChain())
 }

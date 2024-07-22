@@ -50,7 +50,7 @@ type Server struct {
 	MetricsRouter   *mux.Router
 	DebugListener   net.Listener
 	DebugRouter     *mux.Router
-	Builder         *envoyconfig.Builder
+	Builder         *envoyconfig.BuilderOptions
 	EventsMgr       *events.Manager
 
 	updateConfig  chan *config.Config
@@ -144,13 +144,13 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 	srv.filemgr = filemgr.NewManager()
 	srv.filemgr.ClearCache()
 
-	srv.Builder = envoyconfig.New(
-		srv.GRPCListener.Addr().String(),
-		srv.HTTPListener.Addr().String(),
-		srv.MetricsListener.Addr().String(),
-		srv.filemgr,
-		srv.reproxy,
-	)
+	srv.Builder = &envoyconfig.BuilderOptions{
+		LocalGRPCAddress:    srv.GRPCListener.Addr().String(),
+		LocalHTTPAddress:    srv.HTTPListener.Addr().String(),
+		LocalMetricsAddress: srv.MetricsListener.Addr().String(),
+		FileManager:         srv.filemgr,
+		ReproxyHandler:      srv.reproxy,
+	}
 
 	ctx := log.WithContext(context.Background(), func(c zerolog.Context) zerolog.Context {
 		return c.Str("server_name", cfg.Options.Services)

@@ -1297,43 +1297,67 @@ func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
 }
 
 // GetAllRouteableHTTPHosts returns all the possible HTTP hosts handled by the Pomerium options.
-func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
+func (o *Options) GetAllRouteableAuthenticateHTTPHosts() ([]string, error) {
+	if !IsAuthenticate(o.Services) {
+		return nil, nil
+	}
+
 	hosts := sets.NewSorted[string]()
-	if IsAuthenticate(o.Services) {
-		if o.AuthenticateInternalURLString != "" {
-			authenticateURL, err := o.GetInternalAuthenticateURL()
-			if err != nil {
-				return nil, err
-			}
-			hosts.Add(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
+	if o.AuthenticateInternalURLString != "" {
+		authenticateURL, err := o.GetInternalAuthenticateURL()
+		if err != nil {
+			return nil, err
 		}
-
-		if o.AuthenticateURLString != "" {
-			authenticateURL, err := o.GetAuthenticateURL()
-			if err != nil {
-				return nil, err
-			}
-			hosts.Add(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
-		}
+		hosts.Add(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
 	}
 
-	// policy urls
-	if IsProxy(o.Services) {
-		for policy := range o.GetAllPolicies() {
-			fromURL, err := urlutil.ParseAndValidateURL(policy.From)
-			if err != nil {
-				return nil, err
-			}
-
-			hosts.Add(urlutil.GetDomainsForURL(fromURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
-			if policy.TLSDownstreamServerName != "" {
-				tlsURL := fromURL.ResolveReference(&url.URL{Host: policy.TLSDownstreamServerName})
-				hosts.Add(urlutil.GetDomainsForURL(tlsURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
-			}
+	if o.AuthenticateURLString != "" {
+		authenticateURL, err := o.GetAuthenticateURL()
+		if err != nil {
+			return nil, err
 		}
+		hosts.Add(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
 	}
-
 	return hosts.ToSlice(), nil
+}
+
+type IndexedPolicy struct {
+	*Policy
+	Index int
+}
+
+func (o *Options) GetAllRouteablePolicyHTTPHosts() (map[string][]IndexedPolicy, error) {
+	if !IsProxy(o.Services) {
+		return nil, nil
+	}
+
+	mult := 1
+	if o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort) {
+		mult = 2
+	}
+	hosts := make(map[string][]IndexedPolicy, o.NumPolicies()*mult)
+
+	var retErr error
+	for i, policy := range o.GetAllPoliciesIndexed() {
+		fromURL, err := urlutil.ParseAndValidateURL(policy.From)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, domain := range urlutil.GetDomainsForURL(fromURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)) {
+			hosts[domain] = append(hosts[domain], IndexedPolicy{Policy: policy, Index: i})
+		}
+		if policy.TLSDownstreamServerName != "" {
+			tlsURL := fromURL.ResolveReference(&url.URL{Host: policy.TLSDownstreamServerName})
+			for _, domain := range urlutil.GetDomainsForURL(tlsURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)) {
+				hosts[domain] = append(hosts[domain], IndexedPolicy{Policy: policy, Index: i})
+			}
+		}
+	}
+	if retErr != nil {
+		return nil, retErr
+	}
+	return hosts, nil
 }
 
 // GetClientSecret gets the client secret.

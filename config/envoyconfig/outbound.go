@@ -10,14 +10,12 @@ import (
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
-
-	"github.com/pomerium/pomerium/config"
 )
 
-func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
-	outboundPort, err := strconv.ParseUint(cfg.OutboundPort, 10, 32)
+func (b *Builder) buildOutboundListener() (*envoy_config_listener_v3.Listener, error) {
+	outboundPort, err := strconv.ParseUint(b.cfg.OutboundPort, 10, 32)
 	if err != nil {
-		return nil, fmt.Errorf("invalid outbound port %v: %w", cfg.OutboundPort, err)
+		return nil, fmt.Errorf("invalid outbound port %v: %w", b.cfg.OutboundPort, err)
 	}
 
 	filter, err := b.buildOutboundHTTPConnectionManager()

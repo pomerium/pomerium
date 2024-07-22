@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	rttrace "runtime/trace"
 
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"golang.org/x/sync/errgroup"
@@ -23,6 +24,8 @@ const (
 func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*envoy_service_discovery_v3.Resource, error) {
 	ctx, span := trace.StartSpan(ctx, "controlplane.Server.buildDiscoveryResources")
 	defer span.End()
+	ctx, task := rttrace.NewTask(ctx, "controlplane.Server.buildDiscoveryResources")
+	defer task.End()
 
 	cfg := srv.currentConfig.Load()
 
@@ -30,9 +33,11 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 
 	eg, ctx := errgroup.WithContext(ctx)
 
+	sb := srv.Builder.NewForConfig(cfg)
+
 	var clusterResources []*envoy_service_discovery_v3.Resource
 	eg.Go(func() error {
-		clusters, err := srv.Builder.BuildClusters(ctx, cfg)
+		clusters, err := sb.BuildClusters(ctx)
 		if err != nil {
 			return fmt.Errorf("error building clusters: %w", err)
 		}
@@ -48,7 +53,7 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 
 	var listenerResources []*envoy_service_discovery_v3.Resource
 	eg.Go(func() error {
-		listeners, err := srv.Builder.BuildListeners(ctx, cfg, false)
+		listeners, err := sb.BuildListeners(ctx, false)
 		if err != nil {
 			return fmt.Errorf("error building listeners: %w", err)
 		}
@@ -64,7 +69,7 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 
 	var routeConfigurationResources []*envoy_service_discovery_v3.Resource
 	eg.Go(func() error {
-		routeConfigurations, err := srv.Builder.BuildRouteConfigurations(ctx, cfg)
+		routeConfigurations, err := sb.BuildRouteConfigurations(ctx)
 		if err != nil {
 			return fmt.Errorf("error building route configurations: %w", err)
 		}
