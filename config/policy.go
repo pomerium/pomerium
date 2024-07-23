@@ -730,9 +730,11 @@ func (p *Policy) ChecksumWithID(routeID uint64) uint64 {
 	setRespHeaders, pr.SetResponseHeaders = pr.SetResponseHeaders, nil
 	buf := checksumBufferPool.Get()
 	buf.B, _ = marshalOpts.MarshalAppend(buf.B, pr)
+	buf.B = binary.BigEndian.AppendUint32(buf.B, uint32(len(setReqHeaders)))
 	if setReqHeaders != nil {
 		buf.B = binary.BigEndian.AppendUint64(buf.B, hashutil.MapHash(setRequestHeadersIv, setReqHeaders))
 	}
+	buf.B = binary.BigEndian.AppendUint32(buf.B, uint32(len(setRespHeaders)))
 	if setRespHeaders != nil {
 		buf.B = binary.BigEndian.AppendUint64(buf.B, hashutil.MapHash(setResponseHeadersIv, setRespHeaders))
 	}
@@ -747,16 +749,22 @@ func (p *Policy) ChecksumWithID(routeID uint64) uint64 {
 // Only the fields From, To, Redirect, and Response are used to compute the ID.
 func (p *Policy) RouteID() (uint64, error) {
 	// this function is in the hot path, try not to allocate too much memory here
-	hash := xxhash.New()
+	hash := hashutil.NewDigest()
 	hash.WriteString(p.From)
 	hash.WriteString(p.Prefix)
 	hash.WriteString(p.Path)
 	hash.WriteString(p.Regex)
-	if len(p.To) > 0 {
+	switch {
+	case len(p.To) > 0:
+		hash.Write([]byte{1}) // case 1
+		hash.WriteInt32(int32(len(p.To)))
 		for _, to := range p.To {
 			hash.WriteString(to.URL.Scheme)
 			hash.WriteString(to.URL.Opaque)
-			if to.URL.User != nil {
+			if to.URL.User == nil {
+				hash.Write([]byte{0})
+			} else {
+				hash.Write([]byte{1})
 				hash.WriteString(to.URL.User.Username())
 				p, _ := to.URL.User.Password()
 				hash.WriteString(p)
@@ -764,41 +772,27 @@ func (p *Policy) RouteID() (uint64, error) {
 			hash.WriteString(to.URL.Host)
 			hash.WriteString(to.URL.Path)
 			hash.WriteString(to.URL.RawPath)
-			writeBool(hash, to.URL.OmitHost)
-			writeBool(hash, to.URL.ForceQuery)
+			hash.WriteBool(to.URL.OmitHost)
+			hash.WriteBool(to.URL.ForceQuery)
 			hash.WriteString(to.URL.Fragment)
 			hash.WriteString(to.URL.RawFragment)
-			writeUint32(hash, to.LbWeight)
+			hash.WriteUint32(to.LbWeight)
 		}
-	} else if p.Redirect != nil {
-		if p.Redirect.HTTPSRedirect != nil {
-			writeBool(hash, *p.Redirect.HTTPSRedirect)
-		}
-		if p.Redirect.SchemeRedirect != nil {
-			hash.WriteString(*p.Redirect.SchemeRedirect)
-		}
-		if p.Redirect.HostRedirect != nil {
-			hash.WriteString(*p.Redirect.HostRedirect)
-		}
-		if p.Redirect.PortRedirect != nil {
-			writeUint32(hash, *p.Redirect.PortRedirect)
-		}
-		if p.Redirect.PathRedirect != nil {
-			hash.WriteString(*p.Redirect.PathRedirect)
-		}
-		if p.Redirect.PrefixRewrite != nil {
-			hash.WriteString(*p.Redirect.PrefixRewrite)
-		}
-		if p.Redirect.ResponseCode != nil {
-			writeInt32(hash, *p.Redirect.ResponseCode)
-		}
-		if p.Redirect.StripQuery != nil {
-			writeBool(hash, *p.Redirect.StripQuery)
-		}
-	} else if p.Response != nil {
-		writeUint32(hash, uint32(p.Response.Status)) // this seems to be converted from uint32 anyway
+	case p.Redirect != nil:
+		hash.Write([]byte{2}) // case 2
+		hash.WriteBoolPtr(p.Redirect.HTTPSRedirect)
+		hash.WriteStringPtr(p.Redirect.SchemeRedirect)
+		hash.WriteStringPtr(p.Redirect.HostRedirect)
+		hash.WriteUint32Ptr(p.Redirect.PortRedirect)
+		hash.WriteStringPtr(p.Redirect.PathRedirect)
+		hash.WriteStringPtr(p.Redirect.PrefixRewrite)
+		hash.WriteInt32Ptr(p.Redirect.ResponseCode)
+		hash.WriteBoolPtr(p.Redirect.StripQuery)
+	case p.Response != nil:
+		hash.Write([]byte{3}) // case 3
+		hash.WriteInt32(int32(p.Response.Status))
 		hash.WriteString(p.Response.Body)
-	} else {
+	default:
 		return 0, errEitherToOrRedirectOrResponseRequired
 	}
 	return hash.Sum64(), nil
@@ -810,26 +804,6 @@ func (p *Policy) MustRouteID() uint64 {
 		panic(err)
 	}
 	return id
-}
-
-func writeBool(hash *xxhash.Digest, b bool) {
-	if b {
-		hash.Write([]byte{1})
-	} else {
-		hash.Write([]byte{0})
-	}
-}
-
-func writeUint32(hash *xxhash.Digest, t uint32) {
-	var buf [4]byte
-	binary.LittleEndian.PutUint32(buf[:], t)
-	hash.Write(buf[:])
-}
-
-func writeInt32(hash *xxhash.Digest, t int32) {
-	var buf [4]byte
-	binary.LittleEndian.PutUint32(buf[:], *(*uint32)(unsafe.Pointer(&t)))
-	hash.Write(buf[:])
 }
 
 func (p *Policy) String() string {
