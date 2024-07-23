@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
 	"log"
@@ -66,6 +67,33 @@ func newCRL(
 		log.Fatalln(err)
 	}
 	return string(pem.EncodeToMemory(&pem.Block{Type: "X509 CRL", Bytes: der}))
+}
+
+// Returns a raw SubjectAltName extension with a single UserPrincipalName.
+func newSANUserPrincipalName(upnValue string) []byte {
+	type UPN struct {
+		Utf8String string `asn1:"utf8"`
+	}
+	type OtherName struct {
+		OID   asn1.ObjectIdentifier
+		Value UPN `asn1:"tag:0"`
+	}
+	type GeneralNames struct {
+		OtherName OtherName `asn1:"tag:0"`
+	}
+	san, err := asn1.Marshal(GeneralNames{
+		OtherName: OtherName{
+			OID: asn1.ObjectIdentifier{
+				1, 3, 6, 1, 4, 1, 311, 20, 2, 3},
+			Value: UPN{
+				Utf8String: upnValue,
+			},
+		},
+	})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	return san
 }
 
 // Generates new test certificates and CRLs.
@@ -190,6 +218,19 @@ func main() {
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}, rootCA, rootKey)
 
+	trustedClientCert7PEM, _, _ := newCertificate(&x509.Certificate{
+		SerialNumber: big.NewInt(0x1007),
+		Subject: pkix.Name{
+			CommonName: "client cert 7",
+		},
+		NotAfter:    notAfter,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		ExtraExtensions: []pkix.Extension{{
+			Id:    asn1.ObjectIdentifier{2, 5, 29, 17},
+			Value: newSANUserPrincipalName("test_device"),
+		}},
+	}, rootCA, rootKey)
+
 	fmt.Println(`
 const (
 	testCA = ` + "`\n" + rootPEM + "`" + `
@@ -203,6 +244,7 @@ const (
 	testValidCertWithEmailSAN = ` + "`\n" + trustedClientCert4PEM + "`" + `
 	testValidCertWithIPSAN = ` + "`\n" + trustedClientCert5PEM + "`" + `
 	testValidCertWithURISAN = ` + "`\n" + trustedClientCert6PEM + "`" + `
+	testValidCertWithUPNSAN = ` + "`\n" + trustedClientCert7PEM + "`" + `
 )
 `)
 }

@@ -3,6 +3,7 @@ package evaluator
 import (
 	"context"
 	"crypto/x509"
+	"encoding/asn1"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -11,6 +12,8 @@ import (
 	"strings"
 
 	lru "github.com/hashicorp/golang-lru/v2"
+	"golang.org/x/crypto/cryptobyte"
+	cb_asn1 "golang.org/x/crypto/cryptobyte/asn1"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
@@ -242,6 +245,17 @@ func validateClientCertificateSANs(chain []*x509.Certificate, matchers SANMatche
 			}
 		}
 	}
+	if r := matchers[config.SANTypeUserPrincipalName]; r != nil {
+		names, err := getUserPrincipalNamesFromCert(cert)
+		if err != nil {
+			return err
+		}
+		for _, name := range names {
+			if r.MatchString(name) {
+				return nil
+			}
+		}
+	}
 
 	return errNoSANMatch
 }
@@ -255,4 +269,59 @@ func parseCertificate(pemStr string) (*x509.Certificate, error) {
 		return nil, fmt.Errorf("unknown PEM type: %s", block.Type)
 	}
 	return x509.ParseCertificate(block.Bytes)
+}
+
+var (
+	oidSubjectAltName    = asn1.ObjectIdentifier{2, 5, 29, 17}
+	oidUserPrincipalName = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 20, 2, 3}
+	otherNameTag         = cb_asn1.Tag(0).Constructed().ContextSpecific()
+	upnValueTag          = cb_asn1.Tag(0).Constructed().ContextSpecific()
+)
+
+func getUserPrincipalNamesFromSAN(raw []byte) ([]string, error) {
+	san := cryptobyte.String(raw)
+	var generalNames cryptobyte.String
+	if !san.ReadASN1(&generalNames, cb_asn1.SEQUENCE) {
+		return nil, errors.New("error reading GeneralNames sequence")
+	}
+	var upns []string
+	for !generalNames.Empty() {
+		var name cryptobyte.String
+		var tag cb_asn1.Tag
+		if !generalNames.ReadAnyASN1(&name, &tag) {
+			return nil, errors.New("error reading GeneralName")
+		} else if tag != otherNameTag {
+			continue
+		}
+
+		var oid asn1.ObjectIdentifier
+		if !name.ReadASN1ObjectIdentifier(&oid) {
+			return nil, errors.New("error reading OtherName type ID")
+		} else if !oid.Equal(oidUserPrincipalName) {
+			continue
+		}
+
+		var value cryptobyte.String
+		if !name.ReadAnyASN1(&value, &tag) {
+			return nil, errors.New("error reading UserPrincipalName value")
+		} else if tag != upnValueTag {
+			return nil, fmt.Errorf("unexpected UserPrincipalName data tag 0x%x", tag)
+		}
+
+		var utf8string cryptobyte.String
+		if !value.ReadASN1(&utf8string, cb_asn1.UTF8String) {
+			return nil, errors.New("error reading UserPrincipalName: expected UTF8String")
+		}
+		upns = append(upns, string(utf8string))
+	}
+	return upns, nil
+}
+
+func getUserPrincipalNamesFromCert(cert *x509.Certificate) ([]string, error) {
+	for _, ext := range cert.Extensions {
+		if ext.Id.Equal(oidSubjectAltName) {
+			return getUserPrincipalNamesFromSAN(ext.Value)
+		}
+	}
+	return nil, nil
 }
