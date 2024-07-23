@@ -39,9 +39,9 @@ func TestCertificatesIndex(t *testing.T) {
 	}
 
 	testCases := []struct {
-		names []string
-		test  string
-		match bool
+		names   []string
+		test    string
+		overlap bool
 	}{
 		{[]string{"aa.bb.cc", "cc.bb.aa"}, "aa.bb.c", false},
 		{[]string{"aa.bb.cc"}, "aa.bb.cc", true},
@@ -59,7 +59,7 @@ func TestCertificatesIndex(t *testing.T) {
 
 			cert := mkServerCert([]string{tc.test})
 			overlaps, _ := idx.OverlapsWithExistingCertificate(cert)
-			assert.Equalf(t, tc.match, overlaps, "%v", tc)
+			assert.Equalf(t, tc.overlap, overlaps, "%v", tc)
 		}
 	})
 	t.Run("different cert usages never match", func(t *testing.T) {
@@ -70,6 +70,37 @@ func TestCertificatesIndex(t *testing.T) {
 			cert := mkClientCert([]string{tc.test})
 			overlaps, _ := idx.OverlapsWithExistingCertificate(cert)
 			assert.Equalf(t, false, overlaps, "%v", tc)
+		}
+	})
+	t.Run("different cert usages should coexist in the index", func(t *testing.T) {
+		for _, tc := range testCases {
+			idx := cryptutil.NewCertificatesIndex()
+			srv := mkServerCert(tc.names)
+			client := mkClientCert(tc.names)
+			idx.Add(srv)
+			idx.Add(client)
+
+			overlaps, _ := idx.OverlapsWithExistingCertificate(srv)
+			assert.Equalf(t, true, overlaps, "%v", tc)
+
+			overlaps, _ = idx.OverlapsWithExistingCertificate(client)
+			assert.Equalf(t, true, overlaps, "%v", tc)
+		}
+	})
+	t.Run("delete", func(t *testing.T) {
+		for _, tc := range testCases {
+			idx := cryptutil.NewCertificatesIndex()
+			srv := mkServerCert(tc.names)
+			client := mkClientCert(tc.names)
+			idx.Add(srv)
+			idx.Add(client)
+
+			idx.Delete(srv)
+			overlaps, _ := idx.OverlapsWithExistingCertificate(srv)
+			assert.Equalf(t, false, overlaps, "%v", tc)
+
+			overlaps, _ = idx.OverlapsWithExistingCertificate(client)
+			assert.Equalf(t, true, overlaps, "%v", tc)
 		}
 	})
 }
