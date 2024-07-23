@@ -24,5 +24,21 @@ var (
 	XGetGoogleCloudServerlessTokenSource = getGoogleCloudServerlessTokenSource
 	XIsValidClientCertificate            = isValidClientCertificate
 	XNormalizeServiceAccount             = normalizeServiceAccount
-	XWorkerPoolSize                      = workerPoolSize
+	XBestChunkSize                       = bestChunkSize
 )
+
+func XWorkerPoolSize() int {
+	return workerPoolSize
+}
+
+func OverrideWorkerPoolSizeForTesting(newSize int) {
+	if newSize == workerPoolSize {
+		return
+	}
+	workerPoolSize = newSize
+	close(workerPoolTaskQueue) // this will stop existing workers
+	workerPoolTaskQueue = make(chan func(), (workerPoolSize+1)*2)
+	for i := 0; i < workerPoolSize; i++ {
+		go worker()
+	}
+}

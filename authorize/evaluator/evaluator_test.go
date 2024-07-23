@@ -6,9 +6,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"iter"
 	"net/http"
 	"net/url"
 	"runtime/trace"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -789,8 +791,9 @@ type logAssertionGroup struct {
 type GetOrCreatePolicyEvaluatorsSuite struct {
 	suite.Suite
 
-	logAssertions []any
-	traceBuffer   bytes.Buffer
+	WorkerPoolSizeOverride int
+	logAssertions          []any
+	traceBuffer            bytes.Buffer
 }
 
 var _ interface {
@@ -835,6 +838,9 @@ func (s *GetOrCreatePolicyEvaluatorsSuite) generateRoutes(start, n int, policyFo
 }
 
 func (s *GetOrCreatePolicyEvaluatorsSuite) SetupTest() {
+	if s.WorkerPoolSizeOverride != 0 {
+		evaluator.OverrideWorkerPoolSizeForTesting(s.WorkerPoolSizeOverride)
+	}
 	s.traceBuffer.Reset()
 	s.logAssertions = []any{}
 	s.Require().NoError(trace.Start(&s.traceBuffer))
@@ -907,12 +913,12 @@ func (s *GetOrCreatePolicyEvaluatorsSuite) TearDownTest() {
 	}
 }
 
-func (s *GetOrCreatePolicyEvaluatorsSuite) expectLogsF(f func() []string) {
-	s.expectLogs(f()...)
+func (s *GetOrCreatePolicyEvaluatorsSuite) expectLogsF(f iter.Seq[string]) {
+	s.expectLogs(slices.Collect(f)...)
 }
 
-func (s *GetOrCreatePolicyEvaluatorsSuite) expectLogsUnorderedF(f func() []string) {
-	s.expectLogsUnordered(f()...)
+func (s *GetOrCreatePolicyEvaluatorsSuite) expectLogsUnorderedF(f iter.Seq[string]) {
+	s.expectLogsUnordered(slices.Collect(f)...)
 }
 
 func (s *GetOrCreatePolicyEvaluatorsSuite) expectLogs(msgs ...string) {
@@ -934,51 +940,62 @@ func (s *GetOrCreatePolicyEvaluatorsSuite) expectLogsUnordered(msgs ...string) {
 }
 
 func (s *GetOrCreatePolicyEvaluatorsSuite) TestWorkers() {
+	// this test makes some assumptions about worker pool size; for the sizes
+	// we configure in the test suite, the chunk size will always be 8 here
+	// but this can be adjusted for smaller worker pool sizes if necessary
+
 	// generate 10 routes
 	routes1 := s.generateRoutes(0, 10, staticPolicyFormat)
 	store := store.New()
 	eval, err := evaluator.New(context.Background(), store, nil, evaluator.WithPolicies(routes1))
 	s.Require().NoError(err)
-	s.expectLogs("using 0 cached policy evaluators")
-	for _, route := range routes1 {
-		rid, err := route.RouteID()
-		s.NoError(err)
-		s.expectLogs(fmt.Sprintf("policy for route ID %d not found in cache", rid))
-	}
-	s.expectLogs("chunk 0: 10/10 changed")
-	s.expectLogs("chunk 0: status: 1111111111")
+	s.expectLogs("eval cache size: 0; query cache size: 0; chunk size: 8")
+	s.expectLogsUnorderedF(func(yield func(string) bool) {
+		for _, route := range routes1 {
+			yield(fmt.Sprintf("policy for route ID %d not found in cache", route.MustRouteID()))
+		}
+		yield("chunk 0: 8/8 changed")
+		yield("chunk 0: status: 11111111")
+		yield("chunk 1: 2/2 changed")
+		yield("chunk 1: status: 00000011")
+	})
 	s.Equal(evaluator.EvaluatorCacheStats{
 		CacheHits:   0,
 		CacheMisses: 10,
 	}, eval.XEvaluatorCache().Stats())
 	s.Equal(evaluator.QueryCacheStats{
-		CacheHits:       9,
-		CacheMisses:     1,
+		CacheHits:       8,
+		CacheMisses:     2, // one per parallel worker
 		BuildsSucceeded: 1,
 		BuildsFailed:    0,
-		BuildsShared:    0,
+		BuildsShared:    1, // one of the two workers
 	}, eval.XQueryCache().Stats())
 
 	// generate 10 more routes, with the first 10 cached
 	routes2 := s.generateRoutes(10, 10, staticPolicyFormat)
 	eval, err = evaluator.New(context.Background(), store, eval, evaluator.WithPolicies(append(routes1, routes2...)))
 	s.Require().NoError(err)
-	s.expectLogs("using 10 cached policy evaluators")
-	for _, route := range routes2 {
-		s.expectLogs(fmt.Sprintf("policy for route ID %d not found in cache", route.MustRouteID()))
-	}
-	s.expectLogs("chunk 0: 10/20 changed")
-	s.expectLogs("chunk 0: status: 11111111110000000000")
+	s.expectLogs("eval cache size: 10; query cache size: 1; chunk size: 8")
+	s.expectLogsUnorderedF(func(yield func(string) bool) {
+		for _, route := range routes2 {
+			yield(fmt.Sprintf("policy for route ID %d not found in cache", route.MustRouteID()))
+		}
+		yield("chunk 0: 0/8 changed")
+		yield("chunk 1: 6/8 changed")
+		yield("chunk 1: status: 11111100")
+		yield("chunk 2: 4/4 changed")
+		yield("chunk 2: status: 00001111")
+	})
 	s.Equal(evaluator.EvaluatorCacheStats{
 		CacheHits:   0 + 10,
 		CacheMisses: 10 + 10,
 	}, eval.XEvaluatorCache().Stats())
 	s.Equal(evaluator.QueryCacheStats{
-		CacheHits:       9 + 10,
-		CacheMisses:     1 + 0,
+		CacheHits:       8 + 10,
+		CacheMisses:     2 + 0,
 		BuildsSucceeded: 1 + 0,
 		BuildsFailed:    0 + 0,
-		BuildsShared:    0 + 0,
+		BuildsShared:    1 + 0,
 	}, eval.XQueryCache().Stats())
 
 	// generate 44 more routes, and change some existing ones around
@@ -997,53 +1014,73 @@ func (s *GetOrCreatePolicyEvaluatorsSuite) TestWorkers() {
 	}
 	eval, err = evaluator.New(context.Background(), store, eval, evaluator.WithPolicies(append(append(routes1, routes2...), routes3...)))
 	s.Require().NoError(err)
-	s.expectLogs("using 20 cached policy evaluators")
-	s.expectLogs(
-		fmt.Sprintf("policy for route ID %d changed", routes1[4].MustRouteID()),
-		fmt.Sprintf("policy for route ID %d changed", routes1[7].MustRouteID()),
-		fmt.Sprintf("policy for route ID %d not found in cache", routes2[1].MustRouteID()),
-		fmt.Sprintf("policy for route ID %d not found in cache", routes2[8].MustRouteID()),
-	)
-	for _, route := range routes3 {
-		s.expectLogs(fmt.Sprintf("policy for route ID %d not found in cache", route.MustRouteID()))
-	}
-	s.expectLogs("chunk 0: 48/64 changed")
-	s.expectLogs(fmt.Sprintf("chunk 0: status: %s01000000100010010000", strings.Repeat("1", 44)))
+	s.expectLogs("eval cache size: 20; query cache size: 1; chunk size: 8")
+	s.expectLogsUnorderedF(func(yield func(string) bool) {
+		yield(fmt.Sprintf("policy for route ID %d changed", routes1[4].MustRouteID()))
+		yield(fmt.Sprintf("policy for route ID %d changed", routes1[7].MustRouteID()))
+		yield(fmt.Sprintf("policy for route ID %d not found in cache", routes2[1].MustRouteID()))
+		yield(fmt.Sprintf("policy for route ID %d not found in cache", routes2[8].MustRouteID()))
+		for _, route := range routes3 {
+			yield(fmt.Sprintf("policy for route ID %d not found in cache", route.MustRouteID()))
+		}
+		yield("chunk 0: 2/8 changed")
+		yield("chunk 0: status: 10010000")
+		yield("chunk 1: 1/8 changed")
+		yield("chunk 1: status: 00001000")
+		yield("chunk 2: 5/8 changed")
+		yield("chunk 2: status: 11110100") // note: chunk 2 only had 4 elements previously
+		yield("chunk 3: 8/8 changed")
+		yield("chunk 3: status: 11111111")
+		yield("chunk 4: 8/8 changed")
+		yield("chunk 4: status: 11111111")
+		yield("chunk 5: 8/8 changed")
+		yield("chunk 5: status: 11111111")
+		yield("chunk 6: 8/8 changed")
+		yield("chunk 6: status: 11111111")
+		yield("chunk 7: 8/8 changed")
+		yield("chunk 7: status: 11111111")
+	})
 	s.Equal(evaluator.EvaluatorCacheStats{
 		CacheHits:   0 + 10 + 18,
 		CacheMisses: 10 + 10 + 46,
 	}, eval.XEvaluatorCache().Stats())
 	s.Equal(evaluator.QueryCacheStats{
-		CacheHits:       9 + 10 + 48,
-		CacheMisses:     1 + 0 + 0,
+		CacheHits:       8 + 10 + 48,
+		CacheMisses:     2 + 0 + 0,
 		BuildsSucceeded: 1 + 0 + 0,
 		BuildsFailed:    0 + 0 + 0,
-		BuildsShared:    0 + 0 + 0,
+		BuildsShared:    1 + 0 + 0,
 	}, eval.XQueryCache().Stats())
 
-	// any additional routes should now be split into a second chunk
 	routes4 := s.generateRoutes(65, 1, staticPolicyFormat)
 	eval, err = evaluator.New(context.Background(), store, eval, evaluator.WithPolicies(append(append(append(routes1, routes2...), routes3...), routes4...)))
 	s.Require().NoError(err)
-	s.expectLogs("using 66 cached policy evaluators") // +2 because of the other policies that were modified
+	s.expectLogs("eval cache size: 66; query cache size: 1; chunk size: 8") // +2 because of the other policies that were modified
 	for _, route := range routes4 {
 		s.expectLogs(fmt.Sprintf("policy for route ID %d not found in cache", route.MustRouteID()))
 	}
 	s.expectLogsUnordered(
-		"chunk 0: 0/64 changed",
-		"chunk 1: 1/1 changed",
-		"chunk 1: status: 1",
+		"chunk 0: 0/8 changed",
+		"chunk 1: 0/8 changed",
+		"chunk 2: 0/8 changed",
+		"chunk 3: 0/8 changed",
+		"chunk 4: 0/8 changed",
+		"chunk 5: 0/8 changed",
+		"chunk 6: 0/8 changed",
+		"chunk 7: 0/8 changed",
+		"chunk 8: 1/1 changed",
+		"chunk 8: status: 00000001",
 	)
 	s.Equal(evaluator.EvaluatorCacheStats{
 		CacheHits:   0 + 10 + 18 + 64,
 		CacheMisses: 10 + 10 + 46 + 1,
 	}, eval.XEvaluatorCache().Stats())
 	s.Equal(evaluator.QueryCacheStats{
-		CacheHits:       9 + 10 + 48 + 1,
-		CacheMisses:     1 + 0 + 0 + 0,
+		CacheHits:       8 + 10 + 48 + 1,
+		CacheMisses:     2 + 0 + 0 + 0,
 		BuildsSucceeded: 1 + 0 + 0 + 0,
 		BuildsFailed:    0 + 0 + 0 + 0,
-		BuildsShared:    0 + 0 + 0 + 0,
+		BuildsShared:    1 + 0 + 0 + 0,
 	}, eval.XQueryCache().Stats())
 }
 
@@ -1061,63 +1098,61 @@ allow:
 	}
 	routes := s.generateRoutes(0, 650, largePPL.String())
 	store := store.New()
+	parallelShared := int64(len(routes) / evaluator.XBestChunkSize(len(routes), evaluator.XWorkerPoolSize()))
 	eval, err := evaluator.New(context.Background(), store, nil, evaluator.WithPolicies(routes))
 	s.Require().NoError(err)
 	s.Equal(evaluator.QueryCacheStats{
-		CacheHits:       639,
-		CacheMisses:     11,
+		CacheHits:       int64(len(routes)) - parallelShared - 1,
+		CacheMisses:     1 + parallelShared,
 		BuildsSucceeded: 1,
 		BuildsFailed:    0,
-		BuildsShared:    10,
+		BuildsShared:    parallelShared,
 	}, eval.XQueryCache().Stats())
 }
 
 func (s *GetOrCreatePolicyEvaluatorsSuite) TestPartitioning() {
-	routes := s.generateRoutes(0, 64*evaluator.XWorkerPoolSize+10, uniquePerUserPolicyFormat)
+	routes := s.generateRoutes(0, 64*evaluator.XWorkerPoolSize()+10, uniquePerUserPolicyFormat)
 	store := store.New()
 	eval, err := evaluator.New(context.Background(), store, nil, evaluator.WithPolicies(routes))
 	s.Require().NoError(err)
 	s.Equal(evaluator.QueryCacheStats{
 		CacheHits:       0,
-		CacheMisses:     64*int64(evaluator.XWorkerPoolSize) + 10,
-		BuildsSucceeded: 64*int64(evaluator.XWorkerPoolSize) + 10,
+		CacheMisses:     64*int64(evaluator.XWorkerPoolSize()) + 10,
+		BuildsSucceeded: 64*int64(evaluator.XWorkerPoolSize()) + 10,
 		BuildsFailed:    0,
 		BuildsShared:    0,
 	}, eval.XQueryCache().Stats())
-	s.expectLogs("using 0 cached policy evaluators")
+	s.expectLogs("eval cache size: 0; query cache size: 0; chunk size: 64")
 
-	s.expectLogsUnorderedF(func() (logs []string) {
+	s.expectLogsUnorderedF(func(yield func(string) bool) {
 		for _, route := range routes {
-			logs = append(logs, fmt.Sprintf("policy for route ID %d not found in cache", route.MustRouteID()))
+			yield(fmt.Sprintf("policy for route ID %d not found in cache", route.MustRouteID()))
 		}
-		for i := range evaluator.XWorkerPoolSize {
-			logs = append(logs, fmt.Sprintf("chunk %d: 64/64 changed", i))
+		for i := range evaluator.XWorkerPoolSize() {
+			yield(fmt.Sprintf("chunk %d: 64/64 changed", i))
 		}
-		logs = append(logs, fmt.Sprintf("chunk %d: 10/10 changed", evaluator.XWorkerPoolSize))
-		return
+		yield(fmt.Sprintf("chunk %d: 10/10 changed", evaluator.XWorkerPoolSize()))
 	})
-	s.expectLogsUnorderedF(func() (logs []string) {
-		for i := range evaluator.XWorkerPoolSize {
-			logs = append(logs, fmt.Sprintf("chunk %d: status: %s", i, strings.Repeat("1", 64)))
+	s.expectLogsUnorderedF(func(yield func(string) bool) {
+		for i := range evaluator.XWorkerPoolSize() {
+			yield(fmt.Sprintf("chunk %d: status: %s", i, strings.Repeat("1", 64)))
 		}
-		logs = append(logs, fmt.Sprintf("chunk %d: status: 1111111111", evaluator.XWorkerPoolSize))
-		return
+		yield(fmt.Sprintf("chunk %d: status: "+strings.Repeat("0", 54)+"1111111111", evaluator.XWorkerPoolSize()))
 	})
 
 	routes[63].AllowWebsockets = true
 	eval, err = evaluator.New(context.Background(), store, eval, evaluator.WithPolicies(routes))
 	s.Require().NoError(err)
-	s.expectLogs(fmt.Sprintf("using %d cached policy evaluators", 64*evaluator.XWorkerPoolSize+10))
-	s.expectLogsUnorderedF(func() (logs []string) {
-		logs = append(logs, fmt.Sprintf("policy for route ID %d changed", routes[63].MustRouteID()))
-		logs = append(logs, "chunk 0: 1/64 changed")
-		for i := 1; i < evaluator.XWorkerPoolSize; i++ {
-			logs = append(logs, fmt.Sprintf("chunk %d: 0/64 changed", i))
+	s.expectLogs(fmt.Sprintf("eval cache size: %[1]d; query cache size: %[1]d; chunk size: 64", 64*evaluator.XWorkerPoolSize()+10))
+	s.expectLogsUnorderedF(func(yield func(string) bool) {
+		yield(fmt.Sprintf("policy for route ID %d changed", routes[63].MustRouteID()))
+		yield("chunk 0: 1/64 changed")
+		for i := 1; i < evaluator.XWorkerPoolSize(); i++ {
+			yield(fmt.Sprintf("chunk %d: 0/64 changed", i))
 		}
-		logs = append(logs, "chunk 31: 0/10 changed")
-		return
+		yield(fmt.Sprintf("chunk %d: 0/10 changed", evaluator.XWorkerPoolSize()))
 	})
-	s.expectLogs("chunk 0: status: 1000000000000000000000000000000000000000000000000000000000000000")
+	s.expectLogs("chunk 0: status: 1" + strings.Repeat("0", 63))
 
 	// chunk 1 should be skipped even though it will be partitioned into worker 0
 }
@@ -1157,5 +1192,19 @@ func (s *GetOrCreatePolicyEvaluatorsSuite) TestStoreCacheInvalidation() {
 }
 
 func TestGetOrCreatePolicyEvaluatorsSuite(t *testing.T) {
-	suite.Run(t, &GetOrCreatePolicyEvaluatorsSuite{})
+	t.Run("worker pool size: 63", func(t *testing.T) {
+		suite.Run(t, &GetOrCreatePolicyEvaluatorsSuite{
+			WorkerPoolSizeOverride: 63,
+		})
+	})
+	t.Run("worker pool size: 31", func(t *testing.T) {
+		suite.Run(t, &GetOrCreatePolicyEvaluatorsSuite{
+			WorkerPoolSizeOverride: 31,
+		})
+	})
+	t.Run("worker pool size: 15", func(t *testing.T) {
+		suite.Run(t, &GetOrCreatePolicyEvaluatorsSuite{
+			WorkerPoolSizeOverride: 15,
+		})
+	})
 }

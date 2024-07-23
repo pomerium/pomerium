@@ -15,6 +15,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/go-jose/go-jose/v3"
 	"github.com/open-policy-agent/opa/rego"
@@ -287,12 +288,6 @@ func New(
 	return e, nil
 }
 
-type routeEvaluator struct {
-	id               uint64
-	evaluator        *PolicyEvaluator
-	computedChecksum uint64
-}
-
 var (
 	workerPoolSize      = runtime.NumCPU() - 1
 	workerPoolTaskQueue = make(chan func(), (workerPoolSize+1)*2)
@@ -300,6 +295,8 @@ var (
 
 func init() {
 	for i := 0; i < workerPoolSize; i++ {
+		// the worker function is separate so that it shows up in stack traces as
+		// 'worker' instead of an anonymous function in init()
 		go worker()
 	}
 }
@@ -310,75 +307,135 @@ func worker() {
 	}
 }
 
-const chunkSize = 64
-
-type workerContext struct {
-	context.Context
-	Cfg           *evaluatorConfig
-	Store         *store.Store
-	StatusBits    []uint64
-	StatusCounts  []uint8
-	TotalModified *atomic.Int32
-	Evaluators    []routeEvaluator
-	EvalCache     *EvaluatorCache
-	QueryCache    *QueryCache
-	Errs          *sync.Map
+type chunkSizes interface {
+	uint8 | uint16 | uint32 | uint64
 }
 
+type workerContext[T chunkSizes] struct {
+	context.Context
+	Cfg        *evaluatorConfig
+	Store      *store.Store
+	StatusBits []T
+	Evaluators []routeEvaluator
+	EvalCache  *EvaluatorCache
+	QueryCache *QueryCache
+	Errs       *sync.Map
+}
+
+type routeEvaluator struct {
+	Id               uint64           // route id
+	Evaluator        *PolicyEvaluator // the compiled evaluator
+	ComputedChecksum uint64           // cached evaluator checksum
+}
+
+// partition represents a range of chunks (blocks of 64 policies) corresponding
+// to the Cfg.Policies, StatusBits, StatusCounts, and Evaluators fields in
+// the workerContext. It is the slice [Begin*64:End*64] w.r.t. those fields,
+// but each index represents a unit of work that can be done in parallel with
+// work on other chunks.
 type partition struct{ Begin, End int }
 
-func computeChecksums(wctx *workerContext, part partition) {
+func chunkSize[T chunkSizes]() int {
+	return int(unsafe.Sizeof(T(0))) * 8
+}
+
+// computeChecksums is a worker task that computes policy checksums and updates
+// StatusBits to flag policies that need to be rebuilt. It operates on entire
+// chunks (blocks of 64 policies), given by the start and end indexes in the
+// partition argument, and updates the corresponding indexes of the StatusBits
+// and StatusCounts fields of the worker context for those chunks.
+func computeChecksums[T chunkSizes](wctx *workerContext[T], part partition) {
 	defer rttrace.StartRegion(wctx, "worker-checksum").End()
 	for chunkIdx := part.Begin; chunkIdx < part.End; chunkIdx++ {
-		var chunkStatus uint64
-		off := chunkIdx * chunkSize
+		var chunkStatus T
+		chunkSize := chunkSize[T]()
+		off := chunkIdx * chunkSize // chunk offset
+		// If there are fewer than chunkSize policies remaining in the actual list,
+		// don't go beyond the end
 		limit := min(chunkSize, len(wctx.Cfg.Policies)-int(off))
-		for i := 0; i < limit; i++ {
+		popcount := 0
+		for i := range limit {
 			p := wctx.Cfg.Policies[off+i]
+			// Compute the route id; this value is reused later as the route name
+			// when computing the checksum
 			id, err := p.RouteID()
 			if err != nil {
 				wctx.Errs.Store(off+i, fmt.Errorf("authorize: error computing policy route id: %w", err))
 				continue
 			}
 			eval := &wctx.Evaluators[off+i]
-			eval.id = id
-			eval.computedChecksum = p.ChecksumWithID(id)
+			eval.Id = id
+			// Compute the policy checksum and cache it in the evaluator, reusing
+			// the route ID from before (to avoid needing to compute it again)
+			eval.ComputedChecksum = p.ChecksumWithID(id)
+			// Check if there is an existing evaluator cached for the route ID
+			// NB: the route ID is composed of a subset of fields of the Policy; this
+			// means the cache will hit if the route ID fields are the same, even if
+			// other fields in the policy differ.
 			cached, ok := wctx.EvalCache.LookupEvaluator(id)
 			if !ok {
 				rttrace.Logf(wctx, "", "policy for route ID %d not found in cache", id)
-				chunkStatus |= 1 << i
-			} else if cached.policyChecksum != eval.computedChecksum {
+				chunkStatus |= T(1 << i)
+				popcount++
+			} else if cached.policyChecksum != eval.ComputedChecksum {
+				// Route ID is the same, but the full checksum differs
 				rttrace.Logf(wctx, "", "policy for route ID %d changed", id)
-				chunkStatus |= 1 << i
+				chunkStatus |= T(1 << i)
+				popcount++
 			}
+			// On a cache hit, chunkStatus for the ith bit stays at 0
 		}
+		// Set chunkStatus bitmask all at once (for better locality)
 		wctx.StatusBits[chunkIdx] = chunkStatus
-		popcnt := bits.OnesCount64(chunkStatus)
-		rttrace.Logf(wctx, "", "chunk %d: %d/%d changed", chunkIdx, popcnt, limit)
-		wctx.StatusCounts[chunkIdx] = uint8(popcnt)
-		wctx.TotalModified.Add(int32(popcnt))
+		rttrace.Logf(wctx, "", "chunk %d: %d/%d changed", chunkIdx, popcount, limit)
 	}
 }
 
-func buildEvaluators(wctx *workerContext, part partition) {
+// buildEvaluators is a worker task that creates new policy evaluators. It
+// operates on entire chunks (blocks of 64 policies), given by the start and end
+// indexes in the partition argument, and updates the corresponding indexes of
+// the Evaluators field of the worker context for those chunks.
+func buildEvaluators[T chunkSizes](wctx *workerContext[T], part partition) {
+	chunkSize := chunkSize[T]()
 	defer rttrace.StartRegion(wctx, "worker-build").End()
 	addDefaultCert := wctx.Cfg.AddDefaultClientCertificateRule
 	var err error
 	for chunkIdx := part.Begin; chunkIdx < part.End; chunkIdx++ {
+		// Obtain the bitmask computed by computeChecksums for this chunk
 		stat := wctx.StatusBits[chunkIdx]
-		rttrace.Logf(wctx, "", "chunk %d: status: %b", chunkIdx, stat)
+		rttrace.Logf(wctx, "", "chunk %d: status: %0*b", chunkIdx, chunkSize, stat)
+
+		// Iterate over all the set bits in stat. This works by finding the
+		// lowest set bit, zeroing it, and repeating. The go compiler will
+		// replace [bits.TrailingZeros64] with intrinsics on most platforms.
 		for stat != 0 {
-			bit := bits.TrailingZeros64(stat)
-			stat &^= 1 << bit
-			idx := bit + (chunkSize * chunkIdx)
+			bit := bits.TrailingZeros64(uint64(stat)) // find the lowest set bit
+			stat &= (stat - 1)                        // clear the lowest set bit
+			idx := (chunkSize * chunkIdx) + bit
 			p := wctx.Cfg.Policies[idx]
 			eval := &wctx.Evaluators[idx]
-			eval.evaluator, err = NewPolicyEvaluator(wctx, wctx.Store, p, eval.computedChecksum, addDefaultCert, wctx.QueryCache)
+			eval.Evaluator, err = NewPolicyEvaluator(wctx, wctx.Store, p, eval.ComputedChecksum, addDefaultCert, wctx.QueryCache)
 			if err != nil {
 				wctx.Errs.Store(idx, err)
 			}
 		}
 	}
+}
+
+// bestChunkSize determines the chunk size (8, 16, 32, or 64) to use for the
+// given number of policies and workers.
+func bestChunkSize(numPolicies, numWorkers int) int {
+	// use the chunk size that results in the largest number of chunks without
+	// going past the number of workers
+	sizes := []int{64, 32, 16, 8}
+	sizeIdx := 0
+	for i, size := range sizes {
+		if float64(numPolicies)/float64(size) > float64(numWorkers) {
+			break
+		}
+		sizeIdx = i
+	}
+	return sizes[sizeIdx]
 }
 
 func getOrCreatePolicyEvaluators(
@@ -388,37 +445,68 @@ func getOrCreatePolicyEvaluators(
 	evalCache *EvaluatorCache,
 	queryCache *QueryCache,
 ) error {
-	rttrace.Logf(ctx, "", "using %d cached policy evaluators", evalCache.NumCachedEvaluators())
+	chunkSize := bestChunkSize(len(cfg.Policies), workerPoolSize)
+	switch chunkSize {
+	case 8:
+		return getOrCreatePolicyEvaluatorsT[uint8](ctx, cfg, store, evalCache, queryCache)
+	case 16:
+		return getOrCreatePolicyEvaluatorsT[uint16](ctx, cfg, store, evalCache, queryCache)
+	case 32:
+		return getOrCreatePolicyEvaluatorsT[uint32](ctx, cfg, store, evalCache, queryCache)
+	case 64:
+		return getOrCreatePolicyEvaluatorsT[uint64](ctx, cfg, store, evalCache, queryCache)
+	}
+	panic("unreachable")
+}
+
+func getOrCreatePolicyEvaluatorsT[T chunkSizes](
+	ctx context.Context,
+	cfg *evaluatorConfig,
+	store *store.Store,
+	evalCache *EvaluatorCache,
+	queryCache *QueryCache,
+) error {
+	chunkSize := bestChunkSize(len(cfg.Policies), workerPoolSize)
+	rttrace.Logf(ctx, "", "eval cache size: %d; query cache size: %d; chunk size: %d",
+		evalCache.NumCachedEvaluators(), queryCache.NumCachedQueries(), chunkSize)
 	now := time.Now()
 
+	// Split the policy list into chunks which can individually be operated on in
+	// parallel with other chunks. Each chunk has a corresponding bitmask in the
+	// statusBits list which is used to indicate to workers which policy
+	// evaluators (at indexes in the chunk corresponding to set bits) need to be
+	// built, or rebuilt due to changes.
 	numChunks := len(cfg.Policies) / chunkSize
 	if len(cfg.Policies)%chunkSize != 0 {
 		numChunks++
 	}
-	statusBits := make([]uint64, numChunks) // 0=no change, 1=changed
-	statusCounts := make([]uint8, numChunks)
-	var totalModified atomic.Int32
+	statusBits := make([]T, numChunks) // bits map directly to policy indexes
 	evaluators := make([]routeEvaluator, len(cfg.Policies))
 	if len(evaluators) == 0 {
 		return nil // nothing to do
 	}
+	// Limit the number of workers to the size of the worker pool; since we are
+	// manually distributing chunks between workers, we can avoid spawning more
+	// goroutines than we need, and instead giving each worker additional chunks.
 	numWorkers := min(workerPoolSize, numChunks)
+	// Each worker is given a minimum number of chunks, then the remainder are
+	// spread evenly between workers.
 	minChunksPerWorker := numChunks / numWorkers
 	overflow := numChunks % numWorkers // number of workers which get an additional chunk
 
-	wctx := &workerContext{
-		Context:       ctx,
-		Cfg:           cfg,
-		Store:         store,
-		StatusBits:    statusBits,
-		StatusCounts:  statusCounts,
-		TotalModified: &totalModified,
-		Evaluators:    evaluators,
-		EvalCache:     evalCache,
-		QueryCache:    queryCache,
-		Errs:          &sync.Map{}, // slice index->error
+	wctx := &workerContext[T]{
+		Context:    ctx,
+		Cfg:        cfg,
+		Store:      store,
+		StatusBits: statusBits,
+		Evaluators: evaluators,
+		EvalCache:  evalCache,
+		QueryCache: queryCache,
+		Errs:       &sync.Map{}, // policy index->error
 	}
 
+	// First, build a list of partitions (start/end chunk indexes) to send to
+	// each worker.
 	partitions := make([]partition, numWorkers)
 	rttrace.WithRegion(ctx, "partitioning", func() {
 		chunkIdx := 0
@@ -433,7 +521,8 @@ func getOrCreatePolicyEvaluators(
 		}
 	})
 
-	// compute route checksums
+	// Compute all route checksums in parallel to determine which routes need to
+	// be rebuilt.
 	rttrace.WithRegion(ctx, "computing checksums", func() {
 		var wg sync.WaitGroup
 		for _, part := range partitions {
@@ -456,18 +545,16 @@ func getOrCreatePolicyEvaluators(
 		return fmt.Errorf("authorize: error computing one or more policy route IDs")
 	}
 
-	if totalModified.Load() == 0 {
-		return nil
-	}
-
-	// spawn workers
-	rttrace.WithRegion(ctx, "running workers", func() {
+	// After all checksums are computed and status bits populated, build the
+	// required evaluators.
+	rttrace.WithRegion(ctx, "building evaluators", func() {
 		var wg sync.WaitGroup
 		for _, part := range partitions {
-			for part.Begin < part.End && statusCounts[part.Begin] == 0 {
+			// Adjust the partition to skip over chunks with 0 bits set
+			for part.Begin < part.End && statusBits[part.Begin] == 0 {
 				part.Begin++
 			}
-			for part.Begin < (part.End)-1 && statusCounts[part.End-1] == 0 {
+			for part.Begin < (part.End)-1 && statusBits[part.End-1] == 0 {
 				part.End--
 			}
 			if part.Begin == part.End {
@@ -492,11 +579,12 @@ func getOrCreatePolicyEvaluators(
 		return fmt.Errorf("authorize: error building policy evaluators")
 	}
 
+	// Store updated evaluators in the cache
 	updatedCount := 0
 	for _, p := range evaluators {
-		if p.evaluator != nil {
+		if p.Evaluator != nil { // these are only set when modified
 			updatedCount++
-			evalCache.StoreEvaluator(p.id, p.evaluator)
+			evalCache.StoreEvaluator(p.Id, p.Evaluator)
 		}
 	}
 
