@@ -129,6 +129,21 @@ func TestMapHash_Equal(t *testing.T) {
 
 func TestMapHash_NotEqual(t *testing.T) {
 	t.Parallel()
+	t.Run("trivial cases", func(t *testing.T) {
+		t.Parallel()
+		a := map[string]string{"key1": "value1", "key2": "value2"}
+		b := map[string]string{"key1": "value1"}
+		assert.NotEqual(t, hashutil.MapHash(0, a), hashutil.MapHash(0, b))
+
+		a = map[string]string{"key1": "value1", "key2": "value2"}
+		b = map[string]string{"key1": "value1", "key2": "value3"}
+		assert.NotEqual(t, hashutil.MapHash(0, a), hashutil.MapHash(0, b))
+
+		a = map[string]string{"key1": "value1", "key2": "value2"}
+		b = map[string]string{"key2": "value1", "key1": "value2"}
+		assert.NotEqual(t, hashutil.MapHash(0, a), hashutil.MapHash(0, b))
+	})
+
 	for _, elems := range []int{1, 5, 10, 100, 1000} {
 		t.Run(fmt.Sprintf("%d elements", elems), func(t *testing.T) {
 			t.Parallel()
