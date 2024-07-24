@@ -311,6 +311,11 @@ type chunkSizes interface {
 	uint8 | uint16 | uint32 | uint64
 }
 
+// returns the size in bits for any allowed type in chunkSizes
+func chunkSize[T chunkSizes]() int {
+	return int(unsafe.Sizeof(T(0))) * 8
+}
+
 type workerContext[T chunkSizes] struct {
 	context.Context
 	Cfg        *evaluatorConfig
@@ -328,22 +333,18 @@ type routeEvaluator struct {
 	ComputedChecksum uint64           // cached evaluator checksum
 }
 
-// partition represents a range of chunks (blocks of 64 policies) corresponding
-// to the Cfg.Policies, StatusBits, StatusCounts, and Evaluators fields in
-// the workerContext. It is the slice [Begin*64:End*64] w.r.t. those fields,
-// but each index represents a unit of work that can be done in parallel with
-// work on other chunks.
+// partition represents a range of chunks (fixed-size blocks of policies)
+// corresponding to the Cfg.Policies, StatusBits, and Evaluators fields in
+// the workerContext. It is the slice [Begin*chunkSize:End*chunkSize] w.r.t.
+// those fields, but each index represents a unit of work that can be done in
+// parallel with work on other chunks.
 type partition struct{ Begin, End int }
-
-func chunkSize[T chunkSizes]() int {
-	return int(unsafe.Sizeof(T(0))) * 8
-}
 
 // computeChecksums is a worker task that computes policy checksums and updates
 // StatusBits to flag policies that need to be rebuilt. It operates on entire
-// chunks (blocks of 64 policies), given by the start and end indexes in the
-// partition argument, and updates the corresponding indexes of the StatusBits
-// and StatusCounts fields of the worker context for those chunks.
+// chunks (fixed-size blocks of policies), given by the start and end indexes
+// in the partition argument, and updates the corresponding indexes of the
+// StatusBits field of the worker context for those chunks.
 func computeChecksums[T chunkSizes](wctx *workerContext[T], part partition) {
 	defer rttrace.StartRegion(wctx, "worker-checksum").End()
 	for chunkIdx := part.Begin; chunkIdx < part.End; chunkIdx++ {
@@ -392,9 +393,9 @@ func computeChecksums[T chunkSizes](wctx *workerContext[T], part partition) {
 }
 
 // buildEvaluators is a worker task that creates new policy evaluators. It
-// operates on entire chunks (blocks of 64 policies), given by the start and end
-// indexes in the partition argument, and updates the corresponding indexes of
-// the Evaluators field of the worker context for those chunks.
+// operates on entire chunks (fixed-size blocks of policies), given by the start
+// and end indexes in the partition argument, and updates the corresponding
+// indexes of the Evaluators field of the worker context for those chunks.
 func buildEvaluators[T chunkSizes](wctx *workerContext[T], part partition) {
 	chunkSize := chunkSize[T]()
 	defer rttrace.StartRegion(wctx, "worker-build").End()
@@ -426,7 +427,9 @@ func buildEvaluators[T chunkSizes](wctx *workerContext[T], part partition) {
 // given number of policies and workers.
 func bestChunkSize(numPolicies, numWorkers int) int {
 	// use the chunk size that results in the largest number of chunks without
-	// going past the number of workers
+	// going past the number of workers. this results in the following behavior:
+	// - as the number of policies increases, chunk size tends to increase
+	// - as the number of workers increases, chunk size tends to decrease
 	sizes := []int{64, 32, 16, 8}
 	sizeIdx := 0
 	for i, size := range sizes {
