@@ -72,7 +72,7 @@ func newCRL(
 // Returns a raw SubjectAltName extension with a single UserPrincipalName.
 func newSANUserPrincipalName(upnValue string) []byte {
 	type UPN struct {
-		Utf8String string `asn1:"utf8"`
+		UTF8String string `asn1:"utf8"`
 	}
 	type OtherName struct {
 		OID   asn1.ObjectIdentifier
@@ -86,7 +86,7 @@ func newSANUserPrincipalName(upnValue string) []byte {
 			OID: asn1.ObjectIdentifier{
 				1, 3, 6, 1, 4, 1, 311, 20, 2, 3},
 			Value: UPN{
-				Utf8String: upnValue,
+				UTF8String: upnValue,
 			},
 		},
 	})

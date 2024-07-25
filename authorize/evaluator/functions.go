@@ -275,7 +275,7 @@ var (
 	oidSubjectAltName    = asn1.ObjectIdentifier{2, 5, 29, 17}
 	oidUserPrincipalName = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 20, 2, 3}
 	otherNameTag         = cb_asn1.Tag(0).Constructed().ContextSpecific()
-	upnValueTag          = cb_asn1.Tag(0).Constructed().ContextSpecific()
+	otherNameValueTag    = cb_asn1.Tag(0).Constructed().ContextSpecific()
 )
 
 func getUserPrincipalNamesFromSAN(raw []byte) ([]string, error) {
@@ -302,10 +302,8 @@ func getUserPrincipalNamesFromSAN(raw []byte) ([]string, error) {
 		}
 
 		var value cryptobyte.String
-		if !name.ReadAnyASN1(&value, &tag) {
+		if !name.ReadASN1(&value, otherNameValueTag) {
 			return nil, errors.New("error reading UserPrincipalName value")
-		} else if tag != upnValueTag {
-			return nil, fmt.Errorf("unexpected UserPrincipalName data tag 0x%x", tag)
 		}
 
 		var utf8string cryptobyte.String

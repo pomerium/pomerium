@@ -1,7 +1,7 @@
 package evaluator
 
 import (
-	"encoding/base64"
+	"encoding/asn1"
 	"regexp"
 	"testing"
 
@@ -488,62 +488,126 @@ func TestClientCertConstraintsFromConfig(t *testing.T) {
 }
 
 func TestGetUserPrincipalNamesFromSAN(t *testing.T) {
-	b64 := func(raw string) []byte {
-		b, err := base64.StdEncoding.DecodeString(raw)
-		require.NoError(t, err)
-		return b
+	type OtherName[T any] struct {
+		TypeID asn1.ObjectIdentifier
+		Value  T `asn1:"tag:0"`
+	}
+	type PrintableString struct {
+		Value string
+	}
+	type IA5String struct {
+		Value string `asn1:"ia5"`
+	}
+	type UTF8String struct {
+		Value string `asn1:"utf8"`
+	}
+	upn := func(name string) OtherName[UTF8String] {
+		return OtherName[UTF8String]{
+			TypeID: asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 20, 2, 3},
+			Value:  UTF8String{name},
+		}
 	}
 
-	// One UserPrincipalName.
-	names, err := getUserPrincipalNamesFromSAN(b64(`
-MBegFQYKKwYBBAGCNxQCA6AHDAVoZWxsbw==`))
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"hello"}, names)
+	t.Run("OneUserPrincipalName", func(t *testing.T) {
+		type SAN struct {
+			UPN OtherName[UTF8String] `asn1:"tag:0"`
+		}
+		san, err := asn1.Marshal(SAN{upn("hello")})
+		require.NoError(t, err)
 
-	// Multiple UserPrincipalNames.
-	names, err = getUserPrincipalNamesFromSAN(b64(`
-MD+gEwYKKwYBBAGCNxQCA6AFDANmb2+gEwYKKwYBBAGCNxQCA6AFDANiYXKgEwYKKwYBBAGCNxQCA6AF
-DANiYXo=`))
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"foo", "bar", "baz"}, names)
+		names, err := getUserPrincipalNamesFromSAN(san)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"hello"}, names)
+	})
+	t.Run("MultipleUserPrincipalNames", func(t *testing.T) {
+		type SAN struct {
+			UPN1 OtherName[UTF8String] `asn1:"tag:0"`
+			UPN2 OtherName[UTF8String] `asn1:"tag:0"`
+			UPN3 OtherName[UTF8String] `asn1:"tag:0"`
+		}
+		san, err := asn1.Marshal(SAN{upn("foo"), upn("bar"), upn("baz")})
+		require.NoError(t, err)
 
-	// Several OtherNames, only one UserPrincipalName.
-	names, err = getUserPrincipalNamesFromSAN(b64(`
-MFigFgYDKQEBoA8bDUdlbmVyYWxTdHJpbmegIQYKKwYBBAGCNxQCA6ATDBFVc2VyUHJpbmNpcGFsTmFt
-ZaAbBgMpAQKgFB4SAEIATQBQAFMAdAByAGkAbgBn`))
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"UserPrincipalName"}, names)
+		names, err := getUserPrincipalNamesFromSAN(san)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"foo", "bar", "baz"}, names)
+	})
+	t.Run("MultipleNameTypes", func(t *testing.T) {
+		type SAN struct {
+			DNS1   string                     `asn1:"tag:2,ia5"`
+			DNS2   string                     `asn1:"tag:2,ia5"`
+			Other1 OtherName[IA5String]       `asn1:"tag:0"`
+			Other2 OtherName[UTF8String]      `asn1:"tag:0"`
+			Other3 OtherName[PrintableString] `asn1:"tag:0"`
+		}
+		san, err := asn1.Marshal(SAN{
+			"example.com",
+			"example.org",
+			OtherName[IA5String]{
+				TypeID: asn1.ObjectIdentifier{1, 1, 1, 1},
+				Value:  IA5String{"IA5String"},
+			},
+			upn("UserPrincipalName"),
+			OtherName[PrintableString]{
+				TypeID: asn1.ObjectIdentifier{1, 1, 1, 2},
+				Value:  PrintableString{"PrintableString"},
+			}})
+		require.NoError(t, err)
 
-	// Two DNS names, no OtherNames.
-	names, err = getUserPrincipalNamesFromSAN(b64(`
-MC6CFWEuY2xpZW50My5leGFtcGxlLmNvbYIVYi5jbGllbnQzLmV4YW1wbGUuY29t`))
-	assert.NoError(t, err)
-	assert.Empty(t, names)
+		names, err := getUserPrincipalNamesFromSAN(san)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"UserPrincipalName"}, names)
+	})
+	t.Run("UserPrincipalNameWrongValueType", func(t *testing.T) {
+		type SAN struct {
+			UPN OtherName[PrintableString] `asn1:"tag:0"`
+		}
+		san, err := asn1.Marshal(SAN{
+			OtherName[PrintableString]{
+				TypeID: asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 20, 2, 3},
+				Value:  PrintableString{"PrintableString"},
+			}})
+		require.NoError(t, err)
 
-	// A UserPrincipalName with the wrong data type (GeneralString).
-	names, err = getUserPrincipalNamesFromSAN(b64(`
-MB+gHQYKKwYBBAGCNxQCA6APGw1HZW5lcmFsU3RyaW5n`))
-	assert.ErrorContains(t, err, "expected UTF8String")
-	assert.Empty(t, names)
+		names, err := getUserPrincipalNamesFromSAN(san)
+		assert.ErrorContains(t, err, "expected UTF8String")
+		assert.Empty(t, names)
+	})
+	t.Run("EmptySAN", func(t *testing.T) {
+		names, err := getUserPrincipalNamesFromSAN(nil)
+		assert.ErrorContains(t, err, "error reading GeneralNames sequence")
+		assert.Empty(t, names)
+	})
+	t.Run("TruncatedGeneralName", func(t *testing.T) {
+		san := []byte{0x30, 0x02, 0x82, 0x05 /* 5 more bytes expected */}
+		names, err := getUserPrincipalNamesFromSAN(san)
+		assert.ErrorContains(t, err, "error reading GeneralName")
+		assert.Empty(t, names)
+	})
+	t.Run("OtherNameWrongTypeIDType", func(t *testing.T) {
+		san := []byte{0x30, 0x06, 0xa0, 0x04, 0x02 /* type Integer, not OID */, 0x02, 0x46, 0x01}
+		names, err := getUserPrincipalNamesFromSAN(san)
+		assert.ErrorContains(t, err, "error reading OtherName type ID")
+		assert.Empty(t, names)
+	})
+	t.Run("UserPrincipalNameWrongValueTag", func(t *testing.T) {
+		type BadOtherName struct {
+			TypeID asn1.ObjectIdentifier
+			Value  UTF8String `asn1:"tag:1"` // instead of tag 0
+		}
+		type SAN struct {
+			UPN BadOtherName `asn1:"tag:0"`
+		}
+		san, err := asn1.Marshal(SAN{
+			UPN: BadOtherName{
+				TypeID: oidUserPrincipalName,
+				Value:  UTF8String{"hello"},
+			},
+		})
+		require.NoError(t, err)
 
-	// Other malformed inputs.
-	names, err = getUserPrincipalNamesFromSAN(nil)
-	assert.ErrorContains(t, err, "error reading GeneralNames sequence")
-	assert.Empty(t, names)
-
-	names, err = getUserPrincipalNamesFromSAN(b64("MA+gDwYCRgGgBwwFaGVsbG8="))
-	assert.ErrorContains(t, err, "error reading GeneralName")
-	assert.Empty(t, names)
-
-	names, err = getUserPrincipalNamesFromSAN(b64("MA+gDQICRgGgBwwFaGVsbG8="))
-	assert.ErrorContains(t, err, "error reading OtherName type ID")
-	assert.Empty(t, names)
-
-	names, err = getUserPrincipalNamesFromSAN(b64("MBegFQYKKwYBBAGCNxQCA6AIDAVoZWxsbw=="))
-	assert.ErrorContains(t, err, "error reading UserPrincipalName value")
-	assert.Empty(t, names)
-
-	names, err = getUserPrincipalNamesFromSAN(b64("MBegFQYKKwYBBAGCNxQCA6EHDAVoZWxsbw=="))
-	assert.ErrorContains(t, err, "unexpected UserPrincipalName data tag")
-	assert.Empty(t, names)
+		names, err := getUserPrincipalNamesFromSAN(san)
+		assert.ErrorContains(t, err, "error reading UserPrincipalName value")
+		assert.Empty(t, names)
+	})
 }
