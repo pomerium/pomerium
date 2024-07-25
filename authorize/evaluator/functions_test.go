@@ -551,7 +551,8 @@ func TestGetUserPrincipalNamesFromSAN(t *testing.T) {
 			OtherName[PrintableString]{
 				TypeID: asn1.ObjectIdentifier{1, 1, 1, 2},
 				Value:  PrintableString{"PrintableString"},
-			}})
+			},
+		})
 		require.NoError(t, err)
 
 		names, err := getUserPrincipalNamesFromSAN(san)
@@ -566,7 +567,8 @@ func TestGetUserPrincipalNamesFromSAN(t *testing.T) {
 			OtherName[PrintableString]{
 				TypeID: asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 20, 2, 3},
 				Value:  PrintableString{"PrintableString"},
-			}})
+			},
+		})
 		require.NoError(t, err)
 
 		names, err := getUserPrincipalNamesFromSAN(san)
