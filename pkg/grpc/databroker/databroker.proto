@@ -1,8 +1,8 @@
 syntax = "proto3";
 
 package databroker;
-option go_package = "github.com/pomerium/pomerium/pkg/grpc/databroker";
 
+import "github.com/kralicky/codegen/cli/cli.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/empty.proto";
@@ -10,17 +10,24 @@ import "google/protobuf/field_mask.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
+option go_package = "github.com/pomerium/pomerium/pkg/grpc/databroker";
+
+option (cli.generator) = {
+  enabled: true,
+};
+
 message Record {
-  uint64 version = 1;
-  string type = 2;
-  string id = 3;
-  google.protobuf.Any data = 4;
+  uint64                    version     = 1;
+  string                    type        = 2;
+  string                    id          = 3;
+  google.protobuf.Any       data        = 4;
   google.protobuf.Timestamp modified_at = 5;
-  google.protobuf.Timestamp deleted_at = 6;
+  google.protobuf.Timestamp deleted_at  = 6;
 }
+
 message Versions {
   // the server version indicates the version of the server storing the data
-  uint64 server_version = 1;
+  uint64 server_version        = 1;
   uint64 latest_record_version = 2;
 }
 
@@ -33,60 +40,77 @@ message Options {
 
 message GetRequest {
   string type = 1;
-  string id = 2;
+  string id   = 2;
 }
-message GetResponse { Record record = 1; }
+
+message GetResponse {
+  Record record = 1;
+}
 
 message ListTypesResponse {
   repeated string types = 1;
 }
 
 message QueryRequest {
-  string type = 1;
-  string query = 2;
-  int64 offset = 3;
-  int64 limit = 4;
-  google.protobuf.Struct filter = 5;
-}
-message QueryResponse {
-  repeated Record records = 1;
-  int64 total_count = 2;
-  uint64 server_version = 3;
-  uint64 record_version = 4;
+  string                 type   = 1;
+  string                 query  = 2;
+  int64                  offset = 3;
+  int64                  limit  = 4;
+  google.protobuf.Struct filter = 5 [(cli.flag).skip = true];
 }
 
-message PutRequest { repeated Record records = 1; }
+message QueryResponse {
+  repeated Record records        = 1;
+  int64           total_count    = 2;
+  uint64          server_version = 3;
+  uint64          record_version = 4;
+}
+
+message PutRequest {
+  repeated Record records = 1;
+}
+
 message PutResponse {
-  uint64 server_version = 1;
-  repeated Record records = 2;
+  uint64          server_version = 1;
+  repeated Record records        = 2;
 }
 
 message PatchRequest {
-  repeated Record records = 1;
-  google.protobuf.FieldMask field_mask = 2;
+  repeated Record           records    = 1;
+  google.protobuf.FieldMask field_mask = 2 [(cli.flag).skip = true];
 }
+
 message PatchResponse {
-  uint64 server_version = 1;
-  repeated Record records = 2;
+  uint64          server_version = 1;
+  repeated Record records        = 2;
 }
 
 message SetOptionsRequest {
-  string type = 1;
+  string  type    = 1;
   Options options = 2;
 }
-message SetOptionsResponse { Options options = 1; }
+
+message SetOptionsResponse {
+  Options options = 1;
+}
 
 message SyncRequest {
   uint64 server_version = 1;
   uint64 record_version = 2;
-  string type = 3;
+  string type           = 3;
 }
-message SyncResponse { Record record = 1; }
 
-message SyncLatestRequest { string type = 1; }
+message SyncResponse {
+  Record record = 1;
+}
+
+message SyncLatestRequest {
+  string type = 1;
+}
+
 message SyncLatestResponse {
   oneof response {
-    Record record = 1;
+    Record   record   = 1;
     Versions versions = 2;
   }
 }
@@ -99,23 +123,28 @@ message AcquireLeaseRequest {
   // lease can be acquired by other clients.
   google.protobuf.Duration duration = 2;
 }
+
 message AcquireLeaseResponse {
   // Id is the id of the acquired lease. Subsequent calls to release or renew
   // will need both the lease name and the lease id.
   string id = 1;
 }
+
 message ReleaseLeaseRequest {
   string name = 1;
-  string id = 2;
+  string id   = 2;
 }
+
 message RenewLeaseRequest {
-  string name = 1;
-  string id = 2;
+  string                   name     = 1;
+  string                   id       = 2;
   google.protobuf.Duration duration = 3;
 }
 
 // The DataBrokerService stores key-value data.
 service DataBrokerService {
+  option (cli.command_group).use = "db";
+
   // AcquireLease acquires a distributed mutex lease.
   rpc AcquireLease(AcquireLeaseRequest) returns (AcquireLeaseResponse);
   // Get gets a record.
