@@ -532,6 +532,23 @@ func TestGetUserPrincipalNamesFromSAN(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"foo", "bar", "baz"}, names)
 	})
+	t.Run("NoUserPrincipalName", func(t *testing.T) {
+		type SAN struct {
+			DNS   string `asn1:"tag:2,ia5"`
+			IP    []byte `asn1:"tag:7"`
+			Email string `asn1:"tag:1,ia5"`
+		}
+		san, err := asn1.Marshal(SAN{
+			"localhost",
+			[]byte{127, 0, 0, 1},
+			"me@example.com",
+		})
+		require.NoError(t, err)
+
+		names, err := getUserPrincipalNamesFromSAN(san)
+		assert.NoError(t, err)
+		assert.Empty(t, names)
+	})
 	t.Run("MultipleNameTypes", func(t *testing.T) {
 		type SAN struct {
 			DNS1   string                     `asn1:"tag:2,ia5"`
