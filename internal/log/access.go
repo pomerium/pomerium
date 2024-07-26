@@ -10,20 +10,27 @@ type AccessLogField string
 
 // known access log fields
 const (
-	AccessLogFieldAuthority           AccessLogField = "authority"
-	AccessLogFieldDuration            AccessLogField = "duration"
-	AccessLogFieldForwardedFor        AccessLogField = "forwarded-for"
-	AccessLogFieldIP                  AccessLogField = "ip"
-	AccessLogFieldMethod              AccessLogField = "method"
-	AccessLogFieldPath                AccessLogField = "path"
-	AccessLogFieldQuery               AccessLogField = "query"
-	AccessLogFieldReferer             AccessLogField = "referer"
-	AccessLogFieldRequestID           AccessLogField = "request-id"
-	AccessLogFieldResponseCode        AccessLogField = "response-code"
-	AccessLogFieldResponseCodeDetails AccessLogField = "response-code-details"
-	AccessLogFieldSize                AccessLogField = "size"
-	AccessLogFieldUpstreamCluster     AccessLogField = "upstream-cluster"
-	AccessLogFieldUserAgent           AccessLogField = "user-agent"
+	AccessLogFieldAuthority                        AccessLogField = "authority"
+	AccessLogFieldDuration                         AccessLogField = "duration"
+	AccessLogFieldForwardedFor                     AccessLogField = "forwarded-for"
+	AccessLogFieldIP                               AccessLogField = "ip"
+	AccessLogFieldMethod                           AccessLogField = "method"
+	AccessLogFieldPath                             AccessLogField = "path"
+	AccessLogFieldQuery                            AccessLogField = "query"
+	AccessLogFieldReferer                          AccessLogField = "referer"
+	AccessLogFieldRequestID                        AccessLogField = "request-id"
+	AccessLogFieldResponseCode                     AccessLogField = "response-code"
+	AccessLogFieldResponseCodeDetails              AccessLogField = "response-code-details"
+	AccessLogFieldSize                             AccessLogField = "size"
+	AccessLogFieldUpstreamCluster                  AccessLogField = "upstream-cluster"
+	AccessLogFieldUserAgent                        AccessLogField = "user-agent"
+	AccessLogFieldUpstreamTransportFailureReason   AccessLogField = "upstream-transport-failure-reason"
+	AccessLogFieldDownstreamTransportFailureReason AccessLogField = "downstream-transport-failure-reason"
+	AccessLogFieldTLSVersion                       AccessLogField = "tls-version"
+	AccessLogFieldTLSSNIHostname                   AccessLogField = "tls-sni-hostname"
+	AccessLogFieldTLSCipherSuite                   AccessLogField = "tls-cipher-suite"
+	AccessLogFieldTLSLocalCert                     AccessLogField = "tls-local-cert"
+	AccessLogFieldTLSPeerCert                      AccessLogField = "tls-peer-cert"
 )
 
 var defaultAccessLogFields = []AccessLogField{
@@ -41,29 +48,49 @@ var defaultAccessLogFields = []AccessLogField{
 	AccessLogFieldResponseCodeDetails,
 }
 
+var allAccessLogFields = []AccessLogField{
+	AccessLogFieldAuthority,
+	AccessLogFieldDuration,
+	AccessLogFieldForwardedFor,
+	AccessLogFieldIP,
+	AccessLogFieldMethod,
+	AccessLogFieldPath,
+	AccessLogFieldQuery,
+	AccessLogFieldReferer,
+	AccessLogFieldRequestID,
+	AccessLogFieldResponseCode,
+	AccessLogFieldResponseCodeDetails,
+	AccessLogFieldSize,
+	AccessLogFieldUpstreamCluster,
+	AccessLogFieldUserAgent,
+	AccessLogFieldUpstreamTransportFailureReason,
+	AccessLogFieldDownstreamTransportFailureReason,
+	AccessLogFieldTLSVersion,
+	AccessLogFieldTLSSNIHostname,
+	AccessLogFieldTLSCipherSuite,
+	AccessLogFieldTLSLocalCert,
+	AccessLogFieldTLSPeerCert,
+}
+
 // DefaultAccessLogFields returns the default access log fields.
 func DefaultAccessLogFields() []AccessLogField {
 	return defaultAccessLogFields
 }
 
+// DefaultAccessLogFields returns the default access log fields.
+func AllAccessLogFields() []AccessLogField {
+	return allAccessLogFields
+}
+
 // ErrUnknownAccessLogField indicates that an access log field is unknown.
 var ErrUnknownAccessLogField = errors.New("unknown access log field")
 
-var accessLogFieldLookup = map[AccessLogField]struct{}{
-	AccessLogFieldAuthority:           {},
-	AccessLogFieldDuration:            {},
-	AccessLogFieldForwardedFor:        {},
-	AccessLogFieldIP:                  {},
-	AccessLogFieldMethod:              {},
-	AccessLogFieldPath:                {},
-	AccessLogFieldQuery:               {},
-	AccessLogFieldReferer:             {},
-	AccessLogFieldRequestID:           {},
-	AccessLogFieldResponseCode:        {},
-	AccessLogFieldResponseCodeDetails: {},
-	AccessLogFieldSize:                {},
-	AccessLogFieldUpstreamCluster:     {},
-	AccessLogFieldUserAgent:           {},
+var accessLogFieldLookup = map[AccessLogField]struct{}{}
+
+func init() {
+	for _, field := range allAccessLogFields {
+		accessLogFieldLookup[field] = struct{}{}
+	}
 }
 
 // Validate returns an error if the access log field is invalid.

@@ -88,6 +88,29 @@ local Environment(mode, idp, authentication_flow, dns_suffix) =
     GOOGLE_CLOUD_SERVERLESS_AUTHENTICATION_SERVICE_ACCOUNT: std.base64(std.manifestJsonEx(
       GoogleCloudServerlessAuthenticationServiceAccount(dns_suffix), ''
     )),
+    ACCESS_LOG_FIELDS: std.join(',', [
+      "authority",
+      "duration",
+      "forwarded-for",
+      "ip",
+      "method",
+      "path",
+      "query",
+      "referer",
+      "request-id",
+      "response-code",
+      "response-code-details",
+      "size",
+      "upstream-cluster",
+      "user-agent",
+      "upstream-transport-failure-reason",
+      "downstream-transport-failure-reason",
+      "tls-version",
+      "tls-sni-hostname",
+      "tls-cipher-suite",
+      "tls-local-cert",
+      "tls-peer-cert",
+    ]),
     IDP_PROVIDER: idp,
     IDP_PROVIDER_URL: 'https://mock-idp.localhost.pomerium.io/',
     IDP_CLIENT_ID: 'CLIENT_ID',
@@ -98,6 +121,7 @@ local Environment(mode, idp, authentication_flow, dns_suffix) =
     SHARED_SECRET: 'UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=',
     SIGNING_KEY: std.base64(importstr '../files/signing-key.pem'),
     SIGNING_KEY_ALGORITHM: 'ES256',
+    POMERIUM_DEBUG_PORT: '19901'
   } + (
     if mode == 'multi' then {
       AUTHENTICATE_INTERNAL_SERVICE_URL: 'https://pomerium-authenticate',
@@ -185,6 +209,7 @@ function(mode, idp, authentication_flow, dns_suffix='') {
           '443:443/tcp',
           '5443:5443/tcp',
           '9901:9901/tcp',
+          '19901:19901/tcp',
         ],
       }, ['mock-idp.localhost.pomerium.io'])
     else
@@ -195,6 +220,7 @@ function(mode, idp, authentication_flow, dns_suffix='') {
           '80:80/tcp',
           '443:443/tcp',
           '9901:9901/tcp',
+          '19901:19901/tcp',
         ],
       }, ['authenticate.localhost.pomerium.io']),
     volumes: {},

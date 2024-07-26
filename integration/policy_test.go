@@ -351,6 +351,10 @@ func TestDownstreamClientCA(t *testing.T) {
 	defer clearTimeout()
 
 	t.Run("no client cert", func(t *testing.T) {
+		ctx, ca := context.WithCancel(ctx)
+		logs := make(chan string, 32)
+		require.NoError(t, captureLogs(ctx, logs))
+
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 			"https://client-cert-required.localhost.pomerium.io/", nil)
 		require.NoError(t, err)
@@ -359,8 +363,28 @@ func TestDownstreamClientCA(t *testing.T) {
 		require.NoError(t, err)
 		res.Body.Close()
 		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
+
+		time.Sleep(100 * time.Millisecond) // wait for envoy access logs to be written
+		ca()
+		assertMatchingLogs(t, logs, []openMap{
+			{
+				"service":          "envoy",
+				"tls-version":      "TLSv1_3",
+				"tls-cipher-suite": "TLS_AES_128_GCM_SHA256",
+				"tls-sni-hostname": "client-cert-required.localhost.pomerium.io",
+				"tls-local-cert": closedMap{
+					"subject": "OU=caleb@caleb-pc-linux (Caleb Doxsey),O=mkcert development certificate",
+				},
+				"tls-peer-cert": closedMap{},
+				"message":       "http-request",
+			},
+		})
 	})
 	t.Run("untrusted client cert", func(t *testing.T) {
+		ctx, ca := context.WithCancel(ctx)
+		logs := make(chan string, 32)
+		require.NoError(t, captureLogs(ctx, logs))
+
 		// Configure an http.Client with an untrusted client certificate.
 		cert := loadCertificate(t, "downstream-2-client")
 		client, transport := getClientWithTransport(t)
@@ -374,8 +398,31 @@ func TestDownstreamClientCA(t *testing.T) {
 		require.NoError(t, err)
 		res.Body.Close()
 		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
+
+		time.Sleep(100 * time.Millisecond) // wait for envoy access logs to be written
+		ca()
+		assertMatchingLogs(t, logs, []openMap{
+			{
+				"service":          "envoy",
+				"tls-version":      "TLSv1_3",
+				"tls-cipher-suite": "TLS_AES_128_GCM_SHA256",
+				"tls-sni-hostname": "client-cert-required.localhost.pomerium.io",
+				"tls-local-cert": closedMap{
+					"subject": "OU=caleb@caleb-pc-linux (Caleb Doxsey),O=mkcert development certificate",
+				},
+				"tls-peer-cert": closedMap{
+					"issuer":  "CN=downstream CA 2,O=mkcert development CA",
+					"subject": "CN=downstream client 2,O=mkcert development certificate",
+				},
+				"message": "http-request",
+			},
+		})
 	})
 	t.Run("valid client cert", func(t *testing.T) {
+		ctx, ca := context.WithCancel(ctx)
+		logs := make(chan string, 32)
+		require.NoError(t, captureLogs(ctx, logs))
+
 		// Configure an http.Client with a trusted client certificate.
 		cert := loadCertificate(t, "downstream-1-client")
 		client, transport := getClientWithTransport(t)
@@ -392,11 +439,35 @@ func TestDownstreamClientCA(t *testing.T) {
 		}
 		err = json.NewDecoder(res.Body).Decode(&result)
 		if !assert.NoError(t, err) {
+			ca()
 			return
 		}
 		assert.Equal(t, "/", result.Path)
+
+		time.Sleep(100 * time.Millisecond) // wait for envoy access logs to be written
+		ca()
+		assertMatchingLogs(t, logs, []openMap{
+			{
+				"service":          "envoy",
+				"tls-version":      "TLSv1_3",
+				"tls-cipher-suite": "TLS_AES_128_GCM_SHA256",
+				"tls-sni-hostname": "client-cert-required.localhost.pomerium.io",
+				"tls-local-cert": closedMap{
+					"subject": "OU=caleb@caleb-pc-linux (Caleb Doxsey),O=mkcert development certificate",
+				},
+				"tls-peer-cert": closedMap{
+					"issuer":  "CN=downstream CA 1,O=mkcert development CA",
+					"subject": "CN=downstream client 1,O=mkcert development certificate",
+				},
+				"message": "http-request",
+			},
+		})
 	})
 	t.Run("revoked client cert", func(t *testing.T) {
+		ctx, ca := context.WithCancel(ctx)
+		logs := make(chan string, 32)
+		require.NoError(t, captureLogs(ctx, logs))
+
 		// Configure an http.Client with a revoked client certificate.
 		cert := loadCertificate(t, "downstream-1-client-revoked")
 		client, transport := getClientWithTransport(t)
@@ -410,6 +481,25 @@ func TestDownstreamClientCA(t *testing.T) {
 		require.NoError(t, err)
 		res.Body.Close()
 		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
+
+		time.Sleep(100 * time.Millisecond) // wait for envoy access logs to be written
+		ca()
+		assertMatchingLogs(t, logs, []openMap{
+			{
+				"service":          "envoy",
+				"tls-version":      "TLSv1_3",
+				"tls-cipher-suite": "TLS_AES_128_GCM_SHA256",
+				"tls-sni-hostname": "client-cert-required.localhost.pomerium.io",
+				"tls-local-cert": closedMap{
+					"subject": "OU=caleb@caleb-pc-linux (Caleb Doxsey),O=mkcert development certificate",
+				},
+				"tls-peer-cert": closedMap{
+					"issuer":  "CN=downstream CA 1,O=mkcert development CA",
+					"subject": "CN=downstream 1 client B,O=mkcert development certificate",
+				},
+				"message": "http-request",
+			},
+		})
 	})
 }
 

@@ -12,11 +12,9 @@ import (
 	"strings"
 	"time"
 
-	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
-	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
@@ -125,33 +123,6 @@ func (b *Builder) buildTLSSocket(ctx context.Context, cfg *config.Config, certs 
 	}, nil
 }
 
-func listenerAccessLog() []*envoy_config_accesslog_v3.AccessLog {
-	cc := &envoy_extensions_access_loggers_grpc_v3.CommonGrpcAccessLogConfig{
-		LogName: "ingress-http-listener",
-		GrpcService: &envoy_config_core_v3.GrpcService{
-			TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
-				EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
-					ClusterName: "pomerium-control-plane-grpc",
-				},
-			},
-		},
-		TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
-	}
-	tcp := marshalAny(
-		&envoy_extensions_access_loggers_grpc_v3.TcpGrpcAccessLogConfig{CommonConfig: cc})
-	http := marshalAny(
-		&envoy_extensions_access_loggers_grpc_v3.HttpGrpcAccessLogConfig{CommonConfig: cc})
-	return []*envoy_config_accesslog_v3.AccessLog{
-		{
-			Name:       "envoy.access_loggers.tcp_grpc",
-			ConfigType: &envoy_config_accesslog_v3.AccessLog_TypedConfig{TypedConfig: tcp},
-		}, {
-			Name:       "envoy.access_loggers.http_grpc",
-			ConfigType: &envoy_config_accesslog_v3.AccessLog_TypedConfig{TypedConfig: http},
-		},
-	}
-}
-
 func (b *Builder) buildMainListener(
 	ctx context.Context,
 	cfg *config.Config,
@@ -162,7 +133,7 @@ func (b *Builder) buildMainListener(
 		li.ListenerFilters = append(li.ListenerFilters, ProxyProtocolFilter())
 	}
 
-	li.AccessLog = listenerAccessLog() // XXX
+	li.AccessLog = buildAccessLogs(cfg.Options)
 
 	if cfg.Options.InsecureServer {
 		li.Address = buildAddress(cfg.Options.Addr, 80)
@@ -431,6 +402,8 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 
 	li := newEnvoyListener("grpc-ingress")
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{&filterChain}
+
+	li.AccessLog = buildAccessLogs(cfg.Options)
 
 	if cfg.Options.GetGRPCInsecure() {
 		li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 80)

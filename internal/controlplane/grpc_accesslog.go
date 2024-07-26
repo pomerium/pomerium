@@ -2,13 +2,12 @@ package controlplane
 
 import (
 	"context"
-	"encoding/json"
+	"crypto/tls"
 	"strings"
 
 	envoy_data_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3"
 	envoy_service_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v3"
 	"github.com/rs/zerolog"
-	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/internal/log"
 )
@@ -19,7 +18,6 @@ func (srv *Server) registerAccessLogHandlers() {
 
 // StreamAccessLogs receives logs from envoy and prints them to stdout.
 func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogService_StreamAccessLogsServer) error {
-	var logName string
 	for {
 		msg, err := stream.Recv()
 		if err != nil {
@@ -27,41 +25,15 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogS
 			return err
 		}
 
-		if msg.Identifier != nil {
-			logName = msg.Identifier.LogName
-		}
-
-		if logName == "ingress-http-listener" {
-			accessLogListener(stream.Context(), msg)
-		} else {
-			srv.accessLogHTTP(stream.Context(), msg)
-		}
+		srv.handleAccessLog(stream.Context(), msg)
 	}
 }
 
-func accessLogListener(
-	ctx context.Context, msg *envoy_service_accesslog_v3.StreamAccessLogsMessage,
+func (srv *Server) handleAccessLog(
+	ctx context.Context,
+	msg *envoy_service_accesslog_v3.StreamAccessLogsMessage,
 ) {
-	for _, entry := range msg.GetTcpLogs().GetLogEntry() {
-		e, _ := protojson.Marshal(entry)
-		log.Info(ctx).
-			Str("service", "envoy").
-			Interface("log", json.RawMessage(e)).
-			Msg("listener connect (TCP log)")
-	}
 	for _, entry := range msg.GetHttpLogs().GetLogEntry() {
-		e, _ := protojson.Marshal(entry)
-		log.Info(ctx).
-			Str("service", "envoy").
-			Interface("log", json.RawMessage(e)).
-			Msg("listener connect (HTTP log)")
-	}
-}
-
-func (srv *Server) accessLogHTTP(
-	ctx context.Context, msg *envoy_service_accesslog_v3.StreamAccessLogsMessage,
-) {
-	for _, entry := range msg.GetHttpLogs().LogEntry {
 		reqPath := entry.GetRequest().GetPath()
 		var evt *zerolog.Event
 		if reqPath == "/ping" || reqPath == "/healthz" {
@@ -121,7 +93,60 @@ func populateLogEvent(
 		return evt.Str(string(field), entry.GetCommonProperties().GetUpstreamCluster())
 	case log.AccessLogFieldUserAgent:
 		return evt.Str(string(field), entry.GetRequest().GetUserAgent())
-	default:
-		return evt
+	case log.AccessLogFieldUpstreamTransportFailureReason:
+		if reason := entry.GetCommonProperties().GetUpstreamTransportFailureReason(); reason != "" {
+			return evt.Str(string(field), reason)
+		}
+	case log.AccessLogFieldDownstreamTransportFailureReason:
+		if reason := entry.GetCommonProperties().GetDownstreamTransportFailureReason(); reason != "" {
+			return evt.Str(string(field), reason)
+		}
+	case log.AccessLogFieldTLSVersion:
+		if version := entry.GetCommonProperties().GetTlsProperties().GetTlsVersion(); version != 0 {
+			return evt.Str(string(field), version.String())
+		}
+	case log.AccessLogFieldTLSSNIHostname:
+		if hostname := entry.GetCommonProperties().GetTlsProperties().GetTlsSniHostname(); hostname != "" {
+			return evt.Str(string(field), hostname)
+		}
+	case log.AccessLogFieldTLSCipherSuite:
+		if id := entry.GetCommonProperties().GetTlsProperties().GetTlsCipherSuite().GetValue(); id != 0 {
+			name := tls.CipherSuiteName(uint16(id))
+			return evt.Str(string(field), name)
+		}
+	case log.AccessLogFieldTLSLocalCert:
+		if cert := entry.GetCommonProperties().GetTlsProperties().GetLocalCertificateProperties(); cert != nil {
+			dict := zerolog.Dict()
+			populateCertEventDict(cert, dict)
+			return evt.Dict(string(field), dict)
+		}
+	case log.AccessLogFieldTLSPeerCert:
+		if cert := entry.GetCommonProperties().GetTlsProperties().GetPeerCertificateProperties(); cert != nil {
+			dict := zerolog.Dict()
+			populateCertEventDict(cert, dict)
+			return evt.Dict(string(field), dict)
+		}
+	}
+	return evt
+}
+
+func populateCertEventDict(cert *envoy_data_accesslog_v3.TLSProperties_CertificateProperties, dict *zerolog.Event) {
+	if cert.Issuer != "" {
+		dict.Str("issuer", cert.Issuer)
+	}
+	if cert.Subject != "" {
+		dict.Str("subject", cert.Subject)
+	}
+	if len(cert.SubjectAltName) > 0 {
+		arr := zerolog.Arr()
+		for _, san := range cert.SubjectAltName {
+			switch san := san.GetSan().(type) {
+			case *envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName_Dns:
+				arr.Str("dns:" + san.Dns)
+			case *envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName_Uri:
+				arr.Str("uri:" + san.Uri)
+			}
+		}
+		dict.Array("subjectAltName", arr)
 	}
 }
