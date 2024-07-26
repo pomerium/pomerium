@@ -5,6 +5,7 @@ package authenticateflow
 
 import (
 	"fmt"
+	"time"
 
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -12,6 +13,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
 )
+
+// timeNow is time.Now but pulled out as a variable for tests.
+var timeNow = time.Now
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
 

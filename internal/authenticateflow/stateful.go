@@ -175,13 +175,14 @@ func (s *Stateful) PersistSession(
 	claims identity.SessionClaims,
 	accessToken *oauth2.Token,
 ) error {
-	sessionExpiry := timestamppb.New(time.Now().Add(s.sessionDuration))
+	now := timeNow()
+	sessionExpiry := timestamppb.New(now.Add(s.sessionDuration))
 
 	sess := &session.Session{
 		Id:         sessionState.ID,
 		UserId:     sessionState.UserID(),
-		IssuedAt:   timestamppb.Now(),
-		AccessedAt: timestamppb.Now(),
+		IssuedAt:   timestamppb.New(now),
+		AccessedAt: timestamppb.New(now),
 		ExpiresAt:  sessionExpiry,
 		OauthToken: manager.ToOAuthToken(accessToken),
 		Audience:   sessionState.Audience,

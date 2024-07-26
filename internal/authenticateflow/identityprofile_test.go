@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -16,6 +15,9 @@ import (
 )
 
 func TestPopulateSessionFromProfile(t *testing.T) {
+	timeNow = func() time.Time { return time.Unix(1721965100, 0) }
+	t.Cleanup(func() { timeNow = time.Now })
+
 	sessionState := &sessions.State{
 		Subject: "user-id",
 	}
@@ -43,23 +45,26 @@ func TestPopulateSessionFromProfile(t *testing.T) {
 	var s session.Session
 	populateSessionFromProfile(&s, profile, sessionState, 4*time.Hour)
 
-	assert.Equal(t, 4*time.Hour, s.ExpiresAt.AsTime().Sub(s.IssuedAt.AsTime()))
-	assert.Equal(t, s.IssuedAt, s.AccessedAt)
-	assert.Equal(t, "user-id", s.UserId)
-	testutil.AssertProtoEqual(t, &session.IDToken{
-		Issuer:    "https://issuer.example.com",
-		Subject:   "id-token-user-id",
-		IssuedAt:  &timestamppb.Timestamp{Seconds: 1721965070},
-		ExpiresAt: &timestamppb.Timestamp{Seconds: 1721965670},
-		Raw:       idToken,
-	}, s.IdToken)
-	testutil.AssertProtoEqual(t, &session.OAuthToken{
-		AccessToken:  "access-token",
-		RefreshToken: "refresh-token",
-		ExpiresAt:    &timestamppb.Timestamp{Seconds: 1721995200},
-	}, s.OauthToken)
-	assert.Equal(t, map[string]*structpb.ListValue{
-		"name":  {Values: []*structpb.Value{structpb.NewStringValue("John Doe")}},
-		"email": {Values: []*structpb.Value{structpb.NewStringValue("john.doe@example.com")}},
-	}, s.Claims)
+	testutil.AssertProtoEqual(t, &session.Session{
+		IssuedAt:   timestamppb.New(timeNow()),
+		AccessedAt: timestamppb.New(timeNow()),
+		ExpiresAt:  timestamppb.New(timeNow().Add(4 * time.Hour)),
+		UserId:     "user-id",
+		IdToken: &session.IDToken{
+			Issuer:    "https://issuer.example.com",
+			Subject:   "id-token-user-id",
+			IssuedAt:  &timestamppb.Timestamp{Seconds: 1721965070},
+			ExpiresAt: &timestamppb.Timestamp{Seconds: 1721965670},
+			Raw:       idToken,
+		},
+		OauthToken: &session.OAuthToken{
+			AccessToken:  "access-token",
+			RefreshToken: "refresh-token",
+			ExpiresAt:    &timestamppb.Timestamp{Seconds: 1721995200},
+		},
+		Claims: map[string]*structpb.ListValue{
+			"name":  {Values: []*structpb.Value{structpb.NewStringValue("John Doe")}},
+			"email": {Values: []*structpb.Value{structpb.NewStringValue("john.doe@example.com")}},
+		},
+	}, &s)
 }

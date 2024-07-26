@@ -362,7 +362,11 @@ func TestStatefulRevokeSession(t *testing.T) {
 }
 
 func TestPersistSession(t *testing.T) {
+	timeNow = func() time.Time { return time.Unix(1721965100, 0) }
+	t.Cleanup(func() { timeNow = time.Now })
+
 	opts := config.NewDefaultOptions()
+	opts.CookieExpire = 4 * time.Hour
 	flow, err := NewStateful(&config.Config{Options: opts}, nil)
 	require.NoError(t, err)
 
@@ -437,32 +441,35 @@ func TestPersistSession(t *testing.T) {
 
 			var s session.Session
 			record.GetData().UnmarshalTo(&s)
-			assert.Equal(t, "session-id", s.Id)
-			assert.Equal(t, "user-id", s.UserId)
-			assert.Equal(t, []string{"route.example.com"}, s.Audience)
-			assert.Equal(t, expectedClaims, s.Claims)
-			testutil.AssertProtoEqual(t, &session.OAuthToken{
-				AccessToken:  "access-token",
-				RefreshToken: "refresh-token",
-				ExpiresAt:    &timestamppb.Timestamp{Seconds: 1721965190},
-			}, s.OauthToken)
-			testutil.AssertProtoEqual(t, &session.IDToken{
-				Issuer:    "https://issuer.example.com",
-				Subject:   "id-token-user-id",
-				IssuedAt:  &timestamppb.Timestamp{Seconds: 1721965070},
-				ExpiresAt: &timestamppb.Timestamp{Seconds: 1721965670},
-				Raw:       claims.RawIDToken,
-			}, s.IdToken)
+			testutil.AssertProtoEqual(t, &session.Session{
+				Id:         "session-id",
+				UserId:     "user-id",
+				IssuedAt:   timestamppb.New(time.Unix(1721965100, 0)),
+				AccessedAt: timestamppb.New(time.Unix(1721965100, 0)),
+				ExpiresAt:  timestamppb.New(time.Unix(1721979500, 0)),
+				Audience:   []string{"route.example.com"},
+				Claims:     expectedClaims,
+				IdToken: &session.IDToken{
+					Issuer:    "https://issuer.example.com",
+					Subject:   "id-token-user-id",
+					IssuedAt:  &timestamppb.Timestamp{Seconds: 1721965070},
+					ExpiresAt: &timestamppb.Timestamp{Seconds: 1721965670},
+					Raw:       claims.RawIDToken,
+				},
+				OauthToken: &session.OAuthToken{
+					AccessToken:  "access-token",
+					RefreshToken: "refresh-token",
+					ExpiresAt:    &timestamppb.Timestamp{Seconds: 1721965190},
+				},
+			}, &s)
 
 			return &databroker.PutResponse{
 				ServerVersion: 2222,
 				Records: []*databroker.Record{{
 					Version: 1111,
-					Type:    "type.googleapis.com/user.User",
-					Id:      "user-id",
-					Data: protoutil.NewAny(&user.User{
-						Id: "user-id",
-					}),
+					Type:    "type.googleapis.com/session.Session",
+					Id:      "session-id",
+					Data:    protoutil.NewAny(&s),
 				}},
 			}, nil
 		})
