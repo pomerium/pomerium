@@ -114,7 +114,6 @@ func (x *Session) Validate() error {
 	for name, expiresAt := range map[string]*timestamppb.Timestamp{
 		"session":      x.GetExpiresAt(),
 		"access_token": x.GetOauthToken().GetExpiresAt(),
-		"id_token":     x.GetIdToken().GetExpiresAt(),
 	} {
 		if expiresAt.AsTime().Year() > 1970 && now.After(expiresAt.AsTime()) {
 			return fmt.Errorf("%w: %s expired at %s", ErrSessionExpired, name, expiresAt.AsTime())

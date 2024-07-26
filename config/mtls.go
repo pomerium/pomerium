@@ -51,6 +51,10 @@ const (
 
 	// SANTypeURI represents a URI.
 	SANTypeURI SANType = "uri"
+
+	// SANTypeUserPrincipalName represents a UserPrincipalName (otherName with
+	// type ID 1.3.6.1.4.1.311.20.2.3).
+	SANTypeUserPrincipalName = "user_principal_name"
 )
 
 // DownstreamMTLSSettings specify the downstream client certificate requirements.
@@ -259,6 +263,7 @@ func (s *SANMatcher) ToEnvoyProto() *envoy_tls.SubjectAltNameMatcher {
 				},
 			},
 		},
+		Oid: s.oid(),
 	}
 }
 
@@ -272,7 +277,18 @@ func (s *SANMatcher) envoyType() envoy_tls.SubjectAltNameMatcher_SanType {
 		return envoy_tls.SubjectAltNameMatcher_IP_ADDRESS
 	case SANTypeURI:
 		return envoy_tls.SubjectAltNameMatcher_URI
+	case SANTypeUserPrincipalName:
+		return envoy_tls.SubjectAltNameMatcher_OTHER_NAME
 	default:
 		return envoy_tls.SubjectAltNameMatcher_SAN_TYPE_UNSPECIFIED
+	}
+}
+
+func (s *SANMatcher) oid() string {
+	switch s.Type {
+	case SANTypeUserPrincipalName:
+		return "1.3.6.1.4.1.311.20.2.3"
+	default:
+		return ""
 	}
 }
