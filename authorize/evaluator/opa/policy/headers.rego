@@ -86,7 +86,7 @@ jwt_payload_jti := uuid.rfc4122("jti")
 
 jwt_payload_iat := now_s
 
-jwt_payload_exp := now_s + (5*60) # 5 minutes from now
+jwt_payload_exp := now_s + (5 * 60) # 5 minutes from now
 
 jwt_payload_sub := v if {
 	v = session.user_id
@@ -152,17 +152,17 @@ additional_jwt_claims := [[k, v] |
 
 jwt_claims := array.concat(base_jwt_claims, additional_jwt_claims)
 
-non_nil_jwt_claims := {key: value |
+jwt_claims_object[k] := v if {
 	# use a comprehension over an array to remove nil values
-	[key, value] := jwt_claims[_]
-	value != null
+	some [k, v] in jwt_claims
+	v != null
 }
 
-jwt_payload := non_nil_jwt_claims if {
+jwt_payload := jwt_claims_object if {
 	input.pass_identity_headers
-} else := { key: value |
-	[key,value] := non_nil_jwt_claims[_]
-	key in ["iss","aud","jti","iat","exp"]
+} else := {k: v |
+	some k, v in jwt_claims_object
+	k in {"iss", "aud", "jti", "iat", "exp"}
 }
 
 signed_jwt := io.jwt.encode_sign(jwt_headers, jwt_payload, data.signing_key)
