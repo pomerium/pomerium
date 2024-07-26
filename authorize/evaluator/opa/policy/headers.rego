@@ -13,6 +13,7 @@ import rego.v1
 #     id: string
 #   to_audience: string
 #   set_request_headers: map[string]string
+#   pass_identity_headers: boolean
 #
 # data:
 #   jwt_claim_headers: map[string]string
@@ -151,10 +152,17 @@ additional_jwt_claims := [[k, v] |
 
 jwt_claims := array.concat(base_jwt_claims, additional_jwt_claims)
 
-jwt_payload := {key: value |
+non_nil_jwt_claims := {key: value |
 	# use a comprehension over an array to remove nil values
 	[key, value] := jwt_claims[_]
 	value != null
+}
+
+jwt_payload := non_nil_jwt_claims if {
+	input.pass_identity_headers
+} else := { key: value |
+	[key,value] := non_nil_jwt_claims[_]
+	key in ["iss","aud","jti","iat","exp"]
 }
 
 signed_jwt := io.jwt.encode_sign(jwt_headers, jwt_payload, data.signing_key)

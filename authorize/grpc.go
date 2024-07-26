@@ -108,6 +108,7 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 			getClientCertificateInfo(ctx, clientCertMetadata),
 			attrs.GetSource().GetAddress().GetSocketAddress().GetAddress(),
 		),
+		Options: a.currentOptions.Load(),
 	}
 	if sessionState != nil {
 		req.Session = evaluator.RequestSession{

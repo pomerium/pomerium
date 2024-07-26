@@ -189,8 +189,9 @@ func TestNewPolicyEvaluator_addDefaultClientCertificateRule(t *testing.T) {
 			require.NoError(t, err)
 
 			r, err := e.Evaluate(context.Background(), &evaluator.Request{
-				Policy: &c.opts.Policies[0],
-				HTTP:   evaluator.RequestHTTP{},
+				Options: c.opts,
+				Policy:  &c.opts.Policies[0],
+				HTTP:    evaluator.RequestHTTP{},
 			})
 			require.NoError(t, err)
 			assert.Equal(t, c.expected, r.Deny)

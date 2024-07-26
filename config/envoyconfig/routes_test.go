@@ -1265,8 +1265,6 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						]
 					},
 					"requestHeadersToRemove": [
-						"x-pomerium-jwt-assertion",
-						"x-pomerium-jwt-assertion-for",
 						"x-email",
 						"x-pomerium-reproxy-policy",
 						"x-pomerium-reproxy-policy-hmac"

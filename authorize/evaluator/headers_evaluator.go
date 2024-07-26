@@ -27,10 +27,11 @@ type HeadersRequest struct {
 	Session                                   RequestSession        `json:"session"`
 	ClientCertificate                         ClientCertificateInfo `json:"client_certificate"`
 	SetRequestHeaders                         map[string]string     `json:"set_request_headers"`
+	PassIdentityHeaders                       bool                  `json:"pass_identity_headers"`
 }
 
 // NewHeadersRequestFromPolicy creates a new HeadersRequest from a policy.
-func NewHeadersRequestFromPolicy(policy *config.Policy, http RequestHTTP) *HeadersRequest {
+func NewHeadersRequestFromPolicy(options *config.Options, policy *config.Policy, http RequestHTTP) *HeadersRequest {
 	input := new(HeadersRequest)
 	input.Issuer = http.Hostname
 	if policy != nil {
@@ -43,6 +44,7 @@ func NewHeadersRequestFromPolicy(policy *config.Policy, http RequestHTTP) *Heade
 		}
 		input.ClientCertificate = http.ClientCertificate
 		input.SetRequestHeaders = policy.SetRequestHeaders
+		input.PassIdentityHeaders = policy.GetPassIdentityHeaders(options)
 	}
 	return input
 }
