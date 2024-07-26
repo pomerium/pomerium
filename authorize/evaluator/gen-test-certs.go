@@ -226,8 +226,9 @@ func main() {
 		NotAfter:    notAfter,
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		ExtraExtensions: []pkix.Extension{{
-			Id:    asn1.ObjectIdentifier{2, 5, 29, 17},
-			Value: newSANUserPrincipalName("test_device"),
+			Id:       asn1.ObjectIdentifier{2, 5, 29, 17},
+			Critical: true, // requires special handling during verification
+			Value:    newSANUserPrincipalName("test_device"),
 		}},
 	}, rootCA, rootKey)
 

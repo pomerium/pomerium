@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -138,6 +139,16 @@ func verifyClientCertificate(
 	crls map[string]*x509.RevocationList,
 	constraints ClientCertConstraints,
 ) error {
+	// If a SubjectAltName extension is:
+	//  - marked as critical, and
+	//  - contains only name types that are not recognized by the Go standard
+	//    library (i.e. no DNS, email address, IP address, or URI names)
+	// then the Go parsing code will add it to the UnhandleCriticalExtensions
+	// field of the Certificate struct. This will fail the Verify() call below.
+	// Because we support other SAN matching checks, let's avoid this behavior.
+	cert.UnhandledCriticalExtensions = slices.DeleteFunc(cert.UnhandledCriticalExtensions,
+		func(oid asn1.ObjectIdentifier) bool { return oid.Equal(oidSubjectAltName) })
+
 	chains, err := cert.Verify(x509.VerifyOptions{
 		Roots:         roots,
 		Intermediates: intermediates,
