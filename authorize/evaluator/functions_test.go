@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"encoding/asn1"
 	"regexp"
 	"testing"
 
@@ -19,133 +20,146 @@ const (
 	testCA = `
 -----BEGIN CERTIFICATE-----
 MIIBaDCCAQ6gAwIBAgICEAAwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
-ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzMwODA3MTgwMzIxWjAaMRgw
+ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzQwNzIzMTgwNzQ5WjAaMRgw
 FgYDVQQDEw9UcnVzdGVkIFJvb3QgQ0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC
-AAR2/RkzmSK6paoeTKFx1Bd52ZCg29ulJlMxFdSZT8FlmmaK9mN6KWwO+NHYObiW
-y3AQuoSTrZXlrlRW5ANvMI+io0IwQDAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/
-BAUwAwEB/zAdBgNVHQ4EFgQUJGFVU2UOvOVgaY9YcCUiunGpiCQwCgYIKoZIzj0E
-AwIDSAAwRQIhAMU5/NjpitOSbUobtjeOriPH8JRo9qy1iFyeVNAcdVvgAiAewq2A
-PhgzWTw5F9PJg++9i+xGQTqHs3ZirG27cCjvhQ==
+AAS+oiuwekZ86TUjhJQV12ZjAlt+3Zy/VkRuj7tA7wtFwEs8w77iQryIQO/DEccY
+9coUjLfWFc/V5LTsNlYTh4B8o0IwQDAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0TAQH/
+BAUwAwEB/zAdBgNVHQ4EFgQU4hTNmxqsRHUZ8Nk/m03RHo6HGyAwCgYIKoZIzj0E
+AwIDSAAwRQIhAMH+UKlJxWDdtKH7YRnhSefk/AxfjdjrDJhQKm4EUrVjAiAxxvdP
+yoEpPAq1NW/Ny9yuKE8mfRTWgu+09L3jOwDqTg==
 -----END CERTIFICATE-----
 `
 	testValidCert = `
 -----BEGIN CERTIFICATE-----
-MIIBYjCCAQigAwIBAgICEAEwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
-ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzMwODA3MTgwMzIxWjAeMRww
+MIIBYTCCAQigAwIBAgICEAEwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
+ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzQwNzIzMTgwNzQ5WjAeMRww
 GgYDVQQDExN0cnVzdGVkIGNsaWVudCBjZXJ0MFkwEwYHKoZIzj0CAQYIKoZIzj0D
-AQcDQgAEcWa1Bz6mpsLnM1VD8gtzELjzjEp9Dopp/xWScFO9qtay5SBOeX+Ftr0O
-8+/RkoKHzGgZ80gr6xQyUJL3MCwVZKM4MDYwEwYDVR0lBAwwCgYIKwYBBQUHAwIw
-HwYDVR0jBBgwFoAUJGFVU2UOvOVgaY9YcCUiunGpiCQwCgYIKoZIzj0EAwIDSAAw
-RQIgXM1ogmy0vcz4lYzji5X3In1n2GLOFNTgucFPkM0GtqgCIQCsXPs/0OjSFyDR
-FBqAm1NqDJcxq685fS9t3VfHwapcVA==
+AQcDQgAED3L4Hf7kBaa6E76kRaideTYPS+deD+T1+qwfD5amUF4h3dblJCQgDuWl
+p9WA7PzJioroP4HeUUVll8GF4Ngx/aM4MDYwEwYDVR0lBAwwCgYIKwYBBQUHAwIw
+HwYDVR0jBBgwFoAU4hTNmxqsRHUZ8Nk/m03RHo6HGyAwCgYIKoZIzj0EAwIDRwAw
+RAIgeS3o3PnBZTGSM5yFuxl+xZQwItUGOvk4TUIHbLKIh+QCIGYABXVpXyaHT1/7
+xAdvB6E8eNv4/LIbPo3OKVwzLWka
 -----END CERTIFICATE-----
 `
 	testUntrustedCert = `
 -----BEGIN CERTIFICATE-----
-MIIBZjCCAQygAwIBAgICEAEwCgYIKoZIzj0EAwIwHDEaMBgGA1UEAxMRVW50cnVz
-dGVkIFJvb3QgQ0EwIBgPMDAwMTAxMDEwMDAwMDBaFw0zMzA4MDcxODAzMjFaMCAx
+MIIBZzCCAQygAwIBAgICEAEwCgYIKoZIzj0EAwIwHDEaMBgGA1UEAxMRVW50cnVz
+dGVkIFJvb3QgQ0EwIBgPMDAwMTAxMDEwMDAwMDBaFw0zNDA3MjMxODA3NDlaMCAx
 HjAcBgNVBAMTFXVudHJ1c3RlZCBjbGllbnQgY2VydDBZMBMGByqGSM49AgEGCCqG
-SM49AwEHA0IABJxEIKqLhhMEm5XZXkT+p+hlC2TFyaW0HIZqoE9navJrAcUB8L2M
-mVQ+/wLaCznJHLeSLn46uGH5p1hoGFqOrdajODA2MBMGA1UdJQQMMAoGCCsGAQUF
-BwMCMB8GA1UdIwQYMBaAFIp2rlIiSnr33ea3cGyLsX4LEYwWMAoGCCqGSM49BAMC
-A0gAMEUCIDtJIZJDcqIYaDXhZFs0nd0nHER8IGP9n4BBFMWewAb2AiEAlQyavOxw
-iTQQxt0rXB4Ox5zWpU9q68+F9BGBkQKTsBs=
+SM49AwEHA0IABD7wlyIZI0dk81W93CPi0C9EK5oWnP9jyf6ukNSfuN2/AifVyskZ
+ZaJsC1y0x11eHQn0AKDvFZvrM5ntgtEKvTujODA2MBMGA1UdJQQMMAoGCCsGAQUF
+BwMCMB8GA1UdIwQYMBaAFCWSSHqA46gKGwIZH3RAYyds6hJ0MAoGCCqGSM49BAMC
+A0kAMEYCIQDeg+lSgmzg5W85HpMjnfcbDxOwTFAuG2dBZIFm4MeZRAIhAOhReIDb
+B0ktSaPCNQOn1m0PMi4OxnSrClWV0pQzZwiM
 -----END CERTIFICATE-----
 `
 	testRevokedCert = `
 -----BEGIN CERTIFICATE-----
-MIIBYjCCAQigAwIBAgICEAIwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
-ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzMwODA3MTgwMzIxWjAeMRww
+MIIBYzCCAQigAwIBAgICEAIwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
+ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzQwNzIzMTgwNzQ5WjAeMRww
 GgYDVQQDExNyZXZva2VkIGNsaWVudCBjZXJ0MFkwEwYHKoZIzj0CAQYIKoZIzj0D
-AQcDQgAEcnoO4EM72C7xL31RE9e6m9YJYyF6E4JloASECd8mdiXPlMXIjq8MZHB5
-28mFAVQNE7erAtBftID1SbuY4IpXxqM4MDYwEwYDVR0lBAwwCgYIKwYBBQUHAwIw
-HwYDVR0jBBgwFoAUJGFVU2UOvOVgaY9YcCUiunGpiCQwCgYIKoZIzj0EAwIDSAAw
-RQIgUUETSO064YIu+VKnyRb0yBnNTjXLy3TvGuYgZI8VX0YCIQDd0gyNEC5YLvRN
-njxfnLoimp+TzTVzvsCokUbNSNRKJA==
+AQcDQgAE5sRZhAupCq3X0KWDNRfJh0H0jOGNOQawaKFejCQQ0t2kXCvfkvcTlGWo
+Cjlgtc885wLI5n0KPG5ugN1Zk7nrlqM4MDYwEwYDVR0lBAwwCgYIKwYBBQUHAwIw
+HwYDVR0jBBgwFoAU4hTNmxqsRHUZ8Nk/m03RHo6HGyAwCgYIKoZIzj0EAwIDSQAw
+RgIhAIzYBLOWFTLdWvf//svgjUAtjW51/qvuR+oUQSpyJEs7AiEAlmGwYPnUpVah
+1ri42dcuvYe6u+E7yWQOvF9MRVBQFrI=
 -----END CERTIFICATE-----
 `
 	testCRL = `
 -----BEGIN X509 CRL-----
 MIHeMIGFAgEBMAoGCCqGSM49BAMCMBoxGDAWBgNVBAMTD1RydXN0ZWQgUm9vdCBD
-QRgPMDAwMTAxMDEwMDAwMDBaMBUwEwICEAIXDTIzMDgxMDE4MDMyMVqgMDAuMB8G
-A1UdIwQYMBaAFCRhVVNlDrzlYGmPWHAlIrpxqYgkMAsGA1UdFAQEAgIgADAKBggq
-hkjOPQQDAgNIADBFAiEAumtTtjiQt1VsbsEnyr+xbpK0KmzKvkpxIVgE1M9CND0C
-IA8zx5clcaGIT5xRnBLZW7RwA37IOmB+7zjAuJQpmKKp
+QRgPMDAwMTAxMDEwMDAwMDBaMBUwEwICEAIXDTI0MDcyNTE4MDc0OVqgMDAuMB8G
+A1UdIwQYMBaAFOIUzZsarER1GfDZP5tN0R6OhxsgMAsGA1UdFAQEAgIgADAKBggq
+hkjOPQQDAgNIADBFAiAMtFj+hNOleIXozxi6QJJrRtS/7LyYrDuRju/CKvbxhwIh
+AKXWklJEPCyzzhIt4ETiesXhMu8UUngRhuWwGLFQoyJH
 -----END X509 CRL-----
 `
 	testIntermediateCA = `
 -----BEGIN CERTIFICATE-----
 MIIBkTCCATegAwIBAgICEAMwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
-ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzMwODA3MTgwMzIxWjAiMSAw
+ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzQwNzIzMTgwNzQ5WjAiMSAw
 HgYDVQQDExdUcnVzdGVkIEludGVybWVkaWF0ZSBDQTBZMBMGByqGSM49AgEGCCqG
-SM49AwEHA0IABMY+zxL/2dNORuha3uVVOXZYIkTpa9V8N9UVrM15HOHkrdLlz1qk
-4wbePkkoGtNRzoayb0iZqeA4YjOxqyPG8emjYzBhMA4GA1UdDwEB/wQEAwIBBjAP
-BgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBQpGNmcLLM3vHiOADYGPDQL8AhkyDAf
-BgNVHSMEGDAWgBQkYVVTZQ685WBpj1hwJSK6camIJDAKBggqhkjOPQQDAgNIADBF
-AiEAnR6xrk7OCk91ymtzU+duZXDqDq35w0oO+MM8nqpac4YCIED+6c9dJKvRCc/C
-nP8PMxRaUsbQet1woE7Fckn5tK4N
+SM49AwEHA0IABCSif6O54Y74VpVNMHl37iECM1RKCjzJgu7a3CE2O8W7IdO3vQVT
+X4FTcGjzR+WaQNdssuAJ8ch5lxDbOQDPT4WjYzBhMA4GA1UdDwEB/wQEAwIBBjAP
+BgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBTlu+78yKKKOakqZzrIgHoWLRMc/TAf
+BgNVHSMEGDAWgBTiFM2bGqxEdRnw2T+bTdEejocbIDAKBggqhkjOPQQDAgNIADBF
+AiB7bkMezoRqrjFzmQNzZ2smcrmKJ2ePrfNe3xFyWgQyWwIhAIIMAN2jg39P27mn
+r0/T4PhfiLBY8naJw7t3bW6siCaU
 -----END CERTIFICATE-----
 `
 	testValidIntermediateCert = `
 -----BEGIN CERTIFICATE-----
 MIIBdTCCARqgAwIBAgICEAAwCgYIKoZIzj0EAwIwIjEgMB4GA1UEAxMXVHJ1c3Rl
-ZCBJbnRlcm1lZGlhdGUgQ0EwIBgPMDAwMTAxMDEwMDAwMDBaFw0zMzA4MDcxODAz
-MjFaMCgxJjAkBgNVBAMTHWNsaWVudCBjZXJ0IGZyb20gaW50ZXJtZWRpYXRlMFkw
-EwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5SVyYjNRuuFXGjEmCcuVtMq7e2bmndPK
-bRJ7lJ5cc0kZSoNJes5wXOtGRFbx3+admRHq+w1XEBXOe+yRUB8kdKM4MDYwEwYD
-VR0lBAwwCgYIKwYBBQUHAwIwHwYDVR0jBBgwFoAUKRjZnCyzN7x4jgA2Bjw0C/AI
-ZMgwCgYIKoZIzj0EAwIDSQAwRgIhAMj0O2wDRLoxGIPUDOmUfYxmxglOecQhSkWO
-NBtItSxmAiEAy0XCzvpL6XOZU3zxyCjTdJQa2RiC6YnypMaCaETzCaU=
+ZCBJbnRlcm1lZGlhdGUgQ0EwIBgPMDAwMTAxMDEwMDAwMDBaFw0zNDA3MjMxODA3
+NDlaMCgxJjAkBgNVBAMTHWNsaWVudCBjZXJ0IGZyb20gaW50ZXJtZWRpYXRlMFkw
+EwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErSXc3EmG1iX8r1zra1v+wOFlX3nBTj3N
+g03l5a5BvAclZ4jRLyU25RAT+LoPZwCag526xCsXQ2rctamWYuftvqM4MDYwEwYD
+VR0lBAwwCgYIKwYBBQUHAwIwHwYDVR0jBBgwFoAU5bvu/MiiijmpKmc6yIB6Fi0T
+HP0wCgYIKoZIzj0EAwIDSQAwRgIhAOmeRu2zAnCYHUhdBlH1/+K6pHysCJJHboSO
+781NdfTkAiEA/ABjaj2sNNUFDCl/Ayqu7ufv+o5/F6mx3tMdnWZ0rlQ=
 -----END CERTIFICATE-----
 `
 	testValidCertWithDNSSANs = `
 -----BEGIN CERTIFICATE-----
-MIIBlTCCATugAwIBAgICEAQwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
-ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzMwODA3MTgwMzIxWjAYMRYw
+MIIBljCCATugAwIBAgICEAQwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
+ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzQwNzIzMTgwNzQ5WjAYMRYw
 FAYDVQQDEw1jbGllbnQgY2VydCAzMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE
-LFai39b7TYauNjg4M58f0qY6jTC7xEOhE84wTTcevZvH/t2Y7U0BBNGkvpb14yxh
-60vrRKZA9t9G6ZvWKcY/BKNxMG8wEwYDVR0lBAwwCgYIKwYBBQUHAwIwHwYDVR0j
-BBgwFoAUJGFVU2UOvOVgaY9YcCUiunGpiCQwNwYDVR0RBDAwLoIVYS5jbGllbnQz
+n3orlbZpOzCKyYbyFwUWO/hYcI+uldw2Fczdas+9g02E5mtnZpprxFnnzMipF6X9
+PIOVTWEPJ7LRNIN2Bt8zLKNxMG8wEwYDVR0lBAwwCgYIKwYBBQUHAwIwHwYDVR0j
+BBgwFoAU4hTNmxqsRHUZ8Nk/m03RHo6HGyAwNwYDVR0RBDAwLoIVYS5jbGllbnQz
 LmV4YW1wbGUuY29tghViLmNsaWVudDMuZXhhbXBsZS5jb20wCgYIKoZIzj0EAwID
-SAAwRQIgBSw8MsKWPPcpGtuVpNJonTEthIOjIGXswxiYG49y2BECIQC5D1DCX/lY
-KSwF4aapPx4906VujTL+Ehj8L5ImUYcPbA==
+SQAwRgIhAI36+egFjZ3NtLlT6xcSpTJtd6dOw/uBXxXnIiYfgoV6AiEA8Eazupyl
+xiUuFh7lEsr293NN0G7IW6tJW36bWTxYOf8=
 -----END CERTIFICATE-----
 `
 	testValidCertWithEmailSAN = `
 -----BEGIN CERTIFICATE-----
-MIIBezCCASKgAwIBAgICEAUwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
-ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzMwODA3MTgwMzIxWjAYMRYw
+MIIBfDCCASKgAwIBAgICEAUwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
+ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzQwNzIzMTgwNzQ5WjAYMRYw
 FAYDVQQDEw1jbGllbnQgY2VydCA0MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE
-WvX8BnCrzUSpLrYka8ed+bz6/HoXUvq5nRqysKe0nGYSsXKRjxLdCG8AKsoGIQIv
-KOQScf/4TJUNIUY4XOsFI6NYMFYwEwYDVR0lBAwwCgYIKwYBBQUHAwIwHwYDVR0j
-BBgwFoAUJGFVU2UOvOVgaY9YcCUiunGpiCQwHgYDVR0RBBcwFYETY2xpZW50NEBl
-eGFtcGxlLmNvbTAKBggqhkjOPQQDAgNHADBEAiAMYGTjUBqgnai8UL3B/iQkCkMb
-xgCC1ZYdZaJ1RBwFfgIgIhjQZ2s6dTaah/LzYJ9ZwMvSA86XQvzTVSuT6s+RJw0=
+IIdyrCKf7142FXGd1ZU+eKkUu73heahK7iWOpCC3gMks12KKnpkcrt5ezQ1LM51P
+CI/yWYdmLPHgmzychJIiF6NYMFYwEwYDVR0lBAwwCgYIKwYBBQUHAwIwHwYDVR0j
+BBgwFoAU4hTNmxqsRHUZ8Nk/m03RHo6HGyAwHgYDVR0RBBcwFYETY2xpZW50NEBl
+eGFtcGxlLmNvbTAKBggqhkjOPQQDAgNIADBFAiBeMogtQTVB9vi+snua/DfcKu18
+puJx/UGqXfwpYMObiwIhANwPL6FgGC208+LVca6r09BCh7QsoJCwCdAMTd5V7Pup
 -----END CERTIFICATE-----
 `
 	testValidCertWithIPSAN = `
 -----BEGIN CERTIFICATE-----
 MIIBbTCCAROgAwIBAgICEAYwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
-ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzMwODA3MTgwMzIxWjAYMRYw
+ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzQwNzIzMTgwNzQ5WjAYMRYw
 FAYDVQQDEw1jbGllbnQgY2VydCA1MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE
-6+9BE+aomrR2Mdnx4iFY63t0hsVD6rYaHBW1b9roFQX6Cor4YeUfkEEF4LrGeAyb
-wcqb6G1ExgNyjEh10Ai1M6NJMEcwEwYDVR0lBAwwCgYIKwYBBQUHAwIwHwYDVR0j
-BBgwFoAUJGFVU2UOvOVgaY9YcCUiunGpiCQwDwYDVR0RBAgwBocEwKgKCjAKBggq
-hkjOPQQDAgNIADBFAiEA/mq32YZZAacOH/P/wjvfD1n74DD/GkhW4kfS72Z0oGQC
-IAQ+L8E78JOLaPWXiL7WFpVrb0hOHkV2m9Qw4GB41mUN
+9JayRtfR5I0U6pk/FMf+LwdAY1+toL0CBwgj6UOgRPQKj2osSwJvGSQg3OBMyoMW
+48UoykPMuEx9RgJAdG2rLaNJMEcwEwYDVR0lBAwwCgYIKwYBBQUHAwIwHwYDVR0j
+BBgwFoAU4hTNmxqsRHUZ8Nk/m03RHo6HGyAwDwYDVR0RBAgwBocEwKgKCjAKBggq
+hkjOPQQDAgNIADBFAiBxtRMWbiwa0kSftQ7KWymaEQzTNwa4DlanaJFitHX7wwIh
+ALbkwkvT/egNexdQIL8SpP0owUiXvuB/OkmY49XQigub
 -----END CERTIFICATE-----
 `
 	testValidCertWithURISAN = `
 -----BEGIN CERTIFICATE-----
 MIIBhTCCASugAwIBAgICEAcwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
-ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzMwODA3MTgwMzIxWjAYMRYw
+ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzQwNzIzMTgwNzQ5WjAYMRYw
 FAYDVQQDEw1jbGllbnQgY2VydCA2MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE
-7mHladapSY5PlVYToL1dHr0tJPGe5XVP8DSZJz+WWyS9tWsuEsK6P5yeZrbWASOX
-foH7iVIdx3DMyukGsvMX+KNhMF8wEwYDVR0lBAwwCgYIKwYBBQUHAwIwHwYDVR0j
-BBgwFoAUJGFVU2UOvOVgaY9YcCUiunGpiCQwJwYDVR0RBCAwHoYcc3BpZmZlOi8v
-ZXhhbXBsZS5jb20vZm9vL2JhcjAKBggqhkjOPQQDAgNIADBFAiAhzElKeGJzp2zP
-GOTUEy0f6b2tvMYGDLQxCcp4bc4QuQIhAPwX4Y3Cr7uazQlbwL6D51y9NCcDyj3D
-Z18vZNxm9ZR1
+vpHXNca1VPMtp5x3cAgAUjfGEkrJ3oaQmRvbPnbOuxP91GSh1qFDOcnQlLQSI9WV
+HbaWsCYEQ/cEvCL45/PDqqNhMF8wEwYDVR0lBAwwCgYIKwYBBQUHAwIwHwYDVR0j
+BBgwFoAU4hTNmxqsRHUZ8Nk/m03RHo6HGyAwJwYDVR0RBCAwHoYcc3BpZmZlOi8v
+ZXhhbXBsZS5jb20vZm9vL2JhcjAKBggqhkjOPQQDAgNIADBFAiEA0uz8g6/A+9p9
+AnNH20Sk6UiXwuKvy1pxk7TeMd02o6ACIBMsLVs+WIWZLht52+FEUJbpNXSF+IY+
+e4rx7Ac0KxRL
+-----END CERTIFICATE-----
+`
+	testValidCertWithUPNSAN = `
+-----BEGIN CERTIFICATE-----
+MIIBiDCCAS2gAwIBAgICEAcwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAxMPVHJ1c3Rl
+ZCBSb290IENBMCAYDzAwMDEwMTAxMDAwMDAwWhcNMzQwNzIzMTgwNzQ5WjAYMRYw
+FAYDVQQDEw1jbGllbnQgY2VydCA3MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE
+QfxgDFsW27yUCmT990CwIVQexBdQ+dYRWuOHCnC+dGYESUcU6913hIEZEOwuqvwm
+eKCX+NOZ+kXiGSxqD+F7C6NjMGEwEwYDVR0lBAwwCgYIKwYBBQUHAwIwHwYDVR0j
+BBgwFoAU4hTNmxqsRHUZ8Nk/m03RHo6HGyAwKQYDVR0RAQH/BB8wHaAbBgorBgEE
+AYI3FAIDoA0MC3Rlc3RfZGV2aWNlMAoGCCqGSM49BAMCA0kAMEYCIQDw8sM7Eu5F
+hTgx7XMlMsIlUTs0/n1WrMlr5RcdPlG9tgIhAK9o4Dtlr2bqW7w9RSidNLT6loCJ
+dgwikvJkMOfcuexx
 -----END CERTIFICATE-----
 `
 )
@@ -366,6 +380,25 @@ func Test_isValidClientCertificate(t *testing.T) {
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 	})
+	t.Run("UserPrincipalName SAN", func(t *testing.T) {
+		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+			Presented: true,
+			Leaf:      testValidCertWithUPNSAN,
+		}, ClientCertConstraints{SANMatchers: SANMatchers{
+			config.SANTypeUserPrincipalName: regexp.MustCompile(`^test_device$`),
+		}})
+		assert.NoError(t, err, "should not return an error")
+		assert.True(t, valid, "should return true")
+
+		valid, err = isValidClientCertificate(testCA, "", ClientCertificateInfo{
+			Presented: true,
+			Leaf:      testValidCertWithURISAN,
+		}, ClientCertConstraints{SANMatchers: SANMatchers{
+			config.SANTypeDNS: regexp.MustCompile(`^test-device$`), // mismatched type
+		}})
+		assert.NoError(t, err, "should not return an error")
+		assert.False(t, valid, "should return false")
+	})
 }
 
 func TestClientCertConstraintsFromConfig(t *testing.T) {
@@ -450,5 +483,149 @@ func TestClientCertConstraintsFromConfig(t *testing.T) {
 		}
 		_, err := ClientCertConstraintsFromConfig(&s)
 		require.Error(t, err)
+	})
+}
+
+func TestGetUserPrincipalNamesFromSAN(t *testing.T) {
+	type OtherName[T any] struct {
+		TypeID asn1.ObjectIdentifier
+		Value  T `asn1:"tag:0"`
+	}
+	type PrintableString struct {
+		Value string
+	}
+	type IA5String struct {
+		Value string `asn1:"ia5"`
+	}
+	type UTF8String struct {
+		Value string `asn1:"utf8"`
+	}
+	upn := func(name string) OtherName[UTF8String] {
+		return OtherName[UTF8String]{
+			TypeID: asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 20, 2, 3},
+			Value:  UTF8String{name},
+		}
+	}
+
+	t.Run("OneUserPrincipalName", func(t *testing.T) {
+		type SAN struct {
+			UPN OtherName[UTF8String] `asn1:"tag:0"`
+		}
+		san, err := asn1.Marshal(SAN{upn("hello")})
+		require.NoError(t, err)
+
+		names, err := getUserPrincipalNamesFromSAN(san)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"hello"}, names)
+	})
+	t.Run("MultipleUserPrincipalNames", func(t *testing.T) {
+		type SAN struct {
+			UPN1 OtherName[UTF8String] `asn1:"tag:0"`
+			UPN2 OtherName[UTF8String] `asn1:"tag:0"`
+			UPN3 OtherName[UTF8String] `asn1:"tag:0"`
+		}
+		san, err := asn1.Marshal(SAN{upn("foo"), upn("bar"), upn("baz")})
+		require.NoError(t, err)
+
+		names, err := getUserPrincipalNamesFromSAN(san)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"foo", "bar", "baz"}, names)
+	})
+	t.Run("NoUserPrincipalName", func(t *testing.T) {
+		type SAN struct {
+			DNS   string `asn1:"tag:2,ia5"`
+			IP    []byte `asn1:"tag:7"`
+			Email string `asn1:"tag:1,ia5"`
+		}
+		san, err := asn1.Marshal(SAN{
+			"localhost",
+			[]byte{127, 0, 0, 1},
+			"me@example.com",
+		})
+		require.NoError(t, err)
+
+		names, err := getUserPrincipalNamesFromSAN(san)
+		assert.NoError(t, err)
+		assert.Empty(t, names)
+	})
+	t.Run("MultipleNameTypes", func(t *testing.T) {
+		type SAN struct {
+			DNS1   string                     `asn1:"tag:2,ia5"`
+			DNS2   string                     `asn1:"tag:2,ia5"`
+			Other1 OtherName[IA5String]       `asn1:"tag:0"`
+			Other2 OtherName[UTF8String]      `asn1:"tag:0"`
+			Other3 OtherName[PrintableString] `asn1:"tag:0"`
+		}
+		san, err := asn1.Marshal(SAN{
+			"example.com",
+			"example.org",
+			OtherName[IA5String]{
+				TypeID: asn1.ObjectIdentifier{1, 1, 1, 1},
+				Value:  IA5String{"IA5String"},
+			},
+			upn("UserPrincipalName"),
+			OtherName[PrintableString]{
+				TypeID: asn1.ObjectIdentifier{1, 1, 1, 2},
+				Value:  PrintableString{"PrintableString"},
+			},
+		})
+		require.NoError(t, err)
+
+		names, err := getUserPrincipalNamesFromSAN(san)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"UserPrincipalName"}, names)
+	})
+	t.Run("UserPrincipalNameWrongValueType", func(t *testing.T) {
+		type SAN struct {
+			UPN OtherName[PrintableString] `asn1:"tag:0"`
+		}
+		san, err := asn1.Marshal(SAN{
+			OtherName[PrintableString]{
+				TypeID: asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 20, 2, 3},
+				Value:  PrintableString{"PrintableString"},
+			},
+		})
+		require.NoError(t, err)
+
+		names, err := getUserPrincipalNamesFromSAN(san)
+		assert.ErrorContains(t, err, "expected UTF8String")
+		assert.Empty(t, names)
+	})
+	t.Run("EmptySAN", func(t *testing.T) {
+		names, err := getUserPrincipalNamesFromSAN(nil)
+		assert.ErrorContains(t, err, "error reading GeneralNames sequence")
+		assert.Empty(t, names)
+	})
+	t.Run("TruncatedGeneralName", func(t *testing.T) {
+		san := []byte{0x30, 0x02, 0x82, 0x05 /* 5 more bytes expected */}
+		names, err := getUserPrincipalNamesFromSAN(san)
+		assert.ErrorContains(t, err, "error reading GeneralName")
+		assert.Empty(t, names)
+	})
+	t.Run("OtherNameWrongTypeIDType", func(t *testing.T) {
+		san := []byte{0x30, 0x06, 0xa0, 0x04, 0x02 /* type Integer, not OID */, 0x02, 0x46, 0x01}
+		names, err := getUserPrincipalNamesFromSAN(san)
+		assert.ErrorContains(t, err, "error reading OtherName type ID")
+		assert.Empty(t, names)
+	})
+	t.Run("UserPrincipalNameWrongValueTag", func(t *testing.T) {
+		type BadOtherName struct {
+			TypeID asn1.ObjectIdentifier
+			Value  UTF8String `asn1:"tag:1"` // instead of tag 0
+		}
+		type SAN struct {
+			UPN BadOtherName `asn1:"tag:0"`
+		}
+		san, err := asn1.Marshal(SAN{
+			UPN: BadOtherName{
+				TypeID: oidUserPrincipalName,
+				Value:  UTF8String{"hello"},
+			},
+		})
+		require.NoError(t, err)
+
+		names, err := getUserPrincipalNamesFromSAN(san)
+		assert.ErrorContains(t, err, "error reading UserPrincipalName value")
+		assert.Empty(t, names)
 	})
 }
