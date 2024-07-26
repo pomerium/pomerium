@@ -12,12 +12,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
@@ -25,11 +27,13 @@ import (
 	"github.com/pomerium/pomerium/internal/encoding/mock"
 	"github.com/pomerium/pomerium/internal/sessions"
 	mstore "github.com/pomerium/pomerium/internal/sessions/mock"
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker/mock_databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
@@ -355,6 +359,118 @@ func TestStatefulRevokeSession(t *testing.T) {
 		RefreshToken: "[oauth-refresh-token]",
 		Expiry:       tokenExpiry,
 	}, authenticator.revokedToken)
+}
+
+func TestPersistSession(t *testing.T) {
+	opts := config.NewDefaultOptions()
+	flow, err := NewStateful(&config.Config{Options: opts}, nil)
+	require.NoError(t, err)
+
+	ctrl := gomock.NewController(t)
+	client := mock_databroker.NewMockDataBrokerServiceClient(ctrl)
+	flow.dataBrokerClient = client
+
+	ctx := context.Background()
+
+	client.EXPECT().Get(ctx, protoEqualMatcher{
+		&databroker.GetRequest{
+			Type: "type.googleapis.com/user.User",
+			Id:   "user-id",
+		},
+	}).Return(&databroker.GetResponse{}, nil)
+
+	// PersistSession should copy data from the sessions.State,
+	// identity.SessionClaims, and oauth2.Token into a Session and User record.
+	sessionState := &sessions.State{
+		ID:       "session-id",
+		Subject:  "user-id",
+		Audience: jwt.Audience{"route.example.com"},
+	}
+	claims := identity.SessionClaims{
+		Claims: map[string]any{
+			"name":  "John Doe",
+			"email": "john.doe@example.com",
+		},
+		RawIDToken: "e30." + base64.RawURLEncoding.EncodeToString([]byte(`{
+			"iss": "https://issuer.example.com",
+			"sub": "id-token-user-id",
+			"iat": 1721965070,
+			"exp": 1721965670
+		}`)) + ".fake-signature",
+	}
+	accessToken := &oauth2.Token{
+		AccessToken:  "access-token",
+		RefreshToken: "refresh-token",
+		Expiry:       time.Unix(1721965190, 0),
+	}
+
+	expectedClaims := map[string]*structpb.ListValue{
+		"name":  {Values: []*structpb.Value{structpb.NewStringValue("John Doe")}},
+		"email": {Values: []*structpb.Value{structpb.NewStringValue("john.doe@example.com")}},
+	}
+
+	client.EXPECT().Put(ctx, gomock.Any()).DoAndReturn(
+		func(_ context.Context, r *databroker.PutRequest, _ ...grpc.CallOption) (*databroker.PutResponse, error) {
+			require.Len(t, r.Records, 1)
+			record := r.GetRecord()
+			assert.Equal(t, "type.googleapis.com/user.User", record.Type)
+			assert.Equal(t, "user-id", record.Id)
+			assert.Nil(t, record.DeletedAt)
+
+			// Verify that claims data is populated into the User record.
+			var u user.User
+			record.GetData().UnmarshalTo(&u)
+			assert.Equal(t, "user-id", u.Id)
+			assert.Equal(t, expectedClaims, u.Claims)
+
+			// A real response would include the record, but here we can skip it as it isn't used.
+			return &databroker.PutResponse{}, nil
+		})
+
+	client.EXPECT().Put(ctx, gomock.Any()).DoAndReturn(
+		func(_ context.Context, r *databroker.PutRequest, _ ...grpc.CallOption) (*databroker.PutResponse, error) {
+			require.Len(t, r.Records, 1)
+			record := r.GetRecord()
+			assert.Equal(t, "type.googleapis.com/session.Session", record.Type)
+			assert.Equal(t, "session-id", record.Id)
+			assert.Nil(t, record.DeletedAt)
+
+			var s session.Session
+			record.GetData().UnmarshalTo(&s)
+			assert.Equal(t, "session-id", s.Id)
+			assert.Equal(t, "user-id", s.UserId)
+			assert.Equal(t, []string{"route.example.com"}, s.Audience)
+			assert.Equal(t, expectedClaims, s.Claims)
+			testutil.AssertProtoEqual(t, &session.OAuthToken{
+				AccessToken:  "access-token",
+				RefreshToken: "refresh-token",
+				ExpiresAt:    &timestamppb.Timestamp{Seconds: 1721965190},
+			}, s.OauthToken)
+			testutil.AssertProtoEqual(t, &session.IDToken{
+				Issuer:    "https://issuer.example.com",
+				Subject:   "id-token-user-id",
+				IssuedAt:  &timestamppb.Timestamp{Seconds: 1721965070},
+				ExpiresAt: &timestamppb.Timestamp{Seconds: 1721965670},
+				Raw:       claims.RawIDToken,
+			}, s.IdToken)
+
+			return &databroker.PutResponse{
+				ServerVersion: 2222,
+				Records: []*databroker.Record{{
+					Version: 1111,
+					Type:    "type.googleapis.com/user.User",
+					Id:      "user-id",
+					Data: protoutil.NewAny(&user.User{
+						Id: "user-id",
+					}),
+				}},
+			}, nil
+		})
+
+	err = flow.PersistSession(ctx, nil, sessionState, claims, accessToken)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1111), sessionState.DatabrokerRecordVersion)
+	assert.Equal(t, uint64(2222), sessionState.DatabrokerServerVersion)
 }
 
 // protoEqualMatcher implements gomock.Matcher using proto.Equal.
