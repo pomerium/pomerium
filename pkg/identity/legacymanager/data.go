@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/google/btree"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -108,32 +107,11 @@ func (s *Session) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if s.Session.IdToken == nil {
-		s.Session.IdToken = new(session.IDToken)
-	}
-
-	if iss, ok := raw["iss"]; ok {
-		_ = json.Unmarshal(iss, &s.Session.IdToken.Issuer)
-		delete(raw, "iss")
-	}
-	if sub, ok := raw["sub"]; ok {
-		_ = json.Unmarshal(sub, &s.Session.IdToken.Subject)
-		delete(raw, "sub")
-	}
-	if exp, ok := raw["exp"]; ok {
-		var secs int64
-		if err := json.Unmarshal(exp, &secs); err == nil {
-			s.Session.IdToken.ExpiresAt = timestamppb.New(time.Unix(secs, 0))
-		}
-		delete(raw, "exp")
-	}
-	if iat, ok := raw["iat"]; ok {
-		var secs int64
-		if err := json.Unmarshal(iat, &secs); err == nil {
-			s.Session.IdToken.IssuedAt = timestamppb.New(time.Unix(secs, 0))
-		}
-		delete(raw, "iat")
-	}
+	// To preserve existing behavior: filter out some claims not related to user info.
+	delete(raw, "iss")
+	delete(raw, "sub")
+	delete(raw, "exp")
+	delete(raw, "iat")
 
 	s.AddClaims(identity.NewClaimsFromRaw(raw).Flatten())
 

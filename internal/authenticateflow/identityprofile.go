@@ -152,17 +152,12 @@ func populateSessionFromProfile(s *session.Session, p *identitypb.Profile, ss *s
 	_ = json.Unmarshal(p.GetOauthToken(), oauthToken)
 
 	s.UserId = ss.UserID()
-	s.IssuedAt = timestamppb.Now()
-	s.AccessedAt = timestamppb.Now()
-	s.ExpiresAt = timestamppb.New(time.Now().Add(cookieExpire))
-	s.IdToken = &session.IDToken{
-		Issuer:    ss.Issuer,
-		Subject:   ss.Subject,
-		ExpiresAt: timestamppb.New(time.Now().Add(cookieExpire)),
-		IssuedAt:  timestamppb.Now(),
-		Raw:       string(p.GetIdToken()),
-	}
+	issuedAt := timeNow()
+	s.IssuedAt = timestamppb.New(issuedAt)
+	s.AccessedAt = timestamppb.New(issuedAt)
+	s.ExpiresAt = timestamppb.New(issuedAt.Add(cookieExpire))
 	s.OauthToken = manager.ToOAuthToken(oauthToken)
+	s.SetRawIDToken(string(p.GetIdToken()))
 	if s.Claims == nil {
 		s.Claims = make(map[string]*structpb.ListValue)
 	}

@@ -2,6 +2,8 @@ package session
 
 import (
 	context "context"
+	"encoding/base64"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -192,4 +194,48 @@ func TestSession_Validate(t *testing.T) {
 			assert.ErrorIs(t, tc.session.Validate(), tc.expect)
 		})
 	}
+}
+
+func TestParseIDToken(t *testing.T) {
+	t.Parallel()
+
+	// The empty string should parse as a nil IDToken.
+	parsed, err := ParseIDToken("")
+	require.NoError(t, err)
+	require.Nil(t, parsed)
+
+	// Exercise error handling for malformed ID tokens.
+	parsed, err = ParseIDToken("not a valid JWT")
+	require.Nil(t, parsed)
+	require.ErrorContains(t, err, "compact JWS format must have three parts")
+	parsed, err = ParseIDToken("e30.ImZvbyI.e30")
+	require.Nil(t, parsed)
+	require.ErrorContains(t, err, "cannot unmarshal string")
+
+	// Create a token with a representative set of claims.
+	claimsMap := map[string]any{
+		"iss":            "https://idp.example.com",
+		"aud":            "client-1234.idp.example.com",
+		"sub":            "user_1122334455",
+		"email":          "john.doe@example.com",
+		"email_verified": true,
+		"name":           "John Doe",
+		"iat":            1720800000,
+		"exp":            1720803600,
+	}
+	claimsJSON, err := json.Marshal(claimsMap)
+	require.NoError(t, err)
+
+	// Attach a dummy header and signature (these aren't validated) to form an example token.
+	idToken := "e30." + base64.RawURLEncoding.EncodeToString(claimsJSON) + ".e30"
+
+	parsed, err = ParseIDToken(idToken)
+	assert.NoError(t, err)
+	testutil.AssertProtoEqual(t, &IDToken{
+		Issuer:    "https://idp.example.com",
+		Subject:   "user_1122334455",
+		IssuedAt:  &timestamppb.Timestamp{Seconds: 1720800000},
+		ExpiresAt: &timestamppb.Timestamp{Seconds: 1720803600},
+		Raw:       idToken,
+	}, parsed)
 }

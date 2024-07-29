@@ -175,21 +175,15 @@ func (s *Stateful) PersistSession(
 	claims identity.SessionClaims,
 	accessToken *oauth2.Token,
 ) error {
-	sessionExpiry := timestamppb.New(time.Now().Add(s.sessionDuration))
-	idTokenIssuedAt := timestamppb.New(sessionState.IssuedAt.Time())
+	now := timeNow()
+	sessionExpiry := timestamppb.New(now.Add(s.sessionDuration))
 
 	sess := &session.Session{
 		Id:         sessionState.ID,
 		UserId:     sessionState.UserID(),
-		IssuedAt:   timestamppb.Now(),
-		AccessedAt: timestamppb.Now(),
+		IssuedAt:   timestamppb.New(now),
+		AccessedAt: timestamppb.New(now),
 		ExpiresAt:  sessionExpiry,
-		IdToken: &session.IDToken{
-			Issuer:    sessionState.Issuer, // todo(bdd): the issuer is not authN but the downstream IdP from the claims
-			Subject:   sessionState.Subject,
-			ExpiresAt: sessionExpiry,
-			IssuedAt:  idTokenIssuedAt,
-		},
 		OauthToken: manager.ToOAuthToken(accessToken),
 		Audience:   sessionState.Audience,
 	}
