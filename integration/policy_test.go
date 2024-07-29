@@ -559,7 +559,7 @@ func TestPomeriumJWT(t *testing.T) {
 func rawJWTPayload(t *testing.T, jwt string) map[string]any {
 	t.Helper()
 	s := strings.Split(jwt, ".")
-	require.Equal(t, 3, len(s), "unexpected JWT format")
+	require.Equal(t, 3, len(s), "unexpected JWT format: %s", jwt)
 	payload, err := base64.RawURLEncoding.DecodeString(s[1])
 	require.NoError(t, err, "JWT payload could not be decoded")
 	d := json.NewDecoder(bytes.NewReader(payload))

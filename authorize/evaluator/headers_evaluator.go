@@ -46,6 +46,10 @@ func NewHeadersRequestFromPolicy(options *config.Options, policy *config.Policy,
 		input.SetRequestHeaders = policy.SetRequestHeaders
 		input.PassIdentityHeaders = policy.GetPassIdentityHeaders(options)
 	}
+	// always pass identity headers when requesting the special /.pomerium/jwt endpoint
+	if http.Path == "/.pomerium/jwt" {
+		input.PassIdentityHeaders = true
+	}
 	return input
 }
 
