@@ -235,7 +235,7 @@ func TestDynamicAccessLogFields(t *testing.T) {
 		{`test%d=.common_properties.custom_tags["key1"]`, "value1"},
 		{`test%d=.common_properties.custom_tags["key2"]`, "value2"},
 		{`test%d=.common_properties.custom_tags["key3"]`, json.RawMessage("null")}, // missing key
-		{`test%d=.common_properties.custom_tags["key3"].nonexistent`, "<error: attempting to access field 'nonexistent' of non-message type>"},
+		{`test%d=.common_properties.custom_tags["key3"].nonexistent`, "<error: cannot access field 'nonexistent' of non-message type>"},
 		{`test%d=.common_properties.duration`, entry.CommonProperties.Duration},
 		{`test%d=.common_properties.upstream_request_attempt_count`, entry.CommonProperties.UpstreamRequestAttemptCount},
 		{`test%d=.common_properties.connection_termination_details`, entry.CommonProperties.ConnectionTerminationDetails},

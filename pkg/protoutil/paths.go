@@ -40,26 +40,18 @@ func ParsePath(root proto.Message, pathStr string) (protopath.Path, error) {
 				fd = currentStep.FieldDescriptor()
 			case protopath.ListIndexStep:
 				// someRepeatedAnyField[index].(pkg.Type)
-				prev := result.Index(-2)
-				if prev.Kind() != protopath.FieldAccessStep || !prev.FieldDescriptor().IsList() {
-					return nil, errors.New("can only index repeated fields or map fields")
-				}
-				fd = prev.FieldDescriptor()
+				fd = result.Index(-2).FieldDescriptor()
 			case protopath.MapIndexStep:
 				// someRepeatedAnyField["key"].(pkg.Type)
-				prev := result.Index(-2)
-				if prev.Kind() != protopath.FieldAccessStep || !prev.FieldDescriptor().IsMap() {
-					return nil, errors.New("can only index repeated fields or map fields")
-				}
-				fd = prev.FieldDescriptor().MapValue()
+				fd = result.Index(-2).FieldDescriptor().MapValue()
 			}
 			if fd != nil {
-				if fd.Kind() != protoreflect.MessageKind {
+				if fd.Kind() != protoreflect.MessageKind ||
+					(fd.IsList() && currentStep.Kind() != protopath.ListIndexStep) ||
+					(fd.IsMap() && currentStep.Kind() != protopath.MapIndexStep) ||
+					fd.Message().FullName() != "google.protobuf.Any" {
 					// envoy doesn't have any proto2 extensions, and we don't need to reference options
-					return nil, fmt.Errorf("can only expand fields of type google.protobuf.Any, not %s", fd.Kind().String())
-				}
-				if fd.Message().FullName() != "google.protobuf.Any" {
-					return nil, fmt.Errorf("can only expand fields of type google.protobuf.Any, not %s", fd.Message().FullName())
+					return nil, fmt.Errorf("can only expand fields of type google.protobuf.Any, not %s", kindStr(fd))
 				}
 			} else if currentStep.Kind() != protopath.AnyExpandStep {
 				return nil, fmt.Errorf("unexpected type expansion after %s step", currentStep.Kind())
@@ -67,10 +59,16 @@ func ParsePath(root proto.Message, pathStr string) (protopath.Path, error) {
 
 			msgName := protoreflect.FullName(part[1 : len(part)-1])
 			if !msgName.IsValid() {
+				if part[1] == '.' {
+					return nil, fmt.Errorf("invalid message type '%s' (try removing the leading dot)", part[1:len(part)-1])
+				}
 				return nil, fmt.Errorf("invalid message type '%s'", part[1:len(part)-1])
 			}
 			if msgt, err := protoregistry.GlobalTypes.FindMessageByName(msgName); err != nil {
-				return nil, fmt.Errorf("message type '%s' not found: %w", msgName, err)
+				if errors.Is(err, protoregistry.NotFound) {
+					return nil, fmt.Errorf("message type %s not found", msgName)
+				}
+				return nil, fmt.Errorf("error looking up message type %s: %w", msgName, err)
 			} else {
 				result = append(result, protopath.AnyExpand(msgt.Descriptor()))
 			}
@@ -82,7 +80,7 @@ func ParsePath(root proto.Message, pathStr string) (protopath.Path, error) {
 				if fd.IsList() {
 					idx, err := strconv.ParseInt(part[1:len(part)-1], 10, 32)
 					if err != nil {
-						return nil, fmt.Errorf("invalid list index '%s': %w", part, err)
+						return nil, fmt.Errorf("invalid list index: %w", err)
 					}
 					result = append(result, protopath.ListIndex(int(idx)))
 				} else if fd.IsMap() {
@@ -92,13 +90,11 @@ func ParsePath(root proto.Message, pathStr string) (protopath.Path, error) {
 						if len(key) == 0 {
 							return nil, errors.New("empty map key")
 						}
-						// unquote the string
-						if key[0] == '"' || key[0] == '\'' && key[len(key)-1] == key[0] {
-							key = key[1 : len(key)-1]
-						} else {
-							return nil, errors.New("string key must be quoted")
+						unquoted, err := strconv.Unquote(key)
+						if err != nil {
+							return nil, fmt.Errorf("invalid string map key '%s': %w", key, err)
 						}
-						result = append(result, protopath.MapIndex(protoreflect.ValueOfString(key).MapKey()))
+						result = append(result, protopath.MapIndex(protoreflect.ValueOfString(unquoted).MapKey()))
 					case protoreflect.BoolKind:
 						switch key {
 						case "true":
@@ -111,31 +107,33 @@ func ParsePath(root proto.Message, pathStr string) (protopath.Path, error) {
 					case protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind:
 						idx, err := strconv.ParseInt(key, 10, 32)
 						if err != nil {
-							return nil, fmt.Errorf("invalid map index '%s': %w", key, err)
+							return nil, fmt.Errorf("invalid map key '%s': %w", key, err)
 						}
 						result = append(result, protopath.MapIndex(protoreflect.ValueOfInt32(int32(idx)).MapKey()))
 					case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind:
 						idx, err := strconv.ParseInt(key, 10, 64)
 						if err != nil {
-							return nil, fmt.Errorf("invalid map index '%s': %w", key, err)
+							return nil, fmt.Errorf("invalid map key '%s': %w", key, err)
 						}
 						result = append(result, protopath.MapIndex(protoreflect.ValueOfInt64(idx).MapKey()))
 					case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
 						idx, err := strconv.ParseUint(key, 10, 32)
 						if err != nil {
-							return nil, fmt.Errorf("invalid map index '%s': %w", key, err)
+							return nil, fmt.Errorf("invalid map key '%s': %w", key, err)
 						}
 						result = append(result, protopath.MapIndex(protoreflect.ValueOfUint32(uint32(idx)).MapKey()))
 					case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
 						idx, err := strconv.ParseUint(key, 10, 64)
 						if err != nil {
-							return nil, fmt.Errorf("invalid map index '%s': %w", key, err)
+							return nil, fmt.Errorf("invalid map key '%s': %w", key, err)
 						}
 						result = append(result, protopath.MapIndex(protoreflect.ValueOfUint64(idx).MapKey()))
 					}
 				} else {
-					return nil, fmt.Errorf("attempting to index non-list or non-map field '%s'", fd.FullName())
+					return nil, fmt.Errorf("cannot index %s field '%s'", fd.Kind().String(), fd.FullName())
 				}
+			default:
+				return nil, fmt.Errorf("cannot index '%s'", currentStep.String())
 			}
 		case part[0] == '?' && len(part) == 1:
 			// UnknownAccess
@@ -173,11 +171,14 @@ func ParsePath(root proto.Message, pathStr string) (protopath.Path, error) {
 			if msg != nil {
 				field := msg.Fields().ByName(protoreflect.Name(part))
 				if field == nil {
+					if msg.FullName() == "google.protobuf.Any" {
+						return nil, fmt.Errorf("no such field '%s' in message %s (missing type expansion?)", part, msg.FullName())
+					}
 					return nil, fmt.Errorf("no such field '%s' in message %s", part, msg.FullName())
 				}
 				result = append(result, protopath.FieldAccess(field))
 			} else {
-				return nil, fmt.Errorf("attempting to access field '%s' of non-message type", part)
+				return nil, fmt.Errorf("cannot access field '%s' of non-message type", part)
 			}
 		}
 		return nil, nil
@@ -193,13 +194,24 @@ func ParsePath(root proto.Message, pathStr string) (protopath.Path, error) {
 	return result, nil
 }
 
+func kindStr(fd protoreflect.FieldDescriptor) string {
+	switch fd.Kind() {
+	case protoreflect.MessageKind:
+		if fd.IsList() {
+			return fmt.Sprintf("repeated %s", fd.Message().FullName())
+		} else if fd.IsMap() {
+			return fmt.Sprintf("map<%s, %s>", fd.MapKey().Kind().String(), kindStr(fd.MapValue()))
+		}
+		return string(fd.Message().FullName())
+	default:
+		return fd.Kind().String()
+	}
+}
+
 // splits a path by '.' or '[' except within parentheses or quotes
 func SplitPath(pathStr string) func(yield func(string) bool) {
 	pathStr = strings.TrimSpace(pathStr)
 	return func(yield func(string) bool) {
-		if len(pathStr) == 0 {
-			return
-		}
 		start := 0
 		var withinParens bool
 		var withinString rune
@@ -249,9 +261,9 @@ func DereferencePath(root proto.Message, path protopath.Path) (protoreflect.Valu
 		case protopath.FieldAccessStep:
 			// check that the field descriptors match, otherwise this will panic
 			if v.Message().Descriptor() != step.FieldDescriptor().ContainingMessage() {
-				got := v.Message().Descriptor().FullName()
-				want := step.FieldDescriptor().ContainingMessage().FullName()
-				return protoreflect.Value{}, fmt.Errorf("wrong message type: got %v, want %v", got, want)
+				expecting := v.Message().Descriptor().FullName()
+				have := step.FieldDescriptor().ContainingMessage().FullName()
+				return protoreflect.Value{}, fmt.Errorf("cannot access field '%s': wrong message type: expecting %v, have %v", step.FieldDescriptor().FullName(), expecting, have)
 			}
 			v = v.Message().Get(step.FieldDescriptor())
 		case protopath.ListIndexStep:

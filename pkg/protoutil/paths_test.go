@@ -3,6 +3,7 @@ package protoutil_test
 import (
 	"crypto/tls"
 	"math/rand/v2"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-func TestParsePath_RoundTrip(t *testing.T) {
+func TestParsePath(t *testing.T) {
 	entry := &envoy_data_accesslog_v3.HTTPAccessLogEntry{
 		CommonProperties: &envoy_data_accesslog_v3.AccessLogCommon{
 			SampleRate:                  rand.Float64(),
@@ -241,8 +242,11 @@ func TestParsePath_RoundTrip(t *testing.T) {
 				}),
 			},
 			CustomTags: map[string]string{
-				"key1": "value1",
-				"key2": "value2",
+				"key1":                          "value1",
+				"key2":                          "value2",
+				"][brackets [inside] []string]": "value3",
+				"(parentheses (inside)) (string) ())()()(": "value4",
+				"\"quotes\" 'inside' \"string'":            "value5",
 			},
 			Duration:                     durationpb.New(time.Duration(rand.Uint32())),
 			UpstreamRequestAttemptCount:  rand.Uint32(),
@@ -294,21 +298,163 @@ func TestParsePath_RoundTrip(t *testing.T) {
 		},
 	}
 
-	protorange.Range(entry.ProtoReflect(), func(v protopath.Values) error {
-		if len(v.Path) == 1 {
+	t.Run("Round Trip", func(t *testing.T) {
+		protorange.Range(entry.ProtoReflect(), func(v protopath.Values) error {
+			if len(v.Path) == 1 {
+				return nil
+			}
+			pathStr := v.Path[1:].String()
+			expectedValue := v.Index(-1).Value
+
+			parsedPath, err := protoutil.ParsePath(entry, pathStr)
+			require.NoError(t, err, "path: %s", pathStr)
+			assert.Equal(t, v.Path.String(), parsedPath.String())
+
+			actualValue, err := protoutil.DereferencePath(entry, parsedPath)
+			require.NoError(t, err)
+			assert.True(t, actualValue.Equal(expectedValue),
+				"expected %s to equal %s", actualValue, expectedValue)
 			return nil
+		})
+	})
+
+	t.Run("Errors", func(t *testing.T) {
+		cases := []struct {
+			path string
+			err  string
+		}{
+			{
+				path: "",
+				err:  "empty path",
+			},
+			{
+				path: "request.route_name",
+				err:  "path must start with '.'",
+			},
+			{
+				path: ".request..route_name",
+				err:  "path contains empty step",
+			},
+			{
+				path: ".common_properties.route_name[1]",
+				err:  "cannot index string field 'envoy.data.accesslog.v3.AccessLogCommon.route_name'",
+			},
+			{
+				path: ".request[1]",
+				err:  "cannot index message field 'envoy.data.accesslog.v3.HTTPAccessLogEntry.request'",
+			},
+			{
+				path: ".[1]",
+				err:  "cannot index '(envoy.data.accesslog.v3.HTTPAccessLogEntry)'",
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["repeated Any"].(envoy.admin.v3.ConfigDump).configs[0][0]`,
+				err:  "cannot index '[0]'",
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["map<string, Any>"].(envoy.config.endpoint.v3.ClusterLoadAssignment).named_endpoints["key2"].additional_addresses[0].(envoy.config.core.v3.Address)`,
+				err:  "can only expand fields of type google.protobuf.Any, not repeated envoy.config.endpoint.v3.Endpoint.AdditionalAddress",
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["repeated Any"].(envoy.admin.v3.ConfigDump).configs.(envoy.admin.v3.ConfigDump)`,
+				err:  "can only expand fields of type google.protobuf.Any, not repeated google.protobuf.Any",
+			},
+			{
+				path: ".common_properties.metadata.typed_filter_metadata.(envoy.config.endpoint.v3.ClusterLoadAssignment)",
+				err:  "can only expand fields of type google.protobuf.Any, not map<string, google.protobuf.Any>",
+			},
+			{
+				path: ".common_properties.route_name.(google.protobuf.StringValue)",
+				err:  "can only expand fields of type google.protobuf.Any, not string",
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["repeated Any"].(envoy.admin.v3.ConfigDump).configs["not-an-integer"]`,
+				err:  `invalid list index: strconv.ParseInt: parsing "\"not-an-integer\"": invalid syntax`,
+			},
+			{
+				path: ".common_properties.custom_tags[]",
+				err:  "empty map key",
+			},
+			{
+				path: ".common_properties.custom_tags[1234]",
+				err:  "invalid string map key '1234': invalid syntax",
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["unusual fields"].bool_to_any[notABool]`,
+				err:  "no such field 'bool_to_any' in message google.protobuf.Any (missing type expansion?)",
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["unusual fields"].(testdata.UnusualFields).nonexistent`,
+				err:  "no such field 'nonexistent' in message testdata.UnusualFields",
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["unusual fields"].(testdata.UnusualFields).bool_to_any[notABool]`,
+				err:  "invalid map key 'notABool' for bool field 'testdata.UnusualFields.bool_to_any'",
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["unusual fields"].(testdata.UnusualFields).int32_to_any[true]`,
+				err:  "invalid map key 'true': strconv.ParseInt: parsing \"true\": invalid syntax",
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["unusual fields"].(testdata.UnusualFields).int64_to_any[false]`,
+				err:  "invalid map key 'false': strconv.ParseInt: parsing \"false\": invalid syntax",
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["unusual fields"].(testdata.UnusualFields).uint32_to_any[-1]`,
+				err:  "invalid map key '-1': strconv.ParseUint: parsing \"-1\": invalid syntax",
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["unusual fields"].(testdata.UnusualFields).uint64_to_any["foo"]`,
+				err:  `invalid map key '"foo"': strconv.ParseUint: parsing "\"foo\"": invalid syntax`,
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["unusual fields"].(testdata.UnusualFields).bool_to_int64[true].field`,
+				err:  "cannot access field 'field' of non-message type",
+			},
+			{
+				path: ".common_properties.?.route_name",
+				err:  "unknown field access not supported",
+			},
+			{
+				path: ".(envoy.data.accesslog.v3.HTTPAccessLogEntry)",
+				err:  "unexpected type expansion after Root step",
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["repeated Any"].(.envoy.admin.v3.ConfigDump)`,
+				err:  "invalid message type '.envoy.admin.v3.ConfigDump' (try removing the leading dot)",
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["repeated Any"].(envoy.admin.ConfigDump.)`,
+				err:  "invalid message type 'envoy.admin.ConfigDump.'",
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["repeated Any"].(testdata.UnusualFields).bool_to_int64[false]`,
+				err:  "wrong message type: expecting envoy.admin.v3.ConfigDump, have testdata.UnusualFields",
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["repeated Any"].(foo.bar.Nonexistent)`,
+				err:  "message type foo.bar.Nonexistent not found",
+			},
+			{
+				path: `.common_properties.metadata.typed_filter_metadata["repeated Any"].(envoy.data.accesslog.v3.HTTPAccessLogEntry.HTTPVersion)`,
+				err:  "error looking up message type envoy.data.accesslog.v3.HTTPAccessLogEntry.HTTPVersion: proto: found wrong type: got enum, want message",
+			},
 		}
-		pathStr := v.Path[1:].String()
-		expectedValue := v.Index(-1).Value
 
-		parsedPath, err := protoutil.ParsePath(entry, pathStr)
-		require.NoError(t, err)
-		assert.Equal(t, v.Path.String(), parsedPath.String())
-
-		actualValue, err := protoutil.DereferencePath(entry, parsedPath)
-		require.NoError(t, err)
-		assert.True(t, actualValue.Equal(expectedValue),
-			"expected %s to equal %s", actualValue, expectedValue)
-		return nil
+		for _, c := range cases {
+			t.Run(c.path, func(t *testing.T) {
+				path, err := protoutil.ParsePath(entry, c.path)
+				if err != nil {
+					// note: protobuf randomly swaps out spaces in error messages with
+					// non-breaking spaces (U+00A0)
+					assert.Contains(t, strings.ReplaceAll(err.Error(), "\u00a0", " "), c.err)
+				} else {
+					_, err := protoutil.DereferencePath(entry, path)
+					if assert.Error(t, err) {
+						assert.Contains(t, strings.ReplaceAll(err.Error(), "\u00a0", " "), c.err)
+					}
+				}
+			})
+		}
 	})
 }
