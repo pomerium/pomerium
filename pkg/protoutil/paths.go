@@ -80,7 +80,7 @@ func ParsePath(root proto.Message, pathStr string) (protopath.Path, error) {
 			case protopath.FieldAccessStep:
 				fd := currentStep.FieldDescriptor()
 				if fd.IsList() {
-					idx, err := strconv.ParseInt(part[1:len(part)-1], 10, 64)
+					idx, err := strconv.ParseInt(part[1:len(part)-1], 10, 32)
 					if err != nil {
 						return nil, fmt.Errorf("invalid list index '%s': %w", part, err)
 					}
