@@ -14,6 +14,9 @@ const (
 	AccessLogFieldDuration                         AccessLogField = "duration"
 	AccessLogFieldForwardedFor                     AccessLogField = "forwarded-for"
 	AccessLogFieldIP                               AccessLogField = "ip"
+	AccessLogFieldDestIP                           AccessLogField = "dest-ip"
+	AccessLogFieldDestPort                         AccessLogField = "dest-port"
+	AccessLogFieldProtocolVersion                  AccessLogField = "protocol-version"
 	AccessLogFieldMethod                           AccessLogField = "method"
 	AccessLogFieldPath                             AccessLogField = "path"
 	AccessLogFieldQuery                            AccessLogField = "query"
@@ -53,6 +56,9 @@ var allAccessLogFields = []AccessLogField{
 	AccessLogFieldDuration,
 	AccessLogFieldForwardedFor,
 	AccessLogFieldIP,
+	AccessLogFieldDestIP,
+	AccessLogFieldDestPort,
+	AccessLogFieldProtocolVersion,
 	AccessLogFieldMethod,
 	AccessLogFieldPath,
 	AccessLogFieldQuery,
@@ -105,4 +111,9 @@ func (field AccessLogField) Validate() error {
 	}
 
 	return nil
+}
+
+func (field AccessLogField) IsWellKnownField() bool {
+	_, ok := accessLogFieldLookup[field]
+	return ok
 }

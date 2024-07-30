@@ -3,13 +3,19 @@ package controlplane
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"strings"
 
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_data_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3"
 	envoy_service_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v3"
 	"github.com/rs/zerolog"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/reflect/protopath"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 func (srv *Server) registerAccessLogHandlers() {
@@ -63,6 +69,19 @@ func populateLogEvent(
 	referer, _, _ := strings.Cut(entry.GetRequest().GetReferer(), "?")
 	path, query, _ := strings.Cut(entry.GetRequest().GetPath(), "?")
 
+	if !field.IsWellKnownField() {
+		name, pathStr, ok := strings.Cut(string(field), "=")
+		if !ok {
+			return evt
+		}
+		name = strings.ToValidUTF8(strings.TrimSpace(name), "")
+		path, err := protoutil.ParsePath(entry, pathStr)
+		if err != nil {
+			return evt.Str(name, fmt.Sprintf("<error: %s>", err.Error()))
+		}
+		return populateLogEventByPath(name, path, evt, entry)
+	}
+
 	switch field {
 	case log.AccessLogFieldAuthority:
 		return evt.Str(string(field), entry.GetRequest().GetAuthority())
@@ -73,6 +92,17 @@ func populateLogEvent(
 		return evt.Str(string(field), entry.GetRequest().GetForwardedFor())
 	case log.AccessLogFieldIP:
 		return evt.Str(string(field), entry.GetCommonProperties().GetDownstreamRemoteAddress().GetSocketAddress().GetAddress())
+	case log.AccessLogFieldDestIP:
+		return evt.Str(string(field), entry.GetCommonProperties().GetDownstreamLocalAddress().GetSocketAddress().GetAddress())
+	case log.AccessLogFieldDestPort:
+		switch value := entry.GetCommonProperties().GetDownstreamLocalAddress().GetSocketAddress().GetPortSpecifier().(type) {
+		case *envoy_config_core_v3.SocketAddress_NamedPort:
+			return evt.Str(string(field), value.NamedPort)
+		case *envoy_config_core_v3.SocketAddress_PortValue:
+			return evt.Uint32(string(field), value.PortValue)
+		}
+	case log.AccessLogFieldProtocolVersion:
+		return evt.Str(string(field), entry.GetProtocolVersion().String())
 	case log.AccessLogFieldMethod:
 		return evt.Str(string(field), entry.GetRequest().GetRequestMethod().String())
 	case log.AccessLogFieldPath:
@@ -140,13 +170,70 @@ func populateCertEventDict(cert *envoy_data_accesslog_v3.TLSProperties_Certifica
 	if len(cert.SubjectAltName) > 0 {
 		arr := zerolog.Arr()
 		for _, san := range cert.SubjectAltName {
+			// follow openssl GENERAL_NAME_print formatting
+			// envoy only provides dns and uri SANs at the moment
 			switch san := san.GetSan().(type) {
 			case *envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName_Dns:
-				arr.Str("dns:" + san.Dns)
+				arr.Str("DNS:" + san.Dns)
 			case *envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName_Uri:
-				arr.Str("uri:" + san.Uri)
+				arr.Str("URI:" + san.Uri)
 			}
 		}
 		dict.Array("subjectAltName", arr)
+	}
+}
+
+func populateLogEventByPath(
+	name string,
+	path protopath.Path,
+	evt *zerolog.Event,
+	entry *envoy_data_accesslog_v3.HTTPAccessLogEntry,
+) *zerolog.Event {
+	value, err := protoutil.DereferencePath(entry, path)
+	if err != nil {
+		return evt.Str(name, fmt.Sprintf("<error: %s>", err.Error()))
+	}
+	switch value := value.Interface().(type) {
+	case protoreflect.Message:
+		jsonData, err := protojson.Marshal(value.Interface())
+		if err != nil {
+			return evt.Str(name, fmt.Sprintf("<error: %s>", err.Error()))
+		}
+		return evt.RawJSON(name, jsonData)
+	case protoreflect.List:
+		list := zerolog.Arr()
+		for i := 0; i < value.Len(); i++ {
+			list = list.Interface(value.Get(i).Interface())
+		}
+		return evt.Array(name, list)
+	case protoreflect.Map:
+		dict := zerolog.Dict()
+		value.Range(func(key protoreflect.MapKey, value protoreflect.Value) bool {
+			switch value := value.Interface().(type) {
+			case protoreflect.Message:
+				jsonData, err := protojson.Marshal(value.Interface())
+				if err != nil {
+					dict = dict.Str(key.String(), fmt.Sprintf("<error: %s>", err.Error()))
+					return true
+				}
+				dict = dict.RawJSON(key.String(), jsonData)
+			default:
+				dict = dict.Interface(key.String(), value)
+			}
+			return true
+		})
+		return evt.Dict(name, dict)
+	case protoreflect.EnumNumber:
+		var fd protoreflect.FieldDescriptor
+		last := path.Index(-1)
+		switch last.Kind() {
+		case protopath.FieldAccessStep:
+			fd = last.FieldDescriptor()
+		case protopath.MapIndexStep, protopath.ListIndexStep:
+			fd = path.Index(-2).FieldDescriptor()
+		}
+		return evt.Str(name, string(fd.Enum().Values().ByNumber(value).Name()))
+	default:
+		return evt.Any(name, value)
 	}
 }
