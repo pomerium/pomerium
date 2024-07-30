@@ -9,7 +9,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"math"
 	"net"
 	"net/netip"
 	"net/url"
@@ -77,9 +76,6 @@ func newDefaultEnvoyClusterConfig() *envoy_config_cluster_v3.Cluster {
 	}
 }
 
-// from source/common/protobuf/utility.cc
-const envoyMaxSeconds = (math.MaxInt64 - 999999999) / (1000 * 1000 * 1000)
-
 func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.AccessLog {
 	lvl := options.ProxyLogLevel
 	if lvl == "" {
@@ -114,8 +110,6 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 				},
 			},
 			TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
-			BufferFlushInterval: &durationpb.Duration{Seconds: envoyMaxSeconds}, // disable the timer
-			BufferSizeBytes:     wrapperspb.UInt32(0),                           // instead, log immediately
 		},
 		AdditionalRequestHeadersToLog: additionalRequestHeaders,
 	})

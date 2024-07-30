@@ -154,7 +154,7 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 		defer writer.Close()
 		log.Writer.Add(writer)
 		log.Ctx(r.Context()).Info().Msg("streaming logs")
-		defer log.Writer.Remove(w)
+		defer log.Writer.Remove(writer)
 		defer log.Ctx(r.Context()).Info().Msg("done streaming logs")
 		<-r.Context().Done()
 	})

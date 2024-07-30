@@ -1,4 +1,4 @@
-package protoutil_test
+package paths_test
 
 import (
 	"crypto/tls"
@@ -14,7 +14,8 @@ import (
 	envoy_data_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3"
 
 	"github.com/pomerium/pomerium/pkg/protoutil"
-	"github.com/pomerium/pomerium/pkg/protoutil/testdata"
+	"github.com/pomerium/pomerium/pkg/protoutil/paths"
+	"github.com/pomerium/pomerium/pkg/protoutil/paths/testdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -308,11 +309,11 @@ func TestParsePath(t *testing.T) {
 			pathStr := v.Path[1:].String()
 			expectedValue := v.Index(-1).Value
 
-			parsedPath, err := protoutil.ParsePath(entry.ProtoReflect(), pathStr)
+			parsedPath, err := paths.Parse(entry.ProtoReflect().Descriptor(), pathStr)
 			require.NoError(t, err, "path: %s", pathStr)
 			assert.Equal(t, v.Path.String(), parsedPath.String())
 
-			actualValue, err := protoutil.DereferencePath(entry, parsedPath)
+			actualValue, err := paths.Dereference(entry, parsedPath)
 			require.NoError(t, err)
 			assert.True(t, actualValue.Equal(expectedValue),
 				"expected %s to equal %s", actualValue, expectedValue)
@@ -445,13 +446,13 @@ func TestParsePath(t *testing.T) {
 
 		for _, c := range cases {
 			t.Run(c.path, func(t *testing.T) {
-				path, err := protoutil.ParsePath(entry.ProtoReflect(), c.path)
+				path, err := paths.Parse(entry.ProtoReflect().Descriptor(), c.path)
 				if err != nil {
 					// note: protobuf randomly swaps out spaces in error messages with
 					// non-breaking spaces (U+00A0)
 					assert.Contains(t, strings.ReplaceAll(err.Error(), "\u00a0", " "), c.err)
 				} else {
-					_, err := protoutil.DereferencePath(entry, path)
+					_, err := paths.Dereference(entry, path)
 					if assert.Error(t, err) {
 						assert.Contains(t, strings.ReplaceAll(err.Error(), "\u00a0", " "), c.err)
 					}
@@ -597,10 +598,10 @@ func TestParsePath(t *testing.T) {
 
 		for i, c := range steps {
 			t.Run(fmt.Sprint(i), func(t *testing.T) {
-				path, err := protoutil.ParsePath(c.ProtoReflect(), longPath)
+				path, err := paths.Parse(c.ProtoReflect().Descriptor(), longPath)
 				require.NoError(t, err)
 
-				v, err := protoutil.DereferencePath(c, path)
+				v, err := paths.Dereference(c, path)
 				assert.NoError(t, err)
 				if i == len(steps)-1 {
 					assert.True(t, v.IsValid(), "expected valid value")

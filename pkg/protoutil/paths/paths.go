@@ -1,4 +1,4 @@
-package protoutil
+package paths
 
 import (
 	"errors"
@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-func ParsePath(root protoreflect.Message, pathStr string) (protopath.Path, error) {
+func Parse(root protoreflect.MessageDescriptor, pathStr string) (protopath.Path, error) {
 	if len(pathStr) == 0 {
 		return nil, errors.New("empty path")
 	}
@@ -22,7 +22,7 @@ func ParsePath(root protoreflect.Message, pathStr string) (protopath.Path, error
 	}
 	pathStr = pathStr[1:]
 
-	result := protopath.Path{protopath.Root(root.Descriptor())}
+	result := protopath.Path{protopath.Root(root)}
 
 	// TODO(go1.23): replace with `for _, part := range parts {`
 	doIter := func(part string) (any, error) {
@@ -184,7 +184,7 @@ func ParsePath(root protoreflect.Message, pathStr string) (protopath.Path, error
 		return nil, nil
 	}
 	var err error
-	SplitPath(pathStr)(func(part string) bool {
+	Split(pathStr)(func(part string) bool {
 		_, err = doIter(part)
 		return err == nil
 	})
@@ -209,7 +209,7 @@ func kindStr(fd protoreflect.FieldDescriptor) string {
 }
 
 // splits a path by '.' or '[' except within parentheses or quotes
-func SplitPath(pathStr string) func(yield func(string) bool) {
+func Split(pathStr string) func(yield func(string) bool) {
 	pathStr = strings.TrimSpace(pathStr)
 	return func(yield func(string) bool) {
 		start := 0
@@ -254,7 +254,7 @@ func SplitPath(pathStr string) func(yield func(string) bool) {
 	}
 }
 
-func DereferencePath(root proto.Message, path protopath.Path) (protoreflect.Value, error) {
+func Dereference(root proto.Message, path protopath.Path) (protoreflect.Value, error) {
 	v := protoreflect.ValueOfMessage(root.ProtoReflect())
 	for _, step := range path {
 		if !v.IsValid() {

@@ -4,7 +4,7 @@ package testdata;
 
 import "google/protobuf/any.proto";
 
-option go_package = "github.com/pomerium/pomerium/pkg/protoutil/testdata";
+option go_package = "github.com/pomerium/pomerium/pkg/protoutil/paths/testdata";
 
 // Contains field types not found anywhere in envoy
 message UnusualFields {
@@ -13,5 +13,5 @@ message UnusualFields {
   map<int64, google.protobuf.Any>  int64_to_any  = 3;
   map<uint32, google.protobuf.Any> uint32_to_any = 4;
   map<uint64, google.protobuf.Any> uint64_to_any = 5;
-  map<bool, int64> bool_to_int64 = 6;
+  map<bool, int64>                 bool_to_int64 = 6;
 }

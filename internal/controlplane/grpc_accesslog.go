@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/pomerium/pomerium/pkg/protoutil/paths"
 )
 
 func (srv *Server) registerAccessLogHandlers() {
@@ -69,13 +69,10 @@ func populateLogEvent(
 	referer, _, _ := strings.Cut(entry.GetRequest().GetReferer(), "?")
 	path, query, _ := strings.Cut(entry.GetRequest().GetPath(), "?")
 
-	if !field.IsWellKnownField() {
-		name, pathStr, ok := strings.Cut(string(field), "=")
-		if !ok {
-			return evt
-		}
+	if !field.IsWellKnownField() && field.IsDynamicField() {
+		name, pathStr, _ := strings.Cut(string(field), "=")
 		name = strings.ToValidUTF8(strings.TrimSpace(name), "")
-		path, err := protoutil.ParsePath(entry.ProtoReflect(), pathStr)
+		path, err := paths.Parse(entry.ProtoReflect().Descriptor(), pathStr)
 		if err != nil {
 			return evt.Str(name, fmt.Sprintf("<error: %s>", err.Error()))
 		}
@@ -189,7 +186,7 @@ func populateLogEventByPath(
 	evt *zerolog.Event,
 	entry *envoy_data_accesslog_v3.HTTPAccessLogEntry,
 ) *zerolog.Event {
-	value, err := protoutil.DereferencePath(entry, path)
+	value, err := paths.Dereference(entry, path)
 	if err != nil {
 		return evt.Str(name, fmt.Sprintf("<error: %s>", err.Error()))
 	}
