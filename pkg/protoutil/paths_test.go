@@ -2,6 +2,7 @@ package protoutil_test
 
 import (
 	"crypto/tls"
+	"fmt"
 	"math/rand/v2"
 	"strings"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil/testdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protopath"
 	"google.golang.org/protobuf/reflect/protorange"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -306,7 +308,7 @@ func TestParsePath(t *testing.T) {
 			pathStr := v.Path[1:].String()
 			expectedValue := v.Index(-1).Value
 
-			parsedPath, err := protoutil.ParsePath(entry, pathStr)
+			parsedPath, err := protoutil.ParsePath(entry.ProtoReflect(), pathStr)
 			require.NoError(t, err, "path: %s", pathStr)
 			assert.Equal(t, v.Path.String(), parsedPath.String())
 
@@ -443,7 +445,7 @@ func TestParsePath(t *testing.T) {
 
 		for _, c := range cases {
 			t.Run(c.path, func(t *testing.T) {
-				path, err := protoutil.ParsePath(entry, c.path)
+				path, err := protoutil.ParsePath(entry.ProtoReflect(), c.path)
 				if err != nil {
 					// note: protobuf randomly swaps out spaces in error messages with
 					// non-breaking spaces (U+00A0)
@@ -453,6 +455,158 @@ func TestParsePath(t *testing.T) {
 					if assert.Error(t, err) {
 						assert.Contains(t, strings.ReplaceAll(err.Error(), "\u00a0", " "), c.err)
 					}
+				}
+			})
+		}
+	})
+	t.Run("Invalid input", func(t *testing.T) {
+		longPath := `.common_properties.metadata.typed_filter_metadata["map<string, Any>"].(envoy.config.endpoint.v3.ClusterLoadAssignment).named_endpoints["key2"].additional_addresses[0].address.socket_address.address`
+		steps := []proto.Message{
+			(*envoy_data_accesslog_v3.HTTPAccessLogEntry)(nil),
+			&envoy_data_accesslog_v3.HTTPAccessLogEntry{},
+			&envoy_data_accesslog_v3.HTTPAccessLogEntry{
+				CommonProperties: &envoy_data_accesslog_v3.AccessLogCommon{},
+			},
+			&envoy_data_accesslog_v3.HTTPAccessLogEntry{
+				CommonProperties: &envoy_data_accesslog_v3.AccessLogCommon{
+					Metadata: &envoy_config_core_v3.Metadata{},
+				},
+			},
+			&envoy_data_accesslog_v3.HTTPAccessLogEntry{
+				CommonProperties: &envoy_data_accesslog_v3.AccessLogCommon{
+					Metadata: &envoy_config_core_v3.Metadata{
+						TypedFilterMetadata: map[string]*anypb.Any{},
+					},
+				},
+			},
+			&envoy_data_accesslog_v3.HTTPAccessLogEntry{
+				CommonProperties: &envoy_data_accesslog_v3.AccessLogCommon{
+					Metadata: &envoy_config_core_v3.Metadata{
+						TypedFilterMetadata: map[string]*anypb.Any{
+							"map<string, Any>": nil,
+						},
+					},
+				},
+			},
+			&envoy_data_accesslog_v3.HTTPAccessLogEntry{
+				CommonProperties: &envoy_data_accesslog_v3.AccessLogCommon{
+					Metadata: &envoy_config_core_v3.Metadata{
+						TypedFilterMetadata: map[string]*anypb.Any{
+							"map<string, Any>": protoutil.NewAny(&envoy_config_endpoint_v3.ClusterLoadAssignment{}),
+						},
+					},
+				},
+			},
+			&envoy_data_accesslog_v3.HTTPAccessLogEntry{
+				CommonProperties: &envoy_data_accesslog_v3.AccessLogCommon{
+					Metadata: &envoy_config_core_v3.Metadata{
+						TypedFilterMetadata: map[string]*anypb.Any{
+							"map<string, Any>": protoutil.NewAny(&envoy_config_endpoint_v3.ClusterLoadAssignment{
+								NamedEndpoints: map[string]*envoy_config_endpoint_v3.Endpoint{},
+							}),
+						},
+					},
+				},
+			},
+			&envoy_data_accesslog_v3.HTTPAccessLogEntry{
+				CommonProperties: &envoy_data_accesslog_v3.AccessLogCommon{
+					Metadata: &envoy_config_core_v3.Metadata{
+						TypedFilterMetadata: map[string]*anypb.Any{
+							"map<string, Any>": protoutil.NewAny(&envoy_config_endpoint_v3.ClusterLoadAssignment{
+								NamedEndpoints: map[string]*envoy_config_endpoint_v3.Endpoint{
+									"wrongKey": {},
+								},
+							}),
+						},
+					},
+				},
+			},
+			&envoy_data_accesslog_v3.HTTPAccessLogEntry{
+				CommonProperties: &envoy_data_accesslog_v3.AccessLogCommon{
+					Metadata: &envoy_config_core_v3.Metadata{
+						TypedFilterMetadata: map[string]*anypb.Any{
+							"map<string, Any>": protoutil.NewAny(&envoy_config_endpoint_v3.ClusterLoadAssignment{
+								NamedEndpoints: map[string]*envoy_config_endpoint_v3.Endpoint{
+									"key2": {
+										AdditionalAddresses: []*envoy_config_endpoint_v3.Endpoint_AdditionalAddress{},
+									},
+								},
+							}),
+						},
+					},
+				},
+			},
+			&envoy_data_accesslog_v3.HTTPAccessLogEntry{
+				CommonProperties: &envoy_data_accesslog_v3.AccessLogCommon{
+					Metadata: &envoy_config_core_v3.Metadata{
+						TypedFilterMetadata: map[string]*anypb.Any{
+							"map<string, Any>": protoutil.NewAny(&envoy_config_endpoint_v3.ClusterLoadAssignment{
+								NamedEndpoints: map[string]*envoy_config_endpoint_v3.Endpoint{
+									"key2": {
+										AdditionalAddresses: []*envoy_config_endpoint_v3.Endpoint_AdditionalAddress{
+											{},
+										},
+									},
+								},
+							}),
+						},
+					},
+				},
+			},
+			&envoy_data_accesslog_v3.HTTPAccessLogEntry{
+				CommonProperties: &envoy_data_accesslog_v3.AccessLogCommon{
+					Metadata: &envoy_config_core_v3.Metadata{
+						TypedFilterMetadata: map[string]*anypb.Any{
+							"map<string, Any>": protoutil.NewAny(&envoy_config_endpoint_v3.ClusterLoadAssignment{
+								NamedEndpoints: map[string]*envoy_config_endpoint_v3.Endpoint{
+									"key2": {
+										AdditionalAddresses: []*envoy_config_endpoint_v3.Endpoint_AdditionalAddress{{
+											Address: &envoy_config_core_v3.Address{},
+										}},
+									},
+								},
+							}),
+						},
+					},
+				},
+			},
+			&envoy_data_accesslog_v3.HTTPAccessLogEntry{
+				CommonProperties: &envoy_data_accesslog_v3.AccessLogCommon{
+					Metadata: &envoy_config_core_v3.Metadata{
+						TypedFilterMetadata: map[string]*anypb.Any{
+							"map<string, Any>": protoutil.NewAny(&envoy_config_endpoint_v3.ClusterLoadAssignment{
+								NamedEndpoints: map[string]*envoy_config_endpoint_v3.Endpoint{
+									"key2": {
+										AdditionalAddresses: []*envoy_config_endpoint_v3.Endpoint_AdditionalAddress{{
+											Address: &envoy_config_core_v3.Address{
+												Address: &envoy_config_core_v3.Address_SocketAddress{
+													SocketAddress: &envoy_config_core_v3.SocketAddress{
+														Address: "foo",
+													},
+												},
+											},
+										}},
+									},
+								},
+							}),
+						},
+					},
+				},
+			},
+		}
+
+		for i, c := range steps {
+			t.Run(fmt.Sprint(i), func(t *testing.T) {
+				path, err := protoutil.ParsePath(c.ProtoReflect(), longPath)
+				require.NoError(t, err)
+
+				v, err := protoutil.DereferencePath(c, path)
+				assert.NoError(t, err)
+				if i == len(steps)-1 {
+					assert.True(t, v.IsValid(), "expected valid value")
+					assert.Equal(t, "foo", v.String())
+				} else {
+					assert.False(t, v.IsValid(), "expected invalid value but got %q", v.String())
 				}
 			})
 		}

@@ -75,7 +75,7 @@ func populateLogEvent(
 			return evt
 		}
 		name = strings.ToValidUTF8(strings.TrimSpace(name), "")
-		path, err := protoutil.ParsePath(entry, pathStr)
+		path, err := protoutil.ParsePath(entry.ProtoReflect(), pathStr)
 		if err != nil {
 			return evt.Str(name, fmt.Sprintf("<error: %s>", err.Error()))
 		}

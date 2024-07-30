@@ -220,8 +220,8 @@ func TestDynamicAccessLogFields(t *testing.T) {
 		{"test%d=.common_properties.sample_rate", entry.CommonProperties.SampleRate},
 		{"test%d=.common_properties.start_time", entry.CommonProperties.StartTime},
 		{"test%d=.common_properties.response_flags.failed_local_healthcheck", entry.CommonProperties.ResponseFlags.FailedLocalHealthcheck},
-		{"test%d=.common_properties.upstream_remote_address", json.RawMessage("{}")},                        // unset
-		{"test%d=.common_properties.upstream_remote_address.socket_address.address", json.RawMessage(`""`)}, // parent message unset
+		{"test%d=.common_properties.upstream_remote_address", json.RawMessage("{}")},                          // unset
+		{"test%d=.common_properties.upstream_remote_address.socket_address.address", json.RawMessage("null")}, // parent message unset
 		{"test%d=.common_properties.downstream_direct_remote_address.socket_address.address", entry.CommonProperties.DownstreamDirectRemoteAddress.GetSocketAddress().GetAddress()},
 		{"test%d=.common_properties.tls_properties.tls_session_id", entry.CommonProperties.TlsProperties.TlsSessionId},
 		{"test%d=.common_properties.tls_properties.ja3_fingerprint", entry.CommonProperties.TlsProperties.Ja3Fingerprint},

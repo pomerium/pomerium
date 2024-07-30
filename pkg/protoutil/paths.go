@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-func ParsePath(root proto.Message, pathStr string) (protopath.Path, error) {
+func ParsePath(root protoreflect.Message, pathStr string) (protopath.Path, error) {
 	if len(pathStr) == 0 {
 		return nil, errors.New("empty path")
 	}
@@ -22,7 +22,7 @@ func ParsePath(root proto.Message, pathStr string) (protopath.Path, error) {
 	}
 	pathStr = pathStr[1:]
 
-	result := protopath.Path{protopath.Root(root.ProtoReflect().Descriptor())}
+	result := protopath.Path{protopath.Root(root.Descriptor())}
 
 	// TODO(go1.23): replace with `for _, part := range parts {`
 	doIter := func(part string) (any, error) {
@@ -257,21 +257,40 @@ func SplitPath(pathStr string) func(yield func(string) bool) {
 func DereferencePath(root proto.Message, path protopath.Path) (protoreflect.Value, error) {
 	v := protoreflect.ValueOfMessage(root.ProtoReflect())
 	for _, step := range path {
+		if !v.IsValid() {
+			return protoreflect.Value{}, nil
+		}
 		switch step.Kind() {
 		case protopath.FieldAccessStep:
+			m := v.Message()
+			if !m.IsValid() {
+				return protoreflect.Value{}, nil
+			}
 			// check that the field descriptors match, otherwise this will panic
-			if v.Message().Descriptor() != step.FieldDescriptor().ContainingMessage() {
-				expecting := v.Message().Descriptor().FullName()
+			if m.Descriptor() != step.FieldDescriptor().ContainingMessage() {
+				expecting := m.Descriptor().FullName()
 				have := step.FieldDescriptor().ContainingMessage().FullName()
 				return protoreflect.Value{}, fmt.Errorf("cannot access field '%s': wrong message type: expecting %v, have %v", step.FieldDescriptor().FullName(), expecting, have)
 			}
-			v = v.Message().Get(step.FieldDescriptor())
+			v = m.Get(step.FieldDescriptor())
 		case protopath.ListIndexStep:
-			v = v.List().Get(step.ListIndex())
+			list := v.List()
+			if !list.IsValid() {
+				return protoreflect.Value{}, nil
+			}
+			v = list.Get(step.ListIndex())
 		case protopath.MapIndexStep:
-			v = v.Map().Get(step.MapIndex())
+			m := v.Map()
+			if !m.IsValid() {
+				return protoreflect.Value{}, nil
+			}
+			v = m.Get(step.MapIndex())
 		case protopath.AnyExpandStep:
-			msg, err := v.Message().Interface().(*anypb.Any).UnmarshalNew()
+			m := v.Message()
+			if !m.IsValid() {
+				return protoreflect.Value{}, nil
+			}
+			msg, err := m.Interface().(*anypb.Any).UnmarshalNew()
 			if err != nil {
 				panic(fmt.Errorf("bug: %w", err))
 			}
