@@ -156,6 +156,7 @@ services:
       wrongly-named-httpdetails-ready:
         condition: service_completed_successfully
     environment:
+      ACCESS_LOG_FIELDS: authority,duration,forwarded-for,ip,dest-ip,dest-port,protocol-version,method,path,query,referer,request-id,response-code,response-code-details,size,upstream-cluster,user-agent,upstream-transport-failure-reason,downstream-transport-failure-reason,tls-version,tls-sni-hostname,tls-cipher-suite,tls-local-cert,tls-peer-cert
       AUTHENTICATE_INTERNAL_SERVICE_URL: https://pomerium-authenticate
       AUTHENTICATE_SERVICE_URL: https://authenticate.localhost.pomerium.io
       AUTHORIZE_SERVICE_URL: https://pomerium-authorize:5443
@@ -218,6 +219,7 @@ services:
       wrongly-named-httpdetails-ready:
         condition: service_completed_successfully
     environment:
+      ACCESS_LOG_FIELDS: authority,duration,forwarded-for,ip,dest-ip,dest-port,protocol-version,method,path,query,referer,request-id,response-code,response-code-details,size,upstream-cluster,user-agent,upstream-transport-failure-reason,downstream-transport-failure-reason,tls-version,tls-sni-hostname,tls-cipher-suite,tls-local-cert,tls-peer-cert
       AUTHENTICATE_INTERNAL_SERVICE_URL: https://pomerium-authenticate
       AUTHENTICATE_SERVICE_URL: https://authenticate.localhost.pomerium.io
       AUTHORIZE_SERVICE_URL: https://pomerium-authorize:5443
@@ -279,6 +281,7 @@ services:
       wrongly-named-httpdetails-ready:
         condition: service_completed_successfully
     environment:
+      ACCESS_LOG_FIELDS: authority,duration,forwarded-for,ip,dest-ip,dest-port,protocol-version,method,path,query,referer,request-id,response-code,response-code-details,size,upstream-cluster,user-agent,upstream-transport-failure-reason,downstream-transport-failure-reason,tls-version,tls-sni-hostname,tls-cipher-suite,tls-local-cert,tls-peer-cert
       AUTHENTICATE_INTERNAL_SERVICE_URL: https://pomerium-authenticate
       AUTHENTICATE_SERVICE_URL: https://authenticate.localhost.pomerium.io
       AUTHORIZE_SERVICE_URL: https://pomerium-authorize:5443
@@ -340,6 +343,7 @@ services:
       wrongly-named-httpdetails-ready:
         condition: service_completed_successfully
     environment:
+      ACCESS_LOG_FIELDS: authority,duration,forwarded-for,ip,dest-ip,dest-port,protocol-version,method,path,query,referer,request-id,response-code,response-code-details,size,upstream-cluster,user-agent,upstream-transport-failure-reason,downstream-transport-failure-reason,tls-version,tls-sni-hostname,tls-cipher-suite,tls-local-cert,tls-peer-cert
       AUTHENTICATE_INTERNAL_SERVICE_URL: https://pomerium-authenticate
       AUTHENTICATE_SERVICE_URL: https://authenticate.localhost.pomerium.io
       AUTHORIZE_SERVICE_URL: https://pomerium-authorize:5443

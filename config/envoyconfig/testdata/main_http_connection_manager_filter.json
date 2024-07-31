@@ -13,12 +13,16 @@
                 "clusterName": "pomerium-control-plane-grpc"
               }
             },
-            "logName": "ingress-http",
+            "logName": "http-connection-manager",
             "transportApiVersion": "V3"
           }
         }
       }
     ],
+    "accessLogOptions": {
+      "flushAccessLogOnNewRequest": true,
+      "flushLogOnTunnelSuccessfullyEstablished": true
+    },
     "alwaysSetRequestIdInResponse": true,
     "commonHttpProtocolOptions": {
       "idleTimeout": "300s"
@@ -52,7 +56,9 @@
             },
             "timeout": "10s"
           },
-          "metadataContextNamespaces": ["com.pomerium.client-certificate-info"],
+          "metadataContextNamespaces": [
+            "com.pomerium.client-certificate-info"
+          ],
           "statusOnError": {
             "code": "InternalServerError"
           },

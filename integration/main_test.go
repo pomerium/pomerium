@@ -235,6 +235,7 @@ func captureLogs(ctx context.Context, out chan<- string) error {
 		return err
 	}
 	go func() {
+		defer resp.Body.Close()
 		defer close(out)
 		scan := bufio.NewScanner(resp.Body)
 		for scan.Scan() {
@@ -251,6 +252,7 @@ type (
 )
 
 func assertMatchingLogs(t *testing.T, c <-chan string, expectedLogs []map[string]any) {
+	t.Helper()
 	actualLogs := []map[string]any{}
 	for log := range c {
 		m := map[string]any{}

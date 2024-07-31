@@ -133,6 +133,8 @@ func (b *Builder) buildMainListener(
 		li.ListenerFilters = append(li.ListenerFilters, ProxyProtocolFilter())
 	}
 
+	li.AccessLog = buildTCPListenerAccessLogConfig(cfg.Options, "http-ingress-listener")
+
 	if cfg.Options.InsecureServer {
 		li.Address = buildAddress(cfg.Options.Addr, 80)
 
@@ -296,7 +298,11 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		CodecType:                    cfg.Options.GetCodecType().ToEnvoy(),
 		StatPrefix:                   "ingress",
 		HttpFilters:                  filters,
-		AccessLog:                    buildAccessLogs(cfg.Options),
+		AccessLog:                    buildHTTPAccessLogConfig(cfg.Options, "http-connection-manager"),
+		AccessLogOptions: &envoy_http_connection_manager.HttpConnectionManager_HcmAccessLogOptions{
+			FlushAccessLogOnNewRequest:              true,
+			FlushLogOnTunnelSuccessfullyEstablished: true,
+		},
 		CommonHttpProtocolOptions: &envoy_config_core_v3.HttpProtocolOptions{
 			IdleTimeout:       durationpb.New(cfg.Options.IdleTimeout),
 			MaxStreamDuration: maxStreamDuration,

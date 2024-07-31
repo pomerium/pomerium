@@ -124,6 +124,10 @@ services:
                 {
                   "env": [
                     {
+                      "name": "ACCESS_LOG_FIELDS",
+                      "value": "authority,duration,forwarded-for,ip,dest-ip,dest-port,protocol-version,method,path,query,referer,request-id,response-code,response-code-details,size,upstream-cluster,user-agent,upstream-transport-failure-reason,downstream-transport-failure-reason,tls-version,tls-sni-hostname,tls-cipher-suite,tls-local-cert,tls-peer-cert"
+                    },
+                    {
                       "name": "AUTHENTICATE_SERVICE_URL",
                       "value": "https://authenticate.localhost.pomerium.io"
                     },

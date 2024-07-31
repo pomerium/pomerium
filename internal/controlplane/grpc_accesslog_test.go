@@ -2,6 +2,7 @@ package controlplane
 
 import (
 	"bytes"
+	"crypto/tls"
 	"strings"
 	"testing"
 	"time"
@@ -28,9 +29,48 @@ func Test_populateLogEvent(t *testing.T) {
 					},
 				},
 			},
-			TimeToLastDownstreamTxByte: durationpb.New(time.Second * 3),
-			UpstreamCluster:            "UPSTREAM-CLUSTER",
+			DownstreamLocalAddress: &envoy_config_core_v3.Address{
+				Address: &envoy_config_core_v3.Address_SocketAddress{
+					SocketAddress: &envoy_config_core_v3.SocketAddress{
+						Protocol: envoy_config_core_v3.SocketAddress_TCP,
+						Address:  "10.10.10.10",
+						PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
+							PortValue: 12345,
+						},
+					},
+				},
+			},
+			TlsProperties: &envoy_data_accesslog_v3.TLSProperties{
+				TlsVersion:     envoy_data_accesslog_v3.TLSProperties_TLSv1_3,
+				TlsCipherSuite: wrapperspb.UInt32(uint32(tls.TLS_AES_256_GCM_SHA384)),
+				TlsSniHostname: "www.example.com",
+				LocalCertificateProperties: &envoy_data_accesslog_v3.TLSProperties_CertificateProperties{
+					Subject: "local-example-subject",
+					Issuer:  "local-example-issuer",
+					SubjectAltName: []*envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName{
+						{San: &envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName_Dns{Dns: "local.example.dns.san1"}},
+						{San: &envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName_Dns{Dns: "local.example.dns.san2"}},
+						{San: &envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName_Uri{Uri: "local.example.uri.san1"}},
+						{San: &envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName_Uri{Uri: "local.example.uri.san2"}},
+					},
+				},
+				PeerCertificateProperties: &envoy_data_accesslog_v3.TLSProperties_CertificateProperties{
+					Subject: "peer-example-subject",
+					Issuer:  "peer-example-issuer",
+					SubjectAltName: []*envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName{
+						{San: &envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName_Dns{Dns: "peer.example.dns.san1"}},
+						{San: &envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName_Dns{Dns: "peer.example.dns.san2"}},
+						{San: &envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName_Uri{Uri: "peer.example.uri.san1"}},
+						{San: &envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName_Uri{Uri: "peer.example.uri.san2"}},
+					},
+				},
+			},
+			TimeToLastDownstreamTxByte:       durationpb.New(time.Second * 3),
+			UpstreamCluster:                  "UPSTREAM-CLUSTER",
+			UpstreamTransportFailureReason:   "example-upstream-transport-failure-reason",
+			DownstreamTransportFailureReason: "example-downstream-transport-failure-reason",
 		},
+		ProtocolVersion: envoy_data_accesslog_v3.HTTPAccessLogEntry_HTTP11,
 		Request: &envoy_data_accesslog_v3.HTTPRequestProperties{
 			Authority:     "AUTHORITY",
 			ForwardedFor:  "FORWARDED-FOR",
@@ -55,6 +95,9 @@ func Test_populateLogEvent(t *testing.T) {
 		{log.AccessLogFieldDuration, `{"duration":3000}`},
 		{log.AccessLogFieldForwardedFor, `{"forwarded-for":"FORWARDED-FOR"}`},
 		{log.AccessLogFieldIP, `{"ip":"127.0.0.1"}`},
+		{log.AccessLogFieldDestIP, `{"dest-ip":"10.10.10.10"}`},
+		{log.AccessLogFieldDestPort, `{"dest-port":12345}`},
+		{log.AccessLogFieldProtocolVersion, `{"protocol-version":"HTTP11"}`},
 		{log.AccessLogFieldMethod, `{"method":"GET"}`},
 		{log.AccessLogFieldPath, `{"path":"https://www.example.com/some/path"}`},
 		{log.AccessLogFieldQuery, `{"query":"a=b"}`},
@@ -65,6 +108,13 @@ func Test_populateLogEvent(t *testing.T) {
 		{log.AccessLogFieldSize, `{"size":1234}`},
 		{log.AccessLogFieldUpstreamCluster, `{"upstream-cluster":"UPSTREAM-CLUSTER"}`},
 		{log.AccessLogFieldUserAgent, `{"user-agent":"USER-AGENT"}`},
+		{log.AccessLogFieldUpstreamTransportFailureReason, `{"upstream-transport-failure-reason":"example-upstream-transport-failure-reason"}`},
+		{log.AccessLogFieldDownstreamTransportFailureReason, `{"downstream-transport-failure-reason":"example-downstream-transport-failure-reason"}`},
+		{log.AccessLogFieldTLSVersion, `{"tls-version":"TLSv1_3"}`},
+		{log.AccessLogFieldTLSSNIHostname, `{"tls-sni-hostname":"www.example.com"}`},
+		{log.AccessLogFieldTLSCipherSuite, `{"tls-cipher-suite":"TLS_AES_256_GCM_SHA384"}`},
+		{log.AccessLogFieldTLSLocalCert, `{"tls-local-cert":{"issuer":"local-example-issuer","subject":"local-example-subject","subjectAltName":["DNS:local.example.dns.san1","DNS:local.example.dns.san2","URI:local.example.uri.san1","URI:local.example.uri.san2"]}}`},
+		{log.AccessLogFieldTLSPeerCert, `{"tls-peer-cert":{"issuer":"peer-example-issuer","subject":"peer-example-subject","subjectAltName":["DNS:peer.example.dns.san1","DNS:peer.example.dns.san2","URI:peer.example.uri.san1","URI:peer.example.uri.san2"]}}`},
 	} {
 		tc := tc
 		t.Run(string(tc.field), func(t *testing.T) {

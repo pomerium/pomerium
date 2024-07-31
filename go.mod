@@ -20,7 +20,7 @@ require (
 	github.com/cloudflare/circl v1.3.9
 	github.com/coreos/go-oidc/v3 v3.10.0
 	github.com/docker/docker v27.1.0+incompatible
-	github.com/envoyproxy/go-control-plane v0.12.1-0.20240717153332-b7af5b7dab54
+	github.com/envoyproxy/go-control-plane v0.12.1-0.20240724184856-e46f0a14bbcd
 	github.com/envoyproxy/protoc-gen-validate v1.0.4
 	github.com/go-chi/chi/v5 v5.1.0
 	github.com/go-jose/go-jose/v3 v3.0.3
@@ -76,12 +76,12 @@ require (
 	go.uber.org/automaxprocs v1.5.3
 	go.uber.org/mock v0.4.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.24.0
-	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
-	golang.org/x/net v0.26.0
+	golang.org/x/crypto v0.25.0
+	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
+	golang.org/x/net v0.27.0
 	golang.org/x/oauth2 v0.21.0
 	golang.org/x/sync v0.7.0
-	golang.org/x/sys v0.21.0
+	golang.org/x/sys v0.22.0
 	golang.org/x/time v0.5.0
 	google.golang.org/api v0.183.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240528184218-531527333157

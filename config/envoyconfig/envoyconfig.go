@@ -76,7 +76,7 @@ func newDefaultEnvoyClusterConfig() *envoy_config_cluster_v3.Cluster {
 	}
 }
 
-func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.AccessLog {
+func buildHTTPAccessLogConfig(options *config.Options, name string) []*envoy_config_accesslog_v3.AccessLog {
 	lvl := options.ProxyLogLevel
 	if lvl == "" {
 		lvl = options.LogLevel
@@ -101,7 +101,7 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 
 	tc := marshalAny(&envoy_extensions_access_loggers_grpc_v3.HttpGrpcAccessLogConfig{
 		CommonConfig: &envoy_extensions_access_loggers_grpc_v3.CommonGrpcAccessLogConfig{
-			LogName: "ingress-http",
+			LogName: name,
 			GrpcService: &envoy_config_core_v3.GrpcService{
 				TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
 					EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
@@ -115,6 +115,41 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 	})
 	return []*envoy_config_accesslog_v3.AccessLog{{
 		Name:       "envoy.access_loggers.http_grpc",
+		ConfigType: &envoy_config_accesslog_v3.AccessLog_TypedConfig{TypedConfig: tc},
+	}}
+}
+
+func buildTCPListenerAccessLogConfig(options *config.Options, name string) []*envoy_config_accesslog_v3.AccessLog {
+	lvl := options.ProxyLogLevel
+	if lvl == "" {
+		lvl = options.LogLevel
+	}
+	if lvl == "" {
+		lvl = config.LogLevelDebug
+	}
+
+	switch lvl {
+	case config.LogLevelTrace, config.LogLevelDebug, config.LogLevelInfo:
+	default:
+		// don't log access requests for levels > info
+		return nil
+	}
+
+	tc := marshalAny(&envoy_extensions_access_loggers_grpc_v3.TcpGrpcAccessLogConfig{
+		CommonConfig: &envoy_extensions_access_loggers_grpc_v3.CommonGrpcAccessLogConfig{
+			LogName: name,
+			GrpcService: &envoy_config_core_v3.GrpcService{
+				TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
+					EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
+						ClusterName: "pomerium-control-plane-grpc",
+					},
+				},
+			},
+			TransportApiVersion: envoy_config_core_v3.ApiVersion_V3,
+		},
+	})
+	return []*envoy_config_accesslog_v3.AccessLog{{
+		Name:       "envoy.access_loggers.tcp_grpc",
 		ConfigType: &envoy_config_accesslog_v3.AccessLog_TypedConfig{TypedConfig: tc},
 	}}
 }
