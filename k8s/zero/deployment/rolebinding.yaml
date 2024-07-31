@@ -1,0 +1,11 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pomerium-bootstrap-secret-writer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pomerium-bootstrap-secret-writer
+subjects:
+  - kind: ServiceAccount
+    name: default
