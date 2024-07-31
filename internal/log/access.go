@@ -3,6 +3,11 @@ package log
 import (
 	"errors"
 	"fmt"
+	"strings"
+
+	envoy_data_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3"
+
+	"github.com/pomerium/protoutil/paths"
 )
 
 // An AccessLogField is a field in the access logs.
@@ -68,9 +73,30 @@ var accessLogFieldLookup = map[AccessLogField]struct{}{
 	AccessLogFieldClientCertificate:   {},
 }
 
+var (
+	httpAccessLogDesc = (*envoy_data_accesslog_v3.HTTPAccessLogEntry)(nil).ProtoReflect().Descriptor()
+	tcpAccessLogDesc  = (*envoy_data_accesslog_v3.TCPAccessLogEntry)(nil).ProtoReflect().Descriptor()
+)
+
 // Validate returns an error if the access log field is invalid.
 func (field AccessLogField) Validate() error {
 	if _, ok := GetHeaderField(field); ok {
+		return nil
+	}
+
+	if field.IsDynamicField() {
+		pathStr := string(field[strings.IndexRune(string(field), '=')+1:])
+		_, err := paths.ParseFrom(httpAccessLogDesc, pathStr)
+		if err != nil {
+			if errors.Is(err, paths.ErrFieldNotFound) {
+				_, err2 := paths.ParseFrom(tcpAccessLogDesc, pathStr)
+				if err2 == nil {
+					return nil
+				}
+				err = errors.Join(err, err2)
+			}
+			return fmt.Errorf("invalid access log field '%s': %w", field, err)
+		}
 		return nil
 	}
 
@@ -80,4 +106,14 @@ func (field AccessLogField) Validate() error {
 	}
 
 	return nil
+}
+
+func (field AccessLogField) IsWellKnownField() bool {
+	_, ok := accessLogFieldLookup[field]
+	return ok
+}
+
+func (field AccessLogField) IsDynamicField() bool {
+	l, r, ok := strings.Cut(string(field), "=")
+	return ok && len(l) > 0 && len(r) > 0 && r[0] == '.'
 }
