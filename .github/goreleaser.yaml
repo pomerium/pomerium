@@ -36,7 +36,7 @@ builds:
       - -X github.com/pomerium/pomerium/internal/version.GitCommit={{.ShortCommit}}
       - -X github.com/pomerium/pomerium/internal/version.BuildMeta={{.Timestamp}}
       - -X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium
-      - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://wwww.pomerium.io
+      - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io
 
 archives:
   - name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
