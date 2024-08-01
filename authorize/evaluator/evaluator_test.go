@@ -41,7 +41,7 @@ func TestEvaluator(t *testing.T) {
 		return e.Evaluate(ctx, req)
 	}
 
-	policies := []config.Policy{
+	policies := []*config.Policy{
 		{
 			To:                               config.WeightedURLs{{URL: *mustParseURL("https://to1.example.com")}},
 			AllowPublicUnauthenticatedAccess: true,
@@ -145,14 +145,14 @@ func TestEvaluator(t *testing.T) {
 			WithAddDefaultClientCertificateRule(true))
 		t.Run("missing", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
-				Policy: &policies[0],
+				Policy: policies[0],
 			})
 			require.NoError(t, err)
 			assert.Equal(t, NewRuleResult(true, criteria.ReasonClientCertificateRequired), res.Deny)
 		})
 		t.Run("invalid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
-				Policy: &policies[0],
+				Policy: policies[0],
 				HTTP: RequestHTTP{
 					ClientCertificate: ClientCertificateInfo{Presented: true},
 				},
@@ -162,7 +162,7 @@ func TestEvaluator(t *testing.T) {
 		})
 		t.Run("valid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
-				Policy: &policies[0],
+				Policy: policies[0],
 				HTTP: RequestHTTP{
 					ClientCertificate: validCertInfo,
 				},
@@ -177,14 +177,14 @@ func TestEvaluator(t *testing.T) {
 		options = append(options, WithAddDefaultClientCertificateRule(true))
 		t.Run("missing", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
-				Policy: &policies[10],
+				Policy: policies[10],
 			})
 			require.NoError(t, err)
 			assert.Equal(t, NewRuleResult(true, criteria.ReasonClientCertificateRequired), res.Deny)
 		})
 		t.Run("invalid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
-				Policy: &policies[10],
+				Policy: policies[10],
 				HTTP: RequestHTTP{
 					ClientCertificate: ClientCertificateInfo{
 						Presented: true,
@@ -197,7 +197,7 @@ func TestEvaluator(t *testing.T) {
 		})
 		t.Run("valid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
-				Policy: &policies[10],
+				Policy: policies[10],
 				HTTP: RequestHTTP{
 					ClientCertificate: validCertInfo,
 				},
@@ -213,7 +213,7 @@ func TestEvaluator(t *testing.T) {
 		options = append(options, WithClientCA([]byte(testCA)))
 		t.Run("invalid but allowed", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
-				Policy: &policies[0], // no explicit deny rule
+				Policy: policies[0], // no explicit deny rule
 				HTTP: RequestHTTP{
 					ClientCertificate: ClientCertificateInfo{
 						Presented: true,
@@ -226,7 +226,7 @@ func TestEvaluator(t *testing.T) {
 		})
 		t.Run("invalid", func(t *testing.T) {
 			res, err := eval(t, options, nil, &Request{
-				Policy: &policies[11], // policy has explicit deny rule
+				Policy: policies[11], // policy has explicit deny rule
 				HTTP: RequestHTTP{
 					ClientCertificate: ClientCertificateInfo{
 						Presented: true,
@@ -250,7 +250,7 @@ func TestEvaluator(t *testing.T) {
 					Email: "a@example.com",
 				},
 			}, &Request{
-				Policy: &policies[1],
+				Policy: policies[1],
 				Session: RequestSession{
 					ID: "session1",
 				},
@@ -274,7 +274,7 @@ func TestEvaluator(t *testing.T) {
 						Email: "a@example.com",
 					},
 				}, &Request{
-					Policy: &policies[2],
+					Policy: policies[2],
 					Session: RequestSession{
 						ID: "session1",
 					},
@@ -300,7 +300,7 @@ func TestEvaluator(t *testing.T) {
 					Email: "a@example.com",
 				},
 			}, &Request{
-				Policy: &policies[3],
+				Policy: policies[3],
 				Session: RequestSession{
 					ID: "session1",
 				},
@@ -323,7 +323,7 @@ func TestEvaluator(t *testing.T) {
 					Email: "a@example.com",
 				},
 			}, &Request{
-				Policy: &policies[4],
+				Policy: policies[4],
 				Session: RequestSession{
 					ID: "session1",
 				},
@@ -346,7 +346,7 @@ func TestEvaluator(t *testing.T) {
 					Email: "b@example.com",
 				},
 			}, &Request{
-				Policy: &policies[3],
+				Policy: policies[3],
 				Session: RequestSession{
 					ID: "session1",
 				},
@@ -376,7 +376,7 @@ func TestEvaluator(t *testing.T) {
 					Email: "a@example.com",
 				},
 			}, &Request{
-				Policy: &policies[3],
+				Policy: policies[3],
 				Session: RequestSession{
 					ID: "session2",
 				},
@@ -400,7 +400,7 @@ func TestEvaluator(t *testing.T) {
 				Email: "a@example.com",
 			},
 		}, &Request{
-			Policy: &policies[5],
+			Policy: policies[5],
 			Session: RequestSession{
 				ID: "session1",
 			},
@@ -423,7 +423,7 @@ func TestEvaluator(t *testing.T) {
 				Email: "a@example.com",
 			},
 		}, &Request{
-			Policy: &policies[6],
+			Policy: policies[6],
 			Session: RequestSession{
 				ID: "session1",
 			},
@@ -451,7 +451,7 @@ func TestEvaluator(t *testing.T) {
 				Email: "a@example.com",
 			},
 		}, &Request{
-			Policy: &policies[6],
+			Policy: policies[6],
 			Session: RequestSession{
 				ID: "session1",
 			},
@@ -473,7 +473,7 @@ func TestEvaluator(t *testing.T) {
 				Id: "user1",
 			},
 		}, &Request{
-			Policy: &policies[7],
+			Policy: policies[7],
 			Session: RequestSession{
 				ID: "session1",
 			},
@@ -509,7 +509,7 @@ func TestEvaluator(t *testing.T) {
 					Id: "user1",
 				},
 			}, &Request{
-				Policy: &policies[8],
+				Policy: policies[8],
 				Session: RequestSession{
 					ID: "session1",
 				},
@@ -526,7 +526,7 @@ func TestEvaluator(t *testing.T) {
 	})
 	t.Run("http method", func(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{}, &Request{
-			Policy: &policies[8],
+			Policy: policies[8],
 			HTTP: NewRequestHTTP(
 				http.MethodGet,
 				*mustParseURL("https://from.example.com/"),
@@ -540,7 +540,7 @@ func TestEvaluator(t *testing.T) {
 	})
 	t.Run("http path", func(t *testing.T) {
 		res, err := eval(t, options, []proto.Message{}, &Request{
-			Policy: &policies[9],
+			Policy: policies[9],
 			HTTP: NewRequestHTTP(
 				"POST",
 				*mustParseURL("https://from.example.com/test"),
@@ -559,7 +559,7 @@ func TestPolicyEvaluatorReuse(t *testing.T) {
 
 	store := store.New()
 
-	policies := []config.Policy{
+	policies := []*config.Policy{
 		{To: singleToURL("https://to1.example.com")},
 		{To: singleToURL("https://to2.example.com")},
 		{To: singleToURL("https://to3.example.com")},
@@ -600,7 +600,7 @@ func TestPolicyEvaluatorReuse(t *testing.T) {
 		e, err := New(ctx, store, initial, options...)
 		require.NoError(t, err)
 		for i := range policies {
-			assertPolicyEvaluatorReused(t, e, &policies[i])
+			assertPolicyEvaluatorReused(t, e, policies[i])
 		}
 	})
 
@@ -608,7 +608,7 @@ func TestPolicyEvaluatorReuse(t *testing.T) {
 		e, err := New(ctx, store, initial, append(options, o)...)
 		require.NoError(t, err)
 		for i := range policies {
-			assertPolicyEvaluatorUpdated(t, e, &policies[i])
+			assertPolicyEvaluatorUpdated(t, e, policies[i])
 		}
 	}
 
@@ -647,7 +647,7 @@ func TestPolicyEvaluatorReuse(t *testing.T) {
 	// identical, only evaluators for the changed policies should be updated.
 	t.Run("policies changed", func(t *testing.T) {
 		// Make changes to some of the policies.
-		newPolicies := []config.Policy{
+		newPolicies := []*config.Policy{
 			{To: singleToURL("https://to1.example.com")},
 			{
 				To:           singleToURL("https://to2.example.com"),
@@ -662,9 +662,9 @@ func TestPolicyEvaluatorReuse(t *testing.T) {
 		require.NoError(t, err)
 
 		// Only the first and the third policy evaluators should be reused.
-		assertPolicyEvaluatorReused(t, e, &newPolicies[0])
-		assertPolicyEvaluatorUpdated(t, e, &newPolicies[1])
-		assertPolicyEvaluatorReused(t, e, &newPolicies[2])
+		assertPolicyEvaluatorReused(t, e, newPolicies[0])
+		assertPolicyEvaluatorUpdated(t, e, newPolicies[1])
+		assertPolicyEvaluatorReused(t, e, newPolicies[2])
 
 		// The last policy shouldn't correspond with any of the initial policy
 		// evaluators.

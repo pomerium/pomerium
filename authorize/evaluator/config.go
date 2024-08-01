@@ -6,7 +6,7 @@ import (
 )
 
 type evaluatorConfig struct {
-	Policies                                          []config.Policy `hash:"-"`
+	Policies                                          []*config.Policy `hash:"-"`
 	ClientCA                                          []byte
 	ClientCRL                                         []byte
 	AddDefaultClientCertificateRule                   bool
@@ -34,7 +34,7 @@ func getConfig(options ...Option) *evaluatorConfig {
 }
 
 // WithPolicies sets the policies in the config.
-func WithPolicies(policies []config.Policy) Option {
+func WithPolicies(policies []*config.Policy) Option {
 	return func(cfg *evaluatorConfig) {
 		cfg.Policies = policies
 	}

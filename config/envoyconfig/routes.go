@@ -177,7 +177,7 @@ func (b *Builder) buildRoutesForPoliciesWithHost(
 	host string,
 ) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
-	for i, p := range cfg.Options.GetAllPolicies() {
+	for i, p := range cfg.Options.GetAllPoliciesIndexed() {
 		policy := p
 		fromURL, err := urlutil.ParseAndValidateURL(policy.From)
 		if err != nil {
@@ -188,7 +188,7 @@ func (b *Builder) buildRoutesForPoliciesWithHost(
 			continue
 		}
 
-		policyRoutes, err := b.buildRoutesForPolicy(cfg, &policy, fmt.Sprintf("policy-%d", i))
+		policyRoutes, err := b.buildRoutesForPolicy(cfg, policy, fmt.Sprintf("policy-%d", i))
 		if err != nil {
 			return nil, err
 		}
@@ -202,8 +202,7 @@ func (b *Builder) buildRoutesForPoliciesWithCatchAll(
 	cfg *config.Config,
 ) ([]*envoy_config_route_v3.Route, error) {
 	var routes []*envoy_config_route_v3.Route
-	for i, p := range cfg.Options.GetAllPolicies() {
-		policy := p
+	for i, policy := range cfg.Options.GetAllPoliciesIndexed() {
 		fromURL, err := urlutil.ParseAndValidateURL(policy.From)
 		if err != nil {
 			return nil, err
@@ -213,7 +212,7 @@ func (b *Builder) buildRoutesForPoliciesWithCatchAll(
 			continue
 		}
 
-		policyRoutes, err := b.buildRoutesForPolicy(cfg, &policy, fmt.Sprintf("policy-%d", i))
+		policyRoutes, err := b.buildRoutesForPolicy(cfg, policy, fmt.Sprintf("policy-%d", i))
 		if err != nil {
 			return nil, err
 		}
