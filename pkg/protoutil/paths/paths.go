@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protopath"
@@ -13,7 +14,31 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+var globalParser Parser
+
+type Parser struct {
+	byDescriptor sync.Map
+}
+
 func Parse(root protoreflect.MessageDescriptor, pathStr string) (protopath.Path, error) {
+	return globalParser.Parse(root, pathStr)
+}
+
+func (p *Parser) Parse(root protoreflect.MessageDescriptor, pathStr string) (protopath.Path, error) {
+	byPathV, ok := p.byDescriptor.Load(root)
+	if !ok {
+		byPathV, _ = p.byDescriptor.LoadOrStore(root, &sync.Map{})
+	}
+	fn, ok := byPathV.(*sync.Map).Load(pathStr)
+	if !ok {
+		fn, _ = byPathV.(*sync.Map).LoadOrStore(pathStr, sync.OnceValues(func() (protopath.Path, error) {
+			return p.parse(root, pathStr)
+		}))
+	}
+	return fn.(func() (protopath.Path, error))()
+}
+
+func (p *Parser) parse(root protoreflect.MessageDescriptor, pathStr string) (protopath.Path, error) {
 	if len(pathStr) == 0 {
 		return nil, errors.New("empty path")
 	}

@@ -613,3 +613,35 @@ func TestParsePath(t *testing.T) {
 		}
 	})
 }
+
+func TestParser(t *testing.T) {
+	httpAccessLogEntryDesc := (*envoy_data_accesslog_v3.HTTPAccessLogEntry)(nil).ProtoReflect().Descriptor()
+	tcpAccessLogEntryDesc := (*envoy_data_accesslog_v3.TCPAccessLogEntry)(nil).ProtoReflect().Descriptor()
+
+	parser := paths.Parser{}
+	path1, err := parser.Parse(httpAccessLogEntryDesc, ".common_properties.route_name")
+	require.NoError(t, err)
+
+	path2, err := parser.Parse(tcpAccessLogEntryDesc, ".common_properties.route_name")
+	require.NoError(t, err)
+
+	require.Equal(t, "(envoy.data.accesslog.v3.HTTPAccessLogEntry).common_properties.route_name", path1.String())
+	require.Equal(t, "(envoy.data.accesslog.v3.TCPAccessLogEntry).common_properties.route_name", path2.String())
+}
+
+func BenchmarkParser(b *testing.B) {
+	const longPath = `.common_properties.metadata.typed_filter_metadata["map<string, Any>"].(envoy.config.endpoint.v3.ClusterLoadAssignment).named_endpoints["key2"].additional_addresses[0].address.socket_address.address`
+	desc := (*envoy_data_accesslog_v3.HTTPAccessLogEntry)(nil).ProtoReflect().Descriptor()
+	b.Run("Without cache", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var parser paths.Parser
+			_, _ = parser.Parse(desc, longPath)
+		}
+	})
+	b.Run("With cache", func(b *testing.B) {
+		var parser paths.Parser
+		for i := 0; i < b.N; i++ {
+			_, _ = parser.Parse(desc, longPath)
+		}
+	})
+}
