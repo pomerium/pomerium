@@ -44,7 +44,7 @@ jobs:
         run: |
           export POMERIUM_TAG=dev
           cd ./integration/clusters/single-stateful
-          docker-compose up -d
+          docker compose up -d
 
       - name: integration tests
         run: |
