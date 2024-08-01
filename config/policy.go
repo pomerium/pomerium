@@ -343,10 +343,10 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	return p, p.Validate()
 }
 
-// CopyToProto copies fields from the Policy into dest, aliasing pointers and
-// reusing memory where possible. It does NOT set the Name field in dest; that
-// must be done manually.
-func (p *Policy) CopyToProto(dest *configpb.Route) {
+// ShallowCopyToProto copies fields from the Policy into dest, aliasing pointers
+// and reusing memory where possible. It does NOT set the Name field in dest;
+// that must be done manually.
+func (p *Policy) ShallowCopyToProto(dest *configpb.Route) {
 	dest.From = p.From
 	dest.AllowedUsers = p.AllowedUsers
 	dest.AllowedDomains = p.AllowedDomains
@@ -501,10 +501,12 @@ func copyOptionalDurationToOptionalDurationpb(dst **durationpb.Duration, src **t
 	}
 }
 
-// ToProto converts the policy to a protobuf type.
-func (p *Policy) ToProto() (*configpb.Route, error) {
+// AsProto converts the Policy to the equivalent Route protobuf type. This
+// only performs shallow copying; the contents of some fields in the returned
+// object will be shared with the equivalent fields from the Policy.
+func (p *Policy) AsProto() (*configpb.Route, error) {
 	out := &configpb.Route{}
-	p.CopyToProto(out)
+	p.ShallowCopyToProto(out)
 	routeId, err := p.RouteID()
 	if err != nil {
 		return nil, err
@@ -654,7 +656,10 @@ var policyPool = sync.Pool{
 	},
 }
 
+type doNotCopy [0]sync.Mutex
+
 type pooledRoute struct {
+	doNotCopy
 	*configpb.Route
 	pooledFields pooledFields
 }
@@ -695,6 +700,7 @@ func (pr *pooledRoute) reset() {
 // in a different way in Policy, or proto message types that cannot be directly
 // aliased from the Policy and would need to be heap-allocated each time.
 type pooledFields struct {
+	doNotCopy
 	nameBuffer           []byte
 	to                   []string
 	loadBalancingWeights []uint32
@@ -723,7 +729,7 @@ func (p *Policy) Checksum() uint64 {
 func (p *Policy) ChecksumWithID(routeID uint64) uint64 {
 	pr := policyPool.Get().(*pooledRoute)
 	pr.prepare()
-	p.CopyToProto(pr.Route)
+	p.ShallowCopyToProto(pr.Route)
 	pr.unsafeSetName(routeID)
 	var setReqHeaders, setRespHeaders map[string]string
 	setReqHeaders, pr.SetRequestHeaders = pr.SetRequestHeaders, nil
