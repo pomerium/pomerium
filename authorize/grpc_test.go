@@ -94,7 +94,8 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
-		Policy: &a.currentOptions.Load().Policies[0],
+		Options: a.currentOptions.Load(),
+		Policy:  &a.currentOptions.Load().Policies[0],
 		Session: evaluator.RequestSession{
 			ID: "SESSION_ID",
 		},
@@ -148,6 +149,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 		}, nil)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
+		Options: a.currentOptions.Load(),
 		Policy:  &a.currentOptions.Load().Policies[0],
 		Session: evaluator.RequestSession{},
 		HTTP: evaluator.NewRequestHTTP(

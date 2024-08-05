@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/gorilla/mux"
 
 	"github.com/pomerium/pomerium/internal/handlers"
@@ -141,18 +140,6 @@ func (p *Proxy) jwtAssertion(w http.ResponseWriter, r *http.Request) error {
 	rawAssertionJWT := r.Header.Get(httputil.HeaderPomeriumJWTAssertion)
 	if rawAssertionJWT == "" {
 		return httputil.NewError(http.StatusNotFound, errors.New("jwt not found"))
-	}
-
-	assertionJWT, err := jwt.ParseSigned(rawAssertionJWT)
-	if err != nil {
-		return httputil.NewError(http.StatusNotFound, errors.New("jwt not found"))
-	}
-
-	var dst struct {
-		Subject string `json:"sub"`
-	}
-	if assertionJWT.UnsafeClaimsWithoutVerification(&dst) != nil || dst.Subject == "" {
-		return httputil.NewError(http.StatusUnauthorized, errors.New("jwt not found"))
 	}
 
 	w.Header().Set("Content-Type", "application/jwt")

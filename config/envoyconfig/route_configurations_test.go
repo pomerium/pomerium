@@ -66,8 +66,6 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 							}
 						},
 						"requestHeadersToRemove": [
-							"x-pomerium-jwt-assertion",
-							"x-pomerium-jwt-assertion-for",
 							"x-pomerium-reproxy-policy",
 							"x-pomerium-reproxy-policy-hmac"
 						],
@@ -119,8 +117,6 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 							}
 						},
 						"requestHeadersToRemove": [
-							"x-pomerium-jwt-assertion",
-							"x-pomerium-jwt-assertion-for",
 							"x-pomerium-reproxy-policy",
 							"x-pomerium-reproxy-policy-hmac"
 						],

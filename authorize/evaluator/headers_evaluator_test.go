@@ -29,7 +29,7 @@ import (
 )
 
 func TestNewHeadersRequestFromPolicy(t *testing.T) {
-	req := NewHeadersRequestFromPolicy(&config.Policy{
+	req := NewHeadersRequestFromPolicy(&config.Options{}, &config.Policy{
 		EnableGoogleCloudServerlessAuthentication: true,
 		From: "https://*.example.com",
 		To: config.WeightedURLs{
@@ -54,7 +54,7 @@ func TestNewHeadersRequestFromPolicy(t *testing.T) {
 }
 
 func TestNewHeadersRequestFromPolicy_nil(t *testing.T) {
-	req := NewHeadersRequestFromPolicy(nil, RequestHTTP{Hostname: "from.example.com"})
+	req := NewHeadersRequestFromPolicy(nil, nil, RequestHTTP{Hostname: "from.example.com"})
 	assert.Equal(t, &HeadersRequest{
 		Issuer: "from.example.com",
 	}, req)
@@ -104,6 +104,7 @@ func TestHeadersEvaluator(t *testing.T) {
 				Session: RequestSession{
 					ID: "s1",
 				},
+				PassIdentityHeaders: true,
 			})
 		require.NoError(t, err)
 

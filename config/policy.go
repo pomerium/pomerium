@@ -142,11 +142,7 @@ type Policy struct {
 	PreserveHostHeader bool `mapstructure:"preserve_host_header" yaml:"preserve_host_header,omitempty"`
 
 	// PassIdentityHeaders controls whether to add a user's identity headers to the upstream request.
-	// These include:
-	//
-	//  - X-Pomerium-Jwt-Assertion
-	//  - X-Pomerium-Claim-*
-	//
+	// These include: X-Pomerium-Claim-*, and user-specific claims in X-Pomerium-Jwt-Assertion.
 	PassIdentityHeaders *bool `mapstructure:"pass_identity_headers" yaml:"pass_identity_headers,omitempty"`
 
 	// KubernetesServiceAccountToken is the kubernetes token to use for upstream requests.
