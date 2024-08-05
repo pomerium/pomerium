@@ -104,7 +104,10 @@ func init() {
 	}
 }
 
-var httpAccessLogDesc = (*envoy_data_accesslog_v3.HTTPAccessLogEntry)(nil).ProtoReflect().Descriptor()
+var (
+	httpAccessLogDesc = (*envoy_data_accesslog_v3.HTTPAccessLogEntry)(nil).ProtoReflect().Descriptor()
+	tcpAccessLogDesc  = (*envoy_data_accesslog_v3.TCPAccessLogEntry)(nil).ProtoReflect().Descriptor()
+)
 
 // Validate returns an error if the access log field is invalid.
 func (field AccessLogField) Validate() error {
@@ -113,9 +116,17 @@ func (field AccessLogField) Validate() error {
 	}
 
 	if field.IsDynamicField() {
-		_, err := paths.Parse(httpAccessLogDesc, string(field[strings.IndexRune(string(field), '=')+1:]))
+		pathStr := string(field[strings.IndexRune(string(field), '=')+1:])
+		_, err := paths.Parse(httpAccessLogDesc, pathStr)
 		if err != nil {
-			return fmt.Errorf("%w: %s", err, field)
+			if errors.Is(err, paths.ErrFieldNotFound) {
+				if _, err2 := paths.Parse(tcpAccessLogDesc, pathStr); err2 == nil {
+					return nil
+				} else {
+					err = errors.Join(err, err2)
+				}
+			}
+			return fmt.Errorf("invalid access log field '%s': %w", field, err)
 		}
 		return nil
 	}

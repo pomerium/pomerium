@@ -143,7 +143,7 @@ func Test_populateLogEvent(t *testing.T) {
 }
 
 func TestDynamicAccessLogFields(t *testing.T) {
-	entry := &envoy_data_accesslog_v3.HTTPAccessLogEntry{
+	httpEntry := &envoy_data_accesslog_v3.HTTPAccessLogEntry{
 		CommonProperties: &envoy_data_accesslog_v3.AccessLogCommon{
 			SampleRate: rand.Float64(),
 			StartTime:  timestamppb.Now(),
@@ -212,42 +212,49 @@ func TestDynamicAccessLogFields(t *testing.T) {
 			ResponseHeadersBytes: rand.Uint64(),
 		},
 	}
+	tcpEntry := &envoy_data_accesslog_v3.TCPAccessLogEntry{
+		CommonProperties: httpEntry.CommonProperties,
+		ConnectionProperties: &envoy_data_accesslog_v3.ConnectionProperties{
+			ReceivedBytes: 1234,
+		},
+	}
 
 	cases := []struct {
 		field  string
 		expect any
 	}{
-		{"test%d=.common_properties.sample_rate", entry.CommonProperties.SampleRate},
-		{"test%d=.common_properties.start_time", entry.CommonProperties.StartTime},
-		{"test%d=.common_properties.response_flags.failed_local_healthcheck", entry.CommonProperties.ResponseFlags.FailedLocalHealthcheck},
-		{"test%d=.common_properties.upstream_remote_address", json.RawMessage("{}")},                          // unset
-		{"test%d=.common_properties.upstream_remote_address.socket_address.address", json.RawMessage("null")}, // parent message unset
-		{"test%d=.common_properties.downstream_direct_remote_address.socket_address.address", entry.CommonProperties.DownstreamDirectRemoteAddress.GetSocketAddress().GetAddress()},
-		{"test%d=.common_properties.tls_properties.tls_session_id", entry.CommonProperties.TlsProperties.TlsSessionId},
-		{"test%d=.common_properties.tls_properties.ja3_fingerprint", entry.CommonProperties.TlsProperties.Ja3Fingerprint},
+		{"test%d=.common_properties.sample_rate", httpEntry.CommonProperties.SampleRate},
+		{"test%d=.common_properties.start_time", httpEntry.CommonProperties.StartTime},
+		{"test%d=.common_properties.response_flags.failed_local_healthcheck", httpEntry.CommonProperties.ResponseFlags.FailedLocalHealthcheck},
+		{"test%d=.common_properties.upstream_remote_address", json.RawMessage("{}")},      // unset
+		{"test%d=.common_properties.upstream_remote_address.socket_address.address", nil}, // parent message unset
+		{"test%d=.common_properties.downstream_direct_remote_address.socket_address.address", httpEntry.CommonProperties.DownstreamDirectRemoteAddress.GetSocketAddress().GetAddress()},
+		{"test%d=.common_properties.tls_properties.tls_session_id", httpEntry.CommonProperties.TlsProperties.TlsSessionId},
+		{"test%d=.common_properties.tls_properties.ja3_fingerprint", httpEntry.CommonProperties.TlsProperties.Ja3Fingerprint},
 		{`test%d=.common_properties.metadata.typed_filter_metadata["key1"].(google.protobuf.BoolValue)`, true},
 		{`test%d=.common_properties.metadata.typed_filter_metadata["key2"].(google.protobuf.StringValue)`, "value"},
 		{`test%d=.common_properties.metadata.typed_filter_metadata["key3"].(google.protobuf.Int32Value)`, int32(42)},
-		{`test%d=.common_properties.metadata.typed_filter_metadata["Any"]`, entry.CommonProperties.Metadata.TypedFilterMetadata["Any"]},
+		{`test%d=.common_properties.metadata.typed_filter_metadata["Any"]`, httpEntry.CommonProperties.Metadata.TypedFilterMetadata["Any"]},
 		{`test%d=.common_properties.metadata.typed_filter_metadata["Any"].(envoy.admin.v3.ClustersConfigDump.DynamicCluster).cluster.(google.protobuf.Int32Value)`, int32(1234)},
-		{"test%d=.common_properties.route_name", entry.CommonProperties.RouteName},
-		{`test%d=.common_properties.filter_state_objects["msg1"]`, entry.CommonProperties.FilterStateObjects["msg1"]},
+		{"test%d=.common_properties.route_name", httpEntry.CommonProperties.RouteName},
+		{`test%d=.common_properties.filter_state_objects["msg1"]`, httpEntry.CommonProperties.FilterStateObjects["msg1"]},
 		{`test%d=.common_properties.custom_tags["key1"]`, "value1"},
 		{`test%d=.common_properties.custom_tags["key2"]`, "value2"},
-		{`test%d=.common_properties.custom_tags["key3"]`, json.RawMessage("null")}, // missing key
+		{`test%d=.common_properties.custom_tags["key3"]`, nil}, // missing key
 		{`test%d=.common_properties.custom_tags["key3"].nonexistent`, "<error: cannot access field 'nonexistent' of non-message type>"},
-		{`test%d=.common_properties.duration`, entry.CommonProperties.Duration},
-		{`test%d=.common_properties.upstream_request_attempt_count`, entry.CommonProperties.UpstreamRequestAttemptCount},
-		{`test%d=.common_properties.connection_termination_details`, entry.CommonProperties.ConnectionTerminationDetails},
-		{`test%d=.common_properties.stream_id`, entry.CommonProperties.StreamId},
-		{`test%d=.common_properties.intermediate_log_entry`, entry.CommonProperties.IntermediateLogEntry},
-		{`test%d=.common_properties.access_log_type`, entry.CommonProperties.AccessLogType},
+		{`test%d=.common_properties.duration`, httpEntry.CommonProperties.Duration},
+		{`test%d=.common_properties.upstream_request_attempt_count`, httpEntry.CommonProperties.UpstreamRequestAttemptCount},
+		{`test%d=.common_properties.connection_termination_details`, httpEntry.CommonProperties.ConnectionTerminationDetails},
+		{`test%d=.common_properties.stream_id`, httpEntry.CommonProperties.StreamId},
+		{`test%d=.common_properties.intermediate_log_entry`, httpEntry.CommonProperties.IntermediateLogEntry},
+		{`test%d=.common_properties.access_log_type`, httpEntry.CommonProperties.AccessLogType},
 		{`test%d=.response.response_headers["responseHeader1"]`, "responseHeaderValue1"},
 		{`test%d=.response.response_headers["responseHeader2"]`, "responseHeaderValue2"},
 		{`test%d=.response.response_trailers["responseTrailer1"]`, "responseTrailerValue1"},
 		{`test%d=.response.response_trailers["responseTrailer2"]`, "responseTrailerValue2"},
-		{`test%d=.response.response_headers_bytes`, entry.Response.ResponseHeadersBytes},
+		{`test%d=.response.response_headers_bytes`, httpEntry.Response.ResponseHeadersBytes},
 		{`test%d=.common_properties.filter_state_objects["msg1"].(envoy.config.core.v3.Address).envoy_internal_address.server_listener_name`, "sample-server-listener-name"},
+		{`test%d=.connection_properties.received_bytes`, 1234},
 	}
 
 	for i, tc := range cases {
@@ -267,16 +274,51 @@ func TestDynamicAccessLogFields(t *testing.T) {
 				expected = fmt.Sprintf(`{"test%d":%s}`, i, string(msg))
 			case protoreflect.Enum:
 				expected = fmt.Sprintf(`{"test%d":"%v"}`, i, tc.expect)
+			case nil:
+				expected = "{}"
 			default:
 				expected = fmt.Sprintf(`{"test%d":%v}`, i, tc.expect)
 			}
-			var buf bytes.Buffer
-			lg := zerolog.New(&buf)
-			evt := lg.Log()
-			evt = populateLogEvent(log.AccessLogField(field), evt, entry)
-			evt.Send()
 
-			assert.Equal(t, expected, strings.TrimSpace(buf.String()))
+			var httpOnly, tcpOnly bool
+			switch {
+			case strings.HasPrefix(tc.field, "test%d=.request"):
+				httpOnly = true
+			case strings.HasPrefix(tc.field, "test%d=.response"):
+				httpOnly = true
+			case strings.HasPrefix(tc.field, "test%d=.protocol_version"):
+				httpOnly = true
+			case strings.HasPrefix(tc.field, "test%d=.connection_properties"):
+				tcpOnly = true
+			}
+
+			{
+				var buf bytes.Buffer
+				lg := zerolog.New(&buf)
+				evt := lg.Log()
+				evt = populateLogEvent(log.AccessLogField(field), evt, httpEntry)
+				evt.Send()
+
+				if !tcpOnly {
+					assert.Equal(t, expected, strings.TrimSpace(buf.String()))
+				} else {
+					assert.Equal(t, "{}", strings.TrimSpace(buf.String()))
+				}
+			}
+
+			{
+				var buf bytes.Buffer
+				lg := zerolog.New(&buf)
+				evt := lg.Log()
+				evt = populateLogEvent(log.AccessLogField(field), evt, tcpEntry)
+				evt.Send()
+
+				if !httpOnly {
+					assert.Equal(t, expected, strings.TrimSpace(buf.String()))
+				} else {
+					assert.Equal(t, "{}", strings.TrimSpace(buf.String()))
+				}
+			}
 		})
 	}
 }

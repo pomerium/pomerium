@@ -14,6 +14,8 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+var ErrFieldNotFound = errors.New("field not found")
+
 var globalParser Parser
 
 type Parser struct {
@@ -197,9 +199,9 @@ func (p *Parser) parse(root protoreflect.MessageDescriptor, pathStr string) (pro
 				field := msg.Fields().ByName(protoreflect.Name(part))
 				if field == nil {
 					if msg.FullName() == "google.protobuf.Any" {
-						return nil, fmt.Errorf("no such field '%s' in message %s (missing type expansion?)", part, msg.FullName())
+						return nil, fmt.Errorf("%w: '%s' in message %s (missing type expansion?)", ErrFieldNotFound, part, msg.FullName())
 					}
-					return nil, fmt.Errorf("no such field '%s' in message %s", part, msg.FullName())
+					return nil, fmt.Errorf("%w: '%s' in message %s", ErrFieldNotFound, part, msg.FullName())
 				}
 				result = append(result, protopath.FieldAccess(field))
 			} else {
@@ -322,8 +324,8 @@ func Dereference(root proto.Message, path protopath.Path) (protoreflect.Value, e
 			v = protoreflect.ValueOfMessage(msg.ProtoReflect())
 		case protopath.RootStep:
 			if v.Message().Descriptor() != step.MessageDescriptor() {
-				panic(fmt.Sprintf("bug: mismatched root descriptor (%s != %s)",
-					v.Message().Descriptor().FullName(), step.MessageDescriptor().FullName()))
+				return protoreflect.Value{}, fmt.Errorf("root descriptors mismatched (%s != %s)",
+					v.Message().Descriptor().FullName(), step.MessageDescriptor().FullName())
 			}
 		}
 	}

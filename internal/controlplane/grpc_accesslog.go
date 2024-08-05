@@ -3,6 +3,7 @@ package controlplane
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -106,6 +107,9 @@ func populateLogEvent(
 		name = strings.ToValidUTF8(strings.TrimSpace(name), "")
 		path, err := paths.Parse(entry.ProtoReflect().Descriptor(), pathStr)
 		if err != nil {
+			if errors.Is(err, paths.ErrFieldNotFound) {
+				return evt
+			}
 			return evt.Str(name, fmt.Sprintf("<error: %s>", err.Error()))
 		}
 		return populateLogEventByPath(name, path, evt, entry)
@@ -227,9 +231,14 @@ func populateLogEventByPath(
 	evt *zerolog.Event,
 	entry AccessLogEntry,
 ) *zerolog.Event {
-	value, err := paths.Dereference(entry, path)
+	// omit the root step in the path; if one is provided to paths.Dereference,
+	// it *must* match the root message descriptor.
+	value, err := paths.Dereference(entry, path[1:])
 	if err != nil {
 		return evt.Str(name, fmt.Sprintf("<error: %s>", err.Error()))
+	}
+	if !value.IsValid() {
+		return evt
 	}
 	switch value := value.Interface().(type) {
 	case protoreflect.Message:
