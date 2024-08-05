@@ -43,7 +43,7 @@ jobs:
         run: |
           export POMERIUM_TAG=dev
           cd ./integration/clusters/${{matrix.deployment}}-${{matrix.authenticate-flow}}
-          docker-compose up -d
+          docker compose up -d
 
       - name: integration tests
         run: |
