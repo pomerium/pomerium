@@ -120,11 +120,11 @@ func (field AccessLogField) Validate() error {
 		_, err := paths.Parse(httpAccessLogDesc, pathStr)
 		if err != nil {
 			if errors.Is(err, paths.ErrFieldNotFound) {
-				if _, err2 := paths.Parse(tcpAccessLogDesc, pathStr); err2 == nil {
+				_, err2 := paths.Parse(tcpAccessLogDesc, pathStr)
+				if err2 == nil {
 					return nil
-				} else {
-					err = errors.Join(err, err2)
 				}
+				err = errors.Join(err, err2)
 			}
 			return fmt.Errorf("invalid access log field '%s': %w", field, err)
 		}
