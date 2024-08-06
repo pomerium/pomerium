@@ -56,8 +56,10 @@ func IsManagedMode(configFile string) bool {
 }
 
 func withInterrupt(ctx context.Context) context.Context {
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancelCause(ctx)
 	go func(ctx context.Context) {
+		defer cancel(context.Canceled)
+
 		ch := make(chan os.Signal, 2)
 		defer signal.Stop(ch)
 
@@ -66,10 +68,9 @@ func withInterrupt(ctx context.Context) context.Context {
 
 		select {
 		case sig := <-ch:
-			log.Ctx(ctx).Info().Str("signal", sig.String()).Msg("quitting...")
+			cancel(fmt.Errorf("received signal: %s", sig))
 		case <-ctx.Done():
 		}
-		cancel()
 	}(ctx)
 	return ctx
 }

@@ -3,7 +3,6 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -28,7 +27,6 @@ import (
 // Run runs Pomerium is managed mode using the provided token.
 func Run(ctx context.Context, opts ...Option) error {
 	c := controller{cfg: newControllerConfig(opts...)}
-	eg, ctx := errgroup.WithContext(ctx)
 
 	err := c.initAPI(ctx)
 	if err != nil {
@@ -58,11 +56,17 @@ func Run(ctx context.Context, opts ...Option) error {
 	}
 	c.bootstrapConfig = src
 
+	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error { return run(ctx, "connect", c.runConnect) })
 	eg.Go(func() error { return run(ctx, "connect-log", c.RunConnectLog) })
 	eg.Go(func() error { return run(ctx, "zero-bootstrap", c.runBootstrap) })
 	eg.Go(func() error { return run(ctx, "pomerium-core", c.runPomeriumCore) })
 	eg.Go(func() error { return run(ctx, "zero-control-loop", c.runZeroControlLoop) })
+	eg.Go(func() error {
+		<-ctx.Done()
+		log.Ctx(ctx).Info().Msgf("shutting down: %v", context.Cause(ctx))
+		return nil
+	})
 	return eg.Wait()
 }
 
@@ -91,8 +95,9 @@ func (c *controller) initAPI(ctx context.Context) error {
 
 func run(ctx context.Context, name string, runFn func(context.Context) error) error {
 	log.Ctx(ctx).Debug().Str("name", name).Msg("starting")
+	defer log.Ctx(ctx).Debug().Str("name", name).Msg("stopped")
 	err := runFn(ctx)
-	if err != nil && !errors.Is(err, context.Canceled) {
+	if err != nil && ctx.Err() == nil {
 		return fmt.Errorf("%s: %w", name, err)
 	}
 	return nil
