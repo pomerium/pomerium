@@ -2,10 +2,12 @@ package config_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand/v2"
 	"net/url"
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -13,13 +15,18 @@ import (
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/google/go-cmp/cmp"
+	"github.com/pomerium/protoutil/protorand"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/hashutil"
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 
@@ -204,6 +211,7 @@ func TestPolicy_FromToPb(t *testing.T) {
 
 		policyFromPb, err := config.NewPolicyFromProto(pbPolicy)
 		assert.NoError(t, err)
+		assert.NoError(t, policyFromPb.Validate())
 		assert.Equal(t, p.From, policyFromPb.From)
 		assert.Equal(t, p.To, policyFromPb.To)
 		assert.Equal(t, p.AllowedUsers, policyFromPb.AllowedUsers)
@@ -236,6 +244,7 @@ func TestPolicy_FromToPb(t *testing.T) {
 
 			policyFromPb, err := config.NewPolicyFromProto(pbPolicy)
 			assert.NoError(t, err)
+			assert.NoError(t, policyFromPb.Validate())
 			assert.Equal(t, tc.expectedPolicyName, policyFromPb.EnvoyOpts.Name)
 		}
 	})
@@ -253,6 +262,7 @@ func TestPolicy_FromToPb(t *testing.T) {
 
 		policyFromProto, err := config.NewPolicyFromProto(pbPolicy)
 		assert.NoError(t, err)
+		assert.NoError(t, policyFromProto.Validate())
 		assert.Equal(t, p.Redirect.HTTPSRedirect, policyFromProto.Redirect.HTTPSRedirect)
 	})
 }
@@ -987,4 +997,323 @@ func unsafeReinterpretUintptr[T any](lp uintptr) *T {
 	// this extra pointer indirection prevents the go vet warning that usually
 	// happens when you try to convert a uintptr back into an unsafe.Pointer
 	return *(**T)(unsafe.Pointer(&lp))
+}
+
+func TestRouteID(t *testing.T) {
+	randomString := func() string {
+		return strings.TrimSuffix(cryptutil.NewRandomStringN(rand.IntN(31)+1), "=")
+	}
+	randomBool := func() bool {
+		return rand.N(2) == 0
+	}
+	randomURL := func() *url.URL {
+		u, err := url.Parse(fmt.Sprintf("https://%s.example.com/%s?foo=%s#%s",
+			randomString(), randomString(), randomString(), randomString()))
+		require.NoError(t, err)
+		return u
+	}
+	baseFieldMutators := []func(p *config.Policy){
+		func(p *config.Policy) { p.From = randomString() },
+		func(p *config.Policy) { p.Prefix = randomString() },
+		func(p *config.Policy) { p.Path = randomString() },
+		func(p *config.Policy) { p.Regex = randomString() },
+	}
+	toMutators := func(p *config.Policy) {
+		p.To = make(config.WeightedURLs, rand.N(9)+1)
+		for i := 0; i < len(p.To); i++ {
+			p.To[i] = config.WeightedURL{URL: *randomURL(), LbWeight: rand.Uint32()}
+		}
+	}
+	redirectMutators := []func(p *config.PolicyRedirect){
+		func(p *config.PolicyRedirect) { p.HTTPSRedirect = randomPtr(10, randomBool()) },
+		func(p *config.PolicyRedirect) { p.SchemeRedirect = randomPtr(10, randomString()) },
+		func(p *config.PolicyRedirect) { p.HostRedirect = randomPtr(10, randomString()) },
+		func(p *config.PolicyRedirect) { p.PortRedirect = randomPtr(10, rand.Uint32()) },
+		func(p *config.PolicyRedirect) { p.PathRedirect = randomPtr(10, randomString()) },
+		func(p *config.PolicyRedirect) { p.PrefixRewrite = randomPtr(10, randomString()) },
+		func(p *config.PolicyRedirect) { p.ResponseCode = randomPtr(10, rand.Int32()) },
+		func(p *config.PolicyRedirect) { p.StripQuery = randomPtr(10, randomBool()) },
+	}
+	responseMutators := []func(p *config.DirectResponse){
+		func(p *config.DirectResponse) { p.Status = rand.Int() },
+		func(p *config.DirectResponse) { p.Body = randomString() },
+	}
+
+	t.Run("random policies", func(t *testing.T) {
+		hashes := make(map[uint64]struct{}, 10000)
+		for i := 0; i < 10000; i++ {
+			p := config.Policy{}
+			for _, m := range baseFieldMutators {
+				m(&p)
+			}
+			switch rand.IntN(3) {
+			case 0:
+				toMutators(&p)
+			case 1:
+				p.Redirect = &config.PolicyRedirect{}
+				for _, m := range redirectMutators {
+					m(p.Redirect)
+				}
+			case 2:
+				p.Response = &config.DirectResponse{}
+				for _, m := range responseMutators {
+					m(p.Response)
+				}
+			}
+
+			routeID, err := p.RouteID()
+			require.NoError(t, err)
+			hashes[routeID] = struct{}{} // odds of a collision should be pretty low here
+
+			// check that computing the route id again results in the same value
+			routeID2, err := p.RouteID()
+			require.NoError(t, err)
+			assert.Equal(t, routeID, routeID2)
+		}
+		assert.Len(t, hashes, 10000)
+	})
+	t.Run("incremental policy", func(t *testing.T) {
+		hashes := make(map[uint64]config.Policy, 5000)
+
+		p := config.Policy{}
+
+		checkAdd := func(p *config.Policy) {
+			routeID, err := p.RouteID()
+			require.NoError(t, err)
+			if existing, ok := hashes[routeID]; ok {
+				require.Equal(t, existing, *p)
+			} else {
+				hashes[routeID] = *p
+			}
+
+			// check that computing the route id again results in the same value
+			routeID2, err := p.RouteID()
+			require.NoError(t, err)
+			assert.Equal(t, routeID, routeID2)
+		}
+
+		// to
+		toMutators(&p)
+		checkAdd(&p)
+
+		// set base fields
+		for _, m := range baseFieldMutators {
+			m(&p)
+			checkAdd(&p)
+		}
+
+		// redirect
+		p.To = nil
+		p.Redirect = &config.PolicyRedirect{}
+		for range 1000 {
+			for _, m := range redirectMutators {
+				m(p.Redirect)
+				checkAdd(&p)
+			}
+		}
+
+		// update base fields
+		for _, m := range baseFieldMutators {
+			m(&p)
+			checkAdd(&p)
+		}
+
+		// direct response
+		p.Redirect = nil
+		p.Response = &config.DirectResponse{}
+		for range 1000 {
+			for _, m := range responseMutators {
+				m(p.Response)
+				checkAdd(&p)
+			}
+		}
+
+		// update base fields
+		for _, m := range baseFieldMutators {
+			m(&p)
+			checkAdd(&p)
+		}
+
+		// sanity check
+		assert.Greater(t, len(hashes), 2000)
+	})
+	t.Run("field separation", func(t *testing.T) {
+		cases := []struct {
+			a, b *config.Policy
+		}{
+			{
+				&config.Policy{From: "foo", Prefix: "bar"},
+				&config.Policy{From: "f", Prefix: "oobar"},
+			},
+			{
+				&config.Policy{From: "foo", Prefix: "bar"},
+				&config.Policy{From: "foobar", Prefix: ""},
+			},
+			{
+				&config.Policy{From: "foobar", Prefix: ""},
+				&config.Policy{From: "", Prefix: "foobar"},
+			},
+			{
+				&config.Policy{From: "foo", Prefix: "", Path: "bar"},
+				&config.Policy{From: "foo", Prefix: "bar", Path: ""},
+			},
+			{
+				&config.Policy{From: "", Prefix: "foo", Path: "bar"},
+				&config.Policy{From: "foo", Prefix: "bar", Path: ""},
+			},
+			{
+				&config.Policy{From: "", Prefix: "foo", Path: "bar"},
+				&config.Policy{From: "foo", Prefix: "", Path: "bar"},
+			},
+		}
+		for _, c := range cases {
+			c.a.To = mustParseWeightedURLs(t, "https://foo")
+			c.b.To = mustParseWeightedURLs(t, "https://foo")
+		}
+
+		for _, c := range cases {
+			a, err := c.a.RouteID()
+			require.NoError(t, err)
+			b, err := c.b.RouteID()
+			require.NoError(t, err)
+			assert.NotEqual(t, a, b)
+		}
+	})
+}
+
+func randomPtr[T any](nilChance int, t T) *T {
+	if rand.N(nilChance) == 0 {
+		return nil
+	}
+	return &t
+}
+
+func TestShallowCopyToProto(t *testing.T) {
+	routeGen := protorand.New[*configpb.Route]()
+	routeGen.MaxCollectionElements = 2
+	routeGen.UseGoDurationLimits = true
+	routeGen.ExcludeMask(&fieldmaskpb.FieldMask{
+		Paths: []string{"from", "name", "to", "load_balancing_weights", "redirect", "response", "envoy_opts"},
+	})
+	redirectGen := protorand.New[*configpb.RouteRedirect]()
+	responseGen := protorand.New[*configpb.RouteDirectResponse]()
+
+	randomDomain := func() string {
+		numSegments := rand.IntN(5) + 1
+		segments := make([]string, numSegments)
+		for i := range segments {
+			b := make([]rune, rand.IntN(10)+10)
+			for j := range b {
+				b[j] = rune(rand.IntN(26) + 'a')
+			}
+			segments[i] = string(b)
+		}
+		return strings.Join(segments, ".")
+	}
+
+	newCompleteRoute := func() *configpb.Route {
+		pb, err := routeGen.Gen()
+
+		require.NoError(t, err)
+		pb.From = "https://" + randomDomain()
+		// EnvoyOpts is set to an empty non-nil message during conversion, if nil
+		pb.EnvoyOpts = &envoy_config_cluster_v3.Cluster{}
+
+		switch rand.IntN(3) {
+		case 0:
+			pb.To = make([]string, rand.IntN(3)+1)
+			for i := range pb.To {
+				pb.To[i] = "https://" + randomDomain()
+			}
+			pb.LoadBalancingWeights = make([]uint32, len(pb.To))
+			for i := range pb.LoadBalancingWeights {
+				pb.LoadBalancingWeights[i] = rand.Uint32N(10000) + 1
+			}
+		case 1:
+			pb.Redirect, err = redirectGen.Gen()
+			require.NoError(t, err)
+		case 2:
+			pb.Response, err = responseGen.Gen()
+			require.NoError(t, err)
+		}
+		return pb
+	}
+
+	t.Run("Round Trip", func(t *testing.T) {
+		for range 100 {
+			route := newCompleteRoute()
+
+			policy, err := config.NewPolicyFromProto(route)
+			require.NoError(t, err)
+
+			route2 := &configpb.Route{}
+			policy.ShallowCopyToProto(route2)
+
+			testutil.AssertProtoEqual(t, route, route2)
+
+			empty := config.Policy{}
+			empty.ShallowCopyToProto(route2)
+
+			testutil.AssertProtoEqual(t, &configpb.Route{}, route2)
+		}
+	})
+
+	t.Run("Repeated copy", func(t *testing.T) {
+		for range 100 {
+			route := newCompleteRoute()
+			policy, err := config.NewPolicyFromProto(route)
+			require.NoError(t, err)
+
+			route2 := &configpb.Route{}
+			policy.ShallowCopyToProto(route2)
+			testutil.AssertProtoEqual(t, route, route2)
+			policy.ShallowCopyToProto(route2)
+			testutil.AssertProtoEqual(t, route, route2)
+			policy.ShallowCopyToProto(route2)
+			testutil.AssertProtoEqual(t, route, route2)
+
+			empty := config.Policy{}
+			empty.ShallowCopyToProto(route2)
+			testutil.AssertProtoEqual(t, &configpb.Route{}, route2)
+			empty.ShallowCopyToProto(route2)
+			testutil.AssertProtoEqual(t, &configpb.Route{}, route2)
+			empty.ShallowCopyToProto(route2)
+			testutil.AssertProtoEqual(t, &configpb.Route{}, route2)
+		}
+	})
+
+	t.Run("Multiple routes", func(t *testing.T) {
+		for range 100 {
+			route1 := newCompleteRoute()
+			route2 := newCompleteRoute()
+
+			target := &configpb.Route{}
+			{
+				// create a new policy every time, since reusing the target will mutate
+				// the underlying route
+				policy1, err := config.NewPolicyFromProto(route1)
+				require.NoError(t, err)
+				policy1.ShallowCopyToProto(target)
+				testutil.AssertProtoEqual(t, route1, target)
+			}
+			{
+				policy2, err := config.NewPolicyFromProto(route2)
+				require.NoError(t, err)
+				policy2.ShallowCopyToProto(target)
+				testutil.AssertProtoEqual(t, route2, target)
+			}
+			{
+				policy1, err := config.NewPolicyFromProto(route1)
+				require.NoError(t, err)
+				policy1.ShallowCopyToProto(target)
+				testutil.AssertProtoEqual(t, route1, target)
+			}
+			{
+				policy2, err := config.NewPolicyFromProto(route2)
+				require.NoError(t, err)
+				policy2.ShallowCopyToProto(target)
+				testutil.AssertProtoEqual(t, route2, target)
+			}
+		}
+	})
 }
