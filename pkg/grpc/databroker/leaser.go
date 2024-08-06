@@ -112,7 +112,9 @@ func (locker *Leaser) runOnce(ctx context.Context, resetBackoff func()) error {
 func (locker *Leaser) withLease(ctx context.Context, leaseID string) error {
 	// always release the lock in case the parent context is canceled
 	defer func() {
-		_, _ = locker.handler.GetDataBrokerServiceClient().ReleaseLease(context.Background(), &ReleaseLeaseRequest{
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), locker.ttl)
+		defer cancel()
+		_, _ = locker.handler.GetDataBrokerServiceClient().ReleaseLease(ctx, &ReleaseLeaseRequest{
 			Name: locker.leaseName,
 			Id:   leaseID,
 		})
