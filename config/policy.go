@@ -227,6 +227,7 @@ type DirectResponse struct {
 }
 
 // NewPolicyFromProto creates a new Policy from a protobuf policy config route.
+// It is the caller's responsibility to call Validate() on the returned Policy.
 func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	var timeout *time.Duration
 	if pb.GetTimeout() != nil {
@@ -271,6 +272,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		TLSClientKeyFile:                 pb.GetTlsClientKeyFile(),
 		TLSDownstreamClientCA:            pb.GetTlsDownstreamClientCa(),
 		TLSDownstreamClientCAFile:        pb.GetTlsDownstreamClientCaFile(),
+		TLSUpstreamAllowRenegotiation:    pb.GetTlsUpstreamAllowRenegotiation(),
 		SetRequestHeaders:                pb.GetSetRequestHeaders(),
 		RemoveRequestHeaders:             pb.GetRemoveRequestHeaders(),
 		PreserveHostHeader:               pb.GetPreserveHostHeader(),
@@ -303,12 +305,20 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			Body:   pb.Response.GetBody(),
 		}
 	} else {
-		to, err := ParseWeightedUrls(pb.GetTo()...)
-		if err != nil {
-			return nil, err
+		p.To = make(WeightedURLs, len(pb.To))
+		for i, u := range pb.To {
+			u, err := urlutil.ParseAndValidateURL(u)
+			if err != nil {
+				return nil, err
+			}
+			w := WeightedURL{
+				URL: *u,
+			}
+			if len(pb.LoadBalancingWeights) == len(pb.To) {
+				w.LbWeight = pb.LoadBalancingWeights[i]
+			}
+			p.To[i] = w
 		}
-
-		p.To = to
 	}
 
 	p.EnvoyOpts = pb.EnvoyOpts
@@ -340,18 +350,21 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			Remediation: sp.GetRemediation(),
 		})
 	}
-	return p, p.Validate()
+	return p, nil
 }
 
 // ShallowCopyToProto copies fields from the Policy into dest, aliasing pointers
 // and reusing memory where possible. It does NOT set the Name field in dest;
 // that must be done manually.
 func (p *Policy) ShallowCopyToProto(dest *configpb.Route) {
+	dest.Id = p.ID
 	dest.From = p.From
 	dest.AllowedUsers = p.AllowedUsers
 	dest.AllowedDomains = p.AllowedDomains
 	if p.AllowedIDPClaims != nil {
 		dest.AllowedIdpClaims = p.AllowedIDPClaims.ToPB()
+	} else {
+		dest.AllowedIdpClaims = nil
 	}
 	dest.Prefix = p.Prefix
 	dest.Path = p.Path
@@ -359,6 +372,11 @@ func (p *Policy) ShallowCopyToProto(dest *configpb.Route) {
 	dest.PrefixRewrite = p.PrefixRewrite
 	dest.RegexRewritePattern = p.RegexRewritePattern
 	dest.RegexRewriteSubstitution = p.RegexRewriteSubstitution
+	dest.RegexPriorityOrder = p.RegexPriorityOrder
+	copySrcToOptionalDest(&dest.HostRewrite, &p.HostRewrite)
+	copySrcToOptionalDest(&dest.HostRewriteHeader, &p.HostRewriteHeader)
+	copySrcToOptionalDest(&dest.HostPathRegexRewritePattern, &p.HostPathRegexRewritePattern)
+	copySrcToOptionalDest(&dest.HostPathRegexRewriteSubstitution, &p.HostPathRegexRewriteSubstitution)
 	dest.CorsAllowPreflight = p.CORSAllowPreflight
 	dest.AllowPublicUnauthenticatedAccess = p.AllowPublicUnauthenticatedAccess
 	dest.AllowAnyAuthenticatedUser = p.AllowAnyAuthenticatedUser
@@ -376,14 +394,18 @@ func (p *Policy) ShallowCopyToProto(dest *configpb.Route) {
 	dest.TlsClientKeyFile = p.TLSClientKeyFile
 	dest.TlsDownstreamClientCa = p.TLSDownstreamClientCA
 	dest.TlsDownstreamClientCaFile = p.TLSDownstreamClientCAFile
+	dest.TlsUpstreamAllowRenegotiation = p.TLSUpstreamAllowRenegotiation
 	dest.SetRequestHeaders = p.SetRequestHeaders
 	dest.RemoveRequestHeaders = p.RemoveRequestHeaders
 	dest.PreserveHostHeader = p.PreserveHostHeader
 	dest.PassIdentityHeaders = p.PassIdentityHeaders
 	dest.KubernetesServiceAccountToken = p.KubernetesServiceAccountToken
+	dest.EnableGoogleCloudServerlessAuthentication = p.EnableGoogleCloudServerlessAuthentication
+	dest.EnvoyOpts = p.EnvoyOpts
 	dest.SetResponseHeaders = p.SetResponseHeaders
 	copySrcToOptionalDest(&dest.IdpClientId, &p.IDPClientID)
 	copySrcToOptionalDest(&dest.IdpClientSecret, &p.IDPClientSecret)
+	dest.ShowErrorDetails = p.ShowErrorDetails
 	if p.Redirect != nil {
 		if dest.Redirect == nil {
 			dest.Redirect = &configpb.RouteRedirect{}
@@ -418,33 +440,43 @@ func (p *Policy) ShallowCopyToProto(dest *configpb.Route) {
 		dest.Redirect = nil
 		dest.Response = nil
 
+		var skipLbWeights bool
 		for _, u := range p.To {
 			dest.To = append(dest.To, u.URL.String())
+			if skipLbWeights {
+				continue
+			}
+			if u.LbWeight == 0 {
+				skipLbWeights = true
+				clear(dest.LoadBalancingWeights)
+				dest.LoadBalancingWeights = dest.LoadBalancingWeights[:0]
+				continue
+			}
 			dest.LoadBalancingWeights = append(dest.LoadBalancingWeights, u.LbWeight)
 		}
 	}
-	copyOptionalDurationToOptionalDurationpb(&dest.Timeout, &p.UpstreamTimeout, &defaultOptions.DefaultUpstreamTimeout)
-	copyOptionalDurationToOptionalDurationpb(&dest.IdleTimeout, &p.IdleTimeout, nil)
+	copyOptionalDurationToOptionalDurationpb(&dest.Timeout, &p.UpstreamTimeout)
+	copyOptionalDurationToOptionalDurationpb(&dest.IdleTimeout, &p.IdleTimeout)
 
 	clear(dest.Policies)
 	dest.Policies = slices.Grow(dest.Policies[:0], len(p.SubPolicies))
 	for _, sp := range p.SubPolicies {
-		pb := &configpb.Policy{
-			Id:             sp.ID,
-			Name:           sp.Name,
-			AllowedUsers:   sp.AllowedUsers,
-			AllowedDomains: sp.AllowedDomains,
-			Rego:           sp.Rego,
-		}
-		if sp.AllowedIDPClaims != nil {
-			pb.AllowedIdpClaims = sp.AllowedIDPClaims.ToPB()
-		}
-		dest.Policies = append(dest.Policies, pb)
+		dest.Policies = append(dest.Policies, &configpb.Policy{
+			Id:               sp.ID,
+			Name:             sp.Name,
+			AllowedUsers:     sp.AllowedUsers,
+			AllowedDomains:   sp.AllowedDomains,
+			Rego:             sp.Rego,
+			AllowedIdpClaims: sp.AllowedIDPClaims.ToPB(),
+			Explanation:      sp.Explanation,
+			Remediation:      sp.Remediation,
+		})
 	}
 
+	clear(dest.RewriteResponseHeaders)
+	dest.RewriteResponseHeaders = slices.Grow(dest.RewriteResponseHeaders[:0], len(p.RewriteResponseHeaders))
 	for _, rwh := range p.RewriteResponseHeaders {
-		clear(dest.RewriteResponseHeaders)
-		dest.RewriteResponseHeaders = append(dest.RewriteResponseHeaders[:0], &configpb.RouteRewriteHeader{
+		dest.RewriteResponseHeaders = append(dest.RewriteResponseHeaders, &configpb.RouteRewriteHeader{
 			Header: rwh.Header,
 			Matcher: &configpb.RouteRewriteHeader_Prefix{
 				Prefix: rwh.Prefix,
@@ -475,29 +507,18 @@ func copyOptionalSrcToOptionalDest[T comparable](dst, src **T) {
 	**dst = **src
 }
 
-func copyOptionalDurationToOptionalDurationpb(dst **durationpb.Duration, src **time.Duration, def *time.Duration) {
+func copyOptionalDurationToOptionalDurationpb(dst **durationpb.Duration, src **time.Duration) {
+	if *src == nil {
+		*dst = nil
+		return
+	}
 	if *dst != nil {
-		var nanos int64
-		if *src == nil {
-			if def == nil {
-				*dst = nil
-				return
-			}
-			nanos = int64(*def)
-		} else {
-			nanos = int64(**src)
-		}
+		nanos := int64(**src)
 		seconds := nanos / int64(time.Second)
 		(*dst).Seconds = seconds
 		(*dst).Nanos = int32(nanos - seconds*int64(time.Second))
 	} else {
-		if *src == nil {
-			if def != nil {
-				*dst = durationpb.New(*def)
-			}
-		} else {
-			*dst = durationpb.New(**src)
-		}
+		*dst = durationpb.New(**src)
 	}
 }
 
@@ -692,6 +713,8 @@ func (pr *pooledRoute) reset() {
 	pr.LoadBalancingWeights = pr.LoadBalancingWeights[:0]
 	pr.Redirect.Reset() // contains possibly aliased pointers
 	pr.Response.Reset()
+	pr.Timeout.Reset()
+	pr.IdleTimeout.Reset()
 }
 
 // pooledFields contains a subset of fields that are owned by the pooled
@@ -756,48 +779,48 @@ func (p *Policy) ChecksumWithID(routeID uint64) uint64 {
 func (p *Policy) RouteID() (uint64, error) {
 	// this function is in the hot path, try not to allocate too much memory here
 	hash := hashutil.NewDigest()
-	hash.WriteString(p.From)
-	hash.WriteString(p.Prefix)
-	hash.WriteString(p.Path)
-	hash.WriteString(p.Regex)
+	hash.WriteStringWithLen(p.From)
+	hash.WriteStringWithLen(p.Prefix)
+	hash.WriteStringWithLen(p.Path)
+	hash.WriteStringWithLen(p.Regex)
 	switch {
 	case len(p.To) > 0:
 		hash.Write([]byte{1}) // case 1
 		hash.WriteInt32(int32(len(p.To)))
 		for _, to := range p.To {
-			hash.WriteString(to.URL.Scheme)
-			hash.WriteString(to.URL.Opaque)
+			hash.WriteStringWithLen(to.URL.Scheme)
+			hash.WriteStringWithLen(to.URL.Opaque)
 			if to.URL.User == nil {
 				hash.Write([]byte{0})
 			} else {
 				hash.Write([]byte{1})
-				hash.WriteString(to.URL.User.Username())
+				hash.WriteStringWithLen(to.URL.User.Username())
 				p, _ := to.URL.User.Password()
-				hash.WriteString(p)
+				hash.WriteStringWithLen(p)
 			}
-			hash.WriteString(to.URL.Host)
-			hash.WriteString(to.URL.Path)
-			hash.WriteString(to.URL.RawPath)
+			hash.WriteStringWithLen(to.URL.Host)
+			hash.WriteStringWithLen(to.URL.Path)
+			hash.WriteStringWithLen(to.URL.RawPath)
 			hash.WriteBool(to.URL.OmitHost)
 			hash.WriteBool(to.URL.ForceQuery)
-			hash.WriteString(to.URL.Fragment)
-			hash.WriteString(to.URL.RawFragment)
+			hash.WriteStringWithLen(to.URL.Fragment)
+			hash.WriteStringWithLen(to.URL.RawFragment)
 			hash.WriteUint32(to.LbWeight)
 		}
 	case p.Redirect != nil:
 		hash.Write([]byte{2}) // case 2
 		hash.WriteBoolPtr(p.Redirect.HTTPSRedirect)
-		hash.WriteStringPtr(p.Redirect.SchemeRedirect)
-		hash.WriteStringPtr(p.Redirect.HostRedirect)
+		hash.WriteStringPtrWithLen(p.Redirect.SchemeRedirect)
+		hash.WriteStringPtrWithLen(p.Redirect.HostRedirect)
 		hash.WriteUint32Ptr(p.Redirect.PortRedirect)
-		hash.WriteStringPtr(p.Redirect.PathRedirect)
-		hash.WriteStringPtr(p.Redirect.PrefixRewrite)
+		hash.WriteStringPtrWithLen(p.Redirect.PathRedirect)
+		hash.WriteStringPtrWithLen(p.Redirect.PrefixRewrite)
 		hash.WriteInt32Ptr(p.Redirect.ResponseCode)
 		hash.WriteBoolPtr(p.Redirect.StripQuery)
 	case p.Response != nil:
 		hash.Write([]byte{3}) // case 3
 		hash.WriteInt32(int32(p.Response.Status))
-		hash.WriteString(p.Response.Body)
+		hash.WriteStringWithLen(p.Response.Body)
 	default:
 		return 0, errEitherToOrRedirectOrResponseRequired
 	}

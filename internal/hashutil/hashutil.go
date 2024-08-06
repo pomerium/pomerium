@@ -55,6 +55,19 @@ func NewDigest() *Digest {
 	return &d
 }
 
+// WriteStringWithLen writes the string's length, then its contents to the hash.
+func (d *Digest) WriteStringWithLen(s string) {
+	d.WriteInt32(int32(len(s)))
+	d.WriteString(s)
+}
+
+// WriteStringWithLen writes the byte array's length, then its contents to
+// the hash.
+func (d *Digest) WriteWithLen(b []byte) {
+	d.WriteInt32(int32(len(b)))
+	d.Write(b)
+}
+
 // WriteBool writes a single byte (1 or 0) to the hash.
 func (d *Digest) WriteBool(b bool) {
 	if b {
@@ -114,6 +127,17 @@ func (d *Digest) WriteStringPtr(t *string) {
 	} else {
 		d.Write([]byte{1})
 		d.WriteString(*t)
+	}
+}
+
+// WriteStringPtr writes one byte (1 or 0) indicating whether the pointer is non-nil,
+// followed by the string's length and value, if present.
+func (d *Digest) WriteStringPtrWithLen(t *string) {
+	if t == nil {
+		d.Write([]byte{0})
+	} else {
+		d.Write([]byte{1})
+		d.WriteStringWithLen(*t)
 	}
 }
 
