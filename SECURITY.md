@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-We support the last minor release (e.g. Pomerium `v0.21.x`). 
+We support the last minor release (e.g. Pomerium `v0.21.x`).
 
 See https://www.pomerium.com/docs/releases.
 
