@@ -139,15 +139,10 @@ func listenerAccessLog() []*envoy_config_accesslog_v3.AccessLog {
 	}
 	tcp := marshalAny(
 		&envoy_extensions_access_loggers_grpc_v3.TcpGrpcAccessLogConfig{CommonConfig: cc})
-	http := marshalAny(
-		&envoy_extensions_access_loggers_grpc_v3.HttpGrpcAccessLogConfig{CommonConfig: cc})
 	return []*envoy_config_accesslog_v3.AccessLog{
 		{
 			Name:       "envoy.access_loggers.tcp_grpc",
 			ConfigType: &envoy_config_accesslog_v3.AccessLog_TypedConfig{TypedConfig: tcp},
-		}, {
-			Name:       "envoy.access_loggers.http_grpc",
-			ConfigType: &envoy_config_accesslog_v3.AccessLog_TypedConfig{TypedConfig: http},
 		},
 	}
 }
@@ -162,7 +157,9 @@ func (b *Builder) buildMainListener(
 		li.ListenerFilters = append(li.ListenerFilters, ProxyProtocolFilter())
 	}
 
-	li.AccessLog = listenerAccessLog() // XXX
+	if cfg.Options.DownstreamMTLS.Enforcement == config.MTLSEnforcementRejectConnection {
+		li.AccessLog = listenerAccessLog()
+	}
 
 	if cfg.Options.InsecureServer {
 		li.Address = buildAddress(cfg.Options.Addr, 80)

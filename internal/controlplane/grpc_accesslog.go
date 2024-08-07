@@ -2,13 +2,11 @@ package controlplane
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
 
 	envoy_data_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3"
 	envoy_service_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v3"
 	"github.com/rs/zerolog"
-	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/internal/log"
 )
@@ -43,18 +41,18 @@ func accessLogListener(
 	ctx context.Context, msg *envoy_service_accesslog_v3.StreamAccessLogsMessage,
 ) {
 	for _, entry := range msg.GetTcpLogs().GetLogEntry() {
-		e, _ := protojson.Marshal(entry)
-		log.Info(ctx).
-			Str("service", "envoy").
-			Interface("log", json.RawMessage(e)).
-			Msg("listener connect (TCP log)")
-	}
-	for _, entry := range msg.GetHttpLogs().GetLogEntry() {
-		e, _ := protojson.Marshal(entry)
-		log.Info(ctx).
-			Str("service", "envoy").
-			Interface("log", json.RawMessage(e)).
-			Msg("listener connect (HTTP log)")
+		failure := entry.GetCommonProperties().GetDownstreamTransportFailureReason()
+		if failure == "" {
+			continue
+		}
+		e := log.Info(ctx).Str("service", "envoy")
+		dict := zerolog.Dict()
+		populateCertEventDict(entry.GetCommonProperties().GetTlsProperties().GetPeerCertificateProperties(), dict)
+		e.Dict("client-certificate", dict)
+		e.Str("ip", entry.GetCommonProperties().GetDownstreamRemoteAddress().GetSocketAddress().GetAddress())
+		e.Str("tls-sni-hostname", entry.GetCommonProperties().GetTlsProperties().GetTlsSniHostname())
+		e.Str("downstream-transport-failure-reason", failure)
+		e.Msg("listener connection failure")
 	}
 }
 
@@ -121,7 +119,34 @@ func populateLogEvent(
 		return evt.Str(string(field), entry.GetCommonProperties().GetUpstreamCluster())
 	case log.AccessLogFieldUserAgent:
 		return evt.Str(string(field), entry.GetRequest().GetUserAgent())
+	case log.AccessLogFieldClientCertificate:
+		dict := zerolog.Dict()
+		populateCertEventDict(entry.GetCommonProperties().GetTlsProperties().GetPeerCertificateProperties(), dict)
+		return evt.Dict(string(field), dict)
 	default:
 		return evt
+	}
+}
+
+func populateCertEventDict(cert *envoy_data_accesslog_v3.TLSProperties_CertificateProperties, dict *zerolog.Event) {
+	if cert.Issuer != "" {
+		dict.Str("issuer", cert.Issuer)
+	}
+	if cert.Subject != "" {
+		dict.Str("subject", cert.Subject)
+	}
+	if len(cert.SubjectAltName) > 0 {
+		arr := zerolog.Arr()
+		for _, san := range cert.SubjectAltName {
+			// follow openssl GENERAL_NAME_print formatting
+			// envoy only provides dns and uri SANs at the moment
+			switch san := san.GetSan().(type) {
+			case *envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName_Dns:
+				arr.Str("DNS:" + san.Dns)
+			case *envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName_Uri:
+				arr.Str("URI:" + san.Uri)
+			}
+		}
+		dict.Array("subjectAltName", arr)
 	}
 }
