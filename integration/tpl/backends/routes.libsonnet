@@ -241,6 +241,12 @@ local Routes(mode, idp, dns_suffix) =
         'x-idp': idp,
       },
     },
+    // internal debug server (for testing)
+    {
+      from: 'https://debug.localhost.pomerium.io',
+      to: 'http://127.0.0.1:19901',
+      allow_public_unauthenticated_access: true,
+    },
   ] + if mode == 'multi' then [
     {
       from: 'https://authenticate.localhost.pomerium.io',
