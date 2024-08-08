@@ -730,11 +730,11 @@ func TestBootstrapConfig(t *testing.T) {
 	}))
 	require.NoError(t, err)
 
-	bootstrap, err := b.BuildBootstrap(context.Background(), &config.Config{
+	bootstrap, err := b.WithConfig(&config.Config{
 		Options: &config.Options{
 			EnvoyAdminAddress: "localhost:9901",
 		},
-	}, false)
+	}).BuildBootstrap(context.Background(), false)
 	assert.NoError(t, err)
 
 	monitor.ApplyBootstrapConfig(bootstrap)

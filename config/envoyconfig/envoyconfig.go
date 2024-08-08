@@ -151,7 +151,7 @@ func buildAddress(hostport string, defaultPort uint32) *envoy_config_core_v3.Add
 	}
 }
 
-func (b *Builder) envoyTLSCertificateFromGoTLSCertificate(
+func (b *ScopedBuilder) envoyTLSCertificateFromGoTLSCertificate(
 	ctx context.Context,
 	cert *tls.Certificate,
 ) *envoy_extensions_transport_sockets_tls_v3.TlsCertificate {

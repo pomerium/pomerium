@@ -6,8 +6,6 @@ import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
-
-	"github.com/pomerium/pomerium/config"
 )
 
 // Pomerium implements the ACME TLS-ALPN protocol by adding a filter chain to the main HTTPS listener
@@ -20,10 +18,8 @@ const (
 	acmeTLSALPNClusterName         = "pomerium-acme-tls-alpn"
 )
 
-func (b *Builder) buildACMETLSALPNCluster(
-	cfg *config.Config,
-) *envoy_config_cluster_v3.Cluster {
-	port, _ := strconv.ParseUint(cfg.ACMETLSALPNPort, 10, 32)
+func (b *ScopedBuilder) buildACMETLSALPNCluster() *envoy_config_cluster_v3.Cluster {
+	port, _ := strconv.ParseUint(b.cfg.ACMETLSALPNPort, 10, 32)
 	return &envoy_config_cluster_v3.Cluster{
 		Name: acmeTLSALPNClusterName,
 		LoadAssignment: &envoy_config_endpoint_v3.ClusterLoadAssignment{
@@ -41,7 +37,7 @@ func (b *Builder) buildACMETLSALPNCluster(
 	}
 }
 
-func (b *Builder) buildACMETLSALPNFilterChain() *envoy_config_listener_v3.FilterChain {
+func (b *ScopedBuilder) buildACMETLSALPNFilterChain() *envoy_config_listener_v3.FilterChain {
 	return &envoy_config_listener_v3.FilterChain{
 		FilterChainMatch: &envoy_config_listener_v3.FilterChainMatch{
 			ApplicationProtocols: []string{acmeTLSALPNApplicationProtocol},
