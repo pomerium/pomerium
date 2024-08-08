@@ -389,6 +389,7 @@ func TestDownstreamClientCA(t *testing.T) {
 				},
 				"tls-peer-cert": closedMap{},
 				"message":       "http-request",
+				"route-name":    "policy-13",
 			},
 		})
 	})
@@ -426,7 +427,8 @@ func TestDownstreamClientCA(t *testing.T) {
 					"issuer":  "CN=downstream CA 2,O=mkcert development CA",
 					"subject": "CN=downstream client 2,O=mkcert development certificate",
 				},
-				"message": "http-request",
+				"message":    "http-request",
+				"route-name": "policy-13",
 			},
 		})
 	})
@@ -471,7 +473,8 @@ func TestDownstreamClientCA(t *testing.T) {
 					"issuer":  "CN=downstream CA 1,O=mkcert development CA",
 					"subject": "CN=downstream client 1,O=mkcert development certificate",
 				},
-				"message": "http-request",
+				"message":    "http-request",
+				"route-name": "policy-13",
 			},
 		})
 	})
@@ -509,7 +512,8 @@ func TestDownstreamClientCA(t *testing.T) {
 					"issuer":  "CN=downstream CA 1,O=mkcert development CA",
 					"subject": "CN=downstream 1 client B,O=mkcert development certificate",
 				},
-				"message": "http-request",
+				"message":    "http-request",
+				"route-name": "policy-13",
 			},
 		})
 	})

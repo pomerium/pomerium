@@ -3,15 +3,21 @@ package controlplane
 import (
 	"context"
 	"crypto/tls"
+	"errors"
+	"fmt"
 	"strings"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_data_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3"
 	envoy_service_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v3"
 	"github.com/rs/zerolog"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protopath"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/protoutil/paths"
 )
 
 func (srv *Server) registerAccessLogHandlers() {
@@ -96,6 +102,19 @@ func populateLogEvent(
 	evt *zerolog.Event,
 	entry AccessLogEntry,
 ) *zerolog.Event {
+	if !field.IsWellKnownField() && field.IsDynamicField() {
+		name, pathStr, _ := strings.Cut(string(field), "=")
+		name = strings.ToValidUTF8(strings.TrimSpace(name), "")
+		path, err := paths.ParseFrom(entry.ProtoReflect().Descriptor(), pathStr)
+		if err != nil {
+			if errors.Is(err, paths.ErrFieldNotFound) {
+				return evt
+			}
+			return evt.Str(name, fmt.Sprintf("<error: %s>", err.Error()))
+		}
+		return populateLogEventByPath(name, path, evt, entry)
+	}
+
 	switch field {
 	case log.AccessLogFieldDuration:
 		dur := entry.GetCommonProperties().GetTimeToLastDownstreamTxByte().AsDuration()
@@ -203,5 +222,65 @@ func populateCertEventDict(cert *envoy_data_accesslog_v3.TLSProperties_Certifica
 			}
 		}
 		dict.Array("subjectAltName", arr)
+	}
+}
+
+func populateLogEventByPath(
+	name string,
+	path protopath.Path,
+	evt *zerolog.Event,
+	entry AccessLogEntry,
+) *zerolog.Event {
+	// omit the root step in the path; if one is provided to paths.Dereference,
+	// it *must* match the root message descriptor.
+	value, err := paths.Evaluate(entry, path[1:])
+	if err != nil {
+		return evt.Str(name, fmt.Sprintf("<error: %s>", err.Error()))
+	}
+	if !value.IsValid() {
+		return evt
+	}
+	switch value := value.Interface().(type) {
+	case protoreflect.Message:
+		jsonData, err := protojson.Marshal(value.Interface())
+		if err != nil {
+			return evt.Str(name, fmt.Sprintf("<error: %s>", err.Error()))
+		}
+		return evt.RawJSON(name, jsonData)
+	case protoreflect.List:
+		list := zerolog.Arr()
+		for i := 0; i < value.Len(); i++ {
+			list = list.Interface(value.Get(i).Interface())
+		}
+		return evt.Array(name, list)
+	case protoreflect.Map:
+		dict := zerolog.Dict()
+		value.Range(func(key protoreflect.MapKey, value protoreflect.Value) bool {
+			switch value := value.Interface().(type) {
+			case protoreflect.Message:
+				jsonData, err := protojson.Marshal(value.Interface())
+				if err != nil {
+					dict = dict.Str(key.String(), fmt.Sprintf("<error: %s>", err.Error()))
+					return true
+				}
+				dict = dict.RawJSON(key.String(), jsonData)
+			default:
+				dict = dict.Interface(key.String(), value)
+			}
+			return true
+		})
+		return evt.Dict(name, dict)
+	case protoreflect.EnumNumber:
+		var fd protoreflect.FieldDescriptor
+		last := path.Index(-1)
+		switch last.Kind() {
+		case protopath.FieldAccessStep:
+			fd = last.FieldDescriptor()
+		case protopath.MapIndexStep, protopath.ListIndexStep:
+			fd = path.Index(-2).FieldDescriptor()
+		}
+		return evt.Str(name, string(fd.Enum().Values().ByNumber(value).Name()))
+	default:
+		return evt.Any(name, value)
 	}
 }
