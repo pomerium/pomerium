@@ -1,6 +1,7 @@
 package controlplane
 
 import (
+	"context"
 	"strings"
 
 	envoy_data_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3"
@@ -16,6 +17,7 @@ func (srv *Server) registerAccessLogHandlers() {
 
 // StreamAccessLogs receives logs from envoy and prints them to stdout.
 func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogService_StreamAccessLogsServer) error {
+	var logName string
 	for {
 		msg, err := stream.Recv()
 		if err != nil {
@@ -23,26 +25,59 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogS
 			return err
 		}
 
-		for _, entry := range msg.GetHttpLogs().LogEntry {
-			reqPath := entry.GetRequest().GetPath()
-			var evt *zerolog.Event
-			if reqPath == "/ping" || reqPath == "/healthz" {
-				evt = log.Debug(stream.Context())
-			} else {
-				evt = log.Info(stream.Context())
-			}
-			evt = evt.Str("service", "envoy")
-
-			fields := srv.currentConfig.Load().Options.GetAccessLogFields()
-			for _, field := range fields {
-				evt = populateLogEvent(field, evt, entry)
-			}
-			// headers are selected in the envoy access logs config, so we can log all of them here
-			if len(entry.GetRequest().GetRequestHeaders()) > 0 {
-				evt = evt.Interface("headers", entry.GetRequest().GetRequestHeaders())
-			}
-			evt.Msg("http-request")
+		if msg.Identifier != nil {
+			logName = msg.Identifier.LogName
 		}
+
+		if logName == "ingress-http-listener" {
+			accessLogListener(stream.Context(), msg)
+		} else {
+			srv.accessLogHTTP(stream.Context(), msg)
+		}
+	}
+}
+
+func accessLogListener(
+	ctx context.Context, msg *envoy_service_accesslog_v3.StreamAccessLogsMessage,
+) {
+	for _, entry := range msg.GetTcpLogs().GetLogEntry() {
+		failure := entry.GetCommonProperties().GetDownstreamTransportFailureReason()
+		if failure == "" {
+			continue
+		}
+		e := log.Info(ctx).Str("service", "envoy")
+		dict := zerolog.Dict()
+		populateCertEventDict(entry.GetCommonProperties().GetTlsProperties().GetPeerCertificateProperties(), dict)
+		e.Dict("client-certificate", dict)
+		e.Str("ip", entry.GetCommonProperties().GetDownstreamRemoteAddress().GetSocketAddress().GetAddress())
+		e.Str("tls-sni-hostname", entry.GetCommonProperties().GetTlsProperties().GetTlsSniHostname())
+		e.Str("downstream-transport-failure-reason", failure)
+		e.Msg("listener connection failure")
+	}
+}
+
+func (srv *Server) accessLogHTTP(
+	ctx context.Context, msg *envoy_service_accesslog_v3.StreamAccessLogsMessage,
+) {
+	for _, entry := range msg.GetHttpLogs().LogEntry {
+		reqPath := entry.GetRequest().GetPath()
+		var evt *zerolog.Event
+		if reqPath == "/ping" || reqPath == "/healthz" {
+			evt = log.Debug(ctx)
+		} else {
+			evt = log.Info(ctx)
+		}
+		evt = evt.Str("service", "envoy")
+
+		fields := srv.currentConfig.Load().Options.GetAccessLogFields()
+		for _, field := range fields {
+			evt = populateLogEvent(field, evt, entry)
+		}
+		// headers are selected in the envoy access logs config, so we can log all of them here
+		if len(entry.GetRequest().GetRequestHeaders()) > 0 {
+			evt = evt.Interface("headers", entry.GetRequest().GetRequestHeaders())
+		}
+		evt.Msg("http-request")
 	}
 }
 
@@ -84,7 +119,34 @@ func populateLogEvent(
 		return evt.Str(string(field), entry.GetCommonProperties().GetUpstreamCluster())
 	case log.AccessLogFieldUserAgent:
 		return evt.Str(string(field), entry.GetRequest().GetUserAgent())
+	case log.AccessLogFieldClientCertificate:
+		dict := zerolog.Dict()
+		populateCertEventDict(entry.GetCommonProperties().GetTlsProperties().GetPeerCertificateProperties(), dict)
+		return evt.Dict(string(field), dict)
 	default:
 		return evt
+	}
+}
+
+func populateCertEventDict(cert *envoy_data_accesslog_v3.TLSProperties_CertificateProperties, dict *zerolog.Event) {
+	if cert.Issuer != "" {
+		dict.Str("issuer", cert.Issuer)
+	}
+	if cert.Subject != "" {
+		dict.Str("subject", cert.Subject)
+	}
+	if len(cert.SubjectAltName) > 0 {
+		arr := zerolog.Arr()
+		for _, san := range cert.SubjectAltName {
+			// follow openssl GENERAL_NAME_print formatting
+			// envoy only provides dns and uri SANs at the moment
+			switch san := san.GetSan().(type) {
+			case *envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName_Dns:
+				arr.Str("DNS:" + san.Dns)
+			case *envoy_data_accesslog_v3.TLSProperties_CertificateProperties_SubjectAltName_Uri:
+				arr.Str("URI:" + san.Uri)
+			}
+		}
+		dict.Array("subjectAltName", arr)
 	}
 }

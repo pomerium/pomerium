@@ -24,6 +24,7 @@ const (
 	AccessLogFieldSize                AccessLogField = "size"
 	AccessLogFieldUpstreamCluster     AccessLogField = "upstream-cluster"
 	AccessLogFieldUserAgent           AccessLogField = "user-agent"
+	AccessLogFieldClientCertificate   AccessLogField = "client-certificate"
 )
 
 var defaultAccessLogFields = []AccessLogField{
@@ -64,6 +65,7 @@ var accessLogFieldLookup = map[AccessLogField]struct{}{
 	AccessLogFieldSize:                {},
 	AccessLogFieldUpstreamCluster:     {},
 	AccessLogFieldUserAgent:           {},
+	AccessLogFieldClientCertificate:   {},
 }
 
 // Validate returns an error if the access log field is invalid.
