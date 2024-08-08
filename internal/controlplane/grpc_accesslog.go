@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/pkg/protoutil/paths"
+	"github.com/pomerium/protoutil/paths"
 )
 
 func (srv *Server) registerAccessLogHandlers() {
@@ -105,7 +105,7 @@ func populateLogEvent(
 	if !field.IsWellKnownField() && field.IsDynamicField() {
 		name, pathStr, _ := strings.Cut(string(field), "=")
 		name = strings.ToValidUTF8(strings.TrimSpace(name), "")
-		path, err := paths.Parse(entry.ProtoReflect().Descriptor(), pathStr)
+		path, err := paths.ParseFrom(entry.ProtoReflect().Descriptor(), pathStr)
 		if err != nil {
 			if errors.Is(err, paths.ErrFieldNotFound) {
 				return evt
@@ -233,7 +233,7 @@ func populateLogEventByPath(
 ) *zerolog.Event {
 	// omit the root step in the path; if one is provided to paths.Dereference,
 	// it *must* match the root message descriptor.
-	value, err := paths.Dereference(entry, path[1:])
+	value, err := paths.Evaluate(entry, path[1:])
 	if err != nil {
 		return evt.Str(name, fmt.Sprintf("<error: %s>", err.Error()))
 	}

@@ -7,7 +7,7 @@ import (
 
 	envoy_data_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3"
 
-	"github.com/pomerium/pomerium/pkg/protoutil/paths"
+	"github.com/pomerium/protoutil/paths"
 )
 
 // An AccessLogField is a field in the access logs.
@@ -117,10 +117,10 @@ func (field AccessLogField) Validate() error {
 
 	if field.IsDynamicField() {
 		pathStr := string(field[strings.IndexRune(string(field), '=')+1:])
-		_, err := paths.Parse(httpAccessLogDesc, pathStr)
+		_, err := paths.ParseFrom(httpAccessLogDesc, pathStr)
 		if err != nil {
 			if errors.Is(err, paths.ErrFieldNotFound) {
-				_, err2 := paths.Parse(tcpAccessLogDesc, pathStr)
+				_, err2 := paths.ParseFrom(tcpAccessLogDesc, pathStr)
 				if err2 == nil {
 					return nil
 				}
