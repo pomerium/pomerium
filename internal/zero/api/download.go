@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -24,6 +25,8 @@ const (
 	maxUncompressedBlobSize  = 2 << 30 // 1gb
 )
 
+var ErrEtagChanged = errors.New("etag changed")
+
 // DownloadClusterResourceBundle downloads given cluster resource bundle to given writer.
 func (api *API) DownloadClusterResourceBundle(
 	ctx context.Context,
@@ -42,8 +45,15 @@ func (api *API) DownloadClusterResourceBundle(
 	}
 	defer resp.Body.Close()
 
+	log.Ctx(ctx).Trace().
+		Str("url_path", req.Request.URL.Path).
+		Interface("request_headers", req.Header).
+		Interface("response_headers", resp.Header).
+		Str("status", resp.Status).
+		Msg("bundle download request")
+
 	if resp.StatusCode == http.StatusNotModified {
-		return &DownloadResult{NotModified: true}, nil
+		return newContentNotModifiedDownloadResult(resp.Header.Get("Last-Modified") == current.LastModified), nil
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -71,10 +81,46 @@ func (api *API) DownloadClusterResourceBundle(
 		return nil, fmt.Errorf("cannot obtain cache conditions from response: %w", err)
 	}
 
-	return &DownloadResult{
-		DownloadConditional: updated,
-		Metadata:            extractMetadata(resp.Header, req.CaptureHeaders),
-	}, nil
+	return newUpdatedDownloadResult(updated, extractMetadata(resp.Header, req.CaptureHeaders)), nil
+}
+
+func (api *API) HeadClusterResourceBundle(
+	ctx context.Context,
+	id string,
+	etag string,
+) (*DownloadResult, error) {
+	req, err := api.getHeadRequest(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get head request: %w", err)
+	}
+
+	resp, err := api.cfg.httpClient.Do(req.Request)
+	if err != nil {
+		return nil, fmt.Errorf("do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	log.Ctx(ctx).Trace().
+		Str("url_path", req.Request.URL.Path).
+		Interface("request_headers", req.Header).
+		Interface("response_headers", resp.Header).
+		Str("status", resp.Status).
+		Msg("bundle metadata request")
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, httpDownloadError(ctx, resp)
+	}
+
+	if gotEtag := resp.Header.Get("ETag"); gotEtag != etag {
+		return nil, ErrEtagChanged
+	}
+
+	updated, err := newConditionalFromResponse(resp)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain cache conditions from response: %w", err)
+	}
+
+	return newUpdatedDownloadResult(updated, extractMetadata(resp.Header, req.CaptureHeaders)), nil
 }
 
 type downloadRequest struct {
@@ -97,6 +143,23 @@ func (api *API) getDownloadRequest(ctx context.Context, id string, current *Down
 	err = current.SetHeaders(req)
 	if err != nil {
 		return nil, fmt.Errorf("set conditional download headers: %w", err)
+	}
+
+	return &downloadRequest{
+		Request:            req,
+		DownloadCacheEntry: *params,
+	}, nil
+}
+
+func (api *API) getHeadRequest(ctx context.Context, id string) (*downloadRequest, error) {
+	params, err := api.getDownloadParams(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get download URL: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, params.URL.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("new request: %w", err)
 	}
 
 	return &downloadRequest{
@@ -145,12 +208,33 @@ func (api *API) updateBundleDownloadParams(ctx context.Context, id string) (*clu
 
 // DownloadResult contains the result of a download operation
 type DownloadResult struct {
-	// NotModified is true if the bundle has not been modified
-	NotModified bool
+	// ContentUpdated indicates the bundle contents were updated
+	ContentUpdated bool
+	// MetadataUpdated indicates the metadata was updated
+	MetadataUpdated bool
 	// DownloadConditional contains the new conditional
 	*DownloadConditional
 	// Metadata contains the metadata of the downloaded bundle
 	Metadata map[string]string
+}
+
+func newUpdatedDownloadResult(
+	updated *DownloadConditional,
+	metadata map[string]string,
+) *DownloadResult {
+	return &DownloadResult{
+		ContentUpdated:      true,
+		MetadataUpdated:     true,
+		DownloadConditional: updated,
+		Metadata:            metadata,
+	}
+}
+
+func newContentNotModifiedDownloadResult(metadataUpdated bool) *DownloadResult {
+	return &DownloadResult{
+		ContentUpdated:  false,
+		MetadataUpdated: metadataUpdated,
+	}
 }
 
 // DownloadConditional contains the conditional headers for a download operation
@@ -161,8 +245,8 @@ type DownloadConditional struct {
 
 // Validate validates the conditional headers
 func (c *DownloadConditional) Validate() error {
-	if c.ETag == "" && c.LastModified == "" {
-		return fmt.Errorf("either ETag or LastModified must be set")
+	if c.ETag == "" {
+		return fmt.Errorf("ETag must be set")
 	}
 	return nil
 }
@@ -176,7 +260,6 @@ func (c *DownloadConditional) SetHeaders(req *http.Request) error {
 		return err
 	}
 	req.Header.Set("If-None-Match", c.ETag)
-	req.Header.Set("If-Modified-Since", c.LastModified)
 	return nil
 }
 
@@ -240,6 +323,7 @@ func isXML(ct string) bool {
 }
 
 func extractMetadata(header http.Header, keys []string) map[string]string {
+	log.Info().Interface("header", header).Msg("extract metadata")
 	m := make(map[string]string)
 	for _, k := range keys {
 		v := header.Get(k)

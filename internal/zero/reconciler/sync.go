@@ -20,6 +20,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/retry"
+	zero "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
@@ -140,17 +141,27 @@ func (c *service) syncBundle(ctx context.Context, key string) error {
 		return fmt.Errorf("download bundle: %w", err)
 	}
 
-	if result.NotModified {
-		log.Ctx(ctx).Debug().Str("bundle", key).Msg("bundle not changed")
+	if result.ContentUpdated {
+		return c.syncUpdatedBundle(ctx, key, cached, result, fd)
+	}
+	if !result.MetadataUpdated {
+		log.Ctx(ctx).Debug().Str("id", key).Msg("bundle not updated")
 		return nil
 	}
+	if cached == nil {
+		return fmt.Errorf("invalid state: bundle metadata updated but no cached entry")
+	}
 
+	return c.getUpdatedMetadata(ctx, key, *cached, result)
+}
+
+func (c *service) syncUpdatedBundle(ctx context.Context, key string, cached *BundleCacheEntry, result *zero.DownloadResult, fd ReadWriteSeekCloser) error {
 	log.Ctx(ctx).Debug().Str("bundle", key).
 		Interface("cached-entry", cached).
 		Interface("current-entry", result.DownloadConditional).
 		Msg("bundle updated")
 
-	_, err = fd.Seek(0, io.SeekStart)
+	_, err := fd.Seek(0, io.SeekStart)
 	if err != nil {
 		return fmt.Errorf("seek to start: %w", err)
 	}
@@ -172,6 +183,41 @@ func (c *service) syncBundle(ctx context.Context, key string) error {
 		Str("last_modified", current.LastModified).
 		Interface("metadata", result.Metadata).
 		Msg("bundle synced")
+
+	err = c.SetBundleCacheEntry(ctx, key, current)
+	if err != nil {
+		err = fmt.Errorf("set bundle cache entry: %w", err)
+		c.ReportBundleAppliedFailure(key, fmt.Errorf("set bundle cache entry: %w", err))
+		return err
+	}
+
+	c.ReportBundleAppliedSuccess(key, result.Metadata)
+	return nil
+}
+
+func (c *service) getUpdatedMetadata(ctx context.Context, key string, cached BundleCacheEntry, result *zero.DownloadResult) error {
+	log.Ctx(ctx).Debug().Str("bundle", key).
+		Interface("cached-entry", cached).
+		Interface("current-entry", result.DownloadConditional).
+		Msg("bundle metadata updated")
+
+	result, err := c.config.api.HeadClusterResourceBundle(ctx, key, cached.ETag)
+	if err != nil {
+		return fmt.Errorf("get bundle metadata: %w", err)
+	}
+
+	current := BundleCacheEntry{
+		DownloadConditional: *result.DownloadConditional,
+		RecordTypes:         cached.GetRecordTypes(),
+	}
+
+	log.Ctx(ctx).Debug().
+		Str("bundle", key).
+		Strs("record_types", current.RecordTypes).
+		Str("etag", current.ETag).
+		Str("last_modified", current.LastModified).
+		Interface("metadata", result.Metadata).
+		Msg("metadata updated")
 
 	err = c.SetBundleCacheEntry(ctx, key, current)
 	if err != nil {
