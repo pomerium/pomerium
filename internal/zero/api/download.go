@@ -53,7 +53,7 @@ func (api *API) DownloadClusterResourceBundle(
 		Msg("bundle download request")
 
 	if resp.StatusCode == http.StatusNotModified {
-		return newContentNotModifiedDownloadResult(resp.Header.Get("Last-Modified") == current.LastModified), nil
+		return newContentNotModifiedDownloadResult(resp.Header.Get("Last-Modified") != current.LastModified), nil
 	}
 
 	if resp.StatusCode != http.StatusOK {
