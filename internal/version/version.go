@@ -4,7 +4,9 @@ package version
 import (
 	"fmt"
 	"runtime"
+	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -18,9 +20,19 @@ var (
 	GitCommit = ""
 	// BuildMeta specifies release type (dev,rc1,beta,etc)
 	BuildMeta = ""
+	// Timestamp specifies the build time, set by the compiler as UNIX timestamp.
+	Timestamp = ""
 
 	runtimeVersion = runtime.Version()
 )
+
+func BuildTime() string {
+	tm, err := strconv.Atoi(Timestamp)
+	if err != nil {
+		return ""
+	}
+	return time.Unix(int64(tm), 0).UTC().Format(time.RFC3339)
+}
 
 // FullVersion returns a version string.
 func FullVersion() string {
