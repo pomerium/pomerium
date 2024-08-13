@@ -22,5 +22,6 @@ jobs:
 
       - uses: golangci/golangci-lint-action@aaa42aa0628b4ae2578232a66b541047968fac86
         with:
-          version: v1.57
+          install-mode: goinstall
+          version: 1147824c61441fb1a928927ca095aa3d0f208459
           args: --timeout=10m
