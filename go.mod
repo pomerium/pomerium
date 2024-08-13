@@ -1,6 +1,6 @@
 module github.com/pomerium/pomerium
 
-go 1.22.2
+go 1.23
 
 require (
 	cloud.google.com/go/storage v1.43.0
