@@ -17,6 +17,8 @@ import (
 )
 
 type inMemoryServer struct {
+	pb.UnimplementedRegistryServer
+
 	ttl time.Duration
 	// onchange is used to broadcast changes to listeners
 	onchange *signal.Signal

@@ -26,6 +26,8 @@ import (
 
 // Server implements the databroker service using an in memory database.
 type Server struct {
+	databroker.UnimplementedDataBrokerServiceServer
+
 	cfg *serverConfig
 
 	mu       sync.RWMutex

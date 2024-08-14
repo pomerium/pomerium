@@ -52,7 +52,8 @@ _protos=(
 )
 _imports=()
 for _proto in "${_protos[@]}"; do
-  _imports+=("M${_proto}=github.com/envoyproxy/go-control-plane/$(dirname "$_proto")")
+  _imports+=("--go_opt=M${_proto}=github.com/envoyproxy/go-control-plane/$(dirname "$_proto")")
+  _imports+=("--go-grpc_opt=M${_proto}=github.com/envoyproxy/go-control-plane/$(dirname "$_proto")")
 done
 _xds_protos=(
   "udpa/annotations/migrate.proto"
@@ -67,52 +68,77 @@ _xds_protos=(
   "xds/annotations/v3/status.proto"
 )
 for _proto in "${_xds_protos[@]}"; do
-  _imports+=("M${_proto}=github.com/cncf/xds/go/$(dirname "$_proto")")
+  _imports+=("--go_opt=M${_proto}=github.com/cncf/xds/go/$(dirname "$_proto")")
+  _imports+=("--go-grpc_opt=M${_proto}=github.com/cncf/xds/go/$(dirname "$_proto")")
 done
 
-_import_paths=$(join_by , "${_imports[@]}")
+_sub_directories=(
+  audit
+  cli
+  crypt
+  config
+  databroker
+  device
+  events
+  identity
+  registry
+  session
+  user
+)
 
-../../scripts/protoc -I ./audit/ \
-  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./audit/." \
-  ./audit/audit.proto
+for _d in "${_sub_directories[@]}"; do
+  ../../scripts/protoc -I "./$_d/" -I "./" \
+    --go_out="./$_d" \
+    --go_opt="paths=source_relative" \
+    --go-grpc_out="./$_d" \
+    --go-grpc_opt="paths=source_relative" \
+    "${_imports[@]}" \
+    "./$_d/"*.proto
+done
 
-../../scripts/protoc -I ./crypt/ \
-  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./crypt/." \
-  ./crypt/crypt.proto
-
-../../scripts/protoc -I ./config/ -I ./ \
-  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./config/." \
-  ./config/config.proto
-
-../../scripts/protoc -I ./databroker/ \
-  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./databroker/." \
-  ./databroker/databroker.proto
-
-../../scripts/protoc -I ./device/ \
-  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./device/." \
-  ./device/device.proto
-
-../../scripts/protoc -I ./identity/ \
-  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./identity/." \
-  ./identity/identity.proto
-
-../../scripts/protoc -I ./registry/ \
-  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./registry/." \
-  --validate_out="lang=go,paths=source_relative:./registry" \
+../../scripts/protoc -I "./registry/" \
+  --validate_out="./registry/" \
+  --validate_opt="lang=go" \
+  --validate_opt="paths=source_relative" \
   ./registry/registry.proto
 
-../../scripts/protoc -I ./session/ \
-  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./session/." \
-  ./session/session.proto
+# ../../scripts/protoc -I ./crypt/ \
+#   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./crypt/." \
+#   ./crypt/crypt.proto
 
-../../scripts/protoc -I ./user/ \
-  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./user/." \
-  ./user/user.proto
+# ../../scripts/protoc -I ./config/ -I ./ \
+#   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./config/." \
+#   ./config/config.proto
 
-../../scripts/protoc -I ./events/ -I ./ \
-  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./events/." \
-  ./events/last_error.proto
+# ../../scripts/protoc -I ./databroker/ \
+#   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./databroker/." \
+#   ./databroker/databroker.proto
 
-../../scripts/protoc -I ./cli/ -I ./ \
-  --go_out="$_import_paths,plugins=grpc,paths=source_relative:./cli/." \
-  ./cli/api.proto
+# ../../scripts/protoc -I ./device/ \
+#   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./device/." \
+#   ./device/device.proto
+
+# ../../scripts/protoc -I ./identity/ \
+#   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./identity/." \
+#   ./identity/identity.proto
+
+# ../../scripts/protoc -I ./registry/ \
+#   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./registry/." \
+#   --validate_out="lang=go,paths=source_relative:./registry" \
+#   ./registry/registry.proto
+
+# ../../scripts/protoc -I ./session/ \
+#   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./session/." \
+#   ./session/session.proto
+
+# ../../scripts/protoc -I ./user/ \
+#   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./user/." \
+#   ./user/user.proto
+
+# ../../scripts/protoc -I ./events/ -I ./ \
+#   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./events/." \
+#   ./events/last_error.proto
+
+# ../../scripts/protoc -I ./cli/ -I ./ \
+#   --go_out="$_import_paths,plugins=grpc,paths=source_relative:./cli/." \
+#   ./cli/api.proto

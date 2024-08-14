@@ -12,12 +12,13 @@ import (
 )
 
 type registryServer struct {
+	registry.UnimplementedRegistryServer
 	*Backend
 }
 
 // RegistryServer returns a registry.RegistryServer for the backend.
 func (backend *Backend) RegistryServer() registry.RegistryServer {
-	return registryServer{backend}
+	return registryServer{Backend: backend}
 }
 
 // List lists services.

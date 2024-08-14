@@ -16,6 +16,9 @@ import (
 
 // A dataBrokerServer implements the data broker service interface.
 type dataBrokerServer struct {
+	databrokerpb.UnimplementedDataBrokerServiceServer
+	registrypb.UnimplementedRegistryServer
+
 	server    *databroker.Server
 	sharedKey *atomicutil.Value[[]byte]
 }
