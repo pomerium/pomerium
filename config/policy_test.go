@@ -785,6 +785,7 @@ func TestUnsafe(t *testing.T) {
 		// to generate the same random policies each time. Each iteration of the
 		// test runs two passes over identical sets of policies.
 		seed1, seed2 := rand.Uint64(), rand.Uint64()
+		t.Logf("seed 1: %d; seed 2: %d", seed1, seed2)
 		const (
 			numPolicies           = 500
 			numChecksumIterations = 50000
@@ -881,7 +882,7 @@ func TestUnsafe(t *testing.T) {
 				for policyIdx := start; policyIdx != end; policyIdx += inc {
 					require.Equal(t, finalizerCount.Load(), i)
 					policies[policyIdx] = nil
-					runtime.GC()
+					gcWaitFinalizers()
 					if count := finalizerCount.Load(); count != i+1 {
 						handleFailure(policyIdx)
 						break
@@ -961,7 +962,7 @@ func assertGarbageCollected[T any](t testing.TB, p **T) {
 		close(gc)
 	})
 	*p = nil
-	runtime.GC()
+	gcWaitFinalizers()
 	select {
 	case <-gc:
 		t.Log("finalizer hit")
@@ -981,7 +982,7 @@ func assertNotGarbageCollected[T any](t testing.TB, p **T) {
 		close(gc)
 	})
 	*p = nil
-	runtime.GC()
+	gcWaitFinalizers()
 	select {
 	case <-gc:
 		t.Error("expected finalizer not to run")
@@ -990,6 +991,15 @@ func assertNotGarbageCollected[T any](t testing.TB, p **T) {
 		// clear the finalizer so a different one can be set later on
 		runtime.SetFinalizer(unsafeReinterpretUintptr[T](lp), nil)
 	}
+}
+
+//go:linkname blockUntilEmptyFinalizerQueue runtime.blockUntilEmptyFinalizerQueue
+func blockUntilEmptyFinalizerQueue(int64) bool
+
+// runs the GC and waits for all queued finalizers to be called.
+func gcWaitFinalizers() {
+	runtime.GC()
+	blockUntilEmptyFinalizerQueue(int64(1 * time.Second))
 }
 
 // converts a uintptr back into a valid *T.
