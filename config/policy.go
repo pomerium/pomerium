@@ -528,11 +528,11 @@ func copyOptionalDurationToOptionalDurationpb(dst **durationpb.Duration, src **t
 func (p *Policy) AsProto() (*configpb.Route, error) {
 	out := &configpb.Route{}
 	p.ShallowCopyToProto(out)
-	routeId, err := p.RouteID()
+	routeID, err := p.RouteID()
 	if err != nil {
 		return nil, err
 	}
-	out.Name = strconv.FormatUint(routeId, 10)
+	out.Name = strconv.FormatUint(routeID, 10)
 	return out, nil
 }
 
@@ -677,10 +677,10 @@ var policyPool = sync.Pool{
 	},
 }
 
-type doNotCopy [0]sync.Mutex
+type DoNotCopy [0]sync.Mutex
 
 type pooledRoute struct {
-	doNotCopy
+	DoNotCopy
 	*configpb.Route
 	pooledFields pooledFields
 }
@@ -723,7 +723,7 @@ func (pr *pooledRoute) reset() {
 // in a different way in Policy, or proto message types that cannot be directly
 // aliased from the Policy and would need to be heap-allocated each time.
 type pooledFields struct {
-	doNotCopy
+	DoNotCopy
 	nameBuffer           []byte
 	to                   []string
 	loadBalancingWeights []uint32
@@ -785,15 +785,15 @@ func (p *Policy) RouteID() (uint64, error) {
 	hash.WriteStringWithLen(p.Regex)
 	switch {
 	case len(p.To) > 0:
-		hash.Write([]byte{1}) // case 1
+		_, _ = hash.Write([]byte{1}) // case 1
 		hash.WriteInt32(int32(len(p.To)))
 		for _, to := range p.To {
 			hash.WriteStringWithLen(to.URL.Scheme)
 			hash.WriteStringWithLen(to.URL.Opaque)
 			if to.URL.User == nil {
-				hash.Write([]byte{0})
+				_, _ = hash.Write([]byte{0})
 			} else {
-				hash.Write([]byte{1})
+				_, _ = hash.Write([]byte{1})
 				hash.WriteStringWithLen(to.URL.User.Username())
 				p, _ := to.URL.User.Password()
 				hash.WriteStringWithLen(p)
@@ -808,7 +808,7 @@ func (p *Policy) RouteID() (uint64, error) {
 			hash.WriteUint32(to.LbWeight)
 		}
 	case p.Redirect != nil:
-		hash.Write([]byte{2}) // case 2
+		_, _ = hash.Write([]byte{2}) // case 2
 		hash.WriteBoolPtr(p.Redirect.HTTPSRedirect)
 		hash.WriteStringPtrWithLen(p.Redirect.SchemeRedirect)
 		hash.WriteStringPtrWithLen(p.Redirect.HostRedirect)
@@ -818,7 +818,7 @@ func (p *Policy) RouteID() (uint64, error) {
 		hash.WriteInt32Ptr(p.Redirect.ResponseCode)
 		hash.WriteBoolPtr(p.Redirect.StripQuery)
 	case p.Response != nil:
-		hash.Write([]byte{3}) // case 3
+		_, _ = hash.Write([]byte{3}) // case 3
 		hash.WriteInt32(int32(p.Response.Status))
 		hash.WriteStringWithLen(p.Response.Body)
 	default:

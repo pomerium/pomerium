@@ -1,6 +1,8 @@
 // Package hashutil provides NON-CRYPTOGRAPHIC utility functions for hashing.
 //
 // http://cyan4973.github.io/xxHash/
+//
+//nolint:errcheck // discarding return values with _ increases inliner cost
 package hashutil
 
 import (

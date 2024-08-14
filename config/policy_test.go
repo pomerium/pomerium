@@ -486,7 +486,7 @@ func BenchmarkChecksum(b *testing.B) {
 			},
 		},
 	}
-	pRouteId, err := p.RouteID()
+	pRouteID, err := p.RouteID()
 	require.NoError(b, err)
 	b.Run("route id", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -496,7 +496,7 @@ func BenchmarkChecksum(b *testing.B) {
 	pNoMapFields := p
 	pNoMapFields.SetRequestHeaders = nil
 	pNoMapFields.SetResponseHeaders = nil
-	pNoMapFieldsRouteId, err := pNoMapFields.RouteID()
+	pNoMapFieldsRouteID, err := pNoMapFields.RouteID()
 	require.NoError(b, err)
 	b.ResetTimer()
 	b.Run("(old) hashstructure checksum", func(b *testing.B) {
@@ -514,12 +514,12 @@ func BenchmarkChecksum(b *testing.B) {
 	b.Run("(new) proto-wire checksum", func(b *testing.B) {
 		b.Run("with map fields", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				p.ChecksumWithID(pRouteId)
+				p.ChecksumWithID(pRouteID)
 			}
 		})
 		b.Run("without map fields", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				pNoMapFields.ChecksumWithID(pNoMapFieldsRouteId)
+				pNoMapFields.ChecksumWithID(pNoMapFieldsRouteID)
 			}
 		})
 	})
@@ -593,7 +593,7 @@ func BenchmarkChecksumZeroAlloc(b *testing.B) {
 		IDPClientSecret:                           "zz",
 		ShowErrorDetails:                          true,
 	}
-	pRouteId, err := p.RouteID()
+	pRouteID, err := p.RouteID()
 	require.NoError(b, err)
 	b.Run("route id", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
@@ -603,19 +603,19 @@ func BenchmarkChecksumZeroAlloc(b *testing.B) {
 	pNoMapFields := p
 	pNoMapFields.SetRequestHeaders = nil
 	pNoMapFields.SetResponseHeaders = nil
-	pNoMapFieldsRouteId, err := pNoMapFields.RouteID()
+	pNoMapFieldsRouteID, err := pNoMapFields.RouteID()
 	require.NoError(b, err)
 
 	// these should both report 0 allocs/op
 	b.Run("(new) proto-wire checksum, best case", func(b *testing.B) {
 		b.Run("with map fields", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				p.ChecksumWithID(pRouteId) // p.Checksum() is still zero-alloc, but this is faster
+				p.ChecksumWithID(pRouteID) // p.Checksum() is still zero-alloc, but this is faster
 			}
 		})
 		b.Run("without map fields", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				pNoMapFields.ChecksumWithID(pNoMapFieldsRouteId)
+				pNoMapFields.ChecksumWithID(pNoMapFieldsRouteID)
 			}
 		})
 	})
@@ -712,7 +712,7 @@ func TestUnsafe(t *testing.T) {
 		size := rand.Int32N(16) + 16
 		bytes := make([]rune, size)
 		for i := range bytes {
-			bytes[i] = rune(rand.Int32N('~'-' ') + ' ')
+			bytes[i] = rand.Int32N('~'-' ') + ' '
 		}
 		return string(bytes)
 	}
@@ -817,13 +817,13 @@ func TestUnsafe(t *testing.T) {
 						finalizerCount.Add(1)
 					})
 					policies[i] = p
-					routeId, err := p.RouteID()
+					routeID, err := p.RouteID()
 					require.NoError(t, err)
 					switch pass {
 					case forward:
-						expectedChecksums[i] = p.ChecksumWithID(routeId)
+						expectedChecksums[i] = p.ChecksumWithID(routeID)
 					case backward:
-						require.Equal(t, expectedChecksums[i], p.ChecksumWithID(routeId)) // rng sanity check
+						require.Equal(t, expectedChecksums[i], p.ChecksumWithID(routeID)) // rng sanity check
 					}
 				}
 
@@ -835,10 +835,10 @@ func TestUnsafe(t *testing.T) {
 					// compute checksums and routes a bunch of times randomly
 					for i := range numChecksumIterations {
 						idx := rand.IntN(numPolicies)
-						routeId, err := policies[idx].RouteID()
+						routeID, err := policies[idx].RouteID()
 						require.NoError(t, err)
-						assert.NotZero(t, policies[idx].ChecksumWithID(routeId))
-						assert.Equal(t, expectedChecksums[idx], policies[idx].ChecksumWithID(routeId))
+						assert.NotZero(t, policies[idx].ChecksumWithID(routeID))
+						assert.Equal(t, expectedChecksums[idx], policies[idx].ChecksumWithID(routeID))
 						if i%1000 == 0 {
 							runtime.GC()
 						}
@@ -879,7 +879,7 @@ func TestUnsafe(t *testing.T) {
 
 				i := int32(0)
 				for policyIdx := start; policyIdx != end; policyIdx += inc {
-					require.Equal(t, finalizerCount.Load(), int32(i))
+					require.Equal(t, finalizerCount.Load(), i)
 					policies[policyIdx] = nil
 					runtime.GC()
 					if count := finalizerCount.Load(); count != i+1 {
