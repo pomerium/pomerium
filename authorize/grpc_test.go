@@ -302,7 +302,7 @@ func (m mockDataBrokerServiceClient) Patch(ctx context.Context, in *databroker.P
 
 		existing := getResponse.GetRecord()
 		if err := storage.PatchRecord(existing, record, in.GetFieldMask()); err != nil {
-			return nil, status.Errorf(codes.Unknown, err.Error())
+			return nil, status.Error(codes.Unknown, err.Error())
 		}
 
 		records = append(records, record)

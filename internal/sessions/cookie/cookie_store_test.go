@@ -165,7 +165,7 @@ func TestStore_SaveSession(t *testing.T) {
 			s.ClearSession(w, r)
 			x := w.Header().Get("Set-Cookie")
 			if !strings.Contains(x, "_pomerium=; Path=/;") {
-				t.Errorf(x)
+				t.Error(x)
 			}
 		})
 	}

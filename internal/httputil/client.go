@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -105,7 +104,7 @@ func Do(ctx context.Context, method, endpoint, userAgent string, headers map[str
 			endpoint = u.String()
 		}
 	default:
-		return fmt.Errorf(http.StatusText(http.StatusBadRequest))
+		return errors.New(http.StatusText(http.StatusBadRequest))
 	}
 	req, err := http.NewRequestWithContext(ctx, method, endpoint, body)
 	if err != nil {
@@ -139,9 +138,9 @@ func Do(ctx context.Context, method, endpoint, userAgent string, headers map[str
 			if e == nil && response.ErrorDescription == "Token expired or revoked" {
 				return ErrTokenRevoked
 			}
-			return fmt.Errorf(http.StatusText(http.StatusBadRequest))
+			return errors.New(http.StatusText(http.StatusBadRequest))
 		default:
-			return fmt.Errorf(http.StatusText(resp.StatusCode))
+			return errors.New(http.StatusText(resp.StatusCode))
 		}
 	}
 	if response != nil {

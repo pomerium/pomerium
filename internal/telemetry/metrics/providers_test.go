@@ -43,7 +43,7 @@ func getMetrics(t *testing.T, envoyURL *url.URL, header http.Header) []byte {
 	resp := rec.Result()
 	b, _ := io.ReadAll(resp.Body)
 
-	if resp == nil || resp.StatusCode != 200 {
+	if resp == nil || resp.StatusCode != http.StatusOK {
 		t.Errorf("Metrics endpoint failed to respond: %s", b)
 	}
 	return b
