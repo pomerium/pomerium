@@ -113,9 +113,6 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 
 	if config.IsProxy(cfg.Options.Services) {
 		for policy := range cfg.Options.GetAllPolicies() {
-			if policy.EnvoyOpts == nil {
-				policy.EnvoyOpts = newDefaultEnvoyClusterConfig()
-			}
 			if len(policy.To) > 0 {
 				cluster, err := b.buildPolicyCluster(ctx, cfg, policy)
 				if err != nil {
@@ -167,8 +164,12 @@ func (b *Builder) buildInternalCluster(
 }
 
 func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, policy *config.Policy) (*envoy_config_cluster_v3.Cluster, error) {
-	cluster := new(envoy_config_cluster_v3.Cluster)
-	proto.Merge(cluster, policy.EnvoyOpts)
+	var cluster *envoy_config_cluster_v3.Cluster
+	if policy.EnvoyOpts != nil {
+		cluster = proto.Clone(policy.EnvoyOpts).(*envoy_config_cluster_v3.Cluster)
+	} else {
+		cluster = newDefaultEnvoyClusterConfig()
+	}
 
 	options := cfg.Options
 

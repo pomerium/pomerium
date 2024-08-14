@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"iter"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,7 +23,6 @@ import (
 	"github.com/spf13/viper"
 	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/types/known/durationpb"
-	"iter"
 
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/atomicutil"
