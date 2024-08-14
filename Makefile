@@ -87,7 +87,7 @@ build-ui: yarn
 .PHONY: lint
 lint: ## Verifies `golint` passes.
 	@echo "==> $@"
-	@go run github.com/golangci/golangci-lint/cmd/golangci-lint@1147824c61441fb1a928927ca095aa3d0f208459 run ./... --fix
+	@go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.1 run ./... --fix
 
 .PHONY: test
 test: get-envoy ## Runs the go tests.
