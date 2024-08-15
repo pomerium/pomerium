@@ -11,6 +11,7 @@ type config struct {
 	onDisconnected           func(ctx context.Context)
 	onBundleUpdated          func(ctx context.Context, key string)
 	onBootstrapConfigUpdated func(ctx context.Context)
+	onRunHealthChecks        func(ctx context.Context)
 	onTelemetryRequested     func(ctx context.Context, req *connect.TelemetryRequest)
 }
 
@@ -45,6 +46,13 @@ func WithOnBootstrapConfigUpdated(onBootstrapConfigUpdated func(context.Context)
 	}
 }
 
+// WithOnRunHealthChecks sets the callback for when health checks are run
+func WithOnRunHealthChecks(onRunHealthChecks func(context.Context)) WatchOption {
+	return func(cfg *config) {
+		cfg.onRunHealthChecks = onRunHealthChecks
+	}
+}
+
 func WithOnTelemetryRequested(onTelemetryRequested func(context.Context, *connect.TelemetryRequest)) WatchOption {
 	return func(cfg *config) {
 		cfg.onTelemetryRequested = onTelemetryRequested
@@ -58,6 +66,7 @@ func newConfig(opts ...WatchOption) *config {
 		WithOnDisconnected(func(_ context.Context) {}),
 		WithOnBundleUpdated(func(_ context.Context, _ string) {}),
 		WithOnBootstrapConfigUpdated(func(_ context.Context) {}),
+		WithOnRunHealthChecks(func(_ context.Context) {}),
 		WithOnTelemetryRequested(func(_ context.Context, _ *connect.TelemetryRequest) {}),
 	} {
 		opt(cfg)

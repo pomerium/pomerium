@@ -12,27 +12,37 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
-func RunChecks(
-	ctx context.Context,
+type Checker struct {
+	bootstrap        config.Source
+	databrokerClient databroker.DataBrokerServiceClient
+	forceCheck       chan struct{}
+	configs          atomic.Value
+}
+
+func NewChecker(
 	bootstrap config.Source,
 	databrokerClient databroker.DataBrokerServiceClient,
-) error {
-	c := &checker{
+) *Checker {
+	c := &Checker{
 		bootstrap:        bootstrap,
 		databrokerClient: databrokerClient,
 		forceCheck:       make(chan struct{}, 1),
 	}
+	return c
+}
+
+func (c *Checker) Run(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error { c.Scheduler(ctx); return nil })
 	eg.Go(func() error { return c.ConfigSyncer(ctx) })
 	return eg.Wait()
 }
 
-type checker struct {
-	bootstrap        config.Source
-	databrokerClient databroker.DataBrokerServiceClient
-	forceCheck       chan struct{}
-	configs          atomic.Value
+func (c *Checker) ForceCheck() {
+	select {
+	case c.forceCheck <- struct{}{}:
+	default:
+	}
 }
 
 func getConfig(records []*databroker.Record) ([]*configpb.Config, error) {
