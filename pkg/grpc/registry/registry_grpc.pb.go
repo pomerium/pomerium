@@ -89,7 +89,7 @@ func (c *registryClient) Watch(ctx context.Context, in *ListRequest, opts ...grp
 type Registry_WatchClient = grpc.ServerStreamingClient[ServiceList]
 
 // RegistryServer is the server API for Registry service.
-// All implementations must embed UnimplementedRegistryServer
+// All implementations should embed UnimplementedRegistryServer
 // for forward compatibility.
 //
 // Registry is invoked by services to inform
@@ -103,10 +103,9 @@ type RegistryServer interface {
 	// for the simplicity of consumer its delivered as full snapshots
 	// and is only sent when change is detected
 	Watch(*ListRequest, grpc.ServerStreamingServer[ServiceList]) error
-	mustEmbedUnimplementedRegistryServer()
 }
 
-// UnimplementedRegistryServer must be embedded to have
+// UnimplementedRegistryServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -122,8 +121,7 @@ func (UnimplementedRegistryServer) List(context.Context, *ListRequest) (*Service
 func (UnimplementedRegistryServer) Watch(*ListRequest, grpc.ServerStreamingServer[ServiceList]) error {
 	return status.Errorf(codes.Unimplemented, "method Watch not implemented")
 }
-func (UnimplementedRegistryServer) mustEmbedUnimplementedRegistryServer() {}
-func (UnimplementedRegistryServer) testEmbeddedByValue()                  {}
+func (UnimplementedRegistryServer) testEmbeddedByValue() {}
 
 // UnsafeRegistryServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to RegistryServer will

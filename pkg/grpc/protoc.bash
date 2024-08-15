@@ -92,6 +92,7 @@ for _d in "${_sub_directories[@]}"; do
     --go_opt="paths=source_relative" \
     --go-grpc_out="./$_d" \
     --go-grpc_opt="paths=source_relative" \
+    --go-grpc_opt="require_unimplemented_servers=false" \
     "${_imports[@]}" \
     "./$_d/"*.proto
 done

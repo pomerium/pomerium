@@ -200,7 +200,7 @@ func (c *dataBrokerServiceClient) SyncLatest(ctx context.Context, in *SyncLatest
 type DataBrokerService_SyncLatestClient = grpc.ServerStreamingClient[SyncLatestResponse]
 
 // DataBrokerServiceServer is the server API for DataBrokerService service.
-// All implementations must embed UnimplementedDataBrokerServiceServer
+// All implementations should embed UnimplementedDataBrokerServiceServer
 // for forward compatibility.
 //
 // The DataBrokerService stores key-value data.
@@ -227,10 +227,9 @@ type DataBrokerServiceServer interface {
 	Sync(*SyncRequest, grpc.ServerStreamingServer[SyncResponse]) error
 	// SyncLatest streams the latest version of every record.
 	SyncLatest(*SyncLatestRequest, grpc.ServerStreamingServer[SyncLatestResponse]) error
-	mustEmbedUnimplementedDataBrokerServiceServer()
 }
 
-// UnimplementedDataBrokerServiceServer must be embedded to have
+// UnimplementedDataBrokerServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -270,8 +269,7 @@ func (UnimplementedDataBrokerServiceServer) Sync(*SyncRequest, grpc.ServerStream
 func (UnimplementedDataBrokerServiceServer) SyncLatest(*SyncLatestRequest, grpc.ServerStreamingServer[SyncLatestResponse]) error {
 	return status.Errorf(codes.Unimplemented, "method SyncLatest not implemented")
 }
-func (UnimplementedDataBrokerServiceServer) mustEmbedUnimplementedDataBrokerServiceServer() {}
-func (UnimplementedDataBrokerServiceServer) testEmbeddedByValue()                           {}
+func (UnimplementedDataBrokerServiceServer) testEmbeddedByValue() {}
 
 // UnsafeDataBrokerServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to DataBrokerServiceServer will

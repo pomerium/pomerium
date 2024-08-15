@@ -96,7 +96,7 @@ func (c *configClient) Import(ctx context.Context, in *ImportRequest, opts ...gr
 }
 
 // ConfigServer is the server API for Config service.
-// All implementations must embed UnimplementedConfigServer
+// All implementations should embed UnimplementedConfigServer
 // for forward compatibility.
 type ConfigServer interface {
 	List(context.Context, *Selector) (*ListRecordsResponse, error)
@@ -104,10 +104,9 @@ type ConfigServer interface {
 	Upsert(context.Context, *Record) (*Record, error)
 	Export(context.Context, *ExportRequest) (*ConfigData, error)
 	Import(context.Context, *ImportRequest) (*ImportResponse, error)
-	mustEmbedUnimplementedConfigServer()
 }
 
-// UnimplementedConfigServer must be embedded to have
+// UnimplementedConfigServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -129,8 +128,7 @@ func (UnimplementedConfigServer) Export(context.Context, *ExportRequest) (*Confi
 func (UnimplementedConfigServer) Import(context.Context, *ImportRequest) (*ImportResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Import not implemented")
 }
-func (UnimplementedConfigServer) mustEmbedUnimplementedConfigServer() {}
-func (UnimplementedConfigServer) testEmbeddedByValue()                {}
+func (UnimplementedConfigServer) testEmbeddedByValue() {}
 
 // UnsafeConfigServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to ConfigServer will
@@ -329,7 +327,7 @@ func (c *listenerClient) StatusUpdates(ctx context.Context, in *Selector, opts .
 type Listener_StatusUpdatesClient = grpc.ServerStreamingClient[ConnectionStatusUpdates]
 
 // ListenerServer is the server API for Listener service.
-// All implementations must embed UnimplementedListenerServer
+// All implementations should embed UnimplementedListenerServer
 // for forward compatibility.
 //
 // Listener service controls listeners
@@ -340,10 +338,9 @@ type ListenerServer interface {
 	// a client has to subscribe and continuously
 	// listen to the broadcasted updates
 	StatusUpdates(*Selector, grpc.ServerStreamingServer[ConnectionStatusUpdates]) error
-	mustEmbedUnimplementedListenerServer()
 }
 
-// UnimplementedListenerServer must be embedded to have
+// UnimplementedListenerServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -356,8 +353,7 @@ func (UnimplementedListenerServer) Update(context.Context, *ListenerUpdateReques
 func (UnimplementedListenerServer) StatusUpdates(*Selector, grpc.ServerStreamingServer[ConnectionStatusUpdates]) error {
 	return status.Errorf(codes.Unimplemented, "method StatusUpdates not implemented")
 }
-func (UnimplementedListenerServer) mustEmbedUnimplementedListenerServer() {}
-func (UnimplementedListenerServer) testEmbeddedByValue()                  {}
+func (UnimplementedListenerServer) testEmbeddedByValue() {}
 
 // UnsafeListenerServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to ListenerServer will
