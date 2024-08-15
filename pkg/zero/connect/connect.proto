@@ -20,6 +20,8 @@ message Message {
     ConfigUpdated config_updated = 1;
     BootstrapConfigUpdated bootstrap_config_updated = 2;
     TelemetryRequest telemetry_request = 3;
+    ShutdownRequest shutdown_request = 4;
+    RunHealthChecksRequest run_health_checks_request = 5;
   }
 }
 
@@ -35,6 +37,12 @@ message ConfigUpdated {
 // does not involve long running operations to construct it, like with a regular
 // config.
 message BootstrapConfigUpdated {}
+
+// RunHealthChecksRequest is sent to request the Pomerium Core to re-run its health checks
+message RunHealthChecksRequest {}
+
+// ShutdownRequest is sent to request the Pomerium Core to request it to shutdown
+message ShutdownRequest {}
 
 // TelemetryRequest is sent to request current telemetry data from the Pomerium Core to be sent to the Zero Cloud.
 message TelemetryRequest {
