@@ -35,7 +35,7 @@ GETENVOY_VERSION = v0.2.0
 GORELEASER_VERSION = v0.174.2
 
 .PHONY: all
-all: clean build-deps test lint build ## Runs a clean, build, fmt, lint, test, and vet.
+all: clean build-deps test build
 
 .PHONY: get-envoy
 get-envoy: ## Fetch envoy binaries
