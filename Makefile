@@ -65,6 +65,11 @@ proto:
 	@echo "==> $@"
 	cd pkg/grpc && ./protoc.bash
 
+.PHONY: generate
+generate: proto
+	@echo "==> $@"
+	$(GO) generate ./...
+
 .PHONY: build
 build: build-ui build-go
 	@echo "==> $@"
