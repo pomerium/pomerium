@@ -92,7 +92,6 @@ type Message struct {
 	//	*Message_ConfigUpdated
 	//	*Message_BootstrapConfigUpdated
 	//	*Message_TelemetryRequest
-	//	*Message_ShutdownRequest
 	//	*Message_RunHealthChecksRequest
 	Message isMessage_Message `protobuf_oneof:"message"`
 }
@@ -157,13 +156,6 @@ func (x *Message) GetTelemetryRequest() *TelemetryRequest {
 	return nil
 }
 
-func (x *Message) GetShutdownRequest() *ShutdownRequest {
-	if x, ok := x.GetMessage().(*Message_ShutdownRequest); ok {
-		return x.ShutdownRequest
-	}
-	return nil
-}
-
 func (x *Message) GetRunHealthChecksRequest() *RunHealthChecksRequest {
 	if x, ok := x.GetMessage().(*Message_RunHealthChecksRequest); ok {
 		return x.RunHealthChecksRequest
@@ -187,10 +179,6 @@ type Message_TelemetryRequest struct {
 	TelemetryRequest *TelemetryRequest `protobuf:"bytes,3,opt,name=telemetry_request,json=telemetryRequest,proto3,oneof"`
 }
 
-type Message_ShutdownRequest struct {
-	ShutdownRequest *ShutdownRequest `protobuf:"bytes,4,opt,name=shutdown_request,json=shutdownRequest,proto3,oneof"`
-}
-
 type Message_RunHealthChecksRequest struct {
 	RunHealthChecksRequest *RunHealthChecksRequest `protobuf:"bytes,5,opt,name=run_health_checks_request,json=runHealthChecksRequest,proto3,oneof"`
 }
@@ -200,8 +188,6 @@ func (*Message_ConfigUpdated) isMessage_Message() {}
 func (*Message_BootstrapConfigUpdated) isMessage_Message() {}
 
 func (*Message_TelemetryRequest) isMessage_Message() {}
-
-func (*Message_ShutdownRequest) isMessage_Message() {}
 
 func (*Message_RunHealthChecksRequest) isMessage_Message() {}
 
@@ -336,45 +322,6 @@ func (*RunHealthChecksRequest) Descriptor() ([]byte, []int) {
 	return file_connect_proto_rawDescGZIP(), []int{4}
 }
 
-// ShutdownRequest is sent to request the Pomerium Core to request it to shutdown
-type ShutdownRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-}
-
-func (x *ShutdownRequest) Reset() {
-	*x = ShutdownRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_connect_proto_msgTypes[5]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *ShutdownRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ShutdownRequest) ProtoMessage() {}
-
-func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_connect_proto_msgTypes[5]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ShutdownRequest.ProtoReflect.Descriptor instead.
-func (*ShutdownRequest) Descriptor() ([]byte, []int) {
-	return file_connect_proto_rawDescGZIP(), []int{5}
-}
-
 // TelemetryRequest is sent to request current telemetry data from the Pomerium Core to be sent to the Zero Cloud.
 type TelemetryRequest struct {
 	state         protoimpl.MessageState
@@ -392,7 +339,7 @@ type TelemetryRequest struct {
 func (x *TelemetryRequest) Reset() {
 	*x = TelemetryRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_connect_proto_msgTypes[6]
+		mi := &file_connect_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -405,7 +352,7 @@ func (x *TelemetryRequest) String() string {
 func (*TelemetryRequest) ProtoMessage() {}
 
 func (x *TelemetryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_connect_proto_msgTypes[6]
+	mi := &file_connect_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -418,7 +365,7 @@ func (x *TelemetryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TelemetryRequest.ProtoReflect.Descriptor instead.
 func (*TelemetryRequest) Descriptor() ([]byte, []int) {
-	return file_connect_proto_rawDescGZIP(), []int{6}
+	return file_connect_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *TelemetryRequest) GetSessionAnalytics() *SessionAnalyticsRequest {
@@ -452,7 +399,7 @@ type SessionAnalyticsRequest struct {
 func (x *SessionAnalyticsRequest) Reset() {
 	*x = SessionAnalyticsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_connect_proto_msgTypes[7]
+		mi := &file_connect_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -465,7 +412,7 @@ func (x *SessionAnalyticsRequest) String() string {
 func (*SessionAnalyticsRequest) ProtoMessage() {}
 
 func (x *SessionAnalyticsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_connect_proto_msgTypes[7]
+	mi := &file_connect_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -478,7 +425,7 @@ func (x *SessionAnalyticsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionAnalyticsRequest.ProtoReflect.Descriptor instead.
 func (*SessionAnalyticsRequest) Descriptor() ([]byte, []int) {
-	return file_connect_proto_rawDescGZIP(), []int{7}
+	return file_connect_proto_rawDescGZIP(), []int{6}
 }
 
 // EnvoyMetricsRequest is used to request current envoy metrics
@@ -496,7 +443,7 @@ type EnvoyMetricsRequest struct {
 func (x *EnvoyMetricsRequest) Reset() {
 	*x = EnvoyMetricsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_connect_proto_msgTypes[8]
+		mi := &file_connect_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -509,7 +456,7 @@ func (x *EnvoyMetricsRequest) String() string {
 func (*EnvoyMetricsRequest) ProtoMessage() {}
 
 func (x *EnvoyMetricsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_connect_proto_msgTypes[8]
+	mi := &file_connect_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -522,7 +469,7 @@ func (x *EnvoyMetricsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnvoyMetricsRequest.ProtoReflect.Descriptor instead.
 func (*EnvoyMetricsRequest) Descriptor() ([]byte, []int) {
-	return file_connect_proto_rawDescGZIP(), []int{8}
+	return file_connect_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *EnvoyMetricsRequest) GetMetrics() []string {
@@ -552,7 +499,7 @@ type PomeriumMetricsRequest struct {
 func (x *PomeriumMetricsRequest) Reset() {
 	*x = PomeriumMetricsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_connect_proto_msgTypes[9]
+		mi := &file_connect_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -565,7 +512,7 @@ func (x *PomeriumMetricsRequest) String() string {
 func (*PomeriumMetricsRequest) ProtoMessage() {}
 
 func (x *PomeriumMetricsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_connect_proto_msgTypes[9]
+	mi := &file_connect_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -578,7 +525,7 @@ func (x *PomeriumMetricsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PomeriumMetricsRequest.ProtoReflect.Descriptor instead.
 func (*PomeriumMetricsRequest) Descriptor() ([]byte, []int) {
-	return file_connect_proto_rawDescGZIP(), []int{9}
+	return file_connect_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *PomeriumMetricsRequest) GetMetrics() []string {
@@ -597,7 +544,7 @@ var file_connect_proto_rawDesc = []byte{
 	0x73, 0x74, 0x12, 0x1a, 0x0a, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01,
 	0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x68, 0x6f, 0x73, 0x74, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x18,
 	0x0a, 0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
-	0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x22, 0xbf, 0x03, 0x0a, 0x07, 0x4d, 0x65, 0x73,
+	0x07, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x22, 0xf2, 0x02, 0x0a, 0x07, 0x4d, 0x65, 0x73,
 	0x73, 0x61, 0x67, 0x65, 0x12, 0x45, 0x0a, 0x0e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x5f, 0x75,
 	0x70, 0x64, 0x61, 0x74, 0x65, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1c, 0x2e, 0x70,
 	0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2e, 0x7a, 0x65, 0x72, 0x6f, 0x2e, 0x43, 0x6f, 0x6e,
@@ -613,27 +560,21 @@ var file_connect_proto_rawDesc = []byte{
 	0x65, 0x73, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1f, 0x2e, 0x70, 0x6f, 0x6d, 0x65,
 	0x72, 0x69, 0x75, 0x6d, 0x2e, 0x7a, 0x65, 0x72, 0x6f, 0x2e, 0x54, 0x65, 0x6c, 0x65, 0x6d, 0x65,
 	0x74, 0x72, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x48, 0x00, 0x52, 0x10, 0x74, 0x65,
-	0x6c, 0x65, 0x6d, 0x65, 0x74, 0x72, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x4b,
-	0x0a, 0x10, 0x73, 0x68, 0x75, 0x74, 0x64, 0x6f, 0x77, 0x6e, 0x5f, 0x72, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1e, 0x2e, 0x70, 0x6f, 0x6d, 0x65, 0x72,
-	0x69, 0x75, 0x6d, 0x2e, 0x7a, 0x65, 0x72, 0x6f, 0x2e, 0x53, 0x68, 0x75, 0x74, 0x64, 0x6f, 0x77,
-	0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x48, 0x00, 0x52, 0x0f, 0x73, 0x68, 0x75, 0x74,
-	0x64, 0x6f, 0x77, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x62, 0x0a, 0x19, 0x72,
-	0x75, 0x6e, 0x5f, 0x68, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x5f, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x73,
-	0x5f, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x25,
-	0x2e, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2e, 0x7a, 0x65, 0x72, 0x6f, 0x2e, 0x52,
-	0x75, 0x6e, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x43, 0x68, 0x65, 0x63, 0x6b, 0x73, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x48, 0x00, 0x52, 0x16, 0x72, 0x75, 0x6e, 0x48, 0x65, 0x61, 0x6c,
-	0x74, 0x68, 0x43, 0x68, 0x65, 0x63, 0x6b, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x42,
-	0x09, 0x0a, 0x07, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x22, 0x3c, 0x0a, 0x0d, 0x43, 0x6f,
-	0x6e, 0x66, 0x69, 0x67, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x64, 0x12, 0x2b, 0x0a, 0x11, 0x63,
-	0x68, 0x61, 0x6e, 0x67, 0x65, 0x73, 0x65, 0x74, 0x5f, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e,
-	0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x10, 0x63, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x73, 0x65,
-	0x74, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x22, 0x18, 0x0a, 0x16, 0x42, 0x6f, 0x6f, 0x74,
-	0x73, 0x74, 0x72, 0x61, 0x70, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x55, 0x70, 0x64, 0x61, 0x74,
-	0x65, 0x64, 0x22, 0x18, 0x0a, 0x16, 0x52, 0x75, 0x6e, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x43,
-	0x68, 0x65, 0x63, 0x6b, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x11, 0x0a, 0x0f,
-	0x53, 0x68, 0x75, 0x74, 0x64, 0x6f, 0x77, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22,
+	0x6c, 0x65, 0x6d, 0x65, 0x74, 0x72, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x62,
+	0x0a, 0x19, 0x72, 0x75, 0x6e, 0x5f, 0x68, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x5f, 0x63, 0x68, 0x65,
+	0x63, 0x6b, 0x73, 0x5f, 0x72, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x18, 0x05, 0x20, 0x01, 0x28,
+	0x0b, 0x32, 0x25, 0x2e, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2e, 0x7a, 0x65, 0x72,
+	0x6f, 0x2e, 0x52, 0x75, 0x6e, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x43, 0x68, 0x65, 0x63, 0x6b,
+	0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x48, 0x00, 0x52, 0x16, 0x72, 0x75, 0x6e, 0x48,
+	0x65, 0x61, 0x6c, 0x74, 0x68, 0x43, 0x68, 0x65, 0x63, 0x6b, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x42, 0x09, 0x0a, 0x07, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x22, 0x3c, 0x0a,
+	0x0d, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x64, 0x12, 0x2b,
+	0x0a, 0x11, 0x63, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x73, 0x65, 0x74, 0x5f, 0x76, 0x65, 0x72, 0x73,
+	0x69, 0x6f, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03, 0x52, 0x10, 0x63, 0x68, 0x61, 0x6e, 0x67,
+	0x65, 0x73, 0x65, 0x74, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x22, 0x18, 0x0a, 0x16, 0x42,
+	0x6f, 0x6f, 0x74, 0x73, 0x74, 0x72, 0x61, 0x70, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x55, 0x70,
+	0x64, 0x61, 0x74, 0x65, 0x64, 0x22, 0x18, 0x0a, 0x16, 0x52, 0x75, 0x6e, 0x48, 0x65, 0x61, 0x6c,
+	0x74, 0x68, 0x43, 0x68, 0x65, 0x63, 0x6b, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22,
 	0xce, 0x02, 0x0a, 0x10, 0x54, 0x65, 0x6c, 0x65, 0x6d, 0x65, 0x74, 0x72, 0x79, 0x52, 0x65, 0x71,
 	0x75, 0x65, 0x73, 0x74, 0x12, 0x58, 0x0a, 0x11, 0x73, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x5f,
 	0x61, 0x6e, 0x61, 0x6c, 0x79, 0x74, 0x69, 0x63, 0x73, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32,
@@ -688,35 +629,33 @@ func file_connect_proto_rawDescGZIP() []byte {
 	return file_connect_proto_rawDescData
 }
 
-var file_connect_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_connect_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_connect_proto_goTypes = []interface{}{
 	(*SubscribeRequest)(nil),        // 0: pomerium.zero.SubscribeRequest
 	(*Message)(nil),                 // 1: pomerium.zero.Message
 	(*ConfigUpdated)(nil),           // 2: pomerium.zero.ConfigUpdated
 	(*BootstrapConfigUpdated)(nil),  // 3: pomerium.zero.BootstrapConfigUpdated
 	(*RunHealthChecksRequest)(nil),  // 4: pomerium.zero.RunHealthChecksRequest
-	(*ShutdownRequest)(nil),         // 5: pomerium.zero.ShutdownRequest
-	(*TelemetryRequest)(nil),        // 6: pomerium.zero.TelemetryRequest
-	(*SessionAnalyticsRequest)(nil), // 7: pomerium.zero.SessionAnalyticsRequest
-	(*EnvoyMetricsRequest)(nil),     // 8: pomerium.zero.EnvoyMetricsRequest
-	(*PomeriumMetricsRequest)(nil),  // 9: pomerium.zero.PomeriumMetricsRequest
+	(*TelemetryRequest)(nil),        // 5: pomerium.zero.TelemetryRequest
+	(*SessionAnalyticsRequest)(nil), // 6: pomerium.zero.SessionAnalyticsRequest
+	(*EnvoyMetricsRequest)(nil),     // 7: pomerium.zero.EnvoyMetricsRequest
+	(*PomeriumMetricsRequest)(nil),  // 8: pomerium.zero.PomeriumMetricsRequest
 }
 var file_connect_proto_depIdxs = []int32{
 	2, // 0: pomerium.zero.Message.config_updated:type_name -> pomerium.zero.ConfigUpdated
 	3, // 1: pomerium.zero.Message.bootstrap_config_updated:type_name -> pomerium.zero.BootstrapConfigUpdated
-	6, // 2: pomerium.zero.Message.telemetry_request:type_name -> pomerium.zero.TelemetryRequest
-	5, // 3: pomerium.zero.Message.shutdown_request:type_name -> pomerium.zero.ShutdownRequest
-	4, // 4: pomerium.zero.Message.run_health_checks_request:type_name -> pomerium.zero.RunHealthChecksRequest
-	7, // 5: pomerium.zero.TelemetryRequest.session_analytics:type_name -> pomerium.zero.SessionAnalyticsRequest
-	8, // 6: pomerium.zero.TelemetryRequest.envoy_metrics:type_name -> pomerium.zero.EnvoyMetricsRequest
-	9, // 7: pomerium.zero.TelemetryRequest.pomerium_metrics:type_name -> pomerium.zero.PomeriumMetricsRequest
-	0, // 8: pomerium.zero.Connect.Subscribe:input_type -> pomerium.zero.SubscribeRequest
-	1, // 9: pomerium.zero.Connect.Subscribe:output_type -> pomerium.zero.Message
-	9, // [9:10] is the sub-list for method output_type
-	8, // [8:9] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	5, // 2: pomerium.zero.Message.telemetry_request:type_name -> pomerium.zero.TelemetryRequest
+	4, // 3: pomerium.zero.Message.run_health_checks_request:type_name -> pomerium.zero.RunHealthChecksRequest
+	6, // 4: pomerium.zero.TelemetryRequest.session_analytics:type_name -> pomerium.zero.SessionAnalyticsRequest
+	7, // 5: pomerium.zero.TelemetryRequest.envoy_metrics:type_name -> pomerium.zero.EnvoyMetricsRequest
+	8, // 6: pomerium.zero.TelemetryRequest.pomerium_metrics:type_name -> pomerium.zero.PomeriumMetricsRequest
+	0, // 7: pomerium.zero.Connect.Subscribe:input_type -> pomerium.zero.SubscribeRequest
+	1, // 8: pomerium.zero.Connect.Subscribe:output_type -> pomerium.zero.Message
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_connect_proto_init() }
@@ -786,18 +725,6 @@ func file_connect_proto_init() {
 			}
 		}
 		file_connect_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ShutdownRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_connect_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*TelemetryRequest); i {
 			case 0:
 				return &v.state
@@ -809,7 +736,7 @@ func file_connect_proto_init() {
 				return nil
 			}
 		}
-		file_connect_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+		file_connect_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*SessionAnalyticsRequest); i {
 			case 0:
 				return &v.state
@@ -821,7 +748,7 @@ func file_connect_proto_init() {
 				return nil
 			}
 		}
-		file_connect_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+		file_connect_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*EnvoyMetricsRequest); i {
 			case 0:
 				return &v.state
@@ -833,7 +760,7 @@ func file_connect_proto_init() {
 				return nil
 			}
 		}
-		file_connect_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+		file_connect_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*PomeriumMetricsRequest); i {
 			case 0:
 				return &v.state
@@ -850,17 +777,16 @@ func file_connect_proto_init() {
 		(*Message_ConfigUpdated)(nil),
 		(*Message_BootstrapConfigUpdated)(nil),
 		(*Message_TelemetryRequest)(nil),
-		(*Message_ShutdownRequest)(nil),
 		(*Message_RunHealthChecksRequest)(nil),
 	}
-	file_connect_proto_msgTypes[6].OneofWrappers = []interface{}{}
+	file_connect_proto_msgTypes[5].OneofWrappers = []interface{}{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_connect_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
