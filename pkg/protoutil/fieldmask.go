@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/exp/maps"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -50,7 +49,7 @@ func (t *fieldMaskTree) addFieldPath(path string) {
 		}
 		node = m
 	}
-	maps.Clear(node)
+	clear(node)
 }
 
 // ErrDescriptorMismatch indicates an operation could not be performed because
