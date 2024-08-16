@@ -6,6 +6,7 @@ import (
 
 	"github.com/pomerium/pomerium/internal/zero/apierror"
 	"github.com/pomerium/pomerium/pkg/zero/connect"
+	"github.com/rs/zerolog/log"
 )
 
 // Watch watches for changes to the config until either context is canceled,
@@ -49,7 +50,7 @@ func dispatch(ctx context.Context, cfg *config, msg message) error {
 		case *connect.Message_BootstrapConfigUpdated:
 			cfg.onBootstrapConfigUpdated(ctx)
 		default:
-			return fmt.Errorf("unknown message type")
+			log.Ctx(ctx).Debug().Msg("unknown message type, ignored")
 		}
 	default:
 		return fmt.Errorf("unknown message payload")
