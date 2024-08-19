@@ -15,6 +15,7 @@ var (
 	_ apierror.APIResponse[GetBundlesResponse]     = (*GetClusterResourceBundlesResp)(nil)
 	_ apierror.APIResponse[DownloadBundleResponse] = (*DownloadClusterResourceBundleResp)(nil)
 	_ apierror.APIResponse[EmptyResponse]          = (*ReportClusterResourceBundleStatusResp)(nil)
+	_ apierror.APIResponse[EmptyResponse]          = (*ApplyDefaultConfigurationResp)(nil)
 )
 
 // GetBadRequestError implements apierror.APIResponse
@@ -144,5 +145,27 @@ func (r *ReportClusterResourceBundleStatusResp) GetValue() *EmptyResponse {
 
 // GetHTTPResponse implements apierror.APIResponse
 func (r *ReportClusterResourceBundleStatusResp) GetHTTPResponse() *http.Response {
+	return r.HTTPResponse
+}
+
+func (r *ApplyDefaultConfigurationResp) GetBadRequestError() (string, bool) {
+	if r.JSON400 == nil {
+		return "", false
+	}
+	return r.JSON400.Error, true
+}
+
+func (r *ApplyDefaultConfigurationResp) GetInternalServerError() (string, bool) {
+	if r.JSON500 == nil {
+		return "", false
+	}
+	return r.JSON500.Error, true
+}
+
+func (r *ApplyDefaultConfigurationResp) GetValue() *EmptyResponse {
+	return &EmptyResponse{}
+}
+
+func (r *ApplyDefaultConfigurationResp) GetHTTPResponse() *http.Response {
 	return r.HTTPResponse
 }

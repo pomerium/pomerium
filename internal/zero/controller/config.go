@@ -1,6 +1,10 @@
 package controller
 
-import "time"
+import (
+	"time"
+
+	"github.com/pomerium/pomerium/config"
+)
 
 // Option configures a controller.
 type Option func(*controllerConfig)
@@ -10,6 +14,7 @@ type controllerConfig struct {
 	clusterAPIEndpoint string
 	connectAPIEndpoint string
 	otelEndpoint       string
+	defaultConfig      *config.Options
 
 	tmpDir                      string
 	bootstrapConfigFileName     *string
@@ -38,6 +43,13 @@ func WithClusterAPIEndpoint(endpoint string) Option {
 func WithConnectAPIEndpoint(endpoint string) Option {
 	return func(c *controllerConfig) {
 		c.connectAPIEndpoint = endpoint
+	}
+}
+
+// WithDefaultConfig sets the initial config to use.
+func WithDefaultConfig(cfg *config.Options) Option {
+	return func(c *controllerConfig) {
+		c.defaultConfig = cfg
 	}
 }
 

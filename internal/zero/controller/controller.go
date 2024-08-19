@@ -10,6 +10,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/retry"
@@ -22,7 +23,10 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/telemetry"
 	"github.com/pomerium/pomerium/internal/zero/telemetry/sessions"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/zero/connect"
+	"github.com/pomerium/protoutil/fieldmasks"
 )
 
 // Run runs Pomerium is managed mode using the provided token.
@@ -68,6 +72,10 @@ func Run(ctx context.Context, opts ...Option) error {
 		log.Ctx(ctx).Info().Msgf("shutting down: %v", context.Cause(ctx))
 		return nil
 	})
+
+	if c.cfg.defaultConfig != nil {
+		eg.Go(func() error { return run(ctx, "connect-default-config", c.runHandleDefaultConfig) })
+	}
 	return eg.Wait()
 }
 
@@ -81,6 +89,7 @@ type controller struct {
 
 func (c *controller) initAPI(ctx context.Context) error {
 	api, err := sdk.NewAPI(ctx,
+		sdk.WithDefaultConfig(c.cfg.defaultConfig.ToProto()),
 		sdk.WithClusterAPIEndpoint(c.cfg.clusterAPIEndpoint),
 		sdk.WithAPIToken(c.cfg.apiToken),
 		sdk.WithConnectAPIEndpoint(c.cfg.connectAPIEndpoint),
@@ -164,6 +173,17 @@ func (c *controller) runZeroControlLoop(ctx context.Context) error {
 		)
 	})
 	return eg.Wait()
+}
+
+func (c *controller) runHandleDefaultConfig(ctx context.Context) error {
+	return c.api.Watch(ctx, connect_mux.WithOnDefaultConfigRequested(func(ctx context.Context, dcr *connect.DefaultConfigRequest) {
+		cloned := proto.Clone(c.cfg.defaultConfig.ToProto()).(*configpb.Config)
+		fieldmasks.ExclusiveKeep(cloned, dcr.Mask)
+		_, err := c.api.ApplyDefaultConfiguration(ctx, cloned)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("error applying default config")
+		}
+	}))
 }
 
 func (c *controller) shutdownWithTimeout(ctx context.Context, name string, fn func(context.Context) error) {

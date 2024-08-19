@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 )
 
 // Option is a functional option for the SDK
@@ -16,6 +18,7 @@ type config struct {
 	apiToken            string
 	httpClient          *http.Client
 	downloadURLCacheTTL time.Duration
+	defaultConfig       *configpb.Config
 }
 
 // WithClusterAPIEndpoint sets the cluster API endpoint
@@ -57,6 +60,13 @@ func WithHTTPClient(client *http.Client) Option {
 func WithDownloadURLCacheTTL(ttl time.Duration) Option {
 	return func(cfg *config) {
 		cfg.downloadURLCacheTTL = ttl
+	}
+}
+
+// WithDefaultConfig sets the default config
+func WithDefaultConfig(def *configpb.Config) Option {
+	return func(cfg *config) {
+		cfg.defaultConfig = def
 	}
 }
 

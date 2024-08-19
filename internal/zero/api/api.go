@@ -2,20 +2,26 @@
 package zero
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/zero/apierror"
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 	"github.com/pomerium/pomerium/internal/zero/grpcconn"
 	token_api "github.com/pomerium/pomerium/internal/zero/token"
 	"github.com/pomerium/pomerium/pkg/fanout"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 	connect_api "github.com/pomerium/pomerium/pkg/zero/connect"
+	"github.com/pomerium/protoutil/fieldmasks"
 )
 
 // API is a Pomerium Zero Cluster API client
@@ -82,10 +88,21 @@ func NewAPI(ctx context.Context, opts ...Option) (*API, error) {
 		return nil, fmt.Errorf("error creating OTEL exporter grpc client: %w", err)
 	}
 
+	muxOpts := []connect_mux.MuxOption{}
+	if cfg.defaultConfig != nil {
+		muxOpts = append(muxOpts, connect_mux.WithSubscribeRequestBuilder(
+			func() *connect_api.SubscribeRequest {
+				def := connect_mux.NewDefaultSubscribeRequest()
+				def.ConfigManifest = fieldmasks.ByPresence(cfg.defaultConfig.ProtoReflect())
+				return def
+			},
+		))
+	}
+
 	return &API{
 		cfg:              cfg,
 		cluster:          clusterClient,
-		mux:              connect_mux.New(connect_api.NewConnectClient(connectGRPCConn)),
+		mux:              connect_mux.New(connect_api.NewConnectClient(connectGRPCConn), muxOpts...),
 		telemetryConn:    telemetryGRPCConn,
 		downloadURLCache: cluster_api.NewURLCache(),
 		tokenFn:          tokenCache.GetToken,
@@ -114,6 +131,26 @@ func (api *API) GetClusterResourceBundles(ctx context.Context) (*cluster_api.Get
 	return apierror.CheckResponse[cluster_api.GetBundlesResponse](
 		api.cluster.GetClusterResourceBundlesWithResponse(ctx),
 	)
+}
+
+func (api *API) ApplyDefaultConfiguration(ctx context.Context, cfg *configpb.Config) (*cluster_api.EmptyResponse, error) {
+	data, err := proto.Marshal(cfg)
+	if err != nil {
+		return nil, err
+	}
+	var compressedData bytes.Buffer
+	w := gzip.NewWriter(&compressedData)
+	_, err = io.Copy(w, bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	if err := w.Close(); err != nil {
+		return nil, err
+	}
+	return apierror.CheckResponse(api.cluster.ApplyDefaultConfigurationWithBodyWithResponse(ctx,
+		"application/octet-stream",
+		&compressedData,
+	))
 }
 
 func (api *API) GetTelemetryConn() *grpc.ClientConn {

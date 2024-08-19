@@ -1592,6 +1592,142 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	})
 }
 
+func (o *Options) ToProto() *config.Config {
+	var settings config.Settings
+	copySrcToOptionalDest(&settings.InstallationId, &o.InstallationID)
+	copySrcToOptionalDest(&settings.LogLevel, (*string)(&o.LogLevel))
+	settings.AccessLogFields = toStringList(o.AccessLogFields)
+	settings.AuthorizeLogFields = toStringList(o.AuthorizeLogFields)
+	copySrcToOptionalDest(&settings.ProxyLogLevel, (*string)(&o.ProxyLogLevel))
+	copySrcToOptionalDest(&settings.SharedSecret, &o.SharedKey)
+	copySrcToOptionalDest(&settings.Services, &o.Services)
+	copySrcToOptionalDest(&settings.Address, &o.Addr)
+	copySrcToOptionalDest(&settings.InsecureServer, &o.InsecureServer)
+	copySrcToOptionalDest(&settings.DnsLookupFamily, &o.DNSLookupFamily)
+	settings.Certificates = o.CertificateData
+	copySrcToOptionalDest(&settings.HttpRedirectAddr, &o.HTTPRedirectAddr)
+	settings.TimeoutRead = durationpb.New(o.ReadTimeout)
+	settings.TimeoutWrite = durationpb.New(o.WriteTimeout)
+	settings.TimeoutIdle = durationpb.New(o.IdleTimeout)
+	copySrcToOptionalDest(&settings.AuthenticateServiceUrl, &o.AuthenticateURLString)
+	copySrcToOptionalDest(&settings.AuthenticateInternalServiceUrl, &o.AuthenticateInternalURLString)
+	copySrcToOptionalDest(&settings.SignoutRedirectUrl, &o.SignOutRedirectURLString)
+	copySrcToOptionalDest(&settings.AuthenticateCallbackPath, &o.AuthenticateCallbackPath)
+	copySrcToOptionalDest(&settings.CookieName, &o.CookieName)
+	copySrcToOptionalDest(&settings.CookieSecret, &o.CookieSecret)
+	copySrcToOptionalDest(&settings.CookieDomain, &o.CookieDomain)
+	copySrcToOptionalDest(&settings.CookieHttpOnly, &o.CookieHTTPOnly)
+	settings.CookieExpire = durationpb.New(o.CookieExpire)
+	copySrcToOptionalDest(&settings.CookieSameSite, &o.CookieSameSite)
+	copySrcToOptionalDest(&settings.IdpClientId, &o.ClientID)
+	copySrcToOptionalDest(&settings.IdpClientSecret, &o.ClientSecret)
+	copySrcToOptionalDest(&settings.IdpProvider, &o.Provider)
+	copySrcToOptionalDest(&settings.IdpProviderUrl, &o.ProviderURL)
+	settings.Scopes = o.Scopes
+	settings.RequestParams = o.RequestParams
+	settings.AuthorizeServiceUrls = o.AuthorizeURLStrings
+	copySrcToOptionalDest(&settings.AuthorizeInternalServiceUrl, &o.AuthorizeInternalURLString)
+	copySrcToOptionalDest(&settings.OverrideCertificateName, &o.OverrideCertificateName)
+	copySrcToOptionalDest(&settings.CertificateAuthority, &o.CA)
+	settings.DeriveTls = o.DeriveInternalDomainCert
+	copySrcToOptionalDest(&settings.SigningKey, &o.SigningKey)
+	settings.SetResponseHeaders = o.SetResponseHeaders
+	settings.JwtClaimsHeaders = o.JWTClaimsHeaders
+	settings.DefaultUpstreamTimeout = durationpb.New(o.DefaultUpstreamTimeout)
+	copySrcToOptionalDest(&settings.MetricsAddress, &o.MetricsAddr)
+	copySrcToOptionalDest(&settings.MetricsBasicAuth, &o.MetricsBasicAuth)
+	settings.MetricsCertificate = toCertificate(o.MetricsCertificate, o.MetricsCertificateKey)
+	copySrcToOptionalDest(&settings.MetricsClientCa, &o.MetricsClientCA)
+	copySrcToOptionalDest(&settings.TracingProvider, &o.TracingProvider)
+	copySrcToOptionalDest(&settings.TracingSampleRate, &o.TracingSampleRate)
+	copySrcToOptionalDest(&settings.TracingDatadogAddress, &o.TracingDatadogAddress)
+	copySrcToOptionalDest(&settings.TracingJaegerCollectorEndpoint, &o.TracingJaegerCollectorEndpoint)
+	copySrcToOptionalDest(&settings.TracingJaegerAgentEndpoint, &o.TracingJaegerAgentEndpoint)
+	copySrcToOptionalDest(&settings.TracingZipkinEndpoint, &o.ZipkinEndpoint)
+	copySrcToOptionalDest(&settings.GrpcAddress, &o.GRPCAddr)
+	settings.GrpcInsecure = o.GRPCInsecure
+	settings.GrpcClientTimeout = durationpb.New(o.GRPCClientTimeout)
+	copySrcToOptionalDest(&settings.GrpcClientDnsRoundrobin, &o.GRPCClientDNSRoundRobin)
+	settings.DatabrokerServiceUrls = o.DataBrokerURLStrings
+	copySrcToOptionalDest(&settings.DatabrokerInternalServiceUrl, &o.DataBrokerInternalURLString)
+	copySrcToOptionalDest(&settings.DatabrokerStorageType, &o.DataBrokerStorageType)
+	copySrcToOptionalDest(&settings.DatabrokerStorageConnectionString, &o.DataBrokerStorageConnectionString)
+	copySrcToOptionalDest(&settings.DatabrokerStorageTlsSkipVerify, &o.DataBrokerStorageCertSkipVerify)
+	settings.DownstreamMtls = o.DownstreamMTLS.toSettingsProto()
+	copySrcToOptionalDest(&settings.GoogleCloudServerlessAuthenticationServiceAccount, &o.GoogleCloudServerlessAuthenticationServiceAccount)
+	copySrcToOptionalDest(&settings.UseProxyProtocol, &o.UseProxyProtocol)
+	copySrcToOptionalDest(&settings.Autocert, &o.AutocertOptions.Enable)
+	copySrcToOptionalDest(&settings.AutocertCa, &o.AutocertOptions.CA)
+	copySrcToOptionalDest(&settings.AutocertEmail, &o.AutocertOptions.Email)
+	copySrcToOptionalDest(&settings.AutocertEabKeyId, &o.AutocertOptions.EABKeyID)
+	copySrcToOptionalDest(&settings.AutocertEabMacKey, &o.AutocertOptions.EABMACKey)
+	copySrcToOptionalDest(&settings.AutocertUseStaging, &o.AutocertOptions.UseStaging)
+	copySrcToOptionalDest(&settings.AutocertMustStaple, &o.AutocertOptions.MustStaple)
+	copySrcToOptionalDest(&settings.AutocertDir, &o.AutocertOptions.Folder)
+	copySrcToOptionalDest(&settings.AutocertTrustedCa, &o.AutocertOptions.TrustedCA)
+	copySrcToOptionalDest(&settings.SkipXffAppend, &o.SkipXffAppend)
+	copySrcToOptionalDest(&settings.XffNumTrustedHops, &o.XffNumTrustedHops)
+	settings.ProgrammaticRedirectDomainWhitelist = o.ProgrammaticRedirectDomainWhitelist
+	settings.AuditKey = o.AuditKey.ToProto()
+	if o.CodecType != "" {
+		codecType := o.CodecType.ToEnvoy()
+		settings.CodecType = &codecType
+	}
+	if o.BrandingOptions != nil {
+		primaryColor := o.BrandingOptions.GetPrimaryColor()
+		secondaryColor := o.BrandingOptions.GetSecondaryColor()
+		darkmodePrimaryColor := o.BrandingOptions.GetDarkmodePrimaryColor()
+		darkmodeSecondaryColor := o.BrandingOptions.GetDarkmodeSecondaryColor()
+		logoUrl := o.BrandingOptions.GetLogoUrl()
+		faviconUrl := o.BrandingOptions.GetFaviconUrl()
+		errorMessageFirstParagraph := o.BrandingOptions.GetErrorMessageFirstParagraph()
+		copySrcToOptionalDest(&settings.PrimaryColor, &primaryColor)
+		copySrcToOptionalDest(&settings.SecondaryColor, &secondaryColor)
+		copySrcToOptionalDest(&settings.DarkmodePrimaryColor, &darkmodePrimaryColor)
+		copySrcToOptionalDest(&settings.DarkmodeSecondaryColor, &darkmodeSecondaryColor)
+		copySrcToOptionalDest(&settings.LogoUrl, &logoUrl)
+		copySrcToOptionalDest(&settings.FaviconUrl, &faviconUrl)
+		copySrcToOptionalDest(&settings.ErrorMessageFirstParagraph, &errorMessageFirstParagraph)
+	}
+	copyMap(&settings.RuntimeFlags, o.RuntimeFlags, func(k RuntimeFlag, v bool) (string, bool) {
+		return string(k), v
+	})
+
+	routes := make([]*config.Route, 0, o.NumPolicies())
+	for p := range o.GetAllPolicies() {
+		routepb, err := p.AsProto()
+		if err != nil {
+			continue
+		}
+		if p.Policy == nil {
+			continue
+		}
+		policyJson, err := p.Policy.MarshalJSON()
+		if err != nil {
+			continue
+		}
+		routepb.PplPolicies = append(routepb.PplPolicies, &config.PPLPolicy{
+			Raw: policyJson,
+		})
+		routes = append(routes, routepb)
+	}
+	return &config.Config{
+		Settings: &settings,
+		Routes:   routes,
+	}
+}
+
+func toStringList[T ~string](s []T) *config.Settings_StringList {
+	if len(s) == 0 {
+		return nil
+	}
+	strings := make([]string, len(s))
+	for i, v := range s {
+		strings[i] = string(v)
+	}
+	return &config.Settings_StringList{Values: strings}
+}
+
 func dataDir() string {
 	homeDir, _ := os.UserHomeDir()
 	if homeDir == "" {
@@ -1745,5 +1881,18 @@ func setCertificate(
 	}
 	if len(src.GetKeyBytes()) > 0 {
 		*dstCertificateKey = base64.StdEncoding.EncodeToString(src.GetKeyBytes())
+	}
+}
+
+func toCertificate(
+	cert string,
+	key string,
+) *config.Settings_Certificate {
+	if cert == "" || key == "" {
+		return nil
+	}
+	return &config.Settings_Certificate{
+		CertBytes: []byte(cert),
+		KeyBytes:  []byte(key),
 	}
 }

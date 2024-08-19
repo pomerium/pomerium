@@ -20,6 +20,7 @@ import (
 
 // Mux is the service that listens for updates from the cloud
 type Mux struct {
+	MuxOptions
 	client connect.ConnectClient
 	mux    *fanout.FanOut[message]
 
@@ -28,11 +29,46 @@ type Mux struct {
 	connected atomic.Bool
 }
 
+type MuxOptions struct {
+	subscribeRequest func() *connect.SubscribeRequest
+}
+
+type MuxOption func(*MuxOptions)
+
+func (o *MuxOptions) apply(opts ...MuxOption) {
+	for _, op := range opts {
+		op(o)
+	}
+}
+
+func WithSubscribeRequestBuilder(builder func() *connect.SubscribeRequest) MuxOption {
+	return func(o *MuxOptions) {
+		o.subscribeRequest = builder
+	}
+}
+
+func NewDefaultSubscribeRequest() *connect.SubscribeRequest {
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "__unknown__"
+	}
+	return &connect.SubscribeRequest{
+		Hostname: hostname,
+		Version:  version.FullVersion(),
+	}
+}
+
 // New creates a new mux service that listens for updates from the cloud
-func New(client connect.ConnectClient) *Mux {
+func New(client connect.ConnectClient, opts ...MuxOption) *Mux {
+	options := MuxOptions{
+		subscribeRequest: NewDefaultSubscribeRequest,
+	}
+	options.apply(opts...)
+
 	svc := &Mux{
-		client: client,
-		ready:  make(chan struct{}),
+		MuxOptions: options,
+		client:     client,
+		ready:      make(chan struct{}),
 	}
 	return svc
 }
@@ -71,14 +107,7 @@ func (svc *Mux) subscribeAndDispatch(ctx context.Context, onConnected func()) (e
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "__unknown__"
-	}
-	stream, err := svc.client.Subscribe(ctx, &connect.SubscribeRequest{
-		Hostname: hostname,
-		Version:  version.FullVersion(),
-	})
+	stream, err := svc.client.Subscribe(ctx, svc.subscribeRequest())
 	if err != nil {
 		return fmt.Errorf("subscribe: %w", err)
 	}

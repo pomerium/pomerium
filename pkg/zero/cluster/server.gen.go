@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -28,6 +29,9 @@ type ServerInterface interface {
 
 	// (POST /bundles/{bundleId}/status)
 	ReportClusterResourceBundleStatus(w http.ResponseWriter, r *http.Request, bundleId BundleId)
+
+	// (POST /config/default)
+	ApplyDefaultConfiguration(w http.ResponseWriter, r *http.Request)
 
 	// (POST /exchangeToken)
 	ExchangeClusterIdentityToken(w http.ResponseWriter, r *http.Request)
@@ -54,6 +58,11 @@ func (_ Unimplemented) DownloadClusterResourceBundle(w http.ResponseWriter, r *h
 
 // (POST /bundles/{bundleId}/status)
 func (_ Unimplemented) ReportClusterResourceBundleStatus(w http.ResponseWriter, r *http.Request, bundleId BundleId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /config/default)
+func (_ Unimplemented) ApplyDefaultConfiguration(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -152,6 +161,23 @@ func (siw *ServerInterfaceWrapper) ReportClusterResourceBundleStatus(w http.Resp
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReportClusterResourceBundleStatus(w, r, bundleId)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// ApplyDefaultConfiguration operation middleware
+func (siw *ServerInterfaceWrapper) ApplyDefaultConfiguration(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApplyDefaultConfiguration(w, r)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -300,6 +326,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/bundles/{bundleId}/status", wrapper.ReportClusterResourceBundleStatus)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/config/default", wrapper.ApplyDefaultConfiguration)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/exchangeToken", wrapper.ExchangeClusterIdentityToken)
@@ -455,6 +484,40 @@ func (response ReportClusterResourceBundleStatus500JSONResponse) VisitReportClus
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ApplyDefaultConfigurationRequestObject struct {
+	Body io.Reader
+}
+
+type ApplyDefaultConfigurationResponseObject interface {
+	VisitApplyDefaultConfigurationResponse(w http.ResponseWriter) error
+}
+
+type ApplyDefaultConfiguration200Response struct {
+}
+
+func (response ApplyDefaultConfiguration200Response) VisitApplyDefaultConfigurationResponse(w http.ResponseWriter) error {
+	w.WriteHeader(200)
+	return nil
+}
+
+type ApplyDefaultConfiguration400JSONResponse ErrorResponse
+
+func (response ApplyDefaultConfiguration400JSONResponse) VisitApplyDefaultConfigurationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ApplyDefaultConfiguration500JSONResponse ErrorResponse
+
+func (response ApplyDefaultConfiguration500JSONResponse) VisitApplyDefaultConfigurationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ExchangeClusterIdentityTokenRequestObject struct {
 	Body *ExchangeClusterIdentityTokenJSONRequestBody
 }
@@ -504,6 +567,9 @@ type StrictServerInterface interface {
 
 	// (POST /bundles/{bundleId}/status)
 	ReportClusterResourceBundleStatus(ctx context.Context, request ReportClusterResourceBundleStatusRequestObject) (ReportClusterResourceBundleStatusResponseObject, error)
+
+	// (POST /config/default)
+	ApplyDefaultConfiguration(ctx context.Context, request ApplyDefaultConfigurationRequestObject) (ApplyDefaultConfigurationResponseObject, error)
 
 	// (POST /exchangeToken)
 	ExchangeClusterIdentityToken(ctx context.Context, request ExchangeClusterIdentityTokenRequestObject) (ExchangeClusterIdentityTokenResponseObject, error)
@@ -638,6 +704,32 @@ func (sh *strictHandler) ReportClusterResourceBundleStatus(w http.ResponseWriter
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ReportClusterResourceBundleStatusResponseObject); ok {
 		if err := validResponse.VisitReportClusterResourceBundleStatusResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ApplyDefaultConfiguration operation middleware
+func (sh *strictHandler) ApplyDefaultConfiguration(w http.ResponseWriter, r *http.Request) {
+	var request ApplyDefaultConfigurationRequestObject
+
+	request.Body = r.Body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ApplyDefaultConfiguration(ctx, request.(ApplyDefaultConfigurationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ApplyDefaultConfiguration")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ApplyDefaultConfigurationResponseObject); ok {
+		if err := validResponse.VisitApplyDefaultConfigurationResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

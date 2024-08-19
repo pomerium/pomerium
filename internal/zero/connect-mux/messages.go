@@ -56,6 +56,8 @@ func dispatch(ctx context.Context, cfg *config, msg message) error {
 			cfg.onTelemetryRequested(ctx, msg.Message.GetTelemetryRequest())
 		case *connect.Message_RunHealthChecksRequest:
 			cfg.onRunHealthChecks(ctx)
+		case *connect.Message_DefaultConfigRequested:
+			cfg.onDefaultConfigRequested(ctx, msg.Message.GetDefaultConfigRequested())
 		default:
 			log.Ctx(ctx).Debug().Msg("unknown message type, ignored")
 		}

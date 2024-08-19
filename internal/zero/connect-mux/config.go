@@ -13,6 +13,7 @@ type config struct {
 	onBootstrapConfigUpdated func(ctx context.Context)
 	onRunHealthChecks        func(ctx context.Context)
 	onTelemetryRequested     func(ctx context.Context, req *connect.TelemetryRequest)
+	onDefaultConfigRequested func(ctx context.Context, req *connect.DefaultConfigRequest)
 }
 
 // WatchOption allows to specify callbacks for various events
@@ -59,6 +60,12 @@ func WithOnTelemetryRequested(onTelemetryRequested func(context.Context, *connec
 	}
 }
 
+func WithOnDefaultConfigRequested(onDefaultConfigRequested func(context.Context, *connect.DefaultConfigRequest)) WatchOption {
+	return func(cfg *config) {
+		cfg.onDefaultConfigRequested = onDefaultConfigRequested
+	}
+}
+
 func newConfig(opts ...WatchOption) *config {
 	cfg := &config{}
 	for _, opt := range []WatchOption{
@@ -68,6 +75,7 @@ func newConfig(opts ...WatchOption) *config {
 		WithOnBootstrapConfigUpdated(func(_ context.Context) {}),
 		WithOnRunHealthChecks(func(_ context.Context) {}),
 		WithOnTelemetryRequested(func(_ context.Context, _ *connect.TelemetryRequest) {}),
+		WithOnDefaultConfigRequested(func(_ context.Context, _ *connect.DefaultConfigRequest) {}),
 	} {
 		opt(cfg)
 	}

@@ -11,8 +11,10 @@ import (
 
 	"github.com/rs/zerolog"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/zero/controller"
+	"github.com/pomerium/pomerium/pkg/envoy/files"
 )
 
 // Run runs the pomerium zero command.
@@ -27,7 +29,21 @@ func Run(ctx context.Context, configFile string) error {
 		return errors.New("no token provided")
 	}
 
+	var initialConfig *config.Options
+	if configFile != "" {
+		src, err := config.NewFileOrEnvironmentSource(configFile, files.FullVersion())
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err)
+		} else {
+			cfg := src.GetConfig()
+			if cfg != nil {
+				initialConfig = cfg.Options
+			}
+		}
+	}
+
 	opts := []controller.Option{
+		controller.WithDefaultConfig(initialConfig),
 		controller.WithAPIToken(token),
 		controller.WithClusterAPIEndpoint(getClusterAPIEndpoint()),
 		controller.WithConnectAPIEndpoint(getConnectAPIEndpoint()),

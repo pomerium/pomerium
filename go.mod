@@ -50,7 +50,7 @@ require (
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pomerium/csrf v1.7.0
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524
-	github.com/pomerium/protoutil v0.0.0-20240808223348-c42da2bf0225
+	github.com/pomerium/protoutil v0.0.0-20240813175624-47b7ac43ff46
 	github.com/pomerium/webauthn v0.0.0-20240603205124-0428df511172
 	github.com/prometheus/client_golang v1.19.1
 	github.com/prometheus/client_model v0.6.1

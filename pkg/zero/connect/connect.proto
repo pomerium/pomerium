@@ -1,6 +1,9 @@
 syntax = "proto3";
 
 package pomerium.zero;
+
+import "google/protobuf/field_mask.proto";
+
 option go_package = "github.com/pomerium/pomerium/pkg/zero/connect";
 
 // SubscribeRequest is used to subscribe to a stream of messages
@@ -10,16 +13,19 @@ option go_package = "github.com/pomerium/pomerium/pkg/zero/connect";
 // that belongs to a cluster identity with appropriate claims set.
 message SubscribeRequest {
   string hostname = 1;
-  string version = 2;
+  string version  = 2;
+
+  google.protobuf.FieldMask config_manifest = 99;
 }
 
 // Message is an aggregate of all possible messages that can be sent
 // from the cloud to the core in managed mode.
 message Message {
   oneof message {
-    ConfigUpdated config_updated = 1;
-    BootstrapConfigUpdated bootstrap_config_updated = 2;
-    TelemetryRequest telemetry_request = 3;
+    ConfigUpdated          config_updated            = 1;
+    BootstrapConfigUpdated bootstrap_config_updated  = 2;
+    TelemetryRequest       telemetry_request         = 3;
+    DefaultConfigRequest   default_config_requested  = 4;
     RunHealthChecksRequest run_health_checks_request = 5;
   }
 }
@@ -65,6 +71,10 @@ message EnvoyMetricsRequest {
 message PomeriumMetricsRequest {
   // only include metrics that match the provided labels
   repeated string metrics = 1;
+}
+
+message DefaultConfigRequest {
+  google.protobuf.FieldMask mask = 1;
 }
 
 // Connect service is used to maintain a persistent connection between the

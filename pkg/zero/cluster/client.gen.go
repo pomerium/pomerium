@@ -103,6 +103,9 @@ type ClientInterface interface {
 
 	ReportClusterResourceBundleStatus(ctx context.Context, bundleId BundleId, body ReportClusterResourceBundleStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ApplyDefaultConfigurationWithBody request with any body
+	ApplyDefaultConfigurationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ExchangeClusterIdentityTokenWithBody request with any body
 	ExchangeClusterIdentityTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -159,6 +162,18 @@ func (c *Client) ReportClusterResourceBundleStatusWithBody(ctx context.Context, 
 
 func (c *Client) ReportClusterResourceBundleStatus(ctx context.Context, bundleId BundleId, body ReportClusterResourceBundleStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReportClusterResourceBundleStatusRequest(c.Server, bundleId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ApplyDefaultConfigurationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewApplyDefaultConfigurationRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -328,6 +343,35 @@ func NewReportClusterResourceBundleStatusRequestWithBody(server string, bundleId
 	return req, nil
 }
 
+// NewApplyDefaultConfigurationRequestWithBody generates requests for ApplyDefaultConfiguration with any type of body
+func NewApplyDefaultConfigurationRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/default")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewExchangeClusterIdentityTokenRequest calls the generic ExchangeClusterIdentityToken builder with application/json body
 func NewExchangeClusterIdentityTokenRequest(server string, body ExchangeClusterIdentityTokenJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -424,6 +468,9 @@ type ClientWithResponsesInterface interface {
 	ReportClusterResourceBundleStatusWithBodyWithResponse(ctx context.Context, bundleId BundleId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReportClusterResourceBundleStatusResp, error)
 
 	ReportClusterResourceBundleStatusWithResponse(ctx context.Context, bundleId BundleId, body ReportClusterResourceBundleStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*ReportClusterResourceBundleStatusResp, error)
+
+	// ApplyDefaultConfigurationWithBodyWithResponse request with any body
+	ApplyDefaultConfigurationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ApplyDefaultConfigurationResp, error)
 
 	// ExchangeClusterIdentityTokenWithBodyWithResponse request with any body
 	ExchangeClusterIdentityTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExchangeClusterIdentityTokenResp, error)
@@ -527,6 +574,29 @@ func (r ReportClusterResourceBundleStatusResp) StatusCode() int {
 	return 0
 }
 
+type ApplyDefaultConfigurationResp struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *ErrorResponse
+	JSON500      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r ApplyDefaultConfigurationResp) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ApplyDefaultConfigurationResp) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ExchangeClusterIdentityTokenResp struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -593,6 +663,15 @@ func (c *ClientWithResponses) ReportClusterResourceBundleStatusWithResponse(ctx 
 		return nil, err
 	}
 	return ParseReportClusterResourceBundleStatusResp(rsp)
+}
+
+// ApplyDefaultConfigurationWithBodyWithResponse request with arbitrary body returning *ApplyDefaultConfigurationResp
+func (c *ClientWithResponses) ApplyDefaultConfigurationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ApplyDefaultConfigurationResp, error) {
+	rsp, err := c.ApplyDefaultConfigurationWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseApplyDefaultConfigurationResp(rsp)
 }
 
 // ExchangeClusterIdentityTokenWithBodyWithResponse request with arbitrary body returning *ExchangeClusterIdentityTokenResp
@@ -748,6 +827,39 @@ func ParseReportClusterResourceBundleStatusResp(rsp *http.Response) (*ReportClus
 	}
 
 	response := &ReportClusterResourceBundleStatusResp{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseApplyDefaultConfigurationResp parses an HTTP response from a ApplyDefaultConfigurationWithResponse call
+func ParseApplyDefaultConfigurationResp(rsp *http.Response) (*ApplyDefaultConfigurationResp, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ApplyDefaultConfigurationResp{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

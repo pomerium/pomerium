@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             (unknown)
-// source: connect.proto
+// source: github.com/pomerium/pomerium/pkg/zero/connect/connect.proto
 
 package connect
 
@@ -93,7 +93,7 @@ type UnsafeConnectServer interface {
 }
 
 func RegisterConnectServer(s grpc.ServiceRegistrar, srv ConnectServer) {
-	// If the following call pancis, it indicates UnimplementedConnectServer was
+	// If the following call panics, it indicates UnimplementedConnectServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
@@ -128,5 +128,5 @@ var Connect_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "connect.proto",
+	Metadata: "github.com/pomerium/pomerium/pkg/zero/connect/connect.proto",
 }
