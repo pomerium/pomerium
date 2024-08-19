@@ -159,6 +159,7 @@ func (c *controller) runZeroControlLoop(ctx context.Context) error {
 				c.runSessionAnalyticsLeased,
 				c.runPeriodicHealthChecksLeased,
 				leaseStatus.MonitorLease,
+				c.runUsageReporter,
 			),
 		)
 	})
@@ -193,6 +194,13 @@ func (c *controller) runSessionAnalyticsLeased(ctx context.Context, client datab
 func (c *controller) runPeriodicHealthChecksLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
 	return retry.WithBackoff(ctx, "zero-healthcheck", func(ctx context.Context) error {
 		return healthcheck.RunChecks(ctx, c.bootstrapConfig, client)
+	})
+}
+
+func (c *controller) runUsageReporter(ctx context.Context, client databroker.DataBrokerServiceClient) error {
+	r := newUsageReporter(c.api)
+	return retry.WithBackoff(ctx, "zero-usage-reporter", func(ctx context.Context) error {
+		return r.run(ctx, client)
 	})
 }
 
