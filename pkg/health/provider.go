@@ -2,7 +2,6 @@ package health
 
 import (
 	"errors"
-	"sync"
 )
 
 // Attr is a key-value pair that can be attached to a health check
@@ -26,10 +25,7 @@ func ErrorAttr(err error) Attr {
 
 // ReportOK reports that a check was successful
 func ReportOK(check Check, attributes ...Attr) {
-	p := defaultProvider.Load()
-	if p != nil {
-		p.ReportOK(check, attributes...)
-	}
+	provider.ReportOK(check, attributes...)
 }
 
 var ErrInternalError = errors.New("internal error")
@@ -41,10 +37,7 @@ func ReportInternalError(check Check, err error, attributes ...Attr) {
 
 // ReportError reports that a check failed
 func ReportError(check Check, err error, attributes ...Attr) {
-	p := defaultProvider.Load()
-	if p != nil {
-		p.ReportError(check, err, attributes...)
-	}
+	provider.ReportError(check, err, attributes...)
 }
 
 // Provider is the interface that must be implemented by a health check reporter
@@ -55,29 +48,7 @@ type Provider interface {
 
 // SetProvider sets the health check provider
 func SetProvider(p Provider) {
-	if p != nil {
-		p = NewDeduplicator(p)
-	}
-	defaultProvider.Store(p)
+	provider.SetProvider(p)
 }
 
-type providerStore struct {
-	sync.RWMutex
-	provider Provider
-}
-
-func (p *providerStore) Load() Provider {
-	p.RLock()
-	defer p.RUnlock()
-
-	return p.provider
-}
-
-func (p *providerStore) Store(provider Provider) {
-	p.Lock()
-	defer p.Unlock()
-
-	p.provider = provider
-}
-
-var defaultProvider providerStore
+var provider = NewDeduplicator()
