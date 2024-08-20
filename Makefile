@@ -13,7 +13,7 @@ BUILDTAGS :=
 
 # Populate version variables
 # Add to compile time flags
-VERSION := $(shell git describe --tags)
+VERSION?= $(shell git describe --tags)
 GITCOMMIT := $(shell git rev-parse --short HEAD)
 BUILDMETA:=
 GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
@@ -64,6 +64,11 @@ tag: ## Create a new git tag to prepare to build a release
 proto:
 	@echo "==> $@"
 	cd pkg/grpc && ./protoc.bash
+
+.PHONY: generate
+generate: proto
+	@echo "==> $@"
+	$(GO) generate ./...
 
 .PHONY: build
 build: build-ui build-go

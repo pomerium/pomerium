@@ -6,13 +6,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/http"
 	"slices"
 	"time"
 
 	"github.com/go-jose/go-jose/v3"
-	"golang.org/x/exp/maps"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -71,7 +71,6 @@ func checkRoutesReachable(
 	if err != nil {
 		return fmt.Errorf("error getting route hosts: %w", err)
 	}
-	slices.Sort(hosts)
 
 	client := getPingHTTPClient()
 	var errs []error
@@ -119,5 +118,5 @@ func getHosts(configs []*configpb.Config) ([]string, error) {
 		}
 	}
 
-	return maps.Keys(hosts), nil
+	return slices.Sorted(maps.Keys(hosts)), nil
 }

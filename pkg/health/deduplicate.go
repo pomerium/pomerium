@@ -1,9 +1,8 @@
 package health
 
 import (
+	"maps"
 	"sync"
-
-	"golang.org/x/exp/maps"
 )
 
 var _ Provider = (*deduplicator)(nil)
