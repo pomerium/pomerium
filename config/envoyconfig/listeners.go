@@ -631,9 +631,7 @@ func clientCABundle(ctx context.Context, cfg *config.Config) []byte {
 	var bundle bytes.Buffer
 	ca, _ := cfg.Options.DownstreamMTLS.GetCA()
 	addCAToBundle(&bundle, ca)
-	allPolicies := cfg.Options.GetAllPolicies()
-	for i := range allPolicies {
-		p := &allPolicies[i]
+	for p := range cfg.Options.GetAllPolicies() {
 		// We don't need to check TLSDownstreamClientCAFile here because
 		// Policy.Validate() will populate TLSDownstreamClientCA when
 		// TLSDownstreamClientCAFile is set.
