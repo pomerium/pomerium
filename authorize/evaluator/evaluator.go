@@ -168,7 +168,7 @@ func getOrCreatePolicyEvaluators(
 			continue
 		}
 		builders = append(builders, func(ctx context.Context) (*routeEvaluator, error) {
-			evaluator, err := NewPolicyEvaluator(ctx, store, &configPolicy, cfg.AddDefaultClientCertificateRule)
+			evaluator, err := NewPolicyEvaluator(ctx, store, configPolicy, cfg.AddDefaultClientCertificateRule)
 			if err != nil {
 				return nil, fmt.Errorf("authorize: error building evaluator for route id=%s: %w", configPolicy.ID, err)
 			}
