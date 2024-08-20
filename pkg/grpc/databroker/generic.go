@@ -69,7 +69,7 @@ func IterateAll[T any, TMessage interface {
 				gr.Object = msg.(TMessage)
 				err = res.Record.GetData().UnmarshalTo(gr.Object)
 				if err != nil {
-					log.Error(ctx).Err(err).Msg("databroker: unexpected object found in databroker record")
+					log.Error(ctx).Err(err).Str("record-type", res.Record.GetType()).Str("record-id", res.Record.GetId()).Msg("databroker: unexpected object found in databroker record")
 				} else if !yield(gr, nil) {
 					return
 				}
