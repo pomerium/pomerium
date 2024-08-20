@@ -34,10 +34,13 @@ import (
 func Run(ctx context.Context, src config.Source) error {
 	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Debug(context.Background()).Msgf(s, i...) }))
 
-	log.Info(ctx).
+	evt := log.Info(ctx).
 		Str("envoy_version", files.FullVersion()).
-		Str("version", version.FullVersion()).
-		Msg("cmd/pomerium")
+		Str("version", version.FullVersion())
+	if buildTime := version.BuildTime(); buildTime != "" {
+		evt = evt.Str("built", buildTime)
+	}
+	evt.Msg("cmd/pomerium")
 
 	src, err := config.NewLayeredSource(ctx, src, derivecert_config.NewBuilder())
 	if err != nil {

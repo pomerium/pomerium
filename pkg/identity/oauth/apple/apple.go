@@ -7,12 +7,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/go-jose/go-jose/v3/jwt"
-	"golang.org/x/exp/maps"
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/httputil"

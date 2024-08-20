@@ -4,14 +4,14 @@ package inmemory
 import (
 	"context"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/google/btree"
 	"github.com/rs/zerolog"
-	"golang.org/x/exp/maps"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -206,8 +206,7 @@ func (backend *Backend) ListTypes(_ context.Context) ([]string, error) {
 	keys := maps.Keys(backend.lookup)
 	backend.mu.Unlock()
 
-	sort.Strings(keys)
-	return keys, nil
+	return slices.Sorted(keys), nil
 }
 
 // Put puts a record into the in-memory store.

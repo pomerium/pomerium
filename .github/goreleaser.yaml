@@ -34,7 +34,7 @@ builds:
       - -s -w
       - -X github.com/pomerium/pomerium/internal/version.Version={{.Version}}
       - -X github.com/pomerium/pomerium/internal/version.GitCommit={{.ShortCommit}}
-      - -X github.com/pomerium/pomerium/internal/version.BuildMeta={{.Timestamp}}
+      - -X github.com/pomerium/pomerium/internal/version.Timestamp={{.Timestamp}}
       - -X github.com/pomerium/pomerium/internal/version.ProjectName=pomerium
       - -X github.com/pomerium/pomerium/internal/version.ProjectURL=https://www.pomerium.io
 

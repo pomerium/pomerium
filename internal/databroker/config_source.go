@@ -3,11 +3,11 @@ package databroker
 import (
 	"context"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"sync"
 	"time"
 
-	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/config"
@@ -164,8 +164,7 @@ func (src *ConfigSource) buildNewConfigLocked(ctx context.Context, cfg *config.C
 }
 
 func (src *ConfigSource) applySettingsLocked(ctx context.Context, cfg *config.Config) {
-	ids := maps.Keys(src.dbConfigs)
-	sort.Strings(ids)
+	ids := slices.Sorted(maps.Keys(src.dbConfigs))
 
 	var certsIndex *cryptutil.CertificatesIndex
 	if src.enableValidation {
