@@ -72,6 +72,9 @@ func NewDeduplicator() *Deduplicator {
 }
 
 func (d *Deduplicator) SetProvider(p Provider) {
+	if p == nil {
+		p = &noopProvider{}
+	}
 	records := d.setProvider(p)
 	for check, record := range records {
 		report(p, check, record.err, record.Attr()...)
@@ -82,11 +85,7 @@ func (d *Deduplicator) setProvider(p Provider) map[Check]*record {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
-	if p == nil {
-		p = &noopProvider{}
-	}
 	d.provider = p
-
 	return maps.Clone(d.records)
 }
 
