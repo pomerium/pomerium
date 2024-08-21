@@ -72,10 +72,13 @@ func NewDeduplicator() *Deduplicator {
 }
 
 func (d *Deduplicator) SetProvider(p Provider) {
-	d.setProvider(p)()
+	records := d.setProvider(p)
+	for check, record := range records {
+		report(p, check, record.err, record.Attr()...)
+	}
 }
 
-func (d *Deduplicator) setProvider(p Provider) func() {
+func (d *Deduplicator) setProvider(p Provider) map[Check]*record {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
@@ -83,39 +86,34 @@ func (d *Deduplicator) setProvider(p Provider) func() {
 		p = &noopProvider{}
 	}
 	d.provider = p
-	records := maps.Clone(d.records)
 
-	return func() {
-		for check, record := range records {
-			report(p, check, record.err, record.Attr()...)
-		}
-	}
+	return maps.Clone(d.records)
 }
 
-func (d *Deduplicator) update(check Check, next *record) func() {
+func (d *Deduplicator) swap(check Check, next *record) (provider Provider, changed bool) {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
 	prev := d.records[check]
 	d.records[check] = next
-	if prev != nil && next.Equals(prev) {
-		return func() {}
-	}
-
-	p := d.provider
-	return func() {
-		report(p, check, next.err, next.Attr()...)
-	}
+	changed = prev == nil || !next.Equals(prev)
+	return d.provider, changed
 }
 
 // ReportError implements the Provider interface
 func (d *Deduplicator) ReportError(check Check, err error, attrs ...Attr) {
-	d.update(check, newErrorRecord(err, attrs))()
+	provider, changed := d.swap(check, newErrorRecord(err, attrs))
+	if changed {
+		provider.ReportError(check, err, attrs...)
+	}
 }
 
 // ReportOK implements the Provider interface
 func (d *Deduplicator) ReportOK(check Check, attrs ...Attr) {
-	d.update(check, newOKRecord(attrs))()
+	provider, changed := d.swap(check, newOKRecord(attrs))
+	if changed {
+		provider.ReportOK(check, attrs...)
+	}
 }
 
 type noopProvider struct{}
