@@ -1,0 +1,54 @@
+package controller
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"google.golang.org/grpc"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/internal/databroker"
+	"github.com/pomerium/pomerium/internal/testutil"
+	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
+)
+
+func Test_SyncLatestRecords(t *testing.T) {
+	t.Parallel()
+
+	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Minute)
+	defer clearTimeout()
+
+	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
+		databrokerpb.RegisterDataBrokerServiceServer(s, databroker.New())
+	})
+
+	c := databrokerpb.NewDataBrokerServiceClient(cc)
+
+	expected := []*user.User{
+		{Id: "u1"},
+		{Id: "u2"},
+		{Id: "u3"},
+	}
+
+	for _, u := range expected {
+		_, err := c.Put(ctx, &databrokerpb.PutRequest{
+			Records: []*databrokerpb.Record{
+				databrokerpb.NewRecord(u),
+			},
+		})
+		require.NoError(t, err)
+	}
+
+	var actual []*user.User
+	serverVersion, latestRecordVersion, err := syncLatestRecords(context.Background(), c, func(u *user.User) {
+		actual = append(actual, u)
+	})
+	assert.NoError(t, err)
+	assert.NotZero(t, serverVersion)
+	assert.Equal(t, uint64(3), latestRecordVersion)
+	testutil.AssertProtoEqual(t, expected, actual)
+}
