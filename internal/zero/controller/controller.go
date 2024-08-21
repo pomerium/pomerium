@@ -148,7 +148,7 @@ func (c *controller) runZeroControlLoop(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("init telemetry: %w", err)
 	}
-	defer c.shutdownTelemetry(ctx, tm)
+	defer c.shutdownWithTimeout(ctx, "telemetry", tm.Shutdown)
 
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error { return tm.Run(ctx) })
@@ -165,13 +165,16 @@ func (c *controller) runZeroControlLoop(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (c *controller) shutdownTelemetry(ctx context.Context, tm *telemetry.Telemetry) {
-	ctx, cancel := context.WithTimeout(ctx, c.cfg.shutdownTimeout)
+func (c *controller) shutdownWithTimeout(ctx context.Context, name string, fn func(context.Context) error) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), c.cfg.shutdownTimeout)
 	defer cancel()
 
-	err := tm.Shutdown(ctx)
+	log.Ctx(ctx).Debug().Str("timeout", c.cfg.shutdownTimeout.String()).Msgf("shutting down %s ...", name)
+	err := fn(ctx)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("error shutting down telemetry")
+		log.Ctx(ctx).Error().Err(err).Msgf("error shutting down %s", name)
+	} else {
+		log.Ctx(ctx).Debug().Msgf("%s shutdown complete", name)
 	}
 }
 
