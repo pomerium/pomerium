@@ -73,12 +73,14 @@ func (srv *Telemetry) Run(ctx context.Context) error {
 	})
 
 	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error { return srv.reporter.Run(ctx) })
+	eg.Go(func() error { return srv.handleRequests(ctx) })
 	eg.Go(func() error {
 		health.SetProvider(srv.reporter)
-		defer health.SetProvider(nil)
-		return srv.reporter.Run(ctx)
+		<-ctx.Done()
+		health.SetProvider(nil)
+		return nil
 	})
-	eg.Go(func() error { return srv.handleRequests(ctx) })
 	return eg.Wait()
 }
 
