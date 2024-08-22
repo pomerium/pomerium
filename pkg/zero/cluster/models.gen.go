@@ -103,10 +103,10 @@ type ReportUsageRequest struct {
 
 // ReportUsageUser defines model for ReportUsageUser.
 type ReportUsageUser struct {
-	AccessedAt  time.Time `json:"accessedAt"`
-	DisplayName string    `json:"displayName"`
-	Email       string    `json:"email"`
-	Id          string    `json:"id"`
+	DisplayName    string    `json:"displayName"`
+	Email          string    `json:"email"`
+	Id             string    `json:"id"`
+	LastSignedInAt time.Time `json:"lastSignedInAt"`
 }
 
 // BundleId defines model for bundleId.

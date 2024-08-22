@@ -299,17 +299,17 @@ components:
     ReportUsageUser:
       type: object
       properties:
-        accessedAt:
-          type: string
-          format: "date-time"
         displayName:
           type: string
         email:
           type: string
         id:
           type: string
+        lastSignedInAt:
+          type: string
+          format: "date-time"
       required:
-        - accessedAt
         - displayName
         - email
         - id
+        - lastSignedInAt

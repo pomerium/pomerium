@@ -25,7 +25,7 @@ type usageReporterRecord struct {
 	userID          string
 	userDisplayName string
 	userEmail       string
-	accessedAt      time.Time
+	lastSignedInAt  time.Time
 }
 
 type usageReporter struct {
@@ -48,10 +48,10 @@ func (ur *usageReporter) report(ctx context.Context, records []usageReporterReco
 	req := cluster.ReportUsageRequest{}
 	for _, record := range records {
 		req.Users = append(req.Users, cluster.ReportUsageUser{
-			AccessedAt:  record.accessedAt,
-			DisplayName: record.userDisplayName,
-			Email:       record.userEmail,
-			Id:          record.userID,
+			DisplayName:    record.userDisplayName,
+			Email:          record.userEmail,
+			Id:             record.userID,
+			LastSignedInAt: record.lastSignedInAt,
 		})
 	}
 	return ur.api.ReportUsage(ctx, req)
@@ -146,7 +146,7 @@ func (ur *usageReporter) onUpdateSession(s *session.Session) {
 
 	r := ur.byUserID[userID]
 	nr := r
-	nr.accessedAt = latest(nr.accessedAt, s.GetIssuedAt().AsTime())
+	nr.lastSignedInAt = latest(nr.lastSignedInAt, s.GetIssuedAt().AsTime())
 	nr.userID = userID
 	if nr != r {
 		ur.byUserID[userID] = nr
