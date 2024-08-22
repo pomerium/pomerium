@@ -26,7 +26,7 @@ import (
 // it resolves the DNS entry and tries to access a pomerium jwks route
 // we should hit ourselves and observe the same public key that we have in our configuration
 // otherwise, something is misconfigured on the DNS level
-func (c *checker) CheckRoutes(ctx context.Context) error {
+func (c *Checker) CheckRoutes(ctx context.Context) error {
 	key, err := getClusterPublicKey(c.bootstrap.GetConfig())
 	if err != nil {
 		health.ReportInternalError(health.RoutesReachable, err)

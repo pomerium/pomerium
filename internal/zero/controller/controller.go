@@ -16,6 +16,7 @@ import (
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
+	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 	"github.com/pomerium/pomerium/internal/zero/healthcheck"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
 	"github.com/pomerium/pomerium/internal/zero/telemetry"
@@ -157,7 +158,7 @@ func (c *controller) runZeroControlLoop(ctx context.Context) error {
 			WithLease(
 				c.runReconcilerLeased,
 				c.runSessionAnalyticsLeased,
-				c.runPeriodicHealthChecksLeased,
+				c.runHealthChecksLeased,
 				leaseStatus.MonitorLease,
 			),
 		)
@@ -193,9 +194,17 @@ func (c *controller) runSessionAnalyticsLeased(ctx context.Context, client datab
 	})
 }
 
-func (c *controller) runPeriodicHealthChecksLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
+func (c *controller) runHealthChecksLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
 	return retry.WithBackoff(ctx, "zero-healthcheck", func(ctx context.Context) error {
-		return healthcheck.RunChecks(ctx, c.bootstrapConfig, client)
+		checker := healthcheck.NewChecker(c.bootstrapConfig, client)
+		eg, ctx := errgroup.WithContext(ctx)
+		eg.Go(func() error { return checker.Run(ctx) })
+		eg.Go(func() error {
+			return c.api.Watch(ctx, connect_mux.WithOnRunHealthChecks(func(_ context.Context) {
+				checker.ForceCheck()
+			}))
+		})
+		return eg.Wait()
 	})
 }
 

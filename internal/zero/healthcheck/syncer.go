@@ -9,12 +9,12 @@ import (
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
-func (c *checker) ConfigSyncer(ctx context.Context) error {
+func (c *Checker) ConfigSyncer(ctx context.Context) error {
 	syncer := databroker.NewSyncer("zero-health-check", c, databroker.WithTypeURL(protoutil.GetTypeURL(new(configpb.Config))))
 	return syncer.Run(ctx)
 }
 
-func (c *checker) GetConfigs() []*configpb.Config {
+func (c *Checker) GetConfigs() []*configpb.Config {
 	configs := c.configs.Load()
 	if configs == nil {
 		return nil
@@ -23,12 +23,12 @@ func (c *checker) GetConfigs() []*configpb.Config {
 }
 
 // ClearRecords implements databroker.Syncer interface
-func (c *checker) ClearRecords(_ context.Context) {
+func (c *Checker) ClearRecords(_ context.Context) {
 	c.configs.Store([]*configpb.Config{})
 }
 
 // UpdateRecords implements databroker.Syncer interface
-func (c *checker) UpdateRecords(_ context.Context, _ uint64, records []*databroker.Record) {
+func (c *Checker) UpdateRecords(_ context.Context, _ uint64, records []*databroker.Record) {
 	if len(records) == 0 {
 		return
 	}
@@ -39,13 +39,10 @@ func (c *checker) UpdateRecords(_ context.Context, _ uint64, records []*databrok
 		return
 	}
 	c.configs.Store(cfgs)
-	select {
-	case c.forceCheck <- struct{}{}:
-	default:
-	}
+	c.ForceCheck()
 }
 
 // GetDataBrokerServiceClient implements databroker.Syncer interface
-func (c *checker) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
+func (c *Checker) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient {
 	return c.databrokerClient
 }

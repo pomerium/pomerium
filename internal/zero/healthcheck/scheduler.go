@@ -12,7 +12,7 @@ const (
 	runHealthCheckMinInterval  = time.Minute
 )
 
-func (c *checker) Scheduler(ctx context.Context) {
+func (c *Checker) Scheduler(ctx context.Context) {
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0
 	bo.MaxInterval = runHealthChecksMaxInterval
