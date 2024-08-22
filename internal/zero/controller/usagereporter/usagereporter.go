@@ -1,4 +1,4 @@
-package controller
+package usagereporter
 
 import (
 	"context"
@@ -28,7 +28,8 @@ type usageReporterRecord struct {
 	lastSignedInAt  time.Time
 }
 
-type usageReporter struct {
+// A UsageReporter reports usage to the zero api.
+type UsageReporter struct {
 	api *sdk.API
 
 	mu       sync.Mutex
@@ -36,28 +37,17 @@ type usageReporter struct {
 	updates  map[string]struct{}
 }
 
-func newUsageReporter(api *sdk.API) *usageReporter {
-	return &usageReporter{
+// New creates a new UsageReporter.
+func New(api *sdk.API) *UsageReporter {
+	return &UsageReporter{
 		api:      api,
 		byUserID: make(map[string]usageReporterRecord),
 		updates:  make(map[string]struct{}),
 	}
 }
 
-func (ur *usageReporter) report(ctx context.Context, records []usageReporterRecord) error {
-	req := cluster.ReportUsageRequest{}
-	for _, record := range records {
-		req.Users = append(req.Users, cluster.ReportUsageUser{
-			DisplayName:    record.userDisplayName,
-			Email:          record.userEmail,
-			Id:             record.userID,
-			LastSignedInAt: record.lastSignedInAt,
-		})
-	}
-	return ur.api.ReportUsage(ctx, req)
-}
-
-func (ur *usageReporter) run(ctx context.Context, client databroker.DataBrokerServiceClient) error {
+// Run runs the usage reporter.
+func (ur *UsageReporter) Run(ctx context.Context, client databroker.DataBrokerServiceClient) error {
 	// first initialize the user collection
 	serverVersion, latestRecordVersion, err := ur.runInit(ctx, client)
 	if err != nil {
@@ -68,7 +58,27 @@ func (ur *usageReporter) run(ctx context.Context, client databroker.DataBrokerSe
 	return ur.runSync(ctx, client, serverVersion, latestRecordVersion)
 }
 
-func (ur *usageReporter) runInit(ctx context.Context, client databroker.DataBrokerServiceClient) (serverVersion, latestRecordVersion uint64, err error) {
+func (ur *UsageReporter) report(ctx context.Context, records []usageReporterRecord) error {
+	req := cluster.ReportUsageRequest{}
+	for _, record := range records {
+		req.Users = append(req.Users, cluster.ReportUsageUser{
+			DisplayName:    record.userDisplayName,
+			Email:          record.userEmail,
+			Id:             record.userID,
+			LastSignedInAt: record.lastSignedInAt,
+		})
+	}
+	return backoff.Retry(func() error {
+		log.Debug(ctx).Int("updated-users", len(records)).Msg("reporting usage")
+		err := ur.api.ReportUsage(ctx, req)
+		if err != nil {
+			log.Warn(ctx).Err(err).Msg("error reporting usage")
+		}
+		return err
+	}, backoff.WithContext(backoff.NewExponentialBackOff(), ctx))
+}
+
+func (ur *UsageReporter) runInit(ctx context.Context, client databroker.DataBrokerServiceClient) (serverVersion, latestRecordVersion uint64, err error) {
 	_, _, err = syncLatestRecords(ctx, client, ur.onUpdateSession)
 	if err != nil {
 		return 0, 0, err
@@ -82,7 +92,7 @@ func (ur *usageReporter) runInit(ctx context.Context, client databroker.DataBrok
 	return serverVersion, latestRecordVersion, nil
 }
 
-func (ur *usageReporter) runSync(ctx context.Context, client databroker.DataBrokerServiceClient, serverVersion, latestRecordVersion uint64) error {
+func (ur *UsageReporter) runSync(ctx context.Context, client databroker.DataBrokerServiceClient, serverVersion, latestRecordVersion uint64) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		return syncRecords(ctx, client, serverVersion, latestRecordVersion, ur.onUpdateSession)
@@ -96,7 +106,7 @@ func (ur *usageReporter) runSync(ctx context.Context, client databroker.DataBrok
 	return eg.Wait()
 }
 
-func (ur *usageReporter) runReporter(ctx context.Context) error {
+func (ur *UsageReporter) runReporter(ctx context.Context) error {
 	// every minute collect any updates and submit them to the API
 	timer := time.NewTicker(time.Minute)
 	defer timer.Stop()
@@ -113,14 +123,7 @@ func (ur *usageReporter) runReporter(ctx context.Context) error {
 
 		// report the records with a backoff in case the API is temporarily unavailable
 		if len(records) > 0 {
-			log.Info(ctx).Int("updated-users", len(records)).Msg("reporting usage")
-			err := backoff.Retry(func() error {
-				err := ur.report(ctx, records)
-				if err != nil {
-					log.Error(ctx).Err(err).Msg("error reporting usage")
-				}
-				return err
-			}, backoff.WithContext(backoff.NewExponentialBackOff(), ctx))
+			err := ur.report(ctx, records)
 			if err != nil {
 				return err
 			}
@@ -134,7 +137,7 @@ func (ur *usageReporter) runReporter(ctx context.Context) error {
 	}
 }
 
-func (ur *usageReporter) onUpdateSession(s *session.Session) {
+func (ur *UsageReporter) onUpdateSession(s *session.Session) {
 	userID := s.GetUserId()
 	if userID == "" {
 		// ignore sessions without a user id
@@ -154,7 +157,7 @@ func (ur *usageReporter) onUpdateSession(s *session.Session) {
 	}
 }
 
-func (ur *usageReporter) onUpdateUser(u *user.User) {
+func (ur *UsageReporter) onUpdateUser(u *user.User) {
 	userID := u.GetId()
 	if userID == "" {
 		// ignore users without a user id

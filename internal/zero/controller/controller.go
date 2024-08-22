@@ -16,6 +16,7 @@ import (
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
+	"github.com/pomerium/pomerium/internal/zero/controller/usagereporter"
 	"github.com/pomerium/pomerium/internal/zero/healthcheck"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
 	"github.com/pomerium/pomerium/internal/zero/telemetry"
@@ -198,9 +199,9 @@ func (c *controller) runPeriodicHealthChecksLeased(ctx context.Context, client d
 }
 
 func (c *controller) runUsageReporter(ctx context.Context, client databroker.DataBrokerServiceClient) error {
-	r := newUsageReporter(c.api)
+	r := usagereporter.New(c.api)
 	return retry.WithBackoff(ctx, "zero-usage-reporter", func(ctx context.Context) error {
-		return r.run(ctx, client)
+		return r.Run(ctx, client)
 	})
 }
 
