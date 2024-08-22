@@ -71,7 +71,7 @@ func Run(ctx context.Context, src config.Source) error {
 	cfg := src.GetConfig()
 
 	// setup the control plane
-	controlPlane, err := controlplane.NewServer(cfg, metricsMgr, eventsMgr)
+	controlPlane, err := controlplane.NewServer(ctx, cfg, metricsMgr, eventsMgr)
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}

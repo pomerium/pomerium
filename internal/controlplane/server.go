@@ -69,7 +69,7 @@ type Server struct {
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
-func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr *events.Manager) (*Server, error) {
+func NewServer(ctx context.Context, cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr *events.Manager) (*Server, error) {
 	srv := &Server{
 		metricsMgr:      metricsMgr,
 		EventsMgr:       eventsMgr,
@@ -79,6 +79,10 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 		currentConfig:   atomicutil.NewValue(cfg),
 		httpRouter:      atomicutil.NewValue(mux.NewRouter()),
 	}
+
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("server_name", cfg.Options.Services)
+	})
 
 	var err error
 
@@ -96,7 +100,11 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 	srv.GRPCServer = grpc.NewServer(
 		grpc.StatsHandler(telemetry.NewGRPCServerStatsHandler(cfg.Options.Services)),
 		grpc.ChainUnaryInterceptor(requestid.UnaryServerInterceptor(), ui),
-		grpc.ChainStreamInterceptor(requestid.StreamServerInterceptor(), si),
+		grpc.ChainStreamInterceptor(
+			log.StreamServerInterceptor(log.Ctx(ctx)),
+			requestid.StreamServerInterceptor(),
+			si,
+		),
 	)
 	reflection.Register(srv.GRPCServer)
 	srv.registerAccessLogHandlers()
@@ -151,10 +159,6 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 		srv.filemgr,
 		srv.reproxy,
 	)
-
-	ctx := log.WithContext(context.Background(), func(c zerolog.Context) zerolog.Context {
-		return c.Str("server_name", cfg.Options.Services)
-	})
 
 	res, err := srv.buildDiscoveryResources(ctx)
 	if err != nil {
