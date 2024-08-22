@@ -129,6 +129,7 @@ func newManager(
 		for {
 			select {
 			case <-ctx.Done():
+				cache.Stop()
 				return
 			case <-ticker.C:
 				err := mgr.renewConfigCerts(ctx)

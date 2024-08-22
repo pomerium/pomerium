@@ -6,6 +6,7 @@ package envoy
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
@@ -17,7 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 )
 
-const baseIDPath = "/tmp/pomerium-envoy-base-id"
+const baseIDName = "pomerium-envoy-base-id"
 
 var restartEpoch struct {
 	sync.Mutex
@@ -89,7 +90,7 @@ func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []stri
 	} else {
 		args = append(args,
 			"--use-dynamic-base-id",
-			"--base-id-path", baseIDPath,
+			"--base-id-path", filepath.Join(os.TempDir(), baseIDName),
 		)
 		restartEpoch.value = 1
 	}
@@ -99,7 +100,7 @@ func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []stri
 }
 
 func readBaseID() (int, bool) {
-	bs, err := os.ReadFile(baseIDPath)
+	bs, err := os.ReadFile(filepath.Join(os.TempDir(), baseIDName))
 	if err != nil {
 		return 0, false
 	}
