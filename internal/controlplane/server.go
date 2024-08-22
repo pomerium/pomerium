@@ -74,11 +74,12 @@ func NewServer(
 	cfg *config.Config,
 	metricsMgr *config.MetricsManager,
 	eventsMgr *events.Manager,
+	fileMgr *filemgr.Manager,
 ) (*Server, error) {
 	srv := &Server{
 		metricsMgr:      metricsMgr,
 		EventsMgr:       eventsMgr,
-		filemgr:         filemgr.NewManager(),
+		filemgr:         fileMgr,
 		reproxy:         reproxy.New(),
 		haveSetCapacity: map[string]bool{},
 		updateConfig:    make(chan *config.Config, 1),
