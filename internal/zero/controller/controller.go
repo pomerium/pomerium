@@ -158,7 +158,7 @@ func (c *controller) runZeroControlLoop(ctx context.Context) error {
 			WithLease(
 				c.runReconcilerLeased,
 				c.runSessionAnalyticsLeased,
-				c.runPeriodicHealthChecksLeased,
+				c.runHealthChecksLeased,
 				leaseStatus.MonitorLease,
 			),
 		)
@@ -194,7 +194,7 @@ func (c *controller) runSessionAnalyticsLeased(ctx context.Context, client datab
 	})
 }
 
-func (c *controller) runPeriodicHealthChecksLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
+func (c *controller) runHealthChecksLeased(ctx context.Context, client databroker.DataBrokerServiceClient) error {
 	return retry.WithBackoff(ctx, "zero-healthcheck", func(ctx context.Context) error {
 		checker := healthcheck.NewChecker(c.bootstrapConfig, client)
 		eg, ctx := errgroup.WithContext(ctx)
