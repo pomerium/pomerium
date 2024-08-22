@@ -3,7 +3,9 @@ package envoyconfig_test
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -83,6 +85,42 @@ func TestH2C_v2(t *testing.T) {
 				"response-code-details": "upstream_reset_before_response_started{protocol_error}",
 			},
 		})
+	})
+}
+
+func TestHTTP(t *testing.T) {
+	env := testenv.New(t)
+
+	up := upstreams.HTTP(nil)
+	up.Handle("/foo", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "hello world")
+	})
+
+	route := up.Route().
+		From(env.SubdomainURL("http")).
+		Policy(func(p *config.Policy) { p.AllowPublicUnauthenticatedAccess = true })
+
+	env.AddUpstream(up)
+	env.Start()
+
+	recorder := env.NewLogRecorder()
+
+	resp, err := up.Get(route, upstreams.Path("/foo"))
+	require.NoError(t, err)
+
+	defer resp.Body.Close()
+	data, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "hello world\n", string(data))
+
+	recorder.Match([]map[string]any{
+		{
+			"service":               "envoy",
+			"path":                  "/foo",
+			"method":                "GET",
+			"message":               "http-request",
+			"response-code-details": "via_upstream",
+		},
 	})
 }
 

@@ -60,7 +60,7 @@ var (
 	_ grpc.ServiceRegistrar = (*grpcUpstream)(nil)
 )
 
-// GRPC Creates a new GRPC upstream server.
+// GRPC creates a new GRPC upstream server.
 func GRPC(creds credentials.TransportCredentials, opts ...Option) GRPCUpstream {
 	options := Options{}
 	options.apply(opts...)
@@ -111,7 +111,7 @@ func (g *grpcUpstream) Route() testenv.RouteStub {
 
 // Start implements testenv.Upstream.
 func (g *grpcUpstream) Run(ctx context.Context) error {
-	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return err
 	}
