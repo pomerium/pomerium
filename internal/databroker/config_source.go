@@ -3,11 +3,11 @@ package databroker
 import (
 	"context"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"sync"
 	"time"
 
-	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/config"
@@ -164,8 +164,7 @@ func (src *ConfigSource) buildNewConfigLocked(ctx context.Context, cfg *config.C
 }
 
 func (src *ConfigSource) applySettingsLocked(ctx context.Context, cfg *config.Config) {
-	ids := maps.Keys(src.dbConfigs)
-	sort.Strings(ids)
+	ids := slices.Sorted(maps.Keys(src.dbConfigs))
 
 	var certsIndex *cryptutil.CertificatesIndex
 	if src.enableValidation {
@@ -200,8 +199,8 @@ func (src *ConfigSource) buildPolicyFromProto(_ context.Context, routepb *config
 }
 
 func (src *ConfigSource) addPolicies(ctx context.Context, cfg *config.Config, policies []*config.Policy) {
-	seen := make(map[uint64]struct{})
-	for _, policy := range cfg.Options.GetAllPolicies() {
+	seen := make(map[uint64]struct{}, len(policies)+cfg.Options.NumPolicies())
+	for policy := range cfg.Options.GetAllPolicies() {
 		id, err := policy.RouteID()
 		if err != nil {
 			log.Ctx(ctx).Err(err).Str("policy", policy.String()).Msg("databroker: error getting route id")
@@ -210,7 +209,7 @@ func (src *ConfigSource) addPolicies(ctx context.Context, cfg *config.Config, po
 		seen[id] = struct{}{}
 	}
 
-	var additionalPolicies []config.Policy
+	additionalPolicies := make([]config.Policy, 0, len(policies))
 	for _, policy := range policies {
 		if policy == nil {
 			continue

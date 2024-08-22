@@ -121,10 +121,10 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 func (a *Authorize) getMatchingPolicy(routeID uint64) *config.Policy {
 	options := a.currentOptions.Load()
 
-	for _, p := range options.GetAllPolicies() {
+	for p := range options.GetAllPolicies() {
 		id, _ := p.RouteID()
 		if id == routeID {
-			return &p
+			return p
 		}
 	}
 

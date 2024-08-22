@@ -54,6 +54,7 @@ var http2ProtocolOptions = &envoy_config_core_v3.Http2ProtocolOptions{
 	InitialStreamWindowSize:     wrapperspb.UInt32(initialStreamWindowSizeLimit),
 	InitialConnectionWindowSize: wrapperspb.UInt32(initialConnectionWindowSizeLimit),
 }
+var http2ProtocolOptionsWithKeepalive = WithKeepalive(http2ProtocolOptions)
 
 func WithKeepalive(src *envoy_config_core_v3.Http2ProtocolOptions) *envoy_config_core_v3.Http2ProtocolOptions {
 	dst := proto.Clone(src).(*envoy_config_core_v3.Http2ProtocolOptions)
@@ -81,12 +82,12 @@ func buildUpstreamProtocolOptions(
 	upstreamProtocol upstreamProtocolConfig,
 	keepalive Keepalive,
 ) *envoy_extensions_upstreams_http_v3.HttpProtocolOptions {
+	h2opt := http2ProtocolOptions
+	if keepalive {
+		h2opt = http2ProtocolOptionsWithKeepalive
+	}
 	switch upstreamProtocol {
 	case upstreamProtocolHTTP2:
-		h2opt := http2ProtocolOptions
-		if keepalive {
-			h2opt = WithKeepalive(http2ProtocolOptions)
-		}
 		// when explicitly configured, force HTTP/2
 		return &envoy_extensions_upstreams_http_v3.HttpProtocolOptions{
 			UpstreamProtocolOptions: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_ExplicitHttpConfig_{
@@ -99,10 +100,12 @@ func buildUpstreamProtocolOptions(
 		}
 	case upstreamProtocolAuto:
 		// when using TLS use ALPN auto config
-		tlsCount := 0
+		var tlsCount, h2cCount int
 		for _, e := range endpoints {
 			if e.transportSocket != nil {
 				tlsCount++
+			} else if e.url.Scheme == "h2c" {
+				h2cCount++
 			}
 		}
 		if tlsCount > 0 && tlsCount == len(endpoints) {
@@ -110,7 +113,17 @@ func buildUpstreamProtocolOptions(
 				UpstreamProtocolOptions: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_AutoConfig{
 					AutoConfig: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_AutoHttpConfig{
 						HttpProtocolOptions:  http1ProtocolOptions,
-						Http2ProtocolOptions: http2ProtocolOptions,
+						Http2ProtocolOptions: h2opt,
+					},
+				},
+			}
+		} else if h2cCount > 0 && h2cCount == len(endpoints) {
+			return &envoy_extensions_upstreams_http_v3.HttpProtocolOptions{
+				UpstreamProtocolOptions: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_ExplicitHttpConfig_{
+					ExplicitHttpConfig: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_ExplicitHttpConfig{
+						ProtocolConfig: &envoy_extensions_upstreams_http_v3.HttpProtocolOptions_ExplicitHttpConfig_Http2ProtocolOptions{
+							Http2ProtocolOptions: h2opt,
+						},
 					},
 				},
 			}

@@ -1,6 +1,6 @@
 package config
 
-import "golang.org/x/exp/maps"
+import "maps"
 
 var (
 	// RuntimeFlagGRPCDatabrokerKeepalive enables gRPC keepalive to the databroker service

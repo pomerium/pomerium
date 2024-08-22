@@ -13,7 +13,7 @@ BUILDTAGS :=
 
 # Populate version variables
 # Add to compile time flags
-VERSION := $(shell git describe --tags)
+VERSION?= $(shell git describe --tags)
 GITCOMMIT := $(shell git rev-parse --short HEAD)
 BUILDMETA:=
 GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
@@ -65,6 +65,11 @@ proto:
 	@echo "==> $@"
 	cd pkg/grpc && ./protoc.bash
 
+.PHONY: generate
+generate: proto
+	@echo "==> $@"
+	$(GO) generate ./...
+
 .PHONY: build
 build: build-ui build-go
 	@echo "==> $@"
@@ -87,7 +92,7 @@ build-ui: yarn
 .PHONY: lint
 lint: ## Verifies `golint` passes.
 	@echo "==> $@"
-	@go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.57.2 run ./... --fix
+	@go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.1 run ./... --fix
 
 .PHONY: test
 test: get-envoy ## Runs the go tests.
