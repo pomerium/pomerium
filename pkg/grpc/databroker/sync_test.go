@@ -1,4 +1,4 @@
-package usagereporter
+package databroker_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
+	grpc "google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/internal/databroker"
 	"github.com/pomerium/pomerium/internal/testutil"
@@ -57,7 +57,7 @@ func Test_SyncLatestRecords(t *testing.T) {
 	require.NoError(t, err)
 
 	var actual []*user.User
-	serverVersion, latestRecordVersion, err := syncLatestRecords(context.Background(), c, func(u *user.User) {
+	serverVersion, latestRecordVersion, err := databrokerpb.SyncLatestRecords(context.Background(), c, func(u *user.User) {
 		actual = append(actual, u)
 	})
 	assert.NoError(t, err)

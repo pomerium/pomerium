@@ -2,22 +2,17 @@ package usagereporter
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"io"
 	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/log"
 	sdk "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
-	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/zero/cluster"
 )
 
@@ -79,12 +74,12 @@ func (ur *UsageReporter) report(ctx context.Context, records []usageReporterReco
 }
 
 func (ur *UsageReporter) runInit(ctx context.Context, client databroker.DataBrokerServiceClient) (serverVersion, latestRecordVersion uint64, err error) {
-	_, _, err = syncLatestRecords(ctx, client, ur.onUpdateSession)
+	_, _, err = databroker.SyncLatestRecords(ctx, client, ur.onUpdateSession)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	serverVersion, latestRecordVersion, err = syncLatestRecords(ctx, client, ur.onUpdateUser)
+	serverVersion, latestRecordVersion, err = databroker.SyncLatestRecords(ctx, client, ur.onUpdateUser)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -95,10 +90,10 @@ func (ur *UsageReporter) runInit(ctx context.Context, client databroker.DataBrok
 func (ur *UsageReporter) runSync(ctx context.Context, client databroker.DataBrokerServiceClient, serverVersion, latestRecordVersion uint64) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		return syncRecords(ctx, client, serverVersion, latestRecordVersion, ur.onUpdateSession)
+		return databroker.SyncRecords(ctx, client, serverVersion, latestRecordVersion, ur.onUpdateSession)
 	})
 	eg.Go(func() error {
-		return syncRecords(ctx, client, serverVersion, latestRecordVersion, ur.onUpdateUser)
+		return databroker.SyncRecords(ctx, client, serverVersion, latestRecordVersion, ur.onUpdateUser)
 	})
 	eg.Go(func() error {
 		return ur.runReporter(ctx)
@@ -183,99 +178,4 @@ func latest(t1, t2 time.Time) time.Time {
 		return t2
 	}
 	return t1
-}
-
-func syncRecords[T any, TMessage interface {
-	*T
-	proto.Message
-}](
-	ctx context.Context,
-	client databroker.DataBrokerServiceClient,
-	serverVersion, latestRecordVersion uint64,
-	fn func(TMessage),
-) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	var msg TMessage = new(T)
-	stream, err := client.Sync(ctx, &databroker.SyncRequest{
-		Type:          protoutil.GetTypeURL(msg),
-		ServerVersion: serverVersion,
-		RecordVersion: latestRecordVersion,
-	})
-	if err != nil {
-		return fmt.Errorf("error syncing %T: %w", msg, err)
-	}
-
-	for {
-		res, err := stream.Recv()
-		switch {
-		case errors.Is(err, io.EOF):
-			return nil
-		case err != nil:
-			return fmt.Errorf("error receiving record for %T: %w", msg, err)
-		}
-
-		msg = new(T)
-		err = res.GetRecord().GetData().UnmarshalTo(msg)
-		if err != nil {
-			log.Error(ctx).Err(err).
-				Str("record-type", res.Record.Type).
-				Str("record-id", res.Record.GetId()).
-				Msgf("unexpected data in %T stream", msg)
-			continue
-		}
-
-		fn(msg)
-	}
-}
-
-func syncLatestRecords[T any, TMessage interface {
-	*T
-	proto.Message
-}](
-	ctx context.Context,
-	client databroker.DataBrokerServiceClient,
-	fn func(TMessage),
-) (serverVersion, latestRecordVersion uint64, err error) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	var msg TMessage = new(T)
-	stream, err := client.SyncLatest(ctx, &databroker.SyncLatestRequest{
-		Type: protoutil.GetTypeURL(msg),
-	})
-	if err != nil {
-		return 0, 0, fmt.Errorf("error syncing latest %T: %w", msg, err)
-	}
-
-	for {
-		res, err := stream.Recv()
-		switch {
-		case errors.Is(err, io.EOF):
-			return serverVersion, latestRecordVersion, nil
-		case err != nil:
-			return 0, 0, fmt.Errorf("error receiving record for latest %T: %w", msg, err)
-		}
-
-		switch res := res.GetResponse().(type) {
-		case *databroker.SyncLatestResponse_Versions:
-			serverVersion = res.Versions.GetServerVersion()
-			latestRecordVersion = res.Versions.GetLatestRecordVersion()
-		case *databroker.SyncLatestResponse_Record:
-			msg = new(T)
-			err = res.Record.GetData().UnmarshalTo(msg)
-			if err != nil {
-				log.Error(ctx).Err(err).
-					Str("record-type", res.Record.Type).
-					Str("record-id", res.Record.GetId()).
-					Msgf("unexpected data in latest %T stream", msg)
-				continue
-			}
-
-			fn(msg)
-		default:
-			panic(fmt.Sprintf("unexpected response: %T", res))
-		}
-	}
 }
