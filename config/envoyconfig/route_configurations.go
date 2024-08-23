@@ -52,20 +52,26 @@ func (b *Builder) buildMainRouteConfiguration() (*envoy_config_route_v3.RouteCon
 		return nil, err
 	}
 
-	allHosts, policiesByHost, err := getAllRouteableHosts(b.cfg.Options, b.cfg.Options.Addr)
+	hosts, policiesByHost, err := getAllRouteableHosts(b.cfg.Options, b.cfg.Options.Addr)
 	if err != nil {
 		return nil, err
 	}
 
-	var virtualHosts []*envoy_config_route_v3.VirtualHost
+	virtualHosts := make([]*envoy_config_route_v3.VirtualHost, 0, hosts.Size())
 	catchallVirtualHost, err := b.buildVirtualHost("catch-all", "*")
 	if err != nil {
 		return nil, err
 	}
 	seenCatchallPolicies := map[int]struct{}{}
+
 	isProxy := config.IsProxy(b.cfg.Options.Services)
-	for _, host := range allHosts {
-		if isProxy && strings.Contains(host, "*") {
+	isAuthorize := config.IsAuthorize(b.cfg.Options.Services)
+	isDatabroker := config.IsDataBroker(b.cfg.Options.Services)
+	isGRPCServiceDomain := b.cfg.Options.Addr == b.cfg.Options.GetGRPCAddr()
+
+	for host := range hosts.All() {
+		if isProxy && strings.ContainsRune(host, '*') {
+			// Group policies containing wildcards into a separate virtual host
 			for _, policy := range policiesByHost[host] {
 				if _, ok := seenCatchallPolicies[policy.Index]; ok {
 					continue
@@ -85,10 +91,10 @@ func (b *Builder) buildMainRouteConfiguration() (*envoy_config_route_v3.RouteCon
 			return nil, err
 		}
 
-		if b.cfg.Options.Addr == b.cfg.Options.GetGRPCAddr() {
+		if isGRPCServiceDomain {
 			// if this is a gRPC service domain and we're supposed to handle that, add those routes
-			if (config.IsAuthorize(b.cfg.Options.Services) && b.urlsMatchHost(authorizeURLs, host)) ||
-				(config.IsDataBroker(b.cfg.Options.Services) && b.urlsMatchHost(dataBrokerURLs, host)) {
+			if (isAuthorize && b.urlsMatchHost(authorizeURLs, host)) ||
+				(isDatabroker && b.urlsMatchHost(dataBrokerURLs, host)) {
 				rs, err := b.buildGRPCRoutes()
 				if err != nil {
 					return nil, err

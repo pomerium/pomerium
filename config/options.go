@@ -1331,31 +1331,28 @@ func (o *Options) GetAllRouteablePolicyHTTPHosts() (map[string][]IndexedPolicy, 
 		return nil, nil
 	}
 
+	matchAnyIncomingPort := o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)
 	mult := 1
-	if o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort) {
+	if matchAnyIncomingPort {
 		mult = 2
 	}
 	hosts := make(map[string][]IndexedPolicy, o.NumPolicies()*mult)
 
-	var retErr error
 	for i, policy := range o.GetAllPoliciesIndexed() {
-		fromURL, err := urlutil.ParseAndValidateURL(policy.From)
+		fromURL, err := urlutil.ParseAndValidateSharedURL(policy.From)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, domain := range urlutil.GetDomainsForURL(fromURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)) {
+		for _, domain := range urlutil.GetDomainsForURL(fromURL.URL, !matchAnyIncomingPort) {
 			hosts[domain] = append(hosts[domain], IndexedPolicy{Policy: policy, Index: i})
 		}
 		if policy.TLSDownstreamServerName != "" {
 			tlsURL := fromURL.ResolveReference(&url.URL{Host: policy.TLSDownstreamServerName})
-			for _, domain := range urlutil.GetDomainsForURL(tlsURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)) {
+			for _, domain := range urlutil.GetDomainsForURL(tlsURL, !matchAnyIncomingPort) {
 				hosts[domain] = append(hosts[domain], IndexedPolicy{Policy: policy, Index: i})
 			}
 		}
-	}
-	if retErr != nil {
-		return nil, retErr
 	}
 	return hosts, nil
 }

@@ -10,11 +10,9 @@ import (
 	"net/url"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/caddyserver/certmagic"
-	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -59,18 +57,10 @@ func ParseAndValidateURL(rawurl string) (*url.URL, error) {
 
 type SharedURL struct {
 	*url.URL
-	initDone uint32
 	hostname func() string
 }
 
-func (s *SharedURL) lazyInit() {
-	if atomic.CompareAndSwapUint32(&s.initDone, 0, 1) {
-		s.hostname = sync.OnceValue(s.URL.Hostname)
-	}
-}
-
 func (s *SharedURL) Hostname() string {
-	s.lazyInit()
 	return s.hostname()
 }
 
@@ -83,27 +73,21 @@ func (s *SharedURL) Mutable() *url.URL {
 	return &u
 }
 
-var (
-	urlCache sync.Map // map[string]*url.URL
-	sf       singleflight.Group
-)
+var urlCache sync.Map // map[string]*SharedURL
 
 func ParseAndValidateSharedURL(rawurl string) (*SharedURL, error) {
-	if v, ok := urlCache.Load(rawurl); ok {
-		return &SharedURL{URL: v.(*url.URL)}, nil
-	}
-	v, err, _ := sf.Do(rawurl, func() (any, error) {
-		url, err := ParseAndValidateURL(rawurl)
+	shared, ok := urlCache.Load(rawurl)
+	if !ok {
+		u, err := ParseAndValidateURL(rawurl)
 		if err != nil {
 			return nil, err
 		}
-		urlCache.Store(rawurl, url)
-		return url, nil
-	})
-	if err != nil {
-		return nil, err
+		shared, _ = urlCache.LoadOrStore(rawurl, &SharedURL{
+			URL:      u,
+			hostname: sync.OnceValue(u.Hostname),
+		})
 	}
-	return &SharedURL{URL: v.(*url.URL)}, nil
+	return shared.(*SharedURL), nil
 }
 
 // MustParseAndValidateURL parses the URL via ParseAndValidateURL but panics if there is an error.

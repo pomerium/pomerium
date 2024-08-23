@@ -643,7 +643,7 @@ func addCAToBundle(bundle *bytes.Buffer, ca []byte) {
 	}
 }
 
-func getAllRouteableHosts(options *config.Options, addr string) ([]string, map[string][]config.IndexedPolicy, error) {
+func getAllRouteableHosts(options *config.Options, addr string) (*sets.Sorted[string], map[string][]config.IndexedPolicy, error) {
 	allHosts := sets.NewSorted[string]()
 	var policiesByHost map[string][]config.IndexedPolicy
 
@@ -670,7 +670,7 @@ func getAllRouteableHosts(options *config.Options, addr string) ([]string, map[s
 		allHosts.Add(hosts...)
 	}
 
-	return allHosts.ToSlice(), policiesByHost, nil
+	return allHosts, policiesByHost, nil
 }
 
 func (b *Builder) urlsMatchHost(urls []*url.URL, host string) bool {

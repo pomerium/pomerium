@@ -185,10 +185,11 @@ func (b *Builder) buildRoutesForPolicy(
 		return nil, err
 	}
 
+	matchAnyIncomingPort := b.cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMatchAnyIncomingPort)
 	var routes []*envoy_config_route_v3.Route
 	if strings.Contains(fromURL.Host, "*") {
 		// we have to match '*.example.com' and '*.example.com:443', so there are two routes
-		for host := range urlutil.AllDomainsForURL(fromURL.URL, !b.cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagMatchAnyIncomingPort)) {
+		for host := range urlutil.AllDomainsForURL(fromURL.URL, !matchAnyIncomingPort) {
 			route, err := b.buildRouteForPolicyAndMatch(policy, name, mkRouteMatchForHost(b.cfg.Options, policy, host))
 			if err != nil {
 				return nil, err

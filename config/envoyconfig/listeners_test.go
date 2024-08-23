@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"testing"
 	"text/template"
 
@@ -485,7 +486,7 @@ func Test_getAllDomains(t *testing.T) {
 				"d.unknown.example.com",
 				"d.unknown.example.com:443",
 			}
-			assert.Equal(t, expect, actual)
+			assert.Equal(t, expect, slices.Collect(actual.All()))
 		})
 		t.Run("grpc", func(t *testing.T) {
 			actual, _, err := getAllRouteableHosts(options, "127.0.0.1:9001")
@@ -494,7 +495,7 @@ func Test_getAllDomains(t *testing.T) {
 				"authorize.example.com:9001",
 				"cache.example.com:9001",
 			}
-			assert.Equal(t, expect, actual)
+			assert.Equal(t, expect, slices.Collect(actual.All()))
 		})
 		t.Run("both", func(t *testing.T) {
 			newOptions := *options
@@ -517,7 +518,7 @@ func Test_getAllDomains(t *testing.T) {
 				"d.unknown.example.com",
 				"d.unknown.example.com:443",
 			}
-			assert.Equal(t, expect, actual)
+			assert.Equal(t, expect, slices.Collect(actual.All()))
 		})
 	})
 
@@ -528,7 +529,7 @@ func Test_getAllDomains(t *testing.T) {
 		}
 		actual, _, err := getAllRouteableHosts(options, ":443")
 		require.NoError(t, err)
-		assert.Equal(t, []string{"a.example.com"}, actual)
+		assert.Equal(t, []string{"a.example.com"}, slices.Collect(actual.All()))
 	})
 }
 

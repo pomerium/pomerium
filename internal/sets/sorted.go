@@ -1,6 +1,8 @@
 package sets
 
 import (
+	"iter"
+
 	"github.com/google/btree"
 	"golang.org/x/exp/constraints"
 )
@@ -64,4 +66,10 @@ func (s *Sorted[T]) ToSlice() []T {
 		return true
 	})
 	return arr
+}
+
+func (s *Sorted[T]) All() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		s.b.Ascend(yield)
+	}
 }
