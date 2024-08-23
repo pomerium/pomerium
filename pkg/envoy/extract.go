@@ -107,14 +107,14 @@ func extract(dstName string) (err error) {
 func cleanTempDir(tmpDir string) {
 	d, err := os.Open(tmpDir)
 	if err != nil {
-		log.Warn().Msg("envoy: failed to open temp directory for clean up")
+		log.Error().Msg("envoy: failed to open temp directory for clean up")
 		return
 	}
 	defer d.Close()
 
 	fs, err := d.Readdir(-1)
 	if err != nil {
-		log.Warn().Msg("envoy: failed to read files in temporary directory")
+		log.Error().Msg("envoy: failed to read files in temporary directory")
 		return
 	}
 
@@ -122,7 +122,7 @@ func cleanTempDir(tmpDir string) {
 		if f.IsDir() && strings.HasPrefix(f.Name(), envoyPrefix) {
 			err := os.RemoveAll(filepath.Join(tmpDir, f.Name()))
 			if err != nil {
-				log.Warn().Err(err).Msg("envoy: failed to delete previous extracted envoy")
+				log.Error().Err(err).Msg("envoy: failed to delete previous extracted envoy")
 			}
 		}
 	}

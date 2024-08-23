@@ -66,7 +66,7 @@ func (a *Authorize) logAuthorizeCheck(
 		}
 		sealed, err := enc.Encrypt(record)
 		if err != nil {
-			log.Warn(ctx).Err(err).Msg("authorize: error encrypting audit record")
+			log.Error(ctx).Err(err).Msg("authorize: error encrypting audit record")
 			return
 		}
 		log.Info(ctx).

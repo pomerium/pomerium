@@ -41,13 +41,13 @@ restart:
 			log.Ctx(ctx).Error().Err(err).Msg("terminal error")
 			return err
 		}
-		log.Ctx(ctx).Warn().Msg(err.Error())
+		log.Ctx(ctx).Error().Msg(err.Error())
 
 		backoff.Reset()
 	backoff:
 		for {
 			interval := backoff.NextBackOff()
-			log.Ctx(ctx).Warn().Msgf("backing off for %s...", interval.String())
+			log.Ctx(ctx).Info().Msgf("backing off for %s...", interval.String())
 			timer := time.NewTimer(interval)
 			s := makeSelect(ctx, watches, name, timer.C, fn)
 			next, err := s.Exec(ctx)
@@ -70,7 +70,7 @@ restart:
 func logNext(ctx context.Context, next next, err error) {
 	evt := log.Ctx(ctx).Info()
 	if err != nil {
-		evt = log.Ctx(ctx).Warn().Err(err)
+		evt = log.Ctx(ctx).Error().Err(err)
 	}
 
 	switch next {

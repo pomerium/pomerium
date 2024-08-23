@@ -312,7 +312,7 @@ func (s *syncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*
 		var cfgpb configpb.Config
 		err := record.GetData().UnmarshalTo(&cfgpb)
 		if err != nil {
-			log.Warn(ctx).Err(err).Msg("databroker: error decoding config")
+			log.Error(ctx).Err(err).Msg("databroker: error decoding config")
 			delete(s.src.dbConfigs, record.GetId())
 			continue
 		}

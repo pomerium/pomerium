@@ -85,14 +85,6 @@ func ExampleInfo() {
 	// Output: {"level":"info","time":"2008-01-08T17:05:05Z","message":"hello world"}
 }
 
-// Example of a log at a particular "level" (in this case, "warn")
-func ExampleWarn() {
-	captureOutput(func() {
-		log.Warn(context.Background()).Msg("hello world")
-	})
-	// Output: {"level":"warn","time":"2008-01-08T17:05:05Z","message":"hello world"}
-}
-
 // Example of a log at a particular "level" (in this case, "error")
 func ExampleError() {
 	captureOutput(func() {
@@ -175,9 +167,9 @@ func ExampleContext() {
 			return c.Str("param_two", "two")
 		})
 
-		log.Warn(bg).Str("non_context_param", "value").Msg("background")
-		log.Warn(ctx1).Str("non_context_param", "value").Msg("first")
-		log.Warn(ctx2).Str("non_context_param", "value").Msg("second")
+		log.Error(bg).Str("non_context_param", "value").Msg("background")
+		log.Error(ctx1).Str("non_context_param", "value").Msg("first")
+		log.Error(ctx2).Str("non_context_param", "value").Msg("second")
 
 		for i := 0; i < 10; i++ {
 			ctx1 = log.WithContext(ctx1, func(c zerolog.Context) zerolog.Context {
@@ -187,8 +179,8 @@ func ExampleContext() {
 		log.Info(ctx1).Str("non_ctx_param", "value").Msg("after counter")
 	})
 	// Output:
-	// {"level":"warn","non_context_param":"value","time":"2008-01-08T17:05:05Z","message":"background"}
-	// {"level":"warn","param_one":"one","non_context_param":"value","time":"2008-01-08T17:05:05Z","message":"first"}
-	// {"level":"warn","param_one":"one","param_two":"two","non_context_param":"value","time":"2008-01-08T17:05:05Z","message":"second"}
+	// {"level":"error","non_context_param":"value","time":"2008-01-08T17:05:05Z","message":"background"}
+	// {"level":"error","param_one":"one","non_context_param":"value","time":"2008-01-08T17:05:05Z","message":"first"}
+	// {"level":"error","param_one":"one","param_two":"two","non_context_param":"value","time":"2008-01-08T17:05:05Z","message":"second"}
 	// {"level":"info","param_one":"one","counter":0,"counter":1,"counter":2,"counter":3,"counter":4,"counter":5,"counter":6,"counter":7,"counter":8,"counter":9,"non_ctx_param":"value","time":"2008-01-08T17:05:05Z","message":"after counter"}
 }

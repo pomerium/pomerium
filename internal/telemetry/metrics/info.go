@@ -345,7 +345,7 @@ func SetDBConfigInfo(ctx context.Context, service, configID string, version uint
 
 // SetDBConfigRejected records that a certain databroker config version has been rejected
 func SetDBConfigRejected(ctx context.Context, service, configID string, version uint64, err error) {
-	log.Warn(ctx).Err(err).Msg("databroker: invalid config detected, ignoring")
+	log.Error(ctx).Err(err).Msg("databroker: invalid config detected, ignoring")
 	SetDBConfigInfo(ctx, service, configID, version, -1)
 }
 
