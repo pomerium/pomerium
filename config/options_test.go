@@ -1318,6 +1318,7 @@ func TestOptions_GetDataBrokerStorageConnectionString(t *testing.T) {
 		assert.NoError(t, o.Validate(),
 			"should have no error when the dsn is set")
 
+		o.DataBrokerStorageConnectionString = ""
 		o.DataBrokerStorageConnectionStringFile = "DSN_FILE"
 		assert.NoError(t, o.Validate(),
 			"should have no error when the dsn file is set")
