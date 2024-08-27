@@ -91,7 +91,10 @@ func New(cfg *config.Config, eventsMgr *events.Manager) (*DataBroker, error) {
 		return nil, err
 	}
 
-	dataBrokerServer := newDataBrokerServer(cfg)
+	dataBrokerServer, err := newDataBrokerServer(cfg)
+	if err != nil {
+		return nil, err
+	}
 
 	c := &DataBroker{
 		dataBrokerServer:    dataBrokerServer,

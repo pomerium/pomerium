@@ -1300,6 +1300,66 @@ func TestOptions_RuntimeFlags(t *testing.T) {
 	}
 }
 
+func TestOptions_GetDataBrokerStorageConnectionString(t *testing.T) {
+	t.Parallel()
+
+	t.Run("validate", func(t *testing.T) {
+		t.Parallel()
+
+		o := NewDefaultOptions()
+		o.Services = "databroker"
+		o.DataBrokerStorageType = "postgres"
+		o.SharedKey = cryptutil.NewBase64Key()
+
+		assert.ErrorContains(t, o.Validate(), "missing databroker storage backend dsn",
+			"should validate DSN")
+
+		o.DataBrokerStorageConnectionString = "DSN"
+		assert.NoError(t, o.Validate(),
+			"should have no error when the dsn is set")
+
+		o.DataBrokerStorageConnectionString = ""
+		o.DataBrokerStorageConnectionStringFile = "DSN_FILE"
+		assert.NoError(t, o.Validate(),
+			"should have no error when the dsn file is set")
+	})
+	t.Run("literal", func(t *testing.T) {
+		t.Parallel()
+
+		o := NewDefaultOptions()
+		o.DataBrokerStorageConnectionString = "DSN"
+
+		dsn, err := o.GetDataBrokerStorageConnectionString()
+		assert.NoError(t, err)
+		assert.Equal(t, "DSN", dsn)
+	})
+	t.Run("file", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		fp := filepath.Join(dir, "DSN_FILE")
+
+		o := NewDefaultOptions()
+		o.DataBrokerStorageConnectionStringFile = fp
+		o.DataBrokerStorageConnectionString = "IGNORED"
+
+		dsn, err := o.GetDataBrokerStorageConnectionString()
+		assert.Error(t, err,
+			"should return an error when the file doesn't exist")
+		assert.Empty(t, dsn)
+
+		os.WriteFile(fp, []byte(`
+			DSN
+		`), 0o644)
+
+		dsn, err = o.GetDataBrokerStorageConnectionString()
+		assert.NoError(t, err,
+			"should not return an error when the file exists")
+		assert.Equal(t, "DSN", dsn,
+			"should return the trimmed contents of the file")
+	})
+}
+
 func encodeCert(cert *tls.Certificate) []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Certificate[0]})
 }

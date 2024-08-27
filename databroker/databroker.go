@@ -3,12 +3,14 @@ package databroker
 
 import (
 	"context"
+	"fmt"
 
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/databroker"
+	"github.com/pomerium/pomerium/internal/log"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -21,31 +23,48 @@ type dataBrokerServer struct {
 }
 
 // newDataBrokerServer creates a new databroker service server.
-func newDataBrokerServer(cfg *config.Config) *dataBrokerServer {
+func newDataBrokerServer(cfg *config.Config) (*dataBrokerServer, error) {
 	srv := &dataBrokerServer{
 		sharedKey: atomicutil.NewValue([]byte{}),
 	}
-	srv.server = databroker.New(srv.getOptions(cfg)...)
+
+	opts, err := srv.getOptions(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	srv.server = databroker.New(opts...)
 	srv.setKey(cfg)
-	return srv
+	return srv, nil
 }
 
 // OnConfigChange updates the underlying databroker server whenever configuration is changed.
-func (srv *dataBrokerServer) OnConfigChange(_ context.Context, cfg *config.Config) {
-	srv.server.UpdateConfig(srv.getOptions(cfg)...)
+func (srv *dataBrokerServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
+	opts, err := srv.getOptions(cfg)
+	if err != nil {
+		log.Error(ctx).Err(err).Msg("databroker: error updating config changes")
+		return
+	}
+
+	srv.server.UpdateConfig(opts...)
 	srv.setKey(cfg)
 }
 
-func (srv *dataBrokerServer) getOptions(cfg *config.Config) []databroker.ServerOption {
+func (srv *dataBrokerServer) getOptions(cfg *config.Config) ([]databroker.ServerOption, error) {
+	dataBrokerStorageConnectionString, err := cfg.Options.GetDataBrokerStorageConnectionString()
+	if err != nil {
+		return nil, fmt.Errorf("error loading databroker storage connection string: %w", err)
+	}
+
 	cert, _ := cfg.Options.GetDataBrokerCertificate()
 	return []databroker.ServerOption{
 		databroker.WithGetSharedKey(cfg.Options.GetSharedKey),
 		databroker.WithStorageType(cfg.Options.DataBrokerStorageType),
-		databroker.WithStorageConnectionString(cfg.Options.DataBrokerStorageConnectionString),
+		databroker.WithStorageConnectionString(dataBrokerStorageConnectionString),
 		databroker.WithStorageCAFile(cfg.Options.DataBrokerStorageCAFile),
 		databroker.WithStorageCertificate(cert),
 		databroker.WithStorageCertSkipVerify(cfg.Options.DataBrokerStorageCertSkipVerify),
-	}
+	}, nil
 }
 
 func (srv *dataBrokerServer) setKey(cfg *config.Config) {

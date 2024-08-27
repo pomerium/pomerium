@@ -249,11 +249,12 @@ type Options struct {
 	// Supported type: memory, postgres
 	DataBrokerStorageType string `mapstructure:"databroker_storage_type" yaml:"databroker_storage_type,omitempty"`
 	// DataBrokerStorageConnectionString is the data source name for storage backend.
-	DataBrokerStorageConnectionString string `mapstructure:"databroker_storage_connection_string" yaml:"databroker_storage_connection_string,omitempty"`
-	DataBrokerStorageCertFile         string `mapstructure:"databroker_storage_cert_file" yaml:"databroker_storage_cert_file,omitempty"`
-	DataBrokerStorageCertKeyFile      string `mapstructure:"databroker_storage_key_file" yaml:"databroker_storage_key_file,omitempty"`
-	DataBrokerStorageCAFile           string `mapstructure:"databroker_storage_ca_file" yaml:"databroker_storage_ca_file,omitempty"`
-	DataBrokerStorageCertSkipVerify   bool   `mapstructure:"databroker_storage_tls_skip_verify" yaml:"databroker_storage_tls_skip_verify,omitempty"`
+	DataBrokerStorageConnectionString     string `mapstructure:"databroker_storage_connection_string" yaml:"databroker_storage_connection_string,omitempty"`
+	DataBrokerStorageConnectionStringFile string `mapstructure:"databroker_storage_connection_string_file" yaml:"databroker_storage_connection_string_file,omitempty"`
+	DataBrokerStorageCertFile             string `mapstructure:"databroker_storage_cert_file" yaml:"databroker_storage_cert_file,omitempty"`
+	DataBrokerStorageCertKeyFile          string `mapstructure:"databroker_storage_key_file" yaml:"databroker_storage_key_file,omitempty"`
+	DataBrokerStorageCAFile               string `mapstructure:"databroker_storage_ca_file" yaml:"databroker_storage_ca_file,omitempty"`
+	DataBrokerStorageCertSkipVerify       bool   `mapstructure:"databroker_storage_tls_skip_verify" yaml:"databroker_storage_tls_skip_verify,omitempty"`
 
 	// DownstreamMTLS holds all downstream mTLS settings.
 	DownstreamMTLS DownstreamMTLSSettings `mapstructure:"downstream_mtls" yaml:"downstream_mtls,omitempty"`
@@ -592,7 +593,7 @@ func (o *Options) Validate() error {
 	switch o.DataBrokerStorageType {
 	case StorageInMemoryName:
 	case StoragePostgresName:
-		if o.DataBrokerStorageConnectionString == "" {
+		if o.DataBrokerStorageConnectionString == "" && o.DataBrokerStorageConnectionStringFile == "" {
 			return errors.New("config: missing databroker storage backend dsn")
 		}
 	default:
@@ -1082,6 +1083,17 @@ func (o *Options) GetDataBrokerCertificate() (*tls.Certificate, error) {
 		return nil, nil
 	}
 	return cryptutil.CertificateFromFile(o.DataBrokerStorageCertFile, o.DataBrokerStorageCertKeyFile)
+}
+
+// GetDataBrokerStorageConnectionString gets the databroker storage connection string from either a file
+// or the config option directly. If from a file spaces are trimmed off the ends.
+func (o *Options) GetDataBrokerStorageConnectionString() (string, error) {
+	if o.DataBrokerStorageConnectionStringFile != "" {
+		bs, err := os.ReadFile(o.DataBrokerStorageConnectionStringFile)
+		return strings.TrimSpace(string(bs)), err
+	}
+
+	return o.DataBrokerStorageConnectionString, nil
 }
 
 // GetCertificates gets all the certificates from the options.
