@@ -194,7 +194,7 @@ func getClientCertificateInfo(
 
 	chain, err := url.QueryUnescape(escapedChain)
 	if err != nil {
-		log.Info(ctx).Str("chain", escapedChain).Err(err).
+		log.Error(ctx).Str("chain", escapedChain).Err(err).
 			Msg(`received unexpected client certificate "chain" value`)
 		return c
 	}
@@ -202,7 +202,7 @@ func getClientCertificateInfo(
 	// Split the chain into the leaf and any intermediate certificates.
 	p, rest := pem.Decode([]byte(chain))
 	if p == nil {
-		log.Info(ctx).Str("chain", escapedChain).
+		log.Error(ctx).Str("chain", escapedChain).
 			Msg(`received unexpected client certificate "chain" value (no PEM block found)`)
 		return c
 	}
