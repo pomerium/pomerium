@@ -69,10 +69,17 @@ type Server struct {
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
-func NewServer(ctx context.Context, cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr *events.Manager) (*Server, error) {
+func NewServer(
+	ctx context.Context,
+	cfg *config.Config,
+	metricsMgr *config.MetricsManager,
+	eventsMgr *events.Manager,
+	fileMgr *filemgr.Manager,
+) (*Server, error) {
 	srv := &Server{
 		metricsMgr:      metricsMgr,
 		EventsMgr:       eventsMgr,
+		filemgr:         fileMgr,
 		reproxy:         reproxy.New(),
 		haveSetCapacity: map[string]bool{},
 		updateConfig:    make(chan *config.Config, 1),
@@ -149,7 +156,6 @@ func NewServer(ctx context.Context, cfg *config.Config, metricsMgr *config.Metri
 	// metrics
 	srv.MetricsRouter.Handle("/metrics", srv.metricsMgr)
 
-	srv.filemgr = filemgr.NewManager()
 	srv.filemgr.ClearCache()
 
 	srv.Builder = envoyconfig.New(

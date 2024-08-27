@@ -2,9 +2,11 @@ package testenv
 
 import (
 	"net/url"
+	"strings"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
 // PolicyRoute is a [Route] implementation suitable for most common use cases
@@ -51,6 +53,20 @@ func (b *PolicyRoute) To(toUrl values.Value[string]) Route {
 // To implements Route.
 func (b *PolicyRoute) Policy(edit func(*config.Policy)) Route {
 	b.edits = append(b.edits, edit)
+	return b
+}
+
+// PPL implements Route.
+func (b *PolicyRoute) PPL(ppl string) Route {
+	pplPolicy, err := parser.ParseYAML(strings.NewReader(ppl))
+	if err != nil {
+		panic(err)
+	}
+	b.edits = append(b.edits, func(p *config.Policy) {
+		p.Policy = &config.PPLPolicy{
+			Policy: pplPolicy,
+		}
+	})
 	return b
 }
 

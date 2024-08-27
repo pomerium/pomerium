@@ -21,6 +21,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
+	"github.com/pomerium/pomerium/internal/testenv/scenarios"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/pomerium/pomerium/internal/testenv/values"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
@@ -120,6 +121,46 @@ func TestHTTP(t *testing.T) {
 			"method":                "GET",
 			"message":               "http-request",
 			"response-code-details": "via_upstream",
+		},
+	})
+}
+
+func TestClientCert(t *testing.T) {
+	env := testenv.New(t)
+	env.Add(scenarios.DownstreamMTLS(config.MTLSEnforcementRejectConnection))
+
+	up := upstreams.HTTP(nil)
+	up.Handle("/foo", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "hello world")
+	})
+
+	clientCert := env.NewClientCert()
+
+	route := up.Route().
+		From(env.SubdomainURL("http")).
+		PPL(fmt.Sprintf(`{"allow":{"and":["client_certificate":{"fingerprint":%q}]}}`, clientCert.Fingerprint()))
+
+	env.AddUpstream(up)
+	env.Start()
+
+	recorder := env.NewLogRecorder()
+
+	resp, err := up.Get(route, upstreams.Path("/foo"), upstreams.ClientCert(clientCert))
+	require.NoError(t, err)
+
+	defer resp.Body.Close()
+	data, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "hello world\n", string(data))
+
+	recorder.Match([]map[string]any{
+		{
+			"service":               "envoy",
+			"path":                  "/foo",
+			"method":                "GET",
+			"message":               "http-request",
+			"response-code-details": "via_upstream",
+			"client-certificate":    clientCert,
 		},
 	})
 }

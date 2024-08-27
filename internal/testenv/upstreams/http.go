@@ -77,9 +77,11 @@ func Body(body any) RequestOption {
 }
 
 // ClientCert adds a client certificate to the request.
-func ClientCert(cert tls.Certificate) RequestOption {
+func ClientCert[T interface {
+	*testenv.Certificate | *tls.Certificate
+}](cert T) RequestOption {
 	return func(o *RequestOptions) {
-		o.clientCerts = append(o.clientCerts, cert)
+		o.clientCerts = append(o.clientCerts, *(*tls.Certificate)(cert))
 	}
 }
 
@@ -250,6 +252,7 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 			}
 			return retry.NewTerminalError(err)
 		}
+		resp.Body.Close()
 		return nil
 	}, retry.WithMaxInterval(1*time.Second)); err != nil {
 		return nil, err

@@ -4,8 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -115,9 +118,14 @@ func (lr *LogRecorder) Logs() []map[string]any {
 // Match stops the log recorder (if it is not already stopped), then asserts
 // that the given expected logs were captured. The expected logs may contain
 // partial or complete log entries. By default, logs must only match the fields
-// given, and may contain additional fields that will be ignored. For details,
-// see [OpenMap] and [ClosedMap]. As a special case, using [json.Number] as the
-// expected value will convert the actual value to a string before comparison.
+// given, and may contain additional fields that will be ignored.
+//
+// There are several special-case value types that can be used to customize the
+// matching behavior, and/or simplify some common use cases, as follows:
+//   - [OpenMap] and [ClosedMap] can be used to control matching logic
+//   - [json.Number] will convert the actual value to a string before comparison
+//   - [*tls.Certificate] or [*x509.Certificate] will expand to the fields that
+//     would be logged for this certificate
 func (lr *LogRecorder) Match(expectedLogs []map[string]any) {
 	lr.collectLogs()
 	var match func(expected, actual map[string]any, open bool) (bool, int)
@@ -132,15 +140,50 @@ func (lr *LogRecorder) Match(expectedLogs []map[string]any) {
 
 			switch actualValue := actualValue.(type) {
 			case map[string]any:
-				switch value := value.(type) {
+				switch expectedValue := value.(type) {
 				case ClosedMap:
-					ok, s := match(value, actualValue, false)
+					ok, s := match(expectedValue, actualValue, false)
 					score += s * 2
 					if !ok {
 						return false, score
 					}
 				case OpenMap:
-					ok, s := match(value, actualValue, true)
+					ok, s := match(expectedValue, actualValue, true)
+					score += s
+					if !ok {
+						return false, score
+					}
+				case *tls.Certificate, *Certificate, *x509.Certificate:
+					var leaf *x509.Certificate
+					switch expectedValue := expectedValue.(type) {
+					case *tls.Certificate:
+						leaf = expectedValue.Leaf
+					case *Certificate:
+						leaf = expectedValue.Leaf
+					case *x509.Certificate:
+						leaf = expectedValue
+					}
+
+					// keep logic consistent with controlplane.populateCertEventDict()
+					expected := map[string]any{}
+					if iss := leaf.Issuer.String(); iss != "" {
+						expected["issuer"] = iss
+					}
+					if sub := leaf.Subject.String(); sub != "" {
+						expected["subject"] = sub
+					}
+					sans := []string{}
+					for _, dnsSAN := range leaf.DNSNames {
+						sans = append(sans, "DNS:"+dnsSAN)
+					}
+					for _, uriSAN := range leaf.URIs {
+						sans = append(sans, "URI:"+uriSAN.String())
+					}
+					if len(sans) > 0 {
+						expected["subjectAltName"] = sans
+					}
+
+					ok, s := match(expected, actualValue, false)
 					score += s
 					if !ok {
 						return false, score
@@ -164,7 +207,23 @@ func (lr *LogRecorder) Match(expectedLogs []map[string]any) {
 				}
 				score++
 			default:
-				panic(fmt.Sprintf("test bug: add check for type %T in assertMatchingLogs", actualValue))
+				// handle slices
+				if reflect.TypeOf(actualValue).Kind() == reflect.Slice {
+					if reflect.TypeOf(value) != reflect.TypeOf(actualValue) {
+						return false, score
+					}
+					actualSlice := reflect.ValueOf(actualValue)
+					expectedSlice := reflect.ValueOf(value)
+					totalScore := 0
+					for i := range min(actualSlice.Len(), expectedSlice.Len()) {
+						if actualSlice.Index(i).Equal(expectedSlice.Index(i)) {
+							totalScore++
+						}
+					}
+					score += totalScore
+				} else {
+					panic(fmt.Sprintf("test bug: add check for type %T in assertMatchingLogs", actualValue))
+				}
 			}
 		}
 		if !open && len(expected) != len(actual) {

@@ -77,10 +77,24 @@ func (m Modifiers) Modify(cfg *config.Config) {
 	}
 }
 
-type ModifierFunc func(cfg *config.Config)
+type modifierFunc struct {
+	fn  func(ctx context.Context, cfg *config.Config)
+	ctx context.Context
+}
 
-func (f ModifierFunc) Modify(cfg *config.Config) {
-	f(cfg)
+// Attach implements Modifier.
+func (f *modifierFunc) Attach(ctx context.Context) {
+	f.ctx = ctx
+}
+
+func (f *modifierFunc) Modify(cfg *config.Config) {
+	f.fn(f.ctx, cfg)
+}
+
+var _ Modifier = (*modifierFunc)(nil)
+
+func ModifierFunc(fn func(ctx context.Context, cfg *config.Config)) Modifier {
+	return &modifierFunc{fn: fn}
 }
 
 // Task represents a background task that can be added to an [Environment] to
@@ -116,6 +130,7 @@ type Route interface {
 	URL() values.Value[string]
 	To(toUrl values.Value[string]) Route
 	Policy(edit func(*config.Policy)) Route
+	PPL(ppl string) Route
 	// add more methods here as they become needed
 }
 
