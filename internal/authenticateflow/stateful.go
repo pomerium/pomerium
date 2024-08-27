@@ -267,7 +267,7 @@ func (s *Stateful) RevokeSession(
 	})
 	if err != nil {
 		err = fmt.Errorf("couldn't get session to be revoked: %w", err)
-		log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to revoke access token")
+		log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to revoke access token")
 		return ""
 	}
 
@@ -276,7 +276,7 @@ func (s *Stateful) RevokeSession(
 	var sess session.Session
 	if err := record.GetData().UnmarshalTo(&sess); err != nil {
 		err = fmt.Errorf("couldn't unmarshal data of session to be revoked: %w", err)
-		log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to revoke access token")
+		log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to revoke access token")
 		return ""
 	}
 
@@ -284,7 +284,7 @@ func (s *Stateful) RevokeSession(
 	if sess.OauthToken != nil {
 		rawIDToken = sess.GetIdToken().GetRaw()
 		if err := authenticator.Revoke(ctx, manager.FromOAuthToken(sess.OauthToken)); err != nil {
-			log.Ctx(ctx).Warn().Err(err).Msg("authenticate: failed to revoke access token")
+			log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to revoke access token")
 		}
 	}
 
@@ -293,7 +293,7 @@ func (s *Stateful) RevokeSession(
 		Records: []*databroker.Record{record},
 	})
 	if err != nil {
-		log.Ctx(ctx).Warn().Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Msg("authenticate: failed to delete session from session store")
 	}
 	return rawIDToken

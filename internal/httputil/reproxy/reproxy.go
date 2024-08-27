@@ -137,7 +137,7 @@ func (h *Handler) Update(ctx context.Context, cfg *config.Config) {
 	for p := range cfg.Options.GetAllPolicies() {
 		id, err := p.RouteID()
 		if err != nil {
-			log.Warn(ctx).Err(err).Msg("reproxy: error getting route id")
+			log.Error(ctx).Err(err).Msg("reproxy: error getting route id")
 			continue
 		}
 		h.policies[id] = p

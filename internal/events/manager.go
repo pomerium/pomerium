@@ -29,7 +29,7 @@ func (mgr *Manager) Dispatch(evt Event) {
 	mgr.mu.RUnlock()
 
 	if dropped {
-		log.Warn(context.Background()).
+		log.Error(context.Background()).
 			Interface("event", evt).
 			Msg("controlplane: dropping event due to full channel")
 	}

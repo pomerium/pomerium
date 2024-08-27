@@ -69,7 +69,7 @@ func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []stri
 		log.Info(ctx).Msg("envoy: releasing envoy process for hot-reload")
 		err := srv.cmd.Process.Release()
 		if err != nil {
-			log.Warn(ctx).Err(err).Str("service", "envoy").Msg("envoy: failed to release envoy process for hot-reload")
+			log.Error(ctx).Err(err).Str("service", "envoy").Msg("envoy: failed to release envoy process for hot-reload")
 		}
 	}
 

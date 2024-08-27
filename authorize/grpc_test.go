@@ -238,7 +238,7 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 			false,
 			"invalid%URL%encoding",
 			evaluator.ClientCertificateInfo{},
-			`{"chain":"invalid%URL%encoding","error":"invalid URL escape \"%UR\"","level":"warn","message":"received unexpected client certificate \"chain\" value"}`,
+			`{"chain":"invalid%URL%encoding","error":"invalid URL escape \"%UR\"","level":"info","message":"received unexpected client certificate \"chain\" value"}`,
 		},
 		{
 			"invalid chain PEM encoding",
@@ -247,7 +247,7 @@ fYCZHo3CID0gRSemaQ/jYMgyeBFrHIr6icZh
 			evaluator.ClientCertificateInfo{
 				Presented: true,
 			},
-			`{"chain":"not valid PEM data","level":"warn","message":"received unexpected client certificate \"chain\" value (no PEM block found)"}`,
+			`{"chain":"not valid PEM data","level":"info","message":"received unexpected client certificate \"chain\" value (no PEM block found)"}`,
 		},
 	}
 

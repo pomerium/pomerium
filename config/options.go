@@ -415,7 +415,7 @@ func checkConfigKeysErrors(configFile string, o *Options, unused []string) error
 			evt = log.Error(ctx)
 			err = errInvalidConfigKeys
 		default:
-			evt = log.Warn(ctx)
+			evt = log.Error(ctx)
 		}
 		evt.Str("config_file", configFile).Str("key", check.Key)
 		if check.DocsURL != "" {
@@ -427,7 +427,7 @@ func checkConfigKeysErrors(configFile string, o *Options, unused []string) error
 	// check for unknown runtime flags
 	for flag := range o.RuntimeFlags {
 		if _, ok := defaultRuntimeFlags[flag]; !ok {
-			log.Warn(ctx).Str("config_file", configFile).Str("flag", string(flag)).Msg("unknown runtime flag")
+			log.Error(ctx).Str("config_file", configFile).Str("flag", string(flag)).Msg("unknown runtime flag")
 		}
 	}
 
@@ -716,7 +716,7 @@ func (o *Options) Validate() error {
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
 
 	if !o.InsecureServer && !hasCert && !o.AutocertOptions.Enable {
-		log.Warn(ctx).Msg("neither `autocert`, " +
+		log.Info(ctx).Msg("neither `autocert`, " +
 			"`insecure_server` or manually provided certificates were provided, server will be using a self-signed certificate")
 	}
 
@@ -824,7 +824,7 @@ func (o *Options) UseStatelessAuthenticateFlow() bool {
 		} else if flow == "stateful" {
 			return false
 		}
-		log.Warn(context.Background()).
+		log.Error(context.Background()).
 			Msgf("ignoring unknown DEBUG_FORCE_AUTHENTICATE_FLOW setting %q", flow)
 	}
 	u, err := o.GetInternalAuthenticateURL()

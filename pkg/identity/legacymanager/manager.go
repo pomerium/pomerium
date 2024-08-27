@@ -212,7 +212,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string
 
 	s, ok := mgr.sessions.Get(userID, sessionID)
 	if !ok {
-		log.Warn(ctx).
+		log.Info(ctx).
 			Str("user_id", userID).
 			Str("session_id", sessionID).
 			Msg("no session found for refresh")
@@ -253,7 +253,7 @@ func (mgr *Manager) refreshSessionInternal(
 	}
 
 	if s.Session == nil || s.Session.OauthToken == nil {
-		log.Warn(ctx).
+		log.Info(ctx).
 			Str("user_id", userID).
 			Str("session_id", sessionID).
 			Msg("no session oauth2 token found for refresh")
@@ -324,7 +324,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 
 	u, ok := mgr.users.Get(userID)
 	if !ok {
-		log.Warn(ctx).
+		log.Info(ctx).
 			Str("user_id", userID).
 			Msg("no user found for refresh")
 		return
@@ -334,7 +334,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 
 	for _, s := range mgr.sessions.GetSessionsForUser(userID) {
 		if s.Session == nil || s.Session.OauthToken == nil {
-			log.Warn(ctx).
+			log.Info(ctx).
 				Str("user_id", userID).
 				Msg("no session oauth2 token found for refresh")
 			continue
@@ -378,7 +378,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 			var pbSession session.Session
 			err := record.GetData().UnmarshalTo(&pbSession)
 			if err != nil {
-				log.Warn(ctx).Msgf("error unmarshaling session: %s", err)
+				log.Error(ctx).Msgf("error unmarshaling session: %s", err)
 				continue
 			}
 			mgr.onUpdateSession(record, &pbSession)
@@ -386,7 +386,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 			var pbUser user.User
 			err := record.GetData().UnmarshalTo(&pbUser)
 			if err != nil {
-				log.Warn(ctx).Msgf("error unmarshaling user: %s", err)
+				log.Error(ctx).Msgf("error unmarshaling user: %s", err)
 				continue
 			}
 			mgr.onUpdateUser(ctx, record, &pbUser)

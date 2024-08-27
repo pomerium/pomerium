@@ -36,7 +36,7 @@ func (h sessionSyncerHandler) UpdateRecords(ctx context.Context, _ uint64, recor
 			var s session.Session
 			err := record.Data.UnmarshalTo(&s)
 			if err != nil {
-				log.Ctx(ctx).Warn().Err(err).Msg("invalid data in session record, ignoring")
+				log.Ctx(ctx).Error().Err(err).Msg("invalid data in session record, ignoring")
 			} else {
 				h.mgr.onUpdateSession(h.baseCtx, &s)
 			}
@@ -70,7 +70,7 @@ func (h userSyncerHandler) UpdateRecords(ctx context.Context, _ uint64, records 
 			var u user.User
 			err := record.Data.UnmarshalTo(&u)
 			if err != nil {
-				log.Ctx(ctx).Warn().Err(err).Msg("invalid data in user record, ignoring")
+				log.Ctx(ctx).Error().Err(err).Msg("invalid data in user record, ignoring")
 			} else {
 				h.mgr.onUpdateUser(h.baseCtx, &u)
 			}

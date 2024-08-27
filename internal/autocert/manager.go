@@ -275,7 +275,7 @@ func (mgr *Manager) renewCert(ctx context.Context, domain string, cert certmagic
 		if expired {
 			return certmagic.Certificate{}, errRenewCertFailed
 		}
-		log.Warn(ctx).Err(err).Msg("renew client certificated failed, use existing cert")
+		log.Error(ctx).Err(err).Msg("renew client certificated failed, use existing cert")
 	}
 	return cm.CacheManagedCertificate(ctx, domain)
 }

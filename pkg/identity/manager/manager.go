@@ -199,7 +199,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 	mgr.mu.Unlock()
 
 	if s == nil {
-		log.Ctx(ctx).Warn().
+		log.Ctx(ctx).Info().
 			Str("user_id", u.GetId()).
 			Str("session_id", sessionID).
 			Msg("no session found for refresh")
@@ -227,7 +227,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 	}
 
 	if s.GetOauthToken() == nil {
-		log.Warn(ctx).
+		log.Info(ctx).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("no session oauth2 token found for refresh")
@@ -290,7 +290,7 @@ func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
 	mgr.mu.Unlock()
 
 	if u == nil {
-		log.Ctx(ctx).Warn().
+		log.Ctx(ctx).Error().
 			Str("user_id", userID).
 			Msg("no user found for update")
 		return
@@ -298,7 +298,7 @@ func (mgr *Manager) updateUserInfo(ctx context.Context, userID string) {
 
 	for _, s := range ss {
 		if s.GetOauthToken() == nil {
-			log.Ctx(ctx).Warn().
+			log.Ctx(ctx).Error().
 				Str("user_id", s.GetUserId()).
 				Str("session_id", s.GetId()).
 				Msg("no session oauth2 token found for updating user info")
