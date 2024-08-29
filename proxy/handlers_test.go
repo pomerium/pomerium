@@ -140,7 +140,7 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 
 			w := httptest.NewRecorder()
 			router := httputil.NewRouter()
-			router = p.registerDashboardHandlers(router)
+			router = p.registerDashboardHandlers(router, config.NewDefaultOptions())
 			router.ServeHTTP(w, r)
 
 			if status := w.Code; status != tt.wantStatus {

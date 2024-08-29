@@ -17,6 +17,12 @@ var (
 	RuntimeFlagConfigHotReload = runtimeFlag("config_hot_reload", true)
 
 	RuntimeFlagEnvoyResourceManagerEnabled = runtimeFlag("envoy_resource_manager_enabled", true)
+
+	// RuntimeFlagPomeriumJWTEndpoint enables the /.pomerium/jwt endpoint, for retrieving
+	// signed user info claims from an upstream single-page web application. This endpoint
+	// is deprecated pending removal in a future release, but this flag allows a temporary
+	// opt-out from the deprecation.
+	RuntimeFlagPomeriumJWTEndpoint = runtimeFlag("pomerium_jwt_endpoint", false)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features
