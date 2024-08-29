@@ -27,6 +27,7 @@ spec:
           emptyDir: {}
         - name: bootstrap
           secret:
+            optional: true
             secretName: pomerium
             items:
               - key: bootstrap
