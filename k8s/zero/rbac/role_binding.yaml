@@ -1,0 +1,11 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pomerium-zero
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pomerium-zero
+subjects:
+  - kind: ServiceAccount
+    name: pomerium-zero

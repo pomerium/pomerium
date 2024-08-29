@@ -1,15 +1,15 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: pomerium
 spec:
-  serviceName: "pomerium-proxy"
   replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: pomerium-zero
   template:
     spec:
+      serviceAccountName: pomerium-zero
       containers:
         - name: pomerium
       terminationGracePeriodSeconds: 10
