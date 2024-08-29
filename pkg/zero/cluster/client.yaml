@@ -8,3 +8,5 @@ output-options:
   # We use Response suffix internally throughout the response objects,
   # that conflicts with generated client
   response-type-suffix: Resp
+  user-templates:
+    client-with-responses.tmpl: ./client-with-responses.tmpl

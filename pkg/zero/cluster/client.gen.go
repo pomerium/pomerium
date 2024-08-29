@@ -578,6 +578,7 @@ type ImportConfigurationResp struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON400      *ErrorResponse
+	JSON403      *ErrorResponse
 	JSON500      *ErrorResponse
 }
 
@@ -872,6 +873,13 @@ func ParseImportConfigurationResp(rsp *http.Response) (*ImportConfigurationResp,
 		}
 		response.JSON400 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest ErrorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -922,4 +930,180 @@ func ParseExchangeClusterIdentityTokenResp(rsp *http.Response) (*ExchangeCluster
 	}
 
 	return response, nil
+}
+
+// GetHTTPResponse implements apierror.APIResponse
+func (r *GetClusterBootstrapConfigResp) GetHTTPResponse() *http.Response {
+	return r.HTTPResponse
+}
+
+// GetValue implements apierror.APIResponse
+func (r *GetClusterBootstrapConfigResp) GetValue() *GetBootstrapConfigResponse {
+	return r.JSON200
+}
+
+// GetBadRequestError implements apierror.APIResponse
+func (r *GetClusterBootstrapConfigResp) GetBadRequestError() (string, bool) {
+	if r.JSON400 == nil {
+		return "", false
+	}
+	return r.JSON400.Error, true
+}
+
+// GetInternalServerError implements apierror.APIResponse
+func (r *GetClusterBootstrapConfigResp) GetInternalServerError() (string, bool) {
+	if r.JSON500 == nil {
+		return "", false
+	}
+	return r.JSON500.Error, true
+}
+
+// GetHTTPResponse implements apierror.APIResponse
+func (r *GetClusterResourceBundlesResp) GetHTTPResponse() *http.Response {
+	return r.HTTPResponse
+}
+
+// GetValue implements apierror.APIResponse
+func (r *GetClusterResourceBundlesResp) GetValue() *GetBundlesResponse {
+	return r.JSON200
+}
+
+// GetBadRequestError implements apierror.APIResponse
+func (r *GetClusterResourceBundlesResp) GetBadRequestError() (string, bool) {
+	if r.JSON400 == nil {
+		return "", false
+	}
+	return r.JSON400.Error, true
+}
+
+// GetInternalServerError implements apierror.APIResponse
+func (r *GetClusterResourceBundlesResp) GetInternalServerError() (string, bool) {
+	if r.JSON500 == nil {
+		return "", false
+	}
+	return r.JSON500.Error, true
+}
+
+// GetHTTPResponse implements apierror.APIResponse
+func (r *DownloadClusterResourceBundleResp) GetHTTPResponse() *http.Response {
+	return r.HTTPResponse
+}
+
+// GetValue implements apierror.APIResponse
+func (r *DownloadClusterResourceBundleResp) GetValue() *DownloadBundleResponse {
+	return r.JSON200
+}
+
+// GetBadRequestError implements apierror.APIResponse
+func (r *DownloadClusterResourceBundleResp) GetBadRequestError() (string, bool) {
+	if r.JSON400 == nil {
+		return "", false
+	}
+	return r.JSON400.Error, true
+}
+
+func (r *DownloadClusterResourceBundleResp) GetNotFoundError() (string, bool) {
+	if r.JSON404 == nil {
+		return "", false
+	}
+	return r.JSON404.Error, true
+}
+
+// GetInternalServerError implements apierror.APIResponse
+func (r *DownloadClusterResourceBundleResp) GetInternalServerError() (string, bool) {
+	if r.JSON500 == nil {
+		return "", false
+	}
+	return r.JSON500.Error, true
+}
+
+// GetHTTPResponse implements apierror.APIResponse
+func (r *ReportClusterResourceBundleStatusResp) GetHTTPResponse() *http.Response {
+	return r.HTTPResponse
+}
+
+// GetBadRequestError implements apierror.APIResponse
+func (r *ReportClusterResourceBundleStatusResp) GetBadRequestError() (string, bool) {
+	if r.JSON400 == nil {
+		return "", false
+	}
+	return r.JSON400.Error, true
+}
+
+// GetInternalServerError implements apierror.APIResponse
+func (r *ReportClusterResourceBundleStatusResp) GetInternalServerError() (string, bool) {
+	if r.JSON500 == nil {
+		return "", false
+	}
+	return r.JSON500.Error, true
+}
+
+// GetValue implements apierror.APIResponse
+func (r *ReportClusterResourceBundleStatusResp) GetValue() *EmptyResponse {
+	if r.StatusCode()/100 != 2 {
+		return nil
+	}
+	return &EmptyResponse{}
+}
+
+// GetHTTPResponse implements apierror.APIResponse
+func (r *ImportConfigurationResp) GetHTTPResponse() *http.Response {
+	return r.HTTPResponse
+}
+
+// GetBadRequestError implements apierror.APIResponse
+func (r *ImportConfigurationResp) GetBadRequestError() (string, bool) {
+	if r.JSON400 == nil {
+		return "", false
+	}
+	return r.JSON400.Error, true
+}
+
+func (r *ImportConfigurationResp) GetForbiddenError() (string, bool) {
+	if r.JSON403 == nil {
+		return "", false
+	}
+	return r.JSON403.Error, true
+}
+
+// GetInternalServerError implements apierror.APIResponse
+func (r *ImportConfigurationResp) GetInternalServerError() (string, bool) {
+	if r.JSON500 == nil {
+		return "", false
+	}
+	return r.JSON500.Error, true
+}
+
+// GetValue implements apierror.APIResponse
+func (r *ImportConfigurationResp) GetValue() *EmptyResponse {
+	if r.StatusCode()/100 != 2 {
+		return nil
+	}
+	return &EmptyResponse{}
+}
+
+// GetHTTPResponse implements apierror.APIResponse
+func (r *ExchangeClusterIdentityTokenResp) GetHTTPResponse() *http.Response {
+	return r.HTTPResponse
+}
+
+// GetValue implements apierror.APIResponse
+func (r *ExchangeClusterIdentityTokenResp) GetValue() *ExchangeTokenResponse {
+	return r.JSON200
+}
+
+// GetBadRequestError implements apierror.APIResponse
+func (r *ExchangeClusterIdentityTokenResp) GetBadRequestError() (string, bool) {
+	if r.JSON400 == nil {
+		return "", false
+	}
+	return r.JSON400.Error, true
+}
+
+// GetInternalServerError implements apierror.APIResponse
+func (r *ExchangeClusterIdentityTokenResp) GetInternalServerError() (string, bool) {
+	if r.JSON500 == nil {
+		return "", false
+	}
+	return r.JSON500.Error, true
 }

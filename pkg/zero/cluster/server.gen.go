@@ -509,6 +509,15 @@ func (response ImportConfiguration400JSONResponse) VisitImportConfigurationRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ImportConfiguration403JSONResponse ErrorResponse
+
+func (response ImportConfiguration403JSONResponse) VisitImportConfigurationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ImportConfiguration500JSONResponse ErrorResponse
 
 func (response ImportConfiguration500JSONResponse) VisitImportConfigurationResponse(w http.ResponseWriter) error {
