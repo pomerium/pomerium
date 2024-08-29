@@ -108,6 +108,7 @@ message Route {
   envoy.config.cluster.v3.Cluster envoy_opts = 36;
 
   repeated Policy policies = 27;
+  repeated PPLPolicy ppl_policies = 63;
   string id = 28;
 
   optional string host_rewrite = 50;
@@ -118,6 +119,10 @@ message Route {
   optional string idp_client_id = 55;
   optional string idp_client_secret = 56;
   bool show_error_details = 59;
+}
+
+message PPLPolicy {
+  bytes raw = 1;
 }
 
 message Policy {
