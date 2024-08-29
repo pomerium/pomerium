@@ -106,7 +106,7 @@ func newProxyMetricsHandler(exporter *ocprom.Exporter, endpoints []ScrapeEndpoin
 			scrapeEndpoints(endpoints, labels),
 			ocExport("pomerium", exporter, r, labels)),
 		); err != nil {
-			log.Error(ctx).Err(err).Msg("responding to metrics request")
+			log.Ctx(ctx).Error().Err(err).Msg("responding to metrics request")
 		}
 	}
 }

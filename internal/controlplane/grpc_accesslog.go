@@ -21,7 +21,7 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogS
 	for {
 		msg, err := stream.Recv()
 		if err != nil {
-			log.Error(stream.Context()).Err(err).Msg("access log stream error, disconnecting")
+			log.Ctx(stream.Context()).Error().Err(err).Msg("access log stream error, disconnecting")
 			return err
 		}
 

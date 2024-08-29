@@ -232,7 +232,7 @@ func (s *Stateless) PersistSession(
 	}
 	err = storeIdentityProfile(w, s.options.NewCookie(), s.cookieCipher, profile)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("failed to store identity profile")
+		log.Ctx(ctx).Error().Err(err).Msg("failed to store identity profile")
 	}
 	return nil
 }
@@ -293,7 +293,7 @@ func (s *Stateless) logAuthenticateEvent(r *http.Request, profile *identitypb.Pr
 	ctx := r.Context()
 	pub, params, err := hpke.DecryptURLValues(s.hpkePrivateKey, r.Form)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("log authenticate event: failed to decrypt request params")
+		log.Ctx(ctx).Error().Err(err).Msg("log authenticate event: failed to decrypt request params")
 	}
 
 	evt := events.AuthEvent{

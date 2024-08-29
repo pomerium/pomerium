@@ -151,7 +151,7 @@ func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	currentState := a.state.Load()
 	a.currentOptions.Store(cfg.Options)
 	if state, err := newAuthorizeStateFromConfig(cfg, a.store, currentState.evaluator); err != nil {
-		log.Error(ctx).Err(err).Msg("authorize: error updating state")
+		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(state)
 	}

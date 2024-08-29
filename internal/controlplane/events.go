@@ -98,10 +98,10 @@ func withGRPCBackoff(ctx context.Context, f func() error) {
 		case status.Code(err) == codes.Unavailable,
 			status.Code(err) == codes.ResourceExhausted,
 			status.Code(err) == codes.DeadlineExceeded:
-			log.Error(ctx).Err(err).Msg("controlplane: error storing configuration event, retrying")
+			log.Ctx(ctx).Error().Err(err).Msg("controlplane: error storing configuration event, retrying")
 			// retry
 		default:
-			log.Error(ctx).Err(err).Msg("controlplane: error storing configuration event")
+			log.Ctx(ctx).Error().Err(err).Msg("controlplane: error storing configuration event")
 			return
 		}
 

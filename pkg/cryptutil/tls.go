@@ -18,7 +18,7 @@ func GetCertPool(ca, caFile string) (*x509.CertPool, error) {
 	ctx := context.TODO()
 	rootCAs, err := x509.SystemCertPool()
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("pkg/cryptutil: failed getting system cert pool making new one")
+		log.Ctx(ctx).Error().Err(err).Msg("pkg/cryptutil: failed getting system cert pool making new one")
 		rootCAs = x509.NewCertPool()
 	}
 	if ca == "" && caFile == "" {

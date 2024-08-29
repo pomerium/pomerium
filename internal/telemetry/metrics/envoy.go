@@ -75,7 +75,7 @@ func RecordEnvoyOverloadActionState(ctx context.Context, tags EnvoyOverloadActio
 		EnvoyOverloadActionState.M(state),
 	)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("internal/telemetry/metrics: failed to record")
+		log.Ctx(ctx).Error().Err(err).Msg("internal/telemetry/metrics: failed to record")
 	}
 }
 
@@ -87,7 +87,7 @@ func RecordEnvoyOverloadActionThreshold(ctx context.Context, actionName string, 
 		EnvoyOverloadActionThreshold.M(threshold),
 	)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("internal/telemetry/metrics: failed to record")
+		log.Ctx(ctx).Error().Err(err).Msg("internal/telemetry/metrics: failed to record")
 	}
 }
 
@@ -99,6 +99,6 @@ func RecordEnvoyCgroupMemorySaturation(ctx context.Context, cgroup string, perce
 		EnvoyCgroupMemorySaturation.M(percent),
 	)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("internal/telemetry/metrics: failed to record")
+		log.Ctx(ctx).Error().Err(err).Msg("internal/telemetry/metrics: failed to record")
 	}
 }

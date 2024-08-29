@@ -113,7 +113,7 @@ func newManager(ctx context.Context,
 	mgr.src.OnConfigChange(ctx, func(ctx context.Context, cfg *config.Config) {
 		err := mgr.update(ctx, cfg)
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("autocert: error updating config")
+			log.Ctx(ctx).Error().Err(err).Msg("autocert: error updating config")
 			return
 		}
 
@@ -131,7 +131,7 @@ func newManager(ctx context.Context,
 			case <-ticker.C:
 				err := mgr.renewConfigCerts(ctx)
 				if err != nil {
-					log.Error(ctx).Err(err).Msg("autocert: error updating config")
+					log.Ctx(ctx).Error().Err(err).Msg("autocert: error updating config")
 					return
 				}
 			}
@@ -255,7 +255,7 @@ func (mgr *Manager) obtainCert(ctx context.Context, domain string, cm *certmagic
 		log.Info(ctx).Str("domain", domain).Msg("obtaining certificate")
 		err = cm.ObtainCertSync(ctx, domain)
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("autocert failed to obtain client certificate")
+			log.Ctx(ctx).Error().Err(err).Msg("autocert failed to obtain client certificate")
 			return certmagic.Certificate{}, errObtainCertFailed
 		}
 		metrics.RecordAutocertRenewal()
@@ -275,7 +275,7 @@ func (mgr *Manager) renewCert(ctx context.Context, domain string, cert certmagic
 		if expired {
 			return certmagic.Certificate{}, errRenewCertFailed
 		}
-		log.Error(ctx).Err(err).Msg("renew client certificated failed, use existing cert")
+		log.Ctx(ctx).Error().Err(err).Msg("renew client certificated failed, use existing cert")
 	}
 	return cm.CacheManagedCertificate(ctx, domain)
 }
@@ -297,7 +297,7 @@ func (mgr *Manager) updateAutocert(ctx context.Context, cfg *config.Config) erro
 			cert, err = mgr.renewCert(ctx, domain, cert, cm)
 		}
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("autocert: failed to obtain client certificate")
+			log.Ctx(ctx).Error().Err(err).Msg("autocert: failed to obtain client certificate")
 			continue
 		}
 
@@ -340,7 +340,7 @@ func (mgr *Manager) updateServer(ctx context.Context, cfg *config.Config) {
 		log.Info(ctx).Str("addr", hsrv.Addr).Msg("starting http redirect server")
 		err := hsrv.ListenAndServe()
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("failed to run http redirect server")
+			log.Ctx(ctx).Error().Err(err).Msg("failed to run http redirect server")
 		}
 	}()
 	mgr.srv = hsrv
@@ -369,7 +369,7 @@ func (mgr *Manager) updateACMETLSALPNServer(ctx context.Context, cfg *config.Con
 	addr := net.JoinHostPort("127.0.0.1", cfg.ACMETLSALPNPort)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("failed to run acme tls alpn server")
+		log.Ctx(ctx).Error().Err(err).Msg("failed to run acme tls alpn server")
 		return
 	}
 	mgr.acmeTLSALPNListener = ln

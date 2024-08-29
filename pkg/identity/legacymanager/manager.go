@@ -264,13 +264,13 @@ func (mgr *Manager) refreshSessionInternal(
 	metrics.RecordIdentityManagerSessionRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastSessionRefreshError, err)
 	if isTemporaryError(err) {
-		log.Error(ctx).Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to refresh oauth2 token")
 		return true
 	} else if err != nil {
-		log.Error(ctx).Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to refresh oauth2 token, deleting session")
@@ -283,13 +283,13 @@ func (mgr *Manager) refreshSessionInternal(
 	metrics.RecordIdentityManagerUserRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 	if isTemporaryError(err) {
-		log.Error(ctx).Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to update user info")
 		return true
 	} else if err != nil {
-		log.Error(ctx).Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to update user info, deleting session")
@@ -299,12 +299,12 @@ func (mgr *Manager) refreshSessionInternal(
 
 	fm, err := fieldmaskpb.New(s.Session, "oauth_token", "id_token", "claims")
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("internal error")
+		log.Ctx(ctx).Error().Err(err).Msg("internal error")
 		return false
 	}
 
 	if _, err := session.Patch(ctx, mgr.cfg.Load().dataBrokerClient, s.Session, fm); err != nil {
-		log.Error(ctx).Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to update session")
@@ -344,13 +344,13 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 		metrics.RecordIdentityManagerUserRefresh(ctx, err)
 		mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 		if isTemporaryError(err) {
-			log.Error(ctx).Err(err).
+			log.Ctx(ctx).Error().Err(err).
 				Str("user_id", s.GetUserId()).
 				Str("session_id", s.GetId()).
 				Msg("failed to update user info")
 			return
 		} else if err != nil {
-			log.Error(ctx).Err(err).
+			log.Ctx(ctx).Error().Err(err).
 				Str("user_id", s.GetUserId()).
 				Str("session_id", s.GetId()).
 				Msg("failed to update user info, deleting session")
@@ -360,7 +360,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 
 		res, err := databroker.Put(ctx, mgr.cfg.Load().dataBrokerClient, u.User)
 		if err != nil {
-			log.Error(ctx).Err(err).
+			log.Ctx(ctx).Error().Err(err).
 				Str("user_id", s.GetUserId()).
 				Str("session_id", s.GetId()).
 				Msg("failed to update user")
@@ -378,7 +378,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 			var pbSession session.Session
 			err := record.GetData().UnmarshalTo(&pbSession)
 			if err != nil {
-				log.Error(ctx).Msgf("error unmarshaling session: %s", err)
+				log.Ctx(ctx).Error().Msgf("error unmarshaling session: %s", err)
 				continue
 			}
 			mgr.onUpdateSession(record, &pbSession)
@@ -386,7 +386,7 @@ func (mgr *Manager) onUpdateRecords(ctx context.Context, msg updateRecordsMessag
 			var pbUser user.User
 			err := record.GetData().UnmarshalTo(&pbUser)
 			if err != nil {
-				log.Error(ctx).Msgf("error unmarshaling user: %s", err)
+				log.Ctx(ctx).Error().Msgf("error unmarshaling user: %s", err)
 				continue
 			}
 			mgr.onUpdateUser(ctx, record, &pbUser)
@@ -441,7 +441,7 @@ func (mgr *Manager) deleteSession(ctx context.Context, userID, sessionID string)
 	if status.Code(err) == codes.NotFound {
 		return
 	} else if err != nil {
-		log.Error(ctx).Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("session_id", sessionID).
 			Msg("failed to delete session")
 		return
@@ -454,7 +454,7 @@ func (mgr *Manager) deleteSession(ctx context.Context, userID, sessionID string)
 		Records: []*databroker.Record{record},
 	})
 	if err != nil {
-		log.Error(ctx).Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("session_id", sessionID).
 			Msg("failed to delete session")
 		return

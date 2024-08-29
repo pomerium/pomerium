@@ -51,7 +51,7 @@ func (src *LayeredSource) rebuild(ctx context.Context, next *Config) *Config {
 
 	cfg := next.Clone()
 	if err := src.builder(cfg); err != nil {
-		log.Error(ctx).Err(err).Msg("building config")
+		log.Ctx(ctx).Error().Err(err).Msg("building config")
 		cfg = next
 	}
 	src.cfg = cfg

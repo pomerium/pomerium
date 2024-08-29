@@ -28,6 +28,6 @@ func (h *healthCheckSrv) Check(ctx context.Context, req *grpc_health.HealthCheck
 
 // Watch is not implemented as is not used by Envoy
 func (h *healthCheckSrv) Watch(req *grpc_health.HealthCheckRequest, _ grpc_health.Health_WatchServer) error {
-	log.Error(context.Background()).Str("service", req.Service).Msg("health check watch")
+	log.Error().Str("service", req.Service).Msg("health check watch")
 	return status.Errorf(codes.Unimplemented, "method Watch not implemented")
 }

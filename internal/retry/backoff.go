@@ -32,7 +32,7 @@ func WithBackoff(ctx context.Context, name string, fn func(context.Context) erro
 		},
 		backoff.WithContext(b, ctx),
 		func(err error, next time.Duration) {
-			log.Error(ctx).Err(err).Str("service-name", name).Dur("next", next).Msg("retrying")
+			log.Ctx(ctx).Error().Err(err).Str("service-name", name).Dur("next", next).Msg("retrying")
 		},
 	)
 }

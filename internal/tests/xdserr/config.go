@@ -52,7 +52,7 @@ func DumpConfig(ctx context.Context, adminURL string) (*adminv3.RoutesConfigDump
 	for i, data := range cfg.Configs {
 		a := new(anypb.Any)
 		if err = opts.Unmarshal(data, a); err != nil {
-			log.Error(ctx).Err(err).Int("config", i).
+			log.Ctx(ctx).Error().Err(err).Int("config", i).
 				// RawJSON("data", data).
 				Msg("decode")
 		} else {

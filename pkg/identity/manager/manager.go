@@ -238,13 +238,13 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 	metrics.RecordIdentityManagerSessionRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastSessionRefreshError, err)
 	if isTemporaryError(err) {
-		log.Error(ctx).Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to refresh oauth2 token")
 		return
 	} else if err != nil {
-		log.Error(ctx).Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to refresh oauth2 token, deleting session")
@@ -257,13 +257,13 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 	metrics.RecordIdentityManagerUserRefresh(ctx, err)
 	mgr.recordLastError(metrics_ids.IdentityManagerLastUserRefreshError, err)
 	if isTemporaryError(err) {
-		log.Error(ctx).Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to update user info")
 		return
 	} else if err != nil {
-		log.Error(ctx).Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to update user info, deleting session")
@@ -376,7 +376,7 @@ func (mgr *Manager) updateSession(ctx context.Context, s *session.Session) {
 
 	fm, err := fieldmaskpb.New(s, "oauth_token", "id_token", "claims")
 	if err != nil {
-		log.Error(ctx).Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to create fieldmask for session")
@@ -385,7 +385,7 @@ func (mgr *Manager) updateSession(ctx context.Context, s *session.Session) {
 
 	_, err = session.Patch(ctx, mgr.cfg.Load().dataBrokerClient, s, fm)
 	if err != nil {
-		log.Error(ctx).Err(err).
+		log.Ctx(ctx).Error().Err(err).
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("failed to patch updated session record")

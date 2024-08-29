@@ -328,7 +328,7 @@ func SetDBConfigInfo(ctx context.Context, service, configID string, version uint
 		},
 		configDBVersion.M(int64(version)),
 	); err != nil {
-		log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to record config version number")
+		log.Ctx(ctx).Error().Err(err).Msg("telemetry/metrics: failed to record config version number")
 	}
 
 	if err := stats.RecordWithTags(
@@ -339,13 +339,13 @@ func SetDBConfigInfo(ctx context.Context, service, configID string, version uint
 		},
 		configDBErrors.M(errCount),
 	); err != nil {
-		log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to record config error count")
+		log.Ctx(ctx).Error().Err(err).Msg("telemetry/metrics: failed to record config error count")
 	}
 }
 
 // SetDBConfigRejected records that a certain databroker config version has been rejected
 func SetDBConfigRejected(ctx context.Context, service, configID string, version uint64, err error) {
-	log.Error(ctx).Err(err).Msg("databroker: invalid config detected, ignoring")
+	log.Ctx(ctx).Error().Err(err).Msg("databroker: invalid config detected, ignoring")
 	SetDBConfigInfo(ctx, service, configID, version, -1)
 }
 
@@ -361,7 +361,7 @@ func SetConfigInfo(ctx context.Context, service, configName string, checksum uin
 			[]tag.Mutator{serviceTag},
 			configLastReload.M(time.Now().Unix()),
 		); err != nil {
-			log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to record config checksum timestamp")
+			log.Ctx(ctx).Error().Err(err).Msg("telemetry/metrics: failed to record config checksum timestamp")
 		}
 
 		if err := stats.RecordWithTags(
@@ -369,7 +369,7 @@ func SetConfigInfo(ctx context.Context, service, configName string, checksum uin
 			[]tag.Mutator{serviceTag},
 			configLastReloadSuccess.M(1),
 		); err != nil {
-			log.Error(ctx).Err(err).Msg("telemetry/metrics: failed to record config reload")
+			log.Ctx(ctx).Error().Err(err).Msg("telemetry/metrics: failed to record config reload")
 		}
 	} else {
 		stats.Record(context.Background(), configLastReloadSuccess.M(0))

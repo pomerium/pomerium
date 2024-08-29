@@ -182,7 +182,7 @@ func getOrCreatePolicyEvaluators(
 	evals, errs := errgrouputil.Build(ctx, builders...)
 	if len(errs) > 0 {
 		for _, err := range errs {
-			log.Error(ctx).Msg(err.Error())
+			log.Ctx(ctx).Error().Msg(err.Error())
 		}
 		return nil, fmt.Errorf("authorize: error building policy evaluators")
 	}

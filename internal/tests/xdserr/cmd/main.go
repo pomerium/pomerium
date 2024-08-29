@@ -54,14 +54,14 @@ func main() {
 
 	toURL, err := url.Parse(*to)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg(*to)
+		log.Ctx(ctx).Error().Err(err).Msg(*to)
 		return
 	}
 
 	eg, ctx := errgroup.WithContext(ctx)
 	conn, err := grpcConn(ctx, *addr, *key)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("databroker grpc conn")
+		log.Ctx(ctx).Error().Err(err).Msg("databroker grpc conn")
 		return
 	}
 	defer conn.Close()
@@ -69,7 +69,7 @@ func main() {
 	if *to == "" {
 		*to, err = xdserr.RunEcho(ctx)
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("echo server")
+			log.Ctx(ctx).Error().Err(err).Msg("echo server")
 			return
 		}
 	}
@@ -84,7 +84,7 @@ func main() {
 		})
 	})
 	if err := eg.Wait(); err != nil {
-		log.Error(ctx).Err(err).Msg("altering config")
+		log.Ctx(ctx).Error().Err(err).Msg("altering config")
 	}
 }
 

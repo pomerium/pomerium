@@ -78,7 +78,7 @@ func Run(ctx context.Context, src config.Source) error {
 	src.OnConfigChange(ctx,
 		func(ctx context.Context, cfg *config.Config) {
 			if err := controlPlane.OnConfigChange(ctx, cfg); err != nil {
-				log.Error(ctx).Err(err).Msg("config change")
+				log.Ctx(ctx).Error().Err(err).Msg("config change")
 			}
 		})
 

@@ -178,7 +178,7 @@ func (a *Authorize) deniedResponse(
 		var err error
 		respBody, err = io.ReadAll(resp.Body)
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("error executing error template")
+			log.Ctx(ctx).Error().Err(err).Msg("error executing error template")
 			return nil, err
 		}
 		// convert go headers to envoy headers

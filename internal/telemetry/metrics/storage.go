@@ -57,6 +57,6 @@ func RecordStorageOperation(ctx context.Context, tags *StorageOperationTags, dur
 		storageOperationDuration.M(duration.Milliseconds()),
 	)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("internal/telemetry/metrics: failed to record")
+		log.Ctx(ctx).Error().Err(err).Msg("internal/telemetry/metrics: failed to record")
 	}
 }

@@ -234,7 +234,7 @@ func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) e
 	if err := authenticator.SignOut(w, r, rawIDToken, authenticateSignedOutURL, signOutURL); err == nil {
 		return nil
 	} else if !errors.Is(err, oidc.ErrSignoutNotImplemented) {
-		log.Error(r.Context()).Err(err).Msg("authenticate: failed to get sign out url for authenticator")
+		log.Ctx(r.Context()).Error().Err(err).Msg("authenticate: failed to get sign out url for authenticator")
 	}
 
 	// if the authenticator failed to sign out, and no sign out url is defined, just go to the signed out page

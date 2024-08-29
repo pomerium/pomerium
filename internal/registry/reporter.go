@@ -38,12 +38,12 @@ func (r *Reporter) OnConfigChange(ctx context.Context, cfg *config.Config) {
 
 	services, err := getReportedServices(cfg)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("metrics announce to service registry is disabled")
+		log.Ctx(ctx).Error().Err(err).Msg("metrics announce to service registry is disabled")
 	}
 
 	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("decoding shared key")
+		log.Ctx(ctx).Error().Err(err).Msg("decoding shared key")
 		return
 	}
 
@@ -54,7 +54,7 @@ func (r *Reporter) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		SignedJWTKey:   sharedKey,
 	})
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("connecting to registry")
+		log.Ctx(ctx).Error().Err(err).Msg("connecting to registry")
 		return
 	}
 
