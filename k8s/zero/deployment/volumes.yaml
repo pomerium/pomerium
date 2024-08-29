@@ -21,6 +21,7 @@ spec:
               name: tmp
             - mountPath: "/var/run/secrets/pomerium"
               name: bootstrap
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: {}
