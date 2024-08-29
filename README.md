@@ -9,11 +9,12 @@ Pomerium builds secure, clientless connections to internal web apps and services
 
 Pomerium is:
 
-- **Easier** because you don’t have to maintain a client or software.
-- **Faster** because it’s deployed directly where your apps and services are. No more expensive data backhauling.
-- **Safer** because every single action is verified for trusted identity, device, and context.
+- **Easier** with [clientless access](https://www.pomerium.com/clientless-access).
+- **Faster** by being [tunnel-free and deployed where your apps and services are](https://www.pomerium.com/vpn-replacement).
+- **Safer** because [every single action is verified](https://www.pomerium.com/continuous-verification-auditing) before allowed to execute.
+- **Tailored** to your organization’s needs by integrating all data for [context-aware access](https://www.pomerium.com/context-aware-access).
 
-It’s not a VPN alternative – it’s the trusted, foolproof way to protect your business.
+It’s not a VPN alternative – it’s the trusted, foolproof way to protect your business. [Give Pomerium a try today](https://console.pomerium.app/create-account?utm_source=github&utm_medium=readme&utm_campaign=github)!
 
 ## Docs
 
