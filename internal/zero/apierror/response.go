@@ -47,6 +47,19 @@ func responseError[T any](resp APIResponse[T]) error {
 	if ok {
 		return fmt.Errorf("internal server error: %v", reason)
 	}
+
+	if f, ok := resp.(interface{ GetForbiddenError() (string, bool) }); ok {
+		if reason, ok := f.GetForbiddenError(); ok {
+			return fmt.Errorf("forbidden: %v", reason)
+		}
+	}
+
+	if f, ok := resp.(interface{ GetNotFoundError() (string, bool) }); ok {
+		if reason, ok := f.GetNotFoundError(); ok {
+			return fmt.Errorf("not found: %v", reason)
+		}
+	}
+
 	//nolint:bodyclose
 	httpResp := resp.GetHTTPResponse()
 	if httpResp == nil {
