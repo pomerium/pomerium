@@ -14,7 +14,7 @@ Pomerium is:
 - **Safer** because [every single action is verified](https://www.pomerium.com/continuous-verification-auditing) before allowed to execute.
 - **Tailored** to your organization’s needs by integrating all data for [context-aware access](https://www.pomerium.com/context-aware-access).
 
-It’s not a VPN alternative – it’s the trusted, foolproof way to protect your business. [Give Pomerium a try today](https://console.pomerium.app/create-account?utm_source=github&utm_medium=readme&utm_campaign=github)!
+It’s not a VPN alternative – it’s the trusted, foolproof way to protect your business. Want a hosted control plane and management GUI? [Give Pomerium a try today](https://console.pomerium.app/create-account?utm_source=github&utm_medium=readme&utm_campaign=github)!
 
 ## Docs
 
