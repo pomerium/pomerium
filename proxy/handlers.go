@@ -182,7 +182,9 @@ func userInfoFromJWT(rawJWT string) map[string]any {
 	}
 
 	var payload map[string]any
-	if parsed.UnsafeClaimsWithoutVerification(&payload) != nil || payload["sub"] == "" {
+	if parsed.UnsafeClaimsWithoutVerification(&payload) != nil {
+		return nil
+	} else if sub, ok := payload["sub"].(string); !ok || sub == "" {
 		return nil
 	}
 

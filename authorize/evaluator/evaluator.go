@@ -238,9 +238,15 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	return res, nil
 }
 
+// Internal endpoints that require a logged-in user.
+var internalPathsNeedingLogin = map[string]struct{}{
+	"/.pomerium/jwt":      {},
+	"/.pomerium/user":     {},
+	"/.pomerium/webauthn": {},
+}
+
 func (e *Evaluator) evaluateInternal(_ context.Context, req *Request) (*PolicyResponse, error) {
-	// these endpoints require a logged-in user
-	if req.HTTP.Path == "/.pomerium/webauthn" || req.HTTP.Path == "/.pomerium/jwt" {
+	if _, needsLogin := internalPathsNeedingLogin[req.HTTP.Path]; needsLogin {
 		if req.Session.ID == "" {
 			return &PolicyResponse{
 				Allow: NewRuleResult(false, criteria.ReasonUserUnauthenticated),
