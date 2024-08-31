@@ -2,6 +2,7 @@ package token_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -51,15 +52,28 @@ func TestCache(t *testing.T) {
 		assert.Equal(t, "bearer-3", bearer)
 	})
 
-	t.Run("token cannot fit minTTL", func(t *testing.T) {
+	t.Run("reset", func(t *testing.T) {
 		t.Parallel()
 
+		var calls int
 		fetcher := func(_ context.Context, _ string) (*token.Token, error) {
-			return &token.Token{"ok-bearer", time.Now().Add(time.Minute)}, nil
+			calls++
+			return &token.Token{fmt.Sprintf("bearer-%d", calls), time.Now().Add(time.Hour)}, nil
 		}
 
+		ctx := context.Background()
 		c := token.NewCache(fetcher, "test-refresh-token")
-		_, err := c.GetToken(context.Background(), time.Minute*2)
-		assert.Error(t, err)
+		got, err := c.GetToken(ctx, time.Minute*2)
+		assert.NoError(t, err)
+		assert.Equal(t, "bearer-1", got)
+
+		got, err = c.GetToken(ctx, time.Minute*2)
+		assert.NoError(t, err)
+		assert.Equal(t, "bearer-1", got)
+
+		c.Reset()
+		got, err = c.GetToken(ctx, time.Minute*2)
+		assert.NoError(t, err)
+		assert.Equal(t, "bearer-2", got)
 	})
 }
