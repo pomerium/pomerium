@@ -18,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/errgrouputil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/sets"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -239,14 +240,14 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 }
 
 // Internal endpoints that require a logged-in user.
-var internalPathsNeedingLogin = map[string]struct{}{
-	"/.pomerium/jwt":      {},
-	"/.pomerium/user":     {},
-	"/.pomerium/webauthn": {},
-}
+var internalPathsNeedingLogin = sets.NewHash(
+	"/.pomerium/jwt",
+	"/.pomerium/user",
+	"/.pomerium/webauthn",
+)
 
 func (e *Evaluator) evaluateInternal(_ context.Context, req *Request) (*PolicyResponse, error) {
-	if _, needsLogin := internalPathsNeedingLogin[req.HTTP.Path]; needsLogin {
+	if internalPathsNeedingLogin.Has(req.HTTP.Path) {
 		if req.Session.ID == "" {
 			return &PolicyResponse{
 				Allow: NewRuleResult(false, criteria.ReasonUserUnauthenticated),
