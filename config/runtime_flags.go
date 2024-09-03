@@ -3,20 +3,22 @@ package config
 import "maps"
 
 var (
-	// RuntimeFlagGRPCDatabrokerKeepalive enables gRPC keepalive to the databroker service
-	RuntimeFlagGRPCDatabrokerKeepalive = runtimeFlag("grpc_databroker_keepalive", false)
-
-	// RuntimeFlagMatchAnyIncomingPort enables ignoring the incoming port when matching routes
-	RuntimeFlagMatchAnyIncomingPort = runtimeFlag("match_any_incoming_port", true)
-
-	// RuntimeFlagLegacyIdentityManager enables the legacy identity manager
-	RuntimeFlagLegacyIdentityManager = runtimeFlag("legacy_identity_manager", false)
-
 	// RuntimeFlagConfigHotReload enables the hot-reloading mechanism for the config file
 	// and any other files referenced within it
 	RuntimeFlagConfigHotReload = runtimeFlag("config_hot_reload", true)
 
-	RuntimeFlagEnvoyResourceManagerEnabled = runtimeFlag("envoy_resource_manager_enabled", true)
+	// RuntimeFlagEnvoyResourceManager enables Envoy overload settings based on
+	// process cgroup limits (Linux only).
+	RuntimeFlagEnvoyResourceManager = runtimeFlag("envoy_resource_manager", true)
+
+	// RuntimeFlagGRPCDatabrokerKeepalive enables gRPC keepalive to the databroker service
+	RuntimeFlagGRPCDatabrokerKeepalive = runtimeFlag("grpc_databroker_keepalive", false)
+
+	// RuntimeFlagLegacyIdentityManager enables the legacy identity manager
+	RuntimeFlagLegacyIdentityManager = runtimeFlag("legacy_identity_manager", false)
+
+	// RuntimeFlagMatchAnyIncomingPort enables ignoring the incoming port when matching routes
+	RuntimeFlagMatchAnyIncomingPort = runtimeFlag("match_any_incoming_port", true)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features
