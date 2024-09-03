@@ -1,7 +1,9 @@
 package controlplane
 
 import (
+	"bufio"
 	"context"
+	"io"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -137,6 +139,25 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 	srv.DebugRouter.Path("/debug/pprof/symbol").HandlerFunc(pprof.Symbol)
 	srv.DebugRouter.Path("/debug/pprof/trace").HandlerFunc(pprof.Trace)
 	srv.DebugRouter.PathPrefix("/debug/pprof/").HandlerFunc(pprof.Index)
+	srv.DebugRouter.Path("/debug/logs").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reader, writer := io.Pipe()
+		go func() {
+			scan := bufio.NewScanner(reader)
+			wf := w.(http.Flusher)
+			for scan.Scan() {
+				_, _ = w.Write(scan.Bytes())
+				_, _ = w.Write([]byte("\n"))
+				wf.Flush()
+			}
+		}()
+		defer reader.Close()
+		defer writer.Close()
+		log.Writer.Add(writer)
+		log.Ctx(r.Context()).Info().Msg("streaming logs")
+		defer log.Writer.Remove(writer)
+		defer log.Ctx(r.Context()).Info().Msg("done streaming logs")
+		<-r.Context().Done()
+	})
 
 	// metrics
 	srv.MetricsRouter.Handle("/metrics", srv.metricsMgr)
@@ -195,8 +216,6 @@ func (srv *Server) Run(ctx context.Context) error {
 		{"debug", srv.DebugListener, srv.DebugRouter},
 		{"metrics", srv.MetricsListener, srv.MetricsRouter},
 	} {
-		entry := entry
-
 		// start the HTTP server
 		eg.Go(func() error {
 			log.Debug(ctx).

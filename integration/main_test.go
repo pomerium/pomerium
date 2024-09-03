@@ -2,9 +2,12 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -20,6 +23,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -218,4 +222,129 @@ func loadCertificate(t *testing.T, certName string) tls.Certificate {
 		t.Fatal(err)
 	}
 	return cert
+}
+
+func captureLogs(ctx context.Context, out chan<- string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://debug.localhost.pomerium.io/debug/logs", nil)
+	if err != nil {
+		return err
+	}
+	client := getClient(nil)
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	go func() {
+		defer close(out)
+		scan := bufio.NewScanner(resp.Body)
+		for scan.Scan() {
+			line := scan.Text()
+			out <- line
+		}
+	}()
+	return nil
+}
+
+type (
+	openMap   = map[string]any
+	closedMap map[string]any
+)
+
+func assertMatchingLogs(t *testing.T, c <-chan string, expectedLogs []map[string]any) {
+	actualLogs := []map[string]any{}
+	for log := range c {
+		m := map[string]any{}
+		decoder := json.NewDecoder(bytes.NewReader([]byte(log)))
+		decoder.UseNumber()
+		require.NoError(t, decoder.Decode(&m))
+		actualLogs = append(actualLogs, m)
+	}
+
+	var match func(expected, actual map[string]any, open bool) (bool, int)
+	match = func(expected, actual map[string]any, open bool) (bool, int) {
+		score := 0
+		for key, value := range expected {
+			actualValue, ok := actual[key]
+			if !ok {
+				return false, score
+			}
+			score++
+
+			switch actualValue := actualValue.(type) {
+			case map[string]any:
+				switch value := value.(type) {
+				case closedMap:
+					ok, s := match(value, actualValue, false)
+					score += s * 2
+					if !ok {
+						return false, score
+					}
+				case openMap:
+					ok, s := match(value, actualValue, true)
+					score += s
+					if !ok {
+						return false, score
+					}
+				default:
+					return false, score
+				}
+			case string:
+				switch value := value.(type) {
+				case string:
+					if value != actualValue {
+						return false, score
+					}
+					score++
+				default:
+					return false, score
+				}
+			case json.Number:
+				if fmt.Sprint(value) != actualValue.String() {
+					return false, score
+				}
+				score++
+			default:
+				panic(fmt.Sprintf("test bug: add check for type %T in assertMatchingLogs", actualValue))
+			}
+		}
+		if !open && len(expected) != len(actual) {
+			return false, score
+		}
+		return true, score
+	}
+
+	for _, expectedLog := range expectedLogs {
+		found := false
+
+		highScore, highScoreIdxs := 0, []int{}
+		for i, actualLog := range actualLogs {
+			if ok, score := match(expectedLog, actualLog, true); ok {
+				found = true
+				break
+			} else if score > highScore {
+				highScore = score
+				highScoreIdxs = []int{i}
+			} else if score == highScore {
+				highScoreIdxs = append(highScoreIdxs, i)
+			}
+		}
+		if len(highScoreIdxs) > 0 {
+			expectedLogBytes, _ := json.MarshalIndent(expectedLog, "", " ")
+			if len(highScoreIdxs) == 1 {
+				actualLogBytes, _ := json.MarshalIndent(actualLogs[highScoreIdxs[0]], "", " ")
+				require.True(t, found, "expected log not found: \n%s\n\nclosest match:\n%s\n",
+					string(expectedLogBytes), string(actualLogBytes))
+			} else {
+				closestMatches := []string{}
+				for _, i := range highScoreIdxs {
+					bytes, _ := json.MarshalIndent(actualLogs[i], "", " ")
+					closestMatches = append(closestMatches, string(bytes))
+				}
+				require.True(t, found, "expected log not found: \n%s\n\nclosest matches:\n%s\n", string(expectedLogBytes), closestMatches)
+			}
+		} else {
+			expectedLogBytes, _ := json.MarshalIndent(expectedLog, "", " ")
+			require.True(t, found, "expected log not found: %s", string(expectedLogBytes))
+		}
+	}
 }
