@@ -46,7 +46,7 @@ func TestAPIClient(t *testing.T) {
 	require.NoError(t, err)
 
 	tokenCache := token.NewCache(fetcher, "refresh-token")
-	client, err := api.NewAuthorizedClient(srv.URL, tokenCache.GetToken, http.DefaultClient)
+	client, err := api.NewAuthorizedClient(srv.URL, tokenCache, http.DefaultClient)
 	require.NoError(t, err)
 
 	resp, err := client.ExchangeClusterIdentityTokenWithResponse(context.Background(),

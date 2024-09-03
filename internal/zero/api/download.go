@@ -56,6 +56,10 @@ func (api *API) DownloadClusterResourceBundle(
 		return newContentNotModifiedDownloadResult(resp.Header.Get("Last-Modified") != current.LastModified), nil
 	}
 
+	if resp.StatusCode == http.StatusUnauthorized {
+		api.downloadURLCache.Delete(id)
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, httpDownloadError(ctx, resp)
 	}
@@ -106,6 +110,10 @@ func (api *API) HeadClusterResourceBundle(
 		Interface("response_headers", resp.Header).
 		Str("status", resp.Status).
 		Msg("bundle metadata request")
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		api.downloadURLCache.Delete(id)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, httpDownloadError(ctx, resp)
@@ -180,7 +188,7 @@ func (api *API) getDownloadParams(ctx context.Context, id string) (*cluster_api.
 func (api *API) updateBundleDownloadParams(ctx context.Context, id string) (*cluster_api.DownloadCacheEntry, error) {
 	now := time.Now()
 
-	resp, err := apierror.CheckResponse[cluster_api.DownloadBundleResponse](
+	resp, err := apierror.CheckResponse(
 		api.cluster.DownloadClusterResourceBundleWithResponse(ctx, id),
 	)
 	if err != nil {
@@ -197,11 +205,13 @@ func (api *API) updateBundleDownloadParams(ctx context.Context, id string) (*clu
 		return nil, fmt.Errorf("parse url: %w", err)
 	}
 
+	expires := now.Add(time.Duration(expiresSeconds) * time.Second)
 	param := cluster_api.DownloadCacheEntry{
 		URL:            *u,
-		ExpiresAt:      now.Add(time.Duration(expiresSeconds) * time.Second),
+		ExpiresAt:      expires,
 		CaptureHeaders: resp.CaptureMetadataHeaders,
 	}
+	log.Ctx(ctx).Debug().Time("expires", expires).Msg("bundle download URL updated")
 	api.downloadURLCache.Set(id, param)
 	return &param, nil
 }
@@ -323,7 +333,7 @@ func isXML(ct string) bool {
 }
 
 func extractMetadata(header http.Header, keys []string) map[string]string {
-	log.Info().Interface("header", header).Msg("extract metadata")
+	log.Debug().Interface("header", header).Msg("extract metadata")
 	m := make(map[string]string)
 	for _, k := range keys {
 		v := header.Get(k)

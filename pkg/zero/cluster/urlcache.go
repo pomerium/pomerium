@@ -29,6 +29,13 @@ func NewURLCache() *URLCache {
 	}
 }
 
+func (c *URLCache) Delete(key string) {
+	c.mx.Lock()
+	defer c.mx.Unlock()
+
+	delete(c.cache, key)
+}
+
 // Get gets the cache entry for the given key, if it exists and has not expired.
 func (c *URLCache) Get(key string, minTTL time.Duration) (*DownloadCacheEntry, bool) {
 	c.mx.RLock()
