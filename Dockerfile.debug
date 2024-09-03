@@ -1,4 +1,4 @@
-FROM node:lts-bookworm@sha256:1ae9ba874435551280e95c8a8e74adf8a48d72b564bf9dfe4718231f2144c88f as ui
+FROM node:lts-bookworm@sha256:a4d1de4c7339eabcf78a90137dfd551b798829e3ef3e399e0036ac454afa1291 as ui
 WORKDIR /build
 
 COPY .git ./.git
@@ -13,7 +13,7 @@ RUN make yarn
 COPY ./ui/ ./ui/
 RUN make build-ui
 
-FROM golang:1.23-bookworm@sha256:4bda3420962ddfc78467f81eb9c2880e29e53604c6c05eae597210fc0fe8b5bf as build
+FROM golang:1.23-bookworm@sha256:31dc846dd1bcca84d2fa231bcd16c09ff271bcc1a5ae2c48ff10f13b039688f3 as build
 WORKDIR /go/src/github.com/pomerium/pomerium
 
 RUN apt-get update \
