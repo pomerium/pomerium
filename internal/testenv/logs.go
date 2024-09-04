@@ -7,7 +7,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"sync"
 	"testing"
@@ -24,7 +26,7 @@ import (
 type LogRecorder struct {
 	LogRecorderOptions
 	t            testing.TB
-	buf          *bytes.Buffer
+	buf          *buffer
 	recordedLogs []map[string]any
 
 	closeOnce       func()
@@ -32,7 +34,8 @@ type LogRecorder struct {
 }
 
 type LogRecorderOptions struct {
-	filters []func(map[string]any) bool
+	filters        []func(map[string]any) bool
+	skipCloseDelay bool
 }
 
 type LogRecorderOption func(*LogRecorderOptions)
@@ -52,18 +55,88 @@ func WithFilters(filters ...func(map[string]any) bool) LogRecorderOption {
 	}
 }
 
+// WithSkipCloseDelay skips the 1.1 second delay before closing the recorder.
+// This delay is normally required to ensure Envoy access logs are flushed,
+// but can be skipped if not required.
+func WithSkipCloseDelay() LogRecorderOption {
+	return func(o *LogRecorderOptions) {
+		o.skipCloseDelay = true
+	}
+}
+
+type buffer struct {
+	mu         *sync.Mutex
+	underlying bytes.Buffer
+	cond       *sync.Cond
+	waiting    bool
+	closed     bool
+}
+
+func newBuffer() *buffer {
+	mu := &sync.Mutex{}
+	return &buffer{
+		mu:   mu,
+		cond: sync.NewCond(mu),
+	}
+}
+
+// Read implements io.ReadWriteCloser.
+func (b *buffer) Read(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for {
+		n, err := b.underlying.Read(p)
+		if errors.Is(err, io.EOF) && !b.closed {
+			b.waiting = true
+			b.cond.Wait()
+			continue
+		}
+		return n, err
+	}
+}
+
+// Write implements io.ReadWriteCloser.
+func (b *buffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.closed {
+		return 0, io.ErrClosedPipe
+	}
+	if b.waiting {
+		b.waiting = false
+		defer b.cond.Signal()
+	}
+	return b.underlying.Write(p)
+}
+
+// Close implements io.ReadWriteCloser.
+func (b *buffer) Close() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.closed {
+		panic("Close() called twice")
+	}
+	b.closed = true
+	b.cond.Signal()
+	return nil
+}
+
+var _ io.ReadWriteCloser = (*buffer)(nil)
+
 func (e *environment) NewLogRecorder(opts ...LogRecorderOption) *LogRecorder {
 	options := LogRecorderOptions{}
 	options.apply(opts...)
 	lr := &LogRecorder{
 		LogRecorderOptions: options,
 		t:                  e.t,
-		buf:                &bytes.Buffer{},
+		buf:                newBuffer(),
 	}
 	e.logWriter.Add(lr.buf)
 	lr.closeOnce = sync.OnceFunc(func() {
 		// wait for envoy access logs, which flush on a 1 second interval
-		time.Sleep(1100 * time.Millisecond)
+		if !lr.skipCloseDelay {
+			time.Sleep(1100 * time.Millisecond)
+		}
 		e.logWriter.Remove(lr.buf)
 	})
 	context.AfterFunc(e.ctx, lr.closeOnce)
@@ -86,8 +159,10 @@ func (lr *LogRecorder) Close() {
 	lr.closeOnce()
 }
 
-func (lr *LogRecorder) collectLogs() {
-	lr.closeOnce()
+func (lr *LogRecorder) collectLogs(shouldClose bool) {
+	if shouldClose {
+		lr.closeOnce()
+	}
 	lr.collectLogsOnce.Do(func() {
 		recordedLogs := []map[string]any{}
 		scan := bufio.NewScanner(lr.buf)
@@ -108,10 +183,41 @@ func (lr *LogRecorder) collectLogs() {
 	})
 }
 
+func (lr *LogRecorder) WaitForMatch(expectedLog map[string]any, timeout ...time.Duration) {
+	lr.skipCloseDelay = true
+	found := make(chan struct{})
+	done := make(chan struct{})
+	lr.filters = append(lr.filters, func(entry map[string]any) bool {
+		select {
+		case <-found:
+		default:
+			if matched, _ := match(expectedLog, entry, true); matched {
+				close(found)
+			}
+		}
+		return true
+	})
+	go func() {
+		defer close(done)
+		lr.collectLogs(false)
+		lr.closeOnce()
+	}()
+	if len(timeout) == 0 {
+		timeout = append(timeout, 1*time.Minute)
+	}
+	select {
+	case <-found:
+	case <-time.After(timeout[0]):
+		lr.t.Error("timed out waiting for log")
+	}
+	lr.buf.Close()
+	<-done
+}
+
 // Logs stops the log recorder (if it is not already stopped), then returns
 // the logs that were captured as structured map[string]any objects.
 func (lr *LogRecorder) Logs() []map[string]any {
-	lr.collectLogs()
+	lr.collectLogs(true)
 	return lr.recordedLogs
 }
 
@@ -127,114 +233,9 @@ func (lr *LogRecorder) Logs() []map[string]any {
 //   - [*tls.Certificate] or [*x509.Certificate] will expand to the fields that
 //     would be logged for this certificate
 func (lr *LogRecorder) Match(expectedLogs []map[string]any) {
-	lr.collectLogs()
-	var match func(expected, actual map[string]any, open bool) (bool, int)
-	match = func(expected, actual map[string]any, open bool) (bool, int) {
-		score := 0
-		for key, value := range expected {
-			actualValue, ok := actual[key]
-			if !ok {
-				return false, score
-			}
-			score++
-
-			switch actualValue := actualValue.(type) {
-			case map[string]any:
-				switch expectedValue := value.(type) {
-				case ClosedMap:
-					ok, s := match(expectedValue, actualValue, false)
-					score += s * 2
-					if !ok {
-						return false, score
-					}
-				case OpenMap:
-					ok, s := match(expectedValue, actualValue, true)
-					score += s
-					if !ok {
-						return false, score
-					}
-				case *tls.Certificate, *Certificate, *x509.Certificate:
-					var leaf *x509.Certificate
-					switch expectedValue := expectedValue.(type) {
-					case *tls.Certificate:
-						leaf = expectedValue.Leaf
-					case *Certificate:
-						leaf = expectedValue.Leaf
-					case *x509.Certificate:
-						leaf = expectedValue
-					}
-
-					// keep logic consistent with controlplane.populateCertEventDict()
-					expected := map[string]any{}
-					if iss := leaf.Issuer.String(); iss != "" {
-						expected["issuer"] = iss
-					}
-					if sub := leaf.Subject.String(); sub != "" {
-						expected["subject"] = sub
-					}
-					sans := []string{}
-					for _, dnsSAN := range leaf.DNSNames {
-						sans = append(sans, "DNS:"+dnsSAN)
-					}
-					for _, uriSAN := range leaf.URIs {
-						sans = append(sans, "URI:"+uriSAN.String())
-					}
-					if len(sans) > 0 {
-						expected["subjectAltName"] = sans
-					}
-
-					ok, s := match(expected, actualValue, false)
-					score += s
-					if !ok {
-						return false, score
-					}
-				default:
-					return false, score
-				}
-			case string:
-				switch value := value.(type) {
-				case string:
-					if value != actualValue {
-						return false, score
-					}
-					score++
-				default:
-					return false, score
-				}
-			case json.Number:
-				if fmt.Sprint(value) != actualValue.String() {
-					return false, score
-				}
-				score++
-			default:
-				// handle slices
-				if reflect.TypeOf(actualValue).Kind() == reflect.Slice {
-					if reflect.TypeOf(value) != reflect.TypeOf(actualValue) {
-						return false, score
-					}
-					actualSlice := reflect.ValueOf(actualValue)
-					expectedSlice := reflect.ValueOf(value)
-					totalScore := 0
-					for i := range min(actualSlice.Len(), expectedSlice.Len()) {
-						if actualSlice.Index(i).Equal(expectedSlice.Index(i)) {
-							totalScore++
-						}
-					}
-					score += totalScore
-				} else {
-					panic(fmt.Sprintf("test bug: add check for type %T in assertMatchingLogs", actualValue))
-				}
-			}
-		}
-		if !open && len(expected) != len(actual) {
-			return false, score
-		}
-		return true, score
-	}
-
+	lr.collectLogs(true)
 	for _, expectedLog := range expectedLogs {
 		found := false
-
 		highScore, highScoreIdxs := 0, []int{}
 		for i, actualLog := range lr.recordedLogs {
 			if ok, score := match(expectedLog, actualLog, true); ok {
@@ -266,4 +267,106 @@ func (lr *LogRecorder) Match(expectedLogs []map[string]any) {
 			assert.True(lr.t, found, "expected log not found: %s", string(expectedLogBytes))
 		}
 	}
+}
+
+func match(expected, actual map[string]any, open bool) (matched bool, score int) {
+	for key, value := range expected {
+		actualValue, ok := actual[key]
+		if !ok {
+			return false, score
+		}
+		score++
+
+		switch actualValue := actualValue.(type) {
+		case map[string]any:
+			switch expectedValue := value.(type) {
+			case ClosedMap:
+				ok, s := match(expectedValue, actualValue, false)
+				score += s * 2
+				if !ok {
+					return false, score
+				}
+			case OpenMap:
+				ok, s := match(expectedValue, actualValue, true)
+				score += s
+				if !ok {
+					return false, score
+				}
+			case *tls.Certificate, *Certificate, *x509.Certificate:
+				var leaf *x509.Certificate
+				switch expectedValue := expectedValue.(type) {
+				case *tls.Certificate:
+					leaf = expectedValue.Leaf
+				case *Certificate:
+					leaf = expectedValue.Leaf
+				case *x509.Certificate:
+					leaf = expectedValue
+				}
+
+				// keep logic consistent with controlplane.populateCertEventDict()
+				expected := map[string]any{}
+				if iss := leaf.Issuer.String(); iss != "" {
+					expected["issuer"] = iss
+				}
+				if sub := leaf.Subject.String(); sub != "" {
+					expected["subject"] = sub
+				}
+				sans := []string{}
+				for _, dnsSAN := range leaf.DNSNames {
+					sans = append(sans, "DNS:"+dnsSAN)
+				}
+				for _, uriSAN := range leaf.URIs {
+					sans = append(sans, "URI:"+uriSAN.String())
+				}
+				if len(sans) > 0 {
+					expected["subjectAltName"] = sans
+				}
+
+				ok, s := match(expected, actualValue, false)
+				score += s
+				if !ok {
+					return false, score
+				}
+			default:
+				return false, score
+			}
+		case string:
+			switch value := value.(type) {
+			case string:
+				if value != actualValue {
+					return false, score
+				}
+				score++
+			default:
+				return false, score
+			}
+		case json.Number:
+			if fmt.Sprint(value) != actualValue.String() {
+				return false, score
+			}
+			score++
+		default:
+			// handle slices
+			if reflect.TypeOf(actualValue).Kind() == reflect.Slice {
+				if reflect.TypeOf(value) != reflect.TypeOf(actualValue) {
+					return false, score
+				}
+				actualSlice := reflect.ValueOf(actualValue)
+				expectedSlice := reflect.ValueOf(value)
+				totalScore := 0
+				for i := range min(actualSlice.Len(), expectedSlice.Len()) {
+					if actualSlice.Index(i).Equal(expectedSlice.Index(i)) {
+						totalScore++
+					}
+				}
+				score += totalScore
+			} else {
+				panic(fmt.Sprintf("test bug: add check for type %T in assertMatchingLogs", actualValue))
+			}
+		}
+	}
+	if !open && len(expected) != len(actual) {
+		return false, score
+	}
+	return true, score
 }

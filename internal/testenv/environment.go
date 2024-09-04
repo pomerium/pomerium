@@ -280,7 +280,7 @@ func (e *environment) Start() {
 	port0, _ := strconv.Atoi(ports[0])
 	e.ports.http.Resolve(port0)
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
-	cfg.Options.LogLevel = config.LogLevelInfo
+	cfg.Options.LogLevel = config.LogLevelDebug
 	cfg.Options.ProxyLogLevel = config.LogLevelInfo
 	cfg.Options.Addr = fmt.Sprintf("127.0.0.1:%d", port0)
 	cfg.Options.CertFile = filepath.Join(e.tempDir, "certs", "trusted.pem")
