@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: StatefulSet
+kind: Deployment
 metadata:
   name: pomerium
 spec:
@@ -13,22 +13,22 @@ spec:
             - name: TMPDIR
               value: "/tmp/pomerium"
             - name: XDG_CACHE_HOME
-              value: "/var/cache"
+              value: "/tmp/pomerium/cache"
             - name: XDG_DATA_HOME
-              value: "/var/cache"
+              value: "/tmp/pomerium/cache"
           volumeMounts:
             - mountPath: "/tmp/pomerium"
               name: tmp
-            - mountPath: "/var/cache"
-              name: pomerium-cache
+            - mountPath: "/var/run/secrets/pomerium"
+              name: bootstrap
+              readOnly: true
       volumes:
         - name: tmp
           emptyDir: {}
-  volumeClaimTemplates:
-  - metadata:
-      name: pomerium-cache
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 100Mi
+        - name: bootstrap
+          secret:
+            optional: true
+            secretName: pomerium
+            items:
+              - key: bootstrap
+                path: bootstrap.dat

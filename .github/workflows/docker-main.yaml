@@ -45,7 +45,7 @@ jobs:
           echo "sha-tag=${SHA_TAG}" >> $GITHUB_OUTPUT
 
       - name: Docker Publish - Main
-        uses: docker/build-push-action@5176d81f87c23d6fc96624dfdbcd9f3830bbe445
+        uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85
         with:
           context: .
           file: ./Dockerfile
@@ -58,7 +58,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Docker Publish - Debug
-        uses: docker/build-push-action@5176d81f87c23d6fc96624dfdbcd9f3830bbe445
+        uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85
         with:
           context: .
           file: ./Dockerfile.debug
@@ -81,7 +81,7 @@ jobs:
           token: ${{ secrets.APPARITOR_GITHUB_TOKEN }}
 
       - name: Bump psql environment
-        uses: mikefarah/yq@f15500b20a1c991c8729870ba60a4dc3524b6a94
+        uses: mikefarah/yq@bbdd97482f2d439126582a59689eb1c855944955
         with:
           cmd:
             yq eval '.pomerium.image.tag = "${{ needs.publish.outputs.sha-tag }}"' -i
