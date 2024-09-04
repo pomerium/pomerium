@@ -19,6 +19,12 @@ var (
 
 	// RuntimeFlagMatchAnyIncomingPort enables ignoring the incoming port when matching routes
 	RuntimeFlagMatchAnyIncomingPort = runtimeFlag("match_any_incoming_port", true)
+
+	// RuntimeFlagPomeriumJWTEndpoint enables the /.pomerium/jwt endpoint, for retrieving
+	// signed user info claims from an upstream single-page web application. This endpoint
+	// is deprecated pending removal in a future release, but this flag allows a temporary
+	// opt-out from the deprecation.
+	RuntimeFlagPomeriumJWTEndpoint = runtimeFlag("pomerium_jwt_endpoint", false)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features

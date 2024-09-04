@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/gorilla/mux"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
@@ -16,15 +18,18 @@ import (
 )
 
 // registerDashboardHandlers returns the proxy service's ServeMux
-func (p *Proxy) registerDashboardHandlers(r *mux.Router) *mux.Router {
+func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *mux.Router {
 	h := httputil.DashboardSubrouter(r)
 	h.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
 
 	// special pomerium endpoints for users to view their session
 	h.Path("/").Handler(httputil.HandlerFunc(p.userInfo)).Methods(http.MethodGet)
 	h.Path("/device-enrolled").Handler(httputil.HandlerFunc(p.deviceEnrolled))
-	h.Path("/jwt").Handler(httputil.HandlerFunc(p.jwtAssertion)).Methods(http.MethodGet)
+	if opts.IsRuntimeFlagSet(config.RuntimeFlagPomeriumJWTEndpoint) {
+		h.Path("/jwt").Handler(httputil.HandlerFunc(p.jwtAssertion)).Methods(http.MethodGet)
+	}
 	h.Path("/sign_out").Handler(httputil.HandlerFunc(p.SignOut)).Methods(http.MethodGet, http.MethodPost)
+	h.Path("/user").Handler(httputil.HandlerFunc(p.jsonUserInfo)).Methods(http.MethodGet)
 	h.Path("/webauthn").Handler(p.webauthn)
 
 	// called following authenticate auth flow to grab a new or existing session
@@ -139,24 +144,54 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 // jwtAssertion returns the current request's JWT assertion (rfc7519#section-10.3.1).
 func (p *Proxy) jwtAssertion(w http.ResponseWriter, r *http.Request) error {
 	rawAssertionJWT := r.Header.Get(httputil.HeaderPomeriumJWTAssertion)
-	if rawAssertionJWT == "" {
+	if info := userInfoFromJWT(rawAssertionJWT); info == nil {
 		return httputil.NewError(http.StatusNotFound, errors.New("jwt not found"))
-	}
-
-	assertionJWT, err := jwt.ParseSigned(rawAssertionJWT)
-	if err != nil {
-		return httputil.NewError(http.StatusNotFound, errors.New("jwt not found"))
-	}
-
-	var dst struct {
-		Subject string `json:"sub"`
-	}
-	if assertionJWT.UnsafeClaimsWithoutVerification(&dst) != nil || dst.Subject == "" {
-		return httputil.NewError(http.StatusUnauthorized, errors.New("jwt not found"))
 	}
 
 	w.Header().Set("Content-Type", "application/jwt")
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.WriteString(w, rawAssertionJWT)
 	return nil
+}
+
+// jsonUserInfo serves the same user info as in the Pomerium JWT, but as a plain JSON object.
+// Note that this is a subset of the full IdP user info from the main HTML user info page.
+func (p *Proxy) jsonUserInfo(w http.ResponseWriter, r *http.Request) error {
+	userInfo := userInfoFromJWT(r.Header.Get(httputil.HeaderPomeriumJWTAssertion))
+	if userInfo == nil {
+		return httputil.NewError(http.StatusNotFound, errors.New("not found"))
+	}
+
+	b, err := json.Marshal(userInfo)
+	if err != nil {
+		return httputil.NewError(http.StatusNotFound, errors.New("not found"))
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(b)
+	return nil
+}
+
+// userInfoFromJWT extracts user info claims from the Pomerium JWT. Returns nil
+// if the JWT could not be parsed or if it does not contain a subject.
+func userInfoFromJWT(rawJWT string) map[string]any {
+	parsed, err := jwt.ParseSigned(rawJWT)
+	if err != nil {
+		return nil
+	}
+
+	var payload map[string]any
+	if parsed.UnsafeClaimsWithoutVerification(&payload) != nil {
+		return nil
+	} else if sub, ok := payload["sub"].(string); !ok || sub == "" {
+		return nil
+	}
+
+	// Remove claims pertaining to the JWT itself (not the user info).
+	for _, claim := range []string{"iss", "aud", "exp", "iat", "jti"} {
+		delete(payload, claim)
+	}
+
+	return payload
 }

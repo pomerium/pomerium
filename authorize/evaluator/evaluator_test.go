@@ -554,6 +554,72 @@ func TestEvaluator(t *testing.T) {
 	})
 }
 
+func TestEvaluator_EvaluateInternal(t *testing.T) {
+	ctx := context.Background()
+	store := store.New()
+	evaluator, err := New(ctx, store, nil)
+	require.NoError(t, err)
+
+	// Internal paths that do not require login.
+	for _, path := range []string{
+		"/.pomerium/",
+		"/.pomerium/device-enrolled",
+		"/.pomerium/sign_out",
+	} {
+		t.Run(path, func(t *testing.T) {
+			req := Request{
+				IsInternal: true,
+				HTTP: RequestHTTP{
+					Path: path,
+				},
+			}
+			result, err := evaluator.Evaluate(ctx, &req)
+			require.NoError(t, err)
+			assert.Equal(t, RuleResult{
+				Value:          true,
+				Reasons:        criteria.NewReasons(criteria.ReasonPomeriumRoute),
+				AdditionalData: map[string]any{},
+			}, result.Allow)
+			assert.Equal(t, RuleResult{}, result.Deny)
+		})
+	}
+
+	// Internal paths that do require login.
+	for _, path := range []string{
+		"/.pomerium/jwt",
+		"/.pomerium/user",
+		"/.pomerium/webauthn",
+	} {
+		t.Run(path, func(t *testing.T) {
+			req := Request{
+				IsInternal: true,
+				HTTP: RequestHTTP{
+					Path: path,
+				},
+			}
+			result, err := evaluator.Evaluate(ctx, &req)
+			require.NoError(t, err)
+			assert.Equal(t, RuleResult{
+				Value:          false,
+				Reasons:        criteria.NewReasons(criteria.ReasonUserUnauthenticated),
+				AdditionalData: map[string]any{},
+			}, result.Allow)
+			assert.Equal(t, RuleResult{}, result.Deny)
+
+			// Simulate a logged-in user by setting a non-empty session ID.
+			req.Session.ID = "123456"
+			result, err = evaluator.Evaluate(ctx, &req)
+			require.NoError(t, err)
+			assert.Equal(t, RuleResult{
+				Value:          true,
+				Reasons:        criteria.NewReasons(criteria.ReasonPomeriumRoute),
+				AdditionalData: map[string]any{},
+			}, result.Allow)
+			assert.Equal(t, RuleResult{}, result.Deny)
+		})
+	}
+}
+
 func TestPolicyEvaluatorReuse(t *testing.T) {
 	ctx := context.Background()
 
