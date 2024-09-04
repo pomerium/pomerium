@@ -130,7 +130,8 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 						"ECDHE-ECDSA-CHACHA20-POLY1305",
 						"ECDHE-RSA-CHACHA20-POLY1305"
 					],
-					"tlsMinimumProtocolVersion": "TLSv1_2"
+					"tlsMinimumProtocolVersion": "TLSv1_2",
+					"tlsMaximumProtocolVersion": "TLSv1_3"
 				},
 				"alpnProtocols": ["h2", "http/1.1"]
 			}
@@ -154,7 +155,8 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 						"ECDHE-ECDSA-CHACHA20-POLY1305",
 						"ECDHE-RSA-CHACHA20-POLY1305"
 					],
-					"tlsMinimumProtocolVersion": "TLSv1_2"
+					"tlsMinimumProtocolVersion": "TLSv1_2",
+					"tlsMaximumProtocolVersion": "TLSv1_3"
 				},
 				"alpnProtocols": ["h2", "http/1.1"],
 				"validationContext": {
@@ -187,7 +189,8 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 						"ECDHE-ECDSA-CHACHA20-POLY1305",
 						"ECDHE-RSA-CHACHA20-POLY1305"
 					],
-					"tlsMinimumProtocolVersion": "TLSv1_2"
+					"tlsMinimumProtocolVersion": "TLSv1_2",
+					"tlsMaximumProtocolVersion": "TLSv1_3"
 				},
 				"alpnProtocols": ["h2", "http/1.1"],
 				"validationContext": {
@@ -223,7 +226,8 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 						"ECDHE-ECDSA-CHACHA20-POLY1305",
 						"ECDHE-RSA-CHACHA20-POLY1305"
 					],
-					"tlsMinimumProtocolVersion": "TLSv1_2"
+					"tlsMinimumProtocolVersion": "TLSv1_2",
+					"tlsMaximumProtocolVersion": "TLSv1_3"
 				},
 				"alpnProtocols": ["h2", "http/1.1"],
 				"validationContext": {
@@ -360,7 +364,8 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 						"ECDHE-ECDSA-CHACHA20-POLY1305",
 						"ECDHE-RSA-CHACHA20-POLY1305"
 					],
-					"tlsMinimumProtocolVersion": "TLSv1_2"
+					"tlsMinimumProtocolVersion": "TLSv1_2",
+					"tlsMaximumProtocolVersion": "TLSv1_3"
 				},
 				"alpnProtocols": ["http/1.1"]
 			}
@@ -385,7 +390,8 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 						"ECDHE-ECDSA-CHACHA20-POLY1305",
 						"ECDHE-RSA-CHACHA20-POLY1305"
 					],
-					"tlsMinimumProtocolVersion": "TLSv1_2"
+					"tlsMinimumProtocolVersion": "TLSv1_2",
+					"tlsMaximumProtocolVersion": "TLSv1_3"
 				},
 				"alpnProtocols": ["h2"]
 			}

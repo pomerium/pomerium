@@ -14,6 +14,47 @@ import (
 	envoy_type_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 )
 
+var (
+	tlsDownstreamParams = &envoy_extensions_transport_sockets_tls_v3.TlsParameters{
+		CipherSuites: []string{
+			"ECDHE-ECDSA-AES256-GCM-SHA384",
+			"ECDHE-RSA-AES256-GCM-SHA384",
+			"ECDHE-ECDSA-AES128-GCM-SHA256",
+			"ECDHE-RSA-AES128-GCM-SHA256",
+			"ECDHE-ECDSA-CHACHA20-POLY1305",
+			"ECDHE-RSA-CHACHA20-POLY1305",
+		},
+		TlsMinimumProtocolVersion: envoy_extensions_transport_sockets_tls_v3.TlsParameters_TLSv1_2,
+		TlsMaximumProtocolVersion: envoy_extensions_transport_sockets_tls_v3.TlsParameters_TLSv1_3,
+	}
+	tlsUpstreamParams = &envoy_extensions_transport_sockets_tls_v3.TlsParameters{
+		CipherSuites: []string{
+			"ECDHE-ECDSA-AES256-GCM-SHA384",
+			"ECDHE-RSA-AES256-GCM-SHA384",
+			"ECDHE-ECDSA-AES128-GCM-SHA256",
+			"ECDHE-RSA-AES128-GCM-SHA256",
+			"ECDHE-ECDSA-CHACHA20-POLY1305",
+			"ECDHE-RSA-CHACHA20-POLY1305",
+			"ECDHE-ECDSA-AES128-SHA",
+			"ECDHE-RSA-AES128-SHA",
+			"AES128-GCM-SHA256",
+			"AES128-SHA",
+			"ECDHE-ECDSA-AES256-SHA",
+			"ECDHE-RSA-AES256-SHA",
+			"AES256-GCM-SHA384",
+			"AES256-SHA",
+		},
+		EcdhCurves: []string{
+			"X25519",
+			"P-256",
+			"P-384",
+			"P-521",
+		},
+		TlsMinimumProtocolVersion: envoy_extensions_transport_sockets_tls_v3.TlsParameters_TLSv1_2,
+		TlsMaximumProtocolVersion: envoy_extensions_transport_sockets_tls_v3.TlsParameters_TLSv1_3,
+	}
+)
+
 var oidMustStaple = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 1, 24}
 
 func (b *Builder) buildSubjectAltNameMatcher(
