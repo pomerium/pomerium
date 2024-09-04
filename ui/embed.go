@@ -52,7 +52,8 @@ func ServePage(w http.ResponseWriter, r *http.Request, page, title string, data 
 		return err
 	}
 
-	http.ServeContent(w, r, "index.html", time.Now(), bytes.NewReader(bs))
+	w.Header().Set("Cache-Control", "no-cache, must-revalidate")
+	http.ServeContent(w, r, "index.html", time.Time{}, bytes.NewReader(bs))
 	return nil
 }
 
