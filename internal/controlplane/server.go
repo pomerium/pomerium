@@ -221,7 +221,7 @@ func (srv *Server) Run(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return context.Cause(ctx)
 			case cfg := <-srv.updateConfig:
 				err := srv.update(ctx, cfg)
 				if err != nil {
@@ -242,7 +242,7 @@ func (srv *Server) OnConfigChange(ctx context.Context, cfg *config.Config) error
 
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return context.Cause(ctx)
 	case srv.updateConfig <- cfg:
 	}
 	return nil

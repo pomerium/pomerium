@@ -161,7 +161,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return context.Cause(ctx)
 			case incoming <- req:
 			}
 		}
@@ -173,7 +173,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 			var typeURLs []string
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return context.Cause(ctx)
 			case req := <-incoming:
 				handleDeltaRequest(changeCtx, req)
 				typeURLs = []string{req.GetTypeUrl()}
@@ -193,7 +193,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 
 				select {
 				case <-ctx.Done():
-					return ctx.Err()
+					return context.Cause(ctx)
 				case outgoing <- res:
 				}
 			}
@@ -204,7 +204,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 		for {
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return context.Cause(ctx)
 			case res := <-outgoing:
 				log.Debug(ctx).
 					Str("type-url", res.GetTypeUrl()).

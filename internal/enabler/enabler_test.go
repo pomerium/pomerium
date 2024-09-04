@@ -45,7 +45,7 @@ func TestEnabler(t *testing.T) {
 			started.Add(1)
 			<-ctx.Done()
 			stopped.Add(1)
-			return ctx.Err()
+			return context.Cause(ctx)
 		}), true)
 		time.AfterFunc(time.Millisecond*10, e.Disable)
 		go e.Run(ctx)

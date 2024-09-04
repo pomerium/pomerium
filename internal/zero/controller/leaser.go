@@ -56,5 +56,5 @@ func (w *LeaseStatus) MonitorLease(ctx context.Context, _ databroker.DataBrokerS
 	w.v.Store(true)
 	<-ctx.Done()
 	w.v.Store(false)
-	return ctx.Err()
+	return context.Cause(ctx)
 }

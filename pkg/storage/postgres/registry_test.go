@@ -53,7 +53,7 @@ func TestRegistry(t *testing.T) {
 				send: func(res *registry.ServiceList) error {
 					select {
 					case <-ctx.Done():
-						return ctx.Err()
+						return context.Cause(ctx)
 					case listResults <- res:
 					}
 					return nil
@@ -73,7 +73,7 @@ func TestRegistry(t *testing.T) {
 		eg.Go(func() error {
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return context.Cause(ctx)
 			case res := <-listResults:
 				testutil.AssertProtoEqual(t, &registry.ServiceList{}, res)
 			}
@@ -92,7 +92,7 @@ func TestRegistry(t *testing.T) {
 
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return context.Cause(ctx)
 			case res := <-listResults:
 				testutil.AssertProtoEqual(t, &registry.ServiceList{
 					Services: []*registry.Service{

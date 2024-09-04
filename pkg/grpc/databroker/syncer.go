@@ -120,7 +120,7 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 			log.Ctx(ctx).Error().Err(err).Msg("sync")
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return context.Cause(ctx)
 			case <-time.After(syncer.backoff.NextBackOff()):
 			}
 		}

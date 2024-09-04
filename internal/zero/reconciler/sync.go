@@ -35,7 +35,7 @@ func (c *service) SyncLoop(ctx context.Context) error {
 
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return context.Cause(ctx)
 		case <-c.bundleSyncRequest:
 			log.Ctx(ctx).Debug().Msg("bundle sync triggered")
 			err := c.syncBundles(ctx)
