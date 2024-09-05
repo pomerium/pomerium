@@ -400,7 +400,7 @@ func (backend *Backend) doPeriodically(f func(ctx context.Context) error, dur ti
 			}
 		} else {
 			if !errors.Is(err, context.Canceled) {
-				log.Error(ctx).Err(err).Msg("storage/postgres")
+				log.Ctx(ctx).Error().Err(err).Msg("storage/postgres")
 			}
 			select {
 			case <-backend.closeCtx.Done():

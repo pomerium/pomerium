@@ -82,7 +82,7 @@ func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Buil
 	if rm, err := NewSharedResourceMonitor(ctx, src, srv.wd); err == nil {
 		srv.resourceMonitor = rm
 	} else {
-		log.Error(ctx).Err(err).Str("service", "envoy").Msg("not starting resource monitor")
+		log.Ctx(ctx).Error().Err(err).Str("service", "envoy").Msg("not starting resource monitor")
 	}
 
 	src.OnConfigChange(ctx, srv.onConfigChange)
@@ -107,7 +107,7 @@ func (srv *Server) Close() error {
 	if srv.cmd != nil && srv.cmd.Process != nil {
 		err = srv.cmd.Process.Kill()
 		if err != nil {
-			log.Error(context.TODO()).Err(err).Str("service", "envoy").Msg("envoy: failed to kill process on close")
+			log.Error().Err(err).Str("service", "envoy").Msg("envoy: failed to kill process on close")
 		}
 		srv.cmd = nil
 	}
@@ -136,7 +136,7 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 
 	log.Debug(ctx).Msg("envoy: starting envoy process")
 	if err := srv.run(ctx, cfg); err != nil {
-		log.Error(ctx).Err(err).Str("service", "envoy").Msg("envoy: failed to run envoy process")
+		log.Ctx(ctx).Error().Err(err).Str("service", "envoy").Msg("envoy: failed to run envoy process")
 		return
 	}
 }
@@ -146,7 +146,7 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	srv.monitorProcessCancel()
 
 	if err := srv.writeConfig(ctx, cfg); err != nil {
-		log.Error(ctx).Err(err).Str("service", "envoy").Msg("envoy: failed to write envoy config")
+		log.Ctx(ctx).Error().Err(err).Str("service", "envoy").Msg("envoy: failed to write envoy config")
 		return err
 	}
 
@@ -196,7 +196,7 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 				if errors.Is(err, context.Canceled) {
 					log.Debug(ctx).Err(err).Str("service", "envoy").Msg("resource monitor stopped")
 				} else {
-					log.Error(ctx).Err(err).Str("service", "envoy").Msg("resource monitor exited with error")
+					log.Ctx(ctx).Error().Err(err).Str("service", "envoy").Msg("resource monitor exited with error")
 				}
 			}
 		}()
@@ -261,7 +261,7 @@ func (srv *Server) handleLogs(ctx context.Context, rc io.ReadCloser) {
 			if errors.Is(err, io.EOF) || errors.Is(err, os.ErrClosed) {
 				break
 			}
-			log.Error(ctx).Err(err).Msg("failed to read log")
+			log.Ctx(ctx).Error().Err(err).Msg("failed to read log")
 			time.Sleep(bo.NextBackOff())
 			continue
 		}

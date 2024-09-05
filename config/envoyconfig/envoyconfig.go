@@ -175,7 +175,7 @@ func (b *Builder) envoyTLSCertificateFromGoTLSCertificate(
 			},
 		))
 	} else {
-		log.Error(ctx).Err(err).Msg("failed to marshal private key for tls config")
+		log.Ctx(ctx).Error().Err(err).Msg("failed to marshal private key for tls config")
 	}
 	for _, scts := range cert.SignedCertificateTimestamps {
 		envoyCert.SignedCertificateTimestamp = append(envoyCert.SignedCertificateTimestamp,
@@ -207,7 +207,7 @@ func getRootCertificateAuthority() (string, error) {
 			}
 		}
 		if rootCABundle.value == "" {
-			log.Error(context.TODO()).Strs("known-locations", knownRootLocations).
+			log.Error().Strs("known-locations", knownRootLocations).
 				Msgf("no root certificates were found in any of the known locations")
 		} else {
 			log.Info(context.TODO()).Msgf("using %s as the system root certificate authority bundle", rootCABundle.value)

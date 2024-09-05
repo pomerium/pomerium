@@ -164,7 +164,7 @@ func (src *FileOrEnvironmentSource) check(ctx context.Context) {
 		cfg.Options = options
 		metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), true)
 	} else {
-		log.Error(ctx).Err(err).Msg("config: error updating config")
+		log.Ctx(ctx).Error().Err(err).Msg("config: error updating config")
 		metrics.SetConfigInfo(ctx, cfg.Options.Services, "local", cfg.Checksum(), false)
 	}
 	src.config = cfg

@@ -57,7 +57,7 @@ func (srv *Server) UpdateConfig(options ...ServerOption) {
 	if srv.backend != nil {
 		err := srv.backend.Close()
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("databroker: error closing backend")
+			log.Ctx(ctx).Error().Err(err).Msg("databroker: error closing backend")
 		}
 		srv.backend = nil
 	}
@@ -65,7 +65,7 @@ func (srv *Server) UpdateConfig(options ...ServerOption) {
 	if srv.registry != nil {
 		err := srv.registry.Close()
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("databroker: error closing registry")
+			log.Ctx(ctx).Error().Err(err).Msg("databroker: error closing registry")
 		}
 		srv.registry = nil
 	}

@@ -71,7 +71,7 @@ func (a *Authenticate) OnConfigChange(ctx context.Context, cfg *config.Config) {
 
 	a.options.Store(cfg.Options)
 	if state, err := newAuthenticateStateFromConfig(cfg, a.cfg); err != nil {
-		log.Error(ctx).Err(err).Msg("authenticate: failed to update state")
+		log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to update state")
 	} else {
 		a.state.Store(state)
 	}

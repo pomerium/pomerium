@@ -249,7 +249,7 @@ func (b *Builder) buildInternalTransportSocket(
 	}
 	bs, err := getCombinedCertificateAuthority(cfg)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("unable to enable certificate verification because no root CAs were found")
+		log.Ctx(ctx).Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
 	} else {
 		validationContext.TrustedCa = b.filemgr.BytesDataSource("ca.pem", bs)
 	}
@@ -343,13 +343,13 @@ func (b *Builder) buildPolicyValidationContext(
 	} else if policy.TLSCustomCA != "" {
 		bs, err := base64.StdEncoding.DecodeString(policy.TLSCustomCA)
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("invalid custom CA certificate")
+			log.Ctx(ctx).Error().Err(err).Msg("invalid custom CA certificate")
 		}
 		validationContext.TrustedCa = b.filemgr.BytesDataSource("custom-ca.pem", bs)
 	} else {
 		bs, err := getCombinedCertificateAuthority(cfg)
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("unable to enable certificate verification because no root CAs were found")
+			log.Ctx(ctx).Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
 		} else {
 			validationContext.TrustedCa = b.filemgr.BytesDataSource("ca.pem", bs)
 		}

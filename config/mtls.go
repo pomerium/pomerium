@@ -206,7 +206,7 @@ func mtlsEnforcementFromProtoEnum(
 	case config.MtlsEnforcementMode_REJECT_CONNECTION:
 		return MTLSEnforcementRejectConnection
 	default:
-		log.Error(ctx).Msgf("unknown mTLS enforcement mode %s", mode)
+		log.Ctx(ctx).Error().Msgf("unknown mTLS enforcement mode %s", mode)
 		return ""
 	}
 }

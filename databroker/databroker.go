@@ -42,7 +42,7 @@ func newDataBrokerServer(cfg *config.Config) (*dataBrokerServer, error) {
 func (srv *dataBrokerServer) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	opts, err := srv.getOptions(cfg)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("databroker: error updating config changes")
+		log.Ctx(ctx).Error().Err(err).Msg("databroker: error updating config changes")
 		return
 	}
 

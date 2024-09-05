@@ -74,7 +74,7 @@ func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r 
 	w.Header().Set(HeaderPomeriumResponse, "true")
 
 	if e.Status >= 400 {
-		log.Error(ctx).
+		log.Ctx(ctx).Error().
 			Err(e.Err).
 			Int("status", e.Status).
 			Str("status-text", StatusText(e.Status)).

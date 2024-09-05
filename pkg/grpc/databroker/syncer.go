@@ -117,7 +117,7 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 		}
 
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("sync")
+			log.Ctx(ctx).Error().Err(err).Msg("sync")
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -162,7 +162,7 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 	for {
 		res, err := stream.Recv()
 		if status.Code(err) == codes.Aborted {
-			log.Error(ctx).Err(err).Msg("aborted sync due to mismatched server version")
+			log.Ctx(ctx).Error().Err(err).Msg("aborted sync due to mismatched server version")
 			// server version changed, so re-init
 			syncer.serverVersion = 0
 			return nil

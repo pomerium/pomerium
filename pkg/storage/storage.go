@@ -57,7 +57,7 @@ func MatchAny(any *anypb.Any, query string) bool {
 	msg, err := any.UnmarshalNew()
 	if err != nil {
 		// ignore invalid any types
-		log.Error(context.TODO()).Err(err).Msg("storage: invalid any type")
+		log.Error().Err(err).Msg("storage: invalid any type")
 		return false
 	}
 

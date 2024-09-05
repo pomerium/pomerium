@@ -600,7 +600,7 @@ func (b *Builder) buildDownstreamValidationContext(
 	if crl := cfg.Options.DownstreamMTLS.CRL; crl != "" {
 		bs, err := base64.StdEncoding.DecodeString(crl)
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("invalid client CRL")
+			log.Ctx(ctx).Error().Err(err).Msg("invalid client CRL")
 		} else {
 			vc.Crl = b.filemgr.BytesDataSource("client-crl.pem", bs)
 		}
@@ -628,7 +628,7 @@ func clientCABundle(ctx context.Context, cfg *config.Config) []byte {
 		}
 		ca, err := base64.StdEncoding.DecodeString(p.TLSDownstreamClientCA)
 		if err != nil {
-			log.Error(ctx).Stringer("policy", p).Err(err).Msg("invalid client CA")
+			log.Ctx(ctx).Error().Stringer("policy", p).Err(err).Msg("invalid client CA")
 			continue
 		}
 		addCAToBundle(&bundle, ca)

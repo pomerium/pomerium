@@ -93,10 +93,10 @@ func (p *Proxy) OnConfigChange(_ context.Context, cfg *config.Config) {
 
 	p.currentOptions.Store(cfg.Options)
 	if err := p.setHandlers(cfg.Options); err != nil {
-		log.Error(context.TODO()).Err(err).Msg("proxy: failed to update proxy handlers from configuration settings")
+		log.Error().Err(err).Msg("proxy: failed to update proxy handlers from configuration settings")
 	}
 	if state, err := newProxyStateFromConfig(cfg); err != nil {
-		log.Error(context.TODO()).Err(err).Msg("proxy: failed to update proxy state from configuration settings")
+		log.Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
 	} else {
 		p.state.Store(state)
 	}

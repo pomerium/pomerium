@@ -1,7 +1,6 @@
 package events
 
 import (
-	"context"
 	"sync"
 
 	"github.com/google/uuid"
@@ -29,7 +28,7 @@ func (mgr *Manager) Dispatch(evt Event) {
 	mgr.mu.RUnlock()
 
 	if dropped {
-		log.Error(context.Background()).
+		log.Error().
 			Interface("event", evt).
 			Msg("controlplane: dropping event due to full channel")
 	}

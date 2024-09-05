@@ -35,7 +35,7 @@ func WithTestPostgres(handler func(dsn string) error) error {
 	if err := pool.Retry(func() error {
 		conn, err := pgx.Connect(ctx, dsn)
 		if err != nil {
-			log.Error(ctx).Err(err).Send()
+			log.Ctx(ctx).Error().Err(err).Send()
 			return err
 		}
 		_ = conn.Close(ctx)

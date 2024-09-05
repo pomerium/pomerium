@@ -102,7 +102,7 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 	err := src.buildNewConfigLocked(ctx, cfg)
 	if err != nil {
 		health.ReportError(health.BuildDatabrokerConfig, err)
-		log.Error(ctx).Err(err).Msg("databroker: failed to build new config")
+		log.Ctx(ctx).Error().Err(err).Msg("databroker: failed to build new config")
 		return
 	}
 	health.ReportOK(health.BuildDatabrokerConfig)
@@ -147,7 +147,7 @@ func (src *ConfigSource) buildNewConfigLocked(ctx context.Context, cfg *config.C
 		policies, errs = errgrouputil.Build(ctx, policyBuilders...)
 		if len(errs) > 0 {
 			for _, err := range errs {
-				log.Error(ctx).Msg(err.Error())
+				log.Ctx(ctx).Error().Msg(err.Error())
 			}
 			return fmt.Errorf("error building policies")
 		}
@@ -262,7 +262,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 
 	cc, err := src.outboundGRPCConnection.Get(ctx, connectionOptions)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("databroker: failed to create gRPC connection to data broker")
+		log.Ctx(ctx).Error().Err(err).Msg("databroker: failed to create gRPC connection to data broker")
 		return
 	}
 
@@ -312,7 +312,7 @@ func (s *syncerHandler) UpdateRecords(ctx context.Context, _ uint64, records []*
 		var cfgpb configpb.Config
 		err := record.GetData().UnmarshalTo(&cfgpb)
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("databroker: error decoding config")
+			log.Ctx(ctx).Error().Err(err).Msg("databroker: error decoding config")
 			delete(s.src.dbConfigs, record.GetId())
 			continue
 		}

@@ -47,7 +47,7 @@ var (
 
 		headers, err := getGoogleCloudServerlessHeaders(string(serviceAccount), string(audience))
 		if err != nil {
-			log.Error(context.Background()).Err(err).Msg("error retrieving google cloud serverless headers")
+			log.Error().Err(err).Msg("error retrieving google cloud serverless headers")
 			return nil, fmt.Errorf("failed to get google cloud serverless headers: %w", err)
 		}
 		var kvs [][2]*ast.Term

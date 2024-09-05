@@ -64,7 +64,7 @@ func (s *Store) write(rawPath string, value any) {
 		return s.writeTxn(txn, rawPath, value)
 	})
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("opa-store: error writing data")
+		log.Ctx(ctx).Error().Err(err).Msg("opa-store: error writing data")
 		return
 	}
 }
@@ -125,7 +125,7 @@ func (s *Store) GetDataBrokerRecordOption() func(*rego.Rego) {
 
 		res, err := storage.GetQuerier(ctx).Query(ctx, req)
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("authorize/store: error retrieving record")
+			log.Ctx(ctx).Error().Err(err).Msg("authorize/store: error retrieving record")
 			return ast.NullTerm(), nil
 		}
 
@@ -149,7 +149,7 @@ func (s *Store) GetDataBrokerRecordOption() func(*rego.Rego) {
 
 		regoValue, err := ast.InterfaceToValue(obj)
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("authorize/store: error converting object to rego")
+			log.Ctx(ctx).Error().Err(err).Msg("authorize/store: error converting object to rego")
 			return ast.NullTerm(), nil
 		}
 

@@ -35,7 +35,7 @@ func (p *metricsProducer[P]) Produce(ctx context.Context) ([]metricdata.ScopeMet
 	data, err := p.producer.Produce(ctx)
 	if err != nil {
 		// we do not return the error here, as we do not want to block the export of other metrics
-		log.Error(ctx).Err(err).Str("producer", p.name).Msg("failed to produce metrics")
+		log.Ctx(ctx).Error().Err(err).Str("producer", p.name).Msg("failed to produce metrics")
 		return nil, nil
 	}
 	return data, nil

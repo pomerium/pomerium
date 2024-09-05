@@ -70,7 +70,7 @@ func (tracker *AccessTracker) Run(ctx context.Context) {
 	}
 	runSubmit := func() {
 		if dropped := atomic.SwapInt64(&tracker.droppedAccesses, 0); dropped > 0 {
-			log.Error(ctx).
+			log.Ctx(ctx).Error().
 				Int64("dropped", dropped).
 				Msg("authorize: failed to track all session accesses")
 		}
@@ -84,7 +84,7 @@ func (tracker *AccessTracker) Run(ctx context.Context) {
 			return err == nil
 		})
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("authorize: error updating session last access timestamp")
+			log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating session last access timestamp")
 			return
 		}
 
@@ -93,7 +93,7 @@ func (tracker *AccessTracker) Run(ctx context.Context) {
 			return err == nil
 		})
 		if err != nil {
-			log.Error(ctx).Err(err).Msg("authorize: error updating service account last access timestamp")
+			log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating service account last access timestamp")
 			return
 		}
 

@@ -95,7 +95,7 @@ func (srv *Telemetry) handleRequests(ctx context.Context) error {
 				select {
 				case requests <- req:
 				default:
-					log.Error(ctx).Msg("dropping telemetry request")
+					log.Ctx(ctx).Error().Msg("dropping telemetry request")
 				}
 			}))
 	})

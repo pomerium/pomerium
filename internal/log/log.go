@@ -113,8 +113,8 @@ func Warn(ctx context.Context) *zerolog.Event {
 // Error starts a new message with error level.
 //
 // You must call Msg on the returned event in order to send the event.
-func Error(ctx context.Context) *zerolog.Event {
-	return contextLogger(ctx).Error()
+func Error() *zerolog.Event {
+	return log.Error()
 }
 
 func contextLogger(ctx context.Context) *zerolog.Logger {
