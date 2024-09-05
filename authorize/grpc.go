@@ -45,7 +45,8 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	// convert the incoming envoy-style http request into a go-style http request
 	hreq := getHTTPRequestFromCheckRequest(in)
-	ctx = requestid.WithValue(ctx, requestid.FromHTTPHeader(hreq.Header))
+	requestID := requestid.FromHTTPHeader(hreq.Header)
+	ctx = requestid.WithValue(ctx, requestID)
 
 	sessionState, _ := state.sessionStore.LoadSessionState(hreq)
 
@@ -55,7 +56,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	if sessionState != nil {
 		s, err = a.getDataBrokerSessionOrServiceAccount(ctx, sessionState.ID, sessionState.DatabrokerRecordVersion)
 		if err != nil {
-			log.Info(ctx).Err(err).Msg("clearing session due to missing or invalid session or service account")
+			log.Info(ctx).Err(err).Str("request-id", requestID).Msg("clearing session due to missing or invalid session or service account")
 			sessionState = nil
 		}
 	}
@@ -65,7 +66,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in, sessionState)
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("error building evaluator request")
+		log.Error(ctx).Err(err).Str("request-id", requestID).Msg("error building evaluator request")
 		return nil, err
 	}
 
@@ -74,7 +75,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	res, err := state.evaluator.Evaluate(ctx, req)
 	a.stateLock.RUnlock()
 	if err != nil {
-		log.Error(ctx).Err(err).Msg("error during OPA evaluation")
+		log.Error(ctx).Err(err).Str("request-id", requestID).Msg("error during OPA evaluation")
 		return nil, err
 	}
 
@@ -85,7 +86,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	resp, err := a.handleResult(ctx, in, req, res)
 	if err != nil {
-		log.Error(ctx).Err(err).Str("request-id", requestid.FromContext(ctx)).Msg("grpc check ext_authz_error")
+		log.Error(ctx).Err(err).Str("request-id", requestID).Msg("grpc check ext_authz_error")
 	}
 	a.logAuthorizeCheck(ctx, in, resp, res, s, u)
 	return resp, err
