@@ -17,7 +17,11 @@ type SignOutConfirmPageProps = {
 const SignOutConfirmPage: FC<SignOutConfirmPageProps> = ({ data }) => {
   function handleClickCancel(evt: React.MouseEvent) {
     evt.preventDefault();
-    history.back();
+    if (document.referrer) {
+      location.href = document.referrer;
+    } else {
+      history.back();
+    }
   }
 
   function handleClickLogout(evt: React.MouseEvent) {
