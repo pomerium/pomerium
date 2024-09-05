@@ -2,13 +2,16 @@ package proxy
 
 import (
 	"bytes"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
@@ -140,7 +143,7 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 
 			w := httptest.NewRecorder()
 			router := httputil.NewRouter()
-			router = p.registerDashboardHandlers(router)
+			router = p.registerDashboardHandlers(router, config.NewDefaultOptions())
 			router.ServeHTTP(w, r)
 
 			if status := w.Code; status != tt.wantStatus {
@@ -182,4 +185,78 @@ func TestProxy_jwt(t *testing.T) {
 	}
 	assert.Equal(t, "application/jwt", w.Header().Get("Content-Type"))
 	assert.Equal(t, w.Body.String(), rawJWT)
+}
+
+func TestProxy_jsonUserInfo(t *testing.T) {
+	proxy := &Proxy{
+		state: atomicutil.NewValue(&proxyState{}),
+	}
+
+	t.Run("no_jwt", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/.pomerium/user", nil)
+		w := httptest.NewRecorder()
+		err := proxy.jsonUserInfo(w, req)
+		assert.ErrorContains(t, err, "not found")
+	})
+	t.Run("no_sub_claim", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/.pomerium/user", nil)
+		req.Header.Set("X-Pomerium-Jwt-Assertion", "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJmb28iOiJiYXIifQ.")
+		w := httptest.NewRecorder()
+		err := proxy.jsonUserInfo(w, req)
+		assert.ErrorContains(t, err, "not found")
+	})
+	t.Run("valid_jwt", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/.pomerium/user", nil)
+		req.Header.Set("X-Pomerium-Jwt-Assertion",
+			"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTY3MDg4OTI0MSwiZXhwIjoxNjcwODkyODQxfQ.YoROB12_-a8VxikPqrYOA576pLYoLFeGwXAOWCGpXgM")
+		w := httptest.NewRecorder()
+		err := proxy.jsonUserInfo(w, req)
+		require.NoError(t, err)
+		result := w.Result()
+		assert.Equal(t, http.StatusOK, result.StatusCode)
+		assert.Equal(t, "application/json", result.Header.Get("Content-Type"))
+		b, _ := io.ReadAll(result.Body)
+		assert.Equal(t, `{"admin":true,"name":"John Doe","sub":"1234567890"}`, string(b))
+	})
+}
+
+// The /.pomerium/jwt endpoint should be registered only if explicitly enabled.
+func TestProxy_registerDashboardHandlers_jwtEndpoint(t *testing.T) {
+	proxy := &Proxy{
+		state: atomicutil.NewValue(&proxyState{}),
+	}
+	req := httptest.NewRequest(http.MethodGet, "/.pomerium/jwt", nil)
+	rawJWT := "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJzdWIiOiIxMjM0NTY3ODkwIn0."
+	req.Header.Set("X-Pomerium-Jwt-Assertion", rawJWT)
+
+	t.Run("disabled", func(t *testing.T) {
+		opts := config.NewDefaultOptions()
+		opts.RuntimeFlags[config.RuntimeFlagPomeriumJWTEndpoint] = false
+		m := mux.NewRouter()
+		proxy.registerDashboardHandlers(m, opts)
+
+		w := httptest.NewRecorder()
+		m.ServeHTTP(w, req)
+
+		result := w.Result()
+		assert.Equal(t, http.StatusNotFound, result.StatusCode)
+		assert.Equal(t, "text/plain; charset=utf-8", result.Header.Get("Content-Type"))
+		b, _ := io.ReadAll(result.Body)
+		assert.Equal(t, "404 page not found\n", string(b))
+	})
+	t.Run("enabled", func(t *testing.T) {
+		opts := config.NewDefaultOptions()
+		opts.RuntimeFlags[config.RuntimeFlagPomeriumJWTEndpoint] = true
+		m := mux.NewRouter()
+		proxy.registerDashboardHandlers(m, opts)
+
+		w := httptest.NewRecorder()
+		m.ServeHTTP(w, req)
+
+		result := w.Result()
+		assert.Equal(t, http.StatusOK, result.StatusCode)
+		assert.Equal(t, "application/jwt", result.Header.Get("Content-Type"))
+		b, _ := io.ReadAll(result.Body)
+		assert.Equal(t, rawJWT, string(b))
+	})
 }

@@ -297,30 +297,7 @@ func (b *Builder) buildPolicyTransportSocket(
 	}
 	tlsContext := &envoy_extensions_transport_sockets_tls_v3.UpstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
-			TlsParams: &envoy_extensions_transport_sockets_tls_v3.TlsParameters{
-				CipherSuites: []string{
-					"ECDHE-ECDSA-AES256-GCM-SHA384",
-					"ECDHE-RSA-AES256-GCM-SHA384",
-					"ECDHE-ECDSA-AES128-GCM-SHA256",
-					"ECDHE-RSA-AES128-GCM-SHA256",
-					"ECDHE-ECDSA-CHACHA20-POLY1305",
-					"ECDHE-RSA-CHACHA20-POLY1305",
-					"ECDHE-ECDSA-AES128-SHA",
-					"ECDHE-RSA-AES128-SHA",
-					"AES128-GCM-SHA256",
-					"AES128-SHA",
-					"ECDHE-ECDSA-AES256-SHA",
-					"ECDHE-RSA-AES256-SHA",
-					"AES256-GCM-SHA384",
-					"AES256-SHA",
-				},
-				EcdhCurves: []string{
-					"X25519",
-					"P-256",
-					"P-384",
-					"P-521",
-				},
-			},
+			TlsParams:     tlsUpstreamParams,
 			AlpnProtocols: buildUpstreamALPN(upstreamProtocol),
 			ValidationContextType: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
 				ValidationContext: vc,

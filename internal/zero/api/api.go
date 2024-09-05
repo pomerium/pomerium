@@ -63,7 +63,7 @@ func NewAPI(ctx context.Context, opts ...Option) (*API, error) {
 
 	tokenCache := token_api.NewCache(fetcher, cfg.apiToken)
 
-	clusterClient, err := cluster_api.NewAuthorizedClient(cfg.clusterAPIEndpoint, tokenCache.GetToken, cfg.httpClient)
+	clusterClient, err := cluster_api.NewAuthorizedClient(cfg.clusterAPIEndpoint, tokenCache, cfg.httpClient)
 	if err != nil {
 		return nil, fmt.Errorf("error creating cluster client: %w", err)
 	}
@@ -104,14 +104,14 @@ func (api *API) Watch(ctx context.Context, opts ...WatchOption) error {
 
 // GetClusterBootstrapConfig fetches the bootstrap configuration from the cluster API
 func (api *API) GetClusterBootstrapConfig(ctx context.Context) (*cluster_api.BootstrapConfig, error) {
-	return apierror.CheckResponse[cluster_api.BootstrapConfig](
+	return apierror.CheckResponse(
 		api.cluster.GetClusterBootstrapConfigWithResponse(ctx),
 	)
 }
 
 // GetClusterResourceBundles fetches the resource bundles from the cluster API
 func (api *API) GetClusterResourceBundles(ctx context.Context) (*cluster_api.GetBundlesResponse, error) {
-	return apierror.CheckResponse[cluster_api.GetBundlesResponse](
+	return apierror.CheckResponse(
 		api.cluster.GetClusterResourceBundlesWithResponse(ctx),
 	)
 }

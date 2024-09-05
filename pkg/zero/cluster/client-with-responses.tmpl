@@ -1,0 +1,207 @@
+{{/*
+This file contains the original client-with-responses.tmpl, plus some additional
+code to generate custom response functions.
+*/}}
+
+{{/* Begin upstream code /*}}
+
+{{/*
+// Copyright 2019 DeepMap, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+*/}}
+
+// ClientWithResponses builds on ClientInterface to offer response payloads
+type ClientWithResponses struct {
+    ClientInterface
+}
+
+// NewClientWithResponses creates a new ClientWithResponses, which wraps
+// Client with return type handling
+func NewClientWithResponses(server string, opts ...ClientOption) (*ClientWithResponses, error) {
+    client, err := NewClient(server, opts...)
+    if err != nil {
+        return nil, err
+    }
+    return &ClientWithResponses{client}, nil
+}
+
+{{$clientTypeName := opts.OutputOptions.ClientTypeName -}}
+
+// WithBaseURL overrides the baseURL.
+func WithBaseURL(baseURL string) ClientOption {
+	return func(c *{{ $clientTypeName }}) error {
+		newBaseURL, err := url.Parse(baseURL)
+		if err != nil {
+			return err
+		}
+		c.Server = newBaseURL.String()
+		return nil
+	}
+}
+
+// ClientWithResponsesInterface is the interface specification for the client with responses above.
+type ClientWithResponsesInterface interface {
+{{range . -}}
+{{$hasParams := .RequiresParamObject -}}
+{{$pathParams := .PathParams -}}
+{{$opid := .OperationId -}}
+    // {{$opid}}{{if .HasBody}}WithBody{{end}}WithResponse request{{if .HasBody}} with any body{{end}}
+    {{$opid}}{{if .HasBody}}WithBody{{end}}WithResponse(ctx context.Context{{genParamArgs .PathParams}}{{if .RequiresParamObject}}, params *{{$opid}}Params{{end}}{{if .HasBody}}, contentType string, body io.Reader{{end}}, reqEditors... RequestEditorFn) (*{{genResponseTypeName $opid}}, error)
+{{range .Bodies}}
+    {{if .IsSupportedByClient -}}
+        {{$opid}}{{.Suffix}}WithResponse(ctx context.Context{{genParamArgs $pathParams}}{{if $hasParams}}, params *{{$opid}}Params{{end}}, body {{$opid}}{{.NameTag}}RequestBody, reqEditors... RequestEditorFn) (*{{genResponseTypeName $opid}}, error)
+    {{end -}}
+{{end}}{{/* range .Bodies */}}
+{{end}}{{/* range . $opid := .OperationId */}}
+}
+
+{{range .}}{{$opid := .OperationId}}{{$op := .}}
+type {{genResponseTypeName $opid | ucFirst}} struct {
+    Body         []byte
+	HTTPResponse *http.Response
+    {{- range getResponseTypeDefinitions .}}
+    {{.TypeName}} *{{.Schema.TypeDecl}}
+    {{- end}}
+}
+
+// Status returns HTTPResponse.Status
+func (r {{genResponseTypeName $opid | ucFirst}}) Status() string {
+    if r.HTTPResponse != nil {
+        return r.HTTPResponse.Status
+    }
+    return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r {{genResponseTypeName $opid | ucFirst}}) StatusCode() int {
+    if r.HTTPResponse != nil {
+        return r.HTTPResponse.StatusCode
+    }
+    return 0
+}
+{{end}}
+
+
+{{range .}}
+{{$opid := .OperationId -}}
+{{/* Generate client methods (with responses)*/}}
+
+// {{$opid}}{{if .HasBody}}WithBody{{end}}WithResponse request{{if .HasBody}} with arbitrary body{{end}} returning *{{genResponseTypeName $opid}}
+func (c *ClientWithResponses) {{$opid}}{{if .HasBody}}WithBody{{end}}WithResponse(ctx context.Context{{genParamArgs .PathParams}}{{if .RequiresParamObject}}, params *{{$opid}}Params{{end}}{{if .HasBody}}, contentType string, body io.Reader{{end}}, reqEditors... RequestEditorFn) (*{{genResponseTypeName $opid}}, error){
+    rsp, err := c.{{$opid}}{{if .HasBody}}WithBody{{end}}(ctx{{genParamNames .PathParams}}{{if .RequiresParamObject}}, params{{end}}{{if .HasBody}}, contentType, body{{end}}, reqEditors...)
+    if err != nil {
+        return nil, err
+    }
+    return Parse{{genResponseTypeName $opid | ucFirst}}(rsp)
+}
+
+{{$hasParams := .RequiresParamObject -}}
+{{$pathParams := .PathParams -}}
+{{$bodyRequired := .BodyRequired -}}
+{{range .Bodies}}
+{{if .IsSupportedByClient -}}
+func (c *ClientWithResponses) {{$opid}}{{.Suffix}}WithResponse(ctx context.Context{{genParamArgs $pathParams}}{{if $hasParams}}, params *{{$opid}}Params{{end}}, body {{$opid}}{{.NameTag}}RequestBody, reqEditors... RequestEditorFn) (*{{genResponseTypeName $opid}}, error) {
+    rsp, err := c.{{$opid}}{{.Suffix}}(ctx{{genParamNames $pathParams}}{{if $hasParams}}, params{{end}}, body, reqEditors...)
+    if err != nil {
+        return nil, err
+    }
+    return Parse{{genResponseTypeName $opid | ucFirst}}(rsp)
+}
+{{end}}
+{{end}}
+
+{{end}}{{/* operations */}}
+
+{{/* Generate parse functions for responses*/}}
+{{range .}}{{$opid := .OperationId}}
+
+// Parse{{genResponseTypeName $opid | ucFirst}} parses an HTTP response from a {{$opid}}WithResponse call
+func Parse{{genResponseTypeName $opid | ucFirst}}(rsp *http.Response) (*{{genResponseTypeName $opid}}, error) {
+    bodyBytes, err := io.ReadAll(rsp.Body)
+    defer func() { _ = rsp.Body.Close() }()
+    if err != nil {
+        return nil, err
+    }
+
+    response := {{genResponsePayload $opid}}
+
+    {{genResponseUnmarshal .}}
+
+    return response, nil
+}
+{{end}}{{/* range . $opid := .OperationId */}}
+
+{{/* End upstream code /*}}
+
+
+{{/* Custom code below */}}
+
+{{range .}}{{$opid := .OperationId}}{{$op := .}}
+// GetHTTPResponse implements apierror.APIResponse
+func (r *{{genResponseTypeName $opid | ucFirst}}) GetHTTPResponse() *http.Response {
+	return r.HTTPResponse
+}
+  {{- $has200Resp := false -}}
+  {{- range getResponseTypeDefinitions .}}
+    {{- if (eq .TypeName "JSON200")}}
+    {{- $has200Resp = true}}
+// GetValue implements apierror.APIResponse
+func (r *{{genResponseTypeName $opid | ucFirst}}) GetValue() *{{.Schema.TypeDecl}} {
+	return r.JSON200
+}
+    {{- else if (eq .TypeName "JSON400")}}
+// GetBadRequestError implements apierror.APIResponse
+func (r *{{genResponseTypeName $opid | ucFirst}}) GetBadRequestError() (string, bool) {
+  if r.JSON400 == nil {
+    return "", false
+  }
+  return r.JSON400.Error, true
+}
+    {{- else if (eq .TypeName "JSON404")}}
+
+func (r *{{genResponseTypeName $opid | ucFirst}}) GetNotFoundError() (string, bool) {
+  if r.JSON404 == nil {
+    return "", false
+  }
+  return r.JSON404.Error, true
+}
+    {{- else if (eq .TypeName "JSON403")}}
+
+func (r *{{genResponseTypeName $opid | ucFirst}}) GetForbiddenError() (string, bool) {
+  if r.JSON403 == nil {
+    return "", false
+  }
+  return r.JSON403.Error, true
+}
+    {{- else if (eq .TypeName "JSON500")}}
+// GetInternalServerError implements apierror.APIResponse
+func (r *{{genResponseTypeName $opid | ucFirst}}) GetInternalServerError() (string, bool) {
+	if r.JSON500 == nil {
+		return "", false
+	}
+	return r.JSON500.Error, true
+}
+
+    {{- end}}
+  {{- end}}
+  {{- if (not $has200Resp)}}
+// GetValue implements apierror.APIResponse
+func (r *{{genResponseTypeName $opid | ucFirst}}) GetValue() *EmptyResponse {
+	if r.StatusCode()/100 != 2 {
+		return nil
+	}
+	return &EmptyResponse{}
+}
+  {{- end}}
+{{end}}

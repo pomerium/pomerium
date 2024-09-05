@@ -95,6 +95,7 @@ local Environment(mode, idp, authentication_flow, dns_suffix) =
     JWT_CLAIMS_HEADERS: 'email,groups,user',
     LOG_LEVEL: 'info',
     POLICY: std.base64(std.manifestJsonEx(Routes(mode, idp, dns_suffix), '')),
+    RUNTIME_FLAGS: '{"pomerium_jwt_endpoint": true}',
     SHARED_SECRET: 'UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=',
     SIGNING_KEY: std.base64(importstr '../files/signing-key.pem'),
     SIGNING_KEY_ALGORITHM: 'ES256',

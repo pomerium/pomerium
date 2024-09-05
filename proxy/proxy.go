@@ -113,7 +113,7 @@ func (p *Proxy) setHandlers(opts *config.Options) error {
 	r.SkipClean(true)
 	r.StrictSlash(true)
 	// dashboard handlers are registered to all routes
-	r = p.registerDashboardHandlers(r)
+	r = p.registerDashboardHandlers(r, opts)
 
 	p.currentRouter.Store(r)
 	return nil

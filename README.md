@@ -1,4 +1,4 @@
-<a href="https://pomerium.com" title="Pomerium is a zero trust, context and identity aware access proxy."><img src="https://www.pomerium.com/wp-content/uploads/2021/08/Pomerium-H-white-bg.png" height="70" alt="pomerium logo"></a>
+<a href="https://pomerium.com" title="Pomerium is a zero trust, context and identity aware access proxy."><img src="./.github/logo.png" height="138" alt="pomerium logo"></a>
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/pomerium/pomerium)](https://goreportcard.com/report/github.com/pomerium/pomerium)
 [![GoDoc](https://godoc.org/github.com/pomerium/pomerium?status.svg)][godocs]
@@ -14,7 +14,7 @@ Pomerium is:
 - **Safer** because [every single action is verified](https://www.pomerium.com/continuous-verification-auditing) before allowed to execute.
 - **Tailored** to your organization’s needs by integrating all data for [context-aware access](https://www.pomerium.com/context-aware-access).
 
-It’s not a VPN alternative – it’s the trusted, foolproof way to protect your business. [Give Pomerium a try today](https://console.pomerium.app/create-account?utm_source=github&utm_medium=readme&utm_campaign=github)!
+It’s not a VPN alternative – it’s the trusted, foolproof way to protect your business. Want a hosted control plane and management GUI? [Give Pomerium Zero a try today](https://console.pomerium.app/create-account?utm_source=github&utm_medium=readme&utm_campaign=github)!
 
 ## Docs
 

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/zero/apierror"
 	"github.com/pomerium/pomerium/internal/zero/token"
 )
@@ -20,7 +21,7 @@ func NewTokenFetcher(endpoint string, opts ...ClientOption) (token.Fetcher, erro
 	return func(ctx context.Context, refreshToken string) (*token.Token, error) {
 		now := time.Now()
 
-		resp, err := apierror.CheckResponse[ExchangeTokenResponse](client.ExchangeClusterIdentityTokenWithResponse(ctx, ExchangeTokenRequest{
+		resp, err := apierror.CheckResponse(client.ExchangeClusterIdentityTokenWithResponse(ctx, ExchangeTokenRequest{
 			RefreshToken: refreshToken,
 		}))
 		if err != nil {
@@ -32,9 +33,11 @@ func NewTokenFetcher(endpoint string, opts ...ClientOption) (token.Fetcher, erro
 			return nil, fmt.Errorf("error parsing expires in: %w", err)
 		}
 
+		expires := now.Add(time.Duration(expiresSeconds) * time.Second)
+		log.Ctx(ctx).Debug().Time("expires", expires).Msg("fetched new Bearer token")
 		return &token.Token{
 			Bearer:  resp.IdToken,
-			Expires: now.Add(time.Duration(expiresSeconds) * time.Second),
+			Expires: expires,
 		}, nil
 	}, nil
 }

@@ -665,7 +665,7 @@ func TestSharedResourceMonitor(t *testing.T) {
 	configSrc.SetConfig(ctx, &config.Config{
 		Options: &config.Options{
 			RuntimeFlags: config.RuntimeFlags{
-				config.RuntimeFlagEnvoyResourceManagerEnabled: false,
+				config.RuntimeFlagEnvoyResourceManager: false,
 			},
 		},
 	})
@@ -677,7 +677,7 @@ func TestSharedResourceMonitor(t *testing.T) {
 	configSrc.SetConfig(ctx, &config.Config{
 		Options: &config.Options{
 			RuntimeFlags: config.RuntimeFlags{
-				config.RuntimeFlagEnvoyResourceManagerEnabled: true,
+				config.RuntimeFlagEnvoyResourceManager: true,
 			},
 		},
 	})

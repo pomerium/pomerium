@@ -94,7 +94,9 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"P-256",
 								"P-384",
 								"P-521"
-							]
+							],
+							"tlsMinimumProtocolVersion": "TLSv1_2",
+							"tlsMaximumProtocolVersion": "TLSv1_3"
 						},
 						"validationContext": {
 							"matchTypedSubjectAltNames": [{
@@ -148,7 +150,9 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"P-256",
 								"P-384",
 								"P-521"
-							]
+							],
+							"tlsMinimumProtocolVersion": "TLSv1_2",
+							"tlsMaximumProtocolVersion": "TLSv1_3"
 						},
 						"validationContext": {
 							"matchTypedSubjectAltNames": [{
@@ -202,7 +206,9 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"P-256",
 								"P-384",
 								"P-521"
-							]
+							],
+							"tlsMinimumProtocolVersion": "TLSv1_2",
+							"tlsMaximumProtocolVersion": "TLSv1_3"
 						},
 						"validationContext": {
 							"matchTypedSubjectAltNames": [{
@@ -256,7 +262,9 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"P-256",
 								"P-384",
 								"P-521"
-							]
+							],
+							"tlsMinimumProtocolVersion": "TLSv1_2",
+							"tlsMaximumProtocolVersion": "TLSv1_3"
 						},
 						"validationContext": {
 							"matchTypedSubjectAltNames": [{
@@ -311,7 +319,9 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"P-256",
 								"P-384",
 								"P-521"
-							]
+							],
+							"tlsMinimumProtocolVersion": "TLSv1_2",
+							"tlsMaximumProtocolVersion": "TLSv1_3"
 						},
 						"validationContext": {
 							"matchTypedSubjectAltNames": [{
@@ -364,7 +374,9 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"P-256",
 								"P-384",
 								"P-521"
-							]
+							],
+							"tlsMinimumProtocolVersion": "TLSv1_2",
+							"tlsMaximumProtocolVersion": "TLSv1_3"
 						},
 						"validationContext": {
 							"matchTypedSubjectAltNames": [{
@@ -419,7 +431,9 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"P-256",
 								"P-384",
 								"P-521"
-							]
+							],
+							"tlsMinimumProtocolVersion": "TLSv1_2",
+							"tlsMaximumProtocolVersion": "TLSv1_3"
 						},
 						"tlsCertificates": [{
 							"certificateChain":{
@@ -482,7 +496,9 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 								"P-256",
 								"P-384",
 								"P-521"
-							]
+							],
+							"tlsMinimumProtocolVersion": "TLSv1_2",
+							"tlsMaximumProtocolVersion": "TLSv1_3"
 						},
 						"validationContext": {
 							"matchTypedSubjectAltNames": [{
@@ -619,7 +635,9 @@ func Test_buildCluster(t *testing.T) {
 										"P-256",
 										"P-384",
 										"P-521"
-									]
+									],
+									"tlsMinimumProtocolVersion": "TLSv1_2",
+									"tlsMaximumProtocolVersion": "TLSv1_3"
 								},
 								"validationContext": {
 									"matchTypedSubjectAltNames": [{
@@ -665,7 +683,9 @@ func Test_buildCluster(t *testing.T) {
 									"P-256",
 									"P-384",
 									"P-521"
-								]
+								],
+								"tlsMinimumProtocolVersion": "TLSv1_2",
+								"tlsMaximumProtocolVersion": "TLSv1_3"
 							},
 							"validationContext": {
 								"matchTypedSubjectAltNames": [{

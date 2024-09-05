@@ -204,10 +204,10 @@ type sharedResourceMonitor struct {
 
 func (s *sharedResourceMonitor) onConfigChange(_ context.Context, cfg *config.Config) {
 	if cfg == nil || cfg.Options == nil {
-		s.enabled.Store(config.DefaultRuntimeFlags()[config.RuntimeFlagEnvoyResourceManagerEnabled])
+		s.enabled.Store(config.DefaultRuntimeFlags()[config.RuntimeFlagEnvoyResourceManager])
 		return
 	}
-	s.enabled.Store(cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagEnvoyResourceManagerEnabled))
+	s.enabled.Store(cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagEnvoyResourceManager))
 }
 
 func (s *sharedResourceMonitor) metricFilename(group, name string) string {
