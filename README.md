@@ -1,4 +1,4 @@
-<a href="https://pomerium.com" title="Pomerium is a zero trust, context and identity aware access proxy."><img src="https://www.pomerium.com/wp-content/uploads/2021/08/Pomerium-H-white-bg.png" height="70" alt="pomerium logo"></a>
+<a href="https://pomerium.com" title="Pomerium is a zero trust, context and identity aware access proxy."><img src="./.github/logo.png" height="138" alt="pomerium logo"></a>
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/pomerium/pomerium)](https://goreportcard.com/report/github.com/pomerium/pomerium)
 [![GoDoc](https://godoc.org/github.com/pomerium/pomerium?status.svg)][godocs]
