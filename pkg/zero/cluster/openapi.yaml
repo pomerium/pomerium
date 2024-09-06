@@ -148,7 +148,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-
   /reportUsage:
     post:
       description: Report usage for the cluster
@@ -176,6 +175,62 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /config/import:
+    post:
+      description: |
+        Apply the raw configuration directly to the cluster.
+        This operation only has an effect before any other modifications to the
+        cluster's configuration have been made.
+      operationId: importConfiguration
+      tags: [cluster]
+      requestBody:
+        required: true
+        content:
+          # TODO: add max payload size?
+          application/octet-stream:
+            schema:
+              type: string
+              contentMediaType: application/octet-stream
+              contentEncoding: gzip
+        description: type.googleapis.com/pomerium.config.Config
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /config/quotas:
+    get:
+      description: Get the cluster's current configuration quotas
+      operationId: getQuotas
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigQuotas"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   parameters:
     bundleId:
@@ -333,3 +388,16 @@ components:
         - lastSignedInAt
         - pseudonymousEmail
         - pseudonymousId
+    ConfigQuotas:
+      type: object
+      properties:
+        certificates:
+          type: integer
+        policies:
+          type: integer
+        routes:
+          type: integer
+      required:
+        - certificates
+        - policies
+        - routes

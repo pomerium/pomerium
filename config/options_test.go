@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,16 +18,20 @@ import (
 	"testing"
 	"time"
 
+	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/pomerium/csrf"
+	"github.com/pomerium/protoutil/protorand"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
-	"github.com/pomerium/csrf"
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc/config"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
 )
 
@@ -932,8 +937,8 @@ func TestOptions_ApplySettings(t *testing.T) {
 		xc1, _ := x509.ParseCertificate(cert1.Certificate[0])
 		certsIndex.Add(xc1)
 
-		settings := &config.Settings{
-			Certificates: []*config.Settings_Certificate{
+		settings := &configpb.Settings{
+			Certificates: []*configpb.Settings_Certificate{
 				{CertBytes: encodeCert(cert2)},
 				{CertBytes: encodeCert(cert3)},
 			},
@@ -944,7 +949,7 @@ func TestOptions_ApplySettings(t *testing.T) {
 
 	t.Run("pass_identity_headers", func(t *testing.T) {
 		options := NewDefaultOptions()
-		options.ApplySettings(ctx, nil, &config.Settings{
+		options.ApplySettings(ctx, nil, &configpb.Settings{
 			PassIdentityHeaders: proto.Bool(true),
 		})
 		assert.Equal(t, proto.Bool(true), options.PassIdentityHeaders)
@@ -1364,8 +1369,111 @@ func encodeCert(cert *tls.Certificate) []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Certificate[0]})
 }
 
-func mustParseWeightedURLs(t *testing.T, urls ...string) []WeightedURL {
-	wu, err := ParseWeightedUrls(urls...)
-	require.NoError(t, err)
-	return wu
+func TestShallowCopyToProto(t *testing.T) {
+	routeGen := protorand.New[*configpb.Route]()
+	routeGen.MaxCollectionElements = 2
+	routeGen.UseGoDurationLimits = true
+	routeGen.ExcludeMask(&fieldmaskpb.FieldMask{
+		Paths: []string{"from", "name", "to", "load_balancing_weights", "redirect", "response", "envoy_opts"},
+	})
+	redirectGen := protorand.New[*configpb.RouteRedirect]()
+	responseGen := protorand.New[*configpb.RouteDirectResponse]()
+
+	randomDomain := func() string {
+		numSegments := rand.IntN(5) + 1
+		segments := make([]string, numSegments)
+		for i := range segments {
+			b := make([]rune, rand.IntN(10)+10)
+			for j := range b {
+				b[j] = rune(rand.IntN(26) + 'a')
+			}
+			segments[i] = string(b)
+		}
+		return strings.Join(segments, ".")
+	}
+
+	newCompleteRoute := func() *configpb.Route {
+		pb, err := routeGen.Gen()
+
+		require.NoError(t, err)
+		pb.From = "https://" + randomDomain()
+		// EnvoyOpts is set to an empty non-nil message during conversion, if nil
+		pb.EnvoyOpts = &envoy_config_cluster_v3.Cluster{}
+
+		switch rand.IntN(3) {
+		case 0:
+			pb.To = make([]string, rand.IntN(3)+1)
+			for i := range pb.To {
+				pb.To[i] = "https://" + randomDomain()
+			}
+			pb.LoadBalancingWeights = make([]uint32, len(pb.To))
+			for i := range pb.LoadBalancingWeights {
+				pb.LoadBalancingWeights[i] = rand.Uint32N(10000) + 1
+			}
+		case 1:
+			pb.Redirect, err = redirectGen.Gen()
+			require.NoError(t, err)
+		case 2:
+			pb.Response, err = responseGen.Gen()
+			require.NoError(t, err)
+		}
+		return pb
+	}
+
+	t.Run("Round Trip", func(t *testing.T) {
+		for range 100 {
+			route := newCompleteRoute()
+
+			policy, err := NewPolicyFromProto(route)
+			require.NoError(t, err)
+
+			route2, err := policy.ToProto()
+			require.NoError(t, err)
+			route2.Name = ""
+
+			testutil.AssertProtoEqual(t, route, route2)
+		}
+	})
+
+	t.Run("Multiple routes", func(t *testing.T) {
+		for range 100 {
+			route1 := newCompleteRoute()
+			route2 := newCompleteRoute()
+
+			{
+				// create a new policy every time, since reusing the target will mutate
+				// the underlying route
+				policy1, err := NewPolicyFromProto(route1)
+				require.NoError(t, err)
+				target, err := policy1.ToProto()
+				require.NoError(t, err)
+				target.Name = ""
+				testutil.AssertProtoEqual(t, route1, target)
+			}
+			{
+				policy2, err := NewPolicyFromProto(route2)
+				require.NoError(t, err)
+				target, err := policy2.ToProto()
+				require.NoError(t, err)
+				target.Name = ""
+				testutil.AssertProtoEqual(t, route2, target)
+			}
+			{
+				policy1, err := NewPolicyFromProto(route1)
+				require.NoError(t, err)
+				target, err := policy1.ToProto()
+				require.NoError(t, err)
+				target.Name = ""
+				testutil.AssertProtoEqual(t, route1, target)
+			}
+			{
+				policy2, err := NewPolicyFromProto(route2)
+				require.NoError(t, err)
+				target, err := policy2.ToProto()
+				require.NoError(t, err)
+				target.Name = ""
+				testutil.AssertProtoEqual(t, route2, target)
+			}
+		}
+	})
 }

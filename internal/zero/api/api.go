@@ -2,18 +2,23 @@
 package zero
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/zero/apierror"
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 	"github.com/pomerium/pomerium/internal/zero/grpcconn"
 	token_api "github.com/pomerium/pomerium/internal/zero/token"
 	"github.com/pomerium/pomerium/pkg/fanout"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 	connect_api "github.com/pomerium/pomerium/pkg/zero/connect"
 )
@@ -114,6 +119,30 @@ func (api *API) GetClusterResourceBundles(ctx context.Context) (*cluster_api.Get
 	return apierror.CheckResponse(
 		api.cluster.GetClusterResourceBundlesWithResponse(ctx),
 	)
+}
+
+func (api *API) ImportConfig(ctx context.Context, cfg *configpb.Config) (*cluster_api.EmptyResponse, error) {
+	data, err := proto.Marshal(cfg)
+	if err != nil {
+		return nil, err
+	}
+	var compressedData bytes.Buffer
+	w := gzip.NewWriter(&compressedData)
+	_, err = io.Copy(w, bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	if err := w.Close(); err != nil {
+		return nil, err
+	}
+	return apierror.CheckResponse(api.cluster.ImportConfigurationWithBodyWithResponse(ctx,
+		"application/octet-stream",
+		&compressedData,
+	))
+}
+
+func (api *API) GetQuotas(ctx context.Context) (*cluster_api.ConfigQuotas, error) {
+	return apierror.CheckResponse(api.cluster.GetQuotasWithResponse(ctx))
 }
 
 func (api *API) GetTelemetryConn() *grpc.ClientConn {

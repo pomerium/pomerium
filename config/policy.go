@@ -302,6 +302,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		}
 
 		p.To = to
+		p.LbWeights = pb.LoadBalancingWeights
 	}
 
 	p.EnvoyOpts = pb.EnvoyOpts
@@ -333,7 +334,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			Remediation: sp.GetRemediation(),
 		})
 	}
-	return p, p.Validate()
+	return p, nil
 }
 
 // ToProto converts the policy to a protobuf type.
@@ -356,6 +357,8 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 			AllowedUsers:     sp.AllowedUsers,
 			AllowedDomains:   sp.AllowedDomains,
 			AllowedIdpClaims: sp.AllowedIDPClaims.ToPB(),
+			Explanation:      sp.Explanation,
+			Remediation:      sp.Remediation,
 			Rego:             sp.Rego,
 		})
 	}
@@ -372,6 +375,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		PrefixRewrite:                    p.PrefixRewrite,
 		RegexRewritePattern:              p.RegexRewritePattern,
 		RegexRewriteSubstitution:         p.RegexRewriteSubstitution,
+		RegexPriorityOrder:               p.RegexPriorityOrder,
 		CorsAllowPreflight:               p.CORSAllowPreflight,
 		AllowPublicUnauthenticatedAccess: p.AllowPublicUnauthenticatedAccess,
 		AllowAnyAuthenticatedUser:        p.AllowAnyAuthenticatedUser,
@@ -396,8 +400,22 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		PreserveHostHeader:               p.PreserveHostHeader,
 		PassIdentityHeaders:              p.PassIdentityHeaders,
 		KubernetesServiceAccountToken:    p.KubernetesServiceAccountToken,
-		Policies:                         sps,
-		SetResponseHeaders:               p.SetResponseHeaders,
+		EnableGoogleCloudServerlessAuthentication: p.EnableGoogleCloudServerlessAuthentication,
+		Policies:           sps,
+		EnvoyOpts:          p.EnvoyOpts,
+		SetResponseHeaders: p.SetResponseHeaders,
+	}
+	if p.HostPathRegexRewritePattern != "" {
+		pb.HostPathRegexRewritePattern = proto.String(p.HostPathRegexRewritePattern)
+	}
+	if p.HostPathRegexRewriteSubstitution != "" {
+		pb.HostPathRegexRewriteSubstitution = proto.String(p.HostPathRegexRewriteSubstitution)
+	}
+	if p.HostRewrite != "" {
+		pb.HostRewrite = proto.String(p.HostRewrite)
+	}
+	if p.HostRewriteHeader != "" {
+		pb.HostRewriteHeader = proto.String(p.HostRewriteHeader)
 	}
 	if p.IDPClientID != "" {
 		pb.IdpClientId = proto.String(p.IDPClientID)
@@ -512,10 +530,11 @@ func (p *Policy) Validate() error {
 			return fmt.Errorf("config: couldn't decode custom ca: %w", err)
 		}
 	} else if p.TLSCustomCAFile != "" {
-		_, err := os.Stat(p.TLSCustomCAFile)
+		ca, err := os.ReadFile(p.TLSCustomCAFile)
 		if err != nil {
 			return fmt.Errorf("config: couldn't load client ca file: %w", err)
 		}
+		p.TLSCustomCA = base64.StdEncoding.EncodeToString(ca)
 	}
 
 	const clientCADeprecationMsg = "config: %s is deprecated, see https://www.pomerium.com/docs/" +

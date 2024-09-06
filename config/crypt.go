@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/crypt"
 )
 
 // A PublicKeyEncryptionKeyOptions represents options for a public key encryption key.
@@ -23,4 +24,14 @@ func (o *Options) GetAuditKey() (*cryptutil.PublicKeyEncryptionKey, error) {
 		return nil, err
 	}
 	return cryptutil.NewPublicKeyEncryptionKeyWithID(o.AuditKey.ID, raw)
+}
+
+func (o *PublicKeyEncryptionKeyOptions) ToProto() *crypt.PublicKeyEncryptionKey {
+	if o == nil {
+		return nil
+	}
+	return &crypt.PublicKeyEncryptionKey{
+		Id:   o.ID,
+		Data: []byte(o.Data),
+	}
 }

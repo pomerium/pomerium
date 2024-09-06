@@ -1,0 +1,179 @@
+authenticate_service_url: https://authenticate.localhost.pomerium.io
+certificate_file: tls.crt
+certificate_authority_file: ca.crt
+certificate_key_file: tls.key
+cookie_secret: UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=
+databroker_storage_connection_string: postgres://pomerium:password@postgres:5432/test
+databroker_storage_type: postgres
+downstream_mtls:
+  crl_file: crl.pem
+envoy_admin_address: 0.0.0.0:9091
+google_cloud_serverless_authentication_service_account: ewoiYXV0aF9wcm92aWRlcl94NTA5X2NlcnRfdXJsIjogImh0dHA6Ly9tb2NrLWlkcDo4MDI0IiwKImF1dGhfdXJpIjogImh0dHA6Ly9tb2NrLWlkcDo4MDI0IiwKImNsaWVudF9lbWFpbCI6ICJyZWRhY3RlZEBwb21lcml1bS1yZWRhY3RlZC5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsCiJjbGllbnRfaWQiOiAiMTAxMjE1OTkwNDU4MDAwMzM0Mzg3IiwKImNsaWVudF94NTA5X2NlcnRfdXJsIjogImh0dHA6Ly9tb2NrLWlkcDo4MDI0IiwKInByaXZhdGVfa2V5IjogIi0tLS0tQkVHSU4gUFJJVkFURSBLRVktLS0tLVxuTUlJRXZRSUJBREFOQmdrcWhraUc5dzBCQVFFRkFBU0NCS2N3Z2dTakFnRUFBb0lCQVFDOEhMQkFJelhrUGVlZ1xubGRVZlJLSzJqUXhTVlpENWcrcXNqQXpwbXJxL0F0bXdlSzFjR2NPdFo2ZU9MK3A4YnJQRHlWaERUMFFsSS9PL1xuRUtnQ09GRnhVRHFvUjgyaVkwNlNhY0FqSG5pNitQTzl0VlJiRlYwdzE0QkRBSlNwQitWdld5bCtGb1BEVi92c1xuWjMxRnRZdytFd3FrYkR4L2thVDl1emYrTEpkbGtmMTRuUVFqOEVreS84ZDNtV0piYi85dGpPYnNhUWdKNUxMeFxuQ1lkSW1rcjc3WDJMTXVEdy8xdHBINjQyR0UyNU5yZ202UUhseUtTZllYbzM4djgzZWJFcWJaVURHK1ppb0FyUFxubXFta2F3VVd3M2VraGo4MFNKZy9USzlQUmFOL1Z2Y0kxUGdBZDdMWnp0VVJlU21UeTVoZDlyNnJPQnhweHduVFxuRHZIa0JuNnZBZ01CQUFFQ2dnRUFCMjhpMEFZVU5TYjFKbldGYkt6cnVVY3R1M3RDTlhvdkpnNkszQmlQVk1rcVxuRFQxWHJKSWdGNVJISE9scjNPc0xFNnU3WHoyY3RkTUw2UHNoaUtUdEl3dEdwaXZnUnBDaUpFc2xtcjJ6aThBV1xuOGVKZXFSTFpFZnNTU0pPWFRHN1JkR3NuNHFIRkowMHMyWlRsY0lIU1B3bkZtK1hqSmk5OVU4RzRYc1VvWG8wclxuR3krMFZDdVU3TThnSUNFSEhzclFPOVhERDNuVDJqaXU1VGpyS3dqdXQzRW1vSnNzSTVicXgzMytPQnU1QnBDUFxuQ1Q0NzNENDNQOXAzcWkvWG5mdnFHU0cyT2o0T2FqVjRmcjBvOUIzS3ZJeGtNZW03V2xJM2p5eTFrQXB5WHFWVFxuYkxrTEZ5V0JOVFdVWjJSLzJ3eG11b0M2bUxadzg3OU1MQ0tNdmsxZG9RS0JnUURobXdHYWZKTnltVGlFUVpSSVxuU3NReDRzZXFmT0tmZ0ZDN29ocUg5Y1JPT3U4SUoxbzdxMnBNMlc0WGlWK1Mzd1RkUEdtY2E2SU9qWDIzaXNWQlxuMnVxTmk5UzRNbkkyL2QyMkdkL0JSOXJ2QncxZUdKb0ticld4MjJmRThRQ0VXVDFBbk8rRHVEMGpDODV5UmxzN1xuYXh6bGFNcnhFdTNMSTlVRTdOdHJkUWlCeVFLQmdRRFZkSTZjZUlWQlQ2Umd2Vkd0OHprTGpQSUZqaFFFSEFJcFxudWhpcmdxcFM2Q1g5Qmx5ZjIrbzQwem1majNoZTVyQ2NFb0I1TXNlTStEZ0ZiY1ZoMmUvTVZuWWlOTnc2SkNEQlxuQlFrRjQwOHBacFNlS1h2TC9veVYva0ltTVRKL3RVRFkwRVh4TXdTUEpCMFdsdGJXcmVWSUhvcGlnWFJDYmFleVxudUJIVkJ2LzR0d0tCZ0h3SHVlUHk1U1UxczJxU216RDdXYzJMUGZZdTNuQ09ITlJyRkdiMjZNdVJmdVJlcmk3clxuMkc4VGdvRVNGeWNwMFFUSU44KzFKTTBYWUt4TmNKRDZCOFYxd0tiYnBRc3ltbmVJMWdqdXRpQi9JZ3cvUGtES1xuQ0w0VlA0RjRkYTVOV1cxeVdnTnlnTG9KdlovNXFpS0tpc0pjMEdXazRIS3o2bUxnek9qUTJMSnhBb0dCQUxIWlxuZk4yWWVZYnlZY2FNMTFwMVZpbHVsVlRWalkzaS9GWmlEUjRTTC9JR0pXak4vU3pnNGlYWXNLRm11K2R1bE9abFxuY0JBTHBFS3JxcG16WFl0ck42YnN2MTgrNWVPM3FHYksyRHJFcTNlV1ZldjJLb1RNb2J4ejdnKytYQklXSm1MQVxuSGhhYTZJaVBrWUQ1eXlWeUhLRGJlWGdiM285ZXFDUjd3N2ZZTGp5L0FvR0FJNEQrTUZraXZ3VUY3aHFmNWVkU1xuS3JsdHdtb2RIaXFYTmJWa3diVzFBRlBKYmlZYWk0WUZmSzRJQWJpZi9ZbXhmOUc3OGFPa3I5WnBDSXpPa0RQWlxuWXBFd1FHV3NBaEVsQ0Z2YzhFLzVkSEVTU3ArdFd0UCtObHVpbXBGcWlEZzMvU1VuTXdPMnhIMG5oTGEwemVqaFxuZ21MaDR3L0NjUHliOVp5WGNlV1UvblU9XG4tLS0tLUVORCBQUklWQVRFIEtFWS0tLS0tXG4iLAoicHJpdmF0ZV9rZXlfaWQiOiAiZTA3ZjdjOTM4NzBjN2UwM2Y4ODM1NjBlY2Q4ZmQwZjRkMjdiMDA4MSIsCiJwcm9qZWN0X2lkIjogInBvbWVyaXVtLXJlZGFjdGVkIiwKInRva2VuX3VyaSI6ICJodHRwOi8vbW9jay1pZHA6ODAyNC90b2tlbiIsCiJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIKfQ==
+idp_client_id: CLIENT_ID
+idp_client_secret: CLIENT_SECRET
+idp_provider: oidc
+idp_provider_url: https://mock-idp.localhost.pomerium.io/
+jwt_claims_headers: email,groups,user
+log_level: debug
+routes:
+  - allow_public_unauthenticated_access: true
+    from: https://mock-idp.localhost.pomerium.io
+    preserve_host_header: true
+    to: http://mock-idp:8024
+  - allow_public_unauthenticated_access: true
+    from: https://envoy.localhost.pomerium.io
+    to: http://localhost:9901
+  - allow_any_authenticated_user: true
+    from: https://verify.localhost.pomerium.io
+    pass_identity_headers: true
+    to: http://verify:80
+  - allow_public_unauthenticated_access: true
+    allow_websockets: true
+    from: https://websocket-echo.localhost.pomerium.io
+    to: http://websocket-echo:80
+  - allow_any_authenticated_user: true
+    from: https://fortio-ui.localhost.pomerium.io
+    to: https://fortio:8080
+  - allow_public_unauthenticated_access: true
+    from: https://fortio-ping.localhost.pomerium.io
+    tls_custom_ca_file: route_ca_1.crt
+    tls_server_name: fortio-ping.localhost.pomerium.io
+    to: https://fortio:8079
+  - allow_public_unauthenticated_access: true
+    from: https://httpdetails-ip-address.localhost.pomerium.io
+    to: https://172.21.0.50:8443
+  - allow_public_unauthenticated_access: true
+    from: https://httpdetails.localhost.pomerium.io
+    path: /tls-skip-verify-enabled
+    tls_skip_verify: true
+    to: https://trusted-httpdetails:8443
+  - allow_public_unauthenticated_access: true
+    from: https://httpdetails.localhost.pomerium.io
+    path: /tls-skip-verify-disabled
+    tls_skip_verify: false
+    to: https://trusted-httpdetails:8443
+  - allow_public_unauthenticated_access: true
+    from: https://httpdetails.localhost.pomerium.io
+    path: /tls-server-name-enabled
+    tls_server_name: httpdetails.localhost.notpomerium.io
+    to: https://wrongly-named-httpdetails:8443
+  - allow_public_unauthenticated_access: true
+    from: https://httpdetails.localhost.pomerium.io
+    path: /tls-server-name-disabled
+    to: https://wrongly-named-httpdetails:8443
+  - allow_public_unauthenticated_access: true
+    from: https://httpdetails.localhost.pomerium.io
+    path: /tls-custom-ca-enabled
+    tls_custom_ca_file: route_ca_2.crt
+    tls_server_name: httpdetails.localhost.pomerium.io
+    to: https://untrusted-httpdetails:8443
+  - allow_public_unauthenticated_access: true
+    from: https://httpdetails.localhost.pomerium.io
+    path: /tls-custom-ca-disabled
+    to: https://untrusted-httpdetails:8443
+  - allow_any_authenticated_user: true
+    from: https://client-cert-required.localhost.pomerium.io
+    tls_downstream_client_ca_file: route_downstream_ca_1.crt
+    to: http://trusted-httpdetails:8080
+  - allow_any_authenticated_user: true
+    from: https://client-cert-overlap.localhost.pomerium.io
+    path: /ca1
+    tls_downstream_client_ca_file: route_downstream_ca_1.crt
+    to: http://trusted-httpdetails:8080
+  - allow_any_authenticated_user: true
+    from: https://client-cert-overlap.localhost.pomerium.io
+    path: /ca2
+    tls_downstream_client_ca_file: route_downstream_ca_2.crt
+    to: http://trusted-httpdetails:8080
+  - cors_allow_preflight: true
+    from: https://httpdetails.localhost.pomerium.io
+    prefix: /cors-enabled
+    to: http://trusted-httpdetails:8080
+  - cors_allow_preflight: false
+    from: https://httpdetails.localhost.pomerium.io
+    prefix: /cors-disabled
+    to: http://trusted-httpdetails:8080
+  - allow_public_unauthenticated_access: true
+    from: https://httpdetails.localhost.pomerium.io
+    prefix: /preserve-host-header-enabled
+    preserve_host_header: true
+    to: http://trusted-httpdetails:8080
+  - allow_public_unauthenticated_access: true
+    from: https://httpdetails.localhost.pomerium.io
+    prefix: /preserve-host-header-disabled
+    preserve_host_header: false
+    to: http://trusted-httpdetails:8080
+  - allow_any_authenticated_user: true
+    from: https://restricted-httpdetails.localhost.pomerium.io
+    pass_identity_headers: true
+    to: http://trusted-httpdetails:8080
+  - from: https://ppl-restricted-httpdetails.localhost.pomerium.io
+    pass_identity_headers: true
+    to: http://trusted-httpdetails:8080
+    policy:
+      - allow:
+          or:
+            - email:
+                is: foo@example.com
+            - email:
+                is: bar@example.com
+  - allowed_domains:
+      - dogs.test
+    from: https://httpdetails.localhost.pomerium.io
+    pass_identity_headers: true
+    prefix: /by-domain
+    to: http://trusted-httpdetails:8080
+  - allowed_users:
+      - user1@dogs.test
+    from: https://httpdetails.localhost.pomerium.io
+    pass_identity_headers: true
+    prefix: /by-user
+    to: http://trusted-httpdetails:8080
+  - allow_any_authenticated_user: true
+    from: https://httpdetails.localhost.pomerium.io
+    prefix: /round-robin
+    to:
+      - http://trusted-1-httpdetails:8080
+      - http://trusted-2-httpdetails:8080
+      - http://trusted-3-httpdetails:8080
+  - allow_any_authenticated_user: true
+    from: https://httpdetails.localhost.pomerium.io
+    prefix: /ring-hash
+    to:
+      - http://trusted-1-httpdetails:8080
+      - http://trusted-2-httpdetails:8080
+      - http://trusted-3-httpdetails:8080
+  - allow_any_authenticated_user: true
+    from: https://httpdetails.localhost.pomerium.io
+    prefix: /maglev
+    to:
+      - http://trusted-1-httpdetails:8080
+      - http://trusted-2-httpdetails:8080
+      - http://trusted-3-httpdetails:8080
+  - allow_public_unauthenticated_access: true
+    from: https://httpdetails.localhost.pomerium.io
+    pass_identity_headers: true
+    set_request_headers:
+      X-Custom-Request-Header: custom-request-header-value
+    to: http://trusted-httpdetails:8080
+  - allow_public_unauthenticated_access: true
+    allow_websockets: true
+    from: https://enabled-ws-echo.localhost.pomerium.io
+    to: http://websocket-echo:80
+  - allow_public_unauthenticated_access: true
+    from: https://disabled-ws-echo.localhost.pomerium.io
+    to: http://websocket-echo:80
+  - allow_public_unauthenticated_access: true
+    enable_google_cloud_serverless_authentication: true
+    from: https://cloudrun.localhost.pomerium.io
+    pass_identity_headers: true
+    set_request_headers:
+      x-idp: oidc
+    to: http://trusted-httpdetails:8080
+  - from: https://200.localhost.pomerium.io
+    response:
+      status: 200
+      body: OK
+shared_secret: UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=
+
+tls_derive: example.com # unsupported

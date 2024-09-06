@@ -103,6 +103,12 @@ type ClientInterface interface {
 
 	ReportClusterResourceBundleStatus(ctx context.Context, bundleId BundleId, body ReportClusterResourceBundleStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ImportConfigurationWithBody request with any body
+	ImportConfigurationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetQuotas request
+	GetQuotas(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ExchangeClusterIdentityTokenWithBody request with any body
 	ExchangeClusterIdentityTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -164,6 +170,30 @@ func (c *Client) ReportClusterResourceBundleStatusWithBody(ctx context.Context, 
 
 func (c *Client) ReportClusterResourceBundleStatus(ctx context.Context, bundleId BundleId, body ReportClusterResourceBundleStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReportClusterResourceBundleStatusRequest(c.Server, bundleId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ImportConfigurationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewImportConfigurationRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetQuotas(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetQuotasRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -357,6 +387,62 @@ func NewReportClusterResourceBundleStatusRequestWithBody(server string, bundleId
 	return req, nil
 }
 
+// NewImportConfigurationRequestWithBody generates requests for ImportConfiguration with any type of body
+func NewImportConfigurationRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/import")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetQuotasRequest generates requests for GetQuotas
+func NewGetQuotasRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/config/quotas")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewExchangeClusterIdentityTokenRequest calls the generic ExchangeClusterIdentityToken builder with application/json body
 func NewExchangeClusterIdentityTokenRequest(server string, body ExchangeClusterIdentityTokenJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -494,6 +580,12 @@ type ClientWithResponsesInterface interface {
 
 	ReportClusterResourceBundleStatusWithResponse(ctx context.Context, bundleId BundleId, body ReportClusterResourceBundleStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*ReportClusterResourceBundleStatusResp, error)
 
+	// ImportConfigurationWithBodyWithResponse request with any body
+	ImportConfigurationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportConfigurationResp, error)
+
+	// GetQuotasWithResponse request
+	GetQuotasWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetQuotasResp, error)
+
 	// ExchangeClusterIdentityTokenWithBodyWithResponse request with any body
 	ExchangeClusterIdentityTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExchangeClusterIdentityTokenResp, error)
 
@@ -601,6 +693,53 @@ func (r ReportClusterResourceBundleStatusResp) StatusCode() int {
 	return 0
 }
 
+type ImportConfigurationResp struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *ErrorResponse
+	JSON500      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r ImportConfigurationResp) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ImportConfigurationResp) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetQuotasResp struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ConfigQuotas
+	JSON400      *ErrorResponse
+	JSON500      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r GetQuotasResp) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetQuotasResp) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type ExchangeClusterIdentityTokenResp struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -690,6 +829,24 @@ func (c *ClientWithResponses) ReportClusterResourceBundleStatusWithResponse(ctx 
 		return nil, err
 	}
 	return ParseReportClusterResourceBundleStatusResp(rsp)
+}
+
+// ImportConfigurationWithBodyWithResponse request with arbitrary body returning *ImportConfigurationResp
+func (c *ClientWithResponses) ImportConfigurationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportConfigurationResp, error) {
+	rsp, err := c.ImportConfigurationWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseImportConfigurationResp(rsp)
+}
+
+// GetQuotasWithResponse request returning *GetQuotasResp
+func (c *ClientWithResponses) GetQuotasWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetQuotasResp, error) {
+	rsp, err := c.GetQuotas(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetQuotasResp(rsp)
 }
 
 // ExchangeClusterIdentityTokenWithBodyWithResponse request with arbitrary body returning *ExchangeClusterIdentityTokenResp
@@ -867,6 +1024,79 @@ func ParseReportClusterResourceBundleStatusResp(rsp *http.Response) (*ReportClus
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseImportConfigurationResp parses an HTTP response from a ImportConfigurationWithResponse call
+func ParseImportConfigurationResp(rsp *http.Response) (*ImportConfigurationResp, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ImportConfigurationResp{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetQuotasResp parses an HTTP response from a GetQuotasWithResponse call
+func ParseGetQuotasResp(rsp *http.Response) (*GetQuotasResp, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetQuotasResp{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigQuotas
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest ErrorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -1071,6 +1301,61 @@ func (r *ReportClusterResourceBundleStatusResp) GetValue() *EmptyResponse {
 		return nil
 	}
 	return &EmptyResponse{}
+}
+
+// GetHTTPResponse implements apierror.APIResponse
+func (r *ImportConfigurationResp) GetHTTPResponse() *http.Response {
+	return r.HTTPResponse
+}
+
+// GetBadRequestError implements apierror.APIResponse
+func (r *ImportConfigurationResp) GetBadRequestError() (string, bool) {
+	if r.JSON400 == nil {
+		return "", false
+	}
+	return r.JSON400.Error, true
+}
+
+// GetInternalServerError implements apierror.APIResponse
+func (r *ImportConfigurationResp) GetInternalServerError() (string, bool) {
+	if r.JSON500 == nil {
+		return "", false
+	}
+	return r.JSON500.Error, true
+}
+
+// GetValue implements apierror.APIResponse
+func (r *ImportConfigurationResp) GetValue() *EmptyResponse {
+	if r.StatusCode()/100 != 2 {
+		return nil
+	}
+	return &EmptyResponse{}
+}
+
+// GetHTTPResponse implements apierror.APIResponse
+func (r *GetQuotasResp) GetHTTPResponse() *http.Response {
+	return r.HTTPResponse
+}
+
+// GetValue implements apierror.APIResponse
+func (r *GetQuotasResp) GetValue() *ConfigQuotas {
+	return r.JSON200
+}
+
+// GetBadRequestError implements apierror.APIResponse
+func (r *GetQuotasResp) GetBadRequestError() (string, bool) {
+	if r.JSON400 == nil {
+		return "", false
+	}
+	return r.JSON400.Error, true
+}
+
+// GetInternalServerError implements apierror.APIResponse
+func (r *GetQuotasResp) GetInternalServerError() (string, bool) {
+	if r.JSON500 == nil {
+		return "", false
+	}
+	return r.JSON500.Error, true
 }
 
 // GetHTTPResponse implements apierror.APIResponse

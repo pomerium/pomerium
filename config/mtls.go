@@ -192,6 +192,30 @@ func (s *DownstreamMTLSSettings) applySettingsProto(
 	s.Enforcement = mtlsEnforcementFromProtoEnum(ctx, p.Enforcement)
 }
 
+func (s *DownstreamMTLSSettings) toSettingsProto() *config.DownstreamMtlsSettings {
+	var settings config.DownstreamMtlsSettings
+	if s.CA != "" || s.CAFile != "" {
+		settings.Ca = valueOrFromFileBase64(s.CA, s.CAFile)
+	}
+	if s.CRL != "" || s.CRLFile != "" {
+		settings.Crl = valueOrFromFileBase64(s.CRL, s.CRLFile)
+	}
+	if s.Enforcement != "" {
+		switch s.Enforcement {
+		case MTLSEnforcementPolicy:
+			settings.Enforcement = config.MtlsEnforcementMode_POLICY.Enum()
+		case MTLSEnforcementPolicyWithDefaultDeny:
+			settings.Enforcement = config.MtlsEnforcementMode_POLICY_WITH_DEFAULT_DENY.Enum()
+		case MTLSEnforcementRejectConnection:
+			settings.Enforcement = config.MtlsEnforcementMode_REJECT_CONNECTION.Enum()
+		}
+	}
+	if settings.Ca == nil && settings.Crl == nil && settings.Enforcement == nil {
+		return nil
+	}
+	return &settings
+}
+
 func mtlsEnforcementFromProtoEnum(
 	ctx context.Context, mode *config.MtlsEnforcementMode,
 ) MTLSEnforcement {

@@ -62,6 +62,13 @@ type BundleStatusSuccess struct {
 	Metadata map[string]string `json:"metadata"`
 }
 
+// ConfigQuotas defines model for ConfigQuotas.
+type ConfigQuotas struct {
+	Certificates int `json:"certificates"`
+	Policies     int `json:"policies"`
+	Routes       int `json:"routes"`
+}
+
 // DownloadBundleResponse defines model for DownloadBundleResponse.
 type DownloadBundleResponse struct {
 	// CaptureMetadataHeaders bundle metadata that need be picked up by the client from the download URL
