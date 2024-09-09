@@ -95,7 +95,7 @@ func TestSecretWriter(t *testing.T) {
 				"namespace": "pomerium",
 			},
 			"data": map[string]any{
-				"bootstrap.dat": `{"databrokerStorageConnection":"test","sharedSecret":null}`,
+				"bootstrap.dat": `{"clusterId":"","databrokerStorageConnection":"test","organizationId":"","sharedSecret":null}`,
 			},
 		}, unstructured)
 	})

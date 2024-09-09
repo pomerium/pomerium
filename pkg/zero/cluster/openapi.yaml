@@ -149,6 +149,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /reportUsage:
+    post:
+      description: Report usage for the cluster
+      operationId: reportUsage
+      tags: [usage]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportUsageRequest"
+    responses:
+      "204":
+        description: OK
+
 components:
   parameters:
     bundleId:
@@ -163,14 +178,20 @@ components:
     BootstrapConfig:
       type: object
       properties:
+        clusterId:
+          type: string
         databrokerStorageConnection:
           type: string
           description: databroker storage connection string
+        organizationId:
+          type: string
         sharedSecret:
           type: string
           format: byte
           description: shared secret
       required:
+        - clusterId
+        - organizationId
         - sharedSecret
 
     Bundle:
@@ -273,3 +294,26 @@ components:
             $ref: "#/components/schemas/Bundle"
       required:
         - bundles
+    ReportUsageRequest:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportUsageUser"
+      required:
+        - users
+    ReportUsageUser:
+      type: object
+      properties:
+        lastSignedInAt:
+          type: string
+          format: "date-time"
+        pseudonymousEmail:
+          type: string
+        pseudonymousId:
+          type: string
+      required:
+        - lastSignedInAt
+        - pseudonymousEmail
+        - pseudonymousId

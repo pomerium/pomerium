@@ -50,6 +50,10 @@ type Config struct {
 
 	// MetricsScrapeEndpoints additional metrics endpoints to scrape and provide part of metrics
 	MetricsScrapeEndpoints []MetricsScrapeEndpoint
+
+	// Zero-specific configuration options.
+	ZeroClusterID      string
+	ZeroOrganizationID string
 }
 
 // Clone creates a clone of the config.

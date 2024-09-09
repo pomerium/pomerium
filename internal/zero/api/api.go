@@ -119,3 +119,16 @@ func (api *API) GetClusterResourceBundles(ctx context.Context) (*cluster_api.Get
 func (api *API) GetTelemetryConn() *grpc.ClientConn {
 	return api.telemetryConn
 }
+
+func (api *API) ReportUsage(ctx context.Context, req cluster_api.ReportUsageRequest) error {
+	res, err := api.cluster.ReportUsageWithResponse(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	if res.StatusCode()/100 != 2 {
+		return fmt.Errorf("unexpected response from ReportUsage: %d", res.StatusCode())
+	}
+
+	return nil
+}

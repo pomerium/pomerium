@@ -31,6 +31,9 @@ type ServerInterface interface {
 
 	// (POST /exchangeToken)
 	ExchangeClusterIdentityToken(w http.ResponseWriter, r *http.Request)
+
+	// (POST /reportUsage)
+	ReportUsage(w http.ResponseWriter, r *http.Request)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -59,6 +62,11 @@ func (_ Unimplemented) ReportClusterResourceBundleStatus(w http.ResponseWriter, 
 
 // (POST /exchangeToken)
 func (_ Unimplemented) ExchangeClusterIdentityToken(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /reportUsage)
+func (_ Unimplemented) ReportUsage(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -167,6 +175,23 @@ func (siw *ServerInterfaceWrapper) ExchangeClusterIdentityToken(w http.ResponseW
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ExchangeClusterIdentityToken(w, r)
+	}))
+
+	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
+		handler = siw.HandlerMiddlewares[i](handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// ReportUsage operation middleware
+func (siw *ServerInterfaceWrapper) ReportUsage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReportUsage(w, r)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -303,6 +328,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/exchangeToken", wrapper.ExchangeClusterIdentityToken)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/reportUsage", wrapper.ReportUsage)
 	})
 
 	return r
@@ -490,6 +518,14 @@ func (response ExchangeClusterIdentityToken500JSONResponse) VisitExchangeCluster
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ReportUsageRequestObject struct {
+	Body *ReportUsageJSONRequestBody
+}
+
+type ReportUsageResponseObject interface {
+	VisitReportUsageResponse(w http.ResponseWriter) error
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 
@@ -507,6 +543,9 @@ type StrictServerInterface interface {
 
 	// (POST /exchangeToken)
 	ExchangeClusterIdentityToken(ctx context.Context, request ExchangeClusterIdentityTokenRequestObject) (ExchangeClusterIdentityTokenResponseObject, error)
+
+	// (POST /reportUsage)
+	ReportUsage(ctx context.Context, request ReportUsageRequestObject) (ReportUsageResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -669,6 +708,37 @@ func (sh *strictHandler) ExchangeClusterIdentityToken(w http.ResponseWriter, r *
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ExchangeClusterIdentityTokenResponseObject); ok {
 		if err := validResponse.VisitExchangeClusterIdentityTokenResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ReportUsage operation middleware
+func (sh *strictHandler) ReportUsage(w http.ResponseWriter, r *http.Request) {
+	var request ReportUsageRequestObject
+
+	var body ReportUsageJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ReportUsage(ctx, request.(ReportUsageRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ReportUsage")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ReportUsageResponseObject); ok {
+		if err := validResponse.VisitReportUsageResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
