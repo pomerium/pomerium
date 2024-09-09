@@ -526,6 +526,14 @@ type ReportUsageResponseObject interface {
 	VisitReportUsageResponse(w http.ResponseWriter) error
 }
 
+type ReportUsage204Response struct {
+}
+
+func (response ReportUsage204Response) VisitReportUsageResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 

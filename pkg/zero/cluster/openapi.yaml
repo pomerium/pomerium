@@ -160,9 +160,9 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/ReportUsageRequest"
-    responses:
-      "204":
-        description: OK
+      responses:
+        "204":
+          description: OK
 
 components:
   parameters:
