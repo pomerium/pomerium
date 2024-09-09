@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 
 	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
@@ -129,36 +128,12 @@ func (cfg *Config) Checksum() uint64 {
 
 // AllocatePorts populates
 func (cfg *Config) AllocatePorts(ports [6]string) {
-	if port, ok := os.LookupEnv("POMERIUM_GRPC_PORT"); ok {
-		cfg.GRPCPort = port
-	} else {
-		cfg.GRPCPort = ports[0]
-	}
-	if port, ok := os.LookupEnv("POMERIUM_HTTP_PORT"); ok {
-		cfg.HTTPPort = port
-	} else {
-		cfg.HTTPPort = ports[1]
-	}
-	if port, ok := os.LookupEnv("POMERIUM_OUTBOUND_PORT"); ok {
-		cfg.OutboundPort = port
-	} else {
-		cfg.OutboundPort = ports[2]
-	}
-	if port, ok := os.LookupEnv("POMERIUM_METRICS_PORT"); ok {
-		cfg.MetricsPort = port
-	} else {
-		cfg.MetricsPort = ports[3]
-	}
-	if port, ok := os.LookupEnv("POMERIUM_DEBUG_PORT"); ok {
-		cfg.DebugPort = port
-	} else {
-		cfg.DebugPort = ports[4]
-	}
-	if port, ok := os.LookupEnv("POMERIUM_ACMETLSALPN_PORT"); ok {
-		cfg.ACMETLSALPNPort = port
-	} else {
-		cfg.ACMETLSALPNPort = ports[5]
-	}
+	cfg.GRPCPort = ports[0]
+	cfg.HTTPPort = ports[1]
+	cfg.OutboundPort = ports[2]
+	cfg.MetricsPort = ports[3]
+	cfg.DebugPort = ports[4]
+	cfg.ACMETLSALPNPort = ports[5]
 }
 
 // GetTLSClientConfig returns TLS configuration that accounts for additional CA entries
