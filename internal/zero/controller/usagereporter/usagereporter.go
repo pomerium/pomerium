@@ -59,11 +59,14 @@ func (ur *UsageReporter) Run(ctx context.Context, client databroker.DataBrokerSe
 func (ur *UsageReporter) report(ctx context.Context, records []usageReporterRecord) error {
 	req := cluster.ReportUsageRequest{}
 	for _, record := range records {
-		req.Users = append(req.Users, cluster.ReportUsageUser{
-			LastSignedInAt:    record.lastSignedInAt,
-			PseudonymousEmail: cryptutil.Pseudonymize(ur.organizationID, record.userEmail),
-			PseudonymousId:    cryptutil.Pseudonymize(ur.organizationID, record.userID),
-		})
+		u := cluster.ReportUsageUser{
+			LastSignedInAt: record.lastSignedInAt,
+			PseudonymousId: cryptutil.Pseudonymize(ur.organizationID, record.userID),
+		}
+		if record.userEmail != "" {
+			u.PseudonymousEmail = cryptutil.Pseudonymize(ur.organizationID, record.userEmail)
+		}
+		req.Users = append(req.Users, u)
 	}
 	return backoff.Retry(func() error {
 		log.Debug(ctx).Int("updated-users", len(req.Users)).Msg("reporting usage")
