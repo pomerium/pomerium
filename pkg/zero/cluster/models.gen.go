@@ -18,8 +18,11 @@ const (
 
 // BootstrapConfig defines model for BootstrapConfig.
 type BootstrapConfig struct {
+	ClusterId string `json:"clusterId"`
+
 	// DatabrokerStorageConnection databroker storage connection string
 	DatabrokerStorageConnection *string `json:"databrokerStorageConnection,omitempty"`
+	OrganizationId              string  `json:"organizationId"`
 
 	// SharedSecret shared secret
 	SharedSecret []byte `json:"sharedSecret"`

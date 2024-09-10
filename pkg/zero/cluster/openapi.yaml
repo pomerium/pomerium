@@ -163,14 +163,20 @@ components:
     BootstrapConfig:
       type: object
       properties:
+        clusterId:
+          type: string
         databrokerStorageConnection:
           type: string
           description: databroker storage connection string
+        organizationId:
+          type: string
         sharedSecret:
           type: string
           format: byte
           description: shared secret
       required:
+        - clusterId
+        - organizationId
         - sharedSecret
 
     Bundle:
