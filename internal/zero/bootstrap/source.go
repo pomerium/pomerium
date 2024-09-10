@@ -55,9 +55,9 @@ func (src *source) OnConfigChange(_ context.Context, l config.ChangeListener) {
 func (src *source) UpdateBootstrap(ctx context.Context, cfg cluster_api.BootstrapConfig) bool {
 	current := src.cfg.Load()
 	incoming := current.Clone()
-	applyBootstrapConfig(incoming.Options, &cfg)
+	applyBootstrapConfig(incoming, &cfg)
 
-	if cmp.Equal(incoming.Options, current.Options, cmpOpts...) {
+	if cmp.Equal(incoming, current, cmpOpts...) {
 		return false
 	}
 
@@ -81,13 +81,15 @@ func (src *source) notifyListeners(ctx context.Context, cfg *config.Config) {
 	}
 }
 
-func applyBootstrapConfig(dst *config.Options, src *cluster_api.BootstrapConfig) {
-	dst.SharedKey = base64.StdEncoding.EncodeToString(src.SharedSecret)
+func applyBootstrapConfig(dst *config.Config, src *cluster_api.BootstrapConfig) {
+	dst.Options.SharedKey = base64.StdEncoding.EncodeToString(src.SharedSecret)
 	if src.DatabrokerStorageConnection != nil {
-		dst.DataBrokerStorageType = config.StoragePostgresName
-		dst.DataBrokerStorageConnectionString = *src.DatabrokerStorageConnection
+		dst.Options.DataBrokerStorageType = config.StoragePostgresName
+		dst.Options.DataBrokerStorageConnectionString = *src.DatabrokerStorageConnection
 	} else {
-		dst.DataBrokerStorageType = config.StorageInMemoryName
-		dst.DataBrokerStorageConnectionString = ""
+		dst.Options.DataBrokerStorageType = config.StorageInMemoryName
+		dst.Options.DataBrokerStorageConnectionString = ""
 	}
+	dst.ZeroClusterID = src.ClusterId
+	dst.ZeroOrganizationID = src.OrganizationId
 }
