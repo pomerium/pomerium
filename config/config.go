@@ -49,6 +49,11 @@ type Config struct {
 
 	// MetricsScrapeEndpoints additional metrics endpoints to scrape and provide part of metrics
 	MetricsScrapeEndpoints []MetricsScrapeEndpoint
+
+	// ZeroClusterID is the zero cluster id, only set when in zero mode.
+	ZeroClusterID string
+	// ZeroOrganizationID is the zero organization id, only set when in zero mode.
+	ZeroOrganizationID string
 }
 
 // Clone creates a clone of the config.
