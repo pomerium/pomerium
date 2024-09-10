@@ -2,6 +2,7 @@ package envoyconfig
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/tls"
 	"encoding/base64"
@@ -20,13 +21,13 @@ import (
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
+	"github.com/hashicorp/go-set/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/sets"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -648,14 +649,14 @@ func addCAToBundle(bundle *bytes.Buffer, ca []byte) {
 }
 
 func getAllRouteableHosts(options *config.Options, addr string) ([]string, error) {
-	allHosts := sets.NewSorted[string]()
+	allHosts := set.NewTreeSet(cmp.Compare[string])
 
 	if addr == options.Addr {
 		hosts, err := options.GetAllRouteableHTTPHosts()
 		if err != nil {
 			return nil, err
 		}
-		allHosts.Add(hosts...)
+		allHosts.InsertSlice(hosts)
 	}
 
 	if addr == options.GetGRPCAddr() {
@@ -663,11 +664,11 @@ func getAllRouteableHosts(options *config.Options, addr string) ([]string, error
 		if err != nil {
 			return nil, err
 		}
-		allHosts.Add(hosts...)
+		allHosts.InsertSlice(hosts)
 	}
 
 	var filtered []string
-	for _, host := range allHosts.ToSlice() {
+	for host := range allHosts.Items() {
 		if !strings.Contains(host, "*") {
 			filtered = append(filtered, host)
 		}

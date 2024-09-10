@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	goset "github.com/hashicorp/go-set/v3"
 	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
@@ -29,7 +31,6 @@ import (
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/sets"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -1265,7 +1266,7 @@ func (o *Options) GetCodecType() CodecType {
 
 // GetAllRouteableGRPCHosts returns all the possible gRPC hosts handled by the Pomerium options.
 func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
-	hosts := sets.NewSorted[string]()
+	hosts := goset.NewTreeSet(cmp.Compare[string])
 
 	// authorize urls
 	if IsAll(o.Services) {
@@ -1274,7 +1275,7 @@ func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
 			return nil, err
 		}
 		for _, u := range authorizeURLs {
-			hosts.Add(urlutil.GetDomainsForURL(u, true)...)
+			hosts.InsertSlice(urlutil.GetDomainsForURL(u, true))
 		}
 	} else if IsAuthorize(o.Services) {
 		authorizeURLs, err := o.GetInternalAuthorizeURLs()
@@ -1282,7 +1283,7 @@ func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
 			return nil, err
 		}
 		for _, u := range authorizeURLs {
-			hosts.Add(urlutil.GetDomainsForURL(u, true)...)
+			hosts.InsertSlice(urlutil.GetDomainsForURL(u, true))
 		}
 	}
 
@@ -1293,7 +1294,7 @@ func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
 			return nil, err
 		}
 		for _, u := range dataBrokerURLs {
-			hosts.Add(urlutil.GetDomainsForURL(u, true)...)
+			hosts.InsertSlice(urlutil.GetDomainsForURL(u, true))
 		}
 	} else if IsDataBroker(o.Services) {
 		dataBrokerURLs, err := o.GetInternalDataBrokerURLs()
@@ -1301,23 +1302,23 @@ func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
 			return nil, err
 		}
 		for _, u := range dataBrokerURLs {
-			hosts.Add(urlutil.GetDomainsForURL(u, true)...)
+			hosts.InsertSlice(urlutil.GetDomainsForURL(u, true))
 		}
 	}
 
-	return hosts.ToSlice(), nil
+	return hosts.Slice(), nil
 }
 
 // GetAllRouteableHTTPHosts returns all the possible HTTP hosts handled by the Pomerium options.
 func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
-	hosts := sets.NewSorted[string]()
+	hosts := goset.NewTreeSet(cmp.Compare[string])
 	if IsAuthenticate(o.Services) {
 		if o.AuthenticateInternalURLString != "" {
 			authenticateURL, err := o.GetInternalAuthenticateURL()
 			if err != nil {
 				return nil, err
 			}
-			hosts.Add(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
+			hosts.InsertSlice(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)))
 		}
 
 		if o.AuthenticateURLString != "" {
@@ -1325,7 +1326,7 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 			if err != nil {
 				return nil, err
 			}
-			hosts.Add(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
+			hosts.InsertSlice(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)))
 		}
 	}
 
@@ -1337,15 +1338,15 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 				return nil, err
 			}
 
-			hosts.Add(urlutil.GetDomainsForURL(fromURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
+			hosts.InsertSlice(urlutil.GetDomainsForURL(fromURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)))
 			if policy.TLSDownstreamServerName != "" {
 				tlsURL := fromURL.ResolveReference(&url.URL{Host: policy.TLSDownstreamServerName})
-				hosts.Add(urlutil.GetDomainsForURL(tlsURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
+				hosts.InsertSlice(urlutil.GetDomainsForURL(tlsURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)))
 			}
 		}
 	}
 
-	return hosts.ToSlice(), nil
+	return hosts.Slice(), nil
 }
 
 // GetClientSecret gets the client secret.
