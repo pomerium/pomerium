@@ -217,7 +217,7 @@ func (c *controller) runUsageReporter(ctx context.Context, client databroker.Dat
 		return fmt.Errorf("error waiting for bootstrap: %w", err)
 	}
 
-	ur := usagereporter.New(c.api, c.bootstrapConfig.GetConfig().ZeroOrganizationID)
+	ur := usagereporter.New(c.api, c.bootstrapConfig.GetConfig().ZeroOrganizationID, time.Minute)
 	return retry.WithBackoff(ctx, "zero-usage-reporter", func(ctx context.Context) error {
 		// start the usage reporter
 		return ur.Run(ctx, client)
