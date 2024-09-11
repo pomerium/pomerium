@@ -149,6 +149,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /reportUsage:
+    post:
+      description: Report usage for the cluster
+      operationId: reportUsage
+      tags: [usage]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportUsageRequest"
+      responses:
+        "204":
+          description: OK
+
 components:
   parameters:
     bundleId:
@@ -279,3 +294,26 @@ components:
             $ref: "#/components/schemas/Bundle"
       required:
         - bundles
+    ReportUsageRequest:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportUsageUser"
+      required:
+        - users
+    ReportUsageUser:
+      type: object
+      properties:
+        lastSignedInAt:
+          type: string
+          format: "date-time"
+        pseudonymousEmail:
+          type: string
+        pseudonymousId:
+          type: string
+      required:
+        - lastSignedInAt
+        - pseudonymousEmail
+        - pseudonymousId
