@@ -7,6 +7,7 @@ import (
 	"time"
 
 	backoff "github.com/cenkalti/backoff/v4"
+	set "github.com/hashicorp/go-set/v3"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -31,7 +32,7 @@ type UsageReporter struct {
 
 	mu       sync.Mutex
 	byUserID map[string]usageReporterRecord
-	updates  map[string]struct{}
+	updates  *set.Set[string]
 }
 
 // New creates a new UsageReporter.
@@ -40,12 +41,14 @@ func New(api *sdk.API, organizationID string) *UsageReporter {
 		api:            api,
 		organizationID: organizationID,
 		byUserID:       make(map[string]usageReporterRecord),
-		updates:        make(map[string]struct{}),
+		updates:        set.New[string](0),
 	}
 }
 
 // Run runs the usage reporter.
 func (ur *UsageReporter) Run(ctx context.Context, client databroker.DataBrokerServiceClient) error {
+	ctx = log.Ctx(ctx).With().Str("organization-id", ur.organizationID).Logger().WithContext(ctx)
+
 	// first initialize the user collection
 	serverVersion, latestRecordVersion, err := ur.runInit(ctx, client)
 	if err != nil {
@@ -114,11 +117,11 @@ func (ur *UsageReporter) runReporter(ctx context.Context) error {
 	for {
 		// collect the updated records since last run
 		ur.mu.Lock()
-		records := make([]usageReporterRecord, 0, len(ur.updates))
-		for userID := range ur.updates {
+		records := make([]usageReporterRecord, 0, ur.updates.Size())
+		for userID := range ur.updates.Items() {
 			records = append(records, ur.byUserID[userID])
 		}
-		clear(ur.updates)
+		ur.updates = set.New[string](0)
 		ur.mu.Unlock()
 
 		if len(records) > 0 {
@@ -152,7 +155,7 @@ func (ur *UsageReporter) onUpdateSession(s *session.Session) {
 	nr.userID = userID
 	if nr != r {
 		ur.byUserID[userID] = nr
-		ur.updates[userID] = struct{}{}
+		ur.updates.Insert(userID)
 	}
 }
 
@@ -169,10 +172,12 @@ func (ur *UsageReporter) onUpdateUser(u *user.User) {
 	r := ur.byUserID[userID]
 	nr := r
 	nr.userID = userID
-	nr.userEmail = u.GetEmail()
+	if u.GetEmail() != "" {
+		nr.userEmail = u.GetEmail()
+	}
 	if nr != r {
 		ur.byUserID[userID] = nr
-		ur.updates[userID] = struct{}{}
+		ur.updates.Insert(userID)
 	}
 }
 

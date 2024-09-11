@@ -58,7 +58,7 @@ func SyncRecords[T any, TMessage interface {
 	}
 }
 
-// SyncRecords calls fn for every record using SyncLatest.
+// SyncLatestRecords calls fn for every record using SyncLatest.
 func SyncLatestRecords[T any, TMessage interface {
 	*T
 	proto.Message
