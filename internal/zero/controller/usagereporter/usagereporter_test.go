@@ -9,6 +9,14 @@ import (
 	"github.com/pomerium/pomerium/pkg/zero/cluster"
 )
 
+func Test_coalesce(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "", coalesce[string](), "should return zero on empty")
+	assert.Equal(t, "", coalesce("", "", ""), "should return zero when all are empty")
+	assert.Equal(t, "first value", coalesce("", "first value", "", "second value", "should return the first non-empty value"))
+}
+
 func Test_convertUsageReporterRecords(t *testing.T) {
 	t.Parallel()
 

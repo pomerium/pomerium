@@ -1,4 +1,11 @@
 // Package usagereporter reports usage for a cluster.
+//
+// Usage is determined from session and user records in the databroker. The usage reporter
+// uses SyncLatest and Sync to retrieve this data, builds a collection of records and then
+// sends them to the Zero Cluster API every minute.
+//
+// All usage users are reported on start but only the changed users are reported while running.
+// The Zero Cluster API is tolerant of redundant data.
 package usagereporter
 
 import (
@@ -164,9 +171,7 @@ func (ur *UsageReporter) onUpdateUser(u *user.User) {
 	r := ur.byUserID[userID]
 	nr := r
 	nr.userID = userID
-	if u.GetEmail() != "" {
-		nr.userEmail = u.GetEmail()
-	}
+	nr.userEmail = coalesce(nr.userEmail, u.GetEmail())
 	if nr != r {
 		ur.byUserID[userID] = nr
 		ur.updates.Insert(userID)
@@ -188,6 +193,18 @@ func convertUsageReporterRecords(organizationID string, records []usageReporterR
 	return users
 }
 
+// coalesce returns the first non-zero value, or the zero value if there are no non-empty values.
+func coalesce[T comparable](values ...T) T {
+	var zero T
+	for _, v := range values {
+		if v != zero {
+			return v
+		}
+	}
+	return zero
+}
+
+// latest returns the latest time.
 func latest(t1, t2 time.Time) time.Time {
 	if t2.After(t1) {
 		return t2
