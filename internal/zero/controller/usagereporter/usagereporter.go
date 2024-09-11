@@ -60,16 +60,8 @@ func (ur *UsageReporter) Run(ctx context.Context, client databroker.DataBrokerSe
 }
 
 func (ur *UsageReporter) report(ctx context.Context, records []usageReporterRecord) error {
-	req := cluster.ReportUsageRequest{}
-	for _, record := range records {
-		u := cluster.ReportUsageUser{
-			LastSignedInAt: record.lastSignedInAt,
-			PseudonymousId: cryptutil.Pseudonymize(ur.organizationID, record.userID),
-		}
-		if record.userEmail != "" {
-			u.PseudonymousEmail = cryptutil.Pseudonymize(ur.organizationID, record.userEmail)
-		}
-		req.Users = append(req.Users, u)
+	req := cluster.ReportUsageRequest{
+		Users: convertUsageReporterRecords(ur.organizationID, records),
 	}
 	return backoff.Retry(func() error {
 		log.Debug(ctx).Int("updated-users", len(req.Users)).Msg("reporting usage")
@@ -179,6 +171,21 @@ func (ur *UsageReporter) onUpdateUser(u *user.User) {
 		ur.byUserID[userID] = nr
 		ur.updates.Insert(userID)
 	}
+}
+
+func convertUsageReporterRecords(organizationID string, records []usageReporterRecord) []cluster.ReportUsageUser {
+	var users []cluster.ReportUsageUser
+	for _, record := range records {
+		u := cluster.ReportUsageUser{
+			LastSignedInAt: record.lastSignedInAt,
+			PseudonymousId: cryptutil.Pseudonymize(organizationID, record.userID),
+		}
+		if record.userEmail != "" {
+			u.PseudonymousEmail = cryptutil.Pseudonymize(organizationID, record.userEmail)
+		}
+		users = append(users, u)
+	}
+	return users
 }
 
 func latest(t1, t2 time.Time) time.Time {
