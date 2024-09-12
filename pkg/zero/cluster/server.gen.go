@@ -534,6 +534,24 @@ func (response ReportUsage204Response) VisitReportUsageResponse(w http.ResponseW
 	return nil
 }
 
+type ReportUsage400JSONResponse ErrorResponse
+
+func (response ReportUsage400JSONResponse) VisitReportUsageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ReportUsage500JSONResponse ErrorResponse
+
+func (response ReportUsage500JSONResponse) VisitReportUsageResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 
