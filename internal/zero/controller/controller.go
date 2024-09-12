@@ -211,12 +211,6 @@ func (c *controller) runHealthChecksLeased(ctx context.Context, client databroke
 }
 
 func (c *controller) runUsageReporter(ctx context.Context, client databroker.DataBrokerServiceClient) error {
-	// the usage reporter depends on the zero organization id, so wait for bootstrap to complete
-	err := c.bootstrapConfig.WaitReady(ctx)
-	if err != nil {
-		return fmt.Errorf("error waiting for bootstrap: %w", err)
-	}
-
 	ur := usagereporter.New(c.api, c.bootstrapConfig.GetConfig().ZeroOrganizationID, time.Minute)
 	return retry.WithBackoff(ctx, "zero-usage-reporter", func(ctx context.Context) error {
 		// start the usage reporter
