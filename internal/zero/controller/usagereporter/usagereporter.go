@@ -9,6 +9,7 @@
 package usagereporter
 
 import (
+	"cmp"
 	"context"
 	"sync"
 	"time"
@@ -185,7 +186,7 @@ func (ur *UsageReporter) onUpdateUser(u *user.User) {
 	r := ur.byUserID[userID]
 	nr := r
 	nr.userID = userID
-	nr.userEmail = coalesce(nr.userEmail, u.GetEmail())
+	nr.userEmail = cmp.Or(nr.userEmail, u.GetEmail())
 	if nr != r {
 		ur.byUserID[userID] = nr
 		ur.updates.Insert(userID)
@@ -205,17 +206,6 @@ func convertUsageReporterRecords(organizationID string, records []usageReporterR
 		users = append(users, u)
 	}
 	return users
-}
-
-// coalesce returns the first non-zero value, or the zero value if there are no non-empty values.
-func coalesce[T comparable](values ...T) T {
-	var zero T
-	for _, v := range values {
-		if v != zero {
-			return v
-		}
-	}
-	return zero
 }
 
 // latest returns the latest time.
