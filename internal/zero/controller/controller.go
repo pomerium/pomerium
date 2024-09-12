@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/bootstrap"
 	"github.com/pomerium/pomerium/internal/zero/bootstrap/writers"
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
+	"github.com/pomerium/pomerium/internal/zero/controller/usagereporter"
 	"github.com/pomerium/pomerium/internal/zero/healthcheck"
 	"github.com/pomerium/pomerium/internal/zero/reconciler"
 	"github.com/pomerium/pomerium/internal/zero/telemetry"
@@ -160,6 +161,7 @@ func (c *controller) runZeroControlLoop(ctx context.Context) error {
 				c.runSessionAnalyticsLeased,
 				c.runHealthChecksLeased,
 				leaseStatus.MonitorLease,
+				c.runUsageReporter,
 			),
 		)
 	})
@@ -205,6 +207,14 @@ func (c *controller) runHealthChecksLeased(ctx context.Context, client databroke
 			}))
 		})
 		return eg.Wait()
+	})
+}
+
+func (c *controller) runUsageReporter(ctx context.Context, client databroker.DataBrokerServiceClient) error {
+	ur := usagereporter.New(c.api, c.bootstrapConfig.GetConfig().ZeroOrganizationID, time.Minute)
+	return retry.WithBackoff(ctx, "zero-usage-reporter", func(ctx context.Context) error {
+		// start the usage reporter
+		return ur.Run(ctx, client)
 	})
 }
 

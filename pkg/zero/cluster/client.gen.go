@@ -628,6 +628,8 @@ func (r ExchangeClusterIdentityTokenResp) StatusCode() int {
 type ReportUsageResp struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON400      *ErrorResponse
+	JSON500      *ErrorResponse
 }
 
 // Status returns HTTPResponse.Status
@@ -937,6 +939,23 @@ func ParseReportUsageResp(rsp *http.Response) (*ReportUsageResp, error) {
 		HTTPResponse: rsp,
 	}
 
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
 	return response, nil
 }
 
@@ -1083,6 +1102,22 @@ func (r *ExchangeClusterIdentityTokenResp) GetInternalServerError() (string, boo
 // GetHTTPResponse implements apierror.APIResponse
 func (r *ReportUsageResp) GetHTTPResponse() *http.Response {
 	return r.HTTPResponse
+}
+
+// GetBadRequestError implements apierror.APIResponse
+func (r *ReportUsageResp) GetBadRequestError() (string, bool) {
+	if r.JSON400 == nil {
+		return "", false
+	}
+	return r.JSON400.Error, true
+}
+
+// GetInternalServerError implements apierror.APIResponse
+func (r *ReportUsageResp) GetInternalServerError() (string, bool) {
+	if r.JSON500 == nil {
+		return "", false
+	}
+	return r.JSON500.Error, true
 }
 
 // GetValue implements apierror.APIResponse
