@@ -1455,7 +1455,7 @@ func (o *Options) GetAccessLogFields() []log.AccessLogField {
 // GetAuthorizeLogFields returns the authorize log fields. If none are set, the default fields are returned.
 func (o *Options) GetAuthorizeLogFields() []log.AuthorizeLogField {
 	if o.AuthorizeLogFields == nil {
-		return log.DefaultAuthorizeLogFields()
+		return log.DefaultAuthorizeLogFields
 	}
 	return o.AuthorizeLogFields
 }

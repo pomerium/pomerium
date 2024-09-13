@@ -3,8 +3,6 @@ package log
 import (
 	"errors"
 	"fmt"
-
-	"github.com/rs/zerolog"
 )
 
 // An AuthorizeLogField is a field in the authorize logs.
@@ -31,7 +29,8 @@ const (
 	AuthorizeLogFieldUser                 AuthorizeLogField = "user"
 )
 
-var defaultAuthorizeLogFields = []AuthorizeLogField{
+// DefaultAuthorizeLogFields are the fields to log by default.
+var DefaultAuthorizeLogFields = []AuthorizeLogField{
 	AuthorizeLogFieldRequestID,
 	AuthorizeLogFieldCheckRequestID,
 	AuthorizeLogFieldMethod,
@@ -45,16 +44,6 @@ var defaultAuthorizeLogFields = []AuthorizeLogField{
 	AuthorizeLogFieldServiceAccountID,
 	AuthorizeLogFieldUser,
 	AuthorizeLogFieldEmail,
-}
-
-var defaultDebugAuthorizeLogFields = append(defaultAuthorizeLogFields, AuthorizeLogFieldHeaders)
-
-// DefaultAuthorizeLogFields returns the default authorize log fields.
-func DefaultAuthorizeLogFields() []AuthorizeLogField {
-	if zerolog.GlobalLevel() <= zerolog.DebugLevel {
-		return defaultDebugAuthorizeLogFields
-	}
-	return defaultAuthorizeLogFields
 }
 
 // ErrUnknownAuthorizeLogField indicates that an authorize log field is unknown.
