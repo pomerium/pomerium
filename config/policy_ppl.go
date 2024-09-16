@@ -77,10 +77,14 @@ func (p *Policy) ToPPL() *parser.Policy {
 				},
 			})
 	}
-	ppl.Rules = append(ppl.Rules, allowRule)
 
+	hasEmbeddedPolicy := (p.Policy != nil && p.Policy.Policy != nil)
+	// omit the default allow rule if it is empty and there is an embedded policy
+	if len(allowRule.Or) > 0 || !hasEmbeddedPolicy {
+		ppl.Rules = append(ppl.Rules, allowRule)
+	}
 	// append embedded PPL policy rules
-	if p.Policy != nil && p.Policy.Policy != nil {
+	if hasEmbeddedPolicy {
 		ppl.Rules = append(ppl.Rules, p.Policy.Policy.Rules...)
 	}
 
