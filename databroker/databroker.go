@@ -56,14 +56,10 @@ func (srv *dataBrokerServer) getOptions(cfg *config.Config) ([]databroker.Server
 		return nil, fmt.Errorf("error loading databroker storage connection string: %w", err)
 	}
 
-	cert, _ := cfg.Options.GetDataBrokerCertificate()
 	return []databroker.ServerOption{
 		databroker.WithGetSharedKey(cfg.Options.GetSharedKey),
 		databroker.WithStorageType(cfg.Options.DataBrokerStorageType),
 		databroker.WithStorageConnectionString(dataBrokerStorageConnectionString),
-		databroker.WithStorageCAFile(cfg.Options.DataBrokerStorageCAFile),
-		databroker.WithStorageCertificate(cert),
-		databroker.WithStorageCertSkipVerify(cfg.Options.DataBrokerStorageCertSkipVerify),
 	}, nil
 }
 
