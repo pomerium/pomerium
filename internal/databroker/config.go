@@ -1,7 +1,6 @@
 package databroker
 
 import (
-	"crypto/tls"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/log"
@@ -25,9 +24,6 @@ type serverConfig struct {
 	secret                  []byte
 	storageType             string
 	storageConnectionString string
-	storageCAFile           string
-	storageCertSkipVerify   bool
-	storageCertificate      *tls.Certificate
 	getAllPageSize          int
 	registryTTL             time.Duration
 }
@@ -93,26 +89,5 @@ func WithStorageType(typ string) ServerOption {
 func WithStorageConnectionString(connStr string) ServerOption {
 	return func(cfg *serverConfig) {
 		cfg.storageConnectionString = connStr
-	}
-}
-
-// WithStorageCAFile sets the CA file in the config.
-func WithStorageCAFile(filePath string) ServerOption {
-	return func(cfg *serverConfig) {
-		cfg.storageCAFile = filePath
-	}
-}
-
-// WithStorageCertSkipVerify sets the storageCertSkipVerify in the config.
-func WithStorageCertSkipVerify(storageCertSkipVerify bool) ServerOption {
-	return func(cfg *serverConfig) {
-		cfg.storageCertSkipVerify = storageCertSkipVerify
-	}
-}
-
-// WithStorageCertificate sets the storageCertificate in the config.
-func WithStorageCertificate(certificate *tls.Certificate) ServerOption {
-	return func(cfg *serverConfig) {
-		cfg.storageCertificate = certificate
 	}
 }

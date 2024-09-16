@@ -206,7 +206,7 @@ message Settings {
   optional string databroker_internal_service_url = 84;
   optional string databroker_storage_type = 101;
   optional string databroker_storage_connection_string = 102;
-  optional bool databroker_storage_tls_skip_verify = 106;
+  reserved 106; // databroker_storage_tls_skip_verify
   optional DownstreamMtlsSettings downstream_mtls = 116;
   // optional string client_ca = 53;
   // optional string client_crl = 74;
