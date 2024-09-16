@@ -3,9 +3,11 @@ package envoyconfig
 import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	tapv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/common/tap/v3"
 	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
 	envoy_extensions_filters_http_lua_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/lua/v3"
 	envoy_extensions_filters_http_router_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/router/v3"
+	envoy_extensions_filters_http_tap_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/tap/v3"
 	envoy_extensions_filters_listener_proxy_protocol_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/proxy_protocol/v3"
 	envoy_extensions_filters_listener_tls_inspector_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/tls_inspector/v3"
 	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
@@ -73,6 +75,25 @@ func LuaFilter(defaultSourceCode string) *envoy_extensions_filters_network_http_
 				DefaultSourceCode: &envoy_config_core_v3.DataSource{
 					Specifier: &envoy_config_core_v3.DataSource_InlineString{
 						InlineString: defaultSourceCode,
+					},
+				},
+			}),
+		},
+	}
+}
+
+// TapViaAdminEndpointFilter creates a tap HTTP filter which can be used via envoy admin endpoint.
+func TapViaAdminEndpointFilter(id string) *envoy_extensions_filters_network_http_connection_manager.HttpFilter {
+	return &envoy_extensions_filters_network_http_connection_manager.HttpFilter{
+		Name: "envoy.filters.http.tap",
+		ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
+			TypedConfig: protoutil.NewAny(&envoy_extensions_filters_http_tap_v3.Tap{
+				RecordHeadersReceivedTime: true,
+				CommonConfig: &tapv3.CommonExtensionConfig{
+					ConfigType: &tapv3.CommonExtensionConfig_AdminConfig{
+						AdminConfig: &tapv3.AdminConfig{
+							ConfigId: id,
+						},
 					},
 				},
 			}),
