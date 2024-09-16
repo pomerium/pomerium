@@ -533,3 +533,73 @@ else := value if {
 }
 `, str)
 }
+
+func TestPolicy_ToPPL_Embedded(t *testing.T) {
+	policy := Policy{
+		Policy: &PPLPolicy{
+			Policy: &parser.Policy{
+				Rules: []parser.Rule{
+					{
+						Action: parser.ActionAllow,
+						Or: []parser.Criterion{
+							{
+								Name: "foo",
+								Data: parser.Number("5"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	assert.Equal(t, policy.Policy.Policy, policy.ToPPL())
+
+	policy2 := Policy{
+		AllowedUsers: []string{"test"},
+		Policy: &PPLPolicy{
+			Policy: &parser.Policy{
+				Rules: []parser.Rule{
+					{
+						Action: parser.ActionAllow,
+						Or: []parser.Criterion{
+							{
+								Name: "foo",
+								Data: parser.Number("5"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	assert.Equal(t, &parser.Policy{
+		Rules: []parser.Rule{
+			{
+				Action: parser.ActionAllow,
+				Or: []parser.Criterion{
+					{
+						Name: "user",
+						Data: parser.Object{
+							"is": parser.String("test"),
+						},
+					},
+					{
+						Name: "email",
+						Data: parser.Object{
+							"is": parser.String("test"),
+						},
+					},
+				},
+			},
+			{
+				Action: parser.ActionAllow,
+				Or: []parser.Criterion{
+					{
+						Name: "foo",
+						Data: parser.Number("5"),
+					},
+				},
+			},
+		},
+	}, policy2.ToPPL())
+}
