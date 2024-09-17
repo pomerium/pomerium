@@ -30,7 +30,7 @@ type ServerInterface interface {
 	// (POST /bundles/{bundleId}/status)
 	ReportClusterResourceBundleStatus(w http.ResponseWriter, r *http.Request, bundleId BundleId)
 
-	// (POST /config/import)
+	// (PUT /config/import)
 	ImportConfiguration(w http.ResponseWriter, r *http.Request)
 
 	// (GET /config/quotas)
@@ -67,7 +67,7 @@ func (_ Unimplemented) ReportClusterResourceBundleStatus(w http.ResponseWriter, 
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// (POST /config/import)
+// (PUT /config/import)
 func (_ Unimplemented) ImportConfiguration(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
@@ -378,7 +378,7 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/bundles/{bundleId}/status", wrapper.ReportClusterResourceBundleStatus)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/config/import", wrapper.ImportConfiguration)
+		r.Put(options.BaseURL+"/config/import", wrapper.ImportConfiguration)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/config/quotas", wrapper.GetQuotas)
@@ -692,7 +692,7 @@ type StrictServerInterface interface {
 	// (POST /bundles/{bundleId}/status)
 	ReportClusterResourceBundleStatus(ctx context.Context, request ReportClusterResourceBundleStatusRequestObject) (ReportClusterResourceBundleStatusResponseObject, error)
 
-	// (POST /config/import)
+	// (PUT /config/import)
 	ImportConfiguration(ctx context.Context, request ImportConfigurationRequestObject) (ImportConfigurationResponseObject, error)
 
 	// (GET /config/quotas)

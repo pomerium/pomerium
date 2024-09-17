@@ -176,17 +176,17 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
   /config/import:
-    post:
+    put:
       description: |
-        Apply the raw configuration directly to the cluster.
-        This operation only has an effect before any other modifications to the
-        cluster's configuration have been made.
+        Apply the raw configuration directly to the cluster, replacing any
+        existing user-defined routes, policies, and certificates.
+        Only available before a Pomerium instance has connected to the cluster
+        for the first time.
       operationId: importConfiguration
       tags: [cluster]
       requestBody:
         required: true
         content:
-          # TODO: add max payload size?
           application/octet-stream:
             schema:
               type: string
