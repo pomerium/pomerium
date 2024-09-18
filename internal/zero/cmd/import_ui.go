@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	http_connection_managerv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
@@ -31,11 +32,15 @@ import (
 )
 
 type onCursorUpdate struct {
-	Field interface{ Cursor() int }
+	Field interface{ Hovered() (string, bool) }
 }
 
 func (u onCursorUpdate) Hash() (uint64, error) {
-	return uint64(u.Field.Cursor()), nil
+	op, ok := u.Field.Hovered()
+	if !ok {
+		return ^uint64(0), nil
+	}
+	return xxhash.Sum64String(op), nil
 }
 
 var (
@@ -310,11 +315,8 @@ func NewImportUI(cfg *configpb.Config, quotas *cluster_api.ConfigQuotas) *Import
 		"_", "\\_",
 		"`", "\\`",
 	)
-	settingsNoteDescription := func(idx int) string {
-		if idx < 0 || idx > len(presentSettings.Paths) {
-			return ""
-		}
-		path, err := paths.ParseFrom(cfg.Settings.ProtoReflect().Descriptor(), "."+presentSettings.Paths[idx])
+	settingsNoteDescription := func(value string) string {
+		path, err := paths.ParseFrom(cfg.Settings.ProtoReflect().Descriptor(), "."+value)
 		if err != nil {
 			return errText(err)
 		}
@@ -330,19 +332,29 @@ func NewImportUI(cfg *configpb.Config, quotas *cluster_api.ConfigQuotas) *Import
 	settingsNote := huh.NewNote().
 		Title(fmt.Sprintf("Value: %s", presentSettings.Paths[0])).
 		TitleFunc(func() string {
-			return fmt.Sprintf("Value: %s", presentSettings.Paths[settingsSelect.Cursor()])
+			field, ok := settingsSelect.Hovered()
+			if !ok {
+				return ""
+			}
+			return fmt.Sprintf("Value: %s", field)
 		}, onCursorUpdate{settingsSelect}).
-		Description(settingsNoteDescription(0)).
+		Description(settingsNoteDescription(presentSettings.Paths[0])).
 		DescriptionFunc(func() string {
-			return settingsNoteDescription(settingsSelect.Cursor())
+			field, ok := settingsSelect.Hovered()
+			if !ok {
+				return ""
+			}
+			return settingsNoteDescription(field)
 		}, onCursorUpdate{settingsSelect}).
 		Height(3)
 	settingsNote.Focus()
 
 	routeNames := make([]string, len(cfg.Routes))
+	routesByName := make(map[string]*configpb.Route)
 	for i, name := range importutil.GenerateRouteNames(cfg.Routes) {
 		routeNames[i] = name
 		cfg.Routes[i].Name = name
+		routesByName[name] = cfg.Routes[i]
 	}
 	routeOptions := huh.NewOptions(routeNames...)
 	for i, name := range routeNames {
@@ -392,8 +404,7 @@ Selected: %d/%d`[1:], len(ui.selectedRoutes), quotas.Routes)
 		labelRedirect = yellowText.Render("redirect: ")
 		labelResponse = yellowText.Render("response: ")
 	)
-	routesNoteDescription := func(idx int) string {
-		selected := cfg.Routes[idx]
+	routesNoteDescription := func(selected *configpb.Route) string {
 		var b strings.Builder
 		b.WriteString(labelFrom)
 		b.WriteString(selected.From)
@@ -435,9 +446,13 @@ Selected: %d/%d`[1:], len(ui.selectedRoutes), quotas.Routes)
 	}
 	routesNote := huh.NewNote().
 		Title("Route Info").
-		Description(routesNoteDescription(0)).
+		Description(routesNoteDescription(cfg.Routes[0])).
 		DescriptionFunc(func() string {
-			return routesNoteDescription(routesSelect.Cursor())
+			name, ok := routesSelect.Hovered()
+			if !ok {
+				return ""
+			}
+			return routesNoteDescription(routesByName[name])
 		}, onCursorUpdate{routesSelect}).Height(3)
 	routesNote.Focus()
 
