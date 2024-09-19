@@ -197,6 +197,9 @@ components:
           description: databroker storage connection string
         organizationId:
           type: string
+        pseudonymizationKey:
+          type: string
+          format: byte
         sharedSecret:
           type: string
           format: byte
@@ -204,6 +207,7 @@ components:
       required:
         - clusterId
         - organizationId
+        - pseudonymizationKey
         - sharedSecret
 
     Bundle:
