@@ -16,3 +16,7 @@ func (rr *RouteRedirect) IsSet() bool {
 		rr.SchemeRedirect != nil ||
 		rr.HttpsRedirect != nil
 }
+
+func (x *Config) GetId() string { //nolint
+	return x.Name
+}
