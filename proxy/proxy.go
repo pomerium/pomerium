@@ -71,6 +71,7 @@ func New(cfg *config.Config) (*Proxy, error) {
 		currentOptions: config.NewAtomicOptions(),
 		currentRouter:  atomicutil.NewValue(httputil.NewRouter()),
 	}
+	p.OnConfigChange(context.Background(), cfg)
 	p.webauthn = webauthn.New(p.getWebauthnState)
 
 	metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
