@@ -27,6 +27,7 @@ type BootstrapConfig struct {
 	// DatabrokerStorageConnection databroker storage connection string
 	DatabrokerStorageConnection *string `json:"databrokerStorageConnection,omitempty"`
 	OrganizationId              string  `json:"organizationId"`
+	PseudonymizationKey         []byte  `json:"pseudonymizationKey"`
 
 	// SharedSecret shared secret
 	SharedSecret []byte `json:"sharedSecret"`

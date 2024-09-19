@@ -211,7 +211,7 @@ func (c *controller) runHealthChecksLeased(ctx context.Context, client databroke
 }
 
 func (c *controller) runUsageReporter(ctx context.Context, client databroker.DataBrokerServiceClient) error {
-	ur := usagereporter.New(c.api, c.bootstrapConfig.GetConfig().ZeroOrganizationID, time.Minute)
+	ur := usagereporter.New(c.api, c.bootstrapConfig.GetConfig().ZeroPseudonymizationKey, time.Minute)
 	return retry.WithBackoff(ctx, "zero-usage-reporter", func(ctx context.Context) error {
 		// start the usage reporter
 		return ur.Run(ctx, client)
