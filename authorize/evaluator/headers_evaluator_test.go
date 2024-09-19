@@ -81,10 +81,14 @@ func TestHeadersEvaluator(t *testing.T) {
 		ctx := context.Background()
 		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
 		store := store.New()
-		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
+		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "pomerium_io_groups", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
+		var buf bytes.Buffer
 		e, err := NewHeadersEvaluator(ctx, store, rego.Time(iat))
 		require.NoError(t, err)
+		t.Cleanup(func() {
+			t.Log(buf.String())
+		})
 		return e.Evaluate(ctx, input, rego.EvalTime(iat))
 	}
 
@@ -240,18 +244,24 @@ func TestHeadersEvaluator(t *testing.T) {
 		output, err := eval(t,
 			[]protoreflect.ProtoMessage{
 				&session.Session{Id: "s1", UserId: "u1"},
-				&user.User{Id: "u1", Email: "u1@example.com"},
+				&user.User{Id: "u1", Email: "u1@example.com", Claims: map[string]*structpb.ListValue{
+					"pomerium_io_groups": {Values: []*structpb.Value{
+						structpb.NewStringValue("admin"),
+					}},
+				}},
 			},
 			&HeadersRequest{
-				Issuer:                        "from.example.com",
-				ToAudience:                    "to.example.com",
-				KubernetesServiceAccountToken: "TOKEN",
-				Session:                       RequestSession{ID: "s1"},
+				Issuer:                          "from.example.com",
+				ToAudience:                      "to.example.com",
+				KubernetesServiceAccountToken:   "TOKEN",
+				KubernetesImpersonateUserClaim:  "email",
+				KubernetesImpersonateGroupClaim: "pomerium_io_groups",
+				Session:                         RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
 		assert.Equal(t, "Bearer TOKEN", output.Headers.Get("Authorization"))
 		assert.Equal(t, "u1@example.com", output.Headers.Get("Impersonate-User"))
-		assert.Empty(t, output.Headers["Impersonate-Group"])
+		assert.Equal(t, "admin", output.Headers.Get("Impersonate-Group"))
 	})
 }
 

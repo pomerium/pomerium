@@ -132,6 +132,14 @@ base_jwt_claims := [
 	["name", jwt_payload_name],
 ]
 
+session_claims := c if {
+	c := session.claims
+} else := {}
+
+user_claims := c if {
+	c := user.claims
+} else := {}
+
 additional_jwt_claims := [[k, v] |
 	some header_name
 	claim_key := data.jwt_claim_headers[header_name]
@@ -143,7 +151,7 @@ additional_jwt_claims := [[k, v] |
 	]) == 0
 
 	# the claim value can come from session claims or user claims
-	claim_value := object.get(session.claims, claim_key, object.get(user.claims, claim_key, null))
+	claim_value := object.get(session_claims, claim_key, object.get(user_claims, claim_key, null))
 
 	k := claim_key
 	v := get_header_string_value(claim_value)
@@ -159,13 +167,33 @@ jwt_payload := {key: value |
 
 signed_jwt := io.jwt.encode_sign(jwt_headers, jwt_payload, data.signing_key)
 
+impersonate_user_claim := u if {
+	u := input.kubernetes_impersonate_user_claim
+	u != ""
+} else := "email"
+
+impersonate_group_claim := g if {
+	g := input.kubernetes_impersonate_group_claim
+	g != ""
+} else := "groups"
+
+impersonate_user := v if {
+	[k, v] := jwt_claims[_]
+	k == impersonate_user_claim
+}
+
+impersonate_group := v if {
+	[k, v] := jwt_claims[_]
+	k == impersonate_group_claim
+}
+
 kubernetes_headers := h if {
 	input.kubernetes_service_account_token != ""
 
 	h := remove_empty_header_values([
 		["Authorization", concat(" ", ["Bearer", input.kubernetes_service_account_token])],
-		["Impersonate-User", jwt_payload_email],
-		["Impersonate-Group", get_header_string_value(jwt_payload_groups)],
+		["Impersonate-User", impersonate_user],
+		["Impersonate-Group", get_header_string_value(impersonate_group)],
 	])
 } else := []
 
