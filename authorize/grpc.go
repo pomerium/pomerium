@@ -48,7 +48,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	requestID := requestid.FromHTTPHeader(hreq.Header)
 	ctx = requestid.WithValue(ctx, requestID)
 
-	sessionState, _ := state.sessionStore.LoadSessionState(hreq)
+	sessionState, _ := state.sessionStore.LoadSessionStateAndCheckIDP(hreq)
 
 	var s sessionOrServiceAccount
 	var u *user.User
