@@ -80,19 +80,13 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (p *Proxy) userInfo(w http.ResponseWriter, r *http.Request) error {
-	data, err := p.getUserInfoData(r)
-	if err != nil {
-		return err
-	}
+	data := p.getUserInfoData(r)
 	handlers.UserInfo(data).ServeHTTP(w, r)
 	return nil
 }
 
 func (p *Proxy) deviceEnrolled(w http.ResponseWriter, r *http.Request) error {
-	data, err := p.getUserInfoData(r)
-	if err != nil {
-		return err
-	}
+	data := p.getUserInfoData(r)
 	handlers.DeviceEnrolled(data).ServeHTTP(w, r)
 	return nil
 }

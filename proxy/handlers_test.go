@@ -15,7 +15,9 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
+	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -259,4 +261,79 @@ func TestProxy_registerDashboardHandlers_jwtEndpoint(t *testing.T) {
 		b, _ := io.ReadAll(result.Body)
 		assert.Equal(t, rawJWT, string(b))
 	})
+}
+
+func TestLoadSessionState(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no session", func(t *testing.T) {
+		t.Parallel()
+
+		opts := testOptions(t)
+		proxy, err := New(&config.Config{Options: opts})
+		require.NoError(t, err)
+
+		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
+		w := httptest.NewRecorder()
+		proxy.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), "window.POMERIUM_DATA")
+		assert.NotContains(t, w.Body.String(), "___SESSION_ID___")
+	})
+	t.Run("cookie session", func(t *testing.T) {
+		t.Parallel()
+
+		opts := testOptions(t)
+		proxy, err := New(&config.Config{Options: opts})
+		require.NoError(t, err)
+
+		session := encodeSession(t, opts, &sessions.State{
+			ID: "___SESSION_ID___",
+		})
+
+		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
+		r.AddCookie(&http.Cookie{
+			Name:   opts.CookieName,
+			Domain: opts.CookieDomain,
+			Value:  session,
+		})
+		w := httptest.NewRecorder()
+		proxy.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), "___SESSION_ID___")
+	})
+	t.Run("header session", func(t *testing.T) {
+		t.Parallel()
+
+		opts := testOptions(t)
+		proxy, err := New(&config.Config{Options: opts})
+		require.NoError(t, err)
+
+		session := encodeSession(t, opts, &sessions.State{
+			ID: "___SESSION_ID___",
+		})
+
+		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
+		r.Header.Set("Authorization", "Bearer Pomerium-"+session)
+		w := httptest.NewRecorder()
+		proxy.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), "___SESSION_ID___")
+	})
+}
+
+func encodeSession(t *testing.T, opts *config.Options, state *sessions.State) string {
+	sharedKey, err := opts.GetSharedKey()
+	require.NoError(t, err)
+
+	encoder, err := jws.NewHS256Signer(sharedKey)
+	require.NoError(t, err)
+
+	sessionBS, err := encoder.Marshal(state)
+	require.NoError(t, err)
+
+	return string(sessionBS)
 }
