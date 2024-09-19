@@ -288,22 +288,15 @@ func TestLoadSessionState(t *testing.T) {
 		proxy, err := New(&config.Config{Options: opts})
 		require.NoError(t, err)
 
-		sharedKey, err := opts.GetSharedKey()
-		require.NoError(t, err)
-
-		encoder, err := jws.NewHS256Signer(sharedKey)
-		require.NoError(t, err)
-
-		sessionBS, err := encoder.Marshal(&sessions.State{
+		session := encodeSession(t, opts, &sessions.State{
 			ID: "___SESSION_ID___",
 		})
-		require.NoError(t, err)
 
 		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
 		r.AddCookie(&http.Cookie{
 			Name:   opts.CookieName,
 			Domain: opts.CookieDomain,
-			Value:  string(sessionBS),
+			Value:  session,
 		})
 		w := httptest.NewRecorder()
 		proxy.ServeHTTP(w, r)
@@ -318,23 +311,29 @@ func TestLoadSessionState(t *testing.T) {
 		proxy, err := New(&config.Config{Options: opts})
 		require.NoError(t, err)
 
-		sharedKey, err := opts.GetSharedKey()
-		require.NoError(t, err)
-
-		encoder, err := jws.NewHS256Signer(sharedKey)
-		require.NoError(t, err)
-
-		sessionBS, err := encoder.Marshal(&sessions.State{
+		session := encodeSession(t, opts, &sessions.State{
 			ID: "___SESSION_ID___",
 		})
-		require.NoError(t, err)
 
 		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
-		r.Header.Set("Authorization", "Bearer Pomerium-"+string(sessionBS))
+		r.Header.Set("Authorization", "Bearer Pomerium-"+session)
 		w := httptest.NewRecorder()
 		proxy.ServeHTTP(w, r)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), "___SESSION_ID___")
 	})
+}
+
+func encodeSession(t *testing.T, opts *config.Options, state *sessions.State) string {
+	sharedKey, err := opts.GetSharedKey()
+	require.NoError(t, err)
+
+	encoder, err := jws.NewHS256Signer(sharedKey)
+	require.NoError(t, err)
+
+	sessionBS, err := encoder.Marshal(state)
+	require.NoError(t, err)
+
+	return string(sessionBS)
 }
