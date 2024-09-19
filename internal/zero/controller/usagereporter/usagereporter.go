@@ -39,9 +39,9 @@ type usageReporterRecord struct {
 
 // A UsageReporter reports usage to the zero api.
 type UsageReporter struct {
-	api            API
-	organizationID string
-	reportInterval time.Duration
+	api                 API
+	pseudonymizationKey []byte
+	reportInterval      time.Duration
 
 	mu       sync.Mutex
 	byUserID map[string]usageReporterRecord
@@ -49,11 +49,11 @@ type UsageReporter struct {
 }
 
 // New creates a new UsageReporter.
-func New(api API, organizationID string, reportInterval time.Duration) *UsageReporter {
+func New(api API, pseudonymizationKey []byte, reportInterval time.Duration) *UsageReporter {
 	return &UsageReporter{
-		api:            api,
-		organizationID: organizationID,
-		reportInterval: reportInterval,
+		api:                 api,
+		pseudonymizationKey: pseudonymizationKey,
+		reportInterval:      reportInterval,
 
 		byUserID: make(map[string]usageReporterRecord),
 		updates:  set.New[string](0),
@@ -62,7 +62,7 @@ func New(api API, organizationID string, reportInterval time.Duration) *UsageRep
 
 // Run runs the usage reporter.
 func (ur *UsageReporter) Run(ctx context.Context, client databroker.DataBrokerServiceClient) error {
-	ctx = log.Ctx(ctx).With().Str("organization-id", ur.organizationID).Logger().WithContext(ctx)
+	ctx = log.Ctx(ctx).With().Logger().WithContext(ctx)
 
 	// first initialize the user collection
 	serverVersion, latestSessionRecordVersion, latestUserRecordVersion, err := ur.runInit(ctx, client)
@@ -76,7 +76,7 @@ func (ur *UsageReporter) Run(ctx context.Context, client databroker.DataBrokerSe
 
 func (ur *UsageReporter) report(ctx context.Context, records []usageReporterRecord) error {
 	req := cluster.ReportUsageRequest{
-		Users: convertUsageReporterRecords(ur.organizationID, records),
+		Users: convertUsageReporterRecords(ur.pseudonymizationKey, records),
 	}
 	return backoff.Retry(func() error {
 		log.Debug(ctx).Int("updated-users", len(req.Users)).Msg("reporting usage")
@@ -193,15 +193,15 @@ func (ur *UsageReporter) onUpdateUser(u *user.User) {
 	}
 }
 
-func convertUsageReporterRecords(organizationID string, records []usageReporterRecord) []cluster.ReportUsageUser {
+func convertUsageReporterRecords(pseudonymizationKey []byte, records []usageReporterRecord) []cluster.ReportUsageUser {
 	var users []cluster.ReportUsageUser
 	for _, record := range records {
 		u := cluster.ReportUsageUser{
 			LastSignedInAt: record.lastSignedInAt,
-			PseudonymousId: cryptutil.Pseudonymize(organizationID, record.userID),
+			PseudonymousId: cryptutil.Pseudonymize(pseudonymizationKey, record.userID),
 		}
 		if record.userEmail != "" {
-			u.PseudonymousEmail = cryptutil.Pseudonymize(organizationID, record.userEmail)
+			u.PseudonymousEmail = cryptutil.Pseudonymize(pseudonymizationKey, record.userEmail)
 		}
 		users = append(users, u)
 	}

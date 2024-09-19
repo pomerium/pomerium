@@ -55,7 +55,7 @@ func TestUsageReporter(t *testing.T) {
 			}
 			return nil
 		},
-	}, "bQjwPpxcwJRbvsSMFgbZFkXmxFJ", time.Millisecond*100)
+	}, []byte("bQjwPpxcwJRbvsSMFgbZFkXmxFJ"), time.Millisecond*100)
 
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
@@ -125,12 +125,12 @@ func Test_convertUsageReporterRecords(t *testing.T) {
 
 	tm1 := time.Date(2024, time.September, 11, 11, 56, 0, 0, time.UTC)
 
-	assert.Empty(t, convertUsageReporterRecords("XXX", nil))
+	assert.Empty(t, convertUsageReporterRecords([]byte("XXX"), nil))
 	assert.Equal(t, []cluster.ReportUsageUser{{
 		LastSignedInAt:    tm1,
 		PseudonymousId:    "T9V1yL/UueF/LVuF6XjoSNde0INElXG10zKepmyPke8=",
 		PseudonymousEmail: "8w5rtnZyv0EGkpHmTlkmupgb1jCzn/IxGCfvpdGGnvI=",
-	}}, convertUsageReporterRecords("XXX", []usageReporterRecord{{
+	}}, convertUsageReporterRecords([]byte("XXX"), []usageReporterRecord{{
 		userID:         "ID",
 		userEmail:      "EMAIL@example.com",
 		lastSignedInAt: tm1,
@@ -138,7 +138,7 @@ func Test_convertUsageReporterRecords(t *testing.T) {
 	assert.Equal(t, []cluster.ReportUsageUser{{
 		LastSignedInAt: tm1,
 		PseudonymousId: "T9V1yL/UueF/LVuF6XjoSNde0INElXG10zKepmyPke8=",
-	}}, convertUsageReporterRecords("XXX", []usageReporterRecord{{
+	}}, convertUsageReporterRecords([]byte("XXX"), []usageReporterRecord{{
 		userID:         "ID",
 		lastSignedInAt: tm1,
 	}}), "should leave empty email")
