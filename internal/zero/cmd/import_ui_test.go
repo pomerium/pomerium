@@ -1,6 +1,8 @@
 package cmd_test
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"embed"
 	"fmt"
@@ -17,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/zero/cluster"
 	"github.com/pomerium/pomerium/pkg/zero/importutil"
 	"github.com/pomerium/protoutil/fieldmasks"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/teatest"
@@ -46,6 +49,16 @@ func TestImportUI(t *testing.T) {
 		cfgC <- cfg
 	}
 	cfg := (<-cfgC).Options.ToProto()
+
+	b, err := proto.Marshal(cfg)
+	require.NoError(t, err)
+	var compressed bytes.Buffer
+	w := gzip.NewWriter(&compressed)
+	require.NoError(t, err)
+	w.Write(b)
+	w.Close()
+	size := len(compressed.Bytes())
+	t.Logf("payload size: %d kB", size/1024)
 
 	ui := cmd.NewImportUI(cfg, &cluster.ConfigQuotas{
 		Certificates: 10,
