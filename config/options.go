@@ -1183,9 +1183,7 @@ func (o *Options) GetSharedKey() ([]byte, error) {
 
 type KDFContext []byte
 
-var (
-	KDFContextInternalEd25519CA = KDFContext("internal-ed25519-ca")
-)
+var KDFContextInternalEd25519CA = KDFContext("internal-ed25519-ca")
 
 func (o *Options) GetDerivedKDF(context KDFContext) (io.Reader, error) {
 	sharedSecret, err := o.GetSharedKey()
