@@ -77,6 +77,64 @@ func (MtlsEnforcementMode) EnumDescriptor() ([]byte, []int) {
 	return file_config_proto_rawDescGZIP(), []int{0}
 }
 
+type SANMatcher_SANType int32
+
+const (
+	SANMatcher_SAN_TYPE_UNSPECIFIED SANMatcher_SANType = 0
+	SANMatcher_EMAIL                SANMatcher_SANType = 1
+	SANMatcher_DNS                  SANMatcher_SANType = 2
+	SANMatcher_URI                  SANMatcher_SANType = 3
+	SANMatcher_IP_ADDRESS           SANMatcher_SANType = 4
+	SANMatcher_USER_PRINCIPAL_NAME  SANMatcher_SANType = 5
+)
+
+// Enum value maps for SANMatcher_SANType.
+var (
+	SANMatcher_SANType_name = map[int32]string{
+		0: "SAN_TYPE_UNSPECIFIED",
+		1: "EMAIL",
+		2: "DNS",
+		3: "URI",
+		4: "IP_ADDRESS",
+		5: "USER_PRINCIPAL_NAME",
+	}
+	SANMatcher_SANType_value = map[string]int32{
+		"SAN_TYPE_UNSPECIFIED": 0,
+		"EMAIL":                1,
+		"DNS":                  2,
+		"URI":                  3,
+		"IP_ADDRESS":           4,
+		"USER_PRINCIPAL_NAME":  5,
+	}
+)
+
+func (x SANMatcher_SANType) Enum() *SANMatcher_SANType {
+	p := new(SANMatcher_SANType)
+	*p = x
+	return p
+}
+
+func (x SANMatcher_SANType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SANMatcher_SANType) Descriptor() protoreflect.EnumDescriptor {
+	return file_config_proto_enumTypes[1].Descriptor()
+}
+
+func (SANMatcher_SANType) Type() protoreflect.EnumType {
+	return &file_config_proto_enumTypes[1]
+}
+
+func (x SANMatcher_SANType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SANMatcher_SANType.Descriptor instead.
+func (SANMatcher_SANType) EnumDescriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{9, 0}
+}
+
 type Config struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1025,7 +1083,7 @@ func (x *Policy) GetRemediation() string {
 	return ""
 }
 
-// Next ID: 119.
+// Next ID: 120.
 type Settings struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1115,7 +1173,7 @@ type Settings struct {
 	EnvoyAdminProfilePath                             *string                              `protobuf:"bytes,109,opt,name=envoy_admin_profile_path,json=envoyAdminProfilePath,proto3,oneof" json:"envoy_admin_profile_path,omitempty"`
 	EnvoyAdminAddress                                 *string                              `protobuf:"bytes,110,opt,name=envoy_admin_address,json=envoyAdminAddress,proto3,oneof" json:"envoy_admin_address,omitempty"`
 	EnvoyBindConfigSourceAddress                      *string                              `protobuf:"bytes,111,opt,name=envoy_bind_config_source_address,json=envoyBindConfigSourceAddress,proto3,oneof" json:"envoy_bind_config_source_address,omitempty"`
-	EnvoyBindConfigFreebind                           *string                              `protobuf:"bytes,112,opt,name=envoy_bind_config_freebind,json=envoyBindConfigFreebind,proto3,oneof" json:"envoy_bind_config_freebind,omitempty"`
+	EnvoyBindConfigFreebind                           *bool                                `protobuf:"varint,112,opt,name=envoy_bind_config_freebind,json=envoyBindConfigFreebind,proto3,oneof" json:"envoy_bind_config_freebind,omitempty"`
 	ProgrammaticRedirectDomainWhitelist               []string                             `protobuf:"bytes,68,rep,name=programmatic_redirect_domain_whitelist,json=programmaticRedirectDomainWhitelist,proto3" json:"programmatic_redirect_domain_whitelist,omitempty"`
 	CodecType                                         *v31.HttpConnectionManager_CodecType `protobuf:"varint,73,opt,name=codec_type,json=codecType,proto3,enum=envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager_CodecType,oneof" json:"codec_type,omitempty"`
 	AuditKey                                          *crypt.PublicKeyEncryptionKey        `protobuf:"bytes,72,opt,name=audit_key,json=auditKey,proto3,oneof" json:"audit_key,omitempty"`
@@ -1694,11 +1752,11 @@ func (x *Settings) GetEnvoyBindConfigSourceAddress() string {
 	return ""
 }
 
-func (x *Settings) GetEnvoyBindConfigFreebind() string {
+func (x *Settings) GetEnvoyBindConfigFreebind() bool {
 	if x != nil && x.EnvoyBindConfigFreebind != nil {
 		return *x.EnvoyBindConfigFreebind
 	}
-	return ""
+	return false
 }
 
 func (x *Settings) GetProgrammaticRedirectDomainWhitelist() []string {
@@ -1790,9 +1848,11 @@ type DownstreamMtlsSettings struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Ca          *string              `protobuf:"bytes,1,opt,name=ca,proto3,oneof" json:"ca,omitempty"`
-	Crl         *string              `protobuf:"bytes,2,opt,name=crl,proto3,oneof" json:"crl,omitempty"`
-	Enforcement *MtlsEnforcementMode `protobuf:"varint,3,opt,name=enforcement,proto3,enum=pomerium.config.MtlsEnforcementMode,oneof" json:"enforcement,omitempty"`
+	Ca                   *string              `protobuf:"bytes,1,opt,name=ca,proto3,oneof" json:"ca,omitempty"`
+	Crl                  *string              `protobuf:"bytes,2,opt,name=crl,proto3,oneof" json:"crl,omitempty"`
+	Enforcement          *MtlsEnforcementMode `protobuf:"varint,3,opt,name=enforcement,proto3,enum=pomerium.config.MtlsEnforcementMode,oneof" json:"enforcement,omitempty"`
+	MatchSubjectAltNames []*SANMatcher        `protobuf:"bytes,4,rep,name=match_subject_alt_names,json=matchSubjectAltNames,proto3" json:"match_subject_alt_names,omitempty"`
+	MaxVerifyDepth       *uint32              `protobuf:"varint,5,opt,name=max_verify_depth,json=maxVerifyDepth,proto3,oneof" json:"max_verify_depth,omitempty"`
 }
 
 func (x *DownstreamMtlsSettings) Reset() {
@@ -1848,6 +1908,75 @@ func (x *DownstreamMtlsSettings) GetEnforcement() MtlsEnforcementMode {
 	return MtlsEnforcementMode_UNKNOWN
 }
 
+func (x *DownstreamMtlsSettings) GetMatchSubjectAltNames() []*SANMatcher {
+	if x != nil {
+		return x.MatchSubjectAltNames
+	}
+	return nil
+}
+
+func (x *DownstreamMtlsSettings) GetMaxVerifyDepth() uint32 {
+	if x != nil && x.MaxVerifyDepth != nil {
+		return *x.MaxVerifyDepth
+	}
+	return 0
+}
+
+type SANMatcher struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	SanType SANMatcher_SANType `protobuf:"varint,1,opt,name=san_type,json=sanType,proto3,enum=pomerium.config.SANMatcher_SANType" json:"san_type,omitempty"`
+	Pattern string             `protobuf:"bytes,2,opt,name=pattern,proto3" json:"pattern,omitempty"`
+}
+
+func (x *SANMatcher) Reset() {
+	*x = SANMatcher{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_config_proto_msgTypes[9]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *SANMatcher) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SANMatcher) ProtoMessage() {}
+
+func (x *SANMatcher) ProtoReflect() protoreflect.Message {
+	mi := &file_config_proto_msgTypes[9]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SANMatcher.ProtoReflect.Descriptor instead.
+func (*SANMatcher) Descriptor() ([]byte, []int) {
+	return file_config_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SANMatcher) GetSanType() SANMatcher_SANType {
+	if x != nil {
+		return x.SanType
+	}
+	return SANMatcher_SAN_TYPE_UNSPECIFIED
+}
+
+func (x *SANMatcher) GetPattern() string {
+	if x != nil {
+		return x.Pattern
+	}
+	return ""
+}
+
 type Settings_Certificate struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1861,7 +1990,7 @@ type Settings_Certificate struct {
 func (x *Settings_Certificate) Reset() {
 	*x = Settings_Certificate{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_config_proto_msgTypes[13]
+		mi := &file_config_proto_msgTypes[14]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1874,7 +2003,7 @@ func (x *Settings_Certificate) String() string {
 func (*Settings_Certificate) ProtoMessage() {}
 
 func (x *Settings_Certificate) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[13]
+	mi := &file_config_proto_msgTypes[14]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1922,7 +2051,7 @@ type Settings_StringList struct {
 func (x *Settings_StringList) Reset() {
 	*x = Settings_StringList{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_config_proto_msgTypes[14]
+		mi := &file_config_proto_msgTypes[15]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1935,7 +2064,7 @@ func (x *Settings_StringList) String() string {
 func (*Settings_StringList) ProtoMessage() {}
 
 func (x *Settings_StringList) ProtoReflect() protoreflect.Message {
-	mi := &file_config_proto_msgTypes[14]
+	mi := &file_config_proto_msgTypes[15]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2546,7 +2675,7 @@ var file_config_proto_rawDesc = []byte{
 	0x67, 0x53, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x88, 0x01,
 	0x01, 0x12, 0x40, 0x0a, 0x1a, 0x65, 0x6e, 0x76, 0x6f, 0x79, 0x5f, 0x62, 0x69, 0x6e, 0x64, 0x5f,
 	0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x5f, 0x66, 0x72, 0x65, 0x65, 0x62, 0x69, 0x6e, 0x64, 0x18,
-	0x70, 0x20, 0x01, 0x28, 0x09, 0x48, 0x45, 0x52, 0x17, 0x65, 0x6e, 0x76, 0x6f, 0x79, 0x42, 0x69,
+	0x70, 0x20, 0x01, 0x28, 0x08, 0x48, 0x45, 0x52, 0x17, 0x65, 0x6e, 0x76, 0x6f, 0x79, 0x42, 0x69,
 	0x6e, 0x64, 0x43, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x46, 0x72, 0x65, 0x65, 0x62, 0x69, 0x6e, 0x64,
 	0x88, 0x01, 0x01, 0x12, 0x53, 0x0a, 0x26, 0x70, 0x72, 0x6f, 0x67, 0x72, 0x61, 0x6d, 0x6d, 0x61,
 	0x74, 0x69, 0x63, 0x5f, 0x72, 0x65, 0x64, 0x69, 0x72, 0x65, 0x63, 0x74, 0x5f, 0x64, 0x6f, 0x6d,
@@ -2740,7 +2869,7 @@ var file_config_proto_rawDesc = []byte{
 	0x5f, 0x66, 0x69, 0x72, 0x73, 0x74, 0x5f, 0x70, 0x61, 0x72, 0x61, 0x67, 0x72, 0x61, 0x70, 0x68,
 	0x42, 0x18, 0x0a, 0x16, 0x5f, 0x70, 0x61, 0x73, 0x73, 0x5f, 0x69, 0x64, 0x65, 0x6e, 0x74, 0x69,
 	0x74, 0x79, 0x5f, 0x68, 0x65, 0x61, 0x64, 0x65, 0x72, 0x73, 0x4a, 0x04, 0x08, 0x6a, 0x10, 0x6b,
-	0x22, 0xb0, 0x01, 0x0a, 0x16, 0x44, 0x6f, 0x77, 0x6e, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x4d,
+	0x22, 0xc8, 0x02, 0x0a, 0x16, 0x44, 0x6f, 0x77, 0x6e, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x4d,
 	0x74, 0x6c, 0x73, 0x53, 0x65, 0x74, 0x74, 0x69, 0x6e, 0x67, 0x73, 0x12, 0x13, 0x0a, 0x02, 0x63,
 	0x61, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x48, 0x00, 0x52, 0x02, 0x63, 0x61, 0x88, 0x01, 0x01,
 	0x12, 0x15, 0x0a, 0x03, 0x63, 0x72, 0x6c, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x48, 0x01, 0x52,
@@ -2749,18 +2878,41 @@ var file_config_proto_rawDesc = []byte{
 	0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2e, 0x4d,
 	0x74, 0x6c, 0x73, 0x45, 0x6e, 0x66, 0x6f, 0x72, 0x63, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x4d, 0x6f,
 	0x64, 0x65, 0x48, 0x02, 0x52, 0x0b, 0x65, 0x6e, 0x66, 0x6f, 0x72, 0x63, 0x65, 0x6d, 0x65, 0x6e,
-	0x74, 0x88, 0x01, 0x01, 0x42, 0x05, 0x0a, 0x03, 0x5f, 0x63, 0x61, 0x42, 0x06, 0x0a, 0x04, 0x5f,
-	0x63, 0x72, 0x6c, 0x42, 0x0e, 0x0a, 0x0c, 0x5f, 0x65, 0x6e, 0x66, 0x6f, 0x72, 0x63, 0x65, 0x6d,
-	0x65, 0x6e, 0x74, 0x2a, 0x63, 0x0a, 0x13, 0x4d, 0x74, 0x6c, 0x73, 0x45, 0x6e, 0x66, 0x6f, 0x72,
-	0x63, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x4d, 0x6f, 0x64, 0x65, 0x12, 0x0b, 0x0a, 0x07, 0x55, 0x4e,
-	0x4b, 0x4e, 0x4f, 0x57, 0x4e, 0x10, 0x00, 0x12, 0x0a, 0x0a, 0x06, 0x50, 0x4f, 0x4c, 0x49, 0x43,
-	0x59, 0x10, 0x01, 0x12, 0x1c, 0x0a, 0x18, 0x50, 0x4f, 0x4c, 0x49, 0x43, 0x59, 0x5f, 0x57, 0x49,
-	0x54, 0x48, 0x5f, 0x44, 0x45, 0x46, 0x41, 0x55, 0x4c, 0x54, 0x5f, 0x44, 0x45, 0x4e, 0x59, 0x10,
-	0x02, 0x12, 0x15, 0x0a, 0x11, 0x52, 0x45, 0x4a, 0x45, 0x43, 0x54, 0x5f, 0x43, 0x4f, 0x4e, 0x4e,
-	0x45, 0x43, 0x54, 0x49, 0x4f, 0x4e, 0x10, 0x03, 0x42, 0x2e, 0x5a, 0x2c, 0x67, 0x69, 0x74, 0x68,
-	0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f,
-	0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x67, 0x72, 0x70,
-	0x63, 0x2f, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x74, 0x88, 0x01, 0x01, 0x12, 0x52, 0x0a, 0x17, 0x6d, 0x61, 0x74, 0x63, 0x68, 0x5f, 0x73, 0x75,
+	0x62, 0x6a, 0x65, 0x63, 0x74, 0x5f, 0x61, 0x6c, 0x74, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x18,
+	0x04, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1b, 0x2e, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d,
+	0x2e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2e, 0x53, 0x41, 0x4e, 0x4d, 0x61, 0x74, 0x63, 0x68,
+	0x65, 0x72, 0x52, 0x14, 0x6d, 0x61, 0x74, 0x63, 0x68, 0x53, 0x75, 0x62, 0x6a, 0x65, 0x63, 0x74,
+	0x41, 0x6c, 0x74, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x12, 0x2d, 0x0a, 0x10, 0x6d, 0x61, 0x78, 0x5f,
+	0x76, 0x65, 0x72, 0x69, 0x66, 0x79, 0x5f, 0x64, 0x65, 0x70, 0x74, 0x68, 0x18, 0x05, 0x20, 0x01,
+	0x28, 0x0d, 0x48, 0x03, 0x52, 0x0e, 0x6d, 0x61, 0x78, 0x56, 0x65, 0x72, 0x69, 0x66, 0x79, 0x44,
+	0x65, 0x70, 0x74, 0x68, 0x88, 0x01, 0x01, 0x42, 0x05, 0x0a, 0x03, 0x5f, 0x63, 0x61, 0x42, 0x06,
+	0x0a, 0x04, 0x5f, 0x63, 0x72, 0x6c, 0x42, 0x0e, 0x0a, 0x0c, 0x5f, 0x65, 0x6e, 0x66, 0x6f, 0x72,
+	0x63, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x42, 0x13, 0x0a, 0x11, 0x5f, 0x6d, 0x61, 0x78, 0x5f, 0x76,
+	0x65, 0x72, 0x69, 0x66, 0x79, 0x5f, 0x64, 0x65, 0x70, 0x74, 0x68, 0x22, 0xd1, 0x01, 0x0a, 0x0a,
+	0x53, 0x41, 0x4e, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x65, 0x72, 0x12, 0x3e, 0x0a, 0x08, 0x73, 0x61,
+	0x6e, 0x5f, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x23, 0x2e, 0x70,
+	0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2e, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x2e, 0x53,
+	0x41, 0x4e, 0x4d, 0x61, 0x74, 0x63, 0x68, 0x65, 0x72, 0x2e, 0x53, 0x41, 0x4e, 0x54, 0x79, 0x70,
+	0x65, 0x52, 0x07, 0x73, 0x61, 0x6e, 0x54, 0x79, 0x70, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x70, 0x61,
+	0x74, 0x74, 0x65, 0x72, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x70, 0x61, 0x74,
+	0x74, 0x65, 0x72, 0x6e, 0x22, 0x69, 0x0a, 0x07, 0x53, 0x41, 0x4e, 0x54, 0x79, 0x70, 0x65, 0x12,
+	0x18, 0x0a, 0x14, 0x53, 0x41, 0x4e, 0x5f, 0x54, 0x59, 0x50, 0x45, 0x5f, 0x55, 0x4e, 0x53, 0x50,
+	0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x09, 0x0a, 0x05, 0x45, 0x4d, 0x41,
+	0x49, 0x4c, 0x10, 0x01, 0x12, 0x07, 0x0a, 0x03, 0x44, 0x4e, 0x53, 0x10, 0x02, 0x12, 0x07, 0x0a,
+	0x03, 0x55, 0x52, 0x49, 0x10, 0x03, 0x12, 0x0e, 0x0a, 0x0a, 0x49, 0x50, 0x5f, 0x41, 0x44, 0x44,
+	0x52, 0x45, 0x53, 0x53, 0x10, 0x04, 0x12, 0x17, 0x0a, 0x13, 0x55, 0x53, 0x45, 0x52, 0x5f, 0x50,
+	0x52, 0x49, 0x4e, 0x43, 0x49, 0x50, 0x41, 0x4c, 0x5f, 0x4e, 0x41, 0x4d, 0x45, 0x10, 0x05, 0x2a,
+	0x63, 0x0a, 0x13, 0x4d, 0x74, 0x6c, 0x73, 0x45, 0x6e, 0x66, 0x6f, 0x72, 0x63, 0x65, 0x6d, 0x65,
+	0x6e, 0x74, 0x4d, 0x6f, 0x64, 0x65, 0x12, 0x0b, 0x0a, 0x07, 0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57,
+	0x4e, 0x10, 0x00, 0x12, 0x0a, 0x0a, 0x06, 0x50, 0x4f, 0x4c, 0x49, 0x43, 0x59, 0x10, 0x01, 0x12,
+	0x1c, 0x0a, 0x18, 0x50, 0x4f, 0x4c, 0x49, 0x43, 0x59, 0x5f, 0x57, 0x49, 0x54, 0x48, 0x5f, 0x44,
+	0x45, 0x46, 0x41, 0x55, 0x4c, 0x54, 0x5f, 0x44, 0x45, 0x4e, 0x59, 0x10, 0x02, 0x12, 0x15, 0x0a,
+	0x11, 0x52, 0x45, 0x4a, 0x45, 0x43, 0x54, 0x5f, 0x43, 0x4f, 0x4e, 0x4e, 0x45, 0x43, 0x54, 0x49,
+	0x4f, 0x4e, 0x10, 0x03, 0x42, 0x2e, 0x5a, 0x2c, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63,
+	0x6f, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65, 0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70, 0x6f, 0x6d, 0x65,
+	0x72, 0x69, 0x75, 0x6d, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x67, 0x72, 0x70, 0x63, 0x2f, 0x63, 0x6f,
+	0x6e, 0x66, 0x69, 0x67, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -2775,75 +2927,79 @@ func file_config_proto_rawDescGZIP() []byte {
 	return file_config_proto_rawDescData
 }
 
-var file_config_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_config_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_config_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_config_proto_goTypes = []any{
 	(MtlsEnforcementMode)(0),                 // 0: pomerium.config.MtlsEnforcementMode
-	(*Config)(nil),                           // 1: pomerium.config.Config
-	(*RouteRewriteHeader)(nil),               // 2: pomerium.config.RouteRewriteHeader
-	(*RouteRedirect)(nil),                    // 3: pomerium.config.RouteRedirect
-	(*RouteDirectResponse)(nil),              // 4: pomerium.config.RouteDirectResponse
-	(*Route)(nil),                            // 5: pomerium.config.Route
-	(*PPLPolicy)(nil),                        // 6: pomerium.config.PPLPolicy
-	(*Policy)(nil),                           // 7: pomerium.config.Policy
-	(*Settings)(nil),                         // 8: pomerium.config.Settings
-	(*DownstreamMtlsSettings)(nil),           // 9: pomerium.config.DownstreamMtlsSettings
-	nil,                                      // 10: pomerium.config.Route.AllowedIdpClaimsEntry
-	nil,                                      // 11: pomerium.config.Route.SetRequestHeadersEntry
-	nil,                                      // 12: pomerium.config.Route.SetResponseHeadersEntry
-	nil,                                      // 13: pomerium.config.Policy.AllowedIdpClaimsEntry
-	(*Settings_Certificate)(nil),             // 14: pomerium.config.Settings.Certificate
-	(*Settings_StringList)(nil),              // 15: pomerium.config.Settings.StringList
-	nil,                                      // 16: pomerium.config.Settings.RequestParamsEntry
-	nil,                                      // 17: pomerium.config.Settings.SetResponseHeadersEntry
-	nil,                                      // 18: pomerium.config.Settings.JwtClaimsHeadersEntry
-	nil,                                      // 19: pomerium.config.Settings.RuntimeFlagsEntry
-	(*durationpb.Duration)(nil),              // 20: google.protobuf.Duration
-	(*v3.Cluster)(nil),                       // 21: envoy.config.cluster.v3.Cluster
-	(v31.HttpConnectionManager_CodecType)(0), // 22: envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager.CodecType
-	(*crypt.PublicKeyEncryptionKey)(nil),     // 23: pomerium.crypt.PublicKeyEncryptionKey
-	(*structpb.ListValue)(nil),               // 24: google.protobuf.ListValue
+	(SANMatcher_SANType)(0),                  // 1: pomerium.config.SANMatcher.SANType
+	(*Config)(nil),                           // 2: pomerium.config.Config
+	(*RouteRewriteHeader)(nil),               // 3: pomerium.config.RouteRewriteHeader
+	(*RouteRedirect)(nil),                    // 4: pomerium.config.RouteRedirect
+	(*RouteDirectResponse)(nil),              // 5: pomerium.config.RouteDirectResponse
+	(*Route)(nil),                            // 6: pomerium.config.Route
+	(*PPLPolicy)(nil),                        // 7: pomerium.config.PPLPolicy
+	(*Policy)(nil),                           // 8: pomerium.config.Policy
+	(*Settings)(nil),                         // 9: pomerium.config.Settings
+	(*DownstreamMtlsSettings)(nil),           // 10: pomerium.config.DownstreamMtlsSettings
+	(*SANMatcher)(nil),                       // 11: pomerium.config.SANMatcher
+	nil,                                      // 12: pomerium.config.Route.AllowedIdpClaimsEntry
+	nil,                                      // 13: pomerium.config.Route.SetRequestHeadersEntry
+	nil,                                      // 14: pomerium.config.Route.SetResponseHeadersEntry
+	nil,                                      // 15: pomerium.config.Policy.AllowedIdpClaimsEntry
+	(*Settings_Certificate)(nil),             // 16: pomerium.config.Settings.Certificate
+	(*Settings_StringList)(nil),              // 17: pomerium.config.Settings.StringList
+	nil,                                      // 18: pomerium.config.Settings.RequestParamsEntry
+	nil,                                      // 19: pomerium.config.Settings.SetResponseHeadersEntry
+	nil,                                      // 20: pomerium.config.Settings.JwtClaimsHeadersEntry
+	nil,                                      // 21: pomerium.config.Settings.RuntimeFlagsEntry
+	(*durationpb.Duration)(nil),              // 22: google.protobuf.Duration
+	(*v3.Cluster)(nil),                       // 23: envoy.config.cluster.v3.Cluster
+	(v31.HttpConnectionManager_CodecType)(0), // 24: envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager.CodecType
+	(*crypt.PublicKeyEncryptionKey)(nil),     // 25: pomerium.crypt.PublicKeyEncryptionKey
+	(*structpb.ListValue)(nil),               // 26: google.protobuf.ListValue
 }
 var file_config_proto_depIdxs = []int32{
-	5,  // 0: pomerium.config.Config.routes:type_name -> pomerium.config.Route
-	8,  // 1: pomerium.config.Config.settings:type_name -> pomerium.config.Settings
-	3,  // 2: pomerium.config.Route.redirect:type_name -> pomerium.config.RouteRedirect
-	4,  // 3: pomerium.config.Route.response:type_name -> pomerium.config.RouteDirectResponse
-	10, // 4: pomerium.config.Route.allowed_idp_claims:type_name -> pomerium.config.Route.AllowedIdpClaimsEntry
-	20, // 5: pomerium.config.Route.timeout:type_name -> google.protobuf.Duration
-	20, // 6: pomerium.config.Route.idle_timeout:type_name -> google.protobuf.Duration
-	11, // 7: pomerium.config.Route.set_request_headers:type_name -> pomerium.config.Route.SetRequestHeadersEntry
-	12, // 8: pomerium.config.Route.set_response_headers:type_name -> pomerium.config.Route.SetResponseHeadersEntry
-	2,  // 9: pomerium.config.Route.rewrite_response_headers:type_name -> pomerium.config.RouteRewriteHeader
-	21, // 10: pomerium.config.Route.envoy_opts:type_name -> envoy.config.cluster.v3.Cluster
-	7,  // 11: pomerium.config.Route.policies:type_name -> pomerium.config.Policy
-	6,  // 12: pomerium.config.Route.ppl_policies:type_name -> pomerium.config.PPLPolicy
-	13, // 13: pomerium.config.Policy.allowed_idp_claims:type_name -> pomerium.config.Policy.AllowedIdpClaimsEntry
-	15, // 14: pomerium.config.Settings.access_log_fields:type_name -> pomerium.config.Settings.StringList
-	15, // 15: pomerium.config.Settings.authorize_log_fields:type_name -> pomerium.config.Settings.StringList
-	14, // 16: pomerium.config.Settings.certificates:type_name -> pomerium.config.Settings.Certificate
-	20, // 17: pomerium.config.Settings.timeout_read:type_name -> google.protobuf.Duration
-	20, // 18: pomerium.config.Settings.timeout_write:type_name -> google.protobuf.Duration
-	20, // 19: pomerium.config.Settings.timeout_idle:type_name -> google.protobuf.Duration
-	20, // 20: pomerium.config.Settings.cookie_expire:type_name -> google.protobuf.Duration
-	16, // 21: pomerium.config.Settings.request_params:type_name -> pomerium.config.Settings.RequestParamsEntry
-	17, // 22: pomerium.config.Settings.set_response_headers:type_name -> pomerium.config.Settings.SetResponseHeadersEntry
-	18, // 23: pomerium.config.Settings.jwt_claims_headers:type_name -> pomerium.config.Settings.JwtClaimsHeadersEntry
-	20, // 24: pomerium.config.Settings.default_upstream_timeout:type_name -> google.protobuf.Duration
-	14, // 25: pomerium.config.Settings.metrics_certificate:type_name -> pomerium.config.Settings.Certificate
-	20, // 26: pomerium.config.Settings.grpc_client_timeout:type_name -> google.protobuf.Duration
-	9,  // 27: pomerium.config.Settings.downstream_mtls:type_name -> pomerium.config.DownstreamMtlsSettings
-	22, // 28: pomerium.config.Settings.codec_type:type_name -> envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager.CodecType
-	23, // 29: pomerium.config.Settings.audit_key:type_name -> pomerium.crypt.PublicKeyEncryptionKey
-	19, // 30: pomerium.config.Settings.runtime_flags:type_name -> pomerium.config.Settings.RuntimeFlagsEntry
+	6,  // 0: pomerium.config.Config.routes:type_name -> pomerium.config.Route
+	9,  // 1: pomerium.config.Config.settings:type_name -> pomerium.config.Settings
+	4,  // 2: pomerium.config.Route.redirect:type_name -> pomerium.config.RouteRedirect
+	5,  // 3: pomerium.config.Route.response:type_name -> pomerium.config.RouteDirectResponse
+	12, // 4: pomerium.config.Route.allowed_idp_claims:type_name -> pomerium.config.Route.AllowedIdpClaimsEntry
+	22, // 5: pomerium.config.Route.timeout:type_name -> google.protobuf.Duration
+	22, // 6: pomerium.config.Route.idle_timeout:type_name -> google.protobuf.Duration
+	13, // 7: pomerium.config.Route.set_request_headers:type_name -> pomerium.config.Route.SetRequestHeadersEntry
+	14, // 8: pomerium.config.Route.set_response_headers:type_name -> pomerium.config.Route.SetResponseHeadersEntry
+	3,  // 9: pomerium.config.Route.rewrite_response_headers:type_name -> pomerium.config.RouteRewriteHeader
+	23, // 10: pomerium.config.Route.envoy_opts:type_name -> envoy.config.cluster.v3.Cluster
+	8,  // 11: pomerium.config.Route.policies:type_name -> pomerium.config.Policy
+	7,  // 12: pomerium.config.Route.ppl_policies:type_name -> pomerium.config.PPLPolicy
+	15, // 13: pomerium.config.Policy.allowed_idp_claims:type_name -> pomerium.config.Policy.AllowedIdpClaimsEntry
+	17, // 14: pomerium.config.Settings.access_log_fields:type_name -> pomerium.config.Settings.StringList
+	17, // 15: pomerium.config.Settings.authorize_log_fields:type_name -> pomerium.config.Settings.StringList
+	16, // 16: pomerium.config.Settings.certificates:type_name -> pomerium.config.Settings.Certificate
+	22, // 17: pomerium.config.Settings.timeout_read:type_name -> google.protobuf.Duration
+	22, // 18: pomerium.config.Settings.timeout_write:type_name -> google.protobuf.Duration
+	22, // 19: pomerium.config.Settings.timeout_idle:type_name -> google.protobuf.Duration
+	22, // 20: pomerium.config.Settings.cookie_expire:type_name -> google.protobuf.Duration
+	18, // 21: pomerium.config.Settings.request_params:type_name -> pomerium.config.Settings.RequestParamsEntry
+	19, // 22: pomerium.config.Settings.set_response_headers:type_name -> pomerium.config.Settings.SetResponseHeadersEntry
+	20, // 23: pomerium.config.Settings.jwt_claims_headers:type_name -> pomerium.config.Settings.JwtClaimsHeadersEntry
+	22, // 24: pomerium.config.Settings.default_upstream_timeout:type_name -> google.protobuf.Duration
+	16, // 25: pomerium.config.Settings.metrics_certificate:type_name -> pomerium.config.Settings.Certificate
+	22, // 26: pomerium.config.Settings.grpc_client_timeout:type_name -> google.protobuf.Duration
+	10, // 27: pomerium.config.Settings.downstream_mtls:type_name -> pomerium.config.DownstreamMtlsSettings
+	24, // 28: pomerium.config.Settings.codec_type:type_name -> envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager.CodecType
+	25, // 29: pomerium.config.Settings.audit_key:type_name -> pomerium.crypt.PublicKeyEncryptionKey
+	21, // 30: pomerium.config.Settings.runtime_flags:type_name -> pomerium.config.Settings.RuntimeFlagsEntry
 	0,  // 31: pomerium.config.DownstreamMtlsSettings.enforcement:type_name -> pomerium.config.MtlsEnforcementMode
-	24, // 32: pomerium.config.Route.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
-	24, // 33: pomerium.config.Policy.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
-	34, // [34:34] is the sub-list for method output_type
-	34, // [34:34] is the sub-list for method input_type
-	34, // [34:34] is the sub-list for extension type_name
-	34, // [34:34] is the sub-list for extension extendee
-	0,  // [0:34] is the sub-list for field type_name
+	11, // 32: pomerium.config.DownstreamMtlsSettings.match_subject_alt_names:type_name -> pomerium.config.SANMatcher
+	1,  // 33: pomerium.config.SANMatcher.san_type:type_name -> pomerium.config.SANMatcher.SANType
+	26, // 34: pomerium.config.Route.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
+	26, // 35: pomerium.config.Policy.AllowedIdpClaimsEntry.value:type_name -> google.protobuf.ListValue
+	36, // [36:36] is the sub-list for method output_type
+	36, // [36:36] is the sub-list for method input_type
+	36, // [36:36] is the sub-list for extension type_name
+	36, // [36:36] is the sub-list for extension extendee
+	0,  // [0:36] is the sub-list for field type_name
 }
 
 func init() { file_config_proto_init() }
@@ -2960,8 +3116,8 @@ func file_config_proto_init() {
 				return nil
 			}
 		}
-		file_config_proto_msgTypes[13].Exporter = func(v any, i int) any {
-			switch v := v.(*Settings_Certificate); i {
+		file_config_proto_msgTypes[9].Exporter = func(v any, i int) any {
+			switch v := v.(*SANMatcher); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2973,6 +3129,18 @@ func file_config_proto_init() {
 			}
 		}
 		file_config_proto_msgTypes[14].Exporter = func(v any, i int) any {
+			switch v := v.(*Settings_Certificate); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_config_proto_msgTypes[15].Exporter = func(v any, i int) any {
 			switch v := v.(*Settings_StringList); i {
 			case 0:
 				return &v.state
@@ -2997,8 +3165,8 @@ func file_config_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_config_proto_rawDesc,
-			NumEnums:      1,
-			NumMessages:   19,
+			NumEnums:      2,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

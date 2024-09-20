@@ -2,17 +2,25 @@ package config
 
 import (
 	"context"
+	"crypto"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"math/rand/v2"
+	"hash/fnv"
+	"math/big"
+	mathrand "math/rand/v2"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -22,17 +30,17 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pomerium/csrf"
+	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
 	"github.com/pomerium/protoutil/protorand"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
-
-	"github.com/pomerium/pomerium/internal/testutil"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
-	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
-	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
 )
 
 var cmpOptIgnoreUnexported = cmpopts.IgnoreUnexported(Options{}, Policy{})
@@ -1380,12 +1388,12 @@ func TestShallowCopyToProto(t *testing.T) {
 	responseGen := protorand.New[*configpb.RouteDirectResponse]()
 
 	randomDomain := func() string {
-		numSegments := rand.IntN(5) + 1
+		numSegments := mathrand.IntN(5) + 1
 		segments := make([]string, numSegments)
 		for i := range segments {
-			b := make([]rune, rand.IntN(10)+10)
+			b := make([]rune, mathrand.IntN(10)+10)
 			for j := range b {
-				b[j] = rune(rand.IntN(26) + 'a')
+				b[j] = rune(mathrand.IntN(26) + 'a')
 			}
 			segments[i] = string(b)
 		}
@@ -1400,15 +1408,15 @@ func TestShallowCopyToProto(t *testing.T) {
 		// EnvoyOpts is set to an empty non-nil message during conversion, if nil
 		pb.EnvoyOpts = &envoy_config_cluster_v3.Cluster{}
 
-		switch rand.IntN(3) {
+		switch mathrand.IntN(3) {
 		case 0:
-			pb.To = make([]string, rand.IntN(3)+1)
+			pb.To = make([]string, mathrand.IntN(3)+1)
 			for i := range pb.To {
 				pb.To[i] = "https://" + randomDomain()
 			}
 			pb.LoadBalancingWeights = make([]uint32, len(pb.To))
 			for i := range pb.LoadBalancingWeights {
-				pb.LoadBalancingWeights[i] = rand.Uint32N(10000) + 1
+				pb.LoadBalancingWeights[i] = mathrand.Uint32N(10000) + 1
 			}
 		case 1:
 			pb.Redirect, err = redirectGen.Gen()
@@ -1476,4 +1484,226 @@ func TestShallowCopyToProto(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestOptions_FromToProto(t *testing.T) {
+	generate := func(ratio float64) *configpb.Settings {
+		t.Helper()
+		gen := protorand.New[*configpb.Settings]()
+		gen.MaxCollectionElements = 2
+		gen.MaxDepth = 2
+		gen.UseGoDurationLimits = true
+		gen.ExcludeMask(&fieldmaskpb.FieldMask{
+			Paths: []string{
+				"tls_custom_ca_file",
+				"tls_client_cert_file",
+				"tls_client_key_file",
+				"tls_downstream_client_ca_file",
+			},
+		})
+
+		settings, err := gen.GenPartial(ratio)
+		require.NoError(t, err)
+		unsetFalseOptionalBoolFields(settings)
+		fixZeroValuedEnums(settings)
+		generateCertificates(t, settings)
+
+		return settings
+	}
+
+	t.Run("all fields", func(t *testing.T) {
+		t.Parallel()
+		for range 100 {
+			settings := generate(1)
+			var options Options
+			options.ApplySettings(context.Background(), nil, settings)
+			settings2 := options.ToProto()
+			testutil.AssertProtoEqual(t, settings, settings2.Settings)
+		}
+	})
+
+	t.Run("some fields", func(t *testing.T) {
+		t.Parallel()
+		for range 100 {
+			settings := generate(mathrand.Float64())
+			var options Options
+			options.ApplySettings(context.Background(), nil, settings)
+			settings2 := options.ToProto()
+			testutil.AssertProtoEqual(t, settings, settings2.Settings)
+		}
+	})
+}
+
+// unset any optional bool fields with a value of false, to match
+func unsetFalseOptionalBoolFields(msg proto.Message) {
+	msg.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+		if fd.Cardinality() == protoreflect.Optional && fd.Kind() == protoreflect.BoolKind {
+			if v.IsValid() && !v.Bool() {
+				msg.ProtoReflect().Clear(fd)
+			}
+		}
+		return true
+	})
+}
+
+func fixZeroValuedEnums(msg *configpb.Settings) {
+	if msg.DownstreamMtls != nil && msg.DownstreamMtls.Enforcement != nil {
+		// there is no "unknown" equivalent, so if the value is randomly set to
+		// unknown it would be a lossy conversion
+		if *msg.DownstreamMtls.Enforcement == configpb.MtlsEnforcementMode_UNKNOWN {
+			msg.DownstreamMtls.Enforcement = nil
+		}
+	}
+}
+
+func generateCertificates(t testing.TB, msg *configpb.Settings) {
+	if msg.AutocertCa != nil {
+		*msg.AutocertCa, _ = generateRandomCA(t, *msg.AutocertCa)
+	}
+	if msg.DownstreamMtls != nil {
+		var caKey string
+		if msg.DownstreamMtls.Ca != nil {
+			*msg.DownstreamMtls.Ca, caKey = generateRandomCA(t, *msg.DownstreamMtls.Ca)
+		}
+		if msg.DownstreamMtls.Crl != nil {
+			if caKey != "" {
+				*msg.DownstreamMtls.Crl = generateCRL(t, *msg.DownstreamMtls.Crl, *msg.DownstreamMtls.Ca, caKey)
+			} else {
+				randCa, randKey := generateRandomCA(t, *msg.DownstreamMtls.Crl+"_temp_ca")
+				*msg.DownstreamMtls.Crl = generateCRL(t, *msg.DownstreamMtls.Crl, randCa, randKey)
+			}
+		}
+	}
+	genCertInPlace := func(cert *configpb.Settings_Certificate, b64 bool) {
+		cert.Id = "" // no equivalent field
+		switch {
+		case len(cert.CertBytes) > 0 && len(cert.KeyBytes) > 0:
+			crt, key := generateRandomCert(t, string(cert.CertBytes)+string(cert.KeyBytes), b64)
+			cert.CertBytes = []byte(crt)
+			cert.KeyBytes = []byte(key)
+		case len(cert.CertBytes) > 0 && len(cert.KeyBytes) == 0:
+			crt, _ := generateRandomCert(t, string(cert.CertBytes), b64)
+			cert.CertBytes = []byte(crt)
+		case len(cert.CertBytes) == 0 && len(cert.KeyBytes) > 0:
+			// invalid, but convert anyway
+			crt, _ := generateRandomCert(t, string(cert.KeyBytes), b64)
+			cert.KeyBytes = []byte(crt)
+		}
+	}
+	for i, cert := range msg.Certificates {
+		genCertInPlace(cert, false)
+		if cert.CertBytes == nil && cert.KeyBytes == nil {
+			msg.Certificates = slices.Delete(msg.Certificates, i, i+1)
+		}
+	}
+	if msg.MetricsCertificate != nil {
+		genCertInPlace(msg.MetricsCertificate, false)
+		if msg.MetricsCertificate.CertBytes == nil && msg.MetricsCertificate.KeyBytes == nil {
+			msg.MetricsCertificate = nil
+		}
+	}
+}
+
+func generateRandomCA(t testing.TB, randomInput string) (string, string) {
+	seed := sha256.Sum256([]byte(randomInput))
+	priv := ed25519.NewKeyFromSeed(seed[:])
+	h := fnv.New128()
+	h.Write([]byte(randomInput))
+	sum := h.Sum(nil)
+	var sn big.Int
+	sn.SetBytes(sum)
+
+	now := time.Now()
+	tmpl := &x509.Certificate{
+		IsCA:         true,
+		SerialNumber: &sn,
+		Subject:      pkix.Name{CommonName: randomInput},
+		Issuer:       pkix.Name{CommonName: randomInput},
+		NotBefore:    now,
+		NotAfter:     now.Add(12 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageCRLSign,
+		ExtKeyUsage: []x509.ExtKeyUsage{
+			x509.ExtKeyUsageClientAuth,
+			x509.ExtKeyUsageServerAuth,
+		},
+		BasicConstraintsValid: true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, priv.Public(), priv)
+	require.NoError(t, err)
+	return base64.StdEncoding.EncodeToString(pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: der,
+		})), base64.StdEncoding.EncodeToString(pem.EncodeToMemory(&pem.Block{
+			Type:  "PRIVATE KEY",
+			Bytes: must(x509.MarshalPKCS8PrivateKey(priv)),
+		}))
+}
+
+func generateCRL(t testing.TB, randomInput string, issuerCrt, issuerKey string) string {
+	h := fnv.New128()
+	h.Write([]byte(randomInput))
+	sum := h.Sum(nil)
+	var sn big.Int
+	sn.SetBytes(sum)
+	issuer, err := cryptutil.CertificateFromBase64(issuerCrt, issuerKey)
+	require.NoError(t, err)
+	b, err := x509.CreateRevocationList(rand.Reader, &x509.RevocationList{
+		Number: big.NewInt(0x2000),
+		RevokedCertificates: []pkix.RevokedCertificate{
+			{
+				SerialNumber:   &sn,
+				RevocationTime: time.Now(),
+			},
+		},
+	}, issuer.Leaf, issuer.PrivateKey.(crypto.Signer))
+	require.NoError(t, err)
+	return base64.StdEncoding.EncodeToString(b)
+}
+
+func generateRandomCert(t testing.TB, randomInput string, b64 bool) (string, string) {
+	seed := sha256.Sum256([]byte(randomInput))
+	priv := ed25519.NewKeyFromSeed(seed[:])
+	h := fnv.New128()
+	h.Write([]byte(randomInput))
+	sum := h.Sum(nil)
+	var sn big.Int
+	sn.SetBytes(sum)
+	now := time.Now()
+	tmpl := &x509.Certificate{
+		SerialNumber: &sn,
+		Subject: pkix.Name{
+			CommonName: randomInput,
+		},
+		Issuer: pkix.Name{
+			CommonName: randomInput,
+		},
+		NotBefore: now,
+		NotAfter:  now.Add(12 * time.Hour),
+		KeyUsage:  x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{
+			x509.ExtKeyUsageClientAuth,
+		},
+		BasicConstraintsValid: true,
+	}
+	certDer, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, priv.Public(), priv)
+	require.NoError(t, err)
+	crtPem := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certDer,
+	})
+	keyPem := pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: must(x509.MarshalPKCS8PrivateKey(priv)),
+	})
+	if b64 {
+		return base64.StdEncoding.EncodeToString(crtPem), base64.StdEncoding.EncodeToString(keyPem)
+	}
+	return string(crtPem), string(keyPem)
+}
+
+func must[T any](t T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return t
 }

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -67,20 +66,7 @@ func BuildImportCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cfgC := make(chan *config.Config, 1)
-			src.OnConfigChange(cmd.Context(), func(_ context.Context, cfg *config.Config) {
-				cfgC <- cfg
-			})
-			if cfg := src.GetConfig(); cfg != nil {
-				cfgC <- cfg
-			}
-
-			var cfg *config.Config
-			select {
-			case <-cmd.Context().Done():
-				return cmd.Context().Err()
-			case cfg = <-cfgC:
-			}
+			cfg := src.GetConfig()
 
 			client := zeroClientFromContext(cmd.Context())
 			quotas, err := client.GetQuotas(cmd.Context())

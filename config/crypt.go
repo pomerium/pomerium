@@ -30,8 +30,12 @@ func (o *PublicKeyEncryptionKeyOptions) ToProto() *crypt.PublicKeyEncryptionKey 
 	if o == nil {
 		return nil
 	}
+	decoded, err := base64.StdEncoding.DecodeString(o.Data)
+	if err != nil {
+		return nil
+	}
 	return &crypt.PublicKeyEncryptionKey{
 		Id:   o.ID,
-		Data: []byte(o.Data),
+		Data: decoded,
 	}
 }

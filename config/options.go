@@ -1547,6 +1547,11 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.AutocertOptions.TrustedCA, settings.AutocertTrustedCa)
 	set(&o.SkipXffAppend, settings.SkipXffAppend)
 	set(&o.XffNumTrustedHops, settings.XffNumTrustedHops)
+	set(&o.EnvoyAdminAccessLogPath, settings.EnvoyAdminAccessLogPath)
+	set(&o.EnvoyAdminProfilePath, settings.EnvoyAdminProfilePath)
+	set(&o.EnvoyAdminAddress, settings.EnvoyAdminAddress)
+	set(&o.EnvoyBindConfigSourceAddress, settings.EnvoyBindConfigSourceAddress)
+	o.EnvoyBindConfigFreebind = null.BoolFromPtr(settings.EnvoyBindConfigFreebind)
 	setSlice(&o.ProgrammaticRedirectDomainWhitelist, settings.ProgrammaticRedirectDomainWhitelist)
 	setAuditKey(&o.AuditKey, settings.AuditKey)
 	setCodecType(&o.CodecType, settings.CodecType)
@@ -1571,9 +1576,9 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.DnsLookupFamily, &o.DNSLookupFamily)
 	settings.Certificates = getCertificates(o)
 	copySrcToOptionalDest(&settings.HttpRedirectAddr, &o.HTTPRedirectAddr)
-	settings.TimeoutRead = durationpb.New(o.ReadTimeout)
-	settings.TimeoutWrite = durationpb.New(o.WriteTimeout)
-	settings.TimeoutIdle = durationpb.New(o.IdleTimeout)
+	copyOptionalDuration(&settings.TimeoutRead, o.ReadTimeout)
+	copyOptionalDuration(&settings.TimeoutWrite, o.WriteTimeout)
+	copyOptionalDuration(&settings.TimeoutIdle, o.IdleTimeout)
 	copySrcToOptionalDest(&settings.AuthenticateServiceUrl, &o.AuthenticateURLString)
 	copySrcToOptionalDest(&settings.AuthenticateInternalServiceUrl, &o.AuthenticateInternalURLString)
 	copySrcToOptionalDest(&settings.SignoutRedirectUrl, &o.SignOutRedirectURLString)
@@ -1582,7 +1587,7 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.CookieSecret, valueOrFromFileBase64(o.CookieSecret, o.CookieSecretFile))
 	copySrcToOptionalDest(&settings.CookieDomain, &o.CookieDomain)
 	copySrcToOptionalDest(&settings.CookieHttpOnly, &o.CookieHTTPOnly)
-	settings.CookieExpire = durationpb.New(o.CookieExpire)
+	copyOptionalDuration(&settings.CookieExpire, o.CookieExpire)
 	copySrcToOptionalDest(&settings.CookieSameSite, &o.CookieSameSite)
 	copySrcToOptionalDest(&settings.IdpClientId, &o.ClientID)
 	copySrcToOptionalDest(&settings.IdpClientSecret, valueOrFromFileBase64(o.ClientSecret, o.ClientSecretFile))
@@ -1598,7 +1603,7 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.SigningKey, valueOrFromFileBase64(o.SigningKey, o.SigningKeyFile))
 	settings.SetResponseHeaders = o.SetResponseHeaders
 	settings.JwtClaimsHeaders = o.JWTClaimsHeaders
-	settings.DefaultUpstreamTimeout = durationpb.New(o.DefaultUpstreamTimeout)
+	copyOptionalDuration(&settings.DefaultUpstreamTimeout, o.DefaultUpstreamTimeout)
 	copySrcToOptionalDest(&settings.MetricsAddress, &o.MetricsAddr)
 	copySrcToOptionalDest(&settings.MetricsBasicAuth, &o.MetricsBasicAuth)
 	settings.MetricsCertificate = toCertificateOrFromFile(o.MetricsCertificate, o.MetricsCertificateKey, o.MetricsCertificateFile, o.MetricsCertificateKeyFile)
@@ -1611,13 +1616,13 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.TracingZipkinEndpoint, &o.ZipkinEndpoint)
 	copySrcToOptionalDest(&settings.GrpcAddress, &o.GRPCAddr)
 	settings.GrpcInsecure = o.GRPCInsecure
-	settings.GrpcClientTimeout = durationpb.New(o.GRPCClientTimeout)
+	copyOptionalDuration(&settings.GrpcClientTimeout, o.GRPCClientTimeout)
 	copySrcToOptionalDest(&settings.GrpcClientDnsRoundrobin, &o.GRPCClientDNSRoundRobin)
 	settings.DatabrokerServiceUrls = o.DataBrokerURLStrings
 	copySrcToOptionalDest(&settings.DatabrokerInternalServiceUrl, &o.DataBrokerInternalURLString)
 	copySrcToOptionalDest(&settings.DatabrokerStorageType, &o.DataBrokerStorageType)
 	copySrcToOptionalDest(&settings.DatabrokerStorageConnectionString, valueOrFromFileRaw(o.DataBrokerStorageConnectionString, o.DataBrokerStorageConnectionStringFile))
-	settings.DownstreamMtls = o.DownstreamMTLS.toSettingsProto()
+	settings.DownstreamMtls = o.DownstreamMTLS.ToProto()
 	copySrcToOptionalDest(&settings.GoogleCloudServerlessAuthenticationServiceAccount, &o.GoogleCloudServerlessAuthenticationServiceAccount)
 	copySrcToOptionalDest(&settings.UseProxyProtocol, &o.UseProxyProtocol)
 	copySrcToOptionalDest(&settings.Autocert, &o.AutocertOptions.Enable)
@@ -1625,18 +1630,24 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.AutocertEmail, &o.AutocertOptions.Email)
 	copySrcToOptionalDest(&settings.AutocertEabKeyId, &o.AutocertOptions.EABKeyID)
 	copySrcToOptionalDest(&settings.AutocertEabMacKey, &o.AutocertOptions.EABMACKey)
-	copySrcToOptionalDest(&settings.AutocertUseStaging, &o.AutocertOptions.UseStaging)
-	copySrcToOptionalDest(&settings.AutocertMustStaple, &o.AutocertOptions.MustStaple)
 	copySrcToOptionalDest(&settings.AutocertDir, &o.AutocertOptions.Folder)
 	copySrcToOptionalDest(&settings.AutocertTrustedCa, &o.AutocertOptions.TrustedCA)
+	copySrcToOptionalDest(&settings.AutocertUseStaging, &o.AutocertOptions.UseStaging)
+	copySrcToOptionalDest(&settings.AutocertMustStaple, &o.AutocertOptions.MustStaple)
 	copySrcToOptionalDest(&settings.SkipXffAppend, &o.SkipXffAppend)
 	copySrcToOptionalDest(&settings.XffNumTrustedHops, &o.XffNumTrustedHops)
+	copySrcToOptionalDest(&settings.EnvoyAdminAccessLogPath, &o.EnvoyAdminAccessLogPath)
+	copySrcToOptionalDest(&settings.EnvoyAdminProfilePath, &o.EnvoyAdminProfilePath)
+	copySrcToOptionalDest(&settings.EnvoyAdminAddress, &o.EnvoyAdminAddress)
+	copySrcToOptionalDest(&settings.EnvoyBindConfigSourceAddress, &o.EnvoyBindConfigSourceAddress)
+	settings.EnvoyBindConfigFreebind = o.EnvoyBindConfigFreebind.Ptr()
 	settings.ProgrammaticRedirectDomainWhitelist = o.ProgrammaticRedirectDomainWhitelist
 	settings.AuditKey = o.AuditKey.ToProto()
 	if o.CodecType != "" {
 		codecType := o.CodecType.ToEnvoy()
 		settings.CodecType = &codecType
 	}
+	settings.PassIdentityHeaders = o.PassIdentityHeaders
 	if o.BrandingOptions != nil {
 		primaryColor := o.BrandingOptions.GetPrimaryColor()
 		secondaryColor := o.BrandingOptions.GetSecondaryColor()
@@ -1720,25 +1731,29 @@ func toCertificateOrFromFile(
 	cert string, key string,
 	certFile string, keyFile string,
 ) *config.Settings_Certificate {
-	var crt *tls.Certificate
-	if cert == "" && key == "" {
-		if certFile != "" && keyFile != "" {
-			crt, _ = cryptutil.CertificateFromFile(certFile, keyFile)
+	var out config.Settings_Certificate
+	if cert != "" {
+		out.CertBytes, _ = base64.StdEncoding.DecodeString(cert)
+	} else if certFile != "" {
+		b, err := os.ReadFile(certFile)
+		if err == nil {
+			out.CertBytes = b
 		}
-	} else {
-		crt, _ = cryptutil.CertificateFromBase64(cert, key)
 	}
-	if crt == nil {
+
+	if key != "" {
+		out.KeyBytes, _ = base64.StdEncoding.DecodeString(key)
+	} else if keyFile != "" {
+		b, err := os.ReadFile(keyFile)
+		if err == nil {
+			out.KeyBytes = b
+		}
+	}
+
+	if out.CertBytes == nil && out.KeyBytes == nil {
 		return nil
 	}
-	certBytes, keyBytes, err := cryptutil.EncodeCertificate(crt)
-	if err != nil {
-		return nil
-	}
-	return &config.Settings_Certificate{
-		CertBytes: certBytes,
-		KeyBytes:  keyBytes,
-	}
+	return &out
 }
 
 func getCertificates(o *Options) []*config.Settings_Certificate {
@@ -1758,6 +1773,14 @@ func getCertificates(o *Options) []*config.Settings_Certificate {
 		}
 	}
 	return out
+}
+
+func copyOptionalDuration(dst **durationpb.Duration, src time.Duration) {
+	if src == 0 {
+		*dst = nil
+	} else {
+		*dst = durationpb.New(src)
+	}
 }
 
 func valueOrFromFileRaw(value string, valueFile string) *string {
