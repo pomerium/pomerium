@@ -92,12 +92,25 @@ func getAllCertificates(cfg *config.Config) ([]tls.Certificate, error) {
 		return nil, fmt.Errorf("error collecting all certificates: %w", err)
 	}
 
-	wc, err := cfg.GenerateCatchAllCertificate()
-	if err != nil {
-		return nil, fmt.Errorf("error getting wildcard certificate: %w", err)
+	if cfg.Options.DeriveInternalDomainCert != nil {
+		wc, err := cfg.GenerateDerivedCertificate()
+		if err != nil {
+			return nil, fmt.Errorf("error generating wildcard certificate: %w", err)
+		}
+		allCertificates = append(allCertificates, *wc)
 	}
 
-	return append(allCertificates, *wc), nil
+	// Generate a fallback certificate only as a last resort, if no other
+	// certificates are configured.
+	if len(allCertificates) == 0 {
+		wc, err := cfg.GenerateFallbackCertificate()
+		if err != nil {
+			return nil, fmt.Errorf("error generating wildcard certificate: %w", err)
+		}
+		allCertificates = append(allCertificates, *wc)
+	}
+
+	return allCertificates, nil
 }
 
 func (b *Builder) buildTLSSocket(ctx context.Context, cfg *config.Config, certs []tls.Certificate) (*envoy_config_core_v3.TransportSocket, error) {
