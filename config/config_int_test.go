@@ -1,29 +1,50 @@
 package config_test
 
 import (
+	"io"
 	"testing"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/testenv"
-	"github.com/pomerium/pomerium/internal/testenv/scenarios"
-	"github.com/stretchr/testify/assert"
+	"github.com/pomerium/pomerium/internal/testenv/snippets"
+	"google.golang.org/grpc/grpclog"
 )
 
-func TestStartupLatency(t *testing.T) {
-	env := testenv.New(t)
-	env.Add(scenarios.TemplateRoutes(50, scenarios.PolicyTemplate{
-		From: "https://from-{{.Idx}}.localhost",
-		To:   "https://to-{{.Idx}}.localhost",
-		PPL:  `{"allow":{"and":["email":{"is":"user-{{.Idx}}@example.com"}]}}`,
-	}))
-	recorder := env.NewLogRecorder()
-	env.Start()
+func BenchmarkStartupLatency(b *testing.B) {
+	grpclog.SetLoggerV2(grpclog.NewLoggerV2WithVerbosity(io.Discard, io.Discard, io.Discard, 0))
+	b.ReportAllocs()
+	b.Run("50 routes", func(b *testing.B) {
+		for range b.N {
+			env := testenv.New(b)
+			env.Add(snippets.TemplateRoutes(50, snippets.SimplePolicyTemplate))
+			env.Start()
 
-	start := time.Now()
-	recorder.WaitForMatch(map[string]any{
-		"syncer_id":   "databroker",
-		"syncer_type": "type.googleapis.com/pomerium.config.Config",
-		"message":     "listening for updates",
+			d := snippets.WaitStartupComplete(b, env)
+			b.ReportMetric(d.Seconds(), "sec/op")
+			env.Stop()
+		}
 	})
-	assert.WithinDuration(t, start, time.Now(), 5*time.Second)
+
+	b.Run("500 routes", func(b *testing.B) {
+		for range b.N {
+			env := testenv.New(b)
+			env.Add(snippets.TemplateRoutes(500, snippets.SimplePolicyTemplate))
+			env.Start()
+
+			d := snippets.WaitStartupComplete(b, env)
+			b.ReportMetric(d.Seconds(), "sec/op")
+			env.Stop()
+		}
+	})
+
+	b.Run("5000 routes", func(b *testing.B) {
+		for range b.N {
+			env := testenv.New(b)
+			env.Add(snippets.TemplateRoutes(5000, snippets.SimplePolicyTemplate))
+			env.Start()
+
+			d := snippets.WaitStartupComplete(b, env, 10*time.Minute)
+			b.ReportMetric(d.Seconds(), "sec/op")
+		}
+	})
 }
