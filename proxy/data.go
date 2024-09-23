@@ -64,7 +64,10 @@ func (p *Proxy) getUserInfoData(r *http.Request) handlers.UserInfoData {
 func (p *Proxy) fillEnterpriseUserInfoData(ctx context.Context, data *handlers.UserInfoData) {
 	client := p.state.Load().dataBrokerClient
 
-	res, _ := client.Get(ctx, &databroker.GetRequest{Type: "type.googleapis.com/pomerium.config.Config", Id: "dashboard"})
+	res, _ := client.Get(ctx, &databroker.GetRequest{
+		Type: "type.googleapis.com/pomerium.config.Config",
+		Id:   "dashboard-settings",
+	})
 	data.IsEnterprise = res.GetRecord() != nil
 	if !data.IsEnterprise {
 		return
