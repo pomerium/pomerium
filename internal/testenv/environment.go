@@ -284,6 +284,7 @@ var ErrCauseManualStop = errors.New("Stop() called")
 
 func (e *environment) Start() {
 	e.t.Cleanup(e.cleanup)
+	e.t.Setenv("TMPDIR", e.TempDir())
 
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
