@@ -32,14 +32,14 @@ func Test_getUserInfoData(t *testing.T) {
 	defer clearTimeout()
 
 	cc := testutil.NewGRPCServer(t, func(srv *grpc.Server) {
-		databrokerpb.RegisterDataBrokerServiceServer(srv, databroker.New())
+		databrokerpb.RegisterDataBrokerServiceServer(srv, databroker.New(ctx))
 	})
 	t.Cleanup(func() { cc.Close() })
 
 	client := databrokerpb.NewDataBrokerServiceClient(cc)
 
 	opts := testOptions(t)
-	proxy, err := New(&config.Config{Options: opts})
+	proxy, err := New(ctx, &config.Config{Options: opts})
 	require.NoError(t, err)
 	proxy.state.Load().dataBrokerClient = client
 

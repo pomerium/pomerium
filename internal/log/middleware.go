@@ -1,6 +1,7 @@
 package log
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"time"
@@ -129,5 +130,11 @@ func StreamServerInterceptor(lg *zerolog.Logger) grpc.StreamServerInterceptor {
 		s := streams.NewServerStreamWithContext(ss)
 		s.SetContext(lg.WithContext(s.Ctx))
 		return handler(srv, s)
+	}
+}
+
+func UnaryServerInterceptor(lg *zerolog.Logger) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		return handler(lg.WithContext(ctx), req)
 	}
 }

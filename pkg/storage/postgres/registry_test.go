@@ -42,7 +42,7 @@ func TestRegistry(t *testing.T) {
 	defer clearTimeout()
 
 	require.NoError(t, testutil.WithTestPostgres(func(dsn string) error {
-		backend := New(dsn)
+		backend := New(ctx, dsn)
 		defer backend.Close()
 
 		eg, ctx := errgroup.WithContext(ctx)

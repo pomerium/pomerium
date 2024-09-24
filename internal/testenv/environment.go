@@ -13,6 +13,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"net"
 	"net/url"
@@ -37,6 +38,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/grpclog"
 )
 
 // Environment is a lightweight integration test fixture that runs Pomerium
@@ -132,6 +134,7 @@ type environment struct {
 	domain          string
 	ports           Ports
 	workspaceFolder string
+	silent          bool
 
 	ctx         context.Context
 	cancel      context.CancelCauseFunc
@@ -163,7 +166,16 @@ func New(t testing.TB) Environment {
 	require.NoError(t, err)
 
 	writer := log.NewMultiWriter()
-	writer.Add(os.Stdout)
+	_, silent := t.(*testing.B)
+	if silent {
+		log.SetLevel(zerolog.FatalLevel)
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		log.DebugDisableGlobalWarnings.Store(true)
+		log.DebugDisableZapLogger.Store(true)
+		grpclog.SetLoggerV2(grpclog.NewLoggerV2WithVerbosity(io.Discard, io.Discard, io.Discard, 0))
+	} else {
+		writer.Add(os.Stdout)
+	}
 	logger := zerolog.New(writer).With().Timestamp().Logger().Level(zerolog.DebugLevel)
 
 	ctx, cancel := context.WithCancelCause(logger.WithContext(context.Background()))
@@ -178,6 +190,7 @@ func New(t testing.TB) Environment {
 			http: values.Deferred[int](),
 		},
 		workspaceFolder: workspaceFolder,
+		silent:          silent,
 		ctx:             ctx,
 		cancel:          cancel,
 		logWriter:       writer,

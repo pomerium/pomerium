@@ -113,7 +113,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 			for _, resource := range mgr.resources[req.GetTypeUrl()] {
 				state.clientResourceVersions[resource.Name] = resource.Version
 			}
-			logNACK(req)
+			logNACK(ctx, req)
 		case req.GetResponseNonce() == mgr.nonce:
 			// an ACK for the last response
 			// - set the client resource versions to the current resource versions
@@ -121,10 +121,11 @@ func (mgr *Manager) DeltaAggregatedResources(
 			for _, resource := range mgr.resources[req.GetTypeUrl()] {
 				state.clientResourceVersions[resource.Name] = resource.Version
 			}
-			logACK(req)
+			logACK(ctx, req)
 		default:
 			// an ACK for a response that's not the last response
-			log.Debug(ctx).
+			log.Ctx(ctx).
+				Debug().
 				Str("type-url", req.GetTypeUrl()).
 				Msg("xdsmgr: ack")
 		}
@@ -206,7 +207,8 @@ func (mgr *Manager) DeltaAggregatedResources(
 			case <-ctx.Done():
 				return context.Cause(ctx)
 			case res := <-outgoing:
-				log.Debug(ctx).
+				log.Ctx(ctx).
+					Debug().
 					Str("type-url", res.GetTypeUrl()).
 					Int("resource-count", len(res.GetResources())).
 					Int("removed-resource-count", len(res.GetRemovedResources())).

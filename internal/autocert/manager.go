@@ -63,11 +63,12 @@ type Manager struct {
 }
 
 // New creates a new autocert manager.
-func New(src config.Source) (*Manager, error) {
-	return newManager(context.Background(), src, certmagic.DefaultACME, renewalInterval)
+func New(ctx context.Context, src config.Source) (*Manager, error) {
+	return newManager(ctx, src, certmagic.DefaultACME, renewalInterval)
 }
 
-func newManager(ctx context.Context,
+func newManager(
+	ctx context.Context,
 	src config.Source,
 	acmeTemplate certmagic.ACMEIssuer,
 	checkInterval time.Duration,

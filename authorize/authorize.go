@@ -40,7 +40,7 @@ type Authorize struct {
 }
 
 // New validates and creates a new Authorize service from a set of config options.
-func New(cfg *config.Config) (*Authorize, error) {
+func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	a := &Authorize{
 		currentOptions: config.NewAtomicOptions(),
 		store:          store.New(),
@@ -48,7 +48,7 @@ func New(cfg *config.Config) (*Authorize, error) {
 	}
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 
-	state, err := newAuthorizeStateFromConfig(cfg, a.store, nil)
+	state, err := newAuthorizeStateFromConfig(ctx, cfg, a.store, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -89,12 +89,13 @@ func validateOptions(o *config.Options) error {
 
 // newPolicyEvaluator returns an policy evaluator.
 func newPolicyEvaluator(
+	ctx context.Context,
 	opts *config.Options, store *store.Store, previous *evaluator.Evaluator,
 ) (*evaluator.Evaluator, error) {
 	metrics.AddPolicyCountCallback("pomerium-authorize", func() int64 {
 		return int64(opts.NumPolicies())
 	})
-	ctx := log.WithContext(context.Background(), func(c zerolog.Context) zerolog.Context {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "authorize")
 	})
 	ctx, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
@@ -150,7 +151,7 @@ func newPolicyEvaluator(
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	currentState := a.state.Load()
 	a.currentOptions.Store(cfg.Options)
-	if state, err := newAuthorizeStateFromConfig(cfg, a.store, currentState.evaluator); err != nil {
+	if state, err := newAuthorizeStateFromConfig(ctx, cfg, a.store, currentState.evaluator); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(state)
