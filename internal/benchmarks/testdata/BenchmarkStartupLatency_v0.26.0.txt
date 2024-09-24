@@ -1,0 +1,20 @@
+goos: linux
+goarch: amd64
+pkg: github.com/pomerium/pomerium/internal/benchmarks
+cpu: AMD Ryzen 9 5950X 16-Core Processor
+BenchmarkStartupLatency
+BenchmarkStartupLatency/routes=1
+BenchmarkStartupLatency/routes=1-32                    1        2509232320 ns/op        221194432 B/op    343881 allocs/op
+BenchmarkStartupLatency/routes=10
+BenchmarkStartupLatency/routes=10-32                   1        2809032284 ns/op        246141584 B/op    876506 allocs/op
+BenchmarkStartupLatency/routes=100
+BenchmarkStartupLatency/routes=100-32                  1        11163203789 ns/op       610376992 B/op   7293185 allocs/op
+BenchmarkStartupLatency/routes=1000
+BenchmarkStartupLatency/routes=1000-32                 1        94286971108 ns/op       4671968072 B/op 78572456 allocs/op
+BenchmarkStartupLatency/routes=10000
+    logs.go:211: timed out waiting for log
+--- FAIL: BenchmarkStartupLatency/routes=10000
+--- FAIL: BenchmarkStartupLatency
+FAIL
+exit status 1
+FAIL    github.com/pomerium/pomerium/internal/benchmarks        3735.983s

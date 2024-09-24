@@ -6,7 +6,6 @@ import (
 	"net"
 	"strings"
 
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/values"
 	"google.golang.org/grpc"
@@ -47,11 +46,10 @@ type GRPCUpstream interface {
 
 type grpcUpstream struct {
 	Options
-	testenv.DefaultAttach
+	testenv.Aggregate
 	serverPort values.MutableValue[int]
 	creds      credentials.TransportCredentials
 
-	routes   testenv.Modifiers
 	services []service
 }
 
@@ -82,11 +80,6 @@ func (g *grpcUpstream) Port() values.Value[int] {
 	return g.serverPort
 }
 
-// Modify implements testenv.Upstream.
-func (g *grpcUpstream) Modify(cfg *config.Config) {
-	g.routes.Modify(cfg)
-}
-
 // RegisterService implements grpc.ServiceRegistrar.
 func (g *grpcUpstream) RegisterService(desc *grpc.ServiceDesc, impl any) {
 	g.services = append(g.services, service{desc, impl})
@@ -105,7 +98,7 @@ func (g *grpcUpstream) Route() testenv.RouteStub {
 	r.To(values.Bind(g.serverPort, func(port int) string {
 		return fmt.Sprintf("%s://127.0.0.1:%d", protocol, port)
 	}))
-	g.routes = append(g.routes, r)
+	g.Add(r)
 	return r
 }
 

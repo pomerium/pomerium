@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/retry"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/values"
@@ -102,11 +101,10 @@ type HTTPUpstream interface {
 }
 
 type httpUpstream struct {
-	testenv.DefaultAttach
+	testenv.Aggregate
 	serverPort values.MutableValue[int]
 	tlsConfig  *tls.Config
 
-	routes testenv.Modifiers
 	router *mux.Router
 }
 
@@ -126,11 +124,6 @@ func HTTP(tlsConfig *tls.Config) HTTPUpstream {
 	return up
 }
 
-// Modify implements HTTPUpstream.
-func (h *httpUpstream) Modify(cfg *config.Config) {
-	h.routes.Modify(cfg)
-}
-
 // Port implements HTTPUpstream.
 func (h *httpUpstream) Port() values.Value[int] {
 	return h.serverPort
@@ -148,7 +141,7 @@ func (h *httpUpstream) Route() testenv.RouteStub {
 	r.To(values.Bind(h.serverPort, func(port int) string {
 		return fmt.Sprintf("%s://127.0.0.1:%d", protocol, port)
 	}))
-	h.routes = append(h.routes, r)
+	h.Add(r)
 	return r
 }
 

@@ -72,8 +72,8 @@ type Syncer struct {
 }
 
 // NewSyncer creates a new Syncer.
-func NewSyncer(id string, handler SyncerHandler, options ...SyncerOption) *Syncer {
-	closeCtx, closeCtxCancel := context.WithCancel(context.Background())
+func NewSyncer(ctx context.Context, id string, handler SyncerHandler, options ...SyncerOption) *Syncer {
+	closeCtx, closeCtxCancel := context.WithCancel(ctx)
 
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0

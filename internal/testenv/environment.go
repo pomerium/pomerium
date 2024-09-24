@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"math/bits"
 	"net"
 	"net/url"
 	"os"
@@ -112,6 +113,11 @@ type Environment interface {
 	// NewLogRecorder returns a new [*LogRecorder] and starts capturing logs for
 	// the Pomerium server and Envoy.
 	NewLogRecorder(opts ...LogRecorderOption) *LogRecorder
+
+	// OnStateChanged registers a callback to be invoked when the environment's
+	// state changes to the given state. The callback is invoked in a separate
+	// goroutine.
+	OnStateChanged(state EnvironmentState, callback func())
 }
 
 type Certificate tls.Certificate
@@ -124,6 +130,34 @@ func (c *Certificate) Fingerprint() string {
 func (c *Certificate) SPKIHash() string {
 	sum := sha256.Sum256(c.Leaf.RawSubjectPublicKeyInfo)
 	return base64.StdEncoding.EncodeToString(sum[:])
+}
+
+type EnvironmentState uint32
+
+const NotRunning EnvironmentState = 0
+
+const (
+	Starting EnvironmentState = 1 << iota
+	Running
+	Stopping
+	Stopped
+)
+
+func (e EnvironmentState) String() string {
+	switch e {
+	case NotRunning:
+		return "NotRunning"
+	case Starting:
+		return "Starting"
+	case Running:
+		return "Running"
+	case Stopping:
+		return "Stopping"
+	case Stopped:
+		return "Stopped"
+	default:
+		return fmt.Sprintf("EnvironmentState(%d)", e)
+	}
 }
 
 type environment struct {
@@ -144,6 +178,12 @@ type environment struct {
 	mods         []WithCaller[Modifier]
 	tasks        []WithCaller[Task]
 	taskErrGroup *errgroup.Group
+
+	stateMu              sync.Mutex
+	state                EnvironmentState
+	stateChangeListeners map[EnvironmentState][]func()
+
+	src *configSource
 }
 
 func New(t testing.TB) Environment {
@@ -166,7 +206,7 @@ func New(t testing.TB) Environment {
 	require.NoError(t, err)
 
 	writer := log.NewMultiWriter()
-	_, silent := t.(*testing.B)
+	silent := isSilent(t)
 	if silent {
 		log.SetLevel(zerolog.FatalLevel)
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
@@ -283,6 +323,7 @@ var ErrCauseTestCleanup = errors.New("test cleanup")
 var ErrCauseManualStop = errors.New("Stop() called")
 
 func (e *environment) Start() {
+	e.advanceState(Starting)
 	e.t.Cleanup(e.cleanup)
 	e.t.Setenv("TMPDIR", e.TempDir())
 
@@ -318,14 +359,14 @@ func (e *environment) Start() {
 	}
 	cfg.AllocatePorts(*(*[6]string)(ports[1:]))
 
+	e.src = &configSource{cfg: cfg}
 	e.AddTask(TaskFunc(func(ctx context.Context) error {
 		fileMgr := filemgr.NewManager(filemgr.WithCacheDir(filepath.Join(e.TempDir(), "cache")))
-		src := config.NewStaticSource(cfg)
 		for _, mod := range e.mods {
 			mod.Value.Modify(cfg)
 			require.NoError(e.t, cfg.Options.Validate(), "invoking modifier resulted in an invalid configuration:\nadded by: "+mod.Caller)
 		}
-		return pomerium.Run(e.ctx, src, pomerium.WithOverrideFileManager(fileMgr))
+		return pomerium.Run(e.ctx, e.src, pomerium.WithOverrideFileManager(fileMgr))
 	}))
 
 	for i, task := range e.tasks {
@@ -335,6 +376,8 @@ func (e *environment) Start() {
 			return task.Value.Run(e.ctx)
 		})
 	}
+
+	e.advanceState(Running)
 }
 
 func (e *environment) NewClientCert(templateOverrides ...*x509.Certificate) *Certificate {
@@ -405,36 +448,49 @@ func (e *environment) Stop() {
 
 func (e *environment) cleanup() {
 	e.cleanupOnce.Do(func() {
+		e.advanceState(Stopping)
 		e.cancel(ErrCauseTestCleanup)
 		err := e.taskErrGroup.Wait()
+		e.advanceState(Stopped)
 		assert.ErrorIs(e.t, err, ErrCauseTestCleanup)
 	})
 }
 
-func (e *environment) Add(c Modifier) {
+func (e *environment) Add(m Modifier) {
 	e.t.Helper()
-	for _, mod := range e.mods {
-		if mod.Value == c {
-			e.t.Fatalf("test bug: duplicate modifier added\nfirst added by: %s", mod.Caller)
+	switch e.getState() {
+	case NotRunning:
+		for _, mod := range e.mods {
+			if mod.Value == m {
+				e.t.Fatalf("test bug: duplicate modifier added\nfirst added by: %s", mod.Caller)
+			}
 		}
+		e.mods = append(e.mods, WithCaller[Modifier]{
+			Caller: getCaller(),
+			Value:  m,
+		})
+		m.Attach(e.Context())
+	case Starting:
+		panic("test bug: cannot call Add() before Start() has returned")
+	case Running:
+		e.src.ModifyConfig(e.ctx, m)
+	case Stopped, Stopping:
+		panic("test bug: cannot call Add() after Stop()")
+	default:
+		panic(fmt.Sprintf("unexpected environment state: %s", e.getState()))
 	}
-	e.mods = append(e.mods, WithCaller[Modifier]{
-		Caller: getCaller(),
-		Value:  c,
-	})
-	c.Attach(e.Context())
 }
 
-func (e *environment) AddTask(r Task) {
+func (e *environment) AddTask(t Task) {
 	e.t.Helper()
 	for _, task := range e.tasks {
-		if task.Value == r {
+		if task.Value == t {
 			e.t.Fatalf("test bug: duplicate task added\nfirst added by: %s", task.Caller)
 		}
 	}
 	e.tasks = append(e.tasks, WithCaller[Task]{
 		Caller: getCaller(),
-		Value:  r,
+		Value:  t,
 	})
 }
 
@@ -452,6 +508,41 @@ func (e *environment) ReportError(check health.Check, err error, attributes ...h
 
 // ReportOK implements health.Provider.
 func (e *environment) ReportOK(check health.Check, attributes ...health.Attr) {
+}
+
+func (e *environment) advanceState(newState EnvironmentState) {
+	e.stateMu.Lock()
+	defer e.stateMu.Unlock()
+	if e.state != newState>>1 {
+		panic(fmt.Sprintf("internal test environment bug: invalid state: expected=%s, actual=%s", EnvironmentState(newState>>1), e.state))
+	}
+	e.state = newState
+	for _, listener := range e.stateChangeListeners[newState] {
+		go listener()
+	}
+}
+
+func (e *environment) getState() EnvironmentState {
+	e.stateMu.Lock()
+	defer e.stateMu.Unlock()
+	return e.state
+}
+
+func (e *environment) OnStateChanged(state EnvironmentState, callback func()) {
+	e.stateMu.Lock()
+	defer e.stateMu.Unlock()
+
+	if e.state&state != 0 {
+		go callback()
+		return
+	}
+
+	// add change listeners for all states, if there are multiple bits set
+	for state > 0 {
+		stateBit := EnvironmentState(bits.TrailingZeros32(uint32(state)))
+		state &= (state - 1)
+		e.stateChangeListeners[stateBit] = append(e.stateChangeListeners[stateBit], callback)
+	}
 }
 
 func getCaller(skip ...int) string {
@@ -483,4 +574,48 @@ func wildcardDomain(names []string) string {
 		}
 	}
 	panic("test bug: no wildcard domain in certificate")
+}
+
+func isSilent(t testing.TB) bool {
+	switch t.(type) {
+	case *testing.B:
+		return !slices.Contains(os.Args, "-test.v=true")
+	default:
+		return false
+	}
+}
+
+type configSource struct {
+	mu  sync.Mutex
+	cfg *config.Config
+	lis []config.ChangeListener
+}
+
+var _ config.Source = (*configSource)(nil)
+
+// GetConfig implements config.Source.
+func (src *configSource) GetConfig() *config.Config {
+	src.mu.Lock()
+	defer src.mu.Unlock()
+
+	return src.cfg
+}
+
+// OnConfigChange implements config.Source.
+func (src *configSource) OnConfigChange(_ context.Context, li config.ChangeListener) {
+	src.mu.Lock()
+	defer src.mu.Unlock()
+
+	src.lis = append(src.lis, li)
+}
+
+// ModifyConfig updates the current configuration by applying a [Modifier].
+func (src *configSource) ModifyConfig(ctx context.Context, m Modifier) {
+	src.mu.Lock()
+	defer src.mu.Unlock()
+
+	m.Modify(src.cfg)
+	for _, li := range src.lis {
+		li(ctx, src.cfg)
+	}
 }

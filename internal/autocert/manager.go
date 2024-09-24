@@ -97,12 +97,13 @@ func newManager(
 	if err != nil {
 		return nil, err
 	}
-	mgr.certmagic = certmagic.New(certmagic.NewCache(certmagic.CacheOptions{
+	cache := certmagic.NewCache(certmagic.CacheOptions{
 		GetConfigForCert: func(_ certmagic.Certificate) (*certmagic.Config, error) {
 			return mgr.certmagic, nil
 		},
 		Logger: logger,
-	}), certmagic.Config{
+	})
+	mgr.certmagic = certmagic.New(cache, certmagic.Config{
 		Logger:  logger,
 		Storage: certmagicStorage,
 	})
@@ -128,6 +129,7 @@ func newManager(
 		for {
 			select {
 			case <-ctx.Done():
+				cache.Stop()
 				return
 			case <-ticker.C:
 				err := mgr.renewConfigCerts(ctx)

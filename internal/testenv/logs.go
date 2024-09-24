@@ -26,6 +26,7 @@ import (
 type LogRecorder struct {
 	LogRecorderOptions
 	t            testing.TB
+	canceled     <-chan struct{}
 	buf          *buffer
 	recordedLogs []map[string]any
 
@@ -129,6 +130,7 @@ func (e *environment) NewLogRecorder(opts ...LogRecorderOption) *LogRecorder {
 	lr := &LogRecorder{
 		LogRecorderOptions: options,
 		t:                  e.t,
+		canceled:           e.ctx.Done(),
 		buf:                newBuffer(),
 	}
 	e.logWriter.Add(lr.buf)
@@ -209,6 +211,8 @@ func (lr *LogRecorder) WaitForMatch(expectedLog map[string]any, timeout ...time.
 	case <-found:
 	case <-time.After(timeout[0]):
 		lr.t.Error("timed out waiting for log")
+	case <-lr.canceled:
+		lr.t.Error("canceled")
 	}
 	lr.buf.Close()
 	<-done

@@ -69,12 +69,76 @@ func (d *DefaultAttach) RecordCaller() {
 	d.caller = getCaller(4)
 }
 
-type Modifiers []Modifier
+// Aggregate should be embedded in types implementing [Modifier] when the type
+// contains other modifiers. Used as an alternative to [DefaultAttach].
+// Embedding this struct will properly keep track of when constituent modifiers
+// are added, for validation and caller detection.
+//
+// Aggregate implements a no-op Modify() by default, but this can be overridden
+// to make additional modifications. The aggregate's Modify() is called first.
+type Aggregate struct {
+	env       Environment
+	caller    string
+	modifiers []Modifier
+}
 
-func (m Modifiers) Modify(cfg *config.Config) {
-	for _, mod := range m {
-		mod.Modify(cfg)
+func (d *Aggregate) Add(mod Modifier) {
+	if d.env != nil {
+		if d.env.(*environment).getState() == NotRunning {
+			// If the test environment is running, adding to an aggregate is a no-op.
+			// If the test environment has not been started yet, the aggregate is
+			// being used like in the following example, which is incorrect:
+			//
+			// 	aggregate.Add(foo)
+			//  env.Add(aggregate)
+			//  aggregate.Add(bar)
+			//  env.Start()
+			//
+			// It should instead be used like this:
+			//
+			// 	aggregate.Add(foo)
+			//  aggregate.Add(bar)
+			//  env.Add(aggregate)
+			//  env.Start()
+			panic("test bug: cannot modify an aggregate that has already been added")
+		}
+		return
 	}
+	d.modifiers = append(d.modifiers, mod)
+}
+
+func (d *Aggregate) Env() Environment {
+	d.CheckAttached()
+	return d.env
+}
+
+func (d *Aggregate) Attach(ctx context.Context) {
+	if d.env != nil {
+		panic("internal test environment bug: Attach called twice")
+	}
+	d.env = EnvFromContext(ctx)
+	if d.env == nil {
+		panic("test bug: no environment in context")
+	}
+	d.env.(*environment).t.Helper()
+	for _, mod := range d.modifiers {
+		d.env.Add(mod)
+	}
+}
+
+func (d *Aggregate) Modify(*config.Config) {}
+
+func (d *Aggregate) CheckAttached() {
+	if d.env == nil {
+		if d.caller != "" {
+			panic("test bug: missing a call to Add for the object created at: " + d.caller)
+		}
+		panic("test bug: not attached (possibly missing a call to Add)")
+	}
+}
+
+func (d *Aggregate) RecordCaller() {
+	d.caller = getCaller(4)
 }
 
 type modifierFunc struct {

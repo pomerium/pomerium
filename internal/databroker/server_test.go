@@ -277,7 +277,7 @@ func TestServer_Sync(t *testing.T) {
 		updateRecords := make(chan uint64, 10)
 
 		client := databroker.NewDataBrokerServiceClient(cc)
-		syncer := databroker.NewSyncer("TEST", testSyncerHandler{
+		syncer := databroker.NewSyncer(ctx, "TEST", testSyncerHandler{
 			getDataBrokerServiceClient: func() databroker.DataBrokerServiceClient {
 				return client
 			},
