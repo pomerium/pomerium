@@ -1,0 +1,11 @@
+goos: linux
+goarch: amd64
+pkg: github.com/pomerium/pomerium/internal/benchmarks
+cpu: AMD Ryzen 9 5950X 16-Core Processor
+BenchmarkStartupLatency/routes=1-32                    1         6054078576 ns/op         220882232 B/op           325513 allocs/op
+BenchmarkStartupLatency/routes=10-32                   1         6055639577 ns/op         229915768 B/op           672815 allocs/op
+BenchmarkStartupLatency/routes=100-32                  1         6065410204 ns/op         421119344 B/op          5196289 allocs/op
+BenchmarkStartupLatency/routes=1000-32                 1         8170454844 ns/op        2417808944 B/op         50867203 allocs/op
+BenchmarkStartupLatency/routes=10000-32                1        39427509146 ns/op       28758630624 B/op        552075360 allocs/op
+PASS
+ok      github.com/pomerium/pomerium/internal/benchmarks        65.933s
