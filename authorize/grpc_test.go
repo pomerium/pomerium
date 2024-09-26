@@ -17,9 +17,10 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/atomicutil"
+	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -49,15 +50,27 @@ yE+vPxsiUkvQHdO2fojCkY8jg70jxM+gu59tPDNbw3Uh/2Ij310FgTHsnGQMyA==
 -----END CERTIFICATE-----`
 
 func Test_getEvaluatorRequest(t *testing.T) {
-	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
-	a.currentOptions.Store(&config.Options{
-		Policies: []config.Policy{{
-			From: "https://example.com",
-			SubPolicies: []config.SubPolicy{{
-				Rego: []string{"allow = true"},
-			}},
+	policies := []config.Policy{{
+		From: "https://example.com",
+		To:   mustParseWeightedURLs(t, "https://foo.bar"),
+		SubPolicies: []config.SubPolicy{{
+			Rego: []string{"allow = true"},
 		}},
-	})
+	}}
+
+	policy0RouteID, err := policies[0].RouteID()
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Options: &config.Options{
+			SharedKey:    cryptutil.NewBase64Key(),
+			CookieSecret: cryptutil.NewBase64Key(),
+			Policies:     policies,
+		},
+	}
+	a := New()
+	a.OnConfigChange(context.Background(), cfg)
+	require.True(t, a.HasValidState())
 
 	actual, err := a.getEvaluatorRequestFromCheckRequest(context.Background(),
 		&envoy_service_auth_v3.CheckRequest{
@@ -76,6 +89,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 						Body:   "BODY",
 					},
 				},
+				ContextExtensions: envoyconfig.MakeExtAuthzContextExtensions(false, policy0RouteID),
 				MetadataContext: &envoy_config_core_v3.Metadata{
 					FilterMetadata: map[string]*structpb.Struct{
 						"com.pomerium.client-certificate-info": {
@@ -117,15 +131,27 @@ func Test_getEvaluatorRequest(t *testing.T) {
 }
 
 func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
-	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
-	a.currentOptions.Store(&config.Options{
-		Policies: []config.Policy{{
-			From: "https://example.com",
-			SubPolicies: []config.SubPolicy{{
-				Rego: []string{"allow = true"},
-			}},
+	policies := []config.Policy{{
+		From: "https://example.com",
+		To:   mustParseWeightedURLs(t, "https://foo.bar"),
+		SubPolicies: []config.SubPolicy{{
+			Rego: []string{"allow = true"},
 		}},
-	})
+	}}
+
+	policy0RouteID, err := policies[0].RouteID()
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Options: &config.Options{
+			SharedKey:    cryptutil.NewBase64Key(),
+			CookieSecret: cryptutil.NewBase64Key(),
+			Policies:     policies,
+		},
+	}
+	a := New()
+	a.OnConfigChange(context.Background(), cfg)
+	require.True(t, a.HasValidState())
 
 	actual, err := a.getEvaluatorRequestFromCheckRequest(context.Background(),
 		&envoy_service_auth_v3.CheckRequest{
@@ -144,11 +170,12 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 						Body:   "BODY",
 					},
 				},
+				ContextExtensions: envoyconfig.MakeExtAuthzContextExtensions(false, policy0RouteID),
 			},
 		}, nil)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
-		Policy:  &a.currentOptions.Load().Policies[0],
+		Policy:  &policies[0],
 		Session: evaluator.RequestSession{},
 		HTTP: evaluator.NewRequestHTTP(
 			http.MethodGet,

@@ -1,4 +1,4 @@
-package evaluator
+package evaluator_test
 
 import (
 	"encoding/asn1"
@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 )
 
@@ -167,20 +168,20 @@ dgwikvJkMOfcuexx
 func Test_isValidClientCertificate(t *testing.T) {
 	t.Parallel()
 
-	var noConstraints ClientCertConstraints
+	var noConstraints evaluator.ClientCertConstraints
 	t.Run("no ca", func(t *testing.T) {
-		valid, err := isValidClientCertificate(
-			"", "", ClientCertificateInfo{Leaf: "WHATEVER!"}, noConstraints)
+		valid, err := evaluator.XIsValidClientCertificate(
+			"", "", evaluator.ClientCertificateInfo{Leaf: "WHATEVER!"}, noConstraints)
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 	})
 	t.Run("no cert", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{}, noConstraints)
+		valid, err := evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{}, noConstraints)
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 	})
 	t.Run("valid cert", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err := evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCert,
 		}, noConstraints)
@@ -188,7 +189,7 @@ func Test_isValidClientCertificate(t *testing.T) {
 		assert.True(t, valid, "should return true")
 	})
 	t.Run("valid cert with intermediate", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err := evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented:     true,
 			Leaf:          testValidIntermediateCert,
 			Intermediates: testIntermediateCA,
@@ -197,7 +198,7 @@ func Test_isValidClientCertificate(t *testing.T) {
 		assert.True(t, valid, "should return true")
 	})
 	t.Run("valid cert missing intermediate", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err := evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented:     true,
 			Leaf:          testValidIntermediateCert,
 			Intermediates: "",
@@ -206,7 +207,7 @@ func Test_isValidClientCertificate(t *testing.T) {
 		assert.False(t, valid, "should return false")
 	})
 	t.Run("intermediate CA as root", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testIntermediateCA, "", ClientCertificateInfo{
+		valid, err := evaluator.XIsValidClientCertificate(testIntermediateCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidIntermediateCert,
 		}, noConstraints)
@@ -214,7 +215,7 @@ func Test_isValidClientCertificate(t *testing.T) {
 		assert.True(t, valid, "should return true")
 	})
 	t.Run("unsigned cert", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err := evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testUntrustedCert,
 		}, noConstraints)
@@ -222,7 +223,7 @@ func Test_isValidClientCertificate(t *testing.T) {
 		assert.False(t, valid, "should return false")
 	})
 	t.Run("not a cert", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err := evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      "WHATEVER!",
 		}, noConstraints)
@@ -230,22 +231,22 @@ func Test_isValidClientCertificate(t *testing.T) {
 		assert.False(t, valid, "should return false")
 	})
 	t.Run("revoked cert", func(t *testing.T) {
-		revokedCertInfo := ClientCertificateInfo{
+		revokedCertInfo := evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testRevokedCert,
 		}
 
 		// The "revoked cert" should otherwise be valid (when no CRL is specified).
-		valid, err := isValidClientCertificate(testCA, "", revokedCertInfo, noConstraints)
+		valid, err := evaluator.XIsValidClientCertificate(testCA, "", revokedCertInfo, noConstraints)
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 
-		valid, err = isValidClientCertificate(testCA, testCRL, revokedCertInfo, noConstraints)
+		valid, err = evaluator.XIsValidClientCertificate(testCA, testCRL, revokedCertInfo, noConstraints)
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 
 		// Specifying a CRL containing the revoked cert should not affect other certs.
-		valid, err = isValidClientCertificate(testCA, testCRL, ClientCertificateInfo{
+		valid, err = evaluator.XIsValidClientCertificate(testCA, testCRL, evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCert,
 		}, noConstraints)
@@ -253,51 +254,51 @@ func Test_isValidClientCertificate(t *testing.T) {
 		assert.True(t, valid, "should return true")
 	})
 	t.Run("chain too deep", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err := evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented:     true,
 			Leaf:          testValidIntermediateCert,
 			Intermediates: testIntermediateCA,
-		}, ClientCertConstraints{MaxVerifyDepth: 1})
+		}, evaluator.ClientCertConstraints{MaxVerifyDepth: 1})
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 	})
 	t.Run("any SAN", func(t *testing.T) {
-		matchAnySAN := ClientCertConstraints{SANMatchers: SANMatchers{
+		matchAnySAN := evaluator.ClientCertConstraints{SANMatchers: evaluator.SANMatchers{
 			config.SANTypeDNS:       regexp.MustCompile("^.*$"),
 			config.SANTypeEmail:     regexp.MustCompile("^.*$"),
 			config.SANTypeIPAddress: regexp.MustCompile("^.*$"),
 			config.SANTypeURI:       regexp.MustCompile("^.*$"),
 		}}
 
-		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err := evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCert, // no SANs
 		}, matchAnySAN)
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 
-		valid, err = isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err = evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCertWithDNSSANs,
 		}, matchAnySAN)
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 
-		valid, err = isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err = evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCertWithEmailSAN,
 		}, matchAnySAN)
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 
-		valid, err = isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err = evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCertWithIPSAN,
 		}, matchAnySAN)
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 
-		valid, err = isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err = evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCertWithURISAN,
 		}, matchAnySAN)
@@ -305,95 +306,95 @@ func Test_isValidClientCertificate(t *testing.T) {
 		assert.True(t, valid, "should return true")
 	})
 	t.Run("DNS SAN", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err := evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCertWithDNSSANs,
-		}, ClientCertConstraints{SANMatchers: SANMatchers{
+		}, evaluator.ClientCertConstraints{SANMatchers: evaluator.SANMatchers{
 			config.SANTypeDNS: regexp.MustCompile(`^a\..*\.example\.com$`),
 		}})
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 
-		valid, err = isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err = evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCertWithDNSSANs,
-		}, ClientCertConstraints{SANMatchers: SANMatchers{
+		}, evaluator.ClientCertConstraints{SANMatchers: evaluator.SANMatchers{
 			config.SANTypeEmail: regexp.MustCompile(`^a\..*\.example\.com$`), // mismatched type
 		}})
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 	})
 	t.Run("email SAN", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err := evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCertWithEmailSAN,
-		}, ClientCertConstraints{SANMatchers: SANMatchers{
+		}, evaluator.ClientCertConstraints{SANMatchers: evaluator.SANMatchers{
 			config.SANTypeEmail: regexp.MustCompile(`^.*@example\.com$`),
 		}})
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 
-		valid, err = isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err = evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCertWithEmailSAN,
-		}, ClientCertConstraints{SANMatchers: SANMatchers{
+		}, evaluator.ClientCertConstraints{SANMatchers: evaluator.SANMatchers{
 			config.SANTypeIPAddress: regexp.MustCompile(`^.*@example\.com$`), // mismatched type
 		}})
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 	})
 	t.Run("IP address SAN", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err := evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCertWithIPSAN,
-		}, ClientCertConstraints{SANMatchers: SANMatchers{
+		}, evaluator.ClientCertConstraints{SANMatchers: evaluator.SANMatchers{
 			config.SANTypeIPAddress: regexp.MustCompile(`^192\.168\.10\..*$`),
 		}})
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 
-		valid, err = isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err = evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCertWithIPSAN,
-		}, ClientCertConstraints{SANMatchers: SANMatchers{
+		}, evaluator.ClientCertConstraints{SANMatchers: evaluator.SANMatchers{
 			config.SANTypeURI: regexp.MustCompile(`^192\.168\.10\..*$`), // mismatched type
 		}})
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 	})
 	t.Run("URI SAN", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err := evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCertWithURISAN,
-		}, ClientCertConstraints{SANMatchers: SANMatchers{
+		}, evaluator.ClientCertConstraints{SANMatchers: evaluator.SANMatchers{
 			config.SANTypeURI: regexp.MustCompile(`^spiffe://example\.com/.*$`),
 		}})
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 
-		valid, err = isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err = evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCertWithURISAN,
-		}, ClientCertConstraints{SANMatchers: SANMatchers{
+		}, evaluator.ClientCertConstraints{SANMatchers: evaluator.SANMatchers{
 			config.SANTypeDNS: regexp.MustCompile(`^spiffe://example\.com/.*$`), // mismatched type
 		}})
 		assert.NoError(t, err, "should not return an error")
 		assert.False(t, valid, "should return false")
 	})
 	t.Run("UserPrincipalName SAN", func(t *testing.T) {
-		valid, err := isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err := evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCertWithUPNSAN,
-		}, ClientCertConstraints{SANMatchers: SANMatchers{
+		}, evaluator.ClientCertConstraints{SANMatchers: evaluator.SANMatchers{
 			config.SANTypeUserPrincipalName: regexp.MustCompile(`^test_device$`),
 		}})
 		assert.NoError(t, err, "should not return an error")
 		assert.True(t, valid, "should return true")
 
-		valid, err = isValidClientCertificate(testCA, "", ClientCertificateInfo{
+		valid, err = evaluator.XIsValidClientCertificate(testCA, "", evaluator.ClientCertificateInfo{
 			Presented: true,
 			Leaf:      testValidCertWithURISAN,
-		}, ClientCertConstraints{SANMatchers: SANMatchers{
+		}, evaluator.ClientCertConstraints{SANMatchers: evaluator.SANMatchers{
 			config.SANTypeDNS: regexp.MustCompile(`^test-device$`), // mismatched type
 		}})
 		assert.NoError(t, err, "should not return an error")
@@ -406,26 +407,26 @@ func TestClientCertConstraintsFromConfig(t *testing.T) {
 
 	t.Run("default constraints", func(t *testing.T) {
 		var s config.DownstreamMTLSSettings
-		c, err := ClientCertConstraintsFromConfig(&s)
+		c, err := evaluator.ClientCertConstraintsFromConfig(&s)
 		assert.NoError(t, err)
-		assert.Equal(t, &ClientCertConstraints{MaxVerifyDepth: 1}, c)
+		assert.Equal(t, &evaluator.ClientCertConstraints{MaxVerifyDepth: 1}, c)
 	})
 	t.Run("no constraints", func(t *testing.T) {
 		s := config.DownstreamMTLSSettings{
 			MaxVerifyDepth: new(uint32),
 		}
-		c, err := ClientCertConstraintsFromConfig(&s)
+		c, err := evaluator.ClientCertConstraintsFromConfig(&s)
 		assert.NoError(t, err)
-		assert.Equal(t, &ClientCertConstraints{}, c)
+		assert.Equal(t, &evaluator.ClientCertConstraints{}, c)
 	})
 	t.Run("larger max depth", func(t *testing.T) {
 		depth := uint32(5)
 		s := config.DownstreamMTLSSettings{
 			MaxVerifyDepth: &depth,
 		}
-		c, err := ClientCertConstraintsFromConfig(&s)
+		c, err := evaluator.ClientCertConstraintsFromConfig(&s)
 		assert.NoError(t, err)
-		assert.Equal(t, &ClientCertConstraints{MaxVerifyDepth: 5}, c)
+		assert.Equal(t, &evaluator.ClientCertConstraints{MaxVerifyDepth: 5}, c)
 	})
 	t.Run("one SAN match", func(t *testing.T) {
 		s := config.DownstreamMTLSSettings{
@@ -433,11 +434,11 @@ func TestClientCertConstraintsFromConfig(t *testing.T) {
 				{Type: config.SANTypeDNS, Pattern: `.*\.corp\.example\.com`},
 			},
 		}
-		c, err := ClientCertConstraintsFromConfig(&s)
+		c, err := evaluator.ClientCertConstraintsFromConfig(&s)
 		assert.NoError(t, err)
-		assert.Equal(t, &ClientCertConstraints{
+		assert.Equal(t, &evaluator.ClientCertConstraints{
 			MaxVerifyDepth: 1,
-			SANMatchers: SANMatchers{
+			SANMatchers: evaluator.SANMatchers{
 				config.SANTypeDNS: regexp.MustCompile(`^(.*\.corp\.example\.com)$`),
 			},
 		}, c)
@@ -449,11 +450,11 @@ func TestClientCertConstraintsFromConfig(t *testing.T) {
 				{Type: config.SANTypeDNS, Pattern: `.*\.bar\.example\.com`},
 			},
 		}
-		c, err := ClientCertConstraintsFromConfig(&s)
+		c, err := evaluator.ClientCertConstraintsFromConfig(&s)
 		assert.NoError(t, err)
-		assert.Equal(t, &ClientCertConstraints{
+		assert.Equal(t, &evaluator.ClientCertConstraints{
 			MaxVerifyDepth: 1,
-			SANMatchers: SANMatchers{
+			SANMatchers: evaluator.SANMatchers{
 				config.SANTypeDNS: regexp.MustCompile(`^(.*\.foo\.example\.com)|(.*\.bar\.example\.com)$`),
 			},
 		}, c)
@@ -465,11 +466,11 @@ func TestClientCertConstraintsFromConfig(t *testing.T) {
 				{Type: config.SANTypeEmail, Pattern: `.*@example\.com`},
 			},
 		}
-		c, err := ClientCertConstraintsFromConfig(&s)
+		c, err := evaluator.ClientCertConstraintsFromConfig(&s)
 		assert.NoError(t, err)
-		assert.Equal(t, &ClientCertConstraints{
+		assert.Equal(t, &evaluator.ClientCertConstraints{
 			MaxVerifyDepth: 1,
-			SANMatchers: SANMatchers{
+			SANMatchers: evaluator.SANMatchers{
 				config.SANTypeDNS:   regexp.MustCompile(`^(.*\.foo\.example\.com)$`),
 				config.SANTypeEmail: regexp.MustCompile(`^(.*@example\.com)$`),
 			},
@@ -481,7 +482,7 @@ func TestClientCertConstraintsFromConfig(t *testing.T) {
 				{Type: config.SANTypeDNS, Pattern: "["},
 			},
 		}
-		_, err := ClientCertConstraintsFromConfig(&s)
+		_, err := evaluator.ClientCertConstraintsFromConfig(&s)
 		require.Error(t, err)
 	})
 }
@@ -514,7 +515,7 @@ func TestGetUserPrincipalNamesFromSAN(t *testing.T) {
 		san, err := asn1.Marshal(SAN{upn("hello")})
 		require.NoError(t, err)
 
-		names, err := getUserPrincipalNamesFromSAN(san)
+		names, err := evaluator.XGetUserPrincipalNamesFromSAN(san)
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"hello"}, names)
 	})
@@ -527,7 +528,7 @@ func TestGetUserPrincipalNamesFromSAN(t *testing.T) {
 		san, err := asn1.Marshal(SAN{upn("foo"), upn("bar"), upn("baz")})
 		require.NoError(t, err)
 
-		names, err := getUserPrincipalNamesFromSAN(san)
+		names, err := evaluator.XGetUserPrincipalNamesFromSAN(san)
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"foo", "bar", "baz"}, names)
 	})
@@ -544,7 +545,7 @@ func TestGetUserPrincipalNamesFromSAN(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		names, err := getUserPrincipalNamesFromSAN(san)
+		names, err := evaluator.XGetUserPrincipalNamesFromSAN(san)
 		assert.NoError(t, err)
 		assert.Empty(t, names)
 	})
@@ -571,7 +572,7 @@ func TestGetUserPrincipalNamesFromSAN(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		names, err := getUserPrincipalNamesFromSAN(san)
+		names, err := evaluator.XGetUserPrincipalNamesFromSAN(san)
 		assert.NoError(t, err)
 		assert.Equal(t, []string{"UserPrincipalName"}, names)
 	})
@@ -587,24 +588,24 @@ func TestGetUserPrincipalNamesFromSAN(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		names, err := getUserPrincipalNamesFromSAN(san)
+		names, err := evaluator.XGetUserPrincipalNamesFromSAN(san)
 		assert.ErrorContains(t, err, "expected UTF8String")
 		assert.Empty(t, names)
 	})
 	t.Run("EmptySAN", func(t *testing.T) {
-		names, err := getUserPrincipalNamesFromSAN(nil)
+		names, err := evaluator.XGetUserPrincipalNamesFromSAN(nil)
 		assert.ErrorContains(t, err, "error reading GeneralNames sequence")
 		assert.Empty(t, names)
 	})
 	t.Run("TruncatedGeneralName", func(t *testing.T) {
 		san := []byte{0x30, 0x02, 0x82, 0x05 /* 5 more bytes expected */}
-		names, err := getUserPrincipalNamesFromSAN(san)
+		names, err := evaluator.XGetUserPrincipalNamesFromSAN(san)
 		assert.ErrorContains(t, err, "error reading GeneralName")
 		assert.Empty(t, names)
 	})
 	t.Run("OtherNameWrongTypeIDType", func(t *testing.T) {
 		san := []byte{0x30, 0x06, 0xa0, 0x04, 0x02 /* type Integer, not OID */, 0x02, 0x46, 0x01}
-		names, err := getUserPrincipalNamesFromSAN(san)
+		names, err := evaluator.XGetUserPrincipalNamesFromSAN(san)
 		assert.ErrorContains(t, err, "error reading OtherName type ID")
 		assert.Empty(t, names)
 	})
@@ -618,13 +619,13 @@ func TestGetUserPrincipalNamesFromSAN(t *testing.T) {
 		}
 		san, err := asn1.Marshal(SAN{
 			UPN: BadOtherName{
-				TypeID: oidUserPrincipalName,
+				TypeID: evaluator.OIDUserPrincipalName,
 				Value:  UTF8String{"hello"},
 			},
 		})
 		require.NoError(t, err)
 
-		names, err := getUserPrincipalNamesFromSAN(san)
+		names, err := evaluator.XGetUserPrincipalNamesFromSAN(san)
 		assert.ErrorContains(t, err, "error reading UserPrincipalName value")
 		assert.Empty(t, names)
 	})
