@@ -256,6 +256,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		TLSServerName:                    pb.GetTlsServerName(),
 		TLSDownstreamServerName:          pb.GetTlsDownstreamServerName(),
 		TLSUpstreamServerName:            pb.GetTlsUpstreamServerName(),
+		TLSUpstreamAllowRenegotiation:    pb.GetTlsUpstreamAllowRenegotiation(),
 		TLSCustomCA:                      pb.GetTlsCustomCa(),
 		TLSCustomCAFile:                  pb.GetTlsCustomCaFile(),
 		TLSClientCert:                    pb.GetTlsClientCert(),
@@ -296,13 +297,20 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			Body:   pb.Response.GetBody(),
 		}
 	} else {
-		to, err := ParseWeightedUrls(pb.GetTo()...)
-		if err != nil {
-			return nil, err
+		p.To = make(WeightedURLs, len(pb.To))
+		for i, u := range pb.To {
+			u, err := urlutil.ParseAndValidateURL(u)
+			if err != nil {
+				return nil, err
+			}
+			w := WeightedURL{
+				URL: *u,
+			}
+			if len(pb.LoadBalancingWeights) == len(pb.To) {
+				w.LbWeight = pb.LoadBalancingWeights[i]
+			}
+			p.To[i] = w
 		}
-
-		p.To = to
-		p.LbWeights = pb.LoadBalancingWeights
 	}
 
 	p.EnvoyOpts = pb.EnvoyOpts
@@ -365,6 +373,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 
 	pb := &configpb.Route{
 		Name:                             fmt.Sprint(p.RouteID()),
+		Id:                               p.ID,
 		From:                             p.From,
 		AllowedUsers:                     p.AllowedUsers,
 		AllowedDomains:                   p.AllowedDomains,
@@ -395,6 +404,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		TlsClientKeyFile:                 p.TLSClientKeyFile,
 		TlsDownstreamClientCa:            p.TLSDownstreamClientCA,
 		TlsDownstreamClientCaFile:        p.TLSDownstreamClientCAFile,
+		TlsUpstreamAllowRenegotiation:    p.TLSUpstreamAllowRenegotiation,
 		SetRequestHeaders:                p.SetRequestHeaders,
 		RemoveRequestHeaders:             p.RemoveRequestHeaders,
 		PreserveHostHeader:               p.PreserveHostHeader,
@@ -404,6 +414,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		Policies:           sps,
 		EnvoyOpts:          p.EnvoyOpts,
 		SetResponseHeaders: p.SetResponseHeaders,
+		ShowErrorDetails:   p.ShowErrorDetails,
 	}
 	if p.HostPathRegexRewritePattern != "" {
 		pb.HostPathRegexRewritePattern = proto.String(p.HostPathRegexRewritePattern)

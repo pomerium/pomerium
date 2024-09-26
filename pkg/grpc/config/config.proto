@@ -138,7 +138,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 120.
+// Next ID: 119.
 message Settings {
   message Certificate {
     bytes cert_bytes = 3;

@@ -1377,12 +1377,16 @@ func encodeCert(cert *tls.Certificate) []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Certificate[0]})
 }
 
-func TestShallowCopyToProto(t *testing.T) {
+func TestRoute_FromToProto(t *testing.T) {
 	routeGen := protorand.New[*configpb.Route]()
 	routeGen.MaxCollectionElements = 2
 	routeGen.UseGoDurationLimits = true
 	routeGen.ExcludeMask(&fieldmaskpb.FieldMask{
-		Paths: []string{"from", "name", "to", "load_balancing_weights", "redirect", "response", "envoy_opts"},
+		Paths: []string{
+			"from", "to", "load_balancing_weights", "redirect", "response", // set below
+			"ppl_policies", "name", // no equivalent field
+			"envoy_opts",
+		},
 	})
 	redirectGen := protorand.New[*configpb.RouteRedirect]()
 	responseGen := protorand.New[*configpb.RouteDirectResponse]()
@@ -1491,7 +1495,7 @@ func TestOptions_FromToProto(t *testing.T) {
 		t.Helper()
 		gen := protorand.New[*configpb.Settings]()
 		gen.MaxCollectionElements = 2
-		gen.MaxDepth = 2
+		gen.MaxDepth = 3
 		gen.UseGoDurationLimits = true
 		gen.ExcludeMask(&fieldmaskpb.FieldMask{
 			Paths: []string{
@@ -1552,6 +1556,10 @@ func fixZeroValuedEnums(msg *configpb.Settings) {
 		// unknown it would be a lossy conversion
 		if *msg.DownstreamMtls.Enforcement == configpb.MtlsEnforcementMode_UNKNOWN {
 			msg.DownstreamMtls.Enforcement = nil
+			// if this was the only present field in the message, don't leave it empty
+			if proto.Size(msg.DownstreamMtls) == 0 {
+				msg.DownstreamMtls = nil
+			}
 		}
 	}
 }
