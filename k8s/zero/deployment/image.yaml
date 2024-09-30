@@ -8,5 +8,5 @@ spec:
     spec:
       containers:
         - name: pomerium
-          image: pomerium/pomerium:v0.27.0
-          imagePullPolicy: IfNotPresent
+          image: pomerium/pomerium:latest
+          imagePullPolicy: Always
