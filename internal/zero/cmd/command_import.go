@@ -88,6 +88,7 @@ func BuildImportCmd() *cobra.Command {
 					cmd.Printf("✔ %s\n", msg)
 				}
 			}
+			cmd.Println("\nImport successful, return to your browser to continue setup.")
 			return nil
 		},
 	}
