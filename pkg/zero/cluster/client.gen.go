@@ -696,7 +696,9 @@ func (r ReportClusterResourceBundleStatusResp) StatusCode() int {
 type ImportConfigurationResp struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *ImportResponse
 	JSON400      *ErrorResponse
+	JSON403      *ErrorResponse
 	JSON413      *ErrorResponse
 	JSON500      *ErrorResponse
 }
@@ -1058,12 +1060,26 @@ func ParseImportConfigurationResp(rsp *http.Response) (*ImportConfigurationResp,
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ImportResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest ErrorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 413:
 		var dest ErrorResponse
@@ -1316,6 +1332,11 @@ func (r *ImportConfigurationResp) GetHTTPResponse() *http.Response {
 	return r.HTTPResponse
 }
 
+// GetValue implements apierror.APIResponse
+func (r *ImportConfigurationResp) GetValue() *ImportResponse {
+	return r.JSON200
+}
+
 // GetBadRequestError implements apierror.APIResponse
 func (r *ImportConfigurationResp) GetBadRequestError() (string, bool) {
 	if r.JSON400 == nil {
@@ -1324,20 +1345,19 @@ func (r *ImportConfigurationResp) GetBadRequestError() (string, bool) {
 	return r.JSON400.Error, true
 }
 
+func (r *ImportConfigurationResp) GetForbiddenError() (string, bool) {
+	if r.JSON403 == nil {
+		return "", false
+	}
+	return r.JSON403.Error, true
+}
+
 // GetInternalServerError implements apierror.APIResponse
 func (r *ImportConfigurationResp) GetInternalServerError() (string, bool) {
 	if r.JSON500 == nil {
 		return "", false
 	}
 	return r.JSON500.Error, true
-}
-
-// GetValue implements apierror.APIResponse
-func (r *ImportConfigurationResp) GetValue() *EmptyResponse {
-	if r.StatusCode()/100 != 2 {
-		return nil
-	}
-	return &EmptyResponse{}
 }
 
 // GetHTTPResponse implements apierror.APIResponse

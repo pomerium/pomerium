@@ -196,8 +196,18 @@ paths:
       responses:
         "200":
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResponse"
         "400":
           description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
           content:
             application/json:
               schema:
@@ -340,6 +350,17 @@ components:
           description: Error message
       required:
         - error
+    ImportResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
     ExchangeTokenRequest:
       type: object
       properties:

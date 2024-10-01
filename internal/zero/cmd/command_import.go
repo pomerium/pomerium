@@ -9,6 +9,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
+	"github.com/pomerium/pomerium/pkg/zero/importutil"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
@@ -69,21 +70,24 @@ func BuildImportCmd() *cobra.Command {
 			cfg := src.GetConfig()
 
 			client := zeroClientFromContext(cmd.Context())
-			quotas, err := client.GetQuotas(cmd.Context())
-			if err != nil {
-				return fmt.Errorf("error getting quotas: %w", err)
-			}
 			converted := cfg.Options.ToProto()
-			ui := NewImportUI(converted, quotas)
-			if err := ui.Run(cmd.Context()); err != nil {
-				return err
+			for i, name := range importutil.GenerateRouteNames(converted.Routes) {
+				converted.Routes[i].Name = name
 			}
-			ui.ApplySelections(converted)
-			_, err = client.ImportConfig(cmd.Context(), converted)
+			resp, err := client.ImportConfig(cmd.Context(), converted)
 			if err != nil {
 				return fmt.Errorf("error importing config: %w", err)
 			}
-			cmd.PrintErrln("config imported successfully")
+			if resp.Warnings != nil {
+				for _, warn := range *resp.Warnings {
+					cmd.Printf("warning: %s\n", warn)
+				}
+			}
+			if resp.Messages != nil {
+				for _, msg := range *resp.Messages {
+					cmd.Printf("✔ %s\n", msg)
+				}
+			}
 			return nil
 		},
 	}

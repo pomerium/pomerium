@@ -225,8 +225,10 @@ func differentiateRoutes(subdomain string, routes []*configpb.Route) iter.Seq2[*
 				for _, route := range routes {
 					b.Reset()
 					b.WriteString(subdomain)
-					b.WriteRune('-')
-					b.WriteString(name)
+					if name != "" {
+						b.WriteRune('-')
+						b.WriteString(name)
+					}
 					if route.Prefix != "" {
 						b.WriteString(prefixSuffix)
 					} else if route.Path != "" {

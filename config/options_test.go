@@ -964,6 +964,17 @@ func TestOptions_ApplySettings(t *testing.T) {
 	})
 }
 
+func TestXXX(t *testing.T) {
+	dir, _ := os.MkdirTemp("", "asdf")
+	t.Log(dir)
+	for i := 1; i <= 100; i++ {
+		crt, _ := cryptutil.GenerateCertificate(nil, fmt.Sprintf("route%d.localhost.pomerium.io", i))
+		crtBytes, keyBytes, _ := cryptutil.EncodeCertificate(crt)
+		os.WriteFile(fmt.Sprintf("%s/%d.crt", dir, i), crtBytes, 0o644)
+		os.WriteFile(fmt.Sprintf("%s/%d.key", dir, i), keyBytes, 0o600)
+	}
+}
+
 func TestOptions_GetSetResponseHeaders(t *testing.T) {
 	t.Run("lax", func(t *testing.T) {
 		options := NewDefaultOptions()

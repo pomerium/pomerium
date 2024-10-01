@@ -367,6 +367,23 @@ func TestGenerateRouteNames(t *testing.T) {
 				yield("test-re-foo-prefix (4)")
 			}),
 		},
+		{
+			name: "duplicate routes",
+			input: []*configpb.Route{
+				{From: "https://route1.localhost.pomerium.io:8443"},
+				{From: "https://route1.localhost.pomerium.io:8443"},
+				{From: "https://route2.localhost.pomerium.io:8443"},
+				{From: "https://route3.localhost.pomerium.io:8443"},
+				{From: "https://route4.localhost.pomerium.io:8443"},
+			},
+			expected: []string{
+				"route1",
+				"route1 (2)",
+				"route2",
+				"route3",
+				"route4",
+			},
+		},
 	}
 
 	for _, tc := range cases {

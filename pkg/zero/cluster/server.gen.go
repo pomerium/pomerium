@@ -548,12 +548,13 @@ type ImportConfigurationResponseObject interface {
 	VisitImportConfigurationResponse(w http.ResponseWriter) error
 }
 
-type ImportConfiguration200Response struct {
-}
+type ImportConfiguration200JSONResponse ImportResponse
 
-func (response ImportConfiguration200Response) VisitImportConfigurationResponse(w http.ResponseWriter) error {
+func (response ImportConfiguration200JSONResponse) VisitImportConfigurationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
-	return nil
+
+	return json.NewEncoder(w).Encode(response)
 }
 
 type ImportConfiguration400JSONResponse ErrorResponse
@@ -561,6 +562,15 @@ type ImportConfiguration400JSONResponse ErrorResponse
 func (response ImportConfiguration400JSONResponse) VisitImportConfigurationResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ImportConfiguration403JSONResponse ErrorResponse
+
+func (response ImportConfiguration403JSONResponse) VisitImportConfigurationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
 
 	return json.NewEncoder(w).Encode(response)
 }

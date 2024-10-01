@@ -107,6 +107,12 @@ type GetBundlesResponse struct {
 	Bundles []Bundle `json:"bundles"`
 }
 
+// ImportResponse defines model for ImportResponse.
+type ImportResponse struct {
+	Messages *[]string `json:"messages,omitempty"`
+	Warnings *[]string `json:"warnings,omitempty"`
+}
+
 // ReportUsageRequest defines model for ReportUsageRequest.
 type ReportUsageRequest struct {
 	Users []ReportUsageUser `json:"users"`

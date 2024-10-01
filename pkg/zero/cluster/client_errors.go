@@ -13,6 +13,6 @@ var (
 	_ apierror.APIResponse[GetBundlesResponse]     = (*GetClusterResourceBundlesResp)(nil)
 	_ apierror.APIResponse[DownloadBundleResponse] = (*DownloadClusterResourceBundleResp)(nil)
 	_ apierror.APIResponse[EmptyResponse]          = (*ReportClusterResourceBundleStatusResp)(nil)
-	_ apierror.APIResponse[EmptyResponse]          = (*ImportConfigurationResp)(nil)
+	_ apierror.APIResponse[ImportResponse]         = (*ImportConfigurationResp)(nil)
 	_ apierror.APIResponse[ConfigQuotas]           = (*GetQuotasResp)(nil)
 )

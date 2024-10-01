@@ -3,7 +3,6 @@ package zero
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
@@ -13,6 +12,7 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/klauspost/compress/zstd"
 	"github.com/pomerium/pomerium/internal/zero/apierror"
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 	"github.com/pomerium/pomerium/internal/zero/grpcconn"
@@ -121,13 +121,16 @@ func (api *API) GetClusterResourceBundles(ctx context.Context) (*cluster_api.Get
 	)
 }
 
-func (api *API) ImportConfig(ctx context.Context, cfg *configpb.Config) (*cluster_api.EmptyResponse, error) {
+func (api *API) ImportConfig(ctx context.Context, cfg *configpb.Config) (*cluster_api.ImportResponse, error) {
 	data, err := proto.Marshal(cfg)
 	if err != nil {
 		return nil, err
 	}
 	var compressedData bytes.Buffer
-	w := gzip.NewWriter(&compressedData)
+	w, err := zstd.NewWriter(&compressedData, zstd.WithEncoderLevel(zstd.SpeedBestCompression))
+	if err != nil {
+		panic(fmt.Sprintf("bug: %v", err))
+	}
 	_, err = io.Copy(w, bytes.NewReader(data))
 	if err != nil {
 		return nil, err
