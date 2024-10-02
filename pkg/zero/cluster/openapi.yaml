@@ -184,6 +184,15 @@ paths:
         for the first time.
       operationId: importConfiguration
       tags: [cluster]
+      parameters:
+        - in: header
+          name: X-Import-Hints
+          schema:
+            type: array
+            items:
+              type: string
+          style: simple
+          explode: true
       requestBody:
         required: true
         content:
@@ -191,7 +200,7 @@ paths:
             schema:
               type: string
               contentMediaType: application/octet-stream
-              contentEncoding: gzip
+              contentEncoding: zstd
         description: type.googleapis.com/pomerium.config.Config
       responses:
         "200":
@@ -214,29 +223,6 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "413":
           description: Content Too Large
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-  /config/quotas:
-    get:
-      description: Get the cluster's current configuration quotas
-      operationId: getQuotas
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ConfigQuotas"
-        "400":
-          description: Bad Request
           content:
             application/json:
               schema:
@@ -415,16 +401,3 @@ components:
         - lastSignedInAt
         - pseudonymousEmail
         - pseudonymousId
-    ConfigQuotas:
-      type: object
-      properties:
-        certificates:
-          type: integer
-        policies:
-          type: integer
-        routes:
-          type: integer
-      required:
-        - certificates
-        - policies
-        - routes

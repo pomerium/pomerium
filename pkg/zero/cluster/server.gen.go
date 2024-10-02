@@ -31,10 +31,7 @@ type ServerInterface interface {
 	ReportClusterResourceBundleStatus(w http.ResponseWriter, r *http.Request, bundleId BundleId)
 
 	// (PUT /config/import)
-	ImportConfiguration(w http.ResponseWriter, r *http.Request)
-
-	// (GET /config/quotas)
-	GetQuotas(w http.ResponseWriter, r *http.Request)
+	ImportConfiguration(w http.ResponseWriter, r *http.Request, params ImportConfigurationParams)
 
 	// (POST /exchangeToken)
 	ExchangeClusterIdentityToken(w http.ResponseWriter, r *http.Request)
@@ -68,12 +65,7 @@ func (_ Unimplemented) ReportClusterResourceBundleStatus(w http.ResponseWriter, 
 }
 
 // (PUT /config/import)
-func (_ Unimplemented) ImportConfiguration(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// (GET /config/quotas)
-func (_ Unimplemented) GetQuotas(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) ImportConfiguration(w http.ResponseWriter, r *http.Request, params ImportConfigurationParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -190,27 +182,36 @@ func (siw *ServerInterfaceWrapper) ReportClusterResourceBundleStatus(w http.Resp
 func (siw *ServerInterfaceWrapper) ImportConfiguration(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	var err error
+
 	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
 
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ImportConfiguration(w, r)
-	}))
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ImportConfigurationParams
 
-	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
-		handler = siw.HandlerMiddlewares[i](handler)
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Import-Hints" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Import-Hints")]; found {
+		var XImportHints []string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Import-Hints", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Import-Hints", valueList[0], &XImportHints, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: true, Required: false})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Import-Hints", Err: err})
+			return
+		}
+
+		params.XImportHints = &XImportHints
+
 	}
 
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// GetQuotas operation middleware
-func (siw *ServerInterfaceWrapper) GetQuotas(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetQuotas(w, r)
+		siw.Handler.ImportConfiguration(w, r, params)
 	}))
 
 	for i := len(siw.HandlerMiddlewares) - 1; i >= 0; i-- {
@@ -381,9 +382,6 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Put(options.BaseURL+"/config/import", wrapper.ImportConfiguration)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/config/quotas", wrapper.GetQuotas)
-	})
-	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/exchangeToken", wrapper.ExchangeClusterIdentityToken)
 	})
 	r.Group(func(r chi.Router) {
@@ -541,7 +539,8 @@ func (response ReportClusterResourceBundleStatus500JSONResponse) VisitReportClus
 }
 
 type ImportConfigurationRequestObject struct {
-	Body io.Reader
+	Params ImportConfigurationParams
+	Body   io.Reader
 }
 
 type ImportConfigurationResponseObject interface {
@@ -587,40 +586,6 @@ func (response ImportConfiguration413JSONResponse) VisitImportConfigurationRespo
 type ImportConfiguration500JSONResponse ErrorResponse
 
 func (response ImportConfiguration500JSONResponse) VisitImportConfigurationResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetQuotasRequestObject struct {
-}
-
-type GetQuotasResponseObject interface {
-	VisitGetQuotasResponse(w http.ResponseWriter) error
-}
-
-type GetQuotas200JSONResponse ConfigQuotas
-
-func (response GetQuotas200JSONResponse) VisitGetQuotasResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetQuotas400JSONResponse ErrorResponse
-
-func (response GetQuotas400JSONResponse) VisitGetQuotasResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetQuotas500JSONResponse ErrorResponse
-
-func (response GetQuotas500JSONResponse) VisitGetQuotasResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -713,9 +678,6 @@ type StrictServerInterface interface {
 
 	// (PUT /config/import)
 	ImportConfiguration(ctx context.Context, request ImportConfigurationRequestObject) (ImportConfigurationResponseObject, error)
-
-	// (GET /config/quotas)
-	GetQuotas(ctx context.Context, request GetQuotasRequestObject) (GetQuotasResponseObject, error)
 
 	// (POST /exchangeToken)
 	ExchangeClusterIdentityToken(ctx context.Context, request ExchangeClusterIdentityTokenRequestObject) (ExchangeClusterIdentityTokenResponseObject, error)
@@ -861,8 +823,10 @@ func (sh *strictHandler) ReportClusterResourceBundleStatus(w http.ResponseWriter
 }
 
 // ImportConfiguration operation middleware
-func (sh *strictHandler) ImportConfiguration(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) ImportConfiguration(w http.ResponseWriter, r *http.Request, params ImportConfigurationParams) {
 	var request ImportConfigurationRequestObject
+
+	request.Params = params
 
 	request.Body = r.Body
 
@@ -879,30 +843,6 @@ func (sh *strictHandler) ImportConfiguration(w http.ResponseWriter, r *http.Requ
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ImportConfigurationResponseObject); ok {
 		if err := validResponse.VisitImportConfigurationResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// GetQuotas operation middleware
-func (sh *strictHandler) GetQuotas(w http.ResponseWriter, r *http.Request) {
-	var request GetQuotasRequestObject
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetQuotas(ctx, request.(GetQuotasRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetQuotas")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetQuotasResponseObject); ok {
-		if err := validResponse.VisitGetQuotasResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

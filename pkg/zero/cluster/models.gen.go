@@ -62,13 +62,6 @@ type BundleStatusSuccess struct {
 	Metadata map[string]string `json:"metadata"`
 }
 
-// ConfigQuotas defines model for ConfigQuotas.
-type ConfigQuotas struct {
-	Certificates int `json:"certificates"`
-	Policies     int `json:"policies"`
-	Routes       int `json:"routes"`
-}
-
 // DownloadBundleResponse defines model for DownloadBundleResponse.
 type DownloadBundleResponse struct {
 	// CaptureMetadataHeaders bundle metadata that need be picked up by the client from the download URL
@@ -127,6 +120,11 @@ type ReportUsageUser struct {
 
 // BundleId defines model for bundleId.
 type BundleId = string
+
+// ImportConfigurationParams defines parameters for ImportConfiguration.
+type ImportConfigurationParams struct {
+	XImportHints *[]string `json:"X-Import-Hints,omitempty"`
+}
 
 // ReportClusterResourceBundleStatusJSONRequestBody defines body for ReportClusterResourceBundleStatus for application/json ContentType.
 type ReportClusterResourceBundleStatusJSONRequestBody = BundleStatus

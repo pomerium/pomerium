@@ -121,7 +121,7 @@ func (api *API) GetClusterResourceBundles(ctx context.Context) (*cluster_api.Get
 	)
 }
 
-func (api *API) ImportConfig(ctx context.Context, cfg *configpb.Config) (*cluster_api.ImportResponse, error) {
+func (api *API) ImportConfig(ctx context.Context, cfg *configpb.Config, params *cluster_api.ImportConfigurationParams) (*cluster_api.ImportResponse, error) {
 	data, err := proto.Marshal(cfg)
 	if err != nil {
 		return nil, err
@@ -139,13 +139,10 @@ func (api *API) ImportConfig(ctx context.Context, cfg *configpb.Config) (*cluste
 		return nil, err
 	}
 	return apierror.CheckResponse(api.cluster.ImportConfigurationWithBodyWithResponse(ctx,
+		params,
 		"application/octet-stream",
 		&compressedData,
 	))
-}
-
-func (api *API) GetQuotas(ctx context.Context) (*cluster_api.ConfigQuotas, error) {
-	return apierror.CheckResponse(api.cluster.GetQuotasWithResponse(ctx))
 }
 
 func (api *API) GetTelemetryConn() *grpc.ClientConn {
