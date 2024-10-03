@@ -238,8 +238,7 @@ type Options struct {
 	// If running in all-in-one mode, defaults to true.
 	GRPCInsecure *bool `mapstructure:"grpc_insecure" yaml:"grpc_insecure,omitempty"`
 
-	GRPCClientTimeout       time.Duration `mapstructure:"grpc_client_timeout" yaml:"grpc_client_timeout,omitempty"`
-	GRPCClientDNSRoundRobin bool          `mapstructure:"grpc_client_dns_roundrobin" yaml:"grpc_client_dns_roundrobin,omitempty"`
+	GRPCClientTimeout time.Duration `mapstructure:"grpc_client_timeout" yaml:"grpc_client_timeout,omitempty"`
 
 	// DataBrokerURLString is the routable destination of the databroker service's gRPC endpoint.
 	DataBrokerURLString         string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
@@ -315,7 +314,6 @@ var defaultOptions = Options{
 	IdleTimeout:              5 * time.Minute,
 	GRPCAddr:                 ":443",
 	GRPCClientTimeout:        10 * time.Second, // Try to withstand transient service failures for a single request
-	GRPCClientDNSRoundRobin:  true,
 	AuthenticateCallbackPath: "/oauth2/callback",
 	TracingSampleRate:        0.0001,
 
@@ -1527,7 +1525,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.GRPCAddr, settings.GrpcAddress)
 	setOptional(&o.GRPCInsecure, settings.GrpcInsecure)
 	setDuration(&o.GRPCClientTimeout, settings.GrpcClientTimeout)
-	set(&o.GRPCClientDNSRoundRobin, settings.GrpcClientDnsRoundrobin)
 	setSlice(&o.DataBrokerURLStrings, settings.DatabrokerServiceUrls)
 	set(&o.DataBrokerInternalURLString, settings.DatabrokerInternalServiceUrl)
 	set(&o.DataBrokerStorageType, settings.DatabrokerStorageType)
