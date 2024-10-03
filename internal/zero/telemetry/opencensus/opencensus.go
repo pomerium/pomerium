@@ -9,12 +9,12 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 
-	"github.com/pomerium/pomerium/internal/sets"
+	"github.com/hashicorp/go-set/v3"
 )
 
 type Producer struct {
 	producer metric.Producer
-	filter   atomic.Pointer[sets.Hash[string]]
+	filter   atomic.Pointer[set.Set[string]]
 }
 
 var _ metric.Producer = (*Producer)(nil)
@@ -37,7 +37,7 @@ func (p *Producer) Produce(ctx context.Context) ([]metricdata.ScopeMetrics, erro
 	for _, sm := range metrics {
 		var m []metricdata.Metrics
 		for _, metric := range sm.Metrics {
-			if filter.Has(metric.Name) {
+			if filter.Contains(metric.Name) {
 				m = append(m, metric)
 			}
 		}
@@ -52,5 +52,5 @@ func (p *Producer) Produce(ctx context.Context) ([]metricdata.ScopeMetrics, erro
 }
 
 func (p *Producer) SetFilter(names []string) {
-	p.filter.Store(sets.NewHash(names...))
+	p.filter.Store(set.From(names))
 }
