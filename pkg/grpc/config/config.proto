@@ -200,13 +200,13 @@ message Settings {
   optional string grpc_address = 46;
   optional bool grpc_insecure = 47;
   optional google.protobuf.Duration grpc_client_timeout = 99;
-  optional bool grpc_client_dns_roundrobin = 100;
+  reserved 100; // grpc_client_dns_roundrobin
   // optional string forward_auth_url = 50;
   repeated string databroker_service_urls = 52;
   optional string databroker_internal_service_url = 84;
   optional string databroker_storage_type = 101;
   optional string databroker_storage_connection_string = 102;
-  optional bool databroker_storage_tls_skip_verify = 106;
+  reserved 106; // databroker_storage_tls_skip_verify
   optional DownstreamMtlsSettings downstream_mtls = 116;
   // optional string client_ca = 53;
   // optional string client_crl = 74;

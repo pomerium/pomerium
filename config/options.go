@@ -239,8 +239,7 @@ type Options struct {
 	// If running in all-in-one mode, defaults to true.
 	GRPCInsecure *bool `mapstructure:"grpc_insecure" yaml:"grpc_insecure,omitempty"`
 
-	GRPCClientTimeout       time.Duration `mapstructure:"grpc_client_timeout" yaml:"grpc_client_timeout,omitempty"`
-	GRPCClientDNSRoundRobin bool          `mapstructure:"grpc_client_dns_roundrobin" yaml:"grpc_client_dns_roundrobin,omitempty"`
+	GRPCClientTimeout time.Duration `mapstructure:"grpc_client_timeout" yaml:"grpc_client_timeout,omitempty"`
 
 	// DataBrokerURLString is the routable destination of the databroker service's gRPC endpoint.
 	DataBrokerURLString         string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
@@ -252,10 +251,6 @@ type Options struct {
 	// DataBrokerStorageConnectionString is the data source name for storage backend.
 	DataBrokerStorageConnectionString     string `mapstructure:"databroker_storage_connection_string" yaml:"databroker_storage_connection_string,omitempty"`
 	DataBrokerStorageConnectionStringFile string `mapstructure:"databroker_storage_connection_string_file" yaml:"databroker_storage_connection_string_file,omitempty"`
-	DataBrokerStorageCertFile             string `mapstructure:"databroker_storage_cert_file" yaml:"databroker_storage_cert_file,omitempty"`
-	DataBrokerStorageCertKeyFile          string `mapstructure:"databroker_storage_key_file" yaml:"databroker_storage_key_file,omitempty"`
-	DataBrokerStorageCAFile               string `mapstructure:"databroker_storage_ca_file" yaml:"databroker_storage_ca_file,omitempty"`
-	DataBrokerStorageCertSkipVerify       bool   `mapstructure:"databroker_storage_tls_skip_verify" yaml:"databroker_storage_tls_skip_verify,omitempty"`
 
 	// DownstreamMTLS holds all downstream mTLS settings.
 	DownstreamMTLS DownstreamMTLSSettings `mapstructure:"downstream_mtls" yaml:"downstream_mtls,omitempty"`
@@ -320,7 +315,6 @@ var defaultOptions = Options{
 	IdleTimeout:              5 * time.Minute,
 	GRPCAddr:                 ":443",
 	GRPCClientTimeout:        10 * time.Second, // Try to withstand transient service failures for a single request
-	GRPCClientDNSRoundRobin:  true,
 	AuthenticateCallbackPath: "/oauth2/callback",
 	TracingSampleRate:        0.0001,
 
@@ -697,19 +691,6 @@ func (o *Options) Validate() error {
 		hasCert = true
 	}
 
-	if o.DataBrokerStorageCertFile != "" || o.DataBrokerStorageCertKeyFile != "" {
-		_, err := cryptutil.CertificateFromFile(o.DataBrokerStorageCertFile, o.DataBrokerStorageCertKeyFile)
-		if err != nil {
-			return fmt.Errorf("config: bad databroker cert file %w", err)
-		}
-	}
-
-	if o.DataBrokerStorageCAFile != "" {
-		if _, err := os.Stat(o.DataBrokerStorageCAFile); err != nil {
-			return fmt.Errorf("config: bad databroker ca file: %w", err)
-		}
-	}
-
 	if err := o.DownstreamMTLS.validate(); err != nil {
 		return fmt.Errorf("config: bad downstream mTLS settings: %w", err)
 	}
@@ -1075,15 +1056,6 @@ func (o *Options) HasAnyDownstreamMTLSClientCA() bool {
 		}
 	}
 	return false
-}
-
-// GetDataBrokerCertificate gets the optional databroker certificate. This method will return nil if no certificate is
-// specified.
-func (o *Options) GetDataBrokerCertificate() (*tls.Certificate, error) {
-	if o.DataBrokerStorageCertFile == "" || o.DataBrokerStorageCertKeyFile == "" {
-		return nil, nil
-	}
-	return cryptutil.CertificateFromFile(o.DataBrokerStorageCertFile, o.DataBrokerStorageCertKeyFile)
 }
 
 // GetDataBrokerStorageConnectionString gets the databroker storage connection string from either a file
@@ -1456,7 +1428,7 @@ func (o *Options) GetAccessLogFields() []log.AccessLogField {
 // GetAuthorizeLogFields returns the authorize log fields. If none are set, the default fields are returned.
 func (o *Options) GetAuthorizeLogFields() []log.AuthorizeLogField {
 	if o.AuthorizeLogFields == nil {
-		return log.DefaultAuthorizeLogFields()
+		return log.DefaultAuthorizeLogFields
 	}
 	return o.AuthorizeLogFields
 }
@@ -1554,12 +1526,10 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.GRPCAddr, settings.GrpcAddress)
 	setOptional(&o.GRPCInsecure, settings.GrpcInsecure)
 	setDuration(&o.GRPCClientTimeout, settings.GrpcClientTimeout)
-	set(&o.GRPCClientDNSRoundRobin, settings.GrpcClientDnsRoundrobin)
 	setSlice(&o.DataBrokerURLStrings, settings.DatabrokerServiceUrls)
 	set(&o.DataBrokerInternalURLString, settings.DatabrokerInternalServiceUrl)
 	set(&o.DataBrokerStorageType, settings.DatabrokerStorageType)
 	set(&o.DataBrokerStorageConnectionString, settings.DatabrokerStorageConnectionString)
-	set(&o.DataBrokerStorageCertSkipVerify, settings.DatabrokerStorageTlsSkipVerify)
 	o.DownstreamMTLS.applySettingsProto(ctx, settings.DownstreamMtls)
 	set(&o.GoogleCloudServerlessAuthenticationServiceAccount, settings.GoogleCloudServerlessAuthenticationServiceAccount)
 	set(&o.UseProxyProtocol, settings.UseProxyProtocol)

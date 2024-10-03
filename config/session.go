@@ -15,10 +15,13 @@ import (
 
 // A SessionStore saves and loads sessions based on the options.
 type SessionStore struct {
+	store   sessions.SessionStore
+	loader  sessions.SessionLoader
 	options *Options
 	encoder encoding.MarshalUnmarshaler
-	loader  sessions.SessionLoader
 }
+
+var _ sessions.SessionStore = (*SessionStore)(nil)
 
 // NewSessionStore creates a new SessionStore from the Options.
 func NewSessionStore(options *Options) (*SessionStore, error) {
@@ -36,7 +39,7 @@ func NewSessionStore(options *Options) (*SessionStore, error) {
 		return nil, fmt.Errorf("config/sessions: invalid session encoder: %w", err)
 	}
 
-	cookieStore, err := cookie.NewStore(func() cookie.Options {
+	store.store, err = cookie.NewStore(func() cookie.Options {
 		return cookie.Options{
 			Name:     options.CookieName,
 			Domain:   options.CookieDomain,
@@ -51,9 +54,19 @@ func NewSessionStore(options *Options) (*SessionStore, error) {
 	}
 	headerStore := header.NewStore(store.encoder)
 	queryParamStore := queryparam.NewStore(store.encoder, urlutil.QuerySession)
-	store.loader = sessions.MultiSessionLoader(cookieStore, headerStore, queryParamStore)
+	store.loader = sessions.MultiSessionLoader(store.store, headerStore, queryParamStore)
 
 	return store, nil
+}
+
+// ClearSession clears the session.
+func (store *SessionStore) ClearSession(w http.ResponseWriter, r *http.Request) {
+	store.store.ClearSession(w, r)
+}
+
+// LoadSession loads the session.
+func (store *SessionStore) LoadSession(r *http.Request) (string, error) {
+	return store.loader.LoadSession(r)
 }
 
 // LoadSessionState loads the session state from a request.
@@ -65,6 +78,16 @@ func (store *SessionStore) LoadSessionState(r *http.Request) (*sessions.State, e
 
 	var state sessions.State
 	err = store.encoder.Unmarshal([]byte(rawJWT), &state)
+	if err != nil {
+		return nil, err
+	}
+
+	return &state, nil
+}
+
+// LoadSessionStateAndCheckIDP loads the session state from a request and checks that the idp id matches.
+func (store *SessionStore) LoadSessionStateAndCheckIDP(r *http.Request) (*sessions.State, error) {
+	state, err := store.LoadSessionState(r)
 	if err != nil {
 		return nil, err
 	}
@@ -82,5 +105,10 @@ func (store *SessionStore) LoadSessionState(r *http.Request) (*sessions.State, e
 		}
 	}
 
-	return &state, nil
+	return state, nil
+}
+
+// SaveSession saves the session.
+func (store *SessionStore) SaveSession(w http.ResponseWriter, r *http.Request, v any) error {
+	return store.store.SaveSession(w, r, v)
 }

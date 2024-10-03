@@ -10,6 +10,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
+	"github.com/pomerium/pomerium/internal/log"
 	cluster_api "github.com/pomerium/pomerium/pkg/zero/cluster"
 )
 
@@ -62,7 +63,13 @@ func (src *source) UpdateBootstrap(ctx context.Context, cfg cluster_api.Bootstra
 	}
 
 	src.cfg.Store(incoming)
-	src.markReady.Do(func() { close(src.ready) })
+	src.markReady.Do(func() {
+		log.Ctx(ctx).Info().
+			Str("organization-id", cfg.OrganizationId).
+			Str("cluster-id", cfg.ClusterId).
+			Msg("loaded Pomerium Zero bootstrap config")
+		close(src.ready)
+	})
 
 	src.notifyListeners(ctx, incoming)
 
@@ -92,4 +99,5 @@ func applyBootstrapConfig(dst *config.Config, src *cluster_api.BootstrapConfig) 
 	}
 	dst.ZeroClusterID = src.ClusterId
 	dst.ZeroOrganizationID = src.OrganizationId
+	dst.ZeroPseudonymizationKey = src.PseudonymizationKey
 }

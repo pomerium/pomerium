@@ -149,6 +149,33 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /reportUsage:
+    post:
+      description: Report usage for the cluster
+      operationId: reportUsage
+      tags: [usage]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportUsageRequest"
+      responses:
+        "204":
+          description: OK
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   parameters:
     bundleId:
@@ -170,6 +197,9 @@ components:
           description: databroker storage connection string
         organizationId:
           type: string
+        pseudonymizationKey:
+          type: string
+          format: byte
         sharedSecret:
           type: string
           format: byte
@@ -177,6 +207,7 @@ components:
       required:
         - clusterId
         - organizationId
+        - pseudonymizationKey
         - sharedSecret
 
     Bundle:
@@ -279,3 +310,26 @@ components:
             $ref: "#/components/schemas/Bundle"
       required:
         - bundles
+    ReportUsageRequest:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportUsageUser"
+      required:
+        - users
+    ReportUsageUser:
+      type: object
+      properties:
+        lastSignedInAt:
+          type: string
+          format: "date-time"
+        pseudonymousEmail:
+          type: string
+        pseudonymousId:
+          type: string
+      required:
+        - lastSignedInAt
+        - pseudonymousEmail
+        - pseudonymousId

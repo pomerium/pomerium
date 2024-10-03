@@ -107,6 +107,11 @@ type ClientInterface interface {
 	ExchangeClusterIdentityTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	ExchangeClusterIdentityToken(ctx context.Context, body ExchangeClusterIdentityTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReportUsageWithBody request with any body
+	ReportUsageWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	ReportUsage(ctx context.Context, body ReportUsageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) GetClusterBootstrapConfig(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -183,6 +188,30 @@ func (c *Client) ExchangeClusterIdentityTokenWithBody(ctx context.Context, conte
 
 func (c *Client) ExchangeClusterIdentityToken(ctx context.Context, body ExchangeClusterIdentityTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExchangeClusterIdentityTokenRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReportUsageWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReportUsageRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ReportUsage(ctx context.Context, body ReportUsageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReportUsageRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -368,6 +397,46 @@ func NewExchangeClusterIdentityTokenRequestWithBody(server string, contentType s
 	return req, nil
 }
 
+// NewReportUsageRequest calls the generic ReportUsage builder with application/json body
+func NewReportUsageRequest(server string, body ReportUsageJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReportUsageRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewReportUsageRequestWithBody generates requests for ReportUsage with any type of body
+func NewReportUsageRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/reportUsage")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -429,6 +498,11 @@ type ClientWithResponsesInterface interface {
 	ExchangeClusterIdentityTokenWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExchangeClusterIdentityTokenResp, error)
 
 	ExchangeClusterIdentityTokenWithResponse(ctx context.Context, body ExchangeClusterIdentityTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*ExchangeClusterIdentityTokenResp, error)
+
+	// ReportUsageWithBodyWithResponse request with any body
+	ReportUsageWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReportUsageResp, error)
+
+	ReportUsageWithResponse(ctx context.Context, body ReportUsageJSONRequestBody, reqEditors ...RequestEditorFn) (*ReportUsageResp, error)
 }
 
 type GetClusterBootstrapConfigResp struct {
@@ -551,6 +625,29 @@ func (r ExchangeClusterIdentityTokenResp) StatusCode() int {
 	return 0
 }
 
+type ReportUsageResp struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON400      *ErrorResponse
+	JSON500      *ErrorResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r ReportUsageResp) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReportUsageResp) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 // GetClusterBootstrapConfigWithResponse request returning *GetClusterBootstrapConfigResp
 func (c *ClientWithResponses) GetClusterBootstrapConfigWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetClusterBootstrapConfigResp, error) {
 	rsp, err := c.GetClusterBootstrapConfig(ctx, reqEditors...)
@@ -610,6 +707,23 @@ func (c *ClientWithResponses) ExchangeClusterIdentityTokenWithResponse(ctx conte
 		return nil, err
 	}
 	return ParseExchangeClusterIdentityTokenResp(rsp)
+}
+
+// ReportUsageWithBodyWithResponse request with arbitrary body returning *ReportUsageResp
+func (c *ClientWithResponses) ReportUsageWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReportUsageResp, error) {
+	rsp, err := c.ReportUsageWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReportUsageResp(rsp)
+}
+
+func (c *ClientWithResponses) ReportUsageWithResponse(ctx context.Context, body ReportUsageJSONRequestBody, reqEditors ...RequestEditorFn) (*ReportUsageResp, error) {
+	rsp, err := c.ReportUsage(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReportUsageResp(rsp)
 }
 
 // ParseGetClusterBootstrapConfigResp parses an HTTP response from a GetClusterBootstrapConfigWithResponse call
@@ -812,6 +926,39 @@ func ParseExchangeClusterIdentityTokenResp(rsp *http.Response) (*ExchangeCluster
 	return response, nil
 }
 
+// ParseReportUsageResp parses an HTTP response from a ReportUsageWithResponse call
+func ParseReportUsageResp(rsp *http.Response) (*ReportUsageResp, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReportUsageResp{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
 // GetHTTPResponse implements apierror.APIResponse
 func (r *GetClusterBootstrapConfigResp) GetHTTPResponse() *http.Response {
 	return r.HTTPResponse
@@ -950,4 +1097,33 @@ func (r *ExchangeClusterIdentityTokenResp) GetInternalServerError() (string, boo
 		return "", false
 	}
 	return r.JSON500.Error, true
+}
+
+// GetHTTPResponse implements apierror.APIResponse
+func (r *ReportUsageResp) GetHTTPResponse() *http.Response {
+	return r.HTTPResponse
+}
+
+// GetBadRequestError implements apierror.APIResponse
+func (r *ReportUsageResp) GetBadRequestError() (string, bool) {
+	if r.JSON400 == nil {
+		return "", false
+	}
+	return r.JSON400.Error, true
+}
+
+// GetInternalServerError implements apierror.APIResponse
+func (r *ReportUsageResp) GetInternalServerError() (string, bool) {
+	if r.JSON500 == nil {
+		return "", false
+	}
+	return r.JSON500.Error, true
+}
+
+// GetValue implements apierror.APIResponse
+func (r *ReportUsageResp) GetValue() *EmptyResponse {
+	if r.StatusCode()/100 != 2 {
+		return nil
+	}
+	return &EmptyResponse{}
 }

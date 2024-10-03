@@ -54,6 +54,8 @@ type Config struct {
 	ZeroClusterID string
 	// ZeroOrganizationID is the zero organization id, only set when in zero mode.
 	ZeroOrganizationID string
+	// ZeroPseudonymizationKey is the zero key used to pseudonymize data, only set in zero mode.
+	ZeroPseudonymizationKey []byte
 }
 
 // Clone creates a clone of the config.

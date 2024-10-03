@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -63,6 +64,7 @@ func TestSecretWriter(t *testing.T) {
 		txt := "test"
 		src := cluster_api.BootstrapConfig{
 			DatabrokerStorageConnection: &txt,
+			PseudonymizationKey:         []byte{1, 2, 3},
 		}
 
 		writer = writer.WithOptions(writers.ConfigWriterOptions{
@@ -95,7 +97,13 @@ func TestSecretWriter(t *testing.T) {
 				"namespace": "pomerium",
 			},
 			"data": map[string]any{
-				"bootstrap.dat": `{"clusterId":"","databrokerStorageConnection":"test","organizationId":"","sharedSecret":null}`,
+				"bootstrap.dat": mustJSON(map[string]any{
+					"clusterId":                   "",
+					"databrokerStorageConnection": "test",
+					"organizationId":              "",
+					"pseudonymizationKey":         "AQID",
+					"sharedSecret":                nil,
+				}),
 			},
 		}, unstructured)
 	})
@@ -151,4 +159,12 @@ func TestSecretWriter(t *testing.T) {
 			}
 		}
 	})
+}
+
+func mustJSON(v any) string {
+	bs, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return string(bs)
 }

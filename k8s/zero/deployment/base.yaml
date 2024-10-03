@@ -9,6 +9,7 @@ spec:
       app.kubernetes.io/name: pomerium-zero
   template:
     spec:
+      automountServiceAccountToken: true
       serviceAccountName: pomerium-zero
       containers:
         - name: pomerium

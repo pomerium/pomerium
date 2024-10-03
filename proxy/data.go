@@ -6,11 +6,8 @@ import (
 
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/datasource/pkg/directory"
-	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/handlers/webauthn"
-	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -31,33 +28,12 @@ func (p *Proxy) getSession(ctx context.Context, sessionID string) (s *session.Se
 	return s, isImpersonated, err
 }
 
-func (p *Proxy) getSessionState(r *http.Request) (sessions.State, error) {
-	state := p.state.Load()
-
-	rawJWT, err := state.sessionStore.LoadSession(r)
-	if err != nil {
-		return sessions.State{}, err
-	}
-
-	encoder, err := jws.NewHS256Signer(state.sharedKey)
-	if err != nil {
-		return sessions.State{}, err
-	}
-
-	var sessionState sessions.State
-	if err := encoder.Unmarshal([]byte(rawJWT), &sessionState); err != nil {
-		return sessions.State{}, httputil.NewError(http.StatusBadRequest, err)
-	}
-
-	return sessionState, nil
-}
-
 func (p *Proxy) getUser(ctx context.Context, userID string) (*user.User, error) {
 	client := p.state.Load().dataBrokerClient
 	return user.Get(ctx, client, userID)
 }
 
-func (p *Proxy) getUserInfoData(r *http.Request) (handlers.UserInfoData, error) {
+func (p *Proxy) getUserInfoData(r *http.Request) handlers.UserInfoData {
 	options := p.currentOptions.Load()
 	state := p.state.Load()
 
@@ -66,7 +42,7 @@ func (p *Proxy) getUserInfoData(r *http.Request) (handlers.UserInfoData, error) 
 		BrandingOptions: options.BrandingOptions,
 	}
 
-	ss, err := p.getSessionState(r)
+	ss, err := p.state.Load().sessionStore.LoadSessionState(r)
 	if err == nil {
 		data.Session, data.IsImpersonated, err = p.getSession(r.Context(), ss.ID)
 		if err != nil {
@@ -82,13 +58,16 @@ func (p *Proxy) getUserInfoData(r *http.Request) (handlers.UserInfoData, error) 
 	data.WebAuthnCreationOptions, data.WebAuthnRequestOptions, _ = p.webauthn.GetOptions(r)
 	data.WebAuthnURL = urlutil.WebAuthnURL(r, urlutil.GetAbsoluteURL(r), state.sharedKey, r.URL.Query())
 	p.fillEnterpriseUserInfoData(r.Context(), &data)
-	return data, nil
+	return data
 }
 
 func (p *Proxy) fillEnterpriseUserInfoData(ctx context.Context, data *handlers.UserInfoData) {
 	client := p.state.Load().dataBrokerClient
 
-	res, _ := client.Get(ctx, &databroker.GetRequest{Type: "type.googleapis.com/pomerium.config.Config", Id: "dashboard"})
+	res, _ := client.Get(ctx, &databroker.GetRequest{
+		Type: "type.googleapis.com/pomerium.config.Config",
+		Id:   "dashboard-settings",
+	})
 	data.IsEnterprise = res.GetRecord() != nil
 	if !data.IsEnterprise {
 		return
@@ -109,7 +88,7 @@ func (p *Proxy) getWebauthnState(r *http.Request) (*webauthn.State, error) {
 	options := p.currentOptions.Load()
 	state := p.state.Load()
 
-	ss, err := p.getSessionState(r)
+	ss, err := p.state.Load().sessionStore.LoadSessionState(r)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +114,7 @@ func (p *Proxy) getWebauthnState(r *http.Request) (*webauthn.State, error) {
 		SharedKey:               state.sharedKey,
 		Client:                  state.dataBrokerClient,
 		Session:                 s,
-		SessionState:            &ss,
+		SessionState:            ss,
 		SessionStore:            state.sessionStore,
 		RelyingParty:            webauthnutil.GetRelyingParty(r, state.dataBrokerClient),
 		BrandingOptions:         options.BrandingOptions,
