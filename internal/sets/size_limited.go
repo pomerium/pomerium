@@ -1,5 +1,10 @@
 package sets
 
+import (
+	"iter"
+	"maps"
+)
+
 // A SizeLimited is a Set which is limited to a given size. Once
 // the capacity is reached an element will be removed at random.
 type SizeLimited[T comparable] struct {
@@ -15,8 +20,8 @@ func NewSizeLimited[T comparable](capacity int) *SizeLimited[T] {
 	}
 }
 
-// Add adds an element to the set.
-func (s *SizeLimited[T]) Add(element T) {
+// Insert adds an element to the set.
+func (s *SizeLimited[T]) Insert(element T) {
 	s.m[element] = struct{}{}
 	for len(s.m) > s.capacity {
 		for k := range s.m {
@@ -26,11 +31,7 @@ func (s *SizeLimited[T]) Add(element T) {
 	}
 }
 
-// ForEach iterates over all the elements in the set.
-func (s *SizeLimited[T]) ForEach(callback func(element T) bool) {
-	for k := range s.m {
-		if !callback(k) {
-			return
-		}
-	}
+// Items returns an iterator over the items in the set. Order is not specified.
+func (s *SizeLimited[T]) Items() iter.Seq[T] {
+	return maps.Keys(s.m)
 }
