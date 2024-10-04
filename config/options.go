@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	goset "github.com/hashicorp/go-set/v3"
 	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
@@ -29,7 +31,6 @@ import (
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/sets"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/urlutil"
@@ -239,8 +240,7 @@ type Options struct {
 	// If running in all-in-one mode, defaults to true.
 	GRPCInsecure *bool `mapstructure:"grpc_insecure" yaml:"grpc_insecure,omitempty"`
 
-	GRPCClientTimeout       time.Duration `mapstructure:"grpc_client_timeout" yaml:"grpc_client_timeout,omitempty"`
-	GRPCClientDNSRoundRobin bool          `mapstructure:"grpc_client_dns_roundrobin" yaml:"grpc_client_dns_roundrobin,omitempty"`
+	GRPCClientTimeout time.Duration `mapstructure:"grpc_client_timeout" yaml:"grpc_client_timeout,omitempty"`
 
 	// DataBrokerURLString is the routable destination of the databroker service's gRPC endpoint.
 	DataBrokerURLString         string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
@@ -316,7 +316,6 @@ var defaultOptions = Options{
 	IdleTimeout:              5 * time.Minute,
 	GRPCAddr:                 ":443",
 	GRPCClientTimeout:        10 * time.Second, // Try to withstand transient service failures for a single request
-	GRPCClientDNSRoundRobin:  true,
 	AuthenticateCallbackPath: "/oauth2/callback",
 	TracingSampleRate:        0.0001,
 
@@ -1240,7 +1239,7 @@ func (o *Options) GetCodecType() CodecType {
 
 // GetAllRouteableGRPCHosts returns all the possible gRPC hosts handled by the Pomerium options.
 func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
-	hosts := sets.NewSorted[string]()
+	hosts := goset.NewTreeSet(cmp.Compare[string])
 
 	// authorize urls
 	if IsAll(o.Services) {
@@ -1249,7 +1248,7 @@ func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
 			return nil, err
 		}
 		for _, u := range authorizeURLs {
-			hosts.Add(urlutil.GetDomainsForURL(u, true)...)
+			hosts.InsertSlice(urlutil.GetDomainsForURL(u, true))
 		}
 	} else if IsAuthorize(o.Services) {
 		authorizeURLs, err := o.GetInternalAuthorizeURLs()
@@ -1257,7 +1256,7 @@ func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
 			return nil, err
 		}
 		for _, u := range authorizeURLs {
-			hosts.Add(urlutil.GetDomainsForURL(u, true)...)
+			hosts.InsertSlice(urlutil.GetDomainsForURL(u, true))
 		}
 	}
 
@@ -1268,7 +1267,7 @@ func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
 			return nil, err
 		}
 		for _, u := range dataBrokerURLs {
-			hosts.Add(urlutil.GetDomainsForURL(u, true)...)
+			hosts.InsertSlice(urlutil.GetDomainsForURL(u, true))
 		}
 	} else if IsDataBroker(o.Services) {
 		dataBrokerURLs, err := o.GetInternalDataBrokerURLs()
@@ -1276,23 +1275,23 @@ func (o *Options) GetAllRouteableGRPCHosts() ([]string, error) {
 			return nil, err
 		}
 		for _, u := range dataBrokerURLs {
-			hosts.Add(urlutil.GetDomainsForURL(u, true)...)
+			hosts.InsertSlice(urlutil.GetDomainsForURL(u, true))
 		}
 	}
 
-	return hosts.ToSlice(), nil
+	return hosts.Slice(), nil
 }
 
 // GetAllRouteableHTTPHosts returns all the possible HTTP hosts handled by the Pomerium options.
 func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
-	hosts := sets.NewSorted[string]()
+	hosts := goset.NewTreeSet(cmp.Compare[string])
 	if IsAuthenticate(o.Services) {
 		if o.AuthenticateInternalURLString != "" {
 			authenticateURL, err := o.GetInternalAuthenticateURL()
 			if err != nil {
 				return nil, err
 			}
-			hosts.Add(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
+			hosts.InsertSlice(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)))
 		}
 
 		if o.AuthenticateURLString != "" {
@@ -1300,7 +1299,7 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 			if err != nil {
 				return nil, err
 			}
-			hosts.Add(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
+			hosts.InsertSlice(urlutil.GetDomainsForURL(authenticateURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)))
 		}
 	}
 
@@ -1312,15 +1311,15 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 				return nil, err
 			}
 
-			hosts.Add(urlutil.GetDomainsForURL(fromURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
+			hosts.InsertSlice(urlutil.GetDomainsForURL(fromURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)))
 			if policy.TLSDownstreamServerName != "" {
 				tlsURL := fromURL.ResolveReference(&url.URL{Host: policy.TLSDownstreamServerName})
-				hosts.Add(urlutil.GetDomainsForURL(tlsURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort))...)
+				hosts.InsertSlice(urlutil.GetDomainsForURL(tlsURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)))
 			}
 		}
 	}
 
-	return hosts.ToSlice(), nil
+	return hosts.Slice(), nil
 }
 
 // GetClientSecret gets the client secret.
@@ -1528,7 +1527,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.GRPCAddr, settings.GrpcAddress)
 	setOptional(&o.GRPCInsecure, settings.GrpcInsecure)
 	setDuration(&o.GRPCClientTimeout, settings.GrpcClientTimeout)
-	set(&o.GRPCClientDNSRoundRobin, settings.GrpcClientDnsRoundrobin)
 	setSlice(&o.DataBrokerURLStrings, settings.DatabrokerServiceUrls)
 	set(&o.DataBrokerInternalURLString, settings.DatabrokerInternalServiceUrl)
 	set(&o.DataBrokerStorageType, settings.DatabrokerStorageType)

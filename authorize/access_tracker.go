@@ -63,10 +63,10 @@ func (tracker *AccessTracker) Run(ctx context.Context) {
 	sessionAccesses := sets.NewSizeLimited[string](tracker.maxSize)
 	serviceAccountAccesses := sets.NewSizeLimited[string](tracker.maxSize)
 	runTrackSessionAccess := func(sessionID string) {
-		sessionAccesses.Add(sessionID)
+		sessionAccesses.Insert(sessionID)
 	}
 	runTrackServiceAccountAccess := func(serviceAccountID string) {
-		serviceAccountAccesses.Add(serviceAccountID)
+		serviceAccountAccesses.Insert(serviceAccountID)
 	}
 	runSubmit := func() {
 		if dropped := atomic.SwapInt64(&tracker.droppedAccesses, 0); dropped > 0 {
@@ -77,24 +77,20 @@ func (tracker *AccessTracker) Run(ctx context.Context) {
 
 		client := tracker.provider.GetDataBrokerServiceClient()
 
-		var err error
-
-		sessionAccesses.ForEach(func(sessionID string) bool {
-			err = tracker.updateSession(ctx, client, sessionID)
-			return err == nil
-		})
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating session last access timestamp")
-			return
+		for sessionID := range sessionAccesses.Items() {
+			err := tracker.updateSession(ctx, client, sessionID)
+			if err != nil {
+				log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating session last access timestamp")
+				return
+			}
 		}
 
-		serviceAccountAccesses.ForEach(func(serviceAccountID string) bool {
-			err = tracker.updateServiceAccount(ctx, client, serviceAccountID)
-			return err == nil
-		})
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating service account last access timestamp")
-			return
+		for serviceAccountID := range serviceAccountAccesses.Items() {
+			err := tracker.updateServiceAccount(ctx, client, serviceAccountID)
+			if err != nil {
+				log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating service account last access timestamp")
+				return
+			}
 		}
 
 		sessionAccesses = sets.NewSizeLimited[string](tracker.maxSize)

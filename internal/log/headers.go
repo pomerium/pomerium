@@ -4,9 +4,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/hashicorp/go-set/v3"
 	"github.com/rs/zerolog"
-
-	"github.com/pomerium/pomerium/internal/sets"
 )
 
 const (
@@ -30,13 +29,13 @@ func HTTPHeaders[TField interface{ ~string }](
 	src map[string]string,
 ) *zerolog.Event {
 	all := false
-	include := sets.NewHash[string]()
+	include := set.New[string](len(fields))
 	for _, field := range fields {
 		if field == headersFieldName {
 			all = true
 			break
 		} else if strings.HasPrefix(string(field), headersFieldPrefix) {
-			include.Add(CanonicalHeaderKey(string(field[len(headersFieldPrefix):])))
+			include.Insert(CanonicalHeaderKey(string(field[len(headersFieldPrefix):])))
 		}
 	}
 
@@ -48,7 +47,7 @@ func HTTPHeaders[TField interface{ ~string }](
 	hdrs := map[string]string{}
 	for k, v := range src {
 		h := CanonicalHeaderKey(k)
-		if all || include.Has(h) {
+		if all || include.Contains(h) {
 			hdrs[h] = v
 		}
 	}

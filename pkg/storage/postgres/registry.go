@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/hashicorp/go-set/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	"github.com/pomerium/pomerium/internal/sets"
 	"github.com/pomerium/pomerium/pkg/grpc/registry"
 )
 
@@ -37,10 +37,10 @@ func (backend registryServer) List(
 	}
 
 	res := new(registry.ServiceList)
-	s := sets.NewHash[registry.ServiceKind]()
-	s.Add(req.GetKinds()...)
+	s := set.New[registry.ServiceKind](len(all))
+	s.InsertSlice(req.GetKinds())
 	for _, svc := range all {
-		if s.Size() == 0 || s.Has(svc.GetKind()) {
+		if s.Size() == 0 || s.Contains(svc.GetKind()) {
 			res.Services = append(res.Services, svc)
 		}
 	}
