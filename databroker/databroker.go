@@ -57,7 +57,6 @@ func (srv *dataBrokerServer) getOptions(cfg *config.Config) ([]databroker.Server
 	}
 
 	return []databroker.ServerOption{
-		databroker.WithGetSharedKey(cfg.Options.GetSharedKey),
 		databroker.WithStorageType(cfg.Options.DataBrokerStorageType),
 		databroker.WithStorageConnectionString(dataBrokerStorageConnectionString),
 	}, nil
