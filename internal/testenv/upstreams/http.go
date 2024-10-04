@@ -10,11 +10,14 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/pomerium/pomerium/integration/forms"
 	"github.com/pomerium/pomerium/internal/retry"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/values"
@@ -22,11 +25,13 @@ import (
 )
 
 type RequestOptions struct {
-	path        string
-	query       url.Values
-	headers     map[string]string
-	body        any
-	clientCerts []tls.Certificate
+	path           string
+	query          url.Values
+	headers        map[string]string
+	authenticateAs string
+	body           any
+	clientCerts    []tls.Certificate
+	reuseClient    **http.Client
 }
 
 type RequestOption func(*RequestOptions)
@@ -56,6 +61,18 @@ func Query(query url.Values) RequestOption {
 func Headers(headers map[string]string) RequestOption {
 	return func(o *RequestOptions) {
 		o.headers = headers
+	}
+}
+
+func AuthenticateAs(email string) RequestOption {
+	return func(o *RequestOptions) {
+		o.authenticateAs = email
+	}
+}
+
+func ReuseClient(c **http.Client) RequestOption {
+	return func(o *RequestOptions) {
+		o.reuseClient = c
 	}
 }
 
@@ -103,7 +120,7 @@ type HTTPUpstream interface {
 type httpUpstream struct {
 	testenv.Aggregate
 	serverPort values.MutableValue[int]
-	tlsConfig  *tls.Config
+	tlsConfig  values.Value[*tls.Config]
 
 	router *mux.Router
 }
@@ -114,7 +131,7 @@ var (
 )
 
 // HTTP creates a new HTTP upstream server.
-func HTTP(tlsConfig *tls.Config) HTTPUpstream {
+func HTTP(tlsConfig values.Value[*tls.Config]) HTTPUpstream {
 	up := &httpUpstream{
 		serverPort: values.Deferred[int](),
 		router:     mux.NewRouter(),
@@ -152,9 +169,13 @@ func (h *httpUpstream) Run(ctx context.Context) error {
 		return err
 	}
 	h.serverPort.Resolve(listener.Addr().(*net.TCPAddr).Port)
+	var tlsConfig *tls.Config
+	if h.tlsConfig != nil {
+		tlsConfig = h.tlsConfig.Value()
+	}
 	server := &http.Server{
 		Handler:   h.router,
-		TLSConfig: h.tlsConfig,
+		TLSConfig: tlsConfig,
 		BaseContext: func(net.Listener) context.Context {
 			return ctx
 		},
@@ -224,19 +245,36 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 	case nil:
 	}
 
-	client := http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				RootCAs:      h.Env().ServerCAs(),
-				Certificates: options.clientCerts,
+	newClient := func() *http.Client {
+		c := http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs:      h.Env().ServerCAs(),
+					Certificates: options.clientCerts,
+				},
 			},
-		},
+		}
+		c.Jar, _ = cookiejar.New(&cookiejar.Options{})
+		return &c
+	}
+	var client *http.Client
+	if options.reuseClient != nil {
+		if *options.reuseClient == nil {
+			*options.reuseClient = newClient()
+		}
+		client = *options.reuseClient
+	} else {
+		client = newClient()
 	}
 
 	var resp *http.Response
 	if err := retry.Retry(h.Env().Context(), "http", func(ctx context.Context) error {
 		var err error
-		resp, err = client.Do(req)
+		if options.authenticateAs != "" {
+			resp, err = authenticateFlow(ctx, client, req, options.authenticateAs)
+		} else {
+			resp, err = client.Do(req)
+		}
 		// retry on connection refused
 		if err != nil {
 			var opErr *net.OpError
@@ -245,10 +283,41 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 			}
 			return retry.NewTerminalError(err)
 		}
-		resp.Body.Close()
+		if resp.StatusCode == 500 {
+			return errors.New("Internal Server Error")
+		}
 		return nil
-	}, retry.WithMaxInterval(1*time.Second)); err != nil {
+	}, retry.WithMaxInterval(100*time.Millisecond)); err != nil {
 		return nil, err
 	}
 	return resp, nil
+}
+
+func authenticateFlow(ctx context.Context, client *http.Client, req *http.Request, email string) (*http.Response, error) {
+	var res *http.Response
+	originalHostname := req.URL.Hostname()
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	location := res.Request.URL
+	if location.Hostname() == originalHostname {
+		// already authenticated
+		return res, err
+	}
+	defer res.Body.Close()
+	fs := forms.Parse(res.Body)
+	if len(fs) > 0 {
+		f := fs[0]
+		f.Inputs["email"] = email
+		f.Inputs["token_expiration"] = strconv.Itoa(int((time.Hour * 24).Seconds()))
+		formReq, err := f.NewRequestWithContext(ctx, location)
+		if err != nil {
+			return nil, err
+		}
+		return client.Do(formReq)
+	} else {
+		return nil, fmt.Errorf("test bug: expected IDP login form")
+	}
 }

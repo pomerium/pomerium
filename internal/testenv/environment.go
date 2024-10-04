@@ -1,6 +1,7 @@
 package testenv
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
@@ -19,11 +20,13 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -32,6 +35,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/testenv/values"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/slices"
@@ -76,6 +80,12 @@ type Environment interface {
 	// function in another helper function, or separate calls with commas on the
 	// same line.
 	NewClientCert(templateOverrides ...*x509.Certificate) *Certificate
+
+	NewServerCert(templateOverrides ...*x509.Certificate) *Certificate
+
+	AuthenticateURL() values.Value[string]
+	SharedSecret() []byte
+	CookieSecret() []byte
 
 	// Add adds the given [Modifier] to the environment. All modifiers will be
 	// invoked upon calling Start() to apply individual modifications to the
@@ -161,12 +171,16 @@ func (e EnvironmentState) String() string {
 }
 
 type environment struct {
+	EnvironmentOptions
 	t               testing.TB
 	assert          *assert.Assertions
 	require         *require.Assertions
 	tempDir         string
 	domain          string
 	ports           Ports
+	authenticateUrl values.Value[string]
+	sharedSecret    [32]byte
+	cookieSecret    [32]byte
 	workspaceFolder string
 	silent          bool
 
@@ -186,11 +200,45 @@ type environment struct {
 	src *configSource
 }
 
-func New(t testing.TB) Environment {
+type EnvironmentOptions struct {
+	debug          bool
+	pauseOnFailure bool
+}
+
+type EnvironmentOption func(*EnvironmentOptions)
+
+func (o *EnvironmentOptions) apply(opts ...EnvironmentOption) {
+	for _, op := range opts {
+		op(o)
+	}
+}
+
+func Debug(enable ...bool) EnvironmentOption {
+	if len(enable) == 0 {
+		enable = append(enable, true)
+	}
+	return func(o *EnvironmentOptions) {
+		o.debug = enable[0]
+	}
+}
+
+func PauseOnFailure(enable ...bool) EnvironmentOption {
+	if len(enable) == 0 {
+		enable = append(enable, true)
+	}
+	return func(o *EnvironmentOptions) {
+		o.pauseOnFailure = enable[0]
+	}
+}
+
+func New(t testing.TB, opts ...EnvironmentOption) Environment {
+	options := EnvironmentOptions{}
+	options.apply(opts...)
 	if testing.Short() {
 		t.Helper()
 		t.Skip("test environment disabled in short mode")
 	}
+	databroker.DebugUseFasterBackoff.Store(true)
 	workspaceFolder, err := os.Getwd()
 	require.NoError(t, err)
 	for {
@@ -212,20 +260,21 @@ func New(t testing.TB) Environment {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		log.DebugDisableGlobalWarnings.Store(true)
 		log.DebugDisableZapLogger.Store(true)
-		grpclog.SetLoggerV2(grpclog.NewLoggerV2WithVerbosity(io.Discard, io.Discard, io.Discard, 0))
 	} else {
 		writer.Add(os.Stdout)
 	}
+	grpclog.SetLoggerV2(grpclog.NewLoggerV2WithVerbosity(io.Discard, io.Discard, io.Discard, 0))
 	logger := zerolog.New(writer).With().Timestamp().Logger().Level(zerolog.DebugLevel)
 
 	ctx, cancel := context.WithCancelCause(logger.WithContext(context.Background()))
 	taskErrGroup, ctx := errgroup.WithContext(ctx)
 
 	e := &environment{
-		t:       t,
-		assert:  assert.New(t),
-		require: require.New(t),
-		tempDir: t.TempDir(),
+		EnvironmentOptions: options,
+		t:                  t,
+		assert:             assert.New(t),
+		require:            require.New(t),
+		tempDir:            t.TempDir(),
 		ports: Ports{
 			http: values.Deferred[int](),
 		},
@@ -236,6 +285,12 @@ func New(t testing.TB) Environment {
 		logWriter:       writer,
 		taskErrGroup:    taskErrGroup,
 	}
+	_, err = rand.Read(e.sharedSecret[:])
+	require.NoError(t, err)
+	_, err = rand.Read(e.cookieSecret[:])
+	require.NoError(t, err)
+
+	e.authenticateUrl = e.SubdomainURL("authenticate")
 	health.SetProvider(e)
 
 	require.NoError(t, os.Mkdir(filepath.Join(e.tempDir, "certs"), 0o777))
@@ -257,6 +312,14 @@ func New(t testing.TB) Environment {
 	e.domain = wildcardDomain(e.ServerCert().Leaf.DNSNames)
 
 	return e
+}
+
+func (e *environment) debugf(format string, args ...any) {
+	if !e.debug {
+		return
+	}
+
+	e.t.Logf("\x1b[34m[debug] "+format+"\x1b[0m", args...)
 }
 
 type WithCaller[T any] struct {
@@ -288,6 +351,10 @@ func (e *environment) SubdomainURL(subdomain string) values.Value[string] {
 	return values.Bind(e.ports.http, func(port int) string {
 		return fmt.Sprintf("https://%s.%s:%d", subdomain, e.domain, port)
 	})
+}
+
+func (e *environment) AuthenticateURL() values.Value[string] {
+	return e.authenticateUrl
 }
 
 func (e *environment) CACert() *tls.Certificate {
@@ -323,9 +390,11 @@ var ErrCauseTestCleanup = errors.New("test cleanup")
 var ErrCauseManualStop = errors.New("Stop() called")
 
 func (e *environment) Start() {
+	e.debugf("Start()")
 	e.advanceState(Starting)
 	e.t.Cleanup(e.cleanup)
 	e.t.Setenv("TMPDIR", e.TempDir())
+	e.debugf("temp dir: %s", e.TempDir())
 
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
@@ -335,11 +404,17 @@ func (e *environment) Start() {
 	port0, _ := strconv.Atoi(ports[0])
 	e.ports.http.Resolve(port0)
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
+	cfg.Options.Services = "all"
 	cfg.Options.LogLevel = config.LogLevelDebug
 	cfg.Options.ProxyLogLevel = config.LogLevelInfo
 	cfg.Options.Addr = fmt.Sprintf("127.0.0.1:%d", port0)
+	cfg.Options.CAFile = filepath.Join(e.tempDir, "certs", "ca.pem")
 	cfg.Options.CertFile = filepath.Join(e.tempDir, "certs", "trusted.pem")
 	cfg.Options.KeyFile = filepath.Join(e.tempDir, "certs", "trusted-key.pem")
+	cfg.Options.AuthenticateURLString = e.authenticateUrl.Value()
+	cfg.Options.DataBrokerStorageType = "memory"
+	cfg.Options.SharedKey = base64.StdEncoding.EncodeToString(e.sharedSecret[:])
+	cfg.Options.CookieSecret = base64.StdEncoding.EncodeToString(e.cookieSecret[:])
 	cfg.Options.AccessLogFields = []log.AccessLogField{
 		log.AccessLogFieldAuthority,
 		log.AccessLogFieldDuration,
@@ -358,6 +433,14 @@ func (e *environment) Start() {
 		log.AccessLogFieldClientCertificate,
 	}
 	cfg.AllocatePorts(*(*[6]string)(ports[1:]))
+	e.debugf("ports:")
+	e.debugf("  Server: %s", ports[0])
+	e.debugf("  GRPCPort: %s", ports[1])
+	e.debugf("  HTTPPort: %s", ports[2])
+	e.debugf("  OutboundPort: %s", ports[3])
+	e.debugf("  MetricsPort: %s", ports[4])
+	e.debugf("  DebugPort: %s", ports[5])
+	e.debugf("  ACMETLSALPNPort: %s", ports[6])
 
 	e.src = &configSource{cfg: cfg}
 	e.AddTask(TaskFunc(func(ctx context.Context) error {
@@ -376,6 +459,8 @@ func (e *environment) Start() {
 			return task.Value.Run(e.ctx)
 		})
 	}
+
+	runtime.Gosched()
 
 	e.advanceState(Running)
 }
@@ -421,6 +506,7 @@ func (e *environment) NewClientCert(templateOverrides ...*x509.Certificate) *Cer
 
 	cert, err := x509.ParseCertificate(clientCertDER)
 	require.NoError(e.t, err)
+	e.debugf("provisioned client certificate for %s", cert.Subject.String())
 
 	clientCert := &tls.Certificate{
 		Certificate: [][]byte{cert.Raw, caCert.Leaf.Raw},
@@ -438,26 +524,98 @@ func (e *environment) NewClientCert(templateOverrides ...*x509.Certificate) *Cer
 	return (*Certificate)(clientCert)
 }
 
+func (e *environment) NewServerCert(templateOverrides ...*x509.Certificate) *Certificate {
+	caCert := e.CACert()
+
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(e.t, err)
+
+	sn, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	require.NoError(e.t, err)
+	now := time.Now()
+	tmpl := &x509.Certificate{
+		SerialNumber: sn,
+		NotBefore:    now,
+		NotAfter:     now.Add(12 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage: []x509.ExtKeyUsage{
+			x509.ExtKeyUsageServerAuth,
+		},
+		BasicConstraintsValid: true,
+	}
+	for _, override := range templateOverrides {
+		tmpl.DNSNames = slices.Unique(append(tmpl.DNSNames, override.DNSNames...))
+		tmpl.IPAddresses = slices.UniqueBy(append(tmpl.IPAddresses, override.IPAddresses...), net.IP.String)
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, caCert.Leaf, priv.Public(), caCert.PrivateKey)
+	require.NoError(e.t, err)
+
+	cert, err := x509.ParseCertificate(certDER)
+	require.NoError(e.t, err)
+	e.debugf("provisioned server certificate for %v", cert.DNSNames)
+
+	tlsCert := &tls.Certificate{
+		Certificate: [][]byte{cert.Raw, caCert.Leaf.Raw},
+		PrivateKey:  priv,
+		Leaf:        cert,
+	}
+
+	_, err = tlsCert.Leaf.Verify(x509.VerifyOptions{Roots: e.ServerCAs()})
+	require.NoError(e.t, err, "bug: generated client cert is not valid")
+	return (*Certificate)(tlsCert)
+}
+
+func (e *environment) SharedSecret() []byte {
+	return bytes.Clone(e.sharedSecret[:])
+}
+
+func (e *environment) CookieSecret() []byte {
+	return bytes.Clone(e.cookieSecret[:])
+}
+
 func (e *environment) Stop() {
+	if b, ok := e.t.(*testing.B); ok {
+		// when calling Stop() manually, ensure we aren't timing this
+		b.StopTimer()
+		defer b.StartTimer()
+	}
 	e.cleanupOnce.Do(func() {
+		e.debugf("stop: Stop() called manually")
+		e.advanceState(Stopping)
 		e.cancel(ErrCauseManualStop)
 		err := e.taskErrGroup.Wait()
+		e.advanceState(Stopped)
+		e.debugf("stop: done waiting")
 		assert.ErrorIs(e.t, err, ErrCauseManualStop)
 	})
 }
 
 func (e *environment) cleanup() {
 	e.cleanupOnce.Do(func() {
+		e.debugf("stop: test cleanup")
+		if e.t.Failed() {
+			if e.pauseOnFailure {
+				e.t.Log("\x1b[31m*** pausing on test failure; continue with ctrl+c ***\x1b[0m")
+				c := make(chan os.Signal, 1)
+				signal.Notify(c, syscall.SIGINT)
+				<-c
+				e.t.Log("\x1b[31mctrl+c received, continuing\x1b[0m")
+				signal.Stop(c)
+			}
+		}
 		e.advanceState(Stopping)
 		e.cancel(ErrCauseTestCleanup)
 		err := e.taskErrGroup.Wait()
 		e.advanceState(Stopped)
+		e.debugf("stop: done waiting")
 		assert.ErrorIs(e.t, err, ErrCauseTestCleanup)
 	})
 }
 
 func (e *environment) Add(m Modifier) {
 	e.t.Helper()
+	caller := getCaller()
+	e.debugf("Add: %T from %s", m, caller)
 	switch e.getState() {
 	case NotRunning:
 		for _, mod := range e.mods {
@@ -466,13 +624,15 @@ func (e *environment) Add(m Modifier) {
 			}
 		}
 		e.mods = append(e.mods, WithCaller[Modifier]{
-			Caller: getCaller(),
+			Caller: caller,
 			Value:  m,
 		})
+		e.debugf("Add: state=NotRunning; calling Attach")
 		m.Attach(e.Context())
 	case Starting:
 		panic("test bug: cannot call Add() before Start() has returned")
 	case Running:
+		e.debugf("Add: state=Running; calling ModifyConfig")
 		e.src.ModifyConfig(e.ctx, m)
 	case Stopped, Stopping:
 		panic("test bug: cannot call Add() after Stop()")
@@ -483,6 +643,8 @@ func (e *environment) Add(m Modifier) {
 
 func (e *environment) AddTask(t Task) {
 	e.t.Helper()
+	caller := getCaller()
+	e.debugf("AddTask: %T from %s", t, caller)
 	for _, task := range e.tasks {
 		if task.Value == t {
 			e.t.Fatalf("test bug: duplicate task added\nfirst added by: %s", task.Caller)
@@ -496,6 +658,8 @@ func (e *environment) AddTask(t Task) {
 
 func (e *environment) AddUpstream(up Upstream) {
 	e.t.Helper()
+	caller := getCaller()
+	e.debugf("AddUpstream: %T from %s", up, caller)
 	e.Add(up)
 	e.AddTask(up)
 }
@@ -516,7 +680,9 @@ func (e *environment) advanceState(newState EnvironmentState) {
 	if e.state != newState>>1 {
 		panic(fmt.Sprintf("internal test environment bug: invalid state: expected=%s, actual=%s", EnvironmentState(newState>>1), e.state))
 	}
+	e.debugf("state %s -> %s", e.state.String(), newState.String())
 	e.state = newState
+	e.debugf("notifying %d listeners of state change", len(e.stateChangeListeners[newState]))
 	for _, listener := range e.stateChangeListeners[newState] {
 		go listener()
 	}

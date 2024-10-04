@@ -1,4 +1,4 @@
-package main_test
+package benchmarks_test
 
 import (
 	"fmt"
@@ -45,7 +45,7 @@ func BenchmarkAppendRoutes(b *testing.B) {
 				for i := range n {
 					env.Add(up.Route().
 						From(env.SubdomainURL(fmt.Sprintf("from-%d", i))).
-						PPL(`{"allow":{"and":[{"accept":"true"}]}}`))
+						PPL(fmt.Sprintf(`{"allow":{"and":["email":{"is":"user-%d@example.com"}]}}`, i)))
 				}
 				env.Stop()
 			}

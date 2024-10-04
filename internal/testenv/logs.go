@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"sync"
 	"testing"
@@ -114,9 +115,6 @@ func (b *buffer) Write(p []byte) (int, error) {
 func (b *buffer) Close() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.closed {
-		panic("Close() called twice")
-	}
 	b.closed = true
 	b.cond.Signal()
 	return nil
@@ -163,6 +161,7 @@ func (lr *LogRecorder) Close() {
 
 func (lr *LogRecorder) collectLogs(shouldClose bool) {
 	if shouldClose {
+		lr.buf.Close()
 		lr.closeOnce()
 	}
 	lr.collectLogsOnce.Do(func() {
@@ -223,6 +222,17 @@ func (lr *LogRecorder) WaitForMatch(expectedLog map[string]any, timeout ...time.
 func (lr *LogRecorder) Logs() []map[string]any {
 	lr.collectLogs(true)
 	return lr.recordedLogs
+}
+
+func (lr *LogRecorder) DumpToFile(file string) {
+	lr.collectLogs(true)
+	f, err := os.Create(file)
+	require.NoError(lr.t, err)
+	enc := json.NewEncoder(f)
+	for _, log := range lr.recordedLogs {
+		enc.Encode(log)
+	}
+	f.Close()
 }
 
 // Match stops the log recorder (if it is not already stopped), then asserts

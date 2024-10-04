@@ -76,7 +76,7 @@ func (p *value[T]) Resolve(value T) {
 //
 // Care should be taken when using this function, as improper use can lead to
 // deadlocks and cause values to never become available.
-func Bind[T any, U any](dt Value[T], callback func(value T) U) MutableValue[U] {
+func Bind[T any, U any](dt Value[T], callback func(value T) U) Value[U] {
 	du := Deferred[U]()
 	du.ResolveFunc(func() U {
 		return callback(dt.Value())
@@ -89,7 +89,7 @@ func Bind[T any, U any](dt Value[T], callback func(value T) U) MutableValue[U] {
 //
 // This function blocks to wait for each input value in sequence, but in a
 // random order. Do not rely on the order of evaluation of the input values.
-func Bind2[T any, U any, V any](dt Value[T], du Value[U], callback func(value1 T, value2 U) V) MutableValue[V] {
+func Bind2[T any, U any, V any](dt Value[T], du Value[U], callback func(value1 T, value2 U) V) Value[V] {
 	dv := Deferred[V]()
 	dv.ResolveFunc(func() V {
 		if rand.IntN(2) == 0 {
