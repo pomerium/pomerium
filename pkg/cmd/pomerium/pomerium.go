@@ -197,7 +197,7 @@ func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *con
 	if err != nil {
 		return fmt.Errorf("error creating authenticate service: %w", err)
 	}
-	err = controlPlane.EnableAuthenticate(svc)
+	err = controlPlane.EnableAuthenticate(ctx, svc)
 	if err != nil {
 		return fmt.Errorf("error adding authenticate service to control plane: %w", err)
 	}
@@ -254,7 +254,7 @@ func setupProxy(ctx context.Context, src config.Source, controlPlane *controlpla
 	if err != nil {
 		return fmt.Errorf("error creating proxy service: %w", err)
 	}
-	err = controlPlane.EnableProxy(svc)
+	err = controlPlane.EnableProxy(ctx, svc)
 	if err != nil {
 		return fmt.Errorf("error adding proxy service to control plane: %w", err)
 	}

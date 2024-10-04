@@ -106,7 +106,11 @@ func NewServer(
 	)
 	srv.GRPCServer = grpc.NewServer(
 		grpc.StatsHandler(telemetry.NewGRPCServerStatsHandler(cfg.Options.Services)),
-		grpc.ChainUnaryInterceptor(requestid.UnaryServerInterceptor(), ui),
+		grpc.ChainUnaryInterceptor(
+			log.UnaryServerInterceptor(log.Ctx(ctx)),
+			requestid.UnaryServerInterceptor(),
+			ui,
+		),
 		grpc.ChainStreamInterceptor(
 			log.StreamServerInterceptor(log.Ctx(ctx)),
 			requestid.StreamServerInterceptor(),
@@ -140,7 +144,7 @@ func NewServer(
 		return nil, err
 	}
 
-	if err := srv.updateRouter(cfg); err != nil {
+	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return nil, err
 	}
 	srv.DebugRouter = mux.NewRouter()
@@ -249,22 +253,22 @@ func (srv *Server) OnConfigChange(ctx context.Context, cfg *config.Config) error
 }
 
 // EnableAuthenticate enables the authenticate service.
-func (srv *Server) EnableAuthenticate(svc Service) error {
+func (srv *Server) EnableAuthenticate(ctx context.Context, svc Service) error {
 	srv.authenticateSvc = svc
-	return srv.updateRouter(srv.currentConfig.Load())
+	return srv.updateRouter(ctx, srv.currentConfig.Load())
 }
 
 // EnableProxy enables the proxy service.
-func (srv *Server) EnableProxy(svc Service) error {
+func (srv *Server) EnableProxy(ctx context.Context, svc Service) error {
 	srv.proxySvc = svc
-	return srv.updateRouter(srv.currentConfig.Load())
+	return srv.updateRouter(ctx, srv.currentConfig.Load())
 }
 
 func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	ctx, span := trace.StartSpan(ctx, "controlplane.Server.update")
 	defer span.End()
 
-	if err := srv.updateRouter(cfg); err != nil {
+	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return err
 	}
 	srv.reproxy.Update(ctx, cfg)
@@ -277,9 +281,9 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
-func (srv *Server) updateRouter(cfg *config.Config) error {
+func (srv *Server) updateRouter(ctx context.Context, cfg *config.Config) error {
 	httpRouter := mux.NewRouter()
-	srv.addHTTPMiddleware(httpRouter, cfg)
+	srv.addHTTPMiddleware(httpRouter, log.Ctx(ctx), cfg)
 	if err := srv.mountCommonEndpoints(httpRouter, cfg); err != nil {
 		return err
 	}
