@@ -203,10 +203,10 @@ func (backend *Backend) Lease(_ context.Context, leaseName, leaseID string, ttl 
 // ListTypes lists the record types.
 func (backend *Backend) ListTypes(_ context.Context) ([]string, error) {
 	backend.mu.Lock()
-	keys := maps.Keys(backend.lookup)
-	backend.mu.Unlock()
+	defer backend.mu.Unlock()
+	keys := slices.Sorted(maps.Keys(backend.lookup))
 
-	return slices.Sorted(keys), nil
+	return keys, nil
 }
 
 // Put puts a record into the in-memory store.
