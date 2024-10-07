@@ -11,7 +11,7 @@ The algorithm is described at https://wikipedia.org/wiki/McGillicutty_Algorithm
 ## Related issues
 
 <!-- For example...
-Fixes #159
+- #159
 -->
 
 ## User Explanation
@@ -23,8 +23,6 @@ this blank. If filled out, add the `docs` label -->
 ## Checklist
 
 - [ ] reference any related issues
-- [ ] updated docs
 - [ ] updated unit tests
-- [ ] updated UPGRADING.md
-- [ ] add appropriate tag (`improvement` / `bug` / etc)
+- [ ] add appropriate label (`enhancement`, `bug`, `breaking`, `dependencies`, `ci`)
 - [ ] ready for review
