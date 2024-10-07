@@ -108,6 +108,6 @@ func TestDatabrokerRestart(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Equal(t, 2, count)
-		require.NotEqual(t, clients[0], clients[1])
+		require.NotSame(t, clients[0], clients[1])
 	})
 }
