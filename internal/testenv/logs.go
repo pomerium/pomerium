@@ -203,15 +203,20 @@ func (lr *LogRecorder) WaitForMatch(expectedLog map[string]any, timeout ...time.
 		lr.collectLogs(false)
 		lr.closeOnce()
 	}()
-	if len(timeout) == 0 {
-		timeout = append(timeout, 1*time.Minute)
-	}
-	select {
-	case <-found:
-	case <-time.After(timeout[0]):
-		lr.t.Error("timed out waiting for log")
-	case <-lr.canceled:
-		lr.t.Error("canceled")
+	if len(timeout) != 0 {
+		select {
+		case <-found:
+		case <-time.After(timeout[0]):
+			lr.t.Error("timed out waiting for log")
+		case <-lr.canceled:
+			lr.t.Error("canceled")
+		}
+	} else {
+		select {
+		case <-found:
+		case <-lr.canceled:
+			lr.t.Error("canceled")
+		}
 	}
 	lr.buf.Close()
 	<-done

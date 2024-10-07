@@ -84,6 +84,8 @@ type Environment interface {
 	NewServerCert(templateOverrides ...*x509.Certificate) *Certificate
 
 	AuthenticateURL() values.Value[string]
+	DatabrokerURL() values.Value[string]
+	Ports() Ports
 	SharedSecret() []byte
 	CookieSecret() []byte
 
@@ -178,7 +180,6 @@ type environment struct {
 	tempDir         string
 	domain          string
 	ports           Ports
-	authenticateUrl values.Value[string]
 	sharedSecret    [32]byte
 	cookieSecret    [32]byte
 	workspaceFolder string
@@ -231,6 +232,8 @@ func PauseOnFailure(enable ...bool) EnvironmentOption {
 	}
 }
 
+var setGrpcLoggerOnce sync.Once
+
 func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	options := EnvironmentOptions{}
 	options.apply(opts...)
@@ -263,7 +266,9 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	} else {
 		writer.Add(os.Stdout)
 	}
-	grpclog.SetLoggerV2(grpclog.NewLoggerV2WithVerbosity(io.Discard, io.Discard, io.Discard, 0))
+	setGrpcLoggerOnce.Do(func() {
+		grpclog.SetLoggerV2(grpclog.NewLoggerV2WithVerbosity(io.Discard, io.Discard, io.Discard, 0))
+	})
 	logger := zerolog.New(writer).With().Timestamp().Logger().Level(zerolog.DebugLevel)
 
 	ctx, cancel := context.WithCancelCause(logger.WithContext(context.Background()))
@@ -276,7 +281,13 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		require:            require.New(t),
 		tempDir:            t.TempDir(),
 		ports: Ports{
-			http: values.Deferred[int](),
+			Proxy:    values.Deferred[int](),
+			GRPC:     values.Deferred[int](),
+			HTTP:     values.Deferred[int](),
+			Outbound: values.Deferred[int](),
+			Metrics:  values.Deferred[int](),
+			Debug:    values.Deferred[int](),
+			ALPN:     values.Deferred[int](),
 		},
 		workspaceFolder: workspaceFolder,
 		silent:          silent,
@@ -290,7 +301,6 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	_, err = rand.Read(e.cookieSecret[:])
 	require.NoError(t, err)
 
-	e.authenticateUrl = e.SubdomainURL("authenticate")
 	health.SetProvider(e)
 
 	require.NoError(t, os.Mkdir(filepath.Join(e.tempDir, "certs"), 0o777))
@@ -328,7 +338,13 @@ type WithCaller[T any] struct {
 }
 
 type Ports struct {
-	http values.MutableValue[int]
+	Proxy    values.MutableValue[int]
+	GRPC     values.MutableValue[int]
+	HTTP     values.MutableValue[int]
+	Outbound values.MutableValue[int]
+	Metrics  values.MutableValue[int]
+	Debug    values.MutableValue[int]
+	ALPN     values.MutableValue[int]
 }
 
 func (e *environment) TempDir() string {
@@ -348,13 +364,23 @@ func (e *environment) Require() *require.Assertions {
 }
 
 func (e *environment) SubdomainURL(subdomain string) values.Value[string] {
-	return values.Bind(e.ports.http, func(port int) string {
+	return values.Bind(e.ports.Proxy, func(port int) string {
 		return fmt.Sprintf("https://%s.%s:%d", subdomain, e.domain, port)
 	})
 }
 
 func (e *environment) AuthenticateURL() values.Value[string] {
-	return e.authenticateUrl
+	return e.SubdomainURL("authenticate")
+}
+
+func (e *environment) DatabrokerURL() values.Value[string] {
+	return values.Bind(e.ports.Outbound, func(port int) string {
+		return fmt.Sprintf("127.0.0.1:%d", port)
+	})
+}
+
+func (e *environment) Ports() Ports {
+	return e.ports
 }
 
 func (e *environment) CACert() *tls.Certificate {
@@ -401,17 +427,31 @@ func (e *environment) Start() {
 	}
 	ports, err := netutil.AllocatePorts(7)
 	require.NoError(e.t, err)
-	port0, _ := strconv.Atoi(ports[0])
-	e.ports.http.Resolve(port0)
+	atoi := func(str string) int {
+		p, err := strconv.Atoi(str)
+		if err != nil {
+			panic(err)
+		}
+		return p
+	}
+	e.ports.Proxy.Resolve(atoi(ports[0]))
+	e.ports.GRPC.Resolve(atoi(ports[1]))
+	e.ports.HTTP.Resolve(atoi(ports[2]))
+	e.ports.Outbound.Resolve(atoi(ports[3]))
+	e.ports.Metrics.Resolve(atoi(ports[4]))
+	e.ports.Debug.Resolve(atoi(ports[5]))
+	e.ports.ALPN.Resolve(atoi(ports[6]))
+	cfg.AllocatePorts(*(*[6]string)(ports[1:]))
+
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
 	cfg.Options.Services = "all"
 	cfg.Options.LogLevel = config.LogLevelDebug
 	cfg.Options.ProxyLogLevel = config.LogLevelInfo
-	cfg.Options.Addr = fmt.Sprintf("127.0.0.1:%d", port0)
+	cfg.Options.Addr = fmt.Sprintf("127.0.0.1:%d", e.ports.Proxy.Value())
 	cfg.Options.CAFile = filepath.Join(e.tempDir, "certs", "ca.pem")
 	cfg.Options.CertFile = filepath.Join(e.tempDir, "certs", "trusted.pem")
 	cfg.Options.KeyFile = filepath.Join(e.tempDir, "certs", "trusted-key.pem")
-	cfg.Options.AuthenticateURLString = e.authenticateUrl.Value()
+	cfg.Options.AuthenticateURLString = e.AuthenticateURL().Value()
 	cfg.Options.DataBrokerStorageType = "memory"
 	cfg.Options.SharedKey = base64.StdEncoding.EncodeToString(e.sharedSecret[:])
 	cfg.Options.CookieSecret = base64.StdEncoding.EncodeToString(e.cookieSecret[:])
@@ -432,15 +472,6 @@ func (e *environment) Start() {
 		log.AccessLogFieldUserAgent,
 		log.AccessLogFieldClientCertificate,
 	}
-	cfg.AllocatePorts(*(*[6]string)(ports[1:]))
-	e.debugf("ports:")
-	e.debugf("  Server: %s", ports[0])
-	e.debugf("  GRPCPort: %s", ports[1])
-	e.debugf("  HTTPPort: %s", ports[2])
-	e.debugf("  OutboundPort: %s", ports[3])
-	e.debugf("  MetricsPort: %s", ports[4])
-	e.debugf("  DebugPort: %s", ports[5])
-	e.debugf("  ACMETLSALPNPort: %s", ports[6])
 
 	e.src = &configSource{cfg: cfg}
 	e.AddTask(TaskFunc(func(ctx context.Context) error {
