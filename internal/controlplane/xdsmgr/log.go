@@ -20,8 +20,8 @@ var (
 	routeConfigurationTypeURL = protoutil.GetTypeURL((*envoy_config_route_v3.RouteConfiguration)(nil))
 )
 
-func logNACK(req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
-	log.Debug(context.Background()).
+func logNACK(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
+	log.Ctx(ctx).Debug().
 		Str("type-url", req.GetTypeUrl()).
 		Any("error-detail", req.GetErrorDetail()).
 		Msg("xdsmgr: nack")
@@ -29,8 +29,8 @@ func logNACK(req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
 	health.ReportError(getHealthCheck(req.GetTypeUrl()), errors.New(req.GetErrorDetail().GetMessage()))
 }
 
-func logACK(req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
-	log.Debug(context.Background()).
+func logACK(ctx context.Context, req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
+	log.Ctx(ctx).Debug().
 		Str("type-url", req.GetTypeUrl()).
 		Msg("xdsmgr: ack")
 

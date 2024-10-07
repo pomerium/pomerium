@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	databroker_service "github.com/pomerium/pomerium/databroker"
 	"github.com/pomerium/pomerium/internal/autocert"
 	"github.com/pomerium/pomerium/internal/controlplane"
@@ -30,9 +31,30 @@ import (
 	"github.com/pomerium/pomerium/proxy"
 )
 
+type RunOptions struct {
+	fileMgr *filemgr.Manager
+}
+
+type RunOption func(*RunOptions)
+
+func (o *RunOptions) apply(opts ...RunOption) {
+	for _, op := range opts {
+		op(o)
+	}
+}
+
+func WithOverrideFileManager(fileMgr *filemgr.Manager) RunOption {
+	return func(o *RunOptions) {
+		o.fileMgr = fileMgr
+	}
+}
+
 // Run runs the main pomerium application.
-func Run(ctx context.Context, src config.Source) error {
-	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Debug(context.Background()).Msgf(s, i...) }))
+func Run(ctx context.Context, src config.Source, opts ...RunOption) error {
+	options := RunOptions{}
+	options.apply(opts...)
+
+	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Ctx(ctx).Debug().Msgf(s, i...) }))
 
 	evt := log.Info(ctx).
 		Str("envoy_version", files.FullVersion()).
@@ -53,7 +75,7 @@ func Run(ctx context.Context, src config.Source) error {
 	// trigger changes when underlying files are changed
 	src = config.NewFileWatcherSource(ctx, src)
 
-	src, err = autocert.New(src)
+	src, err = autocert.New(ctx, src)
 	if err != nil {
 		return err
 	}
@@ -68,10 +90,15 @@ func Run(ctx context.Context, src config.Source) error {
 
 	eventsMgr := events.New()
 
+	fileMgr := options.fileMgr
+	if fileMgr == nil {
+		fileMgr = filemgr.NewManager()
+	}
+
 	cfg := src.GetConfig()
 
 	// setup the control plane
-	controlPlane, err := controlplane.NewServer(cfg, metricsMgr, eventsMgr)
+	controlPlane, err := controlplane.NewServer(ctx, cfg, metricsMgr, eventsMgr, fileMgr)
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}
@@ -166,11 +193,11 @@ func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *con
 		return nil
 	}
 
-	svc, err := authenticate.New(src.GetConfig())
+	svc, err := authenticate.New(ctx, src.GetConfig())
 	if err != nil {
 		return fmt.Errorf("error creating authenticate service: %w", err)
 	}
-	err = controlPlane.EnableAuthenticate(svc)
+	err = controlPlane.EnableAuthenticate(ctx, svc)
 	if err != nil {
 		return fmt.Errorf("error adding authenticate service to control plane: %w", err)
 	}
@@ -183,7 +210,7 @@ func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *con
 }
 
 func setupAuthorize(ctx context.Context, src config.Source, controlPlane *controlplane.Server) (*authorize.Authorize, error) {
-	svc, err := authorize.New(src.GetConfig())
+	svc, err := authorize.New(ctx, src.GetConfig())
 	if err != nil {
 		return nil, fmt.Errorf("error creating authorize service: %w", err)
 	}
@@ -200,7 +227,7 @@ func setupDataBroker(ctx context.Context,
 	controlPlane *controlplane.Server,
 	eventsMgr *events.Manager,
 ) (*databroker_service.DataBroker, error) {
-	svc, err := databroker_service.New(src.GetConfig(), eventsMgr)
+	svc, err := databroker_service.New(ctx, src.GetConfig(), eventsMgr)
 	if err != nil {
 		return nil, fmt.Errorf("error creating databroker service: %w", err)
 	}
@@ -223,11 +250,11 @@ func setupProxy(ctx context.Context, src config.Source, controlPlane *controlpla
 		return nil
 	}
 
-	svc, err := proxy.New(src.GetConfig())
+	svc, err := proxy.New(ctx, src.GetConfig())
 	if err != nil {
 		return fmt.Errorf("error creating proxy service: %w", err)
 	}
-	err = controlPlane.EnableProxy(svc)
+	err = controlPlane.EnableProxy(ctx, svc)
 	if err != nil {
 		return fmt.Errorf("error adding proxy service to control plane: %w", err)
 	}

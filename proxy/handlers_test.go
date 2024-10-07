@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -36,7 +37,7 @@ func TestProxy_SignOut(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			opts := testOptions(t)
-			p, err := New(&config.Config{Options: opts})
+			p, err := New(context.Background(), &config.Config{Options: opts})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -129,7 +130,7 @@ func TestProxy_ProgrammaticLogin(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(&config.Config{Options: tt.options})
+			p, err := New(context.Background(), &config.Config{Options: tt.options})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -270,7 +271,7 @@ func TestLoadSessionState(t *testing.T) {
 		t.Parallel()
 
 		opts := testOptions(t)
-		proxy, err := New(&config.Config{Options: opts})
+		proxy, err := New(context.Background(), &config.Config{Options: opts})
 		require.NoError(t, err)
 
 		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
@@ -285,7 +286,7 @@ func TestLoadSessionState(t *testing.T) {
 		t.Parallel()
 
 		opts := testOptions(t)
-		proxy, err := New(&config.Config{Options: opts})
+		proxy, err := New(context.Background(), &config.Config{Options: opts})
 		require.NoError(t, err)
 
 		session := encodeSession(t, opts, &sessions.State{
@@ -308,7 +309,7 @@ func TestLoadSessionState(t *testing.T) {
 		t.Parallel()
 
 		opts := testOptions(t)
-		proxy, err := New(&config.Config{Options: opts})
+		proxy, err := New(context.Background(), &config.Config{Options: opts})
 		require.NoError(t, err)
 
 		session := encodeSession(t, opts, &sessions.State{

@@ -10,7 +10,7 @@ import (
 )
 
 func (c *Checker) ConfigSyncer(ctx context.Context) error {
-	syncer := databroker.NewSyncer("zero-health-check", c, databroker.WithTypeURL(protoutil.GetTypeURL(new(configpb.Config))))
+	syncer := databroker.NewSyncer(ctx, "zero-health-check", c, databroker.WithTypeURL(protoutil.GetTypeURL(new(configpb.Config))))
 	return syncer.Run(ctx)
 }
 

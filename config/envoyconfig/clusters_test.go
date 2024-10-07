@@ -23,11 +23,7 @@ import (
 func Test_BuildClusters(t *testing.T) {
 	// The admin address path is based on os.TempDir(), which will vary from
 	// system to system, so replace this with a stable location.
-	originalEnvoyAdminAddressPath := envoyAdminAddressPath
-	envoyAdminAddressPath = "/tmp/pomerium-envoy-admin.sock"
-	t.Cleanup(func() {
-		envoyAdminAddressPath = originalEnvoyAdminAddressPath
-	})
+	t.Setenv("TMPDIR", "/tmp")
 
 	opts := config.NewDefaultOptions()
 	ctx := context.Background()
@@ -43,14 +39,14 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 	customCA := filepath.Join(cacheDir, "pomerium", "envoy", "files", "custom-ca-57394a4e5157303436544830.pem")
 
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
-	rootCABytes, _ := getCombinedCertificateAuthority(&config.Config{Options: &config.Options{}})
+	rootCABytes, _ := getCombinedCertificateAuthority(ctx, &config.Config{Options: &config.Options{}})
 	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
 
 	o1 := config.NewDefaultOptions()
 	o2 := config.NewDefaultOptions()
 	o2.CA = base64.StdEncoding.EncodeToString([]byte{0, 0, 0, 0})
 
-	combinedCABytes, _ := getCombinedCertificateAuthority(&config.Config{Options: &config.Options{CA: o2.CA}})
+	combinedCABytes, _ := getCombinedCertificateAuthority(ctx, &config.Config{Options: &config.Options{CA: o2.CA}})
 	combinedCA := b.filemgr.BytesDataSource("ca.pem", combinedCABytes).GetFilename()
 
 	t.Run("insecure", func(t *testing.T) {
@@ -522,7 +518,7 @@ func Test_buildPolicyTransportSocket(t *testing.T) {
 func Test_buildCluster(t *testing.T) {
 	ctx := context.Background()
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
-	rootCABytes, _ := getCombinedCertificateAuthority(&config.Config{Options: &config.Options{}})
+	rootCABytes, _ := getCombinedCertificateAuthority(ctx, &config.Config{Options: &config.Options{}})
 	rootCA := b.filemgr.BytesDataSource("ca.pem", rootCABytes).GetFilename()
 	o1 := config.NewDefaultOptions()
 	t.Run("insecure", func(t *testing.T) {

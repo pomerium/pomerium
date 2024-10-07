@@ -12,6 +12,9 @@ var warnCookieSecretOnce sync.Once
 // WarnCookieSecret warns about the cookie secret.
 func WarnCookieSecret() {
 	warnCookieSecretOnce.Do(func() {
+		if DebugDisableGlobalWarnings.Load() {
+			return
+		}
 		Info(context.Background()).
 			Msg("using a generated COOKIE_SECRET. " +
 				"Set the COOKIE_SECRET to avoid users being logged out on restart. " +
@@ -24,6 +27,9 @@ var warnNoTLSCertificateOnce syncutil.OnceMap[string]
 // WarnNoTLSCertificate warns about no TLS certificate.
 func WarnNoTLSCertificate(domain string) {
 	warnNoTLSCertificateOnce.Do(domain, func() {
+		if DebugDisableGlobalWarnings.Load() {
+			return
+		}
 		Info(context.Background()).
 			Str("domain", domain).
 			Msg("no TLS certificate found for domain, using a self-signed certificate")
@@ -35,6 +41,9 @@ var warnWebSocketHTTP1_1Once syncutil.OnceMap[string]
 // WarnWebSocketHTTP1_1 warns about falling back to http 1.1 due to web socket support.
 func WarnWebSocketHTTP1_1(clusterID string) {
 	warnWebSocketHTTP1_1Once.Do(clusterID, func() {
+		if DebugDisableGlobalWarnings.Load() {
+			return
+		}
 		Info(context.Background()).
 			Str("cluster-id", clusterID).
 			Msg("forcing http/1.1 due to web socket support")

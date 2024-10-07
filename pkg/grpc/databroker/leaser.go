@@ -71,13 +71,13 @@ func (locker *Leaser) Run(ctx context.Context) error {
 		case err == nil:
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return context.Cause(ctx)
 			case <-retryTicker.C:
 			}
 		case errors.Is(err, retryableError{}):
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return context.Cause(ctx)
 			case <-time.After(bo.NextBackOff()):
 			}
 		default:

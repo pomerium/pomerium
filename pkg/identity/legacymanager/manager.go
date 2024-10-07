@@ -124,13 +124,13 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 	// wait for initial sync
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return context.Cause(ctx)
 	case <-clear:
 		mgr.reset()
 	}
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return context.Cause(ctx)
 	case msg := <-update:
 		mgr.onUpdateRecords(ctx, msg)
 	}
@@ -150,7 +150,7 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return context.Cause(ctx)
 		case <-clear:
 			mgr.reset()
 		case msg := <-update:

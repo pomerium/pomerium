@@ -64,6 +64,7 @@ func newAuthenticateState() *authenticateState {
 }
 
 func newAuthenticateStateFromConfig(
+	ctx context.Context,
 	cfg *config.Config, authenticateConfig *authenticateConfig,
 ) (*authenticateState, error) {
 	err := ValidateOptions(cfg.Options)
@@ -145,7 +146,7 @@ func newAuthenticateStateFromConfig(
 	}
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {
-		state.flow, err = authenticateflow.NewStateless(
+		state.flow, err = authenticateflow.NewStateless(ctx,
 			cfg,
 			cookieStore,
 			authenticateConfig.getIdentityProvider,
@@ -153,7 +154,7 @@ func newAuthenticateStateFromConfig(
 			authenticateConfig.authEventFn,
 		)
 	} else {
-		state.flow, err = authenticateflow.NewStateful(cfg, cookieStore)
+		state.flow, err = authenticateflow.NewStateful(ctx, cfg, cookieStore)
 	}
 	if err != nil {
 		return nil, err

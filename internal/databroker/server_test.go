@@ -277,7 +277,7 @@ func TestServer_Sync(t *testing.T) {
 		updateRecords := make(chan uint64, 10)
 
 		client := databroker.NewDataBrokerServiceClient(cc)
-		syncer := databroker.NewSyncer("TEST", testSyncerHandler{
+		syncer := databroker.NewSyncer(ctx, "TEST", testSyncerHandler{
 			getDataBrokerServiceClient: func() databroker.DataBrokerServiceClient {
 				return client
 			},
@@ -292,12 +292,12 @@ func TestServer_Sync(t *testing.T) {
 		select {
 		case <-clearRecords:
 		case <-ctx.Done():
-			return ctx.Err()
+			return context.Cause(ctx)
 		}
 		select {
 		case <-updateRecords:
 		case <-ctx.Done():
-			return ctx.Err()
+			return context.Cause(ctx)
 
 		}
 
@@ -313,7 +313,7 @@ func TestServer_Sync(t *testing.T) {
 		select {
 		case <-updateRecords:
 		case <-ctx.Done():
-			return ctx.Err()
+			return context.Cause(ctx)
 
 		}
 		return nil
