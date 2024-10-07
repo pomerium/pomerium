@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
@@ -55,7 +57,10 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	var err error
 	if sessionState != nil {
 		s, err = a.getDataBrokerSessionOrServiceAccount(ctx, sessionState.ID, sessionState.DatabrokerRecordVersion)
-		if err != nil {
+		if status.Code(err) == codes.Unavailable {
+			log.Ctx(ctx).Debug().Str("request-id", requestID).Err(err).Msg("temporary error checking authorization: data broker unavailable")
+			return nil, err
+		} else if err != nil {
 			log.Info(ctx).Err(err).Str("request-id", requestID).Msg("clearing session due to missing or invalid session or service account")
 			sessionState = nil
 		}
