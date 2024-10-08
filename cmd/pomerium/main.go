@@ -25,7 +25,7 @@ func main() {
 	var configFile string
 	root := &cobra.Command{
 		Use:          "pomerium",
-		Version:      fmt.Sprintf("pomerium: %s\nenvoy: %s\n", version.FullVersion(), files.FullVersion()),
+		Version:      fmt.Sprintf("pomerium: %s\nenvoy: %s", version.FullVersion(), files.FullVersion()),
 		SilenceUsage: true,
 	}
 	root.AddCommand(zero_cmd.BuildRootCmd())
