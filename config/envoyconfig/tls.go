@@ -53,6 +53,11 @@ var (
 		TlsMinimumProtocolVersion: envoy_extensions_transport_sockets_tls_v3.TlsParameters_TLSv1_2,
 		TlsMaximumProtocolVersion: envoy_extensions_transport_sockets_tls_v3.TlsParameters_TLSv1_3,
 	}
+	tlsParamsEdDSAOnly = &envoy_extensions_transport_sockets_tls_v3.TlsParameters{
+		SignatureAlgorithms:       []string{"ed25519"},
+		TlsMinimumProtocolVersion: envoy_extensions_transport_sockets_tls_v3.TlsParameters_TLSv1_3,
+		TlsMaximumProtocolVersion: envoy_extensions_transport_sockets_tls_v3.TlsParameters_TLSv1_3,
+	}
 )
 
 var oidMustStaple = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 1, 24}

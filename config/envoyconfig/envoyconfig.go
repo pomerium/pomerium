@@ -34,6 +34,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/derivecert"
 )
 
 var (
@@ -149,6 +150,14 @@ func buildAddress(hostport string, defaultPort uint32) *envoy_config_core_v3.Add
 			Ipv4Compat:    host == "::" || is4in6,
 		}},
 	}
+}
+
+func (b *Builder) internalCA(cfg *config.Config) (*derivecert.Ed25519CA, error) {
+	r, err := cfg.Options.GetDerivedKDF(config.KDFContextInternalEd25519CA)
+	if err != nil {
+		return nil, err
+	}
+	return derivecert.NewEd25519CA(r)
 }
 
 func (b *Builder) envoyTLSCertificateFromGoTLSCertificate(
