@@ -8,11 +8,11 @@ import (
 	"io"
 	"time"
 
+	"github.com/klauspost/compress/zstd"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/klauspost/compress/zstd"
 	"github.com/pomerium/pomerium/internal/zero/apierror"
 	connect_mux "github.com/pomerium/pomerium/internal/zero/connect-mux"
 	"github.com/pomerium/pomerium/internal/zero/grpcconn"

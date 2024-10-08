@@ -1615,7 +1615,6 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.GrpcAddress, &o.GRPCAddr)
 	settings.GrpcInsecure = o.GRPCInsecure
 	copyOptionalDuration(&settings.GrpcClientTimeout, o.GRPCClientTimeout)
-	copySrcToOptionalDest(&settings.GrpcClientDnsRoundrobin, &o.GRPCClientDNSRoundRobin)
 	settings.DatabrokerServiceUrls = o.DataBrokerURLStrings
 	copySrcToOptionalDest(&settings.DatabrokerInternalServiceUrl, &o.DataBrokerInternalURLString)
 	copySrcToOptionalDest(&settings.DatabrokerStorageType, &o.DataBrokerStorageType)
