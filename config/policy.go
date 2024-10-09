@@ -256,6 +256,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		TLSServerName:                    pb.GetTlsServerName(),
 		TLSDownstreamServerName:          pb.GetTlsDownstreamServerName(),
 		TLSUpstreamServerName:            pb.GetTlsUpstreamServerName(),
+		TLSUpstreamAllowRenegotiation:    pb.GetTlsUpstreamAllowRenegotiation(),
 		TLSCustomCA:                      pb.GetTlsCustomCa(),
 		TLSCustomCAFile:                  pb.GetTlsCustomCaFile(),
 		TLSClientCert:                    pb.GetTlsClientCert(),
@@ -296,12 +297,20 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			Body:   pb.Response.GetBody(),
 		}
 	} else {
-		to, err := ParseWeightedUrls(pb.GetTo()...)
-		if err != nil {
-			return nil, err
+		p.To = make(WeightedURLs, len(pb.To))
+		for i, u := range pb.To {
+			u, err := urlutil.ParseAndValidateURL(u)
+			if err != nil {
+				return nil, err
+			}
+			w := WeightedURL{
+				URL: *u,
+			}
+			if len(pb.LoadBalancingWeights) == len(pb.To) {
+				w.LbWeight = pb.LoadBalancingWeights[i]
+			}
+			p.To[i] = w
 		}
-
-		p.To = to
 	}
 
 	p.EnvoyOpts = pb.EnvoyOpts
@@ -333,7 +342,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			Remediation: sp.GetRemediation(),
 		})
 	}
-	return p, p.Validate()
+	return p, nil
 }
 
 // ToProto converts the policy to a protobuf type.
@@ -356,12 +365,15 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 			AllowedUsers:     sp.AllowedUsers,
 			AllowedDomains:   sp.AllowedDomains,
 			AllowedIdpClaims: sp.AllowedIDPClaims.ToPB(),
+			Explanation:      sp.Explanation,
+			Remediation:      sp.Remediation,
 			Rego:             sp.Rego,
 		})
 	}
 
 	pb := &configpb.Route{
 		Name:                             fmt.Sprint(p.RouteID()),
+		Id:                               p.ID,
 		From:                             p.From,
 		AllowedUsers:                     p.AllowedUsers,
 		AllowedDomains:                   p.AllowedDomains,
@@ -372,6 +384,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		PrefixRewrite:                    p.PrefixRewrite,
 		RegexRewritePattern:              p.RegexRewritePattern,
 		RegexRewriteSubstitution:         p.RegexRewriteSubstitution,
+		RegexPriorityOrder:               p.RegexPriorityOrder,
 		CorsAllowPreflight:               p.CORSAllowPreflight,
 		AllowPublicUnauthenticatedAccess: p.AllowPublicUnauthenticatedAccess,
 		AllowAnyAuthenticatedUser:        p.AllowAnyAuthenticatedUser,
@@ -391,13 +404,29 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		TlsClientKeyFile:                 p.TLSClientKeyFile,
 		TlsDownstreamClientCa:            p.TLSDownstreamClientCA,
 		TlsDownstreamClientCaFile:        p.TLSDownstreamClientCAFile,
+		TlsUpstreamAllowRenegotiation:    p.TLSUpstreamAllowRenegotiation,
 		SetRequestHeaders:                p.SetRequestHeaders,
 		RemoveRequestHeaders:             p.RemoveRequestHeaders,
 		PreserveHostHeader:               p.PreserveHostHeader,
 		PassIdentityHeaders:              p.PassIdentityHeaders,
 		KubernetesServiceAccountToken:    p.KubernetesServiceAccountToken,
-		Policies:                         sps,
-		SetResponseHeaders:               p.SetResponseHeaders,
+		EnableGoogleCloudServerlessAuthentication: p.EnableGoogleCloudServerlessAuthentication,
+		Policies:           sps,
+		EnvoyOpts:          p.EnvoyOpts,
+		SetResponseHeaders: p.SetResponseHeaders,
+		ShowErrorDetails:   p.ShowErrorDetails,
+	}
+	if p.HostPathRegexRewritePattern != "" {
+		pb.HostPathRegexRewritePattern = proto.String(p.HostPathRegexRewritePattern)
+	}
+	if p.HostPathRegexRewriteSubstitution != "" {
+		pb.HostPathRegexRewriteSubstitution = proto.String(p.HostPathRegexRewriteSubstitution)
+	}
+	if p.HostRewrite != "" {
+		pb.HostRewrite = proto.String(p.HostRewrite)
+	}
+	if p.HostRewriteHeader != "" {
+		pb.HostRewriteHeader = proto.String(p.HostRewriteHeader)
 	}
 	if p.IDPClientID != "" {
 		pb.IdpClientId = proto.String(p.IDPClientID)
@@ -512,10 +541,11 @@ func (p *Policy) Validate() error {
 			return fmt.Errorf("config: couldn't decode custom ca: %w", err)
 		}
 	} else if p.TLSCustomCAFile != "" {
-		_, err := os.Stat(p.TLSCustomCAFile)
+		ca, err := os.ReadFile(p.TLSCustomCAFile)
 		if err != nil {
 			return fmt.Errorf("config: couldn't load client ca file: %w", err)
 		}
+		p.TLSCustomCA = base64.StdEncoding.EncodeToString(ca)
 	}
 
 	const clientCADeprecationMsg = "config: %s is deprecated, see https://www.pomerium.com/docs/" +
