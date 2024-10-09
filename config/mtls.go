@@ -190,6 +190,87 @@ func (s *DownstreamMTLSSettings) applySettingsProto(
 	set(&s.CA, p.Ca)
 	set(&s.CRL, p.Crl)
 	s.Enforcement = mtlsEnforcementFromProtoEnum(ctx, p.Enforcement)
+	s.MatchSubjectAltNames = make([]SANMatcher, 0, len(p.MatchSubjectAltNames))
+	for _, san := range p.MatchSubjectAltNames {
+		var sanType SANType
+		switch san.GetSanType() {
+		case config.SANMatcher_DNS:
+			sanType = SANTypeDNS
+		case config.SANMatcher_EMAIL:
+			sanType = SANTypeEmail
+		case config.SANMatcher_IP_ADDRESS:
+			sanType = SANTypeIPAddress
+		case config.SANMatcher_URI:
+			sanType = SANTypeURI
+		case config.SANMatcher_USER_PRINCIPAL_NAME:
+			sanType = SANTypeUserPrincipalName
+		}
+		s.MatchSubjectAltNames = append(s.MatchSubjectAltNames, SANMatcher{
+			Type:    sanType,
+			Pattern: san.GetPattern(),
+		})
+	}
+	s.MaxVerifyDepth = p.MaxVerifyDepth
+}
+
+func (s *DownstreamMTLSSettings) ToProto() *config.DownstreamMtlsSettings {
+	if s == nil {
+		return nil
+	}
+	var settings config.DownstreamMtlsSettings
+	var hasAnyFields bool
+	if ca, err := s.GetCA(); err == nil && len(ca) > 0 {
+		hasAnyFields = true
+		caStr := base64.StdEncoding.EncodeToString(ca)
+		settings.Ca = &caStr
+	}
+	if crl, err := s.GetCRL(); err == nil && len(crl) > 0 {
+		hasAnyFields = true
+		crlStr := base64.StdEncoding.EncodeToString(crl)
+		settings.Crl = &crlStr
+	}
+	if s.Enforcement != "" {
+		hasAnyFields = true
+		switch s.Enforcement {
+		case MTLSEnforcementPolicy:
+			settings.Enforcement = config.MtlsEnforcementMode_POLICY.Enum()
+		case MTLSEnforcementPolicyWithDefaultDeny:
+			settings.Enforcement = config.MtlsEnforcementMode_POLICY_WITH_DEFAULT_DENY.Enum()
+		case MTLSEnforcementRejectConnection:
+			settings.Enforcement = config.MtlsEnforcementMode_REJECT_CONNECTION.Enum()
+		default:
+			settings.Enforcement = config.MtlsEnforcementMode_UNKNOWN.Enum()
+		}
+	}
+	for _, san := range s.MatchSubjectAltNames {
+		hasAnyFields = true
+		var sanType config.SANMatcher_SANType
+		switch san.Type {
+		case SANTypeDNS:
+			sanType = config.SANMatcher_DNS
+		case SANTypeEmail:
+			sanType = config.SANMatcher_EMAIL
+		case SANTypeIPAddress:
+			sanType = config.SANMatcher_IP_ADDRESS
+		case SANTypeURI:
+			sanType = config.SANMatcher_URI
+		case SANTypeUserPrincipalName:
+			sanType = config.SANMatcher_USER_PRINCIPAL_NAME
+		default:
+			sanType = config.SANMatcher_SAN_TYPE_UNSPECIFIED
+		}
+		settings.MatchSubjectAltNames = append(settings.MatchSubjectAltNames, &config.SANMatcher{
+			SanType: sanType,
+			Pattern: san.Pattern,
+		})
+	}
+	settings.MaxVerifyDepth = s.MaxVerifyDepth
+	hasAnyFields = hasAnyFields || s.MaxVerifyDepth != nil
+
+	if !hasAnyFields {
+		return nil
+	}
+	return &settings
 }
 
 func mtlsEnforcementFromProtoEnum(

@@ -100,6 +100,12 @@ type GetBundlesResponse struct {
 	Bundles []Bundle `json:"bundles"`
 }
 
+// ImportResponse defines model for ImportResponse.
+type ImportResponse struct {
+	Messages *[]string `json:"messages,omitempty"`
+	Warnings *[]string `json:"warnings,omitempty"`
+}
+
 // ReportUsageRequest defines model for ReportUsageRequest.
 type ReportUsageRequest struct {
 	Users []ReportUsageUser `json:"users"`
@@ -114,6 +120,11 @@ type ReportUsageUser struct {
 
 // BundleId defines model for bundleId.
 type BundleId = string
+
+// ImportConfigurationParams defines parameters for ImportConfiguration.
+type ImportConfigurationParams struct {
+	XImportHints *[]string `json:"X-Import-Hints,omitempty"`
+}
 
 // ReportClusterResourceBundleStatusJSONRequestBody defines body for ReportClusterResourceBundleStatus for application/json ContentType.
 type ReportClusterResourceBundleStatusJSONRequestBody = BundleStatus

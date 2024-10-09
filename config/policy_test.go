@@ -369,3 +369,9 @@ func TestPolicy_IsTCPUpstream(t *testing.T) {
 	}
 	assert.False(t, p3.IsTCPUpstream())
 }
+
+func mustParseWeightedURLs(t testing.TB, urls ...string) []WeightedURL {
+	wu, err := ParseWeightedUrls(urls...)
+	require.NoError(t, err)
+	return wu
+}
