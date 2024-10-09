@@ -108,6 +108,7 @@ message Route {
   envoy.config.cluster.v3.Cluster envoy_opts = 36;
 
   repeated Policy policies = 27;
+  repeated PPLPolicy ppl_policies = 63;
   string id = 28;
 
   optional string host_rewrite = 50;
@@ -118,6 +119,10 @@ message Route {
   optional string idp_client_id = 55;
   optional string idp_client_secret = 56;
   bool show_error_details = 59;
+}
+
+message PPLPolicy {
+  bytes raw = 1;
 }
 
 message Policy {
@@ -227,7 +232,7 @@ message Settings {
   optional string envoy_admin_profile_path = 109;
   optional string envoy_admin_address = 110;
   optional string envoy_bind_config_source_address = 111;
-  optional string envoy_bind_config_freebind = 112;
+  optional bool envoy_bind_config_freebind = 112;
   repeated string programmatic_redirect_domain_whitelist = 68;
   optional envoy.extensions.filters.network.http_connection_manager.v3
       .HttpConnectionManager.CodecType codec_type = 73;
@@ -247,6 +252,8 @@ message DownstreamMtlsSettings {
   optional string ca = 1;
   optional string crl = 2;
   optional MtlsEnforcementMode enforcement = 3;
+  repeated SANMatcher match_subject_alt_names = 4;
+  optional uint32 max_verify_depth = 5;
 }
 
 enum MtlsEnforcementMode {
@@ -254,4 +261,17 @@ enum MtlsEnforcementMode {
   POLICY = 1;
   POLICY_WITH_DEFAULT_DENY = 2;
   REJECT_CONNECTION = 3;
+}
+
+message SANMatcher {
+  enum SANType {
+    SAN_TYPE_UNSPECIFIED = 0;
+    EMAIL = 1;
+    DNS = 2;
+    URI = 3;
+    IP_ADDRESS = 4;
+    USER_PRINCIPAL_NAME = 5;
+  }
+  SANType san_type = 1;
+  string pattern = 2;
 }
