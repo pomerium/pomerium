@@ -540,16 +540,8 @@ func (p *Policy) Validate() error {
 		p.TLSDownstreamClientCA = base64.StdEncoding.EncodeToString(bs)
 	}
 
-	if p.KubernetesServiceAccountTokenFile != "" {
-		if p.KubernetesServiceAccountToken != "" {
-			return fmt.Errorf("config: specified both `kubernetes_service_account_token_file` and `kubernetes_service_account_token`")
-		}
-
-		token, err := os.ReadFile(p.KubernetesServiceAccountTokenFile)
-		if err != nil {
-			return fmt.Errorf("config: failed to load kubernetes service account token: %w", err)
-		}
-		p.KubernetesServiceAccountToken = string(token)
+	if p.KubernetesServiceAccountTokenFile != "" && p.KubernetesServiceAccountToken != "" {
+		return fmt.Errorf("config: specified both `kubernetes_service_account_token_file` and `kubernetes_service_account_token`")
 	}
 
 	if p.PrefixRewrite != "" && p.RegexRewritePattern != "" {
@@ -702,6 +694,20 @@ func (p *Policy) AllAllowedUsers() []string {
 		aus = append(aus, sp.AllowedUsers...)
 	}
 	return aus
+}
+
+// GetKubernetesServiceAccountToken gets the kubernetes service account token from a file or from the config option.
+func (p *Policy) GetKubernetesServiceAccountToken() (string, error) {
+	if p.KubernetesServiceAccountTokenFile != "" {
+		bs, err := os.ReadFile(p.KubernetesServiceAccountTokenFile)
+		return string(bs), err
+	}
+
+	if p.KubernetesServiceAccountToken != "" {
+		return p.KubernetesServiceAccountToken, nil
+	}
+
+	return "", nil
 }
 
 // GetPassIdentityHeaders gets the pass identity headers option. If not set in the policy, use the setting from the
