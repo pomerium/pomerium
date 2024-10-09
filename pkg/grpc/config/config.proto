@@ -38,7 +38,7 @@ message RouteDirectResponse {
   string body = 2;
 }
 
-// Next ID: 63.
+// Next ID: 66.
 message Route {
   string name = 1;
 
@@ -103,6 +103,8 @@ message Route {
   optional bool pass_identity_headers = 25;
 
   string kubernetes_service_account_token = 26;
+  optional string kubernetes_impersonate_user_claim = 64;
+  optional string kubernetes_impersonate_group_claim = 65;
   bool enable_google_cloud_serverless_authentication = 42;
 
   envoy.config.cluster.v3.Cluster envoy_opts = 36;

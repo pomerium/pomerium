@@ -23,6 +23,8 @@ type HeadersRequest struct {
 	EnableRoutingKey                          bool                  `json:"enable_routing_key"`
 	Issuer                                    string                `json:"issuer"`
 	KubernetesServiceAccountToken             string                `json:"kubernetes_service_account_token"`
+	KubernetesImpersonateUserClaim            string                `json:"kubernetes_impersonate_user_claim"`
+	KubernetesImpersonateGroupClaim           string                `json:"kubernetes_impersonate_group_claim"`
 	ToAudience                                string                `json:"to_audience"`
 	Session                                   RequestSession        `json:"session"`
 	ClientCertificate                         ClientCertificateInfo `json:"client_certificate"`
@@ -38,6 +40,8 @@ func NewHeadersRequestFromPolicy(policy *config.Policy, http RequestHTTP) *Heade
 		input.EnableRoutingKey = policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
 			policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_MAGLEV
 		input.KubernetesServiceAccountToken = policy.KubernetesServiceAccountToken
+		input.KubernetesImpersonateUserClaim = policy.KubernetesImpersonateUserClaim
+		input.KubernetesImpersonateGroupClaim = policy.KubernetesImpersonateGroupClaim
 		for _, wu := range policy.To {
 			input.ToAudience = "https://" + wu.URL.Hostname()
 		}

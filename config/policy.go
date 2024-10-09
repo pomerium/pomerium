@@ -154,6 +154,9 @@ type Policy struct {
 	// KubernetesServiceAccountTokenFile contains the kubernetes token to use for upstream requests.
 	KubernetesServiceAccountTokenFile string `mapstructure:"kubernetes_service_account_token_file" yaml:"kubernetes_service_account_token_file,omitempty"`
 
+	KubernetesImpersonateUserClaim  string `mapstructure:"kubernetes_impersonate_user_claim" yaml:"kubernetes_impersonate_user_claim,omitempty"`
+	KubernetesImpersonateGroupClaim string `mapstructure:"kubernetes_impersonate_group_claim" yaml:"kubernetes_impersonate_group_claim,omitempty"`
+
 	// EnableGoogleCloudServerlessAuthentication adds "Authorization: Bearer ID_TOKEN" headers
 	// to upstream requests.
 	EnableGoogleCloudServerlessAuthentication bool `mapstructure:"enable_google_cloud_serverless_authentication" yaml:"enable_google_cloud_serverless_authentication,omitempty"`
@@ -274,6 +277,8 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		HostPathRegexRewriteSubstitution: pb.GetHostPathRegexRewriteSubstitution(),
 		PassIdentityHeaders:              pb.PassIdentityHeaders,
 		KubernetesServiceAccountToken:    pb.GetKubernetesServiceAccountToken(),
+		KubernetesImpersonateUserClaim:   pb.GetKubernetesImpersonateUserClaim(),
+		KubernetesImpersonateGroupClaim:  pb.GetKubernetesImpersonateGroupClaim(),
 		SetResponseHeaders:               pb.GetSetResponseHeaders(),
 		EnableGoogleCloudServerlessAuthentication: pb.GetEnableGoogleCloudServerlessAuthentication(),
 		IDPClientID:      pb.GetIdpClientId(),
@@ -433,6 +438,12 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	}
 	if p.IDPClientSecret != "" {
 		pb.IdpClientSecret = proto.String(p.IDPClientSecret)
+	}
+	if p.KubernetesImpersonateUserClaim != "" {
+		pb.KubernetesImpersonateUserClaim = proto.String(p.KubernetesImpersonateUserClaim)
+	}
+	if p.KubernetesImpersonateGroupClaim != "" {
+		pb.KubernetesImpersonateGroupClaim = proto.String(p.KubernetesImpersonateGroupClaim)
 	}
 	if p.Redirect != nil {
 		pb.Redirect = &configpb.RouteRedirect{
