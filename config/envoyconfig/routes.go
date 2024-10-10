@@ -405,11 +405,11 @@ func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *c
 	upgradeConfigs := []*envoy_config_route_v3.RouteAction_UpgradeConfig{
 		{
 			UpgradeType: "websocket",
-			Enabled:     &wrapperspb.BoolValue{Value: policy.AllowWebsockets},
+			Enabled:     &wrapperspb.BoolValue{Value: policy.AllowWebsockets || policy.IsForKubernetes()},
 		},
 		{
 			UpgradeType: "spdy/3.1",
-			Enabled:     &wrapperspb.BoolValue{Value: policy.AllowSPDY},
+			Enabled:     &wrapperspb.BoolValue{Value: policy.AllowSPDY || policy.IsForKubernetes()},
 		},
 	}
 
