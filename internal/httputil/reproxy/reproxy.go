@@ -116,7 +116,7 @@ func (h *Handler) Middleware(next http.Handler) http.Handler {
 
 		// when SPDY is being used, disable HTTP/2 because the two can't be used together with the reverse proxy
 		// Issue #2126
-		disableHTTP2 := isSPDY(r)
+		disableHTTP2 := isSPDY(r) || isWebsocket(r)
 
 		h := stdhttputil.NewSingleHostReverseProxy(&dst)
 		h.ErrorLog = stdlog.New(log.Logger(), "", 0)
@@ -146,4 +146,8 @@ func (h *Handler) Update(ctx context.Context, cfg *config.Config) {
 
 func isSPDY(r *http.Request) bool {
 	return strings.HasPrefix(strings.ToLower(r.Header.Get(httputil.HeaderUpgrade)), "spdy/")
+}
+
+func isWebsocket(r *http.Request) bool {
+	return strings.HasPrefix(strings.ToLower(r.Header.Get(httputil.HeaderUpgrade)), "websocket/")
 }
