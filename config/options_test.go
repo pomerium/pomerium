@@ -29,18 +29,19 @@ import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/pomerium/csrf"
-	"github.com/pomerium/pomerium/internal/testutil"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
-	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
-	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
-	"github.com/pomerium/protoutil/protorand"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
+
+	"github.com/pomerium/csrf"
+	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
+	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
+	"github.com/pomerium/protoutil/protorand"
 )
 
 var cmpOptIgnoreUnexported = cmpopts.IgnoreUnexported(Options{}, Policy{})

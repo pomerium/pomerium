@@ -233,52 +233,53 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	}
 
 	p := &Policy{
-		ID:                               pb.GetId(),
-		From:                             pb.GetFrom(),
-		AllowedUsers:                     pb.GetAllowedUsers(),
+		AllowAnyAuthenticatedUser:        pb.GetAllowAnyAuthenticatedUser(),
 		AllowedDomains:                   pb.GetAllowedDomains(),
 		AllowedIDPClaims:                 identity.NewFlattenedClaimsFromPB(pb.GetAllowedIdpClaims()),
-		Prefix:                           pb.GetPrefix(),
-		Path:                             pb.GetPath(),
-		Regex:                            pb.GetRegex(),
-		PrefixRewrite:                    pb.GetPrefixRewrite(),
-		RegexRewritePattern:              pb.GetRegexRewritePattern(),
-		RegexRewriteSubstitution:         pb.GetRegexRewriteSubstitution(),
-		RegexPriorityOrder:               pb.RegexPriorityOrder,
-		CORSAllowPreflight:               pb.GetCorsAllowPreflight(),
+		AllowedUsers:                     pb.GetAllowedUsers(),
 		AllowPublicUnauthenticatedAccess: pb.GetAllowPublicUnauthenticatedAccess(),
-		AllowAnyAuthenticatedUser:        pb.GetAllowAnyAuthenticatedUser(),
-		UpstreamTimeout:                  timeout,
-		IdleTimeout:                      idleTimeout,
-		AllowWebsockets:                  pb.GetAllowWebsockets(),
 		AllowSPDY:                        pb.GetAllowSpdy(),
-		TLSSkipVerify:                    pb.GetTlsSkipVerify(),
-		TLSServerName:                    pb.GetTlsServerName(),
-		TLSDownstreamServerName:          pb.GetTlsDownstreamServerName(),
-		TLSUpstreamServerName:            pb.GetTlsUpstreamServerName(),
-		TLSUpstreamAllowRenegotiation:    pb.GetTlsUpstreamAllowRenegotiation(),
-		TLSCustomCA:                      pb.GetTlsCustomCa(),
-		TLSCustomCAFile:                  pb.GetTlsCustomCaFile(),
-		TLSClientCert:                    pb.GetTlsClientCert(),
-		TLSClientKey:                     pb.GetTlsClientKey(),
-		TLSClientCertFile:                pb.GetTlsClientCertFile(),
-		TLSClientKeyFile:                 pb.GetTlsClientKeyFile(),
-		TLSDownstreamClientCA:            pb.GetTlsDownstreamClientCa(),
-		TLSDownstreamClientCAFile:        pb.GetTlsDownstreamClientCaFile(),
-		SetRequestHeaders:                pb.GetSetRequestHeaders(),
-		RemoveRequestHeaders:             pb.GetRemoveRequestHeaders(),
-		PreserveHostHeader:               pb.GetPreserveHostHeader(),
-		HostRewrite:                      pb.GetHostRewrite(),
-		HostRewriteHeader:                pb.GetHostRewriteHeader(),
-		HostPathRegexRewritePattern:      pb.GetHostPathRegexRewritePattern(),
-		HostPathRegexRewriteSubstitution: pb.GetHostPathRegexRewriteSubstitution(),
-		PassIdentityHeaders:              pb.PassIdentityHeaders,
-		KubernetesServiceAccountToken:    pb.GetKubernetesServiceAccountToken(),
-		SetResponseHeaders:               pb.GetSetResponseHeaders(),
+		AllowWebsockets:                  pb.GetAllowWebsockets(),
+		CORSAllowPreflight:               pb.GetCorsAllowPreflight(),
 		EnableGoogleCloudServerlessAuthentication: pb.GetEnableGoogleCloudServerlessAuthentication(),
-		IDPClientID:      pb.GetIdpClientId(),
-		IDPClientSecret:  pb.GetIdpClientSecret(),
-		ShowErrorDetails: pb.GetShowErrorDetails(),
+		From:                              pb.GetFrom(),
+		HostPathRegexRewritePattern:       pb.GetHostPathRegexRewritePattern(),
+		HostPathRegexRewriteSubstitution:  pb.GetHostPathRegexRewriteSubstitution(),
+		HostRewrite:                       pb.GetHostRewrite(),
+		HostRewriteHeader:                 pb.GetHostRewriteHeader(),
+		ID:                                pb.GetId(),
+		IdleTimeout:                       idleTimeout,
+		IDPClientID:                       pb.GetIdpClientId(),
+		IDPClientSecret:                   pb.GetIdpClientSecret(),
+		KubernetesServiceAccountToken:     pb.GetKubernetesServiceAccountToken(),
+		KubernetesServiceAccountTokenFile: pb.GetKubernetesServiceAccountTokenFile(),
+		PassIdentityHeaders:               pb.PassIdentityHeaders,
+		Path:                              pb.GetPath(),
+		Prefix:                            pb.GetPrefix(),
+		PrefixRewrite:                     pb.GetPrefixRewrite(),
+		PreserveHostHeader:                pb.GetPreserveHostHeader(),
+		Regex:                             pb.GetRegex(),
+		RegexPriorityOrder:                pb.RegexPriorityOrder,
+		RegexRewritePattern:               pb.GetRegexRewritePattern(),
+		RegexRewriteSubstitution:          pb.GetRegexRewriteSubstitution(),
+		RemoveRequestHeaders:              pb.GetRemoveRequestHeaders(),
+		SetRequestHeaders:                 pb.GetSetRequestHeaders(),
+		SetResponseHeaders:                pb.GetSetResponseHeaders(),
+		ShowErrorDetails:                  pb.GetShowErrorDetails(),
+		TLSClientCert:                     pb.GetTlsClientCert(),
+		TLSClientCertFile:                 pb.GetTlsClientCertFile(),
+		TLSClientKey:                      pb.GetTlsClientKey(),
+		TLSClientKeyFile:                  pb.GetTlsClientKeyFile(),
+		TLSCustomCA:                       pb.GetTlsCustomCa(),
+		TLSCustomCAFile:                   pb.GetTlsCustomCaFile(),
+		TLSDownstreamClientCA:             pb.GetTlsDownstreamClientCa(),
+		TLSDownstreamClientCAFile:         pb.GetTlsDownstreamClientCaFile(),
+		TLSDownstreamServerName:           pb.GetTlsDownstreamServerName(),
+		TLSServerName:                     pb.GetTlsServerName(),
+		TLSSkipVerify:                     pb.GetTlsSkipVerify(),
+		TLSUpstreamAllowRenegotiation:     pb.GetTlsUpstreamAllowRenegotiation(),
+		TLSUpstreamServerName:             pb.GetTlsUpstreamServerName(),
+		UpstreamTimeout:                   timeout,
 	}
 	if pb.Redirect.IsSet() {
 		p.Redirect = &PolicyRedirect{
@@ -372,49 +373,50 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	}
 
 	pb := &configpb.Route{
-		Name:                             fmt.Sprint(p.RouteID()),
-		Id:                               p.ID,
-		From:                             p.From,
-		AllowedUsers:                     p.AllowedUsers,
+		AllowAnyAuthenticatedUser:        p.AllowAnyAuthenticatedUser,
 		AllowedDomains:                   p.AllowedDomains,
 		AllowedIdpClaims:                 p.AllowedIDPClaims.ToPB(),
-		Prefix:                           p.Prefix,
-		Path:                             p.Path,
-		Regex:                            p.Regex,
-		PrefixRewrite:                    p.PrefixRewrite,
-		RegexRewritePattern:              p.RegexRewritePattern,
-		RegexRewriteSubstitution:         p.RegexRewriteSubstitution,
-		RegexPriorityOrder:               p.RegexPriorityOrder,
-		CorsAllowPreflight:               p.CORSAllowPreflight,
+		AllowedUsers:                     p.AllowedUsers,
 		AllowPublicUnauthenticatedAccess: p.AllowPublicUnauthenticatedAccess,
-		AllowAnyAuthenticatedUser:        p.AllowAnyAuthenticatedUser,
-		Timeout:                          timeout,
-		IdleTimeout:                      idleTimeout,
-		AllowWebsockets:                  p.AllowWebsockets,
 		AllowSpdy:                        p.AllowSPDY,
-		TlsSkipVerify:                    p.TLSSkipVerify,
-		TlsServerName:                    p.TLSServerName,
-		TlsUpstreamServerName:            p.TLSUpstreamServerName,
-		TlsDownstreamServerName:          p.TLSDownstreamServerName,
-		TlsCustomCa:                      p.TLSCustomCA,
-		TlsCustomCaFile:                  p.TLSCustomCAFile,
-		TlsClientCert:                    p.TLSClientCert,
-		TlsClientKey:                     p.TLSClientKey,
-		TlsClientCertFile:                p.TLSClientCertFile,
-		TlsClientKeyFile:                 p.TLSClientKeyFile,
-		TlsDownstreamClientCa:            p.TLSDownstreamClientCA,
-		TlsDownstreamClientCaFile:        p.TLSDownstreamClientCAFile,
-		TlsUpstreamAllowRenegotiation:    p.TLSUpstreamAllowRenegotiation,
-		SetRequestHeaders:                p.SetRequestHeaders,
-		RemoveRequestHeaders:             p.RemoveRequestHeaders,
-		PreserveHostHeader:               p.PreserveHostHeader,
-		PassIdentityHeaders:              p.PassIdentityHeaders,
-		KubernetesServiceAccountToken:    p.KubernetesServiceAccountToken,
+		AllowWebsockets:                  p.AllowWebsockets,
+		CorsAllowPreflight:               p.CORSAllowPreflight,
 		EnableGoogleCloudServerlessAuthentication: p.EnableGoogleCloudServerlessAuthentication,
-		Policies:           sps,
-		EnvoyOpts:          p.EnvoyOpts,
-		SetResponseHeaders: p.SetResponseHeaders,
-		ShowErrorDetails:   p.ShowErrorDetails,
+		EnvoyOpts:                         p.EnvoyOpts,
+		From:                              p.From,
+		Id:                                p.ID,
+		IdleTimeout:                       idleTimeout,
+		KubernetesServiceAccountToken:     p.KubernetesServiceAccountToken,
+		KubernetesServiceAccountTokenFile: p.KubernetesServiceAccountTokenFile,
+		Name:                              fmt.Sprint(p.RouteID()),
+		PassIdentityHeaders:               p.PassIdentityHeaders,
+		Path:                              p.Path,
+		Policies:                          sps,
+		Prefix:                            p.Prefix,
+		PrefixRewrite:                     p.PrefixRewrite,
+		PreserveHostHeader:                p.PreserveHostHeader,
+		Regex:                             p.Regex,
+		RegexPriorityOrder:                p.RegexPriorityOrder,
+		RegexRewritePattern:               p.RegexRewritePattern,
+		RegexRewriteSubstitution:          p.RegexRewriteSubstitution,
+		RemoveRequestHeaders:              p.RemoveRequestHeaders,
+		SetRequestHeaders:                 p.SetRequestHeaders,
+		SetResponseHeaders:                p.SetResponseHeaders,
+		ShowErrorDetails:                  p.ShowErrorDetails,
+		Timeout:                           timeout,
+		TlsClientCert:                     p.TLSClientCert,
+		TlsClientCertFile:                 p.TLSClientCertFile,
+		TlsClientKey:                      p.TLSClientKey,
+		TlsClientKeyFile:                  p.TLSClientKeyFile,
+		TlsCustomCa:                       p.TLSCustomCA,
+		TlsCustomCaFile:                   p.TLSCustomCAFile,
+		TlsDownstreamClientCa:             p.TLSDownstreamClientCA,
+		TlsDownstreamClientCaFile:         p.TLSDownstreamClientCAFile,
+		TlsDownstreamServerName:           p.TLSDownstreamServerName,
+		TlsServerName:                     p.TLSServerName,
+		TlsSkipVerify:                     p.TLSSkipVerify,
+		TlsUpstreamAllowRenegotiation:     p.TLSUpstreamAllowRenegotiation,
+		TlsUpstreamServerName:             p.TLSUpstreamServerName,
 	}
 	if p.HostPathRegexRewritePattern != "" {
 		pb.HostPathRegexRewritePattern = proto.String(p.HostPathRegexRewritePattern)
@@ -568,16 +570,8 @@ func (p *Policy) Validate() error {
 		p.TLSDownstreamClientCA = base64.StdEncoding.EncodeToString(bs)
 	}
 
-	if p.KubernetesServiceAccountTokenFile != "" {
-		if p.KubernetesServiceAccountToken != "" {
-			return fmt.Errorf("config: specified both `kubernetes_service_account_token_file` and `kubernetes_service_account_token`")
-		}
-
-		token, err := os.ReadFile(p.KubernetesServiceAccountTokenFile)
-		if err != nil {
-			return fmt.Errorf("config: failed to load kubernetes service account token: %w", err)
-		}
-		p.KubernetesServiceAccountToken = string(token)
+	if p.KubernetesServiceAccountTokenFile != "" && p.KubernetesServiceAccountToken != "" {
+		return fmt.Errorf("config: specified both `kubernetes_service_account_token_file` and `kubernetes_service_account_token`")
 	}
 
 	if p.PrefixRewrite != "" && p.RegexRewritePattern != "" {
@@ -730,6 +724,20 @@ func (p *Policy) AllAllowedUsers() []string {
 		aus = append(aus, sp.AllowedUsers...)
 	}
 	return aus
+}
+
+// GetKubernetesServiceAccountToken gets the kubernetes service account token from a file or from the config option.
+func (p *Policy) GetKubernetesServiceAccountToken() (string, error) {
+	if p.KubernetesServiceAccountTokenFile != "" {
+		bs, err := os.ReadFile(p.KubernetesServiceAccountTokenFile)
+		return string(bs), err
+	}
+
+	if p.KubernetesServiceAccountToken != "" {
+		return p.KubernetesServiceAccountToken, nil
+	}
+
+	return "", nil
 }
 
 // GetPassIdentityHeaders gets the pass identity headers option. If not set in the policy, use the setting from the
