@@ -30,21 +30,25 @@ type HeadersRequest struct {
 }
 
 // NewHeadersRequestFromPolicy creates a new HeadersRequest from a policy.
-func NewHeadersRequestFromPolicy(policy *config.Policy, http RequestHTTP) *HeadersRequest {
+func NewHeadersRequestFromPolicy(policy *config.Policy, http RequestHTTP) (*HeadersRequest, error) {
 	input := new(HeadersRequest)
 	input.Issuer = http.Hostname
 	if policy != nil {
 		input.EnableGoogleCloudServerlessAuthentication = policy.EnableGoogleCloudServerlessAuthentication
 		input.EnableRoutingKey = policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
 			policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_MAGLEV
-		input.KubernetesServiceAccountToken = policy.KubernetesServiceAccountToken
+		var err error
+		input.KubernetesServiceAccountToken, err = policy.GetKubernetesServiceAccountToken()
+		if err != nil {
+			return nil, err
+		}
 		for _, wu := range policy.To {
 			input.ToAudience = "https://" + wu.URL.Hostname()
 		}
 		input.ClientCertificate = http.ClientCertificate
 		input.SetRequestHeaders = policy.SetRequestHeaders
 	}
-	return input
+	return input, nil
 }
 
 // HeadersResponse is the output from the headers.rego script.
