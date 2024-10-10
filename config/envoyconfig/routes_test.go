@@ -15,6 +15,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
+	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
@@ -302,7 +303,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	oneMinute := time.Minute
 	ten := time.Second * 10
 
-	b := &Builder{filemgr: filemgr.NewManager()}
+	b := &Builder{filemgr: filemgr.NewManager(), reproxy: reproxy.New()}
 	routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
 		CookieName:             "pomerium",
 		DefaultUpstreamTimeout: time.Second * 3,
@@ -1294,6 +1295,117 @@ func Test_buildPolicyRoutes(t *testing.T) {
 								"contextExtensions": {
 									"internal": "false",
 									"route_id": "16598125949405432745"
+								}
+							}
+						}
+					}
+				}
+			]
+		`, routes)
+	})
+
+	t.Run("kubernetes", func(t *testing.T) {
+		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
+			AuthenticateURLString: "https://authenticate.example.com",
+			Services:              "proxy",
+			CookieName:            "pomerium",
+			SharedKey:             cryptutil.NewBase64Key(),
+			Policies: []config.Policy{
+				{
+					From:                          "https://k8s-in.example.com",
+					To:                            mustParseWeightedURLs(t, "https://k8s-out.example.com"),
+					KubernetesServiceAccountToken: "KUBERNETES_SERVICE_ACCOUNT_TOKEN",
+				},
+			},
+		}}, "k8s-in.example.com")
+		require.NoError(t, err)
+
+		testutil.AssertProtoJSONEqual(t, `
+			[
+				{
+					"name": "policy-0",
+					"match": {
+						"prefix": "/"
+					},
+					"metadata": {
+						"filterMetadata": {
+							"envoy.filters.http.lua": {
+								"remove_impersonate_headers": true,
+								"remove_pomerium_authorization": true,
+								"remove_pomerium_cookie": "pomerium",
+								"rewrite_response_headers": []
+							}
+						}
+					},
+					"route": {
+						"autoHostRewrite": true,
+						"cluster": "pomerium-control-plane-http",
+						"hashPolicy": [
+							{
+								"header": {
+									"headerName": "x-pomerium-routing-key"
+								},
+								"terminal": true
+							},
+							{
+								"connectionProperties": {
+									"sourceIp": true
+								},
+								"terminal": true
+							}
+						],
+						"idleTimeout": "0s",
+						"timeout": "0s",
+						"upgradeConfigs": [
+							{ "enabled": true, "upgradeType": "websocket"},
+							{ "enabled": true, "upgradeType": "spdy/3.1"}
+						]
+					},
+					"requestHeadersToAdd": [
+						{
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+							"header": {
+								"key": "x-pomerium-reproxy-policy",
+								"value": "2222095689633600553"
+							}
+						},
+						{
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+							"header": {
+								"key": "x-pomerium-reproxy-policy-hmac",
+								"value": "/cH0S/ODZYaW4CALohG926c+TH22+/bD79Kb82k8/Eg="
+							}
+						}
+					],
+					"requestHeadersToRemove": [
+						"x-pomerium-jwt-assertion",
+						"x-pomerium-jwt-assertion-for",
+						"x-pomerium-reproxy-policy",
+						"x-pomerium-reproxy-policy-hmac"
+					],
+					"responseHeadersToAdd": [
+						{
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+							"header": {
+							  "key": "X-Frame-Options",
+							  "value": "SAMEORIGIN"
+							}
+						},
+						{
+							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+							"header": {
+							  "key": "X-XSS-Protection",
+							  "value": "1; mode=block"
+							}
+						}
+					],
+					"typedPerFilterConfig": {
+						"envoy.filters.http.ext_authz": {
+							"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+							"checkSettings": {
+								"contextExtensions": {
+									"internal": "false",
+									"route_id": "2222095689633600553"
 								}
 							}
 						}
