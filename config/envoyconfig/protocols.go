@@ -45,7 +45,8 @@ var http1ProtocolOptions = &envoy_config_core_v3.Http1ProtocolOptions{
 	},
 }
 
-// Keepalive is a type to enable or disable keepalive
+// Keepalive is a type to enable or disable HTTP/2 keepalive.
+// (Not to be confused with TCP keepalive, which is always enabled.)
 type Keepalive bool
 
 var http2ProtocolOptions = &envoy_config_core_v3.Http2ProtocolOptions{

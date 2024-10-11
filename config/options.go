@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"iter"
 	"net/http"
 	"net/url"
@@ -24,6 +26,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/null/v9"
+	"golang.org/x/crypto/hkdf"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/csrf"
@@ -909,6 +912,7 @@ func (o *Options) GetGRPCAddr() string {
 }
 
 // GetGRPCInsecure gets whether or not gRPC is insecure.
+// XXX: deprecate
 func (o *Options) GetGRPCInsecure() bool {
 	if o.GRPCInsecure != nil {
 		return *o.GRPCInsecure
@@ -1175,6 +1179,18 @@ func (o *Options) GetSharedKey() ([]byte, error) {
 		return nil, errors.New("shared secret contains whitespace")
 	}
 	return base64.StdEncoding.DecodeString(sharedKey)
+}
+
+type KDFContext []byte
+
+var KDFContextInternalEd25519CA = KDFContext("internal-ed25519-ca")
+
+func (o *Options) GetDerivedKDF(context KDFContext) (io.Reader, error) {
+	sharedSecret, err := o.GetSharedKey()
+	if err != nil {
+		return nil, err
+	}
+	return hkdf.New(sha256.New, sharedSecret, nil, context), nil
 }
 
 // GetHPKEPrivateKey gets the hpke.PrivateKey dervived from the shared key.

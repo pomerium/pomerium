@@ -405,6 +405,51 @@ func (b *Builder) buildMetricsHTTPConnectionManagerFilter() (*envoy_config_liste
 	}), nil
 }
 
+func (b *Builder) internalCAAndServerCert(
+	ctx context.Context,
+	cfg *config.Config,
+) ([]byte, *envoy_extensions_transport_sockets_tls_v3.TlsCertificate, error) {
+	// Determine which hostnames might be used to connect to this service.
+	// (Only the authorize and databroker services take internal gRPC traffic.)
+	var internalURLs []*url.URL
+	if config.IsAuthorize(cfg.Options.Services) {
+		urls, err := cfg.Options.GetInternalAuthorizeURLs()
+		if err != nil {
+			return nil, nil, err
+		}
+		internalURLs = append(internalURLs, urls...)
+	}
+	if config.IsDataBroker(cfg.Options.Services) {
+		urls, err := cfg.Options.GetDataBrokerURLs()
+		if err != nil {
+			return nil, nil, err
+		}
+		internalURLs = append(internalURLs, urls...)
+	}
+
+	dnsNames := set.New[string](0)
+	ipAddresses := set.NewHashSetFunc(0, func(ip net.IP) string { return string(ip) })
+	for _, u := range internalURLs {
+		h := u.Hostname()
+		if ip := net.ParseIP(h); ip != nil {
+			ipAddresses.Insert(ip)
+		} else {
+			dnsNames.Insert(h)
+		}
+	}
+
+	// Issue an internal certificate for this service.
+	internalCA, err := b.internalCA(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	cert, err := internalCA.NewServerCertificate(dnsNames.Slice(), ipAddresses.Slice())
+	if err != nil {
+		return nil, nil, err
+	}
+	return internalCA.PEM(), b.envoyTLSCertificateFromGoTLSCertificate(ctx, cert), nil
+}
+
 func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
 	filter, err := b.buildGRPCHTTPConnectionManagerFilter()
 	if err != nil {
@@ -418,29 +463,27 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 	li := newEnvoyListener("grpc-ingress")
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{&filterChain}
 
-	if cfg.Options.GetGRPCInsecure() {
-		li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 80)
-		return li, nil
-	}
-
 	li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 443)
 	li.ListenerFilters = []*envoy_config_listener_v3.ListenerFilter{
 		TLSInspectorFilter(),
 	}
 
-	allCertificates, err := getAllCertificates(cfg)
+	caCert, serverCert, err := b.internalCAAndServerCert(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
-	envoyCerts, err := b.envoyCertificates(ctx, allCertificates)
-	if err != nil {
-		return nil, err
+	vct := &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
+		ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
+			TrustedCa: b.filemgr.BytesDataSource("internal-ca.pem", caCert),
+		},
 	}
 	tlsContext := &envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext{
+		RequireClientCertificate: wrapperspb.Bool(true),
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
-			TlsParams:       tlsDownstreamParams,
-			TlsCertificates: envoyCerts,
-			AlpnProtocols:   []string{"h2"}, // gRPC requires HTTP/2
+			TlsParams:             tlsParamsEdDSAOnly,
+			TlsCertificates:       []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{serverCert},
+			AlpnProtocols:         []string{"h2"}, // gRPC requires HTTP/2
+			ValidationContextType: vct,
 		},
 	}
 	filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
