@@ -38,10 +38,12 @@ var (
 		"routes.set_authorization_header": "https://www.pomerium.com/docs/deploy/core/upgrading#set-authorization-header",
 	}
 
-	// mapstructure has issues with embedded protobuf structs that we should ignore
 	ignoreConfigFields = map[string]struct{}{
+		// mapstructure has issues with embedded protobuf structs that we should ignore
 		"routes.outlier_detection": {},
 		"routes.health_checks":     {},
+		// set_response_headers is handled separately from mapstructure
+		"set_response_headers": {},
 	}
 )
 
