@@ -252,3 +252,17 @@ func TestLease(t *testing.T) {
 		assert.True(t, ok, "expected b to to acquire the lease")
 	}
 }
+
+// Concurrent calls to Put() and ListTypes() should not cause a data race.
+func TestListTypes_concurrent(t *testing.T) {
+	ctx := context.Background()
+	backend := New()
+	for i := 0; i < 10; i++ {
+		t := fmt.Sprintf("Type-%02d", i)
+		go backend.Put(ctx, []*databroker.Record{{
+			Id:   "1",
+			Type: t,
+		}})
+		go backend.ListTypes(ctx)
+	}
+}
