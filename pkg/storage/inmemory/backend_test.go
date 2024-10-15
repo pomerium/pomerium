@@ -254,7 +254,7 @@ func TestLease(t *testing.T) {
 }
 
 // Concurrent calls to Put() and ListTypes() should not cause a data race.
-func TestListTypes_concurrent(t *testing.T) {
+func TestListTypes_concurrent(_ *testing.T) {
 	ctx := context.Background()
 	backend := New()
 	for i := 0; i < 10; i++ {
