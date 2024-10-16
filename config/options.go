@@ -274,6 +274,8 @@ type Options struct {
 	// see https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers.html?highlight=xff_num_trusted_hops#x-forwarded-for
 	XffNumTrustedHops uint32 `mapstructure:"xff_num_trusted_hops" yaml:"xff_num_trusted_hops,omitempty" json:"xff_num_trusted_hops,omitempty"`
 
+	EnvoyAdminEnableTap  bool `mapstructure:"envoy_admin_enable_tap" yaml:"envoy_admin_enable_tap,omitempty" json:"envoy_admin_enable_tap,omitempty"`
+
 	// Envoy bootstrap options. These do not support dynamic updates.
 	EnvoyAdminAccessLogPath      string    `mapstructure:"envoy_admin_access_log_path" yaml:"envoy_admin_access_log_path"`
 	EnvoyAdminProfilePath        string    `mapstructure:"envoy_admin_profile_path" yaml:"envoy_admin_profile_path"`
