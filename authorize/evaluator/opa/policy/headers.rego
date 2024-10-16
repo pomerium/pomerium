@@ -77,7 +77,7 @@ jwt_payload_aud := v if {
 	v := input.issuer
 } else := ""
 
-jwt_payload_iss := v if {
+jwt_payload_iss := concat("", ["https://", v, "/"]) if {
 	v := input.issuer
 } else := ""
 
@@ -201,6 +201,7 @@ set_request_headers := h if {
 		"pomerium.id_token": session_id_token,
 		"pomerium.access_token": session_access_token,
 		"pomerium.client_cert_fingerprint": client_cert_fingerprint,
+		"pomerium.jwt": signed_jwt,
 	}
 	h := [[header_name, header_value] |
 		some header_name
