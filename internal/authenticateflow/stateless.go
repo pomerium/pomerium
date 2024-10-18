@@ -184,7 +184,7 @@ func (s *Stateless) SignIn(
 
 	// start over if this is a different identity provider
 	if sessionState == nil || sessionState.IdentityProviderID != idpID {
-		sessionState = sessions.NewState(idpID)
+		sessionState = sessions.NewState(idpID, s.options.CookieExpire)
 	}
 
 	// re-persist the session, useful when session was evicted from session store
@@ -394,7 +394,7 @@ func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	ss := newSessionStateFromProfile(profile)
+	ss := newSessionStateFromProfile(profile, s.options.CookieExpire)
 	sess, err := session.Get(r.Context(), s.dataBrokerClient, ss.ID)
 	if err != nil {
 		sess = &session.Session{Id: ss.ID}
