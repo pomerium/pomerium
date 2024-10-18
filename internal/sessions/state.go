@@ -18,11 +18,12 @@ var timeNow = time.Now
 // State is our object that keeps track of a user's session state
 type State struct {
 	// Public claim values (as specified in RFC 7519).
-	Issuer   string           `json:"iss,omitempty"`
-	Subject  string           `json:"sub,omitempty"`
-	Audience jwt.Audience     `json:"aud,omitempty"`
-	IssuedAt *jwt.NumericDate `json:"iat,omitempty"`
-	ID       string           `json:"jti,omitempty"`
+	Issuer    string           `json:"iss,omitempty"`
+	Subject   string           `json:"sub,omitempty"`
+	Audience  jwt.Audience     `json:"aud,omitempty"`
+	IssuedAt  *jwt.NumericDate `json:"iat,omitempty"`
+	ExpiresAt *jwt.NumericDate `json:"exp,omitempty"`
+	ID        string           `json:"jti,omitempty"`
 
 	// Azure returns OID which should be used instead of subject.
 	OID string `json:"oid,omitempty"`
@@ -39,21 +40,25 @@ type State struct {
 }
 
 // NewState creates a new State.
-func NewState(idpID string) *State {
+func NewState(idpID string, sessionDuration time.Duration) *State {
+	now := timeNow()
 	return &State{
-		IssuedAt:           jwt.NewNumericDate(timeNow()),
+		IssuedAt:           jwt.NewNumericDate(now),
+		ExpiresAt:          jwt.NewNumericDate(now.Add(sessionDuration)),
 		ID:                 uuid.NewString(),
 		IdentityProviderID: idpID,
 	}
 }
 
 // WithNewIssuer creates a new State from an existing State.
-func (s *State) WithNewIssuer(issuer string, audience []string) State {
+func (s *State) WithNewIssuer(issuer string, audience []string, sessionDuration time.Duration) State {
 	newState := State{}
 	if s != nil {
 		newState = *s
 	}
-	newState.IssuedAt = jwt.NewNumericDate(timeNow())
+	now := timeNow()
+	newState.IssuedAt = jwt.NewNumericDate(now)
+	newState.ExpiresAt = jwt.NewNumericDate(now.Add(sessionDuration))
 	newState.Audience = audience
 	newState.Issuer = issuer
 	return newState

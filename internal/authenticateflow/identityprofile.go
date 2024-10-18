@@ -126,10 +126,10 @@ func validateIdentityProfile(
 	return nil
 }
 
-func newSessionStateFromProfile(p *identitypb.Profile) *sessions.State {
+func newSessionStateFromProfile(p *identitypb.Profile, sessionDuration time.Duration) *sessions.State {
 	claims := p.GetClaims().AsMap()
 
-	ss := sessions.NewState(p.GetProviderId())
+	ss := sessions.NewState(p.GetProviderId(), sessionDuration)
 
 	// set the subject
 	if v, ok := claims["sub"]; ok {

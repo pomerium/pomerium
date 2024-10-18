@@ -15,6 +15,7 @@ func TestState_UnmarshalJSON(t *testing.T) {
 		return fixedTime
 	}
 	defer func() { timeNow = time.Now }()
+	expiresAt := fixedTime.Add(time.Minute)
 	tests := []struct {
 		name    string
 		in      *State
@@ -24,25 +25,25 @@ func TestState_UnmarshalJSON(t *testing.T) {
 		{
 			"good",
 			&State{ID: "xyz"},
-			&State{ID: "xyz", IssuedAt: jwt.NewNumericDate(fixedTime)},
+			&State{ID: "xyz", IssuedAt: jwt.NewNumericDate(fixedTime), ExpiresAt: jwt.NewNumericDate(expiresAt)},
 			false,
 		},
 		{
 			"with user",
 			&State{ID: "xyz"},
-			&State{ID: "xyz", IssuedAt: jwt.NewNumericDate(fixedTime)},
+			&State{ID: "xyz", IssuedAt: jwt.NewNumericDate(fixedTime), ExpiresAt: jwt.NewNumericDate(expiresAt)},
 			false,
 		},
 		{
 			"without",
 			&State{ID: "xyz", Subject: "user"},
-			&State{ID: "xyz", Subject: "user", IssuedAt: jwt.NewNumericDate(fixedTime)},
+			&State{ID: "xyz", Subject: "user", IssuedAt: jwt.NewNumericDate(fixedTime), ExpiresAt: jwt.NewNumericDate(expiresAt)},
 			false,
 		},
 		{
 			"missing id",
 			&State{},
-			&State{IssuedAt: jwt.NewNumericDate(fixedTime)},
+			&State{IssuedAt: jwt.NewNumericDate(fixedTime), ExpiresAt: jwt.NewNumericDate(expiresAt)},
 			true,
 		},
 	}
@@ -53,7 +54,7 @@ func TestState_UnmarshalJSON(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			s := NewState("")
+			s := NewState("", time.Minute)
 			s.ID = ""
 			if err := s.UnmarshalJSON(data); (err != nil) != tt.wantErr {
 				t.Errorf("State.UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)

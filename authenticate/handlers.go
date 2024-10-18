@@ -394,13 +394,13 @@ Or contact your administrator.
 		return nil, fmt.Errorf("error redeeming authenticate code: %w", err)
 	}
 
-	s := sessions.NewState(idpID)
+	s := sessions.NewState(idpID, a.options.Load().CookieExpire)
 	err = claims.Claims.Claims(&s)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling session state: %w", err)
 	}
 
-	newState := s.WithNewIssuer(state.redirectURL.Hostname(), []string{state.redirectURL.Hostname()})
+	newState := s.WithNewIssuer(state.redirectURL.Hostname(), []string{state.redirectURL.Hostname()}, a.options.Load().CookieExpire)
 	if nextRedirectURL, err := urlutil.ParseAndValidateURL(redirectURL.Query().Get(urlutil.QueryRedirectURI)); err == nil {
 		newState.Audience = append(newState.Audience, nextRedirectURL.Hostname())
 	}

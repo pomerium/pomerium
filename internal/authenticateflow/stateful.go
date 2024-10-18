@@ -118,7 +118,7 @@ func (s *Stateful) SignIn(
 
 	// start over if this is a different identity provider
 	if sessionState == nil || sessionState.IdentityProviderID != idpID {
-		sessionState = sessions.NewState(idpID)
+		sessionState = sessions.NewState(idpID, s.sessionDuration)
 	}
 
 	redirectURL, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
@@ -137,7 +137,7 @@ func (s *Stateful) SignIn(
 		jwtAudience = append(jwtAudience, callbackURL.Host)
 	}
 
-	newSession := sessionState.WithNewIssuer(s.authenticateURL.Host, jwtAudience)
+	newSession := sessionState.WithNewIssuer(s.authenticateURL.Host, jwtAudience, s.sessionDuration)
 
 	// re-persist the session, useful when session was evicted from session store
 	if err := s.sessionStore.SaveSession(w, r, sessionState); err != nil {
