@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -134,6 +135,7 @@ func (a *Authorize) deniedResponse(
 ) (*envoy_service_auth_v3.CheckResponse, error) {
 	respHeader := []*envoy_config_core_v3.HeaderValueOption{}
 
+	kind := wellKnownRequestKind(in)
 	var respBody []byte
 	switch {
 	case getCheckRequestURL(in).Path == "/robots.txt":
@@ -141,14 +143,40 @@ func (a *Authorize) deniedResponse(
 		respBody = []byte("User-agent: *\nDisallow: /")
 		respHeader = append(respHeader,
 			mkHeader("Content-Type", "text/plain"))
-	case isJSONWebRequest(in):
+	case kind == KubernetesGVK:
+		message := reason
+		var statusReason string
+		switch code {
+		case http.StatusUnauthorized:
+			statusReason = "Unauthorized"
+		case http.StatusForbidden:
+			statusReason = "Forbidden"
+		case http.StatusNotFound:
+			statusReason = "NotFound"
+		case httputil.StatusDeviceUnauthorized, httputil.StatusInvalidClientCertificate:
+			statusReason = "Unauthorized"
+			message = httputil.DetailsText(int(code))
+		default:
+			statusReason = "" // StatusReasonUnknown
+		}
+		respBody, _ = json.Marshal(map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Status",
+			"status":     "Failure",    // one of "Success" or "Failure"
+			"message":    message,      // user-facing message
+			"reason":     statusReason, // must correspond to k8s StatusReason strings
+			"code":       code,         // http code
+		})
+		respHeader = append(respHeader,
+			mkHeader("Content-Type", "application/json"))
+	case kind == JSONWebRequest:
 		respBody, _ = json.Marshal(map[string]any{
 			"error":      reason,
 			"request_id": requestid.FromContext(ctx),
 		})
 		respHeader = append(respHeader,
 			mkHeader("Content-Type", "application/json"))
-	case isGRPCWebRequest(in):
+	case kind == GRPCWebRequest:
 		respHeader = append(respHeader,
 			mkHeader("Content-Type", "application/grpc-web+json"),
 			mkHeader("grpc-status", strconv.Itoa(int(codes.Unauthenticated))),
@@ -358,50 +386,53 @@ func (a *Authorize) shouldRedirect(in *envoy_service_auth_v3.CheckRequest) bool 
 	return mediaType == "text/html"
 }
 
-func isGRPCWebRequest(in *envoy_service_auth_v3.CheckRequest) bool {
+type WellKnownRequestKind int
+
+const (
+	Unknown WellKnownRequestKind = iota
+	JSONWebRequest
+	GRPCWebRequest
+	KubernetesGVK
+)
+
+func wellKnownRequestKind(in *envoy_service_auth_v3.CheckRequest) WellKnownRequestKind {
 	hdrs := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
 	if hdrs == nil {
-		return false
+		return Unknown
 	}
 
 	v := getHeader(hdrs, "Accept")
 	if v == "" {
-		return false
+		return Unknown
 	}
 
 	accept, err := rfc7231.ParseAccept(v)
 	if err != nil {
-		return false
+		return Unknown
 	}
 
-	mediaType, _ := accept.MostAcceptable([]string{
-		"text/html",
-		"application/grpc-web-text",
-	})
-	return mediaType == "application/grpc-web-text"
-}
-
-func isJSONWebRequest(in *envoy_service_auth_v3.CheckRequest) bool {
-	hdrs := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
-	if hdrs == nil {
-		return false
-	}
-
-	v := getHeader(hdrs, "Accept")
-	if v == "" {
-		return false
-	}
-
-	accept, err := rfc7231.ParseAccept(v)
-	if err != nil {
-		return false
-	}
-
-	mediaType, _ := accept.MostAcceptable([]string{
+	if mediaType, _ := accept.MostAcceptable([]string{
 		"text/html",
 		"application/json",
-	})
-	return mediaType == "application/json"
+	}); mediaType == "application/json" {
+		for _, mediaRange := range strings.Split(v, ",") {
+			if _, params, err := mime.ParseMediaType(mediaRange); err == nil {
+				if params["g"] != "" && params["v"] != "" && params["as"] != "" {
+					return KubernetesGVK
+				}
+			}
+		}
+		return JSONWebRequest
+	}
+
+	if mediaType, _ := accept.MostAcceptable([]string{
+		"text/html",
+		"application/grpc-web-text",
+	}); mediaType == "application/grpc-web-text" {
+		return GRPCWebRequest
+	}
+
+	return Unknown
 }
 
 func getHeader(hdrs map[string]string, key string) string {
