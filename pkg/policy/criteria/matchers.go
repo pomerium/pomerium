@@ -11,6 +11,13 @@ import (
 type matcher func(*ast.Body, *ast.Term, parser.Value) error
 
 func matchString(dst *ast.Body, left *ast.Term, right parser.Value) error {
+	str, ok := right.(parser.String)
+	if ok {
+		right = parser.Object{
+			"is": str,
+		}
+	}
+
 	obj, ok := right.(parser.Object)
 	if !ok {
 		return fmt.Errorf("expected object for string matcher, got: %T", right)
@@ -56,6 +63,13 @@ func matchStringStartsWith(dst *ast.Body, left *ast.Term, right parser.Value) er
 }
 
 func matchStringList(dst *ast.Body, left *ast.Term, right parser.Value) error {
+	str, ok := right.(parser.String)
+	if ok {
+		right = parser.Object{
+			"is": str,
+		}
+	}
+
 	obj, ok := right.(parser.Object)
 	if !ok {
 		return fmt.Errorf("expected object for string list matcher, got: %T", right)
@@ -63,6 +77,7 @@ func matchStringList(dst *ast.Body, left *ast.Term, right parser.Value) error {
 
 	lookup := map[string]matcher{
 		"has": matchStringListHas,
+		"is":  matchStringListHas,
 	}
 	for k, v := range obj {
 		f, ok := lookup[k]

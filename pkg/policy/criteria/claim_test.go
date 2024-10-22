@@ -11,8 +11,12 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 )
 
-func TestClaims(t *testing.T) {
+func TestClaim(t *testing.T) {
+	t.Parallel()
+
 	t.Run("no session", func(t *testing.T) {
+		t.Parallel()
+
 		res, err := evaluate(t, `
 allow:
   and:
@@ -40,6 +44,8 @@ allow:
 		require.Equal(t, A{false, A{}}, res["deny"])
 	})
 	t.Run("by session claim", func(t *testing.T) {
+		t.Parallel()
+
 		res, err := evaluate(t, `
 allow:
   and:
@@ -63,7 +69,36 @@ allow:
 		require.Equal(t, A{true, A{ReasonClaimOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
 	})
+	t.Run("by session claim via has", func(t *testing.T) {
+		t.Parallel()
+
+		res, err := evaluate(t, `
+allow:
+  and:
+    - claim/family_name:
+        has: Smith
+`,
+			[]*databroker.Record{
+				makeRecord(&session.Session{
+					Id:     "SESSION_ID",
+					UserId: "USER_ID",
+					Claims: map[string]*structpb.ListValue{
+						"family_name": {Values: []*structpb.Value{structpb.NewStringValue("Smith")}},
+					},
+				}),
+				makeRecord(&user.User{
+					Id:    "USER_ID",
+					Email: "test@example.com",
+				}),
+			},
+			Input{Session: InputSession{ID: "SESSION_ID"}})
+		require.NoError(t, err)
+		require.Equal(t, A{true, A{ReasonClaimOK}, M{}}, res["allow"])
+		require.Equal(t, A{false, A{}}, res["deny"])
+	})
 	t.Run("by user claim", func(t *testing.T) {
+		t.Parallel()
+
 		res, err := evaluate(t, `
 allow:
   and:
@@ -88,6 +123,8 @@ allow:
 		require.Equal(t, A{false, A{}}, res["deny"])
 	})
 	t.Run("special keys", func(t *testing.T) {
+		t.Parallel()
+
 		res, err := evaluate(t, `
 allow:
   and:
