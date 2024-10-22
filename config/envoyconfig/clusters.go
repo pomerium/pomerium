@@ -29,64 +29,69 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildClusters")
 	defer span.End()
 
-	grpcURLs := []*url.URL{{
-		Scheme: "http",
-		Host:   b.localGRPCAddress,
-	}}
-	httpURL := &url.URL{
-		Scheme: "http",
-		Host:   b.localHTTPAddress,
-	}
-	metricsURL := &url.URL{
-		Scheme: "http",
-		Host:   b.localMetricsAddress,
+	controlGRPC, err := b.buildInternalClusterLocal(
+		cfg, "pomerium-control-plane-grpc", b.localGRPCAddress, upstreamProtocolHTTP2)
+	if err != nil {
+		return nil, err
 	}
 
-	authorizeURLs, databrokerURLs := grpcURLs, grpcURLs
-	if !config.IsAll(cfg.Options.Services) {
-		var err error
-		authorizeURLs, err = cfg.Options.GetInternalAuthorizeURLs()
+	controlHTTP, err := b.buildInternalClusterLocal(
+		cfg, "pomerium-control-plane-http", b.localHTTPAddress, upstreamProtocolAuto)
+	if err != nil {
+		return nil, err
+	}
+
+	controlMetrics, err := b.buildInternalClusterLocal(
+		cfg, "pomerium-control-plane-metrics", b.localMetricsAddress, upstreamProtocolAuto)
+	if err != nil {
+		return nil, err
+	}
+
+	var authorizeCluster, databrokerCluster *envoy_config_cluster_v3.Cluster
+	if config.IsAll(cfg.Options.Services) {
+		authorizeCluster, err = b.buildInternalClusterLocal(
+			cfg, "pomerium-authorize", b.localGRPCAddress, upstreamProtocolHTTP2)
 		if err != nil {
 			return nil, err
 		}
-		databrokerURLs, err = cfg.Options.GetDataBrokerURLs()
+		databrokerCluster, err = b.buildInternalClusterLocal(
+			cfg, "pomerium-databroker", b.localGRPCAddress, upstreamProtocolHTTP2)
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	controlGRPC, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-grpc", grpcURLs, upstreamProtocolHTTP2, Keepalive(false))
-	if err != nil {
-		return nil, err
-	}
-
-	controlHTTP, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-http", []*url.URL{httpURL}, upstreamProtocolAuto, Keepalive(false))
-	if err != nil {
-		return nil, err
-	}
-
-	controlMetrics, err := b.buildInternalCluster(ctx, cfg, "pomerium-control-plane-metrics", []*url.URL{metricsURL}, upstreamProtocolAuto, Keepalive(false))
-	if err != nil {
-		return nil, err
-	}
-
-	authorizeCluster, err := b.buildInternalCluster(ctx, cfg, "pomerium-authorize", authorizeURLs, upstreamProtocolHTTP2, Keepalive(false))
-	if err != nil {
-		return nil, err
-	}
-	if len(authorizeURLs) > 1 {
-		authorizeCluster.HealthChecks = grpcHealthChecks("pomerium-authorize")
-		authorizeCluster.OutlierDetection = grpcOutlierDetection()
-	}
-
-	databrokerKeepalive := Keepalive(cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagGRPCDatabrokerKeepalive))
-	databrokerCluster, err := b.buildInternalCluster(ctx, cfg, "pomerium-databroker", databrokerURLs, upstreamProtocolHTTP2, databrokerKeepalive)
-	if err != nil {
-		return nil, err
-	}
-	if len(databrokerURLs) > 1 {
-		databrokerCluster.HealthChecks = grpcHealthChecks("pomerium-databroker")
-		databrokerCluster.OutlierDetection = grpcOutlierDetection()
+	} else {
+		internalCA, err := b.internalCA(cfg)
+		if err != nil {
+			return nil, err
+		}
+		internalCAPEM := internalCA.PEM()
+		cert, err := internalCA.NewClientCertificate()
+		if err != nil {
+			return nil, err
+		}
+		envoyCert := b.envoyTLSCertificateFromGoTLSCertificate(ctx, cert)
+		if err != nil {
+			return nil, err
+		}
+		authorizeURLs, err := cfg.Options.GetInternalAuthorizeURLs()
+		if err != nil {
+			return nil, err
+		}
+		authorizeCluster, err = b.buildInternalClusterInterService(
+			cfg, "pomerium-authorize", authorizeURLs, Keepalive(false), internalCAPEM, envoyCert)
+		if err != nil {
+			return nil, err
+		}
+		databrokerURLs, err := cfg.Options.GetDataBrokerURLs()
+		if err != nil {
+			return nil, err
+		}
+		databrokerKeepalive := Keepalive(cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagGRPCDatabrokerKeepalive))
+		databrokerCluster, err = b.buildInternalClusterInterService(
+			cfg, "pomerium-databroker", databrokerURLs, databrokerKeepalive, internalCAPEM, envoyCert)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	envoyAdminCluster, err := b.buildEnvoyAdminCluster(ctx, cfg)
@@ -130,14 +135,7 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 	return clusters, nil
 }
 
-func (b *Builder) buildInternalCluster(
-	ctx context.Context,
-	cfg *config.Config,
-	name string,
-	dsts []*url.URL,
-	upstreamProtocol upstreamProtocolConfig,
-	keepalive Keepalive,
-) (*envoy_config_cluster_v3.Cluster, error) {
+func newDefaultInternalCluster(cfg *config.Config) *envoy_config_cluster_v3.Cluster {
 	cluster := newDefaultEnvoyClusterConfig()
 	cluster.DnsLookupFamily = config.GetEnvoyDNSLookupFamily(cfg.Options.DNSLookupFamily)
 	// Match the Go standard library default TCP keepalive settings.
@@ -148,18 +146,51 @@ func (b *Builder) buildInternalCluster(
 			KeepaliveInterval: wrapperspb.UInt32(keepaliveTimeSeconds),
 		},
 	}
+	return cluster
+}
+
+// buildInternalClusterLocal builds an Envoy cluster used to connect from Envoy
+// back to the Pomerium process.
+func (b *Builder) buildInternalClusterLocal(
+	cfg *config.Config,
+	name string,
+	host string,
+	upstreamProtocol upstreamProtocolConfig,
+) (*envoy_config_cluster_v3.Cluster, error) {
+	cluster := newDefaultInternalCluster(cfg)
+	endpoints := []Endpoint{NewEndpoint(&url.URL{Scheme: "http", Host: host}, nil, 1)}
+	if err := b.buildCluster(cluster, name, endpoints, upstreamProtocol, Keepalive(false)); err != nil {
+		return nil, err
+	}
+	return cluster, nil
+}
+
+// buildInternalClusterInterService builds an Envoy cluster used to connect to
+// another Pomerium service (for split-service mode).
+func (b *Builder) buildInternalClusterInterService(
+	cfg *config.Config,
+	name string,
+	dsts []*url.URL,
+	keepalive Keepalive,
+	internalCAPEM []byte,
+	internalCert *envoy_extensions_transport_sockets_tls_v3.TlsCertificate,
+) (*envoy_config_cluster_v3.Cluster, error) {
+	cluster := newDefaultInternalCluster(cfg)
 	var endpoints []Endpoint
 	for _, dst := range dsts {
-		ts, err := b.buildInternalTransportSocket(ctx, cfg, dst)
+		ts, err := b.buildInternalTransportSocket(dst, internalCAPEM, internalCert)
 		if err != nil {
 			return nil, err
 		}
 		endpoints = append(endpoints, NewEndpoint(dst, ts, 1))
 	}
-	if err := b.buildCluster(cluster, name, endpoints, upstreamProtocol, keepalive); err != nil {
+	if err := b.buildCluster(cluster, name, endpoints, upstreamProtocolHTTP2, keepalive); err != nil {
 		return nil, err
 	}
-
+	if len(dsts) > 1 {
+		cluster.HealthChecks = grpcHealthChecks(name)
+		cluster.OutlierDetection = grpcOutlierDetection()
+	}
 	return cluster, nil
 }
 
@@ -234,33 +265,28 @@ func (b *Builder) buildPolicyEndpoints(
 }
 
 func (b *Builder) buildInternalTransportSocket(
-	ctx context.Context,
-	cfg *config.Config,
 	endpoint *url.URL,
+	internalCAPEM []byte,
+	internalCert *envoy_extensions_transport_sockets_tls_v3.TlsCertificate,
 ) (*envoy_config_core_v3.TransportSocket, error) {
-	if endpoint.Scheme != "https" {
-		return nil, nil
-	}
+	// XXX: disallow non-https URLs
 
-	validationContext := &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
-		MatchTypedSubjectAltNames: []*envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher{
-			b.buildSubjectAltNameMatcher(endpoint, cfg.Options.OverrideCertificateName),
+	vct := &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
+		ValidationContext: &envoy_extensions_transport_sockets_tls_v3.CertificateValidationContext{
+			TrustedCa: b.filemgr.BytesDataSource("ca.pem", internalCAPEM),
+			MatchTypedSubjectAltNames: []*envoy_extensions_transport_sockets_tls_v3.SubjectAltNameMatcher{
+				b.buildSubjectAltNameMatcher(endpoint, ""),
+			},
 		},
-	}
-	bs, err := getCombinedCertificateAuthority(cfg)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
-	} else {
-		validationContext.TrustedCa = b.filemgr.BytesDataSource("ca.pem", bs)
 	}
 	tlsContext := &envoy_extensions_transport_sockets_tls_v3.UpstreamTlsContext{
 		CommonTlsContext: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext{
-			AlpnProtocols: []string{"h2", "http/1.1"},
-			ValidationContextType: &envoy_extensions_transport_sockets_tls_v3.CommonTlsContext_ValidationContext{
-				ValidationContext: validationContext,
-			},
+			TlsParams:             tlsParamsEdDSAOnly,
+			TlsCertificates:       []*envoy_extensions_transport_sockets_tls_v3.TlsCertificate{internalCert},
+			ValidationContextType: vct,
 		},
-		Sni: b.buildSubjectNameIndication(endpoint, cfg.Options.OverrideCertificateName),
+		// XXX: strip IPv6 zone if present?
+		Sni: endpoint.Hostname(),
 	}
 	tlsConfig := marshalAny(tlsContext)
 	return &envoy_config_core_v3.TransportSocket{
