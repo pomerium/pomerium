@@ -104,21 +104,9 @@ func Error() *zerolog.Event {
 	return log.Error()
 }
 
-func contextLogger(ctx context.Context) *zerolog.Logger {
-	global := Logger()
-	if global.GetLevel() == zerolog.Disabled {
-		return global
-	}
-	l := zerolog.Ctx(ctx)
-	if l.GetLevel() == zerolog.Disabled { // no logger associated with context
-		return global
-	}
-	return l
-}
-
 // WithContext returns a context that has an associated logger and extra fields set via update
 func WithContext(ctx context.Context, update func(c zerolog.Context) zerolog.Context) context.Context {
-	l := contextLogger(ctx).With().Logger()
+	l := log.Ctx(ctx).With().Logger()
 	l.UpdateContext(update)
 	return l.WithContext(ctx)
 }
