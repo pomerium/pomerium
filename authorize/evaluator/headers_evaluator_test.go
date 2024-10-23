@@ -53,6 +53,48 @@ func TestNewHeadersRequestFromPolicy(t *testing.T) {
 	}, req)
 }
 
+func TestNewHeadersRequestFromPolicy_IssuerFormat(t *testing.T) {
+	policy := &config.Policy{
+		EnableGoogleCloudServerlessAuthentication: true,
+		From: "https://*.example.com",
+		To: config.WeightedURLs{
+			{
+				URL: *mustParseURL("http://to.example.com"),
+			},
+		},
+	}
+	for _, tc := range []struct {
+		format   string
+		expected string
+		err      string
+	}{
+		{format: "", expected: "from.example.com"},
+		{format: "hostOnly", expected: "from.example.com"},
+		{format: "uri", expected: "https://from.example.com/"},
+		{format: "foo", err: `invalid issuer format: "foo"`},
+	} {
+		policy.JWTIssuerFormat = tc.format
+		req, err := NewHeadersRequestFromPolicy(policy, RequestHTTP{
+			Hostname: "from.example.com",
+			ClientCertificate: ClientCertificateInfo{
+				Leaf: "--- FAKE CERTIFICATE ---",
+			},
+		})
+		if tc.err != "" {
+			assert.ErrorContains(t, err, tc.err)
+		} else {
+			assert.Equal(t, &HeadersRequest{
+				EnableGoogleCloudServerlessAuthentication: true,
+				Issuer:     tc.expected,
+				ToAudience: "https://to.example.com",
+				ClientCertificate: ClientCertificateInfo{
+					Leaf: "--- FAKE CERTIFICATE ---",
+				},
+			}, req)
+		}
+	}
+}
+
 func TestNewHeadersRequestFromPolicy_nil(t *testing.T) {
 	req, _ := NewHeadersRequestFromPolicy(nil, RequestHTTP{Hostname: "from.example.com"})
 	assert.Equal(t, &HeadersRequest{
