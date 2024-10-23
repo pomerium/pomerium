@@ -1,16 +1,11 @@
 package testutil
 
 import (
-	"bufio"
-	"context"
 	"fmt"
-	"io"
 	"testing"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -66,33 +61,4 @@ func WithTestMinIO(t *testing.T, bucket string, handler func(endpoint string)) {
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "pomeriumtest")
 
 	handler(endpoint)
-}
-
-func tailLogs(ctx context.Context, t *testing.T, pool *dockertest.Pool, resource *dockertest.Resource) {
-	t.Helper()
-
-	pr, pw := io.Pipe()
-	go func() {
-		s := bufio.NewScanner(pr)
-		for s.Scan() {
-			t.Logf("%s: %s", resource.Container.Config.Image, s.Text())
-		}
-	}()
-	defer pw.Close()
-
-	opts := docker.LogsOptions{
-		Context: ctx,
-
-		Stderr:      true,
-		Stdout:      true,
-		Follow:      true,
-		Timestamps:  true,
-		RawTerminal: true,
-
-		Container: resource.Container.ID,
-
-		OutputStream: pw,
-	}
-
-	_ = pool.Client.Logs(opts)
 }
