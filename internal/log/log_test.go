@@ -80,7 +80,7 @@ func ExampleDebug() {
 // Example of a log at a particular "level" (in this case, "info")
 func ExampleInfo() {
 	captureOutput(func() {
-		log.Info(context.Background()).Msg("hello world")
+		log.Info().Msg("hello world")
 	})
 	// Output: {"level":"info","time":"2008-01-08T17:05:05Z","message":"hello world"}
 }
@@ -122,7 +122,7 @@ func Example() {
 		}
 
 		log.Debug().Msg("This message appears only when log level set to Debug")
-		log.Info(context.Background()).Msg("This message appears when log level set to Debug or Info")
+		log.Info().Msg("This message appears when log level set to Debug or Info")
 
 		if e := log.Debug(); e.Enabled() {
 			// Compute log output only if enabled.
@@ -137,13 +137,13 @@ func ExampleSetLevel() {
 	captureOutput(func() {
 		log.SetLevel(zerolog.InfoLevel)
 		log.Debug().Msg("Debug")
-		log.Info(context.Background()).Msg("Debug or Info")
+		log.Info().Msg("Debug or Info")
 		log.SetLevel(zerolog.WarnLevel)
 		log.Debug().Msg("Debug")
-		log.Info(context.Background()).Msg("Debug or Info")
+		log.Info().Msg("Debug or Info")
 		log.SetLevel(zerolog.ErrorLevel)
 		log.Debug().Msg("Debug")
-		log.Info(context.Background()).Msg("Debug or Info")
+		log.Info().Msg("Debug or Info")
 		log.Error().Msg("Debug or Info or Warn or Error")
 		log.SetLevel(zerolog.DebugLevel)
 		log.Debug().Msg("Debug")
@@ -173,7 +173,7 @@ func ExampleContext() {
 				return c.Int("counter", i)
 			})
 		}
-		log.Info(ctx1).Str("non_ctx_param", "value").Msg("after counter")
+		log.Ctx(ctx1).Info().Str("non_ctx_param", "value").Msg("after counter")
 	})
 	// Output:
 	// {"level":"error","non_context_param":"value","time":"2008-01-08T17:05:05Z","message":"background"}

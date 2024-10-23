@@ -210,7 +210,7 @@ func getRootCertificateAuthority() (string, error) {
 			log.Error().Strs("known-locations", knownRootLocations).
 				Msgf("no root certificates were found in any of the known locations")
 		} else {
-			log.Info(context.TODO()).Msgf("using %s as the system root certificate authority bundle", rootCABundle.value)
+			log.Info().Msgf("using %s as the system root certificate authority bundle", rootCABundle.value)
 		}
 	})
 	if rootCABundle.value == "" {

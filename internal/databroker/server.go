@@ -457,10 +457,10 @@ func (srv *Server) newBackendLocked() (backend storage.Backend, err error) {
 
 	switch srv.cfg.storageType {
 	case config.StorageInMemoryName:
-		log.Info(ctx).Msg("using in-memory store")
+		log.Ctx(ctx).Info().Msg("using in-memory store")
 		return inmemory.New(), nil
 	case config.StoragePostgresName:
-		log.Info(ctx).Msg("using postgres store")
+		log.Ctx(ctx).Info().Msg("using postgres store")
 		backend = postgres.New(srv.cfg.storageConnectionString)
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", srv.cfg.storageType)

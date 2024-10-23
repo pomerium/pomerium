@@ -56,7 +56,7 @@ func DumpConfig(ctx context.Context, adminURL string) (*adminv3.RoutesConfigDump
 				// RawJSON("data", data).
 				Msg("decode")
 		} else {
-			log.Info(ctx).Msg(a.TypeUrl)
+			log.Ctx(ctx).Info().Msg(a.TypeUrl)
 		}
 	}
 	return nil, err

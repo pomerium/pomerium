@@ -313,7 +313,7 @@ func RecordIdentityManagerSessionRefresh(ctx context.Context, err error) {
 // SetDBConfigInfo records status, databroker version and error count while parsing
 // the configuration from a databroker
 func SetDBConfigInfo(ctx context.Context, service, configID string, version uint64, errCount int64) {
-	log.Info(ctx).
+	log.Ctx(ctx).Info().
 		Str("service", service).
 		Str("config_id", configID).
 		Uint64("version", version).
@@ -374,7 +374,7 @@ func SetConfigInfo(ctx context.Context, service, configName string, checksum uin
 	} else {
 		stats.Record(context.Background(), configLastReloadSuccess.M(0))
 	}
-	log.Info(ctx).
+	log.Ctx(ctx).Info().
 		Str("service", service).
 		Str("config", configName).
 		Str("checksum", fmt.Sprintf("%x", checksum)).

@@ -283,7 +283,7 @@ func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
 	if envoyCgroup != s.cgroup {
 		return fmt.Errorf("envoy process is not in the expected cgroup: %s", envoyCgroup)
 	}
-	log.Info(ctx).Str("service", "envoy").Str("cgroup", s.cgroup).Msg("starting resource monitor")
+	log.Ctx(ctx).Info().Str("service", "envoy").Str("cgroup", s.cgroup).Msg("starting resource monitor")
 
 	ctx, ca := context.WithCancelCause(ctx)
 
@@ -747,7 +747,7 @@ func (w *memoryLimitWatcher) Watch(ctx context.Context) error {
 				if (event.Mask & unix.IN_IGNORED) != 0 {
 					// watch was removed, or the file was deleted (this can happen if
 					// the memory controller is removed from the parent's subtree_control)
-					log.Info(ctx).Str("file", w.limitFilePath).Msg("watched file removed")
+					log.Ctx(ctx).Info().Str("file", w.limitFilePath).Msg("watched file removed")
 					return
 				}
 			}

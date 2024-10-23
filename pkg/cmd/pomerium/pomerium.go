@@ -34,7 +34,7 @@ import (
 func Run(ctx context.Context, src config.Source) error {
 	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Debug().Msgf(s, i...) }))
 
-	evt := log.Info(ctx).
+	evt := log.Ctx(ctx).Info().
 		Str("envoy_version", files.FullVersion()).
 		Str("version", version.FullVersion())
 	if buildTime := version.BuildTime(); buildTime != "" {
@@ -86,7 +86,7 @@ func Run(ctx context.Context, src config.Source) error {
 		return fmt.Errorf("applying config: %w", err)
 	}
 
-	log.Info(ctx).
+	log.Ctx(ctx).Info().
 		Str("grpc-port", src.GetConfig().GRPCPort).
 		Str("http-port", src.GetConfig().HTTPPort).
 		Str("outbound-port", src.GetConfig().OutboundPort).
@@ -177,7 +177,7 @@ func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *con
 
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
-	log.Info(ctx).Msg("enabled authenticate service")
+	log.Ctx(ctx).Info().Msg("enabled authenticate service")
 
 	return nil
 }
@@ -189,7 +189,7 @@ func setupAuthorize(ctx context.Context, src config.Source, controlPlane *contro
 	}
 	envoy_service_auth_v3.RegisterAuthorizationServer(controlPlane.GRPCServer, svc)
 
-	log.Info(ctx).Msg("enabled authorize service")
+	log.Ctx(ctx).Info().Msg("enabled authorize service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
 	return svc, nil
@@ -205,7 +205,7 @@ func setupDataBroker(ctx context.Context,
 		return nil, fmt.Errorf("error creating databroker service: %w", err)
 	}
 	svc.Register(controlPlane.GRPCServer)
-	log.Info(ctx).Msg("enabled databroker service")
+	log.Ctx(ctx).Info().Msg("enabled databroker service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
 	return svc, nil
@@ -232,7 +232,7 @@ func setupProxy(ctx context.Context, src config.Source, controlPlane *controlpla
 		return fmt.Errorf("error adding proxy service to control plane: %w", err)
 	}
 
-	log.Info(ctx).Msg("enabled proxy service")
+	log.Ctx(ctx).Info().Msg("enabled proxy service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
 

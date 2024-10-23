@@ -66,7 +66,7 @@ func (srv *Server) runProcessCollector(ctx context.Context) {
 func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []string) (exePath string, args []string) {
 	// release the previous process so we can hot-reload
 	if srv.cmd != nil && srv.cmd.Process != nil {
-		log.Info(ctx).Msg("envoy: releasing envoy process for hot-reload")
+		log.Ctx(ctx).Info().Msg("envoy: releasing envoy process for hot-reload")
 		err := srv.cmd.Process.Release()
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Str("service", "envoy").Msg("envoy: failed to release envoy process for hot-reload")

@@ -99,8 +99,8 @@ func Debug() *zerolog.Event {
 // Info starts a new message with info level.
 //
 // You must call Msg on the returned event in order to send the event.
-func Info(ctx context.Context) *zerolog.Event {
-	return contextLogger(ctx).Info()
+func Info() *zerolog.Event {
+	return log.Info()
 }
 
 // Error starts a new message with error level.
