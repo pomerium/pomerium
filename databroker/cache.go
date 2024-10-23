@@ -180,7 +180,7 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 			legacyOptions = append(legacyOptions, legacymanager.WithAuthenticator(authenticator))
 		}
 	} else {
-		log.Info(ctx).Msg("databroker: disabling refresh of user sessions")
+		log.Ctx(ctx).Info().Msg("databroker: disabling refresh of user sessions")
 	}
 
 	if c.manager == nil {

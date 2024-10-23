@@ -55,7 +55,7 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 		grpc.WithInsecure(),
 	}
 	dialOptions = append(dialOptions, other...)
-	log.Debug(ctx).Str("address", opts.Address).Msg("grpc: dialing")
+	log.Ctx(ctx).Debug().Str("address", opts.Address).Msg("grpc: dialing")
 	return grpc.DialContext(ctx, opts.Address, dialOptions...)
 }
 

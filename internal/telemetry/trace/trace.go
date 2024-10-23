@@ -74,7 +74,7 @@ func GetProvider(opts *TracingOptions) (Provider, error) {
 	}
 	octrace.ApplyConfig(octrace.Config{DefaultSampler: octrace.ProbabilitySampler(opts.SampleRate)})
 
-	log.Debug(context.TODO()).Interface("Opts", opts).Msg("telemetry/trace: provider created")
+	log.Debug().Interface("Opts", opts).Msg("telemetry/trace: provider created")
 	return provider, nil
 }
 

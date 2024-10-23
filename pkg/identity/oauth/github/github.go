@@ -152,7 +152,7 @@ func (p *Provider) userEmail(ctx context.Context, t *oauth2.Token, v any) error 
 		Email    string `json:"email"`
 		Verified bool   `json:"email_verified"`
 	}
-	log.Debug(ctx).Interface("emails", response).Msg("github: user emails")
+	log.Ctx(ctx).Debug().Interface("emails", response).Msg("github: user emails")
 	for _, email := range response {
 		if email.Primary && email.Verified {
 			out.Email = email.Email

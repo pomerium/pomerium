@@ -61,7 +61,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 			log.Ctx(ctx).Debug().Str("request-id", requestID).Err(err).Msg("temporary error checking authorization: data broker unavailable")
 			return nil, err
 		} else if err != nil {
-			log.Info(ctx).Err(err).Str("request-id", requestID).Msg("clearing session due to missing or invalid session or service account")
+			log.Ctx(ctx).Info().Err(err).Str("request-id", requestID).Msg("clearing session due to missing or invalid session or service account")
 			sessionState = nil
 		}
 	}

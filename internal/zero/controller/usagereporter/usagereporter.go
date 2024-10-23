@@ -79,10 +79,10 @@ func (ur *UsageReporter) report(ctx context.Context, records []usageReporterReco
 		Users: convertUsageReporterRecords(ur.pseudonymizationKey, records),
 	}
 	return backoff.Retry(func() error {
-		log.Debug(ctx).Int("updated-users", len(req.Users)).Msg("reporting usage")
+		log.Ctx(ctx).Debug().Int("updated-users", len(req.Users)).Msg("reporting usage")
 		err := ur.api.ReportUsage(ctx, req)
 		if err != nil {
-			log.Warn(ctx).Err(err).Msg("error reporting usage")
+			log.Ctx(ctx).Error().Err(err).Msg("error reporting usage")
 		}
 		return err
 	}, backoff.WithContext(backoff.NewExponentialBackOff(), ctx))

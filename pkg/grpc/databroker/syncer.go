@@ -128,7 +128,7 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 }
 
 func (syncer *Syncer) init(ctx context.Context) error {
-	log.Debug(ctx).Msg("initial sync")
+	log.Ctx(ctx).Debug().Msg("initial sync")
 	records, recordVersion, serverVersion, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient(), &SyncLatestRequest{
 		Type: syncer.cfg.typeURL,
 	})
@@ -157,7 +157,7 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 		return fmt.Errorf("error calling sync: %w", err)
 	}
 
-	log.Debug(ctx).Msg("listening for updates")
+	log.Ctx(ctx).Debug().Msg("listening for updates")
 
 	for {
 		res, err := stream.Recv()
@@ -171,7 +171,7 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 		}
 
 		rec := res.GetRecord()
-		log.Debug(logCtxRec(ctx, rec)).Msg("syncer got record")
+		log.Ctx(logCtxRec(ctx, rec)).Debug().Msg("syncer got record")
 
 		syncer.recordVersion = res.GetRecord().GetVersion()
 		if syncer.cfg.typeURL == "" || syncer.cfg.typeURL == res.GetRecord().GetType() {

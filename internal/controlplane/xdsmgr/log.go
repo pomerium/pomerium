@@ -1,7 +1,6 @@
 package xdsmgr
 
 import (
-	"context"
 	"errors"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -21,7 +20,7 @@ var (
 )
 
 func logNACK(req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
-	log.Debug(context.Background()).
+	log.Debug().
 		Str("type-url", req.GetTypeUrl()).
 		Any("error-detail", req.GetErrorDetail()).
 		Msg("xdsmgr: nack")
@@ -30,7 +29,7 @@ func logNACK(req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
 }
 
 func logACK(req *envoy_service_discovery_v3.DeltaDiscoveryRequest) {
-	log.Debug(context.Background()).
+	log.Debug().
 		Str("type-url", req.GetTypeUrl()).
 		Msg("xdsmgr: ack")
 

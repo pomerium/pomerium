@@ -193,7 +193,7 @@ func (mgr *Manager) renewConfigCerts(ctx context.Context) error {
 
 	needsReload := false
 	var renew, ocsp []string
-	log.Debug(ctx).Strs("domains", sourceHostnames(cfg)).Msg("checking domains")
+	log.Ctx(ctx).Debug().Strs("domains", sourceHostnames(cfg)).Msg("checking domains")
 	for _, domain := range sourceHostnames(cfg) {
 		cert, err := cm.CacheManagedCertificate(ctx, domain)
 		if err != nil {
@@ -222,7 +222,7 @@ func (mgr *Manager) renewConfigCerts(ctx context.Context) error {
 		}
 		return c
 	})
-	log.Info(ctx).Msg("updating certificates")
+	log.Ctx(ctx).Info().Msg("updating certificates")
 
 	cfg = mgr.src.GetConfig().Clone()
 	mgr.updateServer(ctx, cfg)
@@ -252,7 +252,7 @@ func (mgr *Manager) update(ctx context.Context, cfg *config.Config) error {
 func (mgr *Manager) obtainCert(ctx context.Context, domain string, cm *certmagic.Config) (certmagic.Certificate, error) {
 	cert, err := cm.CacheManagedCertificate(ctx, domain)
 	if err != nil {
-		log.Info(ctx).Str("domain", domain).Msg("obtaining certificate")
+		log.Ctx(ctx).Info().Str("domain", domain).Msg("obtaining certificate")
 		err = cm.ObtainCertSync(ctx, domain)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("autocert failed to obtain client certificate")
@@ -267,7 +267,7 @@ func (mgr *Manager) obtainCert(ctx context.Context, domain string, cm *certmagic
 // renewCert attempts to renew given certificate.
 func (mgr *Manager) renewCert(ctx context.Context, domain string, cert certmagic.Certificate, cm *certmagic.Config) (certmagic.Certificate, error) {
 	expired := time.Now().After(cert.Leaf.NotAfter)
-	log.Info(ctx).Str("domain", domain).Msg("renewing certificate")
+	log.Ctx(ctx).Info().Str("domain", domain).Msg("renewing certificate")
 	renewCertLock.Lock()
 	err := cm.RenewCertSync(ctx, domain, false)
 	renewCertLock.Unlock()
@@ -301,7 +301,7 @@ func (mgr *Manager) updateAutocert(ctx context.Context, cfg *config.Config) erro
 			continue
 		}
 
-		log.Info(ctx).Strs("names", cert.Names).Msg("autocert: added certificate")
+		log.Ctx(ctx).Info().Strs("names", cert.Names).Msg("autocert: added certificate")
 		cfg.AutoCertificates = append(cfg.AutoCertificates, cert.Certificate)
 	}
 
@@ -337,7 +337,7 @@ func (mgr *Manager) updateServer(ctx context.Context, cfg *config.Config) {
 		}),
 	}
 	go func() {
-		log.Info(ctx).Str("addr", hsrv.Addr).Msg("starting http redirect server")
+		log.Ctx(ctx).Info().Str("addr", hsrv.Addr).Msg("starting http redirect server")
 		err := hsrv.ListenAndServe()
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("failed to run http redirect server")
@@ -391,7 +391,7 @@ func (mgr *Manager) updateACMETLSALPNServer(ctx context.Context, cfg *config.Con
 
 			orig := tlsConfig.GetCertificate
 			tlsConfig.GetCertificate = func(chi *tls.ClientHelloInfo) (*tls.Certificate, error) {
-				log.Info(ctx).Str("server-name", chi.ServerName).
+				log.Ctx(ctx).Info().Str("server-name", chi.ServerName).
 					Msg("received request for ACME TLS ALPN certificate")
 				return orig(chi)
 			}

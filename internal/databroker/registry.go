@@ -98,7 +98,7 @@ func (srv *Server) newRegistryLocked(backend storage.Backend) (registry.Interfac
 	if hasRegistryServer, ok := backend.(interface {
 		RegistryServer() registrypb.RegistryServer
 	}); ok {
-		log.Info(ctx).Msg("using registry via storage")
+		log.Ctx(ctx).Info().Msg("using registry via storage")
 		return struct {
 			io.Closer
 			registrypb.RegistryServer
@@ -107,7 +107,7 @@ func (srv *Server) newRegistryLocked(backend storage.Backend) (registry.Interfac
 
 	switch srv.cfg.storageType {
 	case config.StorageInMemoryName:
-		log.Info(ctx).Msg("using in-memory registry")
+		log.Ctx(ctx).Info().Msg("using in-memory registry")
 		return inmemory.New(ctx, srv.cfg.registryTTL), nil
 	}
 

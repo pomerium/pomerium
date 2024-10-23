@@ -45,7 +45,7 @@ func accessLogListener(
 		if failure == "" {
 			continue
 		}
-		e := log.Info(ctx).Str("service", "envoy")
+		e := log.Ctx(ctx).Info().Str("service", "envoy")
 		dict := zerolog.Dict()
 		populateCertEventDict(entry.GetCommonProperties().GetTlsProperties().GetPeerCertificateProperties(), dict)
 		e.Dict("client-certificate", dict)
@@ -63,9 +63,9 @@ func (srv *Server) accessLogHTTP(
 		reqPath := entry.GetRequest().GetPath()
 		var evt *zerolog.Event
 		if reqPath == "/ping" || reqPath == "/healthz" {
-			evt = log.Debug(ctx)
+			evt = log.Ctx(ctx).Debug()
 		} else {
-			evt = log.Info(ctx)
+			evt = log.Ctx(ctx).Info()
 		}
 		evt = evt.Str("service", "envoy")
 

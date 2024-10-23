@@ -270,7 +270,7 @@ func TestConfig(t *testing.T) {
 			initialOCSPStaple = cert.OCSPStaple
 		} else {
 			if !bytes.Equal(initialOCSPStaple, cert.OCSPStaple) {
-				log.Info(ctx).Msg("OCSP updated")
+				log.Ctx(ctx).Info().Msg("OCSP updated")
 				ocspUpdated <- true
 			}
 		}
@@ -278,7 +278,7 @@ func TestConfig(t *testing.T) {
 			certValidTime = &cert.Leaf.NotAfter
 		} else {
 			if !certValidTime.Equal(cert.Leaf.NotAfter) {
-				log.Info(ctx).Msg("domain renewed")
+				log.Ctx(ctx).Info().Msg("domain renewed")
 				domainRenewed <- true
 			}
 		}
