@@ -32,7 +32,7 @@ import (
 
 // Run runs the main pomerium application.
 func Run(ctx context.Context, src config.Source) error {
-	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Debug(context.Background()).Msgf(s, i...) }))
+	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Debug().Msgf(s, i...) }))
 
 	evt := log.Info(ctx).
 		Str("envoy_version", files.FullVersion()).

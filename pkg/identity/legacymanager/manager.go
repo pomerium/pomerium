@@ -135,7 +135,7 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 		mgr.onUpdateRecords(ctx, msg)
 	}
 
-	log.Debug(ctx).
+	log.Ctx(ctx).Debug().
 		Int("sessions", mgr.sessions.Len()).
 		Int("users", mgr.users.Len()).
 		Msg("initial sync complete")

@@ -93,7 +93,7 @@ func download(
 		}
 
 		if timesMatch(fi.ModTime(), lastModified) {
-			log.Debug(ctx).Str("url", srcURL).Str("dst", dstPath).Msg("skipping download")
+			log.Ctx(ctx).Debug().Str("url", srcURL).Str("dst", dstPath).Msg("skipping download")
 			return nil
 		}
 

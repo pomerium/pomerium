@@ -192,7 +192,7 @@ func getOrCreatePolicyEvaluators(
 		m[p.id] = p.evaluator
 	}
 
-	log.Debug(ctx).
+	log.Ctx(ctx).Debug().
 		Dur("duration", time.Since(now)).
 		Int("reused-policies", reusedCount).
 		Int("created-policies", len(cfg.Policies)-reusedCount).

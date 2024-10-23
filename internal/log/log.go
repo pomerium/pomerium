@@ -92,8 +92,8 @@ func Level(ctx context.Context, level zerolog.Level) *zerolog.Logger {
 // Debug starts a new message with debug level.
 //
 // You must call Msg on the returned event in order to send the event.
-func Debug(ctx context.Context) *zerolog.Event {
-	return contextLogger(ctx).Debug()
+func Debug() *zerolog.Event {
+	return log.Debug()
 }
 
 // Info starts a new message with info level.

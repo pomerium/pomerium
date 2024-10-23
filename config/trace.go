@@ -95,7 +95,7 @@ func (mgr *TraceManager) OnConfigChange(ctx context.Context, cfg *Config) {
 	}
 
 	if reflect.DeepEqual(traceOpts, mgr.traceOpts) {
-		log.Debug(ctx).Msg("no change detected in trace options")
+		log.Ctx(ctx).Debug().Msg("no change detected in trace options")
 		return
 	}
 	mgr.traceOpts = traceOpts

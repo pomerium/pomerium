@@ -63,7 +63,7 @@ func (srv *Server) accessLogHTTP(
 		reqPath := entry.GetRequest().GetPath()
 		var evt *zerolog.Event
 		if reqPath == "/ping" || reqPath == "/healthz" {
-			evt = log.Debug(ctx)
+			evt = log.Ctx(ctx).Debug()
 		} else {
 			evt = log.Info(ctx)
 		}

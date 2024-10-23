@@ -124,7 +124,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 			logACK(req)
 		default:
 			// an ACK for a response that's not the last response
-			log.Debug(ctx).
+			log.Ctx(ctx).Debug().
 				Str("type-url", req.GetTypeUrl()).
 				Msg("xdsmgr: ack")
 		}
@@ -206,7 +206,7 @@ func (mgr *Manager) DeltaAggregatedResources(
 			case <-ctx.Done():
 				return ctx.Err()
 			case res := <-outgoing:
-				log.Debug(ctx).
+				log.Ctx(ctx).Debug().
 					Str("type-url", res.GetTypeUrl()).
 					Int("resource-count", len(res.GetResources())).
 					Int("removed-resource-count", len(res.GetRemovedResources())).

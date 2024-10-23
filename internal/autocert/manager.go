@@ -193,7 +193,7 @@ func (mgr *Manager) renewConfigCerts(ctx context.Context) error {
 
 	needsReload := false
 	var renew, ocsp []string
-	log.Debug(ctx).Strs("domains", sourceHostnames(cfg)).Msg("checking domains")
+	log.Ctx(ctx).Debug().Strs("domains", sourceHostnames(cfg)).Msg("checking domains")
 	for _, domain := range sourceHostnames(cfg) {
 		cert, err := cm.CacheManagedCertificate(ctx, domain)
 		if err != nil {
