@@ -63,11 +63,12 @@ type Manager struct {
 }
 
 // New creates a new autocert manager.
-func New(src config.Source) (*Manager, error) {
-	return newManager(context.Background(), src, certmagic.DefaultACME, renewalInterval)
+func New(ctx context.Context, src config.Source) (*Manager, error) {
+	return newManager(ctx, src, certmagic.DefaultACME, renewalInterval)
 }
 
-func newManager(ctx context.Context,
+func newManager(
+	ctx context.Context,
 	src config.Source,
 	acmeTemplate certmagic.ACMEIssuer,
 	checkInterval time.Duration,
@@ -96,12 +97,13 @@ func newManager(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	mgr.certmagic = certmagic.New(certmagic.NewCache(certmagic.CacheOptions{
+	cache := certmagic.NewCache(certmagic.CacheOptions{
 		GetConfigForCert: func(_ certmagic.Certificate) (*certmagic.Config, error) {
 			return mgr.certmagic, nil
 		},
 		Logger: logger,
-	}), certmagic.Config{
+	})
+	mgr.certmagic = certmagic.New(cache, certmagic.Config{
 		Logger:  logger,
 		Storage: certmagicStorage,
 	})

@@ -36,7 +36,7 @@ func BuildImportCmd() *cobra.Command {
 				return fmt.Errorf("no config file provided")
 			}
 			log.SetLevel(zerolog.ErrorLevel)
-			src, err := config.NewFileOrEnvironmentSource(configFile, files.FullVersion())
+			src, err := config.NewFileOrEnvironmentSource(cmd.Context(), configFile, files.FullVersion())
 			if err != nil {
 				return err
 			}

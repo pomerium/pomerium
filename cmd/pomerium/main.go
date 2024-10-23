@@ -54,7 +54,7 @@ func run(ctx context.Context, configFile string) error {
 
 	var src config.Source
 
-	src, err := config.NewFileOrEnvironmentSource(configFile, files.FullVersion())
+	src, err := config.NewFileOrEnvironmentSource(ctx, configFile, files.FullVersion())
 	if err != nil {
 		return err
 	}

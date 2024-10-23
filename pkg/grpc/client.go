@@ -141,7 +141,7 @@ func WaitForReady(ctx context.Context, cc *grpc.ClientConn, timeout time.Duratio
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return context.Cause(ctx)
 		case <-ticker.C:
 		}
 

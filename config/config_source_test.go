@@ -137,7 +137,7 @@ runtime_flags:
 			require.NoError(t, err)
 
 			var src Source
-			src, err = NewFileOrEnvironmentSource(configFilePath, "")
+			src, err = NewFileOrEnvironmentSource(context.Background(), configFilePath, "")
 			require.NoError(t, err)
 			src = NewFileWatcherSource(context.Background(), src)
 
