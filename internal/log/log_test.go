@@ -141,18 +141,15 @@ func ExampleSetLevel() {
 		log.SetLevel(zerolog.WarnLevel)
 		log.Debug(context.Background()).Msg("Debug")
 		log.Info(context.Background()).Msg("Debug or Info")
-		log.Warn(context.Background()).Msg("Debug or Info or Warn")
 		log.SetLevel(zerolog.ErrorLevel)
 		log.Debug(context.Background()).Msg("Debug")
 		log.Info(context.Background()).Msg("Debug or Info")
-		log.Warn(context.Background()).Msg("Debug or Info or Warn")
 		log.Error().Msg("Debug or Info or Warn or Error")
 		log.SetLevel(zerolog.DebugLevel)
 		log.Debug(context.Background()).Msg("Debug")
 	})
 	// Output:
 	// {"level":"info","time":"2008-01-08T17:05:05Z","message":"Debug or Info"}
-	// {"level":"warn","time":"2008-01-08T17:05:05Z","message":"Debug or Info or Warn"}
 	// {"level":"error","time":"2008-01-08T17:05:05Z","message":"Debug or Info or Warn or Error"}
 	// {"level":"debug","time":"2008-01-08T17:05:05Z","message":"Debug"}
 }

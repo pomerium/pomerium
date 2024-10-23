@@ -103,13 +103,6 @@ func Info(ctx context.Context) *zerolog.Event {
 	return contextLogger(ctx).Info()
 }
 
-// Warn starts a new message with warn level.
-//
-// You must call Msg on the returned event in order to send the event.
-func Warn(ctx context.Context) *zerolog.Event {
-	return contextLogger(ctx).Warn()
-}
-
 // Error starts a new message with error level.
 //
 // You must call Msg on the returned event in order to send the event.

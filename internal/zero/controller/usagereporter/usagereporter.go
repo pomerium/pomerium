@@ -82,7 +82,7 @@ func (ur *UsageReporter) report(ctx context.Context, records []usageReporterReco
 		log.Debug(ctx).Int("updated-users", len(req.Users)).Msg("reporting usage")
 		err := ur.api.ReportUsage(ctx, req)
 		if err != nil {
-			log.Warn(ctx).Err(err).Msg("error reporting usage")
+			log.Ctx(ctx).Error().Err(err).Msg("error reporting usage")
 		}
 		return err
 	}, backoff.WithContext(backoff.NewExponentialBackOff(), ctx))
