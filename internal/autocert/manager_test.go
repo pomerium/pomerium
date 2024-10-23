@@ -316,7 +316,7 @@ func TestRedirect(t *testing.T) {
 			},
 		},
 	})
-	_, err = New(src)
+	_, err = New(context.Background(), src)
 	if !assert.NoError(t, err) {
 		return
 	}

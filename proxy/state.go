@@ -31,7 +31,7 @@ type proxyState struct {
 	authenticateFlow                    authenticateFlow
 }
 
-func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
+func newProxyStateFromConfig(ctx context.Context, cfg *config.Config) (*proxyState, error) {
 	err := ValidateOptions(cfg.Options)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 		return nil, err
 	}
 
-	dataBrokerConn, err := outboundGRPCConnection.Get(context.Background(), &grpc.OutboundOptions{
+	dataBrokerConn, err := outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,
@@ -71,10 +71,10 @@ func newProxyStateFromConfig(cfg *config.Config) (*proxyState, error) {
 	state.programmaticRedirectDomainWhitelist = cfg.Options.ProgrammaticRedirectDomainWhitelist
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {
-		state.authenticateFlow, err = authenticateflow.NewStateless(
+		state.authenticateFlow, err = authenticateflow.NewStateless(ctx,
 			cfg, state.sessionStore, nil, nil, nil)
 	} else {
-		state.authenticateFlow, err = authenticateflow.NewStateful(cfg, state.sessionStore)
+		state.authenticateFlow, err = authenticateflow.NewStateful(ctx, cfg, state.sessionStore)
 	}
 	if err != nil {
 		return nil, err

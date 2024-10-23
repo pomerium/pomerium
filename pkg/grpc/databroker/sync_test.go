@@ -24,7 +24,7 @@ func Test_SyncLatestRecords(t *testing.T) {
 	defer clearTimeout()
 
 	cc := testutil.NewGRPCServer(t, func(s *grpc.Server) {
-		databrokerpb.RegisterDataBrokerServiceServer(s, databroker.New())
+		databrokerpb.RegisterDataBrokerServiceServer(s, databroker.New(ctx))
 	})
 
 	c := databrokerpb.NewDataBrokerServiceClient(cc)

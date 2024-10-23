@@ -37,7 +37,7 @@ func TestUsageReporter(t *testing.T) {
 	t.Cleanup(cancel)
 
 	cc := testutil.NewGRPCServer(t, func(srv *grpc.Server) {
-		databrokerpb.RegisterDataBrokerServiceServer(srv, databroker.New())
+		databrokerpb.RegisterDataBrokerServiceServer(srv, databroker.New(ctx))
 	})
 	t.Cleanup(func() { cc.Close() })
 

@@ -108,7 +108,7 @@ func New(
 ) (*Evaluator, error) {
 	cfg := getConfig(options...)
 
-	err := updateStore(store, cfg)
+	err := updateStore(ctx, store, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -325,8 +325,8 @@ func (e *Evaluator) getClientCA(policy *config.Policy) (string, error) {
 	return string(e.clientCA), nil
 }
 
-func updateStore(store *store.Store, cfg *evaluatorConfig) error {
-	jwk, err := getJWK(cfg)
+func updateStore(ctx context.Context, store *store.Store, cfg *evaluatorConfig) error {
+	jwk, err := getJWK(ctx, cfg)
 	if err != nil {
 		return fmt.Errorf("authorize: couldn't create signer: %w", err)
 	}
@@ -341,7 +341,7 @@ func updateStore(store *store.Store, cfg *evaluatorConfig) error {
 	return nil
 }
 
-func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
+func getJWK(ctx context.Context, cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
 	var decodedCert []byte
 	// if we don't have a signing key, generate one
 	if len(cfg.SigningKey) == 0 {
@@ -361,7 +361,7 @@ func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate signing key: %w", err)
 	}
-	log.Info().Str("Algorithm", jwk.Algorithm).
+	log.Ctx(ctx).Info().Str("Algorithm", jwk.Algorithm).
 		Str("KeyID", jwk.KeyID).
 		Interface("Public Key", jwk.Public()).
 		Msg("authorize: signing key")

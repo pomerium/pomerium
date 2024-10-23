@@ -82,7 +82,7 @@ func TestNew(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := New(&config.Config{Options: &tt.config})
+			_, err := New(context.Background(), &config.Config{Options: &tt.config})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -114,7 +114,7 @@ func TestAuthorize_OnConfigChange(t *testing.T) {
 				SharedKey:             tc.SharedKey,
 				Policies:              tc.Policies,
 			}
-			a, err := New(&config.Config{Options: o})
+			a, err := New(context.Background(), &config.Config{Options: o})
 			require.NoError(t, err)
 			require.NotNil(t, a)
 
@@ -185,7 +185,7 @@ func TestNewPolicyEvaluator_addDefaultClientCertificateRule(t *testing.T) {
 			c.opts.Policies = []config.Policy{{
 				To: mustParseWeightedURLs(t, "http://example.com"),
 			}}
-			e, err := newPolicyEvaluator(c.opts, store, nil)
+			e, err := newPolicyEvaluator(context.Background(), c.opts, store, nil)
 			require.NoError(t, err)
 
 			r, err := e.Evaluate(context.Background(), &evaluator.Request{

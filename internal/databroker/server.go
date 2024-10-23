@@ -28,24 +28,25 @@ import (
 type Server struct {
 	cfg *serverConfig
 
-	mu       sync.RWMutex
-	backend  storage.Backend
-	registry registry.Interface
+	mu         sync.RWMutex
+	backend    storage.Backend
+	backendCtx context.Context
+	registry   registry.Interface
 }
 
 // New creates a new server.
-func New(options ...ServerOption) *Server {
-	srv := &Server{}
-	srv.UpdateConfig(options...)
+func New(ctx context.Context, options ...ServerOption) *Server {
+	srv := &Server{
+		backendCtx: ctx,
+	}
+	srv.UpdateConfig(ctx, options...)
 	return srv
 }
 
 // UpdateConfig updates the server with the new options.
-func (srv *Server) UpdateConfig(options ...ServerOption) {
+func (srv *Server) UpdateConfig(ctx context.Context, options ...ServerOption) {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
-
-	ctx := context.TODO()
 
 	cfg := newServerConfig(options...)
 	if cmp.Equal(cfg, srv.cfg, cmp.AllowUnexported(serverConfig{})) {
@@ -80,7 +81,7 @@ func (srv *Server) AcquireLease(ctx context.Context, req *databroker.AcquireLeas
 		Dur("duration", req.GetDuration().AsDuration()).
 		Msg("acquire lease")
 
-	db, err := srv.getBackend()
+	db, err := srv.getBackend(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +108,7 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 		Str("id", req.GetId()).
 		Msg("get")
 
-	db, err := srv.getBackend()
+	db, err := srv.getBackend(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +132,7 @@ func (srv *Server) ListTypes(ctx context.Context, _ *emptypb.Empty) (*databroker
 	defer span.End()
 	log.Ctx(ctx).Debug().Msg("list types")
 
-	db, err := srv.getBackend()
+	db, err := srv.getBackend(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +157,7 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 
 	query := strings.ToLower(req.GetQuery())
 
-	db, err := srv.getBackend()
+	db, err := srv.getBackend(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +218,7 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 			Msg("put")
 	}
 
-	db, err := srv.getBackend()
+	db, err := srv.getBackend(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +257,7 @@ func (srv *Server) Patch(ctx context.Context, req *databroker.PatchRequest) (*da
 			Msg("patch")
 	}
 
-	db, err := srv.getBackend()
+	db, err := srv.getBackend(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +283,7 @@ func (srv *Server) ReleaseLease(ctx context.Context, req *databroker.ReleaseLeas
 		Str("id", req.GetId()).
 		Msg("release lease")
 
-	db, err := srv.getBackend()
+	db, err := srv.getBackend(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +306,7 @@ func (srv *Server) RenewLease(ctx context.Context, req *databroker.RenewLeaseReq
 		Dur("duration", req.GetDuration().AsDuration()).
 		Msg("renew lease")
 
-	db, err := srv.getBackend()
+	db, err := srv.getBackend(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -325,7 +326,7 @@ func (srv *Server) SetOptions(ctx context.Context, req *databroker.SetOptionsReq
 	ctx, span := trace.StartSpan(ctx, "databroker.grpc.SetOptions")
 	defer span.End()
 
-	backend, err := srv.getBackend()
+	backend, err := srv.getBackend(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -351,12 +352,13 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	log.Ctx(ctx).Debug().
+	log.Ctx(ctx).
+		Debug().
 		Uint64("server_version", req.GetServerVersion()).
 		Uint64("record_version", req.GetRecordVersion()).
 		Msg("sync")
 
-	backend, err := srv.getBackend()
+	backend, err := srv.getBackend(ctx)
 	if err != nil {
 		return err
 	}
@@ -392,7 +394,7 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 		Str("type", req.GetType()).
 		Msg("sync latest")
 
-	backend, err := srv.getBackend()
+	backend, err := srv.getBackend(ctx)
 	if err != nil {
 		return err
 	}
@@ -430,7 +432,7 @@ func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databrok
 	})
 }
 
-func (srv *Server) getBackend() (backend storage.Backend, err error) {
+func (srv *Server) getBackend(ctx context.Context) (backend storage.Backend, err error) {
 	// double-checked locking:
 	// first try the read lock, then re-try with the write lock, and finally create a new backend if nil
 	srv.mu.RLock()
@@ -441,7 +443,7 @@ func (srv *Server) getBackend() (backend storage.Backend, err error) {
 		backend = srv.backend
 		var err error
 		if backend == nil {
-			backend, err = srv.newBackendLocked()
+			backend, err = srv.newBackendLocked(ctx)
 			srv.backend = backend
 		}
 		srv.mu.Unlock()
@@ -452,18 +454,18 @@ func (srv *Server) getBackend() (backend storage.Backend, err error) {
 	return backend, nil
 }
 
-func (srv *Server) newBackendLocked() (backend storage.Backend, err error) {
-	ctx := context.Background()
-
+func (srv *Server) newBackendLocked(ctx context.Context) (storage.Backend, error) {
 	switch srv.cfg.storageType {
 	case config.StorageInMemoryName:
-		log.Ctx(ctx).Info().Msg("using in-memory store")
+		log.Ctx(ctx).Info().Msg("initializing new in-memory store")
 		return inmemory.New(), nil
 	case config.StoragePostgresName:
-		log.Ctx(ctx).Info().Msg("using postgres store")
-		backend = postgres.New(srv.cfg.storageConnectionString)
+		log.Ctx(ctx).Info().Msg("initializing new postgres store")
+		// NB: the context passed to postgres.New here is a separate context scoped
+		// to the lifetime of the server itself. 'ctx' may be a short-lived request
+		// context, since the backend is lazy-initialized.
+		return postgres.New(srv.backendCtx, srv.cfg.storageConnectionString), nil
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", srv.cfg.storageType)
 	}
-	return backend, nil
 }

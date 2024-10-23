@@ -47,7 +47,7 @@ func (l *locker) Lock(ctx context.Context, name string) error {
 				// wait
 				select {
 				case <-ctx.Done():
-					return ctx.Err()
+					return context.Cause(ctx)
 				case <-time.After(lockPollInterval):
 				}
 				continue

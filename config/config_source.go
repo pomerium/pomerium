@@ -103,9 +103,10 @@ type FileOrEnvironmentSource struct {
 
 // NewFileOrEnvironmentSource creates a new FileOrEnvironmentSource.
 func NewFileOrEnvironmentSource(
+	ctx context.Context,
 	configFile, envoyVersion string,
 ) (*FileOrEnvironmentSource, error) {
-	ctx := log.WithContext(context.TODO(), func(c zerolog.Context) zerolog.Context {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("config_file_source", configFile)
 	})
 
