@@ -84,12 +84,20 @@ func TestStringListMatcher(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, `count([true | some v; v = example[_]; v == "test"]) > 0`, str(body))
 	})
+	t.Run("is", func(t *testing.T) {
+		var body ast.Body
+		err := matchStringList(&body, ast.VarTerm("example"), parser.Object{
+			"is": parser.String("test"),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, `count([i | v := example[i]; v == "test"]) == 1`, str(body))
+	})
 	t.Run("string", func(t *testing.T) {
 		t.Parallel()
 
 		var body ast.Body
 		err := matchStringList(&body, ast.VarTerm("example"), parser.String("test"))
 		require.NoError(t, err)
-		assert.Equal(t, `count([true | some v; v = example[_]; v == "test"]) > 0`, str(body))
+		assert.Equal(t, `count([i | v := example[i]; v == "test"]) == 1`, str(body))
 	})
 }

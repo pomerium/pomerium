@@ -77,7 +77,7 @@ func matchStringList(dst *ast.Body, left *ast.Term, right parser.Value) error {
 
 	lookup := map[string]matcher{
 		"has": matchStringListHas,
-		"is":  matchStringListHas,
+		"is":  matchStringListIs,
 	}
 	for k, v := range obj {
 		f, ok := lookup[k]
@@ -109,6 +109,26 @@ func matchStringListHas(dst *ast.Body, left *ast.Term, right parser.Value) error
 			),
 		),
 		ast.IntNumberTerm(0),
+	))
+	return nil
+}
+
+func matchStringListIs(dst *ast.Body, left *ast.Term, right parser.Value) error {
+	body := ast.Body{
+		ast.Assign.Expr(ast.VarTerm("v"), ast.RefTerm(left, ast.VarTerm("i"))),
+	}
+	err := matchStringIs(&body, ast.VarTerm("v"), right)
+	if err != nil {
+		return err
+	}
+	*dst = append(*dst, ast.Equal.Expr(
+		ast.Count.Call(
+			ast.ArrayComprehensionTerm(
+				ast.VarTerm("i"),
+				body,
+			),
+		),
+		ast.IntNumberTerm(1),
 	))
 	return nil
 }

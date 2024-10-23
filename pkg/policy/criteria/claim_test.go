@@ -96,6 +96,30 @@ allow:
 		require.Equal(t, A{true, A{ReasonClaimOK}, M{}}, res["allow"])
 		require.Equal(t, A{false, A{}}, res["deny"])
 	})
+	t.Run("no claim via has", func(t *testing.T) {
+		t.Parallel()
+
+		res, err := evaluate(t, `
+allow:
+  and:
+    - claim/family_name:
+        has: Smith
+`,
+			[]*databroker.Record{
+				makeRecord(&session.Session{
+					Id:     "SESSION_ID",
+					UserId: "USER_ID",
+				}),
+				makeRecord(&user.User{
+					Id:    "USER_ID",
+					Email: "test@example.com",
+				}),
+			},
+			Input{Session: InputSession{ID: "SESSION_ID"}})
+		require.NoError(t, err)
+		require.Equal(t, A{false, A{ReasonClaimUnauthorized}, M{}}, res["allow"])
+		require.Equal(t, A{false, A{}}, res["deny"])
+	})
 	t.Run("by user claim", func(t *testing.T) {
 		t.Parallel()
 
