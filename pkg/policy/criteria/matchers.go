@@ -66,7 +66,7 @@ func matchStringList(dst *ast.Body, left *ast.Term, right parser.Value) error {
 	str, ok := right.(parser.String)
 	if ok {
 		right = parser.Object{
-			"is": str,
+			"has": str,
 		}
 	}
 

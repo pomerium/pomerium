@@ -98,6 +98,6 @@ func TestStringListMatcher(t *testing.T) {
 		var body ast.Body
 		err := matchStringList(&body, ast.VarTerm("example"), parser.String("test"))
 		require.NoError(t, err)
-		assert.Equal(t, `count(example) == 1`+"\n"+`count([true | some v; v = example[_]; v == "test"]) > 0`, str(body))
+		assert.Equal(t, `count([true | some v; v = example[_]; v == "test"]) > 0`, str(body))
 	})
 }
