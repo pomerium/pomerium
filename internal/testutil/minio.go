@@ -11,66 +11,61 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // WithTestMinIO starts a test MinIO server
-func WithTestMinIO(t *testing.T, bucket string, handler func(endpoint string) error) error {
+func WithTestMinIO(t *testing.T, bucket string, handler func(endpoint string)) {
 	t.Helper()
 
-	ctx, clearTimeout := context.WithTimeout(context.Background(), maxWait)
-	defer clearTimeout()
+	ctx := GetContext(t, maxWait)
 
-	// uses a sensible default on windows (tcp/http) and linux/osx (socket)
-	pool, err := dockertest.NewPool("")
-	if err != nil {
-		return err
-	}
-
-	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "quay.io/minio/minio",
-		Tag:        "RELEASE.2022-12-02T19-19-22Z",
-		Env:        []string{"MINIO_ROOT_USER=pomerium", "MINIO_ROOT_PASSWORD=pomerium"},
-		Cmd:        []string{"server", "/data"},
+	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Name:         "pomerium-minio",
+			Image:        "quay.io/minio/minio:RELEASE.2022-12-02T19-19-22Z",
+			ExposedPorts: []string{"9000/tcp"},
+			WaitingFor: wait.ForAll(
+				wait.ForListeningPort("9000"),
+			),
+			Env: map[string]string{
+				"MINIO_ROOT_USER":     "pomeriumtest",
+				"MINIO_ROOT_PASSWORD": "pomeriumtest",
+			},
+			Cmd: []string{"server", "/data"},
+		},
+		Started: true,
+		Logger:  testcontainers.TestLogger(t),
 	})
 	if err != nil {
-		return err
-	}
-	_ = resource.Expire(uint(maxWait.Seconds()))
-	go tailLogs(ctx, t, pool, resource)
-
-	endpoint := fmt.Sprintf("localhost:%s", resource.GetPort("9000/tcp"))
-	if err := pool.Retry(func() error {
-		client, err := minio.New(endpoint, &minio.Options{
-			Creds: credentials.NewStaticV4("pomerium", "pomerium", ""),
-		})
-		if err != nil {
-			t.Logf("minio: %s", err)
-			return err
-		}
-
-		err = client.MakeBucket(ctx, bucket, minio.MakeBucketOptions{})
-		if err != nil {
-			t.Logf("minio: %s", err)
-			return err
-		}
-
-		return nil
-	}); err != nil {
-		_ = pool.Purge(resource)
-		return err
+		t.Fatalf("testutil/minio: failed to create container: %v", err)
 	}
 
-	t.Setenv("MINIO_ROOT_USER", "pomerium")
-	t.Setenv("MINIO_ROOT_PASSWORD", "pomerium")
-	t.Setenv("AWS_ACCESS_KEY_ID", "pomerium")
-	t.Setenv("AWS_SECRET_ACCESS_KEY", "pomerium")
-	e := handler(endpoint)
-
-	if err := pool.Purge(resource); err != nil {
-		return err
+	port, err := container.MappedPort(ctx, "9000")
+	if err != nil {
+		t.Fatalf("testutil/minio: failed to get mapped port: %v", err)
 	}
 
-	return e
+	endpoint := fmt.Sprintf("localhost:%s", port.Port())
+	client, err := minio.New(endpoint, &minio.Options{
+		Creds: credentials.NewStaticV4("pomeriumtest", "pomeriumtest", ""),
+	})
+	if err != nil {
+		t.Fatalf("testutil/minio: failed to create minio client: %v", err)
+	}
+
+	err = client.MakeBucket(ctx, bucket, minio.MakeBucketOptions{})
+	if err != nil {
+		t.Fatalf("testutil/minio: failed to create minio bucket: %v", err)
+	}
+
+	t.Setenv("MINIO_ROOT_USER", "pomeriumtest")
+	t.Setenv("MINIO_ROOT_PASSWORD", "pomeriumtest")
+	t.Setenv("AWS_ACCESS_KEY_ID", "pomeriumtest")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "pomeriumtest")
+
+	handler(endpoint)
 }
 
 func tailLogs(ctx context.Context, t *testing.T, pool *dockertest.Pool, resource *dockertest.Resource) {

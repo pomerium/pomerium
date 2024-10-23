@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -17,7 +16,7 @@ import (
 func WithTestPostgres(t *testing.T, handler func(dsn string)) {
 	t.Helper()
 
-	ctx := GetContext(t, 10*time.Minute)
+	ctx := GetContext(t, maxWait)
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{

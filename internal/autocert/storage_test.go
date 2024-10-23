@@ -39,15 +39,11 @@ func TestS3Storage(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(clearTimeout)
 
-	require.NoError(t, testutil.WithTestMinIO(t, "bucket", func(endpoint string) error {
+	testutil.WithTestMinIO(t, "bucket", func(endpoint string) {
 		s, err := GetCertMagicStorage(ctx, "s3://"+endpoint+"/bucket/some/prefix")
-		if !assert.NoError(t, err) {
-			return nil
-		}
-
+		require.NoError(t, err)
 		runStorageTests(t, s)
-		return nil
-	}))
+	})
 }
 
 func runStorageTests(t *testing.T, s certmagic.Storage) {
