@@ -330,6 +330,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		XffNumTrustedHops: cfg.Options.XffNumTrustedHops,
 		LocalReplyConfig:  localReply,
 		NormalizePath:     wrapperspb.Bool(true),
+		MergeSlashes:      true,
 	}
 
 	if fullyStatic {
