@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
+	"runtime"
 	"sort"
 	"testing"
 	"time"
@@ -341,6 +343,10 @@ func TestServerInvalidStorage(t *testing.T) {
 
 func TestServerPostgres(t *testing.T) {
 	t.Parallel()
+
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
 
 	testutil.WithTestPostgres(t, func(dsn string) {
 		srv := newServer(&serverConfig{
