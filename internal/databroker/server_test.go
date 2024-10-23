@@ -340,7 +340,9 @@ func TestServerInvalidStorage(t *testing.T) {
 }
 
 func TestServerPostgres(t *testing.T) {
-	testutil.WithTestPostgres(func(dsn string) error {
+	t.Parallel()
+
+	testutil.WithTestPostgres(t, func(dsn string) {
 		srv := newServer(&serverConfig{
 			storageType:             "postgres",
 			storageConnectionString: dsn,
@@ -399,6 +401,5 @@ func TestServerPostgres(t *testing.T) {
 			return nil
 		})
 		assert.NoError(t, eg.Wait())
-		return nil
 	})
 }
