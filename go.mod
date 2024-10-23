@@ -47,7 +47,6 @@ require (
 	github.com/oapi-codegen/runtime v1.1.1
 	github.com/open-policy-agent/opa v0.69.0
 	github.com/openzipkin/zipkin-go v0.4.3
-	github.com/ory/dockertest/v3 v3.11.0
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/pomerium/csrf v1.7.0
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524
@@ -63,6 +62,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
+	github.com/testcontainers/testcontainers-go v0.34.0
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f
 	github.com/volatiletech/null/v9 v9.0.0
 	github.com/yuin/gopher-lua v1.1.1
@@ -105,7 +105,6 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/DataDog/datadog-go v3.5.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
 	github.com/agnivade/levenshtein v1.2.0 // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
@@ -129,10 +128,11 @@ require (
 	github.com/caddyserver/zerossl v0.1.3 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cncf/xds/go v0.0.0-20240723142845-024c85f92f20 // indirect
-	github.com/containerd/continuity v0.4.3 // indirect
+	github.com/containerd/log v0.1.0 // indirect
+	github.com/containerd/platforms v0.2.1 // indirect
+	github.com/cpuguy83/dockercfg v0.3.2 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/cli v26.1.4+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -154,7 +154,6 @@ require (
 	github.com/google/flatbuffers v23.5.26+incompatible // indirect
 	github.com/google/go-tpm v0.9.0 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
-	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/googleapis/gax-go/v2 v2.13.0 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
@@ -175,13 +174,16 @@ require (
 	github.com/miekg/dns v1.1.59 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
+	github.com/moby/patternmatcher v0.6.0 // indirect
+	github.com/moby/sys/sequential v0.5.0 // indirect
+	github.com/moby/sys/user v0.1.0 // indirect
+	github.com/moby/sys/userns v0.1.0 // indirect
 	github.com/moby/term v0.5.0 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0 // indirect
-	github.com/opencontainers/runc v1.1.14 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/philhofer/fwd v1.1.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -210,7 +212,6 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
-	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	github.com/yashtewari/glob-intersection v0.2.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	github.com/zeebo/assert v1.3.1 // indirect

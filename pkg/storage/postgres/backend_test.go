@@ -24,16 +24,16 @@ import (
 const maxWait = time.Minute * 10
 
 func TestBackend(t *testing.T) {
+	t.Parallel()
+
 	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
 		t.Skip("Github action can not run docker on MacOS")
 	}
 
-	t.Parallel()
-
 	ctx, clearTimeout := context.WithTimeout(context.Background(), maxWait)
 	defer clearTimeout()
 
-	require.NoError(t, testutil.WithTestPostgres(func(dsn string) error {
+	testutil.WithTestPostgres(t, func(dsn string) {
 		backend := New(dsn)
 		defer backend.Close()
 
@@ -197,9 +197,7 @@ func TestBackend(t *testing.T) {
 
 		assert.Equal(t, int32(0), backend.pool.Stat().AcquiredConns(),
 			"acquired connections should be released")
-
-		return nil
-	}))
+	})
 }
 
 func TestLookup(t *testing.T) {
