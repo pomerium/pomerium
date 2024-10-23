@@ -158,6 +158,12 @@ type Policy struct {
 	// to upstream requests.
 	EnableGoogleCloudServerlessAuthentication bool `mapstructure:"enable_google_cloud_serverless_authentication" yaml:"enable_google_cloud_serverless_authentication,omitempty"`
 
+	// JWTIssuerFormat controls the format of the 'iss' claim in JWTs passed to upstream services by this route.
+	// Possible values:
+	// - "hostOnly" (default): Issuer strings will be the hostname of the route, with no scheme or trailing slash.
+	// - "uri": Issuer strings will be a complete URI, including the scheme and ending with a trailing slash.
+	JWTIssuerFormat string `mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
+
 	SubPolicies []SubPolicy `mapstructure:"sub_policies" yaml:"sub_policies,omitempty" json:"sub_policies,omitempty"`
 
 	EnvoyOpts *envoy_config_cluster_v3.Cluster `mapstructure:"_envoy_opts" yaml:"-" json:"-"`
@@ -322,6 +328,13 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		p.EnvoyOpts.Name = pb.Name
 	}
 
+	switch pb.GetJwtIssuerFormat() {
+	case configpb.IssuerFormat_IssuerHostOnly:
+		p.JWTIssuerFormat = "hostOnly"
+	case configpb.IssuerFormat_IssuerURI:
+		p.JWTIssuerFormat = "uri"
+	}
+
 	for _, rwh := range pb.RewriteResponseHeaders {
 		p.RewriteResponseHeaders = append(p.RewriteResponseHeaders, RewriteHeader{
 			Header: rwh.GetHeader(),
@@ -460,6 +473,13 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 
 		pb.To = to
 		pb.LoadBalancingWeights = weights
+	}
+
+	switch p.JWTIssuerFormat {
+	case "", "hostOnly":
+		pb.JwtIssuerFormat = configpb.IssuerFormat_IssuerHostOnly
+	case "uri":
+		pb.JwtIssuerFormat = configpb.IssuerFormat_IssuerURI
 	}
 
 	for _, rwh := range p.RewriteResponseHeaders {
