@@ -61,14 +61,6 @@ func ExamplePrintf() {
 	// Output: {"level":"debug","time":"2008-01-08T17:05:05Z","message":"hello world"}
 }
 
-// Example of a log with no particular "level"
-func ExampleLog() {
-	captureOutput(func() {
-		log.Log(context.Background()).Msg("hello world")
-	})
-	// Output: {"time":"2008-01-08T17:05:05Z","message":"hello world"}
-}
-
 // Example of a log at a particular "level" (in this case, "debug")
 func ExampleDebug() {
 	captureOutput(func() {

@@ -83,12 +83,6 @@ func With() zerolog.Context {
 	return Logger().With()
 }
 
-// Level creates a child logger with the minimum accepted level set to level.
-func Level(ctx context.Context, level zerolog.Level) *zerolog.Logger {
-	l := contextLogger(ctx).Level(level)
-	return &l
-}
-
 // Debug starts a new message with debug level.
 //
 // You must call Msg on the returned event in order to send the event.
@@ -143,14 +137,6 @@ func Fatal() *zerolog.Event {
 // You must call Msg on the returned event in order to send the event.
 func Panic() *zerolog.Event {
 	return Logger().Panic()
-}
-
-// Log starts a new message with no level. Setting zerolog.GlobalLevel to
-// zerolog.Disabled will still disable events produced by this method.
-//
-// You must call Msg on the returned event in order to send the event.
-func Log(_ context.Context) *zerolog.Event {
-	return Logger().Log()
 }
 
 // Print sends a log event using debug level and no extra field.
