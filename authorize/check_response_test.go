@@ -2,6 +2,7 @@ package authorize
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -271,6 +272,61 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 				"message": "Access Denied"
 			}
 		}`, res)
+	})
+
+	t.Run("kubernetes", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+		ctx = requestid.WithValue(ctx, "REQUESTID")
+
+		for _, tc := range []struct {
+			code   int32
+			reason string
+
+			expectedMessage    string
+			expectedReason     string
+			expectedStatusCode string
+		}{
+			{401, "Unauthorized", "Unauthorized", "Unauthorized", `"Unauthorized"`},
+			{403, "Forbidden", "Forbidden", "Forbidden", `"Forbidden"`},
+			{404, "Not Found", "Not Found", "NotFound", `"NotFound"`},
+			{400, "Bad Request", "Bad Request", "", `"BadRequest"`},
+			{450, "", "your device fails to meet the requirements necessary to access this page, please contact your administrator for assistance", "Unauthorized", `450`},
+			{495, "", "a valid client certificate is required to access this page", "Unauthorized", `495`},
+			{500, "Internal Server Error", "Internal Server Error", "", `"InternalServerError"`},
+		} {
+			res, err := a.deniedResponse(ctx, &envoy_service_auth_v3.CheckRequest{
+				Attributes: &envoy_service_auth_v3.AttributeContext{
+					Request: &envoy_service_auth_v3.AttributeContext_Request{
+						Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+							Headers: map[string]string{
+								"Accept":     "application/json",
+								"User-Agent": "kubectl/vX.Y.Z (linux/amd64) kubernetes/000000",
+							},
+						},
+					},
+				},
+			}, tc.code, tc.reason, nil)
+			assert.NoError(t, err)
+			testutil.AssertProtoJSONEqual(t, fmt.Sprintf(`{
+			"deniedResponse": {
+				"body": "{\"apiVersion\":\"v1\",\"code\":%[1]d,\"kind\":\"Status\",\"message\":\"%[2]s\",\"reason\":\"%[3]s\",\"status\":\"Failure\"}",
+				"headers": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": { "key": "Content-Type", "value": "application/json" }
+					}
+				],
+				"status": {
+					"code": %[4]s
+				}
+			},
+			"status": {
+				"code": 7,
+				"message": "Access Denied"
+			}
+		}`, tc.code, tc.expectedMessage, tc.expectedReason, tc.expectedStatusCode), res)
+		}
 	})
 
 	t.Run("html", func(t *testing.T) {
