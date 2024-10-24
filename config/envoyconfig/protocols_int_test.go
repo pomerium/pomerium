@@ -93,7 +93,7 @@ func TestHTTP(t *testing.T) {
 	env := testenv.New(t)
 
 	up := upstreams.HTTP(nil)
-	up.Handle("/foo", func(w http.ResponseWriter, r *http.Request) {
+	up.Handle("/foo", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintln(w, "hello world")
 	})
 
@@ -130,7 +130,7 @@ func TestClientCert(t *testing.T) {
 	env.Add(scenarios.DownstreamMTLS(config.MTLSEnforcementRejectConnection))
 
 	up := upstreams.HTTP(nil)
-	up.Handle("/foo", func(w http.ResponseWriter, r *http.Request) {
+	up.Handle("/foo", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintln(w, "hello world")
 	})
 

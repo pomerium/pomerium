@@ -24,7 +24,7 @@ func BenchmarkStartupLatency(b *testing.B) {
 				env.AddUpstream(up)
 
 				env.Start()
-				snippets.WaitStartupComplete(b, env, 60*time.Minute)
+				snippets.WaitStartupComplete(env, 60*time.Minute)
 
 				env.Stop()
 			}
@@ -41,7 +41,7 @@ func BenchmarkAppendRoutes(b *testing.B) {
 				env.AddUpstream(up)
 
 				env.Start()
-				snippets.WaitStartupComplete(b, env)
+				snippets.WaitStartupComplete(env)
 				for i := range n {
 					env.Add(up.Route().
 						From(env.SubdomainURL(fmt.Sprintf("from-%d", i))).

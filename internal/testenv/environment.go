@@ -480,7 +480,7 @@ func (e *environment) Start() {
 			mod.Value.Modify(cfg)
 			require.NoError(e.t, cfg.Options.Validate(), "invoking modifier resulted in an invalid configuration:\nadded by: "+mod.Caller)
 		}
-		return pomerium.Run(e.ctx, e.src, pomerium.WithOverrideFileManager(fileMgr))
+		return pomerium.Run(ctx, e.src, pomerium.WithOverrideFileManager(fileMgr))
 	}))
 
 	for i, task := range e.tasks {
@@ -702,14 +702,13 @@ func (e *environment) ReportError(check health.Check, err error, attributes ...h
 }
 
 // ReportOK implements health.Provider.
-func (e *environment) ReportOK(check health.Check, attributes ...health.Attr) {
-}
+func (e *environment) ReportOK(_ health.Check, _ ...health.Attr) {}
 
 func (e *environment) advanceState(newState EnvironmentState) {
 	e.stateMu.Lock()
 	defer e.stateMu.Unlock()
 	if e.state != newState>>1 {
-		panic(fmt.Sprintf("internal test environment bug: invalid state: expected=%s, actual=%s", EnvironmentState(newState>>1), e.state))
+		panic(fmt.Sprintf("internal test environment bug: invalid state: expected=%s, actual=%s", newState>>1, e.state))
 	}
 	e.debugf("state %s -> %s", e.state.String(), newState.String())
 	e.state = newState

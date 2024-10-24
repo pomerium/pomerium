@@ -276,9 +276,9 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 	if err := retry.Retry(h.Env().Context(), "http", func(ctx context.Context) error {
 		var err error
 		if options.authenticateAs != "" {
-			resp, err = authenticateFlow(ctx, client, req, options.authenticateAs)
+			resp, err = authenticateFlow(ctx, client, req, options.authenticateAs) //nolint:bodyclose
 		} else {
-			resp, err = client.Do(req)
+			resp, err = client.Do(req) //nolint:bodyclose
 		}
 		// retry on connection refused
 		if err != nil {
@@ -288,8 +288,8 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 			}
 			return retry.NewTerminalError(err)
 		}
-		if resp.StatusCode == 500 {
-			return errors.New("Internal Server Error")
+		if resp.StatusCode == http.StatusInternalServerError {
+			return errors.New(http.StatusText(resp.StatusCode))
 		}
 		return nil
 	}, retry.WithMaxInterval(100*time.Millisecond)); err != nil {
@@ -322,7 +322,6 @@ func authenticateFlow(ctx context.Context, client *http.Client, req *http.Reques
 			return nil, err
 		}
 		return client.Do(formReq)
-	} else {
-		return nil, fmt.Errorf("test bug: expected IDP login form")
 	}
+	return nil, fmt.Errorf("test bug: expected IDP login form")
 }
