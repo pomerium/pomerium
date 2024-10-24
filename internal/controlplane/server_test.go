@@ -52,6 +52,7 @@ func TestServerHTTP(t *testing.T) {
 		require.NoError(t, err)
 
 		expect := map[string]any{
+			"issuer":                           fmt.Sprintf("https://localhost:%s/", src.GetConfig().HTTPPort),
 			"authentication_callback_endpoint": "https://authenticate.localhost.pomerium.io/oauth2/callback",
 			"frontchannel_logout_uri":          fmt.Sprintf("https://localhost:%s/.pomerium/sign_out", src.GetConfig().HTTPPort),
 			"jwks_uri":                         fmt.Sprintf("https://localhost:%s/.well-known/pomerium/jwks.json", src.GetConfig().HTTPPort),
