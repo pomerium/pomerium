@@ -27,6 +27,7 @@ func TestWellKnownPomeriumHandler(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "https://route.example.com", nil)
 		WellKnownPomerium(authenticateURL).ServeHTTP(w, r)
 		assert.JSONEq(t, `{
+			"issuer": "https://route.example.com/",
 			"authentication_callback_endpoint": "https://authenticate.example.com/oauth2/callback",
 			"frontchannel_logout_uri": "https://route.example.com/.pomerium/sign_out",
 			"jwks_uri": "https://route.example.com/.well-known/pomerium/jwks.json"
