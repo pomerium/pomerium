@@ -34,7 +34,6 @@ import (
 type IDP struct {
 	id         values.Value[string]
 	url        values.Value[string]
-	serverCert *testenv.Certificate
 	publicJWK  jose.JSONWebKey
 	signingKey jose.SigningKey
 
@@ -43,12 +42,12 @@ type IDP struct {
 }
 
 // Attach implements testenv.Modifier.
-func (i *IDP) Attach(ctx context.Context) {
+func (idp *IDP) Attach(ctx context.Context) {
 	env := testenv.EnvFromContext(ctx)
 
 	router := upstreams.HTTP(nil)
 
-	i.url = values.Bind2(env.SubdomainURL("mock-idp"), router.Port(), func(urlStr string, port int) string {
+	idp.url = values.Bind2(env.SubdomainURL("mock-idp"), router.Port(), func(urlStr string, port int) string {
 		u, _ := url.Parse(urlStr)
 		host, _, _ := net.SplitHostPort(u.Host)
 		return u.ResolveReference(&url.URL{
@@ -57,10 +56,10 @@ func (i *IDP) Attach(ctx context.Context) {
 		}).String()
 	})
 	var err error
-	i.stateEncoder, err = jws.NewHS256Signer(env.SharedSecret())
+	idp.stateEncoder, err = jws.NewHS256Signer(env.SharedSecret())
 	env.Require().NoError(err)
 
-	i.id = values.Bind2(i.url, env.AuthenticateURL(), func(idpUrl, authUrl string) string {
+	idp.id = values.Bind2(idp.url, env.AuthenticateURL(), func(idpUrl, authUrl string) string {
 		provider := identity.Provider{
 			AuthenticateServiceUrl: authUrl,
 			ClientId:               "CLIENT_ID",
@@ -72,36 +71,36 @@ func (i *IDP) Attach(ctx context.Context) {
 		return provider.Hash()
 	})
 
-	router.Handle("/.well-known/jwks.json", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(&jose.JSONWebKeySet{
-			Keys: []jose.JSONWebKey{i.publicJWK},
+	router.Handle("/.well-known/jwks.json", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(&jose.JSONWebKeySet{
+			Keys: []jose.JSONWebKey{idp.publicJWK},
 		})
 	})
 	router.Handle("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
 		log.Ctx(ctx).Debug().Str("method", r.Method).Str("uri", r.RequestURI).Send()
-		rootUrl, _ := url.Parse(i.url.Value())
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"issuer":                 rootUrl.String(),
-			"authorization_endpoint": rootUrl.ResolveReference(&url.URL{Path: "/oidc/auth"}).String(),
-			"token_endpoint":         rootUrl.ResolveReference(&url.URL{Path: "/oidc/token"}).String(),
-			"jwks_uri":               rootUrl.ResolveReference(&url.URL{Path: "/.well-known/jwks.json"}).String(),
-			"userinfo_endpoint":      rootUrl.ResolveReference(&url.URL{Path: "/oidc/userinfo"}).String(),
+		rootURL, _ := url.Parse(idp.url.Value())
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"issuer":                 rootURL.String(),
+			"authorization_endpoint": rootURL.ResolveReference(&url.URL{Path: "/oidc/auth"}).String(),
+			"token_endpoint":         rootURL.ResolveReference(&url.URL{Path: "/oidc/token"}).String(),
+			"jwks_uri":               rootURL.ResolveReference(&url.URL{Path: "/.well-known/jwks.json"}).String(),
+			"userinfo_endpoint":      rootURL.ResolveReference(&url.URL{Path: "/oidc/userinfo"}).String(),
 			"id_token_signing_alg_values_supported": []string{
 				"ES256",
 			},
 		})
 	})
-	router.Handle("/oidc/auth", i.HandleAuth)
-	router.Handle("/oidc/token", i.HandleToken)
-	router.Handle("/oidc/userinfo", i.HandleUserInfo)
+	router.Handle("/oidc/auth", idp.HandleAuth)
+	router.Handle("/oidc/token", idp.HandleToken)
+	router.Handle("/oidc/userinfo", idp.HandleUserInfo)
 
 	env.AddUpstream(router)
 }
 
 // Modify implements testenv.Modifier.
-func (i *IDP) Modify(cfg *config.Config) {
+func (idp *IDP) Modify(cfg *config.Config) {
 	cfg.Options.Provider = "oidc"
-	cfg.Options.ProviderURL = i.url.Value()
+	cfg.Options.ProviderURL = idp.url.Value()
 	cfg.Options.ClientID = "CLIENT_ID"
 	cfg.Options.ClientSecret = "CLIENT_SECRET"
 	cfg.Options.Scopes = []string{"openid", "email", "profile"}
@@ -254,15 +253,17 @@ func (idp *IDP) HandleUserInfo(w http.ResponseWriter, r *http.Request) {
 	serveJSON(w, state.GetUserInfo(idp.userLookup))
 }
 
-var RootURLKey = struct{}{}
+type RootURLKey struct{}
+
+var rootURLKey RootURLKey
 
 // WithRootURL sets the Root URL in a context.
 func WithRootURL(ctx context.Context, rootURL *url.URL) context.Context {
-	return context.WithValue(ctx, RootURLKey, rootURL)
+	return context.WithValue(ctx, rootURLKey, rootURL)
 }
 
 func getRootURL(r *http.Request) *url.URL {
-	if u, ok := r.Context().Value(RootURLKey).(*url.URL); ok {
+	if u, ok := r.Context().Value(rootURLKey).(*url.URL); ok {
 		return u
 	}
 

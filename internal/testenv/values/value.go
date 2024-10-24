@@ -92,7 +92,7 @@ func Bind[T any, U any](dt Value[T], callback func(value T) U) Value[U] {
 func Bind2[T any, U any, V any](dt Value[T], du Value[U], callback func(value1 T, value2 U) V) Value[V] {
 	dv := Deferred[V]()
 	dv.ResolveFunc(func() V {
-		if rand.IntN(2) == 0 {
+		if rand.IntN(2) == 0 { //nolint:gosec
 			return callback(dt.Value(), du.Value())
 		}
 		u := du.Value()

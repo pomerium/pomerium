@@ -192,7 +192,7 @@ type Upstream interface {
 type Route interface {
 	Modifier
 	URL() values.Value[string]
-	To(toUrl values.Value[string]) Route
+	To(toURL values.Value[string]) Route
 	Policy(edit func(*config.Policy)) Route
 	PPL(ppl string) Route
 	// add more methods here as they become needed
@@ -202,5 +202,5 @@ type Route interface {
 // From() method will return a [Route], from which further configuration can
 // be made.
 type RouteStub interface {
-	From(fromUrl values.Value[string]) Route
+	From(fromURL values.Value[string]) Route
 }

@@ -235,7 +235,7 @@ func (lr *LogRecorder) DumpToFile(file string) {
 	require.NoError(lr.t, err)
 	enc := json.NewEncoder(f)
 	for _, log := range lr.recordedLogs {
-		enc.Encode(log)
+		_ = enc.Encode(log)
 	}
 	f.Close()
 }

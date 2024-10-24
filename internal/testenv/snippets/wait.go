@@ -2,7 +2,6 @@ package snippets
 
 import (
 	"context"
-	"testing"
 	"time"
 
 	"github.com/pomerium/pomerium/internal/testenv"
@@ -12,7 +11,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func WaitStartupComplete(t testing.TB, env testenv.Environment, timeout ...time.Duration) time.Duration {
+func WaitStartupComplete(env testenv.Environment, timeout ...time.Duration) time.Duration {
 	start := time.Now()
 	recorder := env.NewLogRecorder()
 	if len(timeout) == 0 {

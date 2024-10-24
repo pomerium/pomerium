@@ -31,7 +31,7 @@ func BenchmarkRequestLatency(b *testing.B) {
 		env.Add(scenarios.NewIDP(users))
 
 		up := upstreams.HTTP(nil)
-		up.Handle("/", func(w http.ResponseWriter, r *http.Request) {
+		up.Handle("/", func(w http.ResponseWriter, _ *http.Request) {
 			w.Write([]byte("OK"))
 		})
 		routes := make([]testenv.Route, n)
@@ -43,7 +43,7 @@ func BenchmarkRequestLatency(b *testing.B) {
 		env.AddUpstream(up)
 
 		env.Start()
-		snippets.WaitStartupComplete(b, env)
+		snippets.WaitStartupComplete(env)
 
 		b.StartTimer()
 

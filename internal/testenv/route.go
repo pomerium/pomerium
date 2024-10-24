@@ -39,14 +39,14 @@ func (b *PolicyRoute) Modify(cfg *config.Config) {
 }
 
 // From implements Route.
-func (b *PolicyRoute) From(fromUrl values.Value[string]) Route {
-	b.from = fromUrl
+func (b *PolicyRoute) From(fromURL values.Value[string]) Route {
+	b.from = fromURL
 	return b
 }
 
 // To implements Route.
-func (b *PolicyRoute) To(toUrl values.Value[string]) Route {
-	b.to = append(b.to, toUrl)
+func (b *PolicyRoute) To(toURL values.Value[string]) Route {
+	b.to = append(b.to, toURL)
 	return b
 }
 

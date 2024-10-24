@@ -26,7 +26,7 @@ type PolicyTemplate struct {
 }
 
 func TemplateRoutes(n int, tmpl PolicyTemplate) testenv.Modifier {
-	return testenv.ModifierFunc(func(ctx context.Context, cfg *config.Config) {
+	return testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
 		for i := range n {
 			cfg.Options.Policies = append(cfg.Options.Policies, newPolicyFromTemplate(i, tmpl))
 		}
