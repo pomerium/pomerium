@@ -80,6 +80,9 @@ func (watcher *Watcher) initLocked(ctx context.Context) {
 
 	if watcher.pollingWatcher == nil {
 		watcher.pollingWatcher = filenotify.NewPollingWatcher(nil)
+		context.AfterFunc(ctx, func() {
+			watcher.pollingWatcher.Close()
+		})
 	}
 
 	errors := watcher.pollingWatcher.Errors()

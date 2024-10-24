@@ -1,11 +1,14 @@
 package log
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"time"
 
+	"github.com/pomerium/protoutil/streams"
 	"github.com/rs/zerolog"
+	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/internal/middleware/responsewriter"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
@@ -119,5 +122,19 @@ func HeadersHandler(headers []string) func(next http.Handler) http.Handler {
 			}
 			next.ServeHTTP(w, r)
 		})
+	}
+}
+
+func StreamServerInterceptor(lg *zerolog.Logger) grpc.StreamServerInterceptor {
+	return func(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		s := streams.NewServerStreamWithContext(ss)
+		s.SetContext(lg.WithContext(s.Ctx))
+		return handler(srv, s)
+	}
+}
+
+func UnaryServerInterceptor(lg *zerolog.Logger) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		return handler(lg.WithContext(ctx), req)
 	}
 }

@@ -22,7 +22,7 @@ func WaitForHealthy(ctx context.Context, client *http.Client, routes []*config.R
 			healthy++
 		}
 	}
-	return ctx.Err()
+	return context.Cause(ctx)
 }
 
 func checkHealth(ctx context.Context, client *http.Client, addr string) error {

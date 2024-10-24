@@ -64,6 +64,7 @@ type Stateless struct {
 // NewStateless initializes the authentication flow for the given
 // configuration, session store, and additional options.
 func NewStateless(
+	ctx context.Context,
 	cfg *config.Config,
 	sessionStore sessions.SessionStore,
 	getIdentityProvider func(options *config.Options, idpID string) (identity.Authenticator, error),
@@ -131,7 +132,7 @@ func NewStateless(
 		return nil, fmt.Errorf("authorize: get authenticate JWKS key fetcher: %w", err)
 	}
 
-	dataBrokerConn, err := outboundGRPCConnection.Get(context.Background(), &grpc.OutboundOptions{
+	dataBrokerConn, err := outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,

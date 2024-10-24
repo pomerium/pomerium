@@ -72,8 +72,8 @@ type Syncer struct {
 }
 
 // NewSyncer creates a new Syncer.
-func NewSyncer(id string, handler SyncerHandler, options ...SyncerOption) *Syncer {
-	closeCtx, closeCtxCancel := context.WithCancel(context.Background())
+func NewSyncer(ctx context.Context, id string, handler SyncerHandler, options ...SyncerOption) *Syncer {
+	closeCtx, closeCtxCancel := context.WithCancel(context.WithoutCancel(ctx))
 
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 0
@@ -120,7 +120,7 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 			log.Ctx(ctx).Error().Err(err).Msg("sync")
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return context.Cause(ctx)
 			case <-time.After(syncer.backoff.NextBackOff()):
 			}
 		}
@@ -133,6 +133,9 @@ func (syncer *Syncer) init(ctx context.Context) error {
 		Type: syncer.cfg.typeURL,
 	})
 	if err != nil {
+		if status.Code(err) == codes.Canceled && ctx.Err() != nil {
+			err = fmt.Errorf("%w: %w", err, context.Cause(ctx))
+		}
 		return fmt.Errorf("error during initial sync: %w", err)
 	}
 	syncer.backoff.Reset()
@@ -167,6 +170,9 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 			syncer.serverVersion = 0
 			return nil
 		} else if err != nil {
+			if status.Code(err) == codes.Canceled && ctx.Err() != nil {
+				err = fmt.Errorf("%w: %w", err, context.Cause(ctx))
+			}
 			return fmt.Errorf("error receiving sync record: %w", err)
 		}
 

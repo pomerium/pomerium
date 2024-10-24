@@ -104,7 +104,7 @@ func TestNew(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := New(&config.Config{Options: tt.opts})
+			got, err := New(context.Background(), &config.Config{Options: tt.opts})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -197,7 +197,7 @@ func Test_UpdateOptions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := New(&config.Config{Options: tt.originalOptions})
+			p, err := New(context.Background(), &config.Config{Options: tt.originalOptions})
 			if err != nil {
 				t.Fatal(err)
 			}

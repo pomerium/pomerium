@@ -102,7 +102,7 @@ func TestDatabrokerRestart(t *testing.T) {
 				cl(context.Background(), newConfig())
 				<-ctx.Done()
 				require.ErrorIs(t, context.Cause(ctx), controller.ErrBootstrapConfigurationChanged)
-				return ctx.Err()
+				return context.Cause(ctx)
 			}
 			return nil
 		})

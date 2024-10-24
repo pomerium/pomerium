@@ -105,7 +105,7 @@ func (srv *Telemetry) handleRequests(ctx context.Context) error {
 			case req := <-requests:
 				srv.handleRequest(ctx, req)
 			case <-ctx.Done():
-				return ctx.Err()
+				return context.Cause(ctx)
 			}
 		}
 	})

@@ -169,7 +169,7 @@ func TestLeasers(t *testing.T) {
 	fn2 := func(ctx context.Context) error {
 		atomic.AddInt64(&counter, 10)
 		<-ctx.Done()
-		return ctx.Err()
+		return context.Cause(ctx)
 	}
 	leaser := databroker.NewLeasers("TEST", time.Second*30, client, fn1, fn2)
 	err := leaser.Run(context.Background())

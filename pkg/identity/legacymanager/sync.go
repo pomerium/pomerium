@@ -17,7 +17,7 @@ type dataBrokerSyncer struct {
 }
 
 func newDataBrokerSyncer(
-	_ context.Context,
+	ctx context.Context,
 	cfg *atomicutil.Value[*config],
 	update chan<- updateRecordsMessage,
 	clear chan<- struct{},
@@ -28,7 +28,7 @@ func newDataBrokerSyncer(
 		update: update,
 		clear:  clear,
 	}
-	syncer.syncer = databroker.NewSyncer("identity_manager", syncer)
+	syncer.syncer = databroker.NewSyncer(ctx, "identity_manager", syncer)
 	return syncer
 }
 

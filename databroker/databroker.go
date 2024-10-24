@@ -23,7 +23,7 @@ type dataBrokerServer struct {
 }
 
 // newDataBrokerServer creates a new databroker service server.
-func newDataBrokerServer(cfg *config.Config) (*dataBrokerServer, error) {
+func newDataBrokerServer(ctx context.Context, cfg *config.Config) (*dataBrokerServer, error) {
 	srv := &dataBrokerServer{
 		sharedKey: atomicutil.NewValue([]byte{}),
 	}
@@ -33,7 +33,7 @@ func newDataBrokerServer(cfg *config.Config) (*dataBrokerServer, error) {
 		return nil, err
 	}
 
-	srv.server = databroker.New(opts...)
+	srv.server = databroker.New(ctx, opts...)
 	srv.setKey(cfg)
 	return srv, nil
 }
@@ -46,7 +46,7 @@ func (srv *dataBrokerServer) OnConfigChange(ctx context.Context, cfg *config.Con
 		return
 	}
 
-	srv.server.UpdateConfig(opts...)
+	srv.server.UpdateConfig(ctx, opts...)
 	srv.setKey(cfg)
 }
 
