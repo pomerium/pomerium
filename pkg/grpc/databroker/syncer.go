@@ -3,6 +3,7 @@ package databroker
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	backoff "github.com/cenkalti/backoff/v4"
@@ -71,12 +72,24 @@ type Syncer struct {
 	id string
 }
 
+var DebugUseFasterBackoff atomic.Bool
+
 // NewSyncer creates a new Syncer.
 func NewSyncer(ctx context.Context, id string, handler SyncerHandler, options ...SyncerOption) *Syncer {
 	closeCtx, closeCtxCancel := context.WithCancel(context.WithoutCancel(ctx))
 
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 0
+	var bo *backoff.ExponentialBackOff
+	if DebugUseFasterBackoff.Load() {
+		bo = backoff.NewExponentialBackOff(
+			backoff.WithInitialInterval(10*time.Millisecond),
+			backoff.WithMultiplier(1.0),
+			backoff.WithMaxElapsedTime(100*time.Millisecond),
+		)
+		bo.MaxElapsedTime = 0
+	} else {
+		bo = backoff.NewExponentialBackOff()
+		bo.MaxElapsedTime = 0
+	}
 	s := &Syncer{
 		cfg:     getSyncerConfig(options...),
 		handler: handler,
