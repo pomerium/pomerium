@@ -204,6 +204,7 @@ func TestHeadersEvaluator(t *testing.T) {
 					"X-ID-Token":              "${pomerium.id_token}",
 					"X-Access-Token":          "${pomerium.access_token}",
 					"Client-Cert-Fingerprint": "${pomerium.client_cert_fingerprint}",
+					"Authorization":           "Bearer ${pomerium.jwt}",
 					"Foo":                     "escaped $$dollar sign",
 				},
 				ClientCertificate: ClientCertificateInfo{Leaf: testValidCert},
@@ -216,6 +217,15 @@ func TestHeadersEvaluator(t *testing.T) {
 		assert.Equal(t, "3febe6467787e93f0a01030e0803072feaa710f724a9dc74de05cfba3d4a6d23",
 			output.Headers.Get("Client-Cert-Fingerprint"))
 		assert.Equal(t, "escaped $dollar sign", output.Headers.Get("Foo"))
+		authHeader := output.Headers.Get("Authorization")
+		assert.True(t, strings.HasPrefix(authHeader, "Bearer "))
+		authHeader = strings.TrimPrefix(authHeader, "Bearer ")
+		token, err := jwt.ParseSigned(authHeader)
+		require.NoError(t, err)
+		var claims jwt.Claims
+		require.NoError(t, token.Claims(publicJWK, &claims))
+		assert.Equal(t, "from.example.com", claims.Issuer)
+		assert.Equal(t, jwt.Audience{"from.example.com"}, claims.Audience)
 	})
 
 	t.Run("set_request_headers no repeated substitution", func(t *testing.T) {
