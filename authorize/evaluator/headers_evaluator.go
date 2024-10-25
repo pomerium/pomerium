@@ -32,7 +32,18 @@ type HeadersRequest struct {
 // NewHeadersRequestFromPolicy creates a new HeadersRequest from a policy.
 func NewHeadersRequestFromPolicy(policy *config.Policy, http RequestHTTP) (*HeadersRequest, error) {
 	input := new(HeadersRequest)
-	input.Issuer = http.Hostname
+	var issuerFormat string
+	if policy != nil {
+		issuerFormat = policy.JWTIssuerFormat
+	}
+	switch issuerFormat {
+	case "", "hostOnly":
+		input.Issuer = http.Hostname
+	case "uri":
+		input.Issuer = fmt.Sprintf("https://%s/", http.Hostname)
+	default:
+		return nil, fmt.Errorf("invalid issuer format: %q", policy.JWTIssuerFormat)
+	}
 	if policy != nil {
 		input.EnableGoogleCloudServerlessAuthentication = policy.EnableGoogleCloudServerlessAuthentication
 		input.EnableRoutingKey = policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
