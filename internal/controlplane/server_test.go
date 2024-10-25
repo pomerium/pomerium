@@ -38,7 +38,7 @@ func TestServerHTTP(t *testing.T) {
 	cfg.Options.SharedKey = "JDNjY2ITDlARvNaQXjc2Djk+GA6xeCy4KiozmZfdbTs="
 
 	src := config.NewStaticSource(cfg)
-	srv, err := NewServer(cfg, config.NewMetricsManager(ctx, src), events.New())
+	srv, err := NewServer(ctx, cfg, config.NewMetricsManager(ctx, src), events.New())
 	require.NoError(t, err)
 	go srv.Run(ctx)
 

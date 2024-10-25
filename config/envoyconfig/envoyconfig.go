@@ -189,7 +189,7 @@ var rootCABundle struct {
 	value string
 }
 
-func getRootCertificateAuthority() (string, error) {
+func getRootCertificateAuthority(ctx context.Context) (string, error) {
 	rootCABundle.Do(func() {
 		// from https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/security/ssl#arch-overview-ssl-enabling-verification
 		knownRootLocations := []string{
@@ -207,10 +207,10 @@ func getRootCertificateAuthority() (string, error) {
 			}
 		}
 		if rootCABundle.value == "" {
-			log.Error().Strs("known-locations", knownRootLocations).
+			log.Ctx(ctx).Error().Strs("known-locations", knownRootLocations).
 				Msgf("no root certificates were found in any of the known locations")
 		} else {
-			log.Info().Msgf("using %s as the system root certificate authority bundle", rootCABundle.value)
+			log.Ctx(ctx).Info().Msgf("using %s as the system root certificate authority bundle", rootCABundle.value)
 		}
 	})
 	if rootCABundle.value == "" {
@@ -219,8 +219,8 @@ func getRootCertificateAuthority() (string, error) {
 	return rootCABundle.value, nil
 }
 
-func getCombinedCertificateAuthority(cfg *config.Config) ([]byte, error) {
-	rootFile, err := getRootCertificateAuthority()
+func getCombinedCertificateAuthority(ctx context.Context, cfg *config.Config) ([]byte, error) {
+	rootFile, err := getRootCertificateAuthority(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -52,6 +52,9 @@ func Logger() *zerolog.Logger {
 
 // ZapLogger returns the global zap logger.
 func ZapLogger() *zap.Logger {
+	if DebugDisableZapLogger.Load() {
+		return zap.NewNop()
+	}
 	return zapLogger.Load()
 }
 

@@ -16,7 +16,7 @@ type sessionSyncerHandler struct {
 }
 
 func newSessionSyncer(ctx context.Context, mgr *Manager) *databroker.Syncer {
-	return databroker.NewSyncer("identity_manager/sessions", sessionSyncerHandler{baseCtx: ctx, mgr: mgr},
+	return databroker.NewSyncer(ctx, "identity_manager/sessions", sessionSyncerHandler{baseCtx: ctx, mgr: mgr},
 		databroker.WithTypeURL(grpcutil.GetTypeURL(new(session.Session))))
 }
 
@@ -50,7 +50,7 @@ type userSyncerHandler struct {
 }
 
 func newUserSyncer(ctx context.Context, mgr *Manager) *databroker.Syncer {
-	return databroker.NewSyncer("identity_manager/users", userSyncerHandler{baseCtx: ctx, mgr: mgr},
+	return databroker.NewSyncer(ctx, "identity_manager/users", userSyncerHandler{baseCtx: ctx, mgr: mgr},
 		databroker.WithTypeURL(grpcutil.GetTypeURL(new(user.User))))
 }
 

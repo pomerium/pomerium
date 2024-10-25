@@ -41,7 +41,7 @@ func TestConfigSource(t *testing.T) {
 	defer func() { _ = li.Close() }()
 	_, outboundPort, _ := net.SplitHostPort(li.Addr().String())
 
-	dataBrokerServer := New()
+	dataBrokerServer := New(ctx)
 	srv := grpc.NewServer()
 	databroker.RegisterDataBrokerServiceServer(srv, dataBrokerServer)
 	go func() { _ = srv.Serve(li) }()

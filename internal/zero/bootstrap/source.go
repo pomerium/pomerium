@@ -34,7 +34,7 @@ type source struct {
 func (src *source) WaitReady(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return context.Cause(ctx)
 	case <-src.ready:
 		return nil
 	}

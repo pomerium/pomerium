@@ -69,16 +69,26 @@ type Server struct {
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
-func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr *events.Manager) (*Server, error) {
+func NewServer(
+	ctx context.Context,
+	cfg *config.Config,
+	metricsMgr *config.MetricsManager,
+	eventsMgr *events.Manager,
+) (*Server, error) {
 	srv := &Server{
 		metricsMgr:      metricsMgr,
 		EventsMgr:       eventsMgr,
+		filemgr:         filemgr.NewManager(),
 		reproxy:         reproxy.New(),
 		haveSetCapacity: map[string]bool{},
 		updateConfig:    make(chan *config.Config, 1),
 		currentConfig:   atomicutil.NewValue(cfg),
 		httpRouter:      atomicutil.NewValue(mux.NewRouter()),
 	}
+
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+		return c.Str("server_name", cfg.Options.Services)
+	})
 
 	var err error
 
@@ -95,8 +105,16 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 	)
 	srv.GRPCServer = grpc.NewServer(
 		grpc.StatsHandler(telemetry.NewGRPCServerStatsHandler(cfg.Options.Services)),
-		grpc.ChainUnaryInterceptor(requestid.UnaryServerInterceptor(), ui),
-		grpc.ChainStreamInterceptor(requestid.StreamServerInterceptor(), si),
+		grpc.ChainUnaryInterceptor(
+			log.UnaryServerInterceptor(log.Ctx(ctx)),
+			requestid.UnaryServerInterceptor(),
+			ui,
+		),
+		grpc.ChainStreamInterceptor(
+			log.StreamServerInterceptor(log.Ctx(ctx)),
+			requestid.StreamServerInterceptor(),
+			si,
+		),
 	)
 	reflection.Register(srv.GRPCServer)
 	srv.registerAccessLogHandlers()
@@ -125,7 +143,7 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 		return nil, err
 	}
 
-	if err := srv.updateRouter(cfg); err != nil {
+	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return nil, err
 	}
 	srv.DebugRouter = mux.NewRouter()
@@ -141,7 +159,6 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 	// metrics
 	srv.MetricsRouter.Handle("/metrics", srv.metricsMgr)
 
-	srv.filemgr = filemgr.NewManager()
 	srv.filemgr.ClearCache()
 
 	srv.Builder = envoyconfig.New(
@@ -151,10 +168,6 @@ func NewServer(cfg *config.Config, metricsMgr *config.MetricsManager, eventsMgr 
 		srv.filemgr,
 		srv.reproxy,
 	)
-
-	ctx := log.WithContext(context.Background(), func(c zerolog.Context) zerolog.Context {
-		return c.Str("server_name", cfg.Options.Services)
-	})
 
 	res, err := srv.buildDiscoveryResources(ctx)
 	if err != nil {
@@ -211,7 +224,7 @@ func (srv *Server) Run(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return context.Cause(ctx)
 			case cfg := <-srv.updateConfig:
 				err := srv.update(ctx, cfg)
 				if err != nil {
@@ -232,29 +245,29 @@ func (srv *Server) OnConfigChange(ctx context.Context, cfg *config.Config) error
 
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return context.Cause(ctx)
 	case srv.updateConfig <- cfg:
 	}
 	return nil
 }
 
 // EnableAuthenticate enables the authenticate service.
-func (srv *Server) EnableAuthenticate(svc Service) error {
+func (srv *Server) EnableAuthenticate(ctx context.Context, svc Service) error {
 	srv.authenticateSvc = svc
-	return srv.updateRouter(srv.currentConfig.Load())
+	return srv.updateRouter(ctx, srv.currentConfig.Load())
 }
 
 // EnableProxy enables the proxy service.
-func (srv *Server) EnableProxy(svc Service) error {
+func (srv *Server) EnableProxy(ctx context.Context, svc Service) error {
 	srv.proxySvc = svc
-	return srv.updateRouter(srv.currentConfig.Load())
+	return srv.updateRouter(ctx, srv.currentConfig.Load())
 }
 
 func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	ctx, span := trace.StartSpan(ctx, "controlplane.Server.update")
 	defer span.End()
 
-	if err := srv.updateRouter(cfg); err != nil {
+	if err := srv.updateRouter(ctx, cfg); err != nil {
 		return err
 	}
 	srv.reproxy.Update(ctx, cfg)
@@ -267,9 +280,9 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
-func (srv *Server) updateRouter(cfg *config.Config) error {
+func (srv *Server) updateRouter(ctx context.Context, cfg *config.Config) error {
 	httpRouter := mux.NewRouter()
-	srv.addHTTPMiddleware(httpRouter, cfg)
+	srv.addHTTPMiddleware(httpRouter, log.Ctx(ctx), cfg)
 	if err := srv.mountCommonEndpoints(httpRouter, cfg); err != nil {
 		return err
 	}

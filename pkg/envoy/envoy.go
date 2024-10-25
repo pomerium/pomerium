@@ -185,7 +185,7 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 
 	// monitor the process so we exit if it prematurely exits
 	var monitorProcessCtx context.Context
-	monitorProcessCtx, srv.monitorProcessCancel = context.WithCancel(context.Background())
+	monitorProcessCtx, srv.monitorProcessCancel = context.WithCancel(context.WithoutCancel(ctx))
 	go srv.monitorProcess(monitorProcessCtx, int32(cmd.Process.Pid))
 
 	if srv.resourceMonitor != nil {
@@ -251,7 +251,7 @@ func (srv *Server) parseLog(line string) (name string, logLevel string, msg stri
 func (srv *Server) handleLogs(ctx context.Context, rc io.ReadCloser) {
 	defer rc.Close()
 
-	l := log.With().Str("service", "envoy").Logger()
+	l := log.Ctx(ctx).With().Str("service", "envoy").Logger()
 	bo := backoff.NewExponentialBackOff()
 
 	s := bufio.NewReader(rc)

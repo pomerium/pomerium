@@ -34,7 +34,7 @@ func TestAuthorize_handleResult(t *testing.T) {
 	t.Cleanup(authnSrv.Close)
 	opt.AuthenticateURLString = authnSrv.URL
 
-	a, err := New(&config.Config{Options: opt})
+	a, err := New(context.Background(), &config.Config{Options: opt})
 	require.NoError(t, err)
 
 	t.Run("user-unauthenticated", func(t *testing.T) {
@@ -129,7 +129,7 @@ func TestAuthorize_okResponse(t *testing.T) {
 	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
 	a.currentOptions.Store(opt)
 	a.store = store.New()
-	pe, err := newPolicyEvaluator(opt, a.store, nil)
+	pe, err := newPolicyEvaluator(context.Background(), opt, a.store, nil)
 	require.NoError(t, err)
 	a.state.Load().evaluator = pe
 
@@ -327,7 +327,7 @@ func TestRequireLogin(t *testing.T) {
 	t.Cleanup(authnSrv.Close)
 	opt.AuthenticateURLString = authnSrv.URL
 
-	a, err := New(&config.Config{Options: opt})
+	a, err := New(context.Background(), &config.Config{Options: opt})
 	require.NoError(t, err)
 
 	t.Run("accept empty", func(t *testing.T) {

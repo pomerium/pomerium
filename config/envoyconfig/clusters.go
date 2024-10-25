@@ -247,7 +247,7 @@ func (b *Builder) buildInternalTransportSocket(
 			b.buildSubjectAltNameMatcher(endpoint, cfg.Options.OverrideCertificateName),
 		},
 	}
-	bs, err := getCombinedCertificateAuthority(cfg)
+	bs, err := getCombinedCertificateAuthority(ctx, cfg)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
 	} else {
@@ -347,7 +347,7 @@ func (b *Builder) buildPolicyValidationContext(
 		}
 		validationContext.TrustedCa = b.filemgr.BytesDataSource("custom-ca.pem", bs)
 	} else {
-		bs, err := getCombinedCertificateAuthority(cfg)
+		bs, err := getCombinedCertificateAuthority(ctx, cfg)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("unable to enable certificate verification because no root CAs were found")
 		} else {

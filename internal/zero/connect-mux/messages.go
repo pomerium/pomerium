@@ -17,7 +17,7 @@ import (
 func (svc *Mux) Watch(ctx context.Context, opts ...WatchOption) error {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return context.Cause(ctx)
 	case <-svc.ready:
 	}
 

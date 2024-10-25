@@ -44,7 +44,7 @@ type Authenticate struct {
 }
 
 // New validates and creates a new authenticate service from a set of Options.
-func New(cfg *config.Config, options ...Option) (*Authenticate, error) {
+func New(ctx context.Context, cfg *config.Config, options ...Option) (*Authenticate, error) {
 	authenticateConfig := getAuthenticateConfig(options...)
 	a := &Authenticate{
 		cfg:     authenticateConfig,
@@ -54,7 +54,7 @@ func New(cfg *config.Config, options ...Option) (*Authenticate, error) {
 
 	a.options.Store(cfg.Options)
 
-	state, err := newAuthenticateStateFromConfig(cfg, authenticateConfig)
+	state, err := newAuthenticateStateFromConfig(ctx, cfg, authenticateConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (a *Authenticate) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	}
 
 	a.options.Store(cfg.Options)
-	if state, err := newAuthenticateStateFromConfig(cfg, a.cfg); err != nil {
+	if state, err := newAuthenticateStateFromConfig(ctx, cfg, a.cfg); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to update state")
 	} else {
 		a.state.Store(state)

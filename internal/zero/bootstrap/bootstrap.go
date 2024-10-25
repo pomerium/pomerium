@@ -74,7 +74,7 @@ func (svc *Source) updateLoop(ctx context.Context) error {
 
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return context.Cause(ctx)
 		case <-svc.checkForUpdate:
 		case <-ticker.C:
 		}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/CAFxX/httpcompression"
 	"github.com/gorilla/mux"
+	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/handlers"
@@ -19,7 +20,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
-func (srv *Server) addHTTPMiddleware(root *mux.Router, _ *config.Config) {
+func (srv *Server) addHTTPMiddleware(root *mux.Router, logger *zerolog.Logger, _ *config.Config) {
 	compressor, err := httpcompression.DefaultAdapter()
 	if err != nil {
 		panic(err)
@@ -28,7 +29,7 @@ func (srv *Server) addHTTPMiddleware(root *mux.Router, _ *config.Config) {
 	root.Use(compressor)
 	root.Use(srv.reproxy.Middleware)
 	root.Use(requestid.HTTPMiddleware())
-	root.Use(log.NewHandler(log.Logger))
+	root.Use(log.NewHandler(func() *zerolog.Logger { return logger }))
 	root.Use(log.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
 		log.FromRequest(r).Debug().
 			Dur("duration", duration).

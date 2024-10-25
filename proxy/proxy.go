@@ -60,8 +60,8 @@ type Proxy struct {
 
 // New takes a Proxy service from options and a validation function.
 // Function returns an error if options fail to validate.
-func New(cfg *config.Config) (*Proxy, error) {
-	state, err := newProxyStateFromConfig(cfg)
+func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
+	state, err := newProxyStateFromConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func New(cfg *config.Config) (*Proxy, error) {
 		currentOptions: config.NewAtomicOptions(),
 		currentRouter:  atomicutil.NewValue(httputil.NewRouter()),
 	}
-	p.OnConfigChange(context.Background(), cfg)
+	p.OnConfigChange(ctx, cfg)
 	p.webauthn = webauthn.New(p.getWebauthnState)
 
 	metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
@@ -87,25 +87,25 @@ func (p *Proxy) Mount(r *mux.Router) {
 }
 
 // OnConfigChange updates internal structures based on config.Options
-func (p *Proxy) OnConfigChange(_ context.Context, cfg *config.Config) {
+func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	if p == nil {
 		return
 	}
 
 	p.currentOptions.Store(cfg.Options)
-	if err := p.setHandlers(cfg.Options); err != nil {
-		log.Error().Err(err).Msg("proxy: failed to update proxy handlers from configuration settings")
+	if err := p.setHandlers(ctx, cfg.Options); err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy handlers from configuration settings")
 	}
-	if state, err := newProxyStateFromConfig(cfg); err != nil {
-		log.Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
+	if state, err := newProxyStateFromConfig(ctx, cfg); err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
 	} else {
 		p.state.Store(state)
 	}
 }
 
-func (p *Proxy) setHandlers(opts *config.Options) error {
+func (p *Proxy) setHandlers(ctx context.Context, opts *config.Options) error {
 	if opts.NumPolicies() == 0 {
-		log.Info().Msg("proxy: configuration has no policies")
+		log.Ctx(ctx).Info().Msg("proxy: configuration has no policies")
 	}
 	r := httputil.NewRouter()
 	r.NotFoundHandler = httputil.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) error {
