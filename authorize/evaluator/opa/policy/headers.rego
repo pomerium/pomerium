@@ -74,7 +74,7 @@ jwt_headers := {
 }
 
 jwt_payload_aud := v if {
-	v := input.issuer
+	v := input.audience
 } else := ""
 
 jwt_payload_iss := v if {

@@ -46,6 +46,7 @@ func TestNewHeadersRequestFromPolicy(t *testing.T) {
 	assert.Equal(t, &HeadersRequest{
 		EnableGoogleCloudServerlessAuthentication: true,
 		Issuer:     "from.example.com",
+		Audience:   "from.example.com",
 		ToAudience: "https://to.example.com",
 		ClientCertificate: ClientCertificateInfo{
 			Leaf: "--- FAKE CERTIFICATE ---",
@@ -64,14 +65,30 @@ func TestNewHeadersRequestFromPolicy_IssuerFormat(t *testing.T) {
 		},
 	}
 	for _, tc := range []struct {
-		format   string
-		expected string
-		err      string
+		format           string
+		expectedIssuer   string
+		expectedAudience string
+		err              string
 	}{
-		{format: "", expected: "from.example.com"},
-		{format: "hostOnly", expected: "from.example.com"},
-		{format: "uri", expected: "https://from.example.com/"},
-		{format: "foo", err: `invalid issuer format: "foo"`},
+		{
+			format:           "",
+			expectedIssuer:   "from.example.com",
+			expectedAudience: "from.example.com",
+		},
+		{
+			format:           "hostOnly",
+			expectedIssuer:   "from.example.com",
+			expectedAudience: "from.example.com",
+		},
+		{
+			format:           "uri",
+			expectedIssuer:   "https://from.example.com/",
+			expectedAudience: "from.example.com",
+		},
+		{
+			format: "foo",
+			err:    `invalid issuer format: "foo"`,
+		},
 	} {
 		policy.JWTIssuerFormat = tc.format
 		req, err := NewHeadersRequestFromPolicy(policy, RequestHTTP{
@@ -85,7 +102,8 @@ func TestNewHeadersRequestFromPolicy_IssuerFormat(t *testing.T) {
 		} else {
 			assert.Equal(t, &HeadersRequest{
 				EnableGoogleCloudServerlessAuthentication: true,
-				Issuer:     tc.expected,
+				Issuer:     tc.expectedIssuer,
+				Audience:   tc.expectedAudience,
 				ToAudience: "https://to.example.com",
 				ClientCertificate: ClientCertificateInfo{
 					Leaf: "--- FAKE CERTIFICATE ---",
@@ -98,7 +116,8 @@ func TestNewHeadersRequestFromPolicy_IssuerFormat(t *testing.T) {
 func TestNewHeadersRequestFromPolicy_nil(t *testing.T) {
 	req, _ := NewHeadersRequestFromPolicy(nil, RequestHTTP{Hostname: "from.example.com"})
 	assert.Equal(t, &HeadersRequest{
-		Issuer: "from.example.com",
+		Issuer:   "from.example.com",
+		Audience: "from.example.com",
 	}, req)
 }
 
@@ -142,6 +161,7 @@ func TestHeadersEvaluator(t *testing.T) {
 			},
 			&HeadersRequest{
 				Issuer:     "from.example.com",
+				Audience:   "from.example.com",
 				ToAudience: "to.example.com",
 				Session: RequestSession{
 					ID: "s1",
@@ -197,6 +217,7 @@ func TestHeadersEvaluator(t *testing.T) {
 			},
 			&HeadersRequest{
 				Issuer:     "from.example.com",
+				Audience:   "from.example.com",
 				ToAudience: "to.example.com",
 				Session:    RequestSession{ID: "s1"},
 				SetRequestHeaders: map[string]string{
@@ -239,6 +260,7 @@ func TestHeadersEvaluator(t *testing.T) {
 			},
 			&HeadersRequest{
 				Issuer:     "from.example.com",
+				Audience:   "from.example.com",
 				ToAudience: "to.example.com",
 				Session:    RequestSession{ID: "s1"},
 				SetRequestHeaders: map[string]string{
@@ -261,6 +283,7 @@ func TestHeadersEvaluator(t *testing.T) {
 			},
 			&HeadersRequest{
 				Issuer:     "from.example.com",
+				Audience:   "from.example.com",
 				ToAudience: "to.example.com",
 				Session:    RequestSession{ID: "s1"},
 				SetRequestHeaders: map[string]string{
@@ -276,6 +299,7 @@ func TestHeadersEvaluator(t *testing.T) {
 		output, err := eval(t, nil,
 			&HeadersRequest{
 				Issuer:     "from.example.com",
+				Audience:   "from.example.com",
 				ToAudience: "to.example.com",
 				SetRequestHeaders: map[string]string{
 					"fingerprint": "${pomerium.client_cert_fingerprint}",
@@ -296,6 +320,7 @@ func TestHeadersEvaluator(t *testing.T) {
 			},
 			&HeadersRequest{
 				Issuer:                        "from.example.com",
+				Audience:                      "from.example.com",
 				ToAudience:                    "to.example.com",
 				KubernetesServiceAccountToken: "TOKEN",
 				Session:                       RequestSession{ID: "s1"},
