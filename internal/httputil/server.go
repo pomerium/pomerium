@@ -97,7 +97,7 @@ func Shutdown(srv *http.Server) {
 	rec := <-sigint
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	log.Info(context.TODO()).Str("signal", rec.String()).Msg("internal/httputil: shutting down servers")
+	log.Info().Str("signal", rec.String()).Msg("internal/httputil: shutting down servers")
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Error().Err(err).Msg("internal/httputil: shutdown failed")
 	}

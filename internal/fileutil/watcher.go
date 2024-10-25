@@ -95,7 +95,7 @@ func (watcher *Watcher) initLocked(ctx context.Context) {
 	// handle events
 	go func() {
 		for evt := range events {
-			log.Info(ctx).Str("name", evt.Name).Str("op", evt.Op.String()).Msg("fileutil/watcher: file notification event")
+			log.Ctx(ctx).Info().Str("name", evt.Name).Str("op", evt.Op.String()).Msg("fileutil/watcher: file notification event")
 			watcher.Broadcast(ctx)
 		}
 	}()

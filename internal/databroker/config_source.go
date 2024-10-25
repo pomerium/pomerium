@@ -91,7 +91,7 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 	now := time.Now()
 	src.mu.Lock()
 	defer src.mu.Unlock()
-	log.Debug(ctx).Str("lock-wait", time.Since(now).String()).Msg("databroker: rebuilding configuration")
+	log.Ctx(ctx).Debug().Str("lock-wait", time.Since(now).String()).Msg("databroker: rebuilding configuration")
 
 	cfg := src.underlyingConfig.Clone()
 
@@ -106,7 +106,7 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 		return
 	}
 	health.ReportOK(health.BuildDatabrokerConfig)
-	log.Debug(ctx).Str("elapsed", time.Since(now).String()).Msg("databroker: built new config")
+	log.Ctx(ctx).Debug().Str("elapsed", time.Since(now).String()).Msg("databroker: built new config")
 
 	src.computedConfig = cfg
 	if !firstTime {
@@ -274,7 +274,7 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 	}, databroker.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Config))),
 		databroker.WithFastForward())
 	go func() {
-		log.Debug(ctx).
+		log.Ctx(ctx).Debug().
 			Str("outbound_port", cfg.OutboundPort).
 			Msg("config: starting databroker config source syncer")
 		_ = grpc.WaitForReady(ctx, cc, time.Second*10)

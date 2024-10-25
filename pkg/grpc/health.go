@@ -20,7 +20,7 @@ func NewHealthCheckServer() grpc_health.HealthServer {
 // Check confirms service is reachable, and assumes any service is operational
 // an outlier detection should be used to detect runtime malfunction based on consequitive 5xx
 func (h *healthCheckSrv) Check(ctx context.Context, req *grpc_health.HealthCheckRequest) (*grpc_health.HealthCheckResponse, error) {
-	log.Debug(ctx).Str("service", req.Service).Msg("health check")
+	log.Ctx(ctx).Debug().Str("service", req.Service).Msg("health check")
 	return &grpc_health.HealthCheckResponse{
 		Status: grpc_health.HealthCheckResponse_SERVING,
 	}, nil

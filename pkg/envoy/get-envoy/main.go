@@ -93,7 +93,7 @@ func download(
 		}
 
 		if timesMatch(fi.ModTime(), lastModified) {
-			log.Debug(ctx).Str("url", srcURL).Str("dst", dstPath).Msg("skipping download")
+			log.Ctx(ctx).Debug().Str("url", srcURL).Str("dst", dstPath).Msg("skipping download")
 			return nil
 		}
 
@@ -101,7 +101,7 @@ func download(
 		return fmt.Errorf("error reading destination path file info (dst=%s): %w", dstPath, err)
 	}
 
-	log.Info(ctx).Str("url", srcURL).Str("dst", dstPath).Msg("downloading")
+	log.Ctx(ctx).Info().Str("url", srcURL).Str("dst", dstPath).Msg("downloading")
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srcURL, nil)
 	if err != nil {

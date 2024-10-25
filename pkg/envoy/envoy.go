@@ -60,7 +60,7 @@ type Server struct {
 // NewServer creates a new server with traffic routed by envoy.
 func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Builder) (*Server, error) {
 	if err := preserveRlimitNofile(); err != nil {
-		log.Debug(ctx).Err(err).Msg("couldn't preserve RLIMIT_NOFILE before starting Envoy")
+		log.Ctx(ctx).Debug().Err(err).Msg("couldn't preserve RLIMIT_NOFILE before starting Envoy")
 	}
 
 	envoyPath, err := Extract()
@@ -88,7 +88,7 @@ func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Buil
 	src.OnConfigChange(ctx, srv.onConfigChange)
 	srv.onConfigChange(ctx, src.GetConfig())
 
-	log.Debug(ctx).
+	log.Ctx(ctx).Debug().
 		Str("path", envoyPath).
 		Str("checksum", files.Checksum()).
 		Msg("running envoy")
@@ -129,12 +129,12 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 	}
 
 	if cmp.Equal(srv.options, options, cmp.AllowUnexported(serverOptions{})) {
-		log.Debug(ctx).Str("service", "envoy").Msg("envoy: no config changes detected")
+		log.Ctx(ctx).Debug().Str("service", "envoy").Msg("envoy: no config changes detected")
 		return
 	}
 	srv.options = options
 
-	log.Debug(ctx).Msg("envoy: starting envoy process")
+	log.Ctx(ctx).Debug().Msg("envoy: starting envoy process")
 	if err := srv.run(ctx, cfg); err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("service", "envoy").Msg("envoy: failed to run envoy process")
 		return
@@ -189,12 +189,12 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	go srv.monitorProcess(monitorProcessCtx, int32(cmd.Process.Pid))
 
 	if srv.resourceMonitor != nil {
-		log.Debug(ctx).Str("service", "envoy").Msg("starting resource monitor")
+		log.Ctx(ctx).Debug().Str("service", "envoy").Msg("starting resource monitor")
 		go func() {
 			err := srv.resourceMonitor.Run(ctx, cmd.Process.Pid)
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
-					log.Debug(ctx).Err(err).Str("service", "envoy").Msg("resource monitor stopped")
+					log.Ctx(ctx).Debug().Err(err).Str("service", "envoy").Msg("resource monitor stopped")
 				} else {
 					log.Ctx(ctx).Error().Err(err).Str("service", "envoy").Msg("resource monitor exited with error")
 				}
@@ -213,7 +213,7 @@ func (srv *Server) writeConfig(ctx context.Context, cfg *config.Config) error {
 	}
 
 	cfgPath := filepath.Join(srv.wd, configFileName)
-	log.Debug(ctx).Str("service", "envoy").Str("location", cfgPath).Msg("wrote config file to location")
+	log.Ctx(ctx).Debug().Str("service", "envoy").Str("location", cfgPath).Msg("wrote config file to location")
 
 	return atomic.WriteFile(cfgPath, bytes.NewReader(confBytes))
 }
@@ -301,7 +301,7 @@ func (srv *Server) handleLogs(ctx context.Context, rc io.ReadCloser) {
 }
 
 func (srv *Server) monitorProcess(ctx context.Context, pid int32) {
-	log.Debug(ctx).
+	log.Ctx(ctx).Debug().
 		Int32("pid", pid).
 		Msg("envoy: start monitoring subprocess")
 

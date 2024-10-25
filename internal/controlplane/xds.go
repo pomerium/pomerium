@@ -26,7 +26,7 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 
 	cfg := srv.currentConfig.Load()
 
-	log.Debug(ctx).Msg("controlplane: building discovery resources")
+	log.Ctx(ctx).Debug().Msg("controlplane: building discovery resources")
 
 	eg, ctx := errgroup.WithContext(ctx)
 
@@ -83,7 +83,7 @@ func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*e
 		return nil, err
 	}
 
-	log.Debug(ctx).
+	log.Ctx(ctx).Debug().
 		Int("cluster-count", len(clusterResources)).
 		Int("listener-count", len(listenerResources)).
 		Int("route-configuration-count", len(routeConfigurationResources)).

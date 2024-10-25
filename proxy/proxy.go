@@ -105,7 +105,7 @@ func (p *Proxy) OnConfigChange(_ context.Context, cfg *config.Config) {
 
 func (p *Proxy) setHandlers(opts *config.Options) error {
 	if opts.NumPolicies() == 0 {
-		log.Info(context.TODO()).Msg("proxy: configuration has no policies")
+		log.Info().Msg("proxy: configuration has no policies")
 	}
 	r := httputil.NewRouter()
 	r.NotFoundHandler = httputil.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) error {

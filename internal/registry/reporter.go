@@ -145,7 +145,7 @@ func runReporter(
 			after = resp.CallBackAfter.AsDuration()
 			backoff.Reset()
 		case <-ctx.Done():
-			log.Info(ctx).Msg("service registry reporter stopping")
+			log.Ctx(ctx).Info().Msg("service registry reporter stopping")
 			return
 		}
 	}

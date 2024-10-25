@@ -91,7 +91,7 @@ func (ff *fastForwardHandler) UpdateRecords(ctx context.Context, serverVersion u
 	})
 	dropped := cnt - len(records)
 	if dropped > 0 {
-		log.Info(ctx).Msgf("databroker: fast-forwarded %d records", dropped)
+		log.Ctx(ctx).Info().Msgf("databroker: fast-forwarded %d records", dropped)
 	}
 	// reverse back so they appear in the order they were delivered
 	slices.Reverse(records)

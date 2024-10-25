@@ -95,7 +95,7 @@ func (mgr *TraceManager) OnConfigChange(ctx context.Context, cfg *Config) {
 	}
 
 	if reflect.DeepEqual(traceOpts, mgr.traceOpts) {
-		log.Debug(ctx).Msg("no change detected in trace options")
+		log.Ctx(ctx).Debug().Msg("no change detected in trace options")
 		return
 	}
 	mgr.traceOpts = traceOpts
@@ -109,7 +109,7 @@ func (mgr *TraceManager) OnConfigChange(ctx context.Context, cfg *Config) {
 		return
 	}
 
-	log.Info(ctx).Interface("options", traceOpts).Msg("trace: starting exporter")
+	log.Ctx(ctx).Info().Interface("options", traceOpts).Msg("trace: starting exporter")
 
 	mgr.provider, err = trace.GetProvider(traceOpts)
 	if err != nil {

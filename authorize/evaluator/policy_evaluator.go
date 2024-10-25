@@ -147,7 +147,7 @@ func NewPolicyEvaluator(
 
 	// for each script, create a rego and prepare a query.
 	for i := range e.queries {
-		log.Debug(ctx).
+		log.Ctx(ctx).Debug().
 			Str("script", e.queries[i].script).
 			Str("from", configPolicy.From).
 			Interface("to", configPolicy.To).

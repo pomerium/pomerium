@@ -153,7 +153,6 @@ else := [false, {"domain-unauthorized"}] if {
 else := [false, {"user-unauthenticated"}]
 
 claim_0 := [true, {"claim-ok"}] if {
-	rule_data := "Smith"
 	rule_path := "family_name"
 	session := get_session(input.session.id)
 	session_claims := object.get(session, "claims", {})
@@ -161,7 +160,7 @@ claim_0 := [true, {"claim-ok"}] if {
 	user_claims := object.get(user, "claims", {})
 	all_claims := object.union(session_claims, user_claims)
 	values := object_get(all_claims, rule_path, [])
-	rule_data == values[_0]
+	count([true | some v; v = values[_0]; v == "Smith"]) > 0
 }
 
 else := [false, {"claim-unauthorized"}] if {
@@ -172,7 +171,6 @@ else := [false, {"claim-unauthorized"}] if {
 else := [false, {"user-unauthenticated"}]
 
 claim_1 := [true, {"claim-ok"}] if {
-	rule_data := "Jones"
 	rule_path := "family_name"
 	session := get_session(input.session.id)
 	session_claims := object.get(session, "claims", {})
@@ -180,7 +178,7 @@ claim_1 := [true, {"claim-ok"}] if {
 	user_claims := object.get(user, "claims", {})
 	all_claims := object.union(session_claims, user_claims)
 	values := object_get(all_claims, rule_path, [])
-	rule_data == values[_0]
+	count([true | some v; v = values[_0]; v == "Jones"]) > 0
 }
 
 else := [false, {"claim-unauthorized"}] if {
@@ -191,7 +189,6 @@ else := [false, {"claim-unauthorized"}] if {
 else := [false, {"user-unauthenticated"}]
 
 claim_2 := [true, {"claim-ok"}] if {
-	rule_data := "John"
 	rule_path := "given_name"
 	session := get_session(input.session.id)
 	session_claims := object.get(session, "claims", {})
@@ -199,7 +196,7 @@ claim_2 := [true, {"claim-ok"}] if {
 	user_claims := object.get(user, "claims", {})
 	all_claims := object.union(session_claims, user_claims)
 	values := object_get(all_claims, rule_path, [])
-	rule_data == values[_0]
+	count([true | some v; v = values[_0]; v == "John"]) > 0
 }
 
 else := [false, {"claim-unauthorized"}] if {
@@ -210,7 +207,6 @@ else := [false, {"claim-unauthorized"}] if {
 else := [false, {"user-unauthenticated"}]
 
 claim_3 := [true, {"claim-ok"}] if {
-	rule_data := "EST"
 	rule_path := "timezone"
 	session := get_session(input.session.id)
 	session_claims := object.get(session, "claims", {})
@@ -218,7 +214,7 @@ claim_3 := [true, {"claim-ok"}] if {
 	user_claims := object.get(user, "claims", {})
 	all_claims := object.union(session_claims, user_claims)
 	values := object_get(all_claims, rule_path, [])
-	rule_data == values[_0]
+	count([true | some v; v = values[_0]; v == "EST"]) > 0
 }
 
 else := [false, {"claim-unauthorized"}] if {

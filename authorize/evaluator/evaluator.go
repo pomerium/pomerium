@@ -192,7 +192,7 @@ func getOrCreatePolicyEvaluators(
 		m[p.id] = p.evaluator
 	}
 
-	log.Debug(ctx).
+	log.Ctx(ctx).Debug().
 		Dur("duration", time.Since(now)).
 		Int("reused-policies", reusedCount).
 		Int("created-policies", len(cfg.Policies)-reusedCount).
@@ -361,7 +361,7 @@ func getJWK(cfg *evaluatorConfig) (*jose.JSONWebKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate signing key: %w", err)
 	}
-	log.Info(context.TODO()).Str("Algorithm", jwk.Algorithm).
+	log.Info().Str("Algorithm", jwk.Algorithm).
 		Str("KeyID", jwk.KeyID).
 		Interface("Public Key", jwk.Public()).
 		Msg("authorize: signing key")
