@@ -124,18 +124,18 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 	// wait for initial sync
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return context.Cause(ctx)
 	case <-clear:
 		mgr.reset()
 	}
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return context.Cause(ctx)
 	case msg := <-update:
 		mgr.onUpdateRecords(ctx, msg)
 	}
 
-	log.Debug(ctx).
+	log.Ctx(ctx).Debug().
 		Int("sessions", mgr.sessions.Len()).
 		Int("users", mgr.users.Len()).
 		Msg("initial sync complete")
@@ -150,7 +150,7 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return context.Cause(ctx)
 		case <-clear:
 			mgr.reset()
 		case msg := <-update:
@@ -205,14 +205,14 @@ func (mgr *Manager) refreshLoop(ctx context.Context, update <-chan updateRecords
 // user info refresh. If an access token refresh or a user info refresh fails
 // with a permanent error, the session will be deleted.
 func (mgr *Manager) refreshSession(ctx context.Context, userID, sessionID string) {
-	log.Info(ctx).
+	log.Ctx(ctx).Info().
 		Str("user_id", userID).
 		Str("session_id", sessionID).
 		Msg("refreshing session")
 
 	s, ok := mgr.sessions.Get(userID, sessionID)
 	if !ok {
-		log.Info(ctx).
+		log.Ctx(ctx).Info().
 			Str("user_id", userID).
 			Str("session_id", sessionID).
 			Msg("no session found for refresh")
@@ -234,7 +234,7 @@ func (mgr *Manager) refreshSessionInternal(
 ) bool {
 	authenticator := mgr.cfg.Load().authenticator
 	if authenticator == nil {
-		log.Info(ctx).
+		log.Ctx(ctx).Info().
 			Str("user_id", userID).
 			Str("session_id", sessionID).
 			Msg("no authenticator defined, deleting session")
@@ -244,7 +244,7 @@ func (mgr *Manager) refreshSessionInternal(
 
 	expiry := s.GetExpiresAt().AsTime()
 	if !expiry.After(mgr.now()) {
-		log.Info(ctx).
+		log.Ctx(ctx).Info().
 			Str("user_id", userID).
 			Str("session_id", sessionID).
 			Msg("deleting expired session")
@@ -253,7 +253,7 @@ func (mgr *Manager) refreshSessionInternal(
 	}
 
 	if s.Session == nil || s.Session.OauthToken == nil {
-		log.Info(ctx).
+		log.Ctx(ctx).Info().
 			Str("user_id", userID).
 			Str("session_id", sessionID).
 			Msg("no session oauth2 token found for refresh")
@@ -313,7 +313,7 @@ func (mgr *Manager) refreshSessionInternal(
 }
 
 func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
-	log.Info(ctx).
+	log.Ctx(ctx).Info().
 		Str("user_id", userID).
 		Msg("refreshing user")
 
@@ -324,7 +324,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 
 	u, ok := mgr.users.Get(userID)
 	if !ok {
-		log.Info(ctx).
+		log.Ctx(ctx).Info().
 			Str("user_id", userID).
 			Msg("no user found for refresh")
 		return
@@ -334,7 +334,7 @@ func (mgr *Manager) refreshUser(ctx context.Context, userID string) {
 
 	for _, s := range mgr.sessions.GetSessionsForUser(userID) {
 		if s.Session == nil || s.Session.OauthToken == nil {
-			log.Info(ctx).
+			log.Ctx(ctx).Info().
 				Str("user_id", userID).
 				Msg("no session oauth2 token found for refresh")
 			continue

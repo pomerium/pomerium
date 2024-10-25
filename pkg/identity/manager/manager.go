@@ -218,7 +218,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 
 	expiry := s.GetExpiresAt().AsTime()
 	if !expiry.After(mgr.cfg.Load().now()) {
-		log.Info(ctx).
+		log.Ctx(ctx).Info().
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("deleting expired session")
@@ -227,7 +227,7 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 	}
 
 	if s.GetOauthToken() == nil {
-		log.Info(ctx).
+		log.Ctx(ctx).Info().
 			Str("user_id", s.GetUserId()).
 			Str("session_id", s.GetId()).
 			Msg("no session oauth2 token found for refresh")

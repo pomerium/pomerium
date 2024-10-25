@@ -38,7 +38,7 @@ func main() {
 		runFn = zero_cmd.Run
 	}
 	root.RunE = func(_ *cobra.Command, _ []string) error {
-		defer log.Info(ctx).Msg("cmd/pomerium: exiting")
+		defer log.Ctx(ctx).Info().Msg("cmd/pomerium: exiting")
 		return runFn(ctx, configFile)
 	}
 
@@ -54,7 +54,7 @@ func run(ctx context.Context, configFile string) error {
 
 	var src config.Source
 
-	src, err := config.NewFileOrEnvironmentSource(configFile, files.FullVersion())
+	src, err := config.NewFileOrEnvironmentSource(ctx, configFile, files.FullVersion())
 	if err != nil {
 		return err
 	}

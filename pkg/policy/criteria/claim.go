@@ -3,12 +3,11 @@ package criteria
 import (
 	"github.com/open-policy-agent/opa/ast"
 
-	"github.com/pomerium/pomerium/pkg/policy/generator"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 	"github.com/pomerium/pomerium/pkg/policy/rules"
 )
 
-var claimsBody = ast.Body{
+var claimBody = ast.Body{
 	ast.MustParseExpr(`
 		session := get_session(input.session.id)
 	`),
@@ -27,30 +26,33 @@ var claimsBody = ast.Body{
 	ast.MustParseExpr(`
 		values := object_get(all_claims, rule_path, [])
 	`),
-	ast.MustParseExpr(`
-		rule_data == values[_]
-	`),
 }
 
-type claimsCriterion struct {
+type claimCriterion struct {
 	g *Generator
 }
 
-func (claimsCriterion) DataType() CriterionDataType {
-	return generator.CriterionDataTypeUnknown
+func (claimCriterion) DataType() CriterionDataType {
+	return CriterionDataTypeStringListMatcher
 }
 
-func (claimsCriterion) Name() string {
+func (claimCriterion) Name() string {
 	return "claim"
 }
 
-func (c claimsCriterion) GenerateRule(subPath string, data parser.Value) (*ast.Rule, []*ast.Rule, error) {
+func (c claimCriterion) GenerateRule(subPath string, data parser.Value) (*ast.Rule, []*ast.Rule, error) {
+	var body ast.Body
+	body = append(body, ast.Assign.Expr(ast.VarTerm("rule_path"), ast.NewTerm(ast.MustInterfaceToValue(subPath))))
+	body = append(body, claimBody...)
+
+	err := matchStringList(&body, ast.VarTerm("values"), data)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	rule := NewCriterionSessionRule(c.g, c.Name(),
 		ReasonClaimOK, ReasonClaimUnauthorized,
-		append(ast.Body{
-			ast.Assign.Expr(ast.VarTerm("rule_data"), ast.NewTerm(data.RegoValue())),
-			ast.Assign.Expr(ast.VarTerm("rule_path"), ast.NewTerm(ast.MustInterfaceToValue(subPath))),
-		}, claimsBody...))
+		body)
 	return rule, []*ast.Rule{
 		rules.GetSession(),
 		rules.GetUser(),
@@ -58,11 +60,11 @@ func (c claimsCriterion) GenerateRule(subPath string, data parser.Value) (*ast.R
 	}, nil
 }
 
-// Claims returns a Criterion on allowed IDP claims.
-func Claims(generator *Generator) Criterion {
-	return claimsCriterion{g: generator}
+// Claim returns a Criterion on allowed IDP claims.
+func Claim(generator *Generator) Criterion {
+	return claimCriterion{g: generator}
 }
 
 func init() {
-	Register(Claims)
+	Register(Claim)
 }

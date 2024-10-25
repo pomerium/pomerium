@@ -103,7 +103,7 @@ func makeSelect(
 			fn: func(ctx context.Context) error {
 				// unreachable, the context handler will never be called
 				// as its channel can only be closed
-				return ctx.Err()
+				return context.Cause(ctx)
 			},
 			ch: reflect.ValueOf(ctx.Done()),
 		},

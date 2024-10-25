@@ -33,7 +33,7 @@ func (l loggingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error
 	if res != nil {
 		statusCode = res.StatusCode
 	}
-	evt := log.Debug(req.Context()).
+	evt := log.Ctx(req.Context()).Debug().
 		Str("method", req.Method).
 		Str("authority", req.URL.Host).
 		Str("path", req.URL.Path).

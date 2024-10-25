@@ -45,7 +45,7 @@ type DataBroker struct {
 }
 
 // New creates a new databroker service.
-func New(cfg *config.Config, eventsMgr *events.Manager) (*DataBroker, error) {
+func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager) (*DataBroker, error) {
 	localListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
@@ -61,8 +61,8 @@ func New(cfg *config.Config, eventsMgr *events.Manager) (*DataBroker, error) {
 	// No metrics handler because we have one in the control plane.  Add one
 	// if we no longer register with that grpc Server
 	localGRPCServer := grpc.NewServer(
-		grpc.StreamInterceptor(si),
-		grpc.UnaryInterceptor(ui),
+		grpc.ChainStreamInterceptor(log.StreamServerInterceptor(log.Ctx(ctx)), si),
+		grpc.ChainUnaryInterceptor(log.UnaryServerInterceptor(log.Ctx(ctx)), ui),
 	)
 
 	sharedKey, err := cfg.Options.GetSharedKey()
@@ -79,7 +79,7 @@ func New(cfg *config.Config, eventsMgr *events.Manager) (*DataBroker, error) {
 		grpc.WithStatsHandler(clientStatsHandler.Handler),
 	}
 
-	ctx := log.WithContext(context.Background(), func(c zerolog.Context) zerolog.Context {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "databroker").Str("config_source", "bootstrap")
 	})
 	localGRPCConnection, err := grpc.DialContext(
@@ -91,7 +91,7 @@ func New(cfg *config.Config, eventsMgr *events.Manager) (*DataBroker, error) {
 		return nil, err
 	}
 
-	dataBrokerServer, err := newDataBrokerServer(cfg)
+	dataBrokerServer, err := newDataBrokerServer(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +180,7 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 			legacyOptions = append(legacyOptions, legacymanager.WithAuthenticator(authenticator))
 		}
 	} else {
-		log.Info(ctx).Msg("databroker: disabling refresh of user sessions")
+		log.Ctx(ctx).Info().Msg("databroker: disabling refresh of user sessions")
 	}
 
 	if c.manager == nil {

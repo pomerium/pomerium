@@ -31,7 +31,7 @@ func (a *Authorize) logAuthorizeCheck(
 	hdrs := getCheckRequestHeaders(in)
 	impersonateDetails := a.getImpersonateDetails(ctx, s)
 
-	evt := log.Info(ctx).Str("service", "authorize")
+	evt := log.Ctx(ctx).Info().Str("service", "authorize")
 	fields := a.currentOptions.Load().GetAuthorizeLogFields()
 	for _, field := range fields {
 		evt = populateLogEvent(ctx, field, evt, in, s, u, hdrs, impersonateDetails)
@@ -69,7 +69,7 @@ func (a *Authorize) logAuthorizeCheck(
 			log.Ctx(ctx).Error().Err(err).Msg("authorize: error encrypting audit record")
 			return
 		}
-		log.Info(ctx).
+		log.Ctx(ctx).Info().
 			Str("request-id", requestid.FromContext(ctx)).
 			EmbedObject(sealed).
 			Msg("audit log")

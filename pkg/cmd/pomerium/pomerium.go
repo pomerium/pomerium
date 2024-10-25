@@ -32,9 +32,9 @@ import (
 
 // Run runs the main pomerium application.
 func Run(ctx context.Context, src config.Source) error {
-	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Debug(context.Background()).Msgf(s, i...) }))
+	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Ctx(ctx).Debug().Msgf(s, i...) }))
 
-	evt := log.Info(ctx).
+	evt := log.Ctx(ctx).Info().
 		Str("envoy_version", files.FullVersion()).
 		Str("version", version.FullVersion())
 	if buildTime := version.BuildTime(); buildTime != "" {
@@ -53,7 +53,7 @@ func Run(ctx context.Context, src config.Source) error {
 	// trigger changes when underlying files are changed
 	src = config.NewFileWatcherSource(ctx, src)
 
-	src, err = autocert.New(src)
+	src, err = autocert.New(ctx, src)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func Run(ctx context.Context, src config.Source) error {
 	cfg := src.GetConfig()
 
 	// setup the control plane
-	controlPlane, err := controlplane.NewServer(cfg, metricsMgr, eventsMgr)
+	controlPlane, err := controlplane.NewServer(ctx, cfg, metricsMgr, eventsMgr)
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}
@@ -86,7 +86,7 @@ func Run(ctx context.Context, src config.Source) error {
 		return fmt.Errorf("applying config: %w", err)
 	}
 
-	log.Info(ctx).
+	log.Ctx(ctx).Info().
 		Str("grpc-port", src.GetConfig().GRPCPort).
 		Str("http-port", src.GetConfig().HTTPPort).
 		Str("outbound-port", src.GetConfig().OutboundPort).
@@ -166,30 +166,30 @@ func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *con
 		return nil
 	}
 
-	svc, err := authenticate.New(src.GetConfig())
+	svc, err := authenticate.New(ctx, src.GetConfig())
 	if err != nil {
 		return fmt.Errorf("error creating authenticate service: %w", err)
 	}
-	err = controlPlane.EnableAuthenticate(svc)
+	err = controlPlane.EnableAuthenticate(ctx, svc)
 	if err != nil {
 		return fmt.Errorf("error adding authenticate service to control plane: %w", err)
 	}
 
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
-	log.Info(ctx).Msg("enabled authenticate service")
+	log.Ctx(ctx).Info().Msg("enabled authenticate service")
 
 	return nil
 }
 
 func setupAuthorize(ctx context.Context, src config.Source, controlPlane *controlplane.Server) (*authorize.Authorize, error) {
-	svc, err := authorize.New(src.GetConfig())
+	svc, err := authorize.New(ctx, src.GetConfig())
 	if err != nil {
 		return nil, fmt.Errorf("error creating authorize service: %w", err)
 	}
 	envoy_service_auth_v3.RegisterAuthorizationServer(controlPlane.GRPCServer, svc)
 
-	log.Info(ctx).Msg("enabled authorize service")
+	log.Ctx(ctx).Info().Msg("enabled authorize service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
 	return svc, nil
@@ -200,12 +200,12 @@ func setupDataBroker(ctx context.Context,
 	controlPlane *controlplane.Server,
 	eventsMgr *events.Manager,
 ) (*databroker_service.DataBroker, error) {
-	svc, err := databroker_service.New(src.GetConfig(), eventsMgr)
+	svc, err := databroker_service.New(ctx, src.GetConfig(), eventsMgr)
 	if err != nil {
 		return nil, fmt.Errorf("error creating databroker service: %w", err)
 	}
 	svc.Register(controlPlane.GRPCServer)
-	log.Info(ctx).Msg("enabled databroker service")
+	log.Ctx(ctx).Info().Msg("enabled databroker service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
 	return svc, nil
@@ -223,16 +223,16 @@ func setupProxy(ctx context.Context, src config.Source, controlPlane *controlpla
 		return nil
 	}
 
-	svc, err := proxy.New(src.GetConfig())
+	svc, err := proxy.New(ctx, src.GetConfig())
 	if err != nil {
 		return fmt.Errorf("error creating proxy service: %w", err)
 	}
-	err = controlPlane.EnableProxy(svc)
+	err = controlPlane.EnableProxy(ctx, svc)
 	if err != nil {
 		return fmt.Errorf("error adding proxy service to control plane: %w", err)
 	}
 
-	log.Info(ctx).Msg("enabled proxy service")
+	log.Ctx(ctx).Info().Msg("enabled proxy service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)
 	svc.OnConfigChange(ctx, src.GetConfig())
 

@@ -34,7 +34,7 @@ func TestBackend(t *testing.T) {
 	defer clearTimeout()
 
 	testutil.WithTestPostgres(t, func(dsn string) {
-		backend := New(dsn)
+		backend := New(ctx, dsn)
 		defer backend.Close()
 
 		t.Run("put", func(t *testing.T) {

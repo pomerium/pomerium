@@ -283,7 +283,7 @@ func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
 	if envoyCgroup != s.cgroup {
 		return fmt.Errorf("envoy process is not in the expected cgroup: %s", envoyCgroup)
 	}
-	log.Info(ctx).Str("service", "envoy").Str("cgroup", s.cgroup).Msg("starting resource monitor")
+	log.Ctx(ctx).Info().Str("service", "envoy").Str("cgroup", s.cgroup).Msg("starting resource monitor")
 
 	ctx, ca := context.WithCancelCause(ctx)
 
@@ -346,7 +346,7 @@ LOOP:
 				}
 				s.updateActionStates(ctx, saturation)
 				metrics.RecordEnvoyCgroupMemorySaturation(ctx, s.cgroup, saturation)
-				log.Debug(ctx).
+				log.Ctx(ctx).Debug().
 					Str("service", "envoy").
 					Str("metric", metricCgroupMemorySaturation).
 					Str("value", saturationStr).
@@ -693,10 +693,10 @@ func (w *memoryLimitWatcher) Watch(ctx context.Context) error {
 		return err
 	}
 	closeInotify := sync.OnceFunc(func() {
-		log.Debug(ctx).Msg("stopping memory limit watcher")
+		log.Ctx(ctx).Debug().Msg("stopping memory limit watcher")
 		unix.Close(fd)
 	})
-	log.Debug(ctx).Str("file", w.limitFilePath).Msg("starting watch")
+	log.Ctx(ctx).Debug().Str("file", w.limitFilePath).Msg("starting watch")
 	wd, err := unix.InotifyAddWatch(fd, w.limitFilePath, unix.IN_MODIFY)
 	if err != nil {
 		closeInotify()
@@ -704,7 +704,7 @@ func (w *memoryLimitWatcher) Watch(ctx context.Context) error {
 	}
 	w.watches.Add(1)
 	closeWatch := sync.OnceFunc(func() {
-		log.Debug(ctx).Str("file", w.limitFilePath).Msg("stopping watch")
+		log.Ctx(ctx).Debug().Str("file", w.limitFilePath).Msg("stopping watch")
 		_, _ = unix.InotifyRmWatch(fd, uint32(wd))
 		closeInotify()
 		w.watches.Done()
@@ -717,7 +717,7 @@ func (w *memoryLimitWatcher) Watch(ctx context.Context) error {
 		return err
 	}
 	w.value.Store(v)
-	log.Debug(ctx).Uint64("bytes", v).Msg("current memory limit")
+	log.Ctx(ctx).Debug().Uint64("bytes", v).Msg("current memory limit")
 
 	context.AfterFunc(ctx, closeWatch) // to unblock unix.Read below
 	go func() {
@@ -728,7 +728,7 @@ func (w *memoryLimitWatcher) Watch(ctx context.Context) error {
 			if err != nil {
 				log.Ctx(ctx).Error().Err(err).Msg("error reading memory limit")
 			} else if prev := w.value.Swap(v); prev != v {
-				log.Debug(ctx).
+				log.Ctx(ctx).Debug().
 					Uint64("prev", prev).
 					Uint64("current", v).
 					Msg("memory limit updated")
@@ -747,7 +747,7 @@ func (w *memoryLimitWatcher) Watch(ctx context.Context) error {
 				if (event.Mask & unix.IN_IGNORED) != 0 {
 					// watch was removed, or the file was deleted (this can happen if
 					// the memory controller is removed from the parent's subtree_control)
-					log.Info(ctx).Str("file", w.limitFilePath).Msg("watched file removed")
+					log.Ctx(ctx).Info().Str("file", w.limitFilePath).Msg("watched file removed")
 					return
 				}
 			}

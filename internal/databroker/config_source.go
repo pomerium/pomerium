@@ -91,12 +91,12 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 	now := time.Now()
 	src.mu.Lock()
 	defer src.mu.Unlock()
-	log.Debug(ctx).Str("lock-wait", time.Since(now).String()).Msg("databroker: rebuilding configuration")
+	log.Ctx(ctx).Debug().Str("lock-wait", time.Since(now).String()).Msg("databroker: rebuilding configuration")
 
 	cfg := src.underlyingConfig.Clone()
 
 	// start the updater
-	src.runUpdater(cfg)
+	src.runUpdater(ctx, cfg)
 
 	now = time.Now()
 	err := src.buildNewConfigLocked(ctx, cfg)
@@ -106,7 +106,7 @@ func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
 		return
 	}
 	health.ReportOK(health.BuildDatabrokerConfig)
-	log.Debug(ctx).Str("elapsed", time.Since(now).String()).Msg("databroker: built new config")
+	log.Ctx(ctx).Debug().Str("elapsed", time.Since(now).String()).Msg("databroker: built new config")
 
 	src.computedConfig = cfg
 	if !firstTime {
@@ -234,7 +234,7 @@ func (src *ConfigSource) addPolicies(ctx context.Context, cfg *config.Config, po
 	cfg.Options.AdditionalPolicies = append(cfg.Options.AdditionalPolicies, additionalPolicies...)
 }
 
-func (src *ConfigSource) runUpdater(cfg *config.Config) {
+func (src *ConfigSource) runUpdater(ctx context.Context, cfg *config.Config) {
 	sharedKey, _ := cfg.Options.GetSharedKey()
 	connectionOptions := &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
@@ -257,7 +257,6 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 		src.cancel = nil
 	}
 
-	ctx := context.Background()
 	ctx, src.cancel = context.WithCancel(ctx)
 
 	cc, err := src.outboundGRPCConnection.Get(ctx, connectionOptions)
@@ -268,13 +267,13 @@ func (src *ConfigSource) runUpdater(cfg *config.Config) {
 
 	client := databroker.NewDataBrokerServiceClient(cc)
 
-	syncer := databroker.NewSyncer("databroker", &syncerHandler{
+	syncer := databroker.NewSyncer(ctx, "databroker", &syncerHandler{
 		client: client,
 		src:    src,
 	}, databroker.WithTypeURL(grpcutil.GetTypeURL(new(configpb.Config))),
 		databroker.WithFastForward())
 	go func() {
-		log.Debug(ctx).
+		log.Ctx(ctx).Debug().
 			Str("outbound_port", cfg.OutboundPort).
 			Msg("config: starting databroker config source syncer")
 		_ = grpc.WaitForReady(ctx, cc, time.Second*10)

@@ -163,7 +163,7 @@ func waitForHealthy(ctx context.Context) error {
 
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return context.Cause(ctx)
 		case <-ticker.C:
 		}
 	}

@@ -700,7 +700,7 @@ func (o *Options) Validate() error {
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
 
 	if !o.InsecureServer && !hasCert && !o.AutocertOptions.Enable {
-		log.Info(ctx).Msg("neither `autocert`, " +
+		log.Ctx(ctx).Info().Msg("neither `autocert`, " +
 			"`insecure_server` or manually provided certificates were provided, server will be using a self-signed certificate")
 	}
 

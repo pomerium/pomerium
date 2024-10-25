@@ -17,8 +17,8 @@ type serviceName struct{}
 func WithBackoff(ctx context.Context, name string, fn func(context.Context) error) error {
 	name, ctx = getServiceNameContext(ctx, name)
 
-	log.Debug(ctx).Str("service-name", name).Msg("starting")
-	defer log.Debug(ctx).Str("service-name", name).Msg("stopped")
+	log.Ctx(ctx).Debug().Str("service-name", name).Msg("starting")
+	defer log.Ctx(ctx).Debug().Str("service-name", name).Msg("stopped")
 
 	b := backoff.NewExponentialBackOff()
 	b.MaxElapsedTime = 0

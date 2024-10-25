@@ -33,6 +33,7 @@ type authorizeState struct {
 }
 
 func newAuthorizeStateFromConfig(
+	ctx context.Context,
 	cfg *config.Config, store *store.Store, previousPolicyEvaluator *evaluator.Evaluator,
 ) (*authorizeState, error) {
 	if err := validateOptions(cfg.Options); err != nil {
@@ -43,7 +44,7 @@ func newAuthorizeStateFromConfig(
 
 	var err error
 
-	state.evaluator, err = newPolicyEvaluator(cfg.Options, store, previousPolicyEvaluator)
+	state.evaluator, err = newPolicyEvaluator(ctx, cfg.Options, store, previousPolicyEvaluator)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: failed to update policy with options: %w", err)
 	}
@@ -58,7 +59,7 @@ func newAuthorizeStateFromConfig(
 		return nil, err
 	}
 
-	cc, err := outboundGRPCConnection.Get(context.Background(), &grpc.OutboundOptions{
+	cc, err := outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,
@@ -84,9 +85,9 @@ func newAuthorizeStateFromConfig(
 	}
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {
-		state.authenticateFlow, err = authenticateflow.NewStateless(cfg, nil, nil, nil, nil)
+		state.authenticateFlow, err = authenticateflow.NewStateless(ctx, cfg, nil, nil, nil, nil)
 	} else {
-		state.authenticateFlow, err = authenticateflow.NewStateful(cfg, nil)
+		state.authenticateFlow, err = authenticateflow.NewStateful(ctx, cfg, nil)
 	}
 	if err != nil {
 		return nil, err

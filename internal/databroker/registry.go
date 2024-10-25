@@ -28,7 +28,7 @@ func (srv *Server) Report(ctx context.Context, req *registrypb.RegisterRequest) 
 	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Report")
 	defer span.End()
 
-	r, err := srv.getRegistry()
+	r, err := srv.getRegistry(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (srv *Server) List(ctx context.Context, req *registrypb.ListRequest) (*regi
 	ctx, span := trace.StartSpan(ctx, "databroker.grpc.List")
 	defer span.End()
 
-	r, err := srv.getRegistry()
+	r, err := srv.getRegistry(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (srv *Server) Watch(req *registrypb.ListRequest, stream registrypb.Registry
 	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Watch")
 	defer span.End()
 
-	r, err := srv.getRegistry()
+	r, err := srv.getRegistry(ctx)
 	if err != nil {
 		return err
 	}
@@ -66,8 +66,8 @@ func (srv *Server) Watch(req *registrypb.ListRequest, stream registrypb.Registry
 	})
 }
 
-func (srv *Server) getRegistry() (registry.Interface, error) {
-	backend, err := srv.getBackend()
+func (srv *Server) getRegistry(ctx context.Context) (registry.Interface, error) {
+	backend, err := srv.getBackend(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func (srv *Server) getRegistry() (registry.Interface, error) {
 		r = srv.registry
 		var err error
 		if r == nil {
-			r, err = srv.newRegistryLocked(backend)
+			r, err = srv.newRegistryLocked(ctx, backend)
 			srv.registry = r
 		}
 		srv.mu.Unlock()
@@ -92,13 +92,11 @@ func (srv *Server) getRegistry() (registry.Interface, error) {
 	return r, nil
 }
 
-func (srv *Server) newRegistryLocked(backend storage.Backend) (registry.Interface, error) {
-	ctx := context.Background()
-
+func (srv *Server) newRegistryLocked(ctx context.Context, backend storage.Backend) (registry.Interface, error) {
 	if hasRegistryServer, ok := backend.(interface {
 		RegistryServer() registrypb.RegistryServer
 	}); ok {
-		log.Info(ctx).Msg("using registry via storage")
+		log.Ctx(ctx).Info().Msg("using registry via storage")
 		return struct {
 			io.Closer
 			registrypb.RegistryServer
@@ -107,7 +105,7 @@ func (srv *Server) newRegistryLocked(backend storage.Backend) (registry.Interfac
 
 	switch srv.cfg.storageType {
 	case config.StorageInMemoryName:
-		log.Info(ctx).Msg("using in-memory registry")
+		log.Ctx(ctx).Info().Msg("using in-memory registry")
 		return inmemory.New(ctx, srv.cfg.registryTTL), nil
 	}
 

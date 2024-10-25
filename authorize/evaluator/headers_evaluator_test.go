@@ -46,6 +46,7 @@ func TestNewHeadersRequestFromPolicy(t *testing.T) {
 	assert.Equal(t, &HeadersRequest{
 		EnableGoogleCloudServerlessAuthentication: true,
 		Issuer:     "from.example.com",
+		Audience:   "from.example.com",
 		ToAudience: "https://to.example.com",
 		ClientCertificate: ClientCertificateInfo{
 			Leaf: "--- FAKE CERTIFICATE ---",
@@ -53,10 +54,70 @@ func TestNewHeadersRequestFromPolicy(t *testing.T) {
 	}, req)
 }
 
+func TestNewHeadersRequestFromPolicy_IssuerFormat(t *testing.T) {
+	policy := &config.Policy{
+		EnableGoogleCloudServerlessAuthentication: true,
+		From: "https://*.example.com",
+		To: config.WeightedURLs{
+			{
+				URL: *mustParseURL("http://to.example.com"),
+			},
+		},
+	}
+	for _, tc := range []struct {
+		format           string
+		expectedIssuer   string
+		expectedAudience string
+		err              string
+	}{
+		{
+			format:           "",
+			expectedIssuer:   "from.example.com",
+			expectedAudience: "from.example.com",
+		},
+		{
+			format:           "hostOnly",
+			expectedIssuer:   "from.example.com",
+			expectedAudience: "from.example.com",
+		},
+		{
+			format:           "uri",
+			expectedIssuer:   "https://from.example.com/",
+			expectedAudience: "from.example.com",
+		},
+		{
+			format: "foo",
+			err:    `invalid issuer format: "foo"`,
+		},
+	} {
+		policy.JWTIssuerFormat = tc.format
+		req, err := NewHeadersRequestFromPolicy(policy, RequestHTTP{
+			Hostname: "from.example.com",
+			ClientCertificate: ClientCertificateInfo{
+				Leaf: "--- FAKE CERTIFICATE ---",
+			},
+		})
+		if tc.err != "" {
+			assert.ErrorContains(t, err, tc.err)
+		} else {
+			assert.Equal(t, &HeadersRequest{
+				EnableGoogleCloudServerlessAuthentication: true,
+				Issuer:     tc.expectedIssuer,
+				Audience:   tc.expectedAudience,
+				ToAudience: "https://to.example.com",
+				ClientCertificate: ClientCertificateInfo{
+					Leaf: "--- FAKE CERTIFICATE ---",
+				},
+			}, req)
+		}
+	}
+}
+
 func TestNewHeadersRequestFromPolicy_nil(t *testing.T) {
 	req, _ := NewHeadersRequestFromPolicy(nil, RequestHTTP{Hostname: "from.example.com"})
 	assert.Equal(t, &HeadersRequest{
-		Issuer: "from.example.com",
+		Issuer:   "from.example.com",
+		Audience: "from.example.com",
 	}, req)
 }
 
@@ -100,6 +161,7 @@ func TestHeadersEvaluator(t *testing.T) {
 			},
 			&HeadersRequest{
 				Issuer:     "from.example.com",
+				Audience:   "from.example.com",
 				ToAudience: "to.example.com",
 				Session: RequestSession{
 					ID: "s1",
@@ -155,6 +217,7 @@ func TestHeadersEvaluator(t *testing.T) {
 			},
 			&HeadersRequest{
 				Issuer:     "from.example.com",
+				Audience:   "from.example.com",
 				ToAudience: "to.example.com",
 				Session:    RequestSession{ID: "s1"},
 				SetRequestHeaders: map[string]string{
@@ -162,6 +225,7 @@ func TestHeadersEvaluator(t *testing.T) {
 					"X-ID-Token":              "${pomerium.id_token}",
 					"X-Access-Token":          "${pomerium.access_token}",
 					"Client-Cert-Fingerprint": "${pomerium.client_cert_fingerprint}",
+					"Authorization":           "Bearer ${pomerium.jwt}",
 					"Foo":                     "escaped $$dollar sign",
 				},
 				ClientCertificate: ClientCertificateInfo{Leaf: testValidCert},
@@ -174,6 +238,15 @@ func TestHeadersEvaluator(t *testing.T) {
 		assert.Equal(t, "3febe6467787e93f0a01030e0803072feaa710f724a9dc74de05cfba3d4a6d23",
 			output.Headers.Get("Client-Cert-Fingerprint"))
 		assert.Equal(t, "escaped $dollar sign", output.Headers.Get("Foo"))
+		authHeader := output.Headers.Get("Authorization")
+		assert.True(t, strings.HasPrefix(authHeader, "Bearer "))
+		authHeader = strings.TrimPrefix(authHeader, "Bearer ")
+		token, err := jwt.ParseSigned(authHeader)
+		require.NoError(t, err)
+		var claims jwt.Claims
+		require.NoError(t, token.Claims(publicJWK, &claims))
+		assert.Equal(t, "from.example.com", claims.Issuer)
+		assert.Equal(t, jwt.Audience{"from.example.com"}, claims.Audience)
 	})
 
 	t.Run("set_request_headers no repeated substitution", func(t *testing.T) {
@@ -187,6 +260,7 @@ func TestHeadersEvaluator(t *testing.T) {
 			},
 			&HeadersRequest{
 				Issuer:     "from.example.com",
+				Audience:   "from.example.com",
 				ToAudience: "to.example.com",
 				Session:    RequestSession{ID: "s1"},
 				SetRequestHeaders: map[string]string{
@@ -209,6 +283,7 @@ func TestHeadersEvaluator(t *testing.T) {
 			},
 			&HeadersRequest{
 				Issuer:     "from.example.com",
+				Audience:   "from.example.com",
 				ToAudience: "to.example.com",
 				Session:    RequestSession{ID: "s1"},
 				SetRequestHeaders: map[string]string{
@@ -224,6 +299,7 @@ func TestHeadersEvaluator(t *testing.T) {
 		output, err := eval(t, nil,
 			&HeadersRequest{
 				Issuer:     "from.example.com",
+				Audience:   "from.example.com",
 				ToAudience: "to.example.com",
 				SetRequestHeaders: map[string]string{
 					"fingerprint": "${pomerium.client_cert_fingerprint}",
@@ -244,6 +320,7 @@ func TestHeadersEvaluator(t *testing.T) {
 			},
 			&HeadersRequest{
 				Issuer:                        "from.example.com",
+				Audience:                      "from.example.com",
 				ToAudience:                    "to.example.com",
 				KubernetesServiceAccountToken: "TOKEN",
 				Session:                       RequestSession{ID: "s1"},

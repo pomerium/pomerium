@@ -40,7 +40,7 @@ func GetCertPool(ca, caFile string) (*x509.CertPool, error) {
 	if ok := rootCAs.AppendCertsFromPEM(data); !ok {
 		return nil, fmt.Errorf("failed to append any PEM-encoded certificates")
 	}
-	log.Debug(ctx).Msg("pkg/cryptutil: added custom certificate authority")
+	log.Ctx(ctx).Debug().Msg("pkg/cryptutil: added custom certificate authority")
 	return rootCAs, nil
 }
 

@@ -103,9 +103,10 @@ type FileOrEnvironmentSource struct {
 
 // NewFileOrEnvironmentSource creates a new FileOrEnvironmentSource.
 func NewFileOrEnvironmentSource(
+	ctx context.Context,
 	configFile, envoyVersion string,
 ) (*FileOrEnvironmentSource, error) {
-	ctx := log.WithContext(context.TODO(), func(c zerolog.Context) zerolog.Context {
+	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("config_file_source", configFile)
 	})
 
@@ -137,7 +138,7 @@ func NewFileOrEnvironmentSource(
 		if cfg.Options.IsRuntimeFlagSet(RuntimeFlagConfigHotReload) {
 			src.watcher.Watch(ctx, []string{configFile})
 		} else {
-			log.Info(ctx).Msg("hot reload disabled")
+			log.Ctx(ctx).Info().Msg("hot reload disabled")
 			src.watcher.Watch(ctx, nil)
 		}
 	}
@@ -155,7 +156,7 @@ func (src *FileOrEnvironmentSource) check(ctx context.Context) {
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("config_change_id", uuid.New().String())
 	})
-	log.Info(ctx).Msg("config: file updated, reconfiguring...")
+	log.Ctx(ctx).Info().Msg("config: file updated, reconfiguring...")
 	src.mu.Lock()
 	cfg := src.config
 	options, err := newOptionsFromConfig(src.configFile)
@@ -170,7 +171,7 @@ func (src *FileOrEnvironmentSource) check(ctx context.Context) {
 	src.config = cfg
 	src.mu.Unlock()
 
-	log.Info(ctx).Msg("config: loaded configuration")
+	log.Ctx(ctx).Info().Msg("config: loaded configuration")
 
 	src.Trigger(ctx, cfg)
 }
@@ -240,7 +241,7 @@ func (src *FileWatcherSource) onConfigChange(ctx context.Context, cfg *Config) {
 	// store the config and trigger an update
 	src.cfg = cfg.Clone()
 	src.hash = getAllConfigFilePathsHash(src.cfg)
-	log.Info(ctx).Uint64("hash", src.hash).Msg("config/filewatchersource: underlying config change, triggering update")
+	log.Ctx(ctx).Info().Uint64("hash", src.hash).Msg("config/filewatchersource: underlying config change, triggering update")
 	src.Trigger(ctx, src.cfg)
 }
 
@@ -251,12 +252,12 @@ func (src *FileWatcherSource) onFileChange(ctx context.Context) {
 	hash := getAllConfigFilePathsHash(src.cfg)
 
 	if hash == src.hash {
-		log.Info(ctx).Uint64("hash", src.hash).Msg("config/filewatchersource: no change detected")
+		log.Ctx(ctx).Info().Uint64("hash", src.hash).Msg("config/filewatchersource: no change detected")
 	} else {
 		// if the hash changed, trigger an update
 		// the actual config will be identical
 		src.hash = hash
-		log.Info(ctx).Uint64("hash", src.hash).Msg("config/filewatchersource: change detected, triggering update")
+		log.Ctx(ctx).Info().Uint64("hash", src.hash).Msg("config/filewatchersource: change detected, triggering update")
 		src.Trigger(ctx, src.cfg)
 	}
 }

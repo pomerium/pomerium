@@ -37,14 +37,14 @@ type Backend struct {
 }
 
 // New creates a new Backend.
-func New(dsn string, options ...Option) *Backend {
+func New(ctx context.Context, dsn string, options ...Option) *Backend {
 	backend := &Backend{
 		cfg:             getConfig(options...),
 		dsn:             dsn,
 		onRecordChange:  signal.New(),
 		onServiceChange: signal.New(),
 	}
-	backend.closeCtx, backend.close = context.WithCancel(context.Background())
+	backend.closeCtx, backend.close = context.WithCancel(ctx)
 
 	go backend.doPeriodically(func(ctx context.Context) error {
 		_, pool, err := backend.init(ctx)

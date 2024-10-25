@@ -71,13 +71,13 @@ func (locker *Leaser) Run(ctx context.Context) error {
 		case err == nil:
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return context.Cause(ctx)
 			case <-retryTicker.C:
 			}
 		case errors.Is(err, retryableError{}):
 			select {
 			case <-ctx.Done():
-				return ctx.Err()
+				return context.Cause(ctx)
 			case <-time.After(bo.NextBackOff()):
 			}
 		default:
@@ -101,7 +101,7 @@ func (locker *Leaser) runOnce(ctx context.Context, resetBackoff func()) error {
 	resetBackoff()
 	leaseID := res.Id
 
-	log.Debug(ctx).
+	log.Ctx(ctx).Debug().
 		Str("lease_name", locker.leaseName).
 		Str("lease_id", leaseID).
 		Msg("leaser: lease acquired")
@@ -142,7 +142,7 @@ func (locker *Leaser) withLease(ctx context.Context, leaseID string) error {
 				Duration: durationpb.New(locker.ttl),
 			})
 			if status.Code(err) == codes.AlreadyExists {
-				log.Debug(ctx).
+				log.Ctx(ctx).Debug().
 					Str("lease_name", locker.leaseName).
 					Str("lease_id", leaseID).
 					Msg("leaser: lease lost")

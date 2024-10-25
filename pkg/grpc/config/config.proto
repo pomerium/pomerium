@@ -38,7 +38,16 @@ message RouteDirectResponse {
   string body = 2;
 }
 
-// Next ID: 65.
+enum IssuerFormat {
+  // Issuer strings will be the hostname of the route, with no scheme or
+  // trailing slash.
+  IssuerHostOnly = 0;
+  // Issuer strings will be a complete URI, including the scheme and ending
+  // with a trailing slash.
+  IssuerURI = 1;
+}
+
+// Next ID: 66.
 message Route {
   string name = 1;
 
@@ -105,6 +114,7 @@ message Route {
   string kubernetes_service_account_token = 26;
   string kubernetes_service_account_token_file = 64;
   bool enable_google_cloud_serverless_authentication = 42;
+  IssuerFormat jwt_issuer_format = 65;
 
   envoy.config.cluster.v3.Cluster envoy_opts = 36;
 

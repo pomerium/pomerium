@@ -10,7 +10,7 @@ func (f *FanOut[T]) Publish(ctx context.Context, msg T) error {
 
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return context.Cause(ctx)
 	case <-f.done:
 		return ErrStopped
 	case f.messages <- msg:
