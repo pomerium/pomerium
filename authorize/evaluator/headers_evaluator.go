@@ -22,6 +22,7 @@ type HeadersRequest struct {
 	EnableGoogleCloudServerlessAuthentication bool                  `json:"enable_google_cloud_serverless_authentication"`
 	EnableRoutingKey                          bool                  `json:"enable_routing_key"`
 	Issuer                                    string                `json:"issuer"`
+	Audience                                  string                `json:"audience"`
 	KubernetesServiceAccountToken             string                `json:"kubernetes_service_account_token"`
 	ToAudience                                string                `json:"to_audience"`
 	Session                                   RequestSession        `json:"session"`
@@ -32,6 +33,7 @@ type HeadersRequest struct {
 // NewHeadersRequestFromPolicy creates a new HeadersRequest from a policy.
 func NewHeadersRequestFromPolicy(policy *config.Policy, http RequestHTTP) (*HeadersRequest, error) {
 	input := new(HeadersRequest)
+	input.Audience = http.Hostname
 	var issuerFormat string
 	if policy != nil {
 		issuerFormat = policy.JWTIssuerFormat
