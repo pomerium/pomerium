@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"testing"
 
@@ -58,6 +59,51 @@ func Test_PolicyValidate(t *testing.T) {
 			err := tt.policy.Validate()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Validate() error = %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_PolicyValidate_RedirectResponseCode(t *testing.T) {
+	t.Parallel()
+
+	var r PolicyRedirect
+	p := Policy{
+		From:     "http://example.com",
+		Redirect: &r,
+	}
+
+	cases := []struct {
+		Code          int32
+		ExpectedError string
+	}{
+		{0, "unsupported redirect response code 0"},
+		{100, "unsupported redirect response code 100"},
+		{200, "unsupported redirect response code 200"},
+		{300, "unsupported redirect response code 300"},
+		{301, ""},
+		{302, ""},
+		{303, ""},
+		{304, "unsupported redirect response code 304"},
+		{305, "unsupported redirect response code 305"},
+		{306, "unsupported redirect response code 306"},
+		{307, ""},
+		{308, ""},
+		{309, "unsupported redirect response code 309"},
+		{400, "unsupported redirect response code 400"},
+		{500, "unsupported redirect response code 500"},
+		{600, "unsupported redirect response code 600"},
+	}
+
+	for i := range cases {
+		c := &cases[i]
+		t.Run(fmt.Sprint(c.Code), func(t *testing.T) {
+			r.ResponseCode = &c.Code
+			err := p.Validate()
+			if c.ExpectedError != "" {
+				assert.ErrorContains(t, err, c.ExpectedError)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}

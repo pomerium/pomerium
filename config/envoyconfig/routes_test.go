@@ -1985,13 +1985,28 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 		}, action)
 	})
 	t.Run("ResponseCode", func(t *testing.T) {
-		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
-			ResponseCode: proto.Int32(301),
-		})
-		require.NoError(t, err)
-		assert.Equal(t, &envoy_config_route_v3.RedirectAction{
-			ResponseCode: 301,
-		}, action)
+		codes := []struct {
+			Number int32
+			Enum   envoy_config_route_v3.RedirectAction_RedirectResponseCode
+		}{
+			{301, envoy_config_route_v3.RedirectAction_MOVED_PERMANENTLY},
+			{302, envoy_config_route_v3.RedirectAction_FOUND},
+			{303, envoy_config_route_v3.RedirectAction_SEE_OTHER},
+			{307, envoy_config_route_v3.RedirectAction_TEMPORARY_REDIRECT},
+			{308, envoy_config_route_v3.RedirectAction_PERMANENT_REDIRECT},
+		}
+		for i := range codes {
+			c := &codes[i]
+			t.Run(fmt.Sprint(c.Number), func(t *testing.T) {
+				action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
+					ResponseCode: &c.Number,
+				})
+				require.NoError(t, err)
+				assert.Equal(t, &envoy_config_route_v3.RedirectAction{
+					ResponseCode: c.Enum,
+				}, action)
+			})
+		}
 	})
 	t.Run("StripQuery", func(t *testing.T) {
 		action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{

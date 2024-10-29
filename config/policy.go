@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"regexp"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
@@ -216,6 +218,40 @@ type PolicyRedirect struct {
 	PrefixRewrite  *string `mapstructure:"prefix_rewrite" yaml:"prefix_rewrite,omitempty" json:"prefix_rewrite,omitempty"`
 	ResponseCode   *int32  `mapstructure:"response_code" yaml:"response_code,omitempty" json:"response_code,omitempty"`
 	StripQuery     *bool   `mapstructure:"strip_query" yaml:"strip_query,omitempty" json:"strip_query,omitempty"`
+}
+
+func (r *PolicyRedirect) validate() error {
+	if r == nil {
+		return nil
+	}
+
+	if _, err := r.GetEnvoyResponseCode(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetEnvoyResponseCode returns the ResponseCode as the corresponding Envoy enum value.
+func (r *PolicyRedirect) GetEnvoyResponseCode() (envoy_config_route_v3.RedirectAction_RedirectResponseCode, error) {
+	var code int32
+	if r != nil && r.ResponseCode != nil {
+		code = *r.ResponseCode
+	}
+
+	switch code {
+	case http.StatusMovedPermanently:
+		return envoy_config_route_v3.RedirectAction_MOVED_PERMANENTLY, nil
+	case http.StatusFound:
+		return envoy_config_route_v3.RedirectAction_FOUND, nil
+	case http.StatusSeeOther:
+		return envoy_config_route_v3.RedirectAction_SEE_OTHER, nil
+	case http.StatusTemporaryRedirect:
+		return envoy_config_route_v3.RedirectAction_TEMPORARY_REDIRECT, nil
+	case http.StatusPermanentRedirect:
+		return envoy_config_route_v3.RedirectAction_PERMANENT_REDIRECT, nil
+	default:
+		return 0, fmt.Errorf("unsupported redirect response code %d (supported values: 301, 302, 303, 307, 308)", code)
+	}
 }
 
 // A DirectResponse is the response to an HTTP request.
@@ -527,6 +563,10 @@ func (p *Policy) Validate() error {
 	// It is an error to mix TCP and non-TCP To URLs.
 	if _, hasTCP := toSchemes["tcp"]; hasTCP && len(toSchemes) > 1 {
 		return fmt.Errorf("config: cannot mix tcp and non-tcp To URLs")
+	}
+
+	if err := p.Redirect.validate(); err != nil {
+		return fmt.Errorf("config: %w", err)
 	}
 
 	// Only allow public access if no other whitelists are in place
