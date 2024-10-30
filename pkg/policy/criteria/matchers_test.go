@@ -68,6 +68,30 @@ func TestStringMatcher(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, `example == "test"`, str(body))
 	})
+	t.Run("boolean", func(t *testing.T) {
+		t.Parallel()
+
+		var body ast.Body
+		err := matchString(&body, ast.VarTerm("example"), parser.Boolean(true))
+		require.NoError(t, err)
+		assert.Equal(t, `example == true`, str(body))
+	})
+	t.Run("number", func(t *testing.T) {
+		t.Parallel()
+
+		var body ast.Body
+		err := matchString(&body, ast.VarTerm("example"), parser.Number("1234"))
+		require.NoError(t, err)
+		assert.Equal(t, `example == 1234`, str(body))
+	})
+	t.Run("null", func(t *testing.T) {
+		t.Parallel()
+
+		var body ast.Body
+		err := matchString(&body, ast.VarTerm("example"), parser.Null{})
+		require.NoError(t, err)
+		assert.Equal(t, `example == null`, str(body))
+	})
 }
 
 func TestStringListMatcher(t *testing.T) {
@@ -85,6 +109,8 @@ func TestStringListMatcher(t *testing.T) {
 		assert.Equal(t, `count([true | some v; v = example[_]; v == "test"]) > 0`, str(body))
 	})
 	t.Run("is", func(t *testing.T) {
+		t.Parallel()
+
 		var body ast.Body
 		err := matchStringList(&body, ast.VarTerm("example"), parser.Object{
 			"is": parser.String("test"),
@@ -99,5 +125,29 @@ func TestStringListMatcher(t *testing.T) {
 		err := matchStringList(&body, ast.VarTerm("example"), parser.String("test"))
 		require.NoError(t, err)
 		assert.Equal(t, `count([true | some v; v = example[_]; v == "test"]) > 0`, str(body))
+	})
+	t.Run("boolean", func(t *testing.T) {
+		t.Parallel()
+
+		var body ast.Body
+		err := matchStringList(&body, ast.VarTerm("example"), parser.Boolean(true))
+		require.NoError(t, err)
+		assert.Equal(t, `count([true | some v; v = example[_]; v == true]) > 0`, str(body))
+	})
+	t.Run("number", func(t *testing.T) {
+		t.Parallel()
+
+		var body ast.Body
+		err := matchStringList(&body, ast.VarTerm("example"), parser.Number("1234"))
+		require.NoError(t, err)
+		assert.Equal(t, `count([true | some v; v = example[_]; v == 1234]) > 0`, str(body))
+	})
+	t.Run("null", func(t *testing.T) {
+		t.Parallel()
+
+		var body ast.Body
+		err := matchStringList(&body, ast.VarTerm("example"), parser.Null{})
+		require.NoError(t, err)
+		assert.Equal(t, `count([true | some v; v = example[_]; v == null]) > 0`, str(body))
 	})
 }
