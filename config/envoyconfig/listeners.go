@@ -14,11 +14,14 @@ import (
 	"time"
 
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
+	envoy_config_common_mutation_rules_v3 "github.com/envoyproxy/go-control-plane/envoy/config/common/mutation_rules/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
+	envoy_extensions_filters_http_header_mutation_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/header_mutation/v3"
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	envoy_extensions_transport_sockets_quic_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/quic/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/hashicorp/go-set/v3"
@@ -109,6 +112,24 @@ func getAllCertificates(cfg *config.Config) ([]tls.Certificate, error) {
 	return append(allCertificates, *wc), nil
 }
 
+func (b *Builder) buildQuicDownstreamTransportSocket(ctx context.Context, cfg *config.Config, certs []tls.Certificate) (*envoy_config_core_v3.TransportSocket, error) {
+	tlsContext, err := b.buildDownstreamTLSContextMulti(ctx, cfg, certs)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsContext.CommonTlsContext.AlpnProtocols = nil
+
+	return &envoy_config_core_v3.TransportSocket{
+		Name: "envoy.transport_sockets.quic",
+		ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
+			TypedConfig: marshalAny(&envoy_extensions_transport_sockets_quic_v3.QuicDownstreamTransport{
+				DownstreamTlsContext: tlsContext,
+			}),
+		},
+	}, nil
+}
+
 func (b *Builder) buildTLSSocket(ctx context.Context, cfg *config.Config, certs []tls.Certificate) (*envoy_config_core_v3.TransportSocket, error) {
 	tlsContext, err := b.buildDownstreamTLSContextMulti(ctx, cfg, certs)
 	if err != nil {
@@ -158,7 +179,12 @@ func (b *Builder) buildMainListener(
 		Filters: []*envoy_config_listener_v3.Filter{filter},
 	}
 
-	li := newEnvoyListener("http-ingress")
+	name := "http-ingress"
+	if useQuic {
+		name = "quic-ingress"
+	}
+
+	li := newEnvoyListener(name)
 	if cfg.Options.UseProxyProtocol {
 		li.ListenerFilters = append(li.ListenerFilters, ProxyProtocolFilter())
 	}
@@ -175,6 +201,17 @@ func (b *Builder) buildMainListener(
 				PreferGro: &wrapperspb.BoolValue{Value: true},
 			},
 		}
+
+		allCertificates, err := getAllCertificates(cfg)
+		if err != nil {
+			return nil, err
+		}
+
+		sock, err := b.buildQuicDownstreamTransportSocket(ctx, cfg, allCertificates)
+		if err != nil {
+			return nil, fmt.Errorf("error buildign quic socket: %w", err)
+		}
+		filterChain.TransportSocket = sock
 	} else if cfg.Options.InsecureServer {
 		li.Address = buildTCPAddress(cfg.Options.Addr, 80)
 	} else {
@@ -191,7 +228,6 @@ func (b *Builder) buildMainListener(
 		if err != nil {
 			return nil, fmt.Errorf("error building TLS socket: %w", err)
 		}
-
 		filterChain.TransportSocket = sock
 	}
 
@@ -300,6 +336,27 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		LuaFilter(luascripts.CleanUpstream),
 		LuaFilter(luascripts.RewriteHeaders),
 	}
+
+	// if we support http3 and this is the non-quic listener, add an alt-svc header indicating h3 is available
+	if !useQuic && cfg.Options.CodecType == config.CodecTypeHTTP3 {
+		listenAddr := buildUDPAddress(cfg.Options.Addr, 443)
+		listenPort := listenAddr.GetSocketAddress().GetPortValue()
+		filters = append(filters, HTTPHeaderMutationsFilter(&envoy_extensions_filters_http_header_mutation_v3.HeaderMutation{
+			Mutations: &envoy_extensions_filters_http_header_mutation_v3.Mutations{
+				ResponseMutations: []*envoy_config_common_mutation_rules_v3.HeaderMutation{{
+					Action: &envoy_config_common_mutation_rules_v3.HeaderMutation_Append{
+						Append: &envoy_config_core_v3.HeaderValueOption{
+							Header: &envoy_config_core_v3.HeaderValue{
+								Key:   "alt-svc",
+								Value: fmt.Sprintf(`h3=":%d"; ma=86400`, listenPort),
+							},
+						},
+					},
+				}},
+			},
+		}))
+	}
+
 	filters = append(filters, HTTPRouterFilter())
 
 	var maxStreamDuration *durationpb.Duration
@@ -350,23 +407,13 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		mgr.CodecType = cfg.Options.GetCodecType().ToEnvoy()
 	}
 
-	rcName := mainRouteConfigurationName
-	if useQuic {
-		rcName = mainQuicRouteConfigurationName
-	}
-
 	if fullyStatic {
-		rcs, err := b.BuildRouteConfigurations(ctx, cfg)
+		rc, err := b.buildMainRouteConfiguration(ctx, cfg)
 		if err != nil {
 			return nil, fmt.Errorf("error building route configurations: %w", err)
 		}
-
-		for _, rc := range rcs {
-			if rc.Name == rcName {
-				mgr.RouteSpecifier = &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
-					RouteConfig: rc,
-				}
-			}
+		mgr.RouteSpecifier = &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
+			RouteConfig: rc,
 		}
 	} else {
 		mgr.RouteSpecifier = &envoy_http_connection_manager.HttpConnectionManager_Rds{
@@ -375,7 +422,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 					ResourceApiVersion:    envoy_config_core_v3.ApiVersion_V3,
 					ConfigSourceSpecifier: &envoy_config_core_v3.ConfigSource_Ads{},
 				},
-				RouteConfigName: rcName,
+				RouteConfigName: mainRouteConfigurationName,
 			},
 		}
 	}

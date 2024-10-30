@@ -105,7 +105,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	options.SkipXffAppend = true
 	options.XffNumTrustedHops = 1
 	options.AuthenticateURLString = "https://authenticate.example.com"
-	filter, err := b.buildMainHTTPConnectionManagerFilter(context.Background(), &config.Config{Options: options}, false)
+	filter, err := b.buildMainHTTPConnectionManagerFilter(context.Background(), &config.Config{Options: options}, false, false)
 	require.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, testData(t, "main_http_connection_manager_filter.json", nil), filter)
 }
@@ -557,7 +557,7 @@ func Test_requireProxyProtocol(t *testing.T) {
 		li, err := b.buildMainListener(context.Background(), &config.Config{Options: &config.Options{
 			UseProxyProtocol: true,
 			InsecureServer:   true,
-		}}, false)
+		}}, false, false)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `[
 			{
@@ -572,7 +572,7 @@ func Test_requireProxyProtocol(t *testing.T) {
 		li, err := b.buildMainListener(context.Background(), &config.Config{Options: &config.Options{
 			UseProxyProtocol: false,
 			InsecureServer:   true,
-		}}, false)
+		}}, false, false)
 		require.NoError(t, err)
 		assert.Len(t, li.GetListenerFilters(), 0)
 	})
