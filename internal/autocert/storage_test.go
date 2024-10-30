@@ -14,23 +14,6 @@ import (
 	"github.com/pomerium/pomerium/internal/testutil"
 )
 
-func TestGCSStorage(t *testing.T) {
-	t.Skip("fakeserver doesn't support multipart uploads")
-
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
-	t.Cleanup(clearTimeout)
-
-	require.NoError(t, testutil.WithTestGCS(t, "bucket", func() error {
-		s, err := GetCertMagicStorage(ctx, "gs://bucket/some/prefix")
-		if !assert.NoError(t, err) {
-			return nil
-		}
-
-		runStorageTests(t, s)
-		return nil
-	}))
-}
-
 func TestS3Storage(t *testing.T) {
 	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
 		t.Skip("Github action can not run docker on MacOS")
@@ -39,15 +22,11 @@ func TestS3Storage(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
 	t.Cleanup(clearTimeout)
 
-	require.NoError(t, testutil.WithTestMinIO(t, "bucket", func(endpoint string) error {
+	testutil.WithTestMinIO(t, "bucket", func(endpoint string) {
 		s, err := GetCertMagicStorage(ctx, "s3://"+endpoint+"/bucket/some/prefix")
-		if !assert.NoError(t, err) {
-			return nil
-		}
-
+		require.NoError(t, err)
 		runStorageTests(t, s)
-		return nil
-	}))
+	})
 }
 
 func runStorageTests(t *testing.T, s certmagic.Storage) {
