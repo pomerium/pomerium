@@ -47,11 +47,19 @@ func (b *Builder) BuildListeners(
 	var listeners []*envoy_config_listener_v3.Listener
 
 	if shouldStartMainListener(cfg.Options) {
-		li, err := b.buildMainListener(ctx, cfg, fullyStatic)
+		li, err := b.buildMainListener(ctx, cfg, fullyStatic, false)
 		if err != nil {
 			return nil, err
 		}
 		listeners = append(listeners, li)
+		// for HTTP/3 we add another main listener that listens on UDP
+		if cfg.Options.GetCodecType() == config.CodecTypeHTTP3 {
+			li, err := b.buildMainListener(ctx, cfg, fullyStatic, true)
+			if err != nil {
+				return nil, err
+			}
+			listeners = append(listeners, li)
+		}
 	}
 
 	if shouldStartGRPCListener(cfg.Options) {
@@ -140,7 +148,16 @@ func (b *Builder) buildMainListener(
 	ctx context.Context,
 	cfg *config.Config,
 	fullyStatic bool,
+	useQuic bool,
 ) (*envoy_config_listener_v3.Listener, error) {
+	filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic, useQuic)
+	if err != nil {
+		return nil, err
+	}
+	filterChain := &envoy_config_listener_v3.FilterChain{
+		Filters: []*envoy_config_listener_v3.Filter{filter},
+	}
+
 	li := newEnvoyListener("http-ingress")
 	if cfg.Options.UseProxyProtocol {
 		li.ListenerFilters = append(li.ListenerFilters, ProxyProtocolFilter())
@@ -150,23 +167,19 @@ func (b *Builder) buildMainListener(
 		li.AccessLog = listenerAccessLog()
 	}
 
-	if cfg.Options.InsecureServer {
-		li.Address = buildAddress(cfg.Options.Addr, 80)
-
-		filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
-		if err != nil {
-			return nil, err
-		}
-
-		li.FilterChains = []*envoy_config_listener_v3.FilterChain{{
-			Filters: []*envoy_config_listener_v3.Filter{
-				filter,
+	if useQuic {
+		li.Address = buildUDPAddress(cfg.Options.Addr, 443)
+		li.UdpListenerConfig = &envoy_config_listener_v3.UdpListenerConfig{
+			QuicOptions: &envoy_config_listener_v3.QuicProtocolOptions{},
+			DownstreamSocketConfig: &envoy_config_core_v3.UdpSocketConfig{
+				PreferGro: &wrapperspb.BoolValue{Value: true},
 			},
-		}}
+		}
+	} else if cfg.Options.InsecureServer {
+		li.Address = buildTCPAddress(cfg.Options.Addr, 80)
 	} else {
-		li.Address = buildAddress(cfg.Options.Addr, 443)
+		li.Address = buildTCPAddress(cfg.Options.Addr, 443)
 		li.ListenerFilters = append(li.ListenerFilters, TLSInspectorFilter())
-
 		li.FilterChains = append(li.FilterChains, b.buildACMETLSALPNFilterChain())
 
 		allCertificates, err := getAllCertificates(cfg)
@@ -174,21 +187,16 @@ func (b *Builder) buildMainListener(
 			return nil, err
 		}
 
-		filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
-		if err != nil {
-			return nil, err
-		}
-		filterChain := &envoy_config_listener_v3.FilterChain{
-			Filters: []*envoy_config_listener_v3.Filter{filter},
-		}
-		li.FilterChains = append(li.FilterChains, filterChain)
-
 		sock, err := b.buildTLSSocket(ctx, cfg, allCertificates)
 		if err != nil {
 			return nil, fmt.Errorf("error building TLS socket: %w", err)
 		}
+
 		filterChain.TransportSocket = sock
 	}
+
+	li.FilterChains = append(li.FilterChains, filterChain)
+
 	return li, nil
 }
 
@@ -264,7 +272,7 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 		host = ""
 	}
 
-	addr := buildAddress(net.JoinHostPort(host, port), 9902)
+	addr := buildTCPAddress(net.JoinHostPort(host, port), 9902)
 	li := newEnvoyListener(fmt.Sprintf("metrics-ingress-%d", hashutil.MustHash(addr)))
 	li.Address = addr
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{filterChain}
@@ -275,6 +283,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	ctx context.Context,
 	cfg *config.Config,
 	fullyStatic bool,
+	useQuic bool,
 ) (*envoy_config_listener_v3.Filter, error) {
 	var grpcClientTimeout *durationpb.Duration
 	if cfg.Options.GRPCClientTimeout != 0 {
@@ -310,7 +319,6 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 
 	mgr := &envoy_http_connection_manager.HttpConnectionManager{
 		AlwaysSetRequestIdInResponse: true,
-		CodecType:                    cfg.Options.GetCodecType().ToEnvoy(),
 		StatPrefix:                   "ingress",
 		HttpFilters:                  filters,
 		AccessLog:                    buildAccessLogs(cfg.Options),
@@ -332,13 +340,33 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		NormalizePath:     wrapperspb.Bool(true),
 	}
 
+	if useQuic {
+		mgr.CodecType = envoy_http_connection_manager.HttpConnectionManager_HTTP3
+		mgr.Http3ProtocolOptions = &envoy_config_core_v3.Http3ProtocolOptions{}
+	} else if cfg.Options.GetCodecType() == config.CodecTypeHTTP3 {
+		mgr.CodecType = envoy_http_connection_manager.HttpConnectionManager_AUTO
+		mgr.Http3ProtocolOptions = &envoy_config_core_v3.Http3ProtocolOptions{}
+	} else {
+		mgr.CodecType = cfg.Options.GetCodecType().ToEnvoy()
+	}
+
+	rcName := mainRouteConfigurationName
+	if useQuic {
+		rcName = mainQuicRouteConfigurationName
+	}
+
 	if fullyStatic {
-		routeConfiguration, err := b.buildMainRouteConfiguration(ctx, cfg)
+		rcs, err := b.BuildRouteConfigurations(ctx, cfg)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error building route configurations: %w", err)
 		}
-		mgr.RouteSpecifier = &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
-			RouteConfig: routeConfiguration,
+
+		for _, rc := range rcs {
+			if rc.Name == rcName {
+				mgr.RouteSpecifier = &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
+					RouteConfig: rc,
+				}
+			}
 		}
 	} else {
 		mgr.RouteSpecifier = &envoy_http_connection_manager.HttpConnectionManager_Rds{
@@ -347,7 +375,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 					ResourceApiVersion:    envoy_config_core_v3.ApiVersion_V3,
 					ConfigSourceSpecifier: &envoy_config_core_v3.ConfigSource_Ads{},
 				},
-				RouteConfigName: "main",
+				RouteConfigName: rcName,
 			},
 		}
 	}
@@ -419,11 +447,11 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{&filterChain}
 
 	if cfg.Options.GetGRPCInsecure() {
-		li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 80)
+		li.Address = buildTCPAddress(cfg.Options.GetGRPCAddr(), 80)
 		return li, nil
 	}
 
-	li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 443)
+	li.Address = buildTCPAddress(cfg.Options.GetGRPCAddr(), 443)
 	li.ListenerFilters = []*envoy_config_listener_v3.ListenerFilter{
 		TLSInspectorFilter(),
 	}

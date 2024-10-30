@@ -119,7 +119,15 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 	}}
 }
 
-func buildAddress(hostport string, defaultPort uint32) *envoy_config_core_v3.Address {
+func buildTCPAddress(hostport string, defaultPort uint32) *envoy_config_core_v3.Address {
+	return buildAddress(envoy_config_core_v3.SocketAddress_TCP, hostport, defaultPort)
+}
+
+func buildUDPAddress(hostport string, defaultPort uint32) *envoy_config_core_v3.Address {
+	return buildAddress(envoy_config_core_v3.SocketAddress_UDP, hostport, defaultPort)
+}
+
+func buildAddress(protocol envoy_config_core_v3.SocketAddress_Protocol, hostport string, defaultPort uint32) *envoy_config_core_v3.Address {
 	host, strport, err := net.SplitHostPort(hostport)
 	if err != nil {
 		host = hostport
@@ -144,6 +152,7 @@ func buildAddress(hostport string, defaultPort uint32) *envoy_config_core_v3.Add
 
 	return &envoy_config_core_v3.Address{
 		Address: &envoy_config_core_v3.Address_SocketAddress{SocketAddress: &envoy_config_core_v3.SocketAddress{
+			Protocol:      protocol,
 			Address:       host,
 			PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{PortValue: port},
 			Ipv4Compat:    host == "::" || is4in6,

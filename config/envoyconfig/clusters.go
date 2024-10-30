@@ -463,7 +463,7 @@ func (b *Builder) buildLbEndpoints(endpoints []Endpoint) ([]*envoy_config_endpoi
 		lbe := &envoy_config_endpoint_v3.LbEndpoint{
 			HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
 				Endpoint: &envoy_config_endpoint_v3.Endpoint{
-					Address:  buildAddress(u.Host, defaultPort),
+					Address:  buildTCPAddress(u.Host, defaultPort),
 					Hostname: e.url.Host,
 				},
 			},
