@@ -40,11 +40,6 @@ func (b *Builder) buildMainInsecureListener(
 		li.ListenerFilters = append(li.ListenerFilters, ProxyProtocolFilter())
 	}
 
-	// access log
-	if cfg.Options.DownstreamMTLS.Enforcement == config.MTLSEnforcementRejectConnection {
-		li.AccessLog = append(li.AccessLog, newListenerAccessLog())
-	}
-
 	filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
 	if err != nil {
 		return nil, err
