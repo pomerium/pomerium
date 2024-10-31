@@ -20,12 +20,9 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 		return nil, fmt.Errorf("invalid outbound port %v: %w", cfg.OutboundPort, err)
 	}
 
-	filter, err := b.buildOutboundHTTPConnectionManager()
-	if err != nil {
-		return nil, fmt.Errorf("error building outbound http connection manager filter: %w", err)
-	}
+	filter := b.buildOutboundHTTPConnectionManager()
 
-	li := newEnvoyListener("outbound-ingress")
+	li := newListener("outbound-ingress")
 	li.Address = &envoy_config_core_v3.Address{
 		Address: &envoy_config_core_v3.Address_SocketAddress{
 			SocketAddress: &envoy_config_core_v3.SocketAddress{
@@ -43,11 +40,8 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 	return li, nil
 }
 
-func (b *Builder) buildOutboundHTTPConnectionManager() (*envoy_config_listener_v3.Filter, error) {
-	rc, err := b.buildOutboundRouteConfiguration()
-	if err != nil {
-		return nil, err
-	}
+func (b *Builder) buildOutboundHTTPConnectionManager() *envoy_config_listener_v3.Filter {
+	rc := b.buildOutboundRouteConfiguration()
 
 	tc := marshalAny(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
@@ -69,11 +63,11 @@ func (b *Builder) buildOutboundHTTPConnectionManager() (*envoy_config_listener_v
 		ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{
 			TypedConfig: tc,
 		},
-	}, nil
+	}
 }
 
-func (b *Builder) buildOutboundRouteConfiguration() (*envoy_config_route_v3.RouteConfiguration, error) {
-	return b.buildRouteConfiguration("grpc", []*envoy_config_route_v3.VirtualHost{{
+func (b *Builder) buildOutboundRouteConfiguration() *envoy_config_route_v3.RouteConfiguration {
+	return newRouteConfiguration("grpc", []*envoy_config_route_v3.VirtualHost{{
 		Name:    "grpc",
 		Domains: []string{"*"},
 		Routes:  b.buildOutboundRoutes(),
