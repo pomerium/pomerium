@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
@@ -49,12 +48,7 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 			AlpnProtocols:   []string{"h2"}, // gRPC requires HTTP/2
 		},
 	}
-	filterChain.TransportSocket = &envoy_config_core_v3.TransportSocket{
-		Name: "tls",
-		ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
-			TypedConfig: marshalAny(tlsContext),
-		},
-	}
+	filterChain.TransportSocket = newDownstreamTLSContext(tlsContext)
 	return li, nil
 }
 
