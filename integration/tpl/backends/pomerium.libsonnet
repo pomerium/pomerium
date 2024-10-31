@@ -38,6 +38,7 @@ local KubernetesDeployment(name, image, environment) =
             ports: [
               { name: 'http', containerPort: 80 },
               { name: 'https', containerPort: 443 },
+              { name: 'quic', containerPort: 443, protocol: 'UDP' },
               { name: 'grpc', containerPort: 5443 },
             ],
             env: [
@@ -68,6 +69,7 @@ local KubernetesService(name) =
       ports: [
         { name: 'http', port: 80, targetPort: 'http', nodePort: 80 },
         { name: 'https', port: 443, targetPort: 'https', nodePort: 443 },
+        { name: 'quic', port: 443, targetPort: 'quic', nodePort: 443, protocol: 'UDP' },
         { name: 'grpc', port: 5443, targetPort: 'grpc', nodePort: 5443 },
       ],
     },
@@ -80,6 +82,7 @@ local Environment(mode, idp, authentication_flow, dns_suffix) =
     CERTIFICATE: std.base64(importstr '../files/trusted.pem'),
     CERTIFICATE_KEY: std.base64(importstr '../files/trusted-key.pem'),
     CERTIFICATE_AUTHORITY: std.base64(importstr '../files/ca.pem'),
+    CODEC_TYPE: 'http3',
     COOKIE_SECRET: 'UYgnt8bxxK5G2sFaNzyqi5Z+OgF8m2akNc0xdQx718w=',
     DATABROKER_STORAGE_TYPE: 'postgres',
     DATABROKER_STORAGE_CONNECTION_STRING: 'postgres://pomerium:password@postgres:5432/test',
@@ -184,6 +187,7 @@ function(mode, idp, authentication_flow, dns_suffix='') {
         ports: [
           '80:80/tcp',
           '443:443/tcp',
+          '443:443/udp',
           '5443:5443/tcp',
           '9901:9901/tcp',
         ],
@@ -195,6 +199,7 @@ function(mode, idp, authentication_flow, dns_suffix='') {
         ports: [
           '80:80/tcp',
           '443:443/tcp',
+          '443:443/udp',
           '9901:9901/tcp',
         ],
       }, ['authenticate.localhost.pomerium.io']),
