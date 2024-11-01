@@ -1,12 +1,11 @@
 package benchmarks_test
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"math/rand/v2"
 	"net/http"
-	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/pomerium/pomerium/internal/testenv"
@@ -16,55 +15,60 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func BenchmarkRequestLatency(b *testing.B) {
-	for _, n := range []int{1, 10, 100} {
-		b.StopTimer()
-		env := testenv.New(b)
-		users := []*scenarios.User{}
-		for i := range n {
-			users = append(users, &scenarios.User{
-				Email:     fmt.Sprintf("user%d@example.com", i),
-				FirstName: fmt.Sprintf("Firstname%d", i),
-				LastName:  fmt.Sprintf("Lastname%d", i),
-			})
-		}
-		env.Add(scenarios.NewIDP(users))
+var numRoutes int
 
-		up := upstreams.HTTP(nil)
-		up.Handle("/", func(w http.ResponseWriter, _ *http.Request) {
-			w.Write([]byte("OK"))
+func init() {
+	flag.IntVar(&numRoutes, "routes", 100, "number of routes")
+}
+
+func TestRequestLatency(t *testing.T) {
+	env := testenv.New(t, testenv.Silent())
+	users := []*scenarios.User{}
+	for i := range numRoutes {
+		users = append(users, &scenarios.User{
+			Email:     fmt.Sprintf("user%d@example.com", i),
+			FirstName: fmt.Sprintf("Firstname%d", i),
+			LastName:  fmt.Sprintf("Lastname%d", i),
 		})
-		routes := make([]testenv.Route, n)
-		for i := range n {
-			routes[i] = up.Route().
-				From(env.SubdomainURL(fmt.Sprintf("from-%d", i))).
-				PPL(fmt.Sprintf(`{"allow":{"and":["email":{"is":"user%d@example.com"}]}}`, i))
-		}
-		env.AddUpstream(up)
+	}
+	env.Add(scenarios.NewIDP(users))
 
-		env.Start()
-		snippets.WaitStartupComplete(env)
+	up := upstreams.HTTP(nil)
+	up.Handle("/", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte("OK"))
+	})
+	routes := make([]testenv.Route, numRoutes)
+	for i := range numRoutes {
+		routes[i] = up.Route().
+			From(env.SubdomainURL(fmt.Sprintf("from-%d", i))).
+			PPL(fmt.Sprintf(`{"allow":{"and":["email":{"is":"user%d@example.com"}]}}`, i))
+	}
+	env.AddUpstream(up)
 
-		b.StartTimer()
+	env.Start()
+	snippets.WaitStartupComplete(env)
 
-		b.Run(fmt.Sprintf("routes=%d", n), func(b *testing.B) {
-			indexes := rand.Perm(n)
-			rec := env.NewLogRecorder(testenv.WithSkipCloseDelay())
-			for i := range b.N {
-				idx := indexes[i%n]
+	out := testing.Benchmark(func(b *testing.B) {
+		b.RunParallel(func(pb *testing.PB) {
+			// rec := env.NewLogRecorder(testenv.WithSkipCloseDelay())
+			for pb.Next() {
+				idx := rand.IntN(numRoutes)
 				resp, err := up.Get(routes[idx], upstreams.AuthenticateAs(fmt.Sprintf("user%d@example.com", idx)))
 				if !assert.NoError(b, err) {
-					rec.DumpToFile(filepath.Join("testdata", strings.ReplaceAll(b.Name(), "/", "_")))
+					// rec.DumpToFile(filepath.Join("testdata", strings.ReplaceAll(b.Name(), "/", "_")))
 					return
 				}
 
 				assert.Equal(b, resp.StatusCode, 200)
 				body, err := io.ReadAll(resp.Body)
+				resp.Body.Close()
 				assert.NoError(b, err)
 				assert.Equal(b, "OK", string(body))
 			}
 		})
+	})
+	t.Log(out)
+	t.Logf("req/s: %f", float64(out.N)/out.T.Seconds())
 
-		env.Stop()
-	}
+	env.Stop()
 }

@@ -204,6 +204,7 @@ type environment struct {
 type EnvironmentOptions struct {
 	debug          bool
 	pauseOnFailure bool
+	forceSilent    bool
 }
 
 type EnvironmentOption func(*EnvironmentOptions)
@@ -232,6 +233,15 @@ func PauseOnFailure(enable ...bool) EnvironmentOption {
 	}
 }
 
+func Silent(silent ...bool) EnvironmentOption {
+	if len(silent) == 0 {
+		silent = append(silent, true)
+	}
+	return func(o *EnvironmentOptions) {
+		o.forceSilent = silent[0]
+	}
+}
+
 var setGrpcLoggerOnce sync.Once
 
 func New(t testing.TB, opts ...EnvironmentOption) Environment {
@@ -257,7 +267,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	require.NoError(t, err)
 
 	writer := log.NewMultiWriter()
-	silent := isSilent(t)
+	silent := options.forceSilent || isSilent(t)
 	if silent {
 		log.SetLevel(zerolog.FatalLevel)
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
@@ -281,13 +291,14 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		require:            require.New(t),
 		tempDir:            t.TempDir(),
 		ports: Ports{
-			Proxy:    values.Deferred[int](),
-			GRPC:     values.Deferred[int](),
-			HTTP:     values.Deferred[int](),
-			Outbound: values.Deferred[int](),
-			Metrics:  values.Deferred[int](),
-			Debug:    values.Deferred[int](),
-			ALPN:     values.Deferred[int](),
+			ProxyHTTP: values.Deferred[int](),
+			ProxyGRPC: values.Deferred[int](),
+			GRPC:      values.Deferred[int](),
+			HTTP:      values.Deferred[int](),
+			Outbound:  values.Deferred[int](),
+			Metrics:   values.Deferred[int](),
+			Debug:     values.Deferred[int](),
+			ALPN:      values.Deferred[int](),
 		},
 		workspaceFolder: workspaceFolder,
 		silent:          silent,
@@ -338,13 +349,14 @@ type WithCaller[T any] struct {
 }
 
 type Ports struct {
-	Proxy    values.MutableValue[int]
-	GRPC     values.MutableValue[int]
-	HTTP     values.MutableValue[int]
-	Outbound values.MutableValue[int]
-	Metrics  values.MutableValue[int]
-	Debug    values.MutableValue[int]
-	ALPN     values.MutableValue[int]
+	ProxyHTTP values.MutableValue[int]
+	ProxyGRPC values.MutableValue[int]
+	GRPC      values.MutableValue[int]
+	HTTP      values.MutableValue[int]
+	Outbound  values.MutableValue[int]
+	Metrics   values.MutableValue[int]
+	Debug     values.MutableValue[int]
+	ALPN      values.MutableValue[int]
 }
 
 func (e *environment) TempDir() string {
@@ -364,7 +376,7 @@ func (e *environment) Require() *require.Assertions {
 }
 
 func (e *environment) SubdomainURL(subdomain string) values.Value[string] {
-	return values.Bind(e.ports.Proxy, func(port int) string {
+	return values.Bind(e.ports.ProxyHTTP, func(port int) string {
 		return fmt.Sprintf("https://%s.%s:%d", subdomain, e.domain, port)
 	})
 }
@@ -425,7 +437,7 @@ func (e *environment) Start() {
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
 	}
-	ports, err := netutil.AllocatePorts(7)
+	ports, err := netutil.AllocatePorts(8)
 	require.NoError(e.t, err)
 	atoi := func(str string) int {
 		p, err := strconv.Atoi(str)
@@ -434,20 +446,22 @@ func (e *environment) Start() {
 		}
 		return p
 	}
-	e.ports.Proxy.Resolve(atoi(ports[0]))
-	e.ports.GRPC.Resolve(atoi(ports[1]))
-	e.ports.HTTP.Resolve(atoi(ports[2]))
-	e.ports.Outbound.Resolve(atoi(ports[3]))
-	e.ports.Metrics.Resolve(atoi(ports[4]))
-	e.ports.Debug.Resolve(atoi(ports[5]))
-	e.ports.ALPN.Resolve(atoi(ports[6]))
-	cfg.AllocatePorts(*(*[6]string)(ports[1:]))
+	e.ports.ProxyHTTP.Resolve(atoi(ports[0]))
+	e.ports.ProxyGRPC.Resolve(atoi(ports[1]))
+	e.ports.GRPC.Resolve(atoi(ports[2]))
+	e.ports.HTTP.Resolve(atoi(ports[3]))
+	e.ports.Outbound.Resolve(atoi(ports[4]))
+	e.ports.Metrics.Resolve(atoi(ports[5]))
+	e.ports.Debug.Resolve(atoi(ports[6]))
+	e.ports.ALPN.Resolve(atoi(ports[7]))
+	cfg.AllocatePorts(*(*[6]string)(ports[2:]))
 
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
 	cfg.Options.Services = "all"
 	cfg.Options.LogLevel = config.LogLevelDebug
 	cfg.Options.ProxyLogLevel = config.LogLevelInfo
-	cfg.Options.Addr = fmt.Sprintf("127.0.0.1:%d", e.ports.Proxy.Value())
+	cfg.Options.Addr = fmt.Sprintf("127.0.0.1:%d", e.ports.ProxyHTTP.Value())
+	cfg.Options.GRPCAddr = fmt.Sprintf("127.0.0.1:%d", e.ports.ProxyGRPC.Value())
 	cfg.Options.CAFile = filepath.Join(e.tempDir, "certs", "ca.pem")
 	cfg.Options.CertFile = filepath.Join(e.tempDir, "certs", "trusted.pem")
 	cfg.Options.KeyFile = filepath.Join(e.tempDir, "certs", "trusted-key.pem")
@@ -707,8 +721,8 @@ func (e *environment) ReportOK(_ health.Check, _ ...health.Attr) {}
 func (e *environment) advanceState(newState EnvironmentState) {
 	e.stateMu.Lock()
 	defer e.stateMu.Unlock()
-	if e.state != newState>>1 {
-		panic(fmt.Sprintf("internal test environment bug: invalid state: expected=%s, actual=%s", newState>>1, e.state))
+	if newState <= e.state {
+		panic(fmt.Sprintf("internal test environment bug: changed state to <= current: newState=%s, current=%s", newState, e.state))
 	}
 	e.debugf("state %s -> %s", e.state.String(), newState.String())
 	e.state = newState
