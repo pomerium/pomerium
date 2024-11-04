@@ -7,4 +7,6 @@ var (
 	DebugDisableZapLogger atomic.Bool
 	// Debug option to suppress global warnings
 	DebugDisableGlobalWarnings atomic.Bool
+	// Debug option to suppress global (non-warning) messages
+	DebugDisableGlobalMessages atomic.Bool
 )

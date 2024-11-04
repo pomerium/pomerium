@@ -2,6 +2,8 @@ package envoyconfig
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -23,7 +25,8 @@ func (b *Builder) buildEnvoyAdminCluster(_ context.Context, _ *config.Config) (*
 							Address: &envoy_config_core_v3.Address{
 								Address: &envoy_config_core_v3.Address_Pipe{
 									Pipe: &envoy_config_core_v3.Pipe{
-										Path: envoyAdminAddressSockName,
+										Path: filepath.Join(os.TempDir(), envoyAdminAddressSockName),
+										Mode: uint32(envoyAdminAddressMode),
 									},
 								},
 							},

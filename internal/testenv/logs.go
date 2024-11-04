@@ -31,8 +31,8 @@ type LogRecorder struct {
 	buf          *buffer
 	recordedLogs []map[string]any
 
-	closeOnce       func()
-	collectLogsOnce sync.Once
+	removeGlobalWriterOnce func()
+	collectLogsOnce        sync.Once
 }
 
 type LogRecorderOptions struct {
@@ -132,14 +132,14 @@ func (e *environment) NewLogRecorder(opts ...LogRecorderOption) *LogRecorder {
 		buf:                newBuffer(),
 	}
 	e.logWriter.Add(lr.buf)
-	lr.closeOnce = sync.OnceFunc(func() {
+	lr.removeGlobalWriterOnce = sync.OnceFunc(func() {
 		// wait for envoy access logs, which flush on a 1 second interval
 		if !lr.skipCloseDelay {
 			time.Sleep(1100 * time.Millisecond)
 		}
 		e.logWriter.Remove(lr.buf)
 	})
-	context.AfterFunc(e.ctx, lr.closeOnce)
+	context.AfterFunc(e.ctx, lr.removeGlobalWriterOnce)
 	return lr
 }
 
@@ -156,13 +156,13 @@ type (
 // Close stops the log recorder. After calling this method, Logs() or Match()
 // can be called to inspect the logs that were captured.
 func (lr *LogRecorder) Close() {
-	lr.closeOnce()
+	lr.removeGlobalWriterOnce()
 }
 
 func (lr *LogRecorder) collectLogs(shouldClose bool) {
 	if shouldClose {
+		lr.removeGlobalWriterOnce()
 		lr.buf.Close()
-		lr.closeOnce()
 	}
 	lr.collectLogsOnce.Do(func() {
 		recordedLogs := []map[string]any{}
@@ -201,7 +201,7 @@ func (lr *LogRecorder) WaitForMatch(expectedLog map[string]any, timeout ...time.
 	go func() {
 		defer close(done)
 		lr.collectLogs(false)
-		lr.closeOnce()
+		lr.removeGlobalWriterOnce()
 	}()
 	if len(timeout) != 0 {
 		select {

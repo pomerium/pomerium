@@ -15,10 +15,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var numRoutes int
+var (
+	numRoutes   int
+	dumpErrLogs bool
+)
 
 func init() {
 	flag.IntVar(&numRoutes, "routes", 100, "number of routes")
+	flag.BoolVar(&dumpErrLogs, "dump-err-logs", false, "if the test fails, write all captured logs to a file (testdata/<test-name>)")
 }
 
 func TestRequestLatency(t *testing.T) {
@@ -49,13 +53,21 @@ func TestRequestLatency(t *testing.T) {
 	snippets.WaitStartupComplete(env)
 
 	out := testing.Benchmark(func(b *testing.B) {
+		b.ReportAllocs()
 		b.RunParallel(func(pb *testing.PB) {
-			// rec := env.NewLogRecorder(testenv.WithSkipCloseDelay())
+			var rec *testenv.LogRecorder
+			if dumpErrLogs {
+				rec = env.NewLogRecorder(testenv.WithSkipCloseDelay())
+			}
 			for pb.Next() {
 				idx := rand.IntN(numRoutes)
 				resp, err := up.Get(routes[idx], upstreams.AuthenticateAs(fmt.Sprintf("user%d@example.com", idx)))
 				if !assert.NoError(b, err) {
-					// rec.DumpToFile(filepath.Join("testdata", strings.ReplaceAll(b.Name(), "/", "_")))
+					filename := "TestRequestLatency_err.log"
+					if dumpErrLogs {
+						rec.DumpToFile(filename)
+						b.Logf("test logs written to %s", filename)
+					}
 					return
 				}
 
@@ -67,6 +79,7 @@ func TestRequestLatency(t *testing.T) {
 			}
 		})
 	})
+
 	t.Log(out)
 	t.Logf("req/s: %f", float64(out.N)/out.T.Seconds())
 

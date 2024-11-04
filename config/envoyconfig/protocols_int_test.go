@@ -22,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/scenarios"
+	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/pomerium/pomerium/internal/testenv/values"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
@@ -48,6 +49,7 @@ func TestH2C_v2(t *testing.T) {
 
 	env.AddUpstream(up)
 	env.Start()
+	snippets.WaitStartupComplete(env)
 
 	t.Run("h2c", func(t *testing.T) {
 		t.Parallel()

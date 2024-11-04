@@ -280,6 +280,7 @@
               "endpoint": {
                 "address": {
                   "pipe": {
+                    "mode": 384,
                     "path": "/tmp/pomerium-envoy-admin.sock"
                   }
                 }

@@ -269,13 +269,17 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	writer := log.NewMultiWriter()
 	silent := options.forceSilent || isSilent(t)
 	if silent {
+		// this sets the global zap level to fatal, then resets the global zerolog
+		// level to debug
 		log.SetLevel(zerolog.FatalLevel)
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-		log.DebugDisableGlobalWarnings.Store(true)
-		log.DebugDisableZapLogger.Store(true)
 	} else {
+		log.SetLevel(zerolog.InfoLevel)
 		writer.Add(os.Stdout)
 	}
+	log.DebugDisableGlobalWarnings.Store(silent)
+	log.DebugDisableGlobalMessages.Store(silent)
+	log.DebugDisableZapLogger.Store(silent)
 	setGrpcLoggerOnce.Do(func() {
 		grpclog.SetLoggerV2(grpclog.NewLoggerV2WithVerbosity(io.Discard, io.Discard, io.Discard, 0))
 	})
