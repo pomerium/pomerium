@@ -53,6 +53,7 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 		return nil, err
 	}
 	a.state = atomicutil.NewValue(state)
+	a.currentOptions.Store(cfg.Options) // FIXME: this is refactored out in a different branch
 
 	return a, nil
 }

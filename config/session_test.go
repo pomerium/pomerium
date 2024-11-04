@@ -42,7 +42,10 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		})
 	require.NoError(t, options.Validate())
 
-	store, err := NewSessionStore(options)
+	idpCache, err := NewIdentityProviderCache(options)
+	require.NoError(t, err)
+
+	store, err := NewSessionStore(options, idpCache)
 	require.NoError(t, err)
 
 	idp1, err := options.GetIdentityProviderForPolicy(nil)
@@ -57,6 +60,11 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, idp3)
 
+	policy0Id, err := options.Policies[0].RouteID()
+	require.NoError(t, err)
+	policy1Id, err := options.Policies[1].RouteID()
+	require.NoError(t, err)
+
 	makeJWS := func(t *testing.T, state *sessions.State) string {
 		e, err := jws.NewHS256Signer(sharedKey)
 		require.NoError(t, err)
@@ -70,7 +78,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 	t.Run("mssing", func(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "https://p1.example.com", nil)
 		require.NoError(t, err)
-		s, err := store.LoadSessionStateAndCheckIDP(r)
+		s, err := store.LoadSessionStateAndCheckIDP(r, 0)
 		assert.ErrorIs(t, err, sessions.ErrNoSessionFound)
 		assert.Nil(t, s)
 	})
@@ -85,7 +93,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 			urlutil.QuerySession: {rawJWS},
 		}.Encode(), nil)
 		require.NoError(t, err)
-		s, err := store.LoadSessionStateAndCheckIDP(r)
+		s, err := store.LoadSessionStateAndCheckIDP(r, policy0Id)
 		assert.NoError(t, err)
 		assert.Empty(t, cmp.Diff(&sessions.State{
 			Issuer:             "authenticate.example.com",
@@ -103,7 +111,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "https://p2.example.com", nil)
 		require.NoError(t, err)
 		r.Header.Set(httputil.HeaderPomeriumAuthorization, rawJWS)
-		s, err := store.LoadSessionStateAndCheckIDP(r)
+		s, err := store.LoadSessionStateAndCheckIDP(r, policy1Id)
 		assert.NoError(t, err)
 		assert.Empty(t, cmp.Diff(&sessions.State{
 			Issuer:             "authenticate.example.com",
@@ -121,7 +129,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "https://p2.example.com", nil)
 		require.NoError(t, err)
 		r.Header.Set(httputil.HeaderPomeriumAuthorization, rawJWS)
-		s, err := store.LoadSessionStateAndCheckIDP(r)
+		s, err := store.LoadSessionStateAndCheckIDP(r, policy1Id)
 		assert.Error(t, err)
 		assert.Nil(t, s)
 	})
@@ -134,7 +142,7 @@ func TestSessionStore_LoadSessionState(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "https://p2.example.com", nil)
 		require.NoError(t, err)
 		r.Header.Set(httputil.HeaderPomeriumAuthorization, rawJWS)
-		s, err := store.LoadSessionStateAndCheckIDP(r)
+		s, err := store.LoadSessionStateAndCheckIDP(r, policy1Id)
 		assert.NoError(t, err)
 		assert.Empty(t, cmp.Diff(&sessions.State{
 			Issuer: "authenticate.example.com",

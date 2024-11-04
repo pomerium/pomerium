@@ -29,6 +29,7 @@ type authorizeState struct {
 	dataBrokerClient           databroker.DataBrokerServiceClient
 	auditEncryptor             *protoutil.Encryptor
 	sessionStore               *config.SessionStore
+	idpCache                   *config.IdentityProviderCache
 	authenticateFlow           authenticateFlow
 }
 
@@ -79,13 +80,20 @@ func newAuthorizeStateFromConfig(
 		state.auditEncryptor = protoutil.NewEncryptor(auditKey)
 	}
 
-	state.sessionStore, err = config.NewSessionStore(cfg.Options)
+	idpCache, err := config.NewIdentityProviderCache(cfg.Options)
+	if err != nil {
+		return nil, err
+	}
+	state.idpCache = idpCache
+
+	state.sessionStore, err = config.NewSessionStore(cfg.Options, state.idpCache)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: invalid session store: %w", err)
 	}
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {
-		state.authenticateFlow, err = authenticateflow.NewStateless(ctx, cfg, nil, nil, nil, nil)
+		state.authenticateFlow, err = authenticateflow.NewStateless(ctx, cfg, nil,
+			authenticateflow.IdentityProviderLookupFromCache(idpCache), nil, nil)
 	} else {
 		state.authenticateFlow, err = authenticateflow.NewStateful(ctx, cfg, nil)
 	}

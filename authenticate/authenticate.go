@@ -9,6 +9,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
+	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
@@ -50,6 +51,14 @@ func New(ctx context.Context, cfg *config.Config, options ...Option) (*Authentic
 		cfg:     authenticateConfig,
 		options: config.NewAtomicOptions(),
 		state:   atomicutil.NewValue(newAuthenticateState()),
+	}
+
+	if authenticateConfig.getIdentityProvider == nil {
+		idpCache, err := config.NewIdentityProviderCache(cfg.Options)
+		if err != nil {
+			return nil, err
+		}
+		authenticateConfig.getIdentityProvider = authenticateflow.IdentityProviderLookupFromCache(idpCache)
 	}
 
 	a.options.Store(cfg.Options)

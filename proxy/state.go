@@ -26,6 +26,7 @@ type proxyState struct {
 
 	sharedKey                           []byte
 	sessionStore                        *config.SessionStore
+	idpCache                            *config.IdentityProviderCache
 	dataBrokerClient                    databroker.DataBrokerServiceClient
 	programmaticRedirectDomainWhitelist []string
 	authenticateFlow                    authenticateFlow
@@ -47,12 +48,17 @@ func newProxyStateFromConfig(ctx context.Context, cfg *config.Config) (*proxySta
 	state.authenticateSigninURL = state.authenticateURL.ResolveReference(&url.URL{Path: signinURL})
 	state.authenticateRefreshURL = state.authenticateURL.ResolveReference(&url.URL{Path: refreshURL})
 
+	state.idpCache, err = config.NewIdentityProviderCache(cfg.Options)
+	if err != nil {
+		return nil, err
+	}
+
 	state.sharedKey, err = cfg.Options.GetSharedKey()
 	if err != nil {
 		return nil, err
 	}
 
-	state.sessionStore, err = config.NewSessionStore(cfg.Options)
+	state.sessionStore, err = config.NewSessionStore(cfg.Options, state.idpCache)
 	if err != nil {
 		return nil, err
 	}
@@ -71,8 +77,8 @@ func newProxyStateFromConfig(ctx context.Context, cfg *config.Config) (*proxySta
 	state.programmaticRedirectDomainWhitelist = cfg.Options.ProgrammaticRedirectDomainWhitelist
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {
-		state.authenticateFlow, err = authenticateflow.NewStateless(ctx,
-			cfg, state.sessionStore, nil, nil, nil)
+		state.authenticateFlow, err = authenticateflow.NewStateless(ctx, cfg, state.sessionStore,
+			authenticateflow.IdentityProviderLookupFromCache(state.idpCache), nil, nil)
 	} else {
 		state.authenticateFlow, err = authenticateflow.NewStateful(ctx, cfg, state.sessionStore)
 	}

@@ -14,7 +14,6 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -49,8 +48,9 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	hreq := getHTTPRequestFromCheckRequest(in)
 	requestID := requestid.FromHTTPHeader(hreq.Header)
 	ctx = requestid.WithValue(ctx, requestID)
+	routeID := envoyconfig.ExtAuthzContextExtensionsRouteID(in.GetAttributes().GetContextExtensions())
 
-	sessionState, _ := state.sessionStore.LoadSessionStateAndCheckIDP(hreq)
+	sessionState, _ := state.sessionStore.LoadSessionStateAndCheckIDP(hreq, routeID)
 
 	var s sessionOrServiceAccount
 	var u *user.User
@@ -120,21 +120,8 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 			ID: sessionState.ID,
 		}
 	}
-	req.Policy = a.getMatchingPolicy(envoyconfig.ExtAuthzContextExtensionsRouteID(attrs.GetContextExtensions()))
+	req.Policy, _ = a.state.Load().idpCache.GetPolicyByID(envoyconfig.ExtAuthzContextExtensionsRouteID(attrs.GetContextExtensions()))
 	return req, nil
-}
-
-func (a *Authorize) getMatchingPolicy(routeID uint64) *config.Policy {
-	options := a.currentOptions.Load()
-
-	for p := range options.GetAllPolicies() {
-		id, _ := p.RouteID()
-		if id == routeID {
-			return p
-		}
-	}
-
-	return nil
 }
 
 func getHTTPRequestFromCheckRequest(req *envoy_service_auth_v3.CheckRequest) *http.Request {
