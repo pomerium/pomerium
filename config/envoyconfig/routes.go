@@ -385,7 +385,7 @@ func (b *Builder) buildPolicyRouteRedirectAction(r *config.PolicyRedirect) (*env
 		}
 	}
 	if r.ResponseCode != nil {
-		action.ResponseCode = envoy_config_route_v3.RedirectAction_RedirectResponseCode(*r.ResponseCode)
+		action.ResponseCode, _ = r.GetEnvoyResponseCode()
 	}
 	if r.StripQuery != nil {
 		action.StripQuery = *r.StripQuery
