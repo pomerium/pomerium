@@ -210,16 +210,13 @@ func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *con
 }
 
 func setupAuthorize(ctx context.Context, src config.Source, controlPlane *controlplane.Server) (*authorize.Authorize, error) {
-	svc, err := authorize.New(ctx, src.GetConfig())
-	if err != nil {
-		return nil, fmt.Errorf("error creating authorize service: %w", err)
-	}
-	envoy_service_auth_v3.RegisterAuthorizationServer(controlPlane.GRPCServer, svc)
+	a := authorize.New()
+	envoy_service_auth_v3.RegisterAuthorizationServer(controlPlane.GRPCServer, a)
 
 	log.Ctx(ctx).Info().Msg("enabled authorize service")
-	src.OnConfigChange(ctx, svc.OnConfigChange)
-	svc.OnConfigChange(ctx, src.GetConfig())
-	return svc, nil
+	src.OnConfigChange(ctx, a.OnConfigChange)
+	a.OnConfigChange(ctx, src.GetConfig())
+	return a, nil
 }
 
 func setupDataBroker(ctx context.Context,

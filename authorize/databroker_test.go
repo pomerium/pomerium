@@ -65,12 +65,13 @@ func TestAuthorize_getDataBrokerSessionOrServiceAccount(t *testing.T) {
 	t.Cleanup(clearTimeout)
 
 	opt := config.NewDefaultOptions()
-	a, err := New(context.Background(), &config.Config{Options: opt})
-	require.NoError(t, err)
+	a := New()
+	a.OnConfigChange(context.Background(), &config.Config{Options: opt})
+	require.True(t, a.HasValidState())
 
 	s1 := &session.Session{Id: "s1", ExpiresAt: timestamppb.New(time.Now().Add(-time.Second))}
 	sq := storage.NewStaticQuerier(s1)
 	qctx := storage.WithQuerier(ctx, sq)
-	_, err = a.getDataBrokerSessionOrServiceAccount(qctx, "s1", 0)
+	_, err := a.getDataBrokerSessionOrServiceAccount(qctx, "s1", 0)
 	assert.ErrorIs(t, err, session.ErrSessionExpired)
 }

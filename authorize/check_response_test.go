@@ -34,8 +34,10 @@ func TestAuthorize_handleResult(t *testing.T) {
 	t.Cleanup(authnSrv.Close)
 	opt.AuthenticateURLString = authnSrv.URL
 
-	a, err := New(context.Background(), &config.Config{Options: opt})
-	require.NoError(t, err)
+	cfg := &config.Config{Options: opt}
+	a := New()
+	a.OnConfigChange(context.Background(), cfg)
+	require.True(t, a.HasValidState())
 
 	t.Run("user-unauthenticated", func(t *testing.T) {
 		res, err := a.handleResult(context.Background(),
@@ -327,8 +329,10 @@ func TestRequireLogin(t *testing.T) {
 	t.Cleanup(authnSrv.Close)
 	opt.AuthenticateURLString = authnSrv.URL
 
-	a, err := New(context.Background(), &config.Config{Options: opt})
-	require.NoError(t, err)
+	cfg := &config.Config{Options: opt}
+	a := New()
+	a.OnConfigChange(context.Background(), cfg)
+	require.True(t, a.HasValidState())
 
 	t.Run("accept empty", func(t *testing.T) {
 		res, err := a.requireLoginResponse(context.Background(),
