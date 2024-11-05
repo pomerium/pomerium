@@ -74,31 +74,32 @@ func Test_PolicyValidate_RedirectResponseCode(t *testing.T) {
 	}
 
 	cases := []struct {
-		Code          int32
+		Code          *int32
 		ExpectedError string
 	}{
-		{0, "unsupported redirect response code 0"},
-		{100, "unsupported redirect response code 100"},
-		{200, "unsupported redirect response code 200"},
-		{300, "unsupported redirect response code 300"},
-		{301, ""},
-		{302, ""},
-		{303, ""},
-		{304, "unsupported redirect response code 304"},
-		{305, "unsupported redirect response code 305"},
-		{306, "unsupported redirect response code 306"},
-		{307, ""},
-		{308, ""},
-		{309, "unsupported redirect response code 309"},
-		{400, "unsupported redirect response code 400"},
-		{500, "unsupported redirect response code 500"},
-		{600, "unsupported redirect response code 600"},
+		{nil, ""},
+		{proto.Int32(0), "unsupported redirect response code 0"},
+		{proto.Int32(100), "unsupported redirect response code 100"},
+		{proto.Int32(200), "unsupported redirect response code 200"},
+		{proto.Int32(300), "unsupported redirect response code 300"},
+		{proto.Int32(301), ""},
+		{proto.Int32(302), ""},
+		{proto.Int32(303), ""},
+		{proto.Int32(304), "unsupported redirect response code 304"},
+		{proto.Int32(305), "unsupported redirect response code 305"},
+		{proto.Int32(306), "unsupported redirect response code 306"},
+		{proto.Int32(307), ""},
+		{proto.Int32(308), ""},
+		{proto.Int32(309), "unsupported redirect response code 309"},
+		{proto.Int32(400), "unsupported redirect response code 400"},
+		{proto.Int32(500), "unsupported redirect response code 500"},
+		{proto.Int32(600), "unsupported redirect response code 600"},
 	}
 
 	for i := range cases {
 		c := &cases[i]
 		t.Run(fmt.Sprint(c.Code), func(t *testing.T) {
-			r.ResponseCode = &c.Code
+			r.ResponseCode = c.Code
 			err := p.Validate()
 			if c.ExpectedError != "" {
 				assert.ErrorContains(t, err, c.ExpectedError)

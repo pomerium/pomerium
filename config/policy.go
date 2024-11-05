@@ -233,12 +233,10 @@ func (r *PolicyRedirect) validate() error {
 
 // GetEnvoyResponseCode returns the ResponseCode as the corresponding Envoy enum value.
 func (r *PolicyRedirect) GetEnvoyResponseCode() (envoy_config_route_v3.RedirectAction_RedirectResponseCode, error) {
-	var code int32
-	if r != nil && r.ResponseCode != nil {
-		code = *r.ResponseCode
+	if r == nil || r.ResponseCode == nil {
+		return envoy_config_route_v3.RedirectAction_RedirectResponseCode(0), nil
 	}
-
-	switch code {
+	switch code := *r.ResponseCode; code {
 	case http.StatusMovedPermanently:
 		return envoy_config_route_v3.RedirectAction_MOVED_PERMANENTLY, nil
 	case http.StatusFound:

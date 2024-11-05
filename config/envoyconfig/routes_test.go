@@ -1986,20 +1986,21 @@ func Test_buildPolicyRouteRedirectAction(t *testing.T) {
 	})
 	t.Run("ResponseCode", func(t *testing.T) {
 		codes := []struct {
-			Number int32
+			Number *int32
 			Enum   envoy_config_route_v3.RedirectAction_RedirectResponseCode
 		}{
-			{301, envoy_config_route_v3.RedirectAction_MOVED_PERMANENTLY},
-			{302, envoy_config_route_v3.RedirectAction_FOUND},
-			{303, envoy_config_route_v3.RedirectAction_SEE_OTHER},
-			{307, envoy_config_route_v3.RedirectAction_TEMPORARY_REDIRECT},
-			{308, envoy_config_route_v3.RedirectAction_PERMANENT_REDIRECT},
+			{nil, envoy_config_route_v3.RedirectAction_MOVED_PERMANENTLY},
+			{proto.Int32(301), envoy_config_route_v3.RedirectAction_MOVED_PERMANENTLY},
+			{proto.Int32(302), envoy_config_route_v3.RedirectAction_FOUND},
+			{proto.Int32(303), envoy_config_route_v3.RedirectAction_SEE_OTHER},
+			{proto.Int32(307), envoy_config_route_v3.RedirectAction_TEMPORARY_REDIRECT},
+			{proto.Int32(308), envoy_config_route_v3.RedirectAction_PERMANENT_REDIRECT},
 		}
 		for i := range codes {
 			c := &codes[i]
 			t.Run(fmt.Sprint(c.Number), func(t *testing.T) {
 				action, err := b.buildPolicyRouteRedirectAction(&config.PolicyRedirect{
-					ResponseCode: &c.Number,
+					ResponseCode: c.Number,
 				})
 				require.NoError(t, err)
 				assert.Equal(t, &envoy_config_route_v3.RedirectAction{
