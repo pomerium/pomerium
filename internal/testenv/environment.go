@@ -245,6 +245,9 @@ func Silent(silent ...bool) EnvironmentOption {
 var setGrpcLoggerOnce sync.Once
 
 func New(t testing.TB, opts ...EnvironmentOption) Environment {
+	if runtime.GOOS != "linux" {
+		t.Skip("test environment only supported on linux")
+	}
 	options := EnvironmentOptions{}
 	options.apply(opts...)
 	if testing.Short() {
