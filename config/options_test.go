@@ -906,21 +906,25 @@ func TestOptions_GetAllRouteableHTTPHosts(t *testing.T) {
 		Policies:              []Policy{p1, p2, p3},
 		Services:              "all",
 	}
-	hosts, err := opts.GetAllRouteableHTTPHosts()
+	hosts, err := opts.GetAllRouteableAuthenticateHTTPHosts()
 	assert.NoError(t, err)
 
 	assert.Equal(t, []string{
 		"authenticate.example.com",
 		"authenticate.example.com:443",
-		"from.example.com",
-		"from.example.com:443",
-		"from1.example.com",
-		"from1.example.com:443",
-		"from2.example.com",
-		"from2.example.com:443",
-		"from3.example.com",
-		"from3.example.com:443",
 	}, hosts)
+	policiesByHost, err := opts.GetAllRouteablePolicyHTTPHosts()
+	assert.NoError(t, err)
+	assert.Equal(t, map[string][]IndexedPolicy{
+		"from.example.com":      {{Policy: &p3, Index: 2}},
+		"from.example.com:443":  {{Policy: &p3, Index: 2}},
+		"from1.example.com":     {{Policy: &p1, Index: 0}},
+		"from1.example.com:443": {{Policy: &p1, Index: 0}},
+		"from2.example.com":     {{Policy: &p2, Index: 1}},
+		"from2.example.com:443": {{Policy: &p2, Index: 1}},
+		"from3.example.com":     {{Policy: &p3, Index: 2}},
+		"from3.example.com:443": {{Policy: &p3, Index: 2}},
+	}, policiesByHost)
 }
 
 func TestOptions_ApplySettings(t *testing.T) {
