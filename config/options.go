@@ -1667,7 +1667,7 @@ func (o *Options) ToProto() *config.Config {
 
 	routes := make([]*config.Route, 0, o.NumPolicies())
 	for p := range o.GetAllPolicies() {
-		routepb, err := p.ToProto()
+		routepb, err := p.AsProto()
 		if err != nil {
 			continue
 		}
@@ -1697,19 +1697,6 @@ func (o *Options) ToProto() *config.Config {
 	return &config.Config{
 		Settings: &settings,
 		Routes:   routes,
-	}
-}
-
-func copySrcToOptionalDest[T comparable](dst **T, src *T) {
-	var zero T
-	if *src == zero {
-		*dst = nil
-	} else {
-		if *dst == nil {
-			*dst = src
-		} else {
-			**dst = *src
-		}
 	}
 }
 

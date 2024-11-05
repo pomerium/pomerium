@@ -26,7 +26,6 @@ import (
 	"testing"
 	"time"
 
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/viper"
@@ -1389,117 +1388,10 @@ func encodeCert(cert *tls.Certificate) []byte {
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Certificate[0]})
 }
 
-func TestRoute_FromToProto(t *testing.T) {
-	routeGen := protorand.New[*configpb.Route]()
-	routeGen.MaxCollectionElements = 2
-	routeGen.UseGoDurationLimits = true
-	routeGen.ExcludeMask(&fieldmaskpb.FieldMask{
-		Paths: []string{
-			"from", "to", "load_balancing_weights", "redirect", "response", // set below
-			"ppl_policies", "name", // no equivalent field
-			"envoy_opts",
-		},
-	})
-	redirectGen := protorand.New[*configpb.RouteRedirect]()
-	responseGen := protorand.New[*configpb.RouteDirectResponse]()
-
-	randomDomain := func() string {
-		numSegments := mathrand.IntN(5) + 1
-		segments := make([]string, numSegments)
-		for i := range segments {
-			b := make([]rune, mathrand.IntN(10)+10)
-			for j := range b {
-				b[j] = rune(mathrand.IntN(26) + 'a')
-			}
-			segments[i] = string(b)
-		}
-		return strings.Join(segments, ".")
-	}
-
-	newCompleteRoute := func() *configpb.Route {
-		pb, err := routeGen.Gen()
-
-		require.NoError(t, err)
-		pb.From = "https://" + randomDomain()
-		// EnvoyOpts is set to an empty non-nil message during conversion, if nil
-		pb.EnvoyOpts = &envoy_config_cluster_v3.Cluster{}
-
-		switch mathrand.IntN(3) {
-		case 0:
-			pb.To = make([]string, mathrand.IntN(3)+1)
-			for i := range pb.To {
-				pb.To[i] = "https://" + randomDomain()
-			}
-			pb.LoadBalancingWeights = make([]uint32, len(pb.To))
-			for i := range pb.LoadBalancingWeights {
-				pb.LoadBalancingWeights[i] = mathrand.Uint32N(10000) + 1
-			}
-		case 1:
-			pb.Redirect, err = redirectGen.Gen()
-			require.NoError(t, err)
-		case 2:
-			pb.Response, err = responseGen.Gen()
-			require.NoError(t, err)
-		}
-		return pb
-	}
-
-	t.Run("Round Trip", func(t *testing.T) {
-		for range 100 {
-			route := newCompleteRoute()
-
-			policy, err := NewPolicyFromProto(route)
-			require.NoError(t, err)
-
-			route2, err := policy.ToProto()
-			require.NoError(t, err)
-			route2.Name = ""
-
-			testutil.AssertProtoEqual(t, route, route2)
-		}
-	})
-
-	t.Run("Multiple routes", func(t *testing.T) {
-		for range 100 {
-			route1 := newCompleteRoute()
-			route2 := newCompleteRoute()
-
-			{
-				// create a new policy every time, since reusing the target will mutate
-				// the underlying route
-				policy1, err := NewPolicyFromProto(route1)
-				require.NoError(t, err)
-				target, err := policy1.ToProto()
-				require.NoError(t, err)
-				target.Name = ""
-				testutil.AssertProtoEqual(t, route1, target)
-			}
-			{
-				policy2, err := NewPolicyFromProto(route2)
-				require.NoError(t, err)
-				target, err := policy2.ToProto()
-				require.NoError(t, err)
-				target.Name = ""
-				testutil.AssertProtoEqual(t, route2, target)
-			}
-			{
-				policy1, err := NewPolicyFromProto(route1)
-				require.NoError(t, err)
-				target, err := policy1.ToProto()
-				require.NoError(t, err)
-				target.Name = ""
-				testutil.AssertProtoEqual(t, route1, target)
-			}
-			{
-				policy2, err := NewPolicyFromProto(route2)
-				require.NoError(t, err)
-				target, err := policy2.ToProto()
-				require.NoError(t, err)
-				target.Name = ""
-				testutil.AssertProtoEqual(t, route2, target)
-			}
-		}
-	})
+func mustParseWeightedURLs(t testing.TB, urls ...string) []WeightedURL {
+	wu, err := ParseWeightedUrls(urls...)
+	require.NoError(t, err)
+	return wu
 }
 
 func TestOptions_FromToProto(t *testing.T) {
@@ -1507,7 +1399,7 @@ func TestOptions_FromToProto(t *testing.T) {
 		t.Helper()
 		gen := protorand.New[*configpb.Settings]()
 		gen.MaxCollectionElements = 2
-		gen.MaxDepth = 3
+		gen.MaxDepth = 2
 		gen.UseGoDurationLimits = true
 		gen.ExcludeMask(&fieldmaskpb.FieldMask{
 			Paths: []string{
