@@ -26,9 +26,9 @@ import (
 const maxActiveDownstreamConnections = 50000
 
 var (
-	envoyAdminAddressPath = filepath.Join(os.TempDir(), "pomerium-envoy-admin.sock")
-	envoyAdminAddressMode = 0o600
-	envoyAdminClusterName = "pomerium-envoy-admin"
+	envoyAdminAddressSockName = "pomerium-envoy-admin.sock"
+	envoyAdminAddressMode     = 0o600
+	envoyAdminClusterName     = "pomerium-envoy-admin"
 )
 
 // BuildBootstrap builds the bootstrap config.
@@ -95,7 +95,7 @@ func (b *Builder) BuildBootstrapAdmin(cfg *config.Config) (admin *envoy_config_b
 	admin.Address = &envoy_config_core_v3.Address{
 		Address: &envoy_config_core_v3.Address_Pipe{
 			Pipe: &envoy_config_core_v3.Pipe{
-				Path: envoyAdminAddressPath,
+				Path: filepath.Join(os.TempDir(), envoyAdminAddressSockName),
 				Mode: uint32(envoyAdminAddressMode),
 			},
 		},

@@ -186,7 +186,25 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	// monitor the process so we exit if it prematurely exits
 	var monitorProcessCtx context.Context
 	monitorProcessCtx, srv.monitorProcessCancel = context.WithCancel(context.WithoutCancel(ctx))
-	go srv.monitorProcess(monitorProcessCtx, int32(cmd.Process.Pid))
+	go func() {
+		pid := cmd.Process.Pid
+		err := srv.monitorProcess(monitorProcessCtx, int32(pid))
+		if err != nil && ctx.Err() == nil {
+			// If the envoy subprocess exits and ctx is not done, issue a fatal error.
+			// If ctx is done, the server is already exiting, and envoy is expected
+			// to be stopped along with it.
+			log.Ctx(ctx).
+				Fatal().
+				Int("pid", pid).
+				Err(err).
+				Send()
+		}
+		log.Ctx(ctx).
+			Debug().
+			Int("pid", pid).
+			Err(ctx.Err()).
+			Msg("envoy process monitor stopped")
+	}()
 
 	if srv.resourceMonitor != nil {
 		log.Ctx(ctx).Debug().Str("service", "envoy").Msg("starting resource monitor")
@@ -300,7 +318,7 @@ func (srv *Server) handleLogs(ctx context.Context, rc io.ReadCloser) {
 	}
 }
 
-func (srv *Server) monitorProcess(ctx context.Context, pid int32) {
+func (srv *Server) monitorProcess(ctx context.Context, pid int32) error {
 	log.Ctx(ctx).Debug().
 		Int32("pid", pid).
 		Msg("envoy: start monitoring subprocess")
@@ -311,19 +329,15 @@ func (srv *Server) monitorProcess(ctx context.Context, pid int32) {
 	for {
 		exists, err := process.PidExistsWithContext(ctx, pid)
 		if err != nil {
-			log.Fatal().Err(err).
-				Int32("pid", pid).
-				Msg("envoy: error retrieving subprocess information")
+			return fmt.Errorf("envoy: error retrieving subprocess information: %w", err)
 		} else if !exists {
-			log.Fatal().Err(err).
-				Int32("pid", pid).
-				Msg("envoy: subprocess exited")
+			return errors.New("envoy: subprocess exited")
 		}
 
 		// wait for the next tick
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 		case <-ticker.C:
 		}
 	}

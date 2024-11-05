@@ -12,6 +12,7 @@ import (
 )
 
 func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
+	t.Setenv("TMPDIR", "/tmp")
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
 	t.Run("valid", func(t *testing.T) {
 		adminCfg, err := b.BuildBootstrapAdmin(&config.Config{
@@ -25,7 +26,7 @@ func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 				"address": {
 					"pipe": {
 						"mode": 384,
-						"path": "`+envoyAdminAddressPath+`"
+						"path": "/tmp/`+envoyAdminAddressSockName+`"
 					}
 				}
 			}
