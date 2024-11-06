@@ -20,13 +20,73 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
+
+func BenchmarkHeadersEvaluator(b *testing.B) {
+	ctx := context.Background()
+
+	signingKey, err := cryptutil.NewSigningKey()
+	require.NoError(b, err)
+	encodedSigningKey, err := cryptutil.EncodePrivateKey(signingKey)
+	require.NoError(b, err)
+	privateJWK, err := cryptutil.PrivateJWKFromBytes(encodedSigningKey)
+	require.NoError(b, err)
+	iat := time.Unix(1686870680, 0)
+
+	ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier([]proto.Message{
+		&session.Session{Id: "s1", ImpersonateSessionId: proto.String("s2"), UserId: "u1"},
+		&session.Session{Id: "s2", UserId: "u2", Claims: map[string]*structpb.ListValue{
+			"name": {Values: []*structpb.Value{
+				structpb.NewStringValue("n1"),
+			}},
+		}, IssuedAt: timestamppb.New(iat)},
+		&user.User{Id: "u2", Name: "USER#2"},
+		newDirectoryUserRecord(directory.User{ID: "u2", GroupIDs: []string{"g1", "g2", "g3", "g4"}}),
+		newDirectoryGroupRecord(directory.Group{ID: "g1", Name: "GROUP1"}),
+		newDirectoryGroupRecord(directory.Group{ID: "g2", Name: "GROUP2"}),
+		newDirectoryGroupRecord(directory.Group{ID: "g3", Name: "GROUP3"}),
+		newDirectoryGroupRecord(directory.Group{ID: "g4", Name: "GROUP4"}),
+	}...))
+
+	s := store.New()
+	s.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
+	s.UpdateSigningKey(privateJWK)
+
+	e, err := NewHeadersEvaluator(ctx, s, rego.Time(iat))
+	require.NoError(b, err)
+
+	req := &HeadersRequest{
+		EnableRoutingKey:              true,
+		Issuer:                        "from.example.com",
+		Audience:                      "from.example.com",
+		KubernetesServiceAccountToken: "KUBERNETES_SERVICE_ACCOUNT_TOKEN",
+		ToAudience:                    "to.example.com",
+		Session: RequestSession{
+			ID: "s1",
+		},
+		SetRequestHeaders: map[string]string{
+			"X-Custom-Header":         "CUSTOM_VALUE",
+			"X-ID-Token":              "${pomerium.id_token}",
+			"X-Access-Token":          "${pomerium.access_token}",
+			"Client-Cert-Fingerprint": "${pomerium.client_cert_fingerprint}",
+			"Authorization":           "Bearer ${pomerium.jwt}",
+		},
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		res, err := e.Evaluate(ctx, req, rego.EvalTime(iat))
+		require.NoError(b, err)
+		_ = res
+	}
+}
 
 func TestNewHeadersRequestFromPolicy(t *testing.T) {
 	req, _ := NewHeadersRequestFromPolicy(&config.Policy{
@@ -142,7 +202,7 @@ func TestHeadersEvaluator(t *testing.T) {
 		ctx := context.Background()
 		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
 		store := store.New()
-		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
+		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("name", "email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
 		e, err := NewHeadersEvaluator(ctx, store, rego.Time(iat))
 		require.NoError(t, err)
@@ -157,7 +217,17 @@ func TestHeadersEvaluator(t *testing.T) {
 					"name": {Values: []*structpb.Value{
 						structpb.NewStringValue("n1"),
 					}},
+					"CUSTOM_KEY": {Values: []*structpb.Value{
+						structpb.NewStringValue("v1"),
+						structpb.NewStringValue("v2"),
+						structpb.NewStringValue("v3"),
+					}},
 				}, IssuedAt: timestamppb.New(iat)},
+				&user.User{Id: "u2", Claims: map[string]*structpb.ListValue{
+					"name": {Values: []*structpb.Value{
+						structpb.NewStringValue("n1"),
+					}},
+				}},
 			},
 			&HeadersRequest{
 				Issuer:     "from.example.com",
@@ -204,6 +274,7 @@ func TestHeadersEvaluator(t *testing.T) {
 		assert.Equal(t, "u2", claims["sub"], "should set subject to user id")
 		assert.Equal(t, "u2", claims["user"], "should set user to user id")
 		assert.Equal(t, "n1", claims["name"], "should set name")
+		assert.Equal(t, "v1,v2,v3", claims["CUSTOM_KEY"], "should set CUSTOM_KEY")
 	})
 
 	t.Run("set_request_headers", func(t *testing.T) {
@@ -317,6 +388,18 @@ func TestHeadersEvaluator(t *testing.T) {
 			[]protoreflect.ProtoMessage{
 				&session.Session{Id: "s1", UserId: "u1"},
 				&user.User{Id: "u1", Email: "u1@example.com"},
+				newDirectoryUserRecord(directory.User{
+					ID:       "u1",
+					GroupIDs: []string{"g1", "g2", "g3"},
+				}),
+				newDirectoryGroupRecord(directory.Group{
+					ID:   "g1",
+					Name: "GROUP1",
+				}),
+				newDirectoryGroupRecord(directory.Group{
+					ID:   "g2",
+					Name: "GROUP2",
+				}),
 			},
 			&HeadersRequest{
 				Issuer:                        "from.example.com",
@@ -328,7 +411,102 @@ func TestHeadersEvaluator(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "Bearer TOKEN", output.Headers.Get("Authorization"))
 		assert.Equal(t, "u1@example.com", output.Headers.Get("Impersonate-User"))
-		assert.Empty(t, output.Headers["Impersonate-Group"])
+		assert.Equal(t, "g1,g2,g3,GROUP1,GROUP2", output.Headers.Get("Impersonate-Group"))
+	})
+
+	t.Run("routing key", func(t *testing.T) {
+		t.Parallel()
+
+		output, err := eval(t,
+			[]protoreflect.ProtoMessage{},
+			&HeadersRequest{
+				EnableRoutingKey: false,
+				Session:          RequestSession{ID: "s1"},
+			})
+		require.NoError(t, err)
+		assert.Empty(t, output.Headers.Get("X-Pomerium-Routing-Key"))
+
+		output, err = eval(t,
+			[]protoreflect.ProtoMessage{},
+			&HeadersRequest{
+				EnableRoutingKey: true,
+				Session:          RequestSession{ID: "s1"},
+			})
+		require.NoError(t, err)
+		assert.Equal(t, "e8bc163c82eee18733288c7d4ac636db3a6deb013ef2d37b68322be20edc45cc", output.Headers.Get("X-Pomerium-Routing-Key"))
+	})
+
+	t.Run("jwt payload email", func(t *testing.T) {
+		t.Parallel()
+
+		output, err := eval(t,
+			[]protoreflect.ProtoMessage{
+				&session.Session{Id: "s1", UserId: "u1"},
+				&user.User{Id: "u1", Email: "user@example.com"},
+			},
+			&HeadersRequest{
+				Session: RequestSession{ID: "s1"},
+			})
+		require.NoError(t, err)
+		assert.Equal(t, "user@example.com", output.Headers.Get("X-Pomerium-Claim-Email"))
+
+		output, err = eval(t,
+			[]protoreflect.ProtoMessage{
+				&session.Session{Id: "s1", UserId: "u1"},
+				newDirectoryUserRecord(directory.User{ID: "u1", Email: "directory-user@example.com"}),
+			},
+			&HeadersRequest{
+				Session: RequestSession{ID: "s1"},
+			})
+		require.NoError(t, err)
+		assert.Equal(t, "directory-user@example.com", output.Headers.Get("X-Pomerium-Claim-Email"))
+	})
+	t.Run("jwt payload name", func(t *testing.T) {
+		t.Parallel()
+
+		output, err := eval(t,
+			[]protoreflect.ProtoMessage{
+				&session.Session{Id: "s1", UserId: "u1", Claims: map[string]*structpb.ListValue{
+					"name": {Values: []*structpb.Value{
+						structpb.NewStringValue("NAME_FROM_SESSION"),
+					}},
+				}},
+			},
+			&HeadersRequest{
+				Session: RequestSession{ID: "s1"},
+			})
+		require.NoError(t, err)
+		assert.Equal(t, "NAME_FROM_SESSION", output.Headers.Get("X-Pomerium-Claim-Name"))
+
+		output, err = eval(t,
+			[]protoreflect.ProtoMessage{
+				&session.Session{Id: "s1", UserId: "u1"},
+				&user.User{Id: "u1", Claims: map[string]*structpb.ListValue{
+					"name": {Values: []*structpb.Value{
+						structpb.NewStringValue("NAME_FROM_USER"),
+					}},
+				}},
+			},
+			&HeadersRequest{
+				Session: RequestSession{ID: "s1"},
+			})
+		require.NoError(t, err)
+		assert.Equal(t, "NAME_FROM_USER", output.Headers.Get("X-Pomerium-Claim-Name"))
+	})
+
+	t.Run("service account", func(t *testing.T) {
+		t.Parallel()
+
+		output, err := eval(t,
+			[]protoreflect.ProtoMessage{
+				&user.ServiceAccount{Id: "sa1", UserId: "u1"},
+				&user.User{Id: "u1", Email: "u1@example.com"},
+			},
+			&HeadersRequest{
+				Session: RequestSession{ID: "sa1"},
+			})
+		require.NoError(t, err)
+		assert.Equal(t, "u1@example.com", output.Headers.Get("X-Pomerium-Claim-Email"))
 	})
 }
 
@@ -339,8 +517,24 @@ func decodeJWSPayload(t *testing.T, jws string) []byte {
 	// separated by a '.' character. The payload is the middle one of these.
 	// cf. https://www.rfc-editor.org/rfc/rfc7515#section-7.1
 	parts := strings.Split(jws, ".")
-	require.Equal(t, 3, len(parts))
+	require.Equal(t, 3, len(parts), "jws should have 3 parts: %s", jws)
 	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
 	require.NoError(t, err)
 	return payload
+}
+
+func newDirectoryGroupRecord(directoryGroup directory.Group) *databroker.Record {
+	m := map[string]any{}
+	bs, _ := json.Marshal(directoryGroup)
+	_ = json.Unmarshal(bs, &m)
+	s, _ := structpb.NewStruct(m)
+	return storage.NewStaticRecord(directory.GroupRecordType, s)
+}
+
+func newDirectoryUserRecord(directoryUser directory.User) *databroker.Record {
+	m := map[string]any{}
+	bs, _ := json.Marshal(directoryUser)
+	_ = json.Unmarshal(bs, &m)
+	s, _ := structpb.NewStruct(m)
+	return storage.NewStaticRecord(directory.UserRecordType, s)
 }
