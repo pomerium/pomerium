@@ -6,6 +6,7 @@ import (
 	"io"
 	"math/rand/v2"
 	"net/http"
+	"runtime"
 	"testing"
 
 	"github.com/pomerium/pomerium/internal/testenv"
@@ -26,6 +27,7 @@ func init() {
 }
 
 func TestRequestLatency(t *testing.T) {
+	runtime.MemProfileRate = 0
 	env := testenv.New(t, testenv.Silent())
 	users := []*scenarios.User{}
 	for i := range numRoutes {
@@ -51,6 +53,7 @@ func TestRequestLatency(t *testing.T) {
 
 	env.Start()
 	snippets.WaitStartupComplete(env)
+	runtime.MemProfileRate = 512 * 1024
 
 	out := testing.Benchmark(func(b *testing.B) {
 		b.ReportAllocs()

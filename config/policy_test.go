@@ -3,7 +3,9 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	mathrand "math/rand/v2"
 	"net/url"
+	"strings"
 	"testing"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -13,6 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 func Test_PolicyValidate(t *testing.T) {
@@ -420,4 +423,193 @@ func mustParseWeightedURLs(t testing.TB, urls ...string) []WeightedURL {
 	wu, err := ParseWeightedUrls(urls...)
 	require.NoError(t, err)
 	return wu
+}
+
+func TestRouteID(t *testing.T) {
+	randomString := func() string {
+		return strings.TrimSuffix(cryptutil.NewRandomStringN(mathrand.IntN(31)+1), "=")
+	}
+	randomBool := func() bool {
+		return mathrand.N(2) == 0
+	}
+	randomURL := func() *url.URL {
+		u, err := url.Parse(fmt.Sprintf("https://%s.example.com/%s?foo=%s#%s",
+			randomString(), randomString(), randomString(), randomString()))
+		require.NoError(t, err)
+		return u
+	}
+	baseFieldMutators := []func(p *Policy){
+		func(p *Policy) { p.From = randomString() },
+		func(p *Policy) { p.Prefix = randomString() },
+		func(p *Policy) { p.Path = randomString() },
+		func(p *Policy) { p.Regex = randomString() },
+	}
+	toMutators := func(p *Policy) {
+		p.To = make(WeightedURLs, mathrand.N(9)+1)
+		for i := 0; i < len(p.To); i++ {
+			p.To[i] = WeightedURL{URL: *randomURL(), LbWeight: mathrand.Uint32()}
+		}
+	}
+	redirectMutators := []func(p *PolicyRedirect){
+		func(p *PolicyRedirect) { p.HTTPSRedirect = randomPtr(10, randomBool()) },
+		func(p *PolicyRedirect) { p.SchemeRedirect = randomPtr(10, randomString()) },
+		func(p *PolicyRedirect) { p.HostRedirect = randomPtr(10, randomString()) },
+		func(p *PolicyRedirect) { p.PortRedirect = randomPtr(10, mathrand.Uint32()) },
+		func(p *PolicyRedirect) { p.PathRedirect = randomPtr(10, randomString()) },
+		func(p *PolicyRedirect) { p.PrefixRewrite = randomPtr(10, randomString()) },
+		func(p *PolicyRedirect) { p.ResponseCode = randomPtr(10, mathrand.Int32()) },
+		func(p *PolicyRedirect) { p.StripQuery = randomPtr(10, randomBool()) },
+	}
+	responseMutators := []func(p *DirectResponse){
+		func(p *DirectResponse) { p.Status = mathrand.Int() },
+		func(p *DirectResponse) { p.Body = randomString() },
+	}
+
+	t.Run("random policies", func(t *testing.T) {
+		hashes := make(map[uint64]struct{}, 10000)
+		for i := 0; i < 10000; i++ {
+			p := Policy{}
+			for _, m := range baseFieldMutators {
+				m(&p)
+			}
+			switch mathrand.IntN(3) {
+			case 0:
+				toMutators(&p)
+			case 1:
+				p.Redirect = &PolicyRedirect{}
+				for _, m := range redirectMutators {
+					m(p.Redirect)
+				}
+			case 2:
+				p.Response = &DirectResponse{}
+				for _, m := range responseMutators {
+					m(p.Response)
+				}
+			}
+
+			routeID, err := p.RouteID()
+			require.NoError(t, err)
+			hashes[routeID] = struct{}{} // odds of a collision should be pretty low here
+
+			// check that computing the route id again results in the same value
+			routeID2, err := p.RouteID()
+			require.NoError(t, err)
+			assert.Equal(t, routeID, routeID2)
+		}
+		assert.Len(t, hashes, 10000)
+	})
+	t.Run("incremental policy", func(t *testing.T) {
+		hashes := make(map[uint64]Policy, 5000)
+
+		p := Policy{}
+
+		checkAdd := func(p *Policy) {
+			routeID, err := p.RouteID()
+			require.NoError(t, err)
+			if existing, ok := hashes[routeID]; ok {
+				require.Equal(t, existing, *p)
+			} else {
+				hashes[routeID] = *p
+			}
+
+			// check that computing the route id again results in the same value
+			routeID2, err := p.RouteID()
+			require.NoError(t, err)
+			assert.Equal(t, routeID, routeID2)
+		}
+
+		// to
+		toMutators(&p)
+		checkAdd(&p)
+
+		// set base fields
+		for _, m := range baseFieldMutators {
+			m(&p)
+			checkAdd(&p)
+		}
+
+		// redirect
+		p.To = nil
+		p.Redirect = &PolicyRedirect{}
+		for range 1000 {
+			for _, m := range redirectMutators {
+				m(p.Redirect)
+				checkAdd(&p)
+			}
+		}
+
+		// update base fields
+		for _, m := range baseFieldMutators {
+			m(&p)
+			checkAdd(&p)
+		}
+
+		// direct response
+		p.Redirect = nil
+		p.Response = &DirectResponse{}
+		for range 1000 {
+			for _, m := range responseMutators {
+				m(p.Response)
+				checkAdd(&p)
+			}
+		}
+
+		// update base fields
+		for _, m := range baseFieldMutators {
+			m(&p)
+			checkAdd(&p)
+		}
+
+		// sanity check
+		assert.Greater(t, len(hashes), 2000)
+	})
+	t.Run("field separation", func(t *testing.T) {
+		cases := []struct {
+			a, b *Policy
+		}{
+			{
+				&Policy{From: "foo", Prefix: "bar"},
+				&Policy{From: "f", Prefix: "oobar"},
+			},
+			{
+				&Policy{From: "foo", Prefix: "bar"},
+				&Policy{From: "foobar", Prefix: ""},
+			},
+			{
+				&Policy{From: "foobar", Prefix: ""},
+				&Policy{From: "", Prefix: "foobar"},
+			},
+			{
+				&Policy{From: "foo", Prefix: "", Path: "bar"},
+				&Policy{From: "foo", Prefix: "bar", Path: ""},
+			},
+			{
+				&Policy{From: "", Prefix: "foo", Path: "bar"},
+				&Policy{From: "foo", Prefix: "bar", Path: ""},
+			},
+			{
+				&Policy{From: "", Prefix: "foo", Path: "bar"},
+				&Policy{From: "foo", Prefix: "", Path: "bar"},
+			},
+		}
+		for _, c := range cases {
+			c.a.To = mustParseWeightedURLs(t, "https://foo")
+			c.b.To = mustParseWeightedURLs(t, "https://foo")
+		}
+
+		for _, c := range cases {
+			a, err := c.a.RouteID()
+			require.NoError(t, err)
+			b, err := c.b.RouteID()
+			require.NoError(t, err)
+			assert.NotEqual(t, a, b)
+		}
+	})
+}
+
+func randomPtr[T any](nilChance int, t T) *T {
+	if mathrand.N(nilChance) == 0 {
+		return nil
+	}
+	return &t
 }

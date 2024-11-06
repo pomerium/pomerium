@@ -654,30 +654,63 @@ func (p *Policy) Checksum() uint64 {
 	return hashutil.MustHash(p)
 }
 
-// RouteID returns a unique identifier for a route
+// RouteID returns a unique identifier for a route.
+//
+// The following fields are used to compute the ID:
+// - from
+// - prefix
+// - path
+// - regex
+// - to/redirect/response (whichever is set)
 func (p *Policy) RouteID() (uint64, error) {
-	id := routeID{
-		From:   p.From,
-		Prefix: p.Prefix,
-		Path:   p.Path,
-		Regex:  p.Regex,
-	}
-
-	if len(p.To) > 0 {
-		dst, _, err := p.To.Flatten()
-		if err != nil {
-			return 0, err
+	// this function is in the hot path, try not to allocate too much memory here
+	hash := hashutil.NewDigest()
+	hash.WriteStringWithLen(p.From)
+	hash.WriteStringWithLen(p.Prefix)
+	hash.WriteStringWithLen(p.Path)
+	hash.WriteStringWithLen(p.Regex)
+	switch {
+	case len(p.To) > 0:
+		_, _ = hash.Write([]byte{1}) // case 1
+		hash.WriteInt32(int32(len(p.To)))
+		for _, to := range p.To {
+			hash.WriteStringWithLen(to.URL.Scheme)
+			hash.WriteStringWithLen(to.URL.Opaque)
+			if to.URL.User == nil {
+				_, _ = hash.Write([]byte{0})
+			} else {
+				_, _ = hash.Write([]byte{1})
+				hash.WriteStringWithLen(to.URL.User.Username())
+				p, _ := to.URL.User.Password()
+				hash.WriteStringWithLen(p)
+			}
+			hash.WriteStringWithLen(to.URL.Host)
+			hash.WriteStringWithLen(to.URL.Path)
+			hash.WriteStringWithLen(to.URL.RawPath)
+			hash.WriteBool(to.URL.OmitHost)
+			hash.WriteBool(to.URL.ForceQuery)
+			hash.WriteStringWithLen(to.URL.Fragment)
+			hash.WriteStringWithLen(to.URL.RawFragment)
+			hash.WriteUint32(to.LbWeight)
 		}
-		id.To = dst
-	} else if p.Redirect != nil {
-		id.Redirect = p.Redirect
-	} else if p.Response != nil {
-		id.Response = p.Response
-	} else {
+	case p.Redirect != nil:
+		_, _ = hash.Write([]byte{2}) // case 2
+		hash.WriteBoolPtr(p.Redirect.HTTPSRedirect)
+		hash.WriteStringPtrWithLen(p.Redirect.SchemeRedirect)
+		hash.WriteStringPtrWithLen(p.Redirect.HostRedirect)
+		hash.WriteUint32Ptr(p.Redirect.PortRedirect)
+		hash.WriteStringPtrWithLen(p.Redirect.PathRedirect)
+		hash.WriteStringPtrWithLen(p.Redirect.PrefixRewrite)
+		hash.WriteInt32Ptr(p.Redirect.ResponseCode)
+		hash.WriteBoolPtr(p.Redirect.StripQuery)
+	case p.Response != nil:
+		_, _ = hash.Write([]byte{3}) // case 3
+		hash.WriteInt32(int32(p.Response.Status))
+		hash.WriteStringWithLen(p.Response.Body)
+	default:
 		return 0, errEitherToOrRedirectOrResponseRequired
 	}
-
-	return hashutil.Hash(id)
+	return hash.Sum64(), nil
 }
 
 func (p *Policy) MustRouteID() uint64 {
@@ -809,16 +842,6 @@ func (p *Policy) GetPassIdentityHeaders(options *Options) bool {
 	}
 
 	return false
-}
-
-type routeID struct {
-	From     string
-	To       []string
-	Prefix   string
-	Path     string
-	Regex    string
-	Redirect *PolicyRedirect
-	Response *DirectResponse
 }
 
 /*
