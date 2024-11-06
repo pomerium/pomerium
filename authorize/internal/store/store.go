@@ -15,12 +15,15 @@ import (
 	"github.com/open-policy-agent/opa/types"
 	octrace "go.opencensus.io/trace"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -145,14 +148,19 @@ func (s *Store) GetDataBrokerRecordOption() func(*rego.Rego) {
 			}
 		}
 
-		obj := toMap(msg)
-
-		regoValue, err := ast.InterfaceToValue(obj)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("authorize/store: error converting object to rego")
-			return ast.NullTerm(), nil
+		var regoValue ast.Value
+		switch msg := msg.(type) {
+		case *session.Session:
+			regoValue = sessionToRegoValue(msg)
+		case *user.User:
+			regoValue = userToRegoValue(msg)
+		default:
+			regoValue, err = ast.InterfaceToValue(toMap(msg))
+			if err != nil {
+				log.Ctx(ctx).Error().Err(err).Msg("authorize/store: error converting object to rego")
+				return ast.NullTerm(), nil
+			}
 		}
-
 		return ast.NewTerm(regoValue), nil
 	})
 }
@@ -162,4 +170,107 @@ func toMap(msg proto.Message) map[string]any {
 	var obj map[string]any
 	_ = json.Unmarshal(bs, &obj)
 	return obj
+}
+
+func userToRegoValue(u *user.User) ast.Value {
+	deviceCredentialIds := []*ast.Term{}
+	for _, id := range u.DeviceCredentialIds {
+		deviceCredentialIds = append(deviceCredentialIds, ast.StringTerm(id))
+	}
+	return ast.NewObject(
+		ast.Item(ast.StringTerm("version"), ast.StringTerm(u.Version)),
+		ast.Item(ast.StringTerm("id"), ast.StringTerm(u.Id)),
+		ast.Item(ast.StringTerm("name"), ast.StringTerm(u.Name)),
+		ast.Item(ast.StringTerm("email"), ast.StringTerm(u.Email)),
+		ast.Item(ast.StringTerm("claims"), claimsValue(u.Claims)),
+		ast.Item(ast.StringTerm("device_credential_ids"), ast.ArrayTerm(deviceCredentialIds...)),
+	)
+}
+
+func sessionToRegoValue(s *session.Session) ast.Value {
+	audience := []*ast.Term{}
+	for _, aud := range s.Audience {
+		audience = append(audience, ast.StringTerm(aud))
+	}
+	deviceCredentials := []*ast.Term{}
+	for _, dc := range s.DeviceCredentials {
+		terms := [][2]*ast.Term{
+			ast.Item(ast.StringTerm("type_id"), ast.StringTerm(dc.TypeId)),
+		}
+		switch cred := dc.Credential.(type) {
+		case *session.Session_DeviceCredential_Id:
+			terms = append(terms, ast.Item(ast.StringTerm("id"), ast.StringTerm(cred.Id)))
+		case *session.Session_DeviceCredential_Unavailable:
+			terms = append(terms, ast.Item(ast.StringTerm("unavailable"), ast.ObjectTerm()))
+		}
+		deviceCredentials = append(deviceCredentials, ast.ObjectTerm(terms...))
+	}
+	return ast.NewObject(
+		ast.Item(ast.StringTerm("version"), ast.StringTerm(s.Version)),
+		ast.Item(ast.StringTerm("id"), ast.StringTerm(s.Id)),
+		ast.Item(ast.StringTerm("user_id"), ast.StringTerm(s.UserId)),
+		ast.Item(ast.StringTerm("device_credentials"), ast.ArrayTerm(deviceCredentials...)),
+		ast.Item(ast.StringTerm("expires_at"), timestampValue(s.ExpiresAt)),
+		ast.Item(ast.StringTerm("issued_at"), timestampValue(s.IssuedAt)),
+		ast.Item(ast.StringTerm("accessed_at"), timestampValue(s.AccessedAt)),
+		ast.Item(ast.StringTerm("id_token"), ast.ObjectTerm(
+			ast.Item(ast.StringTerm("issuer"), ast.StringTerm(s.IdToken.Issuer)),
+			ast.Item(ast.StringTerm("subject"), ast.StringTerm(s.IdToken.Subject)),
+			ast.Item(ast.StringTerm("expires_at"), timestampValue(s.IdToken.ExpiresAt)),
+			ast.Item(ast.StringTerm("issued_at"), timestampValue(s.IdToken.IssuedAt)),
+			ast.Item(ast.StringTerm("raw"), ast.StringTerm(s.IdToken.Raw)),
+		)),
+		ast.Item(ast.StringTerm("oauth_token"), ast.ObjectTerm(
+			ast.Item(ast.StringTerm("access_token"), ast.StringTerm(s.OauthToken.AccessToken)),
+			ast.Item(ast.StringTerm("token_type"), ast.StringTerm(s.OauthToken.TokenType)),
+			ast.Item(ast.StringTerm("expires_at"), timestampValue(s.OauthToken.ExpiresAt)),
+			ast.Item(ast.StringTerm("refresh_token"), ast.StringTerm(s.OauthToken.RefreshToken)),
+		)),
+		ast.Item(ast.StringTerm("claims"), claimsValue(s.Claims)),
+		ast.Item(ast.StringTerm("audience"), ast.ArrayTerm(audience...)),
+	)
+}
+
+func timestampValue(t *timestamppb.Timestamp) *ast.Term {
+	if t == nil {
+		return ast.NullTerm()
+	}
+	return ast.ObjectTerm(
+		ast.Item(ast.StringTerm("nanos"), ast.IntNumberTerm(int(t.Nanos))),
+		ast.Item(ast.StringTerm("seconds"), &ast.Term{Value: ast.MustInterfaceToValue(t.Seconds)}),
+	)
+}
+
+func claimsValue(claims map[string]*structpb.ListValue) *ast.Term {
+	obj := [][2]*ast.Term{}
+	for key, values := range claims {
+		keyTerm := ast.StringTerm(key)
+		arr := []*ast.Term{}
+		for _, x := range values.Values {
+			switch v := x.GetKind().(type) {
+			case *structpb.Value_NumberValue:
+				if v != nil {
+					arr = append(arr, ast.FloatNumberTerm(v.NumberValue))
+				}
+			case *structpb.Value_StringValue:
+				if v != nil {
+					arr = append(arr, ast.StringTerm(v.StringValue))
+				}
+			case *structpb.Value_BoolValue:
+				if v != nil {
+					arr = append(arr, ast.BooleanTerm(v.BoolValue))
+				}
+			case *structpb.Value_StructValue:
+				if v != nil {
+					arr = append(arr, ast.NewTerm(ast.MustInterfaceToValue(v.StructValue.AsMap())))
+				}
+			case *structpb.Value_ListValue:
+				if v != nil {
+					arr = append(arr, ast.NewTerm(ast.MustInterfaceToValue(v.ListValue.AsSlice())))
+				}
+			}
+		}
+		obj = append(obj, ast.Item(keyTerm, &ast.Term{Value: ast.NewArray(arr...)}))
+	}
+	return ast.ObjectTerm(obj...)
 }
