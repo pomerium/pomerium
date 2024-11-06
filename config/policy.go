@@ -735,14 +735,14 @@ func (p *Policy) String() string {
 }
 
 // Matches returns true if the policy would match the given URL.
-func (p *Policy) Matches(requestURL url.URL, stripPort bool) bool {
+func (p *Policy) Matches(requestURL *url.URL, stripPort bool) bool {
 	// an invalid from URL should not match anything
 	fromURL, err := urlutil.ParseAndValidateURL(p.From)
 	if err != nil {
 		return false
 	}
 
-	if !FromURLMatchesRequestURL(fromURL, &requestURL, stripPort) {
+	if !FromURLMatchesRequestURL(fromURL, requestURL, stripPort) {
 		return false
 	}
 
