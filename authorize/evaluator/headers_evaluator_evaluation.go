@@ -45,6 +45,9 @@ type headersEvaluatorEvaluation struct {
 
 	gotJWTPayload    bool
 	cachedJWTPayload map[string]any
+
+	gotSignedJWT    bool
+	cachedSignedJWT string
 }
 
 func newHeadersEvaluatorEvaluation(evaluator *HeadersEvaluator, request *HeadersRequest, now time.Time) *headersEvaluatorEvaluation {
@@ -330,46 +333,49 @@ func (e *headersEvaluatorEvaluation) getJWTPayload(ctx context.Context) map[stri
 }
 
 func (e *headersEvaluatorEvaluation) getSignedJWT(ctx context.Context) string {
-	signingKey := e.evaluator.store.GetSigningKey()
-	if signingKey == nil {
-		log.Ctx(ctx).Error().Msg("authorize/header-evaluator: missing signing key")
-		return ""
+	if !e.gotSignedJWT {
+		e.gotSignedJWT = true
+		signingKey := e.evaluator.store.GetSigningKey()
+		if signingKey == nil {
+			log.Ctx(ctx).Error().Msg("authorize/header-evaluator: missing signing key")
+			return ""
+		}
+
+		signingOptions := new(jose.SignerOptions).
+			WithType("JWT").
+			WithHeader("kid", signingKey.KeyID).
+			WithHeader("alg", signingKey.Algorithm)
+
+		signer, err := jose.NewSigner(jose.SigningKey{
+			Algorithm: jose.SignatureAlgorithm(signingKey.Algorithm),
+			Key:       signingKey.Key,
+		}, signingOptions)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error creating JWT signer")
+			return ""
+		}
+
+		jwtPayload := e.getJWTPayload(ctx)
+		bs, err := json.Marshal(jwtPayload)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error marshaling JWT payload")
+			return ""
+		}
+
+		jwt, err := signer.Sign(bs)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error signing JWT")
+			return ""
+		}
+
+		e.cachedSignedJWT, err = jwt.CompactSerialize()
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error serializing JWT")
+			return ""
+		}
 	}
 
-	signingOptions := new(jose.SignerOptions).
-		WithType("JWT").
-		WithHeader("kid", signingKey.KeyID).
-		WithHeader("alg", signingKey.Algorithm)
-
-	signer, err := jose.NewSigner(jose.SigningKey{
-		Algorithm: jose.SignatureAlgorithm(signingKey.Algorithm),
-		Key:       signingKey.Key,
-	}, signingOptions)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error creating JWT signer")
-		return ""
-	}
-
-	jwtPayload := e.getJWTPayload(ctx)
-	bs, err := json.Marshal(jwtPayload)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error marshaling JWT payload")
-		return ""
-	}
-
-	jwt, err := signer.Sign(bs)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error signing JWT")
-		return ""
-	}
-
-	serializedJWT, err := jwt.CompactSerialize()
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error serializing JWT")
-		return ""
-	}
-
-	return serializedJWT
+	return e.cachedSignedJWT
 }
 
 func (e *headersEvaluatorEvaluation) getDataBrokerGroupNames(ctx context.Context, groupIDs []string) []string {
