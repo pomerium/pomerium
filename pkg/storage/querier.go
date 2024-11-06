@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"strconv"
 	"sync"
 
@@ -9,6 +10,7 @@ import (
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -57,24 +59,50 @@ type staticQuerier struct {
 func NewStaticQuerier(msgs ...proto.Message) Querier {
 	getter := &staticQuerier{}
 	for _, msg := range msgs {
-		data := protoutil.NewAny(msg)
-		record := new(databroker.Record)
-		record.ModifiedAt = timestamppb.Now()
-		record.Version = cryptutil.NewRandomUInt64()
-		record.Id = uuid.New().String()
-		record.Data = data
-		record.Type = data.TypeUrl
-		if hasID, ok := msg.(interface{ GetId() string }); ok {
-			record.Id = hasID.GetId()
-		}
-		if hasVersion, ok := msg.(interface{ GetVersion() string }); ok {
-			if v, err := strconv.ParseUint(hasVersion.GetVersion(), 10, 64); err == nil {
-				record.Version = v
-			}
+		record, ok := msg.(*databroker.Record)
+		if !ok {
+			record = NewStaticRecord(protoutil.NewAny(msg).TypeUrl, msg)
 		}
 		getter.records = append(getter.records, record)
 	}
 	return getter
+}
+
+// NewStaticRecord creates a new databroker Record from a protobuf message.
+func NewStaticRecord(typeURL string, msg proto.Message) *databroker.Record {
+	data := protoutil.NewAny(msg)
+	record := new(databroker.Record)
+	record.ModifiedAt = timestamppb.Now()
+	record.Version = cryptutil.NewRandomUInt64()
+	record.Id = uuid.New().String()
+	record.Data = data
+	record.Type = typeURL
+	if hasID, ok := msg.(interface{ GetId() string }); ok {
+		record.Id = hasID.GetId()
+	}
+	if hasVersion, ok := msg.(interface{ GetVersion() string }); ok {
+		if v, err := strconv.ParseUint(hasVersion.GetVersion(), 10, 64); err == nil {
+			record.Version = v
+		}
+	}
+
+	var jsonData struct {
+		ID      string `json:"id"`
+		Version string `json:"version"`
+	}
+	bs, _ := protojson.Marshal(msg)
+	_ = json.Unmarshal(bs, &jsonData)
+
+	if jsonData.ID != "" {
+		record.Id = jsonData.ID
+	}
+	if jsonData.Version != "" {
+		if v, err := strconv.ParseUint(jsonData.Version, 10, 64); err == nil {
+			record.Version = v
+		}
+	}
+
+	return record
 }
 
 func (q *staticQuerier) InvalidateCache(_ context.Context, _ *databroker.QueryRequest) {}

@@ -129,10 +129,7 @@ func New(
 		e.headersEvaluators = previous.headersEvaluators
 		cachedPolicyEvaluators = previous.policyEvaluators
 	} else {
-		e.headersEvaluators, err = NewHeadersEvaluator(ctx, store)
-		if err != nil {
-			return nil, err
-		}
+		e.headersEvaluators = NewHeadersEvaluator(store)
 	}
 	e.policyEvaluators, err = getOrCreatePolicyEvaluators(ctx, cfg, store, cachedPolicyEvaluators)
 	if err != nil {
