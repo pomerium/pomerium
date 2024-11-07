@@ -217,10 +217,20 @@ func TestHeadersEvaluator(t *testing.T) {
 					}},
 					"CUSTOM_KEY": {Values: []*structpb.Value{
 						structpb.NewStringValue("v1"),
-						structpb.NewBoolValue(true),
-						structpb.NewNumberValue(432),
+						structpb.NewStringValue("v2"),
+						structpb.NewStringValue("v3"),
 					}},
 				}, IssuedAt: timestamppb.New(iat)},
+				&user.User{Id: "u2", Claims: map[string]*structpb.ListValue{
+					"name": {Values: []*structpb.Value{
+						structpb.NewStringValue("n1"),
+					}},
+				}},
+				newDirectoryUserRecord(directory.User{ID: "u2", GroupIDs: []string{"g1", "g2", "g3", "g4"}}),
+				newDirectoryGroupRecord(directory.Group{ID: "g1", Name: "GROUP1", Email: "g1@example.com"}),
+				newDirectoryGroupRecord(directory.Group{ID: "g2", Name: "GROUP2", Email: "g2@example.com"}),
+				newDirectoryGroupRecord(directory.Group{ID: "g3", Name: "GROUP3", Email: "g3@example.com"}),
+				newDirectoryGroupRecord(directory.Group{ID: "g4", Name: "GROUP4", Email: "g4@example.com"}),
 			},
 			&HeadersRequest{
 				Issuer:     "from.example.com",
@@ -267,7 +277,8 @@ func TestHeadersEvaluator(t *testing.T) {
 		assert.Equal(t, "u2", claims["sub"], "should set subject to user id")
 		assert.Equal(t, "u2", claims["user"], "should set user to user id")
 		assert.Equal(t, "n1", claims["name"], "should set name")
-		assert.Equal(t, "v1,true,432", claims["CUSTOM_KEY"], "should set CUSTOM_KEY")
+		assert.Equal(t, "v1,v2,v3", claims["CUSTOM_KEY"], "should set CUSTOM_KEY")
+		assert.Equal(t, []any{"g1", "g2", "g3", "g4", "GROUP1", "GROUP2", "GROUP3", "GROUP4"}, claims["groups"])
 	})
 
 	t.Run("set_request_headers", func(t *testing.T) {
