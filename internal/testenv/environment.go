@@ -114,6 +114,10 @@ type Environment interface {
 	// no effect. It is usually not necessary to call Stop() directly unless you
 	// need to stop the test environment before the test is completed.
 	Stop()
+	// Pause will block and wait until SIGINT is received, then continue. This
+	// has the same effect as if the test failed and the PauseOnFailure option was
+	// given, but can be called at any time.
+	Pause()
 
 	// SubdomainURL returns a string [values.Value] which will contain a complete
 	// URL for the given subdomain of the server's domain (given by its serving
@@ -640,6 +644,14 @@ func (e *environment) Stop() {
 		e.debugf("stop: done waiting")
 		assert.ErrorIs(e.t, err, ErrCauseManualStop)
 	})
+}
+
+func (e *environment) Pause() {
+	e.t.Log("\x1b[31m*** test manually paused; continue with ctrl+c ***\x1b[0m")
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT)
+	<-c
+	e.t.Log("\x1b[31mctrl+c received, continuing\x1b[0m")
 }
 
 func (e *environment) cleanup() {
