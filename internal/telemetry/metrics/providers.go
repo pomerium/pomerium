@@ -234,8 +234,11 @@ func getCommonLabels(installationID string) map[string]string {
 	if err != nil {
 		hostname = "__none__"
 	}
-	return map[string]string{
-		metrics.InstallationIDLabel: installationID,
-		metrics.HostnameLabel:       hostname,
+	m := map[string]string{
+		metrics.HostnameLabel: hostname,
 	}
+	if installationID != "" {
+		m[metrics.InstallationIDLabel] = installationID
+	}
+	return m
 }
