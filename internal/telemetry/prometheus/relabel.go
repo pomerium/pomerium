@@ -10,6 +10,15 @@ func AddLabels(
 	src iter.Seq2[*dto.MetricFamily, error],
 	addLabels map[string]string,
 ) iter.Seq2[*dto.MetricFamily, error] {
+	var extra []*dto.LabelPair
+	for k, v := range addLabels {
+		k, v := k, v
+		extra = append(extra, &dto.LabelPair{
+			Name:  &k,
+			Value: &v,
+		})
+	}
+
 	return func(yield func(*dto.MetricFamily, error) bool) {
 		for mf, err := range src {
 			if err != nil {
@@ -17,13 +26,7 @@ func AddLabels(
 				return
 			}
 			for _, metric := range mf.Metric {
-				for k, v := range addLabels {
-					k, v := k, v
-					metric.Label = append(metric.Label, &dto.LabelPair{
-						Name:  &k,
-						Value: &v,
-					})
-				}
+				metric.Label = append(metric.Label, extra...)
 			}
 			if !yield(mf, nil) {
 				return
