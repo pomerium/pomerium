@@ -60,8 +60,7 @@ func BenchmarkHeadersEvaluator(b *testing.B) {
 	s.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("email", "groups", "user", "CUSTOM_KEY"))
 	s.UpdateSigningKey(privateJWK)
 
-	e, err := NewHeadersEvaluator(ctx, s, rego.Time(iat))
-	require.NoError(b, err)
+	e := NewHeadersEvaluator(s)
 
 	req := &HeadersRequest{
 		EnableRoutingKey:              true,
@@ -198,14 +197,13 @@ func TestHeadersEvaluator(t *testing.T) {
 
 	iat := time.Unix(1686870680, 0)
 
-	eval := func(t *testing.T, data []proto.Message, input *HeadersRequest) (*HeadersResponse, error) {
+	eval := func(_ *testing.T, data []proto.Message, input *HeadersRequest) (*HeadersResponse, error) {
 		ctx := context.Background()
 		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
 		store := store.New()
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("name", "email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
-		e, err := NewHeadersEvaluator(ctx, store, rego.Time(iat))
-		require.NoError(t, err)
+		e := NewHeadersEvaluator(store)
 		return e.Evaluate(ctx, input, rego.EvalTime(iat))
 	}
 
