@@ -2,28 +2,45 @@ package prometheus
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"strings"
 
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 )
 
-type MetricFamilyStream struct {
+type metricFamilyStream struct {
 	reader  io.Reader
 	scanner *bufio.Scanner
 	buffer  strings.Builder
+	parser  expfmt.TextParser
 }
 
-func NewMetricFamilyStream(reader io.Reader) *MetricFamilyStream {
-	return &MetricFamilyStream{
+func NewMetricFamilyStream(reader io.Reader) iter.Seq2[*dto.MetricFamily, error] {
+	mfs := &metricFamilyStream{
 		reader:  reader,
 		scanner: bufio.NewScanner(reader),
 	}
+	return func(yield func(*dto.MetricFamily, error) bool) {
+		for {
+			m, err := mfs.Next()
+			if errors.Is(err, io.EOF) {
+				return
+			}
+			if err != nil {
+				yield(nil, err)
+				return
+			} else if !yield(m, nil) {
+				return
+			}
+		}
+	}
 }
 
-func (mfs *MetricFamilyStream) Next() (*dto.MetricFamily, error) {
+func (mfs *metricFamilyStream) Next() (*dto.MetricFamily, error) {
 	var afterHeader bool
 	var block *strings.Reader
 	for block == nil && mfs.scanner.Scan() {
@@ -55,8 +72,7 @@ func (mfs *MetricFamilyStream) Next() (*dto.MetricFamily, error) {
 		mfs.buffer.Reset()
 	}
 
-	var parser expfmt.TextParser
-	families, err := parser.TextToMetricFamilies(block)
+	families, err := mfs.parser.TextToMetricFamilies(block)
 	if err != nil {
 		return nil, err
 	}

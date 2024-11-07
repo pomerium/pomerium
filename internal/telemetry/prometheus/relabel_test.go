@@ -1,7 +1,6 @@
 package prometheus_test
 
 import (
-	"iter"
 	"strings"
 	"testing"
 
@@ -15,23 +14,12 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/prometheus"
 )
 
-func collect[T any](src iter.Seq2[T, error]) ([]T, error) {
-	var out []T
-	for v, err := range src {
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, v)
-	}
-	return out, nil
-}
-
-func TestMetricFamilyStream(t *testing.T) {
+func TestAddLabels(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		expected []*dto.MetricFamily
-		wantErr  bool
+		name      string
+		input     string
+		addLabels map[string]string
+		expected  []*dto.MetricFamily
 	}{
 		{
 			name: "single metric family",
@@ -40,6 +28,7 @@ func TestMetricFamilyStream(t *testing.T) {
 # TYPE http_requests_total counter
 http_requests_total{method="post",code="200"} 1027 1395066363000
 `,
+			addLabels: map[string]string{"key": "value"},
 			expected: []*dto.MetricFamily{
 				{
 					Name: proto.String("http_requests_total"),
@@ -50,6 +39,7 @@ http_requests_total{method="post",code="200"} 1027 1395066363000
 							Label: []*dto.LabelPair{
 								{Name: proto.String("method"), Value: proto.String("post")},
 								{Name: proto.String("code"), Value: proto.String("200")},
+								{Name: proto.String("key"), Value: proto.String("value")},
 							},
 							Counter:     &dto.Counter{Value: proto.Float64(1027)},
 							TimestampMs: proto.Int64(1395066363000),
@@ -57,7 +47,6 @@ http_requests_total{method="post",code="200"} 1027 1395066363000
 					},
 				},
 			},
-			wantErr: false,
 		},
 		{
 			name: "multiple metric families",
@@ -67,6 +56,7 @@ http_requests_total{method="post",code="200"} 1027 1395066363000
 # TYPE cpu_seconds_total counter
 cpu_seconds_total 12345.6
 `,
+			addLabels: map[string]string{"key": "value"},
 			expected: []*dto.MetricFamily{
 				{
 					Name: proto.String("http_requests_total"),
@@ -76,6 +66,7 @@ cpu_seconds_total 12345.6
 							Label: []*dto.LabelPair{
 								{Name: proto.String("method"), Value: proto.String("post")},
 								{Name: proto.String("code"), Value: proto.String("200")},
+								{Name: proto.String("key"), Value: proto.String("value")},
 							},
 							Counter:     &dto.Counter{Value: proto.Float64(1027)},
 							TimestampMs: proto.Int64(1395066363000),
@@ -88,22 +79,23 @@ cpu_seconds_total 12345.6
 					Metric: []*dto.Metric{
 						{
 							Counter: &dto.Counter{Value: proto.Float64(12345.6)},
+							Label: []*dto.LabelPair{
+								{Name: proto.String("key"), Value: proto.String("value")},
+							},
 						},
 					},
 				},
 			},
-			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reader := strings.NewReader(tt.input)
-			got, err := collect(prometheus.NewMetricFamilyStream(reader))
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
+			got, err := collect(prometheus.AddLabels(
+				prometheus.NewMetricFamilyStream(reader),
+				tt.addLabels,
+			))
 			require.NoError(t, err)
 			diff := cmp.Diff(tt.expected, got, protocmp.Transform(), cmpopts.IgnoreUnexported(dto.MetricFamily{}, dto.Metric{}, dto.LabelPair{}, dto.Counter{}))
 			require.Empty(t, diff)

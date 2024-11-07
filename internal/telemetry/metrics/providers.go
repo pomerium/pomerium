@@ -1,10 +1,12 @@
 package metrics
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -16,12 +18,10 @@ import (
 	ocprom "contrib.go.opencensus.io/exporter/prometheus"
 	"github.com/hashicorp/go-multierror"
 	prom "github.com/prometheus/client_golang/prometheus"
-	io_prometheus_client "github.com/prometheus/client_model/go"
-	"github.com/prometheus/common/expfmt"
 	"go.opencensus.io/stats/view"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/prometheus"
 	"github.com/pomerium/pomerium/pkg/metrics"
 )
 
@@ -114,7 +114,7 @@ func newProxyMetricsHandler(exporter *ocprom.Exporter, endpoints []ScrapeEndpoin
 type promProducerResult struct {
 	name   string
 	src    io.ReadCloser
-	labels []*io_prometheus_client.LabelPair
+	labels map[string]string
 	err    error
 }
 
@@ -124,6 +124,7 @@ type promProducerFn func(context.Context) promProducerResult
 // writeMetricsMux runs producers concurrently and pipes output to destination yet avoiding data interleaving
 func writeMetricsMux(ctx context.Context, w io.Writer, producers []promProducerFn) error {
 	results := make(chan promProducerResult)
+	w = bufio.NewWriter(w)
 
 	for _, p := range producers {
 		go func(fn promProducerFn) {
@@ -153,33 +154,10 @@ func writeMetricsResult(w io.Writer, res promProducerResult) error {
 	if res.err != nil {
 		return fmt.Errorf("fetch: %w", res.err)
 	}
-	if err := writeMetricsWithLabels(w, res.src, res.labels); err != nil {
-		return fmt.Errorf("%s: write: %w", res.name, err)
-	}
-	if err := res.src.Close(); err != nil {
-		return fmt.Errorf("%s: close: %w", res.name, err)
-	}
-	return nil
-}
-
-func writeMetricsWithLabels(w io.Writer, r io.Reader, extra []*io_prometheus_client.LabelPair) error {
-	var parser expfmt.TextParser
-	ms, err := parser.TextToMetricFamilies(r)
-	if err != nil {
-		return fmt.Errorf("telemetry/metric: failed to read prometheus metrics: %w", err)
-	}
-
-	for _, m := range ms {
-		for _, mm := range m.Metric {
-			mm.Label = append(mm.Label, extra...)
-		}
-		_, err = expfmt.MetricFamilyToText(w, m)
-		if err != nil {
-			return fmt.Errorf("telemetry/metric: failed to write prometheus metrics: %w", err)
-		}
-	}
-
-	return nil
+	return errors.Join(
+		prometheus.Export(w, prometheus.AddLabels(prometheus.NewMetricFamilyStream(res.src), res.labels)),
+		res.src.Close(),
+	)
 }
 
 func writePrometheusComment(w io.Writer, txt string) error {
@@ -192,7 +170,7 @@ func writePrometheusComment(w io.Writer, txt string) error {
 	return nil
 }
 
-func ocExport(name string, exporter *ocprom.Exporter, r *http.Request, labels []*io_prometheus_client.LabelPair) promProducerFn {
+func ocExport(name string, exporter *ocprom.Exporter, r *http.Request, labels map[string]string) promProducerFn {
 	return func(context.Context) promProducerResult {
 		// Ensure we don't get entangled with compression from ocprom
 		r.Header.Del("Accept-Encoding")
@@ -214,7 +192,7 @@ func ocExport(name string, exporter *ocprom.Exporter, r *http.Request, labels []
 	}
 }
 
-func scrapeEndpoints(endpoints []ScrapeEndpoint, labels []*io_prometheus_client.LabelPair) []promProducerFn {
+func scrapeEndpoints(endpoints []ScrapeEndpoint, labels map[string]string) []promProducerFn {
 	out := make([]promProducerFn, 0, len(endpoints))
 	for _, endpoint := range endpoints {
 		out = append(out, scrapeEndpoint(endpoint, labels))
@@ -222,7 +200,7 @@ func scrapeEndpoints(endpoints []ScrapeEndpoint, labels []*io_prometheus_client.
 	return out
 }
 
-func scrapeEndpoint(endpoint ScrapeEndpoint, labels []*io_prometheus_client.LabelPair) promProducerFn {
+func scrapeEndpoint(endpoint ScrapeEndpoint, extra map[string]string) promProducerFn {
 	return func(ctx context.Context) promProducerResult {
 		name := fmt.Sprintf("%s %s", endpoint.Name, endpoint.URL.String())
 
@@ -240,35 +218,24 @@ func scrapeEndpoint(endpoint ScrapeEndpoint, labels []*io_prometheus_client.Labe
 			return promProducerResult{name: name, err: errors.New(resp.Status)}
 		}
 
+		labels := make(map[string]string, len(endpoint.Labels)+len(extra))
+		maps.Copy(labels, extra)
+		maps.Copy(labels, endpoint.Labels)
 		return promProducerResult{
 			name:   name,
 			src:    resp.Body,
-			labels: append(toPrometheusLabels(endpoint.Labels), labels...),
+			labels: labels,
 		}
 	}
 }
 
-func getCommonLabels(installationID string) []*io_prometheus_client.LabelPair {
+func getCommonLabels(installationID string) map[string]string {
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = "__none__"
 	}
-	return []*io_prometheus_client.LabelPair{{
-		Name:  proto.String(metrics.InstallationIDLabel),
-		Value: proto.String(installationID),
-	}, {
-		Name:  proto.String(metrics.HostnameLabel),
-		Value: proto.String(hostname),
-	}}
-}
-
-func toPrometheusLabels(labels map[string]string) []*io_prometheus_client.LabelPair {
-	out := make([]*io_prometheus_client.LabelPair, 0, len(labels))
-	for k, v := range labels {
-		out = append(out, &io_prometheus_client.LabelPair{
-			Name:  proto.String(k),
-			Value: proto.String(v),
-		})
+	return map[string]string{
+		metrics.InstallationIDLabel: installationID,
+		metrics.HostnameLabel:       hostname,
 	}
-	return out
 }

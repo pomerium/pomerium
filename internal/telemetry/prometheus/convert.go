@@ -30,14 +30,9 @@ func ToOTLP(
 	startTime time.Time,
 	now time.Time,
 ) ([]metricdata.Metrics, error) {
-	stream := NewMetricFamilyStream(src)
 	var metrics []metricdata.Metrics
 	var conversionErrors []error
-	for {
-		family, err := stream.Next()
-		if errors.Is(err, io.EOF) {
-			break
-		}
+	for family, err := range NewMetricFamilyStream(src) {
 		if err != nil {
 			return nil, err
 		}
