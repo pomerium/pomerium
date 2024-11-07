@@ -148,33 +148,35 @@ func (e *headersEvaluatorEvaluation) fillHeaders(ctx context.Context) {
 }
 
 func (e *headersEvaluatorEvaluation) getSessionOrServiceAccount(ctx context.Context) (*session.Session, *user.ServiceAccount) {
-	if !e.gotSessionOrServiceAccount {
-		e.gotSessionOrServiceAccount = true
+	if e.gotSessionOrServiceAccount {
+		return e.cachedSession, e.cachedServiceAccount
+	}
 
-		if e.request.Session.ID != "" {
-			e.cachedServiceAccount, _ = e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/user.ServiceAccount", e.request.Session.ID).(*user.ServiceAccount)
-		}
+	e.gotSessionOrServiceAccount = true
+	if e.request.Session.ID != "" {
+		e.cachedServiceAccount, _ = e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/user.ServiceAccount", e.request.Session.ID).(*user.ServiceAccount)
+	}
 
-		if e.request.Session.ID != "" && e.cachedServiceAccount == nil {
-			e.cachedSession, _ = e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/session.Session", e.request.Session.ID).(*session.Session)
-		}
-		if e.cachedSession != nil && e.cachedSession.GetImpersonateSessionId() != "" {
-			e.cachedSession, _ = e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/session.Session", e.cachedSession.GetImpersonateSessionId()).(*session.Session)
-		}
+	if e.request.Session.ID != "" && e.cachedServiceAccount == nil {
+		e.cachedSession, _ = e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/session.Session", e.request.Session.ID).(*session.Session)
+	}
+	if e.cachedSession != nil && e.cachedSession.GetImpersonateSessionId() != "" {
+		e.cachedSession, _ = e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/session.Session", e.cachedSession.GetImpersonateSessionId()).(*session.Session)
 	}
 	return e.cachedSession, e.cachedServiceAccount
 }
 
 func (e *headersEvaluatorEvaluation) getUser(ctx context.Context) *user.User {
-	if !e.gotUser {
-		e.gotUser = true
+	if e.gotUser {
+		return e.cachedUser
+	}
 
-		s, sa := e.getSessionOrServiceAccount(ctx)
-		if sa != nil && sa.UserId != "" {
-			e.cachedUser, _ = e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/user.User", sa.UserId).(*user.User)
-		} else if s != nil && s.UserId != "" {
-			e.cachedUser, _ = e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/user.User", s.UserId).(*user.User)
-		}
+	e.gotUser = true
+	s, sa := e.getSessionOrServiceAccount(ctx)
+	if sa != nil && sa.UserId != "" {
+		e.cachedUser, _ = e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/user.User", sa.UserId).(*user.User)
+	} else if s != nil && s.UserId != "" {
+		e.cachedUser, _ = e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/user.User", s.UserId).(*user.User)
 	}
 	return e.cachedUser
 }
@@ -188,14 +190,16 @@ func (e *headersEvaluatorEvaluation) getClientCertFingerprint() string {
 }
 
 func (e *headersEvaluatorEvaluation) getDirectoryUser(ctx context.Context) *structpb.Struct {
-	if !e.gotDirectoryUser {
-		e.gotDirectoryUser = true
-		s, sa := e.getSessionOrServiceAccount(ctx)
-		if sa != nil && sa.UserId != "" {
-			e.cachedDirectoryUser, _ = e.evaluator.store.GetDataBrokerRecord(ctx, directory.UserRecordType, sa.UserId).(*structpb.Struct)
-		} else if s != nil && s.UserId != "" {
-			e.cachedDirectoryUser, _ = e.evaluator.store.GetDataBrokerRecord(ctx, directory.UserRecordType, s.UserId).(*structpb.Struct)
-		}
+	if e.gotDirectoryUser {
+		return e.cachedDirectoryUser
+	}
+
+	e.gotDirectoryUser = true
+	s, sa := e.getSessionOrServiceAccount(ctx)
+	if sa != nil && sa.UserId != "" {
+		e.cachedDirectoryUser, _ = e.evaluator.store.GetDataBrokerRecord(ctx, directory.UserRecordType, sa.UserId).(*structpb.Struct)
+	} else if s != nil && s.UserId != "" {
+		e.cachedDirectoryUser, _ = e.evaluator.store.GetDataBrokerRecord(ctx, directory.UserRecordType, s.UserId).(*structpb.Struct)
 	}
 	return e.cachedDirectoryUser
 }
@@ -217,11 +221,12 @@ func (e *headersEvaluatorEvaluation) getJWTPayloadAud() string {
 }
 
 func (e *headersEvaluatorEvaluation) getJWTPayloadJTI() string {
-	if !e.gotJWTPayloadJTI {
-		e.gotJWTPayloadJTI = true
-
-		e.cachedJWTPayloadJTI = uuid.New().String()
+	if e.gotJWTPayloadJTI {
+		return e.cachedJWTPayloadJTI
 	}
+
+	e.gotJWTPayloadJTI = true
+	e.cachedJWTPayloadJTI = uuid.New().String()
 	return e.cachedJWTPayloadJTI
 }
 
@@ -297,84 +302,87 @@ func (e *headersEvaluatorEvaluation) getJWTPayloadName(ctx context.Context) stri
 }
 
 func (e *headersEvaluatorEvaluation) getJWTPayload(ctx context.Context) map[string]any {
-	if !e.gotJWTPayload {
-		e.gotJWTPayload = true
-		e.cachedJWTPayload = map[string]any{
-			"iss":    e.getJWTPayloadIss(),
-			"aud":    e.getJWTPayloadAud(),
-			"jti":    e.getJWTPayloadJTI(),
-			"iat":    e.getJWTPayloadIAT(),
-			"exp":    e.getJWTPayloadExp(),
-			"sub":    e.getJWTPayloadSub(ctx),
-			"user":   e.getJWTPayloadUser(ctx),
-			"email":  e.getJWTPayloadEmail(ctx),
-			"groups": e.getJWTPayloadGroups(ctx),
-			"sid":    e.getJWTPayloadSID(),
-			"name":   e.getJWTPayloadName(ctx),
+	if e.gotJWTPayload {
+		return e.cachedJWTPayload
+	}
+
+	e.gotJWTPayload = true
+	e.cachedJWTPayload = map[string]any{
+		"iss":    e.getJWTPayloadIss(),
+		"aud":    e.getJWTPayloadAud(),
+		"jti":    e.getJWTPayloadJTI(),
+		"iat":    e.getJWTPayloadIAT(),
+		"exp":    e.getJWTPayloadExp(),
+		"sub":    e.getJWTPayloadSub(ctx),
+		"user":   e.getJWTPayloadUser(ctx),
+		"email":  e.getJWTPayloadEmail(ctx),
+		"groups": e.getJWTPayloadGroups(ctx),
+		"sid":    e.getJWTPayloadSID(),
+		"name":   e.getJWTPayloadName(ctx),
+	}
+
+	s, _ := e.getSessionOrServiceAccount(ctx)
+	u := e.getUser(ctx)
+
+	for _, claimKey := range e.evaluator.store.GetJWTClaimHeaders() {
+		// ignore base claims
+		if _, ok := e.cachedJWTPayload[claimKey]; ok {
+			continue
 		}
 
-		s, _ := e.getSessionOrServiceAccount(ctx)
-		u := e.getUser(ctx)
-
-		for _, claimKey := range e.evaluator.store.GetJWTClaimHeaders() {
-			// ignore base claims
-			if _, ok := e.cachedJWTPayload[claimKey]; ok {
-				continue
-			}
-
-			if vs, ok := getClaimStringSlice(s, claimKey); ok {
-				e.cachedJWTPayload[claimKey] = strings.Join(vs, ",")
-			} else if vs, ok := getClaimStringSlice(u, claimKey); ok {
-				e.cachedJWTPayload[claimKey] = strings.Join(vs, ",")
-			}
+		if vs, ok := getClaimStringSlice(s, claimKey); ok {
+			e.cachedJWTPayload[claimKey] = strings.Join(vs, ",")
+		} else if vs, ok := getClaimStringSlice(u, claimKey); ok {
+			e.cachedJWTPayload[claimKey] = strings.Join(vs, ",")
 		}
 	}
 	return e.cachedJWTPayload
 }
 
 func (e *headersEvaluatorEvaluation) getSignedJWT(ctx context.Context) string {
-	if !e.gotSignedJWT {
-		e.gotSignedJWT = true
-		signingKey := e.evaluator.store.GetSigningKey()
-		if signingKey == nil {
-			log.Ctx(ctx).Error().Msg("authorize/header-evaluator: missing signing key")
-			return ""
-		}
-
-		signingOptions := new(jose.SignerOptions).
-			WithType("JWT").
-			WithHeader("kid", signingKey.KeyID).
-			WithHeader("alg", signingKey.Algorithm)
-
-		signer, err := jose.NewSigner(jose.SigningKey{
-			Algorithm: jose.SignatureAlgorithm(signingKey.Algorithm),
-			Key:       signingKey.Key,
-		}, signingOptions)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error creating JWT signer")
-			return ""
-		}
-
-		jwtPayload := e.getJWTPayload(ctx)
-		bs, err := json.Marshal(jwtPayload)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error marshaling JWT payload")
-			return ""
-		}
-
-		jwt, err := signer.Sign(bs)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error signing JWT")
-			return ""
-		}
-
-		e.cachedSignedJWT, err = jwt.CompactSerialize()
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error serializing JWT")
-			return ""
-		}
+	if e.gotSignedJWT {
+		return e.cachedSignedJWT
 	}
 
+	e.gotSignedJWT = true
+	signingKey := e.evaluator.store.GetSigningKey()
+	if signingKey == nil {
+		log.Ctx(ctx).Error().Msg("authorize/header-evaluator: missing signing key")
+		return ""
+	}
+
+	signingOptions := new(jose.SignerOptions).
+		WithType("JWT").
+		WithHeader("kid", signingKey.KeyID).
+		WithHeader("alg", signingKey.Algorithm)
+
+	signer, err := jose.NewSigner(jose.SigningKey{
+		Algorithm: jose.SignatureAlgorithm(signingKey.Algorithm),
+		Key:       signingKey.Key,
+	}, signingOptions)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error creating JWT signer")
+		return ""
+	}
+
+	jwtPayload := e.getJWTPayload(ctx)
+	bs, err := json.Marshal(jwtPayload)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error marshaling JWT payload")
+		return ""
+	}
+
+	jwt, err := signer.Sign(bs)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error signing JWT")
+		return ""
+	}
+
+	e.cachedSignedJWT, err = jwt.CompactSerialize()
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error serializing JWT")
+		return ""
+	}
 	return e.cachedSignedJWT
 }
 
@@ -408,9 +416,21 @@ func getClaimStringSlice(msg hasGetClaims, field string) ([]string, bool) {
 		return nil, false
 	}
 
-	strs := make([]string, len(lv.Values))
-	for i, v := range lv.Values {
-		strs[i] = fmt.Sprint(v.AsInterface())
+	strs := make([]string, 0, len(lv.Values))
+	for _, v := range lv.Values {
+		switch v := v.GetKind().(type) {
+		case *structpb.Value_NumberValue:
+			strs = append(strs, fmt.Sprint(v.NumberValue))
+		case *structpb.Value_StringValue:
+			strs = append(strs, v.StringValue)
+		case *structpb.Value_BoolValue:
+			strs = append(strs, fmt.Sprint(v.BoolValue))
+
+		// just ignore these types
+		case *structpb.Value_NullValue:
+		case *structpb.Value_StructValue:
+		case *structpb.Value_ListValue:
+		}
 	}
 	return strs, true
 }
