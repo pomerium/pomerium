@@ -11,6 +11,7 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
 // HeadersRequest is the input to the headers.rego script.
@@ -79,6 +80,9 @@ func NewHeadersEvaluator(store *store.Store) *HeadersEvaluator {
 
 // Evaluate evaluates the headers.rego script.
 func (e *HeadersEvaluator) Evaluate(ctx context.Context, req *HeadersRequest, options ...rego.EvalOption) (*HeadersResponse, error) {
+	ctx, span := trace.StartSpan(ctx, "authorize.HeadersEvaluator.Evaluate")
+	defer span.End()
+
 	ectx := new(rego.EvalContext)
 	for _, option := range options {
 		option(ectx)
