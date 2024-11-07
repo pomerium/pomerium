@@ -54,12 +54,12 @@ func ParseAndValidateURL(rawurl string) (*url.URL, error) {
 
 // MustParseAndValidateURL parses the URL via ParseAndValidateURL but panics if there is an error.
 // (useful for testing)
-func MustParseAndValidateURL(rawURL string) url.URL {
+func MustParseAndValidateURL(rawURL string) *url.URL {
 	u, err := ParseAndValidateURL(rawURL)
 	if err != nil {
 		panic(err)
 	}
-	return *u
+	return u
 }
 
 // ValidateURL wraps standard library's default url.Parse because
@@ -187,6 +187,6 @@ func GetExternalRequest(internalURL, externalURL *url.URL, r *http.Request) *htt
 }
 
 // MatchesServerName returnes true if the url's host matches the given server name.
-func MatchesServerName(u url.URL, serverName string) bool {
+func MatchesServerName(u *url.URL, serverName string) bool {
 	return certmagic.MatchWildcard(u.Hostname(), serverName)
 }
