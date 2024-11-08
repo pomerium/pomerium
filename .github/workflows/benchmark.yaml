@@ -48,7 +48,7 @@ jobs:
 
       - name: integration tests
         run: |
-          go test -bench Benchmark ./integration/... | tee benchmark.txt
+          go test -bench -run=^$ ./... | tee benchmark.txt
 
       - name: store benchmark
         uses: benchmark-action/github-action-benchmark@v1
