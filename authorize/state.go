@@ -13,7 +13,6 @@ import (
 	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
@@ -27,7 +26,6 @@ type authorizeState struct {
 	evaluator                  *evaluator.Evaluator
 	dataBrokerClientConnection *googlegrpc.ClientConn
 	dataBrokerClient           databroker.DataBrokerServiceClient
-	auditEncryptor             *protoutil.Encryptor
 	sessionStore               *config.SessionStore
 	authenticateFlow           authenticateFlow
 }
@@ -70,14 +68,6 @@ func newAuthorizeStateFromConfig(
 	}
 	state.dataBrokerClientConnection = cc
 	state.dataBrokerClient = databroker.NewDataBrokerServiceClient(cc)
-
-	auditKey, err := cfg.Options.GetAuditKey()
-	if err != nil {
-		return nil, fmt.Errorf("authorize: invalid audit key: %w", err)
-	}
-	if auditKey != nil {
-		state.auditEncryptor = protoutil.NewEncryptor(auditKey)
-	}
 
 	state.sessionStore, err = config.NewSessionStore(cfg.Options)
 	if err != nil {
