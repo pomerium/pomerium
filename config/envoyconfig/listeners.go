@@ -291,6 +291,10 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		LuaFilter(luascripts.CleanUpstream),
 		LuaFilter(luascripts.RewriteHeaders),
 	}
+	if cfg.Options.EnvoyAdminEnableTap {
+		filters = append(filters, TapViaAdminEndpointFilter("downstream"))
+	}
+
 	filters = append(filters, HTTPRouterFilter())
 
 	var maxStreamDuration *durationpb.Duration
