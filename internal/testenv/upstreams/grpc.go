@@ -128,6 +128,7 @@ func (g *grpcUpstream) Run(ctx context.Context) error {
 
 func (g *grpcUpstream) Dial(r testenv.Route, dialOpts ...grpc.DialOption) *grpc.ClientConn {
 	dialOpts = append(dialOpts,
+		grpc.WithContextDialer(testenv.GRPCContextDialer),
 		grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(g.Env().ServerCAs(), "")),
 		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
 	)
