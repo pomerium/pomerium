@@ -16,7 +16,7 @@ import (
 func TestDNSOverrides(t *testing.T) {
 	env := testenv.New(t)
 	h := upstreams.HTTP(nil)
-	h.Handle("/", func(w http.ResponseWriter, r *http.Request) {
+	h.Handle("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("OK"))
 	})
 	route := h.Route().From(env.SubdomainURL("foo")).Policy(func(p *config.Policy) {
@@ -30,10 +30,10 @@ func TestDNSOverrides(t *testing.T) {
 	var traceHostPort, traceRemoteAddr string
 	var dnsStartCalled, dnsEndCalled bool
 	trace := httptrace.ClientTrace{
-		DNSStart: func(di httptrace.DNSStartInfo) {
+		DNSStart: func(_ httptrace.DNSStartInfo) {
 			dnsStartCalled = true
 		},
-		DNSDone: func(di httptrace.DNSDoneInfo) {
+		DNSDone: func(_ httptrace.DNSDoneInfo) {
 			dnsEndCalled = true
 		},
 		GetConn: func(hostPort string) {
