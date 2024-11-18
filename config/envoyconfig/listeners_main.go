@@ -40,16 +40,11 @@ func (b *Builder) buildMainInsecureListener(
 		li.ListenerFilters = append(li.ListenerFilters, ProxyProtocolFilter())
 	}
 
-	filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
+	filterChain, err := b.buildMainHTTPConnectionManagerFilterChain(ctx, cfg, fullyStatic, nil)
 	if err != nil {
 		return nil, err
 	}
-
-	li.FilterChains = []*envoy_config_listener_v3.FilterChain{{
-		Filters: []*envoy_config_listener_v3.Filter{
-			filter,
-		},
-	}}
+	li.FilterChains = append(li.FilterChains, filterChain)
 
 	return li, nil
 }
@@ -76,11 +71,6 @@ func (b *Builder) buildMainTLSListener(
 	// filter chains
 	li.FilterChains = append(li.FilterChains, b.buildACMETLSALPNFilterChain())
 
-	filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
-	if err != nil {
-		return nil, err
-	}
-
 	allCertificates, err := getAllCertificates(cfg)
 	if err != nil {
 		return nil, err
@@ -91,12 +81,29 @@ func (b *Builder) buildMainTLSListener(
 		return nil, err
 	}
 
-	li.FilterChains = append(li.FilterChains, &envoy_config_listener_v3.FilterChain{
-		Filters:         []*envoy_config_listener_v3.Filter{filter},
-		TransportSocket: newDownstreamTLSTransportSocket(tlsContext),
-	})
+	filterChain, err := b.buildMainHTTPConnectionManagerFilterChain(ctx, cfg, fullyStatic, newDownstreamTLSTransportSocket(tlsContext))
+	if err != nil {
+		return nil, err
+	}
+	li.FilterChains = append(li.FilterChains, filterChain)
 
 	return li, nil
+}
+
+func (b *Builder) buildMainHTTPConnectionManagerFilterChain(
+	ctx context.Context,
+	cfg *config.Config,
+	fullyStatic bool,
+	transportSocket *envoy_config_core_v3.TransportSocket,
+) (*envoy_config_listener_v3.FilterChain, error) {
+	filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
+	if err != nil {
+		return nil, err
+	}
+	return &envoy_config_listener_v3.FilterChain{
+		Filters:         []*envoy_config_listener_v3.Filter{filter},
+		TransportSocket: transportSocket,
+	}, nil
 }
 
 func (b *Builder) buildMainHTTPConnectionManagerFilter(
