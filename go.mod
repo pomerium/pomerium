@@ -64,6 +64,7 @@ require (
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
 	github.com/testcontainers/testcontainers-go v0.34.0
+	github.com/tidwall/gjson v1.18.0
 	github.com/tniswong/go.rfcx v0.0.0-20181019234604-07783c52761f
 	github.com/volatiletech/null/v9 v9.0.0
 	github.com/yuin/gopher-lua v1.1.1
@@ -214,6 +215,8 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.1 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/tinylib/msgp v1.1.8 // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.8.0 // indirect

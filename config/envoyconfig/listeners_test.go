@@ -12,6 +12,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
@@ -70,6 +72,49 @@ func TestBuildListeners(t *testing.T) {
 			hasGRPC = hasGRPC || li.Name == "grpc-ingress"
 		}
 		assert.False(t, hasGRPC, "expected grpc-ingress to be disabled when grpc address is set to the empty string")
+	})
+	t.Run("quic", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := cfg.Clone()
+		cfg.Options.CodecType = config.CodecTypeHTTP3
+		lis, err := b.BuildListeners(ctx, cfg, false)
+		assert.NoError(t, err)
+
+		var hasHTTPS, hasQUIC bool
+		for _, li := range lis {
+			switch li.GetName() {
+			case "https-ingress":
+				hasHTTPS = true
+				httpConfig := gjson.Get(protojson.Format(li), "filterChains.1.filters.0.typedConfig")
+				assert.Equal(t, "", httpConfig.Get("codecType").String())
+				assert.JSONEq(t, `{
+					"name": "envoy.filters.http.header_mutation",
+					"typedConfig": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.header_mutation.v3.HeaderMutation",
+						"mutations": {
+							"responseMutations": [{
+								"append": {
+									"header": {
+										"key": "alt-svc",
+										"value": "h3=\":443\"; ma=86400"
+									}
+								}
+							}]
+						}
+					}
+				}`, httpConfig.Get("httpFilters.6").String(),
+					"should add alt-svc header")
+			case "quic-ingress":
+				hasQUIC = true
+				httpConfig := gjson.Get(protojson.Format(li), "filterChains.0.filters.0.typedConfig")
+				assert.Equal(t, "HTTP3", httpConfig.Get("codecType").String())
+				assert.Equal(t, `{}`, httpConfig.Get("http3ProtocolOptions").String())
+			}
+		}
+
+		assert.True(t, hasHTTPS, "should have https-ingress listener")
+		assert.True(t, hasQUIC, "should have quic-ingress listener")
 	})
 }
 
