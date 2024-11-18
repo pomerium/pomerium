@@ -166,6 +166,10 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		LuaFilter(luascripts.CleanUpstream),
 		LuaFilter(luascripts.RewriteHeaders),
 	}
+	// if we support http3 and this is the non-quic listener, add an alt-svc header indicating h3 is available
+	if !useQUIC && cfg.Options.CodecType == config.CodecTypeHTTP3 {
+		filters = append(filters, newQUICAltSvcHeaderFilter(cfg))
+	}
 	filters = append(filters, HTTPRouterFilter())
 
 	var maxStreamDuration *durationpb.Duration
