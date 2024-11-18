@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/pkg/netutil"
 )
@@ -38,7 +39,7 @@ func TestServerHTTP(t *testing.T) {
 	cfg.Options.SharedKey = "JDNjY2ITDlARvNaQXjc2Djk+GA6xeCy4KiozmZfdbTs="
 
 	src := config.NewStaticSource(cfg)
-	srv, err := NewServer(ctx, cfg, config.NewMetricsManager(ctx, src), events.New())
+	srv, err := NewServer(ctx, cfg, config.NewMetricsManager(ctx, src), events.New(), filemgr.NewManager(filemgr.WithCacheDir(t.TempDir())))
 	require.NoError(t, err)
 	go srv.Run(ctx)
 

@@ -25,7 +25,7 @@ func TestFromURLMatchesRequestURL(t *testing.T) {
 	} {
 		fromURL := urlutil.MustParseAndValidateURL(tc.pattern)
 		requestURL := urlutil.MustParseAndValidateURL(tc.input)
-		assert.Equal(t, tc.matches, FromURLMatchesRequestURL(&fromURL, &requestURL, true),
+		assert.Equal(t, tc.matches, FromURLMatchesRequestURL(fromURL, requestURL, true),
 			"from-url: %s\nrequest-url: %s", tc.pattern, tc.input)
 	}
 }

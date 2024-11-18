@@ -23,11 +23,7 @@ import (
 func Test_BuildClusters(t *testing.T) {
 	// The admin address path is based on os.TempDir(), which will vary from
 	// system to system, so replace this with a stable location.
-	originalEnvoyAdminAddressPath := envoyAdminAddressPath
-	envoyAdminAddressPath = "/tmp/pomerium-envoy-admin.sock"
-	t.Cleanup(func() {
-		envoyAdminAddressPath = originalEnvoyAdminAddressPath
-	})
+	t.Setenv("TMPDIR", "/tmp")
 
 	opts := config.NewDefaultOptions()
 	ctx := context.Background()

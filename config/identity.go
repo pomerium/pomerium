@@ -63,7 +63,7 @@ func (o *Options) GetIdentityProviderForRequestURL(requestURL string) (*identity
 	}
 
 	for p := range o.GetAllPolicies() {
-		if p.Matches(*u, o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)) {
+		if p.Matches(u, o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)) {
 			return o.GetIdentityProviderForPolicy(p)
 		}
 	}
