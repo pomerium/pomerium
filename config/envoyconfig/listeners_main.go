@@ -43,7 +43,7 @@ func (b *Builder) buildMainInsecureListener(
 		li.ListenerFilters = append(li.ListenerFilters, ProxyProtocolFilter())
 	}
 
-	filterChain, err := b.buildMainHTTPConnectionManagerFilterChain(ctx, cfg, fullyStatic, nil)
+	filterChain, err := b.buildMainHTTPConnectionManagerFilterChain(ctx, cfg, fullyStatic, false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (b *Builder) buildMainQuicListener(
 		return nil, fmt.Errorf("error building quic socket: %w", err)
 	}
 
-	filterChain, err := b.buildMainHTTPConnectionManagerFilterChain(ctx, cfg, fullyStatic, transportSocket)
+	filterChain, err := b.buildMainHTTPConnectionManagerFilterChain(ctx, cfg, fullyStatic, true, transportSocket)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,8 @@ func (b *Builder) buildMainTLSListener(
 		return nil, err
 	}
 
-	filterChain, err := b.buildMainHTTPConnectionManagerFilterChain(ctx, cfg, fullyStatic, newDownstreamTLSTransportSocket(tlsContext))
+	transportSocket := newDownstreamTLSTransportSocket(tlsContext)
+	filterChain, err := b.buildMainHTTPConnectionManagerFilterChain(ctx, cfg, fullyStatic, false, transportSocket)
 	if err != nil {
 		return nil, err
 	}
@@ -131,9 +132,10 @@ func (b *Builder) buildMainHTTPConnectionManagerFilterChain(
 	ctx context.Context,
 	cfg *config.Config,
 	fullyStatic bool,
+	useQUIC bool,
 	transportSocket *envoy_config_core_v3.TransportSocket,
 ) (*envoy_config_listener_v3.FilterChain, error) {
-	filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
+	filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic, useQUIC)
 	if err != nil {
 		return nil, err
 	}
@@ -147,6 +149,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	ctx context.Context,
 	cfg *config.Config,
 	fullyStatic bool,
+	useQUIC bool,
 ) (*envoy_config_listener_v3.Filter, error) {
 	var grpcClientTimeout *durationpb.Duration
 	if cfg.Options.GRPCClientTimeout != 0 {
@@ -182,7 +185,6 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 
 	mgr := &envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager{
 		AlwaysSetRequestIdInResponse: true,
-		CodecType:                    cfg.Options.GetCodecType().ToEnvoy(),
 		StatPrefix:                   "ingress",
 		HttpFilters:                  filters,
 		AccessLog:                    buildAccessLogs(cfg.Options),
@@ -202,6 +204,15 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		XffNumTrustedHops: cfg.Options.XffNumTrustedHops,
 		LocalReplyConfig:  localReply,
 		NormalizePath:     wrapperspb.Bool(true),
+	}
+
+	if useQUIC {
+		mgr.CodecType = envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_HTTP3
+		mgr.Http3ProtocolOptions = &envoy_config_core_v3.Http3ProtocolOptions{}
+	} else if cfg.Options.GetCodecType() == config.CodecTypeHTTP3 {
+		mgr.CodecType = envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_AUTO
+	} else {
+		mgr.CodecType = cfg.Options.GetCodecType().ToEnvoy()
 	}
 
 	if fullyStatic {
