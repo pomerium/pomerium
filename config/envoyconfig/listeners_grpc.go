@@ -48,7 +48,7 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 			AlpnProtocols:   []string{"h2"}, // gRPC requires HTTP/2
 		},
 	}
-	filterChain.TransportSocket = newDownstreamTLSContext(tlsContext)
+	filterChain.TransportSocket = newDownstreamTLSTransportSocket(tlsContext)
 	return li, nil
 }
 

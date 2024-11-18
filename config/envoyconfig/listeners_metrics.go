@@ -64,7 +64,7 @@ func (b *Builder) buildMetricsListener(cfg *config.Config) (*envoy_config_listen
 			}
 		}
 
-		filterChain.TransportSocket = newDownstreamTLSContext(dtc)
+		filterChain.TransportSocket = newDownstreamTLSTransportSocket(dtc)
 	}
 
 	// we ignore the host part of the address, only binding to

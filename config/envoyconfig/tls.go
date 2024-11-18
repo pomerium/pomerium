@@ -256,7 +256,7 @@ func hasMustStaple(cert *x509.Certificate) bool {
 	return false
 }
 
-func newDownstreamTLSContext(
+func newDownstreamTLSTransportSocket(
 	downstreamTLSContext *envoy_extensions_transport_sockets_tls_v3.DownstreamTlsContext,
 ) *envoy_config_core_v3.TransportSocket {
 	return &envoy_config_core_v3.TransportSocket{

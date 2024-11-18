@@ -93,7 +93,7 @@ func (b *Builder) buildMainTLSListener(
 
 	li.FilterChains = append(li.FilterChains, &envoy_config_listener_v3.FilterChain{
 		Filters:         []*envoy_config_listener_v3.Filter{filter},
-		TransportSocket: newDownstreamTLSContext(tlsContext),
+		TransportSocket: newDownstreamTLSTransportSocket(tlsContext),
 	})
 
 	return li, nil
