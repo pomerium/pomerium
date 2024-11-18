@@ -1,16 +1,18 @@
 package envoyconfig
 
 import (
+	"cmp"
 	"context"
+	"net/url"
+	"strings"
 
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	"github.com/hashicorp/go-set/v3"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-)
-
-const (
-	mainRouteConfigurationName = "main"
+	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
 // BuildRouteConfigurations builds the route configurations for the RDS service.
@@ -100,10 +102,61 @@ func (b *Builder) buildMainRouteConfiguration(
 
 	virtualHosts = append(virtualHosts, vh)
 
-	rc, err := b.buildRouteConfiguration(mainRouteConfigurationName, virtualHosts)
-	if err != nil {
-		return nil, err
+	rc := newRouteConfiguration("main", virtualHosts)
+	return rc, nil
+}
+
+func getAllRouteableHosts(options *config.Options, addr string) ([]string, error) {
+	allHosts := set.NewTreeSet(cmp.Compare[string])
+
+	if addr == options.Addr {
+		hosts, err := options.GetAllRouteableHTTPHosts()
+		if err != nil {
+			return nil, err
+		}
+		allHosts.InsertSlice(hosts)
 	}
 
-	return rc, nil
+	if addr == options.GetGRPCAddr() {
+		hosts, err := options.GetAllRouteableGRPCHosts()
+		if err != nil {
+			return nil, err
+		}
+		allHosts.InsertSlice(hosts)
+	}
+
+	var filtered []string
+	for host := range allHosts.Items() {
+		if !strings.Contains(host, "*") {
+			filtered = append(filtered, host)
+		}
+	}
+	return filtered, nil
+}
+
+func newRouteConfiguration(name string, virtualHosts []*envoy_config_route_v3.VirtualHost) *envoy_config_route_v3.RouteConfiguration {
+	return &envoy_config_route_v3.RouteConfiguration{
+		Name:         name,
+		VirtualHosts: virtualHosts,
+		// disable cluster validation since the order of LDS/CDS updates isn't guaranteed
+		ValidateClusters: &wrapperspb.BoolValue{Value: false},
+	}
+}
+
+func urlsMatchHost(urls []*url.URL, host string) bool {
+	for _, u := range urls {
+		if urlMatchesHost(u, host) {
+			return true
+		}
+	}
+	return false
+}
+
+func urlMatchesHost(u *url.URL, host string) bool {
+	for _, h := range urlutil.GetDomainsForURL(u, true) {
+		if h == host {
+			return true
+		}
+	}
+	return false
 }
