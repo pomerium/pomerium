@@ -135,7 +135,36 @@ func (a *Authorize) deniedResponse(
 	respHeader := []*envoy_config_core_v3.HeaderValueOption{}
 
 	var respBody []byte
+
+	hdrs := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
+	userAgent := getHeader(hdrs, "User-Agent")
 	switch {
+	case strings.Contains(userAgent, "kubernetes/"):
+		message := reason
+		var statusReason string
+		switch code {
+		case http.StatusUnauthorized:
+			statusReason = "Unauthorized"
+		case http.StatusForbidden:
+			statusReason = "Forbidden"
+		case http.StatusNotFound:
+			statusReason = "NotFound"
+		case httputil.StatusDeviceUnauthorized, httputil.StatusInvalidClientCertificate:
+			statusReason = "Unauthorized"
+			message = httputil.DetailsText(int(code))
+		default:
+			statusReason = "" // StatusReasonUnknown
+		}
+		respBody, _ = json.Marshal(map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Status",
+			"status":     "Failure",    // one of "Success" or "Failure"
+			"message":    message,      // user-facing message
+			"reason":     statusReason, // must correspond to k8s StatusReason strings
+			"code":       code,         // http code
+		})
+		respHeader = append(respHeader,
+			mkHeader("Content-Type", "application/json"))
 	case getCheckRequestURL(in).Path == "/robots.txt":
 		code = 200
 		respBody = []byte("User-agent: *\nDisallow: /")

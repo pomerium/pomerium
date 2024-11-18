@@ -16,6 +16,7 @@ import (
 	"github.com/pomerium/pomerium/authenticate"
 	"github.com/pomerium/pomerium/authorize"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	databroker_service "github.com/pomerium/pomerium/databroker"
 	"github.com/pomerium/pomerium/internal/autocert"
 	"github.com/pomerium/pomerium/internal/controlplane"
@@ -30,8 +31,29 @@ import (
 	"github.com/pomerium/pomerium/proxy"
 )
 
+type RunOptions struct {
+	fileMgr *filemgr.Manager
+}
+
+type RunOption func(*RunOptions)
+
+func (o *RunOptions) apply(opts ...RunOption) {
+	for _, op := range opts {
+		op(o)
+	}
+}
+
+func WithOverrideFileManager(fileMgr *filemgr.Manager) RunOption {
+	return func(o *RunOptions) {
+		o.fileMgr = fileMgr
+	}
+}
+
 // Run runs the main pomerium application.
-func Run(ctx context.Context, src config.Source) error {
+func Run(ctx context.Context, src config.Source, opts ...RunOption) error {
+	options := RunOptions{}
+	options.apply(opts...)
+
 	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Ctx(ctx).Debug().Msgf(s, i...) }))
 
 	evt := log.Ctx(ctx).Info().
@@ -68,10 +90,15 @@ func Run(ctx context.Context, src config.Source) error {
 
 	eventsMgr := events.New()
 
+	fileMgr := options.fileMgr
+	if fileMgr == nil {
+		fileMgr = filemgr.NewManager()
+	}
+
 	cfg := src.GetConfig()
 
 	// setup the control plane
-	controlPlane, err := controlplane.NewServer(ctx, cfg, metricsMgr, eventsMgr)
+	controlPlane, err := controlplane.NewServer(ctx, cfg, metricsMgr, eventsMgr, fileMgr)
 	if err != nil {
 		return fmt.Errorf("error creating control plane: %w", err)
 	}

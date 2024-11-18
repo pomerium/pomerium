@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"regexp"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
@@ -216,6 +218,38 @@ type PolicyRedirect struct {
 	PrefixRewrite  *string `mapstructure:"prefix_rewrite" yaml:"prefix_rewrite,omitempty" json:"prefix_rewrite,omitempty"`
 	ResponseCode   *int32  `mapstructure:"response_code" yaml:"response_code,omitempty" json:"response_code,omitempty"`
 	StripQuery     *bool   `mapstructure:"strip_query" yaml:"strip_query,omitempty" json:"strip_query,omitempty"`
+}
+
+func (r *PolicyRedirect) validate() error {
+	if r == nil {
+		return nil
+	}
+
+	if _, err := r.GetEnvoyResponseCode(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetEnvoyResponseCode returns the ResponseCode as the corresponding Envoy enum value.
+func (r *PolicyRedirect) GetEnvoyResponseCode() (envoy_config_route_v3.RedirectAction_RedirectResponseCode, error) {
+	if r == nil || r.ResponseCode == nil {
+		return envoy_config_route_v3.RedirectAction_RedirectResponseCode(0), nil
+	}
+	switch code := *r.ResponseCode; code {
+	case http.StatusMovedPermanently:
+		return envoy_config_route_v3.RedirectAction_MOVED_PERMANENTLY, nil
+	case http.StatusFound:
+		return envoy_config_route_v3.RedirectAction_FOUND, nil
+	case http.StatusSeeOther:
+		return envoy_config_route_v3.RedirectAction_SEE_OTHER, nil
+	case http.StatusTemporaryRedirect:
+		return envoy_config_route_v3.RedirectAction_TEMPORARY_REDIRECT, nil
+	case http.StatusPermanentRedirect:
+		return envoy_config_route_v3.RedirectAction_PERMANENT_REDIRECT, nil
+	default:
+		return 0, fmt.Errorf("unsupported redirect response code %d (supported values: 301, 302, 303, 307, 308)", code)
+	}
 }
 
 // A DirectResponse is the response to an HTTP request.
@@ -529,6 +563,10 @@ func (p *Policy) Validate() error {
 		return fmt.Errorf("config: cannot mix tcp and non-tcp To URLs")
 	}
 
+	if err := p.Redirect.validate(); err != nil {
+		return fmt.Errorf("config: %w", err)
+	}
+
 	// Only allow public access if no other whitelists are in place
 	if p.AllowPublicUnauthenticatedAccess && (p.AllowAnyAuthenticatedUser || p.AllowedDomains != nil || p.AllowedUsers != nil) {
 		return fmt.Errorf("config: policy route marked as public but contains whitelists")
@@ -616,30 +654,63 @@ func (p *Policy) Checksum() uint64 {
 	return hashutil.MustHash(p)
 }
 
-// RouteID returns a unique identifier for a route
+// RouteID returns a unique identifier for a route.
+//
+// The following fields are used to compute the ID:
+// - from
+// - prefix
+// - path
+// - regex
+// - to/redirect/response (whichever is set)
 func (p *Policy) RouteID() (uint64, error) {
-	id := routeID{
-		From:   p.From,
-		Prefix: p.Prefix,
-		Path:   p.Path,
-		Regex:  p.Regex,
-	}
-
-	if len(p.To) > 0 {
-		dst, _, err := p.To.Flatten()
-		if err != nil {
-			return 0, err
+	// this function is in the hot path, try not to allocate too much memory here
+	hash := hashutil.NewDigest()
+	hash.WriteStringWithLen(p.From)
+	hash.WriteStringWithLen(p.Prefix)
+	hash.WriteStringWithLen(p.Path)
+	hash.WriteStringWithLen(p.Regex)
+	switch {
+	case len(p.To) > 0:
+		_, _ = hash.Write([]byte{1}) // case 1
+		hash.WriteInt32(int32(len(p.To)))
+		for _, to := range p.To {
+			hash.WriteStringWithLen(to.URL.Scheme)
+			hash.WriteStringWithLen(to.URL.Opaque)
+			if to.URL.User == nil {
+				_, _ = hash.Write([]byte{0})
+			} else {
+				_, _ = hash.Write([]byte{1})
+				hash.WriteStringWithLen(to.URL.User.Username())
+				p, _ := to.URL.User.Password()
+				hash.WriteStringWithLen(p)
+			}
+			hash.WriteStringWithLen(to.URL.Host)
+			hash.WriteStringWithLen(to.URL.Path)
+			hash.WriteStringWithLen(to.URL.RawPath)
+			hash.WriteBool(to.URL.OmitHost)
+			hash.WriteBool(to.URL.ForceQuery)
+			hash.WriteStringWithLen(to.URL.Fragment)
+			hash.WriteStringWithLen(to.URL.RawFragment)
+			hash.WriteUint32(to.LbWeight)
 		}
-		id.To = dst
-	} else if p.Redirect != nil {
-		id.Redirect = p.Redirect
-	} else if p.Response != nil {
-		id.Response = p.Response
-	} else {
+	case p.Redirect != nil:
+		_, _ = hash.Write([]byte{2}) // case 2
+		hash.WriteBoolPtr(p.Redirect.HTTPSRedirect)
+		hash.WriteStringPtrWithLen(p.Redirect.SchemeRedirect)
+		hash.WriteStringPtrWithLen(p.Redirect.HostRedirect)
+		hash.WriteUint32Ptr(p.Redirect.PortRedirect)
+		hash.WriteStringPtrWithLen(p.Redirect.PathRedirect)
+		hash.WriteStringPtrWithLen(p.Redirect.PrefixRewrite)
+		hash.WriteInt32Ptr(p.Redirect.ResponseCode)
+		hash.WriteBoolPtr(p.Redirect.StripQuery)
+	case p.Response != nil:
+		_, _ = hash.Write([]byte{3}) // case 3
+		hash.WriteInt32(int32(p.Response.Status))
+		hash.WriteStringWithLen(p.Response.Body)
+	default:
 		return 0, errEitherToOrRedirectOrResponseRequired
 	}
-
-	return hashutil.Hash(id)
+	return hash.Sum64(), nil
 }
 
 func (p *Policy) MustRouteID() uint64 {
@@ -664,14 +735,14 @@ func (p *Policy) String() string {
 }
 
 // Matches returns true if the policy would match the given URL.
-func (p *Policy) Matches(requestURL url.URL, stripPort bool) bool {
+func (p *Policy) Matches(requestURL *url.URL, stripPort bool) bool {
 	// an invalid from URL should not match anything
 	fromURL, err := urlutil.ParseAndValidateURL(p.From)
 	if err != nil {
 		return false
 	}
 
-	if !FromURLMatchesRequestURL(fromURL, &requestURL, stripPort) {
+	if !FromURLMatchesRequestURL(fromURL, requestURL, stripPort) {
 		return false
 	}
 
@@ -771,16 +842,6 @@ func (p *Policy) GetPassIdentityHeaders(options *Options) bool {
 	}
 
 	return false
-}
-
-type routeID struct {
-	From     string
-	To       []string
-	Prefix   string
-	Path     string
-	Regex    string
-	Redirect *PolicyRedirect
-	Response *DirectResponse
 }
 
 /*

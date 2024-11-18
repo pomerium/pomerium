@@ -83,7 +83,7 @@ func TestSignInURL(t *testing.T) {
 	authenticateURL := MustParseAndValidateURL("https://authenticate.example.com")
 	redirectURL := MustParseAndValidateURL("https://redirect.example.com")
 
-	rawSignInURL, err := SignInURL(k1, k2.PublicKey(), &authenticateURL, &redirectURL, "IDP-1")
+	rawSignInURL, err := SignInURL(k1, k2.PublicKey(), authenticateURL, redirectURL, "IDP-1")
 	require.NoError(t, err)
 
 	signInURL, err := ParseAndValidateURL(rawSignInURL)
@@ -107,7 +107,7 @@ func TestSignOutURL(t *testing.T) {
 	}).Encode(), nil)
 	authenticateURL := MustParseAndValidateURL("https://authenticate.example.com")
 
-	rawSignOutURL := SignOutURL(r, &authenticateURL, []byte("TEST"))
+	rawSignOutURL := SignOutURL(r, authenticateURL, []byte("TEST"))
 	signOutURL, err := ParseAndValidateURL(rawSignOutURL)
 	require.NoError(t, err)
 
