@@ -2,7 +2,6 @@ package envoyconfig
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
 	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
-	envoy_extensions_transport_sockets_quic_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/quic/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -38,8 +36,7 @@ func (b *Builder) buildMainInsecureListener(
 	cfg *config.Config,
 	fullyStatic bool,
 ) (*envoy_config_listener_v3.Listener, error) {
-	li := newListener("http-ingress")
-	li.Address = buildTCPAddress(cfg.Options.Addr, 80)
+	li := newTCPListener("http-ingress", buildTCPAddress(cfg.Options.Addr, 80))
 
 	// listener filters
 	if cfg.Options.UseProxyProtocol {
@@ -60,7 +57,7 @@ func (b *Builder) buildMainQuicListener(
 	cfg *config.Config,
 	fullyStatic bool,
 ) (*envoy_config_listener_v3.Listener, error) {
-	li := newListener("quic-ingress")
+	li := newQUICListener("quic-ingress", buildUDPAddress(cfg.Options.Addr, 443))
 
 	// listener filters
 	if cfg.Options.UseProxyProtocol {
@@ -71,20 +68,12 @@ func (b *Builder) buildMainQuicListener(
 		li.AccessLog = append(li.AccessLog, newListenerAccessLog())
 	}
 
-	li.Address = buildUDPAddress(cfg.Options.Addr, 443)
-	li.UdpListenerConfig = &envoy_config_listener_v3.UdpListenerConfig{
-		QuicOptions: &envoy_config_listener_v3.QuicProtocolOptions{},
-		DownstreamSocketConfig: &envoy_config_core_v3.UdpSocketConfig{
-			PreferGro: &wrapperspb.BoolValue{Value: true},
-		},
-	}
-
 	allCertificates, err := getAllCertificates(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	transportSocket, err := b.buildQuicDownstreamTransportSocket(ctx, cfg, allCertificates)
+	transportSocket, err := b.buildDownstreamQUICTransportSocket(ctx, cfg, allCertificates)
 	if err != nil {
 		return nil, fmt.Errorf("error building quic socket: %w", err)
 	}
@@ -103,8 +92,7 @@ func (b *Builder) buildMainTLSListener(
 	cfg *config.Config,
 	fullyStatic bool,
 ) (*envoy_config_listener_v3.Listener, error) {
-	li := newListener("https-ingress")
-	li.Address = buildTCPAddress(cfg.Options.Addr, 443)
+	li := newTCPListener("https-ingress", buildTCPAddress(cfg.Options.Addr, 443))
 
 	// listener filters
 	if cfg.Options.UseProxyProtocol {
@@ -237,24 +225,6 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	}
 
 	return HTTPConnectionManagerFilter(mgr), nil
-}
-
-func (b *Builder) buildQuicDownstreamTransportSocket(ctx context.Context, cfg *config.Config, certs []tls.Certificate) (*envoy_config_core_v3.TransportSocket, error) {
-	tlsContext, err := b.buildDownstreamTLSContextMulti(ctx, cfg, certs)
-	if err != nil {
-		return nil, err
-	}
-
-	tlsContext.CommonTlsContext.AlpnProtocols = nil
-
-	return &envoy_config_core_v3.TransportSocket{
-		Name: "envoy.transport_sockets.quic",
-		ConfigType: &envoy_config_core_v3.TransportSocket_TypedConfig{
-			TypedConfig: marshalAny(&envoy_extensions_transport_sockets_quic_v3.QuicDownstreamTransport{
-				DownstreamTlsContext: tlsContext,
-			}),
-		},
-	}, nil
 }
 
 func newListenerAccessLog() *envoy_config_accesslog_v3.AccessLog {

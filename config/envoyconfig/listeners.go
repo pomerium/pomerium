@@ -4,6 +4,7 @@ import (
 	"context"
 	"runtime"
 
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
@@ -84,4 +85,24 @@ func newListener(name string) *envoy_config_listener_v3.Listener {
 		// noisy log message
 		EnableReusePort: wrapperspb.Bool(runtime.GOOS == "linux"),
 	}
+}
+
+// newQUICListener creates a new envoy listener that handles QUIC connections.
+func newQUICListener(name string, address *envoy_config_core_v3.Address) *envoy_config_listener_v3.Listener {
+	li := newListener(name)
+	li.Address = address
+	li.UdpListenerConfig = &envoy_config_listener_v3.UdpListenerConfig{
+		QuicOptions: &envoy_config_listener_v3.QuicProtocolOptions{},
+		DownstreamSocketConfig: &envoy_config_core_v3.UdpSocketConfig{
+			PreferGro: &wrapperspb.BoolValue{Value: true},
+		},
+	}
+	return li
+}
+
+// newTCPListener creates a new envoy listener that handles TCP connections.
+func newTCPListener(name string, address *envoy_config_core_v3.Address) *envoy_config_listener_v3.Listener {
+	li := newListener(name)
+	li.Address = address
+	return li
 }
