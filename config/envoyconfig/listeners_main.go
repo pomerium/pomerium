@@ -21,10 +21,10 @@ func (b *Builder) buildMainListener(
 	ctx context.Context,
 	cfg *config.Config,
 	fullyStatic bool,
-	useQuic bool,
+	useQUIC bool,
 ) (*envoy_config_listener_v3.Listener, error) {
-	if useQuic {
-		return b.buildMainQuicListener(ctx, cfg, fullyStatic)
+	if useQUIC {
+		return b.buildMainQUICListener(ctx, cfg, fullyStatic)
 	} else if cfg.Options.InsecureServer {
 		return b.buildMainInsecureListener(ctx, cfg, fullyStatic)
 	}
@@ -52,7 +52,7 @@ func (b *Builder) buildMainInsecureListener(
 	return li, nil
 }
 
-func (b *Builder) buildMainQuicListener(
+func (b *Builder) buildMainQUICListener(
 	ctx context.Context,
 	cfg *config.Config,
 	fullyStatic bool,
