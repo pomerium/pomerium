@@ -16,34 +16,38 @@ func TestDashboard(t *testing.T) {
 	defer clearTimeout()
 
 	t.Run("user dashboard", func(t *testing.T) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://authenticate.localhost.pomerium.io/.pomerium/", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		testHTTPClient(t, func(t *testing.T, client *http.Client) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://authenticate.localhost.pomerium.io/.pomerium/", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		res, err := getClient(t).Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
+			res, err := client.Do(req)
+			if !assert.NoError(t, err, "unexpected http error") {
+				return
+			}
+			defer res.Body.Close()
 
-		body, _ := io.ReadAll(res.Body)
+			body, _ := io.ReadAll(res.Body)
 
-		assert.Equal(t, http.StatusFound, res.StatusCode, "unexpected status code: %s", body)
+			assert.Equal(t, http.StatusFound, res.StatusCode, "unexpected status code: %s", body)
+		})
 	})
 	t.Run("dashboard strict slash redirect", func(t *testing.T) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://authenticate.localhost.pomerium.io/.pomerium", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		testHTTPClient(t, func(t *testing.T, client *http.Client) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://authenticate.localhost.pomerium.io/.pomerium", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		res, err := getClient(t).Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
+			res, err := client.Do(req)
+			if !assert.NoError(t, err, "unexpected http error") {
+				return
+			}
+			defer res.Body.Close()
 
-		assert.Equal(t, 3, res.StatusCode/100, "unexpected status code")
+			assert.Equal(t, 3, res.StatusCode/100, "unexpected status code")
+		})
 	})
 }
 
@@ -69,7 +73,7 @@ func TestHealth(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				res, err := getClient(t).Do(req)
+				res, err := getClient(t, false).Do(req)
 				if !assert.NoError(t, err, "unexpected http error") {
 					return
 				}

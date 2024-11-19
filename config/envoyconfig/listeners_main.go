@@ -2,6 +2,7 @@ package envoyconfig
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
@@ -20,8 +21,11 @@ func (b *Builder) buildMainListener(
 	ctx context.Context,
 	cfg *config.Config,
 	fullyStatic bool,
+	useQUIC bool,
 ) (*envoy_config_listener_v3.Listener, error) {
-	if cfg.Options.InsecureServer {
+	if useQUIC {
+		return b.buildMainQUICListener(ctx, cfg, fullyStatic)
+	} else if cfg.Options.InsecureServer {
 		return b.buildMainInsecureListener(ctx, cfg, fullyStatic)
 	}
 	return b.buildMainTLSListener(ctx, cfg, fullyStatic)
@@ -32,15 +36,49 @@ func (b *Builder) buildMainInsecureListener(
 	cfg *config.Config,
 	fullyStatic bool,
 ) (*envoy_config_listener_v3.Listener, error) {
-	li := newListener("http-ingress")
-	li.Address = buildAddress(cfg.Options.Addr, 80)
+	li := newTCPListener("http-ingress", buildTCPAddress(cfg.Options.Addr, 80))
 
 	// listener filters
 	if cfg.Options.UseProxyProtocol {
 		li.ListenerFilters = append(li.ListenerFilters, ProxyProtocolFilter())
 	}
 
-	filterChain, err := b.buildMainHTTPConnectionManagerFilterChain(ctx, cfg, fullyStatic, nil)
+	filterChain, err := b.buildMainHTTPConnectionManagerFilterChain(ctx, cfg, fullyStatic, false, nil)
+	if err != nil {
+		return nil, err
+	}
+	li.FilterChains = append(li.FilterChains, filterChain)
+
+	return li, nil
+}
+
+func (b *Builder) buildMainQUICListener(
+	ctx context.Context,
+	cfg *config.Config,
+	fullyStatic bool,
+) (*envoy_config_listener_v3.Listener, error) {
+	li := newQUICListener("quic-ingress", buildUDPAddress(cfg.Options.Addr, 443))
+
+	// listener filters
+	if cfg.Options.UseProxyProtocol {
+		li.ListenerFilters = append(li.ListenerFilters, ProxyProtocolFilter())
+	}
+	// access log
+	if cfg.Options.DownstreamMTLS.Enforcement == config.MTLSEnforcementRejectConnection {
+		li.AccessLog = append(li.AccessLog, newListenerAccessLog())
+	}
+
+	allCertificates, err := getAllCertificates(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	transportSocket, err := b.buildDownstreamQUICTransportSocket(ctx, cfg, allCertificates)
+	if err != nil {
+		return nil, fmt.Errorf("error building quic socket: %w", err)
+	}
+
+	filterChain, err := b.buildMainHTTPConnectionManagerFilterChain(ctx, cfg, fullyStatic, true, transportSocket)
 	if err != nil {
 		return nil, err
 	}
@@ -54,8 +92,7 @@ func (b *Builder) buildMainTLSListener(
 	cfg *config.Config,
 	fullyStatic bool,
 ) (*envoy_config_listener_v3.Listener, error) {
-	li := newListener("https-ingress")
-	li.Address = buildAddress(cfg.Options.Addr, 443)
+	li := newTCPListener("https-ingress", buildTCPAddress(cfg.Options.Addr, 443))
 
 	// listener filters
 	if cfg.Options.UseProxyProtocol {
@@ -81,7 +118,8 @@ func (b *Builder) buildMainTLSListener(
 		return nil, err
 	}
 
-	filterChain, err := b.buildMainHTTPConnectionManagerFilterChain(ctx, cfg, fullyStatic, newDownstreamTLSTransportSocket(tlsContext))
+	transportSocket := newDownstreamTLSTransportSocket(tlsContext)
+	filterChain, err := b.buildMainHTTPConnectionManagerFilterChain(ctx, cfg, fullyStatic, false, transportSocket)
 	if err != nil {
 		return nil, err
 	}
@@ -94,9 +132,10 @@ func (b *Builder) buildMainHTTPConnectionManagerFilterChain(
 	ctx context.Context,
 	cfg *config.Config,
 	fullyStatic bool,
+	useQUIC bool,
 	transportSocket *envoy_config_core_v3.TransportSocket,
 ) (*envoy_config_listener_v3.FilterChain, error) {
-	filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic)
+	filter, err := b.buildMainHTTPConnectionManagerFilter(ctx, cfg, fullyStatic, useQUIC)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +149,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	ctx context.Context,
 	cfg *config.Config,
 	fullyStatic bool,
+	useQUIC bool,
 ) (*envoy_config_listener_v3.Filter, error) {
 	var grpcClientTimeout *durationpb.Duration
 	if cfg.Options.GRPCClientTimeout != 0 {
@@ -125,6 +165,10 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		LuaFilter(luascripts.ExtAuthzSetCookie),
 		LuaFilter(luascripts.CleanUpstream),
 		LuaFilter(luascripts.RewriteHeaders),
+	}
+	// if we support http3 and this is the non-quic listener, add an alt-svc header indicating h3 is available
+	if !useQUIC && cfg.Options.CodecType == config.CodecTypeHTTP3 {
+		filters = append(filters, newQUICAltSvcHeaderFilter(cfg))
 	}
 	filters = append(filters, HTTPRouterFilter())
 
@@ -145,7 +189,6 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 
 	mgr := &envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager{
 		AlwaysSetRequestIdInResponse: true,
-		CodecType:                    cfg.Options.GetCodecType().ToEnvoy(),
 		StatPrefix:                   "ingress",
 		HttpFilters:                  filters,
 		AccessLog:                    buildAccessLogs(cfg.Options),
@@ -165,6 +208,15 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		XffNumTrustedHops: cfg.Options.XffNumTrustedHops,
 		LocalReplyConfig:  localReply,
 		NormalizePath:     wrapperspb.Bool(true),
+	}
+
+	if useQUIC {
+		mgr.CodecType = envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_HTTP3
+		mgr.Http3ProtocolOptions = &envoy_config_core_v3.Http3ProtocolOptions{}
+	} else if cfg.Options.GetCodecType() == config.CodecTypeHTTP3 {
+		mgr.CodecType = envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_AUTO
+	} else {
+		mgr.CodecType = cfg.Options.GetCodecType().ToEnvoy()
 	}
 
 	if fullyStatic {

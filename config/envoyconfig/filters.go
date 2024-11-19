@@ -4,6 +4,7 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
+	envoy_extensions_filters_http_header_mutation_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/header_mutation/v3"
 	envoy_extensions_filters_http_lua_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/lua/v3"
 	envoy_extensions_filters_http_router_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/router/v3"
 	envoy_extensions_filters_listener_proxy_protocol_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/proxy_protocol/v3"
@@ -50,6 +51,16 @@ func HTTPConnectionManagerFilter(
 		Name: "envoy.filters.network.http_connection_manager",
 		ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{
 			TypedConfig: protoutil.NewAny(httpConnectionManager),
+		},
+	}
+}
+
+// HTTPHeaderMutationsFilter creates a new HTTP header mutations filter.
+func HTTPHeaderMutationsFilter(mutation *envoy_extensions_filters_http_header_mutation_v3.HeaderMutation) *envoy_extensions_filters_network_http_connection_manager.HttpFilter {
+	return &envoy_extensions_filters_network_http_connection_manager.HttpFilter{
+		Name: "envoy.filters.http.header_mutation",
+		ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
+			TypedConfig: protoutil.NewAny(mutation),
 		},
 	}
 }

@@ -22,8 +22,7 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 
 	filter := b.buildOutboundHTTPConnectionManager()
 
-	li := newListener("outbound-ingress")
-	li.Address = &envoy_config_core_v3.Address{
+	li := newTCPListener("outbound-ingress", &envoy_config_core_v3.Address{
 		Address: &envoy_config_core_v3.Address_SocketAddress{
 			SocketAddress: &envoy_config_core_v3.SocketAddress{
 				Address: "127.0.0.1",
@@ -32,7 +31,7 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 				},
 			},
 		},
-	}
+	})
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{{
 		Name:    "outbound-ingress",
 		Filters: []*envoy_config_listener_v3.Filter{filter},
