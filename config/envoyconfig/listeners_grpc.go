@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
@@ -20,15 +21,20 @@ func (b *Builder) buildGRPCListener(ctx context.Context, cfg *config.Config) (*e
 		Filters: []*envoy_config_listener_v3.Filter{filter},
 	}
 
-	li := newListener("grpc-ingress")
+	var address *envoy_config_core_v3.Address
+	if cfg.Options.GetGRPCInsecure() {
+		address = buildTCPAddress(cfg.Options.GetGRPCAddr(), 80)
+	} else {
+		address = buildTCPAddress(cfg.Options.GetGRPCAddr(), 443)
+	}
+
+	li := newTCPListener("grpc-ingress", address)
 	li.FilterChains = []*envoy_config_listener_v3.FilterChain{&filterChain}
 
 	if cfg.Options.GetGRPCInsecure() {
-		li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 80)
 		return li, nil
 	}
 
-	li.Address = buildAddress(cfg.Options.GetGRPCAddr(), 443)
 	li.ListenerFilters = []*envoy_config_listener_v3.ListenerFilter{
 		TLSInspectorFilter(),
 	}

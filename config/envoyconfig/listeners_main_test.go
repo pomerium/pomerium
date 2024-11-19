@@ -17,7 +17,7 @@ func Test_requireProxyProtocol(t *testing.T) {
 		li, err := b.buildMainListener(context.Background(), &config.Config{Options: &config.Options{
 			UseProxyProtocol: true,
 			InsecureServer:   true,
-		}}, false)
+		}}, false, false)
 		require.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `[
 			{
@@ -32,7 +32,7 @@ func Test_requireProxyProtocol(t *testing.T) {
 		li, err := b.buildMainListener(context.Background(), &config.Config{Options: &config.Options{
 			UseProxyProtocol: false,
 			InsecureServer:   true,
-		}}, false)
+		}}, false, false)
 		require.NoError(t, err)
 		assert.Len(t, li.GetListenerFilters(), 0)
 	})

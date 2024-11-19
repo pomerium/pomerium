@@ -18,6 +18,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/publicsuffix"
@@ -62,7 +63,7 @@ func (l loggingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error
 	return l.transport.RoundTrip(req)
 }
 
-func getTransport(t testing.TB) http.RoundTripper {
+func getTransport(t testing.TB, useHTTP3 bool) http.RoundTripper {
 	if t != nil {
 		t.Helper()
 	}
@@ -77,16 +78,27 @@ func getTransport(t testing.TB) http.RoundTripper {
 		panic(err)
 	}
 	_ = rootCAs.AppendCertsFromPEM(bs)
-	transport := &http.Transport{
-		DisableKeepAlives: true,
-		TLSClientConfig: &tls.Config{
-			RootCAs: rootCAs,
-		},
+
+	var transport http.RoundTripper
+	if useHTTP3 {
+		transport = &http3.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: rootCAs,
+			},
+		}
+	} else {
+		transport = &http.Transport{
+			DisableKeepAlives: true,
+			TLSClientConfig: &tls.Config{
+				RootCAs: rootCAs,
+			},
+		}
 	}
+
 	return loggingRoundTripper{t, transport}
 }
 
-func getClient(t testing.TB) *http.Client {
+func getClient(t testing.TB, useHTTP3 bool) *http.Client {
 	if t != nil {
 		t.Helper()
 	}
@@ -100,7 +112,7 @@ func getClient(t testing.TB) *http.Client {
 		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
-		Transport: getTransport(t),
+		Transport: getTransport(t, useHTTP3),
 		Jar:       jar,
 	}
 }
@@ -109,12 +121,12 @@ func getClient(t testing.TB) *http.Client {
 // as well as a pointer to the wrapped http.Transport, so that the
 // http.Transport can be easily customized.
 func getClientWithTransport(t testing.TB) (*http.Client, *http.Transport) {
-	client := getClient(t)
+	client := getClient(t, false)
 	return client, client.Transport.(loggingRoundTripper).transport.(*http.Transport)
 }
 
 func waitForHealthy(ctx context.Context) error {
-	client := getClient(nil)
+	client := getClient(nil, false)
 	check := func(endpoint string) error {
 		reqCtx, clearTimeout := context.WithTimeout(ctx, time.Second)
 		defer clearTimeout()
@@ -218,4 +230,10 @@ func loadCertificate(t *testing.T, certName string) tls.Certificate {
 		t.Fatal(err)
 	}
 	return cert
+}
+
+func testHTTPClient(t *testing.T, f func(t *testing.T, client *http.Client)) {
+	t.Helper()
+	t.Run("http2", func(t *testing.T) { f(t, getClient(t, false)) })
+	t.Run("http3", func(t *testing.T) { f(t, getClient(t, true)) })
 }
