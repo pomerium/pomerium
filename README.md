@@ -4,6 +4,7 @@
 [![GoDoc](https://godoc.org/github.com/pomerium/pomerium?status.svg)][godocs]
 [![LICENSE](https://img.shields.io/github/license/pomerium/pomerium.svg)](https://github.com/pomerium/pomerium/blob/main/LICENSE)
 ![Docker Pulls](https://img.shields.io/docker/pulls/pomerium/pomerium)
+[![Gurubase](https://img.shields.io/badge/Gurubase-Ask%20Pomerium%20Guru-006BFF)](https://gurubase.io/g/pomerium)
 
 Pomerium builds secure, clientless connections to internal web apps and services without a corporate VPN.
 
