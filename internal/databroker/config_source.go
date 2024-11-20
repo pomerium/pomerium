@@ -276,7 +276,6 @@ func (src *ConfigSource) runUpdater(ctx context.Context, cfg *config.Config) {
 		log.Ctx(ctx).Debug().
 			Str("outbound_port", cfg.OutboundPort).
 			Msg("config: starting databroker config source syncer")
-		_ = grpc.WaitForReady(ctx, cc, time.Second*10)
 		_ = syncer.Run(ctx)
 	}()
 }

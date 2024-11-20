@@ -4,11 +4,10 @@ import (
 	"context"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry"
@@ -52,23 +51,12 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 		grpc.WithChainStreamInterceptor(streamClientInterceptors...),
 		grpc.WithStatsHandler(clientStatsHandler.Handler),
 		grpc.WithDisableServiceConfig(),
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
 	}
 	dialOptions = append(dialOptions, other...)
 	log.Ctx(ctx).Debug().Str("address", opts.Address).Msg("grpc: dialing")
-	return grpc.DialContext(ctx, opts.Address, dialOptions...)
-}
-
-// grpcTimeoutInterceptor enforces per-RPC request timeouts
-func grpcTimeoutInterceptor(timeout time.Duration) grpc.UnaryClientInterceptor {
-	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		if timeout <= 0 {
-			return invoker(ctx, method, req, reply, cc, opts...)
-		}
-		ctx, cancel := context.WithTimeout(ctx, timeout)
-		defer cancel()
-		return invoker(ctx, method, req, reply, cc, opts...)
-	}
+	return grpc.NewClient(opts.Address, dialOptions...)
 }
 
 // OutboundOptions are the options for the outbound gRPC client.
@@ -124,29 +112,4 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 	}
 	cache.opts = opts
 	return cache.current, nil
-}
-
-// WaitForReady waits for the connection to be ready.
-func WaitForReady(ctx context.Context, cc *grpc.ClientConn, timeout time.Duration) error {
-	if cc.GetState() == connectivity.Ready {
-		return nil
-	}
-
-	ctx, clearTimeout := context.WithTimeout(ctx, timeout)
-	defer clearTimeout()
-
-	cc.Connect()
-	ticker := time.NewTicker(time.Millisecond * 50)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return context.Cause(ctx)
-		case <-ticker.C:
-		}
-
-		if cc.GetState() == connectivity.Ready {
-			return nil
-		}
-	}
 }
