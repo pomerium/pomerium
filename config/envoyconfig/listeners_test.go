@@ -4,21 +4,20 @@ import (
 	"bytes"
 	"context"
 	"embed"
-	"encoding/base64"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 	"text/template"
 
-	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/testutil"
-	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
 const (
@@ -74,6 +73,49 @@ func TestBuildListeners(t *testing.T) {
 		}
 		assert.False(t, hasGRPC, "expected grpc-ingress to be disabled when grpc address is set to the empty string")
 	})
+	t.Run("quic", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := cfg.Clone()
+		cfg.Options.CodecType = config.CodecTypeHTTP3
+		lis, err := b.BuildListeners(ctx, cfg, false)
+		assert.NoError(t, err)
+
+		var hasHTTPS, hasQUIC bool
+		for _, li := range lis {
+			switch li.GetName() {
+			case "https-ingress":
+				hasHTTPS = true
+				httpConfig := gjson.Get(protojson.Format(li), "filterChains.1.filters.0.typedConfig")
+				assert.Equal(t, "", httpConfig.Get("codecType").String())
+				assert.JSONEq(t, `{
+					"name": "envoy.filters.http.header_mutation",
+					"typedConfig": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.header_mutation.v3.HeaderMutation",
+						"mutations": {
+							"responseMutations": [{
+								"append": {
+									"header": {
+										"key": "alt-svc",
+										"value": "h3=\":443\"; ma=86400"
+									}
+								}
+							}]
+						}
+					}
+				}`, httpConfig.Get("httpFilters.6").String(),
+					"should add alt-svc header")
+			case "quic-ingress":
+				hasQUIC = true
+				httpConfig := gjson.Get(protojson.Format(li), "filterChains.0.filters.0.typedConfig")
+				assert.Equal(t, "HTTP3", httpConfig.Get("codecType").String())
+				assert.Equal(t, `{}`, httpConfig.Get("http3ProtocolOptions").String())
+			}
+		}
+
+		assert.True(t, hasHTTPS, "should have https-ingress listener")
+		assert.True(t, hasQUIC, "should have quic-ingress listener")
+	})
 }
 
 func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
@@ -105,475 +147,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	options.SkipXffAppend = true
 	options.XffNumTrustedHops = 1
 	options.AuthenticateURLString = "https://authenticate.example.com"
-	filter, err := b.buildMainHTTPConnectionManagerFilter(context.Background(), &config.Config{Options: options}, false)
+	filter, err := b.buildMainHTTPConnectionManagerFilter(context.Background(), &config.Config{Options: options}, false, false)
 	require.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, testData(t, "main_http_connection_manager_filter.json", nil), filter)
-}
-
-func Test_buildDownstreamTLSContext(t *testing.T) {
-	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
-
-	cacheDir, _ := os.UserCacheDir()
-	clientCAFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "client-ca-313754424855313435355a5348.pem")
-
-	t.Run("no-validation", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{}}, nil)
-		require.NoError(t, err)
-		testutil.AssertProtoJSONEqual(t, `{
-			"commonTlsContext": {
-				"tlsParams": {
-					"cipherSuites": [
-						"ECDHE-ECDSA-AES256-GCM-SHA384",
-						"ECDHE-RSA-AES256-GCM-SHA384",
-						"ECDHE-ECDSA-AES128-GCM-SHA256",
-						"ECDHE-RSA-AES128-GCM-SHA256",
-						"ECDHE-ECDSA-CHACHA20-POLY1305",
-						"ECDHE-RSA-CHACHA20-POLY1305"
-					],
-					"tlsMinimumProtocolVersion": "TLSv1_2",
-					"tlsMaximumProtocolVersion": "TLSv1_3"
-				},
-				"alpnProtocols": ["h2", "http/1.1"]
-			}
-		}`, downstreamTLSContext)
-	})
-	t.Run("client-ca", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
-			DownstreamMTLS: config.DownstreamMTLSSettings{
-				CA: "VEVTVAo=", // "TEST\n" (with a trailing newline)
-			},
-		}}, nil)
-		require.NoError(t, err)
-		testutil.AssertProtoJSONEqual(t, `{
-			"commonTlsContext": {
-				"tlsParams": {
-					"cipherSuites": [
-						"ECDHE-ECDSA-AES256-GCM-SHA384",
-						"ECDHE-RSA-AES256-GCM-SHA384",
-						"ECDHE-ECDSA-AES128-GCM-SHA256",
-						"ECDHE-RSA-AES128-GCM-SHA256",
-						"ECDHE-ECDSA-CHACHA20-POLY1305",
-						"ECDHE-RSA-CHACHA20-POLY1305"
-					],
-					"tlsMinimumProtocolVersion": "TLSv1_2",
-					"tlsMaximumProtocolVersion": "TLSv1_3"
-				},
-				"alpnProtocols": ["h2", "http/1.1"],
-				"validationContext": {
-					"maxVerifyDepth": 1,
-					"onlyVerifyLeafCertCrl": true,
-					"trustChainVerification": "ACCEPT_UNTRUSTED",
-					"trustedCa": {
-						"filename": "`+clientCAFileName+`"
-					}
-				}
-			}
-		}`, downstreamTLSContext)
-	})
-	t.Run("client-ca-strict", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
-			DownstreamMTLS: config.DownstreamMTLSSettings{
-				CA:          "VEVTVAo=", // "TEST\n" (with a trailing newline)
-				Enforcement: config.MTLSEnforcementRejectConnection,
-			},
-		}}, nil)
-		require.NoError(t, err)
-		testutil.AssertProtoJSONEqual(t, `{
-			"commonTlsContext": {
-				"tlsParams": {
-					"cipherSuites": [
-						"ECDHE-ECDSA-AES256-GCM-SHA384",
-						"ECDHE-RSA-AES256-GCM-SHA384",
-						"ECDHE-ECDSA-AES128-GCM-SHA256",
-						"ECDHE-RSA-AES128-GCM-SHA256",
-						"ECDHE-ECDSA-CHACHA20-POLY1305",
-						"ECDHE-RSA-CHACHA20-POLY1305"
-					],
-					"tlsMinimumProtocolVersion": "TLSv1_2",
-					"tlsMaximumProtocolVersion": "TLSv1_3"
-				},
-				"alpnProtocols": ["h2", "http/1.1"],
-				"validationContext": {
-					"maxVerifyDepth": 1,
-					"onlyVerifyLeafCertCrl": true,
-					"trustedCa": {
-						"filename": "`+clientCAFileName+`"
-					}
-				}
-			},
-			"requireClientCertificate": true
-		}`, downstreamTLSContext)
-	})
-	t.Run("policy-client-ca", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
-			Policies: []config.Policy{
-				{
-					From:                  "https://a.example.com:1234",
-					TLSDownstreamClientCA: "VEVTVA==", // "TEST" (no trailing newline)
-				},
-			},
-		}}, nil)
-		require.NoError(t, err)
-
-		testutil.AssertProtoJSONEqual(t, `{
-			"commonTlsContext": {
-				"tlsParams": {
-					"cipherSuites": [
-						"ECDHE-ECDSA-AES256-GCM-SHA384",
-						"ECDHE-RSA-AES256-GCM-SHA384",
-						"ECDHE-ECDSA-AES128-GCM-SHA256",
-						"ECDHE-RSA-AES128-GCM-SHA256",
-						"ECDHE-ECDSA-CHACHA20-POLY1305",
-						"ECDHE-RSA-CHACHA20-POLY1305"
-					],
-					"tlsMinimumProtocolVersion": "TLSv1_2",
-					"tlsMaximumProtocolVersion": "TLSv1_3"
-				},
-				"alpnProtocols": ["h2", "http/1.1"],
-				"validationContext": {
-					"maxVerifyDepth": 1,
-					"onlyVerifyLeafCertCrl": true,
-					"trustChainVerification": "ACCEPT_UNTRUSTED",
-					"trustedCa": {
-						"filename": "`+clientCAFileName+`"
-					}
-				}
-			}
-		}`, downstreamTLSContext)
-	})
-	t.Run("client-ca-max-verify-depth", func(t *testing.T) {
-		var maxVerifyDepth uint32
-		config := &config.Config{Options: &config.Options{
-			DownstreamMTLS: config.DownstreamMTLSSettings{
-				MaxVerifyDepth: &maxVerifyDepth,
-				CA:             "VEVTVAo=", // "TEST\n"
-			},
-		}}
-
-		maxVerifyDepth = 10
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
-		require.NoError(t, err)
-		testutil.AssertProtoJSONEqual(t, `{
-			"maxVerifyDepth": 10,
-			"onlyVerifyLeafCertCrl": true,
-			"trustChainVerification": "ACCEPT_UNTRUSTED",
-			"trustedCa": {
-				"filename": "`+clientCAFileName+`"
-			}
-		}`, downstreamTLSContext.GetCommonTlsContext().GetValidationContext())
-
-		maxVerifyDepth = 0
-		downstreamTLSContext, err = b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
-		require.NoError(t, err)
-		testutil.AssertProtoJSONEqual(t, `{
-			"onlyVerifyLeafCertCrl": true,
-			"trustChainVerification": "ACCEPT_UNTRUSTED",
-			"trustedCa": {
-				"filename": "`+clientCAFileName+`"
-			}
-		}`, downstreamTLSContext.GetCommonTlsContext().GetValidationContext())
-	})
-	t.Run("client-ca-san-matchers", func(t *testing.T) {
-		config := &config.Config{Options: &config.Options{
-			DownstreamMTLS: config.DownstreamMTLSSettings{
-				CA: "VEVTVAo=", // "TEST\n"
-				MatchSubjectAltNames: []config.SANMatcher{
-					{Type: config.SANTypeDNS, Pattern: `.*\.corp\.example\.com`},
-					{Type: config.SANTypeEmail, Pattern: `.*@example\.com`},
-					{Type: config.SANTypeIPAddress, Pattern: `10\.10\.42\..*`},
-					{Type: config.SANTypeURI, Pattern: `spiffe://example\.com/.*`},
-					{Type: config.SANTypeUserPrincipalName, Pattern: `^device-id$`},
-				},
-			},
-		}}
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), config, nil)
-		require.NoError(t, err)
-		testutil.AssertProtoJSONEqual(t, `{
-			"maxVerifyDepth": 1,
-			"matchTypedSubjectAltNames": [
-				{
-					"matcher": {
-						"safeRegex": {
-							"googleRe2": {},
-							"regex": ".*\\.corp\\.example\\.com"
-						}
-					},
-					"sanType": "DNS"
-				},
-				{
-					"matcher": {
-						"safeRegex": {
-							"googleRe2": {},
-							"regex": ".*@example\\.com"
-						}
-					},
-					"sanType": "EMAIL"
-				},
-				{
-					"matcher": {
-						"safeRegex": {
-							"googleRe2": {},
-							"regex": "10\\.10\\.42\\..*"
-						}
-					},
-					"sanType": "IP_ADDRESS"
-				},
-				{
-					"matcher": {
-						"safeRegex": {
-							"googleRe2": {},
-							"regex": "spiffe://example\\.com/.*"
-						}
-					},
-					"sanType": "URI"
-				},
-				{
-					"matcher": {
-						"safeRegex": {
-							"googleRe2": {},
-							"regex": "^device-id$"
-						}
-					},
-					"sanType": "OTHER_NAME",
-					"oid": "1.3.6.1.4.1.311.20.2.3"
-				}
-			],
-			"onlyVerifyLeafCertCrl": true,
-			"trustChainVerification": "ACCEPT_UNTRUSTED",
-			"trustedCa": {
-				"filename": "`+clientCAFileName+`"
-			}
-		}`, downstreamTLSContext.GetCommonTlsContext().GetValidationContext())
-	})
-	t.Run("http1", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
-			Cert:      aExampleComCert,
-			Key:       aExampleComKey,
-			CodecType: config.CodecTypeHTTP1,
-		}}, nil)
-		require.NoError(t, err)
-
-		testutil.AssertProtoJSONEqual(t, `{
-			"commonTlsContext": {
-				"tlsParams": {
-					"cipherSuites": [
-						"ECDHE-ECDSA-AES256-GCM-SHA384",
-						"ECDHE-RSA-AES256-GCM-SHA384",
-						"ECDHE-ECDSA-AES128-GCM-SHA256",
-						"ECDHE-RSA-AES128-GCM-SHA256",
-						"ECDHE-ECDSA-CHACHA20-POLY1305",
-						"ECDHE-RSA-CHACHA20-POLY1305"
-					],
-					"tlsMinimumProtocolVersion": "TLSv1_2",
-					"tlsMaximumProtocolVersion": "TLSv1_3"
-				},
-				"alpnProtocols": ["http/1.1"]
-			}
-		}`, downstreamTLSContext)
-	})
-	t.Run("http2", func(t *testing.T) {
-		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{
-			Cert:      aExampleComCert,
-			Key:       aExampleComKey,
-			CodecType: config.CodecTypeHTTP2,
-		}}, nil)
-		require.NoError(t, err)
-
-		testutil.AssertProtoJSONEqual(t, `{
-			"commonTlsContext": {
-				"tlsParams": {
-					"cipherSuites": [
-						"ECDHE-ECDSA-AES256-GCM-SHA384",
-						"ECDHE-RSA-AES256-GCM-SHA384",
-						"ECDHE-ECDSA-AES128-GCM-SHA256",
-						"ECDHE-RSA-AES128-GCM-SHA256",
-						"ECDHE-ECDSA-CHACHA20-POLY1305",
-						"ECDHE-RSA-CHACHA20-POLY1305"
-					],
-					"tlsMinimumProtocolVersion": "TLSv1_2",
-					"tlsMaximumProtocolVersion": "TLSv1_3"
-				},
-				"alpnProtocols": ["h2"]
-			}
-		}`, downstreamTLSContext)
-	})
-}
-
-func Test_clientCABundle(t *testing.T) {
-	// Make sure multiple bundled CAs are separated by newlines.
-	clientCA1 := []byte("client CA 1")
-	clientCA2 := []byte("client CA 2")
-	clientCA3 := []byte("client CA 3")
-
-	b64 := base64.StdEncoding.EncodeToString
-	cfg := &config.Config{Options: &config.Options{
-		DownstreamMTLS: config.DownstreamMTLSSettings{
-			CA: b64(clientCA3),
-		},
-		Policies: []config.Policy{
-			{
-				From:                  "https://foo.example.com",
-				TLSDownstreamClientCA: b64(clientCA2),
-			},
-			{
-				From:                  "https://bar.example.com",
-				TLSDownstreamClientCA: b64(clientCA1),
-			},
-		},
-	}}
-	expected := []byte("client CA 3\nclient CA 2\nclient CA 1\n")
-	actual := clientCABundle(context.Background(), cfg)
-	assert.Equal(t, expected, actual)
-}
-
-func Test_getAllDomains(t *testing.T) {
-	cert, err := cryptutil.GenerateCertificate(nil, "*.unknown.example.com")
-	require.NoError(t, err)
-	certPEM, keyPEM, err := cryptutil.EncodeCertificate(cert)
-	require.NoError(t, err)
-
-	options := &config.Options{
-		Addr:                          "127.0.0.1:9000",
-		GRPCAddr:                      "127.0.0.1:9001",
-		Services:                      "all",
-		AuthenticateURLString:         "https://authenticate.example.com",
-		AuthenticateInternalURLString: "https://authenticate.int.example.com",
-		AuthorizeURLString:            "https://authorize.example.com:9001",
-		DataBrokerURLString:           "https://cache.example.com:9001",
-		Policies: []config.Policy{
-			{From: "http://a.example.com"},
-			{From: "https://b.example.com"},
-			{From: "https://c.example.com"},
-			{From: "https://d.unknown.example.com"},
-		},
-		Cert: base64.StdEncoding.EncodeToString(certPEM),
-		Key:  base64.StdEncoding.EncodeToString(keyPEM),
-	}
-	t.Run("routable", func(t *testing.T) {
-		t.Run("http", func(t *testing.T) {
-			actual, err := getAllRouteableHosts(options, "127.0.0.1:9000")
-			require.NoError(t, err)
-			expect := []string{
-				"a.example.com",
-				"a.example.com:80",
-				"authenticate.example.com",
-				"authenticate.example.com:443",
-				"authenticate.int.example.com",
-				"authenticate.int.example.com:443",
-				"b.example.com",
-				"b.example.com:443",
-				"c.example.com",
-				"c.example.com:443",
-				"d.unknown.example.com",
-				"d.unknown.example.com:443",
-			}
-			assert.Equal(t, expect, actual)
-		})
-		t.Run("grpc", func(t *testing.T) {
-			actual, err := getAllRouteableHosts(options, "127.0.0.1:9001")
-			require.NoError(t, err)
-			expect := []string{
-				"authorize.example.com:9001",
-				"cache.example.com:9001",
-			}
-			assert.Equal(t, expect, actual)
-		})
-		t.Run("both", func(t *testing.T) {
-			newOptions := *options
-			newOptions.GRPCAddr = newOptions.Addr
-			actual, err := getAllRouteableHosts(&newOptions, "127.0.0.1:9000")
-			require.NoError(t, err)
-			expect := []string{
-				"a.example.com",
-				"a.example.com:80",
-				"authenticate.example.com",
-				"authenticate.example.com:443",
-				"authenticate.int.example.com",
-				"authenticate.int.example.com:443",
-				"authorize.example.com:9001",
-				"b.example.com",
-				"b.example.com:443",
-				"c.example.com",
-				"c.example.com:443",
-				"cache.example.com:9001",
-				"d.unknown.example.com",
-				"d.unknown.example.com:443",
-			}
-			assert.Equal(t, expect, actual)
-		})
-	})
-
-	t.Run("exclude default authenticate", func(t *testing.T) {
-		options := config.NewDefaultOptions()
-		options.Policies = []config.Policy{
-			{From: "https://a.example.com"},
-		}
-		actual, err := getAllRouteableHosts(options, ":443")
-		require.NoError(t, err)
-		assert.Equal(t, []string{"a.example.com"}, actual)
-	})
-}
-
-func Test_urlMatchesHost(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		name      string
-		sourceURL string
-		host      string
-		matches   bool
-	}{
-		{"no port", "http://example.com", "example.com", true},
-		{"host http port", "http://example.com", "example.com:80", true},
-		{"host https port", "https://example.com", "example.com:443", true},
-		{"with port", "https://example.com:443", "example.com:443", true},
-		{"url port", "https://example.com:443", "example.com", true},
-		{"non standard port", "http://example.com:81", "example.com", false},
-		{"non standard host port", "http://example.com:81", "example.com:80", false},
-	} {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			assert.Equal(t, tc.matches, urlMatchesHost(mustParseURL(t, tc.sourceURL), tc.host),
-				"urlMatchesHost(%s,%s)", tc.sourceURL, tc.host)
-		})
-	}
-}
-
-func Test_buildRouteConfiguration(t *testing.T) {
-	b := New("local-grpc", "local-http", "local-metrics", nil, nil)
-	virtualHosts := make([]*envoy_config_route_v3.VirtualHost, 10)
-	routeConfig, err := b.buildRouteConfiguration("test-route-configuration", virtualHosts)
-	require.NoError(t, err)
-	assert.Equal(t, "test-route-configuration", routeConfig.GetName())
-	assert.Equal(t, virtualHosts, routeConfig.GetVirtualHosts())
-	assert.False(t, routeConfig.GetValidateClusters().GetValue())
-}
-
-func Test_requireProxyProtocol(t *testing.T) {
-	b := New("local-grpc", "local-http", "local-metrics", nil, nil)
-	t.Run("required", func(t *testing.T) {
-		li, err := b.buildMainListener(context.Background(), &config.Config{Options: &config.Options{
-			UseProxyProtocol: true,
-			InsecureServer:   true,
-		}}, false)
-		require.NoError(t, err)
-		testutil.AssertProtoJSONEqual(t, `[
-			{
-				"name": "envoy.filters.listener.proxy_protocol",
-				"typedConfig": {
-					"@type": "type.googleapis.com/envoy.extensions.filters.listener.proxy_protocol.v3.ProxyProtocol"
-				}
-			}
-		]`, li.GetListenerFilters())
-	})
-	t.Run("not required", func(t *testing.T) {
-		li, err := b.buildMainListener(context.Background(), &config.Config{Options: &config.Options{
-			UseProxyProtocol: false,
-			InsecureServer:   true,
-		}}, false)
-		require.NoError(t, err)
-		assert.Len(t, li.GetListenerFilters(), 0)
-	})
 }

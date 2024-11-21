@@ -2,10 +2,12 @@ package envoyconfig
 
 import (
 	"context"
+	"encoding/base64"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/config"
@@ -158,4 +160,119 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 		]
 
 	}`, routeConfiguration)
+}
+
+func Test_getAllDomains(t *testing.T) {
+	cert, err := cryptutil.GenerateCertificate(nil, "*.unknown.example.com")
+	require.NoError(t, err)
+	certPEM, keyPEM, err := cryptutil.EncodeCertificate(cert)
+	require.NoError(t, err)
+
+	options := &config.Options{
+		Addr:                          "127.0.0.1:9000",
+		GRPCAddr:                      "127.0.0.1:9001",
+		Services:                      "all",
+		AuthenticateURLString:         "https://authenticate.example.com",
+		AuthenticateInternalURLString: "https://authenticate.int.example.com",
+		AuthorizeURLString:            "https://authorize.example.com:9001",
+		DataBrokerURLString:           "https://cache.example.com:9001",
+		Policies: []config.Policy{
+			{From: "http://a.example.com"},
+			{From: "https://b.example.com"},
+			{From: "https://c.example.com"},
+			{From: "https://d.unknown.example.com"},
+		},
+		Cert: base64.StdEncoding.EncodeToString(certPEM),
+		Key:  base64.StdEncoding.EncodeToString(keyPEM),
+	}
+	t.Run("routable", func(t *testing.T) {
+		t.Run("http", func(t *testing.T) {
+			actual, err := getAllRouteableHosts(options, "127.0.0.1:9000")
+			require.NoError(t, err)
+			expect := []string{
+				"a.example.com",
+				"a.example.com:80",
+				"authenticate.example.com",
+				"authenticate.example.com:443",
+				"authenticate.int.example.com",
+				"authenticate.int.example.com:443",
+				"b.example.com",
+				"b.example.com:443",
+				"c.example.com",
+				"c.example.com:443",
+				"d.unknown.example.com",
+				"d.unknown.example.com:443",
+			}
+			assert.Equal(t, expect, actual)
+		})
+		t.Run("grpc", func(t *testing.T) {
+			actual, err := getAllRouteableHosts(options, "127.0.0.1:9001")
+			require.NoError(t, err)
+			expect := []string{
+				"authorize.example.com:9001",
+				"cache.example.com:9001",
+			}
+			assert.Equal(t, expect, actual)
+		})
+		t.Run("both", func(t *testing.T) {
+			newOptions := *options
+			newOptions.GRPCAddr = newOptions.Addr
+			actual, err := getAllRouteableHosts(&newOptions, "127.0.0.1:9000")
+			require.NoError(t, err)
+			expect := []string{
+				"a.example.com",
+				"a.example.com:80",
+				"authenticate.example.com",
+				"authenticate.example.com:443",
+				"authenticate.int.example.com",
+				"authenticate.int.example.com:443",
+				"authorize.example.com:9001",
+				"b.example.com",
+				"b.example.com:443",
+				"c.example.com",
+				"c.example.com:443",
+				"cache.example.com:9001",
+				"d.unknown.example.com",
+				"d.unknown.example.com:443",
+			}
+			assert.Equal(t, expect, actual)
+		})
+	})
+
+	t.Run("exclude default authenticate", func(t *testing.T) {
+		options := config.NewDefaultOptions()
+		options.Policies = []config.Policy{
+			{From: "https://a.example.com"},
+		}
+		actual, err := getAllRouteableHosts(options, ":443")
+		require.NoError(t, err)
+		assert.Equal(t, []string{"a.example.com"}, actual)
+	})
+}
+
+func Test_urlMatchesHost(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		sourceURL string
+		host      string
+		matches   bool
+	}{
+		{"no port", "http://example.com", "example.com", true},
+		{"host http port", "http://example.com", "example.com:80", true},
+		{"host https port", "https://example.com", "example.com:443", true},
+		{"with port", "https://example.com:443", "example.com:443", true},
+		{"url port", "https://example.com:443", "example.com", true},
+		{"non standard port", "http://example.com:81", "example.com", false},
+		{"non standard host port", "http://example.com:81", "example.com:80", false},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.matches, urlMatchesHost(mustParseURL(t, tc.sourceURL), tc.host),
+				"urlMatchesHost(%s,%s)", tc.sourceURL, tc.host)
+		})
+	}
 }

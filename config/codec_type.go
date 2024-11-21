@@ -19,6 +19,7 @@ const (
 	CodecTypeAuto  CodecType = "auto"
 	CodecTypeHTTP1 CodecType = "http1"
 	CodecTypeHTTP2 CodecType = "http2"
+	CodecTypeHTTP3 CodecType = "http3"
 )
 
 // ParseCodecType parses the codec type.
@@ -30,6 +31,8 @@ func ParseCodecType(raw string) (CodecType, error) {
 		return CodecTypeHTTP1, nil
 	case CodecTypeHTTP2:
 		return CodecTypeHTTP2, nil
+	case CodecTypeHTTP3:
+		return CodecTypeHTTP3, nil
 	}
 	return CodecTypeAuto, fmt.Errorf("invalid codec type: %s", raw)
 }
@@ -41,6 +44,8 @@ func CodecTypeFromEnvoy(envoyCodecType envoy_http_connection_manager.HttpConnect
 		return CodecTypeHTTP1
 	case envoy_http_connection_manager.HttpConnectionManager_HTTP2:
 		return CodecTypeHTTP2
+	case envoy_http_connection_manager.HttpConnectionManager_HTTP3:
+		return CodecTypeHTTP3
 	}
 	return CodecTypeAuto
 }
@@ -52,6 +57,8 @@ func (codecType CodecType) ToEnvoy() envoy_http_connection_manager.HttpConnectio
 		return envoy_http_connection_manager.HttpConnectionManager_HTTP1
 	case CodecTypeHTTP2:
 		return envoy_http_connection_manager.HttpConnectionManager_HTTP2
+	case CodecTypeHTTP3:
+		return envoy_http_connection_manager.HttpConnectionManager_HTTP3
 	}
 	return envoy_http_connection_manager.HttpConnectionManager_AUTO
 }

@@ -4,9 +4,6 @@ package envoyconfig
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"net"
@@ -21,7 +18,6 @@ import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
-	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	"github.com/martinlindhe/base36"
 	"golang.org/x/net/nettest"
 	"google.golang.org/protobuf/proto"
@@ -119,7 +115,15 @@ func buildAccessLogs(options *config.Options) []*envoy_config_accesslog_v3.Acces
 	}}
 }
 
-func buildAddress(hostport string, defaultPort uint32) *envoy_config_core_v3.Address {
+func buildTCPAddress(hostport string, defaultPort uint32) *envoy_config_core_v3.Address {
+	return buildAddress(envoy_config_core_v3.SocketAddress_TCP, hostport, defaultPort)
+}
+
+func buildUDPAddress(hostport string, defaultPort uint32) *envoy_config_core_v3.Address {
+	return buildAddress(envoy_config_core_v3.SocketAddress_UDP, hostport, defaultPort)
+}
+
+func buildAddress(protocol envoy_config_core_v3.SocketAddress_Protocol, hostport string, defaultPort uint32) *envoy_config_core_v3.Address {
 	host, strport, err := net.SplitHostPort(hostport)
 	if err != nil {
 		host = hostport
@@ -144,44 +148,12 @@ func buildAddress(hostport string, defaultPort uint32) *envoy_config_core_v3.Add
 
 	return &envoy_config_core_v3.Address{
 		Address: &envoy_config_core_v3.Address_SocketAddress{SocketAddress: &envoy_config_core_v3.SocketAddress{
+			Protocol:      protocol,
 			Address:       host,
 			PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{PortValue: port},
 			Ipv4Compat:    host == "::" || is4in6,
 		}},
 	}
-}
-
-func (b *Builder) envoyTLSCertificateFromGoTLSCertificate(
-	ctx context.Context,
-	cert *tls.Certificate,
-) *envoy_extensions_transport_sockets_tls_v3.TlsCertificate {
-	envoyCert := &envoy_extensions_transport_sockets_tls_v3.TlsCertificate{}
-	var chain bytes.Buffer
-	for _, cbs := range cert.Certificate {
-		_ = pem.Encode(&chain, &pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: cbs,
-		})
-	}
-	envoyCert.CertificateChain = b.filemgr.BytesDataSource("tls-crt.pem", chain.Bytes())
-	if cert.OCSPStaple != nil {
-		envoyCert.OcspStaple = b.filemgr.BytesDataSource("ocsp-staple", cert.OCSPStaple)
-	}
-	if bs, err := x509.MarshalPKCS8PrivateKey(cert.PrivateKey); err == nil {
-		envoyCert.PrivateKey = b.filemgr.BytesDataSource("tls-key.pem", pem.EncodeToMemory(
-			&pem.Block{
-				Type:  "PRIVATE KEY",
-				Bytes: bs,
-			},
-		))
-	} else {
-		log.Ctx(ctx).Error().Err(err).Msg("failed to marshal private key for tls config")
-	}
-	for _, scts := range cert.SignedCertificateTimestamps {
-		envoyCert.SignedCertificateTimestamp = append(envoyCert.SignedCertificateTimestamp,
-			b.filemgr.BytesDataSource("signed-certificate-timestamp", scts))
-	}
-	return envoyCert
 }
 
 var rootCABundle struct {

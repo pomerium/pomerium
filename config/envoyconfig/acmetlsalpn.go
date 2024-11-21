@@ -32,7 +32,7 @@ func (b *Builder) buildACMETLSALPNCluster(
 				LbEndpoints: []*envoy_config_endpoint_v3.LbEndpoint{{
 					HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
 						Endpoint: &envoy_config_endpoint_v3.Endpoint{
-							Address: buildAddress("127.0.0.1", uint32(port)),
+							Address: buildTCPAddress("127.0.0.1", uint32(port)),
 						},
 					},
 				}},

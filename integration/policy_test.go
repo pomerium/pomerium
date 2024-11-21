@@ -37,7 +37,7 @@ func TestQueryStringParams(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res, err := getClient(t).Do(req)
+	res, err := getClient(t, false).Do(req)
 	if !assert.NoError(t, err, "unexpected http error") {
 		return
 	}
@@ -64,36 +64,40 @@ func TestCORS(t *testing.T) {
 	defer clearTimeout()
 
 	t.Run("enabled", func(t *testing.T) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodOptions, "https://httpdetails.localhost.pomerium.io/cors-enabled", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		req.Header.Set("Access-Control-Request-Method", http.MethodGet)
-		req.Header.Set("Origin", "https://httpdetails.localhost.pomerium.io")
+		testHTTPClient(t, func(t *testing.T, client *http.Client) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodOptions, "https://httpdetails.localhost.pomerium.io/cors-enabled", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("Access-Control-Request-Method", http.MethodGet)
+			req.Header.Set("Origin", "https://httpdetails.localhost.pomerium.io")
 
-		res, err := getClient(t).Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
+			res, err := client.Do(req)
+			if !assert.NoError(t, err, "unexpected http error") {
+				return
+			}
+			defer res.Body.Close()
 
-		assert.Equal(t, http.StatusOK, res.StatusCode, "unexpected status code")
+			assert.Equal(t, http.StatusOK, res.StatusCode, "unexpected status code")
+		})
 	})
 	t.Run("disabled", func(t *testing.T) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodOptions, "https://httpdetails.localhost.pomerium.io/cors-disabled", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		req.Header.Set("Access-Control-Request-Method", http.MethodGet)
-		req.Header.Set("Origin", "https://httpdetails.localhost.pomerium.io")
+		testHTTPClient(t, func(t *testing.T, client *http.Client) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodOptions, "https://httpdetails.localhost.pomerium.io/cors-disabled", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("Access-Control-Request-Method", http.MethodGet)
+			req.Header.Set("Origin", "https://httpdetails.localhost.pomerium.io")
 
-		res, err := getClient(t).Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
+			res, err := client.Do(req)
+			if !assert.NoError(t, err, "unexpected http error") {
+				return
+			}
+			defer res.Body.Close()
 
-		assert.NotEqual(t, http.StatusOK, res.StatusCode, "unexpected status code")
+			assert.NotEqual(t, http.StatusOK, res.StatusCode, "unexpected status code")
+		})
 	})
 }
 
@@ -103,54 +107,57 @@ func TestPreserveHostHeader(t *testing.T) {
 	defer clearTimeout()
 
 	t.Run("enabled", func(t *testing.T) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpdetails.localhost.pomerium.io/preserve-host-header-enabled", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		testHTTPClient(t, func(t *testing.T, client *http.Client) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpdetails.localhost.pomerium.io/preserve-host-header-enabled", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			res, err := client.Do(req)
+			if !assert.NoError(t, err, "unexpected http error") {
+				return
+			}
+			defer res.Body.Close()
 
-		res, err := getClient(t).Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
+			var result struct {
+				Headers struct {
+					Host string `json:"host"`
+				} `json:"headers"`
+			}
+			err = json.NewDecoder(res.Body).Decode(&result)
+			if !assert.NoError(t, err) {
+				return
+			}
 
-		var result struct {
-			Headers struct {
-				Host string `json:"host"`
-			} `json:"headers"`
-		}
-		err = json.NewDecoder(res.Body).Decode(&result)
-		if !assert.NoError(t, err) {
-			return
-		}
-
-		assert.Equal(t, "httpdetails.localhost.pomerium.io", result.Headers.Host,
-			"destination host should be preserved in %v", result)
+			assert.Equal(t, "httpdetails.localhost.pomerium.io", result.Headers.Host,
+				"destination host should be preserved in %v", result)
+		})
 	})
 	t.Run("disabled", func(t *testing.T) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpdetails.localhost.pomerium.io/preserve-host-header-disabled", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		testHTTPClient(t, func(t *testing.T, client *http.Client) {
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpdetails.localhost.pomerium.io/preserve-host-header-disabled", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		res, err := getClient(t).Do(req)
-		if !assert.NoError(t, err, "unexpected http error") {
-			return
-		}
-		defer res.Body.Close()
+			res, err := client.Do(req)
+			if !assert.NoError(t, err, "unexpected http error") {
+				return
+			}
+			defer res.Body.Close()
 
-		var result struct {
-			Headers struct {
-				Host string `json:"host"`
-			} `json:"headers"`
-		}
-		err = json.NewDecoder(res.Body).Decode(&result)
-		if !assert.NoError(t, err) {
-			return
-		}
+			var result struct {
+				Headers struct {
+					Host string `json:"host"`
+				} `json:"headers"`
+			}
+			err = json.NewDecoder(res.Body).Decode(&result)
+			if !assert.NoError(t, err) {
+				return
+			}
 
-		assert.NotEqual(t, "httpdetails.localhost.pomerium.io", result.Headers.Host,
-			"destination host should not be preserved in %v", result)
+			assert.NotEqual(t, "httpdetails.localhost.pomerium.io", result.Headers.Host,
+				"destination host should not be preserved in %v", result)
+		})
 	})
 }
 
@@ -159,27 +166,29 @@ func TestSetRequestHeaders(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpdetails.localhost.pomerium.io/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	testHTTPClient(t, func(t *testing.T, client *http.Client) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpdetails.localhost.pomerium.io/", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	res, err := getClient(t).Do(req)
-	if !assert.NoError(t, err, "unexpected http error") {
-		return
-	}
-	defer res.Body.Close()
+		res, err := client.Do(req)
+		if !assert.NoError(t, err, "unexpected http error") {
+			return
+		}
+		defer res.Body.Close()
 
-	var result struct {
-		Headers map[string]string `json:"headers"`
-	}
-	err = json.NewDecoder(res.Body).Decode(&result)
-	if !assert.NoError(t, err) {
-		return
-	}
+		var result struct {
+			Headers map[string]string `json:"headers"`
+		}
+		err = json.NewDecoder(res.Body).Decode(&result)
+		if !assert.NoError(t, err) {
+			return
+		}
 
-	assert.Equal(t, "custom-request-header-value", result.Headers["x-custom-request-header"],
-		"expected custom request header to be sent upstream")
+		assert.Equal(t, "custom-request-header-value", result.Headers["x-custom-request-header"],
+			"expected custom request header to be sent upstream")
+	})
 }
 
 func TestRemoveRequestHeaders(t *testing.T) {
@@ -187,28 +196,30 @@ func TestRemoveRequestHeaders(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpdetails.localhost.pomerium.io/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Add("X-Custom-Request-Header-To-Remove", "foo")
+	testHTTPClient(t, func(t *testing.T, client *http.Client) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://httpdetails.localhost.pomerium.io/", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Add("X-Custom-Request-Header-To-Remove", "foo")
 
-	res, err := getClient(t).Do(req)
-	if !assert.NoError(t, err, "unexpected http error") {
-		return
-	}
-	defer res.Body.Close()
+		res, err := client.Do(req)
+		if !assert.NoError(t, err, "unexpected http error") {
+			return
+		}
+		defer res.Body.Close()
 
-	var result struct {
-		Headers map[string]string `json:"headers"`
-	}
-	err = json.NewDecoder(res.Body).Decode(&result)
-	if !assert.NoError(t, err) {
-		return
-	}
+		var result struct {
+			Headers map[string]string `json:"headers"`
+		}
+		err = json.NewDecoder(res.Body).Decode(&result)
+		if !assert.NoError(t, err) {
+			return
+		}
 
-	_, exist := result.Headers["X-Custom-Request-Header-To-Remove"]
-	assert.False(t, exist, "expected X-Custom-Request-Header-To-Remove not to be present.")
+		_, exist := result.Headers["X-Custom-Request-Header-To-Remove"]
+		assert.False(t, exist, "expected X-Custom-Request-Header-To-Remove not to be present.")
+	})
 }
 
 func TestWebsocket(t *testing.T) {
@@ -251,28 +262,30 @@ func TestGoogleCloudRun(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(ctx, time.Second*30)
 	defer clearTimeout()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://cloudrun.localhost.pomerium.io/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	testHTTPClient(t, func(t *testing.T, client *http.Client) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://cloudrun.localhost.pomerium.io/", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	res, err := getClient(t).Do(req)
-	if !assert.NoError(t, err, "unexpected http error") {
-		return
-	}
-	defer res.Body.Close()
+		res, err := client.Do(req)
+		if !assert.NoError(t, err, "unexpected http error") {
+			return
+		}
+		defer res.Body.Close()
 
-	var result struct {
-		Headers map[string]string `json:"headers"`
-	}
-	err = json.NewDecoder(res.Body).Decode(&result)
-	if !assert.NoError(t, err) {
-		return
-	}
+		var result struct {
+			Headers map[string]string `json:"headers"`
+		}
+		err = json.NewDecoder(res.Body).Decode(&result)
+		if !assert.NoError(t, err) {
+			return
+		}
 
-	if result.Headers["x-idp"] == "google" {
-		assert.NotEmpty(t, result.Headers["authorization"], "expected authorization header when cloudrun is enabled")
-	}
+		if result.Headers["x-idp"] == "google" {
+			assert.NotEmpty(t, result.Headers["authorization"], "expected authorization header when cloudrun is enabled")
+		}
+	})
 }
 
 func TestLoadBalancer(t *testing.T) {
@@ -280,8 +293,9 @@ func TestLoadBalancer(t *testing.T) {
 	defer clearTimeout()
 
 	getDistribution := func(t *testing.T, path string) map[string]float64 {
-		client := getClient(t)
 		distribution := map[string]float64{}
+
+		client := getClient(t, false)
 
 		res, err := flows.Authenticate(ctx, client,
 			mustParseURL("https://httpdetails.localhost.pomerium.io/"+path),
@@ -355,7 +369,7 @@ func TestDownstreamClientCA(t *testing.T) {
 			"https://client-cert-required.localhost.pomerium.io/", nil)
 		require.NoError(t, err)
 
-		res, err := getClient(t).Do(req)
+		res, err := getClient(t, false).Do(req)
 		require.NoError(t, err)
 		res.Body.Close()
 		assert.Equal(t, httputil.StatusInvalidClientCertificate, res.StatusCode)
@@ -479,7 +493,7 @@ func TestMultipleDownstreamClientCAs(t *testing.T) {
 		assertOK(t, res, err, "/ca2")
 	})
 	t.Run("no cert", func(t *testing.T) {
-		client := getClient(t)
+		client := getClient(t, false)
 
 		// Without a client certificate, both paths should return an HTML error
 		// page (no login redirect).
@@ -505,55 +519,55 @@ func TestPomeriumJWT(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*30)
 	defer clearTimeout()
 
-	client := getClient(t)
+	testHTTPClient(t, func(t *testing.T, client *http.Client) {
+		// Obtain a Pomerium attestation JWT from the httpdetails service.
+		res, err := flows.Authenticate(ctx, client,
+			mustParseURL("https://restricted-httpdetails.localhost.pomerium.io/"),
+			flows.WithEmail("user1@dogs.test"))
+		require.NoError(t, err)
+		defer res.Body.Close()
 
-	// Obtain a Pomerium attestation JWT from the httpdetails service.
-	res, err := flows.Authenticate(ctx, client,
-		mustParseURL("https://restricted-httpdetails.localhost.pomerium.io/"),
-		flows.WithEmail("user1@dogs.test"))
-	require.NoError(t, err)
-	defer res.Body.Close()
+		var m map[string]any
+		err = json.NewDecoder(res.Body).Decode(&m)
+		require.NoError(t, err)
 
-	var m map[string]any
-	err = json.NewDecoder(res.Body).Decode(&m)
-	require.NoError(t, err)
+		headers, ok := m["headers"].(map[string]any)
+		require.True(t, ok)
+		headerJWT, ok := headers["x-pomerium-jwt-assertion"].(string)
+		require.True(t, ok)
 
-	headers, ok := m["headers"].(map[string]any)
-	require.True(t, ok)
-	headerJWT, ok := headers["x-pomerium-jwt-assertion"].(string)
-	require.True(t, ok)
+		// Manually decode the payload section of the JWT in order to verify the
+		// format of the iat and exp timestamps.
+		// (https://github.com/pomerium/pomerium/issues/4149)
+		p := rawJWTPayload(t, headerJWT)
+		digitsOnly := regexp.MustCompile(`^\d+$`)
+		assert.Regexp(t, digitsOnly, p["iat"])
+		assert.Regexp(t, digitsOnly, p["exp"])
 
-	// Manually decode the payload section of the JWT in order to verify the
-	// format of the iat and exp timestamps.
-	// (https://github.com/pomerium/pomerium/issues/4149)
-	p := rawJWTPayload(t, headerJWT)
-	digitsOnly := regexp.MustCompile(`^\d+$`)
-	assert.Regexp(t, digitsOnly, p["iat"])
-	assert.Regexp(t, digitsOnly, p["exp"])
+		// Also verify the issuer and audience claims.
+		assert.Equal(t, "restricted-httpdetails.localhost.pomerium.io", p["iss"])
+		assert.Equal(t, "restricted-httpdetails.localhost.pomerium.io", p["aud"])
 
-	// Also verify the issuer and audience claims.
-	assert.Equal(t, "restricted-httpdetails.localhost.pomerium.io", p["iss"])
-	assert.Equal(t, "restricted-httpdetails.localhost.pomerium.io", p["aud"])
+		// Obtain a Pomerium attestation JWT from the /.pomerium/jwt endpoint. The
+		// contents should be identical to the JWT header (except possibly the
+		// timestamps and the jtis). (https://github.com/pomerium/pomerium/issues/4210)
+		res, err = client.Get("https://restricted-httpdetails.localhost.pomerium.io/.pomerium/jwt")
+		require.NoError(t, err)
+		defer res.Body.Close()
+		spaJWT, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
 
-	// Obtain a Pomerium attestation JWT from the /.pomerium/jwt endpoint. The
-	// contents should be identical to the JWT header (except possibly the
-	// timestamps and the jtis). (https://github.com/pomerium/pomerium/issues/4210)
-	res, err = client.Get("https://restricted-httpdetails.localhost.pomerium.io/.pomerium/jwt")
-	require.NoError(t, err)
-	defer res.Body.Close()
-	spaJWT, err := io.ReadAll(res.Body)
-	require.NoError(t, err)
+		p2 := rawJWTPayload(t, string(spaJWT))
 
-	p2 := rawJWTPayload(t, string(spaJWT))
-
-	// Remove timestamps before comparing.
-	delete(p, "iat")
-	delete(p, "exp")
-	delete(p, "jti")
-	delete(p2, "iat")
-	delete(p2, "exp")
-	delete(p2, "jti")
-	assert.Equal(t, p, p2)
+		// Remove timestamps before comparing.
+		delete(p, "iat")
+		delete(p, "exp")
+		delete(p, "jti")
+		delete(p2, "iat")
+		delete(p2, "exp")
+		delete(p2, "jti")
+		assert.Equal(t, p, p2)
+	})
 }
 
 func rawJWTPayload(t *testing.T, jwt string) map[string]any {
@@ -571,18 +585,19 @@ func rawJWTPayload(t *testing.T, jwt string) map[string]any {
 }
 
 func TestUpstreamViaIPAddress(t *testing.T) {
-	// Verify that we can make a successful request to a route with a 'to' URL
-	// that uses https with an IP address.
-	client := getClient(t)
-	res, err := client.Get("https://httpdetails-ip-address.localhost.pomerium.io/")
-	require.NoError(t, err, "unexpected http error")
-	defer res.Body.Close()
+	testHTTPClient(t, func(t *testing.T, client *http.Client) {
+		// Verify that we can make a successful request to a route with a 'to' URL
+		// that uses https with an IP address.
+		res, err := client.Get("https://httpdetails-ip-address.localhost.pomerium.io/")
+		require.NoError(t, err, "unexpected http error")
+		defer res.Body.Close()
 
-	var result struct {
-		Headers  map[string]string `json:"headers"`
-		Protocol string            `json:"protocol"`
-	}
-	err = json.NewDecoder(res.Body).Decode(&result)
-	require.NoError(t, err)
-	assert.Equal(t, "https", result.Protocol)
+		var result struct {
+			Headers  map[string]string `json:"headers"`
+			Protocol string            `json:"protocol"`
+		}
+		err = json.NewDecoder(res.Body).Decode(&result)
+		require.NoError(t, err)
+		assert.Equal(t, "https", result.Protocol)
+	})
 }
