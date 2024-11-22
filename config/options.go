@@ -36,7 +36,6 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/config"
-	"github.com/pomerium/pomerium/pkg/grpc/crypt"
 	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	"github.com/pomerium/pomerium/pkg/identity/oauth/apple"
@@ -286,8 +285,6 @@ type Options struct {
 
 	// CodecType is the codec to use for downstream connections.
 	CodecType CodecType `mapstructure:"codec_type" yaml:"codec_type"`
-
-	AuditKey *PublicKeyEncryptionKeyOptions `mapstructure:"audit_key"`
 
 	BrandingOptions httputil.BrandingOptions
 
@@ -1551,7 +1548,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.EnvoyBindConfigSourceAddress, settings.EnvoyBindConfigSourceAddress)
 	o.EnvoyBindConfigFreebind = null.BoolFromPtr(settings.EnvoyBindConfigFreebind)
 	setSlice(&o.ProgrammaticRedirectDomainWhitelist, settings.ProgrammaticRedirectDomainWhitelist)
-	setAuditKey(&o.AuditKey, settings.AuditKey)
 	setCodecType(&o.CodecType, settings.CodecType)
 	setOptional(&o.PassIdentityHeaders, settings.PassIdentityHeaders)
 	o.BrandingOptions = settings
@@ -1639,7 +1635,6 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.EnvoyBindConfigSourceAddress, &o.EnvoyBindConfigSourceAddress)
 	settings.EnvoyBindConfigFreebind = o.EnvoyBindConfigFreebind.Ptr()
 	settings.ProgrammaticRedirectDomainWhitelist = o.ProgrammaticRedirectDomainWhitelist
-	settings.AuditKey = o.AuditKey.ToProto()
 	if o.CodecType != "" {
 		codecType := o.CodecType.ToEnvoy()
 		settings.CodecType = &codecType
@@ -1873,16 +1868,6 @@ func setAuthorizeLogFields(dst *[]log.AuthorizeLogField, src *config.Settings_St
 	*dst = make([]log.AuthorizeLogField, len(src.Values))
 	for i, v := range src.Values {
 		(*dst)[i] = log.AuthorizeLogField(v)
-	}
-}
-
-func setAuditKey(dst **PublicKeyEncryptionKeyOptions, src *crypt.PublicKeyEncryptionKey) {
-	if src == nil {
-		return
-	}
-	*dst = &PublicKeyEncryptionKeyOptions{
-		ID:   src.GetId(),
-		Data: base64.StdEncoding.EncodeToString(src.GetData()),
 	}
 }
 

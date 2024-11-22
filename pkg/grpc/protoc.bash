@@ -75,7 +75,6 @@ done
 _sub_directories=(
   audit
   cli
-  crypt
   config
   databroker
   device
