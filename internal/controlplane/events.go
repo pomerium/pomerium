@@ -80,7 +80,6 @@ func (srv *Server) getDataBrokerClient(ctx context.Context) (databrokerpb.DataBr
 	if err != nil {
 		return nil, fmt.Errorf("controlplane: error creating databroker connection: %w", err)
 	}
-	_ = grpc.WaitForReady(ctx, cc, time.Second*10)
 	client := databrokerpb.NewDataBrokerServiceClient(cc)
 	return client, nil
 }

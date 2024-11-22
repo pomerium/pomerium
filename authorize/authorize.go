@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
@@ -20,7 +19,6 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
-	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -64,16 +62,8 @@ func (a *Authorize) GetDataBrokerServiceClient() databroker.DataBrokerServiceCli
 
 // Run runs the authorize service.
 func (a *Authorize) Run(ctx context.Context) error {
-	eg, ctx := errgroup.WithContext(ctx)
-	eg.Go(func() error {
-		a.accessTracker.Run(ctx)
-		return nil
-	})
-	eg.Go(func() error {
-		_ = grpc.WaitForReady(ctx, a.state.Load().dataBrokerClientConnection, time.Second*10)
-		return nil
-	})
-	return eg.Wait()
+	a.accessTracker.Run(ctx)
+	return nil
 }
 
 func validateOptions(o *config.Options) error {
