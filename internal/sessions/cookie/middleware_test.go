@@ -61,7 +61,7 @@ func TestVerifier(t *testing.T) {
 				encSession = append(encSession, cryptutil.NewKey()...)
 			}
 
-			cs, err := NewStore(func() Options {
+			cs, err := NewStore(func(_ *http.Request) Options {
 				return Options{
 					Name: "_pomerium",
 				}

@@ -39,10 +39,17 @@ func NewSessionStore(options *Options) (*SessionStore, error) {
 		return nil, fmt.Errorf("config/sessions: invalid session encoder: %w", err)
 	}
 
-	store.store, err = cookie.NewStore(func() cookie.Options {
+	store.store, err = cookie.NewStore(func(r *http.Request) cookie.Options {
+		domain := options.CookieDomain
+		for p := range options.GetAllPolicies() {
+			if p.CookieDomain != "" && p.Matches(r.URL, false) {
+				domain = p.CookieDomain
+			}
+		}
+
 		return cookie.Options{
 			Name:     options.CookieName,
-			Domain:   options.CookieDomain,
+			Domain:   domain,
 			Secure:   true,
 			HTTPOnly: options.CookieHTTPOnly,
 			Expire:   options.CookieExpire,
