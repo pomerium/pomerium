@@ -8,8 +8,6 @@ import "google/protobuf/struct.proto";
 import "envoy/config/cluster/v3/cluster.proto";
 import "envoy/extensions/filters/network/http_connection_manager/v3/http_connection_manager.proto";
 
-import "crypt/crypt.proto";
-
 message Config {
   string name = 1;
   repeated Route routes = 2;
@@ -245,7 +243,7 @@ message Settings {
   repeated string programmatic_redirect_domain_whitelist = 68;
   optional envoy.extensions.filters.network.http_connection_manager.v3
       .HttpConnectionManager.CodecType codec_type = 73;
-  optional pomerium.crypt.PublicKeyEncryptionKey audit_key = 72;
+  // optional pomerium.crypt.PublicKeyEncryptionKey audit_key = 72;
   optional string primary_color = 85;
   optional string secondary_color = 86;
   optional string darkmode_primary_color = 87;

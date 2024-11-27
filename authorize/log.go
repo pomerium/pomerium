@@ -11,7 +11,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	"github.com/pomerium/pomerium/pkg/grpc/audit"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -22,7 +21,7 @@ import (
 
 func (a *Authorize) logAuthorizeCheck(
 	ctx context.Context,
-	in *envoy_service_auth_v3.CheckRequest, out *envoy_service_auth_v3.CheckResponse,
+	in *envoy_service_auth_v3.CheckRequest,
 	res *evaluator.Result, s sessionOrServiceAccount, u *user.User,
 ) {
 	ctx, span := trace.StartSpan(ctx, "authorize.grpc.LogAuthorizeCheck")
@@ -55,25 +54,6 @@ func (a *Authorize) logAuthorizeCheck(
 	}
 
 	evt.Msg("authorize check")
-
-	if enc := a.state.Load().auditEncryptor; enc != nil {
-		ctx, span := trace.StartSpan(ctx, "authorize.grpc.AuditAuthorizeCheck")
-		defer span.End()
-
-		record := &audit.Record{
-			Request:  in,
-			Response: out,
-		}
-		sealed, err := enc.Encrypt(record)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("authorize: error encrypting audit record")
-			return
-		}
-		log.Ctx(ctx).Info().
-			Str("request-id", requestid.FromContext(ctx)).
-			EmbedObject(sealed).
-			Msg("audit log")
-	}
 }
 
 type impersonateDetails struct {

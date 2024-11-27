@@ -93,7 +93,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("grpc check ext_authz_error")
 	}
-	a.logAuthorizeCheck(ctx, in, resp, res, s, u)
+	a.logAuthorizeCheck(ctx, in, res, s, u)
 	return resp, err
 }
 
