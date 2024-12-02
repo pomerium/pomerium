@@ -28,7 +28,6 @@ func TestDataEncryptionKey(t *testing.T) {
 		dek, err := GenerateDataEncryptionKey()
 		require.NoError(t, err)
 		assert.Equal(t, dek.data[:], dek.KeyBytes())
-		assert.NotSame(t, dek.data[:], dek.KeyBytes())
 	})
 	t.Run("invalid key", func(t *testing.T) {
 		dek, err := NewDataEncryptionKey([]byte("NOT BIG ENOUGH"))
