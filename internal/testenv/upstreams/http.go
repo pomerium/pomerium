@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httptrace"
 	"net/url"
 	"strconv"
 	"strings"
@@ -22,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/retry"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -33,6 +35,7 @@ type RequestOptions struct {
 	body           any
 	clientCerts    []tls.Certificate
 	client         *http.Client
+	trace          *httptrace.ClientTrace
 }
 
 type RequestOption func(*RequestOptions)
@@ -74,6 +77,12 @@ func AuthenticateAs(email string) RequestOption {
 func Client(c *http.Client) RequestOption {
 	return func(o *RequestOptions) {
 		o.client = c
+	}
+}
+
+func WithClientTrace(ct *httptrace.ClientTrace) RequestOption {
+	return func(o *RequestOptions) {
+		o.trace = ct
 	}
 }
 
@@ -220,7 +229,11 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 			RawQuery: options.query.Encode(),
 		})
 	}
-	req, err := http.NewRequest(method, u.String(), nil)
+	ctx := h.Env().Context()
+	if options.trace != nil {
+		ctx = httptrace.WithClientTrace(ctx, options.trace)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -249,13 +262,14 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 	}
 
 	newClient := func() *http.Client {
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		transport.TLSClientConfig = &tls.Config{
+			RootCAs:      h.Env().ServerCAs(),
+			Certificates: options.clientCerts,
+		}
+		transport.DialTLSContext = nil
 		c := http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					RootCAs:      h.Env().ServerCAs(),
-					Certificates: options.clientCerts,
-				},
-			},
+			Transport: requestid.NewRoundTripper(transport),
 		}
 		c.Jar, _ = cookiejar.New(&cookiejar.Options{})
 		return &c
@@ -273,7 +287,7 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 	}
 
 	var resp *http.Response
-	if err := retry.Retry(h.Env().Context(), "http", func(ctx context.Context) error {
+	if err := retry.Retry(ctx, "http", func(ctx context.Context) error {
 		var err error
 		if options.authenticateAs != "" {
 			resp, err = authenticateFlow(ctx, client, req, options.authenticateAs) //nolint:bodyclose
