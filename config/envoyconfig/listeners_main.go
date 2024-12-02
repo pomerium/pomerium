@@ -212,7 +212,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 
 	if useQUIC {
 		mgr.CodecType = envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_HTTP3
-		mgr.Http3ProtocolOptions = &envoy_config_core_v3.Http3ProtocolOptions{}
+		mgr.Http3ProtocolOptions = http3ProtocolOptions
 	} else if cfg.Options.GetCodecType() == config.CodecTypeHTTP3 {
 		mgr.CodecType = envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_AUTO
 	} else {

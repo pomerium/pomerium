@@ -67,6 +67,10 @@ func WithKeepalive(src *envoy_config_core_v3.Http2ProtocolOptions) *envoy_config
 	return dst
 }
 
+var http3ProtocolOptions = &envoy_config_core_v3.Http3ProtocolOptions{
+	AllowExtendedConnect: true,
+}
+
 func buildTypedExtensionProtocolOptions(
 	endpoints []Endpoint,
 	upstreamProtocol upstreamProtocolConfig,
