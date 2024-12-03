@@ -215,6 +215,11 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		mgr.Http3ProtocolOptions = http3ProtocolOptions
 	} else if cfg.Options.GetCodecType() == config.CodecTypeHTTP3 {
 		mgr.CodecType = envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_AUTO
+	} else if cfg.Options.GetCodecType() == config.CodecTypeAuto || cfg.Options.GetCodecType() == config.CodecTypeHTTP2 {
+		mgr.CodecType = cfg.Options.GetCodecType().ToEnvoy()
+		mgr.Http2ProtocolOptions = &envoy_config_core_v3.Http2ProtocolOptions{
+			AllowConnect: true,
+		}
 	} else {
 		mgr.CodecType = cfg.Options.GetCodecType().ToEnvoy()
 	}
