@@ -13,6 +13,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"math/big"
@@ -33,8 +34,10 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/testenv/envutil"
 	"github.com/pomerium/pomerium/internal/testenv/values"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
+	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/netutil"
@@ -248,11 +251,21 @@ func Silent(silent ...bool) EnvironmentOption {
 
 var setGrpcLoggerOnce sync.Once
 
+var (
+	flagDebug          = flag.Bool("env.debug", false, "enables test environment debug logging (equivalent to Debug() option)")
+	flagPauseOnFailure = flag.Bool("env.pause-on-failure", false, "enables pausing the test environment on failure (equivalent to PauseOnFailure() option)")
+	flagSilent         = flag.Bool("env.silent", false, "suppresses all test environment output (equivalent to Silent() option)")
+)
+
 func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	if runtime.GOOS != "linux" {
 		t.Skip("test environment only supported on linux")
 	}
-	options := EnvironmentOptions{}
+	options := EnvironmentOptions{
+		debug:          *flagDebug,
+		pauseOnFailure: *flagPauseOnFailure,
+		forceSilent:    *flagSilent,
+	}
 	options.apply(opts...)
 	if testing.Short() {
 		t.Helper()
@@ -348,6 +361,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 }
 
 func (e *environment) debugf(format string, args ...any) {
+	e.t.Helper()
 	if !e.debug {
 		return
 	}
@@ -509,7 +523,49 @@ func (e *environment) Start() {
 			mod.Value.Modify(cfg)
 			require.NoError(e.t, cfg.Options.Validate(), "invoking modifier resulted in an invalid configuration:\nadded by: "+mod.Caller)
 		}
-		return pomerium.Run(ctx, e.src, pomerium.WithOverrideFileManager(fileMgr))
+
+		opts := []pomerium.RunOption{
+			pomerium.WithOverrideFileManager(fileMgr),
+		}
+		envoyBinaryPath := filepath.Join(e.workspaceFolder, fmt.Sprintf("pkg/envoy/files/envoy-%s-%s", runtime.GOOS, runtime.GOARCH))
+		if envutil.EnvoyProfilerAvailable(envoyBinaryPath) {
+			e.debugf("envoy profiling available")
+			envVars := []string{}
+			pprofCmdLog := "=> go run github.com/google/pprof@latest -symbolize=local -ignore='TCMalloc|^tcmalloc::|^msync$|stacktrace_generic_fp' -http=: %s %s"
+			if path := envutil.ProfileOutputPath("cpuprofile"); path != "" {
+				dir, base := filepath.Split(path)
+				path = filepath.Join(dir, "envoy_"+base)
+				envVars = append(envVars, fmt.Sprintf("CPUPROFILE=%s", path))
+				e.t.Cleanup(func() {
+					e.debugf("View envoy cpu profile:")
+					e.debugf(pprofCmdLog, envoyBinaryPath, path)
+				})
+			}
+			if path := envutil.ProfileOutputPath("memprofile"); path != "" {
+				dir, base := filepath.Split(path)
+				path = filepath.Join(dir, "envoy_"+base)
+				envVars = append(envVars, fmt.Sprintf("HEAPPROFILE=%s", path))
+				e.t.Cleanup(func() {
+					if err := envutil.CollectEnvoyHeapProfiles(path); err != nil {
+						e.t.Logf("error collecting envoy heap profiles: %s", err)
+					}
+					e.debugf("View envoy heap profile:")
+					envoyBinaryPath := filepath.Join(e.workspaceFolder, fmt.Sprintf("pkg/envoy/files/envoy-%s-%s", runtime.GOOS, runtime.GOARCH))
+					e.debugf(pprofCmdLog, envoyBinaryPath, path)
+				})
+			}
+			if len(envVars) > 0 {
+				e.debugf("adding envoy env vars: %v\n", envVars)
+				opts = append(opts, pomerium.WithEnvoyServerOptions(
+					envoy.WithExtraEnvVars(envVars...),
+					envoy.WithExitGracePeriod(10*time.Second), // allow envoy time to flush pprof data to disk
+				))
+			}
+		} else {
+			e.debugf("envoy profiling not available")
+		}
+
+		return pomerium.Run(ctx, e.src, opts...)
 	}))
 
 	for i, task := range e.tasks {
