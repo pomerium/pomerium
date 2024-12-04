@@ -109,7 +109,9 @@ func TestBuildListeners(t *testing.T) {
 				hasQUIC = true
 				httpConfig := gjson.Get(protojson.Format(li), "filterChains.0.filters.0.typedConfig")
 				assert.Equal(t, "HTTP3", httpConfig.Get("codecType").String())
-				assert.Equal(t, `{}`, httpConfig.Get("http3ProtocolOptions").String())
+				assert.JSONEq(t, `{
+					"allowExtendedConnect": true
+				}`, httpConfig.Get("http3ProtocolOptions").String())
 			}
 		}
 
