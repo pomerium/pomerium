@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/open-policy-agent/opa/rego"
-	octrace "go.opencensus.io/trace"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
@@ -209,9 +209,9 @@ func (e *PolicyEvaluator) Evaluate(ctx context.Context, req *PolicyRequest) (*Po
 }
 
 func (e *PolicyEvaluator) evaluateQuery(ctx context.Context, req *PolicyRequest, query policyQuery) (*PolicyResponse, error) {
-	ctx, span := trace.StartSpan(ctx, "authorize.PolicyEvaluator.evaluateQuery")
+	ctx, span := trace.Continue(ctx, "authorize.PolicyEvaluator.evaluateQuery")
 	defer span.End()
-	span.AddAttributes(octrace.StringAttribute("script_checksum", query.checksum()))
+	span.SetAttributes(attribute.String("script_checksum", query.checksum()))
 
 	rs, err := safeEval(ctx, query.PreparedEvalQuery,
 		rego.EvalInput(req),

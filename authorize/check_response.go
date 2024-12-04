@@ -73,7 +73,8 @@ func (a *Authorize) handleResultAllowed(
 	_ *envoy_service_auth_v3.CheckRequest,
 	result *evaluator.Result,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
-	return a.okResponse(result.Headers), nil
+	resp := a.okResponse(result.Headers)
+	return resp, nil
 }
 
 func (a *Authorize) handleResultDenied(
@@ -253,16 +254,24 @@ func (a *Authorize) requireLoginResponse(
 	// always assume https scheme
 	checkRequestURL := getCheckRequestURL(in)
 	checkRequestURL.Scheme = "https"
+	var signInUrlQuery url.Values
 
+	headers := map[string]string{}
+	if id := in.GetAttributes().GetRequest().GetHttp().GetHeaders()["traceparent"]; id != "" {
+		headers["X-Pomerium-Traceparent"] = id
+		headers["X-Pomerium-Tracestate"] = "pomerium.traceparent=" + id // TODO: this might not be necessary anymore
+		signInUrlQuery = url.Values{}
+		signInUrlQuery.Add("pomerium_traceparent", id)
+		signInUrlQuery.Add("pomerium_tracestate", "pomerium.traceparent="+id)
+	}
 	redirectTo, err := state.authenticateFlow.AuthenticateSignInURL(
-		ctx, nil, &checkRequestURL, idp.GetId())
+		ctx, signInUrlQuery, &checkRequestURL, idp.GetId())
 	if err != nil {
 		return nil, err
 	}
+	headers["Location"] = redirectTo
 
-	return a.deniedResponse(ctx, in, http.StatusFound, "Login", map[string]string{
-		"Location": redirectTo,
-	})
+	return a.deniedResponse(ctx, in, http.StatusFound, "Login", headers)
 }
 
 func (a *Authorize) requireWebAuthnResponse(

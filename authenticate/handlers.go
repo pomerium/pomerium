@@ -21,7 +21,6 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/identity"
@@ -114,7 +113,7 @@ func (a *Authenticate) RetrieveSession(next http.Handler) http.Handler {
 // session state is attached to the users's request context.
 func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		ctx, span := trace.StartSpan(r.Context(), "authenticate.VerifySession")
+		ctx, span := a.tracer.Start(r.Context(), "authenticate.VerifySession")
 		defer span.End()
 
 		state := a.state.Load()
@@ -160,7 +159,7 @@ func (a *Authenticate) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 
 // SignIn handles authenticating a user.
 func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
-	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignIn")
+	ctx, span := a.tracer.Start(r.Context(), "authenticate.SignIn")
 	defer span.End()
 
 	state := a.state.Load()
@@ -197,13 +196,13 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) error {
-	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignOut")
+	ctx, span := a.tracer.Start(r.Context(), "authenticate.SignOut")
 	defer span.End()
 
 	options := a.options.Load()
 	idpID := a.getIdentityProviderIDForRequest(r)
 
-	authenticator, err := a.cfg.getIdentityProvider(options, idpID)
+	authenticator, err := a.cfg.getIdentityProvider(ctx, a.tracerProvider, options, idpID)
 	if err != nil {
 		return err
 	}
@@ -274,7 +273,7 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 	options := a.options.Load()
 	idpID := a.getIdentityProviderIDForRequest(r)
 
-	authenticator, err := a.cfg.getIdentityProvider(options, idpID)
+	authenticator, err := a.cfg.getIdentityProvider(r.Context(), a.tracerProvider, options, idpID)
 	if err != nil {
 		return err
 	}
@@ -307,6 +306,10 @@ func (a *Authenticate) OAuthCallback(w http.ResponseWriter, r *http.Request) err
 	if err != nil {
 		return fmt.Errorf("authenticate.OAuthCallback: %w", err)
 	}
+	q := redirect.Query()
+	if traceparent := q.Get(urlutil.QueryTraceparent); traceparent != "" {
+		w.Header().Set("X-Pomerium-Traceparent", traceparent)
+	}
 	httputil.Redirect(w, r, redirect.String(), http.StatusFound)
 	return nil
 }
@@ -321,7 +324,7 @@ func (a *Authenticate) statusForErrorCode(errorCode string) int {
 }
 
 func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) (*url.URL, error) {
-	ctx, span := trace.StartSpan(r.Context(), "authenticate.getOAuthCallback")
+	ctx, span := a.tracer.Start(r.Context(), "authenticate.getOAuthCallback")
 	defer span.End()
 
 	state := a.state.Load()
@@ -380,7 +383,7 @@ Or contact your administrator.
 
 	idpID := state.flow.GetIdentityProviderIDForURLValues(redirectURL.Query())
 
-	authenticator, err := a.cfg.getIdentityProvider(options, idpID)
+	authenticator, err := a.cfg.getIdentityProvider(ctx, a.tracerProvider, options, idpID)
 	if err != nil {
 		return nil, err
 	}
@@ -432,7 +435,7 @@ func (a *Authenticate) getSessionFromCtx(ctx context.Context) (*sessions.State, 
 }
 
 func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
-	ctx, span := trace.StartSpan(r.Context(), "authenticate.userInfo")
+	ctx, span := a.tracer.Start(r.Context(), "authenticate.userInfo")
 	defer span.End()
 
 	options := a.options.Load()
@@ -484,7 +487,7 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 
 	idpID := r.FormValue(urlutil.QueryIdentityProviderID)
 
-	authenticator, err := a.cfg.getIdentityProvider(options, idpID)
+	authenticator, err := a.cfg.getIdentityProvider(ctx, a.tracerProvider, options, idpID)
 	if err != nil {
 		return ""
 	}

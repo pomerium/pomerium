@@ -16,6 +16,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/oauth2"
@@ -225,7 +226,7 @@ func TestAuthenticate_SignOut(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			a := &Authenticate{
-				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ *config.Options, _ string) (identity.Authenticator, error) {
+				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{
@@ -280,7 +281,7 @@ func TestAuthenticate_SignOutDoesNotRequireSession(t *testing.T) {
 
 	sessionStore := &mstore.Store{LoadError: errors.New("no session")}
 	a := &Authenticate{
-		cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ *config.Options, _ string) (identity.Authenticator, error) {
+		cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
 			return identity.MockProvider{}, nil
 		})),
 		state: atomicutil.NewValue(&authenticateState{
@@ -355,7 +356,7 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			}
 			authURL, _ := url.Parse(tt.authenticateURL)
 			a := &Authenticate{
-				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ *config.Options, _ string) (identity.Authenticator, error) {
+				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{
@@ -467,7 +468,7 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 				t.Fatal(err)
 			}
 			a := &Authenticate{
-				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ *config.Options, _ string) (identity.Authenticator, error) {
+				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
 					return tt.provider, nil
 				})),
 				state: atomicutil.NewValue(&authenticateState{

@@ -7,8 +7,12 @@ import (
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	tracev3 "github.com/envoyproxy/go-control-plane/envoy/config/trace/v3"
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
+	envoy_extensions_filters_http_header_to_metadata "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/header_to_metadata/v3"
 	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	metadatav3 "github.com/envoyproxy/go-control-plane/envoy/type/metadata/v3"
+	envoy_tracing_v3 "github.com/envoyproxy/go-control-plane/envoy/type/tracing/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -119,6 +123,50 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	}
 
 	filters := []*envoy_extensions_filters_network_http_connection_manager.HttpFilter{
+		LuaFilter(luascripts.TraceContext),
+		{
+			Name: "envoy.filters.http.header_to_metadata",
+			ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
+				TypedConfig: marshalAny(&envoy_extensions_filters_http_header_to_metadata.Config{
+					RequestRules: []*envoy_extensions_filters_http_header_to_metadata.Config_Rule{
+						{
+							Header: "x-pomerium-traceparent",
+							OnHeaderPresent: &envoy_extensions_filters_http_header_to_metadata.Config_KeyValuePair{
+								MetadataNamespace: "pomerium.internal",
+								Key:               "traceparent",
+							},
+							Remove: false,
+						},
+						{
+							Header: "x-pomerium-tracestate",
+							OnHeaderPresent: &envoy_extensions_filters_http_header_to_metadata.Config_KeyValuePair{
+								MetadataNamespace: "pomerium.internal",
+								Key:               "tracestate",
+							},
+							Remove: false,
+						},
+					},
+					ResponseRules: []*envoy_extensions_filters_http_header_to_metadata.Config_Rule{
+						{
+							Header: "x-pomerium-traceparent",
+							OnHeaderPresent: &envoy_extensions_filters_http_header_to_metadata.Config_KeyValuePair{
+								MetadataNamespace: "pomerium.internal",
+								Key:               "traceparent",
+							},
+							Remove: false,
+						},
+						{
+							Header: "x-pomerium-tracestate",
+							OnHeaderPresent: &envoy_extensions_filters_http_header_to_metadata.Config_KeyValuePair{
+								MetadataNamespace: "pomerium.internal",
+								Key:               "tracestate",
+							},
+							Remove: false,
+						},
+					},
+				}),
+			},
+		},
 		LuaFilter(luascripts.RemoveImpersonateHeaders),
 		LuaFilter(luascripts.SetClientCertificateMetadata),
 		ExtAuthzFilter(grpcClientTimeout),
@@ -131,11 +179,6 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	var maxStreamDuration *durationpb.Duration
 	if cfg.Options.WriteTimeout > 0 {
 		maxStreamDuration = durationpb.New(cfg.Options.WriteTimeout)
-	}
-
-	tracingProvider, err := buildTracingHTTP(cfg.Options)
-	if err != nil {
-		return nil, err
 	}
 
 	localReply, err := b.buildLocalReplyConfig(cfg.Options)
@@ -156,8 +199,72 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		HttpProtocolOptions: http1ProtocolOptions,
 		RequestTimeout:      durationpb.New(cfg.Options.ReadTimeout),
 		Tracing: &envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_Tracing{
-			RandomSampling: &envoy_type_v3.Percent{Value: cfg.Options.TracingSampleRate * 100},
-			Provider:       tracingProvider,
+			RandomSampling:    &envoy_type_v3.Percent{Value: cfg.Options.TracingSampleRate * 100},
+			ClientSampling:    &envoy_type_v3.Percent{Value: cfg.Options.TracingSampleRate * 100},
+			Verbose:           true,
+			SpawnUpstreamSpan: wrapperspb.Bool(false),
+			Provider: &tracev3.Tracing_Http{
+				Name: "envoy.tracers.opentelemetry",
+				ConfigType: &tracev3.Tracing_Http_TypedConfig{
+					TypedConfig: marshalAny(&tracev3.OpenTelemetryConfig{
+						GrpcService: &envoy_config_core_v3.GrpcService{
+							TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
+								EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
+									ClusterName: "pomerium-control-plane-grpc",
+								},
+							},
+						},
+						ServiceName: "Envoy",
+					}),
+				},
+			},
+			MaxPathTagLength: wrapperspb.UInt32(1024),
+			CustomTags: []*envoy_tracing_v3.CustomTag{
+				{
+					Tag: "pomerium.traceparent",
+					Type: &envoy_tracing_v3.CustomTag_Metadata_{
+						Metadata: &envoy_tracing_v3.CustomTag_Metadata{
+							Kind: &metadatav3.MetadataKind{
+								Kind: &metadatav3.MetadataKind_Request_{
+									Request: &metadatav3.MetadataKind_Request{},
+								},
+							},
+							MetadataKey: &metadatav3.MetadataKey{
+								Key: "pomerium.internal",
+								Path: []*metadatav3.MetadataKey_PathSegment{
+									{
+										Segment: &metadatav3.MetadataKey_PathSegment_Key{
+											Key: "traceparent",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				{
+					Tag: "pomerium.tracestate",
+					Type: &envoy_tracing_v3.CustomTag_Metadata_{
+						Metadata: &envoy_tracing_v3.CustomTag_Metadata{
+							Kind: &metadatav3.MetadataKind{
+								Kind: &metadatav3.MetadataKind_Request_{
+									Request: &metadatav3.MetadataKind_Request{},
+								},
+							},
+							MetadataKey: &metadatav3.MetadataKey{
+								Key: "pomerium.internal",
+								Path: []*metadatav3.MetadataKey_PathSegment{
+									{
+										Segment: &metadatav3.MetadataKey_PathSegment_Key{
+											Key: "tracestate",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-for
 		UseRemoteAddress:  &wrapperspb.BoolValue{Value: true},

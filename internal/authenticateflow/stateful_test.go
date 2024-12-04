@@ -15,6 +15,7 @@ import (
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
@@ -69,7 +70,7 @@ func TestStatefulSignIn(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			sessionStore := &mstore.Store{SaveError: tt.saveError}
-			flow, err := NewStateful(context.Background(), &config.Config{Options: opts}, sessionStore)
+			flow, err := NewStateful(context.Background(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, sessionStore)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -123,7 +124,7 @@ func TestStatefulAuthenticateSignInURL(t *testing.T) {
 	opts.AuthenticateURLString = "https://authenticate.example.com"
 	key := cryptutil.NewKey()
 	opts.SharedKey = base64.StdEncoding.EncodeToString(key)
-	flow, err := NewStateful(context.Background(), &config.Config{Options: opts}, nil)
+	flow, err := NewStateful(context.Background(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil)
 	require.NoError(t, err)
 
 	t.Run("NilQueryParams", func(t *testing.T) {
@@ -238,7 +239,7 @@ func TestStatefulCallback(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flow, err := NewStateful(context.Background(), &config.Config{Options: opts}, tt.sessionStore)
+			flow, err := NewStateful(context.Background(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, tt.sessionStore)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -289,7 +290,7 @@ func TestStatefulCallback(t *testing.T) {
 
 func TestStatefulRevokeSession(t *testing.T) {
 	opts := config.NewDefaultOptions()
-	flow, err := NewStateful(context.Background(), &config.Config{Options: opts}, nil)
+	flow, err := NewStateful(context.Background(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil)
 	require.NoError(t, err)
 
 	ctrl := gomock.NewController(t)
@@ -367,7 +368,7 @@ func TestPersistSession(t *testing.T) {
 
 	opts := config.NewDefaultOptions()
 	opts.CookieExpire = 4 * time.Hour
-	flow, err := NewStateful(context.Background(), &config.Config{Options: opts}, nil)
+	flow, err := NewStateful(context.Background(), trace.NewNoopTracerProvider(), &config.Config{Options: opts}, nil)
 	require.NoError(t, err)
 
 	ctrl := gomock.NewController(t)

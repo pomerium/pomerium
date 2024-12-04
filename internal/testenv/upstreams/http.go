@@ -20,12 +20,18 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pomerium/pomerium/integration/forms"
 	"github.com/pomerium/pomerium/internal/retry"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 )
 
 type RequestOptions struct {
+	requestCtx     context.Context
 	path           string
 	query          url.Values
 	headers        map[string]string
@@ -77,6 +83,12 @@ func Client(c *http.Client) RequestOption {
 	}
 }
 
+func Context(ctx context.Context) RequestOption {
+	return func(o *RequestOptions) {
+		o.requestCtx = ctx
+	}
+}
+
 // Body sets the body of the request.
 // The argument can be one of the following types:
 // - string
@@ -102,6 +114,24 @@ func ClientCert[T interface {
 	}
 }
 
+type HTTPUpstreamOptions struct {
+	displayName string
+}
+
+type HTTPUpstreamOption func(*HTTPUpstreamOptions)
+
+func (o *HTTPUpstreamOptions) apply(opts ...HTTPUpstreamOption) {
+	for _, op := range opts {
+		op(o)
+	}
+}
+
+func WithDisplayName(displayName string) HTTPUpstreamOption {
+	return func(o *HTTPUpstreamOptions) {
+		o.displayName = displayName
+	}
+}
+
 // HTTPUpstream represents a HTTP server which can be used as the target for
 // one or more Pomerium routes in a test environment.
 //
@@ -119,13 +149,15 @@ type HTTPUpstream interface {
 }
 
 type httpUpstream struct {
+	HTTPUpstreamOptions
 	testenv.Aggregate
 	serverPort values.MutableValue[int]
 	tlsConfig  values.Value[*tls.Config]
 
 	clientCache sync.Map // map[testenv.Route]*http.Client
 
-	router *mux.Router
+	router         *mux.Router
+	tracerProvider oteltrace.TracerProvider
 }
 
 var (
@@ -134,11 +166,16 @@ var (
 )
 
 // HTTP creates a new HTTP upstream server.
-func HTTP(tlsConfig values.Value[*tls.Config]) HTTPUpstream {
+func HTTP(tlsConfig values.Value[*tls.Config], opts ...HTTPUpstreamOption) HTTPUpstream {
+	options := HTTPUpstreamOptions{
+		displayName: "HTTP Upstream",
+	}
+	options.apply(opts...)
 	up := &httpUpstream{
-		serverPort: values.Deferred[int](),
-		router:     mux.NewRouter(),
-		tlsConfig:  tlsConfig,
+		HTTPUpstreamOptions: options,
+		serverPort:          values.Deferred[int](),
+		router:              mux.NewRouter(),
+		tlsConfig:           tlsConfig,
 	}
 	up.RecordCaller()
 	return up
@@ -176,6 +213,9 @@ func (h *httpUpstream) Run(ctx context.Context) error {
 	if h.tlsConfig != nil {
 		tlsConfig = h.tlsConfig.Value()
 	}
+	h.router.Use(trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(h.tracerProvider)))
+	h.tracerProvider = trace.NewTracerProvider(ctx, h.displayName)
+
 	server := &http.Server{
 		Handler:   h.router,
 		TLSConfig: tlsConfig,
@@ -208,7 +248,9 @@ func (h *httpUpstream) Post(r testenv.Route, opts ...RequestOption) (*http.Respo
 
 // Do implements HTTPUpstream.
 func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption) (*http.Response, error) {
-	options := RequestOptions{}
+	options := RequestOptions{
+		requestCtx: h.Env().Context(),
+	}
 	options.apply(opts...)
 	u, err := url.Parse(r.URL().Value())
 	if err != nil {
@@ -220,7 +262,8 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 			RawQuery: options.query.Encode(),
 		})
 	}
-	req, err := http.NewRequest(method, u.String(), nil)
+
+	req, err := http.NewRequestWithContext(options.requestCtx, method, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -250,12 +293,17 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 
 	newClient := func() *http.Client {
 		c := http.Client{
-			Transport: &http.Transport{
+			Transport: otelhttp.NewTransport(&http.Transport{
 				TLSClientConfig: &tls.Config{
 					RootCAs:      h.Env().ServerCAs(),
 					Certificates: options.clientCerts,
 				},
 			},
+				otelhttp.WithTracerProvider(h.tracerProvider),
+				otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+					return fmt.Sprintf("Client: %s %s", r.Method, r.URL.Path)
+				}),
+			),
 		}
 		c.Jar, _ = cookiejar.New(&cookiejar.Options{})
 		return &c
@@ -273,7 +321,7 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 	}
 
 	var resp *http.Response
-	if err := retry.Retry(h.Env().Context(), "http", func(ctx context.Context) error {
+	if err := retry.Retry(options.requestCtx, "http", func(ctx context.Context) error {
 		var err error
 		if options.authenticateAs != "" {
 			resp, err = authenticateFlow(ctx, client, req, options.authenticateAs) //nolint:bodyclose
@@ -284,11 +332,15 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 		if err != nil {
 			var opErr *net.OpError
 			if errors.As(err, &opErr) && opErr.Op == "dial" && opErr.Err.Error() == "connect: connection refused" {
+				oteltrace.SpanFromContext(ctx).AddEvent("Retrying on dial error")
 				return err
 			}
 			return retry.NewTerminalError(err)
 		}
-		if resp.StatusCode == http.StatusInternalServerError {
+		if resp.StatusCode/100 == 5 {
+			oteltrace.SpanFromContext(ctx).AddEvent("Retrying on 5xx error", oteltrace.WithAttributes(
+				attribute.String("status", resp.Status),
+			))
 			return errors.New(http.StatusText(resp.StatusCode))
 		}
 		return nil

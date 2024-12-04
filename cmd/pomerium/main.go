@@ -12,6 +12,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/version"
 	_ "github.com/pomerium/pomerium/internal/zero/bootstrap/writers/filesystem"
 	_ "github.com/pomerium/pomerium/internal/zero/bootstrap/writers/k8s"
@@ -30,9 +31,8 @@ func main() {
 	}
 	root.AddCommand(zero_cmd.BuildRootCmd())
 	root.PersistentFlags().StringVar(&configFile, "config", "", "Specify configuration file location")
-
-	ctx := context.Background()
 	log.SetLevel(zerolog.InfoLevel)
+	ctx := trace.NewContext(context.Background())
 	runFn := run
 	if zero_cmd.IsManagedMode(configFile) {
 		runFn = zero_cmd.Run
