@@ -103,6 +103,9 @@
         }
       }
     },
+    "http2ProtocolOptions": {
+      "allowConnect": true
+    },
     "localReplyConfig": {
       "mappers": [
         {
