@@ -10,6 +10,7 @@ import (
 var (
 	defaultSessionRefreshGracePeriod     = 1 * time.Minute
 	defaultSessionRefreshCoolOffDuration = 10 * time.Second
+	defaultLeaseTTL                      = 30 * time.Second
 )
 
 type config struct {
@@ -17,6 +18,7 @@ type config struct {
 	dataBrokerClient              databroker.DataBrokerServiceClient
 	sessionRefreshGracePeriod     time.Duration
 	sessionRefreshCoolOffDuration time.Duration
+	leaseTTL                      time.Duration
 	now                           func() time.Time
 	eventMgr                      *events.Manager
 	enabled                       bool
@@ -28,6 +30,7 @@ func newConfig(options ...Option) *config {
 	WithSessionRefreshCoolOffDuration(defaultSessionRefreshCoolOffDuration)(cfg)
 	WithNow(time.Now)(cfg)
 	WithEnabled(true)(cfg)
+	WithLeaseTTL(defaultLeaseTTL)(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
@@ -83,5 +86,11 @@ func WithEventManager(mgr *events.Manager) Option {
 func WithEnabled(enabled bool) Option {
 	return func(cfg *config) {
 		cfg.enabled = enabled
+	}
+}
+
+func WithLeaseTTL(ttl time.Duration) Option {
+	return func(o *config) {
+		o.leaseTTL = ttl
 	}
 }
