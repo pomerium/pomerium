@@ -412,10 +412,12 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 
 func (e *environment) debugf(format string, args ...any) {
 	e.t.Helper()
+	if e.rootSpan.IsRecording() {
+		e.rootSpan.AddEvent(fmt.Sprintf(format, args...))
+	}
 	if !e.debug {
 		return
 	}
-
 	e.t.Logf("\x1b[34m[debug] "+format+"\x1b[0m", args...)
 }
 
