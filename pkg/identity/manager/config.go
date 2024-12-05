@@ -11,6 +11,7 @@ var (
 	defaultSessionRefreshGracePeriod     = 1 * time.Minute
 	defaultSessionRefreshCoolOffDuration = 10 * time.Second
 	defaultUpdateUserInfoInterval        = 10 * time.Minute
+	defaultLeaseTTL                      = 30 * time.Second
 )
 
 type config struct {
@@ -19,6 +20,7 @@ type config struct {
 	sessionRefreshGracePeriod     time.Duration
 	sessionRefreshCoolOffDuration time.Duration
 	updateUserInfoInterval        time.Duration
+	leaseTTL                      time.Duration
 	now                           func() time.Time
 	eventMgr                      *events.Manager
 	enabled                       bool
@@ -31,6 +33,7 @@ func newConfig(options ...Option) *config {
 	WithNow(time.Now)(cfg)
 	WithUpdateUserInfoInterval(defaultUpdateUserInfoInterval)(cfg)
 	WithEnabled(true)(cfg)
+	WithLeaseTTL(defaultLeaseTTL)(cfg)
 	for _, option := range options {
 		option(cfg)
 	}
@@ -93,5 +96,12 @@ func WithEnabled(enabled bool) Option {
 func WithUpdateUserInfoInterval(dur time.Duration) Option {
 	return func(cfg *config) {
 		cfg.updateUserInfoInterval = dur
+	}
+}
+
+// WithLeaseTTL sets the TTL used by the leaser.
+func WithLeaseTTL(ttl time.Duration) Option {
+	return func(o *config) {
+		o.leaseTTL = ttl
 	}
 }
