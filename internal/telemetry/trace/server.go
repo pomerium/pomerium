@@ -3,7 +3,6 @@ package trace
 import (
 	"context"
 	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -28,7 +27,6 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/trace"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
@@ -148,13 +146,19 @@ func (r *ResourceInfo) computeID() string {
 	return base64.StdEncoding.EncodeToString(hash.Sum(nil))
 }
 
+type SpanObserver interface {
+	ObserveReference(id oteltrace.SpanID)
+	Observe(id oteltrace.SpanID)
+	Wait()
+}
+
 type spanObserver struct {
 	mu            sync.Mutex
-	referencedIDs map[unique.Handle[oteltrace.SpanID]]bool
+	referencedIDs map[oteltrace.SpanID]bool
 	unobservedIDs sync.WaitGroup
 }
 
-func (obs *spanObserver) ObserveReference(id unique.Handle[oteltrace.SpanID]) {
+func (obs *spanObserver) ObserveReference(id oteltrace.SpanID) {
 	obs.mu.Lock()
 	defer obs.mu.Unlock()
 	if _, referenced := obs.referencedIDs[id]; !referenced {
@@ -163,7 +167,7 @@ func (obs *spanObserver) ObserveReference(id unique.Handle[oteltrace.SpanID]) {
 	}
 }
 
-func (obs *spanObserver) Observe(id unique.Handle[oteltrace.SpanID]) {
+func (obs *spanObserver) Observe(id oteltrace.SpanID) {
 	obs.mu.Lock()
 	defer obs.mu.Unlock()
 	if observed, referenced := obs.referencedIDs[id]; !observed { // NB: subtle condition
@@ -178,6 +182,12 @@ func (obs *spanObserver) Wait() {
 	obs.unobservedIDs.Wait()
 }
 
+type noopSpanObserver struct{}
+
+func (noopSpanObserver) ObserveReference(oteltrace.SpanID) {}
+func (noopSpanObserver) Observe(oteltrace.SpanID)          {}
+func (noopSpanObserver) Wait()                             {}
+
 type SpanExportQueue struct {
 	mu                        sync.Mutex
 	pendingResourcesByTraceId map[unique.Handle[oteltrace.TraceID]]*PendingResources
@@ -185,23 +195,28 @@ type SpanExportQueue struct {
 	uploadC                   chan []*tracev1.ResourceSpans
 	closing                   bool
 	closed                    chan struct{}
-	debugLevel                int
-	debugAllObservedSpans     map[unique.Handle[oteltrace.SpanID]]*tracev1.Span
+	debugFlags                DebugFlags
+	debugAllObservedSpans     map[oteltrace.SpanID]*tracev1.Span
 	tracker                   *spanTracker
-	observer                  *spanObserver
+	observer                  SpanObserver
 }
 
 func NewSpanExportQueue(ctx context.Context, client otlptrace.Client) *SpanExportQueue {
-	observer := &spanObserver{referencedIDs: make(map[unique.Handle[oteltrace.SpanID]]bool)}
-	debugLevel := systemContextFromContext(ctx).DebugLevel
+	debug := systemContextFromContext(ctx).DebugFlags
+	var observer SpanObserver
+	if debug.Check(TrackSpanReferences) {
+		observer = &spanObserver{referencedIDs: make(map[oteltrace.SpanID]bool)}
+	} else {
+		observer = noopSpanObserver{}
+	}
 	q := &SpanExportQueue{
 		pendingResourcesByTraceId: make(map[unique.Handle[oteltrace.TraceID]]*PendingResources),
 		knownTraceIdMappings:      make(map[unique.Handle[oteltrace.TraceID]]unique.Handle[oteltrace.TraceID]),
 		uploadC:                   make(chan []*tracev1.ResourceSpans, 8),
 		closed:                    make(chan struct{}),
-		debugLevel:                debugLevel,
-		debugAllObservedSpans:     make(map[unique.Handle[oteltrace.SpanID]]*tracev1.Span),
-		tracker:                   &spanTracker{observer: observer, debugLevel: debugLevel},
+		debugFlags:                debug,
+		debugAllObservedSpans:     make(map[oteltrace.SpanID]*tracev1.Span),
+		tracker:                   &spanTracker{observer: observer, debugFlags: debug},
 		observer:                  observer,
 	}
 	go func() {
@@ -267,13 +282,12 @@ func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTra
 		for _, scope := range resource.ScopeSpans {
 			for _, span := range scope.Spans {
 				formatSpanName(span)
-				spanId := unique.Make(oteltrace.SpanID(span.SpanId))
-				parentSpanId := parentSpanID(span.ParentSpanId)
-				if q.debugLevel >= 1 {
+				spanId := oteltrace.SpanID(span.SpanId)
+				if q.debugFlags.Check(TrackAllSpans) {
 					q.debugAllObservedSpans[spanId] = span
 				}
-				if parentSpanId != rootSpanId {
-					q.observer.ObserveReference(parentSpanId)
+				if len(span.ParentSpanId) != 0 { // if parent is not a root span
+					q.observer.ObserveReference(oteltrace.SpanID(span.ParentSpanId))
 					continue
 				}
 				spanTraceId := unique.Make(oteltrace.TraceID(span.TraceId))
@@ -319,10 +333,10 @@ func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTra
 		for _, scope := range resource.ScopeSpans {
 			var knownSpans []*tracev1.Span
 			for _, span := range scope.Spans {
-				spanID := unique.Make(oteltrace.SpanID(span.SpanId))
-				spanTraceId := unique.Make(oteltrace.TraceID(span.TraceId))
+				spanID := oteltrace.SpanID(span.SpanId)
+				traceId := unique.Make(oteltrace.TraceID(span.TraceId))
 				q.observer.Observe(spanID)
-				if mapping, ok := q.knownTraceIdMappings[spanTraceId]; ok {
+				if mapping, ok := q.knownTraceIdMappings[traceId]; ok {
 					id := mapping.Value()
 					copy(span.TraceId, id[:])
 					knownSpans = append(knownSpans, span)
@@ -357,15 +371,6 @@ var (
 	ErrMissingParentSpans = errors.New("exporter shut down with missing parent spans")
 )
 
-var rootSpanId = unique.Make(oteltrace.SpanID([8]byte{}))
-
-func parentSpanID(value []byte) unique.Handle[oteltrace.SpanID] {
-	if len(value) == 0 {
-		return rootSpanId
-	}
-	return unique.Make(oteltrace.SpanID(value))
-}
-
 func (q *SpanExportQueue) WaitForSpans(maxDuration time.Duration) error {
 	done := make(chan struct{})
 	go func() {
@@ -391,114 +396,120 @@ func (q *SpanExportQueue) Close(ctx context.Context) error {
 	case <-q.closed:
 		q.mu.Lock()
 		defer q.mu.Unlock()
-		if q.debugLevel >= 1 {
+		if q.debugFlags.Check(TrackSpanReferences) {
 			var unknownParentIds []string
-			for id, known := range q.observer.referencedIDs {
+			for id, known := range q.observer.(*spanObserver).referencedIDs {
 				if !known {
-					unknownParentIds = append(unknownParentIds, id.Value().String())
+					unknownParentIds = append(unknownParentIds, id.String())
 				}
 			}
 			if len(unknownParentIds) > 0 {
-				msg := strings.Builder{}
-				msg.WriteString("==================================================\n")
-				msg.WriteString("WARNING: parent spans referenced but never seen:\n")
+				msg := startMsg("WARNING: parent spans referenced but never seen:\n")
 				for _, str := range unknownParentIds {
 					msg.WriteString(str)
 					msg.WriteString("\n")
 				}
-				msg.WriteString("==================================================\n")
-				fmt.Fprint(os.Stderr, msg.String())
+				endMsg(msg)
 			}
 		}
+		didWarn := false
 		incomplete := len(q.pendingResourcesByTraceId) > 0
-		if incomplete || q.debugLevel >= 3 {
-			msg := strings.Builder{}
-			if incomplete && q.debugLevel >= 1 {
-				msg.WriteString("==================================================\n")
-				msg.WriteString("WARNING: exporter shut down with incomplete traces\n")
-				for k, v := range q.pendingResourcesByTraceId {
-					msg.WriteString(fmt.Sprintf("- Trace: %s\n", k.Value()))
-					for _, pendingScope := range v.scopesByResourceID {
-						msg.WriteString("  - Resource:\n")
-						for _, v := range pendingScope.resource.Resource.Attributes {
-							msg.WriteString(fmt.Sprintf("     %s=%s\n", v.Key, v.Value.String()))
+		if incomplete && q.debugFlags.Check(WarnOnIncompleteTraces) {
+			didWarn = true
+			msg := startMsg("WARNING: exporter shut down with incomplete traces\n")
+			for k, v := range q.pendingResourcesByTraceId {
+				fmt.Fprintf(msg, "- Trace: %s\n", k.Value())
+				for _, pendingScope := range v.scopesByResourceID {
+					msg.WriteString("  - Resource:\n")
+					for _, v := range pendingScope.resource.Resource.Attributes {
+						fmt.Fprintf(msg, "     %s=%s\n", v.Key, v.Value.String())
+					}
+					for _, scope := range pendingScope.spansByScope {
+						if scope.scope != nil {
+							fmt.Fprintf(msg, "    Scope: %s\n", scope.scope.Name)
+						} else {
+							msg.WriteString("    Scope: (unknown)\n")
 						}
-						for _, scope := range pendingScope.spansByScope {
-							if scope.scope != nil {
-								msg.WriteString(fmt.Sprintf("    Scope: %s\n", scope.scope.Name))
-							} else {
-								msg.WriteString("    Scope: (unknown)\n")
+						msg.WriteString("    Spans:\n")
+						longestName := 0
+						for _, span := range scope.spans {
+							longestName = max(longestName, len(span.Name)+2)
+						}
+						for _, span := range scope.spans {
+							parentSpanId := oteltrace.SpanID(span.ParentSpanId)
+							_, seenParent := q.debugAllObservedSpans[parentSpanId]
+							var missing string
+							if !seenParent {
+								missing = " [missing]"
 							}
-							msg.WriteString("    Spans:\n")
-							longestName := 0
-							for _, span := range scope.spans {
-								longestName = max(longestName, len(span.Name)+2)
-							}
-							for _, span := range scope.spans {
-								parentSpanId := parentSpanID(span.ParentSpanId)
-								_, seenParent := q.debugAllObservedSpans[parentSpanId]
-								var missing string
-								if !seenParent {
-									missing = " [missing]"
-								}
-								msg.WriteString(fmt.Sprintf("    - %-*s (trace: %s | span: %s | parent:%s %s)\n", longestName,
-									"'"+span.Name+"'", hex.EncodeToString(span.TraceId), hex.EncodeToString(span.SpanId), missing, parentSpanId.Value()))
-								for _, attr := range span.Attributes {
-									if attr.Key == "caller" {
-										msg.WriteString(fmt.Sprintf("      => caller: '%s'\n", attr.Value.GetStringValue()))
-									}
+							fmt.Fprintf(msg, "    - %-*s (trace: %s | span: %s | parent:%s %s)\n", longestName,
+								"'"+span.Name+"'", oteltrace.SpanID(span.TraceId), oteltrace.SpanID(span.SpanId), missing, parentSpanId)
+							for _, attr := range span.Attributes {
+								if attr.Key == "caller" {
+									fmt.Fprintf(msg, "      => caller: '%s'\n", attr.Value.GetStringValue())
+									break
 								}
 							}
 						}
 					}
 				}
-				msg.WriteString("==================================================\n")
 			}
-			if (incomplete && q.debugLevel >= 2) || (!incomplete && q.debugLevel >= 3) {
-				msg.WriteString("==================================================\n")
-				msg.WriteString("Known trace ids:\n")
-				for k, v := range q.knownTraceIdMappings {
-					if k != v {
-						msg.WriteString(fmt.Sprintf("%s => %s\n", k.Value(), v.Value()))
-					} else {
-						msg.WriteString(fmt.Sprintf("%s (no change)\n", k.Value()))
-					}
-				}
-				msg.WriteString("==================================================\n")
-				msg.WriteString("All exported spans:\n")
-				longestName := 0
-				for _, span := range q.debugAllObservedSpans {
-					longestName = max(longestName, len(span.Name)+2)
-				}
-				for _, span := range q.debugAllObservedSpans {
-					traceid := span.TraceId
-					spanid := span.SpanId
-					msg.WriteString(fmt.Sprintf("%-*s (trace: %s | span: %s | parent: %s)", longestName,
-						"'"+span.Name+"'", hex.EncodeToString(traceid[:]), hex.EncodeToString(spanid[:]), parentSpanID(span.ParentSpanId).Value()))
-					var foundCaller bool
-					for _, attr := range span.Attributes {
-						if attr.Key == "caller" {
-							msg.WriteString(fmt.Sprintf(" => %s\n", attr.Value.GetStringValue()))
-							foundCaller = true
-							break
-						}
-					}
-					if !foundCaller {
-						msg.WriteString("\n")
-					}
-				}
-				msg.WriteString("==================================================\n")
-			}
-			if msg.Len() > 0 {
-				fmt.Fprint(os.Stderr, msg.String())
-			}
-			if incomplete {
-				return ErrIncompleteTraces
-			}
+			endMsg(msg)
 		}
+
+		if q.debugFlags.Check(LogTraceIDMappings) || (didWarn && q.debugFlags.Check(LogTraceIDMappingsOnWarn)) {
+			msg := startMsg("Known trace ids:\n")
+			for k, v := range q.knownTraceIdMappings {
+				if k != v {
+					fmt.Fprintf(msg, "%s => %s\n", k.Value(), v.Value())
+				} else {
+					fmt.Fprintf(msg, "%s (no change)\n", k.Value())
+				}
+			}
+			endMsg(msg)
+		}
+		if q.debugFlags.Check(LogAllSpans) || (didWarn && q.debugFlags.Check(LogAllSpansOnWarn)) {
+			msg := startMsg("All exported spans:\n")
+			longestName := 0
+			for _, span := range q.debugAllObservedSpans {
+				longestName = max(longestName, len(span.Name)+2)
+			}
+			for _, span := range q.debugAllObservedSpans {
+				fmt.Fprintf(msg, "%-*s (trace: %s | span: %s | parent: %s)", longestName,
+					"'"+span.Name+"'", oteltrace.TraceID(span.TraceId), oteltrace.SpanID(span.SpanId), oteltrace.SpanID(span.ParentSpanId))
+				var foundCaller bool
+				for _, attr := range span.Attributes {
+					if attr.Key == "caller" {
+						fmt.Fprintf(msg, " => %s\n", attr.Value.GetStringValue())
+						foundCaller = true
+						break
+					}
+				}
+				if !foundCaller {
+					msg.WriteString("\n")
+				}
+			}
+			endMsg(msg)
+		}
+		if incomplete {
+			return ErrIncompleteTraces
+		}
+
 		log.Ctx(ctx).Debug().Msg("exporter shut down")
 		return nil
 	}
+}
+
+func startMsg(title string) *strings.Builder {
+	msg := &strings.Builder{}
+	msg.WriteString("\n==================================================\n")
+	msg.WriteString(title)
+	return msg
+}
+
+func endMsg(msg *strings.Builder) {
+	msg.WriteString("==================================================\n")
+	fmt.Fprint(os.Stderr, msg.String())
 }
 
 func formatSpanName(span *tracev1.Span) {
@@ -605,15 +616,15 @@ func (srv *ExporterServer) Shutdown(ctx context.Context) error {
 type spanTracker struct {
 	inflightSpans sync.Map
 	allSpans      sync.Map
-	debugLevel    int
-	observer      *spanObserver
+	debugFlags    DebugFlags
+	observer      SpanObserver
 	shutdownOnce  sync.Once
 }
 
 type spanInfo struct {
 	Name        string
-	SpanContext trace.SpanContext
-	Parent      trace.SpanContext
+	SpanContext oteltrace.SpanContext
+	Parent      oteltrace.SpanContext
 }
 
 // ForceFlush implements trace.SpanProcessor.
@@ -623,16 +634,16 @@ func (t *spanTracker) ForceFlush(ctx context.Context) error {
 
 // OnEnd implements trace.SpanProcessor.
 func (t *spanTracker) OnEnd(s sdktrace.ReadOnlySpan) {
-	id := unique.Make(s.SpanContext().SpanID())
+	id := s.SpanContext().SpanID()
 	t.inflightSpans.Delete(id)
 }
 
 // OnStart implements trace.SpanProcessor.
 func (t *spanTracker) OnStart(parent context.Context, s sdktrace.ReadWriteSpan) {
-	id := unique.Make(s.SpanContext().SpanID())
+	id := s.SpanContext().SpanID()
 	t.inflightSpans.Store(id, struct{}{})
 	t.observer.Observe(id)
-	if t.debugLevel >= 3 {
+	if t.debugFlags.Check(TrackAllSpans) {
 		t.allSpans.Store(id, &spanInfo{
 			Name:        s.Name(),
 			SpanContext: s.SpanContext(),
@@ -643,50 +654,67 @@ func (t *spanTracker) OnStart(parent context.Context, s sdktrace.ReadWriteSpan) 
 
 // Shutdown implements trace.SpanProcessor.
 func (t *spanTracker) Shutdown(ctx context.Context) error {
+	if t.debugFlags == 0 {
+		return nil
+	}
 	t.shutdownOnce.Do(func() {
-		msg := strings.Builder{}
-		if t.debugLevel >= 1 {
-			incompleteSpans := []*spanInfo{}
-			t.inflightSpans.Range(func(key, value any) bool {
-				if info, ok := t.allSpans.Load(key); ok {
-					incompleteSpans = append(incompleteSpans, info.(*spanInfo))
+		didWarn := false
+		if t.debugFlags.Check(WarnOnIncompleteSpans) {
+			if t.debugFlags.Check(TrackAllSpans) {
+				incompleteSpans := []*spanInfo{}
+				t.inflightSpans.Range(func(key, value any) bool {
+					if info, ok := t.allSpans.Load(key); ok {
+						incompleteSpans = append(incompleteSpans, info.(*spanInfo))
+					}
+					return true
+				})
+				if len(incompleteSpans) > 0 {
+					didWarn = true
+					msg := startMsg("WARNING: spans not ended:\n")
+					longestName := 0
+					for _, span := range incompleteSpans {
+						longestName = max(longestName, len(span.Name)+2)
+					}
+					for _, span := range incompleteSpans {
+						fmt.Fprintf(msg, "%-*s (trace: %s | span: %s | parent: %s)\n", longestName, "'"+span.Name+"'",
+							span.SpanContext.TraceID(), span.SpanContext.SpanID(), span.Parent.SpanID())
+					}
+					endMsg(msg)
 				}
-				return true
-			})
-			if len(incompleteSpans) > 0 {
-				msg.WriteString("==================================================\n")
-				msg.WriteString("WARNING: spans not ended:\n")
-				longestName := 0
-				for _, span := range incompleteSpans {
-					longestName = max(longestName, len(span.Name)+2)
+			} else {
+				incompleteSpans := []string{}
+				t.inflightSpans.Range(func(key, value any) bool {
+					incompleteSpans = append(incompleteSpans, key.(string))
+					return true
+				})
+				if len(incompleteSpans) > 0 {
+					didWarn = true
+					msg := startMsg("WARNING: spans not ended:\n")
+					for _, span := range incompleteSpans {
+						fmt.Fprintf(msg, "%s\n", span)
+					}
+					msg.WriteString("Note: set TrackAllObservedSpans flag for more info\n")
+					endMsg(msg)
 				}
-				for _, span := range incompleteSpans {
-					msg.WriteString(fmt.Sprintf("%-*s (trace: %s | span: %s | parent: %s)\n", longestName, "'"+span.Name+"'",
-						span.SpanContext.TraceID(), span.SpanContext.SpanID(), span.Parent.SpanID()))
-				}
-				msg.WriteString("==================================================\n")
 			}
 		}
-		if t.debugLevel >= 3 {
+
+		if t.debugFlags.Check(LogAllSpans) || (t.debugFlags.Check(LogAllSpansOnWarn) && didWarn) {
 			allSpans := []*spanInfo{}
 			t.allSpans.Range(func(key, value any) bool {
 				allSpans = append(allSpans, value.(*spanInfo))
 				return true
 			})
-			msg.WriteString("==================================================\n")
-			msg.WriteString("All observed spans:\n")
+			msg := startMsg("All observed spans:\n")
 			longestName := 0
 			for _, span := range allSpans {
 				longestName = max(longestName, len(span.Name)+2)
 			}
 			for _, span := range allSpans {
-				msg.WriteString(fmt.Sprintf("%-*s (trace: %s | span: %s | parent: %s)\n", longestName, "'"+span.Name+"'",
-					span.SpanContext.TraceID(), span.SpanContext.SpanID(), span.Parent.SpanID()))
+				fmt.Fprintf(msg, "%-*s (trace: %s | span: %s | parent: %s)\n", longestName, "'"+span.Name+"'",
+					span.SpanContext.TraceID(), span.SpanContext.SpanID(), span.Parent.SpanID())
 			}
-			msg.WriteString("==================================================\n")
-		}
-		if msg.Len() > 0 {
-			fmt.Fprint(os.Stderr, msg.String())
+			endMsg(msg)
 		}
 	})
 

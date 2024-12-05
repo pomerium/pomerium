@@ -26,6 +26,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
 )
@@ -156,8 +158,9 @@ type httpUpstream struct {
 
 	clientCache sync.Map // map[testenv.Route]*http.Client
 
-	router         *mux.Router
-	tracerProvider values.MutableValue[oteltrace.TracerProvider]
+	router               *mux.Router
+	serverTracerProvider values.MutableValue[oteltrace.TracerProvider]
+	clientTracerProvider values.MutableValue[oteltrace.TracerProvider]
 }
 
 var (
@@ -172,11 +175,12 @@ func HTTP(tlsConfig values.Value[*tls.Config], opts ...HTTPUpstreamOption) HTTPU
 	}
 	options.apply(opts...)
 	up := &httpUpstream{
-		HTTPUpstreamOptions: options,
-		serverPort:          values.Deferred[int](),
-		router:              mux.NewRouter(),
-		tlsConfig:           tlsConfig,
-		tracerProvider:      values.Deferred[oteltrace.TracerProvider](),
+		HTTPUpstreamOptions:  options,
+		serverPort:           values.Deferred[int](),
+		router:               mux.NewRouter(),
+		tlsConfig:            tlsConfig,
+		serverTracerProvider: values.Deferred[oteltrace.TracerProvider](),
+		clientTracerProvider: values.Deferred[oteltrace.TracerProvider](),
 	}
 	up.RecordCaller()
 	return up
@@ -214,15 +218,16 @@ func (h *httpUpstream) Run(ctx context.Context) error {
 	if h.tlsConfig != nil {
 		tlsConfig = h.tlsConfig.Value()
 	}
-	h.tracerProvider.Resolve(trace.NewTracerProvider(ctx, h.displayName))
-	h.router.Use(trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(h.tracerProvider.Value())))
+	h.serverTracerProvider.Resolve(trace.NewTracerProvider(ctx, h.displayName))
+	h.clientTracerProvider.Resolve(trace.NewTracerProvider(ctx, "HTTP Client"))
+	h.router.Use(trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(h.serverTracerProvider.Value())))
 
 	server := &http.Server{
 		Handler:   h.router,
 		TLSConfig: tlsConfig,
-		BaseContext: func(net.Listener) context.Context {
-			return ctx
-		},
+		// BaseContext: func(net.Listener) context.Context {
+		// 	return ctx
+		// },
 	}
 	errC := make(chan error, 1)
 	go func() {
@@ -263,6 +268,12 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 			RawQuery: options.query.Encode(),
 		})
 	}
+	ctx, span := trace.Continue(options.requestCtx, "httpUpstream.Do", oteltrace.WithAttributes(
+		attribute.String("method", method),
+		attribute.String("url", u.String()),
+	))
+	options.requestCtx = ctx
+	defer span.End()
 
 	newClient := func() *http.Client {
 		c := http.Client{
@@ -272,7 +283,7 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 					Certificates: options.clientCerts,
 				},
 			},
-				otelhttp.WithTracerProvider(h.tracerProvider.Value()),
+				otelhttp.WithTracerProvider(h.clientTracerProvider.Value()),
 				otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
 					return fmt.Sprintf("Client: %s %s", r.Method, r.URL.Path)
 				}),
@@ -288,16 +299,20 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 		var cachedClient any
 		var ok bool
 		if cachedClient, ok = h.clientCache.Load(r); !ok {
+			span.AddEvent("creating new http client")
 			cachedClient, _ = h.clientCache.LoadOrStore(r, newClient())
+		} else {
+			span.AddEvent("using cached http client")
 		}
 		client = cachedClient.(*http.Client)
 	}
 
 	var resp *http.Response
-	if err := retry.Retry(options.requestCtx, "http", func(ctx context.Context) error {
-		req, err := http.NewRequestWithContext(options.requestCtx, method, u.String(), nil)
+	resendCount := 0
+	if err := retry.Retry(ctx, "http", func(ctx context.Context) error {
+		req, err := http.NewRequestWithContext(ctx, method, u.String(), nil)
 		if err != nil {
-			return err
+			return retry.NewTerminalError(err)
 		}
 		switch body := options.body.(type) {
 		case string:
@@ -309,7 +324,7 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 		case proto.Message:
 			buf, err := proto.Marshal(body)
 			if err != nil {
-				return err
+				return retry.NewTerminalError(err)
 			}
 			req.Body = io.NopCloser(bytes.NewReader(buf))
 			req.Header.Set("Content-Type", "application/octet-stream")
@@ -330,52 +345,70 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 		}
 		// retry on connection refused
 		if err != nil {
+			span.RecordError(err)
 			var opErr *net.OpError
 			if errors.As(err, &opErr) && opErr.Op == "dial" && opErr.Err.Error() == "connect: connection refused" {
-				oteltrace.SpanFromContext(ctx).AddEvent("Retrying on dial error")
+				span.AddEvent("Retrying on dial error")
 				return err
 			}
 			return retry.NewTerminalError(err)
 		}
 		if resp.StatusCode/100 == 5 {
-			if err := resp.Body.Close(); err != nil {
-				panic(err)
-			}
-			oteltrace.SpanFromContext(ctx).AddEvent("Retrying on 5xx error", oteltrace.WithAttributes(
+			resendCount++
+			io.ReadAll(resp.Body)
+			resp.Body.Close()
+			span.SetAttributes(semconv.HTTPRequestResendCount(resendCount))
+			span.AddEvent("Retrying on 5xx error", oteltrace.WithAttributes(
 				attribute.String("status", resp.Status),
 			))
 			return errors.New(http.StatusText(resp.StatusCode))
 		}
+		span.SetStatus(codes.Ok, "request completed successfully")
 		return nil
-	}, retry.WithMaxInterval(100*time.Millisecond)); err != nil {
+	},
+		retry.WithInitialInterval(1*time.Millisecond),
+		retry.WithMaxInterval(100*time.Millisecond),
+	); err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
 func authenticateFlow(ctx context.Context, client *http.Client, req *http.Request, email string) (*http.Response, error) {
+	span := oteltrace.SpanFromContext(ctx)
 	var res *http.Response
 	originalHostname := req.URL.Hostname()
 	res, err := client.Do(req)
 	if err != nil {
+		span.RecordError(err)
 		return nil, err
 	}
 	location := res.Request.URL
 	if location.Hostname() == originalHostname {
 		// already authenticated
-		return res, err
+		span.SetStatus(codes.Ok, "already authenticated")
+		return res, nil
 	}
-	defer res.Body.Close()
 	fs := forms.Parse(res.Body)
+	io.ReadAll(res.Body)
+	res.Body.Close()
 	if len(fs) > 0 {
 		f := fs[0]
 		f.Inputs["email"] = email
 		f.Inputs["token_expiration"] = strconv.Itoa(int((time.Hour * 24).Seconds()))
+		span.AddEvent("submitting form", oteltrace.WithAttributes(attribute.String("location", location.String())))
 		formReq, err := f.NewRequestWithContext(ctx, location)
 		if err != nil {
+			span.RecordError(err)
 			return nil, err
 		}
-		return client.Do(formReq)
+		resp, err := client.Do(formReq)
+		if err != nil {
+			span.RecordError(err)
+			return nil, err
+		}
+		span.SetStatus(codes.Ok, "form submitted successfully")
+		return resp, nil
 	}
 	return nil, fmt.Errorf("test bug: expected IDP login form")
 }

@@ -26,8 +26,64 @@ type systemContextKeyType struct{}
 
 var systemContextKey systemContextKeyType
 
+type DebugFlags uint32
+
+const (
+	// If set, adds the "caller" attribute to each trace with the source location
+	// where the trace was started.
+	TrackSpanCallers = (1 << iota)
+
+	// If set, keeps track of all span references and will attempt to wait for
+	// all traces to complete when shutting down a trace context.
+	// Use with caution, this will cause increasing memory usage over time.
+	TrackSpanReferences = (1 << iota)
+
+	// If set, keeps track of all observed spans, including span context and
+	// all attributes.
+	// Use with caution, this will cause significantly increasing memory usage
+	// over time.
+	TrackAllSpans = (1 << iota)
+
+	// If set, will log all trace ID mappings on close.
+	LogTraceIDMappings = (1 << iota)
+
+	// If set, will log all spans observed by the exporter on close. These spans
+	// may belong to incomplete traces.
+	//
+	// Enables [TrackAllSpans]
+	LogAllSpans = (1 << iota) | TrackAllSpans
+
+	// If set, will log all exported spans when a warning is issued on close
+	// (requires warning flags to also be set)
+	//
+	// Enables [TrackAllSpans]
+	LogAllSpansOnWarn = (1 << iota) | TrackAllSpans
+
+	// If set, will log all trace ID mappings when a warning is issued on close.
+	// (requires warning flags to also be set)
+	LogTraceIDMappingsOnWarn = (1 << iota)
+
+	// If set, will print a warning to stderr on close if there are any incomplete
+	// traces (traces with no observed root spans)
+	WarnOnIncompleteTraces = (1 << iota)
+
+	// If set, will print a warning to stderr on close if there are any incomplete
+	// spans (spans started, but not ended)
+	WarnOnIncompleteSpans = (1 << iota)
+
+	// If set, will print a warning to stderr on close if there are any spans
+	// which reference unknown parent spans.
+	//
+	// Enables [TrackSpanReferences]
+	WarnOnUnresolvedReferences = (1 << iota) | TrackSpanReferences
+)
+
+func (df DebugFlags) Check(flags DebugFlags) bool {
+	return (df & flags) == flags
+}
+
 type Options struct {
-	DebugLevel int
+	DebugFlags DebugFlags
 }
 
 type systemContext struct {
@@ -119,7 +175,7 @@ func NewTracerProvider(ctx context.Context, serviceName string) trace.TracerProv
 	for _, proc := range sys.exporterServer.SpanProcessors() {
 		options = append(options, sdktrace.WithSpanProcessor(proc))
 	}
-	if sys.DebugLevel >= 1 {
+	if sys.DebugFlags.Check(TrackSpanCallers) {
 		options = append(options,
 			sdktrace.WithSpanProcessor(&stackTraceProcessor{}),
 		)

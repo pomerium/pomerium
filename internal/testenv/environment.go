@@ -33,6 +33,7 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
+	databroker_service "github.com/pomerium/pomerium/databroker"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/testenv/envutil"
@@ -41,6 +42,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
+	"github.com/pomerium/pomerium/pkg/identity/legacymanager"
+	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/rs/zerolog"
@@ -225,9 +228,10 @@ type environment struct {
 }
 
 type EnvironmentOptions struct {
-	debug          bool
-	pauseOnFailure bool
-	forceSilent    bool
+	debug           bool
+	pauseOnFailure  bool
+	forceSilent     bool
+	traceDebugFlags trace.DebugFlags
 }
 
 type EnvironmentOption func(*EnvironmentOptions)
@@ -265,13 +269,27 @@ func Silent(silent ...bool) EnvironmentOption {
 	}
 }
 
+func TraceDebugFlags(flags trace.DebugFlags) EnvironmentOption {
+	return func(o *EnvironmentOptions) {
+		o.traceDebugFlags = flags
+	}
+}
+
+func AddTraceDebugFlags(flags trace.DebugFlags) EnvironmentOption {
+	return func(o *EnvironmentOptions) {
+		o.traceDebugFlags |= flags
+	}
+}
+
 var setGrpcLoggerOnce sync.Once
+
+const defaultTraceDebugFlags = trace.TrackSpanCallers
 
 var (
 	flagDebug           = flag.Bool("env.debug", false, "enables test environment debug logging (equivalent to Debug() option)")
 	flagPauseOnFailure  = flag.Bool("env.pause-on-failure", false, "enables pausing the test environment on failure (equivalent to PauseOnFailure() option)")
 	flagSilent          = flag.Bool("env.silent", false, "suppresses all test environment output (equivalent to Silent() option)")
-	flagTraceDebugLevel = flag.Int("env.trace-debug-level", 0, "trace debug level")
+	flagTraceDebugFlags = flag.Uint("env.trace-debug-flags", defaultTraceDebugFlags, "trace debug flags (equivalent to TraceDebugFlags() option)")
 )
 
 func New(t testing.TB, opts ...EnvironmentOption) Environment {
@@ -279,9 +297,10 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		t.Skip("test environment only supported on linux")
 	}
 	options := EnvironmentOptions{
-		debug:          *flagDebug,
-		pauseOnFailure: *flagPauseOnFailure,
-		forceSilent:    *flagSilent,
+		debug:           *flagDebug,
+		pauseOnFailure:  *flagPauseOnFailure,
+		forceSilent:     *flagSilent,
+		traceDebugFlags: trace.DebugFlags(*flagTraceDebugFlags),
 	}
 	options.apply(opts...)
 	if testing.Short() {
@@ -323,7 +342,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	logger := zerolog.New(writer).With().Timestamp().Logger().Level(zerolog.DebugLevel)
 
 	ctx := trace.Options{
-		DebugLevel: *flagTraceDebugLevel,
+		DebugFlags: options.traceDebugFlags,
 	}.NewContext(context.Background())
 	ctx = logger.WithContext(ctx)
 	tracerProvider := trace.NewTracerProvider(ctx, "Test Environment")
@@ -565,6 +584,10 @@ func (e *environment) Start() {
 		opts := []pomerium.Option{
 			pomerium.WithOverrideFileManager(fileMgr),
 			pomerium.WithEnvoyServerOptions(envoy.WithExitGracePeriod(10 * time.Second)),
+			pomerium.WithDataBrokerServerOptions(
+				databroker_service.WithManagerOptions(manager.WithLeaseTTL(1*time.Second)),
+				databroker_service.WithLegacyManagerOptions(legacymanager.WithLeaseTTL(1*time.Second)),
+			),
 		}
 		envoyBinaryPath := filepath.Join(e.workspaceFolder, fmt.Sprintf("pkg/envoy/files/envoy-%s-%s", runtime.GOOS, runtime.GOARCH))
 		if envutil.EnvoyProfilerAvailable(envoyBinaryPath) {
