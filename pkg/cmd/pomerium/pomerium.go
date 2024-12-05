@@ -205,10 +205,13 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	return nil
 }
 
-func (p *Pomerium) Shutdown() error {
-	_ = p.envoyServer.Close() // this only errors if signaling envoy fails
+func (p *Pomerium) Shutdown(ctx context.Context) error {
+	_ = trace.WaitForSpans(ctx, p.envoyServer.ExitGracePeriod())
+	var errs []error
+	errs = append(errs, p.envoyServer.Close()) // this only errors if signaling envoy fails
 	p.cancel(ErrShutdown)
-	return p.Wait()
+	errs = append(errs, p.Wait())
+	return errors.Join(errs...)
 }
 
 func (p *Pomerium) Wait() error {

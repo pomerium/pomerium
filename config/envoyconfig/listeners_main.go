@@ -11,6 +11,7 @@ import (
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
 	envoy_extensions_filters_http_header_to_metadata "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/header_to_metadata/v3"
 	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	envoy_extensions_tracers_otel "github.com/envoyproxy/go-control-plane/envoy/extensions/tracers/opentelemetry/resource_detectors/v3"
 	metadatav3 "github.com/envoyproxy/go-control-plane/envoy/type/metadata/v3"
 	envoy_tracing_v3 "github.com/envoyproxy/go-control-plane/envoy/type/tracing/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
@@ -202,7 +203,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 			RandomSampling:    &envoy_type_v3.Percent{Value: cfg.Options.TracingSampleRate * 100},
 			ClientSampling:    &envoy_type_v3.Percent{Value: cfg.Options.TracingSampleRate * 100},
 			Verbose:           true,
-			SpawnUpstreamSpan: wrapperspb.Bool(false),
+			SpawnUpstreamSpan: wrapperspb.Bool(true),
 			Provider: &tracev3.Tracing_Http{
 				Name: "envoy.tracers.opentelemetry",
 				ConfigType: &tracev3.Tracing_Http_TypedConfig{
@@ -215,6 +216,16 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 							},
 						},
 						ServiceName: "Envoy",
+						ResourceDetectors: []*envoy_config_core_v3.TypedExtensionConfig{
+							{
+								Name: "envoy.tracers.opentelemetry.resource_detectors.static_config",
+								TypedConfig: marshalAny(&envoy_extensions_tracers_otel.StaticConfigResourceDetectorConfig{
+									Attributes: map[string]string{
+										"pomerium.envoy": "true",
+									},
+								}),
+							},
+						},
 					}),
 				},
 			},

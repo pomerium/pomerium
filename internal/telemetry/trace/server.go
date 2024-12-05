@@ -3,10 +3,16 @@ package trace
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
+	"errors"
+	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
+	"time"
+	"unique"
 
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	commonv1 "go.opentelemetry.io/proto/otlp/common/v1"
@@ -21,6 +27,8 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
@@ -57,16 +65,12 @@ func (ptr *PendingScopes) Insert(scope *commonv1.InstrumentationScope, scopeSche
 	spans.Insert(span)
 }
 
-func (ptr *PendingScopes) Delete(scope *commonv1.InstrumentationScope) (cascade bool) {
-	delete(ptr.spansByScope, scope.GetName())
-	return len(ptr.spansByScope) == 0
-}
-
-func (ptr *PendingScopes) AsScopeSpansList(rewriteTraceId oteltrace.TraceID) []*tracev1.ScopeSpans {
+func (ptr *PendingScopes) AsScopeSpansList(rewriteTraceId unique.Handle[oteltrace.TraceID]) []*tracev1.ScopeSpans {
 	out := make([]*tracev1.ScopeSpans, 0, len(ptr.spansByScope))
 	for _, spans := range ptr.spansByScope {
 		for _, span := range spans.spans {
-			span.TraceId = rewriteTraceId[:]
+			id := rewriteTraceId.Value()
+			copy(span.TraceId, id[:])
 		}
 		scopeSpans := &tracev1.ScopeSpans{
 			Scope:     spans.scope,
@@ -101,15 +105,7 @@ func (ptr *PendingResources) Insert(resource *ResourceInfo, scope *commonv1.Inst
 	scopes.Insert(scope, scopeSchema, span)
 }
 
-func (ptr *PendingResources) Delete(resource *ResourceInfo, scope *commonv1.InstrumentationScope) (cascade bool) {
-	resourceEq := resource.ID()
-	if ptr.scopesByResourceID[resourceEq].Delete(scope) {
-		delete(ptr.scopesByResourceID, resourceEq)
-	}
-	return len(ptr.scopesByResourceID) == 0
-}
-
-func (ptr *PendingResources) AsResourceSpans(rewriteTraceId oteltrace.TraceID) []*tracev1.ResourceSpans {
+func (ptr *PendingResources) AsResourceSpans(rewriteTraceId unique.Handle[oteltrace.TraceID]) []*tracev1.ResourceSpans {
 	out := make([]*tracev1.ResourceSpans, 0, len(ptr.scopesByResourceID))
 	for _, scopes := range ptr.scopesByResourceID {
 		resourceSpans := &tracev1.ResourceSpans{
@@ -152,28 +148,67 @@ func (r *ResourceInfo) computeID() string {
 	return base64.StdEncoding.EncodeToString(hash.Sum(nil))
 }
 
+type spanObserver struct {
+	mu            sync.Mutex
+	referencedIDs map[unique.Handle[oteltrace.SpanID]]bool
+	unobservedIDs sync.WaitGroup
+}
+
+func (obs *spanObserver) ObserveReference(id unique.Handle[oteltrace.SpanID]) {
+	obs.mu.Lock()
+	defer obs.mu.Unlock()
+	if _, referenced := obs.referencedIDs[id]; !referenced {
+		obs.referencedIDs[id] = false // referenced, but not observed
+		obs.unobservedIDs.Add(1)
+	}
+}
+
+func (obs *spanObserver) Observe(id unique.Handle[oteltrace.SpanID]) {
+	obs.mu.Lock()
+	defer obs.mu.Unlock()
+	if observed, referenced := obs.referencedIDs[id]; !observed { // NB: subtle condition
+		obs.referencedIDs[id] = true
+		if referenced {
+			obs.unobservedIDs.Done()
+		}
+	}
+}
+
+func (obs *spanObserver) Wait() {
+	obs.unobservedIDs.Wait()
+}
+
 type SpanExportQueue struct {
 	mu                        sync.Mutex
-	pendingResourcesByTraceId map[string]*PendingResources
-	knownTraceIdMappings      map[string]oteltrace.TraceID
+	pendingResourcesByTraceId map[unique.Handle[oteltrace.TraceID]]*PendingResources
+	knownTraceIdMappings      map[unique.Handle[oteltrace.TraceID]]unique.Handle[oteltrace.TraceID]
 	uploadC                   chan []*tracev1.ResourceSpans
+	closing                   bool
+	closed                    chan struct{}
+	debugLevel                int
+	debugAllObservedSpans     map[unique.Handle[oteltrace.SpanID]]*tracev1.Span
+	tracker                   *spanTracker
+	observer                  *spanObserver
 }
 
 func NewSpanExportQueue(ctx context.Context, client otlptrace.Client) *SpanExportQueue {
+	observer := &spanObserver{referencedIDs: make(map[unique.Handle[oteltrace.SpanID]]bool)}
+	debugLevel := systemContextFromContext(ctx).DebugLevel
 	q := &SpanExportQueue{
-		pendingResourcesByTraceId: make(map[string]*PendingResources),
-		knownTraceIdMappings:      make(map[string]oteltrace.TraceID),
+		pendingResourcesByTraceId: make(map[unique.Handle[oteltrace.TraceID]]*PendingResources),
+		knownTraceIdMappings:      make(map[unique.Handle[oteltrace.TraceID]]unique.Handle[oteltrace.TraceID]),
 		uploadC:                   make(chan []*tracev1.ResourceSpans, 8),
+		closed:                    make(chan struct{}),
+		debugLevel:                debugLevel,
+		debugAllObservedSpans:     make(map[unique.Handle[oteltrace.SpanID]]*tracev1.Span),
+		tracker:                   &spanTracker{observer: observer, debugLevel: debugLevel},
+		observer:                  observer,
 	}
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case resourceSpans := <-q.uploadC:
-				if err := client.UploadTraces(ctx, resourceSpans); err != nil {
-					log.Ctx(ctx).Err(err).Msg("error uploading traces")
-				}
+		defer close(q.closed)
+		for resourceSpans := range q.uploadC {
+			if err := client.UploadTraces(context.Background(), resourceSpans); err != nil {
+				log.Ctx(ctx).Err(err).Msg("error uploading traces")
 			}
 		}
 	}()
@@ -186,48 +221,65 @@ type WithSchema[T any] struct {
 }
 
 func (q *SpanExportQueue) insertPendingSpanLocked(resource *ResourceInfo, scope *commonv1.InstrumentationScope, scopeSchema string, span *tracev1.Span) {
-	spanTraceIdHex := oteltrace.TraceID(span.TraceId).String()
+	spanTraceId := unique.Make(oteltrace.TraceID(span.TraceId))
 	var pendingTraceResources *PendingResources
-	if ptr, ok := q.pendingResourcesByTraceId[spanTraceIdHex]; ok {
+	if ptr, ok := q.pendingResourcesByTraceId[spanTraceId]; ok {
 		pendingTraceResources = ptr
 	} else {
 		pendingTraceResources = NewPendingResources()
-		q.pendingResourcesByTraceId[spanTraceIdHex] = pendingTraceResources
+		q.pendingResourcesByTraceId[spanTraceId] = pendingTraceResources
 	}
 	pendingTraceResources.Insert(resource, scope, scopeSchema, span)
 }
 
-func (q *SpanExportQueue) resolveTraceIdMappingLocked(resource *ResourceInfo, scope *commonv1.InstrumentationScope, scopeSchema string, span *tracev1.Span, mapping oteltrace.TraceID) {
-	originalTraceIdHex := oteltrace.TraceID(span.TraceId).String()
-	q.insertPendingSpanLocked(resource, scope, scopeSchema, span)
-	q.knownTraceIdMappings[originalTraceIdHex] = mapping
-	toUpload := q.pendingResourcesByTraceId[originalTraceIdHex].AsResourceSpans(mapping)
-	if q.pendingResourcesByTraceId[originalTraceIdHex].Delete(resource, scope) {
-		delete(q.pendingResourcesByTraceId, originalTraceIdHex)
+func (q *SpanExportQueue) resolveTraceIdMappingLocked(original, mapping unique.Handle[oteltrace.TraceID]) [][]*tracev1.ResourceSpans {
+	q.knownTraceIdMappings[original] = mapping
+
+	toUpload := [][]*tracev1.ResourceSpans{}
+	if originalPending, ok := q.pendingResourcesByTraceId[original]; ok {
+		resourceSpans := originalPending.AsResourceSpans(mapping)
+		delete(q.pendingResourcesByTraceId, original)
+		toUpload = append(toUpload, resourceSpans)
 	}
-	q.uploadC <- toUpload
+
+	if original != mapping {
+		q.knownTraceIdMappings[mapping] = mapping
+		if targetPending, ok := q.pendingResourcesByTraceId[mapping]; ok {
+			resourceSpans := targetPending.AsResourceSpans(mapping)
+			delete(q.pendingResourcesByTraceId, mapping)
+			toUpload = append(toUpload, resourceSpans)
+		}
+	}
+	return toUpload
 }
 
-func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTraceServiceRequest) {
+var ErrShuttingDown = errors.New("exporter is shutting down")
+
+func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTraceServiceRequest) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	if q.closing {
+		return ErrShuttingDown
+	}
 
-	var immediateUpload []*tracev1.ResourceSpans
+	var toUpload [][]*tracev1.ResourceSpans
 	for _, resource := range req.ResourceSpans {
-		resourceInfo := newResourceInfo(resource.Resource, resource.SchemaUrl)
-		knownResources := &tracev1.ResourceSpans{
-			Resource:  resource.Resource,
-			SchemaUrl: resource.SchemaUrl,
-		}
 		for _, scope := range resource.ScopeSpans {
-			var knownSpans []*tracev1.Span
 			for _, span := range scope.Spans {
-				spanTraceId := oteltrace.TraceID(span.TraceId)
-				spanTraceIdHex := oteltrace.TraceID(span.TraceId).String()
-
 				formatSpanName(span)
-				if len(span.ParentSpanId) == 0 {
-					// observed a new root span
+				spanId := unique.Make(oteltrace.SpanID(span.SpanId))
+				parentSpanId := parentSpanID(span.ParentSpanId)
+				if q.debugLevel >= 1 {
+					q.debugAllObservedSpans[spanId] = span
+				}
+				if parentSpanId != rootSpanId {
+					q.observer.ObserveReference(parentSpanId)
+					continue
+				}
+				spanTraceId := unique.Make(oteltrace.TraceID(span.TraceId))
+
+				if _, ok := q.knownTraceIdMappings[spanTraceId]; !ok {
+					// observed a new root span with an unknown trace id
 					var pomeriumTraceparent string
 					for _, attr := range span.Attributes {
 						if attr.Key == "pomerium.traceparent" {
@@ -235,11 +287,11 @@ func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTra
 							break
 						}
 					}
-					var targetTraceID oteltrace.TraceID
+					var mappedTraceID unique.Handle[oteltrace.TraceID]
 
 					if pomeriumTraceparent == "" {
 						// no replacement id, map the trace to itself and release pending spans
-						targetTraceID = spanTraceId
+						mappedTraceID = spanTraceId
 					} else {
 						// this root span has an alternate traceparent. permanently rewrite
 						// all spans of the old trace id to use the new trace id
@@ -248,33 +300,204 @@ func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTra
 							log.Ctx(ctx).Err(err).Msg("error processing trace")
 							continue
 						}
-						targetTraceID = tp.TraceID()
+						mappedTraceID = unique.Make(tp.TraceID())
 					}
 
-					q.resolveTraceIdMappingLocked(resourceInfo, scope.Scope, scope.SchemaUrl, span, targetTraceID)
+					toUpload = append(toUpload, q.resolveTraceIdMappingLocked(spanTraceId, mappedTraceID)...)
+				}
+			}
+		}
+	}
+
+	var knownResources []*tracev1.ResourceSpans
+	for _, resource := range req.ResourceSpans {
+		resourceInfo := newResourceInfo(resource.Resource, resource.SchemaUrl)
+		knownResource := &tracev1.ResourceSpans{
+			Resource:  resource.Resource,
+			SchemaUrl: resource.SchemaUrl,
+		}
+		for _, scope := range resource.ScopeSpans {
+			var knownSpans []*tracev1.Span
+			for _, span := range scope.Spans {
+				spanID := unique.Make(oteltrace.SpanID(span.SpanId))
+				spanTraceId := unique.Make(oteltrace.TraceID(span.TraceId))
+				q.observer.Observe(spanID)
+				if mapping, ok := q.knownTraceIdMappings[spanTraceId]; ok {
+					id := mapping.Value()
+					copy(span.TraceId, id[:])
+					knownSpans = append(knownSpans, span)
 				} else {
-					if rewrite, ok := q.knownTraceIdMappings[spanTraceIdHex]; ok {
-						span.TraceId = rewrite[:]
-						knownSpans = append(knownSpans, span)
-					} else {
-						q.insertPendingSpanLocked(resourceInfo, scope.Scope, scope.SchemaUrl, span)
-					}
+					q.insertPendingSpanLocked(resourceInfo, scope.Scope, scope.SchemaUrl, span)
 				}
 			}
 			if len(knownSpans) > 0 {
-				knownResources.ScopeSpans = append(knownResources.ScopeSpans, &tracev1.ScopeSpans{
+				knownResource.ScopeSpans = append(knownResource.ScopeSpans, &tracev1.ScopeSpans{
 					Scope:     scope.Scope,
 					SchemaUrl: scope.SchemaUrl,
 					Spans:     knownSpans,
 				})
 			}
 		}
-		if len(knownResources.ScopeSpans) > 0 {
-			immediateUpload = append(immediateUpload, knownResources)
+		if len(knownResource.ScopeSpans) > 0 {
+			knownResources = append(knownResources, knownResource)
 		}
 	}
-	if len(immediateUpload) > 0 {
-		q.uploadC <- immediateUpload
+	if len(knownResources) > 0 {
+		toUpload = append(toUpload, knownResources)
+	}
+	for _, res := range toUpload {
+		q.uploadC <- res
+	}
+	return nil
+}
+
+var (
+	ErrIncompleteTraces   = errors.New("exporter shut down with incomplete traces")
+	ErrIncompleteUploads  = errors.New("exporter shut down with pending trace uploads")
+	ErrMissingParentSpans = errors.New("exporter shut down with missing parent spans")
+)
+
+var rootSpanId = unique.Make(oteltrace.SpanID([8]byte{}))
+
+func parentSpanID(value []byte) unique.Handle[oteltrace.SpanID] {
+	if len(value) == 0 {
+		return rootSpanId
+	}
+	return unique.Make(oteltrace.SpanID(value))
+}
+
+func (q *SpanExportQueue) WaitForSpans(maxDuration time.Duration) error {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		q.observer.Wait()
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-time.After(maxDuration):
+		return ErrMissingParentSpans
+	}
+}
+
+func (q *SpanExportQueue) Close(ctx context.Context) error {
+	q.mu.Lock()
+	q.closing = true
+	close(q.uploadC)
+	q.mu.Unlock()
+	select {
+	case <-ctx.Done():
+		return context.Cause(ctx)
+	case <-q.closed:
+		q.mu.Lock()
+		defer q.mu.Unlock()
+		if q.debugLevel >= 1 {
+			var unknownParentIds []string
+			for id, known := range q.observer.referencedIDs {
+				if !known {
+					unknownParentIds = append(unknownParentIds, id.Value().String())
+				}
+			}
+			if len(unknownParentIds) > 0 {
+				msg := strings.Builder{}
+				msg.WriteString("==================================================\n")
+				msg.WriteString("WARNING: parent spans referenced but never seen:\n")
+				for _, str := range unknownParentIds {
+					msg.WriteString(str)
+					msg.WriteString("\n")
+				}
+				msg.WriteString("==================================================\n")
+				fmt.Fprint(os.Stderr, msg.String())
+			}
+		}
+		incomplete := len(q.pendingResourcesByTraceId) > 0
+		if incomplete || q.debugLevel >= 3 {
+			msg := strings.Builder{}
+			if incomplete && q.debugLevel >= 1 {
+				msg.WriteString("==================================================\n")
+				msg.WriteString("WARNING: exporter shut down with incomplete traces\n")
+				for k, v := range q.pendingResourcesByTraceId {
+					msg.WriteString(fmt.Sprintf("- Trace: %s\n", k.Value()))
+					for _, pendingScope := range v.scopesByResourceID {
+						msg.WriteString("  - Resource:\n")
+						for _, v := range pendingScope.resource.Resource.Attributes {
+							msg.WriteString(fmt.Sprintf("     %s=%s\n", v.Key, v.Value.String()))
+						}
+						for _, scope := range pendingScope.spansByScope {
+							if scope.scope != nil {
+								msg.WriteString(fmt.Sprintf("    Scope: %s\n", scope.scope.Name))
+							} else {
+								msg.WriteString("    Scope: (unknown)\n")
+							}
+							msg.WriteString("    Spans:\n")
+							longestName := 0
+							for _, span := range scope.spans {
+								longestName = max(longestName, len(span.Name)+2)
+							}
+							for _, span := range scope.spans {
+								parentSpanId := parentSpanID(span.ParentSpanId)
+								_, seenParent := q.debugAllObservedSpans[parentSpanId]
+								var missing string
+								if !seenParent {
+									missing = " [missing]"
+								}
+								msg.WriteString(fmt.Sprintf("    - %-*s (trace: %s | span: %s | parent:%s %s)\n", longestName,
+									"'"+span.Name+"'", hex.EncodeToString(span.TraceId), hex.EncodeToString(span.SpanId), missing, parentSpanId.Value()))
+								for _, attr := range span.Attributes {
+									if attr.Key == "caller" {
+										msg.WriteString(fmt.Sprintf("      => caller: '%s'\n", attr.Value.GetStringValue()))
+									}
+								}
+							}
+						}
+					}
+				}
+				msg.WriteString("==================================================\n")
+			}
+			if (incomplete && q.debugLevel >= 2) || (!incomplete && q.debugLevel >= 3) {
+				msg.WriteString("==================================================\n")
+				msg.WriteString("Known trace ids:\n")
+				for k, v := range q.knownTraceIdMappings {
+					if k != v {
+						msg.WriteString(fmt.Sprintf("%s => %s\n", k.Value(), v.Value()))
+					} else {
+						msg.WriteString(fmt.Sprintf("%s (no change)\n", k.Value()))
+					}
+				}
+				msg.WriteString("==================================================\n")
+				msg.WriteString("All exported spans:\n")
+				longestName := 0
+				for _, span := range q.debugAllObservedSpans {
+					longestName = max(longestName, len(span.Name)+2)
+				}
+				for _, span := range q.debugAllObservedSpans {
+					traceid := span.TraceId
+					spanid := span.SpanId
+					msg.WriteString(fmt.Sprintf("%-*s (trace: %s | span: %s | parent: %s)", longestName,
+						"'"+span.Name+"'", hex.EncodeToString(traceid[:]), hex.EncodeToString(spanid[:]), parentSpanID(span.ParentSpanId).Value()))
+					var foundCaller bool
+					for _, attr := range span.Attributes {
+						if attr.Key == "caller" {
+							msg.WriteString(fmt.Sprintf(" => %s\n", attr.Value.GetStringValue()))
+							foundCaller = true
+							break
+						}
+					}
+					if !foundCaller {
+						msg.WriteString("\n")
+					}
+				}
+				msg.WriteString("==================================================\n")
+			}
+			if msg.Len() > 0 {
+				fmt.Fprint(os.Stderr, msg.String())
+			}
+			if incomplete {
+				return ErrIncompleteTraces
+			}
+		}
+		log.Ctx(ctx).Debug().Msg("exporter shut down")
+		return nil
 	}
 }
 
@@ -308,28 +531,35 @@ func formatSpanName(span *tracev1.Span) {
 }
 
 // Export implements ptraceotlp.GRPCServer.
-func (srv *Server) Export(ctx context.Context, req *coltracepb.ExportTraceServiceRequest) (*coltracepb.ExportTraceServiceResponse, error) {
+func (srv *ExporterServer) Export(ctx context.Context, req *coltracepb.ExportTraceServiceRequest) (*coltracepb.ExportTraceServiceResponse, error) {
 	srv.spanExportQueue.Enqueue(ctx, req)
 	return &coltracepb.ExportTraceServiceResponse{}, nil
 }
 
-type Server struct {
+type ExporterServer struct {
 	coltracepb.UnimplementedTraceServiceServer
 	spanExportQueue *SpanExportQueue
+	server          *grpc.Server
+	remoteClient    otlptrace.Client
+	cc              *grpc.ClientConn
 }
 
-func NewServer(ctx context.Context, client otlptrace.Client) *Server {
-	client.Start(ctx)
-	return &Server{
-		spanExportQueue: NewSpanExportQueue(ctx, client),
+func NewServer(ctx context.Context, remoteClient otlptrace.Client) *ExporterServer {
+	if err := remoteClient.Start(ctx); err != nil {
+		panic(err)
 	}
+	ex := &ExporterServer{
+		spanExportQueue: NewSpanExportQueue(ctx, remoteClient),
+		remoteClient:    remoteClient,
+		server:          grpc.NewServer(grpc.Creds(insecure.NewCredentials())),
+	}
+	coltracepb.RegisterTraceServiceServer(ex.server, ex)
+	return ex
 }
 
-func (srv *Server) Start(ctx context.Context) otlptrace.Client {
+func (srv *ExporterServer) Start(ctx context.Context) {
 	lis := bufconn.Listen(4096)
-	gs := grpc.NewServer(grpc.Creds(insecure.NewCredentials()))
-	coltracepb.RegisterTraceServiceServer(gs, srv)
-	go gs.Serve(lis)
+	go srv.server.Serve(lis)
 	cc, err := grpc.NewClient("passthrough://ignore",
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			return lis.Dial()
@@ -337,5 +567,125 @@ func (srv *Server) Start(ctx context.Context) otlptrace.Client {
 	if err != nil {
 		panic(err)
 	}
-	return otlptracegrpc.NewClient(otlptracegrpc.WithGRPCConn(cc))
+	srv.cc = cc
+}
+
+func (srv *ExporterServer) NewClient() otlptrace.Client {
+	return otlptracegrpc.NewClient(otlptracegrpc.WithGRPCConn(srv.cc))
+}
+
+func (srv *ExporterServer) SpanProcessors() []sdktrace.SpanProcessor {
+	return []sdktrace.SpanProcessor{srv.spanExportQueue.tracker}
+}
+
+func (srv *ExporterServer) Shutdown(ctx context.Context) error {
+	stopped := make(chan struct{})
+	go func() {
+		srv.server.GracefulStop()
+		close(stopped)
+	}()
+	select {
+	case <-stopped:
+	case <-ctx.Done():
+		return context.Cause(ctx)
+	}
+	var errs []error
+	if err := srv.spanExportQueue.WaitForSpans(5 * time.Second); err != nil {
+		errs = append(errs, err)
+	}
+	if err := srv.spanExportQueue.Close(ctx); err != nil {
+		errs = append(errs, err)
+	}
+	if err := srv.remoteClient.Stop(ctx); err != nil {
+		errs = append(errs, err)
+	}
+	return errors.Join(errs...)
+}
+
+type spanTracker struct {
+	inflightSpans sync.Map
+	allSpans      sync.Map
+	debugLevel    int
+	observer      *spanObserver
+}
+
+type spanInfo struct {
+	Name        string
+	SpanContext trace.SpanContext
+	Parent      trace.SpanContext
+}
+
+// ForceFlush implements trace.SpanProcessor.
+func (t *spanTracker) ForceFlush(ctx context.Context) error {
+	return nil
+}
+
+// OnEnd implements trace.SpanProcessor.
+func (t *spanTracker) OnEnd(s sdktrace.ReadOnlySpan) {
+	id := unique.Make(s.SpanContext().SpanID())
+	t.inflightSpans.Delete(id)
+}
+
+// OnStart implements trace.SpanProcessor.
+func (t *spanTracker) OnStart(parent context.Context, s sdktrace.ReadWriteSpan) {
+	id := unique.Make(s.SpanContext().SpanID())
+	t.inflightSpans.Store(id, struct{}{})
+	t.observer.Observe(id)
+	if t.debugLevel >= 3 {
+		t.allSpans.Store(id, &spanInfo{
+			Name:        s.Name(),
+			SpanContext: s.SpanContext(),
+			Parent:      s.Parent(),
+		})
+	}
+}
+
+// Shutdown implements trace.SpanProcessor.
+func (t *spanTracker) Shutdown(ctx context.Context) error {
+	msg := strings.Builder{}
+	if t.debugLevel >= 1 {
+		incompleteSpans := []*spanInfo{}
+		t.inflightSpans.Range(func(key, value any) bool {
+			if info, ok := t.allSpans.Load(key); ok {
+				incompleteSpans = append(incompleteSpans, info.(*spanInfo))
+			}
+			return true
+		})
+		if len(incompleteSpans) > 0 {
+			msg.WriteString("==================================================\n")
+			msg.WriteString("WARNING: spans not ended:\n")
+			longestName := 0
+			for _, span := range incompleteSpans {
+				longestName = max(longestName, len(span.Name)+2)
+			}
+			for _, span := range incompleteSpans {
+				msg.WriteString(fmt.Sprintf("%-*s (trace: %s | span: %s | parent: %s)\n", longestName, "'"+span.Name+"'",
+					span.SpanContext.TraceID(), span.SpanContext.SpanID(), span.Parent.SpanID()))
+			}
+			msg.WriteString("==================================================\n")
+		}
+	}
+	if t.debugLevel >= 3 {
+		allSpans := []*spanInfo{}
+		t.allSpans.Range(func(key, value any) bool {
+			allSpans = append(allSpans, value.(*spanInfo))
+			return true
+		})
+		msg.WriteString("==================================================\n")
+		msg.WriteString("All observed spans:\n")
+		longestName := 0
+		for _, span := range allSpans {
+			longestName = max(longestName, len(span.Name)+2)
+		}
+		for _, span := range allSpans {
+			msg.WriteString(fmt.Sprintf("%-*s (trace: %s | span: %s | parent: %s)\n", longestName, "'"+span.Name+"'",
+				span.SpanContext.TraceID(), span.SpanContext.SpanID(), span.Parent.SpanID()))
+		}
+		msg.WriteString("==================================================\n")
+	}
+	if msg.Len() > 0 {
+		fmt.Fprint(os.Stderr, msg.String())
+	}
+
+	return nil
 }

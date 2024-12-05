@@ -157,7 +157,7 @@ type httpUpstream struct {
 	clientCache sync.Map // map[testenv.Route]*http.Client
 
 	router         *mux.Router
-	tracerProvider oteltrace.TracerProvider
+	tracerProvider values.MutableValue[oteltrace.TracerProvider]
 }
 
 var (
@@ -176,6 +176,7 @@ func HTTP(tlsConfig values.Value[*tls.Config], opts ...HTTPUpstreamOption) HTTPU
 		serverPort:          values.Deferred[int](),
 		router:              mux.NewRouter(),
 		tlsConfig:           tlsConfig,
+		tracerProvider:      values.Deferred[oteltrace.TracerProvider](),
 	}
 	up.RecordCaller()
 	return up
@@ -213,8 +214,8 @@ func (h *httpUpstream) Run(ctx context.Context) error {
 	if h.tlsConfig != nil {
 		tlsConfig = h.tlsConfig.Value()
 	}
-	h.router.Use(trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(h.tracerProvider)))
-	h.tracerProvider = trace.NewTracerProvider(ctx, h.displayName)
+	h.tracerProvider.Resolve(trace.NewTracerProvider(ctx, h.displayName))
+	h.router.Use(trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(h.tracerProvider.Value())))
 
 	server := &http.Server{
 		Handler:   h.router,
@@ -263,34 +264,6 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 		})
 	}
 
-	req, err := http.NewRequestWithContext(options.requestCtx, method, u.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	switch body := options.body.(type) {
-	case string:
-		req.Body = io.NopCloser(strings.NewReader(body))
-	case []byte:
-		req.Body = io.NopCloser(bytes.NewReader(body))
-	case io.Reader:
-		req.Body = io.NopCloser(body)
-	case proto.Message:
-		buf, err := proto.Marshal(body)
-		if err != nil {
-			return nil, err
-		}
-		req.Body = io.NopCloser(bytes.NewReader(buf))
-		req.Header.Set("Content-Type", "application/octet-stream")
-	default:
-		buf, err := json.Marshal(body)
-		if err != nil {
-			panic(fmt.Sprintf("unsupported body type: %T", body))
-		}
-		req.Body = io.NopCloser(bytes.NewReader(buf))
-		req.Header.Set("Content-Type", "application/json")
-	case nil:
-	}
-
 	newClient := func() *http.Client {
 		c := http.Client{
 			Transport: otelhttp.NewTransport(&http.Transport{
@@ -299,7 +272,7 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 					Certificates: options.clientCerts,
 				},
 			},
-				otelhttp.WithTracerProvider(h.tracerProvider),
+				otelhttp.WithTracerProvider(h.tracerProvider.Value()),
 				otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
 					return fmt.Sprintf("Client: %s %s", r.Method, r.URL.Path)
 				}),
@@ -322,11 +295,38 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 
 	var resp *http.Response
 	if err := retry.Retry(options.requestCtx, "http", func(ctx context.Context) error {
-		var err error
+		req, err := http.NewRequestWithContext(options.requestCtx, method, u.String(), nil)
+		if err != nil {
+			return err
+		}
+		switch body := options.body.(type) {
+		case string:
+			req.Body = io.NopCloser(strings.NewReader(body))
+		case []byte:
+			req.Body = io.NopCloser(bytes.NewReader(body))
+		case io.Reader:
+			req.Body = io.NopCloser(body)
+		case proto.Message:
+			buf, err := proto.Marshal(body)
+			if err != nil {
+				return err
+			}
+			req.Body = io.NopCloser(bytes.NewReader(buf))
+			req.Header.Set("Content-Type", "application/octet-stream")
+		default:
+			buf, err := json.Marshal(body)
+			if err != nil {
+				panic(fmt.Sprintf("unsupported body type: %T", body))
+			}
+			req.Body = io.NopCloser(bytes.NewReader(buf))
+			req.Header.Set("Content-Type", "application/json")
+		case nil:
+		}
+
 		if options.authenticateAs != "" {
-			resp, err = authenticateFlow(ctx, client, req, options.authenticateAs) //nolint:bodyclose
+			resp, err = authenticateFlow(ctx, client, req, options.authenticateAs)
 		} else {
-			resp, err = client.Do(req) //nolint:bodyclose
+			resp, err = client.Do(req)
 		}
 		// retry on connection refused
 		if err != nil {
@@ -338,6 +338,9 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 			return retry.NewTerminalError(err)
 		}
 		if resp.StatusCode/100 == 5 {
+			if err := resp.Body.Close(); err != nil {
+				panic(err)
+			}
 			oteltrace.SpanFromContext(ctx).AddEvent("Retrying on 5xx error", oteltrace.WithAttributes(
 				attribute.String("status", resp.Status),
 			))
@@ -357,7 +360,6 @@ func authenticateFlow(ctx context.Context, client *http.Client, req *http.Reques
 	if err != nil {
 		return nil, err
 	}
-
 	location := res.Request.URL
 	if location.Hostname() == originalHostname {
 		// already authenticated

@@ -211,6 +211,7 @@ type environment struct {
 	logWriter      *log.MultiWriter
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
+	rootSpan       oteltrace.Span
 
 	mods         []WithCaller[Modifier]
 	tasks        []WithCaller[Task]
@@ -267,9 +268,10 @@ func Silent(silent ...bool) EnvironmentOption {
 var setGrpcLoggerOnce sync.Once
 
 var (
-	flagDebug          = flag.Bool("env.debug", false, "enables test environment debug logging (equivalent to Debug() option)")
-	flagPauseOnFailure = flag.Bool("env.pause-on-failure", false, "enables pausing the test environment on failure (equivalent to PauseOnFailure() option)")
-	flagSilent         = flag.Bool("env.silent", false, "suppresses all test environment output (equivalent to Silent() option)")
+	flagDebug           = flag.Bool("env.debug", false, "enables test environment debug logging (equivalent to Debug() option)")
+	flagPauseOnFailure  = flag.Bool("env.pause-on-failure", false, "enables pausing the test environment on failure (equivalent to PauseOnFailure() option)")
+	flagSilent          = flag.Bool("env.silent", false, "suppresses all test environment output (equivalent to Silent() option)")
+	flagTraceDebugLevel = flag.Int("env.trace-debug-level", 0, "trace debug level")
 )
 
 func New(t testing.TB, opts ...EnvironmentOption) Environment {
@@ -320,14 +322,16 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	})
 	logger := zerolog.New(writer).With().Timestamp().Logger().Level(zerolog.DebugLevel)
 
-	ctx, cancel := context.WithCancelCause(logger.WithContext(trace.NewContext(context.Background())))
-	t.Cleanup(func() {
-		trace.Shutdown(ctx)
-	})
+	ctx := trace.Options{
+		DebugLevel: *flagTraceDebugLevel,
+	}.NewContext(context.Background())
+	ctx = logger.WithContext(ctx)
 	tracerProvider := trace.NewTracerProvider(ctx, "Test Environment")
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
-	ctx, span := tracer.Start(ctx, t.Name())
+	ctx, span := tracer.Start(ctx, t.Name(), oteltrace.WithNewRoot())
 	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancelCause(ctx)
 	taskErrGroup, ctx := errgroup.WithContext(ctx)
 
 	e := &environment{
@@ -352,14 +356,13 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		ctx:                  ctx,
 		cancel:               cancel,
 		tracerProvider:       tracerProvider,
-		tracer:               tracerProvider.Tracer(trace.PomeriumCoreTracer),
+		tracer:               tracer,
 		logWriter:            writer,
 		taskErrGroup:         taskErrGroup,
 		stateChangeListeners: make(map[EnvironmentState][]func()),
+		rootSpan:             span,
 	}
-	e.OnStateChanged(Stopped, func() {
-		span.End()
-	})
+
 	_, err = rand.Read(e.sharedSecret[:])
 	require.NoError(t, err)
 	_, err = rand.Read(e.cookieSecret[:])
@@ -561,6 +564,7 @@ func (e *environment) Start() {
 
 		opts := []pomerium.Option{
 			pomerium.WithOverrideFileManager(fileMgr),
+			pomerium.WithEnvoyServerOptions(envoy.WithExitGracePeriod(10 * time.Second)),
 		}
 		envoyBinaryPath := filepath.Join(e.workspaceFolder, fmt.Sprintf("pkg/envoy/files/envoy-%s-%s", runtime.GOOS, runtime.GOARCH))
 		if envutil.EnvoyProfilerAvailable(envoyBinaryPath) {
@@ -591,10 +595,7 @@ func (e *environment) Start() {
 			}
 			if len(envVars) > 0 {
 				e.debugf("adding envoy env vars: %v\n", envVars)
-				opts = append(opts, pomerium.WithEnvoyServerOptions(
-					envoy.WithExtraEnvVars(envVars...),
-					envoy.WithExitGracePeriod(10*time.Second), // allow envoy time to flush pprof data to disk
-				))
+				opts = append(opts, pomerium.WithEnvoyServerOptions(envoy.WithExtraEnvVars(envVars...)))
 			}
 		} else {
 			e.debugf("envoy profiling not available")
@@ -602,7 +603,11 @@ func (e *environment) Start() {
 
 		pom := pomerium.New(opts...)
 		e.OnStateChanged(Stopping, func() {
-			pom.Shutdown()
+			if err := pom.Shutdown(ctx); err != nil {
+				log.Ctx(ctx).Err(err).Msg("error shutting down pomerium server")
+			} else {
+				e.debugf("pomerium server shut down without error")
+			}
 		})
 		pom.Start(ctx, e.tracerProvider, e.src)
 		return pom.Wait()
@@ -742,6 +747,8 @@ func (e *environment) Stop() {
 		err := e.taskErrGroup.Wait()
 		e.advanceState(Stopped)
 		e.debugf("stop: done waiting")
+		e.rootSpan.End()
+		assert.NoError(e.t, trace.ShutdownContext(e.ctx))
 		assert.ErrorIs(e.t, err, ErrCauseManualStop)
 	})
 }
