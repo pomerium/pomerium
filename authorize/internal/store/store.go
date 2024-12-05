@@ -21,7 +21,6 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
 
@@ -163,13 +162,13 @@ func (s *Store) GetDataBrokerRecordOption() func(*rego.Rego) {
 }
 
 func (s *Store) GetDataBrokerRecord(ctx context.Context, recordType, recordIDOrIndex string) proto.Message {
-	req := &databroker.QueryRequest{
-		Type:  recordType,
-		Limit: 1,
-	}
-	req.SetFilterByIDOrIndex(recordIDOrIndex)
+	req := GetPooledQueryRequest()
+	req.SetRecordType(recordType)
+	req.SetIDOrIndex(recordIDOrIndex)
+	ctx = storage.ContextWithCacheKey(ctx, req.CacheKey())
+	defer req.Release()
 
-	res, err := storage.GetQuerier(ctx).Query(ctx, req)
+	res, err := storage.GetQuerier(ctx).Query(ctx, req.Request())
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize/store: error retrieving record")
 		return nil

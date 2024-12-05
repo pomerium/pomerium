@@ -215,6 +215,19 @@ func (q *TracingQuerier) Traces() []QueryTrace {
 	return traces
 }
 
+type cacheKeyType struct{}
+
+var cacheKeyKey cacheKeyType
+
+func ContextWithCacheKey(ctx context.Context, cacheKey []byte) context.Context {
+	return context.WithValue(ctx, cacheKeyKey, cacheKey)
+}
+
+func CacheKeyFromContext(ctx context.Context) ([]byte, bool) {
+	v, ok := ctx.Value(cacheKeyKey).([]byte)
+	return v, ok
+}
+
 type cachingQuerier struct {
 	q     Querier
 	cache Cache
@@ -229,24 +242,35 @@ func NewCachingQuerier(q Querier, cache Cache) Querier {
 }
 
 func (q *cachingQuerier) InvalidateCache(ctx context.Context, in *databroker.QueryRequest) {
-	key, err := (&proto.MarshalOptions{
-		Deterministic: true,
-	}).Marshal(in)
-	if err != nil {
-		return
+	var key []byte
+	if k, ok := CacheKeyFromContext(ctx); ok {
+		key = k
+	} else {
+		var err error
+		key, err = (&proto.MarshalOptions{
+			Deterministic: true,
+		}).Marshal(in)
+		if err != nil {
+			return
+		}
 	}
 	q.cache.Invalidate(key)
 	q.q.InvalidateCache(ctx, in)
 }
 
 func (q *cachingQuerier) Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error) {
-	key, err := (&proto.MarshalOptions{
-		Deterministic: true,
-	}).Marshal(in)
-	if err != nil {
-		return nil, err
+	var key []byte
+	if k, ok := CacheKeyFromContext(ctx); ok {
+		key = k
+	} else {
+		var err error
+		key, err = (&proto.MarshalOptions{
+			Deterministic: true,
+		}).Marshal(in)
+		if err != nil {
+			return nil, err
+		}
 	}
-
 	rawResult, err := q.cache.GetOrUpdate(ctx, key, func(ctx context.Context) ([]byte, error) {
 		res, err := q.q.Query(ctx, in, opts...)
 		if err != nil {
