@@ -607,6 +607,7 @@ type spanTracker struct {
 	allSpans      sync.Map
 	debugLevel    int
 	observer      *spanObserver
+	shutdownOnce  sync.Once
 }
 
 type spanInfo struct {
@@ -642,50 +643,52 @@ func (t *spanTracker) OnStart(parent context.Context, s sdktrace.ReadWriteSpan) 
 
 // Shutdown implements trace.SpanProcessor.
 func (t *spanTracker) Shutdown(ctx context.Context) error {
-	msg := strings.Builder{}
-	if t.debugLevel >= 1 {
-		incompleteSpans := []*spanInfo{}
-		t.inflightSpans.Range(func(key, value any) bool {
-			if info, ok := t.allSpans.Load(key); ok {
-				incompleteSpans = append(incompleteSpans, info.(*spanInfo))
+	t.shutdownOnce.Do(func() {
+		msg := strings.Builder{}
+		if t.debugLevel >= 1 {
+			incompleteSpans := []*spanInfo{}
+			t.inflightSpans.Range(func(key, value any) bool {
+				if info, ok := t.allSpans.Load(key); ok {
+					incompleteSpans = append(incompleteSpans, info.(*spanInfo))
+				}
+				return true
+			})
+			if len(incompleteSpans) > 0 {
+				msg.WriteString("==================================================\n")
+				msg.WriteString("WARNING: spans not ended:\n")
+				longestName := 0
+				for _, span := range incompleteSpans {
+					longestName = max(longestName, len(span.Name)+2)
+				}
+				for _, span := range incompleteSpans {
+					msg.WriteString(fmt.Sprintf("%-*s (trace: %s | span: %s | parent: %s)\n", longestName, "'"+span.Name+"'",
+						span.SpanContext.TraceID(), span.SpanContext.SpanID(), span.Parent.SpanID()))
+				}
+				msg.WriteString("==================================================\n")
 			}
-			return true
-		})
-		if len(incompleteSpans) > 0 {
+		}
+		if t.debugLevel >= 3 {
+			allSpans := []*spanInfo{}
+			t.allSpans.Range(func(key, value any) bool {
+				allSpans = append(allSpans, value.(*spanInfo))
+				return true
+			})
 			msg.WriteString("==================================================\n")
-			msg.WriteString("WARNING: spans not ended:\n")
+			msg.WriteString("All observed spans:\n")
 			longestName := 0
-			for _, span := range incompleteSpans {
+			for _, span := range allSpans {
 				longestName = max(longestName, len(span.Name)+2)
 			}
-			for _, span := range incompleteSpans {
+			for _, span := range allSpans {
 				msg.WriteString(fmt.Sprintf("%-*s (trace: %s | span: %s | parent: %s)\n", longestName, "'"+span.Name+"'",
 					span.SpanContext.TraceID(), span.SpanContext.SpanID(), span.Parent.SpanID()))
 			}
 			msg.WriteString("==================================================\n")
 		}
-	}
-	if t.debugLevel >= 3 {
-		allSpans := []*spanInfo{}
-		t.allSpans.Range(func(key, value any) bool {
-			allSpans = append(allSpans, value.(*spanInfo))
-			return true
-		})
-		msg.WriteString("==================================================\n")
-		msg.WriteString("All observed spans:\n")
-		longestName := 0
-		for _, span := range allSpans {
-			longestName = max(longestName, len(span.Name)+2)
+		if msg.Len() > 0 {
+			fmt.Fprint(os.Stderr, msg.String())
 		}
-		for _, span := range allSpans {
-			msg.WriteString(fmt.Sprintf("%-*s (trace: %s | span: %s | parent: %s)\n", longestName, "'"+span.Name+"'",
-				span.SpanContext.TraceID(), span.SpanContext.SpanID(), span.Parent.SpanID()))
-		}
-		msg.WriteString("==================================================\n")
-	}
-	if msg.Len() > 0 {
-		fmt.Fprint(os.Stderr, msg.String())
-	}
+	})
 
 	return nil
 }
