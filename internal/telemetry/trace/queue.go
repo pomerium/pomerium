@@ -187,7 +187,7 @@ func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTra
 				if !ok {
 					continue
 				}
-				parentSpanId, ok := toSpanID(span.ParentSpanId)
+				parentSpanID, ok := toSpanID(span.ParentSpanId)
 				if !ok {
 					continue
 				}
@@ -199,13 +199,13 @@ func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTra
 				} else {
 					var isInternalRoot bool
 					if q.debugFlags.Check(TrackSpanReferences) {
-						if parentSpanId.IsValid() {
+						if parentSpanID.IsValid() {
 							for _, attr := range span.Attributes {
 								if attr.Key == "pomerium.external-parent-span" {
 									isInternalRoot = true
 									if bytes, err := hex.DecodeString(attr.Value.GetStringValue()); err == nil {
-										if spanId, _ := toSpanID(bytes); spanId.IsValid() {
-											q.observer.Observe(spanId)
+										if spanID, _ := toSpanID(bytes); spanID.IsValid() {
+											q.observer.Observe(spanID)
 										}
 									}
 									break
