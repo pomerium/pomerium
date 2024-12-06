@@ -33,18 +33,24 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
+	databroker_service "github.com/pomerium/pomerium/databroker"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/testenv/envutil"
 	"github.com/pomerium/pomerium/internal/testenv/values"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
+	"github.com/pomerium/pomerium/pkg/identity/legacymanager"
+	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/grpclog"
 )
@@ -56,6 +62,7 @@ type Environment interface {
 	// top-level logger scoped to this environment. It will be canceled when
 	// Stop() is called, or during test cleanup.
 	Context() context.Context
+	Tracer() oteltrace.Tracer
 
 	Assert() *assert.Assertions
 	Require() *require.Assertions
@@ -133,9 +140,18 @@ type Environment interface {
 	// the Pomerium server and Envoy.
 	NewLogRecorder(opts ...LogRecorderOption) *LogRecorder
 
+	// GetState returns the current state of the test environment.
+	GetState() EnvironmentState
+
 	// OnStateChanged registers a callback to be invoked when the environment's
-	// state changes to the given state. The callback is invoked in a separate
-	// goroutine.
+	// state changes to the given state. Each callback is invoked in a separate
+	// goroutine, but the test environment will wait for all callbacks to return
+	// before continuing, after triggering the state change.
+	// State changes are triggered in the following places:
+	// - NotRunning->Starting: in Start(), as the first operation
+	// - Starting->Running: in Start(), just before returning
+	// - Running->Stopping: in Stop(), just before the env context is canceled
+	// - Stopping->Stopped: in Stop(), after all tasks have completed
 	OnStateChanged(state EnvironmentState, callback func())
 }
 
@@ -192,10 +208,13 @@ type environment struct {
 	workspaceFolder string
 	silent          bool
 
-	ctx         context.Context
-	cancel      context.CancelCauseFunc
-	cleanupOnce sync.Once
-	logWriter   *log.MultiWriter
+	ctx            context.Context
+	cancel         context.CancelCauseFunc
+	cleanupOnce    sync.Once
+	logWriter      *log.MultiWriter
+	tracerProvider oteltrace.TracerProvider
+	tracer         oteltrace.Tracer
+	rootSpan       oteltrace.Span
 
 	mods         []WithCaller[Modifier]
 	tasks        []WithCaller[Task]
@@ -209,9 +228,10 @@ type environment struct {
 }
 
 type EnvironmentOptions struct {
-	debug          bool
-	pauseOnFailure bool
-	forceSilent    bool
+	debug           bool
+	pauseOnFailure  bool
+	forceSilent     bool
+	traceDebugFlags trace.DebugFlags
 }
 
 type EnvironmentOption func(*EnvironmentOptions)
@@ -249,12 +269,34 @@ func Silent(silent ...bool) EnvironmentOption {
 	}
 }
 
+func TraceDebugFlags(flags trace.DebugFlags) EnvironmentOption {
+	return func(o *EnvironmentOptions) {
+		o.traceDebugFlags = flags
+	}
+}
+
+const StandardTraceDebugFlags = trace.TrackSpanCallers |
+	trace.WarnOnIncompleteSpans |
+	trace.WarnOnIncompleteTraces |
+	trace.WarnOnUnresolvedReferences |
+	trace.LogTraceIDMappingsOnWarn |
+	trace.LogAllSpansOnWarn
+
+func AddTraceDebugFlags(flags trace.DebugFlags) EnvironmentOption {
+	return func(o *EnvironmentOptions) {
+		o.traceDebugFlags |= flags
+	}
+}
+
 var setGrpcLoggerOnce sync.Once
 
+const defaultTraceDebugFlags = trace.TrackSpanCallers
+
 var (
-	flagDebug          = flag.Bool("env.debug", false, "enables test environment debug logging (equivalent to Debug() option)")
-	flagPauseOnFailure = flag.Bool("env.pause-on-failure", false, "enables pausing the test environment on failure (equivalent to PauseOnFailure() option)")
-	flagSilent         = flag.Bool("env.silent", false, "suppresses all test environment output (equivalent to Silent() option)")
+	flagDebug           = flag.Bool("env.debug", false, "enables test environment debug logging (equivalent to Debug() option)")
+	flagPauseOnFailure  = flag.Bool("env.pause-on-failure", false, "enables pausing the test environment on failure (equivalent to PauseOnFailure() option)")
+	flagSilent          = flag.Bool("env.silent", false, "suppresses all test environment output (equivalent to Silent() option)")
+	flagTraceDebugFlags = flag.Uint("env.trace-debug-flags", defaultTraceDebugFlags, "trace debug flags (equivalent to TraceDebugFlags() option)")
 )
 
 func New(t testing.TB, opts ...EnvironmentOption) Environment {
@@ -262,15 +304,17 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		t.Skip("test environment only supported on linux")
 	}
 	options := EnvironmentOptions{
-		debug:          *flagDebug,
-		pauseOnFailure: *flagPauseOnFailure,
-		forceSilent:    *flagSilent,
+		debug:           *flagDebug,
+		pauseOnFailure:  *flagPauseOnFailure,
+		forceSilent:     *flagSilent,
+		traceDebugFlags: trace.DebugFlags(*flagTraceDebugFlags),
 	}
 	options.apply(opts...)
 	if testing.Short() {
 		t.Helper()
 		t.Skip("test environment disabled in short mode")
 	}
+	trace.UseGlobalPanicTracer()
 	databroker.DebugUseFasterBackoff.Store(true)
 	workspaceFolder, err := os.Getwd()
 	require.NoError(t, err)
@@ -305,7 +349,15 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	})
 	logger := zerolog.New(writer).With().Timestamp().Logger().Level(zerolog.DebugLevel)
 
-	ctx, cancel := context.WithCancelCause(logger.WithContext(context.Background()))
+	ctx := trace.Options{
+		DebugFlags: options.traceDebugFlags,
+	}.NewContext(logger.WithContext(context.Background()))
+	tracerProvider := trace.NewTracerProvider(ctx, "Test Environment")
+	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
+	ctx, span := tracer.Start(ctx, t.Name(), oteltrace.WithNewRoot())
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancelCause(ctx)
 	taskErrGroup, ctx := errgroup.WithContext(ctx)
 
 	e := &environment{
@@ -325,13 +377,18 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 			Debug:        values.Deferred[int](),
 			ALPN:         values.Deferred[int](),
 		},
-		workspaceFolder: workspaceFolder,
-		silent:          silent,
-		ctx:             ctx,
-		cancel:          cancel,
-		logWriter:       writer,
-		taskErrGroup:    taskErrGroup,
+		workspaceFolder:      workspaceFolder,
+		silent:               silent,
+		ctx:                  ctx,
+		cancel:               cancel,
+		tracerProvider:       tracerProvider,
+		tracer:               tracer,
+		logWriter:            writer,
+		taskErrGroup:         taskErrGroup,
+		stateChangeListeners: make(map[EnvironmentState][]func()),
+		rootSpan:             span,
 	}
+
 	_, err = rand.Read(e.sharedSecret[:])
 	require.NoError(t, err)
 	_, err = rand.Read(e.cookieSecret[:])
@@ -362,10 +419,12 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 
 func (e *environment) debugf(format string, args ...any) {
 	e.t.Helper()
+	if e.rootSpan.IsRecording() {
+		e.rootSpan.AddEvent(fmt.Sprintf(format, args...))
+	}
 	if !e.debug {
 		return
 	}
-
 	e.t.Logf("\x1b[34m[debug] "+format+"\x1b[0m", args...)
 }
 
@@ -392,6 +451,10 @@ func (e *environment) TempDir() string {
 
 func (e *environment) Context() context.Context {
 	return ContextWithEnv(e.ctx, e)
+}
+
+func (e *environment) Tracer() oteltrace.Tracer {
+	return e.tracer
 }
 
 func (e *environment) Assert() *assert.Assertions {
@@ -455,6 +518,8 @@ var ErrCauseTestCleanup = errors.New("test cleanup")
 var ErrCauseManualStop = errors.New("Stop() called")
 
 func (e *environment) Start() {
+	_, span := e.tracer.Start(e.ctx, "Start")
+	defer span.End()
 	e.debugf("Start()")
 	e.advanceState(Starting)
 	e.t.Cleanup(e.cleanup)
@@ -515,6 +580,7 @@ func (e *environment) Start() {
 		log.AccessLogFieldUserAgent,
 		log.AccessLogFieldClientCertificate,
 	}
+	cfg.Options.TracingSampleRate = 1.0
 
 	e.src = &configSource{cfg: cfg}
 	e.AddTask(TaskFunc(func(ctx context.Context) error {
@@ -524,8 +590,13 @@ func (e *environment) Start() {
 			require.NoError(e.t, cfg.Options.Validate(), "invoking modifier resulted in an invalid configuration:\nadded by: "+mod.Caller)
 		}
 
-		opts := []pomerium.RunOption{
+		opts := []pomerium.Option{
 			pomerium.WithOverrideFileManager(fileMgr),
+			pomerium.WithEnvoyServerOptions(envoy.WithExitGracePeriod(30 * time.Second)),
+			pomerium.WithDataBrokerServerOptions(
+				databroker_service.WithManagerOptions(manager.WithLeaseTTL(1*time.Second)),
+				databroker_service.WithLegacyManagerOptions(legacymanager.WithLeaseTTL(1*time.Second)),
+			),
 		}
 		envoyBinaryPath := filepath.Join(e.workspaceFolder, fmt.Sprintf("pkg/envoy/files/envoy-%s-%s", runtime.GOOS, runtime.GOARCH))
 		if envutil.EnvoyProfilerAvailable(envoyBinaryPath) {
@@ -556,16 +627,22 @@ func (e *environment) Start() {
 			}
 			if len(envVars) > 0 {
 				e.debugf("adding envoy env vars: %v\n", envVars)
-				opts = append(opts, pomerium.WithEnvoyServerOptions(
-					envoy.WithExtraEnvVars(envVars...),
-					envoy.WithExitGracePeriod(10*time.Second), // allow envoy time to flush pprof data to disk
-				))
+				opts = append(opts, pomerium.WithEnvoyServerOptions(envoy.WithExtraEnvVars(envVars...)))
 			}
 		} else {
 			e.debugf("envoy profiling not available")
 		}
 
-		return pomerium.Run(ctx, e.src, opts...)
+		pom := pomerium.New(opts...)
+		e.OnStateChanged(Stopping, func() {
+			if err := pom.Shutdown(ctx); err != nil {
+				log.Ctx(ctx).Err(err).Msg("error shutting down pomerium server")
+			} else {
+				e.debugf("pomerium server shut down without error")
+			}
+		})
+		require.NoError(e.t, pom.Start(ctx, e.tracerProvider, e.src))
+		return pom.Wait()
 	}))
 
 	for i, task := range e.tasks {
@@ -702,6 +779,8 @@ func (e *environment) Stop() {
 		err := e.taskErrGroup.Wait()
 		e.advanceState(Stopped)
 		e.debugf("stop: done waiting")
+		e.rootSpan.End()
+		assert.NoError(e.t, trace.ShutdownContext(e.ctx))
 		assert.ErrorIs(e.t, err, ErrCauseManualStop)
 	})
 }
@@ -740,7 +819,7 @@ func (e *environment) Add(m Modifier) {
 	e.t.Helper()
 	caller := getCaller()
 	e.debugf("Add: %T from %s", m, caller)
-	switch e.getState() {
+	switch e.GetState() {
 	case NotRunning:
 		for _, mod := range e.mods {
 			if mod.Value == m {
@@ -761,7 +840,7 @@ func (e *environment) Add(m Modifier) {
 	case Stopped, Stopping:
 		panic("test bug: cannot call Add() after Stop()")
 	default:
-		panic(fmt.Sprintf("unexpected environment state: %s", e.getState()))
+		panic(fmt.Sprintf("unexpected environment state: %s", e.GetState()))
 	}
 }
 
@@ -805,13 +884,25 @@ func (e *environment) advanceState(newState EnvironmentState) {
 	}
 	e.debugf("state %s -> %s", e.state.String(), newState.String())
 	e.state = newState
-	e.debugf("notifying %d listeners of state change", len(e.stateChangeListeners[newState]))
-	for _, listener := range e.stateChangeListeners[newState] {
-		go listener()
+	if len(e.stateChangeListeners[newState]) > 0 {
+		e.debugf("notifying %d listeners of state change", len(e.stateChangeListeners[newState]))
+		var wg sync.WaitGroup
+		for _, listener := range e.stateChangeListeners[newState] {
+			wg.Add(1)
+			go func() {
+				_, span := e.tracer.Start(e.ctx, "State Change Callback")
+				span.SetAttributes(attribute.String("state", newState.String()))
+				defer span.End()
+				defer wg.Done()
+				listener()
+			}()
+		}
+		wg.Wait()
+		e.debugf("done notifying state change listeners")
 	}
 }
 
-func (e *environment) getState() EnvironmentState {
+func (e *environment) GetState() EnvironmentState {
 	e.stateMu.Lock()
 	defer e.stateMu.Unlock()
 	return e.state
@@ -828,7 +919,7 @@ func (e *environment) OnStateChanged(state EnvironmentState, callback func()) {
 
 	// add change listeners for all states, if there are multiple bits set
 	for state > 0 {
-		stateBit := EnvironmentState(bits.TrailingZeros32(uint32(state)))
+		stateBit := EnvironmentState(1 << bits.TrailingZeros32(uint32(state)))
 		state &= (state - 1)
 		e.stateChangeListeners[stateBit] = append(e.stateChangeListeners[stateBit], callback)
 	}

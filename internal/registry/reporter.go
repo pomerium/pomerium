@@ -15,18 +15,21 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	pb "github.com/pomerium/pomerium/pkg/grpc/registry"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // Reporter periodically submits a list of services available on this instance to the service registry
 type Reporter struct {
 	cancel                 func()
 	outboundGRPCConnection *grpc.CachedOutboundGRPClientConn
+	tracerProvider         oteltrace.TracerProvider
 }
 
 // NewReporter creates a new Reporter.
-func NewReporter() *Reporter {
+func NewReporter(tracerProvider oteltrace.TracerProvider) *Reporter {
 	return &Reporter{
 		outboundGRPCConnection: new(grpc.CachedOutboundGRPClientConn),
+		tracerProvider:         tracerProvider,
 	}
 }
 
@@ -47,7 +50,7 @@ func (r *Reporter) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		return
 	}
 
-	registryConn, err := r.outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
+	registryConn, err := r.outboundGRPCConnection.Get(ctx, r.tracerProvider, &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,

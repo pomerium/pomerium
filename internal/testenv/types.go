@@ -84,7 +84,7 @@ type Aggregate struct {
 
 func (d *Aggregate) Add(mod Modifier) {
 	if d.env != nil {
-		if d.env.(*environment).getState() == NotRunning {
+		if d.env.(*environment).GetState() == NotRunning {
 			// If the test environment is running, adding to an aggregate is a no-op.
 			// If the test environment has not been started yet, the aggregate is
 			// being used like in the following example, which is incorrect:

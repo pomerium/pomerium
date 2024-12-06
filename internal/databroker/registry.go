@@ -9,7 +9,6 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
 	"github.com/pomerium/pomerium/internal/registry/inmemory"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	registrypb "github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
@@ -25,7 +24,7 @@ func (stream registryWatchServer) Context() context.Context {
 
 // Report calls the registry Report method.
 func (srv *Server) Report(ctx context.Context, req *registrypb.RegisterRequest) (*registrypb.RegisterResponse, error) {
-	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Report")
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Report")
 	defer span.End()
 
 	r, err := srv.getRegistry(ctx)
@@ -38,7 +37,7 @@ func (srv *Server) Report(ctx context.Context, req *registrypb.RegisterRequest) 
 
 // List calls the registry List method.
 func (srv *Server) List(ctx context.Context, req *registrypb.ListRequest) (*registrypb.ServiceList, error) {
-	ctx, span := trace.StartSpan(ctx, "databroker.grpc.List")
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.List")
 	defer span.End()
 
 	r, err := srv.getRegistry(ctx)
@@ -52,7 +51,7 @@ func (srv *Server) List(ctx context.Context, req *registrypb.ListRequest) (*regi
 // Watch calls the registry Watch method.
 func (srv *Server) Watch(req *registrypb.ListRequest, stream registrypb.Registry_WatchServer) error {
 	ctx := stream.Context()
-	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Watch")
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Watch")
 	defer span.End()
 
 	r, err := srv.getRegistry(ctx)

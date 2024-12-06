@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
@@ -29,6 +30,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/identity"
+	"go.opentelemetry.io/otel"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // Stateless implements the stateless authentication flow. In this flow, the
@@ -56,18 +59,21 @@ type Stateless struct {
 
 	dataBrokerClient databroker.DataBrokerServiceClient
 
-	getIdentityProvider func(options *config.Options, idpID string) (identity.Authenticator, error)
+	getIdentityProvider func(ctx context.Context, tracerProvider oteltrace.TracerProvider, options *config.Options, idpID string) (identity.Authenticator, error)
 	profileTrimFn       func(*identitypb.Profile)
 	authEventFn         events.AuthEventFn
+
+	tracerProvider oteltrace.TracerProvider
 }
 
 // NewStateless initializes the authentication flow for the given
 // configuration, session store, and additional options.
 func NewStateless(
 	ctx context.Context,
+	tracerProvider oteltrace.TracerProvider,
 	cfg *config.Config,
 	sessionStore sessions.SessionStore,
-	getIdentityProvider func(options *config.Options, idpID string) (identity.Authenticator, error),
+	getIdentityProvider func(ctx context.Context, tracerProvider oteltrace.TracerProvider, options *config.Options, idpID string) (identity.Authenticator, error),
 	profileTrimFn func(*identitypb.Profile),
 	authEventFn events.AuthEventFn,
 ) (*Stateless, error) {
@@ -77,6 +83,7 @@ func NewStateless(
 		getIdentityProvider: getIdentityProvider,
 		profileTrimFn:       profileTrimFn,
 		authEventFn:         authEventFn,
+		tracerProvider:      tracerProvider,
 	}
 
 	var err error
@@ -132,7 +139,7 @@ func NewStateless(
 		return nil, fmt.Errorf("authorize: get authenticate JWKS key fetcher: %w", err)
 	}
 
-	dataBrokerConn, err := outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
+	dataBrokerConn, err := outboundGRPCConnection.Get(ctx, tracerProvider, &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,
@@ -154,7 +161,7 @@ func (s *Stateless) VerifySession(ctx context.Context, r *http.Request, _ *sessi
 		return fmt.Errorf("identity profile load error: %w", err)
 	}
 
-	authenticator, err := s.getIdentityProvider(s.options, profile.GetProviderId())
+	authenticator, err := s.getIdentityProvider(ctx, s.tracerProvider, s.options, profile.GetProviderId())
 	if err != nil {
 		return fmt.Errorf("couldn't get identity provider: %w", err)
 	}
@@ -355,6 +362,7 @@ func (s *Stateless) AuthenticateSignInURL(
 	for k, v := range queryParams {
 		q[k] = v
 	}
+	otel.GetTextMapPropagator().Inject(ctx, trace.PomeriumURLQueryCarrier(q))
 	authenticateURLWithParams.RawQuery = q.Encode()
 
 	return urlutil.SignInURL(

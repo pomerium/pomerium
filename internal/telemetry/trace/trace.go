@@ -2,87 +2,149 @@ package trace
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"net/url"
+	"runtime"
+	"sync"
+	"time"
 
-	octrace "go.opencensus.io/trace"
-
-	"github.com/pomerium/pomerium/internal/log"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
+	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 )
 
-const (
-	// DatadogTracingProviderName is the name of the tracing provider Datadog.
-	DatadogTracingProviderName = "datadog"
-	// JaegerTracingProviderName is the name of the tracing provider Jaeger.
-	JaegerTracingProviderName = "jaeger"
-	// ZipkinTracingProviderName is the name of the tracing provider Zipkin.
-	ZipkinTracingProviderName = "zipkin"
-)
+type systemContextKeyType struct{}
 
-// Provider is a trace provider.
-type Provider interface {
-	Register(options *TracingOptions) error
-	Unregister() error
+var systemContextKey systemContextKeyType
+
+type Options struct {
+	DebugFlags DebugFlags
 }
 
-// TracingOptions contains the configurations settings for a http server.
-type TracingOptions struct {
-	// Shared
-	Provider string
-	Service  string
-	Debug    bool
-
-	// Datadog
-	DatadogAddress string
-
-	// Jaeger
-
-	// CollectorEndpoint is the full url to the Jaeger HTTP Thrift collector.
-	// For example, http://localhost:14268/api/traces
-	JaegerCollectorEndpoint *url.URL
-	// AgentEndpoint instructs exporter to send spans to jaeger-agent at this address.
-	// For example, localhost:6831.
-	JaegerAgentEndpoint string
-
-	// Zipkin
-
-	// ZipkinEndpoint configures the zipkin collector URI
-	// Example: http://zipkin:9411/api/v2/spans
-	ZipkinEndpoint *url.URL
-
-	// SampleRate is percentage of requests which are sampled
-	SampleRate float64
+type systemContext struct {
+	Options
+	tpm            *tracerProviderManager
+	exporterServer *ExporterServer
 }
 
-// Enabled indicates whether tracing is enabled on a given TracingOptions
-func (t *TracingOptions) Enabled() bool {
-	return t.Provider != ""
+func systemContextFromContext(ctx context.Context) *systemContext {
+	sys, _ := ctx.Value(systemContextKey).(*systemContext)
+	return sys
 }
 
-// GetProvider creates a new trace provider from TracingOptions.
-func GetProvider(opts *TracingOptions) (Provider, error) {
-	var provider Provider
-	switch opts.Provider {
-	case DatadogTracingProviderName:
-		provider = new(datadogProvider)
-	case JaegerTracingProviderName:
-		provider = new(jaegerProvider)
-	case ZipkinTracingProviderName:
-		provider = new(zipkinProvider)
-	default:
-		return nil, fmt.Errorf("telemetry/trace: provider %s unknown", opts.Provider)
+var _ trace.Tracer = panicTracer{}
+
+type tracerProviderManager struct {
+	mu              sync.Mutex
+	tracerProviders []*sdktrace.TracerProvider
+}
+
+func (tpm *tracerProviderManager) ShutdownAll(ctx context.Context) error {
+	tpm.mu.Lock()
+	defer tpm.mu.Unlock()
+	var errs []error
+	for _, tp := range tpm.tracerProviders {
+		errs = append(errs, tp.ForceFlush(ctx))
 	}
-	octrace.ApplyConfig(octrace.Config{DefaultSampler: octrace.ProbabilitySampler(opts.SampleRate)})
-
-	log.Debug().Interface("Opts", opts).Msg("telemetry/trace: provider created")
-	return provider, nil
+	for _, tp := range tpm.tracerProviders {
+		errs = append(errs, tp.Shutdown(ctx))
+	}
+	clear(tpm.tracerProviders)
+	return errors.Join(errs...)
 }
 
-// StartSpan starts a new child span of the current span in the context. If
-// there is no span in the context, creates a new trace and span.
-//
-// Returned context contains the newly created span. You can use it to
-// propagate the returned span in process.
-func StartSpan(ctx context.Context, name string, o ...octrace.StartOption) (context.Context, *octrace.Span) {
-	return octrace.StartSpan(ctx, name, o...)
+func (tpm *tracerProviderManager) Add(tp *sdktrace.TracerProvider) {
+	tpm.mu.Lock()
+	defer tpm.mu.Unlock()
+	tpm.tracerProviders = append(tpm.tracerProviders, tp)
+}
+
+func (op Options) NewContext(ctx context.Context) context.Context {
+	remoteClient := NewRemoteClientFromEnv()
+	sys := &systemContext{
+		Options: op,
+		tpm:     &tracerProviderManager{},
+	}
+	ctx = context.WithValue(ctx, systemContextKey, sys)
+	sys.exporterServer = NewServer(ctx, remoteClient)
+	sys.exporterServer.Start()
+
+	return ctx
+}
+
+func NewContext(ctx context.Context) context.Context {
+	return Options{}.NewContext(ctx)
+}
+
+func NewTracerProvider(ctx context.Context, serviceName string, opts ...sdktrace.TracerProviderOption) trace.TracerProvider {
+	sys := systemContextFromContext(ctx)
+	if sys == nil {
+		return noop.NewTracerProvider()
+	}
+	_, file, line, _ := runtime.Caller(1)
+	exp, err := otlptrace.New(ctx, sys.exporterServer.NewClient())
+	if err != nil {
+		panic(err)
+	}
+	r, err := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName(serviceName),
+			attribute.String("provider.created_at", fmt.Sprintf("%s:%d", file, line)),
+		),
+	)
+	if err != nil {
+		panic(err)
+	}
+	options := append([]sdktrace.TracerProviderOption{
+		sdktrace.WithBatcher(exp),
+		sdktrace.WithResource(r),
+	}, opts...)
+	for _, proc := range sys.exporterServer.SpanProcessors() {
+		options = append(options, sdktrace.WithSpanProcessor(proc))
+	}
+	if sys.DebugFlags.Check(TrackSpanCallers) {
+		options = append(options,
+			sdktrace.WithSpanProcessor(&stackTraceProcessor{}),
+		)
+	}
+	tp := sdktrace.NewTracerProvider(options...)
+	sys.tpm.Add(tp)
+	return tp
+}
+
+func ShutdownContext(ctx context.Context) error {
+	sys := systemContextFromContext(ctx)
+	if sys == nil {
+		return nil
+	}
+
+	var errs []error
+	if err := sys.tpm.ShutdownAll(context.Background()); err != nil {
+		errs = append(errs, fmt.Errorf("error shutting down tracer providers: %w", err))
+	}
+	if err := sys.exporterServer.Shutdown(context.Background()); err != nil {
+		errs = append(errs, fmt.Errorf("error shutting down trace exporter: %w", err))
+	}
+	return errors.Join(errs...)
+}
+
+func ExporterServerFromContext(ctx context.Context) coltracepb.TraceServiceServer {
+	if sys := systemContextFromContext(ctx); sys != nil {
+		return sys.exporterServer
+	}
+	return nil
+}
+
+func WaitForSpans(ctx context.Context, maxDuration time.Duration) error {
+	if sys := systemContextFromContext(ctx); sys != nil {
+		return sys.exporterServer.spanExportQueue.WaitForSpans(maxDuration)
+	}
+	return nil
 }

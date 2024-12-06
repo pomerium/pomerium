@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // Options contains options for connecting to a pomerium rpc service.
@@ -32,12 +33,9 @@ type Options struct {
 }
 
 // NewGRPCClientConn returns a new gRPC pomerium service client connection.
-func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOption) (*grpc.ClientConn, error) {
-	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(opts.ServiceName)
-
+func NewGRPCClientConn(ctx context.Context, tracerProvider oteltrace.TracerProvider, opts *Options, other ...grpc.DialOption) (*grpc.ClientConn, error) {
 	unaryClientInterceptors := []grpc.UnaryClientInterceptor{
 		requestid.UnaryClientInterceptor(),
-		clientStatsHandler.UnaryInterceptor,
 	}
 	streamClientInterceptors := []grpc.StreamClientInterceptor{
 		requestid.StreamClientInterceptor(),
@@ -50,7 +48,7 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 	dialOptions := []grpc.DialOption{
 		grpc.WithChainUnaryInterceptor(unaryClientInterceptors...),
 		grpc.WithChainStreamInterceptor(streamClientInterceptors...),
-		grpc.WithStatsHandler(clientStatsHandler.Handler),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracerProvider))),
 		grpc.WithDisableServiceConfig(),
 		grpc.WithInsecure(),
 	}
@@ -87,8 +85,8 @@ type OutboundOptions struct {
 }
 
 // newOutboundGRPCClientConn gets a new outbound gRPC client.
-func newOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions) (*grpc.ClientConn, error) {
-	return NewGRPCClientConn(ctx, &Options{
+func newOutboundGRPCClientConn(ctx context.Context, tracerProvider oteltrace.TracerProvider, opts *OutboundOptions) (*grpc.ClientConn, error) {
+	return NewGRPCClientConn(ctx, tracerProvider, &Options{
 		Address:        net.JoinHostPort("127.0.0.1", opts.OutboundPort),
 		InstallationID: opts.InstallationID,
 		ServiceName:    opts.ServiceName,
@@ -104,7 +102,7 @@ type CachedOutboundGRPClientConn struct {
 }
 
 // Get gets the cached outbound gRPC client, or creates a new one if the options have changed.
-func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *OutboundOptions) (*grpc.ClientConn, error) {
+func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, tracerProvider oteltrace.TracerProvider, opts *OutboundOptions) (*grpc.ClientConn, error) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
@@ -118,7 +116,7 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 	}
 
 	var err error
-	cache.current, err = newOutboundGRPCClientConn(ctx, opts)
+	cache.current, err = newOutboundGRPCClientConn(ctx, tracerProvider, opts)
 	if err != nil {
 		return nil, err
 	}

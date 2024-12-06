@@ -9,6 +9,7 @@ import (
 	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
@@ -31,7 +32,7 @@ type proxyState struct {
 	authenticateFlow                    authenticateFlow
 }
 
-func newProxyStateFromConfig(ctx context.Context, cfg *config.Config) (*proxyState, error) {
+func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.TracerProvider, cfg *config.Config) (*proxyState, error) {
 	err := ValidateOptions(cfg.Options)
 	if err != nil {
 		return nil, err
@@ -57,7 +58,7 @@ func newProxyStateFromConfig(ctx context.Context, cfg *config.Config) (*proxySta
 		return nil, err
 	}
 
-	dataBrokerConn, err := outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
+	dataBrokerConn, err := outboundGRPCConnection.Get(ctx, tracerProvider, &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,
@@ -71,10 +72,10 @@ func newProxyStateFromConfig(ctx context.Context, cfg *config.Config) (*proxySta
 	state.programmaticRedirectDomainWhitelist = cfg.Options.ProgrammaticRedirectDomainWhitelist
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {
-		state.authenticateFlow, err = authenticateflow.NewStateless(ctx,
+		state.authenticateFlow, err = authenticateflow.NewStateless(ctx, tracerProvider,
 			cfg, state.sessionStore, nil, nil, nil)
 	} else {
-		state.authenticateFlow, err = authenticateflow.NewStateful(ctx, cfg, state.sessionStore)
+		state.authenticateFlow, err = authenticateflow.NewStateful(ctx, tracerProvider, cfg, state.sessionStore)
 	}
 	if err != nil {
 		return nil, err
