@@ -45,7 +45,7 @@ func NewServer(ctx context.Context, remoteClient otlptrace.Client) *ExporterServ
 	return ex
 }
 
-func (srv *ExporterServer) Start(ctx context.Context) {
+func (srv *ExporterServer) Start() {
 	lis := bufconn.Listen(4096)
 	go func() { _ = srv.server.Serve(lis) }()
 	cc, err := grpc.NewClient("passthrough://ignore",

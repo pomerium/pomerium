@@ -406,8 +406,8 @@ func authenticateFlow(ctx context.Context, client *http.Client, req *http.Reques
 		return res, nil
 	}
 	fs := forms.Parse(res.Body)
-	io.ReadAll(res.Body)
-	res.Body.Close()
+	_, _ = io.ReadAll(res.Body)
+	_ = res.Body.Close()
 	if len(fs) > 0 {
 		f := fs[0]
 		f.Inputs["email"] = email

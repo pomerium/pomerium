@@ -72,7 +72,7 @@ func (op Options) NewContext(ctx context.Context) context.Context {
 	}
 	ctx = context.WithValue(ctx, systemContextKey, sys)
 	sys.exporterServer = NewServer(ctx, remoteClient)
-	sys.exporterServer.Start(ctx)
+	sys.exporterServer.Start()
 
 	return ctx
 }

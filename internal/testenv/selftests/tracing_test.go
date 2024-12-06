@@ -81,7 +81,7 @@ func TestOTLPTracing(t *testing.T) {
 func TestSampling(t *testing.T) {
 	requireOTLPTracesEndpoint(t)
 	env := testenv.New(t, testenv.AddTraceDebugFlags(testenv.StandardTraceDebugFlags))
-	env.Add(testenv.ModifierFunc(func(ctx context.Context, cfg *config.Config) {
+	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
 		cfg.Options.TracingSampleRate = 0.5
 	}))
 	defer env.Stop()
