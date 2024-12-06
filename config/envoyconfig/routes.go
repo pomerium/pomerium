@@ -423,6 +423,16 @@ func (b *Builder) buildPolicyRouteRouteAction(options *config.Options, policy *c
 		}
 		upgradeConfigs = append(upgradeConfigs, uc)
 	}
+	if policy.IsUDP() {
+		uc := &envoy_config_route_v3.RouteAction_UpgradeConfig{
+			UpgradeType: "CONNECT-UDP",
+			Enabled:     &wrapperspb.BoolValue{Value: true},
+		}
+		if policy.IsUDPUpstream() {
+			uc.ConnectConfig = &envoy_config_route_v3.RouteAction_UpgradeConfig_ConnectConfig{}
+		}
+		upgradeConfigs = append(upgradeConfigs, uc)
+	}
 	action := &envoy_config_route_v3.RouteAction{
 		ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
 			Cluster: clusterName,
@@ -488,7 +498,7 @@ func toEnvoyHeaders(headers map[string]string) []*envoy_config_core_v3.HeaderVal
 func mkRouteMatch(policy *config.Policy) *envoy_config_route_v3.RouteMatch {
 	match := &envoy_config_route_v3.RouteMatch{}
 	switch {
-	case policy.IsTCP():
+	case policy.IsTCP(), policy.IsUDP():
 		match.PathSpecifier = &envoy_config_route_v3.RouteMatch_ConnectMatcher_{
 			ConnectMatcher: &envoy_config_route_v3.RouteMatch_ConnectMatcher{},
 		}
@@ -573,6 +583,7 @@ func getRouteIdleTimeout(policy *config.Policy) *durationpb.Duration {
 func shouldDisableStreamIdleTimeout(policy *config.Policy) bool {
 	return policy.AllowWebsockets ||
 		policy.IsTCP() ||
+		policy.IsUDP() ||
 		policy.IsForKubernetes() // disable for kubernetes so that tailing logs works (#2182)
 }
 

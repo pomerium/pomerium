@@ -562,6 +562,9 @@ func (p *Policy) Validate() error {
 	if _, hasTCP := toSchemes["tcp"]; hasTCP && len(toSchemes) > 1 {
 		return fmt.Errorf("config: cannot mix tcp and non-tcp To URLs")
 	}
+	if _, hasUDP := toSchemes["udp"]; hasUDP && len(toSchemes) > 1 {
+		return fmt.Errorf("config: cannot mix udp and non-udp To URLs")
+	}
 
 	if err := p.Redirect.validate(); err != nil {
 		return fmt.Errorf("config: %w", err)
@@ -780,6 +783,16 @@ func (p *Policy) IsTCP() bool {
 // IsTCPUpstream returns true if the route has a TCP upstream (To) URL
 func (p *Policy) IsTCPUpstream() bool {
 	return len(p.To) > 0 && p.To[0].URL.Scheme == "tcp"
+}
+
+// IsUDP returns true if the route is for UDP.
+func (p *Policy) IsUDP() bool {
+	return strings.HasPrefix(p.From, "udp")
+}
+
+// IsUDPUpstream returns true if the route has a UDP upstream (To) URL
+func (p *Policy) IsUDPUpstream() bool {
+	return len(p.To) > 0 && p.To[0].URL.Scheme == "udp"
 }
 
 // AllAllowedDomains returns all the allowed domains.

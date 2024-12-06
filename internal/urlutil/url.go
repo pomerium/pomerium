@@ -114,10 +114,12 @@ func GetDomainsForURL(u *url.URL, includeDefaultPort bool) []string {
 	}
 
 	// tcp+https://ssh.example.com:22
+	// udp+https://ssh.example.com:22
 	// => ssh.example.com:22
 	// tcp+https://proxy.example.com/ssh.example.com:22
+	// udp+https://proxy.example.com/ssh.example.com:22
 	// => ssh.example.com:22
-	if strings.HasPrefix(u.Scheme, "tcp+") {
+	if strings.HasPrefix(u.Scheme, "tcp+") || strings.HasPrefix(u.Scheme, "udp+") {
 		hosts := strings.Split(u.Path, "/")[1:]
 		// if there are no domains in the path part of the URL, use the host
 		if len(hosts) == 0 {
