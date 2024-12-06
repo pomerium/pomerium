@@ -149,8 +149,8 @@ func TestSampling(t *testing.T) {
 
 	// if the request already has a traceparent header, they will always be sampled
 	// regardless of the random sample rate we configured
-	assert.InDelta(t, int32(100), sampled.Load(), 10)
-	assert.InDelta(t, int32(0), notSampled.Load(), 10)
+	assert.Equal(t, int32(100), sampled.Load())
+	assert.Equal(t, int32(0), notSampled.Load())
 
 	sampled.Store(0)
 	notSampled.Store(0)
