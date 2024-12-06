@@ -201,7 +201,6 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		RequestTimeout:      durationpb.New(cfg.Options.ReadTimeout),
 		Tracing: &envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_Tracing{
 			RandomSampling:    &envoy_type_v3.Percent{Value: cfg.Options.TracingSampleRate * 100},
-			ClientSampling:    &envoy_type_v3.Percent{Value: cfg.Options.TracingSampleRate * 100},
 			Verbose:           true,
 			SpawnUpstreamSpan: wrapperspb.Bool(true),
 			Provider: &tracev3.Tracing_Http{

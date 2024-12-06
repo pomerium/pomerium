@@ -29,6 +29,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -117,7 +118,8 @@ func ClientCert[T interface {
 }
 
 type HTTPUpstreamOptions struct {
-	displayName string
+	displayName     string
+	noClientTracing bool
 }
 
 type HTTPUpstreamOption func(*HTTPUpstreamOptions)
@@ -131,6 +133,12 @@ func (o *HTTPUpstreamOptions) apply(opts ...HTTPUpstreamOption) {
 func WithDisplayName(displayName string) HTTPUpstreamOption {
 	return func(o *HTTPUpstreamOptions) {
 		o.displayName = displayName
+	}
+}
+
+func WithNoClientTracing() HTTPUpstreamOption {
+	return func(o *HTTPUpstreamOptions) {
+		o.noClientTracing = true
 	}
 }
 
@@ -161,6 +169,7 @@ type httpUpstream struct {
 	router               *mux.Router
 	serverTracerProvider values.MutableValue[oteltrace.TracerProvider]
 	clientTracerProvider values.MutableValue[oteltrace.TracerProvider]
+	clientTracer         values.Value[oteltrace.Tracer]
 }
 
 var (
@@ -182,6 +191,9 @@ func HTTP(tlsConfig values.Value[*tls.Config], opts ...HTTPUpstreamOption) HTTPU
 		serverTracerProvider: values.Deferred[oteltrace.TracerProvider](),
 		clientTracerProvider: values.Deferred[oteltrace.TracerProvider](),
 	}
+	up.clientTracer = values.Bind(up.clientTracerProvider, func(tp oteltrace.TracerProvider) oteltrace.Tracer {
+		return tp.Tracer(trace.PomeriumCoreTracer)
+	})
 	up.RecordCaller()
 	return up
 }
@@ -219,7 +231,11 @@ func (h *httpUpstream) Run(ctx context.Context) error {
 		tlsConfig = h.tlsConfig.Value()
 	}
 	h.serverTracerProvider.Resolve(trace.NewTracerProvider(ctx, h.displayName))
-	h.clientTracerProvider.Resolve(trace.NewTracerProvider(ctx, "HTTP Client"))
+	if h.noClientTracing {
+		h.clientTracerProvider.Resolve(noop.NewTracerProvider())
+	} else {
+		h.clientTracerProvider.Resolve(trace.NewTracerProvider(ctx, "HTTP Client"))
+	}
 	h.router.Use(trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(h.serverTracerProvider.Value())))
 
 	server := &http.Server{
@@ -268,7 +284,7 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 			RawQuery: options.query.Encode(),
 		})
 	}
-	ctx, span := trace.Continue(options.requestCtx, "httpUpstream.Do", oteltrace.WithAttributes(
+	ctx, span := h.clientTracer.Value().Start(options.requestCtx, "httpUpstream.Do", oteltrace.WithAttributes(
 		attribute.String("method", method),
 		attribute.String("url", u.String()),
 	))

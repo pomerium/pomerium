@@ -150,7 +150,7 @@ func NewContext(ctx context.Context) context.Context {
 	return Options{}.NewContext(ctx)
 }
 
-func NewTracerProvider(ctx context.Context, serviceName string) trace.TracerProvider {
+func NewTracerProvider(ctx context.Context, serviceName string, opts ...sdktrace.TracerProviderOption) trace.TracerProvider {
 	_, file, line, _ := runtime.Caller(1)
 	sys := systemContextFromContext(ctx)
 	exp, err := otlptrace.New(ctx, sys.exporterServer.NewClient())
@@ -168,10 +168,10 @@ func NewTracerProvider(ctx context.Context, serviceName string) trace.TracerProv
 	if err != nil {
 		panic(err)
 	}
-	options := []sdktrace.TracerProviderOption{
+	options := append([]sdktrace.TracerProviderOption{
 		sdktrace.WithBatcher(exp),
 		sdktrace.WithResource(r),
-	}
+	}, opts...)
 	for _, proc := range sys.exporterServer.SpanProcessors() {
 		options = append(options, sdktrace.WithSpanProcessor(proc))
 	}

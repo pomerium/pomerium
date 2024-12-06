@@ -275,6 +275,13 @@ func TraceDebugFlags(flags trace.DebugFlags) EnvironmentOption {
 	}
 }
 
+const StandardTraceDebugFlags = trace.TrackSpanCallers |
+	trace.WarnOnIncompleteSpans |
+	trace.WarnOnIncompleteTraces |
+	trace.WarnOnUnresolvedReferences |
+	trace.LogTraceIDMappingsOnWarn |
+	trace.LogAllSpansOnWarn
+
 func AddTraceDebugFlags(flags trace.DebugFlags) EnvironmentOption {
 	return func(o *EnvironmentOptions) {
 		o.traceDebugFlags |= flags
