@@ -18,7 +18,11 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"google.golang.org/grpc"
@@ -27,10 +31,14 @@ import (
 )
 
 func requireOTLPTracesEndpoint(t testing.TB) {
+	t.Setenv("OTEL_TRACES_EXPORTER", "otlp")
 	tracesEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
 	if tracesEndpoint == "" {
-		tracesEndpoint = "http://localhost:4317"
-		t.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", tracesEndpoint)
+		tracesEndpoint = os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+		if tracesEndpoint == "" {
+			tracesEndpoint = "http://localhost:4317"
+			t.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", tracesEndpoint)
+		}
 	}
 	client, err := grpc.NewClient(strings.TrimPrefix(tracesEndpoint, "http://"), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
@@ -164,4 +172,59 @@ func TestSampling(t *testing.T) {
 
 	sampled.Store(0)
 	notSampled.Store(100)
+}
+
+func TestExternalSpans(t *testing.T) {
+	requireOTLPTracesEndpoint(t)
+	// set up external tracer
+	external, err := otlptrace.New(context.Background(), otlptracegrpc.NewClient())
+	require.NoError(t, err)
+	r, err := resource.Merge(
+		resource.Empty(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName("External"),
+		),
+	)
+	require.NoError(t, err)
+
+	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(external), sdktrace.WithResource(r))
+
+	env := testenv.New(t, testenv.AddTraceDebugFlags(testenv.StandardTraceDebugFlags))
+	defer env.Stop()
+	up := upstreams.HTTP(nil, upstreams.WithNoClientTracing())
+	up.Handle("/foo", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte("OK"))
+	})
+	env.Add(scenarios.NewIDP([]*scenarios.User{
+		{
+			Email:     "foo@example.com",
+			FirstName: "Firstname",
+			LastName:  "Lastname",
+		},
+	}))
+
+	route := up.Route().
+		From(env.SubdomainURL("foo")).
+		PPL(`{"allow":{"and":["email":{"is":"foo@example.com"}]}}`)
+
+	env.AddUpstream(up)
+	env.Start()
+
+	snippets.WaitStartupComplete(env)
+
+	ctx, span := tp.Tracer("external").Start(context.Background(), "External Root", oteltrace.WithNewRoot())
+	t.Logf("external span id: %s", span.SpanContext().SpanID().String())
+	resp, err := up.Get(route, upstreams.AuthenticateAs("foo@example.com"), upstreams.Path("/foo"), upstreams.Context(ctx))
+	span.End()
+	require.NoError(t, err)
+	body, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+	assert.NoError(t, resp.Body.Close())
+	assert.Equal(t, resp.StatusCode, 200)
+	assert.Equal(t, "OK", string(body))
+
+	assert.NoError(t, tp.ForceFlush(context.Background()))
+	assert.NoError(t, tp.Shutdown(context.Background()))
+	external.Shutdown(ctx)
 }

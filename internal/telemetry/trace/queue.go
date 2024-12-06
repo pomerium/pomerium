@@ -3,6 +3,7 @@ package trace
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/url"
@@ -40,7 +41,7 @@ func NewSpanExportQueue(ctx context.Context, client otlptrace.Client) *SpanExpor
 	debug := systemContextFromContext(ctx).DebugFlags
 	var observer SpanObserver
 	if debug.Check(TrackSpanReferences) {
-		observer = &spanObserver{referencedIDs: make(map[oteltrace.SpanID]bool)}
+		observer = &spanObserver{referencedIDs: make(map[oteltrace.SpanID]oteltrace.SpanID)}
 	} else {
 		observer = noopSpanObserver{}
 	}
@@ -129,7 +130,7 @@ func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTra
 					continue
 				}
 				if parentSpanID.IsValid() { // if parent is not a root span
-					q.observer.ObserveReference(parentSpanID)
+					q.observer.ObserveReference(parentSpanID, spanID)
 					continue
 				}
 				traceID, ok := toTraceID(span.TraceId)
@@ -186,13 +187,37 @@ func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTra
 				if !ok {
 					continue
 				}
+				parentSpanId, ok := toSpanID(span.ParentSpanId)
+				if !ok {
+					continue
+				}
 				q.observer.Observe(spanID)
 				if mapping, ok := q.knownTraceIDMappings[traceID]; ok {
 					id := mapping.Value()
 					copy(span.TraceId, id[:])
 					knownSpans = append(knownSpans, span)
 				} else {
-					q.insertPendingSpanLocked(resourceInfo, scope.Scope, scope.SchemaUrl, traceID, span)
+					var isInternalRoot bool
+					if q.debugFlags.Check(TrackSpanReferences) {
+						if parentSpanId.IsValid() {
+							for _, attr := range span.Attributes {
+								if attr.Key == "pomerium.external-parent-span" {
+									isInternalRoot = true
+									if bytes, err := hex.DecodeString(attr.Value.GetStringValue()); err == nil {
+										if spanId, _ := toSpanID(bytes); spanId.IsValid() {
+											q.observer.Observe(spanId)
+										}
+									}
+									break
+								}
+							}
+						}
+					}
+					if isInternalRoot {
+						toUpload = append(toUpload, q.resolveTraceIDMappingLocked(traceID, traceID)...)
+					} else {
+						q.insertPendingSpanLocked(resourceInfo, scope.Scope, scope.SchemaUrl, traceID, span)
+					}
 				}
 			}
 			if len(knownSpans) > 0 {
@@ -247,14 +272,23 @@ func (q *SpanExportQueue) Close(ctx context.Context) error {
 	case <-q.closed:
 		q.mu.Lock()
 		defer q.mu.Unlock()
+		didWarn := false
+
 		if q.debugFlags.Check(TrackSpanReferences) {
 			var unknownParentIDs []string
-			for id, known := range q.observer.(*spanObserver).referencedIDs {
-				if !known {
-					unknownParentIDs = append(unknownParentIDs, id.String())
+			for id, via := range q.observer.(*spanObserver).referencedIDs {
+				if via.IsValid() {
+					if q.debugFlags.Check(TrackAllSpans) {
+						if viaSpan, ok := q.debugAllObservedSpans[via]; ok {
+							unknownParentIDs = append(unknownParentIDs, fmt.Sprintf("%s via %s (%s)", id, via, viaSpan.Name))
+						} else {
+							unknownParentIDs = append(unknownParentIDs, fmt.Sprintf("%s via %s", id, via))
+						}
+					}
 				}
 			}
 			if len(unknownParentIDs) > 0 {
+				didWarn = true
 				msg := startMsg("WARNING: parent spans referenced but never seen:\n")
 				for _, str := range unknownParentIDs {
 					msg.WriteString(str)
@@ -263,7 +297,6 @@ func (q *SpanExportQueue) Close(ctx context.Context) error {
 				endMsg(msg)
 			}
 		}
-		didWarn := false
 		incomplete := len(q.pendingResourcesByTraceID) > 0
 		if incomplete && q.debugFlags.Check(WarnOnIncompleteTraces) {
 			didWarn = true
@@ -454,7 +487,7 @@ func (t *spanTracker) Shutdown(_ context.Context) error {
 					for _, span := range incompleteSpans {
 						fmt.Fprintf(msg, "%s\n", span)
 					}
-					msg.WriteString("Note: set TrackAllObservedSpans flag for more info\n")
+					msg.WriteString("Note: set TrackAllSpans flag for more info\n")
 					endMsg(msg)
 				}
 			}
@@ -599,22 +632,22 @@ func (r *ResourceInfo) computeID() string {
 }
 
 type SpanObserver interface {
-	ObserveReference(id oteltrace.SpanID)
+	ObserveReference(id oteltrace.SpanID, via oteltrace.SpanID)
 	Observe(id oteltrace.SpanID)
 	Wait()
 }
 
 type spanObserver struct {
 	mu            sync.Mutex
-	referencedIDs map[oteltrace.SpanID]bool
+	referencedIDs map[oteltrace.SpanID]oteltrace.SpanID
 	unobservedIDs sync.WaitGroup
 }
 
-func (obs *spanObserver) ObserveReference(id oteltrace.SpanID) {
+func (obs *spanObserver) ObserveReference(id oteltrace.SpanID, via oteltrace.SpanID) {
 	obs.mu.Lock()
 	defer obs.mu.Unlock()
 	if _, referenced := obs.referencedIDs[id]; !referenced {
-		obs.referencedIDs[id] = false // referenced, but not observed
+		obs.referencedIDs[id] = via // referenced, but not observed
 		obs.unobservedIDs.Add(1)
 	}
 }
@@ -622,8 +655,8 @@ func (obs *spanObserver) ObserveReference(id oteltrace.SpanID) {
 func (obs *spanObserver) Observe(id oteltrace.SpanID) {
 	obs.mu.Lock()
 	defer obs.mu.Unlock()
-	if observed, referenced := obs.referencedIDs[id]; !observed { // NB: subtle condition
-		obs.referencedIDs[id] = true
+	if observed, referenced := obs.referencedIDs[id]; !referenced || observed.IsValid() { // NB: subtle condition
+		obs.referencedIDs[id] = zeroSpanID
 		if referenced {
 			obs.unobservedIDs.Done()
 		}
@@ -631,14 +664,32 @@ func (obs *spanObserver) Observe(id oteltrace.SpanID) {
 }
 
 func (obs *spanObserver) Wait() {
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-done:
+			return
+		case <-time.After(10 * time.Second):
+			obs.mu.Lock()
+			msg := startMsg("Waiting on unobserved spans:\n")
+			for id, via := range obs.referencedIDs {
+				if via.IsValid() {
+					fmt.Fprintf(msg, "%s via %s\n", id, via)
+				}
+			}
+			endMsg(msg)
+			obs.mu.Unlock()
+		}
+	}()
 	obs.unobservedIDs.Wait()
 }
 
 type noopSpanObserver struct{}
 
-func (noopSpanObserver) ObserveReference(oteltrace.SpanID) {}
-func (noopSpanObserver) Observe(oteltrace.SpanID)          {}
-func (noopSpanObserver) Wait()                             {}
+func (noopSpanObserver) ObserveReference(oteltrace.SpanID, oteltrace.SpanID) {}
+func (noopSpanObserver) Observe(oteltrace.SpanID)                            {}
+func (noopSpanObserver) Wait()                                               {}
 
 func formatSpanName(span *tracev1.Span) {
 	hasPath := strings.Contains(span.GetName(), "${path}")

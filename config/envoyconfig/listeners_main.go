@@ -146,6 +146,14 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 							},
 							Remove: false,
 						},
+						{
+							Header: "x-pomerium-external-parent-span",
+							OnHeaderPresent: &envoy_extensions_filters_http_header_to_metadata.Config_KeyValuePair{
+								MetadataNamespace: "pomerium.internal",
+								Key:               "external-parent-span",
+							},
+							Remove: true,
+						},
 					},
 					ResponseRules: []*envoy_extensions_filters_http_header_to_metadata.Config_Rule{
 						{
@@ -267,6 +275,28 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 									{
 										Segment: &metadatav3.MetadataKey_PathSegment_Key{
 											Key: "tracestate",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				{
+					Tag: "pomerium.external-parent-span",
+					Type: &envoy_tracing_v3.CustomTag_Metadata_{
+						Metadata: &envoy_tracing_v3.CustomTag_Metadata{
+							Kind: &metadatav3.MetadataKind{
+								Kind: &metadatav3.MetadataKind_Request_{
+									Request: &metadatav3.MetadataKind_Request{},
+								},
+							},
+							MetadataKey: &metadatav3.MetadataKey{
+								Key: "pomerium.internal",
+								Path: []*metadatav3.MetadataKey_PathSegment{
+									{
+										Segment: &metadatav3.MetadataKey_PathSegment_Key{
+											Key: "external-parent-span",
 										},
 									},
 								},

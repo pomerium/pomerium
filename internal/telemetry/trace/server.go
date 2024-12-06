@@ -59,7 +59,10 @@ func (srv *ExporterServer) Start() {
 }
 
 func (srv *ExporterServer) NewClient() otlptrace.Client {
-	return otlptracegrpc.NewClient(otlptracegrpc.WithGRPCConn(srv.cc))
+	return otlptracegrpc.NewClient(
+		otlptracegrpc.WithGRPCConn(srv.cc),
+		otlptracegrpc.WithTimeout(1*time.Minute),
+	)
 }
 
 func (srv *ExporterServer) SpanProcessors() []sdktrace.SpanProcessor {
@@ -78,7 +81,7 @@ func (srv *ExporterServer) Shutdown(ctx context.Context) error {
 		return context.Cause(ctx)
 	}
 	var errs []error
-	if err := srv.spanExportQueue.WaitForSpans(5 * time.Second); err != nil {
+	if err := srv.spanExportQueue.WaitForSpans(30 * time.Second); err != nil {
 		errs = append(errs, err)
 	}
 	if err := srv.spanExportQueue.Close(ctx); err != nil {

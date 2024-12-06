@@ -27,6 +27,10 @@ function envoy_on_request(request_handle)
   if substitute_query_param("pomerium_traceparent", "x-pomerium-traceparent") then
     substitute_query_param("pomerium_tracestate", "x-pomerium-tracestate")
   end
+  local traceparent = headers:get("traceparent")
+  if traceparent ~= nil and #traceparent == 55 and headers:get("x-pomerium-traceparent") == nil then
+    headers:replace("x-pomerium-external-parent-span", traceparent:sub(37, 52))
+  end
 end
 
 function envoy_on_response(response_handle)

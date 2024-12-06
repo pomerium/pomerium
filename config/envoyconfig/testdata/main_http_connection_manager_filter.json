@@ -29,7 +29,7 @@
         "typedConfig": {
           "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
           "defaultSourceCode": {
-            "inlineString": "function envoy_on_request(request_handle)\n  local headers = request_handle:headers()\n  local path = headers:get(\":path\")\n\n  if path:find(\"#\") ~= nil then\n    return\n  end\n\n  local function substitute_query_param(query_param_name, header_name)\n    local i, j = path:find(query_param_name .. \"=\")\n    if i ~= nil and (path:sub(i - 1, i - 1) == \"&\" or path:sub(i - 1, i - 1) == \"?\") then\n      local k = path:find(\"&\", j + 1)\n      if k ~= nil then\n        k = k - 1\n      else\n        k = #path\n      end\n      local value = path:sub(j + 1, k)\n      if value ~= nil then\n        headers:replace(header_name, value)\n        return true\n      end\n    end\n    return false\n  end\n\n  if substitute_query_param(\"pomerium_traceparent\", \"x-pomerium-traceparent\") then\n    substitute_query_param(\"pomerium_tracestate\", \"x-pomerium-tracestate\")\n  end\nend\n\nfunction envoy_on_response(response_handle)\nend\n"
+            "inlineString": "function envoy_on_request(request_handle)\n  local headers = request_handle:headers()\n  local path = headers:get(\":path\")\n\n  if path:find(\"#\") ~= nil then\n    return\n  end\n\n  local function substitute_query_param(query_param_name, header_name)\n    local i, j = path:find(query_param_name .. \"=\")\n    if i ~= nil and (path:sub(i - 1, i - 1) == \"\u0026\" or path:sub(i - 1, i - 1) == \"?\") then\n      local k = path:find(\"\u0026\", j + 1)\n      if k ~= nil then\n        k = k - 1\n      else\n        k = #path\n      end\n      local value = path:sub(j + 1, k)\n      if value ~= nil then\n        headers:replace(header_name, value)\n        return true\n      end\n    end\n    return false\n  end\n\n  if substitute_query_param(\"pomerium_traceparent\", \"x-pomerium-traceparent\") then\n    substitute_query_param(\"pomerium_tracestate\", \"x-pomerium-tracestate\")\n  end\n  local traceparent = headers:get(\"traceparent\")\n  if traceparent ~= nil and #traceparent == 55 and headers:get(\"x-pomerium-traceparent\") == nil then\n    headers:replace(\"x-pomerium-external-parent-span\", traceparent:sub(37, 52))\n  end\nend\n\nfunction envoy_on_response(response_handle)\nend\n"
           }
         }
       },
@@ -51,6 +51,14 @@
                 "metadataNamespace": "pomerium.internal",
                 "key": "tracestate"
               }
+            },
+            {
+              "header": "x-pomerium-external-parent-span",
+              "onHeaderPresent": {
+                "key": "external-parent-span",
+                "metadataNamespace": "pomerium.internal"
+              },
+              "remove": true
             }
           ],
           "responseRules": [
@@ -272,6 +280,22 @@
               ]
             }
           }
+        },
+        {
+          "metadata": {
+            "kind": {
+              "request": {}
+            },
+            "metadataKey": {
+              "key": "pomerium.internal",
+              "path": [
+                {
+                  "key": "external-parent-span"
+                }
+              ]
+            }
+          },
+          "tag": "pomerium.external-parent-span"
         }
       ],
       "provider": {

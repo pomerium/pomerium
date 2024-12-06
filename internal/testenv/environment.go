@@ -351,8 +351,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 
 	ctx := trace.Options{
 		DebugFlags: options.traceDebugFlags,
-	}.NewContext(context.Background())
-	ctx = logger.WithContext(ctx)
+	}.NewContext(logger.WithContext(context.Background()))
 	tracerProvider := trace.NewTracerProvider(ctx, "Test Environment")
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 	ctx, span := tracer.Start(ctx, t.Name(), oteltrace.WithNewRoot())
@@ -593,7 +592,7 @@ func (e *environment) Start() {
 
 		opts := []pomerium.Option{
 			pomerium.WithOverrideFileManager(fileMgr),
-			pomerium.WithEnvoyServerOptions(envoy.WithExitGracePeriod(10 * time.Second)),
+			pomerium.WithEnvoyServerOptions(envoy.WithExitGracePeriod(30 * time.Second)),
 			pomerium.WithDataBrokerServerOptions(
 				databroker_service.WithManagerOptions(manager.WithLeaseTTL(1*time.Second)),
 				databroker_service.WithLegacyManagerOptions(legacymanager.WithLeaseTTL(1*time.Second)),

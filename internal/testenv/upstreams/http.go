@@ -118,8 +118,8 @@ func ClientCert[T interface {
 }
 
 type HTTPUpstreamOptions struct {
-	displayName     string
-	noClientTracing bool
+	displayName                  string
+	clientTracerProviderOverride oteltrace.TracerProvider
 }
 
 type HTTPUpstreamOption func(*HTTPUpstreamOptions)
@@ -138,7 +138,13 @@ func WithDisplayName(displayName string) HTTPUpstreamOption {
 
 func WithNoClientTracing() HTTPUpstreamOption {
 	return func(o *HTTPUpstreamOptions) {
-		o.noClientTracing = true
+		o.clientTracerProviderOverride = noop.NewTracerProvider()
+	}
+}
+
+func WithClientTracerProvider(tp oteltrace.TracerProvider) HTTPUpstreamOption {
+	return func(o *HTTPUpstreamOptions) {
+		o.clientTracerProviderOverride = tp
 	}
 }
 
@@ -231,8 +237,8 @@ func (h *httpUpstream) Run(ctx context.Context) error {
 		tlsConfig = h.tlsConfig.Value()
 	}
 	h.serverTracerProvider.Resolve(trace.NewTracerProvider(ctx, h.displayName))
-	if h.noClientTracing {
-		h.clientTracerProvider.Resolve(noop.NewTracerProvider())
+	if h.clientTracerProviderOverride != nil {
+		h.clientTracerProvider.Resolve(h.clientTracerProviderOverride)
 	} else {
 		h.clientTracerProvider.Resolve(trace.NewTracerProvider(ctx, "HTTP Client"))
 	}
