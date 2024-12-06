@@ -20,6 +20,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
@@ -29,6 +30,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/identity"
+	"go.opentelemetry.io/otel"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
@@ -360,6 +362,7 @@ func (s *Stateless) AuthenticateSignInURL(
 	for k, v := range queryParams {
 		q[k] = v
 	}
+	otel.GetTextMapPropagator().Inject(ctx, trace.PomeriumURLQueryCarrier(q))
 	authenticateURLWithParams.RawQuery = q.Encode()
 
 	return urlutil.SignInURL(

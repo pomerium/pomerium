@@ -33,6 +33,11 @@ func main() {
 	root.PersistentFlags().StringVar(&configFile, "config", "", "Specify configuration file location")
 	log.SetLevel(zerolog.InfoLevel)
 	ctx := trace.NewContext(context.Background())
+	defer func() {
+		if err := trace.ShutdownContext(ctx); err != nil {
+			log.Error().Err(err).Send()
+		}
+	}()
 	runFn := run
 	if zero_cmd.IsManagedMode(configFile) {
 		runFn = zero_cmd.Run

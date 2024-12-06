@@ -314,6 +314,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		t.Helper()
 		t.Skip("test environment disabled in short mode")
 	}
+	trace.UseGlobalPanicTracer()
 	databroker.DebugUseFasterBackoff.Store(true)
 	workspaceFolder, err := os.Getwd()
 	require.NoError(t, err)

@@ -129,7 +129,7 @@ func TestStatefulAuthenticateSignInURL(t *testing.T) {
 
 	t.Run("NilQueryParams", func(t *testing.T) {
 		redirectURL := &url.URL{Scheme: "https", Host: "example.com"}
-		u, err := flow.AuthenticateSignInURL(nil, nil, redirectURL, "fake-idp-id")
+		u, err := flow.AuthenticateSignInURL(context.Background(), nil, redirectURL, "fake-idp-id")
 		assert.NoError(t, err)
 		parsed, _ := url.Parse(u)
 		assert.NoError(t, urlutil.NewSignedURL(key, parsed).Validate())
@@ -144,7 +144,7 @@ func TestStatefulAuthenticateSignInURL(t *testing.T) {
 		redirectURL := &url.URL{Scheme: "https", Host: "example.com"}
 		q := url.Values{}
 		q.Set("foo", "bar")
-		u, err := flow.AuthenticateSignInURL(nil, q, redirectURL, "fake-idp-id")
+		u, err := flow.AuthenticateSignInURL(context.Background(), q, redirectURL, "fake-idp-id")
 		assert.NoError(t, err)
 		parsed, _ := url.Parse(u)
 		assert.NoError(t, urlutil.NewSignedURL(key, parsed).Validate())

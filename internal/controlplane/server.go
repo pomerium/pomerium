@@ -186,7 +186,9 @@ func NewServer(
 
 	srv.xdsmgr = xdsmgr.NewManager(res)
 	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv.GRPCServer, srv.xdsmgr)
-	coltracepb.RegisterTraceServiceServer(srv.GRPCServer, trace.ExporterServerFromContext(ctx))
+	if exp := trace.ExporterServerFromContext(ctx); exp != nil {
+		coltracepb.RegisterTraceServiceServer(srv.GRPCServer, exp)
+	}
 	return srv, nil
 }
 
