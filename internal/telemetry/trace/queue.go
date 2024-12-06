@@ -25,8 +25,8 @@ import (
 
 type SpanExportQueue struct {
 	mu                        sync.Mutex
-	pendingResourcesByTraceId map[unique.Handle[oteltrace.TraceID]]*PendingResources
-	knownTraceIdMappings      map[unique.Handle[oteltrace.TraceID]]unique.Handle[oteltrace.TraceID]
+	pendingResourcesByTraceID map[unique.Handle[oteltrace.TraceID]]*PendingResources
+	knownTraceIDMappings      map[unique.Handle[oteltrace.TraceID]]unique.Handle[oteltrace.TraceID]
 	uploadC                   chan []*tracev1.ResourceSpans
 	closing                   bool
 	closed                    chan struct{}
@@ -45,8 +45,8 @@ func NewSpanExportQueue(ctx context.Context, client otlptrace.Client) *SpanExpor
 		observer = noopSpanObserver{}
 	}
 	q := &SpanExportQueue{
-		pendingResourcesByTraceId: make(map[unique.Handle[oteltrace.TraceID]]*PendingResources),
-		knownTraceIdMappings:      make(map[unique.Handle[oteltrace.TraceID]]unique.Handle[oteltrace.TraceID]),
+		pendingResourcesByTraceID: make(map[unique.Handle[oteltrace.TraceID]]*PendingResources),
+		knownTraceIDMappings:      make(map[unique.Handle[oteltrace.TraceID]]unique.Handle[oteltrace.TraceID]),
 		uploadC:                   make(chan []*tracev1.ResourceSpans, 8),
 		closed:                    make(chan struct{}),
 		debugFlags:                debug,
@@ -73,30 +73,30 @@ func (q *SpanExportQueue) insertPendingSpanLocked(
 	span *tracev1.Span,
 ) {
 	var pendingTraceResources *PendingResources
-	if ptr, ok := q.pendingResourcesByTraceId[traceID]; ok {
+	if ptr, ok := q.pendingResourcesByTraceID[traceID]; ok {
 		pendingTraceResources = ptr
 	} else {
 		pendingTraceResources = NewPendingResources()
-		q.pendingResourcesByTraceId[traceID] = pendingTraceResources
+		q.pendingResourcesByTraceID[traceID] = pendingTraceResources
 	}
 	pendingTraceResources.Insert(resource, scope, scopeSchema, span)
 }
 
-func (q *SpanExportQueue) resolveTraceIdMappingLocked(original, mapping unique.Handle[oteltrace.TraceID]) [][]*tracev1.ResourceSpans {
-	q.knownTraceIdMappings[original] = mapping
+func (q *SpanExportQueue) resolveTraceIDMappingLocked(original, mapping unique.Handle[oteltrace.TraceID]) [][]*tracev1.ResourceSpans {
+	q.knownTraceIDMappings[original] = mapping
 
 	toUpload := [][]*tracev1.ResourceSpans{}
-	if originalPending, ok := q.pendingResourcesByTraceId[original]; ok {
+	if originalPending, ok := q.pendingResourcesByTraceID[original]; ok {
 		resourceSpans := originalPending.AsResourceSpans(mapping)
-		delete(q.pendingResourcesByTraceId, original)
+		delete(q.pendingResourcesByTraceID, original)
 		toUpload = append(toUpload, resourceSpans)
 	}
 
 	if original != mapping {
-		q.knownTraceIdMappings[mapping] = mapping
-		if targetPending, ok := q.pendingResourcesByTraceId[mapping]; ok {
+		q.knownTraceIDMappings[mapping] = mapping
+		if targetPending, ok := q.pendingResourcesByTraceID[mapping]; ok {
 			resourceSpans := targetPending.AsResourceSpans(mapping)
-			delete(q.pendingResourcesByTraceId, mapping)
+			delete(q.pendingResourcesByTraceID, mapping)
 			toUpload = append(toUpload, resourceSpans)
 		}
 	}
@@ -117,27 +117,27 @@ func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTra
 		for _, scope := range resource.ScopeSpans {
 			for _, span := range scope.Spans {
 				formatSpanName(span)
-				spanId, ok := toSpanID(span.SpanId)
+				spanID, ok := toSpanID(span.SpanId)
 				if !ok {
 					continue
 				}
 				if q.debugFlags.Check(TrackAllSpans) {
-					q.debugAllObservedSpans[spanId] = span
+					q.debugAllObservedSpans[spanID] = span
 				}
-				parentSpanId, ok := toSpanID(span.ParentSpanId)
+				parentSpanID, ok := toSpanID(span.ParentSpanId)
 				if !ok {
 					continue
 				}
-				if parentSpanId.IsValid() { // if parent is not a root span
-					q.observer.ObserveReference(parentSpanId)
+				if parentSpanID.IsValid() { // if parent is not a root span
+					q.observer.ObserveReference(parentSpanID)
 					continue
 				}
-				traceId, ok := toTraceID(span.TraceId)
+				traceID, ok := toTraceID(span.TraceId)
 				if !ok {
 					continue
 				}
 
-				if _, ok := q.knownTraceIdMappings[traceId]; !ok {
+				if _, ok := q.knownTraceIDMappings[traceID]; !ok {
 					// observed a new root span with an unknown trace id
 					var pomeriumTraceparent string
 					for _, attr := range span.Attributes {
@@ -150,7 +150,7 @@ func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTra
 
 					if pomeriumTraceparent == "" {
 						// no replacement id, map the trace to itself and release pending spans
-						mappedTraceID = traceId
+						mappedTraceID = traceID
 					} else {
 						// this root span has an alternate traceparent. permanently rewrite
 						// all spans of the old trace id to use the new trace id
@@ -162,7 +162,7 @@ func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTra
 						mappedTraceID = unique.Make(tp.TraceID())
 					}
 
-					toUpload = append(toUpload, q.resolveTraceIdMappingLocked(traceId, mappedTraceID)...)
+					toUpload = append(toUpload, q.resolveTraceIDMappingLocked(traceID, mappedTraceID)...)
 				}
 			}
 		}
@@ -187,7 +187,7 @@ func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTra
 					continue
 				}
 				q.observer.Observe(spanID)
-				if mapping, ok := q.knownTraceIdMappings[traceID]; ok {
+				if mapping, ok := q.knownTraceIDMappings[traceID]; ok {
 					id := mapping.Value()
 					copy(span.TraceId, id[:])
 					knownSpans = append(knownSpans, span)
@@ -248,15 +248,15 @@ func (q *SpanExportQueue) Close(ctx context.Context) error {
 		q.mu.Lock()
 		defer q.mu.Unlock()
 		if q.debugFlags.Check(TrackSpanReferences) {
-			var unknownParentIds []string
+			var unknownParentIDs []string
 			for id, known := range q.observer.(*spanObserver).referencedIDs {
 				if !known {
-					unknownParentIds = append(unknownParentIds, id.String())
+					unknownParentIDs = append(unknownParentIDs, id.String())
 				}
 			}
-			if len(unknownParentIds) > 0 {
+			if len(unknownParentIDs) > 0 {
 				msg := startMsg("WARNING: parent spans referenced but never seen:\n")
-				for _, str := range unknownParentIds {
+				for _, str := range unknownParentIDs {
 					msg.WriteString(str)
 					msg.WriteString("\n")
 				}
@@ -264,11 +264,11 @@ func (q *SpanExportQueue) Close(ctx context.Context) error {
 			}
 		}
 		didWarn := false
-		incomplete := len(q.pendingResourcesByTraceId) > 0
+		incomplete := len(q.pendingResourcesByTraceID) > 0
 		if incomplete && q.debugFlags.Check(WarnOnIncompleteTraces) {
 			didWarn = true
 			msg := startMsg("WARNING: exporter shut down with incomplete traces\n")
-			for k, v := range q.pendingResourcesByTraceId {
+			for k, v := range q.pendingResourcesByTraceID {
 				fmt.Fprintf(msg, "- Trace: %s\n", k.Value())
 				for _, pendingScope := range v.scopesByResourceID {
 					msg.WriteString("  - Resource:\n")
@@ -291,21 +291,21 @@ func (q *SpanExportQueue) Close(ctx context.Context) error {
 							if !ok {
 								continue
 							}
-							traceId, ok := toTraceID(span.TraceId)
+							traceID, ok := toTraceID(span.TraceId)
 							if !ok {
 								continue
 							}
-							parentSpanId, ok := toSpanID(span.ParentSpanId)
+							parentSpanID, ok := toSpanID(span.ParentSpanId)
 							if !ok {
 								continue
 							}
-							_, seenParent := q.debugAllObservedSpans[parentSpanId]
+							_, seenParent := q.debugAllObservedSpans[parentSpanID]
 							var missing string
 							if !seenParent {
 								missing = " [missing]"
 							}
 							fmt.Fprintf(msg, "    - %-*s (trace: %s | span: %s | parent:%s %s)\n", longestName,
-								"'"+span.Name+"'", traceId.Value(), spanID, missing, parentSpanId)
+								"'"+span.Name+"'", traceID.Value(), spanID, missing, parentSpanID)
 							for _, attr := range span.Attributes {
 								if attr.Key == "caller" {
 									fmt.Fprintf(msg, "      => caller: '%s'\n", attr.Value.GetStringValue())
@@ -321,7 +321,7 @@ func (q *SpanExportQueue) Close(ctx context.Context) error {
 
 		if q.debugFlags.Check(LogTraceIDMappings) || (didWarn && q.debugFlags.Check(LogTraceIDMappingsOnWarn)) {
 			msg := startMsg("Known trace ids:\n")
-			for k, v := range q.knownTraceIdMappings {
+			for k, v := range q.knownTraceIDMappings {
 				if k != v {
 					fmt.Fprintf(msg, "%s => %s\n", k.Value(), v.Value())
 				} else {
@@ -341,16 +341,16 @@ func (q *SpanExportQueue) Close(ctx context.Context) error {
 				if !ok {
 					continue
 				}
-				traceId, ok := toTraceID(span.TraceId)
+				traceID, ok := toTraceID(span.TraceId)
 				if !ok {
 					continue
 				}
-				parentSpanId, ok := toSpanID(span.ParentSpanId)
+				parentSpanID, ok := toSpanID(span.ParentSpanId)
 				if !ok {
 					continue
 				}
 				fmt.Fprintf(msg, "%-*s (trace: %s | span: %s | parent: %s)", longestName,
-					"'"+span.Name+"'", traceId.Value(), spanID, parentSpanId)
+					"'"+span.Name+"'", traceID.Value(), spanID, parentSpanID)
 				var foundCaller bool
 				for _, attr := range span.Attributes {
 					if attr.Key == "caller" {
@@ -389,7 +389,7 @@ type spanInfo struct {
 }
 
 // ForceFlush implements trace.SpanProcessor.
-func (t *spanTracker) ForceFlush(ctx context.Context) error {
+func (t *spanTracker) ForceFlush(context.Context) error {
 	return nil
 }
 
@@ -400,7 +400,7 @@ func (t *spanTracker) OnEnd(s sdktrace.ReadOnlySpan) {
 }
 
 // OnStart implements trace.SpanProcessor.
-func (t *spanTracker) OnStart(parent context.Context, s sdktrace.ReadWriteSpan) {
+func (t *spanTracker) OnStart(_ context.Context, s sdktrace.ReadWriteSpan) {
 	id := s.SpanContext().SpanID()
 	t.inflightSpans.Store(id, struct{}{})
 	t.observer.Observe(id)
@@ -414,7 +414,7 @@ func (t *spanTracker) OnStart(parent context.Context, s sdktrace.ReadWriteSpan) 
 }
 
 // Shutdown implements trace.SpanProcessor.
-func (t *spanTracker) Shutdown(ctx context.Context) error {
+func (t *spanTracker) Shutdown(_ context.Context) error {
 	if t.debugFlags == 0 {
 		return nil
 	}
@@ -423,7 +423,7 @@ func (t *spanTracker) Shutdown(ctx context.Context) error {
 		if t.debugFlags.Check(WarnOnIncompleteSpans) {
 			if t.debugFlags.Check(TrackAllSpans) {
 				incompleteSpans := []*spanInfo{}
-				t.inflightSpans.Range(func(key, value any) bool {
+				t.inflightSpans.Range(func(key, _ any) bool {
 					if info, ok := t.allSpans.Load(key); ok {
 						incompleteSpans = append(incompleteSpans, info.(*spanInfo))
 					}
@@ -444,7 +444,7 @@ func (t *spanTracker) Shutdown(ctx context.Context) error {
 				}
 			} else {
 				incompleteSpans := []string{}
-				t.inflightSpans.Range(func(key, value any) bool {
+				t.inflightSpans.Range(func(key, _ any) bool {
 					incompleteSpans = append(incompleteSpans, key.(string))
 					return true
 				})
@@ -462,7 +462,7 @@ func (t *spanTracker) Shutdown(ctx context.Context) error {
 
 		if t.debugFlags.Check(LogAllSpans) || (t.debugFlags.Check(LogAllSpansOnWarn) && didWarn) {
 			allSpans := []*spanInfo{}
-			t.allSpans.Range(func(key, value any) bool {
+			t.allSpans.Range(func(_, value any) bool {
 				allSpans = append(allSpans, value.(*spanInfo))
 				return true
 			})
@@ -504,22 +504,22 @@ type PendingScopes struct {
 	spansByScope map[string]*PendingSpans
 }
 
-func (ptr *PendingScopes) Insert(scope *commonv1.InstrumentationScope, scopeSchema string, span *tracev1.Span) {
+func (ps *PendingScopes) Insert(scope *commonv1.InstrumentationScope, scopeSchema string, span *tracev1.Span) {
 	var spans *PendingSpans
-	if sp, ok := ptr.spansByScope[scope.GetName()]; ok {
+	if sp, ok := ps.spansByScope[scope.GetName()]; ok {
 		spans = sp
 	} else {
 		spans = NewPendingSpans(scope, scopeSchema)
-		ptr.spansByScope[scope.GetName()] = spans
+		ps.spansByScope[scope.GetName()] = spans
 	}
 	spans.Insert(span)
 }
 
-func (ptr *PendingScopes) AsScopeSpansList(rewriteTraceId unique.Handle[oteltrace.TraceID]) []*tracev1.ScopeSpans {
-	out := make([]*tracev1.ScopeSpans, 0, len(ptr.spansByScope))
-	for _, spans := range ptr.spansByScope {
+func (ps *PendingScopes) AsScopeSpansList(rewriteTraceID unique.Handle[oteltrace.TraceID]) []*tracev1.ScopeSpans {
+	out := make([]*tracev1.ScopeSpans, 0, len(ps.spansByScope))
+	for _, spans := range ps.spansByScope {
 		for _, span := range spans.spans {
-			id := rewriteTraceId.Value()
+			id := rewriteTraceID.Value()
 			copy(span.TraceId, id[:])
 		}
 		scopeSpans := &tracev1.ScopeSpans{
@@ -543,24 +543,24 @@ type PendingResources struct {
 	scopesByResourceID map[string]*PendingScopes
 }
 
-func (ptr *PendingResources) Insert(resource *ResourceInfo, scope *commonv1.InstrumentationScope, scopeSchema string, span *tracev1.Span) {
+func (pr *PendingResources) Insert(resource *ResourceInfo, scope *commonv1.InstrumentationScope, scopeSchema string, span *tracev1.Span) {
 	resourceEq := resource.ID()
 	var scopes *PendingScopes
-	if sc, ok := ptr.scopesByResourceID[resourceEq]; ok {
+	if sc, ok := pr.scopesByResourceID[resourceEq]; ok {
 		scopes = sc
 	} else {
 		scopes = NewPendingScopes(resource)
-		ptr.scopesByResourceID[resourceEq] = scopes
+		pr.scopesByResourceID[resourceEq] = scopes
 	}
 	scopes.Insert(scope, scopeSchema, span)
 }
 
-func (ptr *PendingResources) AsResourceSpans(rewriteTraceId unique.Handle[oteltrace.TraceID]) []*tracev1.ResourceSpans {
-	out := make([]*tracev1.ResourceSpans, 0, len(ptr.scopesByResourceID))
-	for _, scopes := range ptr.scopesByResourceID {
+func (pr *PendingResources) AsResourceSpans(rewriteTraceID unique.Handle[oteltrace.TraceID]) []*tracev1.ResourceSpans {
+	out := make([]*tracev1.ResourceSpans, 0, len(pr.scopesByResourceID))
+	for _, scopes := range pr.scopesByResourceID {
 		resourceSpans := &tracev1.ResourceSpans{
 			Resource:   scopes.resource.Resource,
-			ScopeSpans: scopes.AsScopeSpansList(rewriteTraceId),
+			ScopeSpans: scopes.AsScopeSpansList(rewriteTraceID),
 			SchemaUrl:  scopes.resource.Schema,
 		}
 		out = append(out, resourceSpans)

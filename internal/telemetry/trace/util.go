@@ -14,11 +14,11 @@ func ParseTraceparent(traceparent string) (trace.SpanContext, error) {
 	if len(parts) != 4 {
 		return trace.SpanContext{}, errors.New("malformed traceparent")
 	}
-	traceId, err := trace.TraceIDFromHex(parts[1])
+	traceID, err := trace.TraceIDFromHex(parts[1])
 	if err != nil {
 		return trace.SpanContext{}, err
 	}
-	spanId, err := trace.SpanIDFromHex(parts[2])
+	spanID, err := trace.SpanIDFromHex(parts[2])
 	if err != nil {
 		return trace.SpanContext{}, err
 	}
@@ -26,12 +26,12 @@ func ParseTraceparent(traceparent string) (trace.SpanContext, error) {
 	if err != nil {
 		return trace.SpanContext{}, err
 	}
-	if len(traceId) != 16 || len(spanId) != 8 {
+	if len(traceID) != 16 || len(spanID) != 8 {
 		return trace.SpanContext{}, errors.New("malformed traceparent")
 	}
 	return trace.NewSpanContext(trace.SpanContextConfig{
-		TraceID:    traceId,
-		SpanID:     spanId,
+		TraceID:    traceID,
+		SpanID:     spanID,
 		TraceFlags: trace.TraceFlags(traceFlags),
 	}), nil
 }

@@ -18,7 +18,9 @@ import (
 
 // Export implements ptraceotlp.GRPCServer.
 func (srv *ExporterServer) Export(ctx context.Context, req *coltracepb.ExportTraceServiceRequest) (*coltracepb.ExportTraceServiceResponse, error) {
-	srv.spanExportQueue.Enqueue(ctx, req)
+	if err := srv.spanExportQueue.Enqueue(ctx, req); err != nil {
+		return nil, err
+	}
 	return &coltracepb.ExportTraceServiceResponse{}, nil
 }
 
@@ -45,7 +47,7 @@ func NewServer(ctx context.Context, remoteClient otlptrace.Client) *ExporterServ
 
 func (srv *ExporterServer) Start(ctx context.Context) {
 	lis := bufconn.Listen(4096)
-	go srv.server.Serve(lis)
+	go func() { _ = srv.server.Serve(lis) }()
 	cc, err := grpc.NewClient("passthrough://ignore",
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			return lis.Dial()

@@ -61,8 +61,8 @@ type ServerOptions struct {
 	exitGracePeriod time.Duration
 }
 
-func (opts *ServerOptions) ExitGracePeriod() time.Duration {
-	return opts.exitGracePeriod
+func (o *ServerOptions) ExitGracePeriod() time.Duration {
+	return o.exitGracePeriod
 }
 
 type ServerOption func(*ServerOptions)

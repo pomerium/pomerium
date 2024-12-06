@@ -642,7 +642,7 @@ func (e *environment) Start() {
 				e.debugf("pomerium server shut down without error")
 			}
 		})
-		pom.Start(ctx, e.tracerProvider, e.src)
+		require.NoError(e.t, pom.Start(ctx, e.tracerProvider, e.src))
 		return pom.Wait()
 	}))
 

@@ -300,7 +300,7 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 				},
 			},
 				otelhttp.WithTracerProvider(h.clientTracerProvider.Value()),
-				otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+				otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 					return fmt.Sprintf("Client: %s %s", r.Method, r.URL.Path)
 				}),
 			),
@@ -355,9 +355,9 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 		}
 
 		if options.authenticateAs != "" {
-			resp, err = authenticateFlow(ctx, client, req, options.authenticateAs)
+			resp, err = authenticateFlow(ctx, client, req, options.authenticateAs) //nolint:bodyclose
 		} else {
-			resp, err = client.Do(req)
+			resp, err = client.Do(req) //nolint:bodyclose
 		}
 		// retry on connection refused
 		if err != nil {
@@ -371,8 +371,8 @@ func (h *httpUpstream) Do(method string, r testenv.Route, opts ...RequestOption)
 		}
 		if resp.StatusCode/100 == 5 {
 			resendCount++
-			io.ReadAll(resp.Body)
-			resp.Body.Close()
+			_, _ = io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
 			span.SetAttributes(semconv.HTTPRequestResendCount(resendCount))
 			span.AddEvent("Retrying on 5xx error", oteltrace.WithAttributes(
 				attribute.String("status", resp.Status),

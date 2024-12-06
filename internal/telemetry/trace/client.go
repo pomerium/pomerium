@@ -77,16 +77,16 @@ func guessProtocol() string {
 type noopClient struct{}
 
 // Start implements otlptrace.Client.
-func (n noopClient) Start(ctx context.Context) error {
+func (n noopClient) Start(context.Context) error {
 	return nil
 }
 
 // Stop implements otlptrace.Client.
-func (n noopClient) Stop(ctx context.Context) error {
+func (n noopClient) Stop(context.Context) error {
 	return nil
 }
 
 // UploadTraces implements otlptrace.Client.
-func (n noopClient) UploadTraces(ctx context.Context, protoSpans []*v1.ResourceSpans) error {
+func (n noopClient) UploadTraces(context.Context, []*v1.ResourceSpans) error {
 	return nil
 }

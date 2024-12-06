@@ -8,10 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
@@ -37,14 +35,6 @@ type systemContext struct {
 func systemContextFromContext(ctx context.Context) *systemContext {
 	sys, _ := ctx.Value(systemContextKey).(*systemContext)
 	return sys
-}
-
-func init() {
-	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
-}
-
-func UseGlobalPanicTracer() {
-	otel.SetTracerProvider(panicTracerProvider{})
 }
 
 var _ trace.Tracer = panicTracer{}

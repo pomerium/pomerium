@@ -48,7 +48,7 @@ func TestOTLPTracing(t *testing.T) {
 	env := testenv.New(t, testenv.AddTraceDebugFlags(testenv.StandardTraceDebugFlags))
 	defer env.Stop()
 	up := upstreams.HTTP(nil, upstreams.WithDisplayName("Upstream"))
-	up.Handle("/foo", func(w http.ResponseWriter, req *http.Request) {
+	up.Handle("/foo", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("OK"))
 	})
 	env.Add(scenarios.NewIDP([]*scenarios.User{

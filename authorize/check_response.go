@@ -254,18 +254,18 @@ func (a *Authorize) requireLoginResponse(
 	// always assume https scheme
 	checkRequestURL := getCheckRequestURL(in)
 	checkRequestURL.Scheme = "https"
-	var signInUrlQuery url.Values
+	var signInURLQuery url.Values
 
 	headers := map[string]string{}
 	if id := in.GetAttributes().GetRequest().GetHttp().GetHeaders()["traceparent"]; id != "" {
 		headers["X-Pomerium-Traceparent"] = id
 		headers["X-Pomerium-Tracestate"] = "pomerium.traceparent=" + id // TODO: this might not be necessary anymore
-		signInUrlQuery = url.Values{}
-		signInUrlQuery.Add("pomerium_traceparent", id)
-		signInUrlQuery.Add("pomerium_tracestate", "pomerium.traceparent="+id)
+		signInURLQuery = url.Values{}
+		signInURLQuery.Add("pomerium_traceparent", id)
+		signInURLQuery.Add("pomerium_tracestate", "pomerium.traceparent="+id)
 	}
 	redirectTo, err := state.authenticateFlow.AuthenticateSignInURL(
-		ctx, signInUrlQuery, &checkRequestURL, idp.GetId())
+		ctx, signInURLQuery, &checkRequestURL, idp.GetId())
 	if err != nil {
 		return nil, err
 	}

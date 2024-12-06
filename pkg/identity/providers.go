@@ -74,7 +74,7 @@ func NewAuthenticator(ctx context.Context, tracerProvider oteltrace.TracerProvid
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{
 		Transport: otelhttp.NewTransport(nil,
 			otelhttp.WithTracerProvider(tracerProvider),
-			otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+			otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 				return fmt.Sprintf("OAuth2 Client: %s %s", r.Method, r.URL.Path)
 			}),
 		),
