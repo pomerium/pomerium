@@ -50,6 +50,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/grpclog"
@@ -232,6 +233,7 @@ type EnvironmentOptions struct {
 	pauseOnFailure  bool
 	forceSilent     bool
 	traceDebugFlags trace.DebugFlags
+	traceClient     otlptrace.Client
 }
 
 type EnvironmentOption func(*EnvironmentOptions)
@@ -269,12 +271,6 @@ func Silent(silent ...bool) EnvironmentOption {
 	}
 }
 
-func TraceDebugFlags(flags trace.DebugFlags) EnvironmentOption {
-	return func(o *EnvironmentOptions) {
-		o.traceDebugFlags = flags
-	}
-}
-
 const StandardTraceDebugFlags = trace.TrackSpanCallers |
 	trace.WarnOnIncompleteSpans |
 	trace.WarnOnIncompleteTraces |
@@ -282,9 +278,15 @@ const StandardTraceDebugFlags = trace.TrackSpanCallers |
 	trace.LogTraceIDMappingsOnWarn |
 	trace.LogAllSpansOnWarn
 
-func AddTraceDebugFlags(flags trace.DebugFlags) EnvironmentOption {
+func WithTraceDebugFlags(flags trace.DebugFlags) EnvironmentOption {
 	return func(o *EnvironmentOptions) {
-		o.traceDebugFlags |= flags
+		o.traceDebugFlags = flags
+	}
+}
+
+func WithTraceClient(traceClient otlptrace.Client) EnvironmentOption {
+	return func(o *EnvironmentOptions) {
+		o.traceClient = traceClient
 	}
 }
 
@@ -350,7 +352,8 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	logger := zerolog.New(writer).With().Timestamp().Logger().Level(zerolog.DebugLevel)
 
 	ctx := trace.Options{
-		DebugFlags: options.traceDebugFlags,
+		DebugFlags:   options.traceDebugFlags,
+		RemoteClient: options.traceClient,
 	}.NewContext(logger.WithContext(context.Background()))
 	tracerProvider := trace.NewTracerProvider(ctx, "Test Environment")
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
@@ -776,12 +779,17 @@ func (e *environment) Stop() {
 		e.debugf("stop: Stop() called manually")
 		e.advanceState(Stopping)
 		e.cancel(ErrCauseManualStop)
-		err := e.taskErrGroup.Wait()
-		e.advanceState(Stopped)
+		errs := []error{}
+		if err := e.taskErrGroup.Wait(); err != nil {
+			errs = append(errs, fmt.Errorf("error waiting for tasks: %w", err))
+		}
 		e.debugf("stop: done waiting")
 		e.rootSpan.End()
-		assert.NoError(e.t, trace.ShutdownContext(e.ctx))
-		assert.ErrorIs(e.t, err, ErrCauseManualStop)
+		if err := trace.ShutdownContext(e.ctx); err != nil {
+			errs = append(errs, fmt.Errorf("error shutting down trace context: %w", err))
+		}
+		e.advanceState(Stopped)
+		assert.ErrorIs(e.t, errors.Join(errs...), ErrCauseManualStop)
 	})
 }
 

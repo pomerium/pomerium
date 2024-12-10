@@ -23,7 +23,8 @@ type systemContextKeyType struct{}
 var systemContextKey systemContextKeyType
 
 type Options struct {
-	DebugFlags DebugFlags
+	DebugFlags   DebugFlags
+	RemoteClient otlptrace.Client
 }
 
 type systemContext struct {
@@ -65,15 +66,16 @@ func (tpm *tracerProviderManager) Add(tp *sdktrace.TracerProvider) {
 }
 
 func (op Options) NewContext(ctx context.Context) context.Context {
-	remoteClient := NewRemoteClientFromEnv()
+	if op.RemoteClient == nil {
+		op.RemoteClient = NewRemoteClientFromEnv()
+	}
 	sys := &systemContext{
 		Options: op,
 		tpm:     &tracerProviderManager{},
 	}
 	ctx = context.WithValue(ctx, systemContextKey, sys)
-	sys.exporterServer = NewServer(ctx, remoteClient)
-	sys.exporterServer.Start()
-
+	sys.exporterServer = NewServer(ctx, op.RemoteClient)
+	sys.exporterServer.Start(ctx)
 	return ctx
 }
 

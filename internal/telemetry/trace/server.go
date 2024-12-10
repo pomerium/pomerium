@@ -33,9 +33,6 @@ type ExporterServer struct {
 }
 
 func NewServer(ctx context.Context, remoteClient otlptrace.Client) *ExporterServer {
-	if err := remoteClient.Start(ctx); err != nil {
-		panic(err)
-	}
 	ex := &ExporterServer{
 		spanExportQueue: NewSpanExportQueue(ctx, remoteClient),
 		remoteClient:    remoteClient,
@@ -45,9 +42,14 @@ func NewServer(ctx context.Context, remoteClient otlptrace.Client) *ExporterServ
 	return ex
 }
 
-func (srv *ExporterServer) Start() {
+func (srv *ExporterServer) Start(ctx context.Context) {
 	lis := bufconn.Listen(4096)
-	go func() { _ = srv.server.Serve(lis) }()
+	go func() {
+		if err := srv.remoteClient.Start(ctx); err != nil {
+			panic(err)
+		}
+		_ = srv.server.Serve(lis)
+	}()
 	cc, err := grpc.NewClient("passthrough://ignore",
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			return lis.Dial()

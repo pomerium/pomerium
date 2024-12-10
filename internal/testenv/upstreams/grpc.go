@@ -13,6 +13,7 @@ import (
 )
 
 type Options struct {
+	external   bool
 	serverOpts []grpc.ServerOption
 }
 

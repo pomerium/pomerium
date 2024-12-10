@@ -2,13 +2,12 @@ package selftests_test
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
@@ -18,43 +17,35 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials/insecure"
+	resourcev1 "go.opentelemetry.io/proto/otlp/resource/v1"
+	tracev1 "go.opentelemetry.io/proto/otlp/trace/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func requireOTLPTracesEndpoint(t testing.TB) {
+func otlpTraceReceiverOrFromEnv(t *testing.T) (modifier testenv.Modifier, remoteClient otlptrace.Client, getResults func() []*tracev1.ResourceSpans) {
 	t.Setenv("OTEL_TRACES_EXPORTER", "otlp")
 	tracesEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
 	if tracesEndpoint == "" {
 		tracesEndpoint = os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 		if tracesEndpoint == "" {
-			tracesEndpoint = "http://localhost:4317"
-			t.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", tracesEndpoint)
+			srv := scenarios.NewOTLPTraceReceiver()
+			return srv, srv.NewClient(), srv.ResourceSpans
 		}
 	}
-	client, err := grpc.NewClient(strings.TrimPrefix(tracesEndpoint, "http://"), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.NoError(t, err)
-	client.Connect()
-	ctx, ca := context.WithTimeout(context.Background(), 1*time.Second)
-	defer ca()
-	if !client.WaitForStateChange(ctx, connectivity.Ready) {
-		t.Skip("OTLP server offline: " + tracesEndpoint)
-	}
-	client.Close()
+	return testenv.NoopModifier(), trace.NewRemoteClientFromEnv(), func() []*tracev1.ResourceSpans { return nil }
 }
 
 func TestOTLPTracing(t *testing.T) {
-	requireOTLPTracesEndpoint(t)
-	env := testenv.New(t, testenv.AddTraceDebugFlags(testenv.StandardTraceDebugFlags))
-	defer env.Stop()
+	modifier, remoteClient, getResults := otlpTraceReceiverOrFromEnv(t)
+	env := testenv.New(t, testenv.WithTraceDebugFlags(testenv.StandardTraceDebugFlags), testenv.WithTraceClient(remoteClient))
+	env.Add(modifier)
+
 	up := upstreams.HTTP(nil, upstreams.WithDisplayName("Upstream"))
 	up.Handle("/foo", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("OK"))
@@ -76,19 +67,68 @@ func TestOTLPTracing(t *testing.T) {
 	snippets.WaitStartupComplete(env)
 
 	ctx, span := env.Tracer().Start(env.Context(), "Authenticate", oteltrace.WithNewRoot())
-	defer span.End()
 	resp, err := up.Get(route, upstreams.AuthenticateAs("foo@example.com"), upstreams.Path("/foo"), upstreams.Context(ctx))
+	span.End()
 	require.NoError(t, err)
 	body, err := io.ReadAll(resp.Body)
 	assert.NoError(t, err)
 	assert.NoError(t, resp.Body.Close())
 	assert.Equal(t, resp.StatusCode, 200)
 	assert.Equal(t, "OK", string(body))
+
+	env.Stop()
+
+	results := getResults()
+	resources := []*resourcev1.Resource{}
+	for _, res := range results {
+		resources = append(resources, res.Resource)
+	}
+
+	for _, res := range resources {
+		jsondata := protojson.Format(res)
+		fmt.Println(string(jsondata))
+	}
+	assert.NotEmpty(t, results)
+	for _, service := range []string{
+		"Test Environment",
+		"Authorize",
+		"Authenticate",
+		"Control Plane",
+		"Data Broker",
+		"Upstream",
+		"IDP",
+		"HTTP Client",
+	} {
+		assertResourceExists(t, resources, attribute.NewSet(
+			attribute.String("service.name", service),
+			attribute.String("telemetry.sdk.language", "go"),
+			attribute.String("telemetry.sdk.name", "opentelemetry"),
+		))
+	}
+	assertResourceExists(t, resources, attribute.NewSet(
+		attribute.String("service.name", "Envoy"),
+		attribute.String("pomerium.envoy", "true"),
+	))
+}
+
+func assertResourceExists(t *testing.T, resources []*resourcev1.Resource, attrs attribute.Set) {
+	for _, res := range resources {
+		set := trace.NewAttributeSet(res.Attributes...)
+		set, _ = set.Filter(func(kv attribute.KeyValue) bool {
+			return attrs.HasValue(kv.Key)
+		})
+		if set.Equals(&attrs) {
+			return
+		}
+	}
+	t.Error("resource not found")
 }
 
 func TestSampling(t *testing.T) {
-	requireOTLPTracesEndpoint(t)
-	env := testenv.New(t, testenv.AddTraceDebugFlags(testenv.StandardTraceDebugFlags))
+	modifier, remoteClient, _ := otlpTraceReceiverOrFromEnv(t)
+	env := testenv.New(t, testenv.WithTraceDebugFlags(testenv.StandardTraceDebugFlags), testenv.WithTraceClient(remoteClient))
+	env.Add(modifier)
+
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
 		cfg.Options.TracingSampleRate = 0.5
 	}))
@@ -175,9 +215,10 @@ func TestSampling(t *testing.T) {
 }
 
 func TestExternalSpans(t *testing.T) {
-	requireOTLPTracesEndpoint(t)
+	modifier, remoteClient, _ := otlpTraceReceiverOrFromEnv(t)
+
 	// set up external tracer
-	external, err := otlptrace.New(context.Background(), otlptracegrpc.NewClient())
+	external, err := otlptrace.New(context.Background(), remoteClient)
 	require.NoError(t, err)
 	r, err := resource.Merge(
 		resource.Empty(),
@@ -190,7 +231,9 @@ func TestExternalSpans(t *testing.T) {
 
 	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(external), sdktrace.WithResource(r))
 
-	env := testenv.New(t, testenv.AddTraceDebugFlags(testenv.StandardTraceDebugFlags))
+	env := testenv.New(t, testenv.WithTraceDebugFlags(testenv.StandardTraceDebugFlags), testenv.WithTraceClient(remoteClient))
+	env.Add(modifier)
+
 	defer env.Stop()
 	up := upstreams.HTTP(nil, upstreams.WithNoClientTracing())
 	up.Handle("/foo", func(w http.ResponseWriter, _ *http.Request) {
