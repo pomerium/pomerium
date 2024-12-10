@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -18,54 +19,12 @@ import (
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 )
 
-type systemContextKeyType struct{}
-
-var systemContextKey systemContextKeyType
-
 type Options struct {
 	DebugFlags   DebugFlags
 	RemoteClient otlptrace.Client
 }
 
-type systemContext struct {
-	Options
-	tpm            *tracerProviderManager
-	exporterServer *ExporterServer
-}
-
-func systemContextFromContext(ctx context.Context) *systemContext {
-	sys, _ := ctx.Value(systemContextKey).(*systemContext)
-	return sys
-}
-
-var _ trace.Tracer = panicTracer{}
-
-type tracerProviderManager struct {
-	mu              sync.Mutex
-	tracerProviders []*sdktrace.TracerProvider
-}
-
-func (tpm *tracerProviderManager) ShutdownAll(ctx context.Context) error {
-	tpm.mu.Lock()
-	defer tpm.mu.Unlock()
-	var errs []error
-	for _, tp := range tpm.tracerProviders {
-		errs = append(errs, tp.ForceFlush(ctx))
-	}
-	for _, tp := range tpm.tracerProviders {
-		errs = append(errs, tp.Shutdown(ctx))
-	}
-	clear(tpm.tracerProviders)
-	return errors.Join(errs...)
-}
-
-func (tpm *tracerProviderManager) Add(tp *sdktrace.TracerProvider) {
-	tpm.mu.Lock()
-	defer tpm.mu.Unlock()
-	tpm.tracerProviders = append(tpm.tracerProviders, tp)
-}
-
-func (op Options) NewContext(ctx context.Context) context.Context {
+func (op Options) NewContext(parent context.Context) context.Context {
 	if op.RemoteClient == nil {
 		op.RemoteClient = NewRemoteClientFromEnv()
 	}
@@ -73,16 +32,35 @@ func (op Options) NewContext(ctx context.Context) context.Context {
 		Options: op,
 		tpm:     &tracerProviderManager{},
 	}
-	ctx = context.WithValue(ctx, systemContextKey, sys)
+	ctx := context.WithValue(parent, systemContextKey, sys)
 	sys.exporterServer = NewServer(ctx, op.RemoteClient)
 	sys.exporterServer.Start(ctx)
 	return ctx
 }
 
-func NewContext(ctx context.Context) context.Context {
-	return Options{}.NewContext(ctx)
+// NewContext creates a new top-level background context with tracing machinery
+// and configuration that will be used when creating new tracer providers.
+//
+// Any context created with NewContext should eventually be shut down by calling
+// [ShutdownContext] to ensure all traces are exported.
+//
+// The parent context should be context.Background(), or a background context
+// containing a logger. If any context in the parent's hierarchy was created
+// by NewContext, this will panic.
+func NewContext(parent context.Context) context.Context {
+	if systemContextFromContext(parent) != nil {
+		panic("parent already contains trace system context")
+	}
+	return Options{}.NewContext(parent)
 }
 
+// NewTracerProvider creates a new [trace.TracerProvider] with the given service
+// name and options.
+//
+// A context returned by [NewContext] must exist somewhere in the hierarchy of
+// ctx, otherwise a no-op TracerProvider is returned. The configuration embedded
+// within that context will be used to configure its resource attributes and
+// exporter automatically.
 func NewTracerProvider(ctx context.Context, serviceName string, opts ...sdktrace.TracerProviderOption) trace.TracerProvider {
 	sys := systemContextFromContext(ctx)
 	if sys == nil {
@@ -121,9 +99,23 @@ func NewTracerProvider(ctx context.Context, serviceName string, opts ...sdktrace
 	return tp
 }
 
+// ShutdownContext will gracefully shut down all tracing resources created with
+// a context returned by [NewContext], including all tracer providers and the
+// underlying exporter and remote client.
+//
+// This should only be called once before exiting, but subsequent calls are
+// a no-op.
+//
+// The provided context does not necessarily need to be the exact context
+// returned by [NewContext]; it can be anywhere in its context hierarchy and
+// this function will have the same effect.
 func ShutdownContext(ctx context.Context) error {
 	sys := systemContextFromContext(ctx)
 	if sys == nil {
+		panic("context was not created with trace.NewContext")
+	}
+
+	if !sys.shutdown.CompareAndSwap(false, true) {
 		return nil
 	}
 
@@ -144,9 +136,64 @@ func ExporterServerFromContext(ctx context.Context) coltracepb.TraceServiceServe
 	return nil
 }
 
+// WaitForSpans will block up to the given max duration and wait for all
+// in-flight spans from tracers created with the given context to end. This
+// function can be called more than once, and is safe to call from multiple
+// goroutines in parallel.
+//
+// This requires the [TrackSpanReferences] debug flag to have been set with
+// [Options.NewContext]. Otherwise, this function is a no-op and will return
+// immediately.
+//
+// If this function blocks for more than 10 seconds, it will print a warning
+// to stderr containing a list of span IDs it is waiting for, and the IDs of
+// their parents (if known). Additionally, if the [TrackAllSpans] debug flag
+// is set, details about parent spans will be displayed, including call site
+// and trace ID.
 func WaitForSpans(ctx context.Context, maxDuration time.Duration) error {
 	if sys := systemContextFromContext(ctx); sys != nil {
 		return sys.exporterServer.spanExportQueue.WaitForSpans(maxDuration)
 	}
 	return nil
+}
+
+type systemContextKeyType struct{}
+
+var systemContextKey systemContextKeyType
+
+type systemContext struct {
+	Options
+	tpm            *tracerProviderManager
+	exporterServer *ExporterServer
+	shutdown       atomic.Bool
+}
+
+func systemContextFromContext(ctx context.Context) *systemContext {
+	sys, _ := ctx.Value(systemContextKey).(*systemContext)
+	return sys
+}
+
+type tracerProviderManager struct {
+	mu              sync.Mutex
+	tracerProviders []*sdktrace.TracerProvider
+}
+
+func (tpm *tracerProviderManager) ShutdownAll(ctx context.Context) error {
+	tpm.mu.Lock()
+	defer tpm.mu.Unlock()
+	var errs []error
+	for _, tp := range tpm.tracerProviders {
+		errs = append(errs, tp.ForceFlush(ctx))
+	}
+	for _, tp := range tpm.tracerProviders {
+		errs = append(errs, tp.Shutdown(ctx))
+	}
+	clear(tpm.tracerProviders)
+	return errors.Join(errs...)
+}
+
+func (tpm *tracerProviderManager) Add(tp *sdktrace.TracerProvider) {
+	tpm.mu.Lock()
+	defer tpm.mu.Unlock()
+	tpm.tracerProviders = append(tpm.tracerProviders, tp)
 }

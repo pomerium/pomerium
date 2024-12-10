@@ -2,6 +2,8 @@ package envoyconfig
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	tracev3 "github.com/envoyproxy/go-control-plane/envoy/config/trace/v3"
@@ -59,6 +61,12 @@ func TracingMetadataFilter() *envoy_extensions_filters_network_http_connection_m
 }
 
 func buildTracingConfig(opts *config.Options) *envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_Tracing {
+	maxPathTagLength := uint32(1024)
+	if value, ok := os.LookupEnv("OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT"); ok {
+		if num, err := strconv.ParseUint(value, 10, 32); err == nil {
+			maxPathTagLength = max(64, uint32(num))
+		}
+	}
 	requestTag := func(key string) *envoy_tracing_v3.CustomTag {
 		return &envoy_tracing_v3.CustomTag{
 			Tag: fmt.Sprintf("pomerium.%s", key),
@@ -113,7 +121,7 @@ func buildTracingConfig(opts *config.Options) *envoy_extensions_filters_network_
 			},
 		},
 		// this allows full URLs to be displayed in traces, they are otherwise truncated
-		MaxPathTagLength: wrapperspb.UInt32(1024),
+		MaxPathTagLength: wrapperspb.UInt32(maxPathTagLength),
 		CustomTags: []*envoy_tracing_v3.CustomTag{
 			requestTag("traceparent"),
 			requestTag("tracestate"),

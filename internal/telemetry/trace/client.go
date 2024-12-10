@@ -13,7 +13,15 @@ import (
 	v1 "go.opentelemetry.io/proto/otlp/trace/v1"
 )
 
+// NewRemoteClientFromEnv creates an otlp trace client using the well-known
+// environment variables defined in the [OpenTelemetry documentation].
+//
+// [OpenTelemetry documentation]: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
 func NewRemoteClientFromEnv() otlptrace.Client {
+	if os.Getenv("OTEL_SDK_DISABLED") == "true" {
+		return noopClient{}
+	}
+
 	exporter, ok := os.LookupEnv("OTEL_TRACES_EXPORTER")
 	if !ok {
 		exporter = "none"

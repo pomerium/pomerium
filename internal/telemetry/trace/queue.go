@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -26,8 +28,16 @@ var (
 )
 
 func init() {
-	maxPendingTraces.Store(1024)
-	maxCachedTraceIDs.Store(8192)
+	envOrDefault := func(envName string, def int32) int32 {
+		if val, ok := os.LookupEnv(envName); ok {
+			if num, err := strconv.ParseInt(val, 10, 32); err == nil {
+				return int32(num)
+			}
+		}
+		return def
+	}
+	maxPendingTraces.Store(envOrDefault("POMERIUM_OTEL_MAX_PENDING_TRACES", 1024))
+	maxCachedTraceIDs.Store(envOrDefault("POMERIUM_OTEL_MAX_CACHED_TRACE_IDS", 8192))
 }
 
 func SetMaxPendingTraces(num int32) {

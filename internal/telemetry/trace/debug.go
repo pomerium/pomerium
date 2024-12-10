@@ -27,7 +27,7 @@ const (
 	// all attributes.
 	// Use with caution, this will cause significantly increasing memory usage
 	// over time.
-	TrackAllSpans = (1 << iota)
+	TrackAllSpans = (1 << iota) | TrackSpanCallers
 
 	// If set, will log all trace ID mappings on close.
 	LogTraceIDMappings = (1 << iota)

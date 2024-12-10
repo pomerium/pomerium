@@ -65,6 +65,7 @@ require (
 	go.opencensus.io v0.24.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.57.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.57.0
+	go.opentelemetry.io/contrib/propagators/autoprop v0.57.0
 	go.opentelemetry.io/otel v1.32.0
 	go.opentelemetry.io/otel/bridge/opencensus v1.32.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.32.0
@@ -219,6 +220,10 @@ require (
 	github.com/zeebo/blake3 v0.2.4 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.29.0 // indirect
+	go.opentelemetry.io/contrib/propagators/aws v1.32.0 // indirect
+	go.opentelemetry.io/contrib/propagators/b3 v1.32.0 // indirect
+	go.opentelemetry.io/contrib/propagators/jaeger v1.32.0 // indirect
+	go.opentelemetry.io/contrib/propagators/ot v1.32.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/exp v0.0.0-20240808152545-0cdaa3abc0fa // indirect
 	golang.org/x/mod v0.20.0 // indirect
