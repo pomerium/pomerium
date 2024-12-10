@@ -36,6 +36,9 @@ type State struct {
 
 	// IdentityProviderID is the identity provider for the session.
 	IdentityProviderID string `json:"idp_id,omitempty"`
+
+	Traceparent string `json:"traceparent,omitempty"`
+	Tracestate  string `json:"tracestate,omitempty"`
 }
 
 // NewState creates a new State.

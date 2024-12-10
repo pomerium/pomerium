@@ -8,6 +8,7 @@ import (
 	"net/url"
 
 	"github.com/go-jose/go-jose/v3"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/config"
@@ -65,7 +66,9 @@ func newAuthenticateState() *authenticateState {
 
 func newAuthenticateStateFromConfig(
 	ctx context.Context,
-	cfg *config.Config, authenticateConfig *authenticateConfig,
+	tracerProvider oteltrace.TracerProvider,
+	cfg *config.Config,
+	authenticateConfig *authenticateConfig,
 ) (*authenticateState, error) {
 	err := ValidateOptions(cfg.Options)
 	if err != nil {
@@ -147,6 +150,7 @@ func newAuthenticateStateFromConfig(
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {
 		state.flow, err = authenticateflow.NewStateless(ctx,
+			tracerProvider,
 			cfg,
 			cookieStore,
 			authenticateConfig.getIdentityProvider,
@@ -154,7 +158,7 @@ func newAuthenticateStateFromConfig(
 			authenticateConfig.authEventFn,
 		)
 	} else {
-		state.flow, err = authenticateflow.NewStateful(ctx, cfg, cookieStore)
+		state.flow, err = authenticateflow.NewStateful(ctx, tracerProvider, cfg, cookieStore)
 	}
 	if err != nil {
 		return nil, err

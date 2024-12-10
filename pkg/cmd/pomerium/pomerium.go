@@ -3,11 +3,9 @@ package pomerium
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"go.uber.org/automaxprocs/maxprocs"
@@ -24,43 +22,79 @@ import (
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/version"
 	derivecert_config "github.com/pomerium/pomerium/pkg/derivecert/config"
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/proxy"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
-type RunOptions struct {
-	fileMgr            *filemgr.Manager
-	envoyServerOptions []envoy.ServerOption
+type Options struct {
+	fileMgr                 *filemgr.Manager
+	envoyServerOptions      []envoy.ServerOption
+	databrokerServerOptions []databroker_service.Option
 }
 
-type RunOption func(*RunOptions)
+type Option func(*Options)
 
-func (o *RunOptions) apply(opts ...RunOption) {
+func (o *Options) apply(opts ...Option) {
 	for _, op := range opts {
 		op(o)
 	}
 }
 
-func WithOverrideFileManager(fileMgr *filemgr.Manager) RunOption {
-	return func(o *RunOptions) {
+func WithOverrideFileManager(fileMgr *filemgr.Manager) Option {
+	return func(o *Options) {
 		o.fileMgr = fileMgr
 	}
 }
 
-func WithEnvoyServerOptions(opts ...envoy.ServerOption) RunOption {
-	return func(o *RunOptions) {
+func WithEnvoyServerOptions(opts ...envoy.ServerOption) Option {
+	return func(o *Options) {
 		o.envoyServerOptions = append(o.envoyServerOptions, opts...)
 	}
 }
 
+func WithDataBrokerServerOptions(opts ...databroker_service.Option) Option {
+	return func(o *Options) {
+		o.databrokerServerOptions = append(o.databrokerServerOptions, opts...)
+	}
+}
+
 // Run runs the main pomerium application.
-func Run(ctx context.Context, src config.Source, opts ...RunOption) error {
-	options := RunOptions{}
+func Run(ctx context.Context, src config.Source, opts ...Option) error {
+	p := New(opts...)
+	tracerProvider := trace.NewTracerProvider(ctx, "Pomerium")
+
+	if err := p.Start(ctx, tracerProvider, src); err != nil {
+		return err
+	}
+	return p.Wait()
+}
+
+var ErrShutdown = errors.New("Shutdown() called")
+
+type Pomerium struct {
+	Options
+	errGroup *errgroup.Group
+
+	cancel      context.CancelCauseFunc
+	envoyServer *envoy.Server
+}
+
+func New(opts ...Option) *Pomerium {
+	options := Options{}
 	options.apply(opts...)
 
+	return &Pomerium{
+		Options: options,
+	}
+}
+
+func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerProvider, src config.Source) error {
+	ctx, p.cancel = context.WithCancelCause(ctx)
 	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Ctx(ctx).Debug().Msgf(s, i...) }))
 
 	evt := log.Ctx(ctx).Info().
@@ -75,9 +109,8 @@ func Run(ctx context.Context, src config.Source, opts ...RunOption) error {
 	if err != nil {
 		return err
 	}
-	src = databroker.NewConfigSource(ctx, src, databroker.EnableConfigValidation(true))
-	logMgr := config.NewLogManager(ctx, src)
-	defer logMgr.Close()
+	src = databroker.NewConfigSource(ctx, tracerProvider, src, databroker.EnableConfigValidation(true))
+	_ = config.NewLogManager(ctx, src)
 
 	// trigger changes when underlying files are changed
 	src = config.NewFileWatcherSource(ctx, src)
@@ -91,13 +124,10 @@ func Run(ctx context.Context, src config.Source, opts ...RunOption) error {
 	http.DefaultTransport = config.NewHTTPTransport(src)
 
 	metricsMgr := config.NewMetricsManager(ctx, src)
-	defer metricsMgr.Close()
-	traceMgr := config.NewTraceManager(ctx, src)
-	defer traceMgr.Close()
 
 	eventsMgr := events.New()
 
-	fileMgr := options.fileMgr
+	fileMgr := p.fileMgr
 	if fileMgr == nil {
 		fileMgr = filemgr.NewManager()
 	}
@@ -130,11 +160,13 @@ func Run(ctx context.Context, src config.Source, opts ...RunOption) error {
 		Msg("server started")
 
 	// create envoy server
-	envoyServer, err := envoy.NewServer(ctx, src, controlPlane.Builder, options.envoyServerOptions...)
+	p.envoyServer, err = envoy.NewServer(ctx, src, controlPlane.Builder, p.envoyServerOptions...)
 	if err != nil {
 		return fmt.Errorf("error creating envoy server: %w", err)
 	}
-	defer envoyServer.Close()
+	context.AfterFunc(ctx, func() {
+		p.envoyServer.Close()
+	})
 
 	// add services
 	if err := setupAuthenticate(ctx, src, controlPlane); err != nil {
@@ -149,50 +181,52 @@ func Run(ctx context.Context, src config.Source, opts ...RunOption) error {
 	}
 	var dataBrokerServer *databroker_service.DataBroker
 	if config.IsDataBroker(src.GetConfig().Options.Services) {
-		dataBrokerServer, err = setupDataBroker(ctx, src, controlPlane, eventsMgr)
+		dataBrokerServer, err = setupDataBroker(ctx, src, controlPlane, eventsMgr, p.databrokerServerOptions...)
 		if err != nil {
 			return fmt.Errorf("setting up databroker: %w", err)
 		}
 	}
 
-	if err = setupRegistryReporter(ctx, src); err != nil {
+	if err = setupRegistryReporter(ctx, tracerProvider, src); err != nil {
 		return fmt.Errorf("setting up registry reporter: %w", err)
 	}
 	if err := setupProxy(ctx, src, controlPlane); err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	go func(ctx context.Context) {
-		ch := make(chan os.Signal, 2)
-		defer signal.Stop(ch)
-
-		signal.Notify(ch, os.Interrupt)
-		signal.Notify(ch, syscall.SIGTERM)
-
-		select {
-		case <-ch:
-		case <-ctx.Done():
-		}
-		cancel()
-	}(ctx)
-
 	// run everything
-	eg, ctx := errgroup.WithContext(ctx)
+	p.errGroup, ctx = errgroup.WithContext(ctx)
 	if authorizeServer != nil {
-		eg.Go(func() error {
+		p.errGroup.Go(func() error {
 			return authorizeServer.Run(ctx)
 		})
 	}
-	eg.Go(func() error {
+	p.errGroup.Go(func() error {
 		return controlPlane.Run(ctx)
 	})
 	if dataBrokerServer != nil {
-		eg.Go(func() error {
+		p.errGroup.Go(func() error {
 			return dataBrokerServer.Run(ctx)
 		})
 	}
-	return eg.Wait()
+	return nil
+}
+
+func (p *Pomerium) Shutdown(ctx context.Context) error {
+	_ = trace.WaitForSpans(ctx, p.envoyServer.ExitGracePeriod())
+	var errs []error
+	errs = append(errs, p.envoyServer.Close()) // this only errors if signaling envoy fails
+	p.cancel(ErrShutdown)
+	errs = append(errs, p.Wait())
+	return errors.Join(errs...)
+}
+
+func (p *Pomerium) Wait() error {
+	err := p.errGroup.Wait()
+	if errors.Is(err, ErrShutdown) {
+		return nil
+	}
+	return err
 }
 
 func setupAuthenticate(ctx context.Context, src config.Source, controlPlane *controlplane.Server) error {
@@ -233,8 +267,9 @@ func setupDataBroker(ctx context.Context,
 	src config.Source,
 	controlPlane *controlplane.Server,
 	eventsMgr *events.Manager,
+	opts ...databroker_service.Option,
 ) (*databroker_service.DataBroker, error) {
-	svc, err := databroker_service.New(ctx, src.GetConfig(), eventsMgr)
+	svc, err := databroker_service.New(ctx, src.GetConfig(), eventsMgr, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error creating databroker service: %w", err)
 	}
@@ -245,8 +280,8 @@ func setupDataBroker(ctx context.Context,
 	return svc, nil
 }
 
-func setupRegistryReporter(ctx context.Context, src config.Source) error {
-	reporter := registry.NewReporter()
+func setupRegistryReporter(ctx context.Context, tracerProvider oteltrace.TracerProvider, src config.Source) error {
+	reporter := registry.NewReporter(tracerProvider)
 	src.OnConfigChange(ctx, reporter.OnConfigChange)
 	reporter.OnConfigChange(ctx, src.GetConfig())
 	return nil

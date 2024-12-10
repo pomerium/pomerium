@@ -37,7 +37,7 @@ func (b *Builder) BuildBootstrap(
 	cfg *config.Config,
 	fullyStatic bool,
 ) (bootstrap *envoy_config_bootstrap_v3.Bootstrap, err error) {
-	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildBootstrap")
+	ctx, span := trace.Continue(ctx, "envoyconfig.Builder.BuildBootstrap")
 	defer span.End()
 
 	bootstrap = new(envoy_config_bootstrap_v3.Bootstrap)
@@ -180,7 +180,7 @@ func (b *Builder) BuildBootstrapStaticResources(
 	cfg *config.Config,
 	fullyStatic bool,
 ) (staticResources *envoy_config_bootstrap_v3.Bootstrap_StaticResources, err error) {
-	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildBootstrapStaticResources")
+	ctx, span := trace.Continue(ctx, "envoyconfig.Builder.BuildBootstrapStaticResources")
 	defer span.End()
 
 	staticResources = new(envoy_config_bootstrap_v3.Bootstrap_StaticResources)

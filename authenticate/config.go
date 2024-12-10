@@ -1,14 +1,17 @@
 package authenticate
 
 import (
+	"context"
+
 	"github.com/pomerium/pomerium/authenticate/events"
 	"github.com/pomerium/pomerium/config"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/identity"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 type authenticateConfig struct {
-	getIdentityProvider func(options *config.Options, idpID string) (identity.Authenticator, error)
+	getIdentityProvider func(ctx context.Context, tracerProvider oteltrace.TracerProvider, options *config.Options, idpID string) (identity.Authenticator, error)
 	profileTrimFn       func(*identitypb.Profile)
 	authEventFn         events.AuthEventFn
 }
@@ -26,7 +29,7 @@ func getAuthenticateConfig(options ...Option) *authenticateConfig {
 }
 
 // WithGetIdentityProvider sets the getIdentityProvider function in the config.
-func WithGetIdentityProvider(getIdentityProvider func(options *config.Options, idpID string) (identity.Authenticator, error)) Option {
+func WithGetIdentityProvider(getIdentityProvider func(ctx context.Context, tracerProvider oteltrace.TracerProvider, options *config.Options, idpID string) (identity.Authenticator, error)) Option {
 	return func(cfg *authenticateConfig) {
 		cfg.getIdentityProvider = getIdentityProvider
 	}
