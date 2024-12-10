@@ -2,7 +2,6 @@ package selftests_test
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -25,25 +24,61 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	resourcev1 "go.opentelemetry.io/proto/otlp/resource/v1"
 	tracev1 "go.opentelemetry.io/proto/otlp/trace/v1"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func otlpTraceReceiverOrFromEnv(t *testing.T) (modifier testenv.Modifier, remoteClient otlptrace.Client, getResults func() []*tracev1.ResourceSpans) {
+func otlpTraceReceiverOrFromEnv(t *testing.T) (modifier testenv.Modifier, newRemoteClient func() otlptrace.Client, getResults func() []*tracev1.ResourceSpans) {
 	t.Setenv("OTEL_TRACES_EXPORTER", "otlp")
 	tracesEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
 	if tracesEndpoint == "" {
 		tracesEndpoint = os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 		if tracesEndpoint == "" {
 			srv := scenarios.NewOTLPTraceReceiver()
-			return srv, srv.NewClient(), srv.ResourceSpans
+			return srv, srv.NewClient, srv.ResourceSpans
 		}
 	}
-	return testenv.NoopModifier(), trace.NewRemoteClientFromEnv(), func() []*tracev1.ResourceSpans { return nil }
+	return testenv.NoopModifier(), trace.NewRemoteClientFromEnv, func() []*tracev1.ResourceSpans { return nil }
+}
+
+var commonResourceNames = []string{
+	"Test Environment",
+	"Authorize",
+	"Authenticate",
+	"Control Plane",
+	"Data Broker",
+}
+
+func assertResourceNamesPresent(t *testing.T, resources []*resourcev1.Resource, names []string) {
+	assert.NotEmpty(t, resources)
+	for _, service := range names {
+		assertResourceExists(t, resources, attribute.NewSet(
+			attribute.String("service.name", service),
+			attribute.String("telemetry.sdk.language", "go"),
+			attribute.String("telemetry.sdk.name", "opentelemetry"),
+		))
+	}
+	assertResourceExists(t, resources, attribute.NewSet(
+		attribute.String("service.name", "Envoy"),
+		attribute.String("pomerium.envoy", "true"),
+	))
+}
+
+func assertResourceExists(t *testing.T, resources []*resourcev1.Resource, attrs attribute.Set) {
+	for _, res := range resources {
+		set := trace.NewAttributeSet(res.Attributes...)
+		set, _ = set.Filter(func(kv attribute.KeyValue) bool {
+			return attrs.HasValue(kv.Key)
+		})
+		if set.Equals(&attrs) {
+			return
+		}
+	}
+	attrsData, _ := attrs.MarshalJSON()
+	t.Errorf("resource not found: %s", string(attrsData))
 }
 
 func TestOTLPTracing(t *testing.T) {
-	modifier, remoteClient, getResults := otlpTraceReceiverOrFromEnv(t)
-	env := testenv.New(t, testenv.WithTraceDebugFlags(testenv.StandardTraceDebugFlags), testenv.WithTraceClient(remoteClient))
+	modifier, newRemoteClient, getResults := otlpTraceReceiverOrFromEnv(t)
+	env := testenv.New(t, testenv.WithTraceDebugFlags(testenv.StandardTraceDebugFlags), testenv.WithTraceClient(newRemoteClient()))
 	env.Add(modifier)
 
 	up := upstreams.HTTP(nil, upstreams.WithDisplayName("Upstream"))
@@ -83,56 +118,17 @@ func TestOTLPTracing(t *testing.T) {
 	for _, res := range results {
 		resources = append(resources, res.Resource)
 	}
-
-	for _, res := range resources {
-		jsondata := protojson.Format(res)
-		fmt.Println(string(jsondata))
-	}
-	assert.NotEmpty(t, results)
-	for _, service := range []string{
-		"Test Environment",
-		"Authorize",
-		"Authenticate",
-		"Control Plane",
-		"Data Broker",
-		"Upstream",
-		"IDP",
-		"HTTP Client",
-	} {
-		assertResourceExists(t, resources, attribute.NewSet(
-			attribute.String("service.name", service),
-			attribute.String("telemetry.sdk.language", "go"),
-			attribute.String("telemetry.sdk.name", "opentelemetry"),
-		))
-	}
-	assertResourceExists(t, resources, attribute.NewSet(
-		attribute.String("service.name", "Envoy"),
-		attribute.String("pomerium.envoy", "true"),
-	))
-}
-
-func assertResourceExists(t *testing.T, resources []*resourcev1.Resource, attrs attribute.Set) {
-	for _, res := range resources {
-		set := trace.NewAttributeSet(res.Attributes...)
-		set, _ = set.Filter(func(kv attribute.KeyValue) bool {
-			return attrs.HasValue(kv.Key)
-		})
-		if set.Equals(&attrs) {
-			return
-		}
-	}
-	t.Error("resource not found")
+	assertResourceNamesPresent(t, resources, append(commonResourceNames, "Upstream", "IDP", "HTTP Client"))
 }
 
 func TestSampling(t *testing.T) {
-	modifier, remoteClient, _ := otlpTraceReceiverOrFromEnv(t)
-	env := testenv.New(t, testenv.WithTraceDebugFlags(testenv.StandardTraceDebugFlags), testenv.WithTraceClient(remoteClient))
+	modifier, newRemoteClient, getResults := otlpTraceReceiverOrFromEnv(t)
+	env := testenv.New(t, testenv.WithTraceDebugFlags(testenv.StandardTraceDebugFlags), testenv.WithTraceClient(newRemoteClient()))
 	env.Add(modifier)
 
 	env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
 		cfg.Options.TracingSampleRate = 0.5
 	}))
-	defer env.Stop()
 	env.Add(scenarios.NewIDP([]*scenarios.User{
 		{
 			Email:     "foo@example.com",
@@ -212,14 +208,22 @@ func TestSampling(t *testing.T) {
 
 	sampled.Store(0)
 	notSampled.Store(100)
+
+	env.Stop()
+
+	results := getResults()
+	resources := []*resourcev1.Resource{}
+	for _, res := range results {
+		resources = append(resources, res.Resource)
+	}
+	assertResourceNamesPresent(t, resources, append(commonResourceNames, "Upstream", "IDP", "HTTP Client"))
 }
 
 func TestExternalSpans(t *testing.T) {
-	modifier, remoteClient, _ := otlpTraceReceiverOrFromEnv(t)
+	modifier, newRemoteClient, getResults := otlpTraceReceiverOrFromEnv(t)
 
 	// set up external tracer
-	external, err := otlptrace.New(context.Background(), remoteClient)
-	require.NoError(t, err)
+	external := otlptrace.NewUnstarted(newRemoteClient())
 	r, err := resource.Merge(
 		resource.Empty(),
 		resource.NewWithAttributes(
@@ -229,12 +233,11 @@ func TestExternalSpans(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(external), sdktrace.WithResource(r))
+	externalTracerProvider := sdktrace.NewTracerProvider(sdktrace.WithBatcher(external), sdktrace.WithResource(r))
 
-	env := testenv.New(t, testenv.WithTraceDebugFlags(testenv.StandardTraceDebugFlags), testenv.WithTraceClient(remoteClient))
+	env := testenv.New(t, testenv.WithTraceDebugFlags(testenv.StandardTraceDebugFlags), testenv.WithTraceClient(newRemoteClient()))
 	env.Add(modifier)
 
-	defer env.Stop()
 	up := upstreams.HTTP(nil, upstreams.WithNoClientTracing())
 	up.Handle("/foo", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("OK"))
@@ -253,10 +256,10 @@ func TestExternalSpans(t *testing.T) {
 
 	env.AddUpstream(up)
 	env.Start()
-
+	require.NoError(t, external.Start(env.Context()))
 	snippets.WaitStartupComplete(env)
 
-	ctx, span := tp.Tracer("external").Start(context.Background(), "External Root", oteltrace.WithNewRoot())
+	ctx, span := externalTracerProvider.Tracer("external").Start(context.Background(), "External Root", oteltrace.WithNewRoot())
 	t.Logf("external span id: %s", span.SpanContext().SpanID().String())
 	resp, err := up.Get(route, upstreams.AuthenticateAs("foo@example.com"), upstreams.Path("/foo"), upstreams.Context(ctx))
 	span.End()
@@ -267,7 +270,15 @@ func TestExternalSpans(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 200)
 	assert.Equal(t, "OK", string(body))
 
-	assert.NoError(t, tp.ForceFlush(context.Background()))
-	assert.NoError(t, tp.Shutdown(context.Background()))
+	assert.NoError(t, externalTracerProvider.ForceFlush(context.Background()))
+	assert.NoError(t, externalTracerProvider.Shutdown(context.Background()))
 	external.Shutdown(ctx)
+	env.Stop()
+
+	results := getResults()
+	resources := []*resourcev1.Resource{}
+	for _, res := range results {
+		resources = append(resources, res.Resource)
+	}
+	assertResourceNamesPresent(t, resources, commonResourceNames)
 }

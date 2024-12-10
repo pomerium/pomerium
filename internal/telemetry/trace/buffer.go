@@ -18,8 +18,8 @@ type ScopeBuffer struct {
 	spans []*tracev1.Span
 }
 
-func (ps *ScopeBuffer) Insert(span *tracev1.Span) {
-	ps.spans = append(ps.spans, span)
+func (sb *ScopeBuffer) Insert(span *tracev1.Span) {
+	sb.spans = append(sb.spans, span)
 }
 
 func NewScopeBuffer(scope *ScopeInfo) *ScopeBuffer {
@@ -40,20 +40,20 @@ func NewResourceBuffer(resource *ResourceInfo) *ResourceBuffer {
 	}
 }
 
-func (ps *ResourceBuffer) Insert(scope *ScopeInfo, span *tracev1.Span) {
+func (rb *ResourceBuffer) Insert(scope *ScopeInfo, span *tracev1.Span) {
 	var spans *ScopeBuffer
-	if sp, ok := ps.spansByScope[scope.ID()]; ok {
+	if sp, ok := rb.spansByScope[scope.ID()]; ok {
 		spans = sp
 	} else {
 		spans = NewScopeBuffer(scope)
-		ps.spansByScope[scope.ID()] = spans
+		rb.spansByScope[scope.ID()] = spans
 	}
 	spans.Insert(span)
 }
 
-func (ps *ResourceBuffer) Flush() []*tracev1.ScopeSpans {
-	out := make([]*tracev1.ScopeSpans, 0, len(ps.spansByScope))
-	for _, spans := range ps.spansByScope {
+func (rb *ResourceBuffer) Flush() []*tracev1.ScopeSpans {
+	out := make([]*tracev1.ScopeSpans, 0, len(rb.spansByScope))
+	for _, spans := range rb.spansByScope {
 		scopeSpans := &tracev1.ScopeSpans{
 			Scope:     spans.scope.Scope,
 			SchemaUrl: spans.scope.Schema,
@@ -61,13 +61,13 @@ func (ps *ResourceBuffer) Flush() []*tracev1.ScopeSpans {
 		}
 		out = append(out, scopeSpans)
 	}
-	clear(ps.spansByScope)
+	clear(rb.spansByScope)
 	return out
 }
 
-func (ps *ResourceBuffer) FlushAs(rewriteTraceID unique.Handle[oteltrace.TraceID]) []*tracev1.ScopeSpans {
-	out := make([]*tracev1.ScopeSpans, 0, len(ps.spansByScope))
-	for _, spans := range ps.spansByScope {
+func (rb *ResourceBuffer) FlushAs(rewriteTraceID unique.Handle[oteltrace.TraceID]) []*tracev1.ScopeSpans {
+	out := make([]*tracev1.ScopeSpans, 0, len(rb.spansByScope))
+	for _, spans := range rb.spansByScope {
 		for _, span := range spans.spans {
 			id := rewriteTraceID.Value()
 			copy(span.TraceId, id[:])
@@ -79,36 +79,35 @@ func (ps *ResourceBuffer) FlushAs(rewriteTraceID unique.Handle[oteltrace.TraceID
 		}
 		out = append(out, scopeSpans)
 	}
-	clear(ps.spansByScope)
+	clear(rb.spansByScope)
 	return out
 }
 
-type TraceBuffer struct {
-	traceID            unique.Handle[oteltrace.TraceID]
+type Buffer struct {
 	scopesByResourceID map[string]*ResourceBuffer
 }
 
-func NewTraceBuffer() *TraceBuffer {
-	return &TraceBuffer{
+func NewBuffer() *Buffer {
+	return &Buffer{
 		scopesByResourceID: make(map[string]*ResourceBuffer),
 	}
 }
 
-func (pr *TraceBuffer) Insert(resource *ResourceInfo, scope *ScopeInfo, span *tracev1.Span) {
+func (b *Buffer) Insert(resource *ResourceInfo, scope *ScopeInfo, span *tracev1.Span) {
 	resourceEq := resource.ID()
 	var scopes *ResourceBuffer
-	if sc, ok := pr.scopesByResourceID[resourceEq]; ok {
+	if sc, ok := b.scopesByResourceID[resourceEq]; ok {
 		scopes = sc
 	} else {
 		scopes = NewResourceBuffer(resource)
-		pr.scopesByResourceID[resourceEq] = scopes
+		b.scopesByResourceID[resourceEq] = scopes
 	}
 	scopes.Insert(scope, span)
 }
 
-func (pr *TraceBuffer) Flush() []*tracev1.ResourceSpans {
-	out := make([]*tracev1.ResourceSpans, 0, len(pr.scopesByResourceID))
-	for _, scopes := range pr.scopesByResourceID {
+func (b *Buffer) Flush() []*tracev1.ResourceSpans {
+	out := make([]*tracev1.ResourceSpans, 0, len(b.scopesByResourceID))
+	for _, scopes := range b.scopesByResourceID {
 		resourceSpans := &tracev1.ResourceSpans{
 			Resource:   scopes.resource.Resource,
 			ScopeSpans: scopes.Flush(),
@@ -116,13 +115,13 @@ func (pr *TraceBuffer) Flush() []*tracev1.ResourceSpans {
 		}
 		out = append(out, resourceSpans)
 	}
-	clear(pr.scopesByResourceID)
+	clear(b.scopesByResourceID)
 	return out
 }
 
-func (pr *TraceBuffer) FlushAs(rewriteTraceID unique.Handle[oteltrace.TraceID]) []*tracev1.ResourceSpans {
-	out := make([]*tracev1.ResourceSpans, 0, len(pr.scopesByResourceID))
-	for _, scopes := range pr.scopesByResourceID {
+func (b *Buffer) FlushAs(rewriteTraceID unique.Handle[oteltrace.TraceID]) []*tracev1.ResourceSpans {
+	out := make([]*tracev1.ResourceSpans, 0, len(b.scopesByResourceID))
+	for _, scopes := range b.scopesByResourceID {
 		resourceSpans := &tracev1.ResourceSpans{
 			Resource:   scopes.resource.Resource,
 			ScopeSpans: scopes.FlushAs(rewriteTraceID),
@@ -130,12 +129,12 @@ func (pr *TraceBuffer) FlushAs(rewriteTraceID unique.Handle[oteltrace.TraceID]) 
 		}
 		out = append(out, resourceSpans)
 	}
-	clear(pr.scopesByResourceID)
+	clear(b.scopesByResourceID)
 	return out
 }
 
-func (pr *TraceBuffer) IsEmpty() bool {
-	return len(pr.scopesByResourceID) == 0
+func (b *Buffer) IsEmpty() bool {
+	return len(b.scopesByResourceID) == 0
 }
 
 type ResourceInfo struct {
@@ -145,21 +144,21 @@ type ResourceInfo struct {
 }
 
 func NewResourceInfo(resource *resourcev1.Resource, resourceSchema string) *ResourceInfo {
-	r := &ResourceInfo{
+	ri := &ResourceInfo{
 		Resource: resource,
 		Schema:   resourceSchema,
 	}
-	r.ID = sync.OnceValue(r.computeID)
-	return r
+	ri.ID = sync.OnceValue(ri.computeID)
+	return ri
 }
 
-func (r *ResourceInfo) computeID() string {
+func (ri *ResourceInfo) computeID() string {
 	hash := hashutil.NewDigest()
 	tmp := resourcev1.Resource{
-		Attributes: r.Resource.Attributes,
+		Attributes: ri.Resource.Attributes,
 	}
 	bytes, _ := proto.Marshal(&tmp)
-	hash.WriteStringWithLen(r.Schema)
+	hash.WriteStringWithLen(ri.Schema)
 	hash.WriteWithLen(bytes)
 	return base64.StdEncoding.EncodeToString(hash.Sum(nil))
 }
@@ -171,26 +170,26 @@ type ScopeInfo struct {
 }
 
 func NewScopeInfo(scope *commonv1.InstrumentationScope, scopeSchema string) *ScopeInfo {
-	s := &ScopeInfo{
+	si := &ScopeInfo{
 		Scope:  scope,
 		Schema: scopeSchema,
 	}
-	s.ID = sync.OnceValue(s.computeID)
-	return s
+	si.ID = sync.OnceValue(si.computeID)
+	return si
 }
 
-func (r *ScopeInfo) computeID() string {
-	if r.Scope == nil {
+func (si *ScopeInfo) computeID() string {
+	if si.Scope == nil {
 		return "(unknown)"
 	}
 	hash := hashutil.NewDigest()
 	tmp := commonv1.InstrumentationScope{
-		Name:       r.Scope.Name,
-		Version:    r.Scope.Version,
-		Attributes: r.Scope.Attributes,
+		Name:       si.Scope.Name,
+		Version:    si.Scope.Version,
+		Attributes: si.Scope.Attributes,
 	}
 	bytes, _ := proto.Marshal(&tmp)
-	hash.WriteStringWithLen(r.Schema)
+	hash.WriteStringWithLen(si.Schema)
 	hash.WriteWithLen(bytes)
 	return base64.StdEncoding.EncodeToString(hash.Sum(nil))
 }

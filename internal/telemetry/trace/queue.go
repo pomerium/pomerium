@@ -42,7 +42,7 @@ type SpanExportQueue struct {
 	mu                        sync.Mutex
 	logger                    *zerolog.Logger
 	client                    otlptrace.Client
-	pendingResourcesByTraceID *lru.Cache[unique.Handle[oteltrace.TraceID], *TraceBuffer]
+	pendingResourcesByTraceID *lru.Cache[unique.Handle[oteltrace.TraceID], *Buffer]
 	knownTraceIDMappings      *lru.Cache[unique.Handle[oteltrace.TraceID], unique.Handle[oteltrace.TraceID]]
 	uploadC                   chan []*tracev1.ResourceSpans
 	closing                   bool
@@ -93,7 +93,7 @@ func (q *SpanExportQueue) runUploader() {
 	}
 }
 
-func (q *SpanExportQueue) onEvict(traceID unique.Handle[oteltrace.TraceID], buf *TraceBuffer) {
+func (q *SpanExportQueue) onEvict(traceID unique.Handle[oteltrace.TraceID], buf *Buffer) {
 	if buf.IsEmpty() {
 		// if the buffer is not empty, it was evicted automatically
 		return
@@ -117,12 +117,12 @@ func (q *SpanExportQueue) insertPendingSpanLocked(
 	traceID unique.Handle[oteltrace.TraceID],
 	span *tracev1.Span,
 ) {
-	var pendingTraceResources *TraceBuffer
+	var pendingTraceResources *Buffer
 
 	if ptr, ok := q.pendingResourcesByTraceID.Get(traceID); ok {
 		pendingTraceResources = ptr
 	} else {
-		pendingTraceResources = NewTraceBuffer()
+		pendingTraceResources = NewBuffer()
 		q.pendingResourcesByTraceID.Add(traceID, pendingTraceResources)
 	}
 	pendingTraceResources.Insert(resource, scope, span)
@@ -304,7 +304,7 @@ func (q *SpanExportQueue) WaitForSpans(maxDuration time.Duration) error {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		q.observer.Wait()
+		q.observer.wait(q.debugAllEnqueuedSpans)
 	}()
 	select {
 	case <-done:
@@ -329,10 +329,9 @@ func (q *SpanExportQueue) Close(ctx context.Context) error {
 	case <-q.closed:
 		q.mu.Lock()
 		defer q.mu.Unlock()
-		q.runOnCloseChecksLocked()
-
+		err := q.runOnCloseChecksLocked()
 		log.Ctx(ctx).Debug().Msg("exporter shut down")
-		return nil
+		return err
 	}
 }
 
@@ -612,7 +611,7 @@ func (obs *spanObserver) Observe(id oteltrace.SpanID) {
 	}
 }
 
-func (obs *spanObserver) Wait() {
+func (obs *spanObserver) wait(debugAllEnqueuedSpans map[oteltrace.SpanID]*tracev1.Span) {
 	done := make(chan struct{})
 	defer close(done)
 	go func() {
@@ -624,7 +623,19 @@ func (obs *spanObserver) Wait() {
 			msg := startMsg("Waiting on unobserved spans:\n")
 			for id, via := range obs.referencedIDs {
 				if via.IsValid() {
-					fmt.Fprintf(msg, "%s via %s\n", id, via)
+					fmt.Fprintf(msg, "%s via %s", id, via)
+					if span := debugAllEnqueuedSpans[id]; span != nil {
+						createdAt := "(unknown)"
+						for _, attr := range span.Attributes {
+							if attr.Key == "caller" {
+								createdAt = attr.Value.GetStringValue()
+								break
+							}
+						}
+						fmt.Fprintf(msg, "'%s' (trace: %s | created: %s)\n", span.GetName(), span.TraceId, createdAt)
+					} else {
+						msg.WriteString("\n")
+					}
 				}
 			}
 			endMsg(msg)

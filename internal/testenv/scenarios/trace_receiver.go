@@ -29,7 +29,7 @@ type OTLPTraceReceiver struct {
 }
 
 // Export implements v1.TraceServiceServer.
-func (rec *OTLPTraceReceiver) Export(ctx context.Context, req *coltracepb.ExportTraceServiceRequest) (*coltracepb.ExportTraceServiceResponse, error) {
+func (rec *OTLPTraceReceiver) Export(_ context.Context, req *coltracepb.ExportTraceServiceRequest) (*coltracepb.ExportTraceServiceResponse, error) {
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
 	rec.receivedRequests = append(rec.receivedRequests, req)
@@ -81,7 +81,7 @@ func (rec *OTLPTraceReceiver) ResourceSpans() []*tracev1.ResourceSpans {
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
 
-	res := trace.NewTraceBuffer()
+	res := trace.NewBuffer()
 	for _, req := range rec.receivedRequests {
 		for _, resource := range req.ResourceSpans {
 			resInfo := trace.NewResourceInfo(resource.Resource, resource.SchemaUrl)

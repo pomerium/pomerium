@@ -171,7 +171,7 @@ type noopModifier struct{}
 func (n noopModifier) Attach(context.Context) {}
 
 // Modify implements Modifier.
-func (n noopModifier) Modify(cfg *config.Config) {}
+func (n noopModifier) Modify(*config.Config) {}
 
 var _ Modifier = (noopModifier{})
 
