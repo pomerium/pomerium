@@ -69,7 +69,7 @@ func (rec *OTLPTraceReceiver) Attach(ctx context.Context) {
 }
 
 // Modify implements testenv.Modifier.
-func (rec *OTLPTraceReceiver) Modify(cfg *config.Config) {}
+func (rec *OTLPTraceReceiver) Modify(*config.Config) {}
 
 func (rec *OTLPTraceReceiver) ReceivedRequests() []*coltracepb.ExportTraceServiceRequest {
 	rec.mu.Lock()
