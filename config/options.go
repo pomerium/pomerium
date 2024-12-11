@@ -208,26 +208,23 @@ type Options struct {
 	MetricsClientCA           string `mapstructure:"metrics_client_ca" yaml:"metrics_client_ca,omitempty"`
 	MetricsClientCAFile       string `mapstructure:"metrics_client_ca_file" yaml:"metrics_client_ca_file,omitempty"`
 
-	// Tracing shared settings
-	TracingProvider   string  `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
 	TracingSampleRate float64 `mapstructure:"tracing_sample_rate" yaml:"tracing_sample_rate,omitempty"`
 
-	// Datadog tracing address
+	// Deprecated: this field is ignored.
+	// Configure tracing using the OTLP environment variables:
+	// https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/
+	TracingProvider string `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
+	// Configure tracing using the OTLP environment variables:
+	// https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/
 	TracingDatadogAddress string `mapstructure:"tracing_datadog_address" yaml:"tracing_datadog_address,omitempty"`
-
-	//  Jaeger
-	//
-	// CollectorEndpoint is the full url to the Jaeger HTTP Thrift collector.
-	// For example, http://localhost:14268/api/traces
+	// Configure tracing using the OTLP environment variables:
+	// https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/
 	TracingJaegerCollectorEndpoint string `mapstructure:"tracing_jaeger_collector_endpoint" yaml:"tracing_jaeger_collector_endpoint,omitempty"`
-	// AgentEndpoint instructs exporter to send spans to jaeger-agent at this address.
-	// For example, localhost:6831.
+	// Configure tracing using the OTLP environment variables:
+	// https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/
 	TracingJaegerAgentEndpoint string `mapstructure:"tracing_jaeger_agent_endpoint" yaml:"tracing_jaeger_agent_endpoint,omitempty"`
-
-	// Zipkin
-	//
-	// ZipkinEndpoint configures the zipkin collector URI
-	// Example: http://zipkin:9411/api/v2/spans
+	// Configure tracing using the OTLP environment variables:
+	// https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/
 	ZipkinEndpoint string `mapstructure:"tracing_zipkin_endpoint" yaml:"tracing_zipkin_endpoint"`
 
 	// GRPC Service Settings

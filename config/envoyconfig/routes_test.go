@@ -59,6 +59,9 @@ func Test_buildPomeriumHTTPRoutes(t *testing.T) {
 	routeString := func(typ, name string) string {
 		str := `{
 			"name": "pomerium-` + typ + `-` + name + `",
+			"decorator": {
+				"operation": "internal: ${method} ${host}${path}"
+			},
 			"match": {
 				"` + typ + `": "` + name + `"
 			},
@@ -135,6 +138,9 @@ func Test_buildControlPlanePathRoute(t *testing.T) {
 	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-path-/hello/world",
+			"decorator": {
+				"operation": "internal: ${method} ${host}${path}"
+			},
 			"match": {
 				"path": "/hello/world"
 			},
@@ -179,6 +185,9 @@ func Test_buildControlPlanePrefixRoute(t *testing.T) {
 	testutil.AssertProtoJSONEqual(t, `
 		{
 			"name": "pomerium-prefix-/hello/world/",
+			"decorator": {
+				"operation": "internal: ${method} ${host}${path}"
+			},
 			"match": {
 				"prefix": "/hello/world/"
 			},
@@ -406,6 +415,9 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		[
 			{
 				"name": "policy-1",
+				"decorator": {
+					"operation": "ingress: ${method} ${host}${path}"
+				},
 				"match": {
 					"prefix": "/"
 				},
@@ -476,6 +488,9 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				"name": "policy-2",
+				"decorator": {
+					"operation": "ingress: ${method} ${host}${path}"
+				},
 				"match": {
 					"path": "/some/path"
 				},
@@ -547,6 +562,9 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				"name": "policy-3",
+				"decorator": {
+					"operation": "ingress: ${method} ${host}${path}"
+				},
 				"match": {
 					"prefix": "/some/prefix/"
 				},
@@ -617,6 +635,9 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				"name": "policy-4",
+				"decorator": {
+					"operation": "ingress: ${method} ${host}${path}"
+				},
 				"match": {
 					"safeRegex": {
 						"regex": "^/[a]+$"
@@ -689,6 +710,9 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				"name": "policy-5",
+				"decorator": {
+					"operation": "ingress: ${method} ${host}${path}"
+				},
 				"match": {
 					"prefix": "/some/prefix/"
 				},
@@ -760,6 +784,9 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				"name": "policy-6",
+				"decorator": {
+					"operation": "ingress: ${method} ${host}${path}"
+				},
 				"match": {
 					"path": "/some/path"
 				},
@@ -830,6 +857,9 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				"name": "policy-7",
+				"decorator": {
+					"operation": "ingress: ${method} ${host}${path}"
+				},
 				"match": {
 					"path": "/some/path"
 				},
@@ -901,6 +931,9 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				"name": "policy-8",
+				"decorator": {
+					"operation": "ingress: ${method} ${host}${path}"
+				},
 				"match": {
 					"path": "/websocket-timeout"
 				},
@@ -994,6 +1027,9 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			[
 				{
 					"name": "policy-0",
+					"decorator": {
+						"operation": "ingress: ${method} ${host}${path}"
+					},
 					"match": {
 						"prefix": "/"
 					},
@@ -1083,6 +1119,9 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		[
 			{
 				"name": "policy-0",
+				"decorator": {
+					"operation": "ingress: ${method} ${host}${path}"
+				},
 				"match": {
 					"connectMatcher": {}
 				},
@@ -1155,6 +1194,9 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			},
 			{
 				"name": "policy-1",
+				"decorator": {
+					"operation": "ingress: ${method} ${host}${path}"
+				},
 				"match": {
 					"connectMatcher": {}
 				},
@@ -1252,6 +1294,9 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			[
 				{
 					"name": "policy-0",
+					"decorator": {
+						"operation": "ingress: ${method} ${host}${path}"
+					},
 					"match": {
 						"prefix": "/"
 					},
@@ -1347,6 +1392,9 @@ func Test_buildPolicyRoutes(t *testing.T) {
 			[
 				{
 					"name": "policy-0",
+					"decorator": {
+						"operation": "ingress: ${method} ${host}${path}"
+					},
 					"match": {
 						"prefix": "/"
 					},
@@ -1495,6 +1543,9 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 		[
 			{
 				"name": "policy-0",
+				"decorator": {
+					"operation": "ingress: ${method} ${host}${path}"
+				},
 				"match": {
 					"prefix": "/"
 				},
@@ -1566,6 +1617,9 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 			},
 			{
 				"name": "policy-1",
+				"decorator": {
+					"operation": "ingress: ${method} ${host}${path}"
+				},
 				"match": {
 					"prefix": "/"
 				},
@@ -1637,6 +1691,9 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 			},
 			{
 				"name": "policy-2",
+				"decorator": {
+					"operation": "ingress: ${method} ${host}${path}"
+				},
 				"match": {
 					"prefix": "/"
 				},
@@ -1713,6 +1770,9 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 			},
 			{
 				"name": "policy-3",
+				"decorator": {
+					"operation": "ingress: ${method} ${host}${path}"
+				},
 				"match": {
 					"prefix": "/"
 				},
@@ -1784,6 +1844,9 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 			},
 			{
 				"name": "policy-4",
+				"decorator": {
+					"operation": "ingress: ${method} ${host}${path}"
+				},
 				"match": {
 					"prefix": "/"
 				},
@@ -1855,6 +1918,9 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 			},
 			{
 				"name": "policy-5",
+				"decorator": {
+					"operation": "ingress: ${method} ${host}${path}"
+				},
 				"match": {
 					"prefix": "/"
 				},
