@@ -281,6 +281,28 @@ func TestHeadersEvaluator(t *testing.T) {
 		assert.Equal(t, []any{"g1", "g2", "g3", "g4", "GROUP1", "GROUP2", "GROUP3", "GROUP4"}, claims["groups"])
 	})
 
+	t.Run("jwt no groups", func(t *testing.T) {
+		t.Parallel()
+
+		output, err := eval(t,
+			[]protoreflect.ProtoMessage{
+				&session.Session{Id: "s1", UserId: "u1", Claims: map[string]*structpb.ListValue{
+					"name": {Values: []*structpb.Value{
+						structpb.NewStringValue("User Name"),
+					}},
+				}},
+			},
+			&HeadersRequest{
+				Session: RequestSession{ID: "s1"},
+			})
+		require.NoError(t, err)
+		jwtHeader := output.Headers.Get("X-Pomerium-Jwt-Assertion")
+		var decoded map[string]any
+		err = json.Unmarshal(decodeJWSPayload(t, jwtHeader), &decoded)
+		require.NoError(t, err)
+		assert.Equal(t, []any{}, decoded["groups"])
+	})
+
 	t.Run("set_request_headers", func(t *testing.T) {
 		output, err := eval(t,
 			[]proto.Message{
