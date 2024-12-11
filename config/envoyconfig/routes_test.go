@@ -1229,6 +1229,99 @@ func Test_buildPolicyRoutes(t *testing.T) {
 	`, routes)
 	})
 
+	t.Run("udp", func(t *testing.T) {
+		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
+			CookieName:             "pomerium",
+			DefaultUpstreamTimeout: time.Second * 3,
+			SharedKey:              cryptutil.NewBase64Key(),
+			Policies: []config.Policy{
+				{
+					From:                "udp+https://example.com:22",
+					To:                  mustParseWeightedURLs(t, "udp://to.example.com"),
+					PassIdentityHeaders: ptr(true),
+				},
+			},
+		}}, "example.com:22")
+		require.NoError(t, err)
+
+		testutil.AssertProtoJSONEqual(t, `
+		[
+			{
+				"name": "policy-0",
+				"match": {
+					"connectMatcher": {}
+				},
+				"metadata": {
+					"filterMetadata": {
+						"envoy.filters.http.lua": {
+							"remove_impersonate_headers": false,
+							"remove_pomerium_authorization": true,
+							"remove_pomerium_cookie": "pomerium",
+							"rewrite_response_headers": []
+						}
+					}
+				},
+				"route": {
+					"autoHostRewrite": true,
+					"cluster": "policy-12",
+					"hashPolicy": [
+						{
+							"header": {
+								"headerName": "x-pomerium-routing-key"
+							},
+							"terminal": true
+						},
+						{
+							"connectionProperties": {
+								"sourceIp": true
+							},
+							"terminal": true
+						}
+					],
+					"idleTimeout": "0s",
+					"timeout": "0s",
+					"upgradeConfigs": [
+						{ "enabled": false, "upgradeType": "websocket"},
+						{ "enabled": false, "upgradeType": "spdy/3.1"},
+						{ "enabled": true, "upgradeType": "CONNECT-UDP", "connectConfig": {} }
+					]
+				},
+				"requestHeadersToRemove": [
+					"x-pomerium-reproxy-policy",
+					"x-pomerium-reproxy-policy-hmac"
+				],
+				"responseHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-Frame-Options",
+						  "value": "SAMEORIGIN"
+						}
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+						  "key": "X-XSS-Protection",
+						  "value": "1; mode=block"
+						}
+					}
+				],
+				"typedPerFilterConfig": {
+					"envoy.filters.http.ext_authz": {
+						"@type": "type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute",
+						"checkSettings": {
+							"contextExtensions": {
+								"internal": "false",
+								"route_id": "8231718688890004616"
+							}
+						}
+					}
+				}
+			}
+		]
+	`, routes)
+	})
+
 	t.Run("remove-pomerium-headers", func(t *testing.T) {
 		routes, err := b.buildRoutesForPoliciesWithHost(&config.Config{Options: &config.Options{
 			AuthenticateURLString:  "https://authenticate.example.com",
@@ -1267,7 +1360,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 					},
 					"route": {
 						"autoHostRewrite": true,
-						"cluster": "policy-12",
+						"cluster": "policy-13",
 						"hashPolicy": [
 							{
 								"header": {
