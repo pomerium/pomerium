@@ -32,7 +32,8 @@ import (
 )
 
 type RunOptions struct {
-	fileMgr *filemgr.Manager
+	fileMgr                 *filemgr.Manager
+	databrokerServerOptions []databroker_service.Option
 }
 
 type RunOption func(*RunOptions)
@@ -46,6 +47,12 @@ func (o *RunOptions) apply(opts ...RunOption) {
 func WithOverrideFileManager(fileMgr *filemgr.Manager) RunOption {
 	return func(o *RunOptions) {
 		o.fileMgr = fileMgr
+	}
+}
+
+func WithDataBrokerServerOptions(opts ...databroker_service.Option) RunOption {
+	return func(o *RunOptions) {
+		o.databrokerServerOptions = append(o.databrokerServerOptions, opts...)
 	}
 }
 
@@ -142,7 +149,7 @@ func Run(ctx context.Context, src config.Source, opts ...RunOption) error {
 	}
 	var dataBrokerServer *databroker_service.DataBroker
 	if config.IsDataBroker(src.GetConfig().Options.Services) {
-		dataBrokerServer, err = setupDataBroker(ctx, src, controlPlane, eventsMgr)
+		dataBrokerServer, err = setupDataBroker(ctx, src, controlPlane, eventsMgr, options.databrokerServerOptions...)
 		if err != nil {
 			return fmt.Errorf("setting up databroker: %w", err)
 		}
@@ -226,8 +233,9 @@ func setupDataBroker(ctx context.Context,
 	src config.Source,
 	controlPlane *controlplane.Server,
 	eventsMgr *events.Manager,
+	opts ...databroker_service.Option,
 ) (*databroker_service.DataBroker, error) {
-	svc, err := databroker_service.New(ctx, src.GetConfig(), eventsMgr)
+	svc, err := databroker_service.New(ctx, src.GetConfig(), eventsMgr, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error creating databroker service: %w", err)
 	}

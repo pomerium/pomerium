@@ -9,8 +9,9 @@ import (
 )
 
 type config struct {
-	maxInterval time.Duration
-	watches     []watch
+	maxInterval     time.Duration
+	initialInterval time.Duration
+	watches         []watch
 
 	backoff.BackOff
 }
@@ -42,10 +43,18 @@ func WithMaxInterval(d time.Duration) Option {
 	}
 }
 
+// WithInitialInterval sets the initial backoff interval.
+func WithInitialInterval(d time.Duration) Option {
+	return func(cfg *config) {
+		cfg.initialInterval = d
+	}
+}
+
 func newConfig(opts ...Option) ([]watch, backoff.BackOff) {
 	cfg := new(config)
 	for _, opt := range []Option{
 		WithMaxInterval(time.Minute * 5),
+		WithInitialInterval(backoff.DefaultInitialInterval),
 	} {
 		opt(cfg)
 	}
@@ -59,6 +68,7 @@ func newConfig(opts ...Option) ([]watch, backoff.BackOff) {
 	}
 
 	bo := backoff.NewExponentialBackOff()
+	bo.InitialInterval = cfg.initialInterval
 	bo.MaxInterval = cfg.maxInterval
 	bo.MaxElapsedTime = 0
 	bo.Multiplier = 2

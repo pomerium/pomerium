@@ -33,6 +33,7 @@ import (
 // DataBroker represents the databroker service. The databroker service is a simple interface
 // for storing keyed blobs (bytes) of unstructured data.
 type DataBroker struct {
+	Options
 	dataBrokerServer *dataBrokerServer
 	manager          *manager.Manager
 	legacyManager    *legacymanager.Manager
@@ -44,8 +45,36 @@ type DataBroker struct {
 	sharedKey           *atomicutil.Value[[]byte]
 }
 
+type Options struct {
+	managerOptions       []manager.Option
+	legacyManagerOptions []legacymanager.Option
+}
+
+type Option func(*Options)
+
+func (o *Options) apply(opts ...Option) {
+	for _, op := range opts {
+		op(o)
+	}
+}
+
+func WithManagerOptions(managerOptions ...manager.Option) Option {
+	return func(o *Options) {
+		o.managerOptions = append(o.managerOptions, managerOptions...)
+	}
+}
+
+func WithLegacyManagerOptions(legacyManagerOptions ...legacymanager.Option) Option {
+	return func(o *Options) {
+		o.legacyManagerOptions = append(o.legacyManagerOptions, legacyManagerOptions...)
+	}
+}
+
 // New creates a new databroker service.
-func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager) (*DataBroker, error) {
+func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, opts ...Option) (*DataBroker, error) {
+	options := Options{}
+	options.apply(opts...)
+
 	localListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
@@ -97,6 +126,7 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager) (*D
 	}
 
 	c := &DataBroker{
+		Options:             options,
 		dataBrokerServer:    dataBrokerServer,
 		localListener:       localListener,
 		localGRPCServer:     localGRPCServer,
@@ -160,16 +190,16 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 
 	dataBrokerClient := databroker.NewDataBrokerServiceClient(c.localGRPCConnection)
 
-	options := []manager.Option{
+	options := append([]manager.Option{
 		manager.WithDataBrokerClient(dataBrokerClient),
 		manager.WithEventManager(c.eventsMgr),
 		manager.WithEnabled(!cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagLegacyIdentityManager)),
-	}
-	legacyOptions := []legacymanager.Option{
+	}, c.managerOptions...)
+	legacyOptions := append([]legacymanager.Option{
 		legacymanager.WithDataBrokerClient(dataBrokerClient),
 		legacymanager.WithEventManager(c.eventsMgr),
 		legacymanager.WithEnabled(cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagLegacyIdentityManager)),
-	}
+	}, c.legacyManagerOptions...)
 
 	if cfg.Options.SupportsUserRefresh() {
 		authenticator, err := identity.NewAuthenticator(oauthOptions)
