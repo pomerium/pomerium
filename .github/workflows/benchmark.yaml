@@ -48,12 +48,15 @@ jobs:
 
       - name: integration tests
         run: |
-          go test -bench Benchmark ./integration/... | tee benchmark.txt
+          go test -run='^$' -bench=. ./... | tee benchmark.txt
 
       - name: store benchmark
-        uses: benchmark-action/github-action-benchmark@v1
+        uses: benchmark-action/github-action-benchmark@d48d326b4ca9ba73ca0cd0d59f108f9e02a381c7
         with:
           tool: "go"
           output-file-path: benchmark.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
+          fail-on-alert: true
+          comment-on-alert: true
+          summary-always: true
