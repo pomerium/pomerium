@@ -36,7 +36,7 @@ func otlpTraceReceiverOrFromEnv(t *testing.T) (modifier testenv.Modifier, newRem
 			return srv, srv.NewClient, srv.ResourceSpans
 		}
 	}
-	return testenv.NoopModifier(), trace.NewRemoteClientFromEnv, func() []*tracev1.ResourceSpans { return nil }
+	return testenv.NoopModifier(), trace.NewRemoteClientFromEnv, nil
 }
 
 var commonResourceNames = []string{
@@ -113,12 +113,14 @@ func TestOTLPTracing(t *testing.T) {
 
 	env.Stop()
 
-	results := getResults()
-	resources := []*resourcev1.Resource{}
-	for _, res := range results {
-		resources = append(resources, res.Resource)
+	if getResults != nil {
+		results := getResults()
+		resources := []*resourcev1.Resource{}
+		for _, res := range results {
+			resources = append(resources, res.Resource)
+		}
+		assertResourceNamesPresent(t, resources, append(commonResourceNames, "Upstream", "IDP", "HTTP Client"))
 	}
-	assertResourceNamesPresent(t, resources, append(commonResourceNames, "Upstream", "IDP", "HTTP Client"))
 }
 
 func TestSampling(t *testing.T) {
@@ -211,12 +213,14 @@ func TestSampling(t *testing.T) {
 
 	env.Stop()
 
-	results := getResults()
-	resources := []*resourcev1.Resource{}
-	for _, res := range results {
-		resources = append(resources, res.Resource)
+	if getResults != nil {
+		results := getResults()
+		resources := []*resourcev1.Resource{}
+		for _, res := range results {
+			resources = append(resources, res.Resource)
+		}
+		assertResourceNamesPresent(t, resources, append(commonResourceNames, "Upstream", "IDP", "HTTP Client"))
 	}
-	assertResourceNamesPresent(t, resources, append(commonResourceNames, "Upstream", "IDP", "HTTP Client"))
 }
 
 func TestExternalSpans(t *testing.T) {
@@ -275,10 +279,12 @@ func TestExternalSpans(t *testing.T) {
 	external.Shutdown(ctx)
 	env.Stop()
 
-	results := getResults()
-	resources := []*resourcev1.Resource{}
-	for _, res := range results {
-		resources = append(resources, res.Resource)
+	if getResults != nil {
+		results := getResults()
+		resources := []*resourcev1.Resource{}
+		for _, res := range results {
+			resources = append(resources, res.Resource)
+		}
+		assertResourceNamesPresent(t, resources, commonResourceNames)
 	}
-	assertResourceNamesPresent(t, resources, commonResourceNames)
 }
