@@ -59,7 +59,7 @@ func (r *Reporter) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	}
 
 	if len(services) > 0 {
-		ctx, cancel := context.WithCancel(context.TODO())
+		ctx, cancel := context.WithCancel(ctx)
 		go runReporter(ctx, pb.NewRegistryClient(registryConn), services)
 		r.cancel = cancel
 	}
