@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
+	oteltrace "go.opentelemetry.io/otel/trace"
 	googlegrpc "google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
@@ -34,7 +35,10 @@ type authorizeState struct {
 
 func newAuthorizeStateFromConfig(
 	ctx context.Context,
-	cfg *config.Config, store *store.Store, previousPolicyEvaluator *evaluator.Evaluator,
+	tracerProvider oteltrace.TracerProvider,
+	cfg *config.Config,
+	store *store.Store,
+	previousPolicyEvaluator *evaluator.Evaluator,
 ) (*authorizeState, error) {
 	if err := validateOptions(cfg.Options); err != nil {
 		return nil, fmt.Errorf("authorize: bad options: %w", err)
@@ -59,7 +63,7 @@ func newAuthorizeStateFromConfig(
 		return nil, err
 	}
 
-	cc, err := outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
+	cc, err := outboundGRPCConnection.Get(ctx, tracerProvider, &grpc.OutboundOptions{
 		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,
@@ -85,9 +89,9 @@ func newAuthorizeStateFromConfig(
 	}
 
 	if cfg.Options.UseStatelessAuthenticateFlow() {
-		state.authenticateFlow, err = authenticateflow.NewStateless(ctx, cfg, nil, nil, nil, nil)
+		state.authenticateFlow, err = authenticateflow.NewStateless(ctx, tracerProvider, cfg, nil, nil, nil, nil)
 	} else {
-		state.authenticateFlow, err = authenticateflow.NewStateful(ctx, cfg, nil)
+		state.authenticateFlow, err = authenticateflow.NewStateful(ctx, tracerProvider, cfg, nil)
 	}
 	if err != nil {
 		return nil, err

@@ -205,12 +205,12 @@ message Settings {
   optional string metrics_basic_auth = 64;
   optional Certificate metrics_certificate = 65;
   optional string metrics_client_ca = 66;
-  optional string tracing_provider = 41;
+  optional string tracing_provider = 41 [deprecated = true];
   optional double tracing_sample_rate = 42;
-  optional string tracing_datadog_address = 98;
-  optional string tracing_jaeger_collector_endpoint = 43;
-  optional string tracing_jaeger_agent_endpoint = 44;
-  optional string tracing_zipkin_endpoint = 45;
+  optional string tracing_datadog_address = 98 [deprecated = true];
+  optional string tracing_jaeger_collector_endpoint = 43 [deprecated = true];
+  optional string tracing_jaeger_agent_endpoint = 44 [deprecated = true];
+  optional string tracing_zipkin_endpoint = 45 [deprecated = true];
   optional string grpc_address = 46;
   optional bool grpc_insecure = 47;
   optional google.protobuf.Duration grpc_client_timeout = 99;

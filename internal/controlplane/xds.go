@@ -9,7 +9,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
@@ -21,7 +20,7 @@ const (
 )
 
 func (srv *Server) buildDiscoveryResources(ctx context.Context) (map[string][]*envoy_service_discovery_v3.Resource, error) {
-	ctx, span := trace.StartSpan(ctx, "controlplane.Server.buildDiscoveryResources")
+	ctx, span := srv.tracer.Start(ctx, "controlplane.Server.buildDiscoveryResources")
 	defer span.End()
 
 	cfg := srv.currentConfig.Load()

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/pkg/identity/identity"
@@ -22,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity/oidc/okta"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/onelogin"
 	"github.com/pomerium/pomerium/pkg/identity/oidc/ping"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // State is the identity state.
@@ -64,12 +66,19 @@ func init() {
 }
 
 // NewAuthenticator returns a new identity provider based on its name.
-func NewAuthenticator(o oauth.Options) (a Authenticator, err error) {
-	ctx := context.Background()
-
+func NewAuthenticator(ctx context.Context, tracerProvider oteltrace.TracerProvider, o oauth.Options) (a Authenticator, err error) {
 	if o.ProviderName == "" {
 		return nil, fmt.Errorf("identity: provider is not defined")
 	}
+
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{
+		Transport: otelhttp.NewTransport(nil,
+			otelhttp.WithTracerProvider(tracerProvider),
+			otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+				return fmt.Sprintf("OAuth2 Client: %s %s", r.Method, r.URL.Path)
+			}),
+		),
+	})
 
 	ctor, ok := registry[o.ProviderName]
 	if !ok {

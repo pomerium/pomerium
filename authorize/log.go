@@ -10,7 +10,6 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc/audit"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -25,7 +24,7 @@ func (a *Authorize) logAuthorizeCheck(
 	in *envoy_service_auth_v3.CheckRequest, out *envoy_service_auth_v3.CheckResponse,
 	res *evaluator.Result, s sessionOrServiceAccount, u *user.User,
 ) {
-	ctx, span := trace.StartSpan(ctx, "authorize.grpc.LogAuthorizeCheck")
+	ctx, span := a.tracer.Start(ctx, "authorize.grpc.LogAuthorizeCheck")
 	defer span.End()
 
 	hdrs := getCheckRequestHeaders(in)
@@ -57,7 +56,7 @@ func (a *Authorize) logAuthorizeCheck(
 	evt.Msg("authorize check")
 
 	if enc := a.state.Load().auditEncryptor; enc != nil {
-		ctx, span := trace.StartSpan(ctx, "authorize.grpc.AuditAuthorizeCheck")
+		ctx, span := a.tracer.Start(ctx, "authorize.grpc.AuditAuthorizeCheck")
 		defer span.End()
 
 		record := &audit.Record{
