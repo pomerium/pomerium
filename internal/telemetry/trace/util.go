@@ -2,10 +2,8 @@ package trace
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"net/url"
-	"strconv"
 	"strings"
 	"unique"
 
@@ -18,22 +16,29 @@ import (
 func ParseTraceparent(traceparent string) (oteltrace.SpanContext, error) {
 	parts := strings.Split(traceparent, "-")
 	if len(parts) != 4 {
-		return oteltrace.SpanContext{}, errors.New("malformed traceparent")
+		return oteltrace.SpanContext{}, fmt.Errorf("malformed traceparent: expected 4 segments, found %d", len(parts))
 	}
 	traceID, err := oteltrace.TraceIDFromHex(parts[1])
 	if err != nil {
-		return oteltrace.SpanContext{}, err
+		return oteltrace.SpanContext{}, fmt.Errorf("malformed traceparent: invalid trace ID: %w", err)
 	}
 	spanID, err := oteltrace.SpanIDFromHex(parts[2])
 	if err != nil {
-		return oteltrace.SpanContext{}, err
+		return oteltrace.SpanContext{}, fmt.Errorf("malformed traceparent: invalid span ID: %w", err)
 	}
-	traceFlags, err := strconv.ParseUint(parts[3], 6, 32)
-	if err != nil {
-		return oteltrace.SpanContext{}, err
+	var traceFlags oteltrace.TraceFlags
+	if flags, err := hex.DecodeString(parts[3]); err != nil {
+		return oteltrace.SpanContext{}, fmt.Errorf("malformed traceparent: invalid trace flags: %w", err)
+	} else if len(flags) == 1 {
+		traceFlags = oteltrace.TraceFlags(flags[0])
+	} else {
+		return oteltrace.SpanContext{}, fmt.Errorf("malformed traceparent: invalid trace flags of size %d", len(flags))
 	}
-	if len(traceID) != 16 || len(spanID) != 8 {
-		return oteltrace.SpanContext{}, errors.New("malformed traceparent")
+	if len(traceID) != 16 {
+		return oteltrace.SpanContext{}, fmt.Errorf("malformed traceparent: invalid trace ID of size %d", len(traceID))
+	}
+	if len(spanID) != 8 {
+		return oteltrace.SpanContext{}, fmt.Errorf("malformed traceparent: invalid span ID of size %d", len(spanID))
 	}
 	return oteltrace.NewSpanContext(oteltrace.SpanContextConfig{
 		TraceID:    traceID,
@@ -42,12 +47,16 @@ func ParseTraceparent(traceparent string) (oteltrace.SpanContext, error) {
 	}), nil
 }
 
-func ReplaceTraceID(traceparent string, newTraceID oteltrace.TraceID) string {
+// WithTraceFromSpanContext returns a copy of traceparent with the trace ID
+// (2nd segment) and trace flags (4th segment) replaced with the corresponding
+// values from spanContext.
+func WithTraceFromSpanContext(traceparent string, spanContext oteltrace.SpanContext) string {
 	parts := strings.Split(traceparent, "-")
 	if len(parts) != 4 {
 		return traceparent
 	}
-	parts[1] = hex.EncodeToString(newTraceID[:])
+	parts[1] = spanContext.TraceID().String()
+	parts[3] = spanContext.TraceFlags().String()
 	return strings.Join(parts, "-")
 }
 

@@ -34,7 +34,7 @@ func NewHTTPMiddleware(opts ...otelhttp.Option) func(http.Handler) http.Handler 
 				if xPomeriumTraceparent != "" {
 					sc, err := ParseTraceparent(xPomeriumTraceparent)
 					if err == nil {
-						r.Header.Set("Traceparent", ReplaceTraceID(traceparent, sc.TraceID()))
+						r.Header.Set("Traceparent", WithTraceFromSpanContext(traceparent, sc))
 						ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
 						r = r.WithContext(ctx)
 					}
@@ -68,7 +68,7 @@ func (w *statsHandlerWrapper) wrapContext(ctx context.Context) context.Context {
 			return ctx
 		}
 
-		md.Set("traceparent", ReplaceTraceID(traceparent[0], newTracectx.TraceID()))
+		md.Set("traceparent", WithTraceFromSpanContext(traceparent[0], newTracectx))
 		return metadata.NewIncomingContext(ctx, md)
 	}
 	return ctx

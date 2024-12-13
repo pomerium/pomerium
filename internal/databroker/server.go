@@ -284,7 +284,7 @@ func (srv *Server) Patch(ctx context.Context, req *databroker.PatchRequest) (*da
 func (srv *Server) ReleaseLease(ctx context.Context, req *databroker.ReleaseLeaseRequest) (*emptypb.Empty, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.ReleaseLease")
 	defer span.End()
-	log.Ctx(ctx).Debug().
+	log.Ctx(ctx).Trace().
 		Str("name", req.GetName()).
 		Str("id", req.GetId()).
 		Msg("release lease")
@@ -306,7 +306,7 @@ func (srv *Server) ReleaseLease(ctx context.Context, req *databroker.ReleaseLeas
 func (srv *Server) RenewLease(ctx context.Context, req *databroker.RenewLeaseRequest) (*emptypb.Empty, error) {
 	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.RenewLease")
 	defer span.End()
-	log.Ctx(ctx).Debug().
+	log.Ctx(ctx).Trace().
 		Str("name", req.GetName()).
 		Str("id", req.GetId()).
 		Dur("duration", req.GetDuration().AsDuration()).

@@ -156,6 +156,12 @@ func (b *Builder) BuildBootstrapLayeredRuntime() (*envoy_config_bootstrap_v3.Lay
 				"warn_level":  1024,
 			},
 		},
+		"tracing": map[string]any{
+			"opentelemetry": map[string]any{
+				"flush_interval_ms": 1000,
+				"min_flush_spans":   1,
+			},
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("envoyconfig: failed to create layered runtime layer: %w", err)

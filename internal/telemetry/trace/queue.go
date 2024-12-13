@@ -2,7 +2,6 @@ package trace
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -20,6 +19,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	tracev1 "go.opentelemetry.io/proto/otlp/trace/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 var (
@@ -140,6 +140,13 @@ func (q *SpanExportQueue) insertPendingSpanLocked(
 
 func (q *SpanExportQueue) resolveTraceIDMappingLocked(original, mapping unique.Handle[oteltrace.TraceID]) [][]*tracev1.ResourceSpans {
 	q.knownTraceIDMappings.Add(original, mapping)
+
+	if mapping == zeroTraceID && original != zeroTraceID {
+		// mapping a trace id to zero indicates we should drop the trace
+		q.pendingResourcesByTraceID.Remove(original)
+		return nil
+	}
+
 	toUpload := [][]*tracev1.ResourceSpans{}
 	if originalPending, ok := q.pendingResourcesByTraceID.Peek(original); ok {
 		resourceSpans := originalPending.FlushAs(mapping)
@@ -158,6 +165,11 @@ func (q *SpanExportQueue) resolveTraceIDMappingLocked(original, mapping unique.H
 	return toUpload
 }
 
+func (q *SpanExportQueue) getTraceIDMappingLocked(id unique.Handle[oteltrace.TraceID]) (unique.Handle[oteltrace.TraceID], bool) {
+	v, ok := q.knownTraceIDMappings.Get(id)
+	return v, ok
+}
+
 var ErrShuttingDown = errors.New("exporter is shutting down")
 
 func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTraceServiceRequest) error {
@@ -167,9 +179,30 @@ func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTra
 		return ErrShuttingDown
 	}
 
+	// Spans are processed in two passes:
+	// 1. Look through each span to check if we have not yet seen its trace ID.
+	//    If we haven't, and the span is a root span (no parent, or marked as such
+	//    by us), mark the trace as observed, and (if indicated) keep track of the
+	//    trace ID we need to rewrite it as, so that other spans we see later in
+	//    this trace can also be rewritten the same way.
+	//    If we find a new trace ID for which there are pending non-root spans,
+	//    collect them and rewrite their trace IDs (if necessary), and prepare
+	//    them to be uploaded.
+	//
+	// At this point, all trace IDs for the spans in the request are known.
+	//
+	// 2. Look through each span again, this time to filter out any spans in
+	//    the request which belong to "pending" traces (known trace IDs for which
+	//    we have not yet seen a root span), adding them to the list of pending
+	//    spans for their corresponding trace IDs. They will be uploaded in the
+	//    future once we have observed a root span for those traces, or if they
+	//    are evicted by the queue.
+
+	// Pass 1
 	var toUpload [][]*tracev1.ResourceSpans
 	for _, resource := range req.ResourceSpans {
 		for _, scope := range resource.ScopeSpans {
+		SPANS:
 			for _, span := range scope.Spans {
 				FormatSpanName(span)
 				spanID, ok := ToSpanID(span.SpanId)
@@ -183,48 +216,85 @@ func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTra
 				if !ok {
 					continue
 				}
-				if parentSpanID.IsValid() { // if parent is not a root span
-					if q.debugFlags.Check(TrackSpanReferences) {
-						q.observer.ObserveReference(parentSpanID, spanID)
-					}
-					continue
-				}
 				traceID, ok := ToTraceID(span.TraceId)
 				if !ok {
 					continue
 				}
+				if _, ok := q.getTraceIDMappingLocked(traceID); !ok {
+					// Observed a new trace ID. Check if the span is a root span
+					isRootSpan := !parentSpanID.IsValid() // no parent == root span
 
-				if _, ok := q.knownTraceIDMappings.Get(traceID); !ok {
-					// observed a new root span with an unknown trace id
-					var pomeriumTraceparent string
+					// Assume the trace is sampled, because it was exported. span.Flags
+					// is an unreliable way to detect whether the span was sampled,
+					// because neither envoy nor opentelemetry-go encode the sampling
+					// decision there, assuming unsampled spans would not be exported
+					// (this was not taking into account tail-based sampling strategies)
+					// https://github.com/open-telemetry/opentelemetry-proto/issues/166
+					isSampled := true
+
+					mappedTraceID := traceID
 					for _, attr := range span.Attributes {
-						if attr.Key == "pomerium.traceparent" {
-							pomeriumTraceparent = attr.GetValue().GetStringValue()
-							break
+						switch attr.Key {
+						case "pomerium.traceparent":
+							tp, err := ParseTraceparent(attr.GetValue().GetStringValue())
+							if err != nil {
+								data, _ := protojson.Marshal(span)
+								log.Ctx(ctx).
+									Err(err).
+									Str("span", string(data)).
+									Msg("error processing span")
+								continue SPANS
+							}
+							mappedTraceID = unique.Make(tp.TraceID())
+							// use the sampling decision from pomerium.traceparent instead
+							isSampled = tp.IsSampled()
+						case "pomerium.external-parent-span":
+							// This is a non-root span whose parent we do not expect to see
+							// here. For example, if a request originated externally from a
+							// system that is uploading its own spans out-of-band from us,
+							// we will never observe a root span for this trace and it would
+							// otherwise get stuck in the queue.
+							if !isRootSpan && q.debugFlags.Check(TrackSpanReferences) {
+								value, err := oteltrace.SpanIDFromHex(attr.GetValue().GetStringValue())
+								if err != nil {
+									data, _ := protojson.Marshal(span)
+									log.Ctx(ctx).
+										Err(err).
+										Str("span", string(data)).
+										Msg("error processing span: invalid value for pomerium.external-parent-span")
+								} else {
+									q.observer.Observe(value) // mark this id as observed
+								}
+							}
+							isRootSpan = true
 						}
 					}
-					var mappedTraceID unique.Handle[oteltrace.TraceID]
 
-					if pomeriumTraceparent == "" {
-						// no replacement id, map the trace to itself and release pending spans
-						mappedTraceID = traceID
-					} else {
-						// this root span has an alternate traceparent. permanently rewrite
-						// all spans of the old trace id to use the new trace id
-						tp, err := ParseTraceparent(pomeriumTraceparent)
-						if err != nil {
-							log.Ctx(ctx).Err(err).Msg("error processing trace")
-							continue
+					if q.debugFlags.Check(TrackSpanReferences) {
+						q.observer.Observe(spanID)
+						if isSampled && parentSpanID.IsValid() {
+							q.observer.ObserveReference(parentSpanID, spanID)
 						}
-						mappedTraceID = unique.Make(tp.TraceID())
 					}
 
-					toUpload = append(toUpload, q.resolveTraceIDMappingLocked(traceID, mappedTraceID)...)
+					if !isSampled {
+						// We have observed a new trace that is not sampled (regardless of
+						// whether or not it is a root span). Resolve it using the zero
+						// trace ID to indicate that all spans for this trace should be
+						// dropped.
+						_ = q.resolveTraceIDMappingLocked(traceID, zeroTraceID)
+					} else if isRootSpan {
+						// We have observed a new trace that is sampled and is a root span.
+						// Resolve it using the mapped trace ID (if present), or its own
+						// trace ID (indicating it does not need to be rewritten)
+						toUpload = append(toUpload, q.resolveTraceIDMappingLocked(traceID, mappedTraceID)...)
+					}
 				}
 			}
 		}
 	}
 
+	// Pass 2
 	var knownResources []*tracev1.ResourceSpans
 	for _, resource := range req.ResourceSpans {
 		resourceInfo := NewResourceInfo(resource.Resource, resource.SchemaUrl)
@@ -236,47 +306,19 @@ func (q *SpanExportQueue) Enqueue(ctx context.Context, req *coltracepb.ExportTra
 			scopeInfo := NewScopeInfo(scope.Scope, scope.SchemaUrl)
 			var knownSpans []*tracev1.Span
 			for _, span := range scope.Spans {
-				spanID, ok := ToSpanID(span.SpanId)
-				if !ok {
-					continue
-				}
 				traceID, ok := ToTraceID(span.TraceId)
 				if !ok {
 					continue
 				}
-				parentSpanID, ok := ToSpanID(span.ParentSpanId)
-				if !ok {
-					continue
-				}
-				if q.debugFlags.Check(TrackSpanReferences) {
-					q.observer.Observe(spanID)
-				}
-				if mapping, ok := q.knownTraceIDMappings.Get(traceID); ok {
+				if mapping, ok := q.getTraceIDMappingLocked(traceID); ok {
+					if mapping == zeroTraceID {
+						continue // the trace has been dropped
+					}
 					id := mapping.Value()
 					copy(span.TraceId, id[:])
-					knownSpans = append(knownSpans, span)
+					knownSpans = append(knownSpans, span) // upload it
 				} else {
-					var isInternalRoot bool
-					if q.debugFlags.Check(TrackSpanReferences) {
-						if parentSpanID.IsValid() {
-							for _, attr := range span.Attributes {
-								if attr.Key == "pomerium.external-parent-span" {
-									isInternalRoot = true
-									if bytes, err := hex.DecodeString(attr.Value.GetStringValue()); err == nil {
-										if spanID, _ := ToSpanID(bytes); spanID.IsValid() {
-											q.observer.Observe(spanID)
-										}
-									}
-									break
-								}
-							}
-						}
-					}
-					if isInternalRoot {
-						toUpload = append(toUpload, q.resolveTraceIDMappingLocked(traceID, traceID)...)
-					} else {
-						q.insertPendingSpanLocked(resourceInfo, scopeInfo, traceID, span)
-					}
+					q.insertPendingSpanLocked(resourceInfo, scopeInfo, traceID, span)
 				}
 			}
 			if len(knownSpans) > 0 {
@@ -386,7 +428,7 @@ func (q *SpanExportQueue) runOnCloseChecksLocked() error {
 				}
 				for _, spanBuffer := range pendingScope.spansByScope {
 					if spanBuffer.scope != nil {
-						fmt.Fprintf(msg, "    Scope: %s\n", spanBuffer.scope.Scope.Name)
+						fmt.Fprintf(msg, "    Scope: %s\n", spanBuffer.scope.ID())
 					} else {
 						msg.WriteString("    Scope: (unknown)\n")
 					}
@@ -435,7 +477,11 @@ func (q *SpanExportQueue) runOnCloseChecksLocked() error {
 		for i, k := range keys {
 			v := values[i]
 			if k != v {
-				fmt.Fprintf(msg, "%s => %s\n", k.Value(), v.Value())
+				if v == zeroTraceID {
+					fmt.Fprintf(msg, "%s (dropped)\n", k.Value())
+				} else {
+					fmt.Fprintf(msg, "%s => %s\n", k.Value(), v.Value())
+				}
 			} else {
 				fmt.Fprintf(msg, "%s (no change)\n", k.Value())
 			}
