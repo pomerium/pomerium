@@ -19,7 +19,7 @@ import (
 
 const (
 	ownerRX              = os.FileMode(0o500)
-	maxExpandedEnvoySize = 1 << 30
+	maxExpandedEnvoySize = 2 * 1024 * 1024 * 1024 // 2GB
 	envoyPrefix          = "pomerium-envoy"
 )
 
