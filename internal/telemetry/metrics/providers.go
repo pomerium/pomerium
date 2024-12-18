@@ -124,7 +124,7 @@ type promProducerFn func(context.Context) promProducerResult
 // writeMetricsMux runs producers concurrently and pipes output to destination yet avoiding data interleaving
 func writeMetricsMux(ctx context.Context, w io.Writer, producers []promProducerFn) error {
 	results := make(chan promProducerResult)
-	w = bufio.NewWriter(w)
+	bw := bufio.NewWriter(w)
 
 	for _, p := range producers {
 		go func(fn promProducerFn) {
@@ -138,14 +138,15 @@ loop_producers:
 		select {
 		case <-ctx.Done():
 			err := fmt.Errorf("processed %d metric producers out of %d: %w", i, len(producers), ctx.Err())
-			errs = multierror.Append(errs, err, writePrometheusComment(w, err.Error()))
+			errs = multierror.Append(errs, err, writePrometheusComment(bw, err.Error()))
 			break loop_producers
 		case res := <-results:
-			if err := writeMetricsResult(w, res); err != nil {
+			if err := writeMetricsResult(bw, res); err != nil {
 				errs = multierror.Append(errs, fmt.Errorf("%s: %w", res.name, err))
 			}
 		}
 	}
+	errs = multierror.Append(errs, bw.Flush())
 
 	return errs.ErrorOrNil()
 }
