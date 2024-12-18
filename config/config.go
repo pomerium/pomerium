@@ -155,38 +155,13 @@ func (cfg *Config) GetTLSClientConfig() (*tls.Config, error) {
 	}, nil
 }
 
-// GenerateCatchAllCertificate generates a catch-all certificate. If no derived CA is defined a
-// self-signed certificate will be generated.
+// GenerateCatchAllCertificate generates a catch-all certificate from a CA
+// derived from the shared secret.
 func (cfg *Config) GenerateCatchAllCertificate() (*tls.Certificate, error) {
-	if cfg.Options.DeriveInternalDomainCert != nil {
-		sharedKey, err := cfg.Options.GetSharedKey()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate cert, invalid shared key: %w", err)
-		}
-
-		ca, err := derivecert.NewCA(sharedKey)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate cert, invalid derived CA: %w", err)
-		}
-
-		pem, err := ca.NewServerCert([]string{"*"})
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate cert, error creating server certificate: %w", err)
-		}
-
-		cert, err := pem.TLS()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate cert, error converting generated certificate into TLS certificate: %w", err)
-		}
-		return &cert, nil
-	}
-
 	sharedKey, err := cfg.Options.GetSharedKey()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate cert, invalid shared key: %w", err)
 	}
-
-	// finally fall back to a generated, self-signed certificate
 	return cryptutil.GenerateCertificate(sharedKey, "*")
 }
 
