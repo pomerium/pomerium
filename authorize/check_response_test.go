@@ -230,6 +230,50 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 		}`, res)
 	})
 
+	t.Run("grpc", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+		ctx = requestid.WithValue(ctx, "REQUESTID")
+
+		res, err := a.deniedResponse(ctx, &envoy_service_auth_v3.CheckRequest{
+			Attributes: &envoy_service_auth_v3.AttributeContext{
+				Request: &envoy_service_auth_v3.AttributeContext_Request{
+					Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
+						Headers: map[string]string{
+							"content-type": "application/grpc+json",
+						},
+					},
+				},
+			},
+		}, http.StatusBadRequest, "ERROR", nil)
+		assert.NoError(t, err)
+		testutil.AssertProtoJSONEqual(t, `{
+			"deniedResponse": {
+				"headers": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": { "key": "Content-Type", "value": "application/grpc+json" }
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": { "key": "grpc-message", "value": "ERROR" }
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": { "key": "grpc-status", "value": "13" }
+					}
+				],
+				"status": {
+					"code": "BadRequest"
+				}
+			},
+			"status": {
+				"code": 7,
+				"message": "Access Denied"
+			}
+		}`, res)
+	})
+
 	t.Run("grpc-web", func(t *testing.T) {
 		t.Parallel()
 		ctx := context.Background()
@@ -256,11 +300,11 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 					},
 					{
 						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
-						"header": { "key": "grpc-status", "value": "16" }
+						"header": { "key": "grpc-message", "value": "ERROR" }
 					},
 					{
 						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
-						"header": { "key": "grpc-message", "value": "Unauthenticated" }
+						"header": { "key": "grpc-status", "value": "13" }
 					}
 				],
 				"status": {
