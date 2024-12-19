@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"sort"
-	"strconv"
 	"strings"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -109,19 +109,11 @@ func invalidClientCertReason(reasons criteria.Reasons) bool {
 }
 
 func (a *Authorize) okResponse(headers http.Header) *envoy_service_auth_v3.CheckResponse {
-	var requestHeaders []*envoy_config_core_v3.HeaderValueOption
-	for k, vs := range headers {
-		requestHeaders = append(requestHeaders, mkHeader(k, strings.Join(vs, ",")))
-	}
-	// ensure request headers are sorted by key for deterministic output
-	sort.Slice(requestHeaders, func(i, j int) bool {
-		return requestHeaders[i].Header.Key < requestHeaders[j].Header.Value
-	})
 	return &envoy_service_auth_v3.CheckResponse{
 		Status: &status.Status{Code: int32(codes.OK), Message: "OK"},
 		HttpResponse: &envoy_service_auth_v3.CheckResponse_OkResponse{
 			OkResponse: &envoy_service_auth_v3.OkHttpResponse{
-				Headers: requestHeaders,
+				Headers: toEnvoyHeaders(headers),
 			},
 		},
 	}
@@ -130,9 +122,11 @@ func (a *Authorize) okResponse(headers http.Header) *envoy_service_auth_v3.Check
 func (a *Authorize) deniedResponse(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
-	code int32, reason string, headers map[string]string,
+	code int32, reason string, headers http.Header,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
-	respHeader := []*envoy_config_core_v3.HeaderValueOption{}
+	if headers == nil {
+		headers = make(http.Header)
+	}
 
 	var respBody []byte
 
@@ -163,25 +157,21 @@ func (a *Authorize) deniedResponse(
 			"reason":     statusReason, // must correspond to k8s StatusReason strings
 			"code":       code,         // http code
 		})
-		respHeader = append(respHeader,
-			mkHeader("Content-Type", "application/json"))
+		headers.Set("Content-Type", "application/json")
 	case getCheckRequestURL(in).Path == "/robots.txt":
 		code = 200
 		respBody = []byte("User-agent: *\nDisallow: /")
-		respHeader = append(respHeader,
-			mkHeader("Content-Type", "text/plain"))
+		headers.Set("Content-Type", "text/plain")
 	case isJSONWebRequest(in):
 		respBody, _ = json.Marshal(map[string]any{
 			"error":      reason,
 			"request_id": requestid.FromContext(ctx),
 		})
-		respHeader = append(respHeader,
-			mkHeader("Content-Type", "application/json"))
+		headers.Set("Content-Type", "application/json")
+	case isGRPCRequest(in):
+		return deniedResponseForGRPC(code, reason, headers), nil
 	case isGRPCWebRequest(in):
-		respHeader = append(respHeader,
-			mkHeader("Content-Type", "application/grpc-web+json"),
-			mkHeader("grpc-status", strconv.Itoa(int(codes.Unauthenticated))),
-			mkHeader("grpc-message", codes.Unauthenticated.String()))
+		return deniedResponseForGRPCWeb(code, reason, headers), nil
 	default:
 		// create a http response writer recorder
 		w := httptest.NewRecorder()
@@ -210,27 +200,12 @@ func (a *Authorize) deniedResponse(
 			log.Ctx(ctx).Error().Err(err).Msg("error executing error template")
 			return nil, err
 		}
-		// convert go headers to envoy headers
-		respHeader = append(respHeader, toEnvoyHeaders(resp.Header)...)
+		for k, vs := range resp.Header {
+			headers[k] = vs
+		}
 	}
 
-	// add any additional headers
-	for k, v := range headers {
-		respHeader = append(respHeader, mkHeader(k, v))
-	}
-
-	return &envoy_service_auth_v3.CheckResponse{
-		Status: &status.Status{Code: int32(codes.PermissionDenied), Message: "Access Denied"},
-		HttpResponse: &envoy_service_auth_v3.CheckResponse_DeniedResponse{
-			DeniedResponse: &envoy_service_auth_v3.DeniedHttpResponse{
-				Status: &envoy_type_v3.HttpStatus{
-					Code: envoy_type_v3.StatusCode(code),
-				},
-				Headers: respHeader,
-				Body:    string(respBody),
-			},
-		},
-	}, nil
+	return mkDeniedCheckResponse(code, headers, string(respBody)), nil
 }
 
 func (a *Authorize) requireLoginResponse(
@@ -242,7 +217,7 @@ func (a *Authorize) requireLoginResponse(
 	state := a.state.Load()
 
 	if !a.shouldRedirect(in) {
-		return a.deniedResponse(ctx, in, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), nil)
+		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", nil)
 	}
 
 	idp, err := options.GetIdentityProviderForPolicy(request.Policy)
@@ -260,8 +235,8 @@ func (a *Authorize) requireLoginResponse(
 		return nil, err
 	}
 
-	return a.deniedResponse(ctx, in, http.StatusFound, "Login", map[string]string{
-		"Location": redirectTo,
+	return a.deniedResponse(ctx, in, http.StatusFound, "Login", http.Header{
+		"Location": {redirectTo},
 	})
 }
 
@@ -285,7 +260,7 @@ func (a *Authorize) requireWebAuthnResponse(
 	}
 
 	if !a.shouldRedirect(in) {
-		return a.deniedResponse(ctx, in, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), nil)
+		return a.deniedResponse(ctx, in, http.StatusUnauthorized, "Unauthenticated", nil)
 	}
 
 	q := url.Values{}
@@ -303,9 +278,24 @@ func (a *Authorize) requireWebAuthnResponse(
 	}
 	q.Set(urlutil.QueryIdentityProviderID, idp.GetId())
 	signinURL := urlutil.WebAuthnURL(getHTTPRequestFromCheckRequest(in), &checkRequestURL, state.sharedKey, q)
-	return a.deniedResponse(ctx, in, http.StatusFound, "Login", map[string]string{
-		"Location": signinURL,
+	return a.deniedResponse(ctx, in, http.StatusFound, "Login", http.Header{
+		"Location": {signinURL},
 	})
+}
+
+func mkDeniedCheckResponse(httpStatusCode int32, headers http.Header, body string) *envoy_service_auth_v3.CheckResponse {
+	return &envoy_service_auth_v3.CheckResponse{
+		Status: &status.Status{Code: int32(codes.PermissionDenied), Message: "Access Denied"},
+		HttpResponse: &envoy_service_auth_v3.CheckResponse_DeniedResponse{
+			DeniedResponse: &envoy_service_auth_v3.DeniedHttpResponse{
+				Status: &envoy_type_v3.HttpStatus{
+					Code: envoy_type_v3.StatusCode(httpStatusCode),
+				},
+				Headers: toEnvoyHeaders(headers),
+				Body:    body,
+			},
+		},
+	}
 }
 
 func mkHeader(k, v string) *envoy_config_core_v3.HeaderValueOption {
@@ -319,16 +309,13 @@ func mkHeader(k, v string) *envoy_config_core_v3.HeaderValueOption {
 }
 
 func toEnvoyHeaders(headers http.Header) []*envoy_config_core_v3.HeaderValueOption {
-	var ks []string
-	for k := range headers {
-		ks = append(ks, k)
-	}
-	sort.Strings(ks)
-
 	envoyHeaders := make([]*envoy_config_core_v3.HeaderValueOption, 0, len(headers))
-	for _, k := range ks {
-		envoyHeaders = append(envoyHeaders, mkHeader(k, headers.Get(k)))
+	for k, vs := range maps.All(headers) {
+		envoyHeaders = append(envoyHeaders, mkHeader(k, strings.Join(vs, ",")))
 	}
+	sort.Slice(envoyHeaders, func(i, j int) bool {
+		return envoyHeaders[i].GetHeader().GetKey() < envoyHeaders[j].GetHeader().GetKey()
+	})
 	return envoyHeaders
 }
 
@@ -363,7 +350,7 @@ func (a *Authorize) shouldRedirect(in *envoy_service_auth_v3.CheckRequest) bool 
 		return true
 	}
 
-	if strings.HasPrefix(requestHeaders["content-type"], "application/grpc") {
+	if isGRPCRequest(in) {
 		return false
 	}
 
@@ -385,29 +372,6 @@ func (a *Authorize) shouldRedirect(in *envoy_service_auth_v3.CheckRequest) bool 
 	}
 
 	return mediaType == "text/html"
-}
-
-func isGRPCWebRequest(in *envoy_service_auth_v3.CheckRequest) bool {
-	hdrs := in.GetAttributes().GetRequest().GetHttp().GetHeaders()
-	if hdrs == nil {
-		return false
-	}
-
-	v := getHeader(hdrs, "Accept")
-	if v == "" {
-		return false
-	}
-
-	accept, err := rfc7231.ParseAccept(v)
-	if err != nil {
-		return false
-	}
-
-	mediaType, _ := accept.MostAcceptable([]string{
-		"text/html",
-		"application/grpc-web-text",
-	})
-	return mediaType == "application/grpc-web-text"
 }
 
 func isJSONWebRequest(in *envoy_service_auth_v3.CheckRequest) bool {
