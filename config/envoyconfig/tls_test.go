@@ -396,3 +396,74 @@ func Test_clientCABundle(t *testing.T) {
 	actual := clientCABundle(context.Background(), cfg)
 	assert.Equal(t, expected, actual)
 }
+
+func Test_getAllCertificates(t *testing.T) {
+	t.Run("fallback cert", func(t *testing.T) {
+		// If no certificate is configured, a fallback certificate should be generated.
+		cfg := &config.Config{Options: &config.Options{
+			SharedKey: base64.StdEncoding.EncodeToString([]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")),
+		}}
+		certs, err := getAllCertificates(cfg)
+
+		require.NoError(t, err)
+		require.Len(t, certs, 1)
+		parsed, err := x509.ParseCertificate(certs[0].Certificate[0])
+		require.NoError(t, err)
+		assert.Equal(t, "CN=Pomerium PSK CA,O=Pomerium", parsed.Issuer.String())
+		assert.Equal(t, "O=Pomerium", parsed.Subject.String())
+	})
+	t.Run("no fallback cert", func(t *testing.T) {
+		// If some certificate is configured, the fallback certificate should not be generated.
+		cfg := &config.Config{Options: &config.Options{
+			Cert: base64.StdEncoding.EncodeToString([]byte(testServerCert)),
+			Key:  base64.StdEncoding.EncodeToString([]byte(testServerKey)),
+		}}
+		certs, err := getAllCertificates(cfg)
+
+		require.NoError(t, err)
+		require.Len(t, certs, 1)
+		parsed, err := x509.ParseCertificate(certs[0].Certificate[0])
+		require.NoError(t, err)
+		assert.Equal(t, "CN=Test Root CA", parsed.Issuer.String())
+		assert.Equal(t, "CN=server cert 1", parsed.Subject.String())
+	})
+	t.Run("derive internal domain cert", func(t *testing.T) {
+		// If the generated certificate is explicitly configured, then it should still be added.
+		cfg := &config.Config{Options: &config.Options{
+			Cert:      base64.StdEncoding.EncodeToString([]byte(testServerCert)),
+			Key:       base64.StdEncoding.EncodeToString([]byte(testServerKey)),
+			SharedKey: base64.StdEncoding.EncodeToString([]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")),
+
+			DeriveInternalDomainCert: ptr("example.com"),
+		}}
+		certs, err := getAllCertificates(cfg)
+
+		require.NoError(t, err)
+		require.Len(t, certs, 2)
+		parsed, err := x509.ParseCertificate(certs[0].Certificate[0])
+		require.NoError(t, err)
+		assert.Equal(t, "CN=Test Root CA", parsed.Issuer.String())
+		assert.Equal(t, "CN=server cert 1", parsed.Subject.String())
+		parsed, err = x509.ParseCertificate(certs[1].Certificate[0])
+		require.NoError(t, err)
+		assert.Equal(t, "CN=Pomerium PSK CA,O=Pomerium", parsed.Issuer.String())
+		assert.Equal(t, "O=Pomerium", parsed.Subject.String())
+	})
+}
+
+var testServerCert = `-----BEGIN CERTIFICATE-----
+MIIBezCCASCgAwIBAgICEAEwCgYIKoZIzj0EAwIwFzEVMBMGA1UEAxMMVGVzdCBS
+b290IENBMCIYDzAwMDEwMTAxMDAwMDAwWhgPMDAwMTAxMDEwMDAwMDBaMBgxFjAU
+BgNVBAMTDXNlcnZlciBjZXJ0IDEwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARI
+J6Cnzb7wY/C7DMxbZT3UFhEsUHq6hP80dtzmK3ix5v47q30wuYBXOwZckvvMSTXv
+h8vYNLDRk2Zk8FF4rP9Ro1cwVTATBgNVHSUEDDAKBggrBgEFBQcDATAfBgNVHSME
+GDAWgBT25A7+YE2uHr8pRVFJzt8xHsdPtzAdBgNVHREEFjAUghJzZXJ2ZXIuZXhh
+bXBsZS5jb20wCgYIKoZIzj0EAwIDSQAwRgIhAJwuu9y6AP9GGdo88YmB14uWC/fx
+ZNhtP7zjrvgObX7UAiEA4gFcmeZnWbcpuVSZDEFfMIfd/Nys8bpg3S8N/PSnJng=
+-----END CERTIFICATE-----`
+
+var testServerKey = `-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEINl/ONFeqvjTLCPaIkcUnEdqXhQ8P3M/3qCjNNYfuJKvoAoGCCqGSM49
+AwEHoUQDQgAESCegp82+8GPwuwzMW2U91BYRLFB6uoT/NHbc5it4seb+O6t9MLmA
+VzsGXJL7zEk174fL2DSw0ZNmZPBReKz/UQ==
+-----END EC PRIVATE KEY-----`
