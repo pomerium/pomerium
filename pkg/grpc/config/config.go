@@ -20,3 +20,13 @@ func (rr *RouteRedirect) IsSet() bool {
 func (x *Config) GetId() string { //nolint
 	return x.Name
 }
+
+func (x *Settings) HasBrandingOptions() bool {
+	return x.GetPrimaryColor() != "" ||
+		x.GetSecondaryColor() != "" ||
+		x.GetDarkmodePrimaryColor() != "" ||
+		x.GetDarkmodeSecondaryColor() != "" ||
+		x.GetLogoUrl() != "" ||
+		x.GetFaviconUrl() != "" ||
+		x.GetErrorMessageFirstParagraph() != ""
+}
