@@ -219,12 +219,16 @@ func getAllCertificates(cfg *config.Config) ([]tls.Certificate, error) {
 		return nil, fmt.Errorf("error collecting all certificates: %w", err)
 	}
 
-	wc, err := cfg.GenerateCatchAllCertificate()
-	if err != nil {
-		return nil, fmt.Errorf("error getting wildcard certificate: %w", err)
+	// Generate a fallback certificate only if explicitly requested, or if there
+	// are no other available certificates.
+	if cfg.Options.DeriveInternalDomainCert != nil || len(allCertificates) == 0 {
+		wc, err := cfg.GenerateCatchAllCertificate()
+		if err != nil {
+			return nil, fmt.Errorf("error generating wildcard certificate: %w", err)
+		}
+		allCertificates = append(allCertificates, *wc)
 	}
-
-	return append(allCertificates, *wc), nil
+	return allCertificates, nil
 }
 
 // validateCertificate validates that a certificate can be used with Envoy's TLS stack.
