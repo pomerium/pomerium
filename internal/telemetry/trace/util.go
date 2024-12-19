@@ -61,31 +61,22 @@ func WithTraceFromSpanContext(traceparent string, spanContext oteltrace.SpanCont
 }
 
 func FormatSpanName(span *tracev1.Span) {
-	hasPath := strings.Contains(span.GetName(), "${path}")
-	hasHost := strings.Contains(span.GetName(), "${host}")
-	hasMethod := strings.Contains(span.GetName(), "${method}")
-	if hasPath || hasHost || hasMethod {
-		var u *url.URL
-		var method string
+	hasVariables := strings.Contains(span.GetName(), "${")
+	if hasVariables {
+		replacements := make([]string, 0, 6)
 		for _, attr := range span.Attributes {
-			if attr.Key == "http.url" {
-				u, _ = url.Parse(attr.Value.GetStringValue())
-			}
-			if attr.Key == "http.method" {
-				method = attr.Value.GetStringValue()
-			}
-		}
-		if u != nil {
-			if hasPath {
-				span.Name = strings.ReplaceAll(span.Name, "${path}", u.Path)
-			}
-			if hasHost {
-				span.Name = strings.ReplaceAll(span.Name, "${host}", u.Host)
-			}
-			if hasMethod {
-				span.Name = strings.ReplaceAll(span.Name, "${method}", method)
+			switch attr.Key {
+			case "http.url":
+				u, _ := url.Parse(attr.Value.GetStringValue())
+				replacements = append(replacements,
+					"${path}", u.Path,
+					"${host}", u.Host,
+				)
+			case "http.method":
+				replacements = append(replacements, "${method}", attr.Value.GetStringValue())
 			}
 		}
+		span.Name = strings.NewReplacer(replacements...).Replace(span.Name)
 	}
 }
 

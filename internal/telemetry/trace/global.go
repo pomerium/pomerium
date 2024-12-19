@@ -16,17 +16,6 @@ func init() {
 	otel.SetTextMapPropagator(autoprop.NewTextMapPropagator())
 }
 
-// Continue starts a new span using the tracer provider of the span in the given
-// context.
-//
-// In most cases, it is better to start spans directly from a specific tracer,
-// obtained via dependency injection or some other mechanism. This function is
-// useful in shared code where the tracer used to start the span is not
-// necessarily the same every time, but can change based on the call site.
-func Continue(ctx context.Context, name string, o ...trace.SpanStartOption) (context.Context, trace.Span) {
-	return trace.SpanFromContext(ctx).TracerProvider().Tracer(PomeriumCoreTracer).Start(ctx, name, o...)
-}
-
 // UseGlobalPanicTracer sets the global tracer provider to one whose tracers
 // panic when starting spans. This can be used to locate errant usages of the
 // global tracer, and is enabled automatically in some tests. It is otherwise

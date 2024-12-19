@@ -61,6 +61,10 @@ const (
 	//
 	// Enables [TrackSpanReferences]
 	WarnOnUnresolvedReferences = (1 << iota) | TrackSpanReferences
+
+	// If set, configures Envoy to flush every span individually, disabling its
+	// internal buffer.
+	EnvoyFlushEverySpan = (1 << iota)
 )
 
 func (df DebugFlags) Check(flags DebugFlags) bool {

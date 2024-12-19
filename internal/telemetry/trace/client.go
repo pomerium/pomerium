@@ -70,6 +70,10 @@ func (ac *syncClient) UploadTraces(ctx context.Context, protoSpans []*v1.Resourc
 
 func (ac *syncClient) Update(ctx context.Context, newClient otlptrace.Client) error {
 	ac.mu.Lock()
+	if newClient == ac.client {
+		ac.mu.Unlock()
+		return nil
+	}
 	if err := newClient.Start(ctx); err != nil {
 		ac.mu.Unlock()
 		return fmt.Errorf("error starting new client: %w", err)

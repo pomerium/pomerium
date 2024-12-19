@@ -99,6 +99,20 @@ func NewTracerProvider(ctx context.Context, serviceName string, opts ...sdktrace
 	return tp
 }
 
+// Continue starts a new span using the tracer provider of the span in the given
+// context.
+//
+// In most cases, it is better to start spans directly from a specific tracer,
+// obtained via dependency injection or some other mechanism. This function is
+// useful in shared code where the tracer used to start the span is not
+// necessarily the same every time, but can change based on the call site.
+func Continue(ctx context.Context, name string, o ...trace.SpanStartOption) (context.Context, trace.Span) {
+	return trace.SpanFromContext(ctx).
+		TracerProvider().
+		Tracer(PomeriumCoreTracer).
+		Start(ctx, name, o...)
+}
+
 // ShutdownContext will gracefully shut down all tracing resources created with
 // a context returned by [NewContext], including all tracer providers and the
 // underlying exporter and remote client.

@@ -65,30 +65,6 @@ func WithDataBrokerServerOptions(opts ...databroker_service.Option) Option {
 
 // Run runs the main pomerium application.
 func Run(ctx context.Context, src config.Source, opts ...Option) error {
-	if sc, ok := trace.RemoteClientFromContext(ctx).(trace.SyncClient); ok {
-		src.OnConfigChange(ctx, func(ctx context.Context, cfg *config.Config) {
-			newClient, err := config.NewTraceClientFromOptions(cfg.Options)
-			if errors.Is(err, config.ErrNoTracingConfig) {
-				return
-			}
-			if err != nil {
-				log.Ctx(ctx).Err(err).Msg("error configuring trace client")
-			} else {
-				go func() {
-					if err := sc.Update(ctx, newClient); err != nil {
-						log.Ctx(ctx).
-							Debug().
-							Err(err).
-							Msg("error updating trace client")
-					}
-					log.Ctx(ctx).
-						Debug().
-						Str("provider", cfg.Options.TracingProvider).
-						Msg("trace client updated")
-				}()
-			}
-		})
-	}
 	p := New(opts...)
 	tracerProvider := trace.NewTracerProvider(ctx, "Pomerium")
 
@@ -118,6 +94,7 @@ func New(opts ...Option) *Pomerium {
 }
 
 func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerProvider, src config.Source) error {
+	updateTraceClient(ctx, src.GetConfig())
 	ctx, p.cancel = context.WithCancelCause(ctx)
 	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Ctx(ctx).Debug().Msgf(s, i...) }))
 
@@ -157,6 +134,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	}
 
 	cfg := src.GetConfig()
+	src.OnConfigChange(ctx, updateTraceClient)
 
 	// setup the control plane
 	controlPlane, err := controlplane.NewServer(ctx, cfg, metricsMgr, eventsMgr, fileMgr)
@@ -330,4 +308,32 @@ func setupProxy(ctx context.Context, src config.Source, controlPlane *controlpla
 	svc.OnConfigChange(ctx, src.GetConfig())
 
 	return nil
+}
+
+func updateTraceClient(ctx context.Context, cfg *config.Config) {
+	sc, ok := trace.RemoteClientFromContext(ctx).(trace.SyncClient)
+	if !ok {
+		return
+	}
+	newClient, err := config.NewTraceClientFromOptions(cfg.Options)
+	if errors.Is(err, config.ErrNoTracingConfig) {
+		newClient = trace.NewRemoteClientFromEnv()
+		err = nil
+	}
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("error configuring trace client")
+	} else {
+		go func() {
+			if err := sc.Update(ctx, newClient); err != nil {
+				log.Ctx(ctx).
+					Warn().
+					Err(err).
+					Msg("error updating trace client")
+			}
+			log.Ctx(ctx).
+				Info().
+				Str("provider", cfg.Options.TracingProvider).
+				Msg("trace client updated")
+		}()
+	}
 }
