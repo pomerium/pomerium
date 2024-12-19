@@ -963,6 +963,19 @@ func TestOptions_ApplySettings(t *testing.T) {
 		})
 		assert.Equal(t, proto.Bool(true), options.PassIdentityHeaders)
 	})
+
+	t.Run("branding", func(t *testing.T) {
+		options := NewDefaultOptions()
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			PrimaryColor: proto.String("#FFFFFF"),
+		})
+		options.ApplySettings(ctx, nil, &configpb.Settings{})
+		assert.Equal(t, "#FFFFFF", options.BrandingOptions.GetPrimaryColor())
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			PrimaryColor: proto.String("#333333"),
+		})
+		assert.Equal(t, "#333333", options.BrandingOptions.GetPrimaryColor())
+	})
 }
 
 func TestXXX(t *testing.T) {
