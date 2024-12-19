@@ -88,7 +88,7 @@ func (mgr *Manager) UpdateConfig(options ...Option) {
 
 // RunEnabled runs the manager. This method blocks until an error occurs or the given context is canceled.
 func (mgr *Manager) RunEnabled(ctx context.Context) error {
-	leaser := databroker.NewLeaser("identity_manager", time.Second*30, mgr)
+	leaser := databroker.NewLeaser("identity_manager", mgr.cfg.Load().leaseTTL, mgr)
 	return leaser.Run(ctx)
 }
 

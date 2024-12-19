@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -37,7 +38,7 @@ func TestUsageReporter(t *testing.T) {
 	t.Cleanup(cancel)
 
 	cc := testutil.NewGRPCServer(t, func(srv *grpc.Server) {
-		databrokerpb.RegisterDataBrokerServiceServer(srv, databroker.New(ctx))
+		databrokerpb.RegisterDataBrokerServiceServer(srv, databroker.New(ctx, trace.NewNoopTracerProvider()))
 	})
 	t.Cleanup(func() { cc.Close() })
 

@@ -104,5 +104,6 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	options.AuthenticateURLString = "https://authenticate.example.com"
 	filter, err := b.buildMainHTTPConnectionManagerFilter(context.Background(), &config.Config{Options: options}, false)
 	require.NoError(t, err)
+
 	testutil.AssertProtoJSONEqual(t, testData(t, "main_http_connection_manager_filter.json", nil), filter)
 }

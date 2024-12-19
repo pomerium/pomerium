@@ -1,13 +1,16 @@
 package authenticate
 
 import (
+	"context"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
-func defaultGetIdentityProvider(options *config.Options, idpID string) (identity.Authenticator, error) {
+func defaultGetIdentityProvider(ctx context.Context, tracerProvider oteltrace.TracerProvider, options *config.Options, idpID string) (identity.Authenticator, error) {
 	authenticateURL, err := options.GetAuthenticateURL()
 	if err != nil {
 		return nil, err
@@ -23,7 +26,7 @@ func defaultGetIdentityProvider(options *config.Options, idpID string) (identity
 	if err != nil {
 		return nil, err
 	}
-	return identity.NewAuthenticator(oauth.Options{
+	return identity.NewAuthenticator(ctx, tracerProvider, oauth.Options{
 		RedirectURL:     redirectURL,
 		ProviderName:    idp.GetType(),
 		ProviderURL:     idp.GetUrl(),

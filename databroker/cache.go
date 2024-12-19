@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -18,7 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
@@ -28,11 +29,13 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/legacymanager"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // DataBroker represents the databroker service. The databroker service is a simple interface
 // for storing keyed blobs (bytes) of unstructured data.
 type DataBroker struct {
+	Options
 	dataBrokerServer *dataBrokerServer
 	manager          *manager.Manager
 	legacyManager    *legacymanager.Manager
@@ -42,10 +45,40 @@ type DataBroker struct {
 	localGRPCServer     *grpc.Server
 	localGRPCConnection *grpc.ClientConn
 	sharedKey           *atomicutil.Value[[]byte]
+	tracerProvider      oteltrace.TracerProvider
+	tracer              oteltrace.Tracer
+}
+
+type Options struct {
+	managerOptions       []manager.Option
+	legacyManagerOptions []legacymanager.Option
+}
+
+type Option func(*Options)
+
+func (o *Options) apply(opts ...Option) {
+	for _, op := range opts {
+		op(o)
+	}
+}
+
+func WithManagerOptions(managerOptions ...manager.Option) Option {
+	return func(o *Options) {
+		o.managerOptions = append(o.managerOptions, managerOptions...)
+	}
+}
+
+func WithLegacyManagerOptions(legacyManagerOptions ...legacymanager.Option) Option {
+	return func(o *Options) {
+		o.legacyManagerOptions = append(o.legacyManagerOptions, legacyManagerOptions...)
+	}
 }
 
 // New creates a new databroker service.
-func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager) (*DataBroker, error) {
+func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, opts ...Option) (*DataBroker, error) {
+	options := Options{}
+	options.apply(opts...)
+
 	localListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
@@ -58,9 +91,12 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager) (*D
 		),
 	)
 
+	tracerProvider := trace.NewTracerProvider(ctx, "Data Broker")
+	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 	// No metrics handler because we have one in the control plane.  Add one
 	// if we no longer register with that grpc Server
 	localGRPCServer := grpc.NewServer(
+		grpc.StatsHandler(trace.NewStatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithTracerProvider(tracerProvider)))),
 		grpc.ChainStreamInterceptor(log.StreamServerInterceptor(log.Ctx(ctx)), si),
 		grpc.ChainUnaryInterceptor(log.UnaryServerInterceptor(log.Ctx(ctx)), ui),
 	)
@@ -71,12 +107,11 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager) (*D
 	}
 
 	sharedKeyValue := atomicutil.NewValue(sharedKey)
-	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(cfg.Options.Services)
 	clientDialOptions := []grpc.DialOption{
 		grpc.WithInsecure(),
-		grpc.WithChainUnaryInterceptor(clientStatsHandler.UnaryInterceptor, grpcutil.WithUnarySignedJWT(sharedKeyValue.Load)),
+		grpc.WithChainUnaryInterceptor(grpcutil.WithUnarySignedJWT(sharedKeyValue.Load)),
 		grpc.WithChainStreamInterceptor(grpcutil.WithStreamSignedJWT(sharedKeyValue.Load)),
-		grpc.WithStatsHandler(clientStatsHandler.Handler),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracerProvider))),
 	}
 
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
@@ -91,18 +126,21 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager) (*D
 		return nil, err
 	}
 
-	dataBrokerServer, err := newDataBrokerServer(ctx, cfg)
+	dataBrokerServer, err := newDataBrokerServer(ctx, tracerProvider, cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	c := &DataBroker{
+		Options:             options,
 		dataBrokerServer:    dataBrokerServer,
 		localListener:       localListener,
 		localGRPCServer:     localGRPCServer,
 		localGRPCConnection: localGRPCConnection,
 		sharedKey:           sharedKeyValue,
 		eventsMgr:           eventsMgr,
+		tracerProvider:      tracerProvider,
+		tracer:              tracer,
 	}
 	c.Register(c.localGRPCServer)
 
@@ -160,19 +198,19 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 
 	dataBrokerClient := databroker.NewDataBrokerServiceClient(c.localGRPCConnection)
 
-	options := []manager.Option{
+	options := append([]manager.Option{
 		manager.WithDataBrokerClient(dataBrokerClient),
 		manager.WithEventManager(c.eventsMgr),
 		manager.WithEnabled(!cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagLegacyIdentityManager)),
-	}
-	legacyOptions := []legacymanager.Option{
+	}, c.managerOptions...)
+	legacyOptions := append([]legacymanager.Option{
 		legacymanager.WithDataBrokerClient(dataBrokerClient),
 		legacymanager.WithEventManager(c.eventsMgr),
 		legacymanager.WithEnabled(cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagLegacyIdentityManager)),
-	}
+	}, c.legacyManagerOptions...)
 
 	if cfg.Options.SupportsUserRefresh() {
-		authenticator, err := identity.NewAuthenticator(oauthOptions)
+		authenticator, err := identity.NewAuthenticator(ctx, c.tracerProvider, oauthOptions)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("databroker: failed to create authenticator")
 		} else {

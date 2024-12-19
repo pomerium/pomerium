@@ -84,7 +84,7 @@ type Aggregate struct {
 
 func (d *Aggregate) Add(mod Modifier) {
 	if d.env != nil {
-		if d.env.(*environment).getState() == NotRunning {
+		if d.env.(*environment).GetState() == NotRunning {
 			// If the test environment is running, adding to an aggregate is a no-op.
 			// If the test environment has not been started yet, the aggregate is
 			// being used like in the following example, which is incorrect:
@@ -161,6 +161,20 @@ func ModifierFunc(fn func(ctx context.Context, cfg *config.Config)) Modifier {
 	return &modifierFunc{fn: fn}
 }
 
+func NoopModifier() Modifier {
+	return noopModifier{}
+}
+
+type noopModifier struct{}
+
+// Attach implements Modifier.
+func (n noopModifier) Attach(context.Context) {}
+
+// Modify implements Modifier.
+func (n noopModifier) Modify(*config.Config) {}
+
+var _ Modifier = (noopModifier{})
+
 // Task represents a background task that can be added to an [Environment] to
 // have it run automatically on startup.
 //
@@ -169,10 +183,17 @@ type Task interface {
 	Run(ctx context.Context) error
 }
 
-type TaskFunc func(ctx context.Context) error
+func TaskFunc(fn func(ctx context.Context) error) Task {
+	return &taskFunc{fn: fn}
+}
 
-func (f TaskFunc) Run(ctx context.Context) error {
-	return f(ctx)
+// this is a struct wrapper type instead of a typed func so it can be compared
+type taskFunc struct {
+	fn func(ctx context.Context) error
+}
+
+func (f *taskFunc) Run(ctx context.Context) error {
+	return f.fn(ctx)
 }
 
 // Upstream represents an upstream server. It is both a [Task] and a [Modifier]

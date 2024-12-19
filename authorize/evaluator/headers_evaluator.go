@@ -80,7 +80,7 @@ func NewHeadersEvaluator(store *store.Store) *HeadersEvaluator {
 
 // Evaluate evaluates the headers.rego script.
 func (e *HeadersEvaluator) Evaluate(ctx context.Context, req *HeadersRequest, options ...rego.EvalOption) (*HeadersResponse, error) {
-	ctx, span := trace.StartSpan(ctx, "authorize.HeadersEvaluator.Evaluate")
+	ctx, span := trace.Continue(ctx, "authorize.HeadersEvaluator.Evaluate")
 	defer span.End()
 
 	ectx := new(rego.EvalContext)
