@@ -65,6 +65,30 @@ func WithDataBrokerServerOptions(opts ...databroker_service.Option) Option {
 
 // Run runs the main pomerium application.
 func Run(ctx context.Context, src config.Source, opts ...Option) error {
+	if sc, ok := trace.RemoteClientFromContext(ctx).(trace.SyncClient); ok {
+		src.OnConfigChange(ctx, func(ctx context.Context, cfg *config.Config) {
+			newClient, err := config.NewTraceClientFromOptions(cfg.Options)
+			if errors.Is(err, config.ErrNoTracingConfig) {
+				return
+			}
+			if err != nil {
+				log.Ctx(ctx).Err(err).Msg("error configuring trace client")
+			} else {
+				go func() {
+					if err := sc.Update(ctx, newClient); err != nil {
+						log.Ctx(ctx).
+							Debug().
+							Err(err).
+							Msg("error updating trace client")
+					}
+					log.Ctx(ctx).
+						Debug().
+						Str("provider", cfg.Options.TracingProvider).
+						Msg("trace client updated")
+				}()
+			}
+		})
+	}
 	p := New(opts...)
 	tracerProvider := trace.NewTracerProvider(ctx, "Pomerium")
 

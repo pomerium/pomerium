@@ -279,6 +279,7 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 		Match: match,
 		Decorator: &envoy_config_route_v3.Decorator{
 			Operation: "ingress: ${method} ${host}${path}",
+			Propagate: wrapperspb.Bool(false),
 		},
 		Metadata:               &envoy_config_core_v3.Metadata{},
 		RequestHeadersToRemove: getRequestHeadersToRemove(cfg.Options, policy),

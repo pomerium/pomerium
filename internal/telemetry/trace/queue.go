@@ -36,8 +36,8 @@ func init() {
 		}
 		return def
 	}
-	maxPendingTraces.Store(envOrDefault("POMERIUM_OTEL_MAX_PENDING_TRACES", 1024))
-	maxCachedTraceIDs.Store(envOrDefault("POMERIUM_OTEL_MAX_CACHED_TRACE_IDS", 8192))
+	maxPendingTraces.Store(envOrDefault("POMERIUM_OTEL_MAX_PENDING_TRACES", 8192))
+	maxCachedTraceIDs.Store(envOrDefault("POMERIUM_OTEL_MAX_CACHED_TRACE_IDS", 16384))
 }
 
 func SetMaxPendingTraces(num int32) {
@@ -64,7 +64,7 @@ type SpanExportQueue struct {
 }
 
 func NewSpanExportQueue(ctx context.Context, client otlptrace.Client) *SpanExportQueue {
-	debug := systemContextFromContext(ctx).DebugFlags
+	debug := DebugFlagsFromContext(ctx)
 	var observer *spanObserver
 	if debug.Check(TrackSpanReferences) {
 		observer = &spanObserver{referencedIDs: make(map[oteltrace.SpanID]oteltrace.SpanID)}
@@ -106,6 +106,11 @@ func (q *SpanExportQueue) runUploader() {
 func (q *SpanExportQueue) onEvict(traceID unique.Handle[oteltrace.TraceID], buf *Buffer) {
 	if buf.IsEmpty() {
 		// if the buffer is not empty, it was evicted automatically
+		return
+	} else if mapping, ok := q.knownTraceIDMappings.Get(traceID); ok && mapping == zeroTraceID {
+		q.logger.Debug().
+			Str("traceID", traceID.Value().String()).
+			Msg("dropping unsampled trace")
 		return
 	}
 

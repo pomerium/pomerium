@@ -77,10 +77,14 @@ func (rec *OTLPTraceReceiver) ReceivedRequests() []*coltracepb.ExportTraceServic
 	return rec.receivedRequests
 }
 
-func (rec *OTLPTraceReceiver) ResourceSpans() []*tracev1.ResourceSpans {
+func (rec *OTLPTraceReceiver) PeekResourceSpans() []*tracev1.ResourceSpans {
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
 
+	return rec.peekResourceSpansLocked()
+}
+
+func (rec *OTLPTraceReceiver) peekResourceSpansLocked() []*tracev1.ResourceSpans {
 	res := trace.NewBuffer()
 	for _, req := range rec.receivedRequests {
 		for _, resource := range req.ResourceSpans {
@@ -94,6 +98,14 @@ func (rec *OTLPTraceReceiver) ResourceSpans() []*tracev1.ResourceSpans {
 		}
 	}
 	return res.Flush()
+}
+
+func (rec *OTLPTraceReceiver) FlushResourceSpans() []*tracev1.ResourceSpans {
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+	spans := rec.peekResourceSpansLocked()
+	clear(rec.receivedRequests)
+	return spans
 }
 
 func (rec *OTLPTraceReceiver) NewClient() otlptrace.Client {

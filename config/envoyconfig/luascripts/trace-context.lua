@@ -69,10 +69,10 @@ function envoy_on_request(request_handle)
   if traceparent ~= nil and #traceparent == 55 then
     if x_pomerium_traceparent == nil then
       headers:replace("x-pomerium-external-parent-span", traceparent:sub(37, 52))
-    elseif #x_pomerium_traceparent == 55 then
-      if traceparent:sub(-1) == "0" and x_pomerium_traceparent:sub(-1) == "1" then
-        headers:replace("x-envoy-force-trace", "1")
-      end
+      -- elseif #x_pomerium_traceparent == 55 then
+      --   if traceparent:sub(-1) == "0" and x_pomerium_traceparent:sub(-1) == "1" then
+      --     headers:replace("x-envoy-force-trace", "1")
+      --   end
     end
   end
 end

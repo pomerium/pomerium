@@ -353,7 +353,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 
 	ctx := trace.Options{
 		DebugFlags:   options.traceDebugFlags,
-		RemoteClient: options.traceClient,
+		RemoteClient: trace.NewSyncClient(options.traceClient),
 	}.NewContext(logger.WithContext(context.Background()))
 	tracerProvider := trace.NewTracerProvider(ctx, "Test Environment")
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)

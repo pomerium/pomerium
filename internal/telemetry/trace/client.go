@@ -2,10 +2,12 @@ package trace
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -13,13 +15,84 @@ import (
 	v1 "go.opentelemetry.io/proto/otlp/trace/v1"
 )
 
+var ErrNoClient = errors.New("no client")
+
+type SyncClient interface {
+	otlptrace.Client
+
+	Update(ctx context.Context, newClient otlptrace.Client) error
+}
+
+func NewSyncClient(client otlptrace.Client) SyncClient {
+	return &syncClient{
+		client: client,
+	}
+}
+
+type syncClient struct {
+	mu     sync.Mutex
+	client otlptrace.Client
+}
+
+var _ SyncClient = (*syncClient)(nil)
+
+// Start implements otlptrace.Client.
+func (ac *syncClient) Start(ctx context.Context) error {
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
+	if ac.client == nil {
+		return ErrNoClient
+	}
+	return ac.client.Start(ctx)
+}
+
+// Stop implements otlptrace.Client.
+func (ac *syncClient) Stop(ctx context.Context) error {
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
+	if ac.client == nil {
+		return ErrNoClient
+	}
+	err := ac.client.Stop(ctx)
+	ac.client = nil
+	return err
+}
+
+// UploadTraces implements otlptrace.Client.
+func (ac *syncClient) UploadTraces(ctx context.Context, protoSpans []*v1.ResourceSpans) error {
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
+	if ac.client == nil {
+		return ErrNoClient
+	}
+	return ac.client.UploadTraces(ctx, protoSpans)
+}
+
+func (ac *syncClient) Update(ctx context.Context, newClient otlptrace.Client) error {
+	ac.mu.Lock()
+	if err := newClient.Start(ctx); err != nil {
+		ac.mu.Unlock()
+		return fmt.Errorf("error starting new client: %w", err)
+	}
+	oldClient := ac.client
+	ac.client = newClient
+	ac.mu.Unlock()
+
+	if oldClient != nil {
+		if err := oldClient.Stop(ctx); err != nil {
+			return fmt.Errorf("stopping old client: %w", err)
+		}
+	}
+	return nil
+}
+
 // NewRemoteClientFromEnv creates an otlp trace client using the well-known
 // environment variables defined in the [OpenTelemetry documentation].
 //
 // [OpenTelemetry documentation]: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
 func NewRemoteClientFromEnv() otlptrace.Client {
 	if os.Getenv("OTEL_SDK_DISABLED") == "true" {
-		return noopClient{}
+		return NoopClient{}
 	}
 
 	exporter, ok := os.LookupEnv("OTEL_TRACES_EXPORTER")
@@ -29,7 +102,7 @@ func NewRemoteClientFromEnv() otlptrace.Client {
 
 	switch strings.ToLower(strings.TrimSpace(exporter)) {
 	case "none", "noop", "":
-		return noopClient{}
+		return NoopClient{}
 	case "otlp":
 		var protocol string
 		if v, ok := os.LookupEnv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL"); ok {
@@ -38,7 +111,13 @@ func NewRemoteClientFromEnv() otlptrace.Client {
 			protocol = v
 		} else {
 			// try to guess the expected protocol from the port number
-			protocol = guessProtocol()
+			var endpoint string
+			if v, ok := os.LookupEnv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"); ok {
+				endpoint = v
+			} else if v, ok := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT"); ok {
+				endpoint = v
+			}
+			protocol = BestEffortProtocolFromOTLPEndpoint(endpoint)
 		}
 		switch strings.ToLower(strings.TrimSpace(protocol)) {
 		case "grpc":
@@ -47,21 +126,15 @@ func NewRemoteClientFromEnv() otlptrace.Client {
 			return otlptracehttp.NewClient()
 		default:
 			fmt.Fprintf(os.Stderr, `unknown otlp trace exporter protocol %q, expected "grpc" or "http/protobuf"\n`, protocol)
-			return noopClient{}
+			return NoopClient{}
 		}
 	default:
 		fmt.Fprintf(os.Stderr, `unknown otlp trace exporter %q, expected "otlp" or "none"\n`, exporter)
-		return noopClient{}
+		return NoopClient{}
 	}
 }
 
-func guessProtocol() string {
-	var endpoint string
-	if v, ok := os.LookupEnv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"); ok {
-		endpoint = v
-	} else if v, ok := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT"); ok {
-		endpoint = v
-	}
+func BestEffortProtocolFromOTLPEndpoint(endpoint string) string {
 	if endpoint == "" {
 		return ""
 	}
@@ -82,19 +155,19 @@ func guessProtocol() string {
 	}
 }
 
-type noopClient struct{}
+type NoopClient struct{}
 
 // Start implements otlptrace.Client.
-func (n noopClient) Start(context.Context) error {
+func (n NoopClient) Start(context.Context) error {
 	return nil
 }
 
 // Stop implements otlptrace.Client.
-func (n noopClient) Stop(context.Context) error {
+func (n NoopClient) Stop(context.Context) error {
 	return nil
 }
 
 // UploadTraces implements otlptrace.Client.
-func (n noopClient) UploadTraces(context.Context, []*v1.ResourceSpans) error {
+func (n NoopClient) UploadTraces(context.Context, []*v1.ResourceSpans) error {
 	return nil
 }

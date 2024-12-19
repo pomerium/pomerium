@@ -29,7 +29,7 @@ func (op Options) NewContext(parent context.Context) context.Context {
 		op.RemoteClient = NewRemoteClientFromEnv()
 	}
 	sys := &systemContext{
-		Options: op,
+		options: op,
 		tpm:     &tracerProviderManager{},
 	}
 	ctx := context.WithValue(parent, systemContextKey, sys)
@@ -89,7 +89,7 @@ func NewTracerProvider(ctx context.Context, serviceName string, opts ...sdktrace
 	for _, proc := range sys.exporterServer.SpanProcessors() {
 		options = append(options, sdktrace.WithSpanProcessor(proc))
 	}
-	if sys.DebugFlags.Check(TrackSpanCallers) {
+	if sys.options.DebugFlags.Check(TrackSpanCallers) {
 		options = append(options,
 			sdktrace.WithSpanProcessor(&stackTraceProcessor{}),
 		)
@@ -136,6 +136,20 @@ func ExporterServerFromContext(ctx context.Context) coltracepb.TraceServiceServe
 	return nil
 }
 
+func RemoteClientFromContext(ctx context.Context) otlptrace.Client {
+	if sys := systemContextFromContext(ctx); sys != nil {
+		return sys.options.RemoteClient
+	}
+	return nil
+}
+
+func DebugFlagsFromContext(ctx context.Context) DebugFlags {
+	if sys := systemContextFromContext(ctx); sys != nil {
+		return sys.options.DebugFlags
+	}
+	return 0
+}
+
 // WaitForSpans will block up to the given max duration and wait for all
 // in-flight spans from tracers created with the given context to end. This
 // function can be called more than once, and is safe to call from multiple
@@ -162,7 +176,7 @@ type systemContextKeyType struct{}
 var systemContextKey systemContextKeyType
 
 type systemContext struct {
-	Options
+	options        Options
 	tpm            *tracerProviderManager
 	exporterServer *ExporterServer
 	shutdown       atomic.Bool

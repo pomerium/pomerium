@@ -9,6 +9,8 @@ import (
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
 	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	envoy_extensions_request_id_uuid_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/request_id/uuid/v3"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
@@ -148,6 +150,25 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		CommonHttpProtocolOptions: &envoy_config_core_v3.HttpProtocolOptions{
 			IdleTimeout:       durationpb.New(cfg.Options.IdleTimeout),
 			MaxStreamDuration: maxStreamDuration,
+		},
+		EarlyHeaderMutationExtensions: []*envoy_config_core_v3.TypedExtensionConfig{
+			{
+				Name: "envoy.http.early_header_mutation.trace_context",
+				TypedConfig: &anypb.Any{
+					TypeUrl: "type.googleapis.com/pomerium.extensions.TraceContext",
+					Value:   []byte{},
+				},
+			},
+		},
+		RequestIdExtension: &envoy_extensions_filters_network_http_connection_manager.RequestIDExtension{
+			TypedConfig: func() *anypb.Any {
+				base := marshalAny(&envoy_extensions_request_id_uuid_v3.UuidRequestIdConfig{
+					PackTraceReason:              wrapperspb.Bool(true),
+					UseRequestIdForTraceSampling: wrapperspb.Bool(true),
+				})
+				base.TypeUrl = "type.googleapis.com/pomerium.extensions.UuidxRequestIdConfig"
+				return base
+			}(),
 		},
 		HttpProtocolOptions: http1ProtocolOptions,
 		RequestTimeout:      durationpb.New(cfg.Options.ReadTimeout),
