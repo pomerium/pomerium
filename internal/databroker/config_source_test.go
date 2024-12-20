@@ -11,17 +11,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/grpctest"
 	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 func TestConfigSource(t *testing.T) {
-	t.Parallel()
+	addr := grpctest.TemporaryOutboundAddress(t)
 
 	generateCert := func(name string) ([]byte, []byte) {
 		cert, err := cryptutil.GenerateCertificate(nil, name)
@@ -34,12 +34,9 @@ func TestConfigSource(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(context.Background(), 50*time.Second)
 	defer clearTimeout()
 
-	li, err := net.Listen("tcp", "127.0.0.1:0")
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer func() { _ = li.Close() }()
-	_, outboundPort, _ := net.SplitHostPort(li.Addr().String())
+	li, err := net.Listen("unix", addr)
+	require.NoError(t, err)
+	t.Cleanup(func() { li.Close() })
 
 	dataBrokerServer := New(ctx)
 	srv := grpc.NewServer()
@@ -50,9 +47,6 @@ func TestConfigSource(t *testing.T) {
 
 	u, _ := url.Parse("https://to.example.com")
 	base := config.NewDefaultOptions()
-	base.DataBrokerURLString = "http://" + li.Addr().String()
-	base.InsecureServer = true
-	base.GRPCInsecure = proto.Bool(true)
 	base.Policies = append(base.Policies, config.Policy{
 		From: "https://pomerium.io", To: config.WeightedURLs{
 			{URL: *u},
@@ -62,8 +56,7 @@ func TestConfigSource(t *testing.T) {
 	base.Cert, base.Key = base64.StdEncoding.EncodeToString(certPEM), base64.StdEncoding.EncodeToString(keyPEM)
 
 	baseSource := config.NewStaticSource(&config.Config{
-		OutboundPort: outboundPort,
-		Options:      base,
+		Options: base,
 	})
 	src := NewConfigSource(ctx, baseSource, EnableConfigValidation(true), func(_ context.Context, cfg *config.Config) {
 		cfgs <- cfg
@@ -109,7 +102,6 @@ func TestConfigSource(t *testing.T) {
 	}
 
 	baseSource.SetConfig(ctx, &config.Config{
-		OutboundPort: outboundPort,
-		Options:      base,
+		Options: base,
 	})
 }

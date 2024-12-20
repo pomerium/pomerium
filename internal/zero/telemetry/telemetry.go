@@ -3,6 +3,8 @@ package telemetry
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/http"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -16,6 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/zero/telemetry/opencensus"
 	"github.com/pomerium/pomerium/internal/zero/telemetry/reporter"
 	"github.com/pomerium/pomerium/internal/zero/telemetry/sessions"
+	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/zero/connect"
@@ -36,12 +39,12 @@ func New(
 	api *sdk.API,
 	clientProvider func() (databroker.DataBrokerServiceClient, error),
 	hasSessionMetricsLease func() bool,
-	envoyScrapeURL string,
+	envoyScrapePath string,
 ) (*Telemetry, error) {
 	startTime := time.Now()
 
 	sessionMetricProducer := newMetricsProducer("sessions", buildSessionMetricsProducer(clientProvider))
-	envoyMetricProducer := newMetricsProducer("envoy", buildEnvoyMetricsProducer(envoyScrapeURL, startTime))
+	envoyMetricProducer := newMetricsProducer("envoy", buildEnvoyMetricsProducer(envoyScrapePath, startTime))
 	coreMetricsProducer := newMetricsProducer("core", opencensus.New())
 
 	r, err := reporter.New(ctx, api.GetTelemetryConn(),
@@ -132,6 +135,14 @@ func buildSessionMetricsProducer(clientProvider func() (databroker.DataBrokerSer
 func buildEnvoyMetricsProducer(scrapeURL string, startTime time.Time) *prometheus.Producer {
 	return prometheus.NewProducer(
 		prometheus.WithScope(instrumentation.Scope{Name: "envoy"}),
+		// XXX: extract this somewhere else
+		prometheus.WithClient(&http.Client{
+			Transport: &http.Transport{
+				DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+					return net.Dial("unix", grpc.OutboundAddress)
+				},
+			},
+		}),
 		prometheus.WithScrapeURL(scrapeURL),
 		prometheus.WithStartTime(startTime),
 	)

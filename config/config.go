@@ -38,8 +38,6 @@ type Config struct {
 	GRPCPort string
 	// HTTPPort is the port the HTTP server is running on.
 	HTTPPort string
-	// OutboundPort is the port the outbound gRPC listener is running on.
-	OutboundPort string
 	// MetricsPort is the port the metrics listener is running on.
 	MetricsPort string
 	// DebugPort is the port the debug listener is running on.
@@ -75,7 +73,6 @@ func (cfg *Config) Clone() *Config {
 
 		GRPCPort:        cfg.GRPCPort,
 		HTTPPort:        cfg.HTTPPort,
-		OutboundPort:    cfg.OutboundPort,
 		MetricsPort:     cfg.MetricsPort,
 		DebugPort:       cfg.DebugPort,
 		ACMETLSALPNPort: cfg.ACMETLSALPNPort,
@@ -137,10 +134,9 @@ func (cfg *Config) Checksum() uint64 {
 func (cfg *Config) AllocatePorts(ports [6]string) {
 	cfg.GRPCPort = ports[0]
 	cfg.HTTPPort = ports[1]
-	cfg.OutboundPort = ports[2]
-	cfg.MetricsPort = ports[3]
-	cfg.DebugPort = ports[4]
-	cfg.ACMETLSALPNPort = ports[5]
+	cfg.MetricsPort = ports[2]
+	cfg.DebugPort = ports[3]
+	cfg.ACMETLSALPNPort = ports[4]
 }
 
 // GetTLSClientConfig returns TLS configuration that accounts for additional CA entries
