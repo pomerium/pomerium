@@ -17,6 +17,7 @@ import (
 
 	"github.com/caddyserver/certmagic"
 	"github.com/mholt/acmez/v2/acme"
+	"github.com/pires/go-proxyproto"
 	"github.com/rs/zerolog"
 
 	"github.com/pomerium/pomerium/config"
@@ -340,8 +341,22 @@ func (mgr *Manager) updateServer(ctx context.Context, cfg *config.Config) {
 		}),
 	}
 	go func() {
+		li, err := net.Listen("tcp", cfg.Options.HTTPRedirectAddr)
+		if err != nil {
+			log.Ctx(ctx).Error().Err(err).Msg("failed to listen on http redirect addr")
+			return
+		}
+		defer li.Close()
+
+		if cfg.Options.UseProxyProtocol {
+			li = &proxyproto.Listener{
+				Listener:          li,
+				ReadHeaderTimeout: 10 * time.Second,
+			}
+		}
+
 		log.Ctx(ctx).Info().Str("addr", hsrv.Addr).Msg("starting http redirect server")
-		err := hsrv.ListenAndServe()
+		err = hsrv.Serve(li)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("failed to run http redirect server")
 		}
