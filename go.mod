@@ -48,6 +48,7 @@ require (
 	github.com/open-policy-agent/opa v0.70.0
 	github.com/openzipkin/zipkin-go v0.4.3
 	github.com/peterbourgon/ff/v3 v3.4.0
+	github.com/pires/go-proxyproto v0.8.0
 	github.com/pomerium/csrf v1.7.0
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524
 	github.com/pomerium/protoutil v0.0.0-20240813175624-47b7ac43ff46
