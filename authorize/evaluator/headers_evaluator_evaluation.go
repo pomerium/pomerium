@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/go-jose/go-jose/v3"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -26,7 +27,7 @@ import (
 // A headersEvaluatorEvaluation is a single evaluation of the headers evaluator.
 type headersEvaluatorEvaluation struct {
 	evaluator *HeadersEvaluator
-	request   *HeadersRequest
+	request   *Request
 	response  *HeadersResponse
 	now       time.Time
 
@@ -50,7 +51,7 @@ type headersEvaluatorEvaluation struct {
 	cachedSignedJWT string
 }
 
-func newHeadersEvaluatorEvaluation(evaluator *HeadersEvaluator, request *HeadersRequest, now time.Time) *headersEvaluatorEvaluation {
+func newHeadersEvaluatorEvaluation(evaluator *HeadersEvaluator, request *Request, now time.Time) *headersEvaluatorEvaluation {
 	return &headersEvaluatorEvaluation{
 		evaluator: evaluator,
 		request:   request,
@@ -81,11 +82,16 @@ func (e *headersEvaluatorEvaluation) fillJWTClaimHeaders(ctx context.Context) {
 }
 
 func (e *headersEvaluatorEvaluation) fillKubernetesHeaders(ctx context.Context) {
-	if e.request.KubernetesServiceAccountToken == "" {
+	if e.request.Policy == nil {
 		return
 	}
 
-	e.response.Headers.Add("Authorization", "Bearer "+e.request.KubernetesServiceAccountToken)
+	token, err := e.request.Policy.GetKubernetesServiceAccountToken()
+	if err != nil || token == "" {
+		return
+	}
+
+	e.response.Headers.Add("Authorization", "Bearer "+token)
 	impersonateUser := e.getJWTPayloadEmail(ctx)
 	if impersonateUser != "" {
 		e.response.Headers.Add("Impersonate-User", impersonateUser)
@@ -97,26 +103,42 @@ func (e *headersEvaluatorEvaluation) fillKubernetesHeaders(ctx context.Context) 
 }
 
 func (e *headersEvaluatorEvaluation) fillGoogleCloudServerlessHeaders(ctx context.Context) {
-	if e.request.EnableGoogleCloudServerlessAuthentication {
-		h, err := getGoogleCloudServerlessHeaders(e.evaluator.store.GetGoogleCloudServerlessAuthenticationServiceAccount(), e.request.ToAudience)
-		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error retrieving google cloud serverless headers")
-			return
-		}
-		for k, v := range h {
-			e.response.Headers.Add(k, v)
-		}
+	if e.request.Policy == nil || !e.request.Policy.EnableGoogleCloudServerlessAuthentication {
+		return
+	}
+
+	var toAudience string
+	for _, wu := range e.request.Policy.To {
+		toAudience = "https://" + wu.URL.Hostname()
+	}
+
+	h, err := getGoogleCloudServerlessHeaders(e.evaluator.store.GetGoogleCloudServerlessAuthenticationServiceAccount(), toAudience)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error retrieving google cloud serverless headers")
+		return
+	}
+	for k, v := range h {
+		e.response.Headers.Add(k, v)
 	}
 }
 
 func (e *headersEvaluatorEvaluation) fillRoutingKeyHeaders() {
-	if e.request.EnableRoutingKey {
+	if e.request.Policy == nil {
+		return
+	}
+
+	if e.request.Policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_RING_HASH ||
+		e.request.Policy.EnvoyOpts.GetLbPolicy() == envoy_config_cluster_v3.Cluster_MAGLEV {
 		e.response.Headers.Add("x-pomerium-routing-key", cryptoSHA256(e.request.Session.ID))
 	}
 }
 
 func (e *headersEvaluatorEvaluation) fillSetRequestHeaders(ctx context.Context) {
-	for k, v := range e.request.SetRequestHeaders {
+	if e.request.Policy == nil {
+		return
+	}
+
+	for k, v := range e.request.Policy.SetRequestHeaders {
 		e.response.Headers.Add(k, os.Expand(v, func(name string) string {
 			switch name {
 			case "$":
@@ -182,7 +204,7 @@ func (e *headersEvaluatorEvaluation) getUser(ctx context.Context) *user.User {
 }
 
 func (e *headersEvaluatorEvaluation) getClientCertFingerprint() string {
-	cert, err := cryptutil.ParsePEMCertificate([]byte(e.request.ClientCertificate.Leaf))
+	cert, err := cryptutil.ParsePEMCertificate([]byte(e.request.HTTP.ClientCertificate.Leaf))
 	if err != nil {
 		return ""
 	}
@@ -213,11 +235,22 @@ func (e *headersEvaluatorEvaluation) getGroupIDs(ctx context.Context) []string {
 }
 
 func (e *headersEvaluatorEvaluation) getJWTPayloadIss() string {
-	return e.request.Issuer
+	var issuerFormat string
+	if e.request.Policy != nil {
+		issuerFormat = e.request.Policy.JWTIssuerFormat
+	}
+	switch issuerFormat {
+	case "uri":
+		return fmt.Sprintf("https://%s/", e.request.HTTP.Hostname)
+	case "", "hostOnly":
+		return e.request.HTTP.Hostname
+	default:
+		return ""
+	}
 }
 
 func (e *headersEvaluatorEvaluation) getJWTPayloadAud() string {
-	return e.request.Audience
+	return e.request.HTTP.Hostname
 }
 
 func (e *headersEvaluatorEvaluation) getJWTPayloadJTI() string {
