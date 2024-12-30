@@ -13,6 +13,8 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/open-policy-agent/opa/rego"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
@@ -23,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 // Request contains the inputs needed for evaluation.
@@ -219,11 +222,21 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	eg.Go(func() error {
 		var err error
 		headersOutput, err = e.evaluateHeaders(ctx, req)
+		if storage.IsNotFound(err) {
+			headersOutput = &HeadersResponse{}
+			return nil
+		}
 		return err
 	})
 
 	err := eg.Wait()
 	if err != nil {
+		if status.Code(err) == codes.Unavailable {
+			return &Result{
+				Allow: NewRuleResult(false, criteria.ReasonInternalServerError),
+				Deny:  NewRuleResult(true, criteria.ReasonInternalServerError),
+			}, nil
+		}
 		return nil, err
 	}
 

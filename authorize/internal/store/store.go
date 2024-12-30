@@ -145,7 +145,10 @@ func (s *Store) GetDataBrokerRecordOption() func(*rego.Rego) {
 		}
 		span.AddAttributes(octrace.StringAttribute("record_id", recordIDOrIndex.String()))
 
-		msg := s.GetDataBrokerRecord(ctx, string(recordType), string(recordIDOrIndex))
+		msg, err := s.GetDataBrokerRecord(ctx, string(recordType), string(recordIDOrIndex))
+		if err != nil {
+			return nil, rego.NewHaltError(err)
+		}
 		if msg == nil {
 			return ast.NullTerm(), nil
 		}
@@ -162,7 +165,7 @@ func (s *Store) GetDataBrokerRecordOption() func(*rego.Rego) {
 	})
 }
 
-func (s *Store) GetDataBrokerRecord(ctx context.Context, recordType, recordIDOrIndex string) proto.Message {
+func (s *Store) GetDataBrokerRecord(ctx context.Context, recordType, recordIDOrIndex string) (proto.Message, error) {
 	req := &databroker.QueryRequest{
 		Type:  recordType,
 		Limit: 1,
@@ -172,26 +175,26 @@ func (s *Store) GetDataBrokerRecord(ctx context.Context, recordType, recordIDOrI
 	res, err := storage.GetQuerier(ctx).Query(ctx, req)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize/store: error retrieving record")
-		return nil
+		return nil, err
 	}
 
 	if len(res.GetRecords()) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	msg, _ := res.GetRecords()[0].GetData().UnmarshalNew()
 	if msg == nil {
-		return nil
+		return nil, nil
 	}
 
 	// exclude expired records
 	if hasExpiresAt, ok := msg.(interface{ GetExpiresAt() *timestamppb.Timestamp }); ok && hasExpiresAt.GetExpiresAt() != nil {
 		if hasExpiresAt.GetExpiresAt().AsTime().Before(time.Now()) {
-			return nil
+			return nil, nil
 		}
 	}
 
-	return msg
+	return msg, nil
 }
 
 func toMap(msg proto.Message) map[string]any {

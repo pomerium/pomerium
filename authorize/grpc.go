@@ -50,11 +50,14 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	requestID := requestid.FromHTTPHeader(hreq.Header)
 	ctx = requestid.WithValue(ctx, requestID)
 
-	sessionState, _ := state.sessionStore.LoadSessionStateAndCheckIDP(hreq)
+	sessionState, err := state.sessionStore.LoadSessionStateAndCheckIDP(hreq)
+	if status.Code(err) == codes.Unavailable {
+		log.Ctx(ctx).Debug().Str("request-id", requestID).Err(err).Msg("temporary error checking authorization: data broker unavailable")
+		return nil, err
+	}
 
 	var s sessionOrServiceAccount
 	var u *user.User
-	var err error
 	if sessionState != nil {
 		s, err = a.getDataBrokerSessionOrServiceAccount(ctx, sessionState.ID, sessionState.DatabrokerRecordVersion)
 		if status.Code(err) == codes.Unavailable {

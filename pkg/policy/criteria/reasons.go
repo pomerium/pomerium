@@ -37,6 +37,7 @@ const (
 	ReasonUserUnauthenticated           = "user-unauthenticated" // user needs to log in
 	ReasonUserUnauthorized              = "user-unauthorized"    // user does not have access
 	ReasonValidClientCertificate        = "valid-client-certificate"
+	ReasonInternalServerError           = "internal-server-error"
 )
 
 // Reasons is a collection of reasons.

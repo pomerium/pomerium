@@ -60,16 +60,26 @@ func newHeadersEvaluatorEvaluation(evaluator *HeadersEvaluator, request *Headers
 }
 
 func (e *headersEvaluatorEvaluation) execute(ctx context.Context) (*HeadersResponse, error) {
-	e.fillHeaders(ctx)
+	if err := e.fillHeaders(ctx); err != nil {
+		return nil, err
+	}
 	return e.response, nil
 }
 
-func (e *headersEvaluatorEvaluation) fillJWTAssertionHeader(ctx context.Context) {
-	e.response.Headers.Add("x-pomerium-jwt-assertion", e.getSignedJWT(ctx))
+func (e *headersEvaluatorEvaluation) fillJWTAssertionHeader(ctx context.Context) error {
+	jwt, err := e.getSignedJWT(ctx)
+	if err != nil {
+		return err
+	}
+	e.response.Headers.Add("x-pomerium-jwt-assertion", jwt)
+	return nil
 }
 
-func (e *headersEvaluatorEvaluation) fillJWTClaimHeaders(ctx context.Context) {
-	claims := e.getJWTPayload(ctx)
+func (e *headersEvaluatorEvaluation) fillJWTClaimHeaders(ctx context.Context) error {
+	claims, err := e.getJWTPayload(ctx)
+	if err != nil {
+		return err
+	}
 	for headerName, claimKey := range e.evaluator.store.GetJWTClaimHeaders() {
 		claim, ok := claims[claimKey]
 		if !ok {
@@ -78,107 +88,171 @@ func (e *headersEvaluatorEvaluation) fillJWTClaimHeaders(ctx context.Context) {
 		}
 		e.response.Headers.Add(headerName, getHeaderStringValue(claim))
 	}
+	return nil
 }
 
-func (e *headersEvaluatorEvaluation) fillKubernetesHeaders(ctx context.Context) {
+func (e *headersEvaluatorEvaluation) fillKubernetesHeaders(ctx context.Context) error {
 	if e.request.KubernetesServiceAccountToken == "" {
-		return
+		return nil
 	}
 
 	e.response.Headers.Add("Authorization", "Bearer "+e.request.KubernetesServiceAccountToken)
-	impersonateUser := e.getJWTPayloadEmail(ctx)
+	impersonateUser, err := e.getJWTPayloadEmail(ctx)
+	if err != nil {
+		return err
+	}
 	if impersonateUser != "" {
 		e.response.Headers.Add("Impersonate-User", impersonateUser)
 	}
-	impersonateGroups := e.getJWTPayloadGroups(ctx)
+	impersonateGroups, err := e.getJWTPayloadGroups(ctx)
+	if err != nil {
+		return err
+	}
 	if len(impersonateGroups) > 0 {
 		e.response.Headers.Add("Impersonate-Group", strings.Join(impersonateGroups, ","))
 	}
+	return nil
 }
 
-func (e *headersEvaluatorEvaluation) fillGoogleCloudServerlessHeaders(ctx context.Context) {
+func (e *headersEvaluatorEvaluation) fillGoogleCloudServerlessHeaders(ctx context.Context) error {
 	if e.request.EnableGoogleCloudServerlessAuthentication {
 		h, err := getGoogleCloudServerlessHeaders(e.evaluator.store.GetGoogleCloudServerlessAuthenticationServiceAccount(), e.request.ToAudience)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error retrieving google cloud serverless headers")
-			return
+			return err
 		}
 		for k, v := range h {
 			e.response.Headers.Add(k, v)
 		}
 	}
+	return nil
 }
 
-func (e *headersEvaluatorEvaluation) fillRoutingKeyHeaders() {
+func (e *headersEvaluatorEvaluation) fillRoutingKeyHeaders() error {
 	if e.request.EnableRoutingKey {
 		e.response.Headers.Add("x-pomerium-routing-key", cryptoSHA256(e.request.Session.ID))
 	}
+	return nil
 }
 
-func (e *headersEvaluatorEvaluation) fillSetRequestHeaders(ctx context.Context) {
+func (e *headersEvaluatorEvaluation) fillSetRequestHeaders(ctx context.Context) error {
 	for k, v := range e.request.SetRequestHeaders {
+		var retErr error
 		e.response.Headers.Add(k, os.Expand(v, func(name string) string {
 			switch name {
 			case "$":
 				return "$"
 			case "pomerium.access_token":
-				s, _ := e.getSessionOrServiceAccount(ctx)
+				s, _, err := e.getSessionOrServiceAccount(ctx)
+				if err != nil {
+					retErr = err
+					return ""
+				}
 				return s.GetOauthToken().GetAccessToken()
 			case "pomerium.client_cert_fingerprint":
 				return e.getClientCertFingerprint()
 			case "pomerium.id_token":
-				s, _ := e.getSessionOrServiceAccount(ctx)
+				s, _, err := e.getSessionOrServiceAccount(ctx)
+				if err != nil {
+					retErr = err
+					return ""
+				}
 				return s.GetIdToken().GetRaw()
 			case "pomerium.jwt":
-				return e.getSignedJWT(ctx)
+				jwt, err := e.getSignedJWT(ctx)
+				if err != nil {
+					retErr = err
+					return ""
+				}
+				return jwt
 			}
 
 			return ""
 		}))
+		if retErr != nil {
+			return retErr
+		}
 	}
+	return nil
 }
 
-func (e *headersEvaluatorEvaluation) fillHeaders(ctx context.Context) {
-	e.fillJWTAssertionHeader(ctx)
-	e.fillJWTClaimHeaders(ctx)
-	e.fillKubernetesHeaders(ctx)
-	e.fillGoogleCloudServerlessHeaders(ctx)
-	e.fillRoutingKeyHeaders()
-	e.fillSetRequestHeaders(ctx)
+func (e *headersEvaluatorEvaluation) fillHeaders(ctx context.Context) error {
+	if err := e.fillJWTAssertionHeader(ctx); err != nil {
+		return err
+	}
+	if err := e.fillJWTClaimHeaders(ctx); err != nil {
+		return err
+	}
+	if err := e.fillKubernetesHeaders(ctx); err != nil {
+		return err
+	}
+	if err := e.fillGoogleCloudServerlessHeaders(ctx); err != nil {
+		return err
+	}
+	if err := e.fillRoutingKeyHeaders(); err != nil {
+		return err
+	}
+	if err := e.fillSetRequestHeaders(ctx); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (e *headersEvaluatorEvaluation) getSessionOrServiceAccount(ctx context.Context) (*session.Session, *user.ServiceAccount) {
+func (e *headersEvaluatorEvaluation) getSessionOrServiceAccount(ctx context.Context) (*session.Session, *user.ServiceAccount, error) {
 	if e.gotSessionOrServiceAccount {
-		return e.cachedSession, e.cachedServiceAccount
+		return e.cachedSession, e.cachedServiceAccount, nil
 	}
 
-	e.gotSessionOrServiceAccount = true
 	if e.request.Session.ID != "" {
-		e.cachedServiceAccount, _ = e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/user.ServiceAccount", e.request.Session.ID).(*user.ServiceAccount)
+		msg, err := e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/user.ServiceAccount", e.request.Session.ID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error looking up service account: %w", err)
+		}
+		e.cachedServiceAccount, _ = msg.(*user.ServiceAccount)
 	}
 
 	if e.request.Session.ID != "" && e.cachedServiceAccount == nil {
-		e.cachedSession, _ = e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/session.Session", e.request.Session.ID).(*session.Session)
+		msg, err := e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/session.Session", e.request.Session.ID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error looking up session: %w", err)
+		}
+		e.cachedSession, _ = msg.(*session.Session)
 	}
 	if e.cachedSession != nil && e.cachedSession.GetImpersonateSessionId() != "" {
-		e.cachedSession, _ = e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/session.Session", e.cachedSession.GetImpersonateSessionId()).(*session.Session)
+		msg, err := e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/session.Session", e.cachedSession.GetImpersonateSessionId())
+		if err != nil {
+			return nil, nil, fmt.Errorf("error looking up session: %w", err)
+		}
+		e.cachedSession, _ = msg.(*session.Session)
 	}
-	return e.cachedSession, e.cachedServiceAccount
+	e.gotSessionOrServiceAccount = true
+	return e.cachedSession, e.cachedServiceAccount, nil
 }
 
-func (e *headersEvaluatorEvaluation) getUser(ctx context.Context) *user.User {
+func (e *headersEvaluatorEvaluation) getUser(ctx context.Context) (*user.User, error) {
 	if e.gotUser {
-		return e.cachedUser
+		return e.cachedUser, nil
 	}
 
-	e.gotUser = true
-	s, sa := e.getSessionOrServiceAccount(ctx)
-	if sa != nil && sa.UserId != "" {
-		e.cachedUser, _ = e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/user.User", sa.UserId).(*user.User)
-	} else if s != nil && s.UserId != "" {
-		e.cachedUser, _ = e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/user.User", s.UserId).(*user.User)
+	s, sa, err := e.getSessionOrServiceAccount(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return e.cachedUser
+	if sa != nil && sa.UserId != "" {
+		msg, err := e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/user.User", sa.UserId)
+		if err != nil {
+			return nil, fmt.Errorf("error looking up user: %w", err)
+		}
+		e.cachedUser, _ = msg.(*user.User)
+	} else if s != nil && s.UserId != "" {
+		msg, err := e.evaluator.store.GetDataBrokerRecord(ctx, "type.googleapis.com/user.User", s.UserId)
+		if err != nil {
+			return nil, fmt.Errorf("error looking up user: %w", err)
+		}
+		e.cachedUser, _ = msg.(*user.User)
+	}
+	e.gotUser = true
+	return e.cachedUser, nil
 }
 
 func (e *headersEvaluatorEvaluation) getClientCertFingerprint() string {
@@ -189,27 +263,41 @@ func (e *headersEvaluatorEvaluation) getClientCertFingerprint() string {
 	return cryptoSHA256(cert.Raw)
 }
 
-func (e *headersEvaluatorEvaluation) getDirectoryUser(ctx context.Context) *structpb.Struct {
+func (e *headersEvaluatorEvaluation) getDirectoryUser(ctx context.Context) (*structpb.Struct, error) {
 	if e.gotDirectoryUser {
-		return e.cachedDirectoryUser
+		return e.cachedDirectoryUser, nil
 	}
 
-	e.gotDirectoryUser = true
-	s, sa := e.getSessionOrServiceAccount(ctx)
-	if sa != nil && sa.UserId != "" {
-		e.cachedDirectoryUser, _ = e.evaluator.store.GetDataBrokerRecord(ctx, directory.UserRecordType, sa.UserId).(*structpb.Struct)
-	} else if s != nil && s.UserId != "" {
-		e.cachedDirectoryUser, _ = e.evaluator.store.GetDataBrokerRecord(ctx, directory.UserRecordType, s.UserId).(*structpb.Struct)
+	s, sa, err := e.getSessionOrServiceAccount(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return e.cachedDirectoryUser
+	if sa != nil && sa.UserId != "" {
+		msg, err := e.evaluator.store.GetDataBrokerRecord(ctx, directory.UserRecordType, sa.UserId)
+		if err != nil {
+			return nil, fmt.Errorf("error looking up directory user: %w", err)
+		}
+		e.cachedDirectoryUser, _ = msg.(*structpb.Struct)
+	} else if s != nil && s.UserId != "" {
+		msg, err := e.evaluator.store.GetDataBrokerRecord(ctx, directory.UserRecordType, s.UserId)
+		if err != nil {
+			return nil, fmt.Errorf("error looking up directory user: %w", err)
+		}
+		e.cachedDirectoryUser, _ = msg.(*structpb.Struct)
+	}
+	e.gotDirectoryUser = true
+	return e.cachedDirectoryUser, nil
 }
 
-func (e *headersEvaluatorEvaluation) getGroupIDs(ctx context.Context) []string {
-	du := e.getDirectoryUser(ctx)
-	if groupIDs, ok := getStructStringSlice(du, "group_ids"); ok {
-		return groupIDs
+func (e *headersEvaluatorEvaluation) getGroupIDs(ctx context.Context) ([]string, error) {
+	du, err := e.getDirectoryUser(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return make([]string, 0)
+	if groupIDs, ok := getStructStringSlice(du, "group_ids"); ok {
+		return groupIDs, nil
+	}
+	return make([]string, 0), nil
 }
 
 func (e *headersEvaluatorEvaluation) getJWTPayloadIss() string {
@@ -238,91 +326,138 @@ func (e *headersEvaluatorEvaluation) getJWTPayloadExp() int64 {
 	return e.now.Add(5 * time.Minute).Unix()
 }
 
-func (e *headersEvaluatorEvaluation) getJWTPayloadSub(ctx context.Context) string {
+func (e *headersEvaluatorEvaluation) getJWTPayloadSub(ctx context.Context) (string, error) {
 	return e.getJWTPayloadUser(ctx)
 }
 
-func (e *headersEvaluatorEvaluation) getJWTPayloadUser(ctx context.Context) string {
-	s, sa := e.getSessionOrServiceAccount(ctx)
+func (e *headersEvaluatorEvaluation) getJWTPayloadUser(ctx context.Context) (string, error) {
+	s, sa, err := e.getSessionOrServiceAccount(ctx)
+	if err != nil {
+		return "", err
+	}
 	if sa != nil {
-		return sa.UserId
+		return sa.UserId, nil
 	}
 
 	if s != nil {
-		return s.UserId
+		return s.UserId, nil
 	}
 
-	return ""
+	return "", nil
 }
 
-func (e *headersEvaluatorEvaluation) getJWTPayloadEmail(ctx context.Context) string {
-	du := e.getDirectoryUser(ctx)
+func (e *headersEvaluatorEvaluation) getJWTPayloadEmail(ctx context.Context) (string, error) {
+	du, err := e.getDirectoryUser(ctx)
+	if err != nil {
+		return "", err
+	}
 	if v, ok := getStructString(du, "email"); ok {
-		return v
+		return v, nil
 	}
 
-	u := e.getUser(ctx)
+	u, err := e.getUser(ctx)
+	if err != nil {
+		return "", err
+	}
 	if u != nil {
-		return u.Email
+		return u.Email, nil
 	}
 
-	return ""
+	return "", nil
 }
 
-func (e *headersEvaluatorEvaluation) getJWTPayloadGroups(ctx context.Context) []string {
-	groupIDs := e.getGroupIDs(ctx)
+func (e *headersEvaluatorEvaluation) getJWTPayloadGroups(ctx context.Context) ([]string, error) {
+	groupIDs, err := e.getGroupIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if len(groupIDs) > 0 {
 		groups := make([]string, 0, len(groupIDs)*2)
 		groups = append(groups, groupIDs...)
-		groups = append(groups, e.getDataBrokerGroupNames(ctx, groupIDs)...)
-		return groups
+		groupNames, err := e.getDataBrokerGroupNames(ctx, groupIDs)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, groupNames...)
+		return groups, nil
 	}
 
-	s, _ := e.getSessionOrServiceAccount(ctx)
+	s, _, err := e.getSessionOrServiceAccount(ctx)
+	if err != nil {
+		return nil, err
+	}
 	groups, _ := getClaimStringSlice(s, "groups")
-	return groups
+	return groups, nil
 }
 
 func (e *headersEvaluatorEvaluation) getJWTPayloadSID() string {
 	return e.request.Session.ID
 }
 
-func (e *headersEvaluatorEvaluation) getJWTPayloadName(ctx context.Context) string {
-	s, _ := e.getSessionOrServiceAccount(ctx)
+func (e *headersEvaluatorEvaluation) getJWTPayloadName(ctx context.Context) (string, error) {
+	s, _, err := e.getSessionOrServiceAccount(ctx)
+	if err != nil {
+		return "", err
+	}
 	if names, ok := getClaimStringSlice(s, "name"); ok {
-		return strings.Join(names, ",")
+		return strings.Join(names, ","), nil
 	}
 
-	u := e.getUser(ctx)
+	u, err := e.getUser(ctx)
+	if err != nil {
+		return "", err
+	}
 	if names, ok := getClaimStringSlice(u, "name"); ok {
-		return strings.Join(names, ",")
+		return strings.Join(names, ","), nil
 	}
 
-	return ""
+	return "", nil
 }
 
-func (e *headersEvaluatorEvaluation) getJWTPayload(ctx context.Context) map[string]any {
+func (e *headersEvaluatorEvaluation) getJWTPayload(ctx context.Context) (map[string]any, error) {
 	if e.gotJWTPayload {
-		return e.cachedJWTPayload
+		return e.cachedJWTPayload, nil
 	}
 
-	e.gotJWTPayload = true
 	e.cachedJWTPayload = map[string]any{
-		"iss":    e.getJWTPayloadIss(),
-		"aud":    e.getJWTPayloadAud(),
-		"jti":    e.getJWTPayloadJTI(),
-		"iat":    e.getJWTPayloadIAT(),
-		"exp":    e.getJWTPayloadExp(),
-		"sub":    e.getJWTPayloadSub(ctx),
-		"user":   e.getJWTPayloadUser(ctx),
-		"email":  e.getJWTPayloadEmail(ctx),
-		"groups": e.getJWTPayloadGroups(ctx),
-		"sid":    e.getJWTPayloadSID(),
-		"name":   e.getJWTPayloadName(ctx),
+		"iss": e.getJWTPayloadIss(),
+		"aud": e.getJWTPayloadAud(),
+		"jti": e.getJWTPayloadJTI(),
+		"iat": e.getJWTPayloadIAT(),
+		"exp": e.getJWTPayloadExp(),
+		"sid": e.getJWTPayloadSID(),
 	}
 
-	s, _ := e.getSessionOrServiceAccount(ctx)
-	u := e.getUser(ctx)
+	var err error
+	e.cachedJWTPayload["sub"], err = e.getJWTPayloadSub(ctx)
+	if err != nil {
+		return nil, err
+	}
+	e.cachedJWTPayload["user"], err = e.getJWTPayloadUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	e.cachedJWTPayload["email"], err = e.getJWTPayloadEmail(ctx)
+	if err != nil {
+		return nil, err
+	}
+	e.cachedJWTPayload["groups"], err = e.getJWTPayloadGroups(ctx)
+	if err != nil {
+		return nil, err
+	}
+	e.cachedJWTPayload["name"], err = e.getJWTPayloadName(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	s, _, err := e.getSessionOrServiceAccount(ctx)
+	if err != nil {
+		return nil, err
+	}
+	u, err := e.getUser(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, claimKey := range e.evaluator.store.GetJWTClaimHeaders() {
 		// ignore base claims
@@ -336,19 +471,20 @@ func (e *headersEvaluatorEvaluation) getJWTPayload(ctx context.Context) map[stri
 			e.cachedJWTPayload[claimKey] = strings.Join(vs, ",")
 		}
 	}
-	return e.cachedJWTPayload
+
+	e.gotJWTPayload = true
+	return e.cachedJWTPayload, nil
 }
 
-func (e *headersEvaluatorEvaluation) getSignedJWT(ctx context.Context) string {
+func (e *headersEvaluatorEvaluation) getSignedJWT(ctx context.Context) (string, error) {
 	if e.gotSignedJWT {
-		return e.cachedSignedJWT
+		return e.cachedSignedJWT, nil
 	}
 
-	e.gotSignedJWT = true
 	signingKey := e.evaluator.store.GetSigningKey()
 	if signingKey == nil {
 		log.Ctx(ctx).Error().Msg("authorize/header-evaluator: missing signing key")
-		return ""
+		return "", nil
 	}
 
 	signingOptions := new(jose.SignerOptions).
@@ -362,39 +498,48 @@ func (e *headersEvaluatorEvaluation) getSignedJWT(ctx context.Context) string {
 	}, signingOptions)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error creating JWT signer")
-		return ""
+		return "", err
 	}
 
-	jwtPayload := e.getJWTPayload(ctx)
+	jwtPayload, err := e.getJWTPayload(ctx)
+	if err != nil {
+		return "", err
+	}
 	bs, err := json.Marshal(jwtPayload)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error marshaling JWT payload")
-		return ""
+		return "", err
 	}
 
 	jwt, err := signer.Sign(bs)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error signing JWT")
-		return ""
+		return "", err
 	}
 
 	e.cachedSignedJWT, err = jwt.CompactSerialize()
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize/header-evaluator: error serializing JWT")
-		return ""
+		return "", err
 	}
-	return e.cachedSignedJWT
+
+	e.gotSignedJWT = true
+	return e.cachedSignedJWT, nil
 }
 
-func (e *headersEvaluatorEvaluation) getDataBrokerGroupNames(ctx context.Context, groupIDs []string) []string {
+func (e *headersEvaluatorEvaluation) getDataBrokerGroupNames(ctx context.Context, groupIDs []string) ([]string, error) {
 	groupNames := make([]string, 0, len(groupIDs))
 	for _, groupID := range groupIDs {
-		dg, _ := e.evaluator.store.GetDataBrokerRecord(ctx, directory.GroupRecordType, groupID).(*structpb.Struct)
+		msg, err := e.evaluator.store.GetDataBrokerRecord(ctx, directory.GroupRecordType, groupID)
+		if err != nil {
+			return nil, fmt.Errorf("error looking up directory group: %w", err)
+		}
+		dg, _ := msg.(*structpb.Struct)
 		if name, ok := getStructString(dg, "name"); ok {
 			groupNames = append(groupNames, name)
 		}
 	}
-	return groupNames
+	return groupNames, nil
 }
 
 type hasGetClaims interface {
