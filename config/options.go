@@ -194,7 +194,7 @@ type Options struct {
 	JWTClaimsHeaders JWTClaimHeaders `mapstructure:"jwt_claims_headers" yaml:"jwt_claims_headers,omitempty"`
 
 	// Allowlist of group names/IDs to include in the Pomerium JWT.
-	JWTGroupsFilter []string
+	JWTGroupsFilter *goset.Set[string]
 
 	DefaultUpstreamTimeout time.Duration `mapstructure:"default_upstream_timeout" yaml:"default_upstream_timeout,omitempty"`
 
@@ -1559,6 +1559,9 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	copyMap(&o.RuntimeFlags, settings.RuntimeFlags, func(k string, v bool) (RuntimeFlag, bool) {
 		return RuntimeFlag(k), v
 	})
+	if len(settings.JwtGroupsFilter) > 0 {
+		o.JWTGroupsFilter = goset.From(settings.JwtGroupsFilter)
+	}
 }
 
 func (o *Options) ToProto() *config.Config {
@@ -1664,6 +1667,9 @@ func (o *Options) ToProto() *config.Config {
 	copyMap(&settings.RuntimeFlags, o.RuntimeFlags, func(k RuntimeFlag, v bool) (string, bool) {
 		return string(k), v
 	})
+	if o.JWTGroupsFilter != nil {
+		settings.JwtGroupsFilter = o.JWTGroupsFilter.Slice()
+	}
 
 	routes := make([]*config.Route, 0, o.NumPolicies())
 	for p := range o.GetAllPolicies() {

@@ -31,6 +31,7 @@ type Store struct {
 
 	googleCloudServerlessAuthenticationServiceAccount atomic.Pointer[string]
 	jwtClaimHeaders                                   atomic.Pointer[map[string]string]
+	jwtGroupsFilter                                   atomic.Pointer[[]string]
 	signingKey                                        atomic.Pointer[jose.JSONWebKey]
 }
 
@@ -72,6 +73,12 @@ func (s *Store) UpdateGoogleCloudServerlessAuthenticationServiceAccount(serviceA
 func (s *Store) UpdateJWTClaimHeaders(jwtClaimHeaders map[string]string) {
 	s.write("/jwt_claim_headers", jwtClaimHeaders)
 	s.jwtClaimHeaders.Store(&jwtClaimHeaders)
+}
+
+// UpdateJWTGroupsFilter updates the JWT groups filter in the store.
+func (s *Store) UpdateJWTGroupsFilter(groups []string) {
+	s.write("/jwt_groups_filter", groups)
+	s.jwtGroupsFilter.Store(&groups)
 }
 
 // UpdateRoutePolicies updates the route policies in the store.
