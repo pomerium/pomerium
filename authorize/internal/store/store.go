@@ -15,6 +15,7 @@ import (
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/types"
 	octrace "go.opencensus.io/trace"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -169,7 +170,7 @@ func (s *Store) GetDataBrokerRecord(ctx context.Context, recordType, recordIDOrI
 	}
 	req.SetFilterByIDOrIndex(recordIDOrIndex)
 
-	res, err := storage.GetQuerier(ctx).Query(ctx, req)
+	res, err := storage.GetQuerier(ctx).Query(ctx, req, grpc.WaitForReady(true))
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize/store: error retrieving record")
 		return nil
