@@ -45,7 +45,7 @@ enum IssuerFormat {
   IssuerURI = 1;
 }
 
-// Next ID: 66.
+// Next ID: 67.
 message Route {
   string name = 1;
 
@@ -113,6 +113,7 @@ message Route {
   string kubernetes_service_account_token_file = 64;
   bool enable_google_cloud_serverless_authentication = 42;
   IssuerFormat jwt_issuer_format = 65;
+  repeated string jwt_groups_filter = 66;
 
   envoy.config.cluster.v3.Cluster envoy_opts = 36;
 
@@ -145,7 +146,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 119.
+// Next ID: 120.
 message Settings {
   message Certificate {
     bytes cert_bytes = 3;
@@ -198,6 +199,7 @@ message Settings {
   map<string, string> set_response_headers = 69;
   // repeated string jwt_claims_headers = 37;
   map<string, string> jwt_claims_headers = 63;
+  repeated string jwt_groups_filter = 119;
   optional google.protobuf.Duration default_upstream_timeout = 39;
   optional string metrics_address = 40;
   optional string metrics_basic_auth = 64;

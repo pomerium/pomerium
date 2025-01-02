@@ -18,10 +18,12 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/datasource/pkg/directory"
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 // A headersEvaluatorEvaluation is a single evaluation of the headers evaluator.
@@ -310,6 +312,43 @@ func (e *headersEvaluatorEvaluation) getJWTPayloadEmail(ctx context.Context) str
 }
 
 func (e *headersEvaluatorEvaluation) getJWTPayloadGroups(ctx context.Context) []string {
+	groups := e.getFilteredGroups(ctx)
+
+	if groups == nil {
+		// If there are no groups, marshal this claim as an empty list rather than a JSON null,
+		// for better compatibility with third-party libraries.
+		// See https://github.com/pomerium/pomerium/issues/5393 for one example.
+		groups = []string{}
+	}
+	return groups
+}
+
+func (e *headersEvaluatorEvaluation) getFilteredGroups(ctx context.Context) []string {
+	groups := e.getAllGroups(ctx)
+
+	// Apply the global groups filter or the per-route groups filter, if either is enabled.
+	filters := make([]config.JWTGroupsFilter, 0, 2)
+	if f := e.evaluator.store.GetJWTGroupsFilter(); f.Enabled() {
+		filters = append(filters, f)
+	}
+	if e.request.Policy != nil && e.request.Policy.JWTGroupsFilter.Enabled() {
+		filters = append(filters, e.request.Policy.JWTGroupsFilter)
+	}
+	if len(filters) == 0 {
+		return groups
+	}
+	return slices.Filter(groups, func(g string) bool {
+		for _, f := range filters {
+			if f.IsAllowed(g) {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+// getAllGroups returns the full group names/IDs list (without any filtering).
+func (e *headersEvaluatorEvaluation) getAllGroups(ctx context.Context) []string {
 	groupIDs := e.getGroupIDs(ctx)
 	if len(groupIDs) > 0 {
 		groups := make([]string, 0, len(groupIDs)*2)
@@ -320,12 +359,6 @@ func (e *headersEvaluatorEvaluation) getJWTPayloadGroups(ctx context.Context) []
 
 	s, _ := e.getSessionOrServiceAccount(ctx)
 	groups, _ := getClaimStringSlice(s, "groups")
-	if groups == nil {
-		// If there are no groups, marshal this claim as an empty list rather than a JSON null,
-		// for better compatibility with third-party libraries.
-		// See https://github.com/pomerium/pomerium/issues/5393 for one example.
-		groups = []string{}
-	}
 	return groups
 }
 
