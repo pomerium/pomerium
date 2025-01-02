@@ -3,6 +3,7 @@ package authorize
 import (
 	"context"
 
+	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -24,13 +25,13 @@ func getDataBrokerRecord(
 ) (*databroker.Record, error) {
 	q := storage.GetQuerier(ctx)
 
-	req := &databroker.QueryRequest{
-		Type:  recordType,
-		Limit: 1,
-	}
-	req.SetFilterByIDOrIndex(recordID)
+	req := store.GetPooledQueryRequest()
+	req.SetRecordType(recordType)
+	req.SetIDOrIndex(recordID)
+	ctx = storage.ContextWithCacheKey(ctx, req.CacheKey())
+	defer req.Release()
 
-	res, err := q.Query(ctx, req)
+	res, err := q.Query(ctx, req.Request())
 	if err != nil {
 		return nil, err
 	}
@@ -40,13 +41,13 @@ func getDataBrokerRecord(
 
 	// if the current record version is less than the lowest we'll accept, invalidate the cache
 	if res.GetRecords()[0].GetVersion() < lowestRecordVersion {
-		q.InvalidateCache(ctx, req)
+		q.InvalidateCache(ctx, req.Request())
 	} else {
 		return res.GetRecords()[0], nil
 	}
 
 	// retry with an up to date cache
-	res, err = q.Query(ctx, req)
+	res, err = q.Query(ctx, req.Request())
 	if err != nil {
 		return nil, err
 	}
