@@ -184,6 +184,9 @@ type Policy struct {
 	ShowErrorDetails bool `mapstructure:"show_error_details" yaml:"show_error_details" json:"show_error_details"`
 
 	Policy *PPLPolicy `mapstructure:"policy" yaml:"policy,omitempty" json:"policy,omitempty"`
+
+	// CookieDomain allows specifying the domain attribute of the cookies set for this route
+	CookieDomain string `mapstructure:"cookie_domain" yaml:"cookie_domain" json:"cookie_domain"`
 }
 
 // RewriteHeader is a policy configuration option to rewrite an HTTP header.
