@@ -1,7 +1,7 @@
 // Package rules contains useful pre-defined rego AST rules.
 package rules
 
-import "github.com/open-policy-agent/opa/ast"
+import "github.com/open-policy-agent/opa/v1/ast"
 
 // GetSession gets the session for the given id.
 func GetSession() *ast.Rule {

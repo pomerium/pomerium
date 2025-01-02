@@ -7,7 +7,7 @@ import (
 	"io"
 	"math"
 
-	"github.com/open-policy-agent/opa/ast"
+	"github.com/open-policy-agent/opa/v1/ast"
 )
 
 // A Value is a JSON value. Either an object, array, string, number, boolean or null.

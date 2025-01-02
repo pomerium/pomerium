@@ -11,7 +11,7 @@ import (
 
 	"github.com/go-jose/go-jose/v3"
 	"github.com/hashicorp/go-set/v3"
-	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/v1/rego"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pomerium/pomerium/authorize/internal/store"

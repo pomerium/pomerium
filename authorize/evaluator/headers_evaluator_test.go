@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v3/jwt"
-	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"

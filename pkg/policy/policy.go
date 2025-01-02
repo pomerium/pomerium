@@ -4,8 +4,7 @@ package policy
 import (
 	"io"
 
-	"github.com/open-policy-agent/opa/format"
-
+	"github.com/open-policy-agent/opa/v1/format"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/policy/generator"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
