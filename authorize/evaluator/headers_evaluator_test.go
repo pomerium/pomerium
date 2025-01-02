@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/stretchr/testify/assert"
@@ -62,21 +64,22 @@ func BenchmarkHeadersEvaluator(b *testing.B) {
 
 	e := NewHeadersEvaluator(s)
 
-	req := &HeadersRequest{
-		EnableRoutingKey:              true,
-		Issuer:                        "from.example.com",
-		Audience:                      "from.example.com",
-		KubernetesServiceAccountToken: "KUBERNETES_SERVICE_ACCOUNT_TOKEN",
-		ToAudience:                    "to.example.com",
+	req := &Request{
+		HTTP: RequestHTTP{
+			Method:   "GET",
+			Hostname: "from.example.com",
+		},
+		Policy: &config.Policy{
+			SetRequestHeaders: map[string]string{
+				"X-Custom-Header":         "CUSTOM_VALUE",
+				"X-ID-Token":              "${pomerium.id_token}",
+				"X-Access-Token":          "${pomerium.access_token}",
+				"Client-Cert-Fingerprint": "${pomerium.client_cert_fingerprint}",
+				"Authorization":           "Bearer ${pomerium.jwt}",
+			},
+		},
 		Session: RequestSession{
 			ID: "s1",
-		},
-		SetRequestHeaders: map[string]string{
-			"X-Custom-Header":         "CUSTOM_VALUE",
-			"X-ID-Token":              "${pomerium.id_token}",
-			"X-Access-Token":          "${pomerium.access_token}",
-			"Client-Cert-Fingerprint": "${pomerium.client_cert_fingerprint}",
-			"Authorization":           "Bearer ${pomerium.jwt}",
 		},
 	}
 	b.ResetTimer()
@@ -85,99 +88,6 @@ func BenchmarkHeadersEvaluator(b *testing.B) {
 		require.NoError(b, err)
 		_ = res
 	}
-}
-
-func TestNewHeadersRequestFromPolicy(t *testing.T) {
-	req, _ := NewHeadersRequestFromPolicy(&config.Policy{
-		EnableGoogleCloudServerlessAuthentication: true,
-		From: "https://*.example.com",
-		To: config.WeightedURLs{
-			{
-				URL: *mustParseURL("http://to.example.com"),
-			},
-		},
-	}, RequestHTTP{
-		Hostname: "from.example.com",
-		ClientCertificate: ClientCertificateInfo{
-			Leaf: "--- FAKE CERTIFICATE ---",
-		},
-	})
-	assert.Equal(t, &HeadersRequest{
-		EnableGoogleCloudServerlessAuthentication: true,
-		Issuer:     "from.example.com",
-		Audience:   "from.example.com",
-		ToAudience: "https://to.example.com",
-		ClientCertificate: ClientCertificateInfo{
-			Leaf: "--- FAKE CERTIFICATE ---",
-		},
-	}, req)
-}
-
-func TestNewHeadersRequestFromPolicy_IssuerFormat(t *testing.T) {
-	policy := &config.Policy{
-		EnableGoogleCloudServerlessAuthentication: true,
-		From: "https://*.example.com",
-		To: config.WeightedURLs{
-			{
-				URL: *mustParseURL("http://to.example.com"),
-			},
-		},
-	}
-	for _, tc := range []struct {
-		format           string
-		expectedIssuer   string
-		expectedAudience string
-		err              string
-	}{
-		{
-			format:           "",
-			expectedIssuer:   "from.example.com",
-			expectedAudience: "from.example.com",
-		},
-		{
-			format:           "hostOnly",
-			expectedIssuer:   "from.example.com",
-			expectedAudience: "from.example.com",
-		},
-		{
-			format:           "uri",
-			expectedIssuer:   "https://from.example.com/",
-			expectedAudience: "from.example.com",
-		},
-		{
-			format: "foo",
-			err:    `invalid issuer format: "foo"`,
-		},
-	} {
-		policy.JWTIssuerFormat = tc.format
-		req, err := NewHeadersRequestFromPolicy(policy, RequestHTTP{
-			Hostname: "from.example.com",
-			ClientCertificate: ClientCertificateInfo{
-				Leaf: "--- FAKE CERTIFICATE ---",
-			},
-		})
-		if tc.err != "" {
-			assert.ErrorContains(t, err, tc.err)
-		} else {
-			assert.Equal(t, &HeadersRequest{
-				EnableGoogleCloudServerlessAuthentication: true,
-				Issuer:     tc.expectedIssuer,
-				Audience:   tc.expectedAudience,
-				ToAudience: "https://to.example.com",
-				ClientCertificate: ClientCertificateInfo{
-					Leaf: "--- FAKE CERTIFICATE ---",
-				},
-			}, req)
-		}
-	}
-}
-
-func TestNewHeadersRequestFromPolicy_nil(t *testing.T) {
-	req, _ := NewHeadersRequestFromPolicy(nil, RequestHTTP{Hostname: "from.example.com"})
-	assert.Equal(t, &HeadersRequest{
-		Issuer:   "from.example.com",
-		Audience: "from.example.com",
-	}, req)
 }
 
 func TestHeadersEvaluator(t *testing.T) {
@@ -197,7 +107,7 @@ func TestHeadersEvaluator(t *testing.T) {
 
 	iat := time.Unix(1686870680, 0)
 
-	eval := func(_ *testing.T, data []proto.Message, input *HeadersRequest) (*HeadersResponse, error) {
+	eval := func(_ *testing.T, data []proto.Message, input *Request) (*HeadersResponse, error) {
 		ctx := context.Background()
 		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
 		store := store.New()
@@ -232,10 +142,11 @@ func TestHeadersEvaluator(t *testing.T) {
 				newDirectoryGroupRecord(directory.Group{ID: "g3", Name: "GROUP3", Email: "g3@example.com"}),
 				newDirectoryGroupRecord(directory.Group{ID: "g4", Name: "GROUP4", Email: "g4@example.com"}),
 			},
-			&HeadersRequest{
-				Issuer:     "from.example.com",
-				Audience:   "from.example.com",
-				ToAudience: "to.example.com",
+			&Request{
+				HTTP: RequestHTTP{
+					Hostname: "from.example.com",
+				},
+				Policy: &config.Policy{},
 				Session: RequestSession{
 					ID: "s1",
 				},
@@ -292,7 +203,7 @@ func TestHeadersEvaluator(t *testing.T) {
 					}},
 				}},
 			},
-			&HeadersRequest{
+			&Request{
 				Session: RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
@@ -312,20 +223,22 @@ func TestHeadersEvaluator(t *testing.T) {
 					AccessToken: "ACCESS_TOKEN",
 				}},
 			},
-			&HeadersRequest{
-				Issuer:     "from.example.com",
-				Audience:   "from.example.com",
-				ToAudience: "to.example.com",
-				Session:    RequestSession{ID: "s1"},
-				SetRequestHeaders: map[string]string{
-					"X-Custom-Header":         "CUSTOM_VALUE",
-					"X-ID-Token":              "${pomerium.id_token}",
-					"X-Access-Token":          "${pomerium.access_token}",
-					"Client-Cert-Fingerprint": "${pomerium.client_cert_fingerprint}",
-					"Authorization":           "Bearer ${pomerium.jwt}",
-					"Foo":                     "escaped $$dollar sign",
+			&Request{
+				HTTP: RequestHTTP{
+					Hostname:          "from.example.com",
+					ClientCertificate: ClientCertificateInfo{Leaf: testValidCert},
 				},
-				ClientCertificate: ClientCertificateInfo{Leaf: testValidCert},
+				Policy: &config.Policy{
+					SetRequestHeaders: map[string]string{
+						"X-Custom-Header":         "CUSTOM_VALUE",
+						"X-ID-Token":              "${pomerium.id_token}",
+						"X-Access-Token":          "${pomerium.access_token}",
+						"Client-Cert-Fingerprint": "${pomerium.client_cert_fingerprint}",
+						"Authorization":           "Bearer ${pomerium.jwt}",
+						"Foo":                     "escaped $$dollar sign",
+					},
+				},
+				Session: RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
 
@@ -355,13 +268,12 @@ func TestHeadersEvaluator(t *testing.T) {
 					AccessToken: "ACCESS_TOKEN",
 				}},
 			},
-			&HeadersRequest{
-				Issuer:     "from.example.com",
-				Audience:   "from.example.com",
-				ToAudience: "to.example.com",
-				Session:    RequestSession{ID: "s1"},
-				SetRequestHeaders: map[string]string{
-					"X-ID-Token": "${pomerium.id_token}",
+			&Request{
+				Session: RequestSession{ID: "s1"},
+				Policy: &config.Policy{
+					SetRequestHeaders: map[string]string{
+						"X-ID-Token": "${pomerium.id_token}",
+					},
 				},
 			})
 		require.NoError(t, err)
@@ -378,14 +290,13 @@ func TestHeadersEvaluator(t *testing.T) {
 					AccessToken: "ACCESS_TOKEN",
 				}},
 			},
-			&HeadersRequest{
-				Issuer:     "from.example.com",
-				Audience:   "from.example.com",
-				ToAudience: "to.example.com",
-				Session:    RequestSession{ID: "s1"},
-				SetRequestHeaders: map[string]string{
-					"Authorization": "Bearer ${pomerium.id_token}",
+			&Request{
+				Policy: &config.Policy{
+					SetRequestHeaders: map[string]string{
+						"Authorization": "Bearer ${pomerium.id_token}",
+					},
 				},
+				Session: RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
 
@@ -394,12 +305,11 @@ func TestHeadersEvaluator(t *testing.T) {
 
 	t.Run("set_request_headers no client cert", func(t *testing.T) {
 		output, err := eval(t, nil,
-			&HeadersRequest{
-				Issuer:     "from.example.com",
-				Audience:   "from.example.com",
-				ToAudience: "to.example.com",
-				SetRequestHeaders: map[string]string{
-					"fingerprint": "${pomerium.client_cert_fingerprint}",
+			&Request{
+				Policy: &config.Policy{
+					SetRequestHeaders: map[string]string{
+						"fingerprint": "${pomerium.client_cert_fingerprint}",
+					},
 				},
 			})
 		require.NoError(t, err)
@@ -427,12 +337,11 @@ func TestHeadersEvaluator(t *testing.T) {
 					Name: "GROUP2",
 				}),
 			},
-			&HeadersRequest{
-				Issuer:                        "from.example.com",
-				Audience:                      "from.example.com",
-				ToAudience:                    "to.example.com",
-				KubernetesServiceAccountToken: "TOKEN",
-				Session:                       RequestSession{ID: "s1"},
+			&Request{
+				Policy: &config.Policy{
+					KubernetesServiceAccountToken: "TOKEN",
+				},
+				Session: RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
 		assert.Equal(t, "Bearer TOKEN", output.Headers.Get("Authorization"))
@@ -445,18 +354,21 @@ func TestHeadersEvaluator(t *testing.T) {
 
 		output, err := eval(t,
 			[]protoreflect.ProtoMessage{},
-			&HeadersRequest{
-				EnableRoutingKey: false,
-				Session:          RequestSession{ID: "s1"},
+			&Request{
+				Session: RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
 		assert.Empty(t, output.Headers.Get("X-Pomerium-Routing-Key"))
 
 		output, err = eval(t,
 			[]protoreflect.ProtoMessage{},
-			&HeadersRequest{
-				EnableRoutingKey: true,
-				Session:          RequestSession{ID: "s1"},
+			&Request{
+				Policy: &config.Policy{
+					EnvoyOpts: &envoy_config_cluster_v3.Cluster{
+						LbPolicy: envoy_config_cluster_v3.Cluster_MAGLEV,
+					},
+				},
+				Session: RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
 		assert.Equal(t, "e8bc163c82eee18733288c7d4ac636db3a6deb013ef2d37b68322be20edc45cc", output.Headers.Get("X-Pomerium-Routing-Key"))
@@ -470,7 +382,7 @@ func TestHeadersEvaluator(t *testing.T) {
 				&session.Session{Id: "s1", UserId: "u1"},
 				&user.User{Id: "u1", Email: "user@example.com"},
 			},
-			&HeadersRequest{
+			&Request{
 				Session: RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
@@ -481,7 +393,7 @@ func TestHeadersEvaluator(t *testing.T) {
 				&session.Session{Id: "s1", UserId: "u1"},
 				newDirectoryUserRecord(directory.User{ID: "u1", Email: "directory-user@example.com"}),
 			},
-			&HeadersRequest{
+			&Request{
 				Session: RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
@@ -498,7 +410,7 @@ func TestHeadersEvaluator(t *testing.T) {
 					}},
 				}},
 			},
-			&HeadersRequest{
+			&Request{
 				Session: RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
@@ -513,7 +425,7 @@ func TestHeadersEvaluator(t *testing.T) {
 					}},
 				}},
 			},
-			&HeadersRequest{
+			&Request{
 				Session: RequestSession{ID: "s1"},
 			})
 		require.NoError(t, err)
@@ -528,12 +440,54 @@ func TestHeadersEvaluator(t *testing.T) {
 				&user.ServiceAccount{Id: "sa1", UserId: "u1"},
 				&user.User{Id: "u1", Email: "u1@example.com"},
 			},
-			&HeadersRequest{
+			&Request{
 				Session: RequestSession{ID: "sa1"},
 			})
 		require.NoError(t, err)
 		assert.Equal(t, "u1@example.com", output.Headers.Get("X-Pomerium-Claim-Email"))
 	})
+
+	t.Run("issuer format", func(t *testing.T) {
+		t.Parallel()
+
+		for _, tc := range []struct {
+			format string
+			input  string
+			output string
+		}{
+			{"", "example.com", "example.com"},
+			{"hostOnly", "host-only.example.com", "host-only.example.com"},
+			{"uri", "uri.example.com", "https://uri.example.com/"},
+		} {
+			output, err := eval(t,
+				nil,
+				&Request{
+					HTTP: RequestHTTP{
+						Hostname: tc.input,
+					},
+					Policy: &config.Policy{
+						JWTIssuerFormat: tc.format,
+					},
+				})
+			require.NoError(t, err)
+			m := decodeJWTAssertion(t, output.Headers)
+			assert.Equal(t, tc.output, m["iss"], "unexpected issuer for format=%s", tc.format)
+		}
+	})
+}
+
+func decodeJWTAssertion(t *testing.T, headers http.Header) map[string]any {
+	jwtHeader := headers.Get("X-Pomerium-Jwt-Assertion")
+	// Make sure the 'iat' and 'exp' claims can be parsed as an integer. We
+	// need to do some explicit decoding in order to be able to verify
+	// this, as by default json.Unmarshal() will make no distinction
+	// between numeric formats.
+	d := json.NewDecoder(bytes.NewReader(decodeJWSPayload(t, jwtHeader)))
+	d.UseNumber()
+	var m map[string]any
+	err := d.Decode(&m)
+	require.NoError(t, err)
+	return m
 }
 
 func decodeJWSPayload(t *testing.T, jws string) []byte {
