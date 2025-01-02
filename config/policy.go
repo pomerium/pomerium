@@ -165,6 +165,10 @@ type Policy struct {
 	// - "uri": Issuer strings will be a complete URI, including the scheme and ending with a trailing slash.
 	JWTIssuerFormat string `mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
 
+	// Allowlist of group names/IDs to include in the Pomerium JWT.
+	// This adds to the global allowlist in [Options].
+	JWTGroupsFilter []string
+
 	SubPolicies []SubPolicy `mapstructure:"sub_policies" yaml:"sub_policies,omitempty" json:"sub_policies,omitempty"`
 
 	EnvoyOpts *envoy_config_cluster_v3.Cluster `mapstructure:"_envoy_opts" yaml:"-" json:"-"`

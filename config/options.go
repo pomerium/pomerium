@@ -193,6 +193,9 @@ type Options struct {
 	// List of JWT claims to insert as x-pomerium-claim-* headers on proxied requests
 	JWTClaimsHeaders JWTClaimHeaders `mapstructure:"jwt_claims_headers" yaml:"jwt_claims_headers,omitempty"`
 
+	// Allowlist of group names/IDs to include in the Pomerium JWT.
+	JWTGroupsFilter []string
+
 	DefaultUpstreamTimeout time.Duration `mapstructure:"default_upstream_timeout" yaml:"default_upstream_timeout,omitempty"`
 
 	// Address/Port to bind to for prometheus metrics
