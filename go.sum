@@ -151,6 +151,8 @@ github.com/bits-and-blooms/bitset v1.20.0/go.mod h1:7hO7Gc7Pp1vODcmWvKMRA9BNmbv6
 github.com/bmatcuk/doublestar v1.1.1/go.mod h1:UD6OnuiIn0yFxxA2le/rnRU1G4RaI4UvFv1sNto9p6w=
 github.com/bytecodealliance/wasmtime-go/v3 v3.0.2 h1:3uZCA/BLTIu+DqCfguByNMJa2HVHpXvjfy0Dy7g6fuA=
 github.com/bytecodealliance/wasmtime-go/v3 v3.0.2/go.mod h1:RnUjnIXxEJcL6BgCvNyzCCRzZcxCgsZCi+RNlvYor5Q=
+github.com/caddyserver/certmagic v0.21.4 h1:e7VobB8rffHv8ZZpSiZtEwnLDHUwLVYLWzWSa1FfKI0=
+github.com/caddyserver/certmagic v0.21.4/go.mod h1:swUXjQ1T9ZtMv95qj7/InJvWLXURU85r+CfG0T+ZbDE=
 github.com/caddyserver/certmagic v0.21.5 h1:iIga4nZRgd27EIEbX7RZmoRMul+EVBn/h7bAGL83dnY=
 github.com/caddyserver/certmagic v0.21.5/go.mod h1:n1sCo7zV1Ez2j+89wrzDxo4N/T1Ws/Vx8u5NvuBFabw=
 github.com/caddyserver/zerossl v0.1.3 h1:onS+pxp3M8HnHpN5MMbOMyNjmTheJyWRaZYwn+YTAyA=
