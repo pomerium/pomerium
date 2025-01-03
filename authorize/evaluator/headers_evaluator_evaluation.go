@@ -15,7 +15,6 @@ import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/go-jose/go-jose/v3"
 	"github.com/google/uuid"
-	"github.com/hashicorp/go-set/v3"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/datasource/pkg/directory"
@@ -43,9 +42,6 @@ type headersEvaluatorEvaluation struct {
 
 	gotDirectoryUser    bool
 	cachedDirectoryUser *structpb.Struct
-
-	gotJWTGroupsFilterSet    bool
-	cachedJWTGroupsFilterSet *set.Set[string]
 
 	gotJWTPayloadJTI    bool
 	cachedJWTPayloadJTI string
