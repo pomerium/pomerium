@@ -18,7 +18,7 @@ import (
 )
 
 func TestServerHTTP(t *testing.T) {
-	ports, err := netutil.AllocatePorts(5)
+	ports, err := netutil.AllocatePorts(4)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -26,11 +26,10 @@ func TestServerHTTP(t *testing.T) {
 	defer cancel()
 
 	cfg := &config.Config{
-		GRPCPort:     ports[0],
-		HTTPPort:     ports[1],
-		OutboundPort: ports[2],
-		MetricsPort:  ports[3],
-		DebugPort:    ports[4],
+		GRPCPort:    ports[0],
+		HTTPPort:    ports[1],
+		MetricsPort: ports[2],
+		DebugPort:   ports[3],
 
 		Options: config.NewDefaultOptions(),
 	}

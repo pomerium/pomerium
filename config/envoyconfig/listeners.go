@@ -65,7 +65,7 @@ func (b *Builder) BuildListeners(
 		listeners = append(listeners, li)
 	}
 
-	li, err := b.buildOutboundListener(cfg)
+	li, err := b.buildOutboundListener()
 	if err != nil {
 		return nil, err
 	}

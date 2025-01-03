@@ -237,7 +237,6 @@ func (src *ConfigSource) addPolicies(ctx context.Context, cfg *config.Config, po
 func (src *ConfigSource) runUpdater(ctx context.Context, cfg *config.Config) {
 	sharedKey, _ := cfg.Options.GetSharedKey()
 	connectionOptions := &grpc.OutboundOptions{
-		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,
 		SignedJWTKey:   sharedKey,
@@ -274,7 +273,6 @@ func (src *ConfigSource) runUpdater(ctx context.Context, cfg *config.Config) {
 		databroker.WithFastForward())
 	go func() {
 		log.Ctx(ctx).Debug().
-			Str("outbound_port", cfg.OutboundPort).
 			Msg("config: starting databroker config source syncer")
 		_ = syncer.Run(ctx)
 	}()

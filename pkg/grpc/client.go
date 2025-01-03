@@ -2,7 +2,8 @@ package grpc
 
 import (
 	"context"
-	"net"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/google/go-cmp/cmp"
@@ -14,6 +15,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
+
+var OutboundAddress = filepath.Join(os.TempDir(), "pomerium-outbound.sock")
 
 // Options contains options for connecting to a pomerium rpc service.
 type Options struct {
@@ -61,9 +64,6 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 
 // OutboundOptions are the options for the outbound gRPC client.
 type OutboundOptions struct {
-	// OutboundPort is the port for the outbound gRPC listener.
-	OutboundPort string
-
 	// InstallationID specifies the installation id for telemetry exposition.
 	InstallationID string
 
@@ -77,7 +77,7 @@ type OutboundOptions struct {
 // newOutboundGRPCClientConn gets a new outbound gRPC client.
 func newOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions) (*grpc.ClientConn, error) {
 	return NewGRPCClientConn(ctx, &Options{
-		Address:        net.JoinHostPort("127.0.0.1", opts.OutboundPort),
+		Address:        "unix://" + OutboundAddress,
 		InstallationID: opts.InstallationID,
 		ServiceName:    opts.ServiceName,
 		SignedJWTKey:   opts.SignedJWTKey,

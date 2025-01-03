@@ -48,7 +48,6 @@ func (r *Reporter) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	}
 
 	registryConn, err := r.outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
-		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,
 		SignedJWTKey:   sharedKey,
