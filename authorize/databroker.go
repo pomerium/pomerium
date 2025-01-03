@@ -9,6 +9,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/storage"
+	"google.golang.org/grpc"
 )
 
 type sessionOrServiceAccount interface {
@@ -30,7 +31,7 @@ func getDataBrokerRecord(
 	}
 	req.SetFilterByIDOrIndex(recordID)
 
-	res, err := q.Query(ctx, req)
+	res, err := q.Query(ctx, req, grpc.WaitForReady(true))
 	if err != nil {
 		return nil, err
 	}
