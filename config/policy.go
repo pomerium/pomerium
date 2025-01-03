@@ -8,14 +8,12 @@ import (
 	"net/url"
 	"os"
 	"regexp"
-	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
-	goset "github.com/hashicorp/go-set/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
@@ -169,7 +167,7 @@ type Policy struct {
 
 	// Allowlist of group names/IDs to include in the Pomerium JWT.
 	// This adds to the global allowlist in the main Options.
-	JWTGroupsFilter *goset.Set[string]
+	JWTGroupsFilter JWTGroupsFilter
 
 	SubPolicies []SubPolicy `mapstructure:"sub_policies" yaml:"sub_policies,omitempty" json:"sub_policies,omitempty"`
 
@@ -296,6 +294,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		IdleTimeout:                       idleTimeout,
 		IDPClientID:                       pb.GetIdpClientId(),
 		IDPClientSecret:                   pb.GetIdpClientSecret(),
+		JWTGroupsFilter:                   NewJWTGroupsFilter(pb.JwtGroupsFilter),
 		KubernetesServiceAccountToken:     pb.GetKubernetesServiceAccountToken(),
 		KubernetesServiceAccountTokenFile: pb.GetKubernetesServiceAccountTokenFile(),
 		PassIdentityHeaders:               pb.PassIdentityHeaders,
@@ -373,9 +372,6 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	case configpb.IssuerFormat_IssuerURI:
 		p.JWTIssuerFormat = "uri"
 	}
-	if len(pb.JwtGroupsFilter) > 0 {
-		p.JWTGroupsFilter = goset.From(pb.JwtGroupsFilter)
-	}
 
 	for _, rwh := range pb.RewriteResponseHeaders {
 		p.RewriteResponseHeaders = append(p.RewriteResponseHeaders, RewriteHeader{
@@ -441,6 +437,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		From:                              p.From,
 		Id:                                p.ID,
 		IdleTimeout:                       idleTimeout,
+		JwtGroupsFilter:                   p.JWTGroupsFilter.ToSlice(),
 		KubernetesServiceAccountToken:     p.KubernetesServiceAccountToken,
 		KubernetesServiceAccountTokenFile: p.KubernetesServiceAccountTokenFile,
 		Name:                              fmt.Sprint(p.RouteID()),
@@ -522,9 +519,6 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		pb.JwtIssuerFormat = configpb.IssuerFormat_IssuerHostOnly
 	case "uri":
 		pb.JwtIssuerFormat = configpb.IssuerFormat_IssuerURI
-	}
-	if p.JWTGroupsFilter != nil {
-		pb.JwtGroupsFilter = slices.Sorted(p.JWTGroupsFilter.Items())
 	}
 
 	for _, rwh := range p.RewriteResponseHeaders {

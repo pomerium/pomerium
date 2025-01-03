@@ -14,7 +14,6 @@ import (
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
-	"github.com/hashicorp/go-set/v3"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -238,11 +237,11 @@ func TestHeadersEvaluator(t *testing.T) {
 			&Request{
 				Session: RequestSession{ID: "s1"},
 				Policy: &config.Policy{
-					JWTGroupsFilter: set.From([]string{"g4", "GROUP4", "g5", "GROUP5"}),
+					JWTGroupsFilter: config.NewJWTGroupsFilter([]string{"g4", "GROUP4", "g5", "GROUP5"}),
 				},
 			},
 			func(s *store.Store) {
-				s.UpdateJWTGroupsFilter(set.From([]string{"g0", "GROUP0", "g1", "GROUP1"}))
+				s.UpdateJWTGroupsFilter(config.NewJWTGroupsFilter([]string{"g0", "GROUP0", "g1", "GROUP1"}))
 			})
 		require.NoError(t, err)
 		jwtHeader := output.Headers.Get("X-Pomerium-Jwt-Assertion")

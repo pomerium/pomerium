@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/hashicorp/go-set/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -710,7 +709,7 @@ func TestPolicyEvaluatorReuse(t *testing.T) {
 		assertNoneReused(t, WithJWTClaimsHeaders(config.JWTClaimHeaders{"dummy": "header"}))
 	})
 	t.Run("JWTGroupsFilter changed", func(t *testing.T) {
-		assertNoneReused(t, WithJWTGroupsFilter(set.From([]string{"group1, group2"})))
+		assertNoneReused(t, WithJWTGroupsFilter(config.NewJWTGroupsFilter([]string{"group1, group2"})))
 	})
 
 	// If some policies have changed, but the evaluatorConfig is otherwise

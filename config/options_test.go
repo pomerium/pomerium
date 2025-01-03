@@ -29,7 +29,6 @@ import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	goset "github.com/hashicorp/go-set/v3"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -304,7 +303,6 @@ func Test_parsePolicyFile(t *testing.T) {
 
 	opts := []cmp.Option{
 		cmpopts.IgnoreFields(Policy{}, "EnvoyOpts"),
-		cmp.Comparer(safeSetEqual[string]),
 		cmpOptIgnoreUnexported,
 	}
 
@@ -402,7 +400,6 @@ func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
 		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "DataBrokerURLStrings", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "TracingSampleRate", "ProgrammaticRedirectDomainWhitelist", "RuntimeFlags"),
 		cmpopts.IgnoreFields(Policy{}, "EnvoyOpts"),
-		cmp.Comparer(safeSetEqual[string]),
 		cmpOptIgnoreUnexported,
 	}
 
@@ -1746,13 +1743,4 @@ func must[T any](t T, err error) T {
 		panic(err)
 	}
 	return t
-}
-
-func safeSetEqual[T comparable](a, b *goset.Set[T]) bool {
-	if a == nil && b == nil {
-		return true
-	} else if a == nil || b == nil {
-		return false
-	}
-	return a.Equal(b)
 }

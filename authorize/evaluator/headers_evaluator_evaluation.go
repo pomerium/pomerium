@@ -19,6 +19,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/datasource/pkg/directory"
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -317,11 +318,14 @@ func (e *headersEvaluatorEvaluation) getJWTPayloadEmail(ctx context.Context) str
 func (e *headersEvaluatorEvaluation) getJWTPayloadGroups(ctx context.Context) []string {
 	groups := e.getAllGroups(ctx)
 
-	globalGroupsFilter := e.evaluator.store.GetJWTGroupsFilter()
-
 	// Apply any groups filters (global or route-specific).
+	globalGroupsFilter := e.evaluator.store.GetJWTGroupsFilter()
+	var routeGroupsFilter config.JWTGroupsFilter
+	if p := e.request.Policy; p != nil {
+		routeGroupsFilter = p.JWTGroupsFilter
+	}
 	groups = slices.Filter(groups, func(g string) bool {
-		return globalGroupsFilter.Contains(g) || e.request.Policy.JWTGroupsFilter.Contains(g)
+		return globalGroupsFilter.Allowed(g) || routeGroupsFilter.Allowed(g)
 	})
 
 	if groups == nil {
