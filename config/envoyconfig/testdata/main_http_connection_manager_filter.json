@@ -23,7 +23,69 @@
     "commonHttpProtocolOptions": {
       "idleTimeout": "300s"
     },
+    "earlyHeaderMutationExtensions": [
+      {
+        "name": "envoy.http.early_header_mutation.trace_context",
+        "typedConfig": {
+          "@type": "type.googleapis.com/pomerium.extensions.TraceContext"
+        }
+      }
+    ],
     "httpFilters": [
+      {
+        "name": "envoy.filters.http.header_to_metadata",
+        "typedConfig": {
+          "@type": "type.googleapis.com/envoy.extensions.filters.http.header_to_metadata.v3.Config",
+          "requestRules": [
+            {
+              "header": "x-pomerium-traceparent",
+              "onHeaderPresent": {
+                "metadataNamespace": "pomerium.internal",
+                "key": "traceparent"
+              }
+            },
+            {
+              "header": "x-pomerium-tracestate",
+              "onHeaderPresent": {
+                "metadataNamespace": "pomerium.internal",
+                "key": "tracestate"
+              }
+            },
+            {
+              "header": "x-pomerium-external-parent-span",
+              "onHeaderPresent": {
+                "key": "external-parent-span",
+                "metadataNamespace": "pomerium.internal"
+              },
+              "remove": true
+            },
+            {
+              "header": "x-pomerium-sampling-decision",
+              "onHeaderPresent": {
+                "metadataNamespace": "pomerium.internal",
+                "key": "sampling-decision"
+              },
+              "remove": true
+            }
+          ],
+          "responseRules": [
+            {
+              "header": "x-pomerium-traceparent",
+              "onHeaderPresent": {
+                "metadataNamespace": "pomerium.internal",
+                "key": "traceparent"
+              }
+            },
+            {
+              "header": "x-pomerium-tracestate",
+              "onHeaderPresent": {
+                "metadataNamespace": "pomerium.internal",
+                "key": "tracestate"
+              }
+            }
+          ]
+        }
+      },
       {
         "name": "envoy.filters.http.lua",
         "typedConfig": {
@@ -50,13 +112,25 @@
             "envoyGrpc": {
               "clusterName": "pomerium-authorize"
             },
-            "timeout": "10s"
+            "timeout": "10s",
+            "initialMetadata": [
+              {
+                "key": "x-pomerium-traceparent",
+                "value": "%DYNAMIC_METADATA(pomerium.internal:traceparent)%"
+              },
+              {
+                "key": "x-pomerium-tracestate",
+                "value": "%DYNAMIC_METADATA(pomerium.internal:tracestate)%"
+              }
+            ]
           },
-          "metadataContextNamespaces": ["com.pomerium.client-certificate-info"],
+          "transportApiVersion": "V3",
           "statusOnError": {
             "code": "InternalServerError"
           },
-          "transportApiVersion": "V3"
+          "metadataContextNamespaces": [
+            "com.pomerium.client-certificate-info"
+          ]
         }
       },
       {
@@ -73,7 +147,7 @@
         "typedConfig": {
           "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
           "defaultSourceCode": {
-            "inlineString": "function has_prefix(str, prefix)\n    return str ~= nil and str:sub(1, #prefix) == prefix\nend\n\nfunction remove_pomerium_cookie(cookie_name, cookie)\n    local result = \"\"\n    for c in cookie:gmatch(\"([^;]+)\") do\n        c = c:gsub(\"^ +\",\"\")\n        local name = c:match(\"^([^=]+)\")\n        if name ~= cookie_name then\n            if string.len(result) \u003e 0 then\n                result = result .. \"; \" .. c\n            else\n                result = result .. c\n            end\n        end\n    end\n    return result\nend\n\nfunction envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local metadata = request_handle:metadata()\n\n    local remove_cookie_name = metadata:get(\"remove_pomerium_cookie\")\n    if remove_cookie_name then\n        local cookie = headers:get(\"cookie\")\n        if cookie ~= nil then\n            local newcookie = remove_pomerium_cookie(remove_cookie_name, cookie)\n            headers:replace(\"cookie\", newcookie)\n        end\n    end\n\n    local remove_authorization = metadata:get(\"remove_pomerium_authorization\")\n    if remove_authorization then\n        local authorization = headers:get(\"authorization\")\n        local authorization_prefix = \"Pomerium \"\n        if has_prefix(authorization, authorization_prefix) then\n            headers:remove(\"authorization\")\n        end\n\n        headers:remove('x-pomerium-authorization')\n    end\nend\n\nfunction envoy_on_response(response_handle) end\n"
+            "inlineString": "function has_prefix(str, prefix)\n    return str ~= nil and str:sub(1, #prefix) == prefix\nend\n\nfunction remove_pomerium_cookie(cookie_name, cookie)\n    local result = \"\"\n    for c in cookie:gmatch(\"([^;]+)\") do\n        c = c:gsub(\"^ +\",\"\")\n        local name = c:match(\"^([^=]+)\")\n        if name ~= cookie_name then\n            if string.len(result) > 0 then\n                result = result .. \"; \" .. c\n            else\n                result = result .. c\n            end\n        end\n    end\n    return result\nend\n\nfunction envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local metadata = request_handle:metadata()\n\n    local remove_cookie_name = metadata:get(\"remove_pomerium_cookie\")\n    if remove_cookie_name then\n        local cookie = headers:get(\"cookie\")\n        if cookie ~= nil then\n            local newcookie = remove_pomerium_cookie(remove_cookie_name, cookie)\n            headers:replace(\"cookie\", newcookie)\n        end\n    end\n\n    local remove_authorization = metadata:get(\"remove_pomerium_authorization\")\n    if remove_authorization then\n        local authorization = headers:get(\"authorization\")\n        local authorization_prefix = \"Pomerium \"\n        if has_prefix(authorization, authorization_prefix) then\n            headers:remove(\"authorization\")\n        end\n\n        headers:remove('x-pomerium-authorization')\n    end\nend\n\nfunction envoy_on_response(response_handle) end\n"
           }
         }
       },
@@ -167,6 +241,13 @@
         }
       ]
     },
+    "requestIdExtension": {
+      "typedConfig": {
+        "@type": "type.googleapis.com/pomerium.extensions.UuidxRequestIdConfig",
+        "packTraceReason": true,
+        "useRequestIdForTraceSampling": true
+      }
+    },
     "requestTimeout": "30s",
     "normalizePath": true,
     "rds": {
@@ -181,7 +262,83 @@
     "tracing": {
       "randomSampling": {
         "value": 0.01
-      }
+      },
+      "verbose": true,
+      "maxPathTagLength": 1024,
+      "customTags": [
+        {
+          "tag": "pomerium.traceparent",
+          "metadata": {
+            "kind": {
+              "request": {}
+            },
+            "metadataKey": {
+              "key": "pomerium.internal",
+              "path": [
+                {
+                  "key": "traceparent"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "tag": "pomerium.tracestate",
+          "metadata": {
+            "kind": {
+              "request": {}
+            },
+            "metadataKey": {
+              "key": "pomerium.internal",
+              "path": [
+                {
+                  "key": "tracestate"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "metadata": {
+            "kind": {
+              "request": {}
+            },
+            "metadataKey": {
+              "key": "pomerium.internal",
+              "path": [
+                {
+                  "key": "external-parent-span"
+                }
+              ]
+            }
+          },
+          "tag": "pomerium.external-parent-span"
+        }
+      ],
+      "provider": {
+        "name": "envoy.tracers.opentelemetry",
+        "typedConfig": {
+          "@type": "type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig",
+          "grpcService": {
+            "envoyGrpc": {
+              "clusterName": "pomerium-control-plane-grpc"
+            }
+          },
+          "serviceName": "Envoy",
+          "resourceDetectors": [
+            {
+              "name": "envoy.tracers.opentelemetry.resource_detectors.static_config",
+              "typedConfig": {
+                "@type": "type.googleapis.com/envoy.extensions.tracers.opentelemetry.resource_detectors.v3.StaticConfigResourceDetectorConfig",
+                "attributes": {
+                  "pomerium.envoy": "true"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "spawnUpstreamSpan": true
     },
     "useRemoteAddress": true,
     "xffNumTrustedHops": 1

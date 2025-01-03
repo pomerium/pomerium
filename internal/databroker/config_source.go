@@ -22,6 +22,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	oteltrace "go.opentelemetry.io/otel/trace"
+	googlegrpc "google.golang.org/grpc"
 )
 
 // ConfigSource provides a new Config source that decorates an underlying config with
@@ -35,6 +38,7 @@ type ConfigSource struct {
 	updaterHash            uint64
 	cancel                 func()
 	enableValidation       bool
+	tracerProvider         oteltrace.TracerProvider
 
 	config.ChangeDispatcher
 }
@@ -50,11 +54,13 @@ type EnableConfigValidation bool
 // NewConfigSource creates a new ConfigSource.
 func NewConfigSource(
 	ctx context.Context,
+	tracerProvider oteltrace.TracerProvider,
 	underlying config.Source,
 	enableValidation EnableConfigValidation,
 	listeners ...config.ChangeListener,
 ) *ConfigSource {
 	src := &ConfigSource{
+		tracerProvider:         tracerProvider,
 		enableValidation:       bool(enableValidation),
 		dbConfigs:              map[string]dbConfig{},
 		outboundGRPCConnection: new(grpc.CachedOutboundGRPClientConn),
@@ -85,7 +91,7 @@ func (src *ConfigSource) GetConfig() *config.Config {
 type firstTime bool
 
 func (src *ConfigSource) rebuild(ctx context.Context, firstTime firstTime) {
-	_, span := trace.StartSpan(ctx, "databroker.config_source.rebuild")
+	_, span := trace.Continue(ctx, "databroker.config_source.rebuild")
 	defer span.End()
 
 	now := time.Now()
@@ -259,7 +265,8 @@ func (src *ConfigSource) runUpdater(ctx context.Context, cfg *config.Config) {
 
 	ctx, src.cancel = context.WithCancel(ctx)
 
-	cc, err := src.outboundGRPCConnection.Get(ctx, connectionOptions)
+	cc, err := src.outboundGRPCConnection.Get(ctx, connectionOptions,
+		googlegrpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(src.tracerProvider))))
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("databroker: failed to create gRPC connection to data broker")
 		return

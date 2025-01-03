@@ -3,7 +3,6 @@ package authorize
 import (
 	"context"
 
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -63,7 +62,7 @@ func (a *Authorize) getDataBrokerSessionOrServiceAccount(
 	sessionID string,
 	dataBrokerRecordVersion uint64,
 ) (s sessionOrServiceAccount, err error) {
-	ctx, span := trace.StartSpan(ctx, "authorize.getDataBrokerSessionOrServiceAccount")
+	ctx, span := a.tracer.Start(ctx, "authorize.getDataBrokerSessionOrServiceAccount")
 	defer span.End()
 
 	record, err := getDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID, dataBrokerRecordVersion)
@@ -96,7 +95,7 @@ func (a *Authorize) getDataBrokerUser(
 	ctx context.Context,
 	userID string,
 ) (*user.User, error) {
-	ctx, span := trace.StartSpan(ctx, "authorize.getDataBrokerUser")
+	ctx, span := a.tracer.Start(ctx, "authorize.getDataBrokerUser")
 	defer span.End()
 
 	record, err := getDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(user.User)), userID, 0)

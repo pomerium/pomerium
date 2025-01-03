@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package pomerium.extensions;
+
+option go_package = "github.com/pomerium/pomerium/config/envoyconfig/extensions";
+
+message TraceContext {}

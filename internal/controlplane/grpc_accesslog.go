@@ -7,6 +7,8 @@ import (
 	envoy_data_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3"
 	envoy_service_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v3"
 	"github.com/rs/zerolog"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/pomerium/internal/log"
 )
@@ -21,7 +23,11 @@ func (srv *Server) StreamAccessLogs(stream envoy_service_accesslog_v3.AccessLogS
 	for {
 		msg, err := stream.Recv()
 		if err != nil {
-			log.Ctx(stream.Context()).Error().Err(err).Msg("access log stream error, disconnecting")
+			if status.Code(err) == codes.Canceled {
+				log.Ctx(stream.Context()).Debug().Err(err).Msg("access log stream canceled")
+			} else {
+				log.Ctx(stream.Context()).Error().Err(err).Msg("access log stream error, disconnecting")
+			}
 			return err
 		}
 

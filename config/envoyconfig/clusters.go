@@ -26,7 +26,7 @@ import (
 
 // BuildClusters builds envoy clusters from the given config.
 func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*envoy_config_cluster_v3.Cluster, error) {
-	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildClusters")
+	ctx, span := trace.Continue(ctx, "envoyconfig.Builder.BuildClusters")
 	defer span.End()
 
 	grpcURLs := []*url.URL{{
@@ -102,13 +102,6 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		authorizeCluster,
 		databrokerCluster,
 		envoyAdminCluster,
-	}
-
-	tracingCluster, err := buildTracingCluster(cfg.Options)
-	if err != nil {
-		return nil, err
-	} else if tracingCluster != nil {
-		clusters = append(clusters, tracingCluster)
 	}
 
 	if config.IsProxy(cfg.Options.Services) {
@@ -444,6 +437,16 @@ func grpcHealthChecks(name string) []*envoy_config_core_v3.HealthCheck {
 				ServiceName: name,
 			},
 		},
+		// EventLogger: []*envoy_config_core_v3.TypedExtensionConfig{
+		// 	{
+		// 		Name: "envoy.health_check.event_sink.file",
+		// 		TypedConfig: marshalAny(&envoy_extensions_eventsinks_file_v3.HealthCheckEventFileSink{
+		// 			EventLogPath: "/tmp/healthchecks",
+		// 		}),
+		// 	},
+		// },
+		// AlwaysLogHealthCheckFailures: true,
+		// AlwaysLogHealthCheckSuccess:  true,
 	}}
 }
 

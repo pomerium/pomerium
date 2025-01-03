@@ -20,11 +20,6 @@ func NewLogManager(ctx context.Context, src Source) *LogManager {
 	return mgr
 }
 
-// Close closes the log manager.
-func (mgr *LogManager) Close() error {
-	return nil
-}
-
 // OnConfigChange is called whenever configuration changes.
 func (mgr *LogManager) OnConfigChange(_ context.Context, cfg *Config) {
 	if cfg == nil || cfg.Options == nil {

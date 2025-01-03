@@ -20,7 +20,7 @@ func (b *Builder) BuildRouteConfigurations(
 	ctx context.Context,
 	cfg *config.Config,
 ) ([]*envoy_config_route_v3.RouteConfiguration, error) {
-	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildRouteConfigurations")
+	ctx, span := trace.Continue(ctx, "envoyconfig.Builder.BuildRouteConfigurations")
 	defer span.End()
 
 	var routeConfigurations []*envoy_config_route_v3.RouteConfiguration

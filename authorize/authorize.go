@@ -21,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // Authorize struct holds
@@ -35,18 +36,25 @@ type Authorize struct {
 	// This should provide a consistent view of the data at a given server/record version and
 	// avoid partial updates.
 	stateLock sync.RWMutex
+
+	tracerProvider oteltrace.TracerProvider
+	tracer         oteltrace.Tracer
 }
 
 // New validates and creates a new Authorize service from a set of config options.
 func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
+	tracerProvider := trace.NewTracerProvider(ctx, "Authorize")
+	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 	a := &Authorize{
 		currentOptions: config.NewAtomicOptions(),
 		store:          store.New(),
 		globalCache:    storage.NewGlobalCache(time.Minute),
+		tracerProvider: tracerProvider,
+		tracer:         tracer,
 	}
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 
-	state, err := newAuthorizeStateFromConfig(ctx, cfg, a.store, nil)
+	state, err := newAuthorizeStateFromConfig(ctx, tracerProvider, cfg, a.store, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +96,7 @@ func newPolicyEvaluator(
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "authorize")
 	})
-	ctx, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
+	ctx, span := trace.Continue(ctx, "authorize.newPolicyEvaluator")
 	defer span.End()
 
 	clientCA, err := opts.DownstreamMTLS.GetCA()
@@ -141,7 +149,7 @@ func newPolicyEvaluator(
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	currentState := a.state.Load()
 	a.currentOptions.Store(cfg.Options)
-	if state, err := newAuthorizeStateFromConfig(ctx, cfg, a.store, currentState.evaluator); err != nil {
+	if state, err := newAuthorizeStateFromConfig(ctx, a.tracerProvider, cfg, a.store, currentState.evaluator); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(state)
