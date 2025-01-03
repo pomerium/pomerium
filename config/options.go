@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -1668,7 +1669,7 @@ func (o *Options) ToProto() *config.Config {
 		return string(k), v
 	})
 	if o.JWTGroupsFilter != nil {
-		settings.JwtGroupsFilter = o.JWTGroupsFilter.Slice()
+		settings.JwtGroupsFilter = slices.Sorted(o.JWTGroupsFilter.Items())
 	}
 
 	routes := make([]*config.Route, 0, o.NumPolicies())
