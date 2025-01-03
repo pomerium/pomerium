@@ -303,7 +303,7 @@ func WithTraceClient(traceClient otlptrace.Client) EnvironmentOption {
 
 var setGrpcLoggerOnce sync.Once
 
-const defaultTraceDebugFlags = trace.TrackSpanCallers
+const defaultTraceDebugFlags = trace.TrackSpanCallers | trace.TrackSpanReferences
 
 var (
 	flagDebug           = flag.Bool("env.debug", false, "enables test environment debug logging (equivalent to Debug() option)")

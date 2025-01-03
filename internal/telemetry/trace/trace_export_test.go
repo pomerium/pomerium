@@ -53,10 +53,11 @@ func (obs *spanObserver) XObservedIDs() []oteltrace.SpanID {
 
 func (t *spanTracker) XInflightSpans() []oteltrace.SpanID {
 	ids := []oteltrace.SpanID{}
-	t.inflightSpans.Range(func(key, _ any) bool {
-		ids = append(ids, key.(oteltrace.SpanID))
-		return true
+	t.inflightSpansMu.LockAll()
+	t.inflightSpans.Range(func(key oteltrace.SpanID) {
+		ids = append(ids, key)
 	})
+	t.inflightSpansMu.UnlockAll()
 	slices.SortFunc(ids, func(a, b oteltrace.SpanID) int {
 		return cmp.Compare(a.String(), b.String())
 	})
