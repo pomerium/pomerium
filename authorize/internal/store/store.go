@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v3"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/rego"
 	opastorage "github.com/open-policy-agent/opa/storage"
@@ -31,7 +32,7 @@ type Store struct {
 
 	googleCloudServerlessAuthenticationServiceAccount atomic.Pointer[string]
 	jwtClaimHeaders                                   atomic.Pointer[map[string]string]
-	jwtGroupsFilter                                   atomic.Pointer[[]string]
+	jwtGroupsFilter                                   atomic.Pointer[set.Set[string]]
 	signingKey                                        atomic.Pointer[jose.JSONWebKey]
 }
 
@@ -58,6 +59,10 @@ func (s *Store) GetJWTClaimHeaders() map[string]string {
 	return *m
 }
 
+func (s *Store) GetJWTGroupsFilter() *set.Set[string] {
+	return s.jwtGroupsFilter.Load()
+}
+
 func (s *Store) GetSigningKey() *jose.JSONWebKey {
 	return s.signingKey.Load()
 }
@@ -76,9 +81,13 @@ func (s *Store) UpdateJWTClaimHeaders(jwtClaimHeaders map[string]string) {
 }
 
 // UpdateJWTGroupsFilter updates the JWT groups filter in the store.
-func (s *Store) UpdateJWTGroupsFilter(groups []string) {
-	s.write("/jwt_groups_filter", groups)
-	s.jwtGroupsFilter.Store(&groups)
+func (s *Store) UpdateJWTGroupsFilter(groups *set.Set[string]) {
+	var groupsSlice []string
+	if groups != nil {
+		groupsSlice = groups.Slice()
+	}
+	s.write("/jwt_groups_filter", groupsSlice)
+	s.jwtGroupsFilter.Store(groups)
 }
 
 // UpdateRoutePolicies updates the route policies in the store.

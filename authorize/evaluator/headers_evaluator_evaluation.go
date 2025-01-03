@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/slices"
 )
 
 // A headersEvaluatorEvaluation is a single evaluation of the headers evaluator.
@@ -314,6 +315,26 @@ func (e *headersEvaluatorEvaluation) getJWTPayloadEmail(ctx context.Context) str
 }
 
 func (e *headersEvaluatorEvaluation) getJWTPayloadGroups(ctx context.Context) []string {
+	groups := e.getAllGroups(ctx)
+
+	globalGroupsFilter := e.evaluator.store.GetJWTGroupsFilter()
+
+	// Apply any groups filters (global or route-specific).
+	groups = slices.Filter(groups, func(g string) bool {
+		return globalGroupsFilter.Contains(g) || e.request.Policy.JWTGroupsFilter.Contains(g)
+	})
+
+	if groups == nil {
+		// If there are no groups, marshal this claim as an empty list rather than a JSON null,
+		// for better compatibility with third-party libraries.
+		// See https://github.com/pomerium/pomerium/issues/5393 for one example.
+		groups = []string{}
+	}
+	return groups
+}
+
+// getAllGroups returns the full group names/IDs list (without any filtering).
+func (e *headersEvaluatorEvaluation) getAllGroups(ctx context.Context) []string {
 	groupIDs := e.getGroupIDs(ctx)
 	if len(groupIDs) > 0 {
 		groups := make([]string, 0, len(groupIDs)*2)
@@ -324,15 +345,6 @@ func (e *headersEvaluatorEvaluation) getJWTPayloadGroups(ctx context.Context) []
 
 	s, _ := e.getSessionOrServiceAccount(ctx)
 	groups, _ := getClaimStringSlice(s, "groups")
-
-	// XXX: apply groups filter here
-
-	if groups == nil {
-		// If there are no groups, marshal this claim as an empty list rather than a JSON null,
-		// for better compatibility with third-party libraries.
-		// See https://github.com/pomerium/pomerium/issues/5393 for one example.
-		groups = []string{}
-	}
 	return groups
 }
 

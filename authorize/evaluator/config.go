@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"github.com/hashicorp/go-set/v3"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/hashutil"
 )
@@ -15,7 +16,7 @@ type evaluatorConfig struct {
 	AuthenticateURL                                   string
 	GoogleCloudServerlessAuthenticationServiceAccount string
 	JWTClaimsHeaders                                  config.JWTClaimHeaders
-	JWTGroupsFilter                                   []string
+	JWTGroupsFilter                                   *set.Set[string]
 }
 
 // cacheKey() returns a hash over the configuration, except for the policies.
@@ -100,7 +101,7 @@ func WithJWTClaimsHeaders(headers config.JWTClaimHeaders) Option {
 }
 
 // WithJWTGroupsFilter sets the JWT groups filter in the config.
-func WithJWTGroupsFilter(groups []string) Option {
+func WithJWTGroupsFilter(groups *set.Set[string]) Option {
 	return func(cfg *evaluatorConfig) {
 		cfg.JWTGroupsFilter = groups
 	}

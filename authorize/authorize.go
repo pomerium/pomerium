@@ -134,6 +134,7 @@ func newPolicyEvaluator(
 		evaluator.WithAuthenticateURL(authenticateURL.String()),
 		evaluator.WithGoogleCloudServerlessAuthenticationServiceAccount(opts.GetGoogleCloudServerlessAuthenticationServiceAccount()),
 		evaluator.WithJWTClaimsHeaders(opts.JWTClaimsHeaders),
+		evaluator.WithJWTGroupsFilter(opts.JWTGroupsFilter),
 	)
 }
 

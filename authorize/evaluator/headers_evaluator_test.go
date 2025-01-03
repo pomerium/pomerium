@@ -14,6 +14,7 @@ import (
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -95,6 +96,7 @@ func TestHeadersEvaluator(t *testing.T) {
 
 	type A = []any
 	type M = map[string]any
+	type storeFn = func(*store.Store)
 
 	signingKey, err := cryptutil.NewSigningKey()
 	require.NoError(t, err)
@@ -107,12 +109,15 @@ func TestHeadersEvaluator(t *testing.T) {
 
 	iat := time.Unix(1686870680, 0)
 
-	eval := func(_ *testing.T, data []proto.Message, input *Request) (*HeadersResponse, error) {
+	eval := func(_ *testing.T, data []proto.Message, input *Request, storeFns ...storeFn) (*HeadersResponse, error) {
 		ctx := context.Background()
 		ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier(data...))
 		store := store.New()
 		store.UpdateJWTClaimHeaders(config.NewJWTClaimHeaders("name", "email", "groups", "user", "CUSTOM_KEY"))
 		store.UpdateSigningKey(privateJWK)
+		for _, fn := range storeFns {
+			fn(store)
+		}
 		e := NewHeadersEvaluator(store)
 		return e.Evaluate(ctx, input, rego.EvalTime(iat))
 	}
@@ -212,6 +217,39 @@ func TestHeadersEvaluator(t *testing.T) {
 		err = json.Unmarshal(decodeJWSPayload(t, jwtHeader), &decoded)
 		require.NoError(t, err)
 		assert.Equal(t, []any{}, decoded["groups"])
+	})
+
+	t.Run("jwt group filtering", func(t *testing.T) {
+		t.Parallel()
+
+		output, err := eval(t,
+			[]protoreflect.ProtoMessage{
+				&session.Session{Id: "s1", UserId: "u1", Claims: map[string]*structpb.ListValue{
+					"name": {Values: []*structpb.Value{
+						structpb.NewStringValue("User Name"),
+					}},
+				}},
+				newDirectoryUserRecord(directory.User{ID: "u1", GroupIDs: []string{"g1", "g2", "g3", "g4"}}),
+				newDirectoryGroupRecord(directory.Group{ID: "g1", Name: "GROUP1", Email: "g1@example.com"}),
+				newDirectoryGroupRecord(directory.Group{ID: "g2", Name: "GROUP2", Email: "g2@example.com"}),
+				newDirectoryGroupRecord(directory.Group{ID: "g3", Name: "GROUP3", Email: "g3@example.com"}),
+				newDirectoryGroupRecord(directory.Group{ID: "g4", Name: "GROUP4", Email: "g4@example.com"}),
+			},
+			&Request{
+				Session: RequestSession{ID: "s1"},
+				Policy: &config.Policy{
+					JWTGroupsFilter: set.From([]string{"g4", "GROUP4", "g5", "GROUP5"}),
+				},
+			},
+			func(s *store.Store) {
+				s.UpdateJWTGroupsFilter(set.From([]string{"g0", "GROUP0", "g1", "GROUP1"}))
+			})
+		require.NoError(t, err)
+		jwtHeader := output.Headers.Get("X-Pomerium-Jwt-Assertion")
+		var decoded map[string]any
+		err = json.Unmarshal(decodeJWSPayload(t, jwtHeader), &decoded)
+		require.NoError(t, err)
+		assert.Equal(t, []any{"g1", "g4", "GROUP1", "GROUP4"}, decoded["groups"])
 	})
 
 	t.Run("set_request_headers", func(t *testing.T) {
