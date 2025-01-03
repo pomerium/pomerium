@@ -42,6 +42,21 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 			{
 				"name": "catch-all",
 				"domains": ["*"],
+				"requestHeadersToAdd": [
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": {
+							"key": "x-pomerium-traceparent",
+							"value": "%DYNAMIC_METADATA(pomerium.internal:traceparent)%"
+						}
+					},
+					{
+						"header": {
+							"key": "x-pomerium-tracestate",
+							"value": "%DYNAMIC_METADATA(pomerium.internal:tracestate)%"
+						}
+					}
+				],
 				"routes": [
 					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/ping"))+`,
 					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/healthz"))+`,
@@ -51,6 +66,10 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 					`+protojson.Format(b.buildControlPlanePrefixRoute(cfg.Options, "/.well-known/pomerium/"))+`,
 					{
 						"name": "policy-0",
+						"decorator": {
+							"operation": "ingress: ${method} ${host}${path}",
+							"propagate": false
+						},
 						"match": {
 							"headers": [
 								{ "name": ":authority", "stringMatch": { "safeRegex": { "regex": "^(.*)\\.example\\.com$" } }}
@@ -104,6 +123,10 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 					},
 					{
 						"name": "policy-0",
+						"decorator": {
+							"operation": "ingress: ${method} ${host}${path}",
+							"propagate": false
+						},
 						"match": {
 							"headers": [
 								{ "name": ":authority", "stringMatch": { "safeRegex": { "regex": "^(.*)\\.example\\.com:443$" } }}

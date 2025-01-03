@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/pomerium/pomerium/config"
@@ -23,7 +24,7 @@ type dataBrokerServer struct {
 }
 
 // newDataBrokerServer creates a new databroker service server.
-func newDataBrokerServer(ctx context.Context, cfg *config.Config) (*dataBrokerServer, error) {
+func newDataBrokerServer(ctx context.Context, tracerProvider oteltrace.TracerProvider, cfg *config.Config) (*dataBrokerServer, error) {
 	srv := &dataBrokerServer{
 		sharedKey: atomicutil.NewValue([]byte{}),
 	}
@@ -33,7 +34,7 @@ func newDataBrokerServer(ctx context.Context, cfg *config.Config) (*dataBrokerSe
 		return nil, err
 	}
 
-	srv.server = databroker.New(ctx, opts...)
+	srv.server = databroker.New(ctx, tracerProvider, opts...)
 	srv.setKey(cfg)
 	return srv, nil
 }

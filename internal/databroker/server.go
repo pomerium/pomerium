@@ -22,22 +22,28 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
 	"github.com/pomerium/pomerium/pkg/storage/postgres"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // Server implements the databroker service using an in memory database.
 type Server struct {
 	cfg *serverConfig
 
-	mu         sync.RWMutex
-	backend    storage.Backend
-	backendCtx context.Context
-	registry   registry.Interface
+	mu             sync.RWMutex
+	backend        storage.Backend
+	backendCtx     context.Context
+	registry       registry.Interface
+	tracerProvider oteltrace.TracerProvider
+	tracer         oteltrace.Tracer
 }
 
 // New creates a new server.
-func New(ctx context.Context, options ...ServerOption) *Server {
+func New(ctx context.Context, tracerProvider oteltrace.TracerProvider, options ...ServerOption) *Server {
+	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 	srv := &Server{
-		backendCtx: ctx,
+		backendCtx:     ctx,
+		tracerProvider: tracerProvider,
+		tracer:         tracer,
 	}
 	srv.UpdateConfig(ctx, options...)
 	return srv
@@ -74,7 +80,7 @@ func (srv *Server) UpdateConfig(ctx context.Context, options ...ServerOption) {
 
 // AcquireLease acquires a lease.
 func (srv *Server) AcquireLease(ctx context.Context, req *databroker.AcquireLeaseRequest) (*databroker.AcquireLeaseResponse, error) {
-	ctx, span := trace.StartSpan(ctx, "databroker.grpc.AcquireLease")
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.AcquireLease")
 	defer span.End()
 	log.Ctx(ctx).Debug().
 		Str("name", req.GetName()).
@@ -101,7 +107,7 @@ func (srv *Server) AcquireLease(ctx context.Context, req *databroker.AcquireLeas
 
 // Get gets a record from the in-memory list.
 func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databroker.GetResponse, error) {
-	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Get")
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Get")
 	defer span.End()
 	log.Ctx(ctx).Debug().
 		Str("type", req.GetType()).
@@ -128,7 +134,7 @@ func (srv *Server) Get(ctx context.Context, req *databroker.GetRequest) (*databr
 
 // ListTypes lists all the record types.
 func (srv *Server) ListTypes(ctx context.Context, _ *emptypb.Empty) (*databroker.ListTypesResponse, error) {
-	ctx, span := trace.StartSpan(ctx, "databroker.grpc.ListTypes")
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.ListTypes")
 	defer span.End()
 	log.Ctx(ctx).Debug().Msg("list types")
 
@@ -145,7 +151,7 @@ func (srv *Server) ListTypes(ctx context.Context, _ *emptypb.Empty) (*databroker
 
 // Query queries for records.
 func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*databroker.QueryResponse, error) {
-	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Query")
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Query")
 	defer span.End()
 	log.Ctx(ctx).Debug().
 		Str("type", req.GetType()).
@@ -198,7 +204,7 @@ func (srv *Server) Query(ctx context.Context, req *databroker.QueryRequest) (*da
 
 // Put updates an existing record or adds a new one.
 func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databroker.PutResponse, error) {
-	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Put")
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Put")
 	defer span.End()
 
 	records := req.GetRecords()
@@ -237,7 +243,7 @@ func (srv *Server) Put(ctx context.Context, req *databroker.PutRequest) (*databr
 
 // Patch updates specific fields of an existing record.
 func (srv *Server) Patch(ctx context.Context, req *databroker.PatchRequest) (*databroker.PatchResponse, error) {
-	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Patch")
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Patch")
 	defer span.End()
 
 	records := req.GetRecords()
@@ -276,9 +282,9 @@ func (srv *Server) Patch(ctx context.Context, req *databroker.PatchRequest) (*da
 
 // ReleaseLease releases a lease.
 func (srv *Server) ReleaseLease(ctx context.Context, req *databroker.ReleaseLeaseRequest) (*emptypb.Empty, error) {
-	ctx, span := trace.StartSpan(ctx, "databroker.grpc.ReleaseLease")
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.ReleaseLease")
 	defer span.End()
-	log.Ctx(ctx).Debug().
+	log.Ctx(ctx).Trace().
 		Str("name", req.GetName()).
 		Str("id", req.GetId()).
 		Msg("release lease")
@@ -298,9 +304,9 @@ func (srv *Server) ReleaseLease(ctx context.Context, req *databroker.ReleaseLeas
 
 // RenewLease releases a lease.
 func (srv *Server) RenewLease(ctx context.Context, req *databroker.RenewLeaseRequest) (*emptypb.Empty, error) {
-	ctx, span := trace.StartSpan(ctx, "databroker.grpc.RenewLease")
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.RenewLease")
 	defer span.End()
-	log.Ctx(ctx).Debug().
+	log.Ctx(ctx).Trace().
 		Str("name", req.GetName()).
 		Str("id", req.GetId()).
 		Dur("duration", req.GetDuration().AsDuration()).
@@ -323,7 +329,7 @@ func (srv *Server) RenewLease(ctx context.Context, req *databroker.RenewLeaseReq
 
 // SetOptions sets options for a type in the databroker.
 func (srv *Server) SetOptions(ctx context.Context, req *databroker.SetOptionsRequest) (*databroker.SetOptionsResponse, error) {
-	ctx, span := trace.StartSpan(ctx, "databroker.grpc.SetOptions")
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.SetOptions")
 	defer span.End()
 
 	backend, err := srv.getBackend(ctx)
@@ -346,7 +352,7 @@ func (srv *Server) SetOptions(ctx context.Context, req *databroker.SetOptionsReq
 // Sync streams updates for the given record type.
 func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBrokerService_SyncServer) error {
 	ctx := stream.Context()
-	ctx, span := trace.StartSpan(ctx, "databroker.grpc.Sync")
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.Sync")
 	defer span.End()
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -384,7 +390,7 @@ func (srv *Server) Sync(req *databroker.SyncRequest, stream databroker.DataBroke
 // SyncLatest returns the latest value of every record in the databroker as a stream of records.
 func (srv *Server) SyncLatest(req *databroker.SyncLatestRequest, stream databroker.DataBrokerService_SyncLatestServer) error {
 	ctx := stream.Context()
-	ctx, span := trace.StartSpan(ctx, "databroker.grpc.SyncLatest")
+	ctx, span := srv.tracer.Start(ctx, "databroker.grpc.SyncLatest")
 	defer span.End()
 
 	ctx, cancel := context.WithCancel(ctx)

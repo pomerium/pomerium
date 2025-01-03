@@ -14,7 +14,7 @@ import (
 	opastorage "github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/storage/inmem"
 	"github.com/open-policy-agent/opa/types"
-	octrace "go.opencensus.io/trace"
+	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -131,20 +131,20 @@ func (s *Store) GetDataBrokerRecordOption() func(*rego.Rego) {
 			types.NewObject(nil, types.NewDynamicProperty(types.S, types.S)),
 		),
 	}, func(bctx rego.BuiltinContext, op1 *ast.Term, op2 *ast.Term) (*ast.Term, error) {
-		ctx, span := trace.StartSpan(bctx.Context, "rego.get_databroker_record")
+		ctx, span := trace.Continue(bctx.Context, "rego.get_databroker_record")
 		defer span.End()
 
 		recordType, ok := op1.Value.(ast.String)
 		if !ok {
 			return nil, fmt.Errorf("invalid record type: %T", op1)
 		}
-		span.AddAttributes(octrace.StringAttribute("record_type", recordType.String()))
+		span.SetAttributes(attribute.String("record_type", recordType.String()))
 
 		recordIDOrIndex, ok := op2.Value.(ast.String)
 		if !ok {
 			return nil, fmt.Errorf("invalid record id: %T", op2)
 		}
-		span.AddAttributes(octrace.StringAttribute("record_id", recordIDOrIndex.String()))
+		span.SetAttributes(attribute.String("record_id", recordIDOrIndex.String()))
 
 		msg := s.GetDataBrokerRecord(ctx, string(recordType), string(recordIDOrIndex))
 		if msg == nil {

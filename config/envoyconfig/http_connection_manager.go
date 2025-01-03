@@ -39,6 +39,22 @@ func (b *Builder) buildVirtualHost(
 		return nil, err
 	}
 	vh.Routes = append(vh.Routes, rs...)
+	vh.RequestHeadersToAdd = []*envoy_config_core_v3.HeaderValueOption{
+		{
+			Header: &envoy_config_core_v3.HeaderValue{
+				Key:   "x-pomerium-traceparent",
+				Value: `%DYNAMIC_METADATA(pomerium.internal:traceparent)%`,
+			},
+			AppendAction: envoy_config_core_v3.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
+		},
+		{
+			Header: &envoy_config_core_v3.HeaderValue{
+				Key:   "x-pomerium-tracestate",
+				Value: `%DYNAMIC_METADATA(pomerium.internal:tracestate)%`,
+			},
+			AppendAction: envoy_config_core_v3.HeaderValueOption_APPEND_IF_EXISTS_OR_ADD,
+		},
+	}
 
 	return vh, nil
 }
