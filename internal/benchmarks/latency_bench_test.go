@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/envutil"
 	"github.com/pomerium/pomerium/internal/testenv/scenarios"
@@ -49,8 +48,8 @@ func TestRequestLatency(t *testing.T) {
 	for i := range numRoutes {
 		routes[i] = up.Route().
 			From(env.SubdomainURL(fmt.Sprintf("from-%d", i))).
-			Policy(func(p *config.Policy) { p.AllowPublicUnauthenticatedAccess = true })
-		// PPL(fmt.Sprintf(`{"allow":{"and":["email":{"is":"user%d@example.com"}]}}`, i))
+			// Policy(func(p *config.Policy) { p.AllowPublicUnauthenticatedAccess = true })
+			PPL(fmt.Sprintf(`{"allow":{"and":["email":{"is":"user%d@example.com"}]}}`, i))
 	}
 	env.AddUpstream(up)
 
