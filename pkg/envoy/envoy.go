@@ -36,15 +36,12 @@ const (
 	configFileName = "envoy-config.yaml"
 )
 
-type serverOptions struct {
-	services string
-	logLevel config.LogLevel
-}
-
 // A Server is a pomerium proxy implemented via envoy.
 type Server struct {
-	wd  string
-	cmd *exec.Cmd
+	ServerOptions
+	wd        string
+	cmd       *exec.Cmd
+	cmdExited chan struct{}
 
 	builder            *envoyconfig.Builder
 	resourceMonitor    ResourceMonitor
@@ -53,12 +50,40 @@ type Server struct {
 
 	monitorProcessCancel context.CancelFunc
 
-	mu      sync.Mutex
-	options serverOptions
+	mu sync.Mutex
+}
+
+type ServerOptions struct {
+	extraEnvVars    []string
+	logLevel        config.LogLevel
+	exitGracePeriod time.Duration
+}
+
+type ServerOption func(*ServerOptions)
+
+func (o *ServerOptions) apply(opts ...ServerOption) {
+	for _, op := range opts {
+		op(o)
+	}
+}
+
+func WithExtraEnvVars(extraEnvVars ...string) ServerOption {
+	return func(o *ServerOptions) {
+		o.extraEnvVars = append(o.extraEnvVars, extraEnvVars...)
+	}
+}
+
+func WithExitGracePeriod(duration time.Duration) ServerOption {
+	return func(o *ServerOptions) {
+		o.exitGracePeriod = duration
+	}
 }
 
 // NewServer creates a new server with traffic routed by envoy.
-func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Builder) (*Server, error) {
+func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Builder, opts ...ServerOption) (*Server, error) {
+	options := ServerOptions{}
+	options.apply(opts...)
+
 	if err := preserveRlimitNofile(); err != nil {
 		log.Ctx(ctx).Debug().Err(err).Msg("couldn't preserve RLIMIT_NOFILE before starting Envoy")
 	}
@@ -69,11 +94,12 @@ func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Buil
 	}
 
 	srv := &Server{
-		wd:        path.Dir(envoyPath),
-		builder:   builder,
-		grpcPort:  src.GetConfig().GRPCPort,
-		httpPort:  src.GetConfig().HTTPPort,
-		envoyPath: envoyPath,
+		ServerOptions: options,
+		wd:            path.Dir(envoyPath),
+		builder:       builder,
+		grpcPort:      src.GetConfig().GRPCPort,
+		httpPort:      src.GetConfig().HTTPPort,
+		envoyPath:     envoyPath,
 
 		monitorProcessCancel: func() {},
 	}
@@ -105,10 +131,24 @@ func (srv *Server) Close() error {
 
 	var err error
 	if srv.cmd != nil && srv.cmd.Process != nil {
-		err = srv.cmd.Process.Kill()
-		if err != nil {
-			log.Error().Err(err).Str("service", "envoy").Msg("envoy: failed to kill process on close")
+		var exited bool
+		if srv.exitGracePeriod > 0 {
+			_ = srv.cmd.Process.Signal(os.Interrupt)
+			select {
+			case <-srv.cmdExited:
+				exited = true
+			case <-time.After(srv.exitGracePeriod):
+			}
 		}
+		if !exited {
+			err = srv.cmd.Process.Kill()
+			if err != nil {
+				log.Error().Err(err).Str("service", "envoy").Msg("envoy: failed to kill process on close")
+			} else {
+				<-srv.cmdExited
+			}
+		}
+
 		srv.cmd = nil
 	}
 
@@ -123,16 +163,15 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) {
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 
-	options := serverOptions{
-		services: cfg.Options.Services,
-		logLevel: firstNonEmpty(cfg.Options.ProxyLogLevel, cfg.Options.LogLevel, config.LogLevelDebug),
-	}
+	opts := srv.ServerOptions
+	// log level is managed via config
+	opts.logLevel = firstNonEmpty(cfg.Options.ProxyLogLevel, cfg.Options.LogLevel, config.LogLevelDebug)
 
-	if cmp.Equal(srv.options, options, cmp.AllowUnexported(serverOptions{})) {
+	if cmp.Equal(srv.ServerOptions, opts, cmp.AllowUnexported(ServerOptions{})) {
 		log.Ctx(ctx).Debug().Str("service", "envoy").Msg("envoy: no config changes detected")
 		return
 	}
-	srv.options = options
+	srv.ServerOptions = opts
 
 	log.Ctx(ctx).Debug().Msg("envoy: starting envoy process")
 	if err := srv.run(ctx, cfg); err != nil {
@@ -152,7 +191,7 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 
 	args := []string{
 		"-c", configFileName,
-		"--log-level", srv.options.logLevel.ToEnvoy(),
+		"--log-level", srv.logLevel.ToEnvoy(),
 		"--log-format", "[LOG_FORMAT]%l--%n--%v",
 		"--log-format-escaped",
 	}
@@ -160,6 +199,7 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	exePath, args := srv.prepareRunEnvoyCommand(ctx, args)
 	cmd := exec.Command(exePath, args...)
 	cmd.Dir = srv.wd
+	cmd.Env = append(cmd.Env, srv.extraEnvVars...)
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -181,7 +221,11 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("error starting envoy: %w", err)
 	}
 	// call Wait to avoid zombie processes
-	go func() { _ = cmd.Wait() }()
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		_ = cmd.Wait()
+	}()
 
 	// monitor the process so we exit if it prematurely exits
 	var monitorProcessCtx context.Context
@@ -220,6 +264,7 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 		}()
 	}
 	srv.cmd = cmd
+	srv.cmdExited = exited
 
 	return nil
 }

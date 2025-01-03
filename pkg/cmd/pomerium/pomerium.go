@@ -33,6 +33,7 @@ import (
 
 type RunOptions struct {
 	fileMgr                 *filemgr.Manager
+	envoyServerOptions      []envoy.ServerOption
 	databrokerServerOptions []databroker_service.Option
 }
 
@@ -47,6 +48,12 @@ func (o *RunOptions) apply(opts ...RunOption) {
 func WithOverrideFileManager(fileMgr *filemgr.Manager) RunOption {
 	return func(o *RunOptions) {
 		o.fileMgr = fileMgr
+	}
+}
+
+func WithEnvoyServerOptions(opts ...envoy.ServerOption) RunOption {
+	return func(o *RunOptions) {
+		o.envoyServerOptions = append(o.envoyServerOptions, opts...)
 	}
 }
 
@@ -130,7 +137,7 @@ func Run(ctx context.Context, src config.Source, opts ...RunOption) error {
 		Msg("server started")
 
 	// create envoy server
-	envoyServer, err := envoy.NewServer(ctx, src, controlPlane.Builder)
+	envoyServer, err := envoy.NewServer(ctx, src, controlPlane.Builder, options.envoyServerOptions...)
 	if err != nil {
 		return fmt.Errorf("error creating envoy server: %w", err)
 	}

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pomerium/pomerium/internal/testenv"
+	"github.com/pomerium/pomerium/internal/testenv/envutil"
 	"github.com/pomerium/pomerium/internal/testenv/scenarios"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
@@ -27,7 +28,7 @@ func init() {
 }
 
 func TestRequestLatency(t *testing.T) {
-	resume := snippets.PauseProfiling(t)
+	resume := envutil.PauseProfiling(t)
 	env := testenv.New(t, testenv.Silent())
 	users := []*scenarios.User{}
 	for i := range numRoutes {
