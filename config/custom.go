@@ -613,7 +613,6 @@ func (f JWTGroupsFilter) Equal(other JWTGroupsFilter) bool {
 		return true
 	} else if f.set == nil || other.set == nil {
 		return false
-	} else {
-		return f.set.Equal(other.set)
 	}
+	return f.set.Equal(other.set)
 }
