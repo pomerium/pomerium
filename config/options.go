@@ -193,6 +193,9 @@ type Options struct {
 	// List of JWT claims to insert as x-pomerium-claim-* headers on proxied requests
 	JWTClaimsHeaders JWTClaimHeaders `mapstructure:"jwt_claims_headers" yaml:"jwt_claims_headers,omitempty"`
 
+	// Allowlist of group names/IDs to include in the Pomerium JWT.
+	JWTGroupsFilter JWTGroupsFilter
+
 	DefaultUpstreamTimeout time.Duration `mapstructure:"default_upstream_timeout" yaml:"default_upstream_timeout,omitempty"`
 
 	// Address/Port to bind to for prometheus metrics
@@ -1510,6 +1513,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.SigningKey, settings.SigningKey)
 	setMap(&o.SetResponseHeaders, settings.SetResponseHeaders)
 	setMap(&o.JWTClaimsHeaders, settings.JwtClaimsHeaders)
+	o.JWTGroupsFilter = NewJWTGroupsFilter(settings.JwtGroupsFilter)
 	setDuration(&o.DefaultUpstreamTimeout, settings.DefaultUpstreamTimeout)
 	set(&o.MetricsAddr, settings.MetricsAddress)
 	set(&o.MetricsBasicAuth, settings.MetricsBasicAuth)
@@ -1599,6 +1603,7 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.SigningKey, valueOrFromFileBase64(o.SigningKey, o.SigningKeyFile))
 	settings.SetResponseHeaders = o.SetResponseHeaders
 	settings.JwtClaimsHeaders = o.JWTClaimsHeaders
+	settings.JwtGroupsFilter = o.JWTGroupsFilter.ToSlice()
 	copyOptionalDuration(&settings.DefaultUpstreamTimeout, o.DefaultUpstreamTimeout)
 	copySrcToOptionalDest(&settings.MetricsAddress, &o.MetricsAddr)
 	copySrcToOptionalDest(&settings.MetricsBasicAuth, &o.MetricsBasicAuth)

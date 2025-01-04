@@ -15,6 +15,7 @@ type evaluatorConfig struct {
 	AuthenticateURL                                   string
 	GoogleCloudServerlessAuthenticationServiceAccount string
 	JWTClaimsHeaders                                  config.JWTClaimHeaders
+	JWTGroupsFilter                                   config.JWTGroupsFilter
 }
 
 // cacheKey() returns a hash over the configuration, except for the policies.
@@ -95,5 +96,12 @@ func WithGoogleCloudServerlessAuthenticationServiceAccount(serviceAccount string
 func WithJWTClaimsHeaders(headers config.JWTClaimHeaders) Option {
 	return func(cfg *evaluatorConfig) {
 		cfg.JWTClaimsHeaders = headers
+	}
+}
+
+// WithJWTGroupsFilter sets the JWT groups filter in the config.
+func WithJWTGroupsFilter(groups config.JWTGroupsFilter) Option {
+	return func(cfg *evaluatorConfig) {
+		cfg.JWTGroupsFilter = groups
 	}
 }
