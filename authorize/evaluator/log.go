@@ -1,7 +1,7 @@
 package evaluator
 
 import (
-	"github.com/open-policy-agent/opa/topdown/print"
+	"github.com/open-policy-agent/opa/v1/topdown/print"
 	"github.com/rs/zerolog"
 )
 

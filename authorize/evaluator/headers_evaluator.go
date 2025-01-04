@@ -7,8 +7,7 @@ import (
 	"time"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
-	"github.com/open-policy-agent/opa/rego"
-
+	"github.com/open-policy-agent/opa/v1/rego"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"

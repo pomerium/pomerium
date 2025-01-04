@@ -3,8 +3,7 @@ package criteria
 import (
 	"fmt"
 
-	"github.com/open-policy-agent/opa/ast"
-
+	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 

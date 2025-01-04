@@ -282,7 +282,7 @@ func TestPolicyEvaluator(t *testing.T) {
 				{ID: "p1", Rego: []string{`
 					package pomerium.policy
 
-					allow {
+					allow if {
 						record := get_databroker_record("type.googleapis.com/google.protobuf.Struct", "192.168.0.7")
 						record.country == "US"
 					}

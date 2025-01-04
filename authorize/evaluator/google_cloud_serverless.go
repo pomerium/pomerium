@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/open-policy-agent/opa/ast"
-	"github.com/open-policy-agent/opa/rego"
-	"github.com/open-policy-agent/opa/types"
+	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/open-policy-agent/opa/v1/rego"
+	"github.com/open-policy-agent/opa/v1/types"
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/singleflight"
 	"google.golang.org/api/idtoken"

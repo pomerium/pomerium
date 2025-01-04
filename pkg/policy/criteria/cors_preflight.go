@@ -1,8 +1,7 @@
 package criteria
 
 import (
-	"github.com/open-policy-agent/opa/ast"
-
+	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/pomerium/pomerium/pkg/policy/generator"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )

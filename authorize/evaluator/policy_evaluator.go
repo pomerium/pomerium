@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/open-policy-agent/opa/rego"
+	"github.com/open-policy-agent/opa/v1/rego"
 	octrace "go.opencensus.io/trace"
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
