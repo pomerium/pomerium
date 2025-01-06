@@ -17,7 +17,7 @@ require (
 	github.com/cloudflare/circl v1.5.0
 	github.com/coreos/go-oidc/v3 v3.11.0
 	github.com/docker/docker v27.4.1+incompatible
-	github.com/envoyproxy/go-control-plane/envoy v1.32.2
+	github.com/envoyproxy/go-control-plane/envoy v1.32.3-0.20250106142444-2ebcd7cb6976
 	github.com/envoyproxy/protoc-gen-validate v1.1.0
 	github.com/go-chi/chi/v5 v5.2.0
 	github.com/go-jose/go-jose/v3 v3.0.3
@@ -142,7 +142,7 @@ require (
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/envoyproxy/go-control-plane v0.13.2 // indirect
+	github.com/envoyproxy/go-control-plane/ratelimit v0.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.6.0 // indirect
