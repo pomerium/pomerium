@@ -15,13 +15,31 @@ import (
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/extensions"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
+
+func isTracingEnabled(cfg *config.Options) bool {
+	if os.Getenv("OTEL_SDK_DISABLED") == "true" {
+		return false
+	}
+	switch cfg.TracingProvider {
+	case "none", "noop": // explicitly disabled from config
+		return false
+	case "": // unset
+		return trace.IsEnabledViaEnvironment()
+	default: // set to a non-empty value
+		return !trace.IsDisabledViaEnvironment()
+	}
+}
 
 func applyTracingConfig(
 	mgr *envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager,
 	opts *config.Options,
 ) {
+	if !isTracingEnabled(opts) {
+		return
+	}
 	mgr.HttpFilters = append([]*envoy_extensions_filters_network_http_connection_manager.HttpFilter{
 		tracingMetadataFilter(),
 	}, mgr.HttpFilters...)

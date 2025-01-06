@@ -225,3 +225,35 @@ func (n NoopClient) Stop(context.Context) error {
 func (n NoopClient) UploadTraces(context.Context, []*v1.ResourceSpans) error {
 	return nil
 }
+
+func IsDisabledViaEnvironment() bool {
+	if os.Getenv("OTEL_SDK_DISABLED") == "true" {
+		return true
+	}
+	exporter, ok := os.LookupEnv("OTEL_TRACES_EXPORTER")
+	if !ok {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(exporter)) {
+	case "none, noop":
+		return true
+	default:
+		return false
+	}
+}
+
+func IsEnabledViaEnvironment() bool {
+	if os.Getenv("OTEL_SDK_DISABLED") == "true" {
+		return false
+	}
+	exporter, ok := os.LookupEnv("OTEL_TRACES_EXPORTER")
+	if !ok {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(exporter)) {
+	case "none, noop", "":
+		return false
+	default:
+		return true
+	}
+}
