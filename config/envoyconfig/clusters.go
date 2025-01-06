@@ -437,16 +437,6 @@ func grpcHealthChecks(name string) []*envoy_config_core_v3.HealthCheck {
 				ServiceName: name,
 			},
 		},
-		// EventLogger: []*envoy_config_core_v3.TypedExtensionConfig{
-		// 	{
-		// 		Name: "envoy.health_check.event_sink.file",
-		// 		TypedConfig: marshalAny(&envoy_extensions_eventsinks_file_v3.HealthCheckEventFileSink{
-		// 			EventLogPath: "/tmp/healthchecks",
-		// 		}),
-		// 	},
-		// },
-		// AlwaysLogHealthCheckFailures: true,
-		// AlwaysLogHealthCheckSuccess:  true,
 	}}
 }
 
