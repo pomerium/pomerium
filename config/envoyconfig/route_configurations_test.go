@@ -42,21 +42,6 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 			{
 				"name": "catch-all",
 				"domains": ["*"],
-				"requestHeadersToAdd": [
-					{
-						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
-						"header": {
-							"key": "x-pomerium-traceparent",
-							"value": "%DYNAMIC_METADATA(pomerium.internal:traceparent)%"
-						}
-					},
-					{
-						"header": {
-							"key": "x-pomerium-tracestate",
-							"value": "%DYNAMIC_METADATA(pomerium.internal:tracestate)%"
-						}
-					}
-				],
 				"routes": [
 					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/ping"))+`,
 					`+protojson.Format(b.buildControlPlanePathRoute(cfg.Options, "/healthz"))+`,

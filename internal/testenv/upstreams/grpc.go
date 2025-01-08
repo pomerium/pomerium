@@ -142,9 +142,9 @@ func (g *grpcUpstream) Run(ctx context.Context) error {
 	}
 	server := grpc.NewServer(append(g.serverOpts,
 		grpc.Creds(g.creds),
-		grpc.StatsHandler(trace.NewServerStatsHandler(otelgrpc.NewServerHandler(
+		grpc.StatsHandler(otelgrpc.NewServerHandler(
 			otelgrpc.WithTracerProvider(g.serverTracerProvider.Value()),
-		))),
+		)),
 	)...)
 	for _, s := range g.services {
 		server.RegisterService(s.desc, s.impl)

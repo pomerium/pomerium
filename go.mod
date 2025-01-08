@@ -15,6 +15,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/cloudflare/circl v1.5.0
+	github.com/cncf/xds/go v0.0.0-20240905190251-b4127c9b8d78
 	github.com/coreos/go-oidc/v3 v3.11.0
 	github.com/docker/docker v27.4.1+incompatible
 	github.com/envoyproxy/go-control-plane/envoy v1.32.2
@@ -133,7 +134,6 @@ require (
 	github.com/aws/smithy-go v1.22.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/caddyserver/zerossl v0.1.3 // indirect
-	github.com/cncf/xds/go v0.0.0-20240905190251-b4127c9b8d78 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect

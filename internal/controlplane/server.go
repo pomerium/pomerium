@@ -114,7 +114,7 @@ func NewServer(
 		),
 	)
 	srv.GRPCServer = grpc.NewServer(
-		grpc.StatsHandler(trace.NewServerStatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithTracerProvider(tracerProvider)))),
+		grpc.StatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithTracerProvider(tracerProvider))),
 		grpc.ChainUnaryInterceptor(
 			log.UnaryServerInterceptor(log.Ctx(ctx)),
 			requestid.UnaryServerInterceptor(),
