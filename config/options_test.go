@@ -1436,6 +1436,9 @@ func TestRoute_FromToProto(t *testing.T) {
 		pb.From = "https://" + randomDomain()
 		// EnvoyOpts is set to an empty non-nil message during conversion, if nil
 		pb.EnvoyOpts = &envoy_config_cluster_v3.Cluster{}
+		// JWT groups filter order is not significant. Upon conversion back to
+		// a protobuf the JWT groups will be sorted.
+		slices.Sort(pb.JwtGroupsFilter)
 
 		switch mathrand.IntN(3) {
 		case 0:
@@ -1536,6 +1539,9 @@ func TestOptions_FromToProto(t *testing.T) {
 		unsetFalseOptionalBoolFields(settings)
 		fixZeroValuedEnums(settings)
 		generateCertificates(t, settings)
+		// JWT groups filter order is not significant. Upon conversion back to
+		// a protobuf the JWT groups will be sorted.
+		slices.Sort(settings.JwtGroupsFilter)
 
 		return settings
 	}

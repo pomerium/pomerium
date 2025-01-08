@@ -165,6 +165,10 @@ type Policy struct {
 	// - "uri": Issuer strings will be a complete URI, including the scheme and ending with a trailing slash.
 	JWTIssuerFormat string `mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
 
+	// Allowlist of group names/IDs to include in the Pomerium JWT.
+	// This expands on any global allowlist set in the main Options.
+	JWTGroupsFilter JWTGroupsFilter
+
 	SubPolicies []SubPolicy `mapstructure:"sub_policies" yaml:"sub_policies,omitempty" json:"sub_policies,omitempty"`
 
 	EnvoyOpts *envoy_config_cluster_v3.Cluster `mapstructure:"_envoy_opts" yaml:"-" json:"-"`
@@ -290,6 +294,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		IdleTimeout:                       idleTimeout,
 		IDPClientID:                       pb.GetIdpClientId(),
 		IDPClientSecret:                   pb.GetIdpClientSecret(),
+		JWTGroupsFilter:                   NewJWTGroupsFilter(pb.JwtGroupsFilter),
 		KubernetesServiceAccountToken:     pb.GetKubernetesServiceAccountToken(),
 		KubernetesServiceAccountTokenFile: pb.GetKubernetesServiceAccountTokenFile(),
 		PassIdentityHeaders:               pb.PassIdentityHeaders,
@@ -432,6 +437,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		From:                              p.From,
 		Id:                                p.ID,
 		IdleTimeout:                       idleTimeout,
+		JwtGroupsFilter:                   p.JWTGroupsFilter.ToSlice(),
 		KubernetesServiceAccountToken:     p.KubernetesServiceAccountToken,
 		KubernetesServiceAccountTokenFile: p.KubernetesServiceAccountTokenFile,
 		Name:                              fmt.Sprint(p.RouteID()),

@@ -332,6 +332,7 @@ func updateStore(ctx context.Context, store *store.Store, cfg *evaluatorConfig) 
 		cfg.GoogleCloudServerlessAuthenticationServiceAccount,
 	)
 	store.UpdateJWTClaimHeaders(cfg.JWTClaimsHeaders)
+	store.UpdateJWTGroupsFilter(cfg.JWTGroupsFilter)
 	store.UpdateRoutePolicies(cfg.Policies)
 	store.UpdateSigningKey(jwk)
 
