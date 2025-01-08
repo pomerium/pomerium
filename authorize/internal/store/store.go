@@ -32,6 +32,7 @@ type Store struct {
 
 	googleCloudServerlessAuthenticationServiceAccount atomic.Pointer[string]
 	jwtClaimHeaders                                   atomic.Pointer[map[string]string]
+	jwtGroupsFilter                                   atomic.Pointer[config.JWTGroupsFilter]
 	signingKey                                        atomic.Pointer[jose.JSONWebKey]
 }
 
@@ -58,6 +59,13 @@ func (s *Store) GetJWTClaimHeaders() map[string]string {
 	return *m
 }
 
+func (s *Store) GetJWTGroupsFilter() config.JWTGroupsFilter {
+	if f := s.jwtGroupsFilter.Load(); f != nil {
+		return *f
+	}
+	return config.JWTGroupsFilter{}
+}
+
 func (s *Store) GetSigningKey() *jose.JSONWebKey {
 	return s.signingKey.Load()
 }
@@ -73,6 +81,12 @@ func (s *Store) UpdateGoogleCloudServerlessAuthenticationServiceAccount(serviceA
 func (s *Store) UpdateJWTClaimHeaders(jwtClaimHeaders map[string]string) {
 	s.write("/jwt_claim_headers", jwtClaimHeaders)
 	s.jwtClaimHeaders.Store(&jwtClaimHeaders)
+}
+
+// UpdateJWTGroupsFilter updates the JWT groups filter in the store.
+func (s *Store) UpdateJWTGroupsFilter(groups config.JWTGroupsFilter) {
+	// This isn't used by the Rego code, so we don't need to write it to the opastorage.Store instance.
+	s.jwtGroupsFilter.Store(&groups)
 }
 
 // UpdateRoutePolicies updates the route policies in the store.
