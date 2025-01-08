@@ -201,6 +201,7 @@ type SubPolicy struct {
 	AllowedDomains   []string                 `mapstructure:"allowed_domains" yaml:"allowed_domains,omitempty" json:"allowed_domains,omitempty"`
 	AllowedIDPClaims identity.FlattenedClaims `mapstructure:"allowed_idp_claims" yaml:"allowed_idp_claims,omitempty" json:"allowed_idp_claims,omitempty"`
 	Rego             []string                 `mapstructure:"rego" yaml:"rego" json:"rego,omitempty"`
+	SourcePPL        string                   `mapstructure:"source_ppl" yaml:"source_ppl,omitempty" json:"source_ppl,omitempty"`
 
 	// Explanation is the explanation for why a policy failed.
 	Explanation string `mapstructure:"explanation" yaml:"explanation" json:"explanation,omitempty"`
@@ -384,6 +385,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 			AllowedDomains:   sp.GetAllowedDomains(),
 			AllowedIDPClaims: identity.NewFlattenedClaimsFromPB(sp.GetAllowedIdpClaims()),
 			Rego:             sp.GetRego(),
+			SourcePPL:        sp.GetSourcePpl(),
 
 			Explanation: sp.GetExplanation(),
 			Remediation: sp.GetRemediation(),
@@ -406,7 +408,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	}
 	sps := make([]*configpb.Policy, 0, len(p.SubPolicies))
 	for _, sp := range p.SubPolicies {
-		sps = append(sps, &configpb.Policy{
+		p := &configpb.Policy{
 			Id:               sp.ID,
 			Name:             sp.Name,
 			AllowedUsers:     sp.AllowedUsers,
@@ -415,7 +417,11 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 			Explanation:      sp.Explanation,
 			Remediation:      sp.Remediation,
 			Rego:             sp.Rego,
-		})
+		}
+		if sp.SourcePPL != "" {
+			p.SourcePpl = proto.String(sp.SourcePPL)
+		}
+		sps = append(sps, p)
 	}
 
 	pb := &configpb.Route{
