@@ -4,8 +4,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"net"
-	"net/url"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -145,7 +143,7 @@ func (c *controller) runZeroControlLoop(ctx context.Context) error {
 	tm, err := telemetry.New(ctx, c.api,
 		r.GetDatabrokerClient,
 		leaseStatus.HasLease,
-		c.getEnvoyScrapeURL(),
+		"/envoy/stats/prometheus",
 	)
 	if err != nil {
 		return fmt.Errorf("init telemetry: %w", err)
@@ -216,12 +214,4 @@ func (c *controller) runUsageReporter(ctx context.Context, client databroker.Dat
 		// start the usage reporter
 		return ur.Run(ctx, client)
 	})
-}
-
-func (c *controller) getEnvoyScrapeURL() string {
-	return (&url.URL{
-		Scheme: "http",
-		Host:   net.JoinHostPort("localhost", c.bootstrapConfig.GetConfig().OutboundPort),
-		Path:   "/envoy/stats/prometheus",
-	}).String()
 }
