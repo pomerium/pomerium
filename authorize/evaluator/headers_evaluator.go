@@ -8,12 +8,14 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
 // HeadersResponse is the output from the headers.rego script.
 type HeadersResponse struct {
-	Headers http.Header
+	Headers             http.Header
+	AdditionalLogFields map[log.AuthorizeLogField]any
 }
 
 // A HeadersEvaluator evaluates the headers.rego script.
