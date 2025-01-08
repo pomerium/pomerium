@@ -338,6 +338,7 @@ func (e *headersEvaluatorEvaluation) getFilteredGroups(ctx context.Context) []st
 		return groups
 	}
 	return slices.Filter(groups, func(g string) bool {
+		// A group should be included if it appears in either the global or the route-level filter list.
 		for _, f := range filters {
 			if f.IsAllowed(g) {
 				return true
