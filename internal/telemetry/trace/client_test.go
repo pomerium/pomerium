@@ -3,7 +3,6 @@ package trace_test
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"runtime"
 	"strings"
 	"sync/atomic"
@@ -12,11 +11,11 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	"github.com/pomerium/pomerium/internal/telemetry/trace/mock_otlptrace"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/scenarios"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
-	"github.com/pomerium/pomerium/internal/testutil"
+	. "github.com/pomerium/pomerium/internal/testutil/tracetest" //nolint:revive
+	"github.com/pomerium/pomerium/internal/testutil/tracetest/mock_otlptrace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
@@ -281,7 +280,7 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 				"OTEL_TRACES_EXPORTER":        "otlp",
 				"OTEL_EXPORTER_OTLP_ENDPOINT": grpcEndpoint.Value(),
 			},
-			uploadErr: "net/http: HTTP/1.x transport connection broken",
+			uploadErr: "net/http: HTTP/1.x transport connection broken: malformed HTTP response",
 		},
 		{
 			name: "HTTP endpoint, auto protocol",
@@ -314,7 +313,7 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 			},
 		},
 		{
-			name: "no exporter",
+			name: "exporter unset",
 			env: map[string]string{
 				"OTEL_TRACES_EXPORTER":               "",
 				"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": httpEndpoint.Value(),
@@ -323,7 +322,7 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 			expectNoSpans: true,
 		},
 		{
-			name: "no exporter",
+			name: "exporter noop",
 			env: map[string]string{
 				"OTEL_TRACES_EXPORTER":               "noop",
 				"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": httpEndpoint.Value(),
@@ -332,7 +331,7 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 			expectNoSpans: true,
 		},
 		{
-			name: "no exporter",
+			name: "exporter none",
 			env: map[string]string{
 				"OTEL_TRACES_EXPORTER":               "none",
 				"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": httpEndpoint.Value(),
@@ -403,19 +402,6 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 			otel.SetErrorHandler(handler)
 			t.Cleanup(func() { otel.SetErrorHandler(oldErrHandler) })
 
-			if tc.uploadErr != "" {
-				recorder := env.NewLogRecorder(testenv.WithSkipCloseDelay())
-				defer func() {
-					recorder.Match([]map[string]any{
-						{
-							"level":   "error",
-							"error":   regexp.MustCompile(`^Post "[^"]+": net/http: HTTP/1.x transport connection broken: malformed HTTP response.*$`),
-							"message": "error uploading traces",
-						},
-					})
-				}()
-			}
-
 			remoteClient := trace.NewRemoteClientFromEnv()
 			ctx := trace.Options{
 				RemoteClient: remoteClient,
@@ -431,20 +417,20 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 			_, span := tp.Tracer(trace.PomeriumCoreTracer).Start(ctx, "test span")
 			span.End()
 
-			assert.NoError(t, trace.ForceFlush(ctx))
-			assert.NoError(t, trace.ShutdownContext(ctx))
-
 			if tc.uploadErr != "" {
+				assert.ErrorContains(t, trace.ForceFlush(ctx), tc.uploadErr)
+				assert.NoError(t, trace.ShutdownContext(ctx))
 				return
 			}
+			assert.NoError(t, trace.ShutdownContext(ctx))
 
-			results := testutil.NewTraceResults(receiver.FlushResourceSpans())
+			results := NewTraceResults(receiver.FlushResourceSpans())
 			if tc.expectNoSpans {
-				results.MatchTraces(t, testutil.MatchOptions{Exact: true})
+				results.MatchTraces(t, MatchOptions{Exact: true})
 			} else {
-				results.MatchTraces(t, testutil.MatchOptions{
+				results.MatchTraces(t, MatchOptions{
 					Exact: true,
-				}, testutil.Match{Name: t.Name() + ": test span", TraceCount: 1, Services: []string{t.Name()}})
+				}, Match{Name: t.Name() + ": test span", TraceCount: 1, Services: []string{t.Name()}})
 			}
 		})
 	}

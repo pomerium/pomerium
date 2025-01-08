@@ -18,7 +18,7 @@ var (
 type XStackTraceProcessor = stackTraceProcessor
 
 func (obs *spanObserver) XWait() {
-	obs.wait(nil, 5*time.Second)
+	obs.wait(5 * time.Second)
 }
 
 func (obs *spanObserver) XUnobservedIDs() []oteltrace.SpanID {

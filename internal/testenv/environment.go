@@ -286,7 +286,7 @@ const StandardTraceDebugFlags = trace.TrackSpanCallers |
 	trace.WarnOnIncompleteSpans |
 	trace.WarnOnIncompleteTraces |
 	trace.WarnOnUnresolvedReferences |
-	trace.LogTraceIDMappingsOnWarn |
+	trace.LogTraceIDsOnWarn |
 	trace.LogAllSpansOnWarn
 
 func WithTraceDebugFlags(flags trace.DebugFlags) EnvironmentOption {

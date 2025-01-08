@@ -1,4 +1,4 @@
-package trace
+package tracetest
 
 import (
 	"cmp"
@@ -6,10 +6,8 @@ import (
 	"maps"
 	"slices"
 	"sync"
-	"unique"
 
 	"github.com/pomerium/pomerium/internal/hashutil"
-	oteltrace "go.opentelemetry.io/otel/trace"
 	commonv1 "go.opentelemetry.io/proto/otlp/common/v1"
 	resourcev1 "go.opentelemetry.io/proto/otlp/resource/v1"
 	tracev1 "go.opentelemetry.io/proto/otlp/trace/v1"
@@ -72,49 +70,8 @@ func (rb *ResourceBuffer) Flush() []*tracev1.ScopeSpans {
 	return out
 }
 
-func (rb *ResourceBuffer) FlushAs(rewriteTraceID unique.Handle[oteltrace.TraceID]) []*tracev1.ScopeSpans {
-	out := make([]*tracev1.ScopeSpans, 0, len(rb.spansByScope))
-	for _, key := range slices.Sorted(maps.Keys(rb.spansByScope)) {
-		spans := rb.spansByScope[key]
-		{
-			id := rewriteTraceID.Value()
-			for _, span := range spans.spans {
-				copy(span.TraceId, id[:])
-			}
-		}
-		slices.SortStableFunc(spans.spans, func(a, b *tracev1.Span) int {
-			return cmp.Compare(a.StartTimeUnixNano, b.StartTimeUnixNano)
-		})
-		scopeSpans := &tracev1.ScopeSpans{
-			Scope:     spans.scope.Scope,
-			SchemaUrl: spans.scope.Schema,
-			Spans:     spans.spans,
-		}
-		out = append(out, scopeSpans)
-	}
-	clear(rb.spansByScope)
-	return out
-}
-
 func (rb *ResourceBuffer) Merge(other *ResourceBuffer) {
 	for scope, otherSpans := range other.spansByScope {
-		if ourSpans, ok := rb.spansByScope[scope]; !ok {
-			rb.spansByScope[scope] = otherSpans
-		} else {
-			ourSpans.Insert(otherSpans.spans...)
-		}
-	}
-	clear(other.spansByScope)
-}
-
-func (rb *ResourceBuffer) MergeAs(other *ResourceBuffer, rewriteTraceID unique.Handle[oteltrace.TraceID]) {
-	for scope, otherSpans := range other.spansByScope {
-		{
-			id := rewriteTraceID.Value()
-			for _, span := range otherSpans.spans {
-				copy(span.TraceId, id[:])
-			}
-		}
 		if ourSpans, ok := rb.spansByScope[scope]; !ok {
 			rb.spansByScope[scope] = otherSpans
 		} else {
@@ -161,21 +118,6 @@ func (b *Buffer) Flush() []*tracev1.ResourceSpans {
 	return out
 }
 
-func (b *Buffer) FlushAs(rewriteTraceID unique.Handle[oteltrace.TraceID]) []*tracev1.ResourceSpans {
-	out := make([]*tracev1.ResourceSpans, 0, len(b.scopesByResourceID))
-	for _, key := range slices.Sorted(maps.Keys(b.scopesByResourceID)) {
-		scopes := b.scopesByResourceID[key]
-		resourceSpans := &tracev1.ResourceSpans{
-			Resource:   scopes.resource.Resource,
-			ScopeSpans: scopes.FlushAs(rewriteTraceID),
-			SchemaUrl:  scopes.resource.Schema,
-		}
-		out = append(out, resourceSpans)
-	}
-	clear(b.scopesByResourceID)
-	return out
-}
-
 func (b *Buffer) Merge(other *Buffer) {
 	if b != nil {
 		for k, otherV := range other.scopesByResourceID {
@@ -183,21 +125,6 @@ func (b *Buffer) Merge(other *Buffer) {
 				b.scopesByResourceID[k] = otherV
 			} else {
 				v.Merge(otherV)
-			}
-		}
-	}
-	clear(other.scopesByResourceID)
-}
-
-func (b *Buffer) MergeAs(other *Buffer, rewriteTraceID unique.Handle[oteltrace.TraceID]) {
-	if b != nil {
-		for k, otherV := range other.scopesByResourceID {
-			if v, ok := b.scopesByResourceID[k]; !ok {
-				newRb := NewResourceBuffer(otherV.resource)
-				newRb.MergeAs(otherV, rewriteTraceID)
-				b.scopesByResourceID[k] = newRb
-			} else {
-				v.MergeAs(otherV, rewriteTraceID)
 			}
 		}
 	}

@@ -6,19 +6,37 @@ import (
 	"net"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/log"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
 
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
+
+const localExporterMetadataKey = "x-local-exporter"
 
 // Export implements ptraceotlp.GRPCServer.
 func (srv *ExporterServer) Export(ctx context.Context, req *coltracepb.ExportTraceServiceRequest) (*coltracepb.ExportTraceServiceResponse, error) {
-	if err := srv.spanExportQueue.Enqueue(ctx, req); err != nil {
+	if srv.observer != nil {
+		isLocal := len(metadata.ValueFromIncomingContext(ctx, localExporterMetadataKey)) != 0
+		if !isLocal {
+			for _, res := range req.ResourceSpans {
+				for _, scope := range res.ScopeSpans {
+					for _, span := range scope.Spans {
+						if id, ok := ToSpanID(span.SpanId); ok {
+							srv.observer.Observe(id)
+						}
+					}
+				}
+			}
+		}
+	}
+	if err := srv.remoteClient.UploadTraces(ctx, req.GetResourceSpans()); err != nil {
+		log.Ctx(ctx).Err(err).Msg("error uploading traces")
 		return nil, err
 	}
 	return &coltracepb.ExportTraceServiceResponse{}, nil
@@ -26,17 +44,18 @@ func (srv *ExporterServer) Export(ctx context.Context, req *coltracepb.ExportTra
 
 type ExporterServer struct {
 	coltracepb.UnimplementedTraceServiceServer
-	spanExportQueue *SpanExportQueue
-	server          *grpc.Server
-	remoteClient    otlptrace.Client
-	cc              *grpc.ClientConn
+	server       *grpc.Server
+	observer     *spanObserver
+	remoteClient otlptrace.Client
+	cc           *grpc.ClientConn
 }
 
-func NewServer(ctx context.Context, remoteClient otlptrace.Client) *ExporterServer {
+func NewServer(ctx context.Context) *ExporterServer {
+	sys := systemContextFromContext(ctx)
 	ex := &ExporterServer{
-		spanExportQueue: NewSpanExportQueue(ctx, remoteClient),
-		remoteClient:    remoteClient,
-		server:          grpc.NewServer(grpc.Creds(insecure.NewCredentials())),
+		remoteClient: sys.options.RemoteClient,
+		observer:     sys.observer,
+		server:       grpc.NewServer(grpc.Creds(insecure.NewCredentials())),
 	}
 	coltracepb.RegisterTraceServiceServer(ex.server, ex)
 	return ex
@@ -64,11 +83,10 @@ func (srv *ExporterServer) NewClient() otlptrace.Client {
 	return otlptracegrpc.NewClient(
 		otlptracegrpc.WithGRPCConn(srv.cc),
 		otlptracegrpc.WithTimeout(1*time.Minute),
+		otlptracegrpc.WithHeaders(map[string]string{
+			localExporterMetadataKey: "1",
+		}),
 	)
-}
-
-func (srv *ExporterServer) SpanProcessors() []sdktrace.SpanProcessor {
-	return []sdktrace.SpanProcessor{srv.spanExportQueue.tracker}
 }
 
 func (srv *ExporterServer) Shutdown(ctx context.Context) error {
@@ -83,10 +101,7 @@ func (srv *ExporterServer) Shutdown(ctx context.Context) error {
 		return context.Cause(ctx)
 	}
 	var errs []error
-	if err := srv.spanExportQueue.WaitForSpans(30 * time.Second); err != nil {
-		errs = append(errs, err)
-	}
-	if err := srv.spanExportQueue.Close(ctx); err != nil {
+	if err := WaitForSpans(ctx, 30*time.Second); err != nil {
 		errs = append(errs, err)
 	}
 	if err := srv.remoteClient.Stop(ctx); err != nil {

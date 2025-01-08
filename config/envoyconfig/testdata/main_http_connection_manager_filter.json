@@ -33,60 +33,6 @@
     ],
     "httpFilters": [
       {
-        "name": "envoy.filters.http.header_to_metadata",
-        "typedConfig": {
-          "@type": "type.googleapis.com/envoy.extensions.filters.http.header_to_metadata.v3.Config",
-          "requestRules": [
-            {
-              "header": "x-pomerium-traceparent",
-              "onHeaderPresent": {
-                "metadataNamespace": "pomerium.internal",
-                "key": "traceparent"
-              }
-            },
-            {
-              "header": "x-pomerium-tracestate",
-              "onHeaderPresent": {
-                "metadataNamespace": "pomerium.internal",
-                "key": "tracestate"
-              }
-            },
-            {
-              "header": "x-pomerium-external-parent-span",
-              "onHeaderPresent": {
-                "key": "external-parent-span",
-                "metadataNamespace": "pomerium.internal"
-              },
-              "remove": true
-            },
-            {
-              "header": "x-pomerium-sampling-decision",
-              "onHeaderPresent": {
-                "metadataNamespace": "pomerium.internal",
-                "key": "sampling-decision"
-              },
-              "remove": true
-            }
-          ],
-          "responseRules": [
-            {
-              "header": "x-pomerium-traceparent",
-              "onHeaderPresent": {
-                "metadataNamespace": "pomerium.internal",
-                "key": "traceparent"
-              }
-            },
-            {
-              "header": "x-pomerium-tracestate",
-              "onHeaderPresent": {
-                "metadataNamespace": "pomerium.internal",
-                "key": "tracestate"
-              }
-            }
-          ]
-        }
-      },
-      {
         "name": "envoy.filters.http.lua",
         "typedConfig": {
           "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
@@ -112,17 +58,7 @@
             "envoyGrpc": {
               "clusterName": "pomerium-authorize"
             },
-            "timeout": "10s",
-            "initialMetadata": [
-              {
-                "key": "x-pomerium-traceparent",
-                "value": "%DYNAMIC_METADATA(pomerium.internal:traceparent)%"
-              },
-              {
-                "key": "x-pomerium-tracestate",
-                "value": "%DYNAMIC_METADATA(pomerium.internal:tracestate)%"
-              }
-            ]
+            "timeout": "10s"
           },
           "transportApiVersion": "V3",
           "statusOnError": {
@@ -265,60 +201,10 @@
       },
       "verbose": true,
       "maxPathTagLength": 1024,
-      "customTags": [
-        {
-          "tag": "pomerium.traceparent",
-          "metadata": {
-            "kind": {
-              "request": {}
-            },
-            "metadataKey": {
-              "key": "pomerium.internal",
-              "path": [
-                {
-                  "key": "traceparent"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "tag": "pomerium.tracestate",
-          "metadata": {
-            "kind": {
-              "request": {}
-            },
-            "metadataKey": {
-              "key": "pomerium.internal",
-              "path": [
-                {
-                  "key": "tracestate"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "metadata": {
-            "kind": {
-              "request": {}
-            },
-            "metadataKey": {
-              "key": "pomerium.internal",
-              "path": [
-                {
-                  "key": "external-parent-span"
-                }
-              ]
-            }
-          },
-          "tag": "pomerium.external-parent-span"
-        }
-      ],
       "provider": {
-        "name": "envoy.tracers.opentelemetry",
+        "name": "envoy.tracers.pomerium_otel",
         "typedConfig": {
-          "@type": "type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig",
+          "@type": "type.googleapis.com/pomerium.extensions.OpenTelemetryConfig",
           "grpcService": {
             "envoyGrpc": {
               "clusterName": "pomerium-control-plane-grpc"

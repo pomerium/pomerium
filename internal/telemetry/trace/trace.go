@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -35,8 +34,11 @@ func (op Options) NewContext(parent context.Context) context.Context {
 		options: op,
 		tpm:     &tracerProviderManager{},
 	}
+	if op.DebugFlags.Check(TrackSpanReferences) {
+		sys.observer = newSpanObserver()
+	}
 	ctx := context.WithValue(parent, systemContextKey, sys)
-	sys.exporterServer = NewServer(ctx, op.RemoteClient)
+	sys.exporterServer = NewServer(ctx)
 	sys.exporterServer.Start(ctx)
 	return ctx
 }
@@ -86,13 +88,14 @@ func NewTracerProvider(ctx context.Context, serviceName string, opts ...sdktrace
 	if sys.options.DebugFlags.Check(TrackSpanCallers) {
 		options = append(options, sdktrace.WithSpanProcessor(&stackTraceProcessor{}))
 	}
+	if sys.options.DebugFlags.Check(TrackSpanReferences) {
+		tracker := newSpanTracker(sys.observer, sys.options.DebugFlags)
+		options = append(options, sdktrace.WithSpanProcessor(tracker))
+	}
 	options = append(append(options,
 		sdktrace.WithBatcher(exp),
 		sdktrace.WithResource(r),
 	), opts...)
-	for _, proc := range sys.exporterServer.SpanProcessors() {
-		options = append(options, sdktrace.WithSpanProcessor(proc))
-	}
 	tp := sdktrace.NewTracerProvider(options...)
 	sys.tpm.Add(tp)
 	return tp
@@ -156,34 +159,6 @@ func RemoteClientFromContext(ctx context.Context) otlptrace.Client {
 	return nil
 }
 
-func DebugFlagsFromContext(ctx context.Context) DebugFlags {
-	if sys := systemContextFromContext(ctx); sys != nil {
-		return sys.options.DebugFlags
-	}
-	return 0
-}
-
-// WaitForSpans will block up to the given max duration and wait for all
-// in-flight spans from tracers created with the given context to end. This
-// function can be called more than once, and is safe to call from multiple
-// goroutines in parallel.
-//
-// This requires the [TrackSpanReferences] debug flag to have been set with
-// [Options.NewContext]. Otherwise, this function is a no-op and will return
-// immediately.
-//
-// If this function blocks for more than 10 seconds, it will print a warning
-// to stderr containing a list of span IDs it is waiting for, and the IDs of
-// their parents (if known). Additionally, if the [TrackAllSpans] debug flag
-// is set, details about parent spans will be displayed, including call site
-// and trace ID.
-func WaitForSpans(ctx context.Context, maxDuration time.Duration) error {
-	if sys := systemContextFromContext(ctx); sys != nil {
-		return sys.exporterServer.spanExportQueue.WaitForSpans(maxDuration)
-	}
-	return nil
-}
-
 // ForceFlush immediately exports all spans that have not yet been exported for
 // all tracer providers created using the given context.
 func ForceFlush(ctx context.Context) error {
@@ -204,6 +179,7 @@ var systemContextKey systemContextKeyType
 type systemContext struct {
 	options        Options
 	tpm            *tracerProviderManager
+	observer       *spanObserver
 	exporterServer *ExporterServer
 	shutdown       atomic.Bool
 }

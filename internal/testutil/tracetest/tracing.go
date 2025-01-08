@@ -1,8 +1,9 @@
-package testutil
+package tracetest
 
 import (
 	"cmp"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -27,6 +28,96 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 )
+
+type (
+	Trace    uint32
+	Span     uint32
+	Scope    uint32
+	Schema   uint32
+	Resource uint32
+)
+
+func (n Trace) String() string    { return fmt.Sprintf("Trace %d", n) }
+func (n Span) String() string     { return fmt.Sprintf("Span %d", n) }
+func (n Scope) String() string    { return fmt.Sprintf("Scope %d", n) }
+func (n Schema) String() string   { return fmt.Sprintf("Schema %d", n) }
+func (n Resource) String() string { return fmt.Sprintf("Resource %d", n) }
+
+func (n Trace) ID() unique.Handle[oteltrace.TraceID] {
+	id, _ := trace.ToTraceID(n.B())
+	return id
+}
+
+func (n Trace) B() []byte {
+	var id oteltrace.TraceID
+	binary.BigEndian.PutUint32(id[12:], uint32(n))
+	return id[:]
+}
+
+func (n Span) ID() oteltrace.SpanID {
+	id, _ := trace.ToSpanID(n.B())
+	return id
+}
+
+func (n Span) B() []byte {
+	var id oteltrace.SpanID
+	binary.BigEndian.PutUint32(id[4:], uint32(n))
+	return id[:]
+}
+
+func (n Scope) Make(s ...Schema) *ScopeInfo {
+	if len(s) == 0 {
+		s = append(s, Schema(0))
+	}
+	return NewScopeInfo(&commonv1.InstrumentationScope{
+		Name:    n.String(),
+		Version: "v1",
+		Attributes: []*commonv1.KeyValue{
+			{
+				Key: "id",
+				Value: &commonv1.AnyValue{
+					Value: &commonv1.AnyValue_IntValue{
+						IntValue: int64(n),
+					},
+				},
+			},
+		},
+	}, s[0].String())
+}
+
+func (n Resource) Make(s ...Schema) *ResourceInfo {
+	if len(s) == 0 {
+		s = append(s, Schema(0))
+	}
+	return NewResourceInfo(&resourcev1.Resource{
+		Attributes: []*commonv1.KeyValue{
+			{
+				Key: "name",
+				Value: &commonv1.AnyValue{
+					Value: &commonv1.AnyValue_StringValue{
+						StringValue: n.String(),
+					},
+				},
+			},
+			{
+				Key: "id",
+				Value: &commonv1.AnyValue{
+					Value: &commonv1.AnyValue_IntValue{
+						IntValue: int64(n),
+					},
+				},
+			},
+		},
+	}, s[0].String())
+}
+
+func Traceparent(trace Trace, span Span, sampled bool) string {
+	sampledStr := "00"
+	if sampled {
+		sampledStr = "01"
+	}
+	return fmt.Sprintf("00-%s-%s-%s", trace.ID().Value(), span.ID(), sampledStr)
+}
 
 type TraceResults struct {
 	resourceSpans []*tracev1.ResourceSpans
@@ -86,11 +177,7 @@ type TraceDetails struct {
 func (td *TraceDetails) Equal(other *TraceDetails) (bool, string) {
 	diffSpans := func(a, b []*SpanDetails) (bool, string) {
 		for i := range len(a) {
-			aRaw := proto.Clone(a[i].Raw).(*tracev1.Span)
-			trace.FormatSpanName(aRaw)
-			bRaw := proto.Clone(b[i].Raw).(*tracev1.Span)
-			trace.FormatSpanName(bRaw)
-			diff := gocmp.Diff(aRaw, bRaw, protocmp.Transform())
+			diff := gocmp.Diff(a[i], b[i], protocmp.Transform())
 			if diff != "" {
 				return false, diff
 			}
@@ -426,12 +513,12 @@ func (tr *TraceResults) AssertEqual(t testing.TB, expectedResults *TraceResults,
 }
 
 func FlattenResourceSpans(lists [][]*tracev1.ResourceSpans) []*tracev1.ResourceSpans {
-	res := trace.NewBuffer()
+	res := NewBuffer()
 	for _, list := range lists {
 		for _, resource := range list {
-			resInfo := trace.NewResourceInfo(resource.Resource, resource.SchemaUrl)
+			resInfo := NewResourceInfo(resource.Resource, resource.SchemaUrl)
 			for _, scope := range resource.ScopeSpans {
-				scopeInfo := trace.NewScopeInfo(scope.Scope, scope.SchemaUrl)
+				scopeInfo := NewScopeInfo(scope.Scope, scope.SchemaUrl)
 				for _, span := range scope.Spans {
 					res.Insert(resInfo, scopeInfo, span)
 				}

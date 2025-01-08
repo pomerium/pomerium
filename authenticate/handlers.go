@@ -3,6 +3,7 @@ package authenticate
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/identity"
@@ -282,9 +284,20 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 
 	state.sessionStore.ClearSession(w, r)
 	redirectURL := state.redirectURL.ResolveReference(r.URL)
+	redirectURLValues := redirectURL.Query()
+	var traceID string
+	if tp := trace.PomeriumURLQueryCarrier(redirectURLValues).Get("traceparent"); len(tp) == 55 {
+		if traceIDBytes, err := hex.DecodeString(tp[3:35]); err == nil {
+			traceFlags, _ := hex.DecodeString(tp[53:55])
+			if len(traceFlags) != 1 {
+				traceFlags = []byte{0}
+			}
+			traceID = base64.RawURLEncoding.EncodeToString(append(traceIDBytes, traceFlags[0]))
+		}
+	}
 	nonce := csrf.Token(r)
 	now := time.Now().Unix()
-	b := []byte(fmt.Sprintf("%s|%d|", nonce, now))
+	b := []byte(fmt.Sprintf("%s|%d|%s|", nonce, now, traceID))
 	enc := cryptutil.Encrypt(state.cookieCipher, []byte(redirectURL.String()), b)
 	b = append(b, enc...)
 	encodedState := base64.URLEncoding.EncodeToString(b)
@@ -305,10 +318,6 @@ func (a *Authenticate) OAuthCallback(w http.ResponseWriter, r *http.Request) err
 	redirect, err := a.getOAuthCallback(w, r)
 	if err != nil {
 		return fmt.Errorf("authenticate.OAuthCallback: %w", err)
-	}
-	q := redirect.Query()
-	if traceparent := q.Get(urlutil.QueryTraceparent); traceparent != "" {
-		w.Header().Set("X-Pomerium-Traceparent", traceparent)
 	}
 	httputil.Redirect(w, r, redirect.String(), http.StatusFound)
 	return nil
@@ -350,21 +359,20 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// split state into concat'd components
-	// (nonce|timestamp|redirect_url|encrypted_data(redirect_url)+mac(nonce,ts))
-	statePayload := strings.SplitN(string(bytes), "|", 3)
-	if len(statePayload) != 3 {
+	// (nonce|timestamp|trace_id+flags|encrypted_data(redirect_url)+mac(nonce,ts))
+	statePayload := strings.SplitN(string(bytes), "|", 4)
+	if len(statePayload) != 4 {
 		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("state malformed, size: %d", len(statePayload)))
 	}
 
 	// Use our AEAD construct to enforce secrecy and authenticity:
 	// mac: to validate the nonce again, and above timestamp
 	// decrypt: to prevent leaking 'redirect_uri' to IdP or logs
-	b := []byte(fmt.Sprint(statePayload[0], "|", statePayload[1], "|"))
-	redirectString, err := cryptutil.Decrypt(state.cookieCipher, []byte(statePayload[2]), b)
+	b := []byte(fmt.Sprint(statePayload[0], "|", statePayload[1], "|", statePayload[2], "|"))
+	redirectString, err := cryptutil.Decrypt(state.cookieCipher, []byte(statePayload[3]), b)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)
 	}
-
 	redirectURL, err := urlutil.ParseAndValidateURL(string(redirectString))
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)

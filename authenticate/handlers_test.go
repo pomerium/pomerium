@@ -368,9 +368,8 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 			params.Add("error", tt.paramErr)
 			params.Add("code", tt.code)
 			nonce := cryptutil.NewBase64Key() // mock csrf
-			// (nonce|timestamp|redirect_url|encrypt(redirect_url),mac(nonce,ts))
-			b := []byte(fmt.Sprintf("%s|%d|%s", nonce, tt.ts, tt.extraMac))
-
+			// (nonce|timestamp|trace_id+flags|encrypt(redirect_url),mac(nonce,ts))
+			b := []byte(fmt.Sprintf("%s|%d||%s", nonce, tt.ts, tt.extraMac))
 			enc := cryptutil.Encrypt(a.state.Load().cookieCipher, []byte(tt.redirectURI), b)
 			b = append(b, enc...)
 			encodedState := base64.URLEncoding.EncodeToString(b)

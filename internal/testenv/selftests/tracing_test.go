@@ -18,7 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/scenarios"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
-	"github.com/pomerium/pomerium/internal/testutil"
+	. "github.com/pomerium/pomerium/internal/testutil/tracetest" //nolint:revive
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -29,7 +29,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
-func otlpTraceReceiverOrFromEnv(t *testing.T) (modifier testenv.Modifier, newRemoteClient func() otlptrace.Client, getResults func() *testutil.TraceResults) {
+func otlpTraceReceiverOrFromEnv(t *testing.T) (modifier testenv.Modifier, newRemoteClient func() otlptrace.Client, getResults func() *TraceResults) {
 	t.Setenv("OTEL_TRACES_EXPORTER", "otlp")
 	tracesEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
 	if tracesEndpoint == "" {
@@ -40,8 +40,8 @@ func otlpTraceReceiverOrFromEnv(t *testing.T) (modifier testenv.Modifier, newRem
 				func() otlptrace.Client {
 					return srv.NewGRPCClient()
 				},
-				func() *testutil.TraceResults {
-					return testutil.NewTraceResults(srv.FlushResourceSpans())
+				func() *TraceResults {
+					return NewTraceResults(srv.FlushResourceSpans())
 				}
 		}
 	}
@@ -111,18 +111,18 @@ func TestOTLPTracing(t *testing.T) {
 		)
 
 		results.MatchTraces(t,
-			testutil.MatchOptions{
+			MatchOptions{
 				Exact:              true,
 				CheckDetachedSpans: true,
 			},
-			testutil.Match{Name: testEnvironmentLocalTest, TraceCount: 1, Services: []string{"Test Environment", "Control Plane", "Data Broker"}},
-			testutil.Match{Name: testEnvironmentAuthenticate, TraceCount: 1, Services: allServices},
-			testutil.Match{Name: authenticateOAuth2Client, TraceCount: testutil.Greater(0)},
-			testutil.Match{Name: idpServerGetUserinfo, TraceCount: testutil.EqualToMatch(authenticateOAuth2Client)},
-			testutil.Match{Name: idpServerPostToken, TraceCount: testutil.EqualToMatch(authenticateOAuth2Client)},
-			testutil.Match{Name: controlPlaneEnvoyDiscovery, TraceCount: 1},
-			testutil.Match{Name: controlPlaneExport, TraceCount: testutil.Greater(0)},
-			testutil.Match{Name: controlPlaneEnvoyAccessLogs, TraceCount: testutil.Any{}},
+			Match{Name: testEnvironmentLocalTest, TraceCount: 1, Services: []string{"Test Environment", "Control Plane", "Data Broker"}},
+			Match{Name: testEnvironmentAuthenticate, TraceCount: 1, Services: allServices},
+			Match{Name: authenticateOAuth2Client, TraceCount: Greater(0)},
+			Match{Name: idpServerGetUserinfo, TraceCount: EqualToMatch(authenticateOAuth2Client)},
+			Match{Name: idpServerPostToken, TraceCount: EqualToMatch(authenticateOAuth2Client)},
+			Match{Name: controlPlaneEnvoyDiscovery, TraceCount: 1},
+			Match{Name: controlPlaneExport, TraceCount: Greater(0)},
+			Match{Name: controlPlaneEnvoyAccessLogs, TraceCount: Any{}},
 		)
 	}
 }
@@ -164,17 +164,15 @@ func TestOTLPTracing_TraceCorrelation(t *testing.T) {
 	if getResults != nil {
 		results := getResults()
 		traces := results.GetTraces()
-		downstreamTraces := traces.ByName[fmt.Sprintf("Envoy: ingress: GET foo.localhost.pomerium.io:%d/foo", env.Ports().ProxyHTTP.Value())].WithoutErrors()
-		upstreamTraces := traces.ByName[fmt.Sprintf("Envoy: ingress: GET 127.0.0.1:%d/foo", up.Port().Value())].WithoutErrors()
-		assert.Len(t, upstreamTraces, 1)
-		assert.Len(t, downstreamTraces, 1)
+		// one unauthenticated (ends in /.pomerium/callback redirect), one authenticated
+		assert.Len(t, traces.ByName[fmt.Sprintf("Envoy: ingress: GET foo.localhost.pomerium.io:%d/foo", env.Ports().ProxyHTTP.Value())].WithoutErrors(), 2)
 	}
 }
 
 type SamplingTestSuite struct {
 	suite.Suite
 	env        testenv.Environment
-	getResults func() *testutil.TraceResults
+	getResults func() *TraceResults
 	route      testenv.Route
 	upstream   upstreams.HTTPUpstream
 
@@ -308,6 +306,7 @@ func (s *SamplingTestSuite) TestExternalTraceparentNeverSample() {
 		if (len(traces.ByParticipant)) != 0 {
 			// whether or not these show up is timing dependent, but not important
 			possibleTraces := map[string]struct{}{
+				"Test Environment: Start":                                 {},
 				"IDP: Server: POST /oidc/token":                           {},
 				"IDP: Server: GET /oidc/userinfo":                         {},
 				"Authenticate: OAuth2 Client: GET /.well-known/jwks.json": {},
@@ -315,7 +314,7 @@ func (s *SamplingTestSuite) TestExternalTraceparentNeverSample() {
 			actual := slices.Collect(maps.Keys(traces.ByName))
 			for _, name := range actual {
 				if _, ok := possibleTraces[name]; !ok {
-					s.Failf("unexpected trace: %s", name)
+					s.Fail("unexpected trace: " + name)
 				}
 			}
 		}
@@ -384,8 +383,8 @@ func TestExternalSpans(t *testing.T) {
 
 	if getResults != nil {
 		results := getResults()
-		results.MatchTraces(t, testutil.MatchOptions{CheckDetachedSpans: true},
-			testutil.Match{Name: "External: External Root", TraceCount: 1, Services: []string{
+		results.MatchTraces(t, MatchOptions{CheckDetachedSpans: true},
+			Match{Name: "External: External Root", TraceCount: 1, Services: []string{
 				"Authorize",
 				"Authenticate",
 				"Control Plane",

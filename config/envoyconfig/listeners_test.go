@@ -103,7 +103,7 @@ func TestBuildListeners(t *testing.T) {
 							}]
 						}
 					}
-				}`, httpConfig.Get("httpFilters.7").String(),
+				}`, httpConfig.Get("httpFilters.6").String(),
 					"should add alt-svc header")
 			case "quic-ingress":
 				hasQUIC = true
@@ -149,6 +149,7 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	options.SkipXffAppend = true
 	options.XffNumTrustedHops = 1
 	options.AuthenticateURLString = "https://authenticate.example.com"
+	options.TracingProvider = "otlp"
 	filter, err := b.buildMainHTTPConnectionManagerFilter(context.Background(), &config.Config{Options: options}, false, false)
 	require.NoError(t, err)
 

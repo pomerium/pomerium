@@ -1,109 +1,12 @@
-package trace_test
+package tracetest
 
 import (
-	"encoding/binary"
-	"fmt"
 	"testing"
-	"unique"
 
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/stretchr/testify/assert"
-	oteltrace "go.opentelemetry.io/otel/trace"
-	commonv1 "go.opentelemetry.io/proto/otlp/common/v1"
-	resourcev1 "go.opentelemetry.io/proto/otlp/resource/v1"
 	tracev1 "go.opentelemetry.io/proto/otlp/trace/v1"
 )
-
-type (
-	Trace    uint32
-	Span     uint32
-	Scope    uint32
-	Schema   uint32
-	Resource uint32
-)
-
-func (n Trace) String() string    { return fmt.Sprintf("Trace %d", n) }
-func (n Span) String() string     { return fmt.Sprintf("Span %d", n) }
-func (n Scope) String() string    { return fmt.Sprintf("Scope %d", n) }
-func (n Schema) String() string   { return fmt.Sprintf("Schema %d", n) }
-func (n Resource) String() string { return fmt.Sprintf("Resource %d", n) }
-
-func (n Trace) ID() unique.Handle[oteltrace.TraceID] {
-	id, _ := trace.ToTraceID(n.B())
-	return id
-}
-
-func (n Trace) B() []byte {
-	var id oteltrace.TraceID
-	binary.BigEndian.PutUint32(id[12:], uint32(n))
-	return id[:]
-}
-
-func (n Span) ID() oteltrace.SpanID {
-	id, _ := trace.ToSpanID(n.B())
-	return id
-}
-
-func (n Span) B() []byte {
-	var id oteltrace.SpanID
-	binary.BigEndian.PutUint32(id[4:], uint32(n))
-	return id[:]
-}
-
-func (n Scope) Make(s ...Schema) *trace.ScopeInfo {
-	if len(s) == 0 {
-		s = append(s, Schema(0))
-	}
-	return trace.NewScopeInfo(&commonv1.InstrumentationScope{
-		Name:    n.String(),
-		Version: "v1",
-		Attributes: []*commonv1.KeyValue{
-			{
-				Key: "id",
-				Value: &commonv1.AnyValue{
-					Value: &commonv1.AnyValue_IntValue{
-						IntValue: int64(n),
-					},
-				},
-			},
-		},
-	}, s[0].String())
-}
-
-func (n Resource) Make(s ...Schema) *trace.ResourceInfo {
-	if len(s) == 0 {
-		s = append(s, Schema(0))
-	}
-	return trace.NewResourceInfo(&resourcev1.Resource{
-		Attributes: []*commonv1.KeyValue{
-			{
-				Key: "name",
-				Value: &commonv1.AnyValue{
-					Value: &commonv1.AnyValue_StringValue{
-						StringValue: n.String(),
-					},
-				},
-			},
-			{
-				Key: "id",
-				Value: &commonv1.AnyValue{
-					Value: &commonv1.AnyValue_IntValue{
-						IntValue: int64(n),
-					},
-				},
-			},
-		},
-	}, s[0].String())
-}
-
-func Traceparent(trace Trace, span Span, sampled bool) string {
-	sampledStr := "00"
-	if sampled {
-		sampledStr = "01"
-	}
-	return fmt.Sprintf("00-%s-%s-%s", trace.ID().Value(), span.ID(), sampledStr)
-}
 
 func TestBuffer(t *testing.T) {
 	t.Parallel()
@@ -128,8 +31,8 @@ func TestBuffer(t *testing.T) {
 		{TraceId: Trace(2).B(), SpanId: Span(16).B(), StartTimeUnixNano: 16},
 	}
 
-	newTestBuffer := func() *trace.Buffer {
-		b := trace.NewBuffer()
+	newTestBuffer := func() *Buffer {
+		b := NewBuffer()
 		b.Insert(Resource(1).Make(), Scope(1).Make(), s[0])
 		b.Insert(Resource(1).Make(), Scope(1).Make(), s[1])
 		b.Insert(Resource(1).Make(), Scope(1).Make(), s[2])
@@ -191,26 +94,12 @@ func TestBuffer(t *testing.T) {
 		assert.True(t, b.IsEmpty())
 		testutil.AssertProtoEqual(t, newExpectedSpans(), actual)
 	})
-	t.Run("FlushAs", func(t *testing.T) {
-		b := newTestBuffer()
-		actual := b.FlushAs(Trace(100).ID())
-		assert.True(t, b.IsEmpty())
-		expected := newExpectedSpans()
-		for _, resourceSpans := range expected {
-			for _, scopeSpans := range resourceSpans.ScopeSpans {
-				for _, span := range scopeSpans.Spans {
-					span.TraceId = Trace(100).B()
-				}
-			}
-		}
-		testutil.AssertProtoEqual(t, expected, actual)
-	})
 
 	t.Run("Default scope", func(t *testing.T) {
-		b := trace.NewBuffer()
-		b.Insert(Resource(1).Make(Schema(2)), trace.NewScopeInfo(nil, ""), s[0])
-		b.Insert(Resource(1).Make(Schema(2)), trace.NewScopeInfo(nil, ""), s[1])
-		b.Insert(Resource(1).Make(Schema(2)), trace.NewScopeInfo(nil, ""), s[2])
+		b := NewBuffer()
+		b.Insert(Resource(1).Make(Schema(2)), NewScopeInfo(nil, ""), s[0])
+		b.Insert(Resource(1).Make(Schema(2)), NewScopeInfo(nil, ""), s[1])
+		b.Insert(Resource(1).Make(Schema(2)), NewScopeInfo(nil, ""), s[2])
 		actual := b.Flush()
 		testutil.AssertProtoEqual(t, []*tracev1.ResourceSpans{
 			{

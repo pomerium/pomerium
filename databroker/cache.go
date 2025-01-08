@@ -96,7 +96,7 @@ func New(ctx context.Context, cfg *config.Config, eventsMgr *events.Manager, opt
 	// No metrics handler because we have one in the control plane.  Add one
 	// if we no longer register with that grpc Server
 	localGRPCServer := grpc.NewServer(
-		grpc.StatsHandler(trace.NewServerStatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithTracerProvider(tracerProvider)))),
+		grpc.StatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithTracerProvider(tracerProvider))),
 		grpc.ChainStreamInterceptor(log.StreamServerInterceptor(log.Ctx(ctx)), si),
 		grpc.ChainUnaryInterceptor(log.UnaryServerInterceptor(log.Ctx(ctx)), ui),
 	)

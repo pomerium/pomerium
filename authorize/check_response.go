@@ -232,11 +232,8 @@ func (a *Authorize) requireLoginResponse(
 
 	headers := http.Header{}
 	if id := in.GetAttributes().GetRequest().GetHttp().GetHeaders()["traceparent"]; id != "" {
-		headers["X-Pomerium-Traceparent"] = []string{id}
-		headers["X-Pomerium-Tracestate"] = []string{"pomerium.traceparent=" + id} // TODO: this might not be necessary anymore
 		signInURLQuery = url.Values{}
 		signInURLQuery.Add("pomerium_traceparent", id)
-		signInURLQuery.Add("pomerium_tracestate", "pomerium.traceparent="+id)
 	}
 	redirectTo, err := state.authenticateFlow.AuthenticateSignInURL(
 		ctx, signInURLQuery, &checkRequestURL, idp.GetId())

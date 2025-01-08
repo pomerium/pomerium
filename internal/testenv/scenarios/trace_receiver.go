@@ -13,7 +13,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	"github.com/pomerium/pomerium/internal/testenv/values"
-	"github.com/pomerium/pomerium/internal/testutil"
+	"github.com/pomerium/pomerium/internal/testutil/tracetest"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -136,7 +136,7 @@ func (rec *OTLPTraceReceiver) PeekResourceSpans() []*tracev1.ResourceSpans {
 }
 
 func (rec *OTLPTraceReceiver) peekResourceSpansLocked() []*tracev1.ResourceSpans {
-	return testutil.FlattenExportRequests(rec.receivedRequests)
+	return tracetest.FlattenExportRequests(rec.receivedRequests)
 }
 
 func (rec *OTLPTraceReceiver) FlushResourceSpans() []*tracev1.ResourceSpans {
