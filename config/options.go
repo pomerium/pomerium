@@ -211,8 +211,8 @@ type Options struct {
 	MetricsClientCAFile       string `mapstructure:"metrics_client_ca_file" yaml:"metrics_client_ca_file,omitempty"`
 
 	// Tracing shared settings
-	TracingProvider   string  `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
-	TracingSampleRate float64 `mapstructure:"tracing_sample_rate" yaml:"tracing_sample_rate,omitempty"`
+	TracingProvider   string   `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
+	TracingSampleRate *float64 `mapstructure:"tracing_sample_rate" yaml:"tracing_sample_rate,omitempty"`
 
 	// Datadog tracing address
 	TracingDatadogAddress string `mapstructure:"tracing_datadog_address" yaml:"tracing_datadog_address,omitempty"`
@@ -317,7 +317,6 @@ var defaultOptions = Options{
 	GRPCAddr:                 ":443",
 	GRPCClientTimeout:        10 * time.Second, // Try to withstand transient service failures for a single request
 	AuthenticateCallbackPath: "/oauth2/callback",
-	TracingSampleRate:        0.0001,
 
 	AutocertOptions: AutocertOptions{
 		Folder: dataDir(),
@@ -1520,7 +1519,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	setCertificate(&o.MetricsCertificate, &o.MetricsCertificateKey, settings.MetricsCertificate)
 	set(&o.MetricsClientCA, settings.MetricsClientCa)
 	set(&o.TracingProvider, settings.TracingProvider)
-	set(&o.TracingSampleRate, settings.TracingSampleRate)
+	setOptional(&o.TracingSampleRate, settings.TracingSampleRate)
 	set(&o.TracingDatadogAddress, settings.TracingDatadogAddress)
 	set(&o.TracingJaegerCollectorEndpoint, settings.TracingJaegerCollectorEndpoint)
 	set(&o.TracingJaegerAgentEndpoint, settings.TracingJaegerAgentEndpoint)
@@ -1610,7 +1609,7 @@ func (o *Options) ToProto() *config.Config {
 	settings.MetricsCertificate = toCertificateOrFromFile(o.MetricsCertificate, o.MetricsCertificateKey, o.MetricsCertificateFile, o.MetricsCertificateKeyFile)
 	copySrcToOptionalDest(&settings.MetricsClientCa, valueOrFromFileBase64(o.MetricsClientCA, o.MetricsClientCAFile))
 	copySrcToOptionalDest(&settings.TracingProvider, &o.TracingProvider)
-	copySrcToOptionalDest(&settings.TracingSampleRate, &o.TracingSampleRate)
+	settings.TracingSampleRate = o.TracingSampleRate
 	copySrcToOptionalDest(&settings.TracingDatadogAddress, &o.TracingDatadogAddress)
 	copySrcToOptionalDest(&settings.TracingJaegerCollectorEndpoint, &o.TracingJaegerCollectorEndpoint)
 	copySrcToOptionalDest(&settings.TracingJaegerAgentEndpoint, &o.TracingJaegerAgentEndpoint)
