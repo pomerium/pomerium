@@ -47,6 +47,14 @@ func GetCallbackURLForRedirectURI(r *http.Request, encodedSessionJWT, rawRedirec
 	if r.FormValue(QueryIsProgrammatic) == "true" {
 		callbackParams.Set(QueryIsProgrammatic, "true")
 	}
+	// propagate trace context
+	if tracecontext := r.FormValue(QueryTraceparent); tracecontext != "" {
+		callbackParams.Set(QueryTraceparent, tracecontext)
+	}
+	if tracestate := r.FormValue(QueryTracestate); tracestate != "" {
+		callbackParams.Set(QueryTracestate, tracestate)
+	}
+
 	// add our encoded and encrypted route-session JWT to a query param
 	callbackParams.Set(QuerySessionEncrypted, encodedSessionJWT)
 	callbackParams.Set(QueryRedirectURI, redirectURI.String())

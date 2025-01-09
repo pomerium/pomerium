@@ -14,7 +14,7 @@ import (
 func SetHeaders(headers map[string]string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx, span := trace.StartSpan(r.Context(), "middleware.SetHeaders")
+			ctx, span := trace.Continue(r.Context(), "middleware.SetHeaders")
 			defer span.End()
 			for key, val := range headers {
 				w.Header().Set(key, val)
@@ -29,7 +29,7 @@ func SetHeaders(headers map[string]string) func(next http.Handler) http.Handler 
 func ValidateSignature(sharedKey []byte) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-			ctx, span := trace.StartSpan(r.Context(), "middleware.ValidateSignature")
+			ctx, span := trace.Continue(r.Context(), "middleware.ValidateSignature")
 			defer span.End()
 			if err := ValidateRequestURL(r, sharedKey); err != nil {
 				return httputil.NewError(http.StatusBadRequest, err)

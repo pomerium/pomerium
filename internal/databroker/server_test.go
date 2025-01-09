@@ -14,6 +14,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace/noop"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -49,10 +50,9 @@ func (h testSyncerHandler) UpdateRecords(ctx context.Context, serverVersion uint
 }
 
 func newServer(cfg *serverConfig) *Server {
-	return &Server{
-		cfg:        cfg,
-		backendCtx: context.Background(),
-	}
+	srv := New(context.Background(), noop.NewTracerProvider())
+	srv.cfg = cfg
+	return srv
 }
 
 func TestServer_Get(t *testing.T) {

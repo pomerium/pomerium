@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
@@ -41,7 +42,7 @@ func TestConfigSource(t *testing.T) {
 	defer func() { _ = li.Close() }()
 	_, outboundPort, _ := net.SplitHostPort(li.Addr().String())
 
-	dataBrokerServer := New(ctx)
+	dataBrokerServer := New(ctx, trace.NewNoopTracerProvider())
 	srv := grpc.NewServer()
 	databroker.RegisterDataBrokerServiceServer(srv, dataBrokerServer)
 	go func() { _ = srv.Serve(li) }()
@@ -65,7 +66,7 @@ func TestConfigSource(t *testing.T) {
 		OutboundPort: outboundPort,
 		Options:      base,
 	})
-	src := NewConfigSource(ctx, baseSource, EnableConfigValidation(true), func(_ context.Context, cfg *config.Config) {
+	src := NewConfigSource(ctx, trace.NewNoopTracerProvider(), baseSource, EnableConfigValidation(true), func(_ context.Context, cfg *config.Config) {
 		cfgs <- cfg
 	})
 	cfgs <- src.GetConfig()

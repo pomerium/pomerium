@@ -45,7 +45,7 @@ type IDP struct {
 func (idp *IDP) Attach(ctx context.Context) {
 	env := testenv.EnvFromContext(ctx)
 
-	router := upstreams.HTTP(nil)
+	router := upstreams.HTTP(nil, upstreams.WithDisplayName("IDP"))
 
 	idp.url = values.Bind2(env.SubdomainURL("mock-idp"), router.Port(), func(urlStr string, port int) string {
 		u, _ := url.Parse(urlStr)

@@ -34,6 +34,16 @@ func ExtAuthzFilter(grpcClientTimeout *durationpb.Duration) *envoy_extensions_fi
 								ClusterName: "pomerium-authorize",
 							},
 						},
+						InitialMetadata: []*envoy_config_core_v3.HeaderValue{
+							{
+								Key:   "x-pomerium-traceparent",
+								Value: `%DYNAMIC_METADATA(pomerium.internal:traceparent)%`,
+							},
+							{
+								Key:   "x-pomerium-tracestate",
+								Value: `%DYNAMIC_METADATA(pomerium.internal:tracestate)%`,
+							},
+						},
 					},
 				},
 				MetadataContextNamespaces: []string{"com.pomerium.client-certificate-info"},

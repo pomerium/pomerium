@@ -20,7 +20,7 @@ func (b *Builder) BuildListeners(
 	cfg *config.Config,
 	fullyStatic bool,
 ) ([]*envoy_config_listener_v3.Listener, error) {
-	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildListeners")
+	ctx, span := trace.Continue(ctx, "envoyconfig.Builder.BuildListeners")
 	defer span.End()
 
 	var listeners []*envoy_config_listener_v3.Listener

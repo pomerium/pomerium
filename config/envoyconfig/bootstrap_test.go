@@ -36,7 +36,7 @@ func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 
 func TestBuilder_BuildBootstrapLayeredRuntime(t *testing.T) {
 	b := New("localhost:1111", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil)
-	staticCfg, err := b.BuildBootstrapLayeredRuntime()
+	staticCfg, err := b.BuildBootstrapLayeredRuntime(context.Background())
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `
 		{ "layers": [{
@@ -46,6 +46,12 @@ func TestBuilder_BuildBootstrapLayeredRuntime(t *testing.T) {
 					"max_program_size": {
 						"error_level": 1048576,
 						"warn_level": 1024
+					}
+				},
+				"tracing": {
+					"opentelemetry": {
+						"flush_interval_ms": 5000,
+						"min_flush_spans": 3
 					}
 				}
 			}

@@ -45,11 +45,6 @@ func NewMetricsManager(ctx context.Context, src Source) *MetricsManager {
 	return mgr
 }
 
-// Close closes any underlying http server.
-func (mgr *MetricsManager) Close() error {
-	return nil
-}
-
 // OnConfigChange updates the metrics manager when configuration is changed.
 func (mgr *MetricsManager) OnConfigChange(ctx context.Context, cfg *Config) {
 	mgr.mu.Lock()

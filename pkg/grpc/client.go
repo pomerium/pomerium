@@ -10,7 +10,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
@@ -32,11 +31,8 @@ type Options struct {
 
 // NewGRPCClientConn returns a new gRPC pomerium service client connection.
 func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOption) (*grpc.ClientConn, error) {
-	clientStatsHandler := telemetry.NewGRPCClientStatsHandler(opts.ServiceName)
-
 	unaryClientInterceptors := []grpc.UnaryClientInterceptor{
 		requestid.UnaryClientInterceptor(),
-		clientStatsHandler.UnaryInterceptor,
 	}
 	streamClientInterceptors := []grpc.StreamClientInterceptor{
 		requestid.StreamClientInterceptor(),
@@ -49,7 +45,6 @@ func NewGRPCClientConn(ctx context.Context, opts *Options, other ...grpc.DialOpt
 	dialOptions := []grpc.DialOption{
 		grpc.WithChainUnaryInterceptor(unaryClientInterceptors...),
 		grpc.WithChainStreamInterceptor(streamClientInterceptors...),
-		grpc.WithStatsHandler(clientStatsHandler.Handler),
 		grpc.WithDisableServiceConfig(),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
@@ -75,13 +70,13 @@ type OutboundOptions struct {
 }
 
 // newOutboundGRPCClientConn gets a new outbound gRPC client.
-func newOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions) (*grpc.ClientConn, error) {
+func newOutboundGRPCClientConn(ctx context.Context, opts *OutboundOptions, other ...grpc.DialOption) (*grpc.ClientConn, error) {
 	return NewGRPCClientConn(ctx, &Options{
 		Address:        net.JoinHostPort("127.0.0.1", opts.OutboundPort),
 		InstallationID: opts.InstallationID,
 		ServiceName:    opts.ServiceName,
 		SignedJWTKey:   opts.SignedJWTKey,
-	})
+	}, other...)
 }
 
 // CachedOutboundGRPClientConn keeps a cached outbound gRPC client connection open based on options.
@@ -92,7 +87,7 @@ type CachedOutboundGRPClientConn struct {
 }
 
 // Get gets the cached outbound gRPC client, or creates a new one if the options have changed.
-func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *OutboundOptions) (*grpc.ClientConn, error) {
+func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *OutboundOptions, other ...grpc.DialOption) (*grpc.ClientConn, error) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 
@@ -106,7 +101,7 @@ func (cache *CachedOutboundGRPClientConn) Get(ctx context.Context, opts *Outboun
 	}
 
 	var err error
-	cache.current, err = newOutboundGRPCClientConn(ctx, opts)
+	cache.current, err = newOutboundGRPCClientConn(ctx, opts, other...)
 	if err != nil {
 		return nil, err
 	}
