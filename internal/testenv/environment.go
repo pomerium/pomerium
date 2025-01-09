@@ -599,7 +599,6 @@ func (e *environment) Start() {
 		log.AccessLogFieldUserAgent,
 		log.AccessLogFieldClientCertificate,
 	}
-	cfg.Options.TracingSampleRate = 1.0
 
 	e.src = &configSource{cfg: cfg}
 	e.AddTask(TaskFunc(func(ctx context.Context) error {

@@ -210,10 +210,10 @@ type Options struct {
 	MetricsClientCA           string `mapstructure:"metrics_client_ca" yaml:"metrics_client_ca,omitempty"`
 	MetricsClientCAFile       string `mapstructure:"metrics_client_ca_file" yaml:"metrics_client_ca_file,omitempty"`
 
-	TracingSampleRate   float64 `mapstructure:"tracing_sample_rate" yaml:"tracing_sample_rate,omitempty"`
-	TracingProvider     string  `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
-	TracingOTLPEndpoint string  `mapstructure:"tracing_otlp_endpoint" yaml:"tracing_otlp_endpoint,omitempty"`
-	TracingOTLPProtocol string  `mapstructure:"tracing_otlp_protocol" yaml:"tracing_otlp_protocol,omitempty"`
+	TracingSampleRate   *float64 `mapstructure:"tracing_sample_rate" yaml:"tracing_sample_rate,omitempty"`
+	TracingProvider     string   `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
+	TracingOTLPEndpoint string   `mapstructure:"tracing_otlp_endpoint" yaml:"tracing_otlp_endpoint,omitempty"`
+	TracingOTLPProtocol string   `mapstructure:"tracing_otlp_protocol" yaml:"tracing_otlp_protocol,omitempty"`
 
 	// Deprecated: this field is ignored.
 	// Configure tracing using the OTLP options or environment variables.
@@ -313,7 +313,6 @@ var defaultOptions = Options{
 	GRPCAddr:                 ":443",
 	GRPCClientTimeout:        10 * time.Second, // Try to withstand transient service failures for a single request
 	AuthenticateCallbackPath: "/oauth2/callback",
-	TracingSampleRate:        0.0001,
 
 	AutocertOptions: AutocertOptions{
 		Folder: dataDir(),
@@ -1518,7 +1517,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.TracingProvider, settings.TracingProvider)
 	set(&o.TracingOTLPEndpoint, settings.TracingOtlpEndpoint)
 	set(&o.TracingOTLPProtocol, settings.TracingOtlpProtocol)
-	set(&o.TracingSampleRate, settings.TracingSampleRate)
+	setOptional(&o.TracingSampleRate, settings.TracingSampleRate)
 	set(&o.TracingDatadogAddress, settings.TracingDatadogAddress)
 	set(&o.TracingJaegerCollectorEndpoint, settings.TracingJaegerCollectorEndpoint)
 	set(&o.TracingJaegerAgentEndpoint, settings.TracingJaegerAgentEndpoint)
@@ -1608,7 +1607,7 @@ func (o *Options) ToProto() *config.Config {
 	settings.MetricsCertificate = toCertificateOrFromFile(o.MetricsCertificate, o.MetricsCertificateKey, o.MetricsCertificateFile, o.MetricsCertificateKeyFile)
 	copySrcToOptionalDest(&settings.MetricsClientCa, valueOrFromFileBase64(o.MetricsClientCA, o.MetricsClientCAFile))
 	copySrcToOptionalDest(&settings.TracingProvider, &o.TracingProvider)
-	copySrcToOptionalDest(&settings.TracingSampleRate, &o.TracingSampleRate)
+	settings.TracingSampleRate = o.TracingSampleRate
 	copySrcToOptionalDest(&settings.TracingOtlpEndpoint, &o.TracingOTLPEndpoint)
 	copySrcToOptionalDest(&settings.TracingOtlpProtocol, &o.TracingOTLPProtocol)
 	copySrcToOptionalDest(&settings.TracingDatadogAddress, &o.TracingDatadogAddress)

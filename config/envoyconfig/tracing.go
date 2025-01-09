@@ -56,8 +56,17 @@ func applyTracingConfig(
 			maxPathTagLength = max(64, uint32(num))
 		}
 	}
+	sampleRate := 1.0
+	if value, ok := os.LookupEnv("OTEL_TRACES_SAMPLER_ARG"); ok {
+		if rate, err := strconv.ParseFloat(value, 64); err == nil {
+			sampleRate = rate
+		}
+	}
+	if opts.TracingSampleRate != nil {
+		sampleRate = *opts.TracingSampleRate
+	}
 	mgr.Tracing = &envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_Tracing{
-		RandomSampling:    &envoy_type_v3.Percent{Value: opts.TracingSampleRate * 100},
+		RandomSampling:    &envoy_type_v3.Percent{Value: max(0.0, min(1.0, sampleRate)) * 100},
 		Verbose:           true,
 		SpawnUpstreamSpan: wrapperspb.Bool(true),
 		Provider: &tracev3.Tracing_Http{

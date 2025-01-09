@@ -193,7 +193,8 @@ func (s *SamplingTestSuite) SetupTest() {
 	s.notSampled.Store(0)
 
 	s.env.Add(testenv.ModifierFunc(func(_ context.Context, cfg *config.Config) {
-		cfg.Options.TracingSampleRate = 0.5
+		half := 0.5
+		cfg.Options.TracingSampleRate = &half
 	}))
 	s.env.Add(scenarios.NewIDP([]*scenarios.User{
 		{
