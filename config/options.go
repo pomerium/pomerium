@@ -210,22 +210,29 @@ type Options struct {
 	MetricsClientCA           string `mapstructure:"metrics_client_ca" yaml:"metrics_client_ca,omitempty"`
 	MetricsClientCAFile       string `mapstructure:"metrics_client_ca_file" yaml:"metrics_client_ca_file,omitempty"`
 
-	TracingSampleRate   float64 `mapstructure:"tracing_sample_rate" yaml:"tracing_sample_rate,omitempty"`
-	TracingProvider     string  `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
-	TracingOTLPEndpoint string  `mapstructure:"tracing_otlp_endpoint" yaml:"tracing_otlp_endpoint,omitempty"`
-	TracingOTLPProtocol string  `mapstructure:"tracing_otlp_protocol" yaml:"tracing_otlp_protocol,omitempty"`
+	// Tracing shared settings
+	TracingProvider   string  `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
+	TracingSampleRate float64 `mapstructure:"tracing_sample_rate" yaml:"tracing_sample_rate,omitempty"`
 
-	// Deprecated: this field is ignored.
-	// Configure tracing using the OTLP options or environment variables.
+	TracingOTLPEndpoint string `mapstructure:"tracing_otlp_endpoint" yaml:"tracing_otlp_endpoint,omitempty"`
+	TracingOTLPProtocol string `mapstructure:"tracing_otlp_protocol" yaml:"tracing_otlp_protocol,omitempty"`
+
+	// Datadog tracing address
 	TracingDatadogAddress string `mapstructure:"tracing_datadog_address" yaml:"tracing_datadog_address,omitempty"`
-	// Deprecated: this field is ignored.
-	// Configure tracing using the OTLP options or environment variables.
+
+	//  Jaeger
+	//
+	// CollectorEndpoint is the full url to the Jaeger HTTP Thrift collector.
+	// For example, http://localhost:14268/api/traces
 	TracingJaegerCollectorEndpoint string `mapstructure:"tracing_jaeger_collector_endpoint" yaml:"tracing_jaeger_collector_endpoint,omitempty"`
-	// Deprecated: this field is ignored.
-	// Configure tracing using the OTLP options or environment variables.
+	// AgentEndpoint instructs exporter to send spans to jaeger-agent at this address.
+	// For example, localhost:6831.
 	TracingJaegerAgentEndpoint string `mapstructure:"tracing_jaeger_agent_endpoint" yaml:"tracing_jaeger_agent_endpoint,omitempty"`
-	// Deprecated: this field is ignored.
-	// Configure tracing using the OTLP options or environment variables.
+
+	// Zipkin
+	//
+	// ZipkinEndpoint configures the zipkin collector URI
+	// Example: http://zipkin:9411/api/v2/spans
 	ZipkinEndpoint string `mapstructure:"tracing_zipkin_endpoint" yaml:"tracing_zipkin_endpoint"`
 
 	// GRPC Service Settings
