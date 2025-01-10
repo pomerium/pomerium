@@ -12,9 +12,11 @@ import (
 	"sync"
 
 	go_oidc "github.com/coreos/go-oidc/v3/oidc"
+	"go.opentelemetry.io/otel/codes"
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/identity/identity"
@@ -103,8 +105,12 @@ func New(ctx context.Context, o *oauth.Options, options ...Option) (*Provider, e
 // the state query parameter on your redirect callback.
 // See http://tools.ietf.org/html/rfc6749#section-10.12 for more info.
 func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) error {
+	_, span := trace.Continue(r.Context(), "oidc: sign in")
+	defer span.End()
+
 	oa, err := p.GetOauthConfig()
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 
@@ -120,20 +126,12 @@ func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) 
 // Authenticate converts an authorization code returned from the identity
 // provider into a token which is then converted into a user session.
 func (p *Provider) Authenticate(ctx context.Context, code string, v identity.State) (*oauth2.Token, error) {
-	oa, err := p.GetOauthConfig()
+	ctx, span := trace.Continue(ctx, "oidc: authenticate")
+	defer span.End()
+
+	oauth2Token, idToken, err := p.exchange(ctx, code)
 	if err != nil {
 		return nil, err
-	}
-
-	// Exchange converts an authorization code into a token.
-	oauth2Token, err := oa.Exchange(ctx, code)
-	if err != nil {
-		return nil, fmt.Errorf("identity/oidc: token exchange failed: %w", err)
-	}
-
-	idToken, err := p.getIDToken(ctx, oauth2Token)
-	if err != nil {
-		return nil, fmt.Errorf("identity/oidc: failed getting id_token: %w", err)
 	}
 
 	if rawIDToken, ok := oauth2Token.Extra("id_token").(string); ok {
@@ -143,14 +141,46 @@ func (p *Provider) Authenticate(ctx context.Context, code string, v identity.Sta
 	// hydrate `v` using claims inside the returned `id_token`
 	// https://openid.net/specs/openid-connect-core-1_0.html#TokenEndpoint
 	if err := idToken.Claims(v); err != nil {
-		return nil, fmt.Errorf("identity/oidc: couldn't unmarshal extra claims %w", err)
+		err := fmt.Errorf("identity/oidc: couldn't unmarshal extra claims %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
 
 	if err := p.UpdateUserInfo(ctx, oauth2Token, v); err != nil {
-		return nil, fmt.Errorf("identity/oidc: couldn't update user info %w", err)
+		err := fmt.Errorf("identity/oidc: couldn't update user info %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
 
 	return oauth2Token, nil
+}
+
+func (p *Provider) exchange(ctx context.Context, code string) (*oauth2.Token, *go_oidc.IDToken, error) {
+	ctx, span := trace.Continue(ctx, "oidc: token exchange")
+	defer span.End()
+
+	oa, err := p.GetOauthConfig()
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return nil, nil, err
+	}
+
+	// Exchange converts an authorization code into a token.
+	oauth2Token, err := oa.Exchange(ctx, code)
+	if err != nil {
+		err := fmt.Errorf("identity/oidc: token exchange failed: %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, nil, err
+	}
+
+	idToken, err := p.getIDToken(ctx, oauth2Token)
+	if err != nil {
+		err := fmt.Errorf("identity/oidc: failed getting id_token: %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, nil, err
+	}
+
+	return oauth2Token, idToken, nil
 }
 
 // UpdateUserInfo calls the OIDC (spec required) UserInfo Endpoint as well as any
@@ -158,6 +188,9 @@ func (p *Provider) Authenticate(ctx context.Context, code string, v identity.Sta
 //
 // https://openid.net/specs/openid-connect-core-1_0.html#UserInfo
 func (p *Provider) UpdateUserInfo(ctx context.Context, t *oauth2.Token, v any) error {
+	ctx, span := trace.Continue(ctx, "oidc: update user info")
+	defer span.End()
+
 	pp, err := p.GetProvider()
 	if err != nil {
 		return err

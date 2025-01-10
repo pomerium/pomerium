@@ -15,6 +15,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/authenticateflow"
@@ -129,6 +131,8 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 				Err(err).
 				Str("idp_id", idpID).
 				Msg("authenticate: session load error")
+			span.AddEvent("session load error",
+				oteltrace.WithAttributes(attribute.String("error", err.Error())))
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
@@ -138,6 +142,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 				Str("session_idp_id", sessionState.IdentityProviderID).
 				Str("id", sessionState.ID).
 				Msg("authenticate: session not associated with identity provider")
+			span.AddEvent("session not associated with identity provider")
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
@@ -146,6 +151,8 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 				Err(err).
 				Str("idp_id", idpID).
 				Msg("authenticate: couldn't verify session")
+			span.AddEvent("couldn't verify session",
+				oteltrace.WithAttributes(attribute.String("error", err.Error())))
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
@@ -335,7 +342,7 @@ func (a *Authenticate) statusForErrorCode(errorCode string) int {
 }
 
 func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) (*url.URL, error) {
-	ctx, span := a.tracer.Start(r.Context(), "authenticate.getOAuthCallback")
+	ctx, span := a.tracer.Start(r.Context(), "authenticate.OAuthCallback")
 	defer span.End()
 
 	state := a.state.Load()
