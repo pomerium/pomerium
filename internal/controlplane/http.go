@@ -10,14 +10,12 @@ import (
 	"github.com/CAFxX/httpcompression"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
@@ -52,7 +50,6 @@ func (srv *Server) addHTTPMiddleware(ctx context.Context, root *mux.Router, _ *c
 	root.Use(telemetry.HTTPStatsHandler(func() string {
 		return srv.currentConfig.Load().Options.InstallationID
 	}, srv.name))
-	root.Use(trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(srv.tracerProvider)))
 }
 
 func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) error {

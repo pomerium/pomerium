@@ -9,13 +9,11 @@ import (
 
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/gorilla/mux"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -23,7 +21,6 @@ import (
 func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *mux.Router {
 	h := httputil.DashboardSubrouter(r)
 	h.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
-	h.Use(trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(p.tracerProvider)))
 
 	// special pomerium endpoints for users to view their session
 	h.Path("/").Handler(httputil.HandlerFunc(p.userInfo)).Methods(http.MethodGet)

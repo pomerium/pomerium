@@ -54,6 +54,7 @@ var allServices = []string{
 	"Authenticate",
 	"Control Plane",
 	"Data Broker",
+	"Proxy",
 	"Upstream",
 	"IDP",
 	"HTTP Client",

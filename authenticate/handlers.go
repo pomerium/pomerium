@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/authenticateflow"
@@ -59,6 +60,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 		}
 		return csrf.Protect(state.cookieSecret, csrfOptions...)(h)
 	})
+	r.Use(trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(a.tracerProvider)))
 
 	// redirect / to /.pomerium/
 	r.Path("/").Handler(http.RedirectHandler("/.pomerium/", http.StatusFound))
