@@ -187,6 +187,10 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		return nil, err
 	}
 
+	sampleRate := 1.0
+	if cfg.Options.TracingSampleRate != nil {
+		sampleRate = *cfg.Options.TracingSampleRate
+	}
 	mgr := &envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager{
 		AlwaysSetRequestIdInResponse: true,
 		StatPrefix:                   "ingress",
@@ -199,7 +203,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		HttpProtocolOptions: http1ProtocolOptions,
 		RequestTimeout:      durationpb.New(cfg.Options.ReadTimeout),
 		Tracing: &envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_Tracing{
-			RandomSampling: &envoy_type_v3.Percent{Value: cfg.Options.TracingSampleRate * 100},
+			RandomSampling: &envoy_type_v3.Percent{Value: max(0.0, min(1.0, sampleRate)) * 100},
 			Provider:       tracingProvider,
 		},
 		// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-for

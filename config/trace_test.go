@@ -25,13 +25,13 @@ func Test_NewTracingOptions(t *testing.T) {
 		{
 			"datadog_good",
 			&Options{TracingProvider: "datadog"},
-			&TracingOptions{Provider: "datadog", Service: "pomerium"},
+			&TracingOptions{Provider: "datadog", Service: "pomerium", SampleRate: 1},
 			false,
 		},
 		{
 			"jaeger_good",
 			&Options{TracingProvider: "jaeger", TracingJaegerAgentEndpoint: "foo", TracingJaegerCollectorEndpoint: "http://foo", Services: ServiceAll},
-			&TracingOptions{Provider: "jaeger", JaegerAgentEndpoint: "foo", JaegerCollectorEndpoint: &url.URL{Scheme: "http", Host: "foo"}, Service: "pomerium"},
+			&TracingOptions{Provider: "jaeger", JaegerAgentEndpoint: "foo", JaegerCollectorEndpoint: &url.URL{Scheme: "http", Host: "foo"}, Service: "pomerium", SampleRate: 1},
 			false,
 		},
 		{
@@ -43,7 +43,7 @@ func Test_NewTracingOptions(t *testing.T) {
 		{
 			"zipkin_good",
 			&Options{TracingProvider: "zipkin", ZipkinEndpoint: "https://foo/api/v1/spans", Services: ServiceAuthorize},
-			&TracingOptions{Provider: "zipkin", ZipkinEndpoint: &url.URL{Scheme: "https", Host: "foo", Path: "/api/v1/spans"}, Service: "pomerium-authorize"},
+			&TracingOptions{Provider: "zipkin", ZipkinEndpoint: &url.URL{Scheme: "https", Host: "foo", Path: "/api/v1/spans"}, Service: "pomerium-authorize", SampleRate: 1},
 			false,
 		},
 		{
@@ -118,9 +118,8 @@ func TestTraceManager(t *testing.T) {
 	defer srv2.Close()
 
 	src := NewStaticSource(&Config{Options: &Options{
-		TracingProvider:   "zipkin",
-		ZipkinEndpoint:    srv1.URL,
-		TracingSampleRate: 1,
+		TracingProvider: "zipkin",
+		ZipkinEndpoint:  srv1.URL,
 	}})
 
 	_ = NewTraceManager(ctx, src)
@@ -129,9 +128,8 @@ func TestTraceManager(t *testing.T) {
 	span.End()
 
 	src.SetConfig(ctx, &Config{Options: &Options{
-		TracingProvider:   "zipkin",
-		ZipkinEndpoint:    srv2.URL,
-		TracingSampleRate: 1,
+		TracingProvider: "zipkin",
+		ZipkinEndpoint:  srv2.URL,
 	}})
 
 	_, span = trace.StartSpan(ctx, "Example")
