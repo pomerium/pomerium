@@ -6,28 +6,36 @@ import (
 	"net"
 	"strings"
 
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/testenv"
+	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-type Options struct {
+type GRPCUpstreamOptions struct {
+	CommonUpstreamOptions
 	serverOpts []grpc.ServerOption
 }
 
-type Option func(*Options)
-
-func (o *Options) apply(opts ...Option) {
-	for _, op := range opts {
-		op(o)
-	}
+type GRPCUpstreamOption interface {
+	applyGRPC(*GRPCUpstreamOptions)
 }
 
-func ServerOpts(opt ...grpc.ServerOption) Option {
-	return func(o *Options) {
+type GRPCUpstreamOptionFunc func(*GRPCUpstreamOptions)
+
+func (f GRPCUpstreamOptionFunc) applyGRPC(o *GRPCUpstreamOptions) {
+	f(o)
+}
+
+func ServerOpts(opt ...grpc.ServerOption) GRPCUpstreamOption {
+	return GRPCUpstreamOptionFunc(func(o *GRPCUpstreamOptions) {
 		o.serverOpts = append(o.serverOpts, opt...)
-	}
+	})
 }
 
 // GRPCUpstream represents a GRPC server which can be used as the target for
@@ -42,13 +50,18 @@ type GRPCUpstream interface {
 	testenv.Upstream
 	grpc.ServiceRegistrar
 	Dial(r testenv.Route, dialOpts ...grpc.DialOption) *grpc.ClientConn
+
+	// Dials the server directly instead of going through a Pomerium route.
+	DirectConnect(dialOpts ...grpc.DialOption) *grpc.ClientConn
 }
 
 type grpcUpstream struct {
-	Options
+	GRPCUpstreamOptions
 	testenv.Aggregate
-	serverPort values.MutableValue[int]
-	creds      credentials.TransportCredentials
+	serverPort           values.MutableValue[int]
+	creds                credentials.TransportCredentials
+	serverTracerProvider values.MutableValue[oteltrace.TracerProvider]
+	clientTracerProvider values.MutableValue[oteltrace.TracerProvider]
 
 	services []service
 }
@@ -59,13 +72,21 @@ var (
 )
 
 // GRPC creates a new GRPC upstream server.
-func GRPC(creds credentials.TransportCredentials, opts ...Option) GRPCUpstream {
-	options := Options{}
-	options.apply(opts...)
+func GRPC(creds credentials.TransportCredentials, opts ...GRPCUpstreamOption) GRPCUpstream {
+	options := GRPCUpstreamOptions{
+		CommonUpstreamOptions: CommonUpstreamOptions{
+			displayName: "GRPC Upstream",
+		},
+	}
+	for _, op := range opts {
+		op.applyGRPC(&options)
+	}
 	up := &grpcUpstream{
-		Options:    options,
-		creds:      creds,
-		serverPort: values.Deferred[int](),
+		GRPCUpstreamOptions:  options,
+		creds:                creds,
+		serverPort:           values.Deferred[int](),
+		serverTracerProvider: values.Deferred[oteltrace.TracerProvider](),
+		clientTracerProvider: values.Deferred[oteltrace.TracerProvider](),
 	}
 	up.RecordCaller()
 	return up
@@ -109,9 +130,32 @@ func (g *grpcUpstream) Run(ctx context.Context) error {
 		return err
 	}
 	g.serverPort.Resolve(listener.Addr().(*net.TCPAddr).Port)
-	server := grpc.NewServer(append(g.serverOpts, grpc.Creds(g.creds))...)
+	if g.serverTracerProviderOverride != nil {
+		g.serverTracerProvider.Resolve(g.serverTracerProviderOverride)
+	} else {
+		g.serverTracerProvider.Resolve(trace.NewTracerProvider(ctx, g.displayName))
+	}
+	if g.clientTracerProviderOverride != nil {
+		g.clientTracerProvider.Resolve(g.clientTracerProviderOverride)
+	} else {
+		g.clientTracerProvider.Resolve(trace.NewTracerProvider(ctx, "GRPC Client"))
+	}
+	server := grpc.NewServer(append(g.serverOpts,
+		grpc.Creds(g.creds),
+		grpc.StatsHandler(otelgrpc.NewServerHandler(
+			otelgrpc.WithTracerProvider(g.serverTracerProvider.Value()),
+		)),
+	)...)
 	for _, s := range g.services {
 		server.RegisterService(s.desc, s.impl)
+	}
+	if g.delayShutdown {
+		return snippets.RunWithDelayedShutdown(ctx,
+			func() error {
+				return server.Serve(listener)
+			},
+			server.GracefulStop,
+		)()
 	}
 	errC := make(chan error, 1)
 	go func() {
@@ -119,20 +163,32 @@ func (g *grpcUpstream) Run(ctx context.Context) error {
 	}()
 	select {
 	case <-ctx.Done():
-		server.Stop()
+		server.GracefulStop()
 		return context.Cause(ctx)
 	case err := <-errC:
 		return err
 	}
 }
 
-func (g *grpcUpstream) Dial(r testenv.Route, dialOpts ...grpc.DialOption) *grpc.ClientConn {
-	dialOpts = append(dialOpts,
-		grpc.WithContextDialer(testenv.GRPCContextDialer),
+func (g *grpcUpstream) withDefaultDialOpts(extraDialOpts []grpc.DialOption) []grpc.DialOption {
+	return append(extraDialOpts,
 		grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(g.Env().ServerCAs(), "")),
 		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(g.clientTracerProvider.Value()))),
 	)
-	cc, err := grpc.NewClient(strings.TrimPrefix(r.URL().Value(), "https://"), dialOpts...)
+}
+
+func (g *grpcUpstream) Dial(r testenv.Route, dialOpts ...grpc.DialOption) *grpc.ClientConn {
+	cc, err := grpc.NewClient(strings.TrimPrefix(r.URL().Value(), "https://"), g.withDefaultDialOpts(dialOpts)...)
+	if err != nil {
+		panic(err)
+	}
+	return cc
+}
+
+func (g *grpcUpstream) DirectConnect(dialOpts ...grpc.DialOption) *grpc.ClientConn {
+	cc, err := grpc.NewClient(fmt.Sprintf("127.0.0.1:%d", g.Port().Value()),
+		append(g.withDefaultDialOpts(dialOpts), grpc.WithTransportCredentials(insecure.NewCredentials()))...)
 	if err != nil {
 		panic(err)
 	}

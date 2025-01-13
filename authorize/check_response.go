@@ -228,16 +228,21 @@ func (a *Authorize) requireLoginResponse(
 	// always assume https scheme
 	checkRequestURL := getCheckRequestURL(in)
 	checkRequestURL.Scheme = "https"
+	var signInURLQuery url.Values
 
+	headers := http.Header{}
+	if id := in.GetAttributes().GetRequest().GetHttp().GetHeaders()["traceparent"]; id != "" {
+		signInURLQuery = url.Values{}
+		signInURLQuery.Add("pomerium_traceparent", id)
+	}
 	redirectTo, err := state.authenticateFlow.AuthenticateSignInURL(
-		ctx, nil, &checkRequestURL, idp.GetId())
+		ctx, signInURLQuery, &checkRequestURL, idp.GetId())
 	if err != nil {
 		return nil, err
 	}
+	headers["Location"] = []string{redirectTo}
 
-	return a.deniedResponse(ctx, in, http.StatusFound, "Login", http.Header{
-		"Location": {redirectTo},
-	})
+	return a.deniedResponse(ctx, in, http.StatusFound, "Login", headers)
 }
 
 func (a *Authorize) requireWebAuthnResponse(

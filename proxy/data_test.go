@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -32,7 +33,7 @@ func Test_getUserInfoData(t *testing.T) {
 	defer clearTimeout()
 
 	cc := testutil.NewGRPCServer(t, func(srv *grpc.Server) {
-		databrokerpb.RegisterDataBrokerServiceServer(srv, databroker.New(ctx))
+		databrokerpb.RegisterDataBrokerServiceServer(srv, databroker.New(ctx, trace.NewNoopTracerProvider()))
 	})
 	t.Cleanup(func() { cc.Close() })
 

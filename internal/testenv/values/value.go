@@ -69,7 +69,7 @@ func (p *value[T]) Resolve(value T) {
 	p.ResolveFunc(func() T { return value })
 }
 
-// Bind creates a new [MutableValue] whose ultimate value depends on the result
+// Bind creates a new [Value] whose ultimate value depends on the result
 // of another [Value] that may not yet be available. When Value() is called on
 // the result, it will cascade and trigger the full chain of initialization
 // functions necessary to produce the final value.
@@ -117,4 +117,50 @@ func (s List[T]) Value() []T {
 		values[i] = s[i].Value()
 	}
 	return values
+}
+
+// Chain is like [Bind], returning a Value[V] whose ultimate value depends on
+// the result of a Value[U] which is obtained from the concrete T given in dt.
+// It is intended to be used when T has a method returning a Value[U], and
+// you want to access U, but don't need T.
+//
+// Example usage:
+//
+//	type Foo interface { Number() Value[int] }
+//	var foo Foo
+//	values.Chain(foo, Foo.Number, func(number int) string { ... })
+func Chain[T any, U any, V any](
+	dt Value[T],
+	callback1 func(value T) Value[U],
+	callback2 func(value U) V,
+) Value[V] {
+	dv := Deferred[V]()
+	dv.ResolveFunc(func() V {
+		du := callback1(dt.Value())
+		return callback2(du.Value())
+	})
+	return dv
+}
+
+// Chain2 is like [Chain], but with two levels of indirection.
+//
+// Example usage:
+//
+//	type Foo interface { Bar() Value[Bar] }
+//	type Bar interface { Number() Value[int] }
+//	var foo Foo
+//	values.Chain(foo, Foo.Bar, bar.Number, func(number int) string { ... })
+func Chain2[T any, U any, V any, W any](
+	dt Value[T],
+	callback1 func(value T) Value[U],
+	callback2 func(value U) Value[V],
+	callback3 func(value V) W,
+) Value[W] {
+	dw := Deferred[W]()
+	dw.ResolveFunc(func() W {
+		du := callback1(dt.Value())
+		dv := callback2(du.Value())
+		return callback3(dv.Value())
+	})
+	return dw
 }

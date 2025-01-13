@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -14,12 +13,10 @@ import (
 func SetHeaders(headers map[string]string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx, span := trace.StartSpan(r.Context(), "middleware.SetHeaders")
-			defer span.End()
 			for key, val := range headers {
 				w.Header().Set(key, val)
 			}
-			next.ServeHTTP(w, r.WithContext(ctx))
+			next.ServeHTTP(w, r)
 		})
 	}
 }
@@ -29,12 +26,10 @@ func SetHeaders(headers map[string]string) func(next http.Handler) http.Handler 
 func ValidateSignature(sharedKey []byte) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-			ctx, span := trace.StartSpan(r.Context(), "middleware.ValidateSignature")
-			defer span.End()
 			if err := ValidateRequestURL(r, sharedKey); err != nil {
 				return httputil.NewError(http.StatusBadRequest, err)
 			}
-			next.ServeHTTP(w, r.WithContext(ctx))
+			next.ServeHTTP(w, r)
 			return nil
 		})
 	}

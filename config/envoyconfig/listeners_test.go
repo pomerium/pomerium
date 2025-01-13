@@ -149,7 +149,9 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	options.SkipXffAppend = true
 	options.XffNumTrustedHops = 1
 	options.AuthenticateURLString = "https://authenticate.example.com"
+	options.TracingProvider = "otlp"
 	filter, err := b.buildMainHTTPConnectionManagerFilter(context.Background(), &config.Config{Options: options}, false, false)
 	require.NoError(t, err)
+
 	testutil.AssertProtoJSONEqual(t, testData(t, "main_http_connection_manager_filter.json", nil), filter)
 }

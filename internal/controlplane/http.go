@@ -2,6 +2,7 @@
 package controlplane
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -20,7 +21,8 @@ import (
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
-func (srv *Server) addHTTPMiddleware(root *mux.Router, logger *zerolog.Logger, _ *config.Config) {
+func (srv *Server) addHTTPMiddleware(ctx context.Context, root *mux.Router, _ *config.Config) {
+	logger := log.Ctx(ctx)
 	compressor, err := httpcompression.DefaultAdapter()
 	if err != nil {
 		panic(err)

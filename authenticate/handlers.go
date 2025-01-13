@@ -3,6 +3,7 @@ package authenticate
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,6 +14,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/internal/authenticateflow"
@@ -58,6 +62,7 @@ func (a *Authenticate) Mount(r *mux.Router) {
 		}
 		return csrf.Protect(state.cookieSecret, csrfOptions...)(h)
 	})
+	r.Use(trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(a.tracerProvider)))
 
 	// redirect / to /.pomerium/
 	r.Path("/").Handler(http.RedirectHandler("/.pomerium/", http.StatusFound))
@@ -114,7 +119,7 @@ func (a *Authenticate) RetrieveSession(next http.Handler) http.Handler {
 // session state is attached to the users's request context.
 func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		ctx, span := trace.StartSpan(r.Context(), "authenticate.VerifySession")
+		ctx, span := a.tracer.Start(r.Context(), "authenticate.VerifySession")
 		defer span.End()
 
 		state := a.state.Load()
@@ -126,6 +131,8 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 				Err(err).
 				Str("idp_id", idpID).
 				Msg("authenticate: session load error")
+			span.AddEvent("session load error",
+				oteltrace.WithAttributes(attribute.String("error", err.Error())))
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
@@ -135,6 +142,7 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 				Str("session_idp_id", sessionState.IdentityProviderID).
 				Str("id", sessionState.ID).
 				Msg("authenticate: session not associated with identity provider")
+			span.AddEvent("session not associated with identity provider")
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
@@ -143,6 +151,8 @@ func (a *Authenticate) VerifySession(next http.Handler) http.Handler {
 				Err(err).
 				Str("idp_id", idpID).
 				Msg("authenticate: couldn't verify session")
+			span.AddEvent("couldn't verify session",
+				oteltrace.WithAttributes(attribute.String("error", err.Error())))
 			return a.reauthenticateOrFail(w, r, err)
 		}
 
@@ -160,7 +170,7 @@ func (a *Authenticate) RobotsTxt(w http.ResponseWriter, _ *http.Request) {
 
 // SignIn handles authenticating a user.
 func (a *Authenticate) SignIn(w http.ResponseWriter, r *http.Request) error {
-	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignIn")
+	ctx, span := a.tracer.Start(r.Context(), "authenticate.SignIn")
 	defer span.End()
 
 	state := a.state.Load()
@@ -197,13 +207,13 @@ func (a *Authenticate) SignOut(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (a *Authenticate) signOutRedirect(w http.ResponseWriter, r *http.Request) error {
-	ctx, span := trace.StartSpan(r.Context(), "authenticate.SignOut")
+	ctx, span := a.tracer.Start(r.Context(), "authenticate.SignOut")
 	defer span.End()
 
 	options := a.options.Load()
 	idpID := a.getIdentityProviderIDForRequest(r)
 
-	authenticator, err := a.cfg.getIdentityProvider(options, idpID)
+	authenticator, err := a.cfg.getIdentityProvider(ctx, a.tracerProvider, options, idpID)
 	if err != nil {
 		return err
 	}
@@ -274,7 +284,7 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 	options := a.options.Load()
 	idpID := a.getIdentityProviderIDForRequest(r)
 
-	authenticator, err := a.cfg.getIdentityProvider(options, idpID)
+	authenticator, err := a.cfg.getIdentityProvider(r.Context(), a.tracerProvider, options, idpID)
 	if err != nil {
 		return err
 	}
@@ -283,9 +293,20 @@ func (a *Authenticate) reauthenticateOrFail(w http.ResponseWriter, r *http.Reque
 
 	state.sessionStore.ClearSession(w, r)
 	redirectURL := state.redirectURL.ResolveReference(r.URL)
+	redirectURLValues := redirectURL.Query()
+	var traceID string
+	if tp := trace.PomeriumURLQueryCarrier(redirectURLValues).Get("traceparent"); len(tp) == 55 {
+		if traceIDBytes, err := hex.DecodeString(tp[3:35]); err == nil {
+			traceFlags, _ := hex.DecodeString(tp[53:55])
+			if len(traceFlags) != 1 {
+				traceFlags = []byte{0}
+			}
+			traceID = base64.RawURLEncoding.EncodeToString(append(traceIDBytes, traceFlags[0]))
+		}
+	}
 	nonce := csrf.Token(r)
 	now := time.Now().Unix()
-	b := []byte(fmt.Sprintf("%s|%d|", nonce, now))
+	b := []byte(fmt.Sprintf("%s|%d|%s|", nonce, now, traceID))
 	enc := cryptutil.Encrypt(state.cookieCipher, []byte(redirectURL.String()), b)
 	b = append(b, enc...)
 	encodedState := base64.URLEncoding.EncodeToString(b)
@@ -321,7 +342,7 @@ func (a *Authenticate) statusForErrorCode(errorCode string) int {
 }
 
 func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) (*url.URL, error) {
-	ctx, span := trace.StartSpan(r.Context(), "authenticate.getOAuthCallback")
+	ctx, span := a.tracer.Start(r.Context(), "authenticate.OAuthCallback")
 	defer span.End()
 
 	state := a.state.Load()
@@ -347,21 +368,20 @@ func (a *Authenticate) getOAuthCallback(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// split state into concat'd components
-	// (nonce|timestamp|redirect_url|encrypted_data(redirect_url)+mac(nonce,ts))
-	statePayload := strings.SplitN(string(bytes), "|", 3)
-	if len(statePayload) != 3 {
+	// (nonce|timestamp|trace_id+flags|encrypted_data(redirect_url)+mac(nonce,ts))
+	statePayload := strings.SplitN(string(bytes), "|", 4)
+	if len(statePayload) != 4 {
 		return nil, httputil.NewError(http.StatusBadRequest, fmt.Errorf("state malformed, size: %d", len(statePayload)))
 	}
 
 	// Use our AEAD construct to enforce secrecy and authenticity:
 	// mac: to validate the nonce again, and above timestamp
 	// decrypt: to prevent leaking 'redirect_uri' to IdP or logs
-	b := []byte(fmt.Sprint(statePayload[0], "|", statePayload[1], "|"))
-	redirectString, err := cryptutil.Decrypt(state.cookieCipher, []byte(statePayload[2]), b)
+	b := []byte(fmt.Sprint(statePayload[0], "|", statePayload[1], "|", statePayload[2], "|"))
+	redirectString, err := cryptutil.Decrypt(state.cookieCipher, []byte(statePayload[3]), b)
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)
 	}
-
 	redirectURL, err := urlutil.ParseAndValidateURL(string(redirectString))
 	if err != nil {
 		return nil, httputil.NewError(http.StatusBadRequest, err)
@@ -380,7 +400,7 @@ Or contact your administrator.
 
 	idpID := state.flow.GetIdentityProviderIDForURLValues(redirectURL.Query())
 
-	authenticator, err := a.cfg.getIdentityProvider(options, idpID)
+	authenticator, err := a.cfg.getIdentityProvider(ctx, a.tracerProvider, options, idpID)
 	if err != nil {
 		return nil, err
 	}
@@ -432,7 +452,7 @@ func (a *Authenticate) getSessionFromCtx(ctx context.Context) (*sessions.State, 
 }
 
 func (a *Authenticate) userInfo(w http.ResponseWriter, r *http.Request) error {
-	ctx, span := trace.StartSpan(r.Context(), "authenticate.userInfo")
+	ctx, span := a.tracer.Start(r.Context(), "authenticate.userInfo")
 	defer span.End()
 
 	options := a.options.Load()
@@ -484,7 +504,7 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 
 	idpID := r.FormValue(urlutil.QueryIdentityProviderID)
 
-	authenticator, err := a.cfg.getIdentityProvider(options, idpID)
+	authenticator, err := a.cfg.getIdentityProvider(ctx, a.tracerProvider, options, idpID)
 	if err != nil {
 		return ""
 	}

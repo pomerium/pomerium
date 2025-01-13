@@ -33,3 +33,14 @@ func (v *Value[T]) Load() T {
 func (v *Value[T]) Store(val T) {
 	v.value.Store(val)
 }
+
+// Swap swaps the value atomically.
+func (v *Value[T]) Swap(val T) T {
+	old, _ := v.value.Swap(val).(T)
+	return old
+}
+
+// Swap swaps the value atomically.
+func (v *Value[T]) CompareAndSwap(old, new T) bool {
+	return v.value.CompareAndSwap(old, new)
+}

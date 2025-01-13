@@ -16,6 +16,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/oauth2"
@@ -39,23 +40,21 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
 )
 
-func testAuthenticate() *Authenticate {
-	redirectURL, _ := url.Parse("https://auth.example.com/oauth/callback")
-	var auth Authenticate
-	auth.state = atomicutil.NewValue(&authenticateState{
-		redirectURL:  redirectURL,
-		cookieSecret: cryptutil.NewKey(),
-		flow:         new(stubFlow),
+func testAuthenticate(t *testing.T) *Authenticate {
+	opts := newTestOptions(t)
+	opts.AuthenticateURLString = "https://auth.example.com/oauth/callback"
+	auth, err := New(context.Background(), &config.Config{
+		Options: opts,
 	})
-	auth.options = config.NewAtomicOptions()
-	auth.options.Store(&config.Options{
-		SharedKey: cryptutil.NewBase64Key(),
-	})
-	return &auth
+	if err != nil {
+		panic(err)
+	}
+	auth.state.Load().flow = new(stubFlow)
+	return auth
 }
 
 func TestAuthenticate_RobotsTxt(t *testing.T) {
-	auth := testAuthenticate()
+	auth := testAuthenticate(t)
 	req, err := http.NewRequest(http.MethodGet, "/robots.txt", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -73,7 +72,7 @@ func TestAuthenticate_RobotsTxt(t *testing.T) {
 }
 
 func TestAuthenticate_Handler(t *testing.T) {
-	auth := testAuthenticate()
+	auth := testAuthenticate(t)
 
 	h := auth.Handler()
 	if h == nil {
@@ -224,17 +223,16 @@ func TestAuthenticate_SignOut(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			a := &Authenticate{
-				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ *config.Options, _ string) (identity.Authenticator, error) {
-					return tt.provider, nil
-				})),
-				state: atomicutil.NewValue(&authenticateState{
-					sessionStore:  tt.sessionStore,
-					sharedEncoder: mock.Encoder{},
-					flow:          new(stubFlow),
-				}),
-				options: config.NewAtomicOptions(),
-			}
+			a := testAuthenticate(t)
+			a.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
+				return tt.provider, nil
+			}))
+			a.state = atomicutil.NewValue(&authenticateState{
+				sessionStore:  tt.sessionStore,
+				sharedEncoder: mock.Encoder{},
+				flow:          new(stubFlow),
+			})
+			a.options = config.NewAtomicOptions()
 			if tt.signoutRedirectURL != "" {
 				opts := a.options.Load()
 				opts.SignOutRedirectURLString = tt.signoutRedirectURL
@@ -280,7 +278,7 @@ func TestAuthenticate_SignOutDoesNotRequireSession(t *testing.T) {
 
 	sessionStore := &mstore.Store{LoadError: errors.New("no session")}
 	a := &Authenticate{
-		cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ *config.Options, _ string) (identity.Authenticator, error) {
+		cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
 			return identity.MockProvider{}, nil
 		})),
 		state: atomicutil.NewValue(&authenticateState{
@@ -354,26 +352,24 @@ func TestAuthenticate_OAuthCallback(t *testing.T) {
 				t.Fatal(err)
 			}
 			authURL, _ := url.Parse(tt.authenticateURL)
-			a := &Authenticate{
-				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ *config.Options, _ string) (identity.Authenticator, error) {
-					return tt.provider, nil
-				})),
-				state: atomicutil.NewValue(&authenticateState{
-					redirectURL:  authURL,
-					sessionStore: tt.session,
-					cookieCipher: aead,
-					flow:         new(stubFlow),
-				}),
-				options: config.NewAtomicOptions(),
-			}
+			a := testAuthenticate(t)
+			a.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
+				return tt.provider, nil
+			}))
+			a.state = atomicutil.NewValue(&authenticateState{
+				redirectURL:  authURL,
+				sessionStore: tt.session,
+				cookieCipher: aead,
+				flow:         new(stubFlow),
+			})
+			a.options = config.NewAtomicOptions()
 			u, _ := url.Parse("/oauthGet")
 			params, _ := url.ParseQuery(u.RawQuery)
 			params.Add("error", tt.paramErr)
 			params.Add("code", tt.code)
 			nonce := cryptutil.NewBase64Key() // mock csrf
-			// (nonce|timestamp|redirect_url|encrypt(redirect_url),mac(nonce,ts))
-			b := []byte(fmt.Sprintf("%s|%d|%s", nonce, tt.ts, tt.extraMac))
-
+			// (nonce|timestamp|trace_id+flags|encrypt(redirect_url),mac(nonce,ts))
+			b := []byte(fmt.Sprintf("%s|%d||%s", nonce, tt.ts, tt.extraMac))
 			enc := cryptutil.Encrypt(a.state.Load().cookieCipher, []byte(tt.redirectURI), b)
 			b = append(b, enc...)
 			encodedState := base64.URLEncoding.EncodeToString(b)
@@ -466,20 +462,19 @@ func TestAuthenticate_SessionValidatorMiddleware(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			a := &Authenticate{
-				cfg: getAuthenticateConfig(WithGetIdentityProvider(func(_ *config.Options, _ string) (identity.Authenticator, error) {
-					return tt.provider, nil
-				})),
-				state: atomicutil.NewValue(&authenticateState{
-					cookieSecret:  cryptutil.NewKey(),
-					redirectURL:   uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
-					sessionStore:  tt.session,
-					cookieCipher:  aead,
-					sharedEncoder: signer,
-					flow:          new(stubFlow),
-				}),
-				options: config.NewAtomicOptions(),
-			}
+			a := testAuthenticate(t)
+			a.cfg = getAuthenticateConfig(WithGetIdentityProvider(func(_ context.Context, _ oteltrace.TracerProvider, _ *config.Options, _ string) (identity.Authenticator, error) {
+				return tt.provider, nil
+			}))
+			a.state = atomicutil.NewValue(&authenticateState{
+				cookieSecret:  cryptutil.NewKey(),
+				redirectURL:   uriParseHelper("https://authenticate.corp.beyondperimeter.com"),
+				sessionStore:  tt.session,
+				cookieCipher:  aead,
+				sharedEncoder: signer,
+				flow:          new(stubFlow),
+			})
+			a.options = config.NewAtomicOptions()
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			state, err := tt.session.LoadSession(r)
 			if err != nil {
@@ -512,7 +507,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 	t.Run("cookie-redirect-uri", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "https://authenticate.service.cluster.local/.pomerium/?pomerium_redirect_uri=https://www.example.com", nil)
-		var a Authenticate
+		a := testAuthenticate(t)
 		a.state = atomicutil.NewValue(&authenticateState{
 			cookieSecret: cryptutil.NewKey(),
 			flow:         new(stubFlow),
@@ -577,14 +572,13 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			if !tt.validSignature {
 				f.verifySignatureErr = errors.New("bad signature")
 			}
-			a := &Authenticate{
-				options: o,
-				state: atomicutil.NewValue(&authenticateState{
-					sessionStore:  tt.sessionStore,
-					sharedEncoder: signer,
-					flow:          f,
-				}),
-			}
+			a := testAuthenticate(t)
+			a.options = o
+			a.state = atomicutil.NewValue(&authenticateState{
+				sessionStore:  tt.sessionStore,
+				sharedEncoder: signer,
+				flow:          f,
+			})
 			r := httptest.NewRequest(http.MethodGet, tt.url, nil)
 			state, err := tt.sessionStore.LoadSession(r)
 			if err != nil {
@@ -606,7 +600,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 
 func TestAuthenticate_CORS(t *testing.T) {
 	f := new(stubFlow)
-	auth := testAuthenticate()
+	auth := testAuthenticate(t)
 	state := auth.state.Load()
 	state.sessionLoader = &mstore.Store{Session: &sessions.State{}}
 	state.sharedEncoder = mock.Encoder{}
@@ -645,7 +639,7 @@ func TestAuthenticate_CORS(t *testing.T) {
 func TestSignOutBranding(t *testing.T) {
 	t.Parallel()
 
-	auth := testAuthenticate()
+	auth := testAuthenticate(t)
 	auth.state.Load().flow.(*stubFlow).verifySignatureErr = errors.New("unsigned URL")
 	auth.options.Store(&config.Options{
 		BrandingOptions: &configproto.Settings{

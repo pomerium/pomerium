@@ -11,6 +11,8 @@ import (
 	envoy_service_discovery_v3 "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v3"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -25,7 +27,6 @@ import (
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
@@ -34,6 +35,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/httputil"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // A Service can be mounted on the control plane.
@@ -43,6 +45,7 @@ type Service interface {
 
 // A Server is the control-plane gRPC and HTTP servers.
 type Server struct {
+	coltracepb.UnimplementedTraceServiceServer
 	GRPCListener    net.Listener
 	GRPCServer      *grpc.Server
 	HTTPListener    net.Listener
@@ -66,6 +69,9 @@ type Server struct {
 	proxySvc        Service
 
 	haveSetCapacity map[string]bool
+
+	tracerProvider oteltrace.TracerProvider
+	tracer         oteltrace.Tracer
 }
 
 // NewServer creates a new Server. Listener ports are chosen by the OS.
@@ -76,7 +82,10 @@ func NewServer(
 	eventsMgr *events.Manager,
 	fileMgr *filemgr.Manager,
 ) (*Server, error) {
+	tracerProvider := trace.NewTracerProvider(ctx, "Control Plane")
 	srv := &Server{
+		tracerProvider:  tracerProvider,
+		tracer:          tracerProvider.Tracer(trace.PomeriumCoreTracer),
 		metricsMgr:      metricsMgr,
 		EventsMgr:       eventsMgr,
 		filemgr:         fileMgr,
@@ -105,7 +114,7 @@ func NewServer(
 		),
 	)
 	srv.GRPCServer = grpc.NewServer(
-		grpc.StatsHandler(telemetry.NewGRPCServerStatsHandler(cfg.Options.Services)),
+		grpc.StatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithTracerProvider(tracerProvider))),
 		grpc.ChainUnaryInterceptor(
 			log.UnaryServerInterceptor(log.Ctx(ctx)),
 			requestid.UnaryServerInterceptor(),
@@ -177,7 +186,9 @@ func NewServer(
 
 	srv.xdsmgr = xdsmgr.NewManager(res)
 	envoy_service_discovery_v3.RegisterAggregatedDiscoveryServiceServer(srv.GRPCServer, srv.xdsmgr)
-
+	if exp := trace.ExporterServerFromContext(ctx); exp != nil {
+		coltracepb.RegisterTraceServiceServer(srv.GRPCServer, exp)
+	}
 	return srv, nil
 }
 
@@ -241,7 +252,7 @@ func (srv *Server) Run(ctx context.Context) error {
 
 // OnConfigChange updates the pomerium config options.
 func (srv *Server) OnConfigChange(ctx context.Context, cfg *config.Config) error {
-	ctx, span := trace.StartSpan(ctx, "controlplane.Server.OnConfigChange")
+	ctx, span := srv.tracer.Start(ctx, "controlplane.Server.OnConfigChange")
 	defer span.End()
 
 	select {
@@ -265,7 +276,7 @@ func (srv *Server) EnableProxy(ctx context.Context, svc Service) error {
 }
 
 func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
-	ctx, span := trace.StartSpan(ctx, "controlplane.Server.update")
+	ctx, span := srv.tracer.Start(ctx, "controlplane.Server.update")
 	defer span.End()
 
 	if err := srv.updateRouter(ctx, cfg); err != nil {
@@ -283,7 +294,7 @@ func (srv *Server) update(ctx context.Context, cfg *config.Config) error {
 
 func (srv *Server) updateRouter(ctx context.Context, cfg *config.Config) error {
 	httpRouter := mux.NewRouter()
-	srv.addHTTPMiddleware(httpRouter, log.Ctx(ctx), cfg)
+	srv.addHTTPMiddleware(ctx, httpRouter, cfg)
 	if err := srv.mountCommonEndpoints(httpRouter, cfg); err != nil {
 		return err
 	}

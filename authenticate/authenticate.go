@@ -10,7 +10,9 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // ValidateOptions checks that configuration are complete and valid.
@@ -38,23 +40,31 @@ func ValidateOptions(o *config.Options) error {
 
 // Authenticate contains data required to run the authenticate service.
 type Authenticate struct {
-	cfg     *authenticateConfig
-	options *atomicutil.Value[*config.Options]
-	state   *atomicutil.Value[*authenticateState]
+	cfg            *authenticateConfig
+	options        *atomicutil.Value[*config.Options]
+	state          *atomicutil.Value[*authenticateState]
+	tracerProvider oteltrace.TracerProvider
+	tracer         oteltrace.Tracer
 }
 
 // New validates and creates a new authenticate service from a set of Options.
 func New(ctx context.Context, cfg *config.Config, options ...Option) (*Authenticate, error) {
 	authenticateConfig := getAuthenticateConfig(options...)
+
+	tracerProvider := trace.NewTracerProvider(ctx, "Authenticate")
+	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
+
 	a := &Authenticate{
-		cfg:     authenticateConfig,
-		options: config.NewAtomicOptions(),
-		state:   atomicutil.NewValue(newAuthenticateState()),
+		cfg:            authenticateConfig,
+		options:        config.NewAtomicOptions(),
+		state:          atomicutil.NewValue(newAuthenticateState()),
+		tracerProvider: tracerProvider,
+		tracer:         tracer,
 	}
 
 	a.options.Store(cfg.Options)
 
-	state, err := newAuthenticateStateFromConfig(ctx, cfg, authenticateConfig)
+	state, err := newAuthenticateStateFromConfig(ctx, tracerProvider, cfg, authenticateConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +80,7 @@ func (a *Authenticate) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	}
 
 	a.options.Store(cfg.Options)
-	if state, err := newAuthenticateStateFromConfig(ctx, cfg, a.cfg); err != nil {
+	if state, err := newAuthenticateStateFromConfig(ctx, a.tracerProvider, cfg, a.cfg); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authenticate: failed to update state")
 	} else {
 		a.state.Store(state)

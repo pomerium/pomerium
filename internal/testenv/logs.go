@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"regexp"
 	"sync"
 	"testing"
 	"time"
@@ -128,7 +129,7 @@ func (e *environment) NewLogRecorder(opts ...LogRecorderOption) *LogRecorder {
 	lr := &LogRecorder{
 		LogRecorderOptions: options,
 		t:                  e.t,
-		canceled:           e.ctx.Done(),
+		canceled:           e.Context().Done(),
 		buf:                newBuffer(),
 	}
 	e.logWriter.Add(lr.buf)
@@ -139,7 +140,7 @@ func (e *environment) NewLogRecorder(opts ...LogRecorderOption) *LogRecorder {
 		}
 		e.logWriter.Remove(lr.buf)
 	})
-	context.AfterFunc(e.ctx, lr.removeGlobalWriterOnce)
+	context.AfterFunc(e.Context(), lr.removeGlobalWriterOnce)
 	return lr
 }
 
@@ -353,6 +354,11 @@ func match(expected, actual map[string]any, open bool) (matched bool, score int)
 			switch value := value.(type) {
 			case string:
 				if value != actualValue {
+					return false, score
+				}
+				score++
+			case *regexp.Regexp:
+				if !value.MatchString(actualValue) {
 					return false, score
 				}
 				score++

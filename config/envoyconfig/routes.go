@@ -114,6 +114,9 @@ func (b *Builder) buildControlPlanePathRoute(
 		Match: &envoy_config_route_v3.RouteMatch{
 			PathSpecifier: &envoy_config_route_v3.RouteMatch_Path{Path: path},
 		},
+		Decorator: &envoy_config_route_v3.Decorator{
+			Operation: "internal: ${method} ${host}${path}",
+		},
 		Action: &envoy_config_route_v3.Route_Route{
 			Route: &envoy_config_route_v3.RouteAction{
 				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
@@ -137,6 +140,9 @@ func (b *Builder) buildControlPlanePrefixRoute(
 		Name: "pomerium-prefix-" + prefix,
 		Match: &envoy_config_route_v3.RouteMatch{
 			PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: prefix},
+		},
+		Decorator: &envoy_config_route_v3.Decorator{
+			Operation: "internal: ${method} ${host}${path}",
 		},
 		Action: &envoy_config_route_v3.Route_Route{
 			Route: &envoy_config_route_v3.RouteAction{
@@ -269,8 +275,12 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 	}
 
 	route := &envoy_config_route_v3.Route{
-		Name:                   name,
-		Match:                  match,
+		Name:  name,
+		Match: match,
+		Decorator: &envoy_config_route_v3.Decorator{
+			Operation: "ingress: ${method} ${host}${path}",
+			Propagate: wrapperspb.Bool(false),
+		},
 		Metadata:               &envoy_config_core_v3.Metadata{},
 		RequestHeadersToRemove: getRequestHeadersToRemove(cfg.Options, policy),
 		ResponseHeadersToAdd:   toEnvoyHeaders(cfg.Options.GetSetResponseHeadersForPolicy(policy)),
