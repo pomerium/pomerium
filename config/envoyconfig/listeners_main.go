@@ -214,7 +214,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		mgr.CodecType = cfg.Options.GetCodecType().ToEnvoy()
 	}
 
-	applyTracingConfig(mgr, cfg.Options)
+	applyTracingConfig(ctx, mgr, cfg.Options)
 
 	if fullyStatic {
 		routeConfiguration, err := b.buildMainRouteConfiguration(ctx, cfg)

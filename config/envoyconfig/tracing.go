@@ -1,13 +1,17 @@
 package envoyconfig
 
 import (
+	"context"
 	"os"
 	"strconv"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	tracev3 "github.com/envoyproxy/go-control-plane/envoy/config/trace/v3"
+	envoy_extensions_filters_http_header_to_metadata "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/header_to_metadata/v3"
 	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoy_extensions_tracers_otel "github.com/envoyproxy/go-control-plane/envoy/extensions/tracers/opentelemetry/resource_detectors/v3"
+	metadatav3 "github.com/envoyproxy/go-control-plane/envoy/type/metadata/v3"
+	envoy_tracing_v3 "github.com/envoyproxy/go-control-plane/envoy/type/tracing/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/extensions"
@@ -30,13 +34,13 @@ func isTracingEnabled(cfg *config.Options) bool {
 }
 
 func applyTracingConfig(
+	ctx context.Context,
 	mgr *envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager,
 	opts *config.Options,
 ) {
 	if !isTracingEnabled(opts) {
 		return
 	}
-
 	mgr.EarlyHeaderMutationExtensions = []*envoy_config_core_v3.TypedExtensionConfig{
 		{
 			Name:        "envoy.http.early_header_mutation.trace_context",
@@ -96,5 +100,50 @@ func applyTracingConfig(
 		},
 		// this allows full URLs to be displayed in traces, they are otherwise truncated
 		MaxPathTagLength: wrapperspb.UInt32(maxPathTagLength),
+	}
+
+	debugFlags := trace.DebugFlagsFromContext(ctx)
+	if debugFlags.Check(trace.TrackSpanReferences) {
+		mgr.HttpFilters = append([]*envoy_extensions_filters_network_http_connection_manager.HttpFilter{
+			{
+				Name: "envoy.filters.http.header_to_metadata",
+				ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
+					TypedConfig: marshalAny(&envoy_extensions_filters_http_header_to_metadata.Config{
+						RequestRules: []*envoy_extensions_filters_http_header_to_metadata.Config_Rule{
+							{
+								Header: "x-pomerium-external-parent-span",
+								OnHeaderPresent: &envoy_extensions_filters_http_header_to_metadata.Config_KeyValuePair{
+									MetadataNamespace: "pomerium.internal",
+									Key:               "external-parent-span",
+								},
+								Remove: true,
+							},
+						},
+					}),
+				},
+			},
+		}, mgr.HttpFilters...)
+		mgr.Tracing.CustomTags = append(mgr.Tracing.CustomTags, &envoy_tracing_v3.CustomTag{
+			Tag: "pomerium.external-parent-span",
+			Type: &envoy_tracing_v3.CustomTag_Metadata_{
+				Metadata: &envoy_tracing_v3.CustomTag_Metadata{
+					Kind: &metadatav3.MetadataKind{
+						Kind: &metadatav3.MetadataKind_Request_{
+							Request: &metadatav3.MetadataKind_Request{},
+						},
+					},
+					MetadataKey: &metadatav3.MetadataKey{
+						Key: "pomerium.internal",
+						Path: []*metadatav3.MetadataKey_PathSegment{
+							{
+								Segment: &metadatav3.MetadataKey_PathSegment_Key{
+									Key: "external-parent-span",
+								},
+							},
+						},
+					},
+				},
+			},
+		})
 	}
 }

@@ -2,6 +2,7 @@ package trace
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"net"
 	"time"
@@ -29,6 +30,16 @@ func (srv *ExporterServer) Export(ctx context.Context, req *coltracepb.ExportTra
 					for _, span := range scope.Spans {
 						if id, ok := ToSpanID(span.SpanId); ok {
 							srv.observer.Observe(id)
+							for _, attr := range span.Attributes {
+								if attr.Key == "pomerium.external-parent-span" {
+									if bytes, err := hex.DecodeString(attr.Value.GetStringValue()); err == nil {
+										if id, ok := ToSpanID(bytes); ok {
+											srv.observer.Observe(id)
+										}
+									}
+									break
+								}
+							}
 						}
 					}
 				}

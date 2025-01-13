@@ -197,7 +197,7 @@
     "statPrefix": "ingress",
     "tracing": {
       "randomSampling": {
-        "value": 0.01
+        "value": 100
       },
       "verbose": true,
       "maxPathTagLength": 1024,

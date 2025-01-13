@@ -391,6 +391,7 @@ func TestExternalSpans(t *testing.T) {
 				"Authenticate",
 				"Control Plane",
 				"Data Broker",
+				"Proxy",
 				"IDP",
 				"Envoy",
 				"External",
