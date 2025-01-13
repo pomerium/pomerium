@@ -380,7 +380,7 @@ func TestExternalSpans(t *testing.T) {
 
 	assert.NoError(t, externalTracerProvider.ForceFlush(context.Background()))
 	assert.NoError(t, externalTracerProvider.Shutdown(context.Background()))
-	external.Shutdown(ctx)
+	assert.NoError(t, external.Shutdown(ctx))
 	env.Stop()
 
 	if getResults != nil {
