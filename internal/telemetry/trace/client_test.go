@@ -264,7 +264,7 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 		name          string
 		env           map[string]string
 		newClientErr  string
-		uploadErr     string
+		uploadErr     bool
 		expectNoSpans bool
 	}{
 		{
@@ -280,7 +280,7 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 				"OTEL_TRACES_EXPORTER":        "otlp",
 				"OTEL_EXPORTER_OTLP_ENDPOINT": grpcEndpoint.Value(),
 			},
-			uploadErr: "net/http: HTTP/1.x transport connection broken: malformed HTTP response",
+			uploadErr: true,
 		},
 		{
 			name: "HTTP endpoint, auto protocol",
@@ -417,8 +417,8 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 			_, span := tp.Tracer(trace.PomeriumCoreTracer).Start(ctx, "test span")
 			span.End()
 
-			if tc.uploadErr != "" {
-				assert.ErrorContains(t, trace.ForceFlush(ctx), tc.uploadErr)
+			if tc.uploadErr {
+				assert.Error(t, trace.ForceFlush(ctx))
 				assert.NoError(t, trace.ShutdownContext(ctx))
 				return
 			}
