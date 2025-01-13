@@ -2,7 +2,6 @@ package trace
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"net"
 	"time"
@@ -11,7 +10,6 @@ import (
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
 
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -23,28 +21,7 @@ const localExporterMetadataKey = "x-local-exporter"
 // Export implements ptraceotlp.GRPCServer.
 func (srv *ExporterServer) Export(ctx context.Context, req *coltracepb.ExportTraceServiceRequest) (*coltracepb.ExportTraceServiceResponse, error) {
 	if srv.observer != nil {
-		isLocal := len(metadata.ValueFromIncomingContext(ctx, localExporterMetadataKey)) != 0
-		if !isLocal {
-			for _, res := range req.ResourceSpans {
-				for _, scope := range res.ScopeSpans {
-					for _, span := range scope.Spans {
-						if id, ok := ToSpanID(span.SpanId); ok {
-							srv.observer.Observe(id)
-							for _, attr := range span.Attributes {
-								if attr.Key == "pomerium.external-parent-span" {
-									if bytes, err := hex.DecodeString(attr.Value.GetStringValue()); err == nil {
-										if id, ok := ToSpanID(bytes); ok {
-											srv.observer.Observe(id)
-										}
-									}
-									break
-								}
-							}
-						}
-					}
-				}
-			}
-		}
+		srv.observeExport(ctx, req)
 	}
 	if err := srv.remoteClient.UploadTraces(ctx, req.GetResourceSpans()); err != nil {
 		log.Ctx(ctx).Err(err).Msg("error uploading traces")

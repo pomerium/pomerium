@@ -3,6 +3,7 @@ package trace
 import (
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -490,4 +492,33 @@ func (obs *spanObserver) debugWarnWaiting() {
 	}
 	endMsg(msg)
 	obs.cond.L.Unlock()
+}
+
+func (srv *ExporterServer) observeExport(ctx context.Context, req *coltracepb.ExportTraceServiceRequest) {
+	isLocal := len(metadata.ValueFromIncomingContext(ctx, localExporterMetadataKey)) != 0
+	if isLocal {
+		return
+	}
+	for _, res := range req.ResourceSpans {
+		for _, scope := range res.ScopeSpans {
+			for _, span := range scope.Spans {
+				id, ok := ToSpanID(span.SpanId)
+				if !ok {
+					continue
+				}
+				srv.observer.Observe(id)
+				for _, attr := range span.Attributes {
+					if attr.Key != "pomerium.external-parent-span" {
+						continue
+					}
+					if bytes, err := hex.DecodeString(attr.Value.GetStringValue()); err == nil {
+						if id, ok := ToSpanID(bytes); ok {
+							srv.observer.Observe(id)
+						}
+					}
+					break
+				}
+			}
+		}
+	}
 }
