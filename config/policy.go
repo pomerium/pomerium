@@ -23,7 +23,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/identity"
-	"github.com/pomerium/pomerium/pkg/zero/importutil"
 )
 
 // Policy contains route specific configuration and access settings.
@@ -332,9 +331,6 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		TLSUpstreamAllowRenegotiation:     pb.GetTlsUpstreamAllowRenegotiation(),
 		TLSUpstreamServerName:             pb.GetTlsUpstreamServerName(),
 		UpstreamTimeout:                   timeout,
-	}
-	if p.Name == "" {
-		p.Name = importutil.GenerateRouteNames([]*configpb.Route{pb})[0]
 	}
 	if pb.Redirect.IsSet() {
 		p.Redirect = &PolicyRedirect{
