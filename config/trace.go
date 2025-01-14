@@ -19,11 +19,15 @@ type TracingOptions = trace.TracingOptions
 
 // NewTracingOptions builds a new TracingOptions from core Options
 func NewTracingOptions(o *Options) (*TracingOptions, error) {
+	sampleRate := 1.0
+	if o.TracingSampleRate != nil {
+		sampleRate = *o.TracingSampleRate
+	}
 	tracingOpts := TracingOptions{
 		Provider:            o.TracingProvider,
 		Service:             telemetry.ServiceName(o.Services),
 		JaegerAgentEndpoint: o.TracingJaegerAgentEndpoint,
-		SampleRate:          o.TracingSampleRate,
+		SampleRate:          sampleRate,
 	}
 
 	switch o.TracingProvider {
