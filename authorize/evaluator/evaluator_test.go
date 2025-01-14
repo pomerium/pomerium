@@ -708,6 +708,9 @@ func TestPolicyEvaluatorReuse(t *testing.T) {
 	t.Run("JWTClaimsHeaders changed", func(t *testing.T) {
 		assertNoneReused(t, WithJWTClaimsHeaders(config.JWTClaimHeaders{"dummy": "header"}))
 	})
+	t.Run("JWTGroupsFilter changed", func(t *testing.T) {
+		assertNoneReused(t, WithJWTGroupsFilter(config.NewJWTGroupsFilter([]string{"group1", "group2"})))
+	})
 
 	// If some policies have changed, but the evaluatorConfig is otherwise
 	// identical, only evaluators for the changed policies should be updated.
