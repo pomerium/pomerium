@@ -13,8 +13,10 @@ import (
 	metadatav3 "github.com/envoyproxy/go-control-plane/envoy/type/metadata/v3"
 	envoy_tracing_v3 "github.com/envoyproxy/go-control-plane/envoy/type/tracing/v3"
 	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
+	extensions_trace_context "github.com/pomerium/envoy-custom/api/extensions/http/early_header_mutation/trace_context"
+	extensions_uuidx "github.com/pomerium/envoy-custom/api/extensions/request_id/uuidx"
+	extensions_pomerium_otel "github.com/pomerium/envoy-custom/api/extensions/tracers/pomerium_otel"
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/config/envoyconfig/extensions"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -44,11 +46,11 @@ func applyTracingConfig(
 	mgr.EarlyHeaderMutationExtensions = []*envoy_config_core_v3.TypedExtensionConfig{
 		{
 			Name:        "envoy.http.early_header_mutation.trace_context",
-			TypedConfig: marshalAny(&extensions.TraceContext{}),
+			TypedConfig: marshalAny(&extensions_trace_context.TraceContext{}),
 		},
 	}
 	mgr.RequestIdExtension = &envoy_extensions_filters_network_http_connection_manager.RequestIDExtension{
-		TypedConfig: marshalAny(&extensions.UuidxRequestIdConfig{
+		TypedConfig: marshalAny(&extensions_uuidx.UuidxRequestIdConfig{
 			PackTraceReason:              wrapperspb.Bool(true),
 			UseRequestIdForTraceSampling: wrapperspb.Bool(true),
 		}),
@@ -76,7 +78,7 @@ func applyTracingConfig(
 		Provider: &tracev3.Tracing_Http{
 			Name: "envoy.tracers.pomerium_otel",
 			ConfigType: &tracev3.Tracing_Http_TypedConfig{
-				TypedConfig: marshalAny(&extensions.OpenTelemetryConfig{
+				TypedConfig: marshalAny(&extensions_pomerium_otel.OpenTelemetryConfig{
 					GrpcService: &envoy_config_core_v3.GrpcService{
 						TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
 							EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{

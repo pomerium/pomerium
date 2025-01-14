@@ -215,19 +215,6 @@ type Options struct {
 	TracingOTLPEndpoint string   `mapstructure:"tracing_otlp_endpoint" yaml:"tracing_otlp_endpoint,omitempty"`
 	TracingOTLPProtocol string   `mapstructure:"tracing_otlp_protocol" yaml:"tracing_otlp_protocol,omitempty"`
 
-	// Deprecated: this field is ignored.
-	// Configure tracing using the OTLP options or environment variables.
-	TracingDatadogAddress string `mapstructure:"tracing_datadog_address" yaml:"tracing_datadog_address,omitempty"`
-	// Deprecated: this field is ignored.
-	// Configure tracing using the OTLP options or environment variables.
-	TracingJaegerCollectorEndpoint string `mapstructure:"tracing_jaeger_collector_endpoint" yaml:"tracing_jaeger_collector_endpoint,omitempty"`
-	// Deprecated: this field is ignored.
-	// Configure tracing using the OTLP options or environment variables.
-	TracingJaegerAgentEndpoint string `mapstructure:"tracing_jaeger_agent_endpoint" yaml:"tracing_jaeger_agent_endpoint,omitempty"`
-	// Deprecated: this field is ignored.
-	// Configure tracing using the OTLP options or environment variables.
-	ZipkinEndpoint string `mapstructure:"tracing_zipkin_endpoint" yaml:"tracing_zipkin_endpoint"`
-
 	// GRPC Service Settings
 
 	// GRPCAddr specifies the host and port on which the server should serve
@@ -1518,10 +1505,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.TracingOTLPEndpoint, settings.TracingOtlpEndpoint)
 	set(&o.TracingOTLPProtocol, settings.TracingOtlpProtocol)
 	setOptional(&o.TracingSampleRate, settings.TracingSampleRate)
-	set(&o.TracingDatadogAddress, settings.TracingDatadogAddress)
-	set(&o.TracingJaegerCollectorEndpoint, settings.TracingJaegerCollectorEndpoint)
-	set(&o.TracingJaegerAgentEndpoint, settings.TracingJaegerAgentEndpoint)
-	set(&o.ZipkinEndpoint, settings.TracingZipkinEndpoint)
 	set(&o.GRPCAddr, settings.GrpcAddress)
 	setOptional(&o.GRPCInsecure, settings.GrpcInsecure)
 	setDuration(&o.GRPCClientTimeout, settings.GrpcClientTimeout)
@@ -1610,10 +1593,6 @@ func (o *Options) ToProto() *config.Config {
 	settings.TracingSampleRate = o.TracingSampleRate
 	copySrcToOptionalDest(&settings.TracingOtlpEndpoint, &o.TracingOTLPEndpoint)
 	copySrcToOptionalDest(&settings.TracingOtlpProtocol, &o.TracingOTLPProtocol)
-	copySrcToOptionalDest(&settings.TracingDatadogAddress, &o.TracingDatadogAddress)
-	copySrcToOptionalDest(&settings.TracingJaegerCollectorEndpoint, &o.TracingJaegerCollectorEndpoint)
-	copySrcToOptionalDest(&settings.TracingJaegerAgentEndpoint, &o.TracingJaegerAgentEndpoint)
-	copySrcToOptionalDest(&settings.TracingZipkinEndpoint, &o.ZipkinEndpoint)
 	copySrcToOptionalDest(&settings.GrpcAddress, &o.GRPCAddr)
 	settings.GrpcInsecure = o.GRPCInsecure
 	copyOptionalDuration(&settings.GrpcClientTimeout, o.GRPCClientTimeout)

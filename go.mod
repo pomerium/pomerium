@@ -15,7 +15,6 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/cloudflare/circl v1.5.0
-	github.com/cncf/xds/go v0.0.0-20240905190251-b4127c9b8d78
 	github.com/coreos/go-oidc/v3 v3.11.0
 	github.com/docker/docker v27.4.1+incompatible
 	github.com/envoyproxy/go-control-plane/envoy v1.32.3
@@ -48,6 +47,7 @@ require (
 	github.com/pires/go-proxyproto v0.8.0
 	github.com/pomerium/csrf v1.7.0
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524
+	github.com/pomerium/envoy-custom v1.32.4-0.20250114182541-6f6d2147bea6
 	github.com/pomerium/protoutil v0.0.0-20240813175624-47b7ac43ff46
 	github.com/pomerium/webauthn v0.0.0-20240603205124-0428df511172
 	github.com/prometheus/client_golang v1.20.5
@@ -93,7 +93,7 @@ require (
 	google.golang.org/api v0.214.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241209162323-e6fa225c2576
 	google.golang.org/grpc v1.69.2
-	google.golang.org/protobuf v1.36.1
+	google.golang.org/protobuf v1.36.2
 	gopkg.in/yaml.v3 v3.0.1
 	namespacelabs.dev/go-filenotify v0.0.0-20220511192020-53ea11be7eaa
 	sigs.k8s.io/yaml v1.4.0
@@ -134,6 +134,7 @@ require (
 	github.com/aws/smithy-go v1.22.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/caddyserver/zerossl v0.1.3 // indirect
+	github.com/cncf/xds/go v0.0.0-20241223141626-cff3c89139a3 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
