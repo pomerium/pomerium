@@ -27,7 +27,10 @@ import (
 
 // Policy contains route specific configuration and access settings.
 type Policy struct {
-	ID string `mapstructure:"-" yaml:"-" json:"-"`
+	ID          string `mapstructure:"-" yaml:"-" json:"-"`
+	Name        string `mapstructure:"-" yaml:"-" json:"-"`
+	Description string `mapstructure:"description" yaml:"description,omitempty" json:"description,omitempty"`
+	LogoURL     string `mapstructure:"logo_url" yaml:"logo_url,omitempty" json:"logo_url,omitempty"`
 
 	From string       `mapstructure:"from" yaml:"from"`
 	To   WeightedURLs `mapstructure:"to" yaml:"to"`
@@ -285,6 +288,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		AllowSPDY:                        pb.GetAllowSpdy(),
 		AllowWebsockets:                  pb.GetAllowWebsockets(),
 		CORSAllowPreflight:               pb.GetCorsAllowPreflight(),
+		Description:                      pb.GetDescription(),
 		EnableGoogleCloudServerlessAuthentication: pb.GetEnableGoogleCloudServerlessAuthentication(),
 		From:                              pb.GetFrom(),
 		HostPathRegexRewritePattern:       pb.GetHostPathRegexRewritePattern(),
@@ -298,6 +302,8 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		JWTGroupsFilter:                   NewJWTGroupsFilter(pb.JwtGroupsFilter),
 		KubernetesServiceAccountToken:     pb.GetKubernetesServiceAccountToken(),
 		KubernetesServiceAccountTokenFile: pb.GetKubernetesServiceAccountTokenFile(),
+		LogoURL:                           pb.GetLogoUrl(),
+		Name:                              pb.GetName(),
 		PassIdentityHeaders:               pb.PassIdentityHeaders,
 		Path:                              pb.GetPath(),
 		Prefix:                            pb.GetPrefix(),
@@ -438,6 +444,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		AllowSpdy:                        p.AllowSPDY,
 		AllowWebsockets:                  p.AllowWebsockets,
 		CorsAllowPreflight:               p.CORSAllowPreflight,
+		Description:                      p.Description,
 		EnableGoogleCloudServerlessAuthentication: p.EnableGoogleCloudServerlessAuthentication,
 		EnvoyOpts:                         p.EnvoyOpts,
 		From:                              p.From,
@@ -446,7 +453,8 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		JwtGroupsFilter:                   p.JWTGroupsFilter.ToSlice(),
 		KubernetesServiceAccountToken:     p.KubernetesServiceAccountToken,
 		KubernetesServiceAccountTokenFile: p.KubernetesServiceAccountTokenFile,
-		Name:                              fmt.Sprint(p.RouteID()),
+		LogoUrl:                           p.LogoURL,
+		Name:                              p.Name,
 		PassIdentityHeaders:               p.PassIdentityHeaders,
 		Path:                              p.Path,
 		Policies:                          sps,
@@ -475,6 +483,9 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		TlsSkipVerify:                     p.TLSSkipVerify,
 		TlsUpstreamAllowRenegotiation:     p.TLSUpstreamAllowRenegotiation,
 		TlsUpstreamServerName:             p.TLSUpstreamServerName,
+	}
+	if pb.Name == "" {
+		pb.Name = fmt.Sprint(p.RouteID())
 	}
 	if p.HostPathRegexRewritePattern != "" {
 		pb.HostPathRegexRewritePattern = proto.String(p.HostPathRegexRewritePattern)
