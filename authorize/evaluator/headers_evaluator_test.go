@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/go-jose/go-jose/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/open-policy-agent/opa/rego"
 	"github.com/stretchr/testify/assert"
@@ -33,12 +35,8 @@ import (
 func BenchmarkHeadersEvaluator(b *testing.B) {
 	ctx := context.Background()
 
-	signingKey, err := cryptutil.NewSigningKey()
-	require.NoError(b, err)
-	encodedSigningKey, err := cryptutil.EncodePrivateKey(signingKey)
-	require.NoError(b, err)
-	privateJWK, err := cryptutil.PrivateJWKFromBytes(encodedSigningKey)
-	require.NoError(b, err)
+	privateJWK, _ := newJWK(b)
+
 	iat := time.Unix(1686870680, 0)
 
 	ctx = storage.WithQuerier(ctx, storage.NewStaticQuerier([]proto.Message{
@@ -186,14 +184,7 @@ func TestHeadersEvaluator(t *testing.T) {
 	type A = []any
 	type M = map[string]any
 
-	signingKey, err := cryptutil.NewSigningKey()
-	require.NoError(t, err)
-	encodedSigningKey, err := cryptutil.EncodePrivateKey(signingKey)
-	require.NoError(t, err)
-	privateJWK, err := cryptutil.PrivateJWKFromBytes(encodedSigningKey)
-	require.NoError(t, err)
-	publicJWK, err := cryptutil.PublicJWKFromBytes(encodedSigningKey)
-	require.NoError(t, err)
+	privateJWK, publicJWK := newJWK(t)
 
 	iat := time.Unix(1686870680, 0)
 
@@ -534,6 +525,98 @@ func TestHeadersEvaluator(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "u1@example.com", output.Headers.Get("X-Pomerium-Claim-Email"))
 	})
+}
+
+func TestHeadersEvaluator_JWTGroupsFilter(t *testing.T) {
+	t.Parallel()
+
+	privateJWK, _ := newJWK(t)
+
+	// Create some user and groups data.
+	var records []proto.Message
+	groupsCount := 50
+	for i := 1; i <= groupsCount; i++ {
+		id := fmt.Sprint(i)
+		records = append(records, newDirectoryGroupRecord(directory.Group{ID: id, Name: "GROUP-" + id}))
+	}
+	for i := 1; i <= 10; i++ {
+		id := fmt.Sprintf("USER-%d", i)
+		// User 1 will be in every group, user 2 in every other group, user 3 in every third group, etc.
+		var groups []string
+		for j := i; j <= groupsCount; j += i {
+			groups = append(groups, fmt.Sprint(j))
+		}
+		records = append(records,
+			&session.Session{Id: fmt.Sprintf("SESSION-%d", i), UserId: id},
+			newDirectoryUserRecord(directory.User{ID: id, GroupIDs: groups}),
+		)
+	}
+
+	cases := []struct {
+		name         string
+		globalFilter []string
+		routeFilter  []string
+		sessionID    string
+		expected     []any
+	}{
+		{"global filter 1", []string{"42", "1", "GROUP-12"}, nil, "SESSION-1", []any{"1", "42", "GROUP-12"}},
+		{"global filter 2", []string{"42", "1", "GROUP-12"}, nil, "SESSION-2", []any{"42", "GROUP-12"}},
+		{"route filter 1", nil, []string{"42", "1", "GROUP-12"}, "SESSION-1", []any{"1", "42", "GROUP-12"}},
+		{"route filter 2", nil, []string{"42", "1", "GROUP-12"}, "SESSION-2", []any{"42", "GROUP-12"}},
+		{"both filters 1", []string{"1"}, []string{"42", "GROUP-12"}, "SESSION-1", []any{"1", "42", "GROUP-12"}},
+		{"both filters 2", []string{"1"}, []string{"42", "GROUP-12"}, "SESSION-2", []any{"42", "GROUP-12"}},
+		{"overlapping", []string{"1"}, []string{"1"}, "SESSION-1", []any{"1"}},
+		{"empty route filter", []string{"1", "2", "3"}, []string{}, "SESSION-1", []any{"1", "2", "3"}},
+		{
+			"no filtering", nil, nil, "SESSION-10",
+			[]any{"10", "20", "30", "40", "50", "GROUP-10", "GROUP-20", "GROUP-30", "GROUP-40", "GROUP-50"},
+		},
+	}
+
+	ctx := storage.WithQuerier(context.Background(), storage.NewStaticQuerier(records...))
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			store := store.New()
+			store.UpdateSigningKey(privateJWK)
+			store.UpdateJWTGroupsFilter(config.NewJWTGroupsFilter(c.globalFilter))
+			req := &HeadersRequest{
+				Session:         RequestSession{ID: c.sessionID},
+				JWTGroupsFilter: config.NewJWTGroupsFilter(c.routeFilter),
+			}
+			e := NewHeadersEvaluator(store)
+			resp, err := e.Evaluate(ctx, req)
+			require.NoError(t, err)
+			decoded := decodeJWTAssertion(t, resp.Headers)
+			assert.Equal(t, c.expected, decoded["groups"])
+		})
+	}
+}
+
+func newJWK(t testing.TB) (privateJWK, publicJWK *jose.JSONWebKey) {
+	t.Helper()
+	signingKey, err := cryptutil.NewSigningKey()
+	require.NoError(t, err)
+	encodedSigningKey, err := cryptutil.EncodePrivateKey(signingKey)
+	require.NoError(t, err)
+	privateJWK, err = cryptutil.PrivateJWKFromBytes(encodedSigningKey)
+	require.NoError(t, err)
+	publicJWK, err = cryptutil.PublicJWKFromBytes(encodedSigningKey)
+	require.NoError(t, err)
+	return
+}
+
+func decodeJWTAssertion(t *testing.T, headers http.Header) map[string]any {
+	jwtHeader := headers.Get("X-Pomerium-Jwt-Assertion")
+	// Make sure the 'iat' and 'exp' claims can be parsed as an integer. We
+	// need to do some explicit decoding in order to be able to verify
+	// this, as by default json.Unmarshal() will make no distinction
+	// between numeric formats.
+	d := json.NewDecoder(bytes.NewReader(decodeJWSPayload(t, jwtHeader)))
+	d.UseNumber()
+	var m map[string]any
+	err := d.Decode(&m)
+	require.NoError(t, err)
+	return m
 }
 
 func decodeJWSPayload(t *testing.T, jws string) []byte {

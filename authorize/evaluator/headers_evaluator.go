@@ -25,6 +25,8 @@ type HeadersRequest struct {
 	Session                                   RequestSession        `json:"session"`
 	ClientCertificate                         ClientCertificateInfo `json:"client_certificate"`
 	SetRequestHeaders                         map[string]string     `json:"set_request_headers"`
+
+	JWTGroupsFilter config.JWTGroupsFilter `json:"-"`
 }
 
 // NewHeadersRequestFromPolicy creates a new HeadersRequest from a policy.
@@ -57,6 +59,7 @@ func NewHeadersRequestFromPolicy(policy *config.Policy, http RequestHTTP) (*Head
 		}
 		input.ClientCertificate = http.ClientCertificate
 		input.SetRequestHeaders = policy.SetRequestHeaders
+		input.JWTGroupsFilter = policy.JWTGroupsFilter
 	}
 	return input, nil
 }

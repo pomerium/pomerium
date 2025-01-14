@@ -7,17 +7,20 @@ import (
 	"fmt"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
 
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
+	goset "github.com/hashicorp/go-set/v3"
 	"github.com/mitchellh/mapstructure"
 	"github.com/volatiletech/null/v9"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v3"
 
+	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
@@ -573,4 +576,44 @@ func serializable(in any) (any, error) {
 	default:
 		return in, nil
 	}
+}
+
+type JWTGroupsFilter struct {
+	set *goset.Set[string]
+}
+
+func NewJWTGroupsFilter(groups []string) JWTGroupsFilter {
+	var s *goset.Set[string]
+	if len(groups) > 0 {
+		s = goset.From(groups)
+	}
+	return JWTGroupsFilter{s}
+}
+
+func (f JWTGroupsFilter) Enabled() bool {
+	return f.set != nil
+}
+
+func (f JWTGroupsFilter) IsAllowed(group string) bool {
+	return f.set == nil || f.set.Contains(group)
+}
+
+func (f JWTGroupsFilter) ToSlice() []string {
+	if f.set == nil {
+		return nil
+	}
+	return slices.Sorted(f.set.Items())
+}
+
+func (f JWTGroupsFilter) Hash() (uint64, error) {
+	return hashutil.Hash(f.ToSlice())
+}
+
+func (f JWTGroupsFilter) Equal(other JWTGroupsFilter) bool {
+	if f.set == nil && other.set == nil {
+		return true
+	} else if f.set == nil || other.set == nil {
+		return false
+	}
+	return f.set.Equal(other.set)
 }
