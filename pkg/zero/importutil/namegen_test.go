@@ -8,9 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
+	"github.com/pomerium/pomerium/config"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/zero/importutil"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateCertName(t *testing.T) {
@@ -391,4 +393,14 @@ func TestGenerateRouteNames(t *testing.T) {
 			assert.Equal(t, tc.expected, importutil.GenerateRouteNames(tc.input))
 		})
 	}
+}
+
+func TestGenerateRouteNamesForPolicy(t *testing.T) {
+	t.Parallel()
+
+	names := importutil.GenerateRouteNames([]*config.Policy{
+		{From: "https://from.example.com", Path: "/"},
+		{From: "https://from.example.com", Path: "/path"},
+	})
+	assert.Equal(t, []string{"from", "from-path"}, names)
 }

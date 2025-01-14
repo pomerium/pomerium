@@ -869,6 +869,26 @@ func (p *Policy) GetPassIdentityHeaders(options *Options) bool {
 	return false
 }
 
+// GetFrom gets the from URL.
+func (p *Policy) GetFrom() string {
+	return p.From
+}
+
+// GetPath gets the path.
+func (p *Policy) GetPath() string {
+	return p.Path
+}
+
+// GetPrefix gets the prefix.
+func (p *Policy) GetPrefix() string {
+	return p.Prefix
+}
+
+// GetRegex gets the regex.
+func (p *Policy) GetRegex() string {
+	return p.Regex
+}
+
 /*
 SortPolicies sorts policies to match the following SQL order:
 
