@@ -141,6 +141,7 @@ message Policy {
   repeated string allowed_domains = 5;
   map<string, google.protobuf.ListValue> allowed_idp_claims = 7;
   repeated string rego = 6;
+  optional string source_ppl = 10;
 
   string explanation = 8;
   string remediation = 9;
