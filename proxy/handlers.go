@@ -43,6 +43,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 	a.Path("/v1/login").Handler(httputil.HandlerFunc(p.ProgrammaticLogin)).
 		Queries(urlutil.QueryRedirectURI, "").
 		Methods(http.MethodGet)
+	a.Path("/v1/routes").Handler(httputil.HandlerFunc(p.routesPortalJSON)).Methods(http.MethodGet)
 
 	return r
 }

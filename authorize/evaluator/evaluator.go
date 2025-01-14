@@ -241,6 +241,7 @@ var internalPathsNeedingLogin = set.From([]string{
 	"/.pomerium/jwt",
 	"/.pomerium/user",
 	"/.pomerium/webauthn",
+	"/.pomerium/api/v1/routes",
 })
 
 func (e *Evaluator) evaluateInternal(_ context.Context, req *Request) (*PolicyResponse, error) {
