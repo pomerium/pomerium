@@ -391,16 +391,11 @@ func TestGenerateRouteNames(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.expected, importutil.GenerateRouteNames(tc.input))
+			policies := make([]*config.Policy, len(tc.input))
+			for i := range tc.input {
+				policies[i], _ = config.NewPolicyFromProto(tc.input[i])
+			}
+			assert.Equal(t, tc.expected, importutil.GenerateRouteNames(policies))
 		})
 	}
-}
-
-func TestGenerateRouteNamesForPolicy(t *testing.T) {
-	t.Parallel()
-
-	names := importutil.GenerateRouteNames([]*config.Policy{
-		{From: "https://from.example.com", Path: "/"},
-		{From: "https://from.example.com", Path: "/path"},
-	})
-	assert.Equal(t, []string{"from", "from-path"}, names)
 }
