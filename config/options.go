@@ -1512,7 +1512,9 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.SigningKey, settings.SigningKey)
 	setMap(&o.SetResponseHeaders, settings.SetResponseHeaders)
 	setMap(&o.JWTClaimsHeaders, settings.JwtClaimsHeaders)
-	o.JWTGroupsFilter = NewJWTGroupsFilter(settings.JwtGroupsFilter)
+	if len(settings.JwtGroupsFilter) > 0 {
+		o.JWTGroupsFilter = NewJWTGroupsFilter(settings.JwtGroupsFilter)
+	}
 	setDuration(&o.DefaultUpstreamTimeout, settings.DefaultUpstreamTimeout)
 	set(&o.MetricsAddr, settings.MetricsAddress)
 	set(&o.MetricsBasicAuth, settings.MetricsBasicAuth)
