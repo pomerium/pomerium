@@ -218,6 +218,9 @@ func TestPolicy_FromToPb(t *testing.T) {
 
 	t.Run("normal", func(t *testing.T) {
 		p := &Policy{
+			Name:         "ROUTE_NAME",
+			Description:  "DESCRIPTION",
+			LogoURL:      "LOGO_URL",
 			From:         "https://pomerium.io",
 			To:           mustParseWeightedURLs(t, "http://localhost"),
 			AllowedUsers: []string{"foo@bar.com"},
@@ -235,6 +238,9 @@ func TestPolicy_FromToPb(t *testing.T) {
 
 		policyFromPb, err := NewPolicyFromProto(pbPolicy)
 		assert.NoError(t, err)
+		assert.Equal(t, p.Name, policyFromPb.Name)
+		assert.Equal(t, p.Description, policyFromPb.Description)
+		assert.Equal(t, p.LogoURL, policyFromPb.LogoURL)
 		assert.Equal(t, p.From, policyFromPb.From)
 		assert.Equal(t, p.To, policyFromPb.To)
 		assert.Equal(t, p.AllowedUsers, policyFromPb.AllowedUsers)

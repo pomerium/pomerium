@@ -8,6 +8,7 @@ import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -119,4 +120,25 @@ func (b *Builder) buildLocalReplyConfig(
 			HeadersToAdd: headers,
 		}},
 	}, nil
+}
+
+func applyGlobalHTTPConnectionManagerOptions(hcm *envoy_http_connection_manager.HttpConnectionManager) {
+	if hcm.InternalAddressConfig == nil {
+		// see doc comment on InternalAddressConfig for details
+		hcm.InternalAddressConfig = &envoy_http_connection_manager.HttpConnectionManager_InternalAddressConfig{
+			CidrRanges: []*envoy_config_core_v3.CidrRange{
+				// localhost
+				{AddressPrefix: "127.0.0.1", PrefixLen: wrapperspb.UInt32(32)},
+				{AddressPrefix: "::1", PrefixLen: wrapperspb.UInt32(128)},
+
+				// RFC1918
+				{AddressPrefix: "10.0.0.0", PrefixLen: wrapperspb.UInt32(8)},
+				{AddressPrefix: "192.168.0.0", PrefixLen: wrapperspb.UInt32(16)},
+				{AddressPrefix: "172.16.0.0", PrefixLen: wrapperspb.UInt32(12)},
+
+				// RFC4193
+				{AddressPrefix: "fd00::", PrefixLen: wrapperspb.UInt32(8)},
+			},
+		}
+	}
 }

@@ -45,9 +45,11 @@ enum IssuerFormat {
   IssuerURI = 1;
 }
 
-// Next ID: 67.
+// Next ID: 69.
 message Route {
   string name = 1;
+  string description = 67;
+  string logo_url = 68;
 
   string from = 2;
   repeated string to = 3;
