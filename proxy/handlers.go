@@ -28,6 +28,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 	if opts.IsRuntimeFlagSet(config.RuntimeFlagPomeriumJWTEndpoint) {
 		h.Path("/jwt").Handler(httputil.HandlerFunc(p.jwtAssertion)).Methods(http.MethodGet)
 	}
+	h.Path("/routes").Handler(httputil.HandlerFunc(p.routesPortalHTML)).Methods(http.MethodGet)
 	h.Path("/sign_out").Handler(httputil.HandlerFunc(p.SignOut)).Methods(http.MethodGet, http.MethodPost)
 	h.Path("/user").Handler(httputil.HandlerFunc(p.jsonUserInfo)).Methods(http.MethodGet)
 	h.Path("/webauthn").Handler(p.webauthn)

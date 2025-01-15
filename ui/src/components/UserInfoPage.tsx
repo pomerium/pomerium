@@ -1,15 +1,11 @@
 import {
   Button,
-  Container,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  Drawer,
   Stack,
-  useMediaQuery,
-  useTheme,
 } from "@mui/material";
 import React, { FC, useContext, useEffect, useState } from "react";
 
@@ -18,18 +14,12 @@ import { UserInfoData } from "../types";
 import GroupDetails from "./GroupDetails";
 import SessionDetails from "./SessionDetails";
 import SessionDeviceCredentials from "./SessionDeviceCredentials";
-import { ToolbarOffset } from "./ToolbarOffset";
-import { UserSidebarContent } from "./UserSidebarContent";
+import SidebarPage from "./SidebarPage";
 
 type UserInfoPageProps = {
   data: UserInfoData & { page: "DeviceEnrolled" | "UserInfo" };
 };
 const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
-  const theme = useTheme();
-  const mdUp = useMediaQuery(() => theme.breakpoints.up("md"), {
-    defaultMatches: true,
-    noSsr: false,
-  });
   const { subpage } = useContext(SubpageContext);
 
   const [showDeviceEnrolled, setShowDeviceEnrolled] = useState(false);
@@ -47,7 +37,7 @@ const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
   }
 
   return (
-    <Container maxWidth={false}>
+    <SidebarPage>
       <Dialog open={showDeviceEnrolled} onClose={handleCloseDeviceEnrolled}>
         <DialogTitle>Device Enrolled</DialogTitle>
         <DialogContent>
@@ -57,30 +47,7 @@ const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
           <Button onClick={handleCloseDeviceEnrolled}>OK</Button>
         </DialogActions>
       </Dialog>
-      {mdUp && (
-        <Drawer
-          anchor="left"
-          open
-          PaperProps={{
-            sx: {
-              backgroundColor: "neutral.900",
-              width: 256,
-              height: "100vh",
-            },
-          }}
-          variant="persistent"
-        >
-          <ToolbarOffset />
-          <UserSidebarContent close={null} />
-          <ToolbarOffset />
-        </Drawer>
-      )}
-      <Stack
-        spacing={3}
-        sx={{
-          marginLeft: mdUp ? "256px" : "0px",
-        }}
-      >
+      <Stack spacing={3}>
         {subpage === "User" && (
           <SessionDetails session={data?.session} profile={data?.profile} />
         )}
@@ -103,7 +70,7 @@ const UserInfoPage: FC<UserInfoPageProps> = ({ data }) => {
           />
         )}
       </Stack>
-    </Container>
+    </SidebarPage>
   );
 };
 export default UserInfoPage;

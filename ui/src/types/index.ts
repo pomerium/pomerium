@@ -109,6 +109,22 @@ export type DeviceEnrolledPageData = BasePageData &
     page: "DeviceEnrolled";
   };
 
+export type Route = {
+  id: string;
+  name: string;
+  type: "http" | "tcp" | "udp";
+  from: string;
+  connect_command?: string;
+  description: string;
+  logo_url: string;
+};
+
+export type RoutesPageData = BasePageData &
+  UserInfoData & {
+    page: "Routes";
+    routes: Route[];
+  };
+
 export type SignOutConfirmPageData = BasePageData & {
   page: "SignOutConfirm";
   url: string;
@@ -135,6 +151,7 @@ export type WebAuthnRegistrationPageData = BasePageData & {
 export type PageData =
   | ErrorPageData
   | DeviceEnrolledPageData
+  | RoutesPageData
   | SignOutConfirmPageData
   | SignedOutPageData
   | UserInfoPageData

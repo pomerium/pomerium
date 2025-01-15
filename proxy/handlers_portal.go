@@ -8,7 +8,16 @@ import (
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/proxy/portal"
+	"github.com/pomerium/pomerium/ui"
 )
+
+func (p *Proxy) routesPortalHTML(w http.ResponseWriter, r *http.Request) error {
+	u := p.getUserInfoData(r)
+	rs := p.getPortalRoutes(u)
+	m := u.ToJSON()
+	m["routes"] = rs
+	return ui.ServePage(w, r, "Routes", "Routes Portal", m)
+}
 
 func (p *Proxy) routesPortalJSON(w http.ResponseWriter, r *http.Request) error {
 	u := p.getUserInfoData(r)

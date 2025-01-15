@@ -68,6 +68,11 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
     setDrawerOpen(false);
   };
 
+  const handleRoutes = (evt: React.MouseEvent): void => {
+    evt.preventDefault();
+    window.open("/.pomerium/routes");
+  };
+
   const handleUserInfo = (evt: React.MouseEvent): void => {
     evt.preventDefault();
     window.open("/.pomerium/");
@@ -145,6 +150,7 @@ const Header: FC<HeaderProps> = ({ includeSidebar, data }) => {
           anchorEl={anchorEl}
         >
           <MenuItem onClick={handleUserInfo}>User Info</MenuItem>
+          <MenuItem onClick={handleRoutes}>Routes</MenuItem>
           <MenuItem onClick={handleLogout}>Logout</MenuItem>
         </Menu>
       </Toolbar>
