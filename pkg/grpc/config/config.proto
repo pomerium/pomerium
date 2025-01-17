@@ -149,7 +149,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 120.
+// Next ID: 122.
 message Settings {
   message Certificate {
     bytes cert_bytes = 3;
@@ -210,6 +210,8 @@ message Settings {
   optional string metrics_client_ca = 66;
   optional string tracing_provider = 41;
   optional double tracing_sample_rate = 42;
+  optional string tracing_otlp_endpoint = 120;
+  optional string tracing_otlp_protocol = 121;
   optional string tracing_datadog_address = 98;
   optional string tracing_jaeger_collector_endpoint = 43;
   optional string tracing_jaeger_agent_endpoint = 44;

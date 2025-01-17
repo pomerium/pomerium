@@ -214,6 +214,9 @@ type Options struct {
 	TracingProvider   string   `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
 	TracingSampleRate *float64 `mapstructure:"tracing_sample_rate" yaml:"tracing_sample_rate,omitempty"`
 
+	TracingOTLPEndpoint string `mapstructure:"tracing_otlp_endpoint" yaml:"tracing_otlp_endpoint,omitempty"`
+	TracingOTLPProtocol string `mapstructure:"tracing_otlp_protocol" yaml:"tracing_otlp_protocol,omitempty"`
+
 	// Datadog tracing address
 	TracingDatadogAddress string `mapstructure:"tracing_datadog_address" yaml:"tracing_datadog_address,omitempty"`
 
@@ -1521,6 +1524,8 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	setCertificate(&o.MetricsCertificate, &o.MetricsCertificateKey, settings.MetricsCertificate)
 	set(&o.MetricsClientCA, settings.MetricsClientCa)
 	set(&o.TracingProvider, settings.TracingProvider)
+	set(&o.TracingOTLPEndpoint, settings.TracingOtlpEndpoint)
+	set(&o.TracingOTLPProtocol, settings.TracingOtlpProtocol)
 	setOptional(&o.TracingSampleRate, settings.TracingSampleRate)
 	set(&o.TracingDatadogAddress, settings.TracingDatadogAddress)
 	set(&o.TracingJaegerCollectorEndpoint, settings.TracingJaegerCollectorEndpoint)
@@ -1612,6 +1617,8 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.MetricsClientCa, valueOrFromFileBase64(o.MetricsClientCA, o.MetricsClientCAFile))
 	copySrcToOptionalDest(&settings.TracingProvider, &o.TracingProvider)
 	settings.TracingSampleRate = o.TracingSampleRate
+	copySrcToOptionalDest(&settings.TracingOtlpEndpoint, &o.TracingOTLPEndpoint)
+	copySrcToOptionalDest(&settings.TracingOtlpProtocol, &o.TracingOTLPProtocol)
 	copySrcToOptionalDest(&settings.TracingDatadogAddress, &o.TracingDatadogAddress)
 	copySrcToOptionalDest(&settings.TracingJaegerCollectorEndpoint, &o.TracingJaegerCollectorEndpoint)
 	copySrcToOptionalDest(&settings.TracingJaegerAgentEndpoint, &o.TracingJaegerAgentEndpoint)
