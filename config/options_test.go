@@ -976,6 +976,19 @@ func TestOptions_ApplySettings(t *testing.T) {
 		})
 		assert.Equal(t, "#333333", options.BrandingOptions.GetPrimaryColor())
 	})
+
+	t.Run("jwt_groups_filter", func(t *testing.T) {
+		options := NewDefaultOptions()
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			JwtGroupsFilter: []string{"foo", "bar", "baz"},
+		})
+		options.ApplySettings(ctx, nil, &configpb.Settings{})
+		assert.Equal(t, NewJWTGroupsFilter([]string{"foo", "bar", "baz"}), options.JWTGroupsFilter)
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			JwtGroupsFilter: []string{"quux", "zulu"},
+		})
+		assert.Equal(t, NewJWTGroupsFilter([]string{"quux", "zulu"}), options.JWTGroupsFilter)
+	})
 }
 
 func TestOptions_GetSetResponseHeaders(t *testing.T) {
