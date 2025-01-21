@@ -19,7 +19,7 @@ import (
 
 // Errors
 var (
-	ErrNotFound             = status.Error(codes.NotFound, "record not found")
+	ErrNotFound             = errors.New("record not found")
 	ErrStreamDone           = errors.New("record stream done")
 	ErrInvalidServerVersion = status.Error(codes.Aborted, "invalid server version")
 )

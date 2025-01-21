@@ -68,11 +68,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		}
 	}
 	if sessionState != nil && s != nil {
-		u, err = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
-		if err != nil && status.Code(err) != codes.NotFound {
-			log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Int("code", int(status.Code(err))).Msg("error getting user")
-			return nil, fmt.Errorf("get user: %w", err)
-		}
+		u, _ = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
 	}
 
 	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in, sessionState)
