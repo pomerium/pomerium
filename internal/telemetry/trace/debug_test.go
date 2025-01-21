@@ -145,13 +145,9 @@ func TestSpanObserver(t *testing.T) {
 
 		obs.Observe(Span(1).ID())
 
-		startTime := time.Now()
-		for waitersExited.Load() != 10 {
-			if time.Since(startTime) > 1*time.Millisecond {
-				t.Fatal("timed out")
-			}
-			runtime.Gosched()
-		}
+		assert.Eventually(t, func() bool {
+			return waitersExited.Load() == 10
+		}, 10*time.Millisecond, 1*time.Millisecond)
 	})
 }
 
