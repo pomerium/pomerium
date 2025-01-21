@@ -9,6 +9,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/storage"
+	octrace "go.opencensus.io/trace"
 )
 
 type sessionOrServiceAccount interface {
@@ -22,6 +23,14 @@ func getDataBrokerRecord(
 	recordID string,
 	lowestRecordVersion uint64,
 ) (*databroker.Record, error) {
+	ctx, span := trace.StartSpan(ctx, "authorize.getDataBrokerRecord")
+	span.AddAttributes(
+		octrace.StringAttribute("record_type", recordType),
+		octrace.StringAttribute("record_id", recordID),
+		octrace.Int64Attribute("lowest_record_version", int64(lowestRecordVersion)),
+	)
+	defer span.End()
+
 	q := storage.GetQuerier(ctx)
 
 	req := &databroker.QueryRequest{
@@ -32,14 +41,17 @@ func getDataBrokerRecord(
 
 	res, err := q.Query(ctx, req)
 	if err != nil {
+		span.SetStatus(octrace.Status{Code: octrace.StatusCodeInternal, Message: err.Error()})
 		return nil, err
 	}
 	if len(res.GetRecords()) == 0 {
+		span.SetStatus(octrace.Status{Code: octrace.StatusCodeNotFound})
 		return nil, storage.ErrNotFound
 	}
 
 	// if the current record version is less than the lowest we'll accept, invalidate the cache
-	if res.GetRecords()[0].GetVersion() < lowestRecordVersion {
+	if v := res.GetRecords()[0].GetVersion(); v < lowestRecordVersion {
+		span.AddAttributes(octrace.Int64Attribute("got_record_version", int64(v)))
 		q.InvalidateCache(ctx, req)
 	} else {
 		return res.GetRecords()[0], nil
@@ -48,9 +60,11 @@ func getDataBrokerRecord(
 	// retry with an up to date cache
 	res, err = q.Query(ctx, req)
 	if err != nil {
+		span.SetStatus(octrace.Status{Code: octrace.StatusCodeInternal, Message: err.Error()})
 		return nil, err
 	}
 	if len(res.GetRecords()) == 0 {
+		span.SetStatus(octrace.Status{Code: octrace.StatusCodeNotFound})
 		return nil, storage.ErrNotFound
 	}
 
@@ -96,10 +110,12 @@ func (a *Authorize) getDataBrokerUser(
 	userID string,
 ) (*user.User, error) {
 	ctx, span := trace.StartSpan(ctx, "authorize.getDataBrokerUser")
+	span.AddAttributes(octrace.StringAttribute("user_id", userID))
 	defer span.End()
 
 	record, err := getDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(user.User)), userID, 0)
 	if err != nil {
+		span.SetStatus(octrace.Status{Code: octrace.StatusCodeInternal, Message: err.Error()})
 		return nil, err
 	}
 

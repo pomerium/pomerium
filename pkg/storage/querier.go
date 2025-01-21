@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/protoutil"
@@ -229,6 +230,9 @@ func NewCachingQuerier(q Querier, cache Cache) Querier {
 }
 
 func (q *cachingQuerier) InvalidateCache(ctx context.Context, in *databroker.QueryRequest) {
+	ctx, span := trace.StartSpan(ctx, "storage.cachingQuerier.InvalidateCache")
+	defer span.End()
+
 	key, err := (&proto.MarshalOptions{
 		Deterministic: true,
 	}).Marshal(in)
@@ -240,6 +244,9 @@ func (q *cachingQuerier) InvalidateCache(ctx context.Context, in *databroker.Que
 }
 
 func (q *cachingQuerier) Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error) {
+	ctx, span := trace.StartSpan(ctx, "storage.cachingQuerier.Query")
+	defer span.End()
+
 	key, err := (&proto.MarshalOptions{
 		Deterministic: true,
 	}).Marshal(in)
@@ -248,6 +255,9 @@ func (q *cachingQuerier) Query(ctx context.Context, in *databroker.QueryRequest,
 	}
 
 	rawResult, err := q.cache.GetOrUpdate(ctx, key, func(ctx context.Context) ([]byte, error) {
+		ctx, span := trace.StartSpan(ctx, "storage.cachingQuerier.Query.Update")
+		defer span.End()
+
 		res, err := q.q.Query(ctx, in, opts...)
 		if err != nil {
 			return nil, err
