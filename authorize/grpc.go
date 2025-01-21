@@ -3,12 +3,14 @@ package authorize
 import (
 	"context"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	octrace "go.opencensus.io/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -31,7 +33,6 @@ import (
 func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRequest) (*envoy_service_auth_v3.CheckResponse, error) {
 	ctx, span := trace.StartSpan(ctx, "authorize.grpc.Check")
 	defer span.End()
-
 	querier := storage.NewTracingQuerier(
 		storage.NewCachingQuerier(
 			storage.NewCachingQuerier(
@@ -48,6 +49,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	// convert the incoming envoy-style http request into a go-style http request
 	hreq := getHTTPRequestFromCheckRequest(in)
 	requestID := requestid.FromHTTPHeader(hreq.Header)
+	span.AddAttributes(octrace.StringAttribute("request_id", requestID))
 	ctx = requestid.WithValue(ctx, requestID)
 
 	sessionState, _ := state.sessionStore.LoadSessionStateAndCheckIDP(hreq)
@@ -59,20 +61,24 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		s, err = a.getDataBrokerSessionOrServiceAccount(ctx, sessionState.ID, sessionState.DatabrokerRecordVersion)
 		if status.Code(err) == codes.Unavailable {
 			log.Ctx(ctx).Debug().Str("request-id", requestID).Err(err).Msg("temporary error checking authorization: data broker unavailable")
-			return nil, err
+			return nil, fmt.Errorf("databroker unavailable")
 		} else if err != nil {
 			log.Ctx(ctx).Info().Err(err).Str("request-id", requestID).Msg("clearing session due to missing or invalid session or service account")
 			sessionState = nil
 		}
 	}
 	if sessionState != nil && s != nil {
-		u, _ = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
+		u, err = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
+		if err != nil && status.Code(err) != codes.NotFound {
+			log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Int("code", int(status.Code(err))).Msg("error getting user")
+			return nil, fmt.Errorf("get user: %w", err)
+		}
 	}
 
 	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in, sessionState)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("error building evaluator request")
-		return nil, err
+		return nil, fmt.Errorf("build evaluator request: %w", err)
 	}
 
 	// take the state lock here so we don't update while evaluating
@@ -81,7 +87,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	a.stateLock.RUnlock()
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("error during OPA evaluation")
-		return nil, err
+		return nil, fmt.Errorf("evaluate: %w", err)
 	}
 
 	// if show error details is enabled, attach the policy evaluation traces
