@@ -312,8 +312,17 @@ func (e *headersEvaluatorEvaluation) getJWTPayloadEmail(ctx context.Context) str
 }
 
 func (e *headersEvaluatorEvaluation) getJWTPayloadGroups(ctx context.Context) []string {
-	groups := e.getFilteredGroups(ctx)
+	groupIDs := e.getGroupIDs(ctx)
+	if len(groupIDs) > 0 {
+		groupIDs = e.filterGroups(groupIDs)
+		groups := make([]string, 0, len(groupIDs)*2)
+		groups = append(groups, groupIDs...)
+		groups = append(groups, e.getDataBrokerGroupNames(ctx, groupIDs)...)
+		return groups
+	}
 
+	s, _ := e.getSessionOrServiceAccount(ctx)
+	groups, _ := getClaimStringSlice(s, "groups")
 	if groups == nil {
 		// If there are no groups, marshal this claim as an empty list rather than a JSON null,
 		// for better compatibility with third-party libraries.
@@ -323,9 +332,7 @@ func (e *headersEvaluatorEvaluation) getJWTPayloadGroups(ctx context.Context) []
 	return groups
 }
 
-func (e *headersEvaluatorEvaluation) getFilteredGroups(ctx context.Context) []string {
-	groups := e.getAllGroups(ctx)
-
+func (e *headersEvaluatorEvaluation) filterGroups(groups []string) []string {
 	// Apply the global groups filter or the per-route groups filter, if either is enabled.
 	filters := make([]config.JWTGroupsFilter, 0, 2)
 	if f := e.evaluator.store.GetJWTGroupsFilter(); f.Enabled() {
@@ -346,21 +353,6 @@ func (e *headersEvaluatorEvaluation) getFilteredGroups(ctx context.Context) []st
 		}
 		return false
 	})
-}
-
-// getAllGroups returns the full group names/IDs list (without any filtering).
-func (e *headersEvaluatorEvaluation) getAllGroups(ctx context.Context) []string {
-	groupIDs := e.getGroupIDs(ctx)
-	if len(groupIDs) > 0 {
-		groups := make([]string, 0, len(groupIDs)*2)
-		groups = append(groups, groupIDs...)
-		groups = append(groups, e.getDataBrokerGroupNames(ctx, groupIDs)...)
-		return groups
-	}
-
-	s, _ := e.getSessionOrServiceAccount(ctx)
-	groups, _ := getClaimStringSlice(s, "groups")
-	return groups
 }
 
 func (e *headersEvaluatorEvaluation) getJWTPayloadSID() string {
