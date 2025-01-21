@@ -51,6 +51,10 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 					`+protojson.Format(b.buildControlPlanePrefixRoute(cfg.Options, "/.well-known/pomerium/"))+`,
 					{
 						"name": "policy-0",
+						"decorator": {
+							"operation": "ingress: ${method} ${host}${path}",
+							"propagate": false
+						},
 						"match": {
 							"headers": [
 								{ "name": ":authority", "stringMatch": { "safeRegex": { "regex": "^(.*)\\.example\\.com$" } }}
@@ -104,6 +108,10 @@ func TestBuilder_buildMainRouteConfiguration(t *testing.T) {
 					},
 					{
 						"name": "policy-0",
+						"decorator": {
+							"operation": "ingress: ${method} ${host}${path}",
+							"propagate": false
+						},
 						"match": {
 							"headers": [
 								{ "name": ":authority", "stringMatch": { "safeRegex": { "regex": "^(.*)\\.example\\.com:443$" } }}

@@ -3,6 +3,7 @@ package envoyconfig
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 
@@ -37,7 +38,7 @@ func (b *Builder) BuildBootstrap(
 	cfg *config.Config,
 	fullyStatic bool,
 ) (bootstrap *envoy_config_bootstrap_v3.Bootstrap, err error) {
-	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildBootstrap")
+	ctx, span := trace.Continue(ctx, "envoyconfig.Builder.BuildBootstrap")
 	defer span.End()
 
 	bootstrap = new(envoy_config_bootstrap_v3.Bootstrap)
@@ -52,7 +53,7 @@ func (b *Builder) BuildBootstrap(
 		return nil, fmt.Errorf("error building bootstrap dynamic resources: %w", err)
 	}
 
-	bootstrap.LayeredRuntime, err = b.BuildBootstrapLayeredRuntime()
+	bootstrap.LayeredRuntime, err = b.BuildBootstrapLayeredRuntime(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error building bootstrap layered runtime: %w", err)
 	}
@@ -148,12 +149,33 @@ func (b *Builder) BuildBootstrapDynamicResources(
 }
 
 // BuildBootstrapLayeredRuntime builds the layered runtime for the envoy bootstrap.
-func (b *Builder) BuildBootstrapLayeredRuntime() (*envoy_config_bootstrap_v3.LayeredRuntime, error) {
+func (b *Builder) BuildBootstrapLayeredRuntime(ctx context.Context) (*envoy_config_bootstrap_v3.LayeredRuntime, error) {
+	flushIntervalMs := 5000
+	minFlushSpans := 3
+	if trace.DebugFlagsFromContext(ctx).Check(trace.EnvoyFlushEverySpan) {
+		minFlushSpans = 1
+		flushIntervalMs = math.MaxInt32
+	}
 	layer, err := structpb.NewStruct(map[string]any{
 		"re2": map[string]any{
 			"max_program_size": map[string]any{
 				"error_level": 1024 * 1024,
 				"warn_level":  1024,
+			},
+		},
+		"tracing": map[string]any{
+			"opentelemetry": map[string]any{
+				"flush_interval_ms": flushIntervalMs,
+				// For most requests, envoy generates 3 spans:
+				// - ingress (downstream->envoy)
+				// - ext_authz check request (envoy->pomerium)
+				// - egress (envoy->upstream)
+				// The default value is 5, which usually leads to delayed exports.
+				// This can be set lower, e.g. 1 to have envoy export every span
+				// individually (useful for testing), but 3 is a reasonable default.
+				// If set to 1, also set flush_interval_ms to a very large number to
+				// effectively disable it.
+				"min_flush_spans": minFlushSpans,
 			},
 		},
 	})
@@ -180,7 +202,7 @@ func (b *Builder) BuildBootstrapStaticResources(
 	cfg *config.Config,
 	fullyStatic bool,
 ) (staticResources *envoy_config_bootstrap_v3.Bootstrap_StaticResources, err error) {
-	ctx, span := trace.StartSpan(ctx, "envoyconfig.Builder.BuildBootstrapStaticResources")
+	ctx, span := trace.Continue(ctx, "envoyconfig.Builder.BuildBootstrapStaticResources")
 	defer span.End()
 
 	staticResources = new(envoy_config_bootstrap_v3.Bootstrap_StaticResources)

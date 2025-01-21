@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -29,7 +30,7 @@ var lis *bufconn.Listener
 func init() {
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer()
-	internalSrv := internal_databroker.New(context.Background())
+	internalSrv := internal_databroker.New(context.Background(), trace.NewNoopTracerProvider())
 	srv := &dataBrokerServer{server: internalSrv, sharedKey: atomicutil.NewValue([]byte{})}
 	databroker.RegisterDataBrokerServiceServer(s, srv)
 

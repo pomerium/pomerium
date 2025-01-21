@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"google.golang.org/grpc"
@@ -12,6 +13,11 @@ import (
 )
 
 func WaitStartupComplete(env testenv.Environment, timeout ...time.Duration) time.Duration {
+	if env.GetState() == testenv.NotRunning {
+		panic("test bug: WaitStartupComplete called before starting the test environment")
+	}
+	_, span := trace.Continue(env.Context(), "snippets.WaitStartupComplete")
+	defer span.End()
 	start := time.Now()
 	recorder := env.NewLogRecorder()
 	if len(timeout) == 0 {
@@ -31,5 +37,6 @@ func WaitStartupComplete(env testenv.Environment, timeout ...time.Duration) time
 	)
 	env.Require().NoError(err)
 	env.Require().True(cc.WaitForStateChange(ctx, connectivity.Ready))
+	cc.Close()
 	return time.Since(start)
 }

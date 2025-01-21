@@ -2,6 +2,7 @@
 package controlplane
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -9,18 +10,21 @@ import (
 	"github.com/CAFxX/httpcompression"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
-func (srv *Server) addHTTPMiddleware(root *mux.Router, logger *zerolog.Logger, _ *config.Config) {
+func (srv *Server) addHTTPMiddleware(ctx context.Context, root *mux.Router, _ *config.Config) {
+	logger := log.Ctx(ctx)
 	compressor, err := httpcompression.DefaultAdapter()
 	if err != nil {
 		panic(err)
@@ -69,9 +73,11 @@ func (srv *Server) mountCommonEndpoints(root *mux.Router, cfg *config.Config) er
 
 	root.HandleFunc("/healthz", handlers.HealthCheck)
 	root.HandleFunc("/ping", handlers.HealthCheck)
-	root.Handle("/.well-known/pomerium", handlers.WellKnownPomerium(authenticateURL))
-	root.Handle("/.well-known/pomerium/", handlers.WellKnownPomerium(authenticateURL))
-	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(handlers.JWKSHandler(signingKey))
-	root.Path(urlutil.HPKEPublicKeyPath).Methods(http.MethodGet).Handler(hpke_handlers.HPKEPublicKeyHandler(hpkePublicKey))
+
+	traceHandler := trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(srv.tracerProvider))
+	root.Handle("/.well-known/pomerium", traceHandler(handlers.WellKnownPomerium(authenticateURL)))
+	root.Handle("/.well-known/pomerium/", traceHandler(handlers.WellKnownPomerium(authenticateURL)))
+	root.Path("/.well-known/pomerium/jwks.json").Methods(http.MethodGet).Handler(traceHandler(handlers.JWKSHandler(signingKey)))
+	root.Path(urlutil.HPKEPublicKeyPath).Methods(http.MethodGet).Handler(traceHandler(hpke_handlers.HPKEPublicKeyHandler(hpkePublicKey)))
 	return nil
 }

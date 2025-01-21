@@ -210,30 +210,10 @@ type Options struct {
 	MetricsClientCA           string `mapstructure:"metrics_client_ca" yaml:"metrics_client_ca,omitempty"`
 	MetricsClientCAFile       string `mapstructure:"metrics_client_ca_file" yaml:"metrics_client_ca_file,omitempty"`
 
-	// Tracing shared settings
-	TracingProvider   string   `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
-	TracingSampleRate *float64 `mapstructure:"tracing_sample_rate" yaml:"tracing_sample_rate,omitempty"`
-
-	TracingOTLPEndpoint string `mapstructure:"tracing_otlp_endpoint" yaml:"tracing_otlp_endpoint,omitempty"`
-	TracingOTLPProtocol string `mapstructure:"tracing_otlp_protocol" yaml:"tracing_otlp_protocol,omitempty"`
-
-	// Datadog tracing address
-	TracingDatadogAddress string `mapstructure:"tracing_datadog_address" yaml:"tracing_datadog_address,omitempty"`
-
-	//  Jaeger
-	//
-	// CollectorEndpoint is the full url to the Jaeger HTTP Thrift collector.
-	// For example, http://localhost:14268/api/traces
-	TracingJaegerCollectorEndpoint string `mapstructure:"tracing_jaeger_collector_endpoint" yaml:"tracing_jaeger_collector_endpoint,omitempty"`
-	// AgentEndpoint instructs exporter to send spans to jaeger-agent at this address.
-	// For example, localhost:6831.
-	TracingJaegerAgentEndpoint string `mapstructure:"tracing_jaeger_agent_endpoint" yaml:"tracing_jaeger_agent_endpoint,omitempty"`
-
-	// Zipkin
-	//
-	// ZipkinEndpoint configures the zipkin collector URI
-	// Example: http://zipkin:9411/api/v2/spans
-	ZipkinEndpoint string `mapstructure:"tracing_zipkin_endpoint" yaml:"tracing_zipkin_endpoint"`
+	TracingSampleRate   *float64 `mapstructure:"tracing_sample_rate" yaml:"tracing_sample_rate,omitempty"`
+	TracingProvider     string   `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
+	TracingOTLPEndpoint string   `mapstructure:"tracing_otlp_endpoint" yaml:"tracing_otlp_endpoint,omitempty"`
+	TracingOTLPProtocol string   `mapstructure:"tracing_otlp_protocol" yaml:"tracing_otlp_protocol,omitempty"`
 
 	// GRPC Service Settings
 
@@ -1527,10 +1507,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.TracingOTLPEndpoint, settings.TracingOtlpEndpoint)
 	set(&o.TracingOTLPProtocol, settings.TracingOtlpProtocol)
 	setOptional(&o.TracingSampleRate, settings.TracingSampleRate)
-	set(&o.TracingDatadogAddress, settings.TracingDatadogAddress)
-	set(&o.TracingJaegerCollectorEndpoint, settings.TracingJaegerCollectorEndpoint)
-	set(&o.TracingJaegerAgentEndpoint, settings.TracingJaegerAgentEndpoint)
-	set(&o.ZipkinEndpoint, settings.TracingZipkinEndpoint)
 	set(&o.GRPCAddr, settings.GrpcAddress)
 	setOptional(&o.GRPCInsecure, settings.GrpcInsecure)
 	setDuration(&o.GRPCClientTimeout, settings.GrpcClientTimeout)
@@ -1619,10 +1595,6 @@ func (o *Options) ToProto() *config.Config {
 	settings.TracingSampleRate = o.TracingSampleRate
 	copySrcToOptionalDest(&settings.TracingOtlpEndpoint, &o.TracingOTLPEndpoint)
 	copySrcToOptionalDest(&settings.TracingOtlpProtocol, &o.TracingOTLPProtocol)
-	copySrcToOptionalDest(&settings.TracingDatadogAddress, &o.TracingDatadogAddress)
-	copySrcToOptionalDest(&settings.TracingJaegerCollectorEndpoint, &o.TracingJaegerCollectorEndpoint)
-	copySrcToOptionalDest(&settings.TracingJaegerAgentEndpoint, &o.TracingJaegerAgentEndpoint)
-	copySrcToOptionalDest(&settings.TracingZipkinEndpoint, &o.ZipkinEndpoint)
 	copySrcToOptionalDest(&settings.GrpcAddress, &o.GRPCAddr)
 	settings.GrpcInsecure = o.GRPCInsecure
 	copyOptionalDuration(&settings.GrpcClientTimeout, o.GRPCClientTimeout)

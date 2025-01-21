@@ -9,7 +9,11 @@ import (
 	"net/url"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
+	googlegrpc "google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/config"
@@ -19,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc"
@@ -56,7 +61,7 @@ type Stateful struct {
 
 // NewStateful initializes the authentication flow for the given configuration
 // and session store.
-func NewStateful(ctx context.Context, cfg *config.Config, sessionStore sessions.SessionStore) (*Stateful, error) {
+func NewStateful(ctx context.Context, tracerProvider oteltrace.TracerProvider, cfg *config.Config, sessionStore sessions.SessionStore) (*Stateful, error) {
 	s := &Stateful{
 		sessionDuration: cfg.Options.CookieExpire,
 		sessionStore:    sessionStore,
@@ -94,7 +99,10 @@ func NewStateful(ctx context.Context, cfg *config.Config, sessionStore sessions.
 			InstallationID: cfg.Options.InstallationID,
 			ServiceName:    cfg.Options.Services,
 			SignedJWTKey:   s.sharedKey,
-		})
+		}, googlegrpc.WithStatsHandler(trace.NewClientStatsHandler(
+			otelgrpc.NewClientHandler(otelgrpc.WithTracerProvider(tracerProvider)),
+			outboundDatabrokerTraceClientOpts...,
+		)))
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +324,7 @@ func (s *Stateful) LogAuthenticateEvent(*http.Request) {}
 // AuthenticateSignInURL returns a URL to redirect the user to the authenticate
 // domain.
 func (s *Stateful) AuthenticateSignInURL(
-	_ context.Context, queryParams url.Values, redirectURL *url.URL, idpID string,
+	ctx context.Context, queryParams url.Values, redirectURL *url.URL, idpID string,
 ) (string, error) {
 	signinURL := s.authenticateURL.ResolveReference(&url.URL{
 		Path: "/.pomerium/sign_in",
@@ -327,6 +335,7 @@ func (s *Stateful) AuthenticateSignInURL(
 	}
 	queryParams.Set(urlutil.QueryRedirectURI, redirectURL.String())
 	queryParams.Set(urlutil.QueryIdentityProviderID, idpID)
+	otel.GetTextMapPropagator().Inject(ctx, trace.PomeriumURLQueryCarrier(queryParams))
 	signinURL.RawQuery = queryParams.Encode()
 	redirectTo := urlutil.NewSignedURL(s.sharedKey, signinURL).String()
 

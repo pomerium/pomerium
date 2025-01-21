@@ -4,11 +4,17 @@
 package authenticateflow
 
 import (
+	"context"
 	"fmt"
 	"time"
 
+	oteltrace "go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/stats"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
@@ -32,4 +38,24 @@ func populateUserFromClaims(u *user.User, claims map[string]any) {
 	for k, vs := range identity.Claims(claims).Flatten().ToPB() {
 		u.Claims[k] = vs
 	}
+}
+
+var outboundDatabrokerTraceClientOpts = []trace.ClientStatsHandlerOption{
+	trace.WithStatsInterceptor(ignoreNotFoundErrors),
+}
+
+func ignoreNotFoundErrors(ctx context.Context, rs stats.RPCStats) stats.RPCStats {
+	if end, ok := rs.(*stats.End); ok && end.IsClient() {
+		if status.Code(end.Error) == codes.NotFound {
+			oteltrace.SpanFromContext(ctx).AddEvent("status code: NotFound")
+			return &stats.End{
+				Client:    end.Client,
+				BeginTime: end.BeginTime,
+				EndTime:   end.EndTime,
+				Trailer:   end.Trailer,
+				Error:     nil,
+			}
+		}
+	}
+	return rs
 }
