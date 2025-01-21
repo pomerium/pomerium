@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -351,6 +352,11 @@ func (backend *Backend) init(ctx context.Context) (serverVersion uint64, pool *p
 	config, err := ParseConfig(backend.dsn)
 	if err != nil {
 		return serverVersion, nil, err
+	}
+
+	if backend.cfg.tracerProvider != nil {
+		config.ConnConfig.Tracer = otelpgx.NewTracer(
+			otelpgx.WithTracerProvider(backend.cfg.tracerProvider))
 	}
 
 	pool, err = pgxpool.NewWithConfig(context.Background(), config)
