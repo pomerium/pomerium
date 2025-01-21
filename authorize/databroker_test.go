@@ -38,7 +38,7 @@ func Test_getDataBrokerRecord(t *testing.T) {
 
 			sq := storage.NewStaticQuerier(s1)
 			tsq := storage.NewTracingQuerier(sq)
-			cq := storage.NewCachingQuerier(tsq, storage.NewLocalCache())
+			cq := storage.NewCachingQuerier(tsq, storage.NewGlobalCache(time.Minute))
 			tcq := storage.NewTracingQuerier(cq)
 			qctx := storage.WithQuerier(ctx, tcq)
 

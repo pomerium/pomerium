@@ -240,9 +240,7 @@ func (q *cachingQuerier) InvalidateCache(ctx context.Context, in *databroker.Que
 }
 
 func (q *cachingQuerier) Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error) {
-	key, err := (&proto.MarshalOptions{
-		Deterministic: true,
-	}).Marshal(in)
+	key, err := MarshalQueryRequest(in)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +250,7 @@ func (q *cachingQuerier) Query(ctx context.Context, in *databroker.QueryRequest,
 		if err != nil {
 			return nil, err
 		}
-		return proto.Marshal(res)
+		return MarshalQueryResponse(res)
 	})
 	if err != nil {
 		return nil, err
@@ -264,4 +262,18 @@ func (q *cachingQuerier) Query(ctx context.Context, in *databroker.QueryRequest,
 		return nil, err
 	}
 	return &res, nil
+}
+
+// MarshalQueryRequest marshales the query request.
+func MarshalQueryRequest(req *databroker.QueryRequest) ([]byte, error) {
+	return (&proto.MarshalOptions{
+		Deterministic: true,
+	}).Marshal(req)
+}
+
+// MarshalQueryResponse marshals the query response.
+func MarshalQueryResponse(res *databroker.QueryResponse) ([]byte, error) {
+	return (&proto.MarshalOptions{
+		Deterministic: true,
+	}).Marshal(res)
 }

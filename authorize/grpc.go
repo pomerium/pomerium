@@ -33,11 +33,8 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	querier := storage.NewTracingQuerier(
 		storage.NewCachingQuerier(
-			storage.NewCachingQuerier(
-				storage.NewQuerier(a.state.Load().dataBrokerClient),
-				a.globalCache,
-			),
-			storage.NewLocalCache(),
+			storage.NewQuerier(a.state.Load().dataBrokerClient),
+			a.globalCache,
 		),
 	)
 	ctx = storage.WithQuerier(ctx, querier)

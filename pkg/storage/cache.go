@@ -18,64 +18,8 @@ type Cache interface {
 		update func(ctx context.Context) ([]byte, error),
 	) ([]byte, error)
 	Invalidate(key []byte)
-}
-
-type localCache struct {
-	singleflight singleflight.Group
-	mu           sync.RWMutex
-	m            map[string][]byte
-}
-
-// NewLocalCache creates a new Cache backed by a map.
-func NewLocalCache() Cache {
-	return &localCache{
-		m: make(map[string][]byte),
-	}
-}
-
-func (cache *localCache) GetOrUpdate(
-	ctx context.Context,
-	key []byte,
-	update func(ctx context.Context) ([]byte, error),
-) ([]byte, error) {
-	strkey := string(key)
-
-	cache.mu.RLock()
-	cached, ok := cache.m[strkey]
-	cache.mu.RUnlock()
-	if ok {
-		return cached, nil
-	}
-
-	v, err, _ := cache.singleflight.Do(strkey, func() (any, error) {
-		cache.mu.RLock()
-		cached, ok := cache.m[strkey]
-		cache.mu.RUnlock()
-		if ok {
-			return cached, nil
-		}
-
-		result, err := update(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		cache.mu.Lock()
-		cache.m[strkey] = result
-		cache.mu.Unlock()
-
-		return result, nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return v.([]byte), nil
-}
-
-func (cache *localCache) Invalidate(key []byte) {
-	cache.mu.Lock()
-	delete(cache.m, string(key))
-	cache.mu.Unlock()
+	InvalidateAll()
+	Set(expiry time.Time, key, value []byte)
 }
 
 type globalCache struct {
@@ -115,7 +59,7 @@ func (cache *globalCache) GetOrUpdate(
 		if err != nil {
 			return nil, err
 		}
-		cache.set(key, value)
+		cache.set(time.Now().Add(cache.ttl), key, value)
 		return value, nil
 	})
 	if err != nil {
@@ -128,6 +72,16 @@ func (cache *globalCache) Invalidate(key []byte) {
 	cache.mu.Lock()
 	cache.fastcache.Del(key)
 	cache.mu.Unlock()
+}
+
+func (cache *globalCache) InvalidateAll() {
+	cache.mu.Lock()
+	cache.fastcache.Reset()
+	cache.mu.Unlock()
+}
+
+func (cache *globalCache) Set(expiry time.Time, key, value []byte) {
+	cache.set(expiry, key, value)
 }
 
 func (cache *globalCache) get(k []byte) (data []byte, expiry time.Time, ok bool) {
@@ -143,13 +97,13 @@ func (cache *globalCache) get(k []byte) (data []byte, expiry time.Time, ok bool)
 	return data, expiry, true
 }
 
-func (cache *globalCache) set(k, v []byte) {
-	unix := time.Now().Add(cache.ttl).UnixMilli()
-	item := make([]byte, len(v)+8)
+func (cache *globalCache) set(expiry time.Time, key, value []byte) {
+	unix := expiry.UnixMilli()
+	item := make([]byte, len(value)+8)
 	binary.LittleEndian.PutUint64(item, uint64(unix))
-	copy(item[8:], v)
+	copy(item[8:], value)
 
 	cache.mu.Lock()
-	cache.fastcache.Set(k, item)
+	cache.fastcache.Set(key, item)
 	cache.mu.Unlock()
 }
