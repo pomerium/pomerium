@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"strconv"
-	"sync"
 
 	"github.com/google/uuid"
 	grpc "google.golang.org/grpc"
@@ -12,7 +11,6 @@ import (
 	status "google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/pkg/cryptutil"
@@ -160,59 +158,6 @@ func (q *clientQuerier) InvalidateCache(_ context.Context, _ *databroker.QueryRe
 // Query queries for records.
 func (q *clientQuerier) Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error) {
 	return q.client.Query(ctx, in, opts...)
-}
-
-// A TracingQuerier records calls to Query.
-type TracingQuerier struct {
-	underlying Querier
-
-	mu     sync.Mutex
-	traces []QueryTrace
-}
-
-// A QueryTrace traces a call to Query.
-type QueryTrace struct {
-	ServerVersion, RecordVersion uint64
-
-	RecordType string
-	Query      string
-	Filter     *structpb.Struct
-}
-
-// NewTracingQuerier creates a new TracingQuerier.
-func NewTracingQuerier(q Querier) *TracingQuerier {
-	return &TracingQuerier{
-		underlying: q,
-	}
-}
-
-// InvalidateCache invalidates the cache.
-func (q *TracingQuerier) InvalidateCache(ctx context.Context, in *databroker.QueryRequest) {
-	q.underlying.InvalidateCache(ctx, in)
-}
-
-// Query queries for records.
-func (q *TracingQuerier) Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error) {
-	res, err := q.underlying.Query(ctx, in, opts...)
-	if err == nil {
-		q.mu.Lock()
-		q.traces = append(q.traces, QueryTrace{
-			RecordType: in.GetType(),
-			Query:      in.GetQuery(),
-			Filter:     in.GetFilter(),
-		})
-		q.mu.Unlock()
-	}
-	return res, err
-}
-
-// Traces returns all the traces.
-func (q *TracingQuerier) Traces() []QueryTrace {
-	q.mu.Lock()
-	traces := make([]QueryTrace, len(q.traces))
-	copy(traces, q.traces)
-	q.mu.Unlock()
-	return traces
 }
 
 type cachingQuerier struct {
