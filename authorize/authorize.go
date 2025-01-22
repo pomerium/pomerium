@@ -162,10 +162,13 @@ func newPolicyEvaluator(
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	currentState := a.state.Load()
 	a.currentOptions.Store(cfg.Options)
-	if state, err := newAuthorizeStateFromConfig(ctx, a.tracerProvider, cfg, a.store, currentState.evaluator); err != nil {
+	if newState, err := newAuthorizeStateFromConfig(ctx, a.tracerProvider, cfg, a.store, currentState.evaluator); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating state")
 	} else {
-		a.state.Store(state)
-		a.groupsCacheWarmer.UpdateConn(state.dataBrokerClientConnection)
+		a.state.Store(newState)
+
+		if currentState.dataBrokerClientConnection != newState.dataBrokerClientConnection {
+			a.groupsCacheWarmer.UpdateConn(newState.dataBrokerClientConnection)
+		}
 	}
 }

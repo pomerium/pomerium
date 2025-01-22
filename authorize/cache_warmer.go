@@ -60,13 +60,11 @@ func (cw *cacheWarmer) Run(ctx context.Context) {
 			runCancel()
 			return
 		case cc := <-cw.updatedCC:
-			if cc != cw.cc {
-				log.Ctx(ctx).Info().Msg("cache-warmer: received updated databroker client connection, restarting syncer")
-				cw.cc = cc
-				runCancel()
-				runCtx, runCancel = context.WithCancel(ctx)
-				go cw.run(runCtx, cw.cc)
-			}
+			log.Ctx(ctx).Info().Msg("cache-warmer: received updated databroker client connection, restarting syncer")
+			cw.cc = cc
+			runCancel()
+			runCtx, runCancel = context.WithCancel(ctx)
+			go cw.run(runCtx, cw.cc)
 		}
 	}
 }
