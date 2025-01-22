@@ -40,11 +40,32 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 	c.Path("/").Handler(httputil.HandlerFunc(p.Callback)).Methods(http.MethodGet)
 
 	// Programmatic API handlers and middleware
-	a := r.PathPrefix(dashboardPath + "/api").Subrouter()
-	// login api handler generates a user-navigable login url to authenticate
-	a.Path("/v1/login").Handler(httputil.HandlerFunc(p.ProgrammaticLogin)).
-		Queries(urlutil.QueryRedirectURI, "").
-		Methods(http.MethodGet)
+	// gorilla mux has a bug that prevents HTTP 405 errors from being returned properly so we do all this manually
+	// https://github.com/gorilla/mux/issues/739
+	r.PathPrefix(dashboardPath + "/api").
+		Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+			switch r.URL.Path {
+			// login api handler generates a user-navigable login url to authenticate
+			case dashboardPath + "/api/v1/login":
+				if r.Method != http.MethodGet {
+					http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+					return nil
+				}
+				if !r.URL.Query().Has(urlutil.QueryRedirectURI) {
+					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+					return nil
+				}
+				return p.ProgrammaticLogin(w, r)
+			case dashboardPath + "/api/v1/routes":
+				if r.Method != http.MethodGet {
+					http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+					return nil
+				}
+				return p.routesPortalJSON(w, r)
+			}
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+			return nil
+		}))
 
 	return r
 }
