@@ -39,6 +39,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 
 	// Programmatic API handlers and middleware
 	// gorilla mux has a bug that prevents HTTP 405 errors from being returned properly so we do all this manually
+	// https://github.com/gorilla/mux/issues/739
 	r.PathPrefix(dashboardPath + "/api").
 		Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 			switch r.URL.Path {
