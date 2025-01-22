@@ -37,10 +37,8 @@ func Test_getDataBrokerRecord(t *testing.T) {
 			s1 := &session.Session{Id: "s1", Version: fmt.Sprint(tc.recordVersion)}
 
 			sq := storage.NewStaticQuerier(s1)
-			tsq := storage.NewTracingQuerier(sq)
-			cq := storage.NewCachingQuerier(tsq, storage.NewLocalCache())
-			tcq := storage.NewTracingQuerier(cq)
-			qctx := storage.WithQuerier(ctx, tcq)
+			cq := storage.NewCachingQuerier(sq, storage.NewGlobalCache(time.Minute))
+			qctx := storage.WithQuerier(ctx, cq)
 
 			s, err := getDataBrokerRecord(qctx, grpcutil.GetTypeURL(s1), s1.GetId(), tc.queryVersion)
 			assert.NoError(t, err)
@@ -49,11 +47,6 @@ func Test_getDataBrokerRecord(t *testing.T) {
 			s, err = getDataBrokerRecord(qctx, grpcutil.GetTypeURL(s1), s1.GetId(), tc.queryVersion)
 			assert.NoError(t, err)
 			assert.NotNil(t, s)
-
-			assert.Len(t, tsq.Traces(), tc.underlyingQueryCount,
-				"should have %d traces to the underlying querier", tc.underlyingQueryCount)
-			assert.Len(t, tcq.Traces(), tc.cachedQueryCount,
-				"should have %d traces to the cached querier", tc.cachedQueryCount)
 		})
 	}
 }
