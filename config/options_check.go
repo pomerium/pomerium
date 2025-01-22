@@ -31,14 +31,18 @@ var reKeyPath = regexp.MustCompile(`\[\d+\]`)
 var (
 	// options that were deprecated in the config
 	removedConfigFields = map[string]string{
-		"client_ca":                       "https://www.pomerium.com/docs/deploy/core/upgrading#new-downstream-mtls-settings",
-		"client_ca_file":                  "https://www.pomerium.com/docs/deploy/core/upgrading#new-downstream-mtls-settings",
-		"idp_service_account":             "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
-		"idp_refresh_directory_timeout":   "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
-		"idp_refresh_directory_interval":  "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
-		"idp_qps":                         "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
-		"routes.allowed_groups":           "https://docs.pomerium.com/docs/overview/upgrading#idp-groups-policy",
-		"routes.set_authorization_header": "https://www.pomerium.com/docs/deploy/core/upgrading#set-authorization-header",
+		"client_ca":                         "https://www.pomerium.com/docs/deploy/core/upgrading#new-downstream-mtls-settings",
+		"client_ca_file":                    "https://www.pomerium.com/docs/deploy/core/upgrading#new-downstream-mtls-settings",
+		"idp_service_account":               "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
+		"idp_refresh_directory_timeout":     "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
+		"idp_refresh_directory_interval":    "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
+		"idp_qps":                           "https://docs.pomerium.com/docs/overview/upgrading#idp-directory-sync",
+		"routes.allowed_groups":             "https://docs.pomerium.com/docs/overview/upgrading#idp-groups-policy",
+		"routes.set_authorization_header":   "https://www.pomerium.com/docs/deploy/core/upgrading#set-authorization-header",
+		"tracing_datadog_address":           "https://docs.pomerium.com/docs/overview/upgrading#removed-tracing-options",
+		"tracing_jaeger_collector_endpoint": "https://docs.pomerium.com/docs/overview/upgrading#removed-tracing-options",
+		"tracing_jaeger_agent_endpoint":     "https://docs.pomerium.com/docs/overview/upgrading#removed-tracing-options",
+		"tracing_zipkin_endpoint":           "https://docs.pomerium.com/docs/overview/upgrading#removed-tracing-options",
 	}
 
 	ignoreConfigFields = map[string]struct{}{

@@ -10,6 +10,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
@@ -17,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 )
 
@@ -56,17 +59,20 @@ type Proxy struct {
 	currentOptions *atomicutil.Value[*config.Options]
 	currentRouter  *atomicutil.Value[*mux.Router]
 	webauthn       *webauthn.Handler
+	tracerProvider oteltrace.TracerProvider
 }
 
 // New takes a Proxy service from options and a validation function.
 // Function returns an error if options fail to validate.
 func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
-	state, err := newProxyStateFromConfig(ctx, cfg)
+	tracerProvider := trace.NewTracerProvider(ctx, "Proxy")
+	state, err := newProxyStateFromConfig(ctx, tracerProvider, cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	p := &Proxy{
+		tracerProvider: tracerProvider,
 		state:          atomicutil.NewValue(state),
 		currentOptions: config.NewAtomicOptions(),
 		currentRouter:  atomicutil.NewValue(httputil.NewRouter()),
@@ -96,7 +102,7 @@ func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	if err := p.setHandlers(ctx, cfg.Options); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy handlers from configuration settings")
 	}
-	if state, err := newProxyStateFromConfig(ctx, cfg); err != nil {
+	if state, err := newProxyStateFromConfig(ctx, p.tracerProvider, cfg); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy state from configuration settings")
 	} else {
 		p.state.Store(state)
@@ -115,6 +121,7 @@ func (p *Proxy) setHandlers(ctx context.Context, opts *config.Options) error {
 	r.StrictSlash(true)
 	// dashboard handlers are registered to all routes
 	r = p.registerDashboardHandlers(r, opts)
+	r.Use(trace.NewHTTPMiddleware(otelhttp.WithTracerProvider(p.tracerProvider)))
 
 	p.currentRouter.Store(r)
 	return nil

@@ -101,6 +101,9 @@ func (b *Builder) buildOutboundRoutes() []*envoy_config_route_v3.Route {
 					PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: prefix},
 					Grpc:          &envoy_config_route_v3.RouteMatch_GrpcRouteMatchOptions{},
 				},
+				Decorator: &envoy_config_route_v3.Decorator{
+					Operation: fmt.Sprintf("Outbound (grpc): %s %s", def.Cluster, prefix),
+				},
 				Action: &envoy_config_route_v3.Route_Route{
 					Route: &envoy_config_route_v3.RouteAction{
 						ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
@@ -122,6 +125,9 @@ func (b *Builder) buildOutboundRoutes() []*envoy_config_route_v3.Route {
 		Name: "envoy-metrics",
 		Match: &envoy_config_route_v3.RouteMatch{
 			PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: "/envoy/stats/prometheus"},
+		},
+		Decorator: &envoy_config_route_v3.Decorator{
+			Operation: "Outbound: envoy-metrics /envoy/stats/prometheus/*",
 		},
 		Action: &envoy_config_route_v3.Route_Route{
 			Route: &envoy_config_route_v3.RouteAction{

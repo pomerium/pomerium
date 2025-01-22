@@ -9,11 +9,13 @@ import (
 
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/middleware"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 )
 
@@ -40,6 +42,7 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 
 	// Programmatic API handlers and middleware
 	// gorilla mux has a bug that prevents HTTP 405 errors from being returned properly so we do all this manually
+	// https://github.com/gorilla/mux/issues/739
 	r.PathPrefix(dashboardPath + "/api").
 		Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 			switch r.URL.Path {
@@ -93,6 +96,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) error {
 	if redirectURL != nil {
 		q.Set(urlutil.QueryRedirectURI, redirectURL.String())
 	}
+	otel.GetTextMapPropagator().Inject(r.Context(), trace.PomeriumURLQueryCarrier(q))
 	dashboardURL.RawQuery = q.Encode()
 
 	state.sessionStore.ClearSession(w, r)

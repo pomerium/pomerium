@@ -15,6 +15,9 @@ func Test_buildOutboundRoutes(t *testing.T) {
 				"grpc": {},
 				"prefix": "/envoy.service.auth.v3.Authorization/"
 			},
+			"decorator": {
+				"operation": "Outbound (grpc): pomerium-authorize /envoy.service.auth.v3.Authorization/"
+			},
 			"name": "pomerium-authorize",
 			"route": {
 				"autoHostRewrite": true,
@@ -27,6 +30,9 @@ func Test_buildOutboundRoutes(t *testing.T) {
 			"match": {
 				"grpc": {},
 				"prefix": "/databroker.DataBrokerService/"
+			},
+			"decorator": {
+				"operation": "Outbound (grpc): pomerium-databroker /databroker.DataBrokerService/"
 			},
 			"name": "pomerium-databroker",
 			"route": {
@@ -41,6 +47,9 @@ func Test_buildOutboundRoutes(t *testing.T) {
 				"grpc": {},
 				"prefix": "/registry.Registry/"
 			},
+			"decorator": {
+				"operation": "Outbound (grpc): pomerium-databroker /registry.Registry/"
+			},
 			"name": "pomerium-databroker",
 			"route": {
 				"autoHostRewrite": true,
@@ -54,6 +63,9 @@ func Test_buildOutboundRoutes(t *testing.T) {
 				"grpc": {},
 				"prefix": "/"
 			},
+			"decorator": {
+				"operation": "Outbound (grpc): pomerium-control-plane-grpc /"
+			},
 			"name": "pomerium-control-plane-grpc",
 			"route": {
 				"autoHostRewrite": true,
@@ -65,6 +77,9 @@ func Test_buildOutboundRoutes(t *testing.T) {
 		{
 			"match": {
 				"prefix": "/envoy/stats/prometheus"
+			},
+			"decorator": {
+				"operation": "Outbound: envoy-metrics /envoy/stats/prometheus/*"
 			},
 			"name": "envoy-metrics",
 			"route": {

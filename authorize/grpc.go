@@ -19,7 +19,6 @@ import (
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -29,17 +28,12 @@ import (
 
 // Check implements the envoy auth server gRPC endpoint.
 func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRequest) (*envoy_service_auth_v3.CheckResponse, error) {
-	ctx, span := trace.StartSpan(ctx, "authorize.grpc.Check")
+	ctx, span := a.tracer.Start(ctx, "authorize.grpc.Check")
 	defer span.End()
 
-	querier := storage.NewTracingQuerier(
-		storage.NewCachingQuerier(
-			storage.NewCachingQuerier(
-				storage.NewQuerier(a.state.Load().dataBrokerClient),
-				a.globalCache,
-			),
-			storage.NewLocalCache(),
-		),
+	querier := storage.NewCachingQuerier(
+		storage.NewQuerier(a.state.Load().dataBrokerClient),
+		a.globalCache,
 	)
 	ctx = storage.WithQuerier(ctx, querier)
 
@@ -75,10 +69,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 		return nil, err
 	}
 
-	// take the state lock here so we don't update while evaluating
-	a.stateLock.RLock()
 	res, err := state.evaluator.Evaluate(ctx, req)
-	a.stateLock.RUnlock()
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("error during OPA evaluation")
 		return nil, err

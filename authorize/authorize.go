@@ -6,11 +6,13 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
+	oteltrace "go.opentelemetry.io/otel/trace"
+	"golang.org/x/sync/errgroup"
 
+	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
@@ -25,33 +27,37 @@ import (
 
 // Authorize struct holds
 type Authorize struct {
-	state          *atomicutil.Value[*authorizeState]
-	store          *store.Store
-	currentOptions *atomicutil.Value[*config.Options]
-	accessTracker  *AccessTracker
-	globalCache    storage.Cache
+	state             *atomicutil.Value[*authorizeState]
+	store             *store.Store
+	currentOptions    *atomicutil.Value[*config.Options]
+	accessTracker     *AccessTracker
+	globalCache       storage.Cache
+	groupsCacheWarmer *cacheWarmer
 
-	// The stateLock prevents updating the evaluator store simultaneously with an evaluation.
-	// This should provide a consistent view of the data at a given server/record version and
-	// avoid partial updates.
-	stateLock sync.RWMutex
+	tracerProvider oteltrace.TracerProvider
+	tracer         oteltrace.Tracer
 }
 
 // New validates and creates a new Authorize service from a set of config options.
 func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
+	tracerProvider := trace.NewTracerProvider(ctx, "Authorize")
+	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 	a := &Authorize{
 		currentOptions: config.NewAtomicOptions(),
 		store:          store.New(),
 		globalCache:    storage.NewGlobalCache(time.Minute),
+		tracerProvider: tracerProvider,
+		tracer:         tracer,
 	}
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 
-	state, err := newAuthorizeStateFromConfig(ctx, cfg, a.store, nil)
+	state, err := newAuthorizeStateFromConfig(ctx, tracerProvider, cfg, a.store, nil)
 	if err != nil {
 		return nil, err
 	}
 	a.state = atomicutil.NewValue(state)
 
+	a.groupsCacheWarmer = newCacheWarmer(state.dataBrokerClientConnection, a.globalCache, directory.GroupRecordType)
 	return a, nil
 }
 
@@ -62,8 +68,16 @@ func (a *Authorize) GetDataBrokerServiceClient() databroker.DataBrokerServiceCli
 
 // Run runs the authorize service.
 func (a *Authorize) Run(ctx context.Context) error {
-	a.accessTracker.Run(ctx)
-	return nil
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		a.accessTracker.Run(ctx)
+		return nil
+	})
+	eg.Go(func() error {
+		a.groupsCacheWarmer.Run(ctx)
+		return nil
+	})
+	return eg.Wait()
 }
 
 func validateOptions(o *config.Options) error {
@@ -88,7 +102,7 @@ func newPolicyEvaluator(
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("service", "authorize")
 	})
-	ctx, span := trace.StartSpan(ctx, "authorize.newPolicyEvaluator")
+	ctx, span := trace.Continue(ctx, "authorize.newPolicyEvaluator")
 	defer span.End()
 
 	clientCA, err := opts.DownstreamMTLS.GetCA()
@@ -142,9 +156,13 @@ func newPolicyEvaluator(
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	currentState := a.state.Load()
 	a.currentOptions.Store(cfg.Options)
-	if state, err := newAuthorizeStateFromConfig(ctx, cfg, a.store, currentState.evaluator); err != nil {
+	if newState, err := newAuthorizeStateFromConfig(ctx, a.tracerProvider, cfg, a.store, currentState.evaluator); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating state")
 	} else {
-		a.state.Store(state)
+		a.state.Store(newState)
+
+		if currentState.dataBrokerClientConnection != newState.dataBrokerClientConnection {
+			a.groupsCacheWarmer.UpdateConn(newState.dataBrokerClientConnection)
+		}
 	}
 }

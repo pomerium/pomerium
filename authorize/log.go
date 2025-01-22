@@ -7,10 +7,10 @@ import (
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -24,7 +24,7 @@ func (a *Authorize) logAuthorizeCheck(
 	in *envoy_service_auth_v3.CheckRequest,
 	res *evaluator.Result, s sessionOrServiceAccount, u *user.User,
 ) {
-	ctx, span := trace.StartSpan(ctx, "authorize.grpc.LogAuthorizeCheck")
+	ctx, span := a.tracer.Start(ctx, "authorize.grpc.LogAuthorizeCheck")
 	defer span.End()
 
 	hdrs := getCheckRequestHeaders(in)
@@ -39,17 +39,24 @@ func (a *Authorize) logAuthorizeCheck(
 
 	// result
 	if res != nil {
+		span.SetAttributes(attribute.Bool("result.allow", res.Allow.Value))
 		evt = evt.Bool("allow", res.Allow.Value)
+		allowReasons := res.Allow.Reasons.Strings()
 		if res.Allow.Value {
-			evt = evt.Strs("allow-why-true", res.Allow.Reasons.Strings())
+			span.SetAttributes(attribute.StringSlice("result.allow-why-true", allowReasons))
+			evt = evt.Strs("allow-why-true", allowReasons)
 		} else {
-			evt = evt.Strs("allow-why-false", res.Allow.Reasons.Strings())
+			span.SetAttributes(attribute.StringSlice("result.allow-why-false", allowReasons))
+			evt = evt.Strs("allow-why-false", allowReasons)
 		}
 		evt = evt.Bool("deny", res.Deny.Value)
+		denyReasons := res.Deny.Reasons.Strings()
 		if res.Deny.Value {
-			evt = evt.Strs("deny-why-true", res.Deny.Reasons.Strings())
+			span.SetAttributes(attribute.StringSlice("result.deny-why-true", denyReasons))
+			evt = evt.Strs("deny-why-true", denyReasons)
 		} else {
-			evt = evt.Strs("deny-why-false", res.Deny.Reasons.Strings())
+			span.SetAttributes(attribute.StringSlice("result.deny-why-false", denyReasons))
+			evt = evt.Strs("deny-why-false", denyReasons)
 		}
 	}
 

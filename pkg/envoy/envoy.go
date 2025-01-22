@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	stdatomic "sync/atomic"
 	"syscall"
 	"time"
 
@@ -42,6 +43,7 @@ type Server struct {
 	wd        string
 	cmd       *exec.Cmd
 	cmdExited chan struct{}
+	closing   stdatomic.Bool
 
 	builder            *envoyconfig.Builder
 	resourceMonitor    ResourceMonitor
@@ -57,6 +59,10 @@ type ServerOptions struct {
 	extraEnvVars    []string
 	logLevel        config.LogLevel
 	exitGracePeriod time.Duration
+}
+
+func (o *ServerOptions) ExitGracePeriod() time.Duration {
+	return o.exitGracePeriod
 }
 
 type ServerOption func(*ServerOptions)
@@ -122,8 +128,13 @@ func NewServer(ctx context.Context, src config.Source, builder *envoyconfig.Buil
 	return srv, nil
 }
 
-// Close kills any underlying envoy process.
+// Close attempts to gracefully shut down a running envoy server. If envoy
+// does not exit within the defined grace period, it will be killed. Server
+// cannot be used again after Close is called.
 func (srv *Server) Close() error {
+	if !srv.closing.CompareAndSwap(false, true) {
+		return nil
+	}
 	srv.monitorProcessCancel()
 
 	srv.mu.Lock()
@@ -156,6 +167,10 @@ func (srv *Server) Close() error {
 }
 
 func (srv *Server) onConfigChange(ctx context.Context, cfg *config.Config) {
+	if srv.closing.Load() {
+		// do not attempt to update the configuration after Close is called
+		return
+	}
 	srv.update(ctx, cfg)
 }
 
@@ -233,10 +248,10 @@ func (srv *Server) run(ctx context.Context, cfg *config.Config) error {
 	go func() {
 		pid := cmd.Process.Pid
 		err := srv.monitorProcess(monitorProcessCtx, int32(pid))
-		if err != nil && ctx.Err() == nil {
-			// If the envoy subprocess exits and ctx is not done, issue a fatal error.
-			// If ctx is done, the server is already exiting, and envoy is expected
-			// to be stopped along with it.
+		if err != nil && ctx.Err() == nil && !srv.closing.Load() {
+			// If the envoy subprocess exits and ctx is not done (or waiting for envoy
+			// to gracefully stop), issue a fatal error. If ctx is done, the server is
+			// already exiting, and envoy is expected to be stopped along with it.
 			log.Ctx(ctx).
 				Fatal().
 				Int("pid", pid).

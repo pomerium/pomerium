@@ -1,134 +1,151 @@
 package envoyconfig
 
 import (
-	"fmt"
-	"net"
+	"context"
+	"os"
+	"strconv"
 
-	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
-	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
-	envoy_config_trace_v3 "github.com/envoyproxy/go-control-plane/envoy/config/trace/v3"
-	"google.golang.org/protobuf/types/known/durationpb"
-
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	tracev3 "github.com/envoyproxy/go-control-plane/envoy/config/trace/v3"
+	envoy_extensions_filters_http_header_to_metadata "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/header_to_metadata/v3"
+	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	envoy_extensions_tracers_otel "github.com/envoyproxy/go-control-plane/envoy/extensions/tracers/opentelemetry/resource_detectors/v3"
+	metadatav3 "github.com/envoyproxy/go-control-plane/envoy/type/metadata/v3"
+	envoy_tracing_v3 "github.com/envoyproxy/go-control-plane/envoy/type/tracing/v3"
+	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
+	extensions_trace_context "github.com/pomerium/envoy-custom/api/extensions/http/early_header_mutation/trace_context"
+	extensions_uuidx "github.com/pomerium/envoy-custom/api/extensions/request_id/uuidx"
+	extensions_pomerium_otel "github.com/pomerium/envoy-custom/api/extensions/tracers/pomerium_otel"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	"github.com/pomerium/pomerium/pkg/protoutil"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-func buildTracingCluster(options *config.Options) (*envoy_config_cluster_v3.Cluster, error) {
-	tracingOptions, err := config.NewTracingOptions(options)
-	if err != nil {
-		return nil, fmt.Errorf("envoyconfig: invalid tracing config: %w", err)
+func isTracingEnabled(cfg *config.Options) bool {
+	if os.Getenv("OTEL_SDK_DISABLED") == "true" {
+		return false
 	}
-
-	switch tracingOptions.Provider {
-	case trace.DatadogTracingProviderName:
-		addr, _ := parseAddress("127.0.0.1:8126")
-
-		if options.TracingDatadogAddress != "" {
-			addr, err = parseAddress(options.TracingDatadogAddress)
-			if err != nil {
-				return nil, fmt.Errorf("envoyconfig: invalid tracing datadog address: %w", err)
-			}
-		}
-
-		endpoints := []*envoy_config_endpoint_v3.LbEndpoint{{
-			HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
-				Endpoint: &envoy_config_endpoint_v3.Endpoint{
-					Address: addr,
-				},
-			},
-		}}
-
-		return &envoy_config_cluster_v3.Cluster{
-			Name: "datadog-apm",
-			ConnectTimeout: &durationpb.Duration{
-				Seconds: 5,
-			},
-			ClusterDiscoveryType: getClusterDiscoveryType(endpoints),
-			LbPolicy:             envoy_config_cluster_v3.Cluster_ROUND_ROBIN,
-			LoadAssignment: &envoy_config_endpoint_v3.ClusterLoadAssignment{
-				ClusterName: "datadog-apm",
-				Endpoints: []*envoy_config_endpoint_v3.LocalityLbEndpoints{{
-					LbEndpoints: endpoints,
-				}},
-			},
-		}, nil
-	case trace.ZipkinTracingProviderName:
-		host := tracingOptions.ZipkinEndpoint.Host
-		if _, port, _ := net.SplitHostPort(host); port == "" {
-			if tracingOptions.ZipkinEndpoint.Scheme == "https" {
-				host = net.JoinHostPort(host, "443")
-			} else {
-				host = net.JoinHostPort(host, "80")
-			}
-		}
-
-		addr, err := parseAddress(host)
-		if err != nil {
-			return nil, fmt.Errorf("envoyconfig: invalid tracing zipkin address: %w", err)
-		}
-
-		endpoints := []*envoy_config_endpoint_v3.LbEndpoint{{
-			HostIdentifier: &envoy_config_endpoint_v3.LbEndpoint_Endpoint{
-				Endpoint: &envoy_config_endpoint_v3.Endpoint{
-					Address: addr,
-				},
-			},
-		}}
-		return &envoy_config_cluster_v3.Cluster{
-			Name: "zipkin",
-			ConnectTimeout: &durationpb.Duration{
-				Seconds: 5,
-			},
-			ClusterDiscoveryType: getClusterDiscoveryType(endpoints),
-			LbPolicy:             envoy_config_cluster_v3.Cluster_ROUND_ROBIN,
-			LoadAssignment: &envoy_config_endpoint_v3.ClusterLoadAssignment{
-				ClusterName: "zipkin",
-				Endpoints: []*envoy_config_endpoint_v3.LocalityLbEndpoints{{
-					LbEndpoints: endpoints,
-				}},
-			},
-		}, nil
-	default:
-		return nil, nil
+	switch cfg.TracingProvider {
+	case "none", "noop": // explicitly disabled from config
+		return false
+	case "": // unset
+		return trace.IsEnabledViaEnvironment()
+	default: // set to a non-empty value
+		return !trace.IsDisabledViaEnvironment()
 	}
 }
 
-func buildTracingHTTP(options *config.Options) (*envoy_config_trace_v3.Tracing_Http, error) {
-	tracingOptions, err := config.NewTracingOptions(options)
-	if err != nil {
-		return nil, fmt.Errorf("invalid tracing config: %w", err)
+func applyTracingConfig(
+	ctx context.Context,
+	mgr *envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager,
+	opts *config.Options,
+) {
+	if !isTracingEnabled(opts) {
+		return
+	}
+	mgr.EarlyHeaderMutationExtensions = []*envoy_config_core_v3.TypedExtensionConfig{
+		{
+			Name:        "envoy.http.early_header_mutation.trace_context",
+			TypedConfig: marshalAny(&extensions_trace_context.TraceContext{}),
+		},
+	}
+	mgr.RequestIdExtension = &envoy_extensions_filters_network_http_connection_manager.RequestIDExtension{
+		TypedConfig: marshalAny(&extensions_uuidx.UuidxRequestIdConfig{
+			PackTraceReason:              wrapperspb.Bool(true),
+			UseRequestIdForTraceSampling: wrapperspb.Bool(true),
+		}),
 	}
 
-	switch tracingOptions.Provider {
-	case trace.DatadogTracingProviderName:
-		tracingTC := protoutil.NewAny(&envoy_config_trace_v3.DatadogConfig{
-			CollectorCluster: "datadog-apm",
-			ServiceName:      tracingOptions.Service,
-		})
-		return &envoy_config_trace_v3.Tracing_Http{
-			Name: "envoy.tracers.datadog",
-			ConfigType: &envoy_config_trace_v3.Tracing_Http_TypedConfig{
-				TypedConfig: tracingTC,
-			},
-		}, nil
-	case trace.ZipkinTracingProviderName:
-		path := tracingOptions.ZipkinEndpoint.Path
-		if path == "" {
-			path = "/"
+	maxPathTagLength := uint32(1024)
+	if value, ok := os.LookupEnv("OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT"); ok {
+		if num, err := strconv.ParseUint(value, 10, 32); err == nil {
+			maxPathTagLength = max(64, uint32(num))
 		}
-		tracingTC := protoutil.NewAny(&envoy_config_trace_v3.ZipkinConfig{
-			CollectorCluster:         "zipkin",
-			CollectorEndpoint:        path,
-			CollectorEndpointVersion: envoy_config_trace_v3.ZipkinConfig_HTTP_JSON,
-		})
-		return &envoy_config_trace_v3.Tracing_Http{
-			Name: "envoy.tracers.zipkin",
-			ConfigType: &envoy_config_trace_v3.Tracing_Http_TypedConfig{
-				TypedConfig: tracingTC,
+	}
+	sampleRate := 1.0
+	if value, ok := os.LookupEnv("OTEL_TRACES_SAMPLER_ARG"); ok {
+		if rate, err := strconv.ParseFloat(value, 64); err == nil {
+			sampleRate = rate
+		}
+	}
+	if opts.TracingSampleRate != nil {
+		sampleRate = *opts.TracingSampleRate
+	}
+	mgr.Tracing = &envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_Tracing{
+		RandomSampling:    &envoy_type_v3.Percent{Value: max(0.0, min(1.0, sampleRate)) * 100},
+		Verbose:           true,
+		SpawnUpstreamSpan: wrapperspb.Bool(true),
+		Provider: &tracev3.Tracing_Http{
+			Name: "envoy.tracers.pomerium_otel",
+			ConfigType: &tracev3.Tracing_Http_TypedConfig{
+				TypedConfig: marshalAny(&extensions_pomerium_otel.OpenTelemetryConfig{
+					GrpcService: &envoy_config_core_v3.GrpcService{
+						TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
+							EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
+								ClusterName: "pomerium-control-plane-grpc",
+							},
+						},
+					},
+					ServiceName: "Envoy",
+					ResourceDetectors: []*envoy_config_core_v3.TypedExtensionConfig{
+						{
+							Name: "envoy.tracers.opentelemetry.resource_detectors.static_config",
+							TypedConfig: marshalAny(&envoy_extensions_tracers_otel.StaticConfigResourceDetectorConfig{
+								Attributes: map[string]string{
+									"pomerium.envoy": "true",
+								},
+							}),
+						},
+					},
+				}),
 			},
-		}, nil
-	default:
-		return nil, nil
+		},
+		// this allows full URLs to be displayed in traces, they are otherwise truncated
+		MaxPathTagLength: wrapperspb.UInt32(maxPathTagLength),
+	}
+
+	debugFlags := trace.DebugFlagsFromContext(ctx)
+	if debugFlags.Check(trace.TrackSpanReferences) {
+		mgr.HttpFilters = append([]*envoy_extensions_filters_network_http_connection_manager.HttpFilter{
+			{
+				Name: "envoy.filters.http.header_to_metadata",
+				ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
+					TypedConfig: marshalAny(&envoy_extensions_filters_http_header_to_metadata.Config{
+						RequestRules: []*envoy_extensions_filters_http_header_to_metadata.Config_Rule{
+							{
+								Header: "x-pomerium-external-parent-span",
+								OnHeaderPresent: &envoy_extensions_filters_http_header_to_metadata.Config_KeyValuePair{
+									MetadataNamespace: "pomerium.internal",
+									Key:               "external-parent-span",
+								},
+								Remove: true,
+							},
+						},
+					}),
+				},
+			},
+		}, mgr.HttpFilters...)
+		mgr.Tracing.CustomTags = append(mgr.Tracing.CustomTags, &envoy_tracing_v3.CustomTag{
+			Tag: "pomerium.external-parent-span",
+			Type: &envoy_tracing_v3.CustomTag_Metadata_{
+				Metadata: &envoy_tracing_v3.CustomTag_Metadata{
+					Kind: &metadatav3.MetadataKind{
+						Kind: &metadatav3.MetadataKind_Request_{
+							Request: &metadatav3.MetadataKind_Request{},
+						},
+					},
+					MetadataKey: &metadatav3.MetadataKey{
+						Key: "pomerium.internal",
+						Path: []*metadatav3.MetadataKey_PathSegment{
+							{
+								Segment: &metadatav3.MetadataKey_PathSegment_Key{
+									Key: "external-parent-span",
+								},
+							},
+						},
+					},
+				},
+			},
+		})
 	}
 }

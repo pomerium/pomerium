@@ -199,7 +199,7 @@ func getOrCreatePolicyEvaluators(
 
 // Evaluate evaluates the rego for the given policy and generates the identity headers.
 func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error) {
-	ctx, span := trace.StartSpan(ctx, "authorize.Evaluator.Evaluate")
+	ctx, span := trace.Continue(ctx, "authorize.Evaluator.Evaluate")
 	defer span.End()
 
 	eg, ctx := errgroup.WithContext(ctx)

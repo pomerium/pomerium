@@ -73,6 +73,9 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_
 				PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{Prefix: fmt.Sprintf("/%s/", svc)},
 				Grpc:          &envoy_config_route_v3.RouteMatch_GrpcRouteMatchOptions{},
 			},
+			Decorator: &envoy_config_route_v3.Decorator{
+				Operation: fmt.Sprintf("pomerium-control-plane-grpc %s", svc),
+			},
 			Action: &envoy_config_route_v3.Route_Route{
 				Route: &envoy_config_route_v3.RouteAction{
 					ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{

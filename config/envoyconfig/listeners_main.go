@@ -10,7 +10,6 @@ import (
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_extensions_access_loggers_grpc_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/grpc/v3"
 	envoy_extensions_filters_network_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
-	envoy_type_v3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
@@ -177,20 +176,11 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		maxStreamDuration = durationpb.New(cfg.Options.WriteTimeout)
 	}
 
-	tracingProvider, err := buildTracingHTTP(cfg.Options)
-	if err != nil {
-		return nil, err
-	}
-
 	localReply, err := b.buildLocalReplyConfig(cfg.Options)
 	if err != nil {
 		return nil, err
 	}
 
-	sampleRate := 1.0
-	if cfg.Options.TracingSampleRate != nil {
-		sampleRate = *cfg.Options.TracingSampleRate
-	}
 	mgr := &envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager{
 		AlwaysSetRequestIdInResponse: true,
 		StatPrefix:                   "ingress",
@@ -202,10 +192,6 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		},
 		HttpProtocolOptions: http1ProtocolOptions,
 		RequestTimeout:      durationpb.New(cfg.Options.ReadTimeout),
-		Tracing: &envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_Tracing{
-			RandomSampling: &envoy_type_v3.Percent{Value: max(0.0, min(1.0, sampleRate)) * 100},
-			Provider:       tracingProvider,
-		},
 		// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-for
 		UseRemoteAddress:  &wrapperspb.BoolValue{Value: true},
 		SkipXffAppend:     cfg.Options.SkipXffAppend,
@@ -227,6 +213,8 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	} else {
 		mgr.CodecType = cfg.Options.GetCodecType().ToEnvoy()
 	}
+
+	applyTracingConfig(ctx, mgr, cfg.Options)
 
 	if fullyStatic {
 		routeConfiguration, err := b.buildMainRouteConfiguration(ctx, cfg)

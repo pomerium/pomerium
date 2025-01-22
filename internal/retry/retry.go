@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/pomerium/pomerium/internal/log"
 )
@@ -47,7 +48,10 @@ restart:
 	backoff:
 		for {
 			interval := backoff.NextBackOff()
-			log.Ctx(ctx).Info().Msgf("backing off for %s...", interval.String())
+			span := trace.SpanFromContext(ctx)
+			msg := fmt.Sprintf("backing off for %s...", interval.String())
+			span.AddEvent(msg)
+			log.Ctx(ctx).Info().Msg(msg)
 			timer := time.NewTimer(interval)
 			s := makeSelect(ctx, watches, name, timer.C, fn)
 			next, err := s.Exec(ctx)
