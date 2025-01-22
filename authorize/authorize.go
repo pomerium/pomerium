@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -34,11 +33,6 @@ type Authorize struct {
 	accessTracker     *AccessTracker
 	globalCache       storage.Cache
 	groupsCacheWarmer *cacheWarmer
-
-	// The stateLock prevents updating the evaluator store simultaneously with an evaluation.
-	// This should provide a consistent view of the data at a given server/record version and
-	// avoid partial updates.
-	stateLock sync.RWMutex
 
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
