@@ -25,7 +25,7 @@ func TestCheckRouteAccess(t *testing.T) {
 	}{
 		{"no ppl", u1, &config.Policy{}},
 		{"allow_any_authenticated_user", u1, &config.Policy{AllowAnyAuthenticatedUser: true}},
-		{"allow_any_authenticated_user", u2, &config.Policy{AllowedDomains: []string{"not.example.com"}}},
+		{"allowed_domains", u2, &config.Policy{AllowedDomains: []string{"not.example.com"}}},
 		{"allowed_users", u2, &config.Policy{AllowedUsers: []string{"u3"}}},
 		{"not conditionals", u2, &config.Policy{Policy: mustParsePPL(t, `{"allow": {"not": [{"accept": 1}]}}`)}},
 		{"nor conditionals", u2, &config.Policy{Policy: mustParsePPL(t, `{"allow": {"nor": [{"accept": 1}]}}`)}},
