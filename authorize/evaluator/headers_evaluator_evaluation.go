@@ -334,6 +334,7 @@ func (e *headersEvaluatorEvaluation) getGroups(ctx context.Context) []string {
 
 	s, _ := e.getSessionOrServiceAccount(ctx)
 	groups, _ := getClaimStringSlice(s, "groups")
+	groups = e.filterGroups(groups)
 	return groups
 }
 

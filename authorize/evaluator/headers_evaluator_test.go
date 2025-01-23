@@ -490,6 +490,12 @@ func TestHeadersEvaluator_JWTGroupsFilter(t *testing.T) {
 			newDirectoryUserRecord(directory.User{ID: id, GroupIDs: groups}),
 		)
 	}
+	// Also add a user session with an upstream "groups" claim from the IdP.
+	records = append(records,
+		&session.Session{Id: "SESSION-11", UserId: "USER-11", Claims: map[string]*structpb.ListValue{
+			"groups": newList("foo", "bar", "baz"),
+		}},
+	)
 
 	cases := []struct {
 		name         string
@@ -511,6 +517,7 @@ func TestHeadersEvaluator_JWTGroupsFilter(t *testing.T) {
 			"no filtering", nil, nil, "SESSION-10",
 			[]any{"10", "20", "30", "40", "50", "GROUP-10", "GROUP-20", "GROUP-30", "GROUP-40", "GROUP-50"},
 		},
+		{"groups claim", []string{"foo", "quux"}, nil, "SESSION-11", []any{"foo"}},
 	}
 
 	ctx := storage.WithQuerier(context.Background(), storage.NewStaticQuerier(records...))
@@ -588,4 +595,9 @@ func newDirectoryUserRecord(directoryUser directory.User) *databroker.Record {
 	_ = json.Unmarshal(bs, &m)
 	s, _ := structpb.NewStruct(m)
 	return storage.NewStaticRecord(directory.UserRecordType, s)
+}
+
+func newList(v ...any) *structpb.ListValue {
+	lv, _ := structpb.NewList(v)
+	return lv
 }
