@@ -303,7 +303,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		KubernetesServiceAccountToken:     pb.GetKubernetesServiceAccountToken(),
 		KubernetesServiceAccountTokenFile: pb.GetKubernetesServiceAccountTokenFile(),
 		LogoURL:                           pb.GetLogoUrl(),
-		Name:                              pb.GetName(),
+		Name:                              pb.GetDisplayName(),
 		PassIdentityHeaders:               pb.PassIdentityHeaders,
 		Path:                              pb.GetPath(),
 		Prefix:                            pb.GetPrefix(),
@@ -445,6 +445,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		AllowWebsockets:                  p.AllowWebsockets,
 		CorsAllowPreflight:               p.CORSAllowPreflight,
 		Description:                      p.Description,
+		DisplayName:                      p.Name,
 		EnableGoogleCloudServerlessAuthentication: p.EnableGoogleCloudServerlessAuthentication,
 		EnvoyOpts:                         p.EnvoyOpts,
 		From:                              p.From,
@@ -454,7 +455,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		KubernetesServiceAccountToken:     p.KubernetesServiceAccountToken,
 		KubernetesServiceAccountTokenFile: p.KubernetesServiceAccountTokenFile,
 		LogoUrl:                           p.LogoURL,
-		Name:                              p.Name,
+		Name:                              fmt.Sprint(p.RouteID()),
 		PassIdentityHeaders:               p.PassIdentityHeaders,
 		Path:                              p.Path,
 		Policies:                          sps,
@@ -483,9 +484,6 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		TlsSkipVerify:                     p.TLSSkipVerify,
 		TlsUpstreamAllowRenegotiation:     p.TLSUpstreamAllowRenegotiation,
 		TlsUpstreamServerName:             p.TLSUpstreamServerName,
-	}
-	if pb.Name == "" {
-		pb.Name = fmt.Sprint(p.RouteID())
 	}
 	if p.HostPathRegexRewritePattern != "" {
 		pb.HostPathRegexRewritePattern = proto.String(p.HostPathRegexRewritePattern)

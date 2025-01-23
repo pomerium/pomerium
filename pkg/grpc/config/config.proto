@@ -45,9 +45,11 @@ enum IssuerFormat {
   IssuerURI = 1;
 }
 
-// Next ID: 69.
+// Next ID: 70.
 message Route {
+  // used for prometheus metrics and should not be used as the route name
   string name = 1;
+  string display_name = 70;
   string description = 67;
   string logo_url = 68;
 

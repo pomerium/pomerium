@@ -9,13 +9,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/rs/zerolog"
+	"github.com/spf13/cobra"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/zero/cluster"
 	"github.com/pomerium/pomerium/pkg/zero/importutil"
-	"github.com/rs/zerolog"
-	"github.com/spf13/cobra"
 )
 
 func BuildImportCmd() *cobra.Command {
@@ -45,6 +46,7 @@ func BuildImportCmd() *cobra.Command {
 			client := zeroClientFromContext(cmd.Context())
 			converted := cfg.Options.ToProto()
 			for i, name := range importutil.GenerateRouteNames(converted.Routes) {
+				converted.Routes[i].DisplayName = name
 				converted.Routes[i].Name = name
 			}
 			var params cluster.ImportConfigurationParams

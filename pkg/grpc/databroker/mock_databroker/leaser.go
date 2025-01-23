@@ -21,6 +21,7 @@ import (
 type MockLeaserHandler struct {
 	ctrl     *gomock.Controller
 	recorder *MockLeaserHandlerMockRecorder
+	isgomock struct{}
 }
 
 // MockLeaserHandlerMockRecorder is the mock recorder for MockLeaserHandler.
