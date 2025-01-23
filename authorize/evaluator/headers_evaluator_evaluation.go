@@ -312,6 +312,17 @@ func (e *headersEvaluatorEvaluation) getJWTPayloadEmail(ctx context.Context) str
 }
 
 func (e *headersEvaluatorEvaluation) getJWTPayloadGroups(ctx context.Context) []string {
+	groups := e.getGroups(ctx)
+	if groups == nil {
+		// If there are no groups, marshal this claim as an empty list rather than a JSON null,
+		// for better compatibility with third-party libraries.
+		// See https://github.com/pomerium/pomerium/issues/5393 for one example.
+		groups = []string{}
+	}
+	return groups
+}
+
+func (e *headersEvaluatorEvaluation) getGroups(ctx context.Context) []string {
 	groupIDs := e.getGroupIDs(ctx)
 	if len(groupIDs) > 0 {
 		groupIDs = e.filterGroups(groupIDs)
@@ -323,12 +334,6 @@ func (e *headersEvaluatorEvaluation) getJWTPayloadGroups(ctx context.Context) []
 
 	s, _ := e.getSessionOrServiceAccount(ctx)
 	groups, _ := getClaimStringSlice(s, "groups")
-	if groups == nil {
-		// If there are no groups, marshal this claim as an empty list rather than a JSON null,
-		// for better compatibility with third-party libraries.
-		// See https://github.com/pomerium/pomerium/issues/5393 for one example.
-		groups = []string{}
-	}
 	return groups
 }
 
