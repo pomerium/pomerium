@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/envutil"
 	"github.com/pomerium/pomerium/internal/testenv/scenarios"
@@ -18,18 +19,30 @@ import (
 )
 
 var (
-	numRoutes   int
-	dumpErrLogs bool
+	numRoutes     int
+	dumpErrLogs   bool
+	enableTracing bool
+	publicRoutes  bool
 )
 
 func init() {
 	flag.IntVar(&numRoutes, "routes", 100, "number of routes")
 	flag.BoolVar(&dumpErrLogs, "dump-err-logs", false, "if the test fails, write all captured logs to a file (testdata/<test-name>)")
+	flag.BoolVar(&enableTracing, "enable-tracing", false, "enable tracing")
+	flag.BoolVar(&publicRoutes, "public-routes", false, "use public unauthenticated routes")
 }
 
 func TestRequestLatency(t *testing.T) {
 	resume := envutil.PauseProfiling(t)
-	env := testenv.New(t, testenv.Silent())
+	var env testenv.Environment
+	if enableTracing {
+		receiver := scenarios.NewOTLPTraceReceiver()
+		env = testenv.New(t, testenv.Silent(), testenv.WithTraceClient(receiver.NewGRPCClient()))
+		env.Add(receiver)
+	} else {
+		env = testenv.New(t, testenv.Silent())
+	}
+
 	users := []*scenarios.User{}
 	for i := range numRoutes {
 		users = append(users, &scenarios.User{
@@ -47,9 +60,12 @@ func TestRequestLatency(t *testing.T) {
 	routes := make([]testenv.Route, numRoutes)
 	for i := range numRoutes {
 		routes[i] = up.Route().
-			From(env.SubdomainURL(fmt.Sprintf("from-%d", i))).
-			// Policy(func(p *config.Policy) { p.AllowPublicUnauthenticatedAccess = true })
-			PPL(fmt.Sprintf(`{"allow":{"and":["email":{"is":"user%d@example.com"}]}}`, i))
+			From(env.SubdomainURL(fmt.Sprintf("from-%d", i)))
+		if publicRoutes {
+			routes[i] = routes[i].Policy(func(p *config.Policy) { p.AllowPublicUnauthenticatedAccess = true })
+		} else {
+			routes[i] = routes[i].PPL(fmt.Sprintf(`{"allow":{"and":["email":{"is":"user%d@example.com"}]}}`, i))
+		}
 	}
 	env.AddUpstream(up)
 

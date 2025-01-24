@@ -51,7 +51,7 @@ func TestBuilder_BuildBootstrapLayeredRuntime(t *testing.T) {
 				"tracing": {
 					"opentelemetry": {
 						"flush_interval_ms": 5000,
-						"min_flush_spans": 3
+						"min_flush_spans": 512
 					}
 				}
 			}
