@@ -517,7 +517,8 @@ func TestHeadersEvaluator_JWTGroupsFilter(t *testing.T) {
 		{"empty route filter", []string{"1", "2", "3"}, []string{}, "SESSION-1", []any{"1", "2", "3", "GROUP-1", "GROUP-2", "GROUP-3"}, 47},
 		{
 			"no filtering", nil, nil, "SESSION-10",
-			[]any{"10", "20", "30", "40", "50", "GROUP-10", "GROUP-20", "GROUP-30", "GROUP-40", "GROUP-50"}, 0,
+			[]any{"10", "20", "30", "40", "50", "GROUP-10", "GROUP-20", "GROUP-30", "GROUP-40", "GROUP-50"},
+			0,
 		},
 		// filtering has no effect on groups from an IdP "groups" claim
 		{"groups claim", []string{"foo", "quux"}, nil, "SESSION-11", []any{"foo", "bar", "baz"}, 0},
