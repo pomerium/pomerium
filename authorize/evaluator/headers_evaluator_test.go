@@ -551,6 +551,12 @@ func TestHeadersEvaluator_JWTGroupsFilter(t *testing.T) {
 			newDirectoryUserRecord(directory.User{ID: id, GroupIDs: groups}),
 		)
 	}
+	// Also add a user session with an upstream "groups" claim from the IdP.
+	records = append(records,
+		&session.Session{Id: "SESSION-11", UserId: "USER-11", Claims: map[string]*structpb.ListValue{
+			"groups": newList("foo", "bar", "baz"),
+		}},
+	)
 
 	cases := []struct {
 		name         string
@@ -559,18 +565,21 @@ func TestHeadersEvaluator_JWTGroupsFilter(t *testing.T) {
 		sessionID    string
 		expected     []any
 	}{
-		{"global filter 1", []string{"42", "1", "GROUP-12"}, nil, "SESSION-1", []any{"1", "42", "GROUP-12"}},
-		{"global filter 2", []string{"42", "1", "GROUP-12"}, nil, "SESSION-2", []any{"42", "GROUP-12"}},
-		{"route filter 1", nil, []string{"42", "1", "GROUP-12"}, "SESSION-1", []any{"1", "42", "GROUP-12"}},
-		{"route filter 2", nil, []string{"42", "1", "GROUP-12"}, "SESSION-2", []any{"42", "GROUP-12"}},
-		{"both filters 1", []string{"1"}, []string{"42", "GROUP-12"}, "SESSION-1", []any{"1", "42", "GROUP-12"}},
-		{"both filters 2", []string{"1"}, []string{"42", "GROUP-12"}, "SESSION-2", []any{"42", "GROUP-12"}},
-		{"overlapping", []string{"1"}, []string{"1"}, "SESSION-1", []any{"1"}},
-		{"empty route filter", []string{"1", "2", "3"}, []string{}, "SESSION-1", []any{"1", "2", "3"}},
+		{"global filter 1", []string{"42", "1"}, nil, "SESSION-1", []any{"1", "42", "GROUP-1", "GROUP-42"}},
+		{"global filter 2", []string{"42", "1"}, nil, "SESSION-2", []any{"42", "GROUP-42"}},
+		{"route filter 1", nil, []string{"42", "1"}, "SESSION-1", []any{"1", "42", "GROUP-1", "GROUP-42"}},
+		{"route filter 2", nil, []string{"42", "1"}, "SESSION-2", []any{"42", "GROUP-42"}},
+		{"both filters 1", []string{"1"}, []string{"42"}, "SESSION-1", []any{"1", "42", "GROUP-1", "GROUP-42"}},
+		{"both filters 2", []string{"1"}, []string{"42"}, "SESSION-2", []any{"42", "GROUP-42"}},
+		{"cannot filter by name", []string{"GROUP-1"}, nil, "SESSION-1", []any{}},
+		{"overlapping", []string{"1"}, []string{"1"}, "SESSION-1", []any{"1", "GROUP-1"}},
+		{"empty route filter", []string{"1", "2", "3"}, []string{}, "SESSION-1", []any{"1", "2", "3", "GROUP-1", "GROUP-2", "GROUP-3"}},
 		{
 			"no filtering", nil, nil, "SESSION-10",
 			[]any{"10", "20", "30", "40", "50", "GROUP-10", "GROUP-20", "GROUP-30", "GROUP-40", "GROUP-50"},
 		},
+		// filtering has no effect on groups from an IdP "groups" claim
+		{"groups claim", []string{"foo", "quux"}, nil, "SESSION-11", []any{"foo", "bar", "baz"}},
 	}
 
 	ctx := storage.WithQuerier(context.Background(), storage.NewStaticQuerier(records...))
@@ -646,4 +655,9 @@ func newDirectoryUserRecord(directoryUser directory.User) *databroker.Record {
 	_ = json.Unmarshal(bs, &m)
 	s, _ := structpb.NewStruct(m)
 	return storage.NewStaticRecord(directory.UserRecordType, s)
+}
+
+func newList(v ...any) *structpb.ListValue {
+	lv, _ := structpb.NewList(v)
+	return lv
 }
