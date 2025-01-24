@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"os"
+	"runtime"
 	"testing"
 
 	"github.com/pomerium/pomerium/config"
@@ -18,6 +20,10 @@ import (
 )
 
 func TestQueryTracing(t *testing.T) {
+	if os.Getenv("GITHUB_ACTION") != "" && runtime.GOOS == "darwin" {
+		t.Skip("Github action can not run docker on MacOS")
+	}
+
 	testutil.WithTestPostgres(t, func(dsn string) {
 		receiver := scenarios.NewOTLPTraceReceiver()
 		env := testenv.New(t, testenv.WithTraceDebugFlags(testenv.StandardTraceDebugFlags), testenv.WithTraceClient(receiver.NewGRPCClient()))
