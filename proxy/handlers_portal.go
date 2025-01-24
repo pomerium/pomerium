@@ -1,19 +1,22 @@
 package proxy
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/proxy/portal"
 	"github.com/pomerium/pomerium/ui"
 )
 
 func (p *Proxy) routesPortalHTML(w http.ResponseWriter, r *http.Request) error {
 	u := p.getUserInfoData(r)
-	rs := p.getPortalRoutes(u)
+	rs := p.getPortalRoutes(r.Context(), u)
 	m := u.ToJSON()
 	m["routes"] = rs
 	return ui.ServePage(w, r, "Routes", "Routes Portal", m)
@@ -21,7 +24,7 @@ func (p *Proxy) routesPortalHTML(w http.ResponseWriter, r *http.Request) error {
 
 func (p *Proxy) routesPortalJSON(w http.ResponseWriter, r *http.Request) error {
 	u := p.getUserInfoData(r)
-	rs := p.getPortalRoutes(u)
+	rs := p.getPortalRoutes(r.Context(), u)
 	m := map[string]any{}
 	m["routes"] = rs
 
@@ -36,7 +39,7 @@ func (p *Proxy) routesPortalJSON(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (p *Proxy) getPortalRoutes(u handlers.UserInfoData) []portal.Route {
+func (p *Proxy) getPortalRoutes(ctx context.Context, u handlers.UserInfoData) []portal.Route {
 	options := p.currentOptions.Load()
 	pu := p.getPortalUser(u)
 	var routes []*config.Policy
@@ -45,7 +48,25 @@ func (p *Proxy) getPortalRoutes(u handlers.UserInfoData) []portal.Route {
 			routes = append(routes, route)
 		}
 	}
-	return portal.RoutesFromConfigRoutes(routes)
+	portalRoutes := portal.RoutesFromConfigRoutes(routes)
+	for i, pr := range portalRoutes {
+		r := routes[i]
+		for _, to := range r.To {
+			if pr.LogoURL == "" {
+				var err error
+				pr.LogoURL, err = p.logoProvider.GetLogoURL(ctx, pr.From, to.URL.String())
+				if err != nil && !errors.Is(err, portal.ErrLogoNotFound) {
+					log.Ctx(ctx).Error().
+						Err(err).
+						Str("from", pr.From).
+						Str("to", to.URL.String()).
+						Msg("error retrieving logo for route")
+				}
+			}
+		}
+		portalRoutes[i] = pr
+	}
+	return portalRoutes
 }
 
 func (p *Proxy) getPortalUser(u handlers.UserInfoData) portal.User {
