@@ -517,7 +517,8 @@ func TestHeadersEvaluator_JWTGroupsFilter(t *testing.T) {
 			"no filtering", nil, nil, "SESSION-10",
 			[]any{"10", "20", "30", "40", "50", "GROUP-10", "GROUP-20", "GROUP-30", "GROUP-40", "GROUP-50"},
 		},
-		{"groups claim", []string{"foo", "quux"}, nil, "SESSION-11", []any{"foo"}},
+		// filtering has no effect on groups from an IdP "groups" claim
+		{"groups claim", []string{"foo", "quux"}, nil, "SESSION-11", []any{"foo", "bar", "baz"}},
 	}
 
 	ctx := storage.WithQuerier(context.Background(), storage.NewStaticQuerier(records...))
