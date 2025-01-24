@@ -149,7 +149,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 122.
+// Next ID: 136.
 message Settings {
   message Certificate {
     bytes cert_bytes = 3;
@@ -208,11 +208,24 @@ message Settings {
   optional string metrics_basic_auth = 64;
   optional Certificate metrics_certificate = 65;
   optional string metrics_client_ca = 66;
-  optional string tracing_provider = 41;
-  optional double tracing_sample_rate = 42;
-  optional string tracing_otlp_endpoint = 120;
-  optional string tracing_otlp_protocol = 121;
+  optional string otel_traces_exporter = 121;
+  optional double otel_traces_sampler_arg = 122;
+  repeated string otel_resource_attributes = 123;
+  optional string otel_log_level = 124;
+  optional int32  otel_attribute_value_length_limit = 125;
+  optional string otel_exporter_otlp_endpoint = 126;
+  optional string otel_exporter_otlp_traces_endpoint = 127;
+  optional string otel_exporter_otlp_protocol = 128;
+  optional string otel_exporter_otlp_traces_protocol = 129;
+  repeated string otel_exporter_otlp_headers = 130;
+  repeated string otel_exporter_otlp_traces_headers = 131;
+  optional int64  otel_exporter_otlp_timeout = 132;
+  optional int64  otel_exporter_otlp_traces_timeout = 133;
+  optional int32  otel_bsp_schedule_delay = 134;
+  optional int32  otel_bsp_max_export_batch_size = 135;
   reserved 98; // tracing_datadog_address
+  reserved 41; // tracing_provider
+  reserved 42; // tracing_sample_rate
   reserved 43; // tracing_jaeger_collector_endpoint
   reserved 44; // tracing_jaeger_agent_endpoint
   reserved 45; // tracing_zipkin_endpoint

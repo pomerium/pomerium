@@ -19,20 +19,20 @@ import (
 )
 
 type Options struct {
-	DebugFlags   DebugFlags
-	RemoteClient otlptrace.Client
+	DebugFlags DebugFlags
 }
 
-func (op Options) NewContext(parent context.Context) context.Context {
+func (op Options) NewContext(parent context.Context, remoteClient otlptrace.Client) context.Context {
 	if systemContextFromContext(parent) != nil {
 		panic("parent already contains trace system context")
 	}
-	if op.RemoteClient == nil {
-		op.RemoteClient = NewRemoteClientFromEnv()
+	if remoteClient == nil {
+		panic("remoteClient cannot be nil (use trace.NoopClient instead)")
 	}
 	sys := &systemContext{
-		options: op,
-		tpm:     &tracerProviderManager{},
+		options:      op,
+		remoteClient: remoteClient,
+		tpm:          &tracerProviderManager{},
 	}
 	if op.DebugFlags.Check(TrackSpanReferences) {
 		sys.observer = newSpanObserver()
@@ -52,8 +52,8 @@ func (op Options) NewContext(parent context.Context) context.Context {
 // The parent context should be context.Background(), or a background context
 // containing a logger. If any context in the parent's hierarchy was created
 // by NewContext, this will panic.
-func NewContext(parent context.Context) context.Context {
-	return Options{}.NewContext(parent)
+func NewContext(parent context.Context, remoteClient otlptrace.Client) context.Context {
+	return Options{}.NewContext(parent, remoteClient)
 }
 
 // NewTracerProvider creates a new [trace.TracerProvider] with the given service
@@ -154,7 +154,7 @@ func ExporterServerFromContext(ctx context.Context) coltracepb.TraceServiceServe
 
 func RemoteClientFromContext(ctx context.Context) otlptrace.Client {
 	if sys := systemContextFromContext(ctx); sys != nil {
-		return sys.options.RemoteClient
+		return sys.remoteClient
 	}
 	return nil
 }
@@ -178,6 +178,7 @@ var systemContextKey systemContextKeyType
 
 type systemContext struct {
 	options        Options
+	remoteClient   otlptrace.Client
 	tpm            *tracerProviderManager
 	observer       *spanObserver
 	exporterServer *ExporterServer

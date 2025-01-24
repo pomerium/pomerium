@@ -323,6 +323,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		pauseOnFailure:  *flagPauseOnFailure,
 		forceSilent:     *flagSilent,
 		traceDebugFlags: trace.DebugFlags(defaultTraceDebugFlags),
+		traceClient:     trace.NoopClient{},
 	}
 	options.apply(opts...)
 	if testing.Short() {
@@ -368,9 +369,8 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	logger := zerolog.New(writer).With().Timestamp().Logger().Level(zerolog.DebugLevel)
 
 	ctx := trace.Options{
-		DebugFlags:   options.traceDebugFlags,
-		RemoteClient: options.traceClient,
-	}.NewContext(logger.WithContext(context.Background()))
+		DebugFlags: options.traceDebugFlags,
+	}.NewContext(logger.WithContext(context.Background()), options.traceClient)
 	tracerProvider := trace.NewTracerProvider(ctx, "Test Environment")
 	tracer := tracerProvider.Tracer(trace.PomeriumCoreTracer)
 	ctx, span := tracer.Start(ctx, t.Name(), oteltrace.WithNewRoot())

@@ -43,6 +43,8 @@ var (
 		"tracing_jaeger_collector_endpoint": "https://docs.pomerium.com/docs/overview/upgrading#removed-tracing-options",
 		"tracing_jaeger_agent_endpoint":     "https://docs.pomerium.com/docs/overview/upgrading#removed-tracing-options",
 		"tracing_zipkin_endpoint":           "https://docs.pomerium.com/docs/overview/upgrading#removed-tracing-options",
+		"tracing_provider":                  "https://docs.pomerium.com/docs/overview/upgrading#removed-tracing-options",
+		"tracing_sample_rate":               "https://docs.pomerium.com/docs/overview/upgrading#removed-tracing-options",
 	}
 
 	ignoreConfigFields = map[string]struct{}{

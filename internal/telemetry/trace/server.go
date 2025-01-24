@@ -3,6 +3,7 @@ package trace
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"time"
 
@@ -41,7 +42,7 @@ type ExporterServer struct {
 func NewServer(ctx context.Context) *ExporterServer {
 	sys := systemContextFromContext(ctx)
 	ex := &ExporterServer{
-		remoteClient: sys.options.RemoteClient,
+		remoteClient: sys.remoteClient,
 		observer:     sys.observer,
 		server:       grpc.NewServer(grpc.Creds(insecure.NewCredentials())),
 	}
@@ -53,7 +54,9 @@ func (srv *ExporterServer) Start(ctx context.Context) {
 	lis := bufconn.Listen(2 * 1024 * 1024)
 	go func() {
 		if err := srv.remoteClient.Start(ctx); err != nil {
-			panic(err)
+			if !errors.Is(err, ErrNoClient) {
+				panic(fmt.Errorf("bug: %w", err))
+			}
 		}
 		_ = srv.server.Serve(lis)
 	}()
