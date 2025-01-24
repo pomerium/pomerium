@@ -50,7 +50,7 @@ func NewServer(ctx context.Context) *ExporterServer {
 }
 
 func (srv *ExporterServer) Start(ctx context.Context) {
-	lis := bufconn.Listen(4096)
+	lis := bufconn.Listen(2 * 1024 * 1024)
 	go func() {
 		if err := srv.remoteClient.Start(ctx); err != nil {
 			panic(err)
@@ -95,5 +95,6 @@ func (srv *ExporterServer) Shutdown(ctx context.Context) error {
 	if err := srv.remoteClient.Stop(ctx); err != nil {
 		errs = append(errs, err)
 	}
+	srv.cc.Close()
 	return errors.Join(errs...)
 }

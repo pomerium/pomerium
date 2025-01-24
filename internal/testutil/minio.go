@@ -6,8 +6,10 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // WithTestMinIO starts a test MinIO server
@@ -15,6 +17,7 @@ func WithTestMinIO(t *testing.T, bucket string, handler func(endpoint string)) {
 	t.Helper()
 
 	ctx := GetContext(t, maxWait)
+	ctx = oteltrace.ContextWithSpan(ctx, trace.ValidNoopSpan{})
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
