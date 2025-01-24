@@ -13,6 +13,8 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	oteltrace "go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 	v1 "go.opentelemetry.io/proto/otlp/trace/v1"
 )
 
@@ -225,6 +227,36 @@ func (n NoopClient) Stop(context.Context) error {
 func (n NoopClient) UploadTraces(context.Context, []*v1.ResourceSpans) error {
 	return nil
 }
+
+// ValidNoopSpan is the same as noop.Span, except with a "valid" span context
+// (has a non-zero trace and span ID).
+//
+// Adding this into a context as follows:
+//
+//	ctx = oteltrace.ContextWithSpan(ctx, trace.ValidNoopSpan{})
+//
+// will prevent some usages of the global tracer provider by libraries such
+// as otelhttp, which only uses the global provider if the context's span
+// is "invalid".
+type ValidNoopSpan struct {
+	noop.Span
+}
+
+var noopTraceID = oteltrace.TraceID{
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+}
+
+var noopSpanID = oteltrace.SpanID{
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+}
+
+// SpanContext implements trace.Span.
+func (n ValidNoopSpan) SpanContext() oteltrace.SpanContext {
+	return n.Span.SpanContext().WithTraceID(noopTraceID).WithSpanID(noopSpanID)
+}
+
+var _ oteltrace.Span = ValidNoopSpan{}
 
 func IsDisabledViaEnvironment() bool {
 	if os.Getenv("OTEL_SDK_DISABLED") == "true" {
