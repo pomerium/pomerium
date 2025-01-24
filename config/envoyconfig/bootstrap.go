@@ -150,8 +150,8 @@ func (b *Builder) BuildBootstrapDynamicResources(
 
 // BuildBootstrapLayeredRuntime builds the layered runtime for the envoy bootstrap.
 func (b *Builder) BuildBootstrapLayeredRuntime(ctx context.Context) (*envoy_config_bootstrap_v3.LayeredRuntime, error) {
-	flushIntervalMs := 5000
-	minFlushSpans := 3
+	flushIntervalMs := trace.BatchSpanProcessorScheduleDelay()
+	minFlushSpans := trace.BatchSpanProcessorMaxExportBatchSize()
 	if trace.DebugFlagsFromContext(ctx).Check(trace.EnvoyFlushEverySpan) {
 		minFlushSpans = 1
 		flushIntervalMs = math.MaxInt32
@@ -166,15 +166,12 @@ func (b *Builder) BuildBootstrapLayeredRuntime(ctx context.Context) (*envoy_conf
 		"tracing": map[string]any{
 			"opentelemetry": map[string]any{
 				"flush_interval_ms": flushIntervalMs,
-				// For most requests, envoy generates 3 spans:
+				// Note: for most requests, envoy generates 3 spans:
 				// - ingress (downstream->envoy)
 				// - ext_authz check request (envoy->pomerium)
 				// - egress (envoy->upstream)
-				// The default value is 5, which usually leads to delayed exports.
-				// This can be set lower, e.g. 1 to have envoy export every span
-				// individually (useful for testing), but 3 is a reasonable default.
-				// If set to 1, also set flush_interval_ms to a very large number to
-				// effectively disable it.
+				// Some requests only generate 2 spans, e.g. if there is no upstream
+				// request made or auth fails.
 				"min_flush_spans": minFlushSpans,
 			},
 		},
