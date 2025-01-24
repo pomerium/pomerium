@@ -77,6 +77,7 @@ func (rec *OTLPTraceReceiver) Attach(ctx context.Context) {
 // Modify implements testenv.Modifier.
 func (rec *OTLPTraceReceiver) Modify(cfg *config.Config) {
 	cfg.Options.TracingProvider = "otlp"
+	cfg.Options.TracingOTLPEndpoint = rec.GRPCEndpointURL().Value()
 }
 
 func (rec *OTLPTraceReceiver) handleV1Traces(w http.ResponseWriter, r *http.Request) {

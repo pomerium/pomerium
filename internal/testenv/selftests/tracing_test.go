@@ -12,13 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	"github.com/pomerium/pomerium/internal/testenv"
-	"github.com/pomerium/pomerium/internal/testenv/scenarios"
-	"github.com/pomerium/pomerium/internal/testenv/snippets"
-	"github.com/pomerium/pomerium/internal/testenv/upstreams"
-	. "github.com/pomerium/pomerium/internal/testutil/tracetest" //nolint:revive
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -27,6 +20,14 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
+
+	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/internal/testenv"
+	"github.com/pomerium/pomerium/internal/testenv/scenarios"
+	"github.com/pomerium/pomerium/internal/testenv/snippets"
+	"github.com/pomerium/pomerium/internal/testenv/upstreams"
+	. "github.com/pomerium/pomerium/internal/testutil/tracetest" //nolint:revive
 )
 
 func otlpTraceReceiverOrFromEnv(t *testing.T) (modifier testenv.Modifier, newRemoteClient func() otlptrace.Client, getResults func() *TraceResults) {
@@ -116,7 +117,7 @@ func TestOTLPTracing(t *testing.T) {
 				Exact:              true,
 				CheckDetachedSpans: true,
 			},
-			Match{Name: testEnvironmentLocalTest, TraceCount: 1, Services: []string{"Test Environment", "Control Plane", "Data Broker"}},
+			Match{Name: testEnvironmentLocalTest, TraceCount: 1, Services: []string{"Authorize", "Test Environment", "Control Plane", "Data Broker"}},
 			Match{Name: testEnvironmentAuthenticate, TraceCount: 1, Services: allServices},
 			Match{Name: authenticateOAuth2Client, TraceCount: Greater(0)},
 			Match{Name: idpServerGetUserinfo, TraceCount: EqualToMatch(authenticateOAuth2Client)},
