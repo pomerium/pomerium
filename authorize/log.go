@@ -34,7 +34,7 @@ func (a *Authorize) logAuthorizeCheck(
 	evt := log.Ctx(ctx).Info().Str("service", "authorize")
 	fields := a.currentOptions.Load().GetAuthorizeLogFields()
 	for _, field := range fields {
-		evt = populateLogEvent(ctx, field, evt, in, s, u, hdrs, impersonateDetails)
+		evt = populateLogEvent(ctx, field, evt, in, s, u, hdrs, impersonateDetails, res)
 	}
 	evt = log.HTTPHeaders(evt, fields, hdrs)
 
@@ -152,6 +152,7 @@ func populateLogEvent(
 	u *user.User,
 	hdrs map[string]string,
 	impersonateDetails *impersonateDetails,
+	res *evaluator.Result,
 ) *zerolog.Event {
 	path, query, _ := strings.Cut(in.GetAttributes().GetRequest().GetHttp().GetPath(), "?")
 
@@ -218,6 +219,11 @@ func populateLogEvent(
 		}
 		return evt.Str(string(field), userID)
 	default:
+		if res != nil {
+			if v, ok := res.AdditionalLogFields[field]; ok {
+				evt = evt.Interface(string(field), v)
+			}
+		}
 		return evt
 	}
 }
