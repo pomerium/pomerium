@@ -118,12 +118,12 @@ func (p *faviconDiscoveryLogoProvider) discoverLogoURL(ctx context.Context, rawU
 	// look for any logos in the html
 	r := io.LimitReader(res.Body, 10*1024)
 	for link := range findIconLinksInHTML(r) {
-		linkURL, err := urlutil.ParseAndValidateURL(link)
+		linkURL, err := u.Parse(link)
 		if err != nil {
 			continue
 		}
 
-		logoURL := p.fetchLogoURL(ctx, c, u.ResolveReference(linkURL))
+		logoURL := p.fetchLogoURL(ctx, c, linkURL)
 		if logoURL != "" {
 			return logoURL, nil
 		}
@@ -200,7 +200,7 @@ func findIconLinksInHTML(r io.Reader) iter.Seq[string] {
 			}
 
 			switch tt {
-			case html.StartTagToken:
+			case html.StartTagToken, html.SelfClosingTagToken:
 				name, attr := parseTag(z)
 				if name == "link" && attr["href"] != "" && (attr["rel"] == "shortcut icon" || attr["rel"] == "icon") {
 					if !yield(attr["href"]) {
