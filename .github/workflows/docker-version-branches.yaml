@@ -4,7 +4,7 @@ permissions:
 on:
   push:
     branches:
-      - 0-2*-0
+      - 0-[0-9]+-*
 
 jobs:
   publish:
