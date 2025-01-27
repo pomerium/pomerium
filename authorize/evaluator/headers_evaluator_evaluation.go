@@ -381,7 +381,8 @@ func (e *headersEvaluatorEvaluation) filterGroups(ctx context.Context, groups []
 	if removedCount := len(groups) - len(included); removedCount > 0 {
 		log.Ctx(ctx).Debug().
 			Str("request-id", requestid.FromContext(ctx)).
-			Array("removed-groups-ids", excluded).
+			Array("removed-group-ids", excluded).
+			Strs("remaining-group-ids", included).
 			Msg("JWT group filtering removed groups")
 		e.response.AdditionalLogFields[log.AuthorizeLogFieldRemovedGroupsCount] = removedCount
 	}
