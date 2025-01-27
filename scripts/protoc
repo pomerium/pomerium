@@ -12,25 +12,32 @@ fi
 
 # fetch_zip dir name url
 download() {
-  local dst="$1/$2"
-  if [ -d "$dst" ]; then
+  local _dir="$1"
+  local _name="$2"
+  local _url="$3"
+
+  local _dst="$_dir/$_name"
+  # if we've already downloaded this zip, just return
+  if echo "$_url" | cmp -s - "$_dst/.url"; then
     return
   fi
 
-  echo downloading "$2"
-  local archive
-  archive="$(mktemp)"
-  curl -L -o "$archive" "$3"
-  mkdir -p "$dst"
-  tar xzf "$archive" -C "$dst" --strip-components=1
-  rm "$archive"
+  echo downloading "$_name"
+  local _archive
+  _archive="$(mktemp)"
+  curl -L -o "$_archive" "$_url"
+  rm -rf "$_dst"
+  mkdir -p "$_dst"
+  tar xzf "$_archive" -C "$_dst" --strip-components=1
+  rm "$_archive"
+  echo "$_url" >"$_dst/.url"
 }
 
-download $_protoc_3pp_path protoc-gen-validate https://github.com/envoyproxy/protoc-gen-validate/tarball/v0.6.1
-download $_protoc_3pp_path data-plane-api https://github.com/envoyproxy/data-plane-api/tarball/main
-download $_protoc_3pp_path udpa https://github.com/cncf/udpa/tarball/main
-download $_protoc_3pp_path xds https://github.com/cncf/xds/tarball/main
-download $_protoc_3pp_path googleapis https://github.com/googleapis/googleapis/tarball/master
+download $_protoc_3pp_path protoc-gen-validate https://github.com/envoyproxy/protoc-gen-validate/tarball/v1.2.1
+download $_protoc_3pp_path data-plane-api https://github.com/envoyproxy/data-plane-api/tarball/64bdd0e8c82109ba84569ed2e4eb50170fd9d4fe
+download $_protoc_3pp_path udpa https://github.com/cncf/udpa/tarball/c52dc94e7fbe6449d8465faaeda22c76ca62d4ff
+download $_protoc_3pp_path xds https://github.com/cncf/xds/tarball/2f005788dc42b92dee41c8ad934450dc4746f027
+download $_protoc_3pp_path googleapis https://github.com/googleapis/googleapis/tarball/2fc4ca137765a3003097c58c3f7dab9f4ccfe2b5
 
 mkdir -p "$_protoc_path" "$_protoc_3pp_path"
 if [ ! -f "$_protoc_path/bin/protoc" ]; then
