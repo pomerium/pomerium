@@ -18,11 +18,22 @@ export const SubpageContextProvider: FC<SubpageContextProviderProps> = ({
   children,
 }) => {
   const setSubpage = (subpage: string) => {
+    location.hash = "subpage=" + encodeURIComponent(subpage);
     setState({ ...state, subpage });
   };
+  const hashParams = new URLSearchParams(location.hash.substring(1));
 
   const initState = {
-    subpage: page === "DeviceEnrolled" ? "Devices Info" : "User",
+    subpage:
+      page === "DeviceEnrolled"
+        ? "Devices Info"
+        : page === "Routes"
+        ? "Routes"
+        : hashParams.get("subpage") === "Groups Info"
+        ? "Groups Info"
+        : hashParams.get("subpage") === "Devices Info"
+        ? "Devices Info"
+        : "User",
     setSubpage,
   };
 

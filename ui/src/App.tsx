@@ -4,15 +4,16 @@ import React, { FC, useLayoutEffect } from "react";
 import ErrorPage from "./components/ErrorPage";
 import Footer from "./components/Footer";
 import Header from "./components/Header";
+import RoutesPage from "./components/RoutesPage";
 import SignOutConfirmPage from "./components/SignOutConfirmPage";
 import SignedOutPage from "./components/SignedOutPage";
 import { ToolbarOffset } from "./components/ToolbarOffset";
+import UpstreamErrorPage from "./components/UpstreamErrorPage";
 import UserInfoPage from "./components/UserInfoPage";
 import WebAuthnRegistrationPage from "./components/WebAuthnRegistrationPage";
 import { SubpageContextProvider } from "./context/Subpage";
 import { createTheme } from "./theme";
 import { PageData } from "./types";
-import UpstreamErrorPage from "./components/UpstreamErrorPage";
 
 const App: FC = () => {
   const data = (window["POMERIUM_DATA"] || {}) as PageData;
@@ -20,8 +21,11 @@ const App: FC = () => {
   const secondary = data?.secondaryColor || "#49AAA1";
   const theme = createTheme(primary, secondary);
   let body: React.ReactNode = <></>;
-  if(data?.page === 'Error' && data?.statusText?.toLowerCase().includes('upstream')) {
-    data.page = 'UpstreamError';
+  if (
+    data?.page === "Error" &&
+    data?.statusText?.toLowerCase().includes("upstream")
+  ) {
+    data.page = "UpstreamError";
   }
   switch (data?.page) {
     case "UpstreamError":
@@ -29,6 +33,9 @@ const App: FC = () => {
       break;
     case "Error":
       body = <ErrorPage data={data} />;
+      break;
+    case "Routes":
+      body = <RoutesPage data={data} />;
       break;
     case "SignOutConfirm":
       body = <SignOutConfirmPage data={data} />;
@@ -64,7 +71,10 @@ const App: FC = () => {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <SubpageContextProvider page={data?.page}>
-        <Header includeSidebar={data?.page === "UserInfo"} data={data} />
+        <Header
+          includeSidebar={data?.page === "UserInfo" || data?.page === "Routes"}
+          data={data}
+        />
         <ToolbarOffset />
         <Box sx={{ overflow: "hidden", height: "calc(100vh - 120px)" }}>
           <Box
