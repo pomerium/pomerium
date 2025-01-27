@@ -84,10 +84,11 @@ type RequestSession struct {
 
 // Result is the result of evaluation.
 type Result struct {
-	Allow   RuleResult
-	Deny    RuleResult
-	Headers http.Header
-	Traces  []contextutil.PolicyEvaluationTrace
+	Allow               RuleResult
+	Deny                RuleResult
+	Headers             http.Header
+	Traces              []contextutil.PolicyEvaluationTrace
+	AdditionalLogFields map[log.AuthorizeLogField]any
 }
 
 // An Evaluator evaluates policies.
@@ -228,10 +229,11 @@ func (e *Evaluator) Evaluate(ctx context.Context, req *Request) (*Result, error)
 	}
 
 	res := &Result{
-		Allow:   policyOutput.Allow,
-		Deny:    policyOutput.Deny,
-		Headers: headersOutput.Headers,
-		Traces:  policyOutput.Traces,
+		Allow:               policyOutput.Allow,
+		Deny:                policyOutput.Deny,
+		Headers:             headersOutput.Headers,
+		Traces:              policyOutput.Traces,
+		AdditionalLogFields: headersOutput.AdditionalLogFields,
 	}
 	return res, nil
 }

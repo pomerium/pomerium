@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
@@ -64,6 +65,11 @@ func Test_populateLogEvent(t *testing.T) {
 		sessionID: "IMPERSONATE-SESSION-ID",
 		userID:    "IMPERSONATE-USER-ID",
 	}
+	res := &evaluator.Result{
+		AdditionalLogFields: map[log.AuthorizeLogField]any{
+			log.AuthorizeLogFieldRemovedGroupsCount: 42,
+		},
+	}
 
 	for _, tc := range []struct {
 		field  log.AuthorizeLogField
@@ -82,6 +88,7 @@ func Test_populateLogEvent(t *testing.T) {
 		{log.AuthorizeLogFieldMethod, s, `{"method":"GET"}`},
 		{log.AuthorizeLogFieldPath, s, `{"path":"https://www.example.com/some/path"}`},
 		{log.AuthorizeLogFieldQuery, s, `{"query":"a=b"}`},
+		{log.AuthorizeLogFieldRemovedGroupsCount, s, `{"removed-groups-count":42}`},
 		{log.AuthorizeLogFieldRequestID, s, `{"request-id":"REQUEST-ID"}`},
 		{log.AuthorizeLogFieldServiceAccountID, sa, `{"service-account-id":"SERVICE-ACCOUNT-ID"}`},
 		{log.AuthorizeLogFieldSessionID, s, `{"session-id":"SESSION-ID"}`},
@@ -97,7 +104,7 @@ func Test_populateLogEvent(t *testing.T) {
 			var buf bytes.Buffer
 			log := zerolog.New(&buf)
 			evt := log.Log()
-			evt = populateLogEvent(ctx, tc.field, evt, checkRequest, tc.s, u, headers, impersonateDetails)
+			evt = populateLogEvent(ctx, tc.field, evt, checkRequest, tc.s, u, headers, impersonateDetails, res)
 			evt.Send()
 
 			assert.Equal(t, tc.expect, strings.TrimSpace(buf.String()))
