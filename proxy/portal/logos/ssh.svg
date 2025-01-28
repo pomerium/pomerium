@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="1024"
+   height="1024"
+   viewBox="0 0 270.93334 270.93335"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20)"
+   sodipodi:docname="unofficial_ssh_logo.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <title
+     id="title31118">Unofficial SSH Logo</title>
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="true"
+     inkscape:document-units="px"
+     showgrid="false"
+     inkscape:zoom="0.35455948"
+     inkscape:cx="1817.7486"
+     inkscape:cy="781.25115"
+     inkscape:window-width="1920"
+     inkscape:window-height="974"
+     inkscape:window-x="-11"
+     inkscape:window-y="-11"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1"
+     units="px"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
+     showguides="false" />
+  <defs
+     id="defs2">
+    <rect
+       x="215.7607"
+       y="431.52139"
+       width="1284.6927"
+       height="1212.7725"
+       id="rect4401-2" />
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <rect
+       style="fill:#323330;fill-opacity:1;stroke-width:0;paint-order:stroke fill markers"
+       id="rect20116"
+       width="270.93332"
+       height="270.93332"
+       x="0"
+       y="0" />
+    <g
+       aria-label="SSH"
+       transform="matrix(0.26459082,0,0,0.26490621,-13.684176,24.697131)"
+       id="text4399"
+       style="font-size:466.667px;line-height:1.25;white-space:pre;shape-inside:url(#rect4401-2);fill:#ffffff">
+      <path
+         d="m 229.29311,801.47903 c -1.86667,1.86667 -2.33334,5.60001 0,7.93334 29.86669,29.40002 71.86672,46.20004 114.33341,46.20004 70.93338,0 115.73342,-42.93337 115.73342,-96.13341 0,-47.13336 -28.46669,-72.33338 -65.33338,-88.20006 l -41.53337,-17.26668 c -26.13335,-10.73334 -44.80003,-18.20001 -44.80003,-37.33335 0,-18.20002 14.46668,-29.86669 42.00003,-29.86669 24.73335,0 43.40003,8.86667 62.53338,24.73335 2.8,2.33333 6.53334,1.4 8.40001,-0.93334 l 27.53335,-34.53335 c 1.86667,-1.86667 1.86667,-5.60001 -0.46667,-7.93334 -24.73335,-24.73335 -61.13338,-40.13336 -98.00007,-40.13336 -62.06671,0 -108.26674,39.20002 -108.26674,91.46673 0,48.0667 34.06669,73.26671 64.86671,86.33339 l 42.00003,18.20001 c 28.46669,12.13335 43.8667,18.66668 43.8667,39.6667 0,19.60001 -14.46668,33.60002 -47.60003,33.60002 -26.13336,0 -54.13338,-13.53334 -75.13339,-33.13336 -2.8,-2.33333 -6.53334,-1.86666 -8.40001,0.46667 z"
+         style="font-family:'Falling Sky';-inkscape-font-specification:'Falling Sky'"
+         id="path30940" />
+      <path
+         d="m 476.15874,801.47903 c -1.86667,1.86667 -2.33334,5.60001 0,7.93334 29.86669,29.40002 71.86672,46.20004 114.33341,46.20004 70.93339,0 115.73342,-42.93337 115.73342,-96.13341 0,-47.13336 -28.46669,-72.33338 -65.33338,-88.20006 l -41.53336,-17.26668 c -26.13336,-10.73334 -44.80004,-18.20001 -44.80004,-37.33335 0,-18.20002 14.46668,-29.86669 42.00003,-29.86669 24.73335,0 43.40003,8.86667 62.53338,24.73335 2.8,2.33333 6.53334,1.4 8.40001,-0.93334 l 27.53335,-34.53335 c 1.86667,-1.86667 1.86667,-5.60001 -0.46667,-7.93334 -24.73335,-24.73335 -61.13337,-40.13336 -98.00007,-40.13336 -62.06671,0 -108.26674,39.20002 -108.26674,91.46673 0,48.0667 34.06669,73.26671 64.86671,86.33339 l 42.00003,18.20001 c 28.46669,12.13335 43.8667,18.66668 43.8667,39.6667 0,19.60001 -14.46668,33.60002 -47.60003,33.60002 -26.13335,0 -54.13337,-13.53334 -75.13339,-33.13336 -2.8,-2.33333 -6.53334,-1.86666 -8.40001,0.46667 z"
+         style="font-family:'Falling Sky';-inkscape-font-specification:'Falling Sky'"
+         id="path30942" />
+      <path
+         d="m 749.62476,844.4124 c 0,2.33333 2.33333,5.6 6.06667,5.6 h 54.13337 c 2.33334,0 5.6,-1.86667 5.6,-5.6 V 714.67897 H 927.89155 V 844.4124 c 0,2.33333 1.86667,5.6 5.6,5.6 h 54.13337 c 2.33334,0 6.06668,-1.86667 6.06668,-5.6 V 539.21218 c 0,-2.33333 -2.33334,-5.6 -6.06668,-5.6 h -54.13337 c -2.33333,0 -5.6,1.86667 -5.6,5.6 V 655.87893 H 815.4248 V 539.21218 c 0,-2.33333 -1.86666,-5.6 -5.6,-5.6 h -54.13337 c -2.33334,0 -6.06667,1.86667 -6.06667,5.6 z"
+         style="font-family:'Falling Sky';-inkscape-font-specification:'Falling Sky'"
+         id="path30944" />
+    </g>
+  </g>
+  <metadata
+     id="metadata31116">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>Unofficial SSH Logo</dc:title>
+        <dc:date>2022-02-25</dc:date>
+        <dc:creator>
+          <cc:Agent>
+            <dc:title>Jessie Kirk</dc:title>
+          </cc:Agent>
+        </dc:creator>
+        <dc:source>https://github.com/voodootikigod/logo.js/blob/1544bdeed/js.svg</dc:source>
+        <dc:description>Based on Unofficial JavaScript Logo by Chris Williams.</dc:description>
+        <cc:license
+           rdf:resource="http://creativecommons.org/licenses/by/4.0/" />
+      </cc:Work>
+      <cc:License
+         rdf:about="http://creativecommons.org/licenses/by/4.0/">
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#Reproduction" />
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#Distribution" />
+        <cc:requires
+           rdf:resource="http://creativecommons.org/ns#Notice" />
+        <cc:requires
+           rdf:resource="http://creativecommons.org/ns#Attribution" />
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#DerivativeWorks" />
+      </cc:License>
+    </rdf:RDF>
+  </metadata>
+</svg>
