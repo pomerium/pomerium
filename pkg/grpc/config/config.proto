@@ -219,16 +219,11 @@ message Settings {
   optional string otel_exporter_otlp_traces_protocol = 129;
   repeated string otel_exporter_otlp_headers = 130;
   repeated string otel_exporter_otlp_traces_headers = 131;
-  optional int64  otel_exporter_otlp_timeout = 132;
-  optional int64  otel_exporter_otlp_traces_timeout = 133;
-  optional int32  otel_bsp_schedule_delay = 134;
-  optional int32  otel_bsp_max_export_batch_size = 135;
-  reserved 98; // tracing_datadog_address
-  reserved 41; // tracing_provider
-  reserved 42; // tracing_sample_rate
-  reserved 43; // tracing_jaeger_collector_endpoint
-  reserved 44; // tracing_jaeger_agent_endpoint
-  reserved 45; // tracing_zipkin_endpoint
+  optional google.protobuf.Duration otel_exporter_otlp_timeout = 132;
+  optional google.protobuf.Duration otel_exporter_otlp_traces_timeout = 133;
+  optional google.protobuf.Duration otel_bsp_schedule_delay = 134;
+  optional int32 otel_bsp_max_export_batch_size = 135;
+  reserved 41 to 45, 98; // legacy tracing fields
   optional string grpc_address = 46;
   optional bool grpc_insecure = 47;
   optional google.protobuf.Duration grpc_client_timeout = 99;

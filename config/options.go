@@ -1513,9 +1513,9 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	setOptional(&o.Tracing.OtelExporterOtlpTracesProtocol, settings.OtelExporterOtlpTracesProtocol)
 	setSlice(&o.Tracing.OtelExporterOtlpHeaders, settings.OtelExporterOtlpHeaders)
 	setSlice(&o.Tracing.OtelExporterOtlpTracesHeaders, settings.OtelExporterOtlpTracesHeaders)
-	setOptional(&o.Tracing.OtelExporterOtlpTimeout, settings.OtelExporterOtlpTimeout)
-	setOptional(&o.Tracing.OtelExporterOtlpTracesTimeout, settings.OtelExporterOtlpTracesTimeout)
-	setOptional(&o.Tracing.OtelBspScheduleDelay, settings.OtelBspScheduleDelay)
+	setOptionalDuration(&o.Tracing.OtelExporterOtlpTimeout, settings.OtelExporterOtlpTimeout)
+	setOptionalDuration(&o.Tracing.OtelExporterOtlpTracesTimeout, settings.OtelExporterOtlpTracesTimeout)
+	setOptionalDuration(&o.Tracing.OtelBspScheduleDelay, settings.OtelBspScheduleDelay)
 	setOptional(&o.Tracing.OtelBspMaxExportBatchSize, settings.OtelBspMaxExportBatchSize)
 
 	set(&o.GRPCAddr, settings.GrpcAddress)
@@ -1614,9 +1614,9 @@ func (o *Options) ToProto() *config.Config {
 	settings.OtelExporterOtlpTracesProtocol = o.Tracing.OtelExporterOtlpTracesProtocol
 	settings.OtelExporterOtlpHeaders = o.Tracing.OtelExporterOtlpHeaders
 	settings.OtelExporterOtlpTracesHeaders = o.Tracing.OtelExporterOtlpTracesHeaders
-	settings.OtelExporterOtlpTimeout = o.Tracing.OtelExporterOtlpTimeout
-	settings.OtelExporterOtlpTracesTimeout = o.Tracing.OtelExporterOtlpTracesTimeout
-	settings.OtelBspScheduleDelay = o.Tracing.OtelBspScheduleDelay
+	settings.OtelExporterOtlpTimeout = o.Tracing.OtelExporterOtlpTimeout.ToProto()
+	settings.OtelExporterOtlpTracesTimeout = o.Tracing.OtelExporterOtlpTracesTimeout.ToProto()
+	settings.OtelBspScheduleDelay = o.Tracing.OtelBspScheduleDelay.ToProto()
 	settings.OtelBspMaxExportBatchSize = o.Tracing.OtelBspMaxExportBatchSize
 
 	copySrcToOptionalDest(&settings.GrpcAddress, &o.GRPCAddr)
@@ -1894,6 +1894,14 @@ func setDuration(dst *time.Duration, src *durationpb.Duration) {
 		return
 	}
 	*dst = src.AsDuration()
+}
+
+func setOptionalDuration[T ~int64](dst **T, src *durationpb.Duration) {
+	if src == nil {
+		return
+	}
+	v := T(src.AsDuration())
+	*dst = &v
 }
 
 func setLogLevel(dst *LogLevel, src *string) {

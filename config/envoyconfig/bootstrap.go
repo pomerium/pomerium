@@ -3,9 +3,9 @@ package envoyconfig
 import (
 	"context"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
+	"time"
 
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	envoy_config_bootstrap_v3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
@@ -17,9 +17,9 @@ import (
 	envoy_extensions_access_loggers_file_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/file/v3"
 	envoy_extensions_resource_monitors_downstream_connections_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/resource_monitors/downstream_connections/v3"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/otelconfig"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -150,18 +150,18 @@ func (b *Builder) BuildBootstrapDynamicResources(
 
 // BuildBootstrapLayeredRuntime builds the layered runtime for the envoy bootstrap.
 func (b *Builder) BuildBootstrapLayeredRuntime(ctx context.Context, cfg *config.Config) (*envoy_config_bootstrap_v3.LayeredRuntime, error) {
-	flushIntervalMs := int32(sdktrace.DefaultScheduleDelay)
-	minFlushSpans := int32(sdktrace.DefaultMaxExportBatchSize)
+	flushInterval := otelconfig.DefaultScheduleDelay
+	minFlushSpans := int32(otelconfig.DefaultMaxExportBatchSize)
 	if cfg.Options != nil {
 		if cfg.Options.Tracing.OtelBspScheduleDelay != nil {
-			flushIntervalMs = max(100, *cfg.Options.Tracing.OtelBspScheduleDelay)
+			flushInterval = max(otelconfig.MinimumScheduleDelay, time.Duration(*cfg.Options.Tracing.OtelBspScheduleDelay))
 		}
 		if cfg.Options.Tracing.OtelBspMaxExportBatchSize != nil {
-			minFlushSpans = max(1, min(2048, *cfg.Options.Tracing.OtelBspMaxExportBatchSize))
+			minFlushSpans = max(otelconfig.MinimumMaxExportBatchSize, *cfg.Options.Tracing.OtelBspMaxExportBatchSize)
 		}
 	}
 	if trace.DebugFlagsFromContext(ctx).Check(trace.EnvoyFlushEverySpan) {
-		flushIntervalMs = math.MaxInt32
+		flushInterval = 24 * time.Hour
 		minFlushSpans = 1
 	}
 	layer, err := structpb.NewStruct(map[string]any{
@@ -173,7 +173,7 @@ func (b *Builder) BuildBootstrapLayeredRuntime(ctx context.Context, cfg *config.
 		},
 		"tracing": map[string]any{
 			"opentelemetry": map[string]any{
-				"flush_interval_ms": flushIntervalMs,
+				"flush_interval_ms": flushInterval.Milliseconds(),
 				// Note: for most requests, envoy generates 3 spans:
 				// - ingress (downstream->envoy)
 				// - ext_authz check request (envoy->pomerium)
