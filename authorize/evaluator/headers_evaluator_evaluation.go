@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-jose/go-jose/v3"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/pomerium/datasource/pkg/directory"
@@ -22,7 +23,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
-	"github.com/pomerium/pomerium/pkg/slices"
+	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
 // A headersEvaluatorEvaluation is a single evaluation of the headers evaluator.
@@ -56,8 +57,11 @@ func newHeadersEvaluatorEvaluation(evaluator *HeadersEvaluator, request *Headers
 	return &headersEvaluatorEvaluation{
 		evaluator: evaluator,
 		request:   request,
-		response:  &HeadersResponse{Headers: make(http.Header)},
-		now:       now,
+		response: &HeadersResponse{
+			Headers:             make(http.Header),
+			AdditionalLogFields: make(map[log.AuthorizeLogField]any),
+		},
+		now: now,
 	}
 }
 
@@ -285,7 +289,7 @@ func (e *headersEvaluatorEvaluation) getJWTPayloadGroups(ctx context.Context) []
 func (e *headersEvaluatorEvaluation) getGroups(ctx context.Context) []string {
 	groupIDs := e.getGroupIDs(ctx)
 	if len(groupIDs) > 0 {
-		groupIDs = e.filterGroups(groupIDs)
+		groupIDs = e.filterGroups(ctx, groupIDs)
 		groups := make([]string, 0, len(groupIDs)*2)
 		groups = append(groups, groupIDs...)
 		groups = append(groups, e.getDataBrokerGroupNames(ctx, groupIDs)...)
@@ -297,7 +301,7 @@ func (e *headersEvaluatorEvaluation) getGroups(ctx context.Context) []string {
 	return groups
 }
 
-func (e *headersEvaluatorEvaluation) filterGroups(groups []string) []string {
+func (e *headersEvaluatorEvaluation) filterGroups(ctx context.Context, groups []string) []string {
 	// Apply the global groups filter or the per-route groups filter, if either is enabled.
 	filters := make([]config.JWTGroupsFilter, 0, 2)
 	if f := e.evaluator.store.GetJWTGroupsFilter(); f.Enabled() {
@@ -309,7 +313,8 @@ func (e *headersEvaluatorEvaluation) filterGroups(groups []string) []string {
 	if len(filters) == 0 {
 		return groups
 	}
-	return slices.Filter(groups, func(g string) bool {
+
+	filterFn := func(g string) bool {
 		// A group should be included if it appears in either the global or the route-level filter list.
 		for _, f := range filters {
 			if f.IsAllowed(g) {
@@ -317,7 +322,31 @@ func (e *headersEvaluatorEvaluation) filterGroups(groups []string) []string {
 			}
 		}
 		return false
-	})
+	}
+	var included []string
+
+	// Log the specifics of which groups were filtered out at Debug level.
+	var excluded *zerolog.Array
+	if log.Ctx(ctx).GetLevel() <= zerolog.DebugLevel {
+		excluded = zerolog.Arr()
+	}
+
+	for _, g := range groups {
+		if filterFn(g) {
+			included = append(included, g)
+		} else if excluded != nil {
+			excluded.Str(g)
+		}
+	}
+	if removedCount := len(groups) - len(included); removedCount > 0 {
+		log.Ctx(ctx).Debug().
+			Str("request-id", requestid.FromContext(ctx)).
+			Array("removed-group-ids", excluded).
+			Strs("remaining-group-ids", included).
+			Msg("JWT group filtering removed groups")
+		e.response.AdditionalLogFields[log.AuthorizeLogFieldRemovedGroupsCount] = removedCount
+	}
+	return included
 }
 
 func (e *headersEvaluatorEvaluation) getJWTPayloadSID() string {

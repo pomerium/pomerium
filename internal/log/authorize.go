@@ -23,6 +23,7 @@ const (
 	AuthorizeLogFieldMethod               AuthorizeLogField = "method"
 	AuthorizeLogFieldPath                 AuthorizeLogField = "path"
 	AuthorizeLogFieldQuery                AuthorizeLogField = "query"
+	AuthorizeLogFieldRemovedGroupsCount   AuthorizeLogField = "removed-groups-count"
 	AuthorizeLogFieldRequestID            AuthorizeLogField = "request-id"
 	AuthorizeLogFieldServiceAccountID     AuthorizeLogField = "service-account-id"
 	AuthorizeLogFieldSessionID            AuthorizeLogField = "session-id"
@@ -41,6 +42,7 @@ var DefaultAuthorizeLogFields = []AuthorizeLogField{
 	AuthorizeLogFieldImpersonateSessionID,
 	AuthorizeLogFieldImpersonateUserID,
 	AuthorizeLogFieldImpersonateEmail,
+	AuthorizeLogFieldRemovedGroupsCount,
 	AuthorizeLogFieldServiceAccountID,
 	AuthorizeLogFieldUser,
 	AuthorizeLogFieldEmail,
@@ -63,6 +65,7 @@ var authorizeLogFieldLookup = map[AuthorizeLogField]struct{}{
 	AuthorizeLogFieldMethod:               {},
 	AuthorizeLogFieldPath:                 {},
 	AuthorizeLogFieldQuery:                {},
+	AuthorizeLogFieldRemovedGroupsCount:   {},
 	AuthorizeLogFieldRequestID:            {},
 	AuthorizeLogFieldServiceAccountID:     {},
 	AuthorizeLogFieldSessionID:            {},

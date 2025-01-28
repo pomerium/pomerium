@@ -11,6 +11,7 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 )
 
@@ -66,7 +67,8 @@ func NewHeadersRequestFromPolicy(policy *config.Policy, http RequestHTTP) (*Head
 
 // HeadersResponse is the output from the headers.rego script.
 type HeadersResponse struct {
-	Headers http.Header
+	Headers             http.Header
+	AdditionalLogFields map[log.AuthorizeLogField]any
 }
 
 // A HeadersEvaluator evaluates the headers.rego script.
