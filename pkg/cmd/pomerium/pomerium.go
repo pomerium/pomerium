@@ -340,7 +340,7 @@ func updateTraceClient(ctx context.Context, cfg *config.Config) {
 				provider = *cfg.Options.Tracing.OtelTracesExporter
 			}
 			log.Ctx(ctx).
-				Info().
+				Debug().
 				Str("provider", provider).
 				Msg("trace client updated")
 		}()
