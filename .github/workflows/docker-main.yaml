@@ -8,7 +8,7 @@ on:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       sha-tag: ${{ steps.metadata.outputs.sha-tag }}
       image: ${{ steps.metadata.outputs.image }}
