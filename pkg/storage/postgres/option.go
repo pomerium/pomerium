@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"time"
+
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -10,8 +12,9 @@ const (
 )
 
 type config struct {
-	expiry      time.Duration
-	registryTTL time.Duration
+	expiry         time.Duration
+	registryTTL    time.Duration
+	tracerProvider oteltrace.TracerProvider
 }
 
 // Option customizes a Backend.
@@ -28,6 +31,12 @@ func WithExpiry(expiry time.Duration) Option {
 func WithRegistryTTL(ttl time.Duration) Option {
 	return func(cfg *config) {
 		cfg.registryTTL = ttl
+	}
+}
+
+func WithTracerProvider(tracerProvider oteltrace.TracerProvider) Option {
+	return func(cfg *config) {
+		cfg.tracerProvider = tracerProvider
 	}
 }
 

@@ -19,6 +19,7 @@ require (
 	github.com/docker/docker v27.4.1+incompatible
 	github.com/envoyproxy/go-control-plane/envoy v1.32.3
 	github.com/envoyproxy/protoc-gen-validate v1.1.0
+	github.com/exaring/otelpgx v0.8.0
 	github.com/go-chi/chi/v5 v5.2.0
 	github.com/go-jose/go-jose/v3 v3.0.3
 	github.com/google/btree v1.1.3
@@ -70,16 +71,16 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.57.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.58.0
 	go.opentelemetry.io/contrib/propagators/autoprop v0.57.0
-	go.opentelemetry.io/otel v1.33.0
+	go.opentelemetry.io/otel v1.34.0
 	go.opentelemetry.io/otel/bridge/opencensus v1.32.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.32.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.33.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.33.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.32.0
-	go.opentelemetry.io/otel/metric v1.33.0
+	go.opentelemetry.io/otel/metric v1.34.0
 	go.opentelemetry.io/otel/sdk v1.33.0
 	go.opentelemetry.io/otel/sdk/metric v1.32.0
-	go.opentelemetry.io/otel/trace v1.33.0
+	go.opentelemetry.io/otel/trace v1.34.0
 	go.opentelemetry.io/proto/otlp v1.4.0
 	go.uber.org/automaxprocs v1.6.0
 	go.uber.org/mock v0.5.0
