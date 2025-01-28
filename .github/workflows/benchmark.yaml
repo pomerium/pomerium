@@ -17,7 +17,7 @@ jobs:
       matrix:
         go-version: [1.23.x]
         node-version: [16.x]
-        platform: [ubuntu-latest]
+        platform: [ubuntu-22.04]
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
