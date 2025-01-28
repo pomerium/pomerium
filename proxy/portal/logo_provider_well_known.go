@@ -96,10 +96,8 @@ func (p *wellKnownLogoProvider) GetLogoURL(_ context.Context, _, to string) (str
 		return "", ErrLogoNotFound
 	}
 
-	if !(u.Scheme == "tcp+https" ||
-		u.Scheme == "tcp+http" ||
-		u.Scheme == "udp+https" ||
-		u.Scheme == "udp+http") {
+	if !(u.Scheme == "tcp" ||
+		u.Scheme == "udp") {
 		return "", ErrLogoNotFound
 	}
 
@@ -143,7 +141,7 @@ func (p *wellKnownLogoProvider) GetLogoURL(_ context.Context, _, to string) (str
 	case "5652", "5653", "5654", "5655", "5656": // machbase
 		return dataURL(mediaTypePNG, machbaseLogo), nil
 	case "5672": // rabbitmq
-		return dataURL(mediaTypePNG, rabbitmqLogo), nil
+		return dataURL(mediaTypeSVG, rabbitmqLogo), nil
 	case "5984": // couchdb
 		return dataURL(mediaTypeSVG, couchdbLogo), nil
 	case "6379": // redis
