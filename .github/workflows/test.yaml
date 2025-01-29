@@ -14,7 +14,7 @@ jobs:
       matrix:
         go-version: [1.23.x]
         node-version: [16.x]
-        platform: [ubuntu-latest]
+        platform: [ubuntu-22.04]
         deployment: [multi, single]
         authenticate-flow: [stateful, stateless]
     runs-on: ${{ matrix.platform }}
@@ -86,7 +86,7 @@ jobs:
         run: make cover
 
       - uses: jandelgado/gcov2lcov-action@4e1989767862652e6ca8d3e2e61aabe6d43be28b
-        if: matrix.platform == 'ubuntu-latest'
+        if: matrix.platform == 'ubuntu-22.04'
         name: convert coverage to lcov
         with:
           infile: coverage.txt
@@ -94,13 +94,13 @@ jobs:
 
       - name: upload to coveralls
         uses: coverallsapp/github-action@cfd0633edbd2411b532b808ba7a8b5e04f76d2c8
-        if: matrix.platform == 'ubuntu-latest'
+        if: matrix.platform == 'ubuntu-22.04'
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: coverage.lcov
 
   build-docker:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
@@ -117,7 +117,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   precommit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -142,7 +142,7 @@ jobs:
           SKIP: lint
 
   check-docker-images:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
