@@ -21,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/proxy/portal"
 )
 
 const (
@@ -60,6 +61,7 @@ type Proxy struct {
 	currentRouter  *atomicutil.Value[*mux.Router]
 	webauthn       *webauthn.Handler
 	tracerProvider oteltrace.TracerProvider
+	logoProvider   portal.LogoProvider
 }
 
 // New takes a Proxy service from options and a validation function.
@@ -76,6 +78,7 @@ func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 		state:          atomicutil.NewValue(state),
 		currentOptions: config.NewAtomicOptions(),
 		currentRouter:  atomicutil.NewValue(httputil.NewRouter()),
+		logoProvider:   portal.NewLogoProvider(),
 	}
 	p.OnConfigChange(ctx, cfg)
 	p.webauthn = webauthn.New(p.getWebauthnState)
