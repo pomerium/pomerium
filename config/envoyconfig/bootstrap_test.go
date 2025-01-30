@@ -36,7 +36,7 @@ func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 
 func TestBuilder_BuildBootstrapLayeredRuntime(t *testing.T) {
 	b := New("localhost:1111", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil)
-	staticCfg, err := b.BuildBootstrapLayeredRuntime(context.Background())
+	staticCfg, err := b.BuildBootstrapLayeredRuntime(context.Background(), &config.Config{})
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `
 		{ "layers": [{

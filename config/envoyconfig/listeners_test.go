@@ -149,7 +149,14 @@ func Test_buildMainHTTPConnectionManagerFilter(t *testing.T) {
 	options.SkipXffAppend = true
 	options.XffNumTrustedHops = 1
 	options.AuthenticateURLString = "https://authenticate.example.com"
-	options.TracingProvider = "otlp"
+	otlp := "otlp"
+	options.Tracing.OtelTracesExporter = &otlp
+	one := 1.0
+	options.Tracing.OtelTracesSamplerArg = &one
+	limit := int32(1024)
+	options.Tracing.OtelAttributeValueLengthLimit = &limit
+	endpoint := "http://localhost:4317"
+	options.Tracing.OtelExporterOtlpTracesEndpoint = &endpoint
 	filter, err := b.buildMainHTTPConnectionManagerFilter(context.Background(), &config.Config{Options: options}, false, false)
 	require.NoError(t, err)
 

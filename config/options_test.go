@@ -398,7 +398,7 @@ func Test_Checksum(t *testing.T) {
 
 func TestOptionsFromViper(t *testing.T) {
 	opts := []cmp.Option{
-		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "DataBrokerURLStrings", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "TracingSampleRate", "ProgrammaticRedirectDomainWhitelist", "RuntimeFlags"),
+		cmpopts.IgnoreFields(Options{}, "CookieSecret", "GRPCInsecure", "GRPCAddr", "DataBrokerURLString", "DataBrokerURLStrings", "AuthorizeURLString", "AuthorizeURLStrings", "DefaultUpstreamTimeout", "CookieExpire", "Services", "Addr", "LogLevel", "KeyFile", "CertFile", "SharedKey", "ReadTimeout", "IdleTimeout", "GRPCClientTimeout", "ProgrammaticRedirectDomainWhitelist", "RuntimeFlags"),
 		cmpopts.IgnoreFields(Policy{}, "EnvoyOpts"),
 		cmpOptIgnoreUnexported,
 	}

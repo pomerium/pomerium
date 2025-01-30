@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"go.uber.org/automaxprocs/maxprocs"
@@ -80,6 +81,7 @@ type Pomerium struct {
 	Options
 	errGroup *errgroup.Group
 
+	startMu     sync.Mutex
 	cancel      context.CancelCauseFunc
 	envoyServer *envoy.Server
 }
@@ -94,6 +96,8 @@ func New(opts ...Option) *Pomerium {
 }
 
 func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerProvider, src config.Source) error {
+	p.startMu.Lock()
+	defer p.startMu.Unlock()
 	updateTraceClient(ctx, src.GetConfig())
 	ctx, p.cancel = context.WithCancelCause(ctx)
 	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Ctx(ctx).Debug().Msgf(s, i...) }))
@@ -215,9 +219,14 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 }
 
 func (p *Pomerium) Shutdown(ctx context.Context) error {
-	_ = trace.WaitForSpans(ctx, p.envoyServer.ExitGracePeriod())
+	p.startMu.Lock()
+	envoyServer := p.envoyServer
+	p.startMu.Unlock()
 	var errs []error
-	errs = append(errs, p.envoyServer.Close()) // this only errors if signaling envoy fails
+	if envoyServer != nil {
+		_ = trace.WaitForSpans(ctx, p.envoyServer.ExitGracePeriod())
+		errs = append(errs, p.envoyServer.Close()) // this only errors if signaling envoy fails
+	}
 	p.cancel(ErrShutdown)
 	errs = append(errs, p.Wait())
 	return errors.Join(errs...)
@@ -315,11 +324,7 @@ func updateTraceClient(ctx context.Context, cfg *config.Config) {
 	if !ok {
 		return
 	}
-	newClient, err := config.NewTraceClientFromOptions(cfg.Options)
-	if errors.Is(err, config.ErrNoTracingConfig) {
-		newClient = trace.NewRemoteClientFromEnv()
-		err = nil
-	}
+	newClient, err := trace.NewTraceClientFromConfig(cfg.Options.Tracing)
 	if err != nil {
 		log.Ctx(ctx).Warn().Err(err).Msg("error configuring trace client")
 	} else {
@@ -330,9 +335,13 @@ func updateTraceClient(ctx context.Context, cfg *config.Config) {
 					Err(err).
 					Msg("error updating trace client")
 			}
+			provider := "none"
+			if cfg.Options.Tracing.OtelTracesExporter != nil {
+				provider = *cfg.Options.Tracing.OtelTracesExporter
+			}
 			log.Ctx(ctx).
-				Info().
-				Str("provider", cfg.Options.TracingProvider).
+				Debug().
+				Str("provider", provider).
 				Msg("trace client updated")
 		}()
 	}

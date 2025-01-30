@@ -27,6 +27,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/pomerium/csrf"
+	"github.com/pomerium/pomerium/config/otelconfig"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -210,10 +211,7 @@ type Options struct {
 	MetricsClientCA           string `mapstructure:"metrics_client_ca" yaml:"metrics_client_ca,omitempty"`
 	MetricsClientCAFile       string `mapstructure:"metrics_client_ca_file" yaml:"metrics_client_ca_file,omitempty"`
 
-	TracingSampleRate   *float64 `mapstructure:"tracing_sample_rate" yaml:"tracing_sample_rate,omitempty"`
-	TracingProvider     string   `mapstructure:"tracing_provider" yaml:"tracing_provider,omitempty"`
-	TracingOTLPEndpoint string   `mapstructure:"tracing_otlp_endpoint" yaml:"tracing_otlp_endpoint,omitempty"`
-	TracingOTLPProtocol string   `mapstructure:"tracing_otlp_protocol" yaml:"tracing_otlp_protocol,omitempty"`
+	Tracing otelconfig.Config `mapstructure:",squash" yaml:",inline"`
 
 	// GRPC Service Settings
 
@@ -1503,10 +1501,23 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.MetricsBasicAuth, settings.MetricsBasicAuth)
 	setCertificate(&o.MetricsCertificate, &o.MetricsCertificateKey, settings.MetricsCertificate)
 	set(&o.MetricsClientCA, settings.MetricsClientCa)
-	set(&o.TracingProvider, settings.TracingProvider)
-	set(&o.TracingOTLPEndpoint, settings.TracingOtlpEndpoint)
-	set(&o.TracingOTLPProtocol, settings.TracingOtlpProtocol)
-	setOptional(&o.TracingSampleRate, settings.TracingSampleRate)
+
+	setOptional(&o.Tracing.OtelTracesExporter, settings.OtelTracesExporter)
+	setOptional(&o.Tracing.OtelTracesSamplerArg, settings.OtelTracesSamplerArg)
+	setSlice(&o.Tracing.OtelResourceAttributes, settings.OtelResourceAttributes)
+	setOptional(&o.Tracing.OtelLogLevel, settings.OtelLogLevel)
+	setOptional(&o.Tracing.OtelAttributeValueLengthLimit, settings.OtelAttributeValueLengthLimit)
+	setOptional(&o.Tracing.OtelExporterOtlpEndpoint, settings.OtelExporterOtlpEndpoint)
+	setOptional(&o.Tracing.OtelExporterOtlpTracesEndpoint, settings.OtelExporterOtlpTracesEndpoint)
+	setOptional(&o.Tracing.OtelExporterOtlpProtocol, settings.OtelExporterOtlpProtocol)
+	setOptional(&o.Tracing.OtelExporterOtlpTracesProtocol, settings.OtelExporterOtlpTracesProtocol)
+	setSlice(&o.Tracing.OtelExporterOtlpHeaders, settings.OtelExporterOtlpHeaders)
+	setSlice(&o.Tracing.OtelExporterOtlpTracesHeaders, settings.OtelExporterOtlpTracesHeaders)
+	setOptionalDuration(&o.Tracing.OtelExporterOtlpTimeout, settings.OtelExporterOtlpTimeout)
+	setOptionalDuration(&o.Tracing.OtelExporterOtlpTracesTimeout, settings.OtelExporterOtlpTracesTimeout)
+	setOptionalDuration(&o.Tracing.OtelBspScheduleDelay, settings.OtelBspScheduleDelay)
+	setOptional(&o.Tracing.OtelBspMaxExportBatchSize, settings.OtelBspMaxExportBatchSize)
+
 	set(&o.GRPCAddr, settings.GrpcAddress)
 	setOptional(&o.GRPCInsecure, settings.GrpcInsecure)
 	setDuration(&o.GRPCClientTimeout, settings.GrpcClientTimeout)
@@ -1591,10 +1602,23 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.MetricsBasicAuth, &o.MetricsBasicAuth)
 	settings.MetricsCertificate = toCertificateOrFromFile(o.MetricsCertificate, o.MetricsCertificateKey, o.MetricsCertificateFile, o.MetricsCertificateKeyFile)
 	copySrcToOptionalDest(&settings.MetricsClientCa, valueOrFromFileBase64(o.MetricsClientCA, o.MetricsClientCAFile))
-	copySrcToOptionalDest(&settings.TracingProvider, &o.TracingProvider)
-	settings.TracingSampleRate = o.TracingSampleRate
-	copySrcToOptionalDest(&settings.TracingOtlpEndpoint, &o.TracingOTLPEndpoint)
-	copySrcToOptionalDest(&settings.TracingOtlpProtocol, &o.TracingOTLPProtocol)
+
+	settings.OtelTracesExporter = o.Tracing.OtelTracesExporter
+	settings.OtelTracesSamplerArg = o.Tracing.OtelTracesSamplerArg
+	settings.OtelResourceAttributes = o.Tracing.OtelResourceAttributes
+	settings.OtelLogLevel = o.Tracing.OtelLogLevel
+	settings.OtelAttributeValueLengthLimit = o.Tracing.OtelAttributeValueLengthLimit
+	settings.OtelExporterOtlpEndpoint = o.Tracing.OtelExporterOtlpEndpoint
+	settings.OtelExporterOtlpTracesEndpoint = o.Tracing.OtelExporterOtlpTracesEndpoint
+	settings.OtelExporterOtlpProtocol = o.Tracing.OtelExporterOtlpProtocol
+	settings.OtelExporterOtlpTracesProtocol = o.Tracing.OtelExporterOtlpTracesProtocol
+	settings.OtelExporterOtlpHeaders = o.Tracing.OtelExporterOtlpHeaders
+	settings.OtelExporterOtlpTracesHeaders = o.Tracing.OtelExporterOtlpTracesHeaders
+	settings.OtelExporterOtlpTimeout = o.Tracing.OtelExporterOtlpTimeout.ToProto()
+	settings.OtelExporterOtlpTracesTimeout = o.Tracing.OtelExporterOtlpTracesTimeout.ToProto()
+	settings.OtelBspScheduleDelay = o.Tracing.OtelBspScheduleDelay.ToProto()
+	settings.OtelBspMaxExportBatchSize = o.Tracing.OtelBspMaxExportBatchSize
+
 	copySrcToOptionalDest(&settings.GrpcAddress, &o.GRPCAddr)
 	settings.GrpcInsecure = o.GRPCInsecure
 	copyOptionalDuration(&settings.GrpcClientTimeout, o.GRPCClientTimeout)
@@ -1870,6 +1894,14 @@ func setDuration(dst *time.Duration, src *durationpb.Duration) {
 		return
 	}
 	*dst = src.AsDuration()
+}
+
+func setOptionalDuration[T ~int64](dst **T, src *durationpb.Duration) {
+	if src == nil {
+		return
+	}
+	v := T(src.AsDuration())
+	*dst = &v
 }
 
 func setLogLevel(dst *LogLevel, src *string) {

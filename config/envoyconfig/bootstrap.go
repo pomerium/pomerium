@@ -3,9 +3,9 @@ package envoyconfig
 import (
 	"context"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
+	"time"
 
 	envoy_config_accesslog_v3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	envoy_config_bootstrap_v3 "github.com/envoyproxy/go-control-plane/envoy/config/bootstrap/v3"
@@ -16,12 +16,12 @@ import (
 	envoy_config_overload_v3 "github.com/envoyproxy/go-control-plane/envoy/config/overload/v3"
 	envoy_extensions_access_loggers_file_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/access_loggers/file/v3"
 	envoy_extensions_resource_monitors_downstream_connections_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/resource_monitors/downstream_connections/v3"
-	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/structpb"
-
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/otelconfig"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 const maxActiveDownstreamConnections = 50000
@@ -53,7 +53,7 @@ func (b *Builder) BuildBootstrap(
 		return nil, fmt.Errorf("error building bootstrap dynamic resources: %w", err)
 	}
 
-	bootstrap.LayeredRuntime, err = b.BuildBootstrapLayeredRuntime(ctx)
+	bootstrap.LayeredRuntime, err = b.BuildBootstrapLayeredRuntime(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("error building bootstrap layered runtime: %w", err)
 	}
@@ -149,12 +149,20 @@ func (b *Builder) BuildBootstrapDynamicResources(
 }
 
 // BuildBootstrapLayeredRuntime builds the layered runtime for the envoy bootstrap.
-func (b *Builder) BuildBootstrapLayeredRuntime(ctx context.Context) (*envoy_config_bootstrap_v3.LayeredRuntime, error) {
-	flushIntervalMs := trace.BatchSpanProcessorScheduleDelay()
-	minFlushSpans := trace.BatchSpanProcessorMaxExportBatchSize()
+func (b *Builder) BuildBootstrapLayeredRuntime(ctx context.Context, cfg *config.Config) (*envoy_config_bootstrap_v3.LayeredRuntime, error) {
+	flushInterval := otelconfig.DefaultScheduleDelay
+	minFlushSpans := int32(otelconfig.DefaultMaxExportBatchSize)
+	if cfg.Options != nil {
+		if cfg.Options.Tracing.OtelBspScheduleDelay != nil {
+			flushInterval = max(otelconfig.MinimumScheduleDelay, time.Duration(*cfg.Options.Tracing.OtelBspScheduleDelay))
+		}
+		if cfg.Options.Tracing.OtelBspMaxExportBatchSize != nil {
+			minFlushSpans = max(otelconfig.MinimumMaxExportBatchSize, *cfg.Options.Tracing.OtelBspMaxExportBatchSize)
+		}
+	}
 	if trace.DebugFlagsFromContext(ctx).Check(trace.EnvoyFlushEverySpan) {
+		flushInterval = 24 * time.Hour
 		minFlushSpans = 1
-		flushIntervalMs = math.MaxInt32
 	}
 	layer, err := structpb.NewStruct(map[string]any{
 		"re2": map[string]any{
@@ -165,7 +173,7 @@ func (b *Builder) BuildBootstrapLayeredRuntime(ctx context.Context) (*envoy_conf
 		},
 		"tracing": map[string]any{
 			"opentelemetry": map[string]any{
-				"flush_interval_ms": flushIntervalMs,
+				"flush_interval_ms": flushInterval.Milliseconds(),
 				// Note: for most requests, envoy generates 3 spans:
 				// - ingress (downstream->envoy)
 				// - ext_authz check request (envoy->pomerium)

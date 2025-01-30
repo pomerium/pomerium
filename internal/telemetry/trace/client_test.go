@@ -3,12 +3,15 @@ package trace_test
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/testenv"
@@ -16,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	. "github.com/pomerium/pomerium/internal/testutil/tracetest" //nolint:revive
 	"github.com/pomerium/pomerium/internal/testutil/tracetest/mock_otlptrace"
+	"github.com/pomerium/pomerium/internal/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
@@ -84,6 +88,49 @@ func TestSyncClient(t *testing.T) {
 		assert.NoError(t, sc.Update(context.Background(), mockClient2))
 		assert.NoError(t, sc.UploadTraces(context.Background(), []*tracev1.ResourceSpans{}))
 		assert.NoError(t, sc.Stop(context.Background()))
+	})
+
+	t.Run("Update from nil client to non-nil client", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		sc := trace.NewSyncClient(nil)
+
+		mockClient := mock_otlptrace.NewMockClient(ctrl)
+		start := mockClient.EXPECT().
+			Start(gomock.Any()).
+			Return(nil)
+		upload := mockClient.EXPECT().
+			UploadTraces(gomock.Any(), gomock.Any()).
+			Return(nil).
+			After(start)
+		mockClient.EXPECT().
+			Stop(gomock.Any()).
+			Return(nil).
+			After(upload)
+		assert.NoError(t, sc.Update(context.Background(), mockClient))
+		assert.NoError(t, sc.UploadTraces(context.Background(), []*tracev1.ResourceSpans{}))
+		assert.NoError(t, sc.Stop(context.Background()))
+	})
+
+	t.Run("Update from non-nil client to nil client", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		sc := trace.NewSyncClient(nil)
+
+		{
+			mockClient := mock_otlptrace.NewMockClient(ctrl)
+			start := mockClient.EXPECT().
+				Start(gomock.Any()).
+				Return(nil)
+			mockClient.EXPECT().
+				Stop(gomock.Any()).
+				Return(nil).
+				After(start)
+			assert.NoError(t, sc.Update(context.Background(), mockClient))
+		}
+
+		sc.Update(context.Background(), nil)
+		assert.ErrorIs(t, sc.UploadTraces(context.Background(), []*tracev1.ResourceSpans{}), trace.ErrNoClient)
 	})
 
 	spinWait := func(counter *atomic.Int32, until int32) error {
@@ -257,6 +304,9 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 	grpcEndpoint := receiver.GRPCEndpointURL()
 	httpEndpoint := receiver.HTTPEndpointURL()
 
+	emptyConfigFilePath := filepath.Join(env.TempDir(), "empty_config.yaml")
+	require.NoError(t, os.WriteFile(emptyConfigFilePath, []byte("{}"), 0o644))
+
 	env.Start()
 	snippets.WaitStartupComplete(env)
 
@@ -266,6 +316,7 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 		newClientErr  string
 		uploadErr     bool
 		expectNoSpans bool
+		expectHeaders map[string][]string
 	}{
 		{
 			name: "GRPC endpoint, auto protocol",
@@ -344,7 +395,7 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 			env: map[string]string{
 				"OTEL_TRACES_EXPORTER": "invalid",
 			},
-			newClientErr: `unknown otlp trace exporter "invalid", expected "otlp" or "none"`,
+			newClientErr: `unknown otlp trace exporter "invalid", expected one of ["otlp", "none"]`,
 		},
 		{
 			name: "invalid protocol",
@@ -353,7 +404,7 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 				"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": grpcEndpoint.Value(),
 				"OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": "invalid",
 			},
-			newClientErr: `unknown otlp trace exporter protocol "invalid", expected "grpc" or "http/protobuf"`,
+			newClientErr: `unknown otlp trace exporter protocol "invalid", expected one of ["grpc", "http/protobuf"]`,
 		},
 		{
 			name: "valid configuration, but sdk disabled",
@@ -392,25 +443,62 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 				"OTEL_EXPORTER_OTLP_ENDPOINT":        grpcEndpoint.Value(),
 			},
 		},
+		{
+			name: "valid exporter, trace headers",
+			env: map[string]string{
+				"OTEL_TRACES_EXPORTER":               "otlp",
+				"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": httpEndpoint.Value(),
+				"OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": "http/protobuf",
+				"OTEL_EXPORTER_OTLP_TRACES_HEADERS":  "foo=bar,bar=baz",
+			},
+			expectHeaders: map[string][]string{
+				"foo": {"bar"},
+				"bar": {"baz"},
+			},
+		},
+		{
+			name: "valid exporter, alt headers",
+			env: map[string]string{
+				"OTEL_TRACES_EXPORTER":               "otlp",
+				"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": httpEndpoint.Value(),
+				"OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": "http/protobuf",
+				"OTEL_EXPORTER_OTLP_HEADERS":         "foo=bar,bar=baz",
+			},
+			expectHeaders: map[string][]string{
+				"foo": {"bar"},
+				"bar": {"baz"},
+			},
+		},
+		{
+			name: "headers variable precedence",
+			env: map[string]string{
+				"OTEL_TRACES_EXPORTER":               "otlp",
+				"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": httpEndpoint.Value(),
+				"OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": "http/protobuf",
+				"OTEL_EXPORTER_OTLP_HEADERS":         "a=1,b=2,c=3",
+				"OTEL_EXPORTER_OTLP_TRACES_HEADERS":  "a=2,d=4",
+			},
+			expectHeaders: map[string][]string{
+				"a": {"2"},
+				"d": {"4"},
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for k, v := range tc.env {
 				t.Setenv(k, v)
 			}
-			handler := &errHandler{}
-			oldErrHandler := otel.GetErrorHandler()
-			otel.SetErrorHandler(handler)
-			t.Cleanup(func() { otel.SetErrorHandler(oldErrHandler) })
+			cfg, err := config.NewFileOrEnvironmentSource(context.Background(), emptyConfigFilePath, version.FullVersion())
+			require.NoError(t, err)
 
-			remoteClient := trace.NewRemoteClientFromEnv()
-			ctx := trace.Options{
-				RemoteClient: remoteClient,
-			}.NewContext(log.Ctx(env.Context()).WithContext(context.Background()))
-
+			remoteClient, err := trace.NewTraceClientFromConfig(cfg.GetConfig().Options.Tracing)
 			if tc.newClientErr != "" {
-				assert.ErrorContains(t, handler.err, tc.newClientErr)
+				assert.ErrorContains(t, err, tc.newClientErr)
 				return
 			}
+			require.NoError(t, err)
+
+			ctx := trace.NewContext(log.Ctx(env.Context()).WithContext(context.Background()), remoteClient)
 
 			tp := trace.NewTracerProvider(ctx, t.Name())
 
@@ -424,6 +512,11 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 			}
 			assert.NoError(t, trace.ShutdownContext(ctx))
 
+			if tc.expectHeaders != nil {
+				for _, req := range receiver.ReceivedRequests() {
+					assert.Subset(t, req.Metadata, tc.expectHeaders, "missing expected headers")
+				}
+			}
 			results := NewTraceResults(receiver.FlushResourceSpans())
 			if tc.expectNoSpans {
 				results.MatchTraces(t, MatchOptions{Exact: true})

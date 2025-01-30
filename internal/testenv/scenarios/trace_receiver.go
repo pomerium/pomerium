@@ -19,14 +19,29 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	tracev1 "go.opentelemetry.io/proto/otlp/trace/v1"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 )
+
+type RecordedExportRequest struct {
+	Request  *coltracepb.ExportTraceServiceRequest
+	Metadata map[string][]string
+}
+type RecordedExportRequests []RecordedExportRequest
+
+func (s RecordedExportRequests) AsExportTraceServiceRequests() []*coltracepb.ExportTraceServiceRequest {
+	out := make([]*coltracepb.ExportTraceServiceRequest, len(s))
+	for i, v := range s {
+		out[i] = v.Request
+	}
+	return out
+}
 
 type OTLPTraceReceiver struct {
 	coltracepb.UnimplementedTraceServiceServer
 
 	mu               sync.Mutex
-	receivedRequests []*coltracepb.ExportTraceServiceRequest
+	receivedRequests RecordedExportRequests
 	grpcUpstream     values.MutableValue[upstreams.GRPCUpstream]
 	httpUpstream     values.MutableValue[upstreams.HTTPUpstream]
 }
@@ -39,10 +54,14 @@ func NewOTLPTraceReceiver() *OTLPTraceReceiver {
 }
 
 // Export implements v1.TraceServiceServer.
-func (rec *OTLPTraceReceiver) Export(_ context.Context, req *coltracepb.ExportTraceServiceRequest) (*coltracepb.ExportTraceServiceResponse, error) {
+func (rec *OTLPTraceReceiver) Export(ctx context.Context, req *coltracepb.ExportTraceServiceRequest) (*coltracepb.ExportTraceServiceResponse, error) {
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
-	rec.receivedRequests = append(rec.receivedRequests, req)
+	md, _ := metadata.FromIncomingContext(ctx)
+	rec.receivedRequests = append(rec.receivedRequests, RecordedExportRequest{
+		Request:  req,
+		Metadata: md,
+	})
 	return &coltracepb.ExportTraceServiceResponse{}, nil
 }
 
@@ -76,8 +95,9 @@ func (rec *OTLPTraceReceiver) Attach(ctx context.Context) {
 
 // Modify implements testenv.Modifier.
 func (rec *OTLPTraceReceiver) Modify(cfg *config.Config) {
-	cfg.Options.TracingProvider = "otlp"
-	cfg.Options.TracingOTLPEndpoint = rec.GRPCEndpointURL().Value()
+	cfg.Options.Tracing.OtelTracesExporter = proto.String("otlp")
+	cfg.Options.Tracing.OtelExporterOtlpTracesEndpoint = proto.String(rec.GRPCEndpointURL().Value())
+	cfg.Options.Tracing.OtelExporterOtlpTracesProtocol = proto.String("grpc")
 }
 
 func (rec *OTLPTraceReceiver) handleV1Traces(w http.ResponseWriter, r *http.Request) {
@@ -108,7 +128,8 @@ func (rec *OTLPTraceReceiver) handleV1Traces(w http.ResponseWriter, r *http.Requ
 		_, _ = w.Write([]byte(err.Error()))
 		return
 	}
-	resp, err := rec.Export(context.TODO(), &req)
+
+	resp, err := rec.Export(metadata.NewIncomingContext(r.Context(), metadata.MD(r.Header)), &req)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte(err.Error()))
@@ -125,7 +146,7 @@ func (rec *OTLPTraceReceiver) handleV1Traces(w http.ResponseWriter, r *http.Requ
 	_, _ = w.Write(respData)
 }
 
-func (rec *OTLPTraceReceiver) ReceivedRequests() []*coltracepb.ExportTraceServiceRequest {
+func (rec *OTLPTraceReceiver) ReceivedRequests() []RecordedExportRequest {
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
 	return rec.receivedRequests
@@ -139,7 +160,7 @@ func (rec *OTLPTraceReceiver) PeekResourceSpans() []*tracev1.ResourceSpans {
 }
 
 func (rec *OTLPTraceReceiver) peekResourceSpansLocked() []*tracev1.ResourceSpans {
-	return tracetest.FlattenExportRequests(rec.receivedRequests)
+	return tracetest.FlattenExportRequests(rec.receivedRequests.AsExportTraceServiceRequests())
 }
 
 func (rec *OTLPTraceReceiver) FlushResourceSpans() []*tracev1.ResourceSpans {

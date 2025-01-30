@@ -2,8 +2,8 @@ package envoyconfig
 
 import (
 	"context"
-	"os"
-	"strconv"
+	"strings"
+	"time"
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	tracev3 "github.com/envoyproxy/go-control-plane/envoy/config/trace/v3"
@@ -16,29 +16,31 @@ import (
 	extensions_trace_context "github.com/pomerium/envoy-custom/api/extensions/http/early_header_mutation/trace_context"
 	extensions_uuidx "github.com/pomerium/envoy-custom/api/extensions/request_id/uuidx"
 	extensions_pomerium_otel "github.com/pomerium/envoy-custom/api/extensions/tracers/pomerium_otel"
-	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/config/otelconfig"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-func isTracingEnabled(cfg *config.Options) bool {
-	if os.Getenv("OTEL_SDK_DISABLED") == "true" {
+func isTracingEnabled(cfg *otelconfig.Config) bool {
+	if trace.IsOtelSDKDisabled() {
 		return false
 	}
-	switch cfg.TracingProvider {
-	case "none", "noop": // explicitly disabled from config
+	if cfg.OtelTracesExporter == nil {
 		return false
-	case "": // unset
-		return trace.IsEnabledViaEnvironment()
-	default: // set to a non-empty value
-		return !trace.IsDisabledViaEnvironment()
+	}
+	switch *cfg.OtelTracesExporter {
+	case "none", "noop", "":
+		return false
+	default:
+		return cfg.OtelExporterOtlpTracesEndpoint != nil
 	}
 }
 
 func applyTracingConfig(
 	ctx context.Context,
 	mgr *envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager,
-	opts *config.Options,
+	opts *otelconfig.Config,
 ) {
 	if !isTracingEnabled(opts) {
 		return
@@ -56,36 +58,28 @@ func applyTracingConfig(
 		}),
 	}
 
-	maxPathTagLength := uint32(1024)
-	if value, ok := os.LookupEnv("OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT"); ok {
-		if num, err := strconv.ParseUint(value, 10, 32); err == nil {
-			maxPathTagLength = max(64, uint32(num))
+	var grpcHeaders []*envoy_config_core_v3.HeaderValue
+	for _, kv := range opts.OtelExporterOtlpTracesHeaders {
+		k, v, ok := strings.Cut(kv, "=")
+		if ok {
+			grpcHeaders = append(grpcHeaders, &envoy_config_core_v3.HeaderValue{
+				Key:   k,
+				Value: v,
+			})
 		}
 	}
-	sampleRate := 1.0
-	if value, ok := os.LookupEnv("OTEL_TRACES_SAMPLER_ARG"); ok {
-		if rate, err := strconv.ParseFloat(value, 64); err == nil {
-			sampleRate = rate
-		}
+	var timeout *durationpb.Duration
+	if opts.OtelExporterOtlpTracesTimeout != nil {
+		timeout = durationpb.New(time.Duration(*opts.OtelExporterOtlpTracesTimeout) * time.Millisecond)
 	}
-	if opts.TracingSampleRate != nil {
-		sampleRate = *opts.TracingSampleRate
-	}
+
 	mgr.Tracing = &envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager_Tracing{
-		RandomSampling:    &envoy_type_v3.Percent{Value: max(0.0, min(1.0, sampleRate)) * 100},
 		Verbose:           true,
 		SpawnUpstreamSpan: wrapperspb.Bool(true),
 		Provider: &tracev3.Tracing_Http{
 			Name: "envoy.tracers.pomerium_otel",
 			ConfigType: &tracev3.Tracing_Http_TypedConfig{
 				TypedConfig: marshalAny(&extensions_pomerium_otel.OpenTelemetryConfig{
-					GrpcService: &envoy_config_core_v3.GrpcService{
-						TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
-							EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
-								ClusterName: "pomerium-control-plane-grpc",
-							},
-						},
-					},
 					ServiceName: "Envoy",
 					ResourceDetectors: []*envoy_config_core_v3.TypedExtensionConfig{
 						{
@@ -97,11 +91,24 @@ func applyTracingConfig(
 							}),
 						},
 					},
+					GrpcService: &envoy_config_core_v3.GrpcService{
+						TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
+							EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
+								ClusterName: "pomerium-control-plane-grpc",
+							},
+						},
+						InitialMetadata: grpcHeaders,
+						Timeout:         timeout,
+					},
 				}),
 			},
 		},
-		// this allows full URLs to be displayed in traces, they are otherwise truncated
-		MaxPathTagLength: wrapperspb.UInt32(maxPathTagLength),
+	}
+	if opts.OtelAttributeValueLengthLimit != nil {
+		mgr.Tracing.MaxPathTagLength = wrapperspb.UInt32(max(64, min(32768, uint32(*opts.OtelAttributeValueLengthLimit))))
+	}
+	if opts.OtelTracesSamplerArg != nil {
+		mgr.Tracing.RandomSampling = &envoy_type_v3.Percent{Value: max(0.0, min(1.0, *opts.OtelTracesSamplerArg)) * 100}
 	}
 
 	debugFlags := trace.DebugFlagsFromContext(ctx)

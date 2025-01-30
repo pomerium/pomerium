@@ -8,8 +8,9 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
-	"go.opentelemetry.io/otel"
+	"github.com/pomerium/pomerium/config/otelconfig"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -23,12 +24,19 @@ var (
 	ErrClientStopped = errors.New("client is stopped")
 )
 
+// SyncClient wraps an underlying [otlptrace.Client] which can be swapped out
+// for a different client (e.g. in response to a config update) safely and in
+// a way that does not lose spans.
 type SyncClient interface {
 	otlptrace.Client
 
 	Update(ctx context.Context, newClient otlptrace.Client) error
 }
 
+// NewSyncClient creates a new [SyncClient] with an initial underlying client.
+//
+// The client can be nil; if so, calling any method on the SyncClient will
+// return ErrNoClient.
 func NewSyncClient(client otlptrace.Client) SyncClient {
 	return &syncClient{
 		client: client,
@@ -63,17 +71,24 @@ func (ac *syncClient) Stop(ctx context.Context) error {
 	if ac.waitForNewClient != nil {
 		panic("bug: Stop called concurrently")
 	}
+	if ac.client == nil {
+		return ErrNoClient
+	}
 	return ac.resetLocked(ctx, nil)
 }
 
 func (ac *syncClient) resetLocked(ctx context.Context, newClient otlptrace.Client) error {
-	if ac.client == nil {
-		return ErrNoClient
+	var stop func(context.Context) error
+	if ac.client != nil {
+		stop = ac.client.Stop
 	}
 	ac.waitForNewClient = make(chan struct{})
 	ac.mu.Unlock()
 
-	err := ac.client.Stop(ctx)
+	var err error
+	if stop != nil {
+		err = stop(ctx)
+	}
 
 	ac.mu.Lock()
 	close(ac.waitForNewClient)
@@ -123,53 +138,70 @@ func (ac *syncClient) Update(ctx context.Context, newClient otlptrace.Client) er
 	return ac.resetLocked(ctx, newClient)
 }
 
-// NewRemoteClientFromEnv creates an otlp trace client using the well-known
-// environment variables defined in the [OpenTelemetry documentation].
-//
-// [OpenTelemetry documentation]: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
-func NewRemoteClientFromEnv() otlptrace.Client {
-	if os.Getenv("OTEL_SDK_DISABLED") == "true" {
-		return NoopClient{}
+func NewTraceClientFromConfig(opts otelconfig.Config) (otlptrace.Client, error) {
+	if IsOtelSDKDisabled() {
+		return NoopClient{}, nil
 	}
-
-	exporter, ok := os.LookupEnv("OTEL_TRACES_EXPORTER")
-	if !ok {
-		exporter = "none"
+	if opts.OtelTracesExporter == nil {
+		return NoopClient{}, nil
 	}
-
-	switch strings.ToLower(strings.TrimSpace(exporter)) {
-	case "none", "noop", "":
-		return NoopClient{}
+	switch *opts.OtelTracesExporter {
 	case "otlp":
-		var protocol string
-		if v, ok := os.LookupEnv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL"); ok {
-			protocol = v
-		} else if v, ok := os.LookupEnv("OTEL_EXPORTER_OTLP_PROTOCOL"); ok {
-			protocol = v
+		var endpoint, protocol string
+		var signalSpecificEndpoint bool
+
+		if opts.OtelExporterOtlpTracesEndpoint != nil {
+			endpoint = *opts.OtelExporterOtlpTracesEndpoint
+			signalSpecificEndpoint = true
+		} else if opts.OtelExporterOtlpEndpoint != nil {
+			endpoint = *opts.OtelExporterOtlpEndpoint
+			signalSpecificEndpoint = false
+		}
+		if opts.OtelExporterOtlpTracesProtocol != nil {
+			protocol = *opts.OtelExporterOtlpTracesProtocol
+		} else if opts.OtelExporterOtlpProtocol != nil {
+			protocol = *opts.OtelExporterOtlpProtocol
 		} else {
-			// try to guess the expected protocol from the port number
-			var endpoint string
-			var specific bool
-			if v, ok := os.LookupEnv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"); ok {
-				endpoint = v
-				specific = true
-			} else if v, ok := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT"); ok {
-				endpoint = v
+			protocol = BestEffortProtocolFromOTLPEndpoint(endpoint, signalSpecificEndpoint)
+		}
+
+		var headersList []string
+		if len(opts.OtelExporterOtlpTracesHeaders) > 0 {
+			headersList = opts.OtelExporterOtlpTracesHeaders
+		} else if len(opts.OtelExporterOtlpHeaders) > 0 {
+			headersList = opts.OtelExporterOtlpHeaders
+		}
+		headers := map[string]string{}
+		for _, kv := range headersList {
+			k, v, ok := strings.Cut(kv, "=")
+			if ok {
+				headers[k] = v
 			}
-			protocol = BestEffortProtocolFromOTLPEndpoint(endpoint, specific)
+		}
+		defaultTimeout := 10 * time.Second // otel default (not exported)
+		if opts.OtelExporterOtlpTimeout != nil {
+			defaultTimeout = max(0, time.Duration(*opts.OtelExporterOtlpTimeout)*time.Millisecond)
 		}
 		switch strings.ToLower(strings.TrimSpace(protocol)) {
 		case "grpc":
-			return otlptracegrpc.NewClient()
+			return otlptracegrpc.NewClient(
+				otlptracegrpc.WithEndpointURL(endpoint),
+				otlptracegrpc.WithHeaders(headers),
+				otlptracegrpc.WithTimeout(defaultTimeout),
+			), nil
 		case "http/protobuf", "":
-			return otlptracehttp.NewClient()
+			return otlptracehttp.NewClient(
+				otlptracehttp.WithEndpointURL(endpoint),
+				otlptracehttp.WithHeaders(headers),
+				otlptracehttp.WithTimeout(defaultTimeout),
+			), nil
 		default:
-			otel.Handle(fmt.Errorf(`unknown otlp trace exporter protocol %q, expected "grpc" or "http/protobuf"`, protocol))
-			return NoopClient{}
+			return nil, fmt.Errorf(`unknown otlp trace exporter protocol %q, expected one of ["grpc", "http/protobuf"]`, protocol)
 		}
+	case "none", "noop", "":
+		return NoopClient{}, nil
 	default:
-		otel.Handle(fmt.Errorf(`unknown otlp trace exporter %q, expected "otlp" or "none"`, exporter))
-		return NoopClient{}
+		return nil, fmt.Errorf(`unknown otlp trace exporter %q, expected one of ["otlp", "none"]`, *opts.OtelTracesExporter)
 	}
 }
 
@@ -258,34 +290,6 @@ func (n ValidNoopSpan) SpanContext() oteltrace.SpanContext {
 
 var _ oteltrace.Span = ValidNoopSpan{}
 
-func IsDisabledViaEnvironment() bool {
-	if os.Getenv("OTEL_SDK_DISABLED") == "true" {
-		return true
-	}
-	exporter, ok := os.LookupEnv("OTEL_TRACES_EXPORTER")
-	if !ok {
-		return false
-	}
-	switch strings.ToLower(strings.TrimSpace(exporter)) {
-	case "none, noop":
-		return true
-	default:
-		return false
-	}
-}
-
-func IsEnabledViaEnvironment() bool {
-	if os.Getenv("OTEL_SDK_DISABLED") == "true" {
-		return false
-	}
-	exporter, ok := os.LookupEnv("OTEL_TRACES_EXPORTER")
-	if !ok {
-		return false
-	}
-	switch strings.ToLower(strings.TrimSpace(exporter)) {
-	case "none, noop", "":
-		return false
-	default:
-		return true
-	}
+func IsOtelSDKDisabled() bool {
+	return os.Getenv("OTEL_SDK_DISABLED") == "true"
 }
