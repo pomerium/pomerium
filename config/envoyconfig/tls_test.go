@@ -85,7 +85,7 @@ func Test_buildDownstreamTLSContext(t *testing.T) {
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
 
 	cacheDir, _ := os.UserCacheDir()
-	clientCAFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "client-ca-313754424855313435355a5348.pem")
+	clientCAFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "client-ca-4e4c564e5a36544a4a33385a.pem")
 
 	t.Run("no-validation", func(t *testing.T) {
 		downstreamTLSContext, err := b.buildDownstreamTLSContextMulti(context.Background(), &config.Config{Options: &config.Options{}}, nil)

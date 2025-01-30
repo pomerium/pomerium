@@ -122,8 +122,8 @@ func TestBuildListeners(t *testing.T) {
 
 func Test_buildMetricsHTTPConnectionManagerFilter(t *testing.T) {
 	cacheDir, _ := os.UserCacheDir()
-	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-32375a484d4f49594c4d374830.pem")
-	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-33393156483053584631414836.pem")
+	certFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-crt-5a353247453159375849565a.pem")
+	keyFileName := filepath.Join(cacheDir, "pomerium", "envoy", "files", "tls-key-3159554e32473758435257364b.pem")
 
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
 	li, err := b.buildMetricsListener(&config.Config{

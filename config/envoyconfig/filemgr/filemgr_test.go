@@ -10,6 +10,8 @@ import (
 )
 
 func Test(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 
 	t.Run("bytes", func(t *testing.T) {
@@ -17,7 +19,7 @@ func Test(t *testing.T) {
 		ds := mgr.BytesDataSource("test.txt", []byte{1, 2, 3, 4, 5})
 		assert.Equal(t, &envoy_config_core_v3.DataSource{
 			Specifier: &envoy_config_core_v3.DataSource_Filename{
-				Filename: filepath.Join(dir, "test-32354837325a545944534a4537.txt"),
+				Filename: filepath.Join(dir, "test-31443434314d425355414b4539.txt"),
 			},
 		}, ds)
 		mgr.ClearCache()
@@ -32,7 +34,7 @@ func Test(t *testing.T) {
 		ds := mgr.FileDataSource(tmpFilePath)
 		assert.Equal(t, &envoy_config_core_v3.DataSource{
 			Specifier: &envoy_config_core_v3.DataSource_Filename{
-				Filename: filepath.Join(dir, "test-474136555958463735414951.txt"),
+				Filename: filepath.Join(dir, "test-3246454c394658475133414f35.txt"),
 			},
 		}, ds)
 
@@ -41,7 +43,7 @@ func Test(t *testing.T) {
 		ds = mgr.FileDataSource(tmpFilePath)
 		assert.Equal(t, &envoy_config_core_v3.DataSource{
 			Specifier: &envoy_config_core_v3.DataSource_Filename{
-				Filename: filepath.Join(dir, "test-3331324c4a35574d5439444d4c.txt"),
+				Filename: filepath.Join(dir, "test-33343439385257475847375443.txt"),
 			},
 		}, ds)
 
