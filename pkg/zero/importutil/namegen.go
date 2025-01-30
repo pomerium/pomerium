@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cespare/xxhash/v2"
+	"github.com/zeebo/xxh3"
 )
 
 func GenerateCertName(cert *x509.Certificate) *string {
@@ -242,7 +242,7 @@ func differentiateRoutes[T Route](subdomain string, routes []T) iter.Seq2[T, str
 						b.WriteString(pathSuffix)
 					}
 
-					sum := xxhash.Sum64String(b.String())
+					sum := xxh3.HashString(b.String())
 					nameCounts[sum]++
 					if c := nameCounts[sum]; c > 1 {
 						b.WriteString(" (")

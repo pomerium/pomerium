@@ -13,7 +13,6 @@ require (
 	github.com/bits-and-blooms/bitset v1.20.0
 	github.com/caddyserver/certmagic v0.21.4
 	github.com/cenkalti/backoff/v4 v4.3.0
-	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/cloudflare/circl v1.5.0
 	github.com/coreos/go-oidc/v3 v3.11.0
 	github.com/docker/docker v27.4.1+incompatible
@@ -136,6 +135,7 @@ require (
 	github.com/aws/smithy-go v1.22.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/caddyserver/zerossl v0.1.3 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20241223141626-cff3c89139a3 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
