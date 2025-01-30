@@ -7,9 +7,9 @@ import (
 	"os"
 	"sync"
 
-	"github.com/cespare/xxhash/v2"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
+	"github.com/zeebo/xxh3"
 
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/fileutil"
@@ -264,7 +264,7 @@ func (src *FileWatcherSource) onFileChange(ctx context.Context) {
 
 func getAllConfigFilePathsHash(cfg *Config) uint64 {
 	// read all the config files and build a hash from their contents
-	h := xxhash.New()
+	h := xxh3.New()
 	for _, f := range getAllConfigFilePaths(cfg) {
 		_, _ = h.Write([]byte{0})
 		f, err := os.Open(f)
