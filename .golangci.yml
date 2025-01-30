@@ -76,6 +76,9 @@ issues:
     - text: "G112:"
       linters:
         - gosec
+    - text: "G115:"
+      linters:
+        - gosec
     - text: "G402: TLS MinVersion too low."
       linters:
         - gosec

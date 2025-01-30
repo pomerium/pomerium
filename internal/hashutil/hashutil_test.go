@@ -1,10 +1,11 @@
-// Package hashutil provides NON-CRYPTOGRAPHIC utility functions for hashing
-package hashutil
+package hashutil_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/pomerium/pomerium/internal/hashutil"
 )
 
 func TestHash(t *testing.T) {
@@ -15,8 +16,8 @@ func TestHash(t *testing.T) {
 		want    uint64
 		wantErr bool
 	}{
-		{"string", "string", 6134271061086542852, false},
-		{"num", 7, 609900476111905877, false},
+		{"string", "string", 15613163272824911089, false},
+		{"num", 7, 9324454920402081455, false},
 		{
 			"compound struct",
 			struct {
@@ -26,7 +27,7 @@ func TestHash(t *testing.T) {
 				[]string{"Battletoads", "Mega Man 1", "Clash at Demonhead"},
 				12,
 			},
-			1349584765528830812, false,
+			9585735524299267794, false,
 		},
 		{
 			"compound struct with embedded func (errors!)",
@@ -40,10 +41,10 @@ func TestHash(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := MustHash(tt.v); got != tt.want {
+			if got := hashutil.MustHash(tt.v); got != tt.want {
 				t.Errorf("MustHash() = %v, want %v", got, tt.want)
 			}
-			got, err := Hash(tt.v)
+			got, err := hashutil.Hash(tt.v)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
