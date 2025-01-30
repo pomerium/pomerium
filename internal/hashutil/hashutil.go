@@ -10,7 +10,7 @@ import (
 	"github.com/zeebo/xxh3"
 )
 
-// MustHash returns the xxhash of an arbitrary value or struct. Returns 0
+// MustHash returns the xxh3 hash of an arbitrary value or struct. Returns 0
 // on error.
 // NOT SUITABLE FOR CRYTOGRAPHIC HASHING.
 func MustHash(v any) uint64 {
@@ -21,7 +21,7 @@ func MustHash(v any) uint64 {
 	return hash
 }
 
-// Hash returns the xxhash of an arbitrary value or struct.
+// Hash returns the xxh3 hash of an arbitrary value or struct.
 // NOT SUITABLE FOR CRYTOGRAPHIC HASHING.
 func Hash(v any) (uint64, error) {
 	opts := &hashstructure.HashOptions{
