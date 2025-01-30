@@ -39,7 +39,17 @@ const RouteCard: FC<RouteCardProps> = ({ route }) => {
         <CardHeader
           avatar={
             route.logo_url ? (
-              <Avatar src={route.logo_url} />
+              <Avatar
+                src={route.logo_url}
+                variant="square"
+                slotProps={{
+                  img: {
+                    sx: {
+                      objectFit: "scale-down",
+                    },
+                  },
+                }}
+              />
             ) : route.type === "tcp" ? (
               <Avatar>TCP</Avatar>
             ) : route.type === "udp" ? (
