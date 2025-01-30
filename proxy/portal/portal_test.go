@@ -20,7 +20,7 @@ func TestRouteFromConfigRoute(t *testing.T) {
 
 	assert.Equal(t, []portal.Route{
 		{
-			ID:          "4e71df99c0317efb",
+			ID:          "1013c6be524d7fbd",
 			Name:        "from",
 			Type:        "http",
 			From:        "https://from.example.com",
@@ -28,20 +28,20 @@ func TestRouteFromConfigRoute(t *testing.T) {
 			LogoURL:     "https://logo.example.com",
 		},
 		{
-			ID:   "7c377f11cdb9700e",
+			ID:   "15fa6bb41b1f0bd2",
 			Name: "from-path",
 			Type: "http",
 			From: "https://from.example.com",
 		},
 		{
-			ID:             "708e3cbd0bbe8547",
+			ID:             "773f5c76f710b230",
 			Name:           "postgres",
 			Type:           "tcp",
 			From:           "tcp+https://postgres.example.com:5432",
 			ConnectCommand: "pomerium-cli tcp postgres.example.com:5432",
 		},
 		{
-			ID:             "2dd08d87486e051a",
+			ID:             "74961d605a24b812",
 			Name:           "dns",
 			Type:           "udp",
 			From:           "udp+https://dns.example.com:53",

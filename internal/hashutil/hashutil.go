@@ -6,7 +6,6 @@ package hashutil
 import (
 	"encoding/binary"
 
-	"github.com/cespare/xxhash/v2"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/zeebo/xxh3"
 )
@@ -32,7 +31,7 @@ func Hash(v any) (uint64, error) {
 }
 
 type Digest struct {
-	xxhash.Digest
+	xxh3.Hasher
 }
 
 func NewDigest() *Digest {
