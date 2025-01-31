@@ -40,7 +40,7 @@ func TestProxy_routesPortalJSON(t *testing.T) {
 	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 	assert.JSONEq(t, `{"routes":[
 		{
-			"id": "4e71df99c0317efb",
+			"id": "1013c6be524d7fbd",
 			"name": "public",
 			"from": "https://from.example.com",
 			"type": "http",

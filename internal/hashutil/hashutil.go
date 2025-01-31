@@ -1,18 +1,16 @@
 // Package hashutil provides NON-CRYPTOGRAPHIC utility functions for hashing.
 //
-// http://cyan4973.github.io/xxHash/
-//
 //nolint:errcheck
 package hashutil
 
 import (
 	"encoding/binary"
 
-	"github.com/cespare/xxhash/v2"
 	"github.com/mitchellh/hashstructure/v2"
+	"github.com/zeebo/xxh3"
 )
 
-// MustHash returns the xxhash of an arbitrary value or struct. Returns 0
+// MustHash returns the xxh3 hash of an arbitrary value or struct. Returns 0
 // on error.
 // NOT SUITABLE FOR CRYTOGRAPHIC HASHING.
 func MustHash(v any) uint64 {
@@ -23,17 +21,17 @@ func MustHash(v any) uint64 {
 	return hash
 }
 
-// Hash returns the xxhash of an arbitrary value or struct.
+// Hash returns the xxh3 hash of an arbitrary value or struct.
 // NOT SUITABLE FOR CRYTOGRAPHIC HASHING.
 func Hash(v any) (uint64, error) {
 	opts := &hashstructure.HashOptions{
-		Hasher: xxhash.New(),
+		Hasher: xxh3.New(),
 	}
 	return hashstructure.Hash(v, hashstructure.FormatV2, opts)
 }
 
 type Digest struct {
-	xxhash.Digest
+	xxh3.Hasher
 }
 
 func NewDigest() *Digest {

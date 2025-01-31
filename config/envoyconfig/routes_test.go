@@ -392,14 +392,14 @@ func Test_buildPolicyRoutes(t *testing.T) {
 		},
 	}
 	routeIDs := []string{
-		1: "772697672458217856",
-		2: "6032229746964560472",
-		3: "13317665674438641304",
-		4: "9768293332770157550",
-		5: "13317665674438641304", // same as 3
-		6: "6032229746964560472",  // same as 2
-		7: "6032229746964560472",  // same as 2
-		8: "1591581179179639728",
+		1: "13553029590470792156",
+		2: "7129118097581932399",
+		3: "11039710722247768205",
+		4: "658592019741814826",
+		5: "11039710722247768205", // same as 3
+		6: "7129118097581932399",  // same as 2
+		7: "7129118097581932399",  // same as 2
+		8: "3463414089682043373",
 	}
 
 	b := &Builder{filemgr: filemgr.NewManager(), reproxy: reproxy.New()}
@@ -1196,7 +1196,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "11959552038839924732"
+								"route_id": "11022856234610764131"
 							}
 						}
 					}
@@ -1272,7 +1272,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "9444248534316924938"
+								"route_id": "9302002763161476568"
 							}
 						}
 					}
@@ -1369,7 +1369,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "8231718688890004616"
+								"route_id": "12468817303959353203"
 							}
 						}
 					}
@@ -1471,7 +1471,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_id": "5652544858774142715"
+									"route_id": "1158488049891246013"
 								}
 							}
 						}
@@ -1547,14 +1547,14 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
 							"header": {
 								"key": "x-pomerium-reproxy-policy",
-								"value": "5799631121007486501"
+								"value": "12114237825990386381"
 							}
 						},
 						{
 							"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
 							"header": {
 								"key": "x-pomerium-reproxy-policy-hmac",
-								"value": "v4w8DAUFdw2qw7RJLUZYBHWndqBOdz5Me6A+1vbDQPY="
+								"value": "pe3ai+2H8rHB5zgHi8+ryY6VDcuZZ5pf9Rfkrw0NdBE="
 							}
 						}
 					],
@@ -1586,7 +1586,7 @@ func Test_buildPolicyRoutes(t *testing.T) {
 							"checkSettings": {
 								"contextExtensions": {
 									"internal": "false",
-									"route_id": "5799631121007486501"
+									"route_id": "12114237825990386381"
 								}
 							}
 						}
@@ -1720,7 +1720,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "1410576726089372267"
+								"route_id": "5575146962731507525"
 							}
 						}
 					}
@@ -1795,7 +1795,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "1410576726089372267"
+								"route_id": "5575146962731507525"
 							}
 						}
 					}
@@ -1875,7 +1875,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "1410576726089372267"
+								"route_id": "5575146962731507525"
 							}
 						}
 					}
@@ -1950,7 +1950,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "1410576726089372267"
+								"route_id": "5575146962731507525"
 							}
 						}
 					}
@@ -2025,7 +2025,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "1410576726089372267"
+								"route_id": "5575146962731507525"
 							}
 						}
 					}
@@ -2105,7 +2105,7 @@ func Test_buildPolicyRoutesRewrite(t *testing.T) {
 						"checkSettings": {
 							"contextExtensions": {
 								"internal": "false",
-								"route_id": "1410576726089372267"
+								"route_id": "5575146962731507525"
 							}
 						}
 					}

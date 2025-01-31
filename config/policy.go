@@ -675,7 +675,7 @@ func (p *Policy) Validate() error {
 	return nil
 }
 
-// Checksum returns the xxhash hash for the policy.
+// Checksum returns the xxh3 hash for the policy.
 func (p *Policy) Checksum() uint64 {
 	return hashutil.MustHash(p)
 }

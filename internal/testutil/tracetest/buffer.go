@@ -7,11 +7,12 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/pomerium/pomerium/internal/hashutil"
 	commonv1 "go.opentelemetry.io/proto/otlp/common/v1"
 	resourcev1 "go.opentelemetry.io/proto/otlp/resource/v1"
 	tracev1 "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/pomerium/pomerium/internal/hashutil"
 )
 
 type ScopeBuffer struct {
@@ -31,6 +32,7 @@ func NewScopeBuffer(scope *ScopeInfo) *ScopeBuffer {
 
 type ResourceBuffer struct {
 	resource     *ResourceInfo
+	scopeIDs     []string
 	spansByScope map[string]*ScopeBuffer
 }
 
@@ -48,14 +50,15 @@ func (rb *ResourceBuffer) Insert(scope *ScopeInfo, span *tracev1.Span) {
 	} else {
 		spans = NewScopeBuffer(scope)
 		rb.spansByScope[scope.ID()] = spans
+		rb.scopeIDs = append(rb.scopeIDs, scope.ID())
 	}
 	spans.Insert(span)
 }
 
 func (rb *ResourceBuffer) Flush() []*tracev1.ScopeSpans {
 	out := make([]*tracev1.ScopeSpans, 0, len(rb.spansByScope))
-	for _, key := range slices.Sorted(maps.Keys(rb.spansByScope)) {
-		spans := rb.spansByScope[key]
+	for _, scopeID := range rb.scopeIDs {
+		spans := rb.spansByScope[scopeID]
 		slices.SortStableFunc(spans.spans, func(a, b *tracev1.Span) int {
 			return cmp.Compare(a.StartTimeUnixNano, b.StartTimeUnixNano)
 		})
@@ -66,6 +69,7 @@ func (rb *ResourceBuffer) Flush() []*tracev1.ScopeSpans {
 		}
 		out = append(out, scopeSpans)
 	}
+	rb.scopeIDs = nil
 	clear(rb.spansByScope)
 	return out
 }
@@ -73,11 +77,13 @@ func (rb *ResourceBuffer) Flush() []*tracev1.ScopeSpans {
 func (rb *ResourceBuffer) Merge(other *ResourceBuffer) {
 	for scope, otherSpans := range other.spansByScope {
 		if ourSpans, ok := rb.spansByScope[scope]; !ok {
+			rb.scopeIDs = append(rb.scopeIDs, scope)
 			rb.spansByScope[scope] = otherSpans
 		} else {
 			ourSpans.Insert(otherSpans.spans...)
 		}
 	}
+	other.scopeIDs = nil
 	clear(other.spansByScope)
 }
 
