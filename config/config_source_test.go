@@ -5,14 +5,23 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"syscall"
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/signal"
+	"github.com/pomerium/pomerium/internal/testutil"
 )
 
 func TestFileWatcherSource(t *testing.T) {
+	t.Parallel()
+
 	tmpdir := t.TempDir()
 
 	err := os.WriteFile(filepath.Join(tmpdir, "example.txt"), []byte{1}, 0o600)
@@ -104,6 +113,8 @@ func TestFileWatcherSource(t *testing.T) {
 }
 
 func TestFileOrEnvironmentSource(t *testing.T) {
+	t.Parallel()
+
 	tmpdir := t.TempDir()
 
 	err := os.WriteFile(filepath.Join(tmpdir, "example.txt"), []byte{1}, 0o600)
@@ -201,4 +212,33 @@ runtime_flags:
 
 	t.Run("Hot Reload Enabled", newTest(true))
 	t.Run("Hot Reload Disabled", newTest(false))
+
+	t.Run("SIGHUP", func(t *testing.T) {
+		t.Parallel()
+
+		ready := signal.New()
+		readyCh := ready.Bind()
+
+		ctx := testutil.GetContext(t, time.Minute)
+		ctx = log.Ctx(ctx).Hook(zerolog.HookFunc(func(_ *zerolog.Event, _ zerolog.Level, message string) {
+			if strings.Contains(message, "received SIGHUP") {
+				ready.Broadcast(ctx)
+			}
+		})).WithContext(ctx)
+		tmp := t.TempDir()
+
+		cfgFP := filepath.Join(tmp, "config.json")
+		require.NoError(t, os.WriteFile(cfgFP, []byte(`{}`), 0o600))
+
+		_, err := NewFileOrEnvironmentSource(ctx, cfgFP, "")
+		assert.NoError(t, err)
+
+		require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGHUP))
+
+		select {
+		case <-ctx.Done():
+			t.Error("expected to receive SIGHUP log message")
+		case <-readyCh:
+		}
+	})
 }

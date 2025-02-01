@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
@@ -145,6 +147,16 @@ func NewFileOrEnvironmentSource(
 	ch := src.watcher.Bind()
 	go func() {
 		for range ch {
+			log.Ctx(ctx).Info().Msg("config: file updated, reconfiguring...")
+			src.check(ctx)
+		}
+	}()
+
+	sch := make(chan os.Signal, 1)
+	signal.Notify(sch, syscall.SIGHUP)
+	go func() {
+		for range sch {
+			log.Ctx(ctx).Info().Msg("config: received SIGHUP, reloading config")
 			src.check(ctx)
 		}
 	}()
@@ -156,7 +168,6 @@ func (src *FileOrEnvironmentSource) check(ctx context.Context) {
 	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
 		return c.Str("config_change_id", uuid.New().String())
 	})
-	log.Ctx(ctx).Info().Msg("config: file updated, reconfiguring...")
 	src.mu.Lock()
 	cfg := src.config
 	options, err := newOptionsFromConfig(src.configFile)
