@@ -36,8 +36,13 @@ func (b *Builder) buildDownstreamQUICTransportSocket(
 }
 
 func newQUICAltSvcHeaderFilter(cfg *config.Config) *envoy_extensions_filters_network_http_connection_manager.HttpFilter {
-	listenAddr := buildUDPAddress(cfg.Options.Addr, 443)
-	listenPort := listenAddr.GetSocketAddress().GetPortValue()
+	var advertisePort uint32
+	if cfg.Options.HTTP3AdvertisePort.Valid {
+		advertisePort = cfg.Options.HTTP3AdvertisePort.Uint32
+	} else {
+		listenAddr := buildUDPAddress(cfg.Options.Addr, 443)
+		advertisePort = listenAddr.GetSocketAddress().GetPortValue()
+	}
 	return HTTPHeaderMutationsFilter(&envoy_extensions_filters_http_header_mutation_v3.HeaderMutation{
 		Mutations: &envoy_extensions_filters_http_header_mutation_v3.Mutations{
 			ResponseMutations: []*envoy_config_common_mutation_rules_v3.HeaderMutation{{
@@ -45,7 +50,7 @@ func newQUICAltSvcHeaderFilter(cfg *config.Config) *envoy_extensions_filters_net
 					Append: &envoy_config_core_v3.HeaderValueOption{
 						Header: &envoy_config_core_v3.HeaderValue{
 							Key:   "alt-svc",
-							Value: fmt.Sprintf(`h3=":%d"; ma=86400`, listenPort),
+							Value: fmt.Sprintf(`h3=":%d"; ma=86400`, advertisePort),
 						},
 					},
 				},
