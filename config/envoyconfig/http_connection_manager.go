@@ -55,13 +55,19 @@ func (b *Builder) buildLocalReplyConfig(
 		headers = toEnvoyHeaders(options.GetSetResponseHeaders())
 	}
 
-	data := map[string]any{
-		"status":        "%RESPONSE_CODE%",
-		"statusText":    "%RESPONSE_CODE_DETAILS%",
-		"requestId":     "%STREAM_ID%",
-		"responseFlags": "%RESPONSE_FLAGS%",
-	}
+	data := make(map[string]any)
 	httputil.AddBrandingOptionsToMap(data, options.BrandingOptions)
+	for k, v := range data {
+		// Escape any % signs in the branding options data, as Envoy will
+		// interpret the page output as a substitution format string.
+		if s, ok := v.(string); ok {
+			data[k] = strings.ReplaceAll(s, "%", "%%")
+		}
+	}
+	data["status"] = "%RESPONSE_CODE%"
+	data["statusText"] = "%RESPONSE_CODE_DETAILS%"
+	data["requestId"] = "%STREAM_ID%"
+	data["responseFlags"] = "%RESPONSE_FLAGS%"
 
 	bs, err := ui.RenderPage("Error", "Error", data)
 	if err != nil {
