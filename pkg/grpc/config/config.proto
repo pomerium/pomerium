@@ -149,7 +149,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 136.
+// Next ID: 137.
 message Settings {
   message Certificate {
     bytes cert_bytes = 3;
@@ -212,7 +212,7 @@ message Settings {
   optional double otel_traces_sampler_arg = 122;
   repeated string otel_resource_attributes = 123;
   optional string otel_log_level = 124;
-  optional int32  otel_attribute_value_length_limit = 125;
+  optional int32 otel_attribute_value_length_limit = 125;
   optional string otel_exporter_otlp_endpoint = 126;
   optional string otel_exporter_otlp_traces_endpoint = 127;
   optional string otel_exporter_otlp_protocol = 128;
@@ -268,6 +268,7 @@ message Settings {
   optional string error_message_first_paragraph = 91;
   optional bool pass_identity_headers = 117;
   map<string, bool> runtime_flags = 118;
+  optional uint32 http3_advertise_port = 136;
 }
 
 message DownstreamMtlsSettings {
