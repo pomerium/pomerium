@@ -1,6 +1,7 @@
 package testenv
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -74,3 +75,19 @@ func (b *PolicyRoute) PPL(ppl string) Route {
 func (b *PolicyRoute) URL() values.Value[string] {
 	return b.from
 }
+
+type TCPRoute struct {
+	PolicyRoute
+}
+
+func (b *TCPRoute) From(fromURL values.Value[string]) Route {
+	b.from = values.Bind(fromURL, func(urlStr string) string {
+		from, _ := url.Parse(urlStr)
+		from.Scheme = "tcp+https"
+		from.Host = fmt.Sprintf("%s:%s", from.Hostname(), from.Port())
+		return from.String()
+	})
+	return b
+}
+
+var _ Route = (*TCPRoute)(nil)

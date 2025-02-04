@@ -23,6 +23,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -34,11 +35,13 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
+	"github.com/pomerium/pomerium/config/otelconfig"
 	databroker_service "github.com/pomerium/pomerium/databroker"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/testenv/envutil"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -98,6 +101,7 @@ type Environment interface {
 	AuthenticateURL() values.Value[string]
 	DatabrokerURL() values.Value[string]
 	Ports() Ports
+	Host() string
 	SharedSecret() []byte
 	CookieSecret() []byte
 
@@ -245,6 +249,8 @@ type EnvironmentOptions struct {
 	forceSilent     bool
 	traceDebugFlags trace.DebugFlags
 	traceClient     otlptrace.Client
+	traceConfig     *otelconfig.Config
+	host            string
 }
 
 type EnvironmentOption func(*EnvironmentOptions)
@@ -301,15 +307,23 @@ func WithTraceClient(traceClient otlptrace.Client) EnvironmentOption {
 	}
 }
 
+func WithTraceConfig(traceConfig *otelconfig.Config) EnvironmentOption {
+	return func(o *EnvironmentOptions) {
+		o.traceConfig = traceConfig
+	}
+}
+
 var setGrpcLoggerOnce sync.Once
 
 const defaultTraceDebugFlags = trace.TrackSpanCallers | trace.TrackSpanReferences
 
 var (
-	flagDebug           = flag.Bool("env.debug", false, "enables test environment debug logging (equivalent to Debug() option)")
-	flagPauseOnFailure  = flag.Bool("env.pause-on-failure", false, "enables pausing the test environment on failure (equivalent to PauseOnFailure() option)")
-	flagSilent          = flag.Bool("env.silent", false, "suppresses all test environment output (equivalent to Silent() option)")
-	flagTraceDebugFlags = flag.String("env.trace-debug-flags", strconv.Itoa(defaultTraceDebugFlags), "trace debug flags (equivalent to TraceDebugFlags() option)")
+	flagDebug              = flag.Bool("env.debug", false, "enables test environment debug logging (equivalent to Debug() option)")
+	flagPauseOnFailure     = flag.Bool("env.pause-on-failure", false, "enables pausing the test environment on failure (equivalent to PauseOnFailure() option)")
+	flagSilent             = flag.Bool("env.silent", false, "suppresses all test environment output (equivalent to Silent() option)")
+	flagTraceDebugFlags    = flag.String("env.trace-debug-flags", strconv.Itoa(defaultTraceDebugFlags), "trace debug flags (equivalent to TraceDebugFlags() option)")
+	flagBindAddress        = flag.String("env.bind-address", "127.0.0.1", "bind address for local services")
+	flagTraceEnvironConfig = flag.Bool("env.use-trace-environ", false, "if true, will configure a trace client from environment variables if no trace client has been set")
 )
 
 func New(t testing.TB, opts ...EnvironmentOption) Environment {
@@ -324,6 +338,7 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		forceSilent:     *flagSilent,
 		traceDebugFlags: trace.DebugFlags(defaultTraceDebugFlags),
 		traceClient:     trace.NoopClient{},
+		host:            *flagBindAddress,
 	}
 	options.apply(opts...)
 	if testing.Short() {
@@ -332,6 +347,17 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 	}
 	if addTraceDebugFlags {
 		options.traceDebugFlags |= trace.DebugFlags(defaultTraceDebugFlags)
+	}
+	if *flagTraceEnvironConfig && options.traceConfig == nil &&
+		(reflect.TypeOf(options.traceClient) == reflect.TypeFor[trace.NoopClient]()) {
+		cfg := newOtelConfigFromEnv(t)
+		options.traceConfig = &cfg
+		client, err := trace.NewTraceClientFromConfig(cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log("tracing configured from environment")
+		options.traceClient = client
 	}
 	trace.UseGlobalPanicTracer()
 	databroker.DebugUseFasterBackoff.Store(true)
@@ -496,12 +522,19 @@ func (e *environment) AuthenticateURL() values.Value[string] {
 
 func (e *environment) DatabrokerURL() values.Value[string] {
 	return values.Bind(e.ports.Outbound, func(port int) string {
-		return fmt.Sprintf("127.0.0.1:%d", port)
+		return fmt.Sprintf("%s:%d", e.host, port)
 	})
 }
 
 func (e *environment) Ports() Ports {
 	return e.ports
+}
+
+func (e *environment) Host() string {
+	if e.host == "" {
+		return "127.0.0.1"
+	}
+	return e.host
 }
 
 func (e *environment) CACert() *tls.Certificate {
@@ -572,9 +605,9 @@ func (e *environment) Start() {
 	cfg.Options.Services = "all"
 	cfg.Options.LogLevel = config.LogLevelDebug
 	cfg.Options.ProxyLogLevel = config.LogLevelInfo
-	cfg.Options.Addr = fmt.Sprintf("127.0.0.1:%d", e.ports.ProxyHTTP.Value())
-	cfg.Options.GRPCAddr = fmt.Sprintf("127.0.0.1:%d", e.ports.ProxyGRPC.Value())
-	cfg.Options.MetricsAddr = fmt.Sprintf("127.0.0.1:%d", e.ports.ProxyMetrics.Value())
+	cfg.Options.Addr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyHTTP.Value())
+	cfg.Options.GRPCAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyGRPC.Value())
+	cfg.Options.MetricsAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyMetrics.Value())
 	cfg.Options.CAFile = filepath.Join(e.tempDir, "certs", "ca.pem")
 	cfg.Options.CertFile = filepath.Join(e.tempDir, "certs", "trusted.pem")
 	cfg.Options.KeyFile = filepath.Join(e.tempDir, "certs", "trusted-key.pem")
@@ -598,6 +631,9 @@ func (e *environment) Start() {
 		log.AccessLogFieldUpstreamCluster,
 		log.AccessLogFieldUserAgent,
 		log.AccessLogFieldClientCertificate,
+	}
+	if e.traceConfig != nil {
+		cfg.Options.Tracing = *e.traceConfig
 	}
 
 	e.src = &configSource{cfg: cfg}
@@ -801,6 +837,7 @@ func (e *environment) Pause() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT)
 	<-c
+	signal.Stop(c)
 	e.t.Log("\x1b[31mctrl+c received, continuing\x1b[0m")
 }
 
@@ -818,6 +855,7 @@ func (e *environment) cleanup(cancelCause error) {
 			c := make(chan os.Signal, 1)
 			signal.Notify(c, syscall.SIGINT)
 			<-c
+			signal.Stop(c)
 			e.t.Log("\x1b[31mctrl+c received, continuing\x1b[0m")
 			signal.Stop(c)
 		}
@@ -1044,4 +1082,14 @@ func (src *configSource) ModifyConfig(ctx context.Context, m Modifier) {
 	for _, li := range src.lis {
 		li(ctx, src.cfg)
 	}
+}
+
+func newOtelConfigFromEnv(t testing.TB) otelconfig.Config {
+	f, err := os.CreateTemp("", "tmp-config-*.yaml")
+	require.NoError(t, err)
+	defer os.Remove(f.Name())
+	f.Close()
+	cfg, err := config.NewFileOrEnvironmentSource(context.Background(), f.Name(), version.FullVersion())
+	require.NoError(t, err)
+	return cfg.GetConfig().Options.Tracing
 }

@@ -6,6 +6,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -32,6 +34,7 @@ import (
 )
 
 type IDP struct {
+	IDPOptions
 	id         values.Value[string]
 	url        values.Value[string]
 	publicJWK  jose.JSONWebKey
@@ -41,18 +44,56 @@ type IDP struct {
 	userLookup   map[string]*User
 }
 
+type IDPOptions struct {
+	enableTLS bool
+}
+
+type IDPOption func(*IDPOptions)
+
+func (o *IDPOptions) apply(opts ...IDPOption) {
+	for _, op := range opts {
+		op(o)
+	}
+}
+
+func WithEnableTLS(enableTLS bool) IDPOption {
+	return func(o *IDPOptions) {
+		o.enableTLS = enableTLS
+	}
+}
+
 // Attach implements testenv.Modifier.
 func (idp *IDP) Attach(ctx context.Context) {
 	env := testenv.EnvFromContext(ctx)
 
-	router := upstreams.HTTP(nil, upstreams.WithDisplayName("IDP"))
+	idpUrl := env.SubdomainURL("mock-idp")
 
-	idp.url = values.Bind2(env.SubdomainURL("mock-idp"), router.Port(), func(urlStr string, port int) string {
+	var tlsConfig values.Value[*tls.Config]
+	if idp.enableTLS {
+		tlsConfig = values.Bind(idpUrl, func(urlStr string) *tls.Config {
+			u, _ := url.Parse(urlStr)
+			cert := env.NewServerCert(&x509.Certificate{
+				DNSNames: []string{u.Hostname()},
+			})
+			return &tls.Config{
+				RootCAs:      env.ServerCAs(),
+				Certificates: []tls.Certificate{tls.Certificate(*cert)},
+				NextProtos:   []string{"http/1.1", "h2"},
+			}
+		})
+	}
+
+	router := upstreams.HTTP(tlsConfig, upstreams.WithDisplayName("IDP"))
+
+	idp.url = values.Bind2(idpUrl, router.Addr(), func(urlStr string, addr string) string {
 		u, _ := url.Parse(urlStr)
 		host, _, _ := net.SplitHostPort(u.Host)
+		_, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			panic("bug: " + err.Error())
+		}
 		return u.ResolveReference(&url.URL{
-			Scheme: "http",
-			Host:   fmt.Sprintf("%s:%d", host, port),
+			Host: fmt.Sprintf("%s:%s", host, port),
 		}).String()
 	})
 	var err error
@@ -108,7 +149,12 @@ func (idp *IDP) Modify(cfg *config.Config) {
 
 var _ testenv.Modifier = (*IDP)(nil)
 
-func NewIDP(users []*User) *IDP {
+func NewIDP(users []*User, opts ...IDPOption) *IDP {
+	options := IDPOptions{
+		enableTLS: true,
+	}
+	options.apply(opts...)
+
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		panic(err)
@@ -136,6 +182,7 @@ func NewIDP(users []*User) *IDP {
 		userLookup[user.ID] = user
 	}
 	return &IDP{
+		IDPOptions: options,
 		publicJWK:  publicJWK,
 		signingKey: signingKey,
 		userLookup: userLookup,
