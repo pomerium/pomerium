@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 )
 
 // registerDashboardHandlers returns the proxy service's ServeMux
@@ -39,6 +40,15 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 	// the route specific cookie is returned in a signed query params
 	c := r.PathPrefix(dashboardPath + "/callback").Subrouter()
 	c.Path("/").Handler(httputil.HandlerFunc(p.Callback)).Methods(http.MethodGet)
+
+	// Handlers for checking whether the proxy is ready to serve traffic
+	r.Path(dashboardPath + "/readyz").
+		Handler(httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+			if r.Method != http.MethodGet {
+				http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			}
+			return p.ReadyZ(w, r)
+		}))
 
 	// Programmatic API handlers and middleware
 	// gorilla mux has a bug that prevents HTTP 405 errors from being returned properly so we do all this manually
@@ -120,6 +130,29 @@ func (p *Proxy) deviceEnrolled(w http.ResponseWriter, r *http.Request) error {
 // and is responsible setting per-route sessions.
 func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) error {
 	return p.state.Load().authenticateFlow.Callback(w, r)
+}
+
+// Readyz provides some information about whether the proxy is configured and ready
+// to serve requests
+func (p *Proxy) ReadyZ(w http.ResponseWriter, r *http.Request) error {
+	client := p.state.Load().dataBrokerClient
+
+	resp, err := client.Get(r.Context(), &databroker.GetRequest{
+		Type: "type.googleapis.com/pomerium.config.Config",
+		Id:   "dashboard-settings",
+	})
+	if err != nil {
+		return httputil.NewError(http.StatusInternalServerError, err)
+	}
+
+	if resp.GetRecord().GetData() != nil {
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, "data record from console")
+		return nil
+	}
+
+	http.Error(w, "No data record from console", http.StatusTeapot)
+	return nil
 }
 
 // ProgrammaticLogin returns a signed url that can be used to login
