@@ -161,7 +161,9 @@ func NewTraceClientFromConfig(opts otelconfig.Config) (otlptrace.Client, error) 
 			protocol = *opts.OtelExporterOtlpTracesProtocol
 		} else if opts.OtelExporterOtlpProtocol != nil {
 			protocol = *opts.OtelExporterOtlpProtocol
-		} else {
+		}
+
+		if protocol == "" {
 			protocol = BestEffortProtocolFromOTLPEndpoint(endpoint, signalSpecificEndpoint)
 		}
 
