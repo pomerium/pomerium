@@ -308,7 +308,7 @@ func (b *Builder) buildForwardProxyFilterChain(
 	})
 	return &envoy_config_listener_v3.FilterChain{
 		FilterChainMatch: &envoy_config_listener_v3.FilterChainMatch{
-			ServerNames: []string{"forward-proxy.localhost.pomerium.io"}, // XXX
+			ServerNames: []string{"relay.ken.sandbox.pomerium.io"}, // XXX
 		},
 		Filters: []*envoy_config_listener_v3.Filter{filter},
 	}
