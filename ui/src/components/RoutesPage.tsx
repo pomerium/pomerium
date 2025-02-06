@@ -125,7 +125,7 @@ const RoutesPage: FC<RoutesPageProps> = ({ data }) => {
   return (
     <SidebarPage>
       <Stack spacing={2}>
-        {data?.routes ? (
+        {data?.routes?.length > 0 ? (
           <>
             <RoutesSection
               type={"http"}
