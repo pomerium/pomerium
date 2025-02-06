@@ -76,7 +76,11 @@ const RouteCard: FC<RouteCardProps> = ({ route }) => {
           {route.connect_command && (
             <Box
               component="span"
-              sx={{ fontFamily: '"DM Mono"', fontSize: "12px" }}
+              sx={{
+                fontFamily: '"DM Mono"',
+                fontSize: "12px",
+                wordBreak: "break-all",
+              }}
             >
               {route.connect_command}
             </Box>
