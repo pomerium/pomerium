@@ -355,6 +355,26 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 	return route, nil
 }
 
+func (b *Builder) buildDynamicForwardProxyRoute(cfg *config.Config) *envoy_config_route_v3.Route {
+	return &envoy_config_route_v3.Route{
+		Name: "dynamic",
+		Match: &envoy_config_route_v3.RouteMatch{
+			PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{
+				Prefix: "/",
+			},
+		},
+		Action: &envoy_config_route_v3.Route_Route{
+			Route: &envoy_config_route_v3.RouteAction{
+				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+					Cluster: "dynamic-forward-proxy-cluster",
+				},
+			},
+		},
+		// XXX: does this need any RequestHeadersToRemove?
+		// XXX: does this need a Decorator?
+	}
+}
+
 func (b *Builder) buildPolicyRouteDirectResponseAction(r *config.DirectResponse) *envoy_config_route_v3.DirectResponseAction {
 	return &envoy_config_route_v3.DirectResponseAction{
 		Status: uint32(r.Status),

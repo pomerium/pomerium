@@ -35,6 +35,7 @@ func (b *Builder) BuildListeners(
 		li = proto.Clone(li).(*envoy_config_listener_v3.Listener)
 		li.Name = "http-ingress-internal-listener"
 		li.Address = nil
+		li.EnableReusePort = nil // not supported for an internal listener
 		li.ListenerSpecifier = &envoy_config_listener_v3.Listener_InternalListener{
 			InternalListener: &envoy_config_listener_v3.Listener_InternalListenerConfig{},
 		}

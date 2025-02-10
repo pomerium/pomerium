@@ -12,6 +12,9 @@ import (
 	envoy_config_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_endpoint_v3 "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
+	envoy_extensions_clusters_dynamic_forward_proxy_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/clusters/dynamic_forward_proxy/v3"
+	envoy_extensions_common_dynamic_forward_proxy_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/common/dynamic_forward_proxy/v3"
+	envoy_extensions_network_dns_resolver_cares_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/network/dns_resolver/cares/v3"
 	envoy_extensions_transport_sockets_tls_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -22,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 )
 
 // BuildClusters builds envoy clusters from the given config.
@@ -114,6 +118,9 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 				clusters = append(clusters, cluster)
 			}
 		}
+
+		// XXX
+		clusters = append(clusters, b.forwardProxyCluster())
 	}
 
 	if err = validateClusters(clusters); err != nil {
@@ -538,4 +545,49 @@ func getClusterDiscoveryType(lbEndpoints []*envoy_config_endpoint_v3.LbEndpoint)
 		return &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STATIC}
 	}
 	return &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STRICT_DNS}
+}
+
+func (b *Builder) forwardProxyCluster() *envoy_config_cluster_v3.Cluster {
+	clusterConfig := protoutil.NewAny(&envoy_extensions_clusters_dynamic_forward_proxy_v3.ClusterConfig{
+		ClusterImplementationSpecifier: &envoy_extensions_clusters_dynamic_forward_proxy_v3.ClusterConfig_DnsCacheConfig{
+			DnsCacheConfig: b.forwardProxyDNSCacheConfig(),
+		},
+	})
+	return &envoy_config_cluster_v3.Cluster{
+		Name:     "dynamic-forward-proxy-cluster",
+		LbPolicy: envoy_config_cluster_v3.Cluster_CLUSTER_PROVIDED,
+		ClusterDiscoveryType: &envoy_config_cluster_v3.Cluster_ClusterType{
+			ClusterType: &envoy_config_cluster_v3.Cluster_CustomClusterType{
+				Name:        "envoy.clusters.dynamic_forward_proxy",
+				TypedConfig: clusterConfig,
+			},
+		},
+	}
+}
+
+func (b *Builder) forwardProxyDNSCacheConfig() *envoy_extensions_common_dynamic_forward_proxy_v3.DnsCacheConfig {
+	resolverConfig := protoutil.NewAny(&envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{
+		Resolvers: []*envoy_config_core_v3.Address{{
+			Address: &envoy_config_core_v3.Address_SocketAddress{
+				SocketAddress: &envoy_config_core_v3.SocketAddress{
+					Address: "8.8.8.8", // XXX: this should be configurable
+					PortSpecifier: &envoy_config_core_v3.SocketAddress_PortValue{
+						PortValue: 53,
+					},
+				},
+			},
+		}},
+		DnsResolverOptions: &envoy_config_core_v3.DnsResolverOptions{
+			UseTcpForDnsLookups:   true,
+			NoDefaultSearchDomain: true,
+		},
+	})
+	return &envoy_extensions_common_dynamic_forward_proxy_v3.DnsCacheConfig{
+		Name:            "dynamic_forward_proxy_cache_config",
+		DnsLookupFamily: envoy_config_cluster_v3.Cluster_AUTO,
+		TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
+			Name:        "envoy.network.dns_resolver.cares",
+			TypedConfig: resolverConfig,
+		},
+	}
 }

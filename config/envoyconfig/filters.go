@@ -3,6 +3,8 @@ package envoyconfig
 import (
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	envoy_extensions_common_dynamic_forward_proxy_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/common/dynamic_forward_proxy/v3"
+	envoy_extensions_filters_http_dynamic_forward_proxy_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/dynamic_forward_proxy/v3"
 	envoy_extensions_filters_http_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
 	envoy_extensions_filters_http_header_mutation_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/header_mutation/v3"
 	envoy_extensions_filters_http_lua_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/lua/v3"
@@ -72,6 +74,21 @@ func HTTPRouterFilter() *envoy_extensions_filters_network_http_connection_manage
 		Name: "envoy.filters.http.router",
 		ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
 			TypedConfig: protoutil.NewAny(&envoy_extensions_filters_http_router_v3.Router{}),
+		},
+	}
+}
+
+func DynamicForwardProxyFilter(
+	dnsCacheConfig *envoy_extensions_common_dynamic_forward_proxy_v3.DnsCacheConfig,
+) *envoy_extensions_filters_network_http_connection_manager.HttpFilter {
+	return &envoy_extensions_filters_network_http_connection_manager.HttpFilter{
+		Name: "envoy.filters.http.dynamic_forward_proxy",
+		ConfigType: &envoy_extensions_filters_network_http_connection_manager.HttpFilter_TypedConfig{
+			TypedConfig: protoutil.NewAny(&envoy_extensions_filters_http_dynamic_forward_proxy_v3.FilterConfig{
+				ImplementationSpecifier: &envoy_extensions_filters_http_dynamic_forward_proxy_v3.FilterConfig_DnsCacheConfig{
+					DnsCacheConfig: dnsCacheConfig,
+				},
+			}),
 		},
 	}
 }

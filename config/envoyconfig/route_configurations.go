@@ -98,6 +98,9 @@ func (b *Builder) buildMainRouteConfiguration(
 			return nil, err
 		}
 		vh.Routes = append(vh.Routes, rs...)
+
+		// XXX
+		vh.Routes = append(vh.Routes, b.buildDynamicForwardProxyRoute(cfg))
 	}
 
 	virtualHosts = append(virtualHosts, vh)

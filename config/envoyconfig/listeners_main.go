@@ -175,6 +175,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	if !useQUIC && cfg.Options.CodecType == config.CodecTypeHTTP3 {
 		filters = append(filters, newQUICAltSvcHeaderFilter(cfg))
 	}
+	filters = append(filters, DynamicForwardProxyFilter(b.forwardProxyDNSCacheConfig()))
 	filters = append(filters, HTTPRouterFilter())
 
 	var maxStreamDuration *durationpb.Duration
