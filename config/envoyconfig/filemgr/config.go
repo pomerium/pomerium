@@ -1,10 +1,9 @@
 package filemgr
 
 import (
-	"os"
 	"path/filepath"
 
-	"github.com/google/uuid"
+	"github.com/pomerium/pomerium/internal/fileutil"
 )
 
 type config struct {
@@ -23,11 +22,7 @@ func WithCacheDir(cacheDir string) Option {
 
 func newConfig(options ...Option) *config {
 	cfg := new(config)
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		cacheDir = filepath.Join(os.TempDir(), uuid.New().String())
-	}
-	WithCacheDir(filepath.Join(cacheDir, "pomerium", "envoy", "files"))(cfg)
+	WithCacheDir(filepath.Join(fileutil.CacheDir(), "envoy", "files"))(cfg)
 	for _, o := range options {
 		o(cfg)
 	}

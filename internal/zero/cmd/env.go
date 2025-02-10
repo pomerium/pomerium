@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/viper"
+
+	"github.com/pomerium/pomerium/internal/fileutil"
 )
 
 const (
@@ -63,11 +65,7 @@ func getBootstrapConfigFileName() (string, error) {
 	if filename := os.Getenv(BootstrapConfigFileName); filename != "" {
 		return filename, nil
 	}
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		return "", err
-	}
-	dir := filepath.Join(cacheDir, "pomerium")
+	dir := fileutil.CacheDir()
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", fmt.Errorf("error creating cache directory: %w", err)
 	}
