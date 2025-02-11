@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/grpc/identity"
 )
@@ -34,6 +36,13 @@ func (o *Options) GetIdentityProviderForPolicy(policy *Policy) (*identity.Provid
 		return nil, err
 	}
 
+	deviceAuthClientType := "public"
+	if o.DeviceAuthClientType != "" {
+		if deviceAuthClientType != "public" && deviceAuthClientType != "confidential" {
+			return nil, fmt.Errorf("config: invalid device auth client type %q", o.DeviceAuthClientType)
+		}
+		deviceAuthClientType = o.DeviceAuthClientType
+	}
 	idp := &identity.Provider{
 		AuthenticateServiceUrl: authenticateURL.String(),
 		ClientId:               o.ClientID,
@@ -42,6 +51,7 @@ func (o *Options) GetIdentityProviderForPolicy(policy *Policy) (*identity.Provid
 		Scopes:                 o.Scopes,
 		Url:                    o.ProviderURL,
 		RequestParams:          o.RequestParams,
+		DeviceAuthClientType:   &deviceAuthClientType,
 	}
 	if policy != nil {
 		if policy.IDPClientID != "" {

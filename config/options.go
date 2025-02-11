@@ -159,6 +159,11 @@ type Options struct {
 	ProviderURL      string   `mapstructure:"idp_provider_url" yaml:"idp_provider_url,omitempty"`
 	Scopes           []string `mapstructure:"idp_scopes" yaml:"idp_scopes,omitempty"`
 
+	// Either "public" or "confidential". Defaults to "public".
+	// If set to "confidential", the client_secret will be used when requesting a
+	// device code for the device authorization grant type.
+	DeviceAuthClientType string `mapstructure:"device_auth_client_type" yaml:"device_auth_client_type,omitempty"`
+
 	// RequestParams are custom request params added to the signin request as
 	// part of an Oauth2 code flow.
 	//
@@ -1485,6 +1490,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.ClientSecret, settings.IdpClientSecret)
 	set(&o.Provider, settings.IdpProvider)
 	set(&o.ProviderURL, settings.IdpProviderUrl)
+	set(&o.DeviceAuthClientType, settings.DeviceAuthClientType)
 	setSlice(&o.Scopes, settings.Scopes)
 	setMap(&o.RequestParams, settings.RequestParams)
 	setSlice(&o.AuthorizeURLStrings, settings.AuthorizeServiceUrls)

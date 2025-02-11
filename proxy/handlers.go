@@ -63,6 +63,12 @@ func (p *Proxy) registerDashboardHandlers(r *mux.Router, opts *config.Options) *
 					return nil
 				}
 				return p.routesPortalJSON(w, r)
+			case dashboardPath + "/v1/device_auth":
+				if r.Method != http.MethodGet {
+					http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+					return nil
+				}
+				return p.DeviceAuthLogin(w, r)
 			}
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return nil
@@ -158,6 +164,27 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.WriteString(w, rawURL)
 	return nil
+}
+
+func (p *Proxy) DeviceAuthLogin(w http.ResponseWriter, r *http.Request) error {
+	state := p.state.Load()
+	options := p.currentOptions.Load()
+
+	params := url.Values{}
+	routeUri := urlutil.GetAbsoluteURL(r)
+	params.Set(urlutil.QueryDeviceAuthRouteURI, routeUri.String())
+
+	idp, err := options.GetIdentityProviderForRequestURL(routeUri.String())
+	if err != nil {
+		return httputil.NewError(http.StatusInternalServerError, err)
+	}
+	params.Set(urlutil.QueryIdentityProviderID, idp.Id)
+
+	if retryToken := r.FormValue(urlutil.QueryDeviceAuthRetryToken); retryToken != "" {
+		params.Set(urlutil.QueryDeviceAuthRetryToken, retryToken)
+	}
+
+	return state.authenticateFlow.AuthenticateDeviceCode(w, r, params)
 }
 
 // jwtAssertion returns the current request's JWT assertion (rfc7519#section-10.3.1).

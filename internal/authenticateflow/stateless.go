@@ -379,6 +379,17 @@ func (s *Stateless) AuthenticateSignInURL(
 	)
 }
 
+func (s *Stateless) AuthenticateDeviceCode(w http.ResponseWriter, r *http.Request, params url.Values) error {
+	signinURL := s.authenticateURL.ResolveReference(&url.URL{
+		Path:     "/.pomerium/device_auth",
+		RawQuery: params.Encode(),
+	})
+
+	signedURL := urlutil.NewSignedURL(s.sharedKey, signinURL)
+	httputil.Redirect(w, r, signedURL.String(), http.StatusFound)
+	return nil
+}
+
 // Callback handles a redirect to a route domain once signed in.
 func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 	if err := r.ParseForm(); err != nil {

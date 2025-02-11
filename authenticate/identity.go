@@ -27,12 +27,13 @@ func defaultGetIdentityProvider(ctx context.Context, tracerProvider oteltrace.Tr
 		return nil, err
 	}
 	return identity.NewAuthenticator(ctx, tracerProvider, oauth.Options{
-		RedirectURL:     redirectURL,
-		ProviderName:    idp.GetType(),
-		ProviderURL:     idp.GetUrl(),
-		ClientID:        idp.GetClientId(),
-		ClientSecret:    idp.GetClientSecret(),
-		Scopes:          idp.GetScopes(),
-		AuthCodeOptions: idp.GetRequestParams(),
+		RedirectURL:          redirectURL,
+		ProviderName:         idp.GetType(),
+		ProviderURL:          idp.GetUrl(),
+		ClientID:             idp.GetClientId(),
+		ClientSecret:         idp.GetClientSecret(),
+		Scopes:               idp.GetScopes(),
+		AuthCodeOptions:      idp.GetRequestParams(),
+		DeviceAuthClientType: idp.GetDeviceAuthClientType(),
 	})
 }

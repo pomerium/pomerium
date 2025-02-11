@@ -4,24 +4,26 @@ package urlutil
 // services over HTTP calls and redirects. They are typically used in
 // conjunction with a HMAC to ensure authenticity.
 const (
-	QueryCallbackURI        = "pomerium_callback_uri"
-	QueryDeviceCredentialID = "pomerium_device_credential_id"
-	QueryDeviceType         = "pomerium_device_type"
-	QueryEnrollmentToken    = "pomerium_enrollment_token" //nolint
-	QueryExpiry             = "pomerium_expiry"
-	QueryIdentityProfile    = "pomerium_identity_profile"
-	QueryIdentityProviderID = "pomerium_idp_id"
-	QueryIsProgrammatic     = "pomerium_programmatic"
-	QueryIssued             = "pomerium_issued"
-	QueryPomeriumJWT        = "pomerium_jwt"
-	QueryRedirectURI        = "pomerium_redirect_uri"
-	QuerySession            = "pomerium_session"
-	QuerySessionEncrypted   = "pomerium_session_encrypted"
-	QuerySessionState       = "pomerium_session_state"
-	QueryVersion            = "pomerium_version"
-	QueryRequestUUID        = "pomerium_request_uuid"
-	QueryTraceparent        = "pomerium_traceparent"
-	QueryTracestate         = "pomerium_tracestate"
+	QueryCallbackURI          = "pomerium_callback_uri"
+	QueryDeviceCredentialID   = "pomerium_device_credential_id"
+	QueryDeviceType           = "pomerium_device_type"
+	QueryEnrollmentToken      = "pomerium_enrollment_token" //nolint
+	QueryExpiry               = "pomerium_expiry"
+	QueryIdentityProfile      = "pomerium_identity_profile"
+	QueryIdentityProviderID   = "pomerium_idp_id"
+	QueryIsProgrammatic       = "pomerium_programmatic"
+	QueryIssued               = "pomerium_issued"
+	QueryPomeriumJWT          = "pomerium_jwt"
+	QueryRedirectURI          = "pomerium_redirect_uri"
+	QuerySession              = "pomerium_session"
+	QuerySessionEncrypted     = "pomerium_session_encrypted"
+	QuerySessionState         = "pomerium_session_state"
+	QueryVersion              = "pomerium_version"
+	QueryRequestUUID          = "pomerium_request_uuid"
+	QueryTraceparent          = "pomerium_traceparent"
+	QueryTracestate           = "pomerium_tracestate"
+	QueryDeviceAuthRetryToken = "pomerium_device_auth_retry_token"
+	QueryDeviceAuthRouteURI   = "pomerium_device_auth_route_uri"
 )
 
 // URL signature based query params used for verifying the authenticity of a URL.

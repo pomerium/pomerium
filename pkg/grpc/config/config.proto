@@ -149,7 +149,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 137.
+// Next ID: 138.
 message Settings {
   message Certificate {
     bytes cert_bytes = 3;
@@ -269,6 +269,7 @@ message Settings {
   optional bool pass_identity_headers = 117;
   map<string, bool> runtime_flags = 118;
   optional uint32 http3_advertise_port = 136;
+  optional string device_auth_client_type = 137;
 }
 
 message DownstreamMtlsSettings {

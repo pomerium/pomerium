@@ -29,4 +29,6 @@ type Options struct {
 	// AuthCodeOptions specifies additional key value pairs query params to add
 	// to the request flow signin url.
 	AuthCodeOptions map[string]string
+
+	DeviceAuthClientType string
 }
