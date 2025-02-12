@@ -126,9 +126,9 @@ func (b *Builder) buildMainTLSListener(
 	}
 	li.FilterChains = append(li.FilterChains, filterChain)
 
-	fp := b.buildForwardProxyFilterChain(ctx, cfg)
+	/*fp := b.buildForwardProxyFilterChain(ctx, cfg)
 	fp.TransportSocket = transportSocket
-	li.FilterChains = append(li.FilterChains, fp)
+	li.FilterChains = append(li.FilterChains, fp)*/
 
 	return li, nil
 }
@@ -175,7 +175,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 	if !useQUIC && cfg.Options.CodecType == config.CodecTypeHTTP3 {
 		filters = append(filters, newQUICAltSvcHeaderFilter(cfg))
 	}
-	filters = append(filters, DynamicForwardProxyFilter(b.forwardProxyDNSCacheConfig()))
+	filters = append(filters, DynamicForwardProxyFilter(b.forwardProxyDNSCacheConfig(cfg)))
 	filters = append(filters, HTTPRouterFilter())
 
 	var maxStreamDuration *durationpb.Duration
@@ -309,7 +309,7 @@ func (b *Builder) buildForwardProxyFilterChain(
 	})
 	return &envoy_config_listener_v3.FilterChain{
 		FilterChainMatch: &envoy_config_listener_v3.FilterChainMatch{
-			ServerNames: []string{"relay.ken.sandbox.pomerium.io"}, // XXX
+			ServerNames: []string{"relay.ken.sandbox.pomerium.io", "relay.localhost.pomerium.io"}, // XXX
 		},
 		Filters: []*envoy_config_listener_v3.Filter{filter},
 	}

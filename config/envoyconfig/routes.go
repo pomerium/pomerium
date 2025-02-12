@@ -355,23 +355,56 @@ func (b *Builder) buildRouteForPolicyAndMatch(
 	return route, nil
 }
 
-func (b *Builder) buildDynamicForwardProxyRoute(cfg *config.Config) *envoy_config_route_v3.Route {
-	return &envoy_config_route_v3.Route{
-		Name: "dynamic",
-		Match: &envoy_config_route_v3.RouteMatch{
-			PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{
-				Prefix: "/",
-			},
-		},
-		Action: &envoy_config_route_v3.Route_Route{
-			Route: &envoy_config_route_v3.RouteAction{
-				ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
-					Cluster: "dynamic-forward-proxy-cluster",
+func (b *Builder) buildDynamicForwardProxyRoutes(cfg *config.Config) []*envoy_config_route_v3.Route {
+	return []*envoy_config_route_v3.Route{
+		{
+			Name: "dynamic-upstream",
+			Match: &envoy_config_route_v3.RouteMatch{
+				PathSpecifier: &envoy_config_route_v3.RouteMatch_Prefix{
+					Prefix: "/",
 				},
 			},
+			Action: &envoy_config_route_v3.Route_Route{
+				Route: &envoy_config_route_v3.RouteAction{
+					ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+						Cluster: "dynamic-forward-proxy-cluster",
+					},
+				},
+			},
+			TypedPerFilterConfig: map[string]*anypb.Any{
+				PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzDisabled(),
+			},
 		},
-		// XXX: does this need any RequestHeadersToRemove?
-		// XXX: does this need a Decorator?
+		{
+			Name: "dynamic-proxy",
+			Match: &envoy_config_route_v3.RouteMatch{
+				PathSpecifier: &envoy_config_route_v3.RouteMatch_ConnectMatcher_{
+					ConnectMatcher: &envoy_config_route_v3.RouteMatch_ConnectMatcher{},
+				},
+			},
+			Action: &envoy_config_route_v3.Route_Route{
+				Route: &envoy_config_route_v3.RouteAction{
+					ClusterSpecifier: &envoy_config_route_v3.RouteAction_Cluster{
+						Cluster: "dynamic-forward-proxy-cluster",
+					},
+					UpgradeConfigs: []*envoy_config_route_v3.RouteAction_UpgradeConfig{
+						{
+							UpgradeType:   "CONNECT",
+							ConnectConfig: &envoy_config_route_v3.RouteAction_UpgradeConfig_ConnectConfig{},
+						},
+						{
+							UpgradeType:   "CONNECT-UDP",
+							ConnectConfig: &envoy_config_route_v3.RouteAction_UpgradeConfig_ConnectConfig{},
+						},
+					},
+				},
+			},
+			TypedPerFilterConfig: map[string]*anypb.Any{
+				PerFilterConfigExtAuthzName: PerFilterConfigExtAuthzDisabled(),
+			},
+		},
+		// XXX: do these need any RequestHeadersToRemove?
+		// XXX: do these need a Decorator?
 	}
 }
 

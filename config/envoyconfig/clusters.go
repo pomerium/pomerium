@@ -120,7 +120,7 @@ func (b *Builder) BuildClusters(ctx context.Context, cfg *config.Config) ([]*env
 		}
 
 		// XXX
-		clusters = append(clusters, b.forwardProxyCluster())
+		clusters = append(clusters, b.forwardProxyCluster(cfg))
 	}
 
 	if err = validateClusters(clusters); err != nil {
@@ -547,10 +547,12 @@ func getClusterDiscoveryType(lbEndpoints []*envoy_config_endpoint_v3.LbEndpoint)
 	return &envoy_config_cluster_v3.Cluster_Type{Type: envoy_config_cluster_v3.Cluster_STRICT_DNS}
 }
 
-func (b *Builder) forwardProxyCluster() *envoy_config_cluster_v3.Cluster {
+func (b *Builder) forwardProxyCluster(
+	cfg *config.Config,
+) *envoy_config_cluster_v3.Cluster {
 	clusterConfig := protoutil.NewAny(&envoy_extensions_clusters_dynamic_forward_proxy_v3.ClusterConfig{
 		ClusterImplementationSpecifier: &envoy_extensions_clusters_dynamic_forward_proxy_v3.ClusterConfig_DnsCacheConfig{
-			DnsCacheConfig: b.forwardProxyDNSCacheConfig(),
+			DnsCacheConfig: b.forwardProxyDNSCacheConfig(cfg),
 		},
 	})
 	return &envoy_config_cluster_v3.Cluster{
@@ -565,7 +567,9 @@ func (b *Builder) forwardProxyCluster() *envoy_config_cluster_v3.Cluster {
 	}
 }
 
-func (b *Builder) forwardProxyDNSCacheConfig() *envoy_extensions_common_dynamic_forward_proxy_v3.DnsCacheConfig {
+func (b *Builder) forwardProxyDNSCacheConfig(
+	cfg *config.Config,
+) *envoy_extensions_common_dynamic_forward_proxy_v3.DnsCacheConfig {
 	resolverConfig := protoutil.NewAny(&envoy_extensions_network_dns_resolver_cares_v3.CaresDnsResolverConfig{
 		Resolvers: []*envoy_config_core_v3.Address{{
 			Address: &envoy_config_core_v3.Address_SocketAddress{
@@ -583,8 +587,9 @@ func (b *Builder) forwardProxyDNSCacheConfig() *envoy_extensions_common_dynamic_
 		},
 	})
 	return &envoy_extensions_common_dynamic_forward_proxy_v3.DnsCacheConfig{
-		Name:            "dynamic_forward_proxy_cache_config",
-		DnsLookupFamily: envoy_config_cluster_v3.Cluster_AUTO,
+		Name: "dynamic_forward_proxy_cache_config",
+		// XXX: this should probably pull from the main config option
+		DnsLookupFamily: config.GetEnvoyDNSLookupFamily(cfg.Options.DNSLookupFamily),
 		TypedDnsResolverConfig: &envoy_config_core_v3.TypedExtensionConfig{
 			Name:        "envoy.network.dns_resolver.cares",
 			TypedConfig: resolverConfig,
