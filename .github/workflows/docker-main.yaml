@@ -8,7 +8,7 @@ on:
 
 jobs:
   publish:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     outputs:
       sha-tag: ${{ steps.metadata.outputs.sha-tag }}
       image: ${{ steps.metadata.outputs.image }}
@@ -71,7 +71,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
   deploy:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     needs: publish
     steps:
       - name: Checkout Gitops Repo
