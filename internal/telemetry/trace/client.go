@@ -30,6 +30,10 @@ var (
 type SyncClient interface {
 	otlptrace.Client
 
+	// Update safely replaces the current trace client with the one provided.
+	// The new client must be unstarted. The old client (if any) will be stopped.
+	//
+	// This function is NOT reentrant; callers must use appropriate locking.
 	Update(ctx context.Context, newClient otlptrace.Client) error
 }
 
