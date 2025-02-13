@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -186,6 +187,8 @@ type Policy struct {
 	IDPClientID string `mapstructure:"idp_client_id" yaml:"idp_client_id,omitempty"`
 	// IDPClientSecret is the client secret used for the identity provider.
 	IDPClientSecret string `mapstructure:"idp_client_secret" yaml:"idp_client_secret,omitempty"`
+	// IDPAccessTokenAllowedAudiences are the allowed audiences for idp access token validation.
+	IDPAccessTokenAllowedAudiences *[]string `mapstructure:"idp_access_token_allowed_audiences" yaml:"idp_access_token_allowed_audiences,omitempty"`
 
 	// ShowErrorDetails indicates whether or not additional error details should be displayed.
 	ShowErrorDetails bool `mapstructure:"show_error_details" yaml:"show_error_details" json:"show_error_details"`
@@ -331,6 +334,12 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		TLSUpstreamAllowRenegotiation:     pb.GetTlsUpstreamAllowRenegotiation(),
 		TLSUpstreamServerName:             pb.GetTlsUpstreamServerName(),
 		UpstreamTimeout:                   timeout,
+	}
+	if pb.IdpAccessTokenAllowedAudiences != nil {
+		values := slices.Clone(pb.IdpAccessTokenAllowedAudiences.Values)
+		p.IDPAccessTokenAllowedAudiences = &values
+	} else {
+		p.IDPAccessTokenAllowedAudiences = nil
 	}
 	if pb.Redirect.IsSet() {
 		p.Redirect = &PolicyRedirect{
@@ -504,6 +513,13 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	}
 	if p.IDPClientSecret != "" {
 		pb.IdpClientSecret = proto.String(p.IDPClientSecret)
+	}
+	if p.IDPAccessTokenAllowedAudiences != nil {
+		pb.IdpAccessTokenAllowedAudiences = &configpb.Route_StringList{
+			Values: slices.Clone(*p.IDPAccessTokenAllowedAudiences),
+		}
+	} else {
+		pb.IdpAccessTokenAllowedAudiences = nil
 	}
 	if p.Redirect != nil {
 		pb.Redirect = &configpb.RouteRedirect{

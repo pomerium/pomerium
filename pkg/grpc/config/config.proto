@@ -45,8 +45,10 @@ enum IssuerFormat {
   IssuerURI = 1;
 }
 
-// Next ID: 69.
+// Next ID: 70.
 message Route {
+  message StringList { repeated string values = 1; }
+
   string name = 1;
   string description = 67;
   string logo_url = 68;
@@ -130,6 +132,7 @@ message Route {
 
   optional string idp_client_id = 55;
   optional string idp_client_secret = 56;
+  optional StringList idp_access_token_allowed_audiences = 69;
   bool show_error_details = 59;
 }
 
@@ -149,7 +152,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 137.
+// Next ID: 138.
 message Settings {
   message Certificate {
     bytes cert_bytes = 3;
@@ -188,6 +191,7 @@ message Settings {
   optional string idp_client_secret = 23;
   optional string idp_provider = 24;
   optional string idp_provider_url = 25;
+  optional StringList idp_access_token_allowed_audiences = 137;
   repeated string scopes = 26;
   // optional string idp_service_account = 27;
   // optional google.protobuf.Duration idp_refresh_directory_timeout = 28;

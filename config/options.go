@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -152,12 +153,13 @@ type Options struct {
 
 	// Identity provider configuration variables as specified by RFC6749
 	// https://openid.net/specs/openid-connect-basic-1_0.html#RFC6749
-	ClientID         string   `mapstructure:"idp_client_id" yaml:"idp_client_id,omitempty"`
-	ClientSecret     string   `mapstructure:"idp_client_secret" yaml:"idp_client_secret,omitempty"`
-	ClientSecretFile string   `mapstructure:"idp_client_secret_file" yaml:"idp_client_secret_file,omitempty"`
-	Provider         string   `mapstructure:"idp_provider" yaml:"idp_provider,omitempty"`
-	ProviderURL      string   `mapstructure:"idp_provider_url" yaml:"idp_provider_url,omitempty"`
-	Scopes           []string `mapstructure:"idp_scopes" yaml:"idp_scopes,omitempty"`
+	ClientID                       string    `mapstructure:"idp_client_id" yaml:"idp_client_id,omitempty"`
+	ClientSecret                   string    `mapstructure:"idp_client_secret" yaml:"idp_client_secret,omitempty"`
+	ClientSecretFile               string    `mapstructure:"idp_client_secret_file" yaml:"idp_client_secret_file,omitempty"`
+	Provider                       string    `mapstructure:"idp_provider" yaml:"idp_provider,omitempty"`
+	ProviderURL                    string    `mapstructure:"idp_provider_url" yaml:"idp_provider_url,omitempty"`
+	Scopes                         []string  `mapstructure:"idp_scopes" yaml:"idp_scopes,omitempty"`
+	IDPAccessTokenAllowedAudiences *[]string `mapstructure:"idp_access_token_allowed_audiences" yaml:"idp_access_token_allowed_audiences,omitempty"`
 
 	// RequestParams are custom request params added to the signin request as
 	// part of an Oauth2 code flow.
@@ -1487,6 +1489,12 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.ProviderURL, settings.IdpProviderUrl)
 	setSlice(&o.Scopes, settings.Scopes)
 	setMap(&o.RequestParams, settings.RequestParams)
+	if settings.IdpAccessTokenAllowedAudiences != nil {
+		values := slices.Clone(settings.IdpAccessTokenAllowedAudiences.Values)
+		o.IDPAccessTokenAllowedAudiences = &values
+	} else {
+		o.IDPAccessTokenAllowedAudiences = nil
+	}
 	setSlice(&o.AuthorizeURLStrings, settings.AuthorizeServiceUrls)
 	set(&o.AuthorizeInternalURLString, settings.AuthorizeInternalServiceUrl)
 	set(&o.OverrideCertificateName, settings.OverrideCertificateName)
@@ -1591,6 +1599,13 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.IdpProviderUrl, &o.ProviderURL)
 	settings.Scopes = o.Scopes
 	settings.RequestParams = o.RequestParams
+	if o.IDPAccessTokenAllowedAudiences != nil {
+		settings.IdpAccessTokenAllowedAudiences = &config.Settings_StringList{
+			Values: slices.Clone(*o.IDPAccessTokenAllowedAudiences),
+		}
+	} else {
+		settings.IdpAccessTokenAllowedAudiences = nil
+	}
 	settings.AuthorizeServiceUrls = o.AuthorizeURLStrings
 	copySrcToOptionalDest(&settings.AuthorizeInternalServiceUrl, &o.AuthorizeInternalURLString)
 	copySrcToOptionalDest(&settings.OverrideCertificateName, &o.OverrideCertificateName)
