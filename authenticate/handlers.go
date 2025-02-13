@@ -43,6 +43,16 @@ func (a *Authenticate) Handler() http.Handler {
 func (a *Authenticate) Mount(r *mux.Router) {
 	r.StrictSlash(true)
 	r.Use(middleware.SetHeaders(httputil.HeadersContentSecurityPolicy))
+	// disable csrf checking for these endpoints
+	r.Use(func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/.pomerium/verify-access-token" ||
+				r.URL.Path == "/.pomerium/verify-identity-token" {
+				r = csrf.UnsafeSkipCheck(r)
+			}
+			h.ServeHTTP(w, r)
+		})
+	})
 	r.Use(func(h http.Handler) http.Handler {
 		options := a.options.Load()
 		state := a.state.Load()
@@ -95,6 +105,8 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	// routes that don't need a session:
 	sr.Path("/sign_out").Handler(httputil.HandlerFunc(a.SignOut))
 	sr.Path("/signed_out").Handler(httputil.HandlerFunc(a.signedOut)).Methods(http.MethodGet)
+	sr.Path("/verify-access-token").Handler(httputil.HandlerFunc(a.verifyAccessToken)).Methods(http.MethodPost)
+	sr.Path("/verify-identity-token").Handler(httputil.HandlerFunc(a.verifyIdentityToken)).Methods(http.MethodPost)
 
 	// routes that need a session:
 	sr = sr.NewRoute().Subrouter()
