@@ -57,6 +57,11 @@ func (o *Options) GetIdentityProviderForPolicy(policy *Policy) (*identity.Provid
 		if policy.IDPClientSecret != "" {
 			idp.ClientSecret = policy.IDPClientSecret
 		}
+		if v := policy.IDPAccessTokenAllowedAudiences; v != nil {
+			idp.AccessTokenAllowedAudiences = &identity.Provider_StringList{
+				Values: slices.Clone(*v),
+			}
+		}
 	}
 	idp.Id = idp.Hash()
 	return idp, nil
