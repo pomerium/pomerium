@@ -8,6 +8,7 @@ import (
 
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 
+	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/log"
 )
 
@@ -45,7 +46,7 @@ func (mgr *Manager) BytesDataSource(fileName string, data []byte) *envoy_config_
 	filePath := filepath.Join(mgr.cfg.cacheDir, fileName)
 
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		err = os.WriteFile(filePath, data, 0o600)
+		err = fileutil.WriteFileAtomically(filePath, data, 0o600)
 		if err != nil {
 			log.Error().Err(err).Msg("filemgr: error writing cache file, falling back to inline bytes")
 			return inlineBytes(data)
