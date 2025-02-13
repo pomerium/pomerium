@@ -81,9 +81,10 @@ type Pomerium struct {
 	Options
 	errGroup *errgroup.Group
 
-	startMu     sync.Mutex
-	cancel      context.CancelCauseFunc
-	envoyServer *envoy.Server
+	startMu       sync.Mutex
+	cancel        context.CancelCauseFunc
+	envoyServer   *envoy.Server
+	traceClientMu sync.Mutex
 }
 
 func New(opts ...Option) *Pomerium {
@@ -98,7 +99,7 @@ func New(opts ...Option) *Pomerium {
 func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerProvider, src config.Source) error {
 	p.startMu.Lock()
 	defer p.startMu.Unlock()
-	updateTraceClient(ctx, src.GetConfig())
+	p.updateTraceClient(ctx, src.GetConfig())
 	ctx, p.cancel = context.WithCancelCause(ctx)
 	_, _ = maxprocs.Set(maxprocs.Logger(func(s string, i ...any) { log.Ctx(ctx).Debug().Msgf(s, i...) }))
 
@@ -138,7 +139,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	}
 
 	cfg := src.GetConfig()
-	src.OnConfigChange(ctx, updateTraceClient)
+	src.OnConfigChange(ctx, p.updateTraceClient)
 
 	// setup the control plane
 	controlPlane, err := controlplane.NewServer(ctx, cfg, metricsMgr, eventsMgr, fileMgr)
@@ -319,7 +320,7 @@ func setupProxy(ctx context.Context, src config.Source, controlPlane *controlpla
 	return nil
 }
 
-func updateTraceClient(ctx context.Context, cfg *config.Config) {
+func (p *Pomerium) updateTraceClient(ctx context.Context, cfg *config.Config) {
 	sc, ok := trace.RemoteClientFromContext(ctx).(trace.SyncClient)
 	if !ok {
 		return
@@ -329,6 +330,14 @@ func updateTraceClient(ctx context.Context, cfg *config.Config) {
 		log.Ctx(ctx).Warn().Err(err).Msg("error configuring trace client")
 	} else {
 		go func() {
+			if !p.traceClientMu.TryLock() {
+				log.Ctx(ctx).
+					Debug().
+					Msg("waiting for a previous trace client update to complete")
+				p.traceClientMu.Lock()
+			}
+			defer p.traceClientMu.Unlock()
+
 			if err := sc.Update(ctx, newClient); err != nil {
 				log.Ctx(ctx).
 					Warn().
