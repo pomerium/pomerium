@@ -17,6 +17,8 @@ func TestRouteFromConfigRoute(t *testing.T) {
 	require.NoError(t, err)
 	to2, err := config.ParseWeightedUrls("tcp://postgres:5432")
 	require.NoError(t, err)
+	to3, err := config.ParseWeightedUrls("tcp://redis:6379")
+	require.NoError(t, err)
 
 	assert.Equal(t, []portal.Route{
 		{
@@ -47,6 +49,13 @@ func TestRouteFromConfigRoute(t *testing.T) {
 			From:           "udp+https://dns.example.com:53",
 			ConnectCommand: "pomerium-cli udp dns.example.com:53",
 		},
+		{
+			ID:             "8544b096d71c5dfe",
+			Name:           "redis",
+			Type:           "tcp",
+			From:           "tcp+https://proxy.corp.example.com:8443/redis.internal.example.com:6379",
+			ConnectCommand: "pomerium-cli tcp tcp+https://proxy.corp.example.com:8443/redis.internal.example.com:6379",
+		},
 	}, portal.RoutesFromConfigRoutes([]*config.Policy{
 		{
 			From:        "https://from.example.com",
@@ -66,6 +75,11 @@ func TestRouteFromConfigRoute(t *testing.T) {
 		{
 			From: "udp+https://dns.example.com:53",
 			To:   to2,
+		},
+		{
+			Name: "redis",
+			From: "tcp+https://proxy.corp.example.com:8443/redis.internal.example.com:6379",
+			To:   to3,
 		},
 	}))
 }
