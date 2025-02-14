@@ -5,15 +5,28 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
+	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/jwtutil"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/sessions/cookie"
 	"github.com/pomerium/pomerium/internal/sessions/header"
 	"github.com/pomerium/pomerium/internal/sessions/queryparam"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/authenticateapi"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/identity"
+	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 // A SessionStore saves and loads sessions based on the options.
@@ -116,82 +129,253 @@ func (store *SessionStore) SaveSession(w http.ResponseWriter, r *http.Request, v
 	return store.store.SaveSession(w, r, v)
 }
 
-// An IDPTokenSessionHandler handles incoming idp access and identity tokens.
-type IDPTokenSessionHandler struct {
-	options    *Options
-	getSession func(ctx context.Context, id string) (*session.Session, error)
-	putSession func(ctx context.Context, s *session.Session) error
+var (
+	accessTokenUUIDNamespace   = uuid.MustParse("0194f6f8-e760-76a0-8917-e28ac927a34d")
+	identityTokenUUIDNamespace = uuid.MustParse("0194f6f9-aec0-704e-bb4a-51054f17ad17")
+)
+
+type IncomingIDPTokenSessionCreator interface {
+	CreateSession(ctx context.Context, cfg *Config, policy *Policy, r *http.Request) (*session.Session, error)
 }
 
-// NewIDPTokenSessionHandler creates a new IDPTokenSessionHandler.
-func NewIDPTokenSessionHandler(
-	options *Options,
-	getSession func(ctx context.Context, id string) (*session.Session, error),
-	putSession func(ctx context.Context, s *session.Session) error,
-) *IDPTokenSessionHandler {
-	return &IDPTokenSessionHandler{
-		options:    options,
-		getSession: getSession,
-		putSession: putSession,
+type incomingIDPTokenSessionCreator struct {
+	getRecord  func(ctx context.Context, recordType, recordID string) (*databroker.Record, error)
+	putRecords func(ctx context.Context, records []*databroker.Record) error
+}
+
+func NewIncomingIDPTokenSessionCreator(
+	getRecord func(ctx context.Context, recordType, recordID string) (*databroker.Record, error),
+	putRecords func(ctx context.Context, records []*databroker.Record) error,
+) IncomingIDPTokenSessionCreator {
+	return &incomingIDPTokenSessionCreator{getRecord: getRecord, putRecords: putRecords}
+}
+
+// CreateSession attempts to create a session for incoming idp access and
+// identity tokens. If no access or identity token is passed ErrNoSessionFound will be returned.
+// If the tokens are not valid an error will be returned.
+func (c *incomingIDPTokenSessionCreator) CreateSession(
+	ctx context.Context,
+	cfg *Config,
+	policy *Policy,
+	r *http.Request,
+) (session *session.Session, err error) {
+	if rawAccessToken, ok := cfg.GetIncomingIDPAccessTokenForPolicy(policy, r); ok {
+		return c.createSessionAccessToken(ctx, cfg, policy, rawAccessToken)
 	}
+
+	if rawIdentityToken, ok := cfg.GetIncomingIDPIdentityTokenForPolicy(policy, r); ok {
+		return c.createSessionForIdentityToken(ctx, cfg, policy, rawIdentityToken)
+	}
+
+	return nil, sessions.ErrNoSessionFound
 }
 
-// // CreateSessionForIncomingIDPToken creates a session from an incoming idp access or identity token.
-// // If no such tokens are found or they are invalid ErrNoSessionFound will be returned.
-// func (h *IDPTokenSessionHandler) CreateSessionForIncomingIDPToken(r *http.Request) (*session.Session, error) {
-// 	idp, err := h.options.GetIdentityProviderForRequestURL(urlutil.GetAbsoluteURL(r).String())
-// 	if err != nil {
-// 		return nil, err
-// 	}
+func (c *incomingIDPTokenSessionCreator) createSessionAccessToken(
+	ctx context.Context,
+	cfg *Config,
+	policy *Policy,
+	rawAccessToken string,
+) (*session.Session, error) {
+	sessionID := uuid.NewSHA1(accessTokenUUIDNamespace, []byte(rawAccessToken)).String()
+	s, err := c.getSession(ctx, sessionID)
+	if err == nil {
+		return s, nil
+	} else if !storage.IsNotFound(err) {
+		return nil, err
+	}
 
-// 	return nil, sessions.ErrNoSessionFound
-// }
+	idp, err := cfg.Options.GetIdentityProviderForPolicy(policy)
+	if err != nil {
+		return nil, fmt.Errorf("error getting identity provider to verify access token: %w", err)
+	}
 
-// func (h *IDPTokenSessionHandler) getIncomingIDPAccessToken(r *http.Request) (rawAccessToken string, ok bool) {
-// 	if h.options.
+	authenticateURL, transport, err := cfg.resolveAuthenticateURL()
+	if err != nil {
+		return nil, fmt.Errorf("error resolving authenticate url to verify access token: %w", err)
+	}
 
-// 	return "", false
-// }
+	res, err := authenticateapi.New(authenticateURL, transport).VerifyAccessToken(ctx, &authenticateapi.VerifyAccessTokenRequest{
+		AccessToken:        rawAccessToken,
+		IdentityProviderID: idp.GetId(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error verifying access token: %w", err)
+	} else if !res.Valid {
+		return nil, fmt.Errorf("invalid access token")
+	}
 
-// func (h *IDPTokenSessionHandler) getIncomingIDPIdentityToken(r *http.Request) (rawIdentityToken string, ok bool) {
-// 	return "", false
-// }
+	s = c.newSessionFromIDPClaims(cfg, sessionID, res.Claims)
+	s.OauthToken = &session.OAuthToken{
+		TokenType:   "Bearer",
+		AccessToken: rawAccessToken,
+		ExpiresAt:   s.ExpiresAt,
+	}
+	u := c.newUserFromIDPClaims(res.Claims)
+	err = c.putSessionAndUser(ctx, s, u)
+	if err != nil {
+		return nil, fmt.Errorf("error saving session and user: %w", err)
+	}
 
-// func CreateSessionForIncomingIDPToken(
-// 	r *http.Request,
-// 	options *Options,
-// 	policy *Policy,
-// 	getSession func(ctx context.Context, id string) (*session.Session, error),
-// 	putSession func(ctx context.Context, s *session.Session) error)(*session.Session, error) {
-// }
+	return s, nil
+}
+
+func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
+	ctx context.Context,
+	cfg *Config,
+	policy *Policy,
+	rawIdentityToken string,
+) (*session.Session, error) {
+	sessionID := uuid.NewSHA1(identityTokenUUIDNamespace, []byte(rawIdentityToken)).String()
+	s, err := c.getSession(ctx, sessionID)
+	if err == nil {
+		return s, nil
+	} else if !storage.IsNotFound(err) {
+		return nil, err
+	}
+
+	idp, err := cfg.Options.GetIdentityProviderForPolicy(policy)
+	if err != nil {
+		return nil, fmt.Errorf("error getting identity provider to verify identity token: %w", err)
+	}
+
+	authenticateURL, transport, err := cfg.resolveAuthenticateURL()
+	if err != nil {
+		return nil, fmt.Errorf("error resolving authenticate url to verify identity token: %w", err)
+	}
+
+	res, err := authenticateapi.New(authenticateURL, transport).VerifyIdentityToken(ctx, &authenticateapi.VerifyIdentityTokenRequest{
+		IdentityToken:      rawIdentityToken,
+		IdentityProviderID: idp.GetId(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error verifying identity token: %w", err)
+	} else if !res.Valid {
+		return nil, fmt.Errorf("invalid identity token")
+	}
+
+	s = c.newSessionFromIDPClaims(cfg, sessionID, res.Claims)
+	s.SetRawIDToken(rawIdentityToken)
+	u := c.newUserFromIDPClaims(res.Claims)
+	err = c.putSessionAndUser(ctx, s, u)
+	if err != nil {
+		return nil, fmt.Errorf("error saving session and user: %w", err)
+	}
+
+	return s, nil
+}
+
+func (c *incomingIDPTokenSessionCreator) newSessionFromIDPClaims(
+	cfg *Config,
+	sessionID string,
+	claims jwtutil.Claims,
+) *session.Session {
+	now := time.Now()
+	s := new(session.Session)
+	s.Id = sessionID
+	if userID, ok := claims.GetUserID(); ok {
+		s.UserId = userID
+	}
+	if issuedAt, ok := claims.GetIssuedAt(); ok {
+		s.IssuedAt = timestamppb.New(issuedAt)
+	} else {
+		s.IssuedAt = timestamppb.New(now)
+	}
+	if expiresAt, ok := claims.GetExpirationTime(); ok {
+		s.ExpiresAt = timestamppb.New(expiresAt)
+	} else {
+		s.ExpiresAt = timestamppb.New(now.Add(cfg.Options.CookieExpire))
+	}
+	s.AccessedAt = timestamppb.New(now)
+	s.AddClaims(identity.Claims(claims).Flatten())
+	if aud, ok := claims.GetAudience(); ok {
+		s.Audience = aud
+	}
+	return s
+}
+
+func (c *incomingIDPTokenSessionCreator) newUserFromIDPClaims(
+	claims jwtutil.Claims,
+) *user.User {
+	u := new(user.User)
+	if userID, ok := claims.GetUserID(); ok {
+		u.Id = userID
+	}
+	if name, ok := claims.GetString("name"); ok {
+		u.Name = name
+	}
+	if email, ok := claims.GetString("email"); ok {
+		u.Email = email
+	}
+	u.Claims = identity.Claims(claims).Flatten().ToPB()
+	return u
+}
+
+func (c *incomingIDPTokenSessionCreator) getSession(ctx context.Context, sessionID string) (*session.Session, error) {
+	record, err := c.getRecord(ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	msg, err := record.GetData().UnmarshalNew()
+	if err != nil {
+		return nil, storage.ErrNotFound
+	}
+
+	s, ok := msg.(*session.Session)
+	if !ok {
+		return nil, storage.ErrNotFound
+	}
+
+	return s, nil
+}
+
+func (c *incomingIDPTokenSessionCreator) putSessionAndUser(ctx context.Context, s *session.Session, u *user.User) error {
+	var records []*databroker.Record
+	if id := s.GetId(); id != "" {
+		records = append(records, &databroker.Record{
+			Type: grpcutil.GetTypeURL(s),
+			Id:   id,
+			Data: protoutil.NewAny(s),
+		})
+	}
+	if id := u.GetId(); id != "" {
+		records = append(records, &databroker.Record{
+			Type: grpcutil.GetTypeURL(u),
+			Id:   id,
+			Data: protoutil.NewAny(u),
+		})
+	}
+	return c.putRecords(ctx, records)
+}
 
 // GetIncomingIDPAccessTokenForPolicy returns the raw idp access token from a request if there is one.
-func (options *Options) GetIncomingIDPAccessTokenForPolicy(policy *Policy, r *http.Request) (rawAccessToken string, ok bool) {
+func (cfg *Config) GetIncomingIDPAccessTokenForPolicy(policy *Policy, r *http.Request) (rawAccessToken string, ok bool) {
 	bearerTokenFormat := BearerTokenFormatDefault
-	if options != nil && options.BearerTokenFormat != nil {
-		bearerTokenFormat = *options.BearerTokenFormat
+	if cfg.Options != nil && cfg.Options.BearerTokenFormat != nil {
+		bearerTokenFormat = *cfg.Options.BearerTokenFormat
 	}
 	if policy != nil && policy.BearerTokenFormat != nil {
 		bearerTokenFormat = *policy.BearerTokenFormat
 	}
 
-	if token := r.Header.Get("X-Pomerium-IDP-Access-Token"); token != "" {
+	if token := r.Header.Get(httputil.HeaderPomeriumIDPAccessToken); token != "" {
 		return token, true
 	}
 
-	if auth := r.Header.Get("Authorization"); auth != "" {
-		prefix := "Pomerium-IDP-Access-Token "
+	if auth := r.Header.Get(httputil.HeaderAuthorization); auth != "" {
+		prefix := httputil.AuthorizationTypePomeriumIDPAccessToken + " "
 		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
 			return strings.TrimPrefix(auth, prefix), true
 		}
 
-		prefix = "Bearer Pomerium-IDP-Access-Token-"
+		prefix = "Bearer " + httputil.AuthorizationTypePomeriumIDPAccessToken + "-"
 		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
 			return strings.TrimPrefix(auth, prefix), true
 		}
 
 		prefix = "Bearer "
-		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) && bearerTokenFormat == BearerTokenFormatIDPAccessToken {
+		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) &&
+			bearerTokenFormat == BearerTokenFormatIDPAccessToken {
 			return strings.TrimPrefix(auth, prefix), true
 		}
 	}
@@ -200,32 +384,33 @@ func (options *Options) GetIncomingIDPAccessTokenForPolicy(policy *Policy, r *ht
 }
 
 // GetIncomingIDPAccessTokenForPolicy returns the raw idp identity token from a request if there is one.
-func (options *Options) GetIncomingIDPIdentityTokenForPolicy(policy *Policy, r *http.Request) (rawIdentityToken string, ok bool) {
+func (cfg *Config) GetIncomingIDPIdentityTokenForPolicy(policy *Policy, r *http.Request) (rawIdentityToken string, ok bool) {
 	bearerTokenFormat := BearerTokenFormatDefault
-	if options != nil && options.BearerTokenFormat != nil {
-		bearerTokenFormat = *options.BearerTokenFormat
+	if cfg.Options != nil && cfg.Options.BearerTokenFormat != nil {
+		bearerTokenFormat = *cfg.Options.BearerTokenFormat
 	}
 	if policy != nil && policy.BearerTokenFormat != nil {
 		bearerTokenFormat = *policy.BearerTokenFormat
 	}
 
-	if token := r.Header.Get("X-Pomerium-IDP-Identity-Token"); token != "" {
+	if token := r.Header.Get(httputil.HeaderPomeriumIDPIdentityToken); token != "" {
 		return token, true
 	}
 
-	if auth := r.Header.Get("Authorization"); auth != "" {
-		prefix := "Pomerium-IDP-Identity-Token "
+	if auth := r.Header.Get(httputil.HeaderAuthorization); auth != "" {
+		prefix := httputil.AuthorizationTypePomeriumIDPIdentityToken + " "
 		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
 			return strings.TrimPrefix(auth, prefix), true
 		}
 
-		prefix = "Bearer Pomerium-IDP-Identity-Token-"
+		prefix = "Bearer " + httputil.AuthorizationTypePomeriumIDPIdentityToken + "-"
 		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
 			return strings.TrimPrefix(auth, prefix), true
 		}
 
 		prefix = "Bearer "
-		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) && bearerTokenFormat == BearerTokenFormatIDPIdentityToken {
+		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) &&
+			bearerTokenFormat == BearerTokenFormatIDPIdentityToken {
 			return strings.TrimPrefix(auth, prefix), true
 		}
 	}

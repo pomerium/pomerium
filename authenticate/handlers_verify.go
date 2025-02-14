@@ -6,25 +6,11 @@ import (
 
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/pkg/authenticateapi"
 )
 
-type VerifyAccessTokenRequest struct {
-	AccessToken        string `json:"accessToken"`
-	IdentityProviderID string `json:"identityProviderId,omitempty"`
-}
-
-type VerifyIdentityTokenRequest struct {
-	IdentityToken      string `json:"identityToken"`
-	IdentityProviderID string `json:"identityProviderId,omitempty"`
-}
-
-type VerifyTokenResponse struct {
-	Valid  bool           `json:"valid"`
-	Claims map[string]any `json:"claims,omitempty"`
-}
-
 func (a *Authenticate) verifyAccessToken(w http.ResponseWriter, r *http.Request) error {
-	var req VerifyAccessTokenRequest
+	var req authenticateapi.VerifyAccessTokenRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
@@ -35,7 +21,7 @@ func (a *Authenticate) verifyAccessToken(w http.ResponseWriter, r *http.Request)
 		return err
 	}
 
-	var res VerifyTokenResponse
+	var res authenticateapi.VerifyTokenResponse
 	claims, err := authenticator.VerifyAccessToken(r.Context(), req.AccessToken)
 	if err == nil {
 		res.Valid = true
@@ -57,7 +43,7 @@ func (a *Authenticate) verifyAccessToken(w http.ResponseWriter, r *http.Request)
 }
 
 func (a *Authenticate) verifyIdentityToken(w http.ResponseWriter, r *http.Request) error {
-	var req VerifyIdentityTokenRequest
+	var req authenticateapi.VerifyIdentityTokenRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
@@ -68,7 +54,7 @@ func (a *Authenticate) verifyIdentityToken(w http.ResponseWriter, r *http.Reques
 		return err
 	}
 
-	var res VerifyTokenResponse
+	var res authenticateapi.VerifyTokenResponse
 	claims, err := authenticator.VerifyIdentityToken(r.Context(), req.IdentityToken)
 	if err == nil {
 		res.Valid = true

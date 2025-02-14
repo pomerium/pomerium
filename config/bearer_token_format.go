@@ -67,7 +67,7 @@ func (bearerTokenFormat *BearerTokenFormat) ToPB() *configpb.BearerTokenFormat {
 	case BearerTokenFormatIDPIdentityToken:
 		return configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN.Enum()
 	default:
-		panic(fmt.Sprintf("unknown bearer token format: %s", bearerTokenFormat))
+		panic(fmt.Sprintf("unknown bearer token format: %v", bearerTokenFormat))
 	}
 }
 

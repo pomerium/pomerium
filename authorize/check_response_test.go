@@ -127,8 +127,9 @@ func TestAuthorize_okResponse(t *testing.T) {
 		}},
 		JWTClaimsHeaders: config.NewJWTClaimHeaders("email"),
 	}
-	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
-	a.currentOptions.Store(opt)
+	a := &Authorize{currentConfig: atomicutil.NewValue(&config.Config{
+		Options: opt,
+	}), state: atomicutil.NewValue(new(authorizeState))}
 	a.store = store.New()
 	pe, err := newPolicyEvaluator(context.Background(), opt, a.store, nil)
 	require.NoError(t, err)
@@ -183,15 +184,16 @@ func TestAuthorize_okResponse(t *testing.T) {
 func TestAuthorize_deniedResponse(t *testing.T) {
 	t.Parallel()
 
-	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
-	a.currentOptions.Store(&config.Options{
-		Policies: []config.Policy{{
-			From: "https://example.com",
-			SubPolicies: []config.SubPolicy{{
-				Rego: []string{"allow = true"},
+	a := &Authorize{currentConfig: atomicutil.NewValue(&config.Config{
+		Options: &config.Options{
+			Policies: []config.Policy{{
+				From: "https://example.com",
+				SubPolicies: []config.SubPolicy{{
+					Rego: []string{"allow = true"},
+				}},
 			}},
-		}},
-	})
+		},
+	}), state: atomicutil.NewValue(new(authorizeState))}
 
 	t.Run("json", func(t *testing.T) {
 		t.Parallel()

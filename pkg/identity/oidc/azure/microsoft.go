@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 
+	"github.com/pomerium/pomerium/internal/jwtutil"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	pom_oidc "github.com/pomerium/pomerium/pkg/identity/oidc"
 )
@@ -95,7 +96,7 @@ func (p *Provider) VerifyAccessToken(ctx context.Context, rawAccessToken string)
 		return nil, fmt.Errorf("error verifying access token: %w", err)
 	}
 
-	claims = map[string]any{}
+	claims = jwtutil.Claims(map[string]any{})
 	err = token.Claims(&claims)
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshaling access token claims: %w", err)
