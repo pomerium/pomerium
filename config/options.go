@@ -196,6 +196,13 @@ type Options struct {
 	// List of JWT claims to insert as x-pomerium-claim-* headers on proxied requests
 	JWTClaimsHeaders JWTClaimHeaders `mapstructure:"jwt_claims_headers" yaml:"jwt_claims_headers,omitempty"`
 
+	// BearerTokenFormat indicates how authorization bearer tokens are interepreted. Possible values:
+	// - "default": Only Bearer tokens prefixed with Pomerium- will be interpreted by Pomerium.
+	// - "idp_access_token": The Bearer token will be interpreted as an IdP access token.
+	// - "idp_identity_token": The Bearer token will be interpreted as an IdP identity token.
+	// When unset "default" will be used.
+	BearerTokenFormat *BearerTokenFormat `mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
+
 	// Allowlist of group names/IDs to include in the Pomerium JWT.
 	JWTGroupsFilter JWTGroupsFilter
 
@@ -1503,6 +1510,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.SigningKey, settings.SigningKey)
 	setMap(&o.SetResponseHeaders, settings.SetResponseHeaders)
 	setMap(&o.JWTClaimsHeaders, settings.JwtClaimsHeaders)
+	o.BearerTokenFormat = BearerTokenFormatFromPB(settings.BearerTokenFormat)
 	if len(settings.JwtGroupsFilter) > 0 {
 		o.JWTGroupsFilter = NewJWTGroupsFilter(settings.JwtGroupsFilter)
 	}
@@ -1614,6 +1622,7 @@ func (o *Options) ToProto() *config.Config {
 	copySrcToOptionalDest(&settings.SigningKey, valueOrFromFileBase64(o.SigningKey, o.SigningKeyFile))
 	settings.SetResponseHeaders = o.SetResponseHeaders
 	settings.JwtClaimsHeaders = o.JWTClaimsHeaders
+	settings.BearerTokenFormat = o.BearerTokenFormat.ToPB()
 	settings.JwtGroupsFilter = o.JWTGroupsFilter.ToSlice()
 	copyOptionalDuration(&settings.DefaultUpstreamTimeout, o.DefaultUpstreamTimeout)
 	copySrcToOptionalDest(&settings.MetricsAddress, &o.MetricsAddr)

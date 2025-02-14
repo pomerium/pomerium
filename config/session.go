@@ -1,8 +1,10 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/pomerium/pomerium/internal/encoding"
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -11,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions/header"
 	"github.com/pomerium/pomerium/internal/sessions/queryparam"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 )
 
 // A SessionStore saves and loads sessions based on the options.
@@ -111,4 +114,121 @@ func (store *SessionStore) LoadSessionStateAndCheckIDP(r *http.Request) (*sessio
 // SaveSession saves the session.
 func (store *SessionStore) SaveSession(w http.ResponseWriter, r *http.Request, v any) error {
 	return store.store.SaveSession(w, r, v)
+}
+
+// An IDPTokenSessionHandler handles incoming idp access and identity tokens.
+type IDPTokenSessionHandler struct {
+	options    *Options
+	getSession func(ctx context.Context, id string) (*session.Session, error)
+	putSession func(ctx context.Context, s *session.Session) error
+}
+
+// NewIDPTokenSessionHandler creates a new IDPTokenSessionHandler.
+func NewIDPTokenSessionHandler(
+	options *Options,
+	getSession func(ctx context.Context, id string) (*session.Session, error),
+	putSession func(ctx context.Context, s *session.Session) error,
+) *IDPTokenSessionHandler {
+	return &IDPTokenSessionHandler{
+		options:    options,
+		getSession: getSession,
+		putSession: putSession,
+	}
+}
+
+// // CreateSessionForIncomingIDPToken creates a session from an incoming idp access or identity token.
+// // If no such tokens are found or they are invalid ErrNoSessionFound will be returned.
+// func (h *IDPTokenSessionHandler) CreateSessionForIncomingIDPToken(r *http.Request) (*session.Session, error) {
+// 	idp, err := h.options.GetIdentityProviderForRequestURL(urlutil.GetAbsoluteURL(r).String())
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return nil, sessions.ErrNoSessionFound
+// }
+
+// func (h *IDPTokenSessionHandler) getIncomingIDPAccessToken(r *http.Request) (rawAccessToken string, ok bool) {
+// 	if h.options.
+
+// 	return "", false
+// }
+
+// func (h *IDPTokenSessionHandler) getIncomingIDPIdentityToken(r *http.Request) (rawIdentityToken string, ok bool) {
+// 	return "", false
+// }
+
+// func CreateSessionForIncomingIDPToken(
+// 	r *http.Request,
+// 	options *Options,
+// 	policy *Policy,
+// 	getSession func(ctx context.Context, id string) (*session.Session, error),
+// 	putSession func(ctx context.Context, s *session.Session) error)(*session.Session, error) {
+// }
+
+// GetIncomingIDPAccessTokenForPolicy returns the raw idp access token from a request if there is one.
+func (options *Options) GetIncomingIDPAccessTokenForPolicy(policy *Policy, r *http.Request) (rawAccessToken string, ok bool) {
+	bearerTokenFormat := BearerTokenFormatDefault
+	if options != nil && options.BearerTokenFormat != nil {
+		bearerTokenFormat = *options.BearerTokenFormat
+	}
+	if policy != nil && policy.BearerTokenFormat != nil {
+		bearerTokenFormat = *policy.BearerTokenFormat
+	}
+
+	if token := r.Header.Get("X-Pomerium-IDP-Access-Token"); token != "" {
+		return token, true
+	}
+
+	if auth := r.Header.Get("Authorization"); auth != "" {
+		prefix := "Pomerium-IDP-Access-Token "
+		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
+			return strings.TrimPrefix(auth, prefix), true
+		}
+
+		prefix = "Bearer Pomerium-IDP-Access-Token-"
+		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
+			return strings.TrimPrefix(auth, prefix), true
+		}
+
+		prefix = "Bearer "
+		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) && bearerTokenFormat == BearerTokenFormatIDPAccessToken {
+			return strings.TrimPrefix(auth, prefix), true
+		}
+	}
+
+	return "", false
+}
+
+// GetIncomingIDPAccessTokenForPolicy returns the raw idp identity token from a request if there is one.
+func (options *Options) GetIncomingIDPIdentityTokenForPolicy(policy *Policy, r *http.Request) (rawIdentityToken string, ok bool) {
+	bearerTokenFormat := BearerTokenFormatDefault
+	if options != nil && options.BearerTokenFormat != nil {
+		bearerTokenFormat = *options.BearerTokenFormat
+	}
+	if policy != nil && policy.BearerTokenFormat != nil {
+		bearerTokenFormat = *policy.BearerTokenFormat
+	}
+
+	if token := r.Header.Get("X-Pomerium-IDP-Identity-Token"); token != "" {
+		return token, true
+	}
+
+	if auth := r.Header.Get("Authorization"); auth != "" {
+		prefix := "Pomerium-IDP-Identity-Token "
+		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
+			return strings.TrimPrefix(auth, prefix), true
+		}
+
+		prefix = "Bearer Pomerium-IDP-Identity-Token-"
+		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
+			return strings.TrimPrefix(auth, prefix), true
+		}
+
+		prefix = "Bearer "
+		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) && bearerTokenFormat == BearerTokenFormatIDPIdentityToken {
+			return strings.TrimPrefix(auth, prefix), true
+		}
+	}
+
+	return "", false
 }

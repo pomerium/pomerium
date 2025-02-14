@@ -45,7 +45,14 @@ enum IssuerFormat {
   IssuerURI = 1;
 }
 
-// Next ID: 70.
+enum BearerTokenFormat {
+  BEARER_TOKEN_FORMAT_UNKNOWN = 0;
+  BEARER_TOKEN_FORMAT_DEFAULT = 1;
+  BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN = 2;
+  BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN = 3;
+}
+
+// Next ID: 71.
 message Route {
   message StringList { repeated string values = 1; }
 
@@ -118,6 +125,7 @@ message Route {
   bool enable_google_cloud_serverless_authentication = 42;
   IssuerFormat jwt_issuer_format = 65;
   repeated string jwt_groups_filter = 66;
+  optional BearerTokenFormat bearer_token_format = 70;
 
   envoy.config.cluster.v3.Cluster envoy_opts = 36;
 
@@ -152,7 +160,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 138.
+// Next ID: 139.
 message Settings {
   message Certificate {
     bytes cert_bytes = 3;
@@ -207,6 +215,7 @@ message Settings {
   // repeated string jwt_claims_headers = 37;
   map<string, string> jwt_claims_headers = 63;
   repeated string jwt_groups_filter = 119;
+  optional BearerTokenFormat bearer_token_format = 138;
   optional google.protobuf.Duration default_upstream_timeout = 39;
   optional string metrics_address = 40;
   optional string metrics_basic_auth = 64;
