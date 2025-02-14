@@ -380,7 +380,7 @@ func (s *Stateless) AuthenticateSignInURL(
 }
 
 // Callback handles a redirect to a route domain once signed in.
-func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
+func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request, route *config.Policy) error {
 	if err := r.ParseForm(); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}

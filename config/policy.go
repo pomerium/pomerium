@@ -200,6 +200,8 @@ type Policy struct {
 	ShowErrorDetails bool `mapstructure:"show_error_details" yaml:"show_error_details" json:"show_error_details"`
 
 	Policy *PPLPolicy `mapstructure:"policy" yaml:"policy,omitempty" json:"policy,omitempty"`
+
+	DependsOn []string `mapstructure:"depends_on" yaml:"depends_on,omitempty" json:"depends_on,omitempty"`
 }
 
 // RewriteHeader is a policy configuration option to rewrite an HTTP header.
