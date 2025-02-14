@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -163,7 +164,7 @@ func (s *Stateful) SignIn(
 	// base64 our encrypted payload for URL-friendlyness
 	encodedJWT := base64.URLEncoding.EncodeToString(encryptedJWT)
 
-	callbackURL, err := urlutil.GetCallbackURL(r, encodedJWT)
+	callbackURL, err := urlutil.GetCallbackURL(r, encodedJWT, nil)
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
@@ -352,7 +353,7 @@ func (s *Stateful) GetIdentityProviderIDForURLValues(vs url.Values) string {
 }
 
 // Callback handles a redirect to a route domain once signed in.
-func (s *Stateful) Callback(w http.ResponseWriter, r *http.Request) error {
+func (s *Stateful) Callback(w http.ResponseWriter, r *http.Request, route *config.Policy) error {
 	if err := s.VerifySignature(r); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
@@ -385,6 +386,29 @@ func (s *Stateful) Callback(w http.ResponseWriter, r *http.Request) error {
 		q := redirectURL.Query()
 		q.Set(urlutil.QueryPomeriumJWT, string(rawJWT))
 		redirectURL.RawQuery = q.Encode()
+	}
+
+	// Redirect chaining for multi-domain login.
+	var nextHops []string
+	if q := r.URL.Query(); q.Has(urlutil.QueryAdditionalHosts) {
+		if hosts := q.Get(urlutil.QueryAdditionalHosts); hosts != "" {
+			nextHops = strings.Split(q.Get(urlutil.QueryAdditionalHosts), ",")
+		}
+	} else if route != nil && len(route.DependsOn) > 0 {
+		nextHops = route.DependsOn
+	}
+	if len(nextHops) > 0 {
+		log.Ctx(r.Context()).Debug().Strs("next-hops", nextHops).Msg("multi-domain login callback")
+
+		callbackURL, err := urlutil.GetCallbackURL(r, encryptedSession, nextHops[1:])
+		if err != nil {
+			return httputil.NewError(http.StatusInternalServerError,
+				fmt.Errorf("proxy: couldn't get next hop callback URL: %w", err))
+		}
+		callbackURL.Host = nextHops[0]
+		signedCallbackURL := urlutil.NewSignedURL(s.sharedKey, callbackURL)
+		httputil.Redirect(w, r, signedCallbackURL.String(), http.StatusFound)
+		return nil
 	}
 
 	// redirect

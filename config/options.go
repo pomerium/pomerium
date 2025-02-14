@@ -1967,3 +1967,16 @@ func setCertificate(
 		*dstCertificateKey = base64.StdEncoding.EncodeToString(src.GetKeyBytes())
 	}
 }
+
+func (o *Options) GetRouteForHost(host string) *Policy {
+	for _, r := range o.Routes {
+		u, err := url.Parse(r.From)
+		if err != nil {
+			continue
+		}
+		if u.Host == host {
+			return &r
+		}
+	}
+	return nil
+}

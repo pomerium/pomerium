@@ -271,7 +271,7 @@ func TestStatefulCallback(t *testing.T) {
 			r.Header.Set("Accept", "application/json")
 
 			w := httptest.NewRecorder()
-			err = flow.Callback(w, r)
+			err = flow.Callback(w, r, nil)
 			if tt.wantErrorMsg == "" {
 				if err != nil {
 					t.Errorf("unexpected error: %v", err)
