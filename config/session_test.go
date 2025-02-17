@@ -164,3 +164,18 @@ func TestGetIdentityProviderDetectsChangesToAuthenticateServiceURL(t *testing.T)
 	assert.NotEqual(t, idp1.GetId(), idp2.GetId(),
 		"identity provider should change when authenticate service url changes")
 }
+
+func Test_getAccessTokenSessionID(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "532b0a3d-b413-50a0-8c9f-e6eb340a05d3", getAccessTokenSessionID(nil, "TOKEN"))
+	assert.Equal(t, "e0b8096c-54dd-5623-8098-5488f9c302db", getIdentityTokenSessionID(nil, "TOKEN"))
+	assert.Equal(t, "c58990ec-85d4-5054-b27f-e7c5d9c602c5", getAccessTokenSessionID(&Policy{
+		From:     "https://from.example.com",
+		Response: &DirectResponse{Status: 204},
+	}, "TOKEN"))
+	assert.Equal(t, "4dff4540-493b-502a-bdec-2f346e6e480d", getIdentityTokenSessionID(&Policy{
+		From:     "https://from.example.com",
+		Response: &DirectResponse{Status: 204},
+	}, "TOKEN"))
+}

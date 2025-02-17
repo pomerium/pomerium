@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"net/http"
 	"strings"
@@ -129,11 +130,6 @@ func (store *SessionStore) SaveSession(w http.ResponseWriter, r *http.Request, v
 	return store.store.SaveSession(w, r, v)
 }
 
-var (
-	accessTokenUUIDNamespace   = uuid.MustParse("0194f6f8-e760-76a0-8917-e28ac927a34d")
-	identityTokenUUIDNamespace = uuid.MustParse("0194f6f9-aec0-704e-bb4a-51054f17ad17")
-)
-
 type IncomingIDPTokenSessionCreator interface {
 	CreateSession(ctx context.Context, cfg *Config, policy *Policy, r *http.Request) (*session.Session, error)
 }
@@ -176,7 +172,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionAccessToken(
 	policy *Policy,
 	rawAccessToken string,
 ) (*session.Session, error) {
-	sessionID := uuid.NewSHA1(accessTokenUUIDNamespace, []byte(rawAccessToken)).String()
+	sessionID := getAccessTokenSessionID(policy, rawAccessToken)
 	s, err := c.getSession(ctx, sessionID)
 	if err == nil {
 		return s, nil
@@ -225,7 +221,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 	policy *Policy,
 	rawIdentityToken string,
 ) (*session.Session, error) {
-	sessionID := uuid.NewSHA1(identityTokenUUIDNamespace, []byte(rawIdentityToken)).String()
+	sessionID := getIdentityTokenSessionID(policy, rawIdentityToken)
 	s, err := c.getSession(ctx, sessionID)
 	if err == nil {
 		return s, nil
@@ -416,4 +412,30 @@ func (cfg *Config) GetIncomingIDPIdentityTokenForPolicy(policy *Policy, r *http.
 	}
 
 	return "", false
+}
+
+var accessTokenUUIDNamespace = uuid.MustParse("0194f6f8-e760-76a0-8917-e28ac927a34d")
+
+func getAccessTokenSessionID(policy *Policy, rawAccessToken string) string {
+	namespace := accessTokenUUIDNamespace
+	// make the session ID per-route
+	if policy != nil {
+		var data [8]byte
+		binary.BigEndian.PutUint64(data[:], policy.MustRouteID())
+		namespace = uuid.NewSHA1(namespace, data[:])
+	}
+	return uuid.NewSHA1(namespace, []byte(rawAccessToken)).String()
+}
+
+var identityTokenUUIDNamespace = uuid.MustParse("0194f6f9-aec0-704e-bb4a-51054f17ad17")
+
+func getIdentityTokenSessionID(policy *Policy, rawIdentityToken string) string {
+	namespace := identityTokenUUIDNamespace
+	// make the session ID per-route
+	if policy != nil {
+		var data [8]byte
+		binary.BigEndian.PutUint64(data[:], policy.MustRouteID())
+		namespace = uuid.NewSHA1(namespace, data[:])
+	}
+	return uuid.NewSHA1(namespace, []byte(rawIdentityToken)).String()
 }
