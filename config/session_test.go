@@ -180,6 +180,89 @@ func Test_getTokenSessionID(t *testing.T) {
 	}, "TOKEN"))
 }
 
+func TestGetIncomingIDPAccessTokenForPolicy(t *testing.T) {
+	t.Parallel()
+
+	bearerTokenFormatIDPAccessToken := BearerTokenFormatIDPAccessToken
+
+	for _, tc := range []struct {
+		name                    string
+		globalBearerTokenFormat *BearerTokenFormat
+		routeBearerTokenFormat  *BearerTokenFormat
+		headers                 http.Header
+		expectedOK              bool
+		expectedToken           string
+	}{
+		{
+			name:       "empty headers",
+			expectedOK: false,
+		},
+		{
+			name:          "custom header",
+			headers:       http.Header{"X-Pomerium-Idp-Access-Token": {"access token via custom header"}},
+			expectedOK:    true,
+			expectedToken: "access token via custom header",
+		},
+		{
+			name:          "custom authorization",
+			headers:       http.Header{"Authorization": {"Pomerium-Idp-Access-Token access token via custom authorization"}},
+			expectedOK:    true,
+			expectedToken: "access token via custom authorization",
+		},
+		{
+			name:          "custom bearer",
+			headers:       http.Header{"Authorization": {"Bearer Pomerium-Idp-Access-Token-access token via custom bearer"}},
+			expectedOK:    true,
+			expectedToken: "access token via custom bearer",
+		},
+		{
+			name:       "bearer disabled",
+			headers:    http.Header{"Authorization": {"Bearer access token via bearer"}},
+			expectedOK: false,
+		},
+		{
+			name:                    "bearer enabled via options",
+			globalBearerTokenFormat: &bearerTokenFormatIDPAccessToken,
+			headers:                 http.Header{"Authorization": {"Bearer access token via bearer"}},
+			expectedOK:              true,
+			expectedToken:           "access token via bearer",
+		},
+		{
+			name:                   "bearer enabled via route",
+			routeBearerTokenFormat: &bearerTokenFormatIDPAccessToken,
+			headers:                http.Header{"Authorization": {"Bearer access token via bearer"}},
+			expectedOK:             true,
+			expectedToken:          "access token via bearer",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := &Config{
+				Options: NewDefaultOptions(),
+			}
+			cfg.Options.BearerTokenFormat = tc.globalBearerTokenFormat
+
+			var route *Policy
+			if tc.routeBearerTokenFormat != nil {
+				route = &Policy{
+					BearerTokenFormat: tc.routeBearerTokenFormat,
+				}
+			}
+
+			r, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
+			require.NoError(t, err)
+			if tc.headers != nil {
+				r.Header = tc.headers
+			}
+
+			actualToken, actualOK := cfg.GetIncomingIDPAccessTokenForPolicy(route, r)
+			assert.Equal(t, tc.expectedOK, actualOK)
+			assert.Equal(t, tc.expectedToken, actualToken)
+		})
+	}
+}
+
 func TestGetIncomingIDPIdentityTokenForPolicy(t *testing.T) {
 	t.Parallel()
 
