@@ -165,7 +165,7 @@ func TestGetIdentityProviderDetectsChangesToAuthenticateServiceURL(t *testing.T)
 		"identity provider should change when authenticate service url changes")
 }
 
-func Test_getAccessTokenSessionID(t *testing.T) {
+func Test_getTokenSessionID(t *testing.T) {
 	t.Parallel()
 
 	assert.Equal(t, "532b0a3d-b413-50a0-8c9f-e6eb340a05d3", getAccessTokenSessionID(nil, "TOKEN"))
