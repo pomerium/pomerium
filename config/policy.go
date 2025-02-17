@@ -395,6 +395,8 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		p.JWTIssuerFormat = "uri"
 	}
 
+	p.BearerTokenFormat = BearerTokenFormatFromPB(pb.BearerTokenFormat)
+
 	for _, rwh := range pb.RewriteResponseHeaders {
 		p.RewriteResponseHeaders = append(p.RewriteResponseHeaders, RewriteHeader{
 			Header: rwh.GetHeader(),
@@ -559,6 +561,8 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	case "uri":
 		pb.JwtIssuerFormat = configpb.IssuerFormat_IssuerURI
 	}
+
+	pb.BearerTokenFormat = p.BearerTokenFormat.ToPB()
 
 	for _, rwh := range p.RewriteResponseHeaders {
 		pb.RewriteResponseHeaders = append(pb.RewriteResponseHeaders, &configpb.RouteRewriteHeader{

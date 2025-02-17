@@ -92,9 +92,6 @@ func Test_getEvaluatorRequest(t *testing.T) {
 	require.NoError(t, err)
 	expect := &evaluator.Request{
 		Policy: &a.currentConfig.Load().Options.Policies[0],
-		Session: evaluator.RequestSession{
-			ID: "SESSION_ID",
-		},
 		HTTP: evaluator.NewRequestHTTP(
 			http.MethodGet,
 			mustParseURL("http://example.com/some/path?qs=1"),

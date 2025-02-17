@@ -16,6 +16,7 @@ type BearerTokenFormat string
 
 // Bearer Token Formats
 const (
+	BearerTokenFormatUnknown          BearerTokenFormat = ""
 	BearerTokenFormatDefault          BearerTokenFormat = "default"
 	BearerTokenFormatIDPAccessToken   BearerTokenFormat = "idp_access_token"
 	BearerTokenFormatIDPIdentityToken BearerTokenFormat = "idp_identity_token"
@@ -24,6 +25,8 @@ const (
 // ParseBearerTokenFormat parses the BearerTokenFormat.
 func ParseBearerTokenFormat(raw string) (BearerTokenFormat, error) {
 	switch BearerTokenFormat(strings.TrimSpace(strings.ToLower(raw))) {
+	case BearerTokenFormatUnknown:
+		return BearerTokenFormatUnknown, nil
 	case BearerTokenFormatDefault:
 		return BearerTokenFormatDefault, nil
 	case BearerTokenFormatIDPAccessToken:
@@ -31,7 +34,7 @@ func ParseBearerTokenFormat(raw string) (BearerTokenFormat, error) {
 	case BearerTokenFormatIDPIdentityToken:
 		return BearerTokenFormatIDPIdentityToken, nil
 	}
-	return BearerTokenFormatDefault, fmt.Errorf("invalid bearer token format: %s", raw)
+	return BearerTokenFormatUnknown, fmt.Errorf("invalid bearer token format: %s", raw)
 }
 
 func BearerTokenFormatFromPB(pbBearerTokenFormat *configpb.BearerTokenFormat) *BearerTokenFormat {
@@ -43,6 +46,8 @@ func BearerTokenFormatFromPB(pbBearerTokenFormat *configpb.BearerTokenFormat) *B
 	*bearerTokenFormat = BearerTokenFormatDefault
 
 	switch *pbBearerTokenFormat {
+	case configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN:
+		*bearerTokenFormat = BearerTokenFormatUnknown
 	case configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT:
 		*bearerTokenFormat = BearerTokenFormatDefault
 	case configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_IDP_ACCESS_TOKEN:
@@ -60,6 +65,8 @@ func (bearerTokenFormat *BearerTokenFormat) ToPB() *configpb.BearerTokenFormat {
 		return nil
 	}
 	switch *bearerTokenFormat {
+	case BearerTokenFormatUnknown:
+		return configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_UNKNOWN.Enum()
 	case BearerTokenFormatDefault:
 		return configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT.Enum()
 	case BearerTokenFormatIDPAccessToken:

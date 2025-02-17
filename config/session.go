@@ -350,7 +350,7 @@ func (c *incomingIDPTokenSessionCreator) putSessionAndUser(ctx context.Context, 
 
 // GetIncomingIDPAccessTokenForPolicy returns the raw idp access token from a request if there is one.
 func (cfg *Config) GetIncomingIDPAccessTokenForPolicy(policy *Policy, r *http.Request) (rawAccessToken string, ok bool) {
-	bearerTokenFormat := BearerTokenFormatDefault
+	bearerTokenFormat := BearerTokenFormatUnknown
 	if cfg.Options != nil && cfg.Options.BearerTokenFormat != nil {
 		bearerTokenFormat = *cfg.Options.BearerTokenFormat
 	}
