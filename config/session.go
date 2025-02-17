@@ -361,18 +361,18 @@ func (cfg *Config) GetIncomingIDPAccessTokenForPolicy(policy *Policy, r *http.Re
 	if auth := r.Header.Get(httputil.HeaderAuthorization); auth != "" {
 		prefix := httputil.AuthorizationTypePomeriumIDPAccessToken + " "
 		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
-			return strings.TrimPrefix(auth, prefix), true
+			return auth[len(prefix):], true
 		}
 
 		prefix = "Bearer " + httputil.AuthorizationTypePomeriumIDPAccessToken + "-"
 		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
-			return strings.TrimPrefix(auth, prefix), true
+			return auth[len(prefix):], true
 		}
 
 		prefix = "Bearer "
 		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) &&
 			bearerTokenFormat == BearerTokenFormatIDPAccessToken {
-			return strings.TrimPrefix(auth, prefix), true
+			return auth[len(prefix):], true
 		}
 	}
 
@@ -396,18 +396,18 @@ func (cfg *Config) GetIncomingIDPIdentityTokenForPolicy(policy *Policy, r *http.
 	if auth := r.Header.Get(httputil.HeaderAuthorization); auth != "" {
 		prefix := httputil.AuthorizationTypePomeriumIDPIdentityToken + " "
 		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
-			return strings.TrimPrefix(auth, prefix), true
+			return auth[len(prefix):], true
 		}
 
 		prefix = "Bearer " + httputil.AuthorizationTypePomeriumIDPIdentityToken + "-"
 		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) {
-			return strings.TrimPrefix(auth, prefix), true
+			return auth[len(prefix):], true
 		}
 
 		prefix = "Bearer "
 		if strings.HasPrefix(strings.ToLower(auth), strings.ToLower(prefix)) &&
 			bearerTokenFormat == BearerTokenFormatIDPIdentityToken {
-			return strings.TrimPrefix(auth, prefix), true
+			return auth[len(prefix):], true
 		}
 	}
 
