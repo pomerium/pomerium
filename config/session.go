@@ -2,7 +2,6 @@ package config
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"net/http"
 	"strings"
@@ -22,6 +21,7 @@ import (
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/authenticateapi"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -173,17 +173,17 @@ func (c *incomingIDPTokenSessionCreator) createSessionAccessToken(
 	policy *Policy,
 	rawAccessToken string,
 ) (*session.Session, error) {
-	sessionID := getAccessTokenSessionID(policy, rawAccessToken)
+	idp, err := cfg.Options.GetIdentityProviderForPolicy(policy)
+	if err != nil {
+		return nil, fmt.Errorf("error getting identity provider to verify access token: %w", err)
+	}
+
+	sessionID := getAccessTokenSessionID(idp, rawAccessToken)
 	s, err := c.getSession(ctx, sessionID)
 	if err == nil {
 		return s, nil
 	} else if !storage.IsNotFound(err) {
 		return nil, err
-	}
-
-	idp, err := cfg.Options.GetIdentityProviderForPolicy(policy)
-	if err != nil {
-		return nil, fmt.Errorf("error getting identity provider to verify access token: %w", err)
 	}
 
 	authenticateURL, transport, err := cfg.resolveAuthenticateURL()
@@ -222,17 +222,17 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 	policy *Policy,
 	rawIdentityToken string,
 ) (*session.Session, error) {
-	sessionID := getIdentityTokenSessionID(policy, rawIdentityToken)
+	idp, err := cfg.Options.GetIdentityProviderForPolicy(policy)
+	if err != nil {
+		return nil, fmt.Errorf("error getting identity provider to verify identity token: %w", err)
+	}
+
+	sessionID := getIdentityTokenSessionID(idp, rawIdentityToken)
 	s, err := c.getSession(ctx, sessionID)
 	if err == nil {
 		return s, nil
 	} else if !storage.IsNotFound(err) {
 		return nil, err
-	}
-
-	idp, err := cfg.Options.GetIdentityProviderForPolicy(policy)
-	if err != nil {
-		return nil, fmt.Errorf("error getting identity provider to verify identity token: %w", err)
 	}
 
 	authenticateURL, transport, err := cfg.resolveAuthenticateURL()
@@ -417,26 +417,22 @@ func (cfg *Config) GetIncomingIDPIdentityTokenForPolicy(policy *Policy, r *http.
 
 var accessTokenUUIDNamespace = uuid.MustParse("0194f6f8-e760-76a0-8917-e28ac927a34d")
 
-func getAccessTokenSessionID(policy *Policy, rawAccessToken string) string {
+func getAccessTokenSessionID(idp *identitypb.Provider, rawAccessToken string) string {
 	namespace := accessTokenUUIDNamespace
-	// make the session ID per-route
-	if policy != nil {
-		var data [8]byte
-		binary.BigEndian.PutUint64(data[:], policy.MustRouteID())
-		namespace = uuid.NewSHA1(namespace, data[:])
+	// make the session ID per-idp settings
+	if idp != nil {
+		namespace = uuid.NewSHA1(namespace, []byte(idp.GetId()))
 	}
 	return uuid.NewSHA1(namespace, []byte(rawAccessToken)).String()
 }
 
 var identityTokenUUIDNamespace = uuid.MustParse("0194f6f9-aec0-704e-bb4a-51054f17ad17")
 
-func getIdentityTokenSessionID(policy *Policy, rawIdentityToken string) string {
+func getIdentityTokenSessionID(idp *identitypb.Provider, rawIdentityToken string) string {
 	namespace := identityTokenUUIDNamespace
-	// make the session ID per-route
-	if policy != nil {
-		var data [8]byte
-		binary.BigEndian.PutUint64(data[:], policy.MustRouteID())
-		namespace = uuid.NewSHA1(namespace, data[:])
+	// make the session ID per-idp settings
+	if idp != nil {
+		namespace = uuid.NewSHA1(namespace, []byte(idp.GetId()))
 	}
 	return uuid.NewSHA1(namespace, []byte(rawIdentityToken)).String()
 }
