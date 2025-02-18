@@ -80,7 +80,7 @@ func (bearerTokenFormat *BearerTokenFormat) ToPB() *configpb.BearerTokenFormat {
 
 func decodeBearerTokenFormatHookFunc() mapstructure.DecodeHookFunc {
 	return func(_, t reflect.Type, data any) (any, error) {
-		if t != reflect.TypeOf(BearerTokenFormat("")) {
+		if t != reflect.TypeFor[BearerTokenFormat]() {
 			return data, nil
 		}
 
