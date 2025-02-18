@@ -131,10 +131,6 @@ func (claims Claims) GetNumericDate(name string) (tm time.Time, ok bool) {
 
 // GetString returns the claim as a string.
 func (claims Claims) GetString(name string) (value string, ok bool) {
-	if claims == nil {
-		return value, false
-	}
-
 	raw, ok := claims[name]
 	if !ok {
 		return value, false
@@ -145,10 +141,6 @@ func (claims Claims) GetString(name string) (value string, ok bool) {
 
 // GetStringSlice returns the claim as a slice of strings.
 func (claims Claims) GetStringSlice(name string) (values []string, ok bool) {
-	if claims == nil {
-		return nil, false
-	}
-
 	raw, ok := claims[name]
 	if !ok {
 		return nil, false
