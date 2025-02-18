@@ -5,10 +5,12 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/httputil"
@@ -17,6 +19,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
 )
@@ -346,6 +349,66 @@ func TestGetIncomingIDPIdentityTokenForPolicy(t *testing.T) {
 			actualToken, actualOK := cfg.GetIncomingIDPIdentityTokenForPolicy(route, r)
 			assert.Equal(t, tc.expectedOK, actualOK)
 			assert.Equal(t, tc.expectedToken, actualToken)
+		})
+	}
+}
+
+func Test_newSessionFromIDPClaims(t *testing.T) {
+	t.Parallel()
+
+	tm1 := time.Date(2025, 2, 18, 8, 6, 0, 0, time.UTC)
+	tm2 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	tm3 := tm2.Add(time.Hour)
+
+	for _, tc := range []struct {
+		name      string
+		sessionID string
+		claims    jwtutil.Claims
+		expect    *session.Session
+	}{
+		{
+			"empty claims", "S1",
+			nil,
+			&session.Session{
+				Id:         "S1",
+				AccessedAt: timestamppb.New(tm1),
+				ExpiresAt:  timestamppb.New(tm1.Add(time.Hour * 14)),
+				IssuedAt:   timestamppb.New(tm1),
+			},
+		},
+		{
+			"full claims", "S2",
+			jwtutil.Claims{
+				"aud": "https://www.example.com",
+				"sub": "U1",
+				"iat": tm2.Unix(),
+				"exp": tm3.Unix(),
+			},
+			&session.Session{
+				Id:         "S2",
+				UserId:     "U1",
+				AccessedAt: timestamppb.New(tm1),
+				ExpiresAt:  timestamppb.New(tm3),
+				IssuedAt:   timestamppb.New(tm2),
+				Audience:   []string{"https://www.example.com"},
+				Claims: identity.FlattenedClaims{
+					"aud": {"https://www.example.com"},
+					"sub": {"U1"},
+					"iat": {tm2.Unix()},
+					"exp": {tm3.Unix()},
+				}.ToPB(),
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := &Config{Options: NewDefaultOptions()}
+			c := &incomingIDPTokenSessionCreator{
+				timeNow: func() time.Time { return tm1 },
+			}
+			actual := c.newSessionFromIDPClaims(cfg, tc.sessionID, tc.claims)
+			testutil.AssertProtoEqual(t, tc.expect, actual)
 		})
 	}
 }

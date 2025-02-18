@@ -89,10 +89,30 @@ func (claims Claims) GetNumericDate(name string) (tm time.Time, ok bool) {
 	}
 
 	switch v := raw.(type) {
+	case float32:
+		return time.Unix(int64(v), 0), true
 	case float64:
 		return time.Unix(int64(v), 0), true
 	case int64:
 		return time.Unix(v, 0), true
+	case int32:
+		return time.Unix(int64(v), 0), true
+	case int16:
+		return time.Unix(int64(v), 0), true
+	case int8:
+		return time.Unix(int64(v), 0), true
+	case int:
+		return time.Unix(int64(v), 0), true
+	case uint64:
+		return time.Unix(int64(v), 0), true
+	case uint32:
+		return time.Unix(int64(v), 0), true
+	case uint16:
+		return time.Unix(int64(v), 0), true
+	case uint8:
+		return time.Unix(int64(v), 0), true
+	case uint:
+		return time.Unix(int64(v), 0), true
 	case json.Number:
 		i, err := v.Int64()
 		if err != nil {

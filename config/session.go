@@ -135,6 +135,7 @@ type IncomingIDPTokenSessionCreator interface {
 }
 
 type incomingIDPTokenSessionCreator struct {
+	timeNow    func() time.Time
 	getRecord  func(ctx context.Context, recordType, recordID string) (*databroker.Record, error)
 	putRecords func(ctx context.Context, records []*databroker.Record) error
 }
@@ -143,7 +144,7 @@ func NewIncomingIDPTokenSessionCreator(
 	getRecord func(ctx context.Context, recordType, recordID string) (*databroker.Record, error),
 	putRecords func(ctx context.Context, records []*databroker.Record) error,
 ) IncomingIDPTokenSessionCreator {
-	return &incomingIDPTokenSessionCreator{getRecord: getRecord, putRecords: putRecords}
+	return &incomingIDPTokenSessionCreator{timeNow: time.Now, getRecord: getRecord, putRecords: putRecords}
 }
 
 // CreateSession attempts to create a session for incoming idp access and
@@ -265,7 +266,7 @@ func (c *incomingIDPTokenSessionCreator) newSessionFromIDPClaims(
 	sessionID string,
 	claims jwtutil.Claims,
 ) *session.Session {
-	now := time.Now()
+	now := c.timeNow()
 	s := new(session.Session)
 	s.Id = sessionID
 	if userID, ok := claims.GetUserID(); ok {
