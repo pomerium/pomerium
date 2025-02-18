@@ -41,7 +41,7 @@ type Authenticator interface {
 	SignOut(w http.ResponseWriter, r *http.Request, idTokenHint, authenticateSignedOutURL, redirectToURL string) error
 
 	// alternatives for these methods?
-	DeviceAuth(w http.ResponseWriter, r *http.Request) (*oauth2.DeviceAuthResponse, error)
+	DeviceAuth(ctx context.Context) (*oauth2.DeviceAuthResponse, error)
 	DeviceAccessToken(ctx context.Context, r *oauth2.DeviceAuthResponse, state State) (*oauth2.Token, error)
 }
 

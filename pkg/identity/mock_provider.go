@@ -68,6 +68,6 @@ func (mp MockProvider) DeviceAccessToken(ctx context.Context, r *oauth2.DeviceAu
 }
 
 // DeviceAuth implements Authenticator.
-func (mp MockProvider) DeviceAuth(w http.ResponseWriter, r *http.Request) (*oauth2.DeviceAuthResponse, error) {
+func (mp MockProvider) DeviceAuth(_ context.Context) (*oauth2.DeviceAuthResponse, error) {
 	return &mp.DeviceAuthResponse, mp.DeviceAuthError
 }

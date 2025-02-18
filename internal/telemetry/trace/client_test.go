@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
 	tracev1 "go.opentelemetry.io/proto/otlp/trace/v1"
+	v1 "go.opentelemetry.io/proto/otlp/trace/v1"
 	"go.uber.org/mock/gomock"
 )
 
@@ -283,6 +284,32 @@ func TestSyncClient(t *testing.T) {
 		assert.ErrorIs(t, sc.Stop(context.Background()), trace.ErrNoClient)
 		assert.NoError(t, sc.Update(context.Background(), nil))
 	})
+
+	t.Run("repeated updates", func(t *testing.T) {
+		sc := trace.NewSyncClient(nil)
+		for range 1000 {
+			sc.Update(context.Background(), &sleepClient{})
+		}
+	})
+}
+
+type sleepClient struct{}
+
+// Start implements otlptrace.Client.
+func (n sleepClient) Start(context.Context) error {
+	time.Sleep(10 * time.Millisecond)
+	return nil
+}
+
+// Stop implements otlptrace.Client.
+func (n sleepClient) Stop(context.Context) error {
+	time.Sleep(10 * time.Millisecond)
+	return nil
+}
+
+// UploadTraces implements otlptrace.Client.
+func (n sleepClient) UploadTraces(context.Context, []*v1.ResourceSpans) error {
+	return nil
 }
 
 type errHandler struct {

@@ -128,7 +128,7 @@ func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) 
 	return nil
 }
 
-func (p *Provider) DeviceAuth(w http.ResponseWriter, r *http.Request) (*oauth2.DeviceAuthResponse, error) {
+func (p *Provider) DeviceAuth(ctx context.Context) (*oauth2.DeviceAuthResponse, error) {
 	oa, err := p.GetOauthConfig()
 	if err != nil {
 		return nil, err
@@ -144,7 +144,7 @@ func (p *Provider) DeviceAuth(w http.ResponseWriter, r *http.Request) (*oauth2.D
 		opts = append(opts, oauth2.SetAuthURLParam("client_secret", oa.ClientSecret))
 	}
 
-	resp, err := oa.DeviceAuth(r.Context(), opts...)
+	resp, err := oa.DeviceAuth(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}

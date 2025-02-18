@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -36,6 +37,9 @@ type Authorize struct {
 
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
+
+	activeStreamsMu sync.Mutex
+	activeStreams   []chan error
 }
 
 // New validates and creates a new Authorize service from a set of config options.
@@ -48,6 +52,7 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 		globalCache:    storage.NewGlobalCache(time.Minute),
 		tracerProvider: tracerProvider,
 		tracer:         tracer,
+		activeStreams:  []chan error{},
 	}
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 
@@ -154,6 +159,15 @@ func newPolicyEvaluator(
 
 // OnConfigChange updates internal structures based on config.Options
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
+	a.activeStreamsMu.Lock()
+	// demo code
+	if cfg.Options.Routes[0].AllowAnyAuthenticatedUser == false {
+		for _, s := range a.activeStreams {
+			s <- fmt.Errorf("no longer authorized")
+		}
+		clear(a.activeStreams)
+	}
+	a.activeStreamsMu.Unlock()
 	currentState := a.state.Load()
 	a.currentOptions.Store(cfg.Options)
 	if newState, err := newAuthorizeStateFromConfig(ctx, a.tracerProvider, cfg, a.store, currentState.evaluator); err != nil {

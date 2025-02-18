@@ -85,6 +85,7 @@ func (srv *Server) prepareRunEnvoyCommand(ctx context.Context, sharedArgs []stri
 			"--drain-time-s", "60",
 			"--parent-shutdown-time-s", "120",
 			"--drain-strategy", "immediate",
+			"--component-log-level", "matcher:trace,filter:debug",
 		)
 		restartEpoch.value++
 	} else {

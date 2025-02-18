@@ -121,3 +121,10 @@ func shouldStartGRPCListener(options *config.Options) bool {
 
 	return config.IsAuthorize(options.Services) || config.IsDataBroker(options.Services)
 }
+
+func shouldStartSSHListener(options *config.Options) bool {
+	if options.SSHAddr == "" {
+		return false
+	}
+	return config.IsProxy(options.Services)
+}

@@ -649,7 +649,7 @@ func (a *Authenticate) DeviceAuthLogin(w http.ResponseWriter, r *http.Request) e
 		fmt.Fprintf(w, `{"token": "%s"}`, string(tokenJwt))
 		return nil
 	} else {
-		authResp, err := authenticator.DeviceAuth(w, r)
+		authResp, err := authenticator.DeviceAuth(r.Context())
 		if err != nil {
 			return httputil.NewError(http.StatusInternalServerError,
 				fmt.Errorf("failed to get device code: %w", err))
