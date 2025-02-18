@@ -12,9 +12,13 @@ import (
 
 	"github.com/pomerium/pomerium/internal/encoding/jws"
 	"github.com/pomerium/pomerium/internal/httputil"
+	"github.com/pomerium/pomerium/internal/jwtutil"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/identity"
 )
 
 func TestSessionStore_LoadSessionState(t *testing.T) {
@@ -342,6 +346,39 @@ func TestGetIncomingIDPIdentityTokenForPolicy(t *testing.T) {
 			actualToken, actualOK := cfg.GetIncomingIDPIdentityTokenForPolicy(route, r)
 			assert.Equal(t, tc.expectedOK, actualOK)
 			assert.Equal(t, tc.expectedToken, actualToken)
+		})
+	}
+}
+
+func Test_newUserFromIDPClaims(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		claims jwtutil.Claims
+		expect *user.User
+	}{
+		{"empty claims", nil, &user.User{}},
+		{"full claims", jwtutil.Claims{
+			"sub":   "USER_ID",
+			"name":  "NAME",
+			"email": "EMAIL",
+		}, &user.User{
+			Id:    "USER_ID",
+			Name:  "NAME",
+			Email: "EMAIL",
+			Claims: identity.FlattenedClaims{
+				"sub":   {"USER_ID"},
+				"name":  {"NAME"},
+				"email": {"EMAIL"},
+			}.ToPB(),
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			actual := new(incomingIDPTokenSessionCreator).newUserFromIDPClaims(tc.claims)
+			testutil.AssertProtoEqual(t, tc.expect, actual)
 		})
 	}
 }
