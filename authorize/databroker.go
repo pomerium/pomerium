@@ -3,15 +3,17 @@ package authorize
 import (
 	"context"
 
+	"google.golang.org/grpc"
+
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/storage"
-	"google.golang.org/grpc"
 )
 
 type sessionOrServiceAccount interface {
+	GetId() string
 	GetUserId() string
 	Validate() error
 }

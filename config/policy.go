@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -167,6 +168,12 @@ type Policy struct {
 	// - "hostOnly" (default): Issuer strings will be the hostname of the route, with no scheme or trailing slash.
 	// - "uri": Issuer strings will be a complete URI, including the scheme and ending with a trailing slash.
 	JWTIssuerFormat string `mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
+	// BearerTokenFormat indicates how authorization bearer tokens are interepreted. Possible values:
+	// - "default": Only Bearer tokens prefixed with Pomerium- will be interpreted by Pomerium
+	// - "idp_access_token": The Bearer token will be interpreted as an IdP access token.
+	// - "idp_identity_token": The Bearer token will be interpreted as an IdP identity token.
+	// When unset the global option will be used.
+	BearerTokenFormat *BearerTokenFormat `mapstructure:"bearer_token_format" yaml:"bearer_token_format,omitempty"`
 
 	// Allowlist of group names/IDs to include in the Pomerium JWT.
 	// This expands on any global allowlist set in the main Options.
@@ -186,6 +193,8 @@ type Policy struct {
 	IDPClientID string `mapstructure:"idp_client_id" yaml:"idp_client_id,omitempty"`
 	// IDPClientSecret is the client secret used for the identity provider.
 	IDPClientSecret string `mapstructure:"idp_client_secret" yaml:"idp_client_secret,omitempty"`
+	// IDPAccessTokenAllowedAudiences are the allowed audiences for idp access token validation.
+	IDPAccessTokenAllowedAudiences *[]string `mapstructure:"idp_access_token_allowed_audiences" yaml:"idp_access_token_allowed_audiences,omitempty"`
 
 	// ShowErrorDetails indicates whether or not additional error details should be displayed.
 	ShowErrorDetails bool `mapstructure:"show_error_details" yaml:"show_error_details" json:"show_error_details"`
@@ -332,6 +341,12 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		TLSUpstreamServerName:             pb.GetTlsUpstreamServerName(),
 		UpstreamTimeout:                   timeout,
 	}
+	if pb.IdpAccessTokenAllowedAudiences != nil {
+		values := slices.Clone(pb.IdpAccessTokenAllowedAudiences.Values)
+		p.IDPAccessTokenAllowedAudiences = &values
+	} else {
+		p.IDPAccessTokenAllowedAudiences = nil
+	}
 	if pb.Redirect.IsSet() {
 		p.Redirect = &PolicyRedirect{
 			HTTPSRedirect:  pb.Redirect.HttpsRedirect,
@@ -379,6 +394,8 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 	case configpb.IssuerFormat_IssuerURI:
 		p.JWTIssuerFormat = "uri"
 	}
+
+	p.BearerTokenFormat = BearerTokenFormatFromPB(pb.BearerTokenFormat)
 
 	for _, rwh := range pb.RewriteResponseHeaders {
 		p.RewriteResponseHeaders = append(p.RewriteResponseHeaders, RewriteHeader{
@@ -505,6 +522,13 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	if p.IDPClientSecret != "" {
 		pb.IdpClientSecret = proto.String(p.IDPClientSecret)
 	}
+	if p.IDPAccessTokenAllowedAudiences != nil {
+		pb.IdpAccessTokenAllowedAudiences = &configpb.Route_StringList{
+			Values: slices.Clone(*p.IDPAccessTokenAllowedAudiences),
+		}
+	} else {
+		pb.IdpAccessTokenAllowedAudiences = nil
+	}
 	if p.Redirect != nil {
 		pb.Redirect = &configpb.RouteRedirect{
 			HttpsRedirect:  p.Redirect.HTTPSRedirect,
@@ -537,6 +561,8 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	case "uri":
 		pb.JwtIssuerFormat = configpb.IssuerFormat_IssuerURI
 	}
+
+	pb.BearerTokenFormat = p.BearerTokenFormat.ToPB()
 
 	for _, rwh := range p.RewriteResponseHeaders {
 		pb.RewriteResponseHeaders = append(pb.RewriteResponseHeaders, &configpb.RouteRewriteHeader{
