@@ -174,16 +174,16 @@ func (rec *OTLPTraceReceiver) FlushResourceSpans() []*tracev1.ResourceSpans {
 // GRPCEndpointURL returns a url suitable for use with the environment variable
 // $OTEL_EXPORTER_OTLP_TRACES_ENDPOINT or with [otlptracegrpc.WithEndpointURL].
 func (rec *OTLPTraceReceiver) GRPCEndpointURL() values.Value[string] {
-	return values.Chain(rec.grpcUpstream, upstreams.GRPCUpstream.Port, func(port int) string {
-		return fmt.Sprintf("http://127.0.0.1:%d", port)
+	return values.Chain(rec.grpcUpstream, upstreams.GRPCUpstream.Addr, func(addr string) string {
+		return fmt.Sprintf("http://%s", addr)
 	})
 }
 
 // GRPCEndpointURL returns a url suitable for use with the environment variable
 // $OTEL_EXPORTER_OTLP_TRACES_ENDPOINT or with [otlptracehttp.WithEndpointURL].
 func (rec *OTLPTraceReceiver) HTTPEndpointURL() values.Value[string] {
-	return values.Chain(rec.httpUpstream, upstreams.HTTPUpstream.Port, func(port int) string {
-		return fmt.Sprintf("http://127.0.0.1:%d/v1/traces", port)
+	return values.Chain(rec.httpUpstream, upstreams.HTTPUpstream.Addr, func(addr string) string {
+		return fmt.Sprintf("http://%s/v1/traces", addr)
 	})
 }
 
@@ -200,9 +200,9 @@ func (rec *OTLPTraceReceiver) NewGRPCClient(opts ...otlptracegrpc.Option) otlptr
 
 func (rec *OTLPTraceReceiver) NewHTTPClient(opts ...otlptracehttp.Option) otlptrace.Client {
 	return &deferredClient{
-		client: values.Chain(rec.httpUpstream, upstreams.HTTPUpstream.Port, func(port int) otlptrace.Client {
+		client: values.Chain(rec.httpUpstream, upstreams.HTTPUpstream.Addr, func(addr string) otlptrace.Client {
 			return otlptracehttp.NewClient(append(opts,
-				otlptracehttp.WithEndpointURL(fmt.Sprintf("http://127.0.0.1:%d/v1/traces", port)),
+				otlptracehttp.WithEndpointURL(fmt.Sprintf("http://%s/v1/traces", addr)),
 				otlptracehttp.WithTimeout(1*time.Minute),
 			)...)
 		}),
