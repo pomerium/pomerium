@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -30,6 +29,7 @@ import (
 	"github.com/pomerium/csrf"
 	"github.com/pomerium/pomerium/config/otelconfig"
 	"github.com/pomerium/pomerium/internal/atomicutil"
+	"github.com/pomerium/pomerium/internal/fileutil"
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
@@ -311,7 +311,7 @@ var defaultOptions = Options{
 	AuthenticateCallbackPath: "/oauth2/callback",
 
 	AutocertOptions: AutocertOptions{
-		Folder: dataDir(),
+		Folder: fileutil.DataDir(),
 	},
 	DataBrokerStorageType:               "memory",
 	SkipXffAppend:                       false,
@@ -1836,18 +1836,6 @@ func valueOrFromFileBase64(value string, valueFile string) *string {
 	data, _ := os.ReadFile(valueFile)
 	encoded := base64.StdEncoding.EncodeToString(data)
 	return &encoded
-}
-
-func dataDir() string {
-	homeDir, _ := os.UserHomeDir()
-	if homeDir == "" {
-		homeDir = "."
-	}
-	baseDir := filepath.Join(homeDir, ".local", "share")
-	if xdgData := os.Getenv("XDG_DATA_HOME"); xdgData != "" {
-		baseDir = xdgData
-	}
-	return filepath.Join(baseDir, "pomerium")
 }
 
 func compareByteSliceSlice(a, b [][]byte) int {
