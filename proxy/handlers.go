@@ -78,7 +78,7 @@ func (p *Proxy) SignOut(w http.ResponseWriter, r *http.Request) error {
 	state := p.state.Load()
 
 	var redirectURL *url.URL
-	signOutURL, err := p.currentOptions.Load().GetSignOutRedirectURL()
+	signOutURL, err := p.currentConfig.Load().Options.GetSignOutRedirectURL()
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}
@@ -126,7 +126,7 @@ func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) error {
 // using the authenticate service.
 func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error {
 	state := p.state.Load()
-	options := p.currentOptions.Load()
+	options := p.currentConfig.Load().Options
 
 	redirectURI, err := urlutil.ParseAndValidateURL(r.FormValue(urlutil.QueryRedirectURI))
 	if err != nil {

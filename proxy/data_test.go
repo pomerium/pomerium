@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -17,6 +17,7 @@ import (
 	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/databroker"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/testutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -32,42 +33,64 @@ func Test_getUserInfoData(t *testing.T) {
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
 	defer clearTimeout()
 
-	cc := testutil.NewGRPCServer(t, func(srv *grpc.Server) {
-		databrokerpb.RegisterDataBrokerServiceServer(srv, databroker.New(ctx, trace.NewNoopTracerProvider()))
+	t.Run("incoming idp token", func(t *testing.T) {
+		cc := testutil.NewGRPCServer(t, func(srv *grpc.Server) {
+			databrokerpb.RegisterDataBrokerServiceServer(srv, databroker.New(ctx, noop.NewTracerProvider()))
+		})
+		t.Cleanup(func() { cc.Close() })
+
+		client := databrokerpb.NewDataBrokerServiceClient(cc)
+
+		opts := testOptions(t)
+		proxy, err := New(ctx, &config.Config{Options: opts})
+		require.NoError(t, err)
+		proxy.state.Load().dataBrokerClient = client
+
+		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
+		r.Header.Set(httputil.HeaderPomeriumIDPAccessToken, "ACCESS_TOKEN")
+		data := proxy.getUserInfoData(r)
+		assert.NotNil(t, data.Session)
+		assert.NotNil(t, data.User)
 	})
-	t.Cleanup(func() { cc.Close() })
 
-	client := databrokerpb.NewDataBrokerServiceClient(cc)
+	t.Run("session", func(t *testing.T) {
+		cc := testutil.NewGRPCServer(t, func(srv *grpc.Server) {
+			databrokerpb.RegisterDataBrokerServiceServer(srv, databroker.New(ctx, noop.NewTracerProvider()))
+		})
+		t.Cleanup(func() { cc.Close() })
 
-	opts := testOptions(t)
-	proxy, err := New(ctx, &config.Config{Options: opts})
-	require.NoError(t, err)
-	proxy.state.Load().dataBrokerClient = client
+		client := databrokerpb.NewDataBrokerServiceClient(cc)
 
-	require.NoError(t, databrokerpb.PutMulti(ctx, client,
-		makeRecord(&session.Session{
-			Id:     "S1",
-			UserId: "U1",
-		}),
-		makeRecord(&user.User{
-			Id: "U1",
-		}),
-		makeRecord(&configpb.Config{
-			Name: "dashboard-settings",
-		}),
-		makeStructRecord(directory.UserRecordType, "U1", map[string]any{
-			"group_ids": []any{"G1", "G2", "G3"},
-		})))
+		opts := testOptions(t)
+		proxy, err := New(ctx, &config.Config{Options: opts})
+		require.NoError(t, err)
+		proxy.state.Load().dataBrokerClient = client
 
-	r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
-	r.Header.Set("Authorization", "Bearer Pomerium-"+encodeSession(t, opts, &sessions.State{
-		ID: "S1",
-	}))
-	data := proxy.getUserInfoData(r)
-	assert.Equal(t, "S1", data.Session.Id)
-	assert.Equal(t, "U1", data.User.Id)
-	assert.True(t, data.IsEnterprise)
-	assert.Equal(t, []string{"G1", "G2", "G3"}, data.DirectoryUser.GroupIDs)
+		require.NoError(t, databrokerpb.PutMulti(ctx, client,
+			makeRecord(&session.Session{
+				Id:     "S1",
+				UserId: "U1",
+			}),
+			makeRecord(&user.User{
+				Id: "U1",
+			}),
+			makeRecord(&configpb.Config{
+				Name: "dashboard-settings",
+			}),
+			makeStructRecord(directory.UserRecordType, "U1", map[string]any{
+				"group_ids": []any{"G1", "G2", "G3"},
+			})))
+
+		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
+		r.Header.Set("Authorization", "Bearer Pomerium-"+encodeSession(t, opts, &sessions.State{
+			ID: "S1",
+		}))
+		data := proxy.getUserInfoData(r)
+		assert.Equal(t, "S1", data.Session.Id)
+		assert.Equal(t, "U1", data.User.Id)
+		assert.True(t, data.IsEnterprise)
+		assert.Equal(t, []string{"G1", "G2", "G3"}, data.DirectoryUser.GroupIDs)
+	})
 }
 
 func makeRecord(object interface {

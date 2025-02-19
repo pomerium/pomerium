@@ -40,7 +40,7 @@ func (p *Proxy) routesPortalJSON(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (p *Proxy) getPortalRoutes(ctx context.Context, u handlers.UserInfoData) []portal.Route {
-	options := p.currentOptions.Load()
+	options := p.currentConfig.Load().Options
 	pu := p.getPortalUser(u)
 	var routes []*config.Policy
 	for route := range options.GetAllPolicies() {

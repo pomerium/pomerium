@@ -34,12 +34,22 @@ func (p *Proxy) getUser(ctx context.Context, userID string) (*user.User, error) 
 }
 
 func (p *Proxy) getUserInfoData(r *http.Request) handlers.UserInfoData {
-	options := p.currentOptions.Load()
+	cfg := p.currentConfig.Load()
 	state := p.state.Load()
 
 	data := handlers.UserInfoData{
 		CSRFToken:       csrf.Token(r),
-		BrandingOptions: options.BrandingOptions,
+		BrandingOptions: cfg.Options.BrandingOptions,
+	}
+
+	if s, err := state.incomingIDPTokenSessionCreator.CreateSession(r.Context(), cfg, nil, r); err == nil {
+		data.Session = s
+		data.IsImpersonated = false
+
+		data.User, err = p.getUser(r.Context(), data.Session.GetUserId())
+		if err != nil {
+			data.User = &user.User{Id: data.Session.GetUserId()}
+		}
 	}
 
 	ss, err := p.state.Load().sessionStore.LoadSessionState(r)
@@ -85,7 +95,7 @@ func (p *Proxy) fillEnterpriseUserInfoData(ctx context.Context, data *handlers.U
 }
 
 func (p *Proxy) getWebauthnState(r *http.Request) (*webauthn.State, error) {
-	options := p.currentOptions.Load()
+	options := p.currentConfig.Load().Options
 	state := p.state.Load()
 
 	ss, err := p.state.Load().sessionStore.LoadSessionState(r)

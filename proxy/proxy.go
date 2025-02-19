@@ -57,7 +57,7 @@ func ValidateOptions(o *config.Options) error {
 // Proxy stores all the information associated with proxying a request.
 type Proxy struct {
 	state          *atomicutil.Value[*proxyState]
-	currentOptions *atomicutil.Value[*config.Options]
+	currentConfig  *atomicutil.Value[*config.Config]
 	currentRouter  *atomicutil.Value[*mux.Router]
 	webauthn       *webauthn.Handler
 	tracerProvider oteltrace.TracerProvider
@@ -76,7 +76,7 @@ func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 	p := &Proxy{
 		tracerProvider: tracerProvider,
 		state:          atomicutil.NewValue(state),
-		currentOptions: config.NewAtomicOptions(),
+		currentConfig:  atomicutil.NewValue(&config.Config{Options: config.NewDefaultOptions()}),
 		currentRouter:  atomicutil.NewValue(httputil.NewRouter()),
 		logoProvider:   portal.NewLogoProvider(),
 	}
@@ -84,7 +84,7 @@ func New(ctx context.Context, cfg *config.Config) (*Proxy, error) {
 	p.webauthn = webauthn.New(p.getWebauthnState)
 
 	metrics.AddPolicyCountCallback("pomerium-proxy", func() int64 {
-		return int64(p.currentOptions.Load().NumPolicies())
+		return int64(p.currentConfig.Load().Options.NumPolicies())
 	})
 
 	return p, nil
@@ -101,7 +101,7 @@ func (p *Proxy) OnConfigChange(ctx context.Context, cfg *config.Config) {
 		return
 	}
 
-	p.currentOptions.Store(cfg.Options)
+	p.currentConfig.Store(cfg)
 	if err := p.setHandlers(ctx, cfg.Options); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("proxy: failed to update proxy handlers from configuration settings")
 	}
