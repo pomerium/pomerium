@@ -50,6 +50,16 @@ func TestStringMatcher(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, `example == "test"`, str(body))
 	})
+	t.Run("not", func(t *testing.T) {
+		t.Parallel()
+
+		var body ast.Body
+		err := matchString(&body, ast.VarTerm("example"), parser.Object{
+			"not": parser.String("test"),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, `example != "test"`, str(body))
+	})
 	t.Run("starts_with", func(t *testing.T) {
 		t.Parallel()
 
@@ -117,6 +127,16 @@ func TestStringListMatcher(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, `count(example) == 1`+"\n"+`count([true | some v; v = example[_]; v == "test"]) > 0`, str(body))
+	})
+	t.Run("exclude", func(t *testing.T) {
+		t.Parallel()
+
+		var body ast.Body
+		err := matchStringList(&body, ast.VarTerm("example"), parser.Object{
+			"exclude": parser.String("test"),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, `count([true | some v; v = example[_]; v == "test"]) == 0`, str(body))
 	})
 	t.Run("string", func(t *testing.T) {
 		t.Parallel()

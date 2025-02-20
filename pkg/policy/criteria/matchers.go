@@ -21,6 +21,7 @@ func matchString(dst *ast.Body, left *ast.Term, right parser.Value) error {
 	lookup := map[string]matcher{
 		"contains":    matchStringContains,
 		"ends_with":   matchStringEndsWith,
+		"not":         matchStringNot,
 		"is":          matchStringIs,
 		"starts_with": matchStringStartsWith,
 	}
@@ -47,6 +48,11 @@ func matchStringEndsWith(dst *ast.Body, left *ast.Term, right parser.Value) erro
 	return nil
 }
 
+func matchStringNot(dst *ast.Body, left *ast.Term, right parser.Value) error {
+	*dst = append(*dst, ast.NotEqual.Expr(left, ast.NewTerm(right.RegoValue())))
+	return nil
+}
+
 func matchStringIs(dst *ast.Body, left *ast.Term, right parser.Value) error {
 	*dst = append(*dst, ast.Equal.Expr(left, ast.NewTerm(right.RegoValue())))
 	return nil
@@ -66,8 +72,9 @@ func matchStringList(dst *ast.Body, left *ast.Term, right parser.Value) error {
 	}
 
 	lookup := map[string]matcher{
-		"has": matchStringListHas,
-		"is":  matchStringListIs,
+		"has":     matchStringListHas,
+		"is":      matchStringListIs,
+		"exclude": matchStringListExclude,
 	}
 	for k, v := range obj {
 		f, ok := lookup[k]
@@ -111,4 +118,25 @@ func matchStringListIs(dst *ast.Body, left *ast.Term, right parser.Value) error 
 		),
 	)
 	return matchStringListHas(dst, left, right)
+}
+
+func matchStringListExclude(dst *ast.Body, left *ast.Term, right parser.Value) error {
+	body := ast.Body{
+		ast.MustParseExpr("some v"),
+		ast.Equality.Expr(ast.VarTerm("v"), ast.RefTerm(left, ast.VarTerm("$0"))),
+	}
+	err := matchStringIs(&body, ast.VarTerm("v"), right)
+	if err != nil {
+		return err
+	}
+	*dst = append(*dst, ast.Equal.Expr(
+		ast.Count.Call(
+			ast.ArrayComprehensionTerm(
+				ast.BooleanTerm(true),
+				body,
+			),
+		),
+		ast.IntNumberTerm(0),
+	))
+	return nil
 }
