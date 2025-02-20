@@ -1,6 +1,8 @@
 package config
 
 import (
+	"slices"
+
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/grpc/identity"
 )
@@ -43,12 +45,22 @@ func (o *Options) GetIdentityProviderForPolicy(policy *Policy) (*identity.Provid
 		Url:                    o.ProviderURL,
 		RequestParams:          o.RequestParams,
 	}
+	if v := o.IDPAccessTokenAllowedAudiences; v != nil {
+		idp.AccessTokenAllowedAudiences = &identity.Provider_StringList{
+			Values: slices.Clone(*v),
+		}
+	}
 	if policy != nil {
 		if policy.IDPClientID != "" {
 			idp.ClientId = policy.IDPClientID
 		}
 		if policy.IDPClientSecret != "" {
 			idp.ClientSecret = policy.IDPClientSecret
+		}
+		if v := policy.IDPAccessTokenAllowedAudiences; v != nil {
+			idp.AccessTokenAllowedAudiences = &identity.Provider_StringList{
+				Values: slices.Clone(*v),
+			}
 		}
 	}
 	idp.Id = idp.Hash()

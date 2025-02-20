@@ -196,7 +196,7 @@ func (a *Authorize) deniedResponse(
 			Err:             errors.New(reason),
 			DebugURL:        debugEndpoint,
 			RequestID:       requestid.FromContext(ctx),
-			BrandingOptions: a.currentOptions.Load().BrandingOptions,
+			BrandingOptions: a.currentConfig.Load().Options.BrandingOptions,
 		}
 		httpErr.ErrorResponse(ctx, w, r)
 
@@ -238,7 +238,7 @@ func (a *Authorize) requireLoginResponse(
 	in *envoy_service_auth_v3.CheckRequest,
 	request *evaluator.Request,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
-	options := a.currentOptions.Load()
+	options := a.currentConfig.Load().Options
 	state := a.state.Load()
 
 	if !a.shouldRedirect(in) {
@@ -271,7 +271,7 @@ func (a *Authorize) requireWebAuthnResponse(
 	request *evaluator.Request,
 	result *evaluator.Result,
 ) (*envoy_service_auth_v3.CheckResponse, error) {
-	opts := a.currentOptions.Load()
+	opts := a.currentConfig.Load().Options
 	state := a.state.Load()
 
 	// always assume https scheme
@@ -335,7 +335,7 @@ func toEnvoyHeaders(headers http.Header) []*envoy_config_core_v3.HeaderValueOpti
 // userInfoEndpointURL returns the user info endpoint url which can be used to debug the user's
 // session that lives on the authenticate service.
 func (a *Authorize) userInfoEndpointURL(in *envoy_service_auth_v3.CheckRequest) (*url.URL, error) {
-	opts := a.currentOptions.Load()
+	opts := a.currentConfig.Load().Options
 	authenticateURL, err := opts.GetAuthenticateURL()
 	if err != nil {
 		return nil, err

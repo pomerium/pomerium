@@ -3,6 +3,7 @@ package authorize
 import (
 	"context"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,6 +25,7 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/contextutil"
+	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
@@ -48,32 +50,25 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	span.AddAttributes(octrace.StringAttribute("request_id", requestID))
 	ctx = requestid.WithValue(ctx, requestID)
 
-	sessionState, _ := state.sessionStore.LoadSessionStateAndCheckIDP(hreq)
-
-	var s sessionOrServiceAccount
-	var u *user.User
-	var err error
-	if sessionState != nil {
-		s, err = a.getDataBrokerSessionOrServiceAccount(ctx, sessionState.ID, sessionState.DatabrokerRecordVersion)
-		if status.Code(err) == codes.Unavailable {
-			log.Ctx(ctx).Debug().Str("request-id", requestID).Err(err).Msg("temporary error checking authorization: data broker unavailable")
-			return nil, fmt.Errorf("databroker unavailable")
-		} else if err != nil {
-			log.Ctx(ctx).Info().Err(err).Str("request-id", requestID).Msg("clearing session due to missing or invalid session or service account")
-			sessionState = nil
-		}
-	}
-	if sessionState != nil && s != nil {
-		u, _ = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
-	}
-
-	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in, sessionState)
+	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("error building evaluator request")
 		return nil, fmt.Errorf("build evaluator request: %w", err)
 	}
 
-	// take the state lock here so we don't update while evaluating
+	// load the session
+	s, err := a.loadSession(ctx, hreq, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// if there's a session or service account, load the user
+	var u *user.User
+	if s != nil {
+		req.Session.ID = s.GetId()
+		u, _ = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
+	}
+
 	a.stateLock.RLock()
 	res, err := state.evaluator.Evaluate(ctx, req)
 	a.stateLock.RUnlock()
@@ -95,10 +90,65 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	return resp, err
 }
 
+func (a *Authorize) loadSession(
+	ctx context.Context,
+	hreq *http.Request,
+	req *evaluator.Request,
+) (s sessionOrServiceAccount, err error) {
+	requestID := requestid.FromHTTPHeader(hreq.Header)
+
+	// attempt to create a session from an incoming idp token
+	s, err = config.NewIncomingIDPTokenSessionCreator(
+		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
+			return getDataBrokerRecord(ctx, recordType, recordID, 0)
+		},
+		func(ctx context.Context, records []*databroker.Record) error {
+			_, err := a.state.Load().dataBrokerClient.Put(ctx, &databroker.PutRequest{
+				Records: records,
+			})
+			if err != nil {
+				return err
+			}
+			// invalidate cache
+			for _, record := range records {
+				storage.GetQuerier(ctx).InvalidateCache(ctx, &databroker.QueryRequest{
+					Type:  record.GetType(),
+					Query: record.GetId(),
+					Limit: 1,
+				})
+			}
+			return nil
+		},
+	).CreateSession(ctx, a.currentConfig.Load(), req.Policy, hreq)
+	if err == nil {
+		return s, nil
+	} else if !errors.Is(err, sessions.ErrNoSessionFound) {
+		log.Ctx(ctx).Info().
+			Str("request-id", requestID).
+			Err(err).
+			Msg("error creating session for incoming idp token")
+	}
+
+	sessionState, _ := a.state.Load().sessionStore.LoadSessionStateAndCheckIDP(hreq)
+	if sessionState == nil {
+		return nil, nil
+	}
+
+	s, err = a.getDataBrokerSessionOrServiceAccount(ctx, sessionState.ID, sessionState.DatabrokerRecordVersion)
+	if status.Code(err) == codes.Unavailable {
+		log.Ctx(ctx).Debug().Str("request-id", requestID).Err(err).Msg("temporary error checking authorization: data broker unavailable")
+		return nil, err
+	} else if err != nil {
+		log.Ctx(ctx).Info().Err(err).Str("request-id", requestID).Msg("clearing session due to missing or invalid session or service account")
+		return nil, nil
+	}
+
+	return s, nil
+}
+
 func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
-	sessionState *sessions.State,
 ) (*evaluator.Request, error) {
 	requestURL := getCheckRequestURL(in)
 	attrs := in.GetAttributes()
@@ -113,17 +163,12 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 			attrs.GetSource().GetAddress().GetSocketAddress().GetAddress(),
 		),
 	}
-	if sessionState != nil {
-		req.Session = evaluator.RequestSession{
-			ID: sessionState.ID,
-		}
-	}
 	req.Policy = a.getMatchingPolicy(envoyconfig.ExtAuthzContextExtensionsRouteID(attrs.GetContextExtensions()))
 	return req, nil
 }
 
 func (a *Authorize) getMatchingPolicy(routeID uint64) *config.Policy {
-	options := a.currentOptions.Load()
+	options := a.currentConfig.Load().Options
 
 	for p := range options.GetAllPolicies() {
 		id, _ := p.RouteID()

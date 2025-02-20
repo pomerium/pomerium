@@ -23,7 +23,7 @@ func defaultGetIdentityProvider(options *config.Options, idpID string) (identity
 	if err != nil {
 		return nil, err
 	}
-	return identity.NewAuthenticator(oauth.Options{
+	o := oauth.Options{
 		RedirectURL:     redirectURL,
 		ProviderName:    idp.GetType(),
 		ProviderURL:     idp.GetUrl(),
@@ -31,5 +31,9 @@ func defaultGetIdentityProvider(options *config.Options, idpID string) (identity
 		ClientSecret:    idp.GetClientSecret(),
 		Scopes:          idp.GetScopes(),
 		AuthCodeOptions: idp.GetRequestParams(),
-	})
+	}
+	if v := idp.GetAccessTokenAllowedAudiences(); v != nil {
+		o.AccessTokenAllowedAudiences = &v.Values
+	}
+	return identity.NewAuthenticator(o)
 }

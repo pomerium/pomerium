@@ -3,16 +3,18 @@ package authorize
 import (
 	"context"
 
+	octrace "go.opencensus.io/trace"
+
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/storage"
-	octrace "go.opencensus.io/trace"
 )
 
 type sessionOrServiceAccount interface {
+	GetId() string
 	GetUserId() string
 	Validate() error
 }

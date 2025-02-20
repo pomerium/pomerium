@@ -32,7 +32,7 @@ func (a *Authorize) logAuthorizeCheck(
 	impersonateDetails := a.getImpersonateDetails(ctx, s)
 
 	evt := log.Ctx(ctx).Info().Str("service", "authorize")
-	fields := a.currentOptions.Load().GetAuthorizeLogFields()
+	fields := a.currentConfig.Load().Options.GetAuthorizeLogFields()
 	for _, field := range fields {
 		evt = populateLogEvent(ctx, field, evt, in, s, u, hdrs, impersonateDetails, res)
 	}
