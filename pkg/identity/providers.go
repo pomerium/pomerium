@@ -34,6 +34,8 @@ type Authenticator interface {
 	Revoke(context.Context, *oauth2.Token) error
 	Name() string
 	UpdateUserInfo(ctx context.Context, t *oauth2.Token, v any) error
+	VerifyAccessToken(ctx context.Context, rawAccessToken string) (claims map[string]any, err error)
+	VerifyIdentityToken(ctx context.Context, rawIdentityToken string) (claims map[string]any, err error)
 
 	SignIn(w http.ResponseWriter, r *http.Request, state string) error
 	SignOut(w http.ResponseWriter, r *http.Request, idTokenHint, authenticateSignedOutURL, redirectToURL string) error

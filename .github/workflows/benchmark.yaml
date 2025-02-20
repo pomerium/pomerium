@@ -3,6 +3,7 @@ name: Benchmark
 permissions:
   contents: write
   deployments: write
+  pull-requests: write
 
 on:
   push:

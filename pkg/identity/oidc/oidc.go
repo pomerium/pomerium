@@ -327,3 +327,13 @@ func (p *Provider) SignOut(w http.ResponseWriter, r *http.Request, idTokenHint, 
 	httputil.Redirect(w, r, endSessionURL.String(), http.StatusFound)
 	return nil
 }
+
+// VerifyAccessToken verifies an access token.
+func (p *Provider) VerifyAccessToken(_ context.Context, _ string) (claims map[string]any, err error) {
+	return nil, identity.ErrVerifyAccessTokenNotSupported
+}
+
+// VerifyIdentityToken verifies an identity token.
+func (p *Provider) VerifyIdentityToken(_ context.Context, _ string) (claims map[string]any, err error) {
+	return nil, identity.ErrVerifyIdentityTokenNotSupported
+}

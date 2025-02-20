@@ -18,7 +18,6 @@ import (
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
-	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -49,15 +48,16 @@ yE+vPxsiUkvQHdO2fojCkY8jg70jxM+gu59tPDNbw3Uh/2Ij310FgTHsnGQMyA==
 -----END CERTIFICATE-----`
 
 func Test_getEvaluatorRequest(t *testing.T) {
-	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
-	a.currentOptions.Store(&config.Options{
-		Policies: []config.Policy{{
-			From: "https://example.com",
-			SubPolicies: []config.SubPolicy{{
-				Rego: []string{"allow = true"},
+	a := &Authorize{currentConfig: atomicutil.NewValue(&config.Config{
+		Options: &config.Options{
+			Policies: []config.Policy{{
+				From: "https://example.com",
+				SubPolicies: []config.SubPolicy{{
+					Rego: []string{"allow = true"},
+				}},
 			}},
-		}},
-	})
+		},
+	}), state: atomicutil.NewValue(new(authorizeState))}
 
 	actual, err := a.getEvaluatorRequestFromCheckRequest(context.Background(),
 		&envoy_service_auth_v3.CheckRequest{
@@ -88,16 +88,10 @@ func Test_getEvaluatorRequest(t *testing.T) {
 				},
 			},
 		},
-		&sessions.State{
-			ID: "SESSION_ID",
-		},
 	)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
-		Policy: &a.currentOptions.Load().Policies[0],
-		Session: evaluator.RequestSession{
-			ID: "SESSION_ID",
-		},
+		Policy: &a.currentConfig.Load().Options.Policies[0],
 		HTTP: evaluator.NewRequestHTTP(
 			http.MethodGet,
 			mustParseURL("http://example.com/some/path?qs=1"),
@@ -117,15 +111,16 @@ func Test_getEvaluatorRequest(t *testing.T) {
 }
 
 func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
-	a := &Authorize{currentOptions: config.NewAtomicOptions(), state: atomicutil.NewValue(new(authorizeState))}
-	a.currentOptions.Store(&config.Options{
-		Policies: []config.Policy{{
-			From: "https://example.com",
-			SubPolicies: []config.SubPolicy{{
-				Rego: []string{"allow = true"},
+	a := &Authorize{currentConfig: atomicutil.NewValue(&config.Config{
+		Options: &config.Options{
+			Policies: []config.Policy{{
+				From: "https://example.com",
+				SubPolicies: []config.SubPolicy{{
+					Rego: []string{"allow = true"},
+				}},
 			}},
-		}},
-	})
+		},
+	}), state: atomicutil.NewValue(new(authorizeState))}
 
 	actual, err := a.getEvaluatorRequestFromCheckRequest(context.Background(),
 		&envoy_service_auth_v3.CheckRequest{
@@ -145,10 +140,10 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 					},
 				},
 			},
-		}, nil)
+		})
 	require.NoError(t, err)
 	expect := &evaluator.Request{
-		Policy:  &a.currentOptions.Load().Policies[0],
+		Policy:  &a.currentConfig.Load().Options.Policies[0],
 		Session: evaluator.RequestSession{},
 		HTTP: evaluator.NewRequestHTTP(
 			http.MethodGet,

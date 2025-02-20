@@ -6,6 +6,7 @@ option go_package = "github.com/pomerium/pomerium/pkg/grpc/identity";
 import "google/protobuf/struct.proto";
 
 message Provider {
+  message StringList { repeated string values = 1; }
   string id = 1;
   string authenticate_service_url = 9;
   string client_id = 2;
@@ -15,6 +16,7 @@ message Provider {
   // string service_account = 6;
   string url = 7;
   map<string, string> request_params = 8;
+  optional StringList access_token_allowed_audiences = 10;
 }
 
 message Profile {

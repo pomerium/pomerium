@@ -182,3 +182,13 @@ func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) 
 func (p *Provider) SignOut(_ http.ResponseWriter, _ *http.Request, _, _, _ string) error {
 	return oidc.ErrSignoutNotImplemented
 }
+
+// VerifyAccessToken verifies an access token.
+func (p *Provider) VerifyAccessToken(_ context.Context, _ string) (claims map[string]any, err error) {
+	return nil, identity.ErrVerifyAccessTokenNotSupported
+}
+
+// VerifyIdentityToken verifies an identity token.
+func (p *Provider) VerifyIdentityToken(_ context.Context, _ string) (claims map[string]any, err error) {
+	return nil, identity.ErrVerifyIdentityTokenNotSupported
+}

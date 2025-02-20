@@ -3,7 +3,9 @@
 // authorization with Bearer JWT.
 package oauth
 
-import "net/url"
+import (
+	"net/url"
+)
 
 // Options contains the fields required for an OAuth 2.0 (inc. OIDC) auth flow.
 //
@@ -29,4 +31,7 @@ type Options struct {
 	// AuthCodeOptions specifies additional key value pairs query params to add
 	// to the request flow signin url.
 	AuthCodeOptions map[string]string
+
+	// When set validates the audience in access tokens.
+	AccessTokenAllowedAudiences *[]string
 }

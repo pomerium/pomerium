@@ -29,7 +29,7 @@ import (
 type Authorize struct {
 	state             *atomicutil.Value[*authorizeState]
 	store             *store.Store
-	currentOptions    *atomicutil.Value[*config.Options]
+	currentConfig     *atomicutil.Value[*config.Config]
 	accessTracker     *AccessTracker
 	globalCache       storage.Cache
 	groupsCacheWarmer *cacheWarmer
@@ -43,9 +43,9 @@ type Authorize struct {
 // New validates and creates a new Authorize service from a set of config options.
 func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	a := &Authorize{
-		currentOptions: config.NewAtomicOptions(),
-		store:          store.New(),
-		globalCache:    storage.NewGlobalCache(time.Minute),
+		currentConfig: atomicutil.NewValue(&config.Config{Options: new(config.Options)}),
+		store:         store.New(),
+		globalCache:   storage.NewGlobalCache(time.Minute),
 	}
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 
@@ -153,7 +153,7 @@ func newPolicyEvaluator(
 // OnConfigChange updates internal structures based on config.Options
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	currentState := a.state.Load()
-	a.currentOptions.Store(cfg.Options)
+	a.currentConfig.Store(cfg)
 	if newState, err := newAuthorizeStateFromConfig(ctx, cfg, a.store, currentState.evaluator); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating state")
 	} else {
