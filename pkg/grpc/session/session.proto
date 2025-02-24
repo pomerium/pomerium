@@ -42,6 +42,7 @@ message Session {
   OAuthToken oauth_token = 7;
   map<string, google.protobuf.ListValue> claims = 9;
   repeated string audience = 10;
+  bool refresh_disabled = 19;
 
   optional string impersonate_session_id = 15;
 }

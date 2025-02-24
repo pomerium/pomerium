@@ -371,10 +371,11 @@ func Test_newSessionFromIDPClaims(t *testing.T) {
 			"empty claims", "S1",
 			nil,
 			&session.Session{
-				Id:         "S1",
-				AccessedAt: timestamppb.New(tm1),
-				ExpiresAt:  timestamppb.New(tm1.Add(time.Hour * 14)),
-				IssuedAt:   timestamppb.New(tm1),
+				Id:              "S1",
+				AccessedAt:      timestamppb.New(tm1),
+				ExpiresAt:       timestamppb.New(tm1.Add(time.Hour * 14)),
+				IssuedAt:        timestamppb.New(tm1),
+				RefreshDisabled: true,
 			},
 		},
 		{
@@ -398,6 +399,7 @@ func Test_newSessionFromIDPClaims(t *testing.T) {
 					"iat": {tm2.Unix()},
 					"exp": {tm3.Unix()},
 				}.ToPB(),
+				RefreshDisabled: true,
 			},
 		},
 	} {
@@ -490,6 +492,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "U1", s.GetUserId())
 		assert.Equal(t, "ACCESS_TOKEN", s.GetOauthToken().GetAccessToken())
+		assert.True(t, s.GetRefreshDisabled())
 	})
 	t.Run("identity_token", func(t *testing.T) {
 		t.Parallel()
@@ -530,5 +533,6 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		s, err := c.CreateSession(ctx, cfg, route, req)
 		assert.NoError(t, err)
 		assert.Equal(t, "U1", s.GetUserId())
+		assert.True(t, s.GetRefreshDisabled())
 	})
 }
