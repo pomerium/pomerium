@@ -5,13 +5,14 @@ import (
 	"net/http"
 	"net/url"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	oteltrace "go.opentelemetry.io/otel/trace"
+	googlegrpc "google.golang.org/grpc"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	oteltrace "go.opentelemetry.io/otel/trace"
-	googlegrpc "google.golang.org/grpc"
 )
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
@@ -32,6 +33,7 @@ type proxyState struct {
 	dataBrokerClient                    databroker.DataBrokerServiceClient
 	programmaticRedirectDomainWhitelist []string
 	authenticateFlow                    authenticateFlow
+	incomingIDPTokenSessionCreator      config.IncomingIDPTokenSessionCreator
 }
 
 func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.TracerProvider, cfg *config.Config) (*proxyState, error) {
@@ -82,6 +84,25 @@ func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.Trace
 	if err != nil {
 		return nil, err
 	}
+
+	state.incomingIDPTokenSessionCreator = config.NewIncomingIDPTokenSessionCreator(
+		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
+			res, err := state.dataBrokerClient.Get(ctx, &databroker.GetRequest{
+				Type: recordType,
+				Id:   recordID,
+			})
+			if err != nil {
+				return nil, err
+			}
+			return res.GetRecord(), nil
+		},
+		func(ctx context.Context, records []*databroker.Record) error {
+			_, err := state.dataBrokerClient.Put(ctx, &databroker.PutRequest{
+				Records: records,
+			})
+			return err
+		},
+	)
 
 	return state, nil
 }
