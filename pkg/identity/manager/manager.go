@@ -225,6 +225,11 @@ func (mgr *Manager) refreshSession(ctx context.Context, sessionID string) {
 		return
 	}
 
+	if s.GetRefreshDisabled() {
+		// refresh was explicitly disabled
+		return
+	}
+
 	if s.GetOauthToken() == nil {
 		log.Ctx(ctx).Info().
 			Str("user_id", s.GetUserId()).
