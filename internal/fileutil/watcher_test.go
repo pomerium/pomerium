@@ -88,6 +88,56 @@ func TestWatcher_FileRemoval(t *testing.T) {
 	expectChange(t, ch)
 }
 
+func TestWatcher_FileModification(t *testing.T) {
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	nm := filepath.Join(tmpdir, "test1.txt")
+	now := time.Now()
+
+	require.NoError(t, os.WriteFile(nm, []byte{1, 2, 3, 4}, 0o666))
+	require.NoError(t, os.Chtimes(nm, now, now))
+
+	w := NewWatcher()
+	defer w.Close()
+	w.Watch([]string{nm})
+
+	ch := w.Bind()
+	t.Cleanup(func() { w.Unbind(ch) })
+
+	require.NoError(t, os.WriteFile(nm, []byte{5, 6, 7, 8}, 0o666))
+	require.NoError(t, os.Chtimes(nm, now, now))
+
+	expectChange(t, ch)
+}
+
+func TestWatcher_UnWatch(t *testing.T) {
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	nm := filepath.Join(tmpdir, "test1.txt")
+	now := time.Now()
+
+	require.NoError(t, os.WriteFile(nm, []byte{1, 2, 3}, 0o666))
+	require.NoError(t, os.Chtimes(nm, now, now))
+
+	w := NewWatcher()
+	defer w.Close()
+
+	ch := w.Bind()
+	t.Cleanup(func() { w.Unbind(ch) })
+
+	w.Watch([]string{nm})
+	require.NoError(t, os.WriteFile(nm, []byte{4, 5, 6}, 0o666))
+	require.NoError(t, os.Chtimes(nm, now, now))
+	expectChange(t, ch)
+
+	w.Watch(nil)
+	require.NoError(t, os.WriteFile(nm, []byte{7, 8, 9}, 0o666))
+	require.NoError(t, os.Chtimes(nm, now, now))
+	expectNoChange(t, ch)
+}
+
 func expectChange(t *testing.T, ch chan context.Context) {
 	t.Helper()
 
@@ -95,9 +145,19 @@ func expectChange(t *testing.T, ch chan context.Context) {
 	select {
 	case <-ch:
 		cnt++
-	case <-time.After(10 * time.Second):
+	case <-time.After(2 * pollingInterval):
 	}
-	if cnt == 0 {
-		t.Error("expected change signal")
+	assert.Greater(t, cnt, 0, "should signal a change")
+}
+
+func expectNoChange(t *testing.T, ch chan context.Context) {
+	t.Helper()
+
+	cnt := 0
+	select {
+	case <-ch:
+		cnt++
+	case <-time.After(2 * pollingInterval):
 	}
+	assert.Equal(t, 0, cnt, "should not signal a change")
 }
