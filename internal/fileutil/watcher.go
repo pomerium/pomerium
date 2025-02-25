@@ -105,23 +105,23 @@ func (w *Watcher) Watch(filePaths []string) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	fps := set.NewTreeSet(cmp.Compare[string])
-	for _, fp := range filePaths {
-		fps.Insert(fp)
-	}
-	w.filePaths = fps.Slice()
+	w.filePaths = set.TreeSetFrom(filePaths, cmp.Compare[string]).Slice()
 
-	dps := set.NewTreeSet(cmp.Compare[string])
+	var dps []string
 	for _, fp := range filePaths {
-		dps.Insert(filepath.Dir(fp))
+		dps = append(dps, filepath.Dir(fp))
 	}
-	w.directoryPaths = dps.Slice()
+	w.directoryPaths = set.TreeSetFrom(dps, cmp.Compare[string]).Slice()
 
 	w.checkLocked()
 }
 
 func (w *Watcher) handleNotifications() {
-	if w.notifyWatcher == nil {
+	w.mu.Lock()
+	nw := w.notifyWatcher
+	w.mu.Unlock()
+
+	if nw == nil {
 		return
 	}
 
@@ -129,15 +129,16 @@ func (w *Watcher) handleNotifications() {
 		select {
 		case <-w.cancelCtx.Done():
 			return
-		case err := <-w.notifyWatcher.Errors:
+		case err := <-nw.Errors:
 			log.Debug().Err(err).Msg("fileutil/watcher: filesystem notification error")
-		case evt := <-w.notifyWatcher.Events:
+		case evt := <-nw.Events:
 			if evt.Has(fsnotify.Create) || evt.Has(fsnotify.Remove) || evt.Has(fsnotify.Write) {
 				w.mu.Lock()
 				if wf, ok := w.files[evt.Name]; ok {
 					wf.force = true
 				}
 				w.mu.Unlock()
+				// the actual check will be done via the polling interval to debounce
 			}
 		}
 	}
