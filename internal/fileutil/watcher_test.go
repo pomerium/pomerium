@@ -12,12 +12,15 @@ import (
 )
 
 func TestWatcher(t *testing.T) {
+	t.Parallel()
+
 	tmpdir := t.TempDir()
 
 	err := os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1}, 0o666)
 	require.NoError(t, err)
 
 	w := NewWatcher()
+	defer w.Close()
 	w.Watch([]string{filepath.Join(tmpdir, "test1.txt")})
 
 	ch := w.Bind()
@@ -30,6 +33,8 @@ func TestWatcher(t *testing.T) {
 }
 
 func TestWatcherSymlink(t *testing.T) {
+	t.Parallel()
+
 	tmpdir := t.TempDir()
 
 	err := os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1}, 0o666)
@@ -41,6 +46,7 @@ func TestWatcherSymlink(t *testing.T) {
 	assert.NoError(t, os.Symlink(filepath.Join(tmpdir, "test1.txt"), filepath.Join(tmpdir, "symlink1.txt")))
 
 	w := NewWatcher()
+	defer w.Close()
 	w.Watch([]string{filepath.Join(tmpdir, "symlink1.txt")})
 
 	ch := w.Bind()
@@ -57,12 +63,15 @@ func TestWatcherSymlink(t *testing.T) {
 }
 
 func TestWatcher_FileRemoval(t *testing.T) {
+	t.Parallel()
+
 	tmpdir := t.TempDir()
 
 	err := os.WriteFile(filepath.Join(tmpdir, "test1.txt"), []byte{1}, 0o666)
 	require.NoError(t, err)
 
 	w := NewWatcher()
+	defer w.Close()
 	w.Watch([]string{filepath.Join(tmpdir, "test1.txt")})
 
 	ch := w.Bind()
