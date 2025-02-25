@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
+	"github.com/pomerium/pomerium/pkg/storage"
 	gossh "golang.org/x/crypto/ssh"
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
@@ -59,6 +60,13 @@ func (a *Authorize) ManageStream(
 			recvC <- req
 		}
 	})
+
+	// XXX
+	querier := storage.NewCachingQuerier(
+		storage.NewQuerier(a.state.Load().dataBrokerClient),
+		a.globalCache,
+	)
+	ctx = storage.WithQuerier(ctx, querier)
 
 	eg.Go(func() error {
 		for {
@@ -243,6 +251,12 @@ func (a *Authorize) ManageStream(
 							return
 						}
 						s := sessions.NewState(idp.Id)
+						claims.Claims.Claims(&s) // XXX
+						s.ID, err = getSessionIDForSSH(state.PublicKey)
+						if err != nil {
+							errC <- err
+							return
+						}
 						fmt.Println(token)
 						err = a.PersistSession(ctx, s, claims, token)
 						if err != nil {
@@ -392,7 +406,7 @@ func (a *Authorize) getEvaluatorRequestFromSSHAuthRequest(
 func handleEvaluatorResponseForSSH(
 	result *evaluator.Result, state *StreamState,
 ) *extensions_ssh.ServerMessage {
-	fmt.Println(" *** evaluator result: %+w", result)
+	fmt.Printf(" *** evaluator result: %+v\n", result)
 
 	// TODO: ideally there would be a way to keep this in sync with the logic in check_response.go
 	allow := result.Allow.Value && !result.Deny.Value
@@ -456,7 +470,7 @@ func publicKeyAllowResponse(publicKey []byte) *extensions_ssh.PublicKeyAllowResp
 // PersistSession stores session and user data in the databroker.
 func (a *Authorize) PersistSession(
 	ctx context.Context,
-	sessionState *sessions.State,
+	sessionState *sessions.State, // XXX: consider not using this struct
 	claims identity.SessionClaims,
 	accessToken *oauth2.Token,
 ) error {
