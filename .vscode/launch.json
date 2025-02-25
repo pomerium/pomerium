@@ -11,6 +11,23 @@
       "cwd": "${workspaceRoot}",
     },
     {
+      "name": "debug pomerium (external envoy)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceRoot}/cmd/pomerium",
+      "args": [
+        "-config",
+        "${workspaceRoot}/ssh-config.yaml"
+      ],
+      "cwd": "${workspaceRoot}",
+      "buildFlags": [
+        "-tags=debug_local_envoy",
+        "-ldflags",
+        "-X github.com/pomerium/pomerium/pkg/envoy.DebugLocalEnvoyPath=/home/ubuntu/envoy-custom/bazel-bin/envoy"
+      ],
+    },
+    {
       "name": "Connect to server",
       "type": "go",
       "request": "attach",

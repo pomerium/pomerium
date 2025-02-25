@@ -263,4 +263,4 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
-replace github.com/pomerium/envoy-custom => ../envoy-custom
+replace github.com/pomerium/envoy-custom => ../kralicky-envoy-custom

@@ -1,6 +1,7 @@
 package authorize
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -15,12 +16,18 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/sessions"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/identity"
+	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
 	gossh "golang.org/x/crypto/ssh"
+	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -71,7 +78,8 @@ func (a *Authorize) ManageStream(
 
 	var state StreamState
 
-	deviceAuthSuccess := &atomic.Bool{}
+	//deviceAuthSuccess := &atomic.Bool{}
+	sessionState := &atomic.Pointer[sessions.State]{}
 
 	errC := make(chan error, 1)
 	a.activeStreamsMu.Lock()
@@ -114,23 +122,16 @@ func (a *Authorize) ManageStream(
 					//
 					// validate public key here
 					//
+					session, err := a.GetPomeriumSession(ctx, pubkeyReq.PublicKey)
+					if err != nil {
+						return err // XXX: wrap this error?
+					}
 
 					state.MethodsAuthenticated = append(state.MethodsAuthenticated, "publickey")
 					state.PublicKey = pubkeyReq.PublicKey
 
 					if authReq.Username == "" && authReq.Hostname == "" {
-						pkData, _ := anypb.New(&extensions_ssh.PublicKeyAllowResponse{
-							PublicKey: state.PublicKey,
-							Permissions: &extensions_ssh.Permissions{
-								PermitPortForwarding:  true,
-								PermitAgentForwarding: true,
-								PermitX11Forwarding:   true,
-								PermitPty:             true,
-								PermitUserRc:          true,
-								ValidBefore:           timestamppb.New(time.Now().Add(-1 * time.Minute)),
-								ValidAfter:            timestamppb.New(time.Now().Add(12 * time.Hour)),
-							},
-						})
+						pkData, _ := anypb.New(publicKeyAllowResponse(state.PublicKey))
 						resp := extensions_ssh.ServerMessage{
 							Message: &extensions_ssh.ServerMessage_AuthResponse{
 								AuthResponse: &extensions_ssh.AuthenticationResponse{
@@ -154,7 +155,20 @@ func (a *Authorize) ManageStream(
 						continue
 					}
 
-					if !slices.Contains(state.MethodsAuthenticated, "keyboard-interactive") {
+					if session != nil {
+						// Perform authorize check for this route
+						req, err := a.getEvaluatorRequestFromSSHAuthRequest(&state)
+						if err != nil {
+							return err
+						}
+						res, err := a.state.Load().evaluator.Evaluate(ctx, req)
+						if err != nil {
+							return err
+						}
+						sendC <- handleEvaluatorResponseForSSH(res, &state)
+					}
+
+					if session == nil && !slices.Contains(state.MethodsAuthenticated, "keyboard-interactive") {
 						resp := extensions_ssh.ServerMessage{
 							Message: &extensions_ssh.ServerMessage_AuthResponse{
 								AuthResponse: &extensions_ssh.AuthenticationResponse{
@@ -170,19 +184,12 @@ func (a *Authorize) ManageStream(
 						sendC <- &resp
 					}
 				case "keyboard-interactive":
-					opts := a.currentOptions.Load()
-					var route *config.Policy
-					for r := range opts.GetAllPolicies() {
-						if r.From == "ssh://"+strings.TrimSuffix(strings.Join([]string{state.Hostname, opts.SSHHostname}, "."), ".") {
-							route = r
-							break
-						}
-					}
+					route := a.getSSHRouteForHostname(state.Hostname)
 					if route == nil {
 						return fmt.Errorf("invalid route")
 					}
-					// sessionState := a.state.Load()
 
+					opts := a.currentOptions.Load()
 					idp, err := opts.GetIdentityProviderForPolicy(route)
 					if err != nil {
 						return err
@@ -236,13 +243,14 @@ func (a *Authorize) ManageStream(
 							return
 						}
 						s := sessions.NewState(idp.Id)
-						err = claims.Claims.Claims(&s)
+						fmt.Println(token)
+						err = a.PersistSession(ctx, s, claims, token)
 						if err != nil {
-							errC <- fmt.Errorf("error unmarshaling session state: %w", err)
+							fmt.Println("error from PersistSession:", err)
+							errC <- fmt.Errorf("error persisting session: %w", err)
 							return
 						}
-						fmt.Println(token)
-						deviceAuthSuccess.Store(true)
+						sessionState.Store(s)
 					}()
 				}
 			case *extensions_ssh.ClientMessage_InfoResponse:
@@ -254,7 +262,7 @@ func (a *Authorize) ManageStream(
 						fmt.Println(respInfo.Responses)
 					}
 				}
-				if deviceAuthSuccess.Load() {
+				if sessionState.Load() != nil {
 					state.MethodsAuthenticated = append(state.MethodsAuthenticated, "keyboard-interactive")
 				} else {
 					retryReq := extensions_ssh.KeyboardInteractiveInfoPrompts{
@@ -281,42 +289,18 @@ func (a *Authorize) ManageStream(
 					sendC <- &resp
 					continue
 				}
+
 				if slices.Contains(state.MethodsAuthenticated, "publickey") {
-					pkData, _ := anypb.New(&extensions_ssh.PublicKeyAllowResponse{
-						PublicKey: state.PublicKey,
-						Permissions: &extensions_ssh.Permissions{
-							PermitPortForwarding:  true,
-							PermitAgentForwarding: true,
-							PermitX11Forwarding:   true,
-							PermitPty:             true,
-							PermitUserRc:          true,
-							ValidBefore:           timestamppb.New(time.Now().Add(-1 * time.Minute)),
-							ValidAfter:            timestamppb.New(time.Now().Add(12 * time.Hour)),
-						},
-					})
-					authResponse := extensions_ssh.ServerMessage{
-						Message: &extensions_ssh.ServerMessage_AuthResponse{
-							AuthResponse: &extensions_ssh.AuthenticationResponse{
-								Response: &extensions_ssh.AuthenticationResponse_Allow{
-									Allow: &extensions_ssh.AllowResponse{
-										Username: state.Username,
-										Hostname: state.Hostname,
-										AllowedMethods: []*extensions_ssh.AllowedMethod{
-											{
-												Method:     "publickey",
-												MethodData: pkData,
-											},
-											{
-												Method: "keyboard-interactive",
-											},
-										},
-										Target: extensions_ssh.Target_Upstream,
-									},
-								},
-							},
-						},
+					// Perform authorize check for this route
+					req, err := a.getEvaluatorRequestFromSSHAuthRequest(&state)
+					if err != nil {
+						return err
 					}
-					sendC <- &authResponse
+					res, err := a.state.Load().evaluator.Evaluate(ctx, req)
+					if err != nil {
+						return err
+					}
+					sendC <- handleEvaluatorResponseForSSH(res, &state)
 				} else {
 					resp := extensions_ssh.ServerMessage{
 						Message: &extensions_ssh.ServerMessage_AuthResponse{
@@ -339,6 +323,170 @@ func (a *Authorize) ManageStream(
 	}
 
 	return eg.Wait()
+}
+
+func (a *Authorize) getSSHRouteForHostname(hostname string) *config.Policy {
+	opts := a.currentOptions.Load()
+	from := "ssh://" + strings.TrimSuffix(strings.Join([]string{hostname, opts.SSHHostname}, "."), ".")
+	for r := range opts.GetAllPolicies() {
+		if r.From == from {
+			return r
+		}
+	}
+	return nil
+}
+
+func (a *Authorize) GetPomeriumSession(
+	ctx context.Context, publicKey []byte,
+) (*session.Session, error) {
+	sessionID, err := getSessionIDForSSH(publicKey)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("session ID:", sessionID) // XXX
+
+	session, err := session.Get(ctx, a.GetDataBrokerServiceClient(), sessionID)
+	if err != nil {
+		if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return session, nil
+}
+
+func getSessionIDForSSH(publicKey []byte) (string, error) {
+	// XXX: get the fingerprint from Envoy rather than computing it here
+	k, err := gossh.ParsePublicKey(publicKey)
+	if err != nil {
+		return "", fmt.Errorf("couldn't parse ssh key: %w", err)
+	}
+	return "sshkey-" + gossh.FingerprintSHA256(k), nil
+}
+
+func (a *Authorize) getEvaluatorRequestFromSSHAuthRequest(
+	state *StreamState,
+) (*evaluator.Request, error) {
+	sessionID, err := getSessionIDForSSH(state.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+	route := a.getSSHRouteForHostname(state.Hostname)
+	if route == nil {
+		return nil, fmt.Errorf("no route found for hostname %q", state.Hostname)
+	}
+	req := &evaluator.Request{
+		IsInternal: false,
+		HTTP: evaluator.RequestHTTP{
+			Hostname: route.From, // XXX: this is not quite right
+			//IP:     ?           // TODO
+		},
+		Session: evaluator.RequestSession{
+			ID: sessionID,
+		},
+		Policy: route,
+	}
+	return req, nil
+}
+
+func handleEvaluatorResponseForSSH(
+	result *evaluator.Result, state *StreamState,
+) *extensions_ssh.ServerMessage {
+	fmt.Println(" *** evaluator result: %+w", result)
+
+	// TODO: ideally there would be a way to keep this in sync with the logic in check_response.go
+	allow := result.Allow.Value && !result.Deny.Value
+
+	if allow {
+		pkData, _ := anypb.New(publicKeyAllowResponse(state.PublicKey))
+		return &extensions_ssh.ServerMessage{
+			Message: &extensions_ssh.ServerMessage_AuthResponse{
+				AuthResponse: &extensions_ssh.AuthenticationResponse{
+					Response: &extensions_ssh.AuthenticationResponse_Allow{
+						Allow: &extensions_ssh.AllowResponse{
+							Username: state.Username,
+							Hostname: state.Hostname,
+							AllowedMethods: []*extensions_ssh.AllowedMethod{
+								{
+									Method:     "publickey",
+									MethodData: pkData,
+								},
+								{
+									Method: "keyboard-interactive",
+								},
+							},
+							Target: extensions_ssh.Target_Upstream,
+						},
+					},
+				},
+			},
+		}
+	}
+
+	// XXX: do we want to send an equivalent to the "show error details" output
+	//      in the case of a deny result?
+
+	return &extensions_ssh.ServerMessage{
+		Message: &extensions_ssh.ServerMessage_AuthResponse{
+			AuthResponse: &extensions_ssh.AuthenticationResponse{
+				Response: &extensions_ssh.AuthenticationResponse_Deny{
+					Deny: &extensions_ssh.DenyResponse{},
+				},
+			},
+		},
+	}
+}
+
+func publicKeyAllowResponse(publicKey []byte) *extensions_ssh.PublicKeyAllowResponse {
+	return &extensions_ssh.PublicKeyAllowResponse{
+		PublicKey: publicKey,
+		Permissions: &extensions_ssh.Permissions{
+			PermitPortForwarding:  true,
+			PermitAgentForwarding: true,
+			PermitX11Forwarding:   true,
+			PermitPty:             true,
+			PermitUserRc:          true,
+			ValidBefore:           timestamppb.New(time.Now().Add(-1 * time.Minute)),
+			// XXX: tie this to Pomerium session lifetime?
+			ValidAfter: timestamppb.New(time.Now().Add(12 * time.Hour)),
+		},
+	}
+}
+
+// PersistSession stores session and user data in the databroker.
+func (a *Authorize) PersistSession(
+	ctx context.Context,
+	sessionState *sessions.State,
+	claims identity.SessionClaims,
+	accessToken *oauth2.Token,
+) error {
+	now := time.Now()
+	sessionLifetime := a.currentOptions.Load().CookieExpire
+	sessionExpiry := timestamppb.New(now.Add(sessionLifetime))
+
+	sess := &session.Session{
+		Id:         sessionState.ID,
+		UserId:     sessionState.UserID(),
+		IssuedAt:   timestamppb.New(now),
+		AccessedAt: timestamppb.New(now),
+		ExpiresAt:  sessionExpiry,
+		OauthToken: manager.ToOAuthToken(accessToken),
+		Audience:   sessionState.Audience,
+	}
+	sess.SetRawIDToken(claims.RawIDToken)
+	sess.AddClaims(claims.Flatten())
+
+	// XXX: do we need to create a user record too?
+	//      compare with Stateful.PersistSession()
+
+	res, err := session.Put(ctx, a.GetDataBrokerServiceClient(), sess)
+	if err != nil {
+		return err
+	}
+	sessionState.DatabrokerServerVersion = res.GetServerVersion()
+	sessionState.DatabrokerRecordVersion = res.GetRecord().GetVersion()
+
+	return nil
 }
 
 // See RFC 4254, section 5.1.

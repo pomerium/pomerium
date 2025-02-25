@@ -5,11 +5,11 @@ package files
 
 import _ "embed" // embed
 
-//go:embed envoy-darwin-arm64
+//go:embed envoy
 var rawBinary []byte
 
-//go:embed envoy-darwin-arm64.sha256
+//go:embed envoy.sha256
 var rawChecksum string
 
-//go:embed envoy-darwin-arm64.version
+//go:embed envoy.version
 var rawVersion string
