@@ -14,6 +14,9 @@ import (
 type Watcher struct {
 	*signal.Signal
 
+	cancelCtx context.Context
+	cancel    context.CancelFunc
+
 	mu             sync.Mutex
 	watching       map[string]struct{}
 	pollingWatcher filenotify.FileWatcher
@@ -21,54 +24,58 @@ type Watcher struct {
 
 // NewWatcher creates a new Watcher.
 func NewWatcher() *Watcher {
-	return &Watcher{
+	w := &Watcher{
 		Signal:   signal.New(),
 		watching: make(map[string]struct{}),
 	}
+	w.cancelCtx, w.cancel = context.WithCancel(context.Background())
+	return w
 }
 
 // Close closes the watcher.
-func (watcher *Watcher) Close() error {
-	watcher.mu.Lock()
-	defer watcher.mu.Unlock()
+func (w *Watcher) Close() error {
+	w.cancel()
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
 	var err error
-	if watcher.pollingWatcher != nil {
-		err = watcher.pollingWatcher.Close()
-		watcher.pollingWatcher = nil
+	if w.pollingWatcher != nil {
+		err = w.pollingWatcher.Close()
+		w.pollingWatcher = nil
 	}
 
 	return err
 }
 
 // Watch updates the watched file paths.
-func (watcher *Watcher) Watch(filePaths []string) {
-	watcher.mu.Lock()
-	defer watcher.mu.Unlock()
+func (w *Watcher) Watch(filePaths []string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
-	watcher.initLocked()
+	w.initLocked()
 
 	var add []string
 	seen := map[string]struct{}{}
 	for _, filePath := range filePaths {
-		if _, ok := watcher.watching[filePath]; !ok {
+		if _, ok := w.watching[filePath]; !ok {
 			add = append(add, filePath)
 		}
 		seen[filePath] = struct{}{}
 	}
 
 	var remove []string
-	for filePath := range watcher.watching {
+	for filePath := range w.watching {
 		if _, ok := seen[filePath]; !ok {
 			remove = append(remove, filePath)
 		}
 	}
 
 	for _, filePath := range add {
-		watcher.watching[filePath] = struct{}{}
+		w.watching[filePath] = struct{}{}
 
-		if watcher.pollingWatcher != nil {
-			err := watcher.pollingWatcher.Add(filePath)
+		if w.pollingWatcher != nil {
+			err := w.pollingWatcher.Add(filePath)
 			if err != nil {
 				log.Error().Err(err).Str("file", filePath).Msg("fileutil/watcher: failed to add file to polling-based file watcher")
 			}
@@ -76,10 +83,10 @@ func (watcher *Watcher) Watch(filePaths []string) {
 	}
 
 	for _, filePath := range remove {
-		delete(watcher.watching, filePath)
+		delete(w.watching, filePath)
 
-		if watcher.pollingWatcher != nil {
-			err := watcher.pollingWatcher.Remove(filePath)
+		if w.pollingWatcher != nil {
+			err := w.pollingWatcher.Remove(filePath)
 			if err != nil {
 				log.Error().Err(err).Str("file", filePath).Msg("fileutil/watcher: failed to remove file from polling-based file watcher")
 			}
@@ -87,17 +94,17 @@ func (watcher *Watcher) Watch(filePaths []string) {
 	}
 }
 
-func (watcher *Watcher) initLocked() {
-	if watcher.pollingWatcher != nil {
+func (w *Watcher) initLocked() {
+	if w.pollingWatcher != nil {
 		return
 	}
 
-	if watcher.pollingWatcher == nil {
-		watcher.pollingWatcher = filenotify.NewPollingWatcher(nil)
+	if w.pollingWatcher == nil {
+		w.pollingWatcher = filenotify.NewPollingWatcher(nil)
 	}
 
-	errors := watcher.pollingWatcher.Errors()
-	events := watcher.pollingWatcher.Events()
+	errors := w.pollingWatcher.Errors()
+	events := w.pollingWatcher.Events()
 
 	// log errors
 	go func() {
@@ -110,7 +117,7 @@ func (watcher *Watcher) initLocked() {
 	go func() {
 		for evt := range events {
 			log.Info().Str("name", evt.Name).Str("op", evt.Op.String()).Msg("fileutil/watcher: file notification event")
-			watcher.Broadcast(context.Background())
+			w.Broadcast(w.cancelCtx)
 		}
 	}()
 }
