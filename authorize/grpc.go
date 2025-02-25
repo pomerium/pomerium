@@ -105,11 +105,12 @@ func (a *Authorize) loadSession(
 			}
 			// invalidate cache
 			for _, record := range records {
-				storage.GetQuerier(ctx).InvalidateCache(ctx, &databroker.QueryRequest{
+				q := &databroker.QueryRequest{
 					Type:  record.GetType(),
-					Query: record.GetId(),
 					Limit: 1,
-				})
+				}
+				q.SetFilterByIDOrIndex(record.GetId())
+				storage.GetQuerier(ctx).InvalidateCache(ctx, q)
 			}
 			return nil
 		},

@@ -27,12 +27,26 @@ func NewWatcher() *Watcher {
 	}
 }
 
-// Watch updates the watched file paths.
-func (watcher *Watcher) Watch(ctx context.Context, filePaths []string) {
+// Close closes the watcher.
+func (watcher *Watcher) Close() error {
 	watcher.mu.Lock()
 	defer watcher.mu.Unlock()
 
-	watcher.initLocked(ctx)
+	var err error
+	if watcher.pollingWatcher != nil {
+		err = watcher.pollingWatcher.Close()
+		watcher.pollingWatcher = nil
+	}
+
+	return err
+}
+
+// Watch updates the watched file paths.
+func (watcher *Watcher) Watch(filePaths []string) {
+	watcher.mu.Lock()
+	defer watcher.mu.Unlock()
+
+	watcher.initLocked()
 
 	var add []string
 	seen := map[string]struct{}{}
@@ -56,7 +70,7 @@ func (watcher *Watcher) Watch(ctx context.Context, filePaths []string) {
 		if watcher.pollingWatcher != nil {
 			err := watcher.pollingWatcher.Add(filePath)
 			if err != nil {
-				log.Ctx(ctx).Error().Err(err).Str("file", filePath).Msg("fileutil/watcher: failed to add file to polling-based file watcher")
+				log.Error().Err(err).Str("file", filePath).Msg("fileutil/watcher: failed to add file to polling-based file watcher")
 			}
 		}
 	}
@@ -67,22 +81,19 @@ func (watcher *Watcher) Watch(ctx context.Context, filePaths []string) {
 		if watcher.pollingWatcher != nil {
 			err := watcher.pollingWatcher.Remove(filePath)
 			if err != nil {
-				log.Ctx(ctx).Error().Err(err).Str("file", filePath).Msg("fileutil/watcher: failed to remove file from polling-based file watcher")
+				log.Error().Err(err).Str("file", filePath).Msg("fileutil/watcher: failed to remove file from polling-based file watcher")
 			}
 		}
 	}
 }
 
-func (watcher *Watcher) initLocked(ctx context.Context) {
+func (watcher *Watcher) initLocked() {
 	if watcher.pollingWatcher != nil {
 		return
 	}
 
 	if watcher.pollingWatcher == nil {
 		watcher.pollingWatcher = filenotify.NewPollingWatcher(nil)
-		context.AfterFunc(ctx, func() {
-			watcher.pollingWatcher.Close()
-		})
 	}
 
 	errors := watcher.pollingWatcher.Errors()
@@ -91,15 +102,15 @@ func (watcher *Watcher) initLocked(ctx context.Context) {
 	// log errors
 	go func() {
 		for err := range errors {
-			log.Ctx(ctx).Error().Err(err).Msg("fileutil/watcher: file notification error")
+			log.Error().Err(err).Msg("fileutil/watcher: file notification error")
 		}
 	}()
 
 	// handle events
 	go func() {
 		for evt := range events {
-			log.Ctx(ctx).Info().Str("name", evt.Name).Str("op", evt.Op.String()).Msg("fileutil/watcher: file notification event")
-			watcher.Broadcast(ctx)
+			log.Info().Str("name", evt.Name).Str("op", evt.Op.String()).Msg("fileutil/watcher: file notification event")
+			watcher.Broadcast(context.Background())
 		}
 	}()
 }

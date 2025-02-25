@@ -18,7 +18,7 @@ func TestWatcher(t *testing.T) {
 	require.NoError(t, err)
 
 	w := NewWatcher()
-	w.Watch(context.Background(), []string{filepath.Join(tmpdir, "test1.txt")})
+	w.Watch([]string{filepath.Join(tmpdir, "test1.txt")})
 
 	ch := w.Bind()
 	t.Cleanup(func() { w.Unbind(ch) })
@@ -41,7 +41,7 @@ func TestWatcherSymlink(t *testing.T) {
 	assert.NoError(t, os.Symlink(filepath.Join(tmpdir, "test1.txt"), filepath.Join(tmpdir, "symlink1.txt")))
 
 	w := NewWatcher()
-	w.Watch(context.Background(), []string{filepath.Join(tmpdir, "symlink1.txt")})
+	w.Watch([]string{filepath.Join(tmpdir, "symlink1.txt")})
 
 	ch := w.Bind()
 	t.Cleanup(func() { w.Unbind(ch) })
@@ -63,7 +63,7 @@ func TestWatcher_FileRemoval(t *testing.T) {
 	require.NoError(t, err)
 
 	w := NewWatcher()
-	w.Watch(context.Background(), []string{filepath.Join(tmpdir, "test1.txt")})
+	w.Watch([]string{filepath.Join(tmpdir, "test1.txt")})
 
 	ch := w.Bind()
 	t.Cleanup(func() { w.Unbind(ch) })

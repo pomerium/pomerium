@@ -301,6 +301,7 @@ func (c *incomingIDPTokenSessionCreator) newSessionFromIDPClaims(
 	if aud, ok := claims.GetAudience(); ok {
 		s.Audience = aud
 	}
+	s.RefreshDisabled = true
 	return s
 }
 
