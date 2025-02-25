@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"slices"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -44,6 +45,10 @@ func run(ctx context.Context, args []string) error {
 		return runAll(ctx)
 	case "current":
 		return runCurrent(ctx)
+	default:
+		if slices.Contains(targets, mode) {
+			return runArch(ctx, mode)
+		}
 	}
 
 	return fmt.Errorf("unknown mode: %s", mode)
@@ -67,7 +72,11 @@ func runAll(ctx context.Context) error {
 }
 
 func runCurrent(ctx context.Context) error {
-	err := download(ctx, "./envoy", baseURL+"/envoy-"+runtime.GOOS+"-"+runtime.GOARCH)
+	return runArch(ctx, runtime.GOOS+"-"+runtime.GOARCH)
+}
+
+func runArch(ctx context.Context, arch string) error {
+	err := download(ctx, "./envoy", baseURL+"/envoy-"+arch)
 	if err != nil {
 		return err
 	}
