@@ -19,6 +19,7 @@ require (
 	github.com/envoyproxy/go-control-plane/envoy v1.32.3
 	github.com/envoyproxy/protoc-gen-validate v1.1.0
 	github.com/exaring/otelpgx v0.8.0
+	github.com/fsnotify/fsnotify v1.8.0
 	github.com/go-chi/chi/v5 v5.2.0
 	github.com/go-jose/go-jose/v3 v3.0.3
 	github.com/google/btree v1.1.3
@@ -96,7 +97,6 @@ require (
 	google.golang.org/grpc v1.69.2
 	google.golang.org/protobuf v1.36.2
 	gopkg.in/yaml.v3 v3.0.1
-	namespacelabs.dev/go-filenotify v0.0.0-20220511192020-53ea11be7eaa
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -147,7 +147,6 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/envoyproxy/go-control-plane/ratelimit v0.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.6.0 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.2 // indirect
