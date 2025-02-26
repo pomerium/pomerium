@@ -14,7 +14,7 @@ func CacheDir() string {
 		dir = filepath.Join(dir, "pomerium")
 	} else {
 		dir = filepath.Join(os.TempDir(), "pomerium", "cache")
-		log.Error().Msgf("user cache directory not set, defaulting to %s", dir)
+		log.Debug().Msgf("user cache directory not set, defaulting to %s", dir)
 	}
 	return dir
 }
@@ -30,7 +30,7 @@ func DataDir() string {
 		} else {
 			dir = filepath.Join(os.TempDir(), "pomerium", "data")
 		}
-		log.Error().Msgf("user data directory not set, defaulting to %s", dir)
+		log.Debug().Msgf("user data directory not set, defaulting to %s", dir)
 	}
 	return dir
 }
