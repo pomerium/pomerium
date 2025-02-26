@@ -213,7 +213,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionAccessToken(
 		}
 
 		u, err := c.getUser(ctx, s.GetUserId())
-		if errors.Is(err, storage.ErrNotFound) {
+		if storage.IsNotFound(err) {
 			u = &user.User{Id: s.GetUserId()}
 		} else if err != nil {
 			return nil, fmt.Errorf("error retrieving existing user: %w", err)
