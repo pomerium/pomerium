@@ -85,7 +85,8 @@ else := [false, {"user-unauthenticated"}]
 domain_0 := [true, {"domain-ok"}] if {
 	session := get_session(input.session.id)
 	user := get_user(session)
-	domain := split(get_user_email(session, user), "@")[1]
+	directory_user := get_directory_user(session)
+	domain := split(get_user_email(session, user, directory_user), "@")[1]
 	domain == "a.example.com"
 }
 
@@ -99,7 +100,8 @@ else := [false, {"user-unauthenticated"}]
 domain_1 := [true, {"domain-ok"}] if {
 	session := get_session(input.session.id)
 	user := get_user(session)
-	domain := split(get_user_email(session, user), "@")[1]
+	directory_user := get_directory_user(session)
+	domain := split(get_user_email(session, user, directory_user), "@")[1]
 	domain == "b.example.com"
 }
 
@@ -113,7 +115,8 @@ else := [false, {"user-unauthenticated"}]
 domain_2 := [true, {"domain-ok"}] if {
 	session := get_session(input.session.id)
 	user := get_user(session)
-	domain := split(get_user_email(session, user), "@")[1]
+	directory_user := get_directory_user(session)
+	domain := split(get_user_email(session, user, directory_user), "@")[1]
 	domain == "c.example.com"
 }
 
@@ -127,7 +130,8 @@ else := [false, {"user-unauthenticated"}]
 domain_3 := [true, {"domain-ok"}] if {
 	session := get_session(input.session.id)
 	user := get_user(session)
-	domain := split(get_user_email(session, user), "@")[1]
+	directory_user := get_directory_user(session)
+	domain := split(get_user_email(session, user, directory_user), "@")[1]
 	domain == "d.example.com"
 }
 
@@ -141,7 +145,8 @@ else := [false, {"user-unauthenticated"}]
 domain_4 := [true, {"domain-ok"}] if {
 	session := get_session(input.session.id)
 	user := get_user(session)
-	domain := split(get_user_email(session, user), "@")[1]
+	directory_user := get_directory_user(session)
+	domain := split(get_user_email(session, user, directory_user), "@")[1]
 	domain == "e.example.com"
 }
 
@@ -240,7 +245,8 @@ else := [false, {"user-unauthenticated"}]
 email_0 := [true, {"email-ok"}] if {
 	session := get_session(input.session.id)
 	user := get_user(session)
-	email := get_user_email(session, user)
+	directory_user := get_directory_user(session)
+	email := get_user_email(session, user, directory_user)
 	email == "user1"
 }
 
@@ -267,7 +273,8 @@ else := [false, {"user-unauthenticated"}]
 email_1 := [true, {"email-ok"}] if {
 	session := get_session(input.session.id)
 	user := get_user(session)
-	email := get_user_email(session, user)
+	directory_user := get_directory_user(session)
+	email := get_user_email(session, user, directory_user)
 	email == "user2"
 }
 
@@ -294,7 +301,8 @@ else := [false, {"user-unauthenticated"}]
 email_2 := [true, {"email-ok"}] if {
 	session := get_session(input.session.id)
 	user := get_user(session)
-	email := get_user_email(session, user)
+	directory_user := get_directory_user(session)
+	email := get_user_email(session, user, directory_user)
 	email == "user3"
 }
 
@@ -321,7 +329,8 @@ else := [false, {"user-unauthenticated"}]
 email_3 := [true, {"email-ok"}] if {
 	session := get_session(input.session.id)
 	user := get_user(session)
-	email := get_user_email(session, user)
+	directory_user := get_directory_user(session)
+	email := get_user_email(session, user, directory_user)
 	email == "user4"
 }
 
@@ -348,7 +357,8 @@ else := [false, {"user-unauthenticated"}]
 email_4 := [true, {"email-ok"}] if {
 	session := get_session(input.session.id)
 	user := get_user(session)
-	email := get_user_email(session, user)
+	directory_user := get_directory_user(session)
+	email := get_user_email(session, user, directory_user)
 	email == "user5"
 }
 
@@ -478,7 +488,19 @@ get_user(session) := v if {
 
 else := {}
 
-get_user_email(session, user) := v if {
+get_directory_user(session) := v if {
+	v = get_databroker_record("pomerium.io/DirectoryUser", session.user_id)
+	v != null
+}
+
+else := {}
+
+get_user_email(session, user, directory_user) := v if {
+	v = object.get(directory_user, "email", "")
+	v != ""
+}
+
+else := v if {
 	v = user.email
 }
 

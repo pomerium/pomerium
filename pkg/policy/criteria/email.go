@@ -16,7 +16,10 @@ var emailBody = ast.Body{
 		user := get_user(session)
 	`),
 	ast.MustParseExpr(`
-		email := get_user_email(session, user)
+		directory_user := get_directory_user(session)
+	`),
+	ast.MustParseExpr(`
+		email := get_user_email(session, user, directory_user)
 	`),
 }
 
@@ -49,6 +52,7 @@ func (c emailCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, []
 		rules.GetSession(),
 		rules.GetUser(),
 		rules.GetUserEmail(),
+		rules.GetDirectoryUser(),
 	}, nil
 }
 
