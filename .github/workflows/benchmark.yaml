@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         go-version: [1.23.x]
-        node-version: [23.x]
+        node-version: [22.x]
         platform: [ubuntu-22.04]
     runs-on: ${{ matrix.platform }}
     steps:
