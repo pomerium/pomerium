@@ -429,7 +429,8 @@ func handleEvaluatorResponseForSSH(
 									Method: "keyboard-interactive",
 								},
 							},
-							Target: extensions_ssh.Target_Upstream,
+							//Target: extensions_ssh.Target_Upstream,
+							Target: extensions_ssh.Target_Internal,
 						},
 					},
 				},
@@ -585,13 +586,37 @@ type channelEOFMsg struct {
 func (a *Authorize) ServeChannel(
 	server extensions_ssh.StreamManagement_ServeChannelServer,
 ) error {
-	var program *tea.Program
-	inputR, inputW := io.Pipe()
-	outputR, outputW := io.Pipe()
+	//inputR, inputW := io.Pipe()
+	//outputR, outputW := io.Pipe()
 	var peerId uint32
 
 	var downstreamChannelInfo *extensions_ssh.SSHDownstreamChannelInfo
 	var downstreamPtyInfo *extensions_ssh.SSHDownstreamPTYInfo
+
+	handoff := func() error {
+		handOff, _ := anypb.New(&extensions_ssh.SSHChannelControlAction{
+			Action: &extensions_ssh.SSHChannelControlAction_HandOff{
+				HandOff: &extensions_ssh.SSHChannelControlAction_HandOffUpstream{
+					DownstreamChannelInfo: downstreamChannelInfo,
+					DownstreamPtyInfo:     downstreamPtyInfo,
+					UpstreamAuth: &extensions_ssh.AllowResponse{
+						// XXX
+						Username: "demo",
+						Hostname: "ssh",
+					},
+				},
+			},
+		})
+		return server.Send(&extensions_ssh.ChannelMessage{
+			Message: &extensions_ssh.ChannelMessage_ChannelControl{
+				ChannelControl: &extensions_ssh.ChannelControl{
+					Protocol:      "ssh",
+					ControlAction: handOff,
+				},
+			},
+		})
+	}
+
 	for {
 		channelMsg, err := server.Recv()
 		if err != nil {
@@ -601,6 +626,7 @@ func (a *Authorize) ServeChannel(
 			return err
 		}
 		rawMsg := channelMsg.GetRawBytes().GetValue()
+		fmt.Printf(" *** channelMsg: %x\n", rawMsg)
 		switch rawMsg[0] {
 		case msgChannelOpen:
 			var msg channelOpenMsg
@@ -632,6 +658,142 @@ func (a *Authorize) ServeChannel(
 		case msgChannelRequest:
 			var msg channelRequestMsg
 			gossh.Unmarshal(rawMsg, &msg)
+
+			fmt.Println(" *** SSH_MSG_CHANNEL_REQUEST: ", msg.Request)
+
+			switch msg.Request {
+			case "pty-req":
+				req := parsePtyReq(msg.RequestSpecificData)
+				downstreamPtyInfo = &extensions_ssh.SSHDownstreamPTYInfo{
+					TermEnv:      req.TermEnv,
+					WidthColumns: req.Width,
+					HeightRows:   req.Height,
+					WidthPx:      req.WidthPx,
+					HeightPx:     req.HeightPx,
+					Modes:        req.Modes,
+				}
+				if err := server.Send(&extensions_ssh.ChannelMessage{
+					Message: &extensions_ssh.ChannelMessage_RawBytes{
+						RawBytes: &wrapperspb.BytesValue{
+							Value: gossh.Marshal(channelRequestSuccessMsg{
+								PeersID: peerId,
+							}),
+						},
+					},
+				}); err != nil {
+					return err
+				}
+			case "subsystem":
+				subsystem := parseString(msg.RequestSpecificData)
+				fmt.Println("     -> subsystem: ", subsystem)
+				switch subsystem {
+				case "pomerium-whoami":
+					fmt.Println(" *** who am I? ***")
+					if err := server.Send(&extensions_ssh.ChannelMessage{
+						Message: &extensions_ssh.ChannelMessage_RawBytes{
+							RawBytes: &wrapperspb.BytesValue{
+								Value: gossh.Marshal(channelRequestSuccessMsg{
+									PeersID: peerId,
+								}),
+							},
+						},
+					}); err != nil {
+						return err
+					}
+					if err := server.Send(&extensions_ssh.ChannelMessage{
+						Message: &extensions_ssh.ChannelMessage_RawBytes{
+							RawBytes: &wrapperspb.BytesValue{
+								Value: gossh.Marshal(channelDataMsg{
+									PeersID: peerId,
+									Length:  uint32(12),
+									Rest:    []byte("hello world!"),
+								}),
+							},
+						},
+					}); err != nil {
+						return err
+					}
+					return nil // close the stream
+				default:
+					if err := handoff(); err != nil {
+						return err
+					}
+				}
+			default:
+				// We're not interested in hijacking any other kinds of session.
+				if err := handoff(); err != nil {
+					return err
+				}
+			}
+
+		case msgChannelData:
+			var msg channelDataMsg
+			gossh.Unmarshal(rawMsg, &msg)
+			// ignore any data from the client (for now)
+
+		case msgChannelClose:
+			var msg channelDataMsg
+			gossh.Unmarshal(rawMsg, &msg)
+
+		default:
+			panic("unhandled message: " + fmt.Sprint(rawMsg[1]))
+		}
+	}
+}
+
+/*func (a *Authorize) ServeChannel(
+	server extensions_ssh.StreamManagement_ServeChannelServer,
+) error {
+	var program *tea.Program
+	inputR, inputW := io.Pipe()
+	outputR, outputW := io.Pipe()
+	var peerId uint32
+
+	var downstreamChannelInfo *extensions_ssh.SSHDownstreamChannelInfo
+	var downstreamPtyInfo *extensions_ssh.SSHDownstreamPTYInfo
+	for {
+		channelMsg, err := server.Recv()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			return err
+		}
+		rawMsg := channelMsg.GetRawBytes().GetValue()
+		fmt.Printf(" *** channelMsg: %x\n", rawMsg)
+		switch rawMsg[0] {
+		case msgChannelOpen:
+			var msg channelOpenMsg
+			gossh.Unmarshal(rawMsg, &msg)
+
+			var confirm channelOpenConfirmMsg
+			peerId = msg.PeersID
+			confirm.PeersID = peerId
+			confirm.MyID = 1
+			confirm.MyWindow = msg.PeersWindow
+			confirm.MaxPacketSize = msg.MaxPacketSize
+			downstreamChannelInfo = &extensions_ssh.SSHDownstreamChannelInfo{
+				ChannelType:               msg.ChanType,
+				DownstreamChannelId:       confirm.PeersID,
+				InternalUpstreamChannelId: confirm.MyID,
+				InitialWindowSize:         confirm.MyWindow,
+				MaxPacketSize:             confirm.MaxPacketSize,
+			}
+			if err := server.Send(&extensions_ssh.ChannelMessage{
+				Message: &extensions_ssh.ChannelMessage_RawBytes{
+					RawBytes: &wrapperspb.BytesValue{
+						Value: gossh.Marshal(confirm),
+					},
+				},
+			}); err != nil {
+				return err
+			}
+
+		case msgChannelRequest:
+			var msg channelRequestMsg
+			gossh.Unmarshal(rawMsg, &msg)
+
+			fmt.Println(" *** SSH_MSG_CHANNEL_REQUEST: ", msg.Request)
 
 			switch msg.Request {
 			case "pty-req":
@@ -746,13 +908,19 @@ func (a *Authorize) ServeChannel(
 			panic("unhandled message: " + fmt.Sprint(rawMsg[1]))
 		}
 	}
-}
+}*/
 
 type ptyReq struct {
 	TermEnv           string
 	Width, Height     uint32
 	WidthPx, HeightPx uint32
 	Modes             []byte
+}
+
+func parseString(reqData []byte) string {
+	stringLen := binary.BigEndian.Uint32(reqData)
+	reqData = reqData[4:]
+	return string(reqData[:stringLen])
 }
 
 func parsePtyReq(reqData []byte) ptyReq {
