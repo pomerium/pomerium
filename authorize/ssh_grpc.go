@@ -169,7 +169,7 @@ func (a *Authorize) ManageStream(
 						if err != nil {
 							return err
 						}
-						res, err := a.state.Load().evaluator.Evaluate(ctx, req)
+						res, err := a.evaluate(ctx, req, &sessions.State{ID: session.Id})
 						if err != nil {
 							return err
 						}
@@ -310,7 +310,7 @@ func (a *Authorize) ManageStream(
 					if err != nil {
 						return err
 					}
-					res, err := a.state.Load().evaluator.Evaluate(ctx, req)
+					res, err := a.evaluate(ctx, req, sessionState.Load())
 					if err != nil {
 						return err
 					}
@@ -406,7 +406,7 @@ func (a *Authorize) getEvaluatorRequestFromSSHAuthRequest(
 func handleEvaluatorResponseForSSH(
 	result *evaluator.Result, state *StreamState,
 ) *extensions_ssh.ServerMessage {
-	fmt.Printf(" *** evaluator result: %+v\n", result)
+	//fmt.Printf(" *** evaluator result: %+v\n", result)
 
 	// TODO: ideally there would be a way to keep this in sync with the logic in check_response.go
 	allow := result.Allow.Value && !result.Deny.Value
@@ -440,6 +440,7 @@ func handleEvaluatorResponseForSSH(
 	// XXX: do we want to send an equivalent to the "show error details" output
 	//      in the case of a deny result?
 
+	// XXX: this is not quite right -- needs to exactly match the last list of methods
 	methods := []string{"publickey"}
 	if slices.Contains(state.MethodsAuthenticated, "keyboard-interactive") {
 		methods = append(methods, "keyboard-interactive")

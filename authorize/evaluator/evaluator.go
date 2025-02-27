@@ -38,6 +38,7 @@ type RequestHTTP struct {
 	Method            string                `json:"method"`
 	Hostname          string                `json:"hostname"`
 	Path              string                `json:"path"`
+	Query             string                `json:"-"`
 	URL               string                `json:"url"`
 	Headers           map[string]string     `json:"headers"`
 	ClientCertificate ClientCertificateInfo `json:"client_certificate"`
