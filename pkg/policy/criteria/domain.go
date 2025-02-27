@@ -15,7 +15,10 @@ var domainBody = ast.Body{
 		user := get_user(session)
 	`),
 	ast.MustParseExpr(`
-		domain := split(get_user_email(session, user), "@")[1]
+		directory_user := get_directory_user(session)
+	`),
+	ast.MustParseExpr(`
+		domain := split(get_user_email(session, user, directory_user), "@")[1]
 	`),
 }
 
@@ -48,6 +51,7 @@ func (c domainCriterion) GenerateRule(_ string, data parser.Value) (*ast.Rule, [
 		rules.GetSession(),
 		rules.GetUser(),
 		rules.GetUserEmail(),
+		rules.GetDirectoryUser(),
 	}, nil
 }
 

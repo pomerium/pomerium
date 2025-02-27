@@ -1,7 +1,11 @@
 // Package rules contains useful pre-defined rego AST rules.
 package rules
 
-import "github.com/open-policy-agent/opa/ast"
+import (
+	"github.com/open-policy-agent/opa/ast"
+
+	"github.com/pomerium/datasource/pkg/directory"
+)
 
 // GetSession gets the session for the given id.
 func GetSession() *ast.Rule {
@@ -24,6 +28,16 @@ get_session(id) := v if {
 `)
 }
 
+// GetDirectoryUser returns the directory user for the given session.
+func GetDirectoryUser() *ast.Rule {
+	return MustParse(`
+get_directory_user(session) := v if {
+	v = get_databroker_record("` + directory.UserRecordType + `", session.user_id)
+	v != null
+} else := {}
+`)
+}
+
 // GetUser returns the user for the given session.
 func GetUser() *ast.Rule {
 	return MustParse(`
@@ -37,7 +51,10 @@ get_user(session) := v if {
 // GetUserEmail gets the user email, either the impersonate email, or the user email.
 func GetUserEmail() *ast.Rule {
 	return MustParse(`
-get_user_email(session, user) := v if {
+get_user_email(session, user, directory_user) := v if {
+	v = object.get(directory_user, "email", "")
+	v != ""
+} else := v if {
 	v = user.email
 } else := ""
 `)
