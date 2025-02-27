@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/pomerium/pomerium/internal/encoding/jws"
@@ -416,19 +417,41 @@ func Test_newSessionFromIDPClaims(t *testing.T) {
 	}
 }
 
-func Test_newUserFromIDPClaims(t *testing.T) {
+func Test_fillUserFromIDPClaims(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
-		name   string
-		claims jwtutil.Claims
-		expect *user.User
+		name    string
+		claims  jwtutil.Claims
+		current *user.User
+		expect  *user.User
 	}{
-		{"empty claims", nil, &user.User{}},
+		{"empty claims", nil, nil, &user.User{}},
 		{"full claims", jwtutil.Claims{
 			"sub":   "USER_ID",
 			"name":  "NAME",
 			"email": "EMAIL",
+		}, nil, &user.User{
+			Id:    "USER_ID",
+			Name:  "NAME",
+			Email: "EMAIL",
+			Claims: identity.FlattenedClaims{
+				"sub":   {"USER_ID"},
+				"name":  {"NAME"},
+				"email": {"EMAIL"},
+			}.ToPB(),
+		}},
+		{"existing claims", jwtutil.Claims{
+			"sub": "USER_ID",
+		}, &user.User{
+			Id:    "USER_ID",
+			Name:  "NAME",
+			Email: "EMAIL",
+			Claims: identity.FlattenedClaims{
+				"sub":   {"USER_ID"},
+				"name":  {"NAME"},
+				"email": {"EMAIL"},
+			}.ToPB(),
 		}, &user.User{
 			Id:    "USER_ID",
 			Name:  "NAME",
@@ -443,7 +466,11 @@ func Test_newUserFromIDPClaims(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			actual := new(incomingIDPTokenSessionCreator).newUserFromIDPClaims(tc.claims)
+			actual := new(user.User)
+			if tc.current != nil {
+				actual = proto.Clone(tc.current).(*user.User)
+			}
+			new(incomingIDPTokenSessionCreator).fillUserFromIDPClaims(actual, tc.claims)
 			testutil.AssertProtoEqual(t, tc.expect, actual)
 		})
 	}
@@ -476,8 +503,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		require.NoError(t, err)
 		req.Header.Set(httputil.HeaderPomeriumIDPAccessToken, "ACCESS_TOKEN")
 		c := NewIncomingIDPTokenSessionCreator(
-			func(_ context.Context, recordType, _ string) (*databroker.Record, error) {
-				assert.Equal(t, "type.googleapis.com/session.Session", recordType)
+			func(_ context.Context, _, _ string) (*databroker.Record, error) {
 				return nil, storage.ErrNotFound
 			},
 			func(_ context.Context, records []*databroker.Record) error {
@@ -518,8 +544,7 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		require.NoError(t, err)
 		req.Header.Set(httputil.HeaderPomeriumIDPIdentityToken, "IDENTITY_TOKEN")
 		c := NewIncomingIDPTokenSessionCreator(
-			func(_ context.Context, recordType, _ string) (*databroker.Record, error) {
-				assert.Equal(t, "type.googleapis.com/session.Session", recordType)
+			func(_ context.Context, _, _ string) (*databroker.Record, error) {
 				return nil, storage.ErrNotFound
 			},
 			func(_ context.Context, records []*databroker.Record) error {
