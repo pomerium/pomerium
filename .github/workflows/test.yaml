@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         go-version: [1.23.x]
-        node-version: [16.x]
+        node-version: [23.x]
         platform: [ubuntu-22.04]
         deployment: [multi, single]
         authenticate-flow: [stateful, stateless]
@@ -54,7 +54,7 @@ jobs:
     strategy:
       matrix:
         go-version: [1.23.x]
-        node-version: [16.x]
+        node-version: [23.x]
         platform: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.platform }}
     steps:
