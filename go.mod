@@ -21,7 +21,7 @@ require (
 	github.com/exaring/otelpgx v0.8.0
 	github.com/fsnotify/fsnotify v1.8.0
 	github.com/go-chi/chi/v5 v5.2.0
-	github.com/go-jose/go-jose/v3 v3.0.3
+	github.com/go-jose/go-jose/v3 v3.0.4
 	github.com/google/btree v1.1.3
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-jsonnet v0.20.0
