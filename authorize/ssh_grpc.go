@@ -440,11 +440,18 @@ func handleEvaluatorResponseForSSH(
 	// XXX: do we want to send an equivalent to the "show error details" output
 	//      in the case of a deny result?
 
+	methods := []string{"publickey"}
+	if slices.Contains(state.MethodsAuthenticated, "keyboard-interactive") {
+		methods = append(methods, "keyboard-interactive")
+	}
+
 	return &extensions_ssh.ServerMessage{
 		Message: &extensions_ssh.ServerMessage_AuthResponse{
 			AuthResponse: &extensions_ssh.AuthenticationResponse{
 				Response: &extensions_ssh.AuthenticationResponse_Deny{
-					Deny: &extensions_ssh.DenyResponse{},
+					Deny: &extensions_ssh.DenyResponse{
+						Methods: methods,
+					},
 				},
 			},
 		},
