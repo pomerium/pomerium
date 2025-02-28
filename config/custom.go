@@ -617,3 +617,10 @@ func (f JWTGroupsFilter) Equal(other JWTGroupsFilter) bool {
 	}
 	return f.set.Equal(other.set)
 }
+
+type JWTIssuerFormat string
+
+const (
+	JWTIssuerFormatHostOnly JWTIssuerFormat = "hostOnly"
+	JWTIssuerFormatURI      JWTIssuerFormat = "uri"
+)
