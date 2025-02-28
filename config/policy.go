@@ -390,9 +390,9 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 
 	switch pb.GetJwtIssuerFormat() {
 	case configpb.IssuerFormat_IssuerHostOnly:
-		p.JWTIssuerFormat = "hostOnly"
+		p.JWTIssuerFormat = JWTIssuerFormatHostOnly
 	case configpb.IssuerFormat_IssuerURI:
-		p.JWTIssuerFormat = "uri"
+		p.JWTIssuerFormat = JWTIssuerFormatURI
 	}
 
 	p.BearerTokenFormat = BearerTokenFormatFromPB(pb.BearerTokenFormat)
@@ -556,9 +556,9 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 	}
 
 	switch p.JWTIssuerFormat {
-	case "", "hostOnly":
+	case "", JWTIssuerFormatHostOnly:
 		pb.JwtIssuerFormat = configpb.IssuerFormat_IssuerHostOnly
-	case "uri":
+	case JWTIssuerFormatURI:
 		pb.JwtIssuerFormat = configpb.IssuerFormat_IssuerURI
 	}
 
@@ -696,6 +696,10 @@ func (p *Policy) Validate() error {
 			rawRE += "$"
 		}
 		p.compiledRegex, _ = regexp.Compile(rawRE)
+	}
+
+	if !p.JWTIssuerFormat.Valid() {
+		return fmt.Errorf("config: unsupported jwt_issuer_format value %q", p.JWTIssuerFormat)
 	}
 
 	return nil

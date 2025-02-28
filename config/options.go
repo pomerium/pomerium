@@ -767,6 +767,10 @@ func (o *Options) Validate() error {
 		}
 	}
 
+	if !o.JWTIssuerFormat.Valid() {
+		return fmt.Errorf("config: unsupported jwt_issuer_format value %q", o.JWTIssuerFormat)
+	}
+
 	return nil
 }
 

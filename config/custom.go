@@ -621,6 +621,18 @@ func (f JWTGroupsFilter) Equal(other JWTGroupsFilter) bool {
 type JWTIssuerFormat string
 
 const (
+	JWTIssuerFormatUnset    JWTIssuerFormat = ""
 	JWTIssuerFormatHostOnly JWTIssuerFormat = "hostOnly"
 	JWTIssuerFormatURI      JWTIssuerFormat = "uri"
 )
+
+var knownJWTIssuerFormats = map[JWTIssuerFormat]struct{}{
+	JWTIssuerFormatUnset:    {},
+	JWTIssuerFormatHostOnly: {},
+	JWTIssuerFormatURI:      {},
+}
+
+func (f JWTIssuerFormat) Valid() bool {
+	_, ok := knownJWTIssuerFormats[f]
+	return ok
+}
