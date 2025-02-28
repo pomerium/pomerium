@@ -174,6 +174,10 @@ func (a *Authorize) ManageStream(
 							return err
 						}
 						sendC <- handleEvaluatorResponseForSSH(res, &state)
+
+						if res.Allow.Value && !res.Deny.Value {
+							a.startContinuousAuthorization(ctx, errC, req, session.Id)
+						}
 					}
 
 					if session == nil && !slices.Contains(state.MethodsAuthenticated, "keyboard-interactive") {
@@ -315,6 +319,10 @@ func (a *Authorize) ManageStream(
 						return err
 					}
 					sendC <- handleEvaluatorResponseForSSH(res, &state)
+
+					if res.Allow.Value && !res.Deny.Value {
+						a.startContinuousAuthorization(ctx, errC, req, sessionState.Load().ID)
+					}
 				} else {
 					resp := extensions_ssh.ServerMessage{
 						Message: &extensions_ssh.ServerMessage_AuthResponse{
@@ -509,6 +517,34 @@ func (a *Authorize) PersistSession(
 	sessionState.DatabrokerRecordVersion = res.GetRecord().GetVersion()
 
 	return nil
+}
+
+func (a *Authorize) startContinuousAuthorization(
+	ctx context.Context,
+	errC chan<- error,
+	req *evaluator.Request,
+	sessionID string,
+) {
+	recheck := func() {
+		// XXX: probably want to log the results of this evaluation only if it changes
+		res, _ := a.evaluate(ctx, req, &sessions.State{ID: sessionID})
+		if !res.Allow.Value || res.Deny.Value {
+			errC <- fmt.Errorf("no longer authorized")
+		}
+	}
+
+	ticker := time.NewTicker(time.Second)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				recheck()
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			}
+		}
+	}()
 }
 
 // See RFC 4254, section 5.1.
