@@ -167,7 +167,7 @@ type Policy struct {
 	// Possible values:
 	// - "hostOnly" (default): Issuer strings will be the hostname of the route, with no scheme or trailing slash.
 	// - "uri": Issuer strings will be a complete URI, including the scheme and ending with a trailing slash.
-	JWTIssuerFormat string `mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
+	JWTIssuerFormat JWTIssuerFormat `mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
 	// BearerTokenFormat indicates how authorization bearer tokens are interepreted. Possible values:
 	// - "default": Only Bearer tokens prefixed with Pomerium- will be interpreted by Pomerium
 	// - "idp_access_token": The Bearer token will be interpreted as an IdP access token.
