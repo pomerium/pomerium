@@ -16,8 +16,6 @@ require (
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.3.3
 	github.com/charmbracelet/lipgloss v1.0.0
-	github.com/charmbracelet/x/ansi v0.8.0
-	github.com/charmbracelet/x/term v0.2.1
 	github.com/cloudflare/circl v1.5.0
 	github.com/cncf/xds/go v0.0.0-20241223141626-cff3c89139a3
 	github.com/coreos/go-oidc/v3 v3.11.0
@@ -144,6 +142,8 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/caddyserver/zerossl v0.1.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/charmbracelet/x/ansi v0.8.0 // indirect
+	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect

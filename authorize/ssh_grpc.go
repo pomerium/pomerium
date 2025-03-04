@@ -1,6 +1,7 @@
 package authorize
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -10,11 +11,13 @@ import (
 	"slices"
 	"strings"
 	"sync/atomic"
+	"text/template"
 	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/config"
@@ -28,8 +31,10 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -411,6 +416,9 @@ func handleEvaluatorResponseForSSH(
 	// TODO: ideally there would be a way to keep this in sync with the logic in check_response.go
 	allow := result.Allow.Value && !result.Deny.Value
 
+	// XXX
+	sessionID, _ := getSessionIDForSSH(state.PublicKey)
+
 	if allow {
 		pkData, _ := anypb.New(publicKeyAllowResponse(state.PublicKey))
 		return &extensions_ssh.ServerMessage{
@@ -431,6 +439,15 @@ func handleEvaluatorResponseForSSH(
 							},
 							//Target: extensions_ssh.Target_Upstream,
 							Target: extensions_ssh.Target_Internal,
+							SetMetadata: &envoy_config_core_v3.Metadata{
+								FilterMetadata: map[string]*structpb.Struct{
+									"pomerium.ssh": {
+										Fields: map[string]*structpb.Value{
+											"pomerium-session-id": structpb.NewStringValue(sessionID),
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -607,6 +624,7 @@ func (a *Authorize) ServeChannel(
 				},
 			},
 		})
+		fmt.Println(" *** sending handoff request *** ")
 		return server.Send(&extensions_ssh.ChannelMessage{
 			Message: &extensions_ssh.ChannelMessage_ChannelControl{
 				ChannelControl: &extensions_ssh.ChannelControl{
@@ -662,33 +680,12 @@ func (a *Authorize) ServeChannel(
 			fmt.Println(" *** SSH_MSG_CHANNEL_REQUEST: ", msg.Request)
 
 			switch msg.Request {
-			case "pty-req":
-				req := parsePtyReq(msg.RequestSpecificData)
-				downstreamPtyInfo = &extensions_ssh.SSHDownstreamPTYInfo{
-					TermEnv:      req.TermEnv,
-					WidthColumns: req.Width,
-					HeightRows:   req.Height,
-					WidthPx:      req.WidthPx,
-					HeightPx:     req.HeightPx,
-					Modes:        req.Modes,
-				}
-				if err := server.Send(&extensions_ssh.ChannelMessage{
-					Message: &extensions_ssh.ChannelMessage_RawBytes{
-						RawBytes: &wrapperspb.BytesValue{
-							Value: gossh.Marshal(channelRequestSuccessMsg{
-								PeersID: peerId,
-							}),
-						},
-					},
-				}); err != nil {
-					return err
-				}
+			case "env":
+				// ignore for now
 			case "subsystem":
 				subsystem := parseString(msg.RequestSpecificData)
-				fmt.Println("     -> subsystem: ", subsystem)
-				switch subsystem {
-				case "pomerium-whoami":
-					fmt.Println(" *** who am I? ***")
+				command, isInternal := strings.CutPrefix(subsystem, "pomerium ")
+				if isInternal {
 					if err := server.Send(&extensions_ssh.ChannelMessage{
 						Message: &extensions_ssh.ChannelMessage_RawBytes{
 							RawBytes: &wrapperspb.BytesValue{
@@ -700,24 +697,9 @@ func (a *Authorize) ServeChannel(
 					}); err != nil {
 						return err
 					}
-					if err := server.Send(&extensions_ssh.ChannelMessage{
-						Message: &extensions_ssh.ChannelMessage_RawBytes{
-							RawBytes: &wrapperspb.BytesValue{
-								Value: gossh.Marshal(channelDataMsg{
-									PeersID: peerId,
-									Length:  uint32(12),
-									Rest:    []byte("hello world!"),
-								}),
-							},
-						},
-					}); err != nil {
-						return err
-					}
-					return nil // close the stream
-				default:
-					if err := handoff(); err != nil {
-						return err
-					}
+					return a.serveInternalCommand(server, peerId, command)
+				} else if err := handoff(); err != nil {
+					return err
 				}
 			default:
 				// We're not interested in hijacking any other kinds of session.
@@ -909,6 +891,62 @@ func (a *Authorize) ServeChannel(
 		}
 	}
 }*/
+
+var whoamiTmpl = template.Must(template.New("whoami").Parse(`
+User ID:    {{.UserId}}
+Session ID: {{.Id}}
+Expires at: {{.ExpiresAt.AsTime}}
+Claims:
+{{- range $k, $v := .Claims }}
+  {{ $k }}: {{ $v.AsSlice }}
+{{- end }}
+`))
+
+func (a *Authorize) serveInternalCommand(
+	server extensions_ssh.StreamManagement_ServeChannelServer,
+	peerID uint32,
+	command string,
+) error {
+	md, ok := metadata.FromIncomingContext(server.Context())
+	fmt.Println("metadata.FromIncomingContext: ", md, ok)
+
+	var sessionID string
+	if h := md.Get("pomerium-session-id"); len(h) == 1 {
+		sessionID = h[0]
+	}
+
+	switch command {
+	case "whoami":
+		fmt.Println(" *** who am I ? ***")
+		client := a.state.Load().dataBrokerClient
+		var output string
+		s, err := session.Get(server.Context(), client, sessionID)
+		if err != nil {
+			output = fmt.Sprint("couldn't fetch session: ", err.Error())
+		} else {
+			var b bytes.Buffer
+			whoamiTmpl.Execute(&b, s)
+			output = b.String()
+		}
+
+		// TODO
+		if err := server.Send(&extensions_ssh.ChannelMessage{
+			Message: &extensions_ssh.ChannelMessage_RawBytes{
+				RawBytes: &wrapperspb.BytesValue{
+					Value: gossh.Marshal(channelDataMsg{
+						PeersID: peerID,
+						Length:  uint32(len(output)),
+						Rest:    []byte(output),
+					}),
+				},
+			},
+		}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 type ptyReq struct {
 	TermEnv           string
