@@ -309,6 +309,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		IDPClientID:                       pb.GetIdpClientId(),
 		IDPClientSecret:                   pb.GetIdpClientSecret(),
 		JWTGroupsFilter:                   NewJWTGroupsFilter(pb.JwtGroupsFilter),
+		JWTIssuerFormat:                   JWTIssuerFormatFromPB(pb.JwtIssuerFormat),
 		KubernetesServiceAccountToken:     pb.GetKubernetesServiceAccountToken(),
 		KubernetesServiceAccountTokenFile: pb.GetKubernetesServiceAccountTokenFile(),
 		LogoURL:                           pb.GetLogoUrl(),
@@ -468,6 +469,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		Id:                                p.ID,
 		IdleTimeout:                       idleTimeout,
 		JwtGroupsFilter:                   p.JWTGroupsFilter.ToSlice(),
+		JwtIssuerFormat:                   p.JWTIssuerFormat.ToPB(),
 		KubernetesServiceAccountToken:     p.KubernetesServiceAccountToken,
 		KubernetesServiceAccountTokenFile: p.KubernetesServiceAccountTokenFile,
 		LogoUrl:                           p.LogoURL,
@@ -553,13 +555,6 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 
 		pb.To = to
 		pb.LoadBalancingWeights = weights
-	}
-
-	switch p.JWTIssuerFormat {
-	case "", JWTIssuerFormatHostOnly:
-		pb.JwtIssuerFormat = configpb.IssuerFormat_IssuerHostOnly
-	case JWTIssuerFormatURI:
-		pb.JwtIssuerFormat = configpb.IssuerFormat_IssuerURI
 	}
 
 	pb.BearerTokenFormat = p.BearerTokenFormat.ToPB()
