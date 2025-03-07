@@ -227,8 +227,8 @@ func (a *Authorize) ManageStream(
 					infoReq := extensions_ssh.KeyboardInteractiveInfoPrompts{
 						Name:        "Sign in with " + idp.GetType(),
 						Instruction: deviceAuthResp.VerificationURIComplete,
-						Prompts: []*extensions_ssh.KeyboardInteractiveInfoPrompts_Prompt{
-							{},
+						Prompts:     []*extensions_ssh.KeyboardInteractiveInfoPrompts_Prompt{
+							//{}, // XXX: proof of concept (no prompt)
 						},
 					}
 
@@ -281,6 +281,12 @@ func (a *Authorize) ManageStream(
 						fmt.Println(respInfo.Responses)
 					}
 				}
+
+				// XXX: proof of concept -- busy wait for login to complete
+				for sessionState.Load() == nil {
+					time.Sleep(time.Second)
+				}
+
 				if sessionState.Load() != nil {
 					state.MethodsAuthenticated = append(state.MethodsAuthenticated, "keyboard-interactive")
 				} else {
@@ -610,7 +616,10 @@ func (a *Authorize) ServeChannel(
 	var downstreamChannelInfo *extensions_ssh.SSHDownstreamChannelInfo
 	var downstreamPtyInfo *extensions_ssh.SSHDownstreamPTYInfo
 
+	handedOff := false
+
 	handoff := func() error {
+		handedOff = true
 		handOff, _ := anypb.New(&extensions_ssh.SSHChannelControlAction{
 			Action: &extensions_ssh.SSHChannelControlAction_HandOff{
 				HandOff: &extensions_ssh.SSHChannelControlAction_HandOffUpstream{
@@ -642,6 +651,9 @@ func (a *Authorize) ServeChannel(
 				return nil
 			}
 			return err
+		}
+		if handedOff {
+			continue
 		}
 		rawMsg := channelMsg.GetRawBytes().GetValue()
 		fmt.Printf(" *** channelMsg: %x\n", rawMsg)
@@ -682,10 +694,35 @@ func (a *Authorize) ServeChannel(
 			switch msg.Request {
 			case "env":
 				// ignore for now
+			case "pty-req":
+				req := parsePtyReq(msg.RequestSpecificData)
+				downstreamPtyInfo = &extensions_ssh.SSHDownstreamPTYInfo{
+					TermEnv:      req.TermEnv,
+					WidthColumns: req.Width,
+					HeightRows:   req.Height,
+					WidthPx:      req.WidthPx,
+					HeightPx:     req.HeightPx,
+					Modes:        req.Modes,
+				}
+				if err := server.Send(&extensions_ssh.ChannelMessage{
+					Message: &extensions_ssh.ChannelMessage_RawBytes{
+						RawBytes: &wrapperspb.BytesValue{
+							Value: gossh.Marshal(channelRequestSuccessMsg{
+								PeersID: peerId,
+							}),
+						},
+					},
+				}); err != nil {
+					return err
+				}
+				if err := handoff(); err != nil {
+					return err
+				}
 			case "subsystem":
 				subsystem := parseString(msg.RequestSpecificData)
-				command, isInternal := strings.CutPrefix(subsystem, "pomerium ")
+				command, isInternal := strings.CutPrefix(subsystem, "pomerium")
 				if isInternal {
+					command = strings.TrimSpace(command)
 					if err := server.Send(&extensions_ssh.ChannelMessage{
 						Message: &extensions_ssh.ChannelMessage_RawBytes{
 							RawBytes: &wrapperspb.BytesValue{
@@ -698,7 +735,8 @@ func (a *Authorize) ServeChannel(
 						return err
 					}
 					return a.serveInternalCommand(server, peerId, command)
-				} else if err := handoff(); err != nil {
+				}
+				if err := handoff(); err != nil {
 					return err
 				}
 			default:
@@ -915,11 +953,19 @@ func (a *Authorize) serveInternalCommand(
 		sessionID = h[0]
 	}
 
+	var output string
+
 	switch command {
-	case "whoami":
-		fmt.Println(" *** who am I ? ***")
+	case "logout":
 		client := a.state.Load().dataBrokerClient
-		var output string
+		err := session.Delete(server.Context(), client, sessionID)
+		if err != nil {
+			output = fmt.Sprint("internal error: ", err.Error())
+		} else {
+			output = "logged out\n"
+		}
+	case "whoami":
+		client := a.state.Load().dataBrokerClient
 		s, err := session.Get(server.Context(), client, sessionID)
 		if err != nil {
 			output = fmt.Sprint("couldn't fetch session: ", err.Error())
@@ -928,22 +974,28 @@ func (a *Authorize) serveInternalCommand(
 			whoamiTmpl.Execute(&b, s)
 			output = b.String()
 		}
-
-		// TODO
-		if err := server.Send(&extensions_ssh.ChannelMessage{
-			Message: &extensions_ssh.ChannelMessage_RawBytes{
-				RawBytes: &wrapperspb.BytesValue{
-					Value: gossh.Marshal(channelDataMsg{
-						PeersID: peerID,
-						Length:  uint32(len(output)),
-						Rest:    []byte(output),
-					}),
-				},
-			},
-		}); err != nil {
-			return err
-		}
+	default:
+		output = `available commands:
+	logout - ends the current Pomerium session
+	whoami - returns information about the current Pomerium session
+`
 	}
+
+	if err := server.Send(&extensions_ssh.ChannelMessage{
+		Message: &extensions_ssh.ChannelMessage_RawBytes{
+			RawBytes: &wrapperspb.BytesValue{
+				Value: gossh.Marshal(channelDataMsg{
+					PeersID: peerID,
+					Length:  uint32(len(output)),
+					Rest:    []byte(output),
+				}),
+			},
+		},
+	}); err != nil {
+		return err
+	}
+
+	time.Sleep(time.Second) // XXX
 
 	return nil
 }
