@@ -167,7 +167,7 @@ type Policy struct {
 	// Possible values:
 	// - "hostOnly" (default): Issuer strings will be the hostname of the route, with no scheme or trailing slash.
 	// - "uri": Issuer strings will be a complete URI, including the scheme and ending with a trailing slash.
-	JWTIssuerFormat string `mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
+	JWTIssuerFormat JWTIssuerFormat `mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
 	// BearerTokenFormat indicates how authorization bearer tokens are interepreted. Possible values:
 	// - "default": Only Bearer tokens prefixed with Pomerium- will be interpreted by Pomerium
 	// - "idp_access_token": The Bearer token will be interpreted as an IdP access token.
@@ -309,6 +309,7 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		IDPClientID:                       pb.GetIdpClientId(),
 		IDPClientSecret:                   pb.GetIdpClientSecret(),
 		JWTGroupsFilter:                   NewJWTGroupsFilter(pb.JwtGroupsFilter),
+		JWTIssuerFormat:                   JWTIssuerFormatFromPB(pb.JwtIssuerFormat),
 		KubernetesServiceAccountToken:     pb.GetKubernetesServiceAccountToken(),
 		KubernetesServiceAccountTokenFile: pb.GetKubernetesServiceAccountTokenFile(),
 		LogoURL:                           pb.GetLogoUrl(),
@@ -390,9 +391,9 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 
 	switch pb.GetJwtIssuerFormat() {
 	case configpb.IssuerFormat_IssuerHostOnly:
-		p.JWTIssuerFormat = "hostOnly"
+		p.JWTIssuerFormat = JWTIssuerFormatHostOnly
 	case configpb.IssuerFormat_IssuerURI:
-		p.JWTIssuerFormat = "uri"
+		p.JWTIssuerFormat = JWTIssuerFormatURI
 	}
 
 	p.BearerTokenFormat = BearerTokenFormatFromPB(pb.BearerTokenFormat)
@@ -468,6 +469,7 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 		Id:                                p.ID,
 		IdleTimeout:                       idleTimeout,
 		JwtGroupsFilter:                   p.JWTGroupsFilter.ToSlice(),
+		JwtIssuerFormat:                   p.JWTIssuerFormat.ToPB(),
 		KubernetesServiceAccountToken:     p.KubernetesServiceAccountToken,
 		KubernetesServiceAccountTokenFile: p.KubernetesServiceAccountTokenFile,
 		LogoUrl:                           p.LogoURL,
@@ -553,13 +555,6 @@ func (p *Policy) ToProto() (*configpb.Route, error) {
 
 		pb.To = to
 		pb.LoadBalancingWeights = weights
-	}
-
-	switch p.JWTIssuerFormat {
-	case "", "hostOnly":
-		pb.JwtIssuerFormat = configpb.IssuerFormat_IssuerHostOnly
-	case "uri":
-		pb.JwtIssuerFormat = configpb.IssuerFormat_IssuerURI
 	}
 
 	pb.BearerTokenFormat = p.BearerTokenFormat.ToPB()
@@ -696,6 +691,10 @@ func (p *Policy) Validate() error {
 			rawRE += "$"
 		}
 		p.compiledRegex, _ = regexp.Compile(rawRE)
+	}
+
+	if !p.JWTIssuerFormat.Valid() {
+		return fmt.Errorf("config: unsupported jwt_issuer_format value %q", p.JWTIssuerFormat)
 	}
 
 	return nil

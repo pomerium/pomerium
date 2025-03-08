@@ -248,17 +248,15 @@ func (e *headersEvaluatorEvaluation) getGroupIDs(ctx context.Context) []string {
 }
 
 func (e *headersEvaluatorEvaluation) getJWTPayloadIss() (string, error) {
-	var issuerFormat string
-	if e.request.Policy != nil {
+	issuerFormat := e.evaluator.store.GetDefaultJWTIssuerFormat()
+	if e.request.Policy != nil && e.request.Policy.JWTIssuerFormat != "" {
 		issuerFormat = e.request.Policy.JWTIssuerFormat
 	}
 	switch issuerFormat {
-	case "uri":
+	case config.JWTIssuerFormatURI:
 		return fmt.Sprintf("https://%s/", e.request.HTTP.Hostname), nil
-	case "", "hostOnly":
-		return e.request.HTTP.Hostname, nil
 	default:
-		return "", fmt.Errorf("unsupported JWT issuer format: %s", issuerFormat)
+		return e.request.HTTP.Hostname, nil
 	}
 }
 

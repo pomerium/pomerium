@@ -123,7 +123,7 @@ message Route {
   string kubernetes_service_account_token = 26;
   string kubernetes_service_account_token_file = 64;
   bool enable_google_cloud_serverless_authentication = 42;
-  IssuerFormat jwt_issuer_format = 65;
+  optional IssuerFormat jwt_issuer_format = 65;
   repeated string jwt_groups_filter = 66;
   optional BearerTokenFormat bearer_token_format = 70;
 
@@ -160,7 +160,7 @@ message Policy {
   string remediation = 9;
 }
 
-// Next ID: 139.
+// Next ID: 140.
 message Settings {
   message Certificate {
     bytes cert_bytes = 3;
@@ -214,6 +214,7 @@ message Settings {
   map<string, string> set_response_headers = 69;
   // repeated string jwt_claims_headers = 37;
   map<string, string> jwt_claims_headers = 63;
+  IssuerFormat jwt_issuer_format = 139;
   repeated string jwt_groups_filter = 119;
   optional BearerTokenFormat bearer_token_format = 138;
   optional google.protobuf.Duration default_upstream_timeout = 39;

@@ -23,6 +23,7 @@ import (
 	"github.com/pomerium/pomerium/internal/hashutil"
 	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/urlutil"
+	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
 	"github.com/pomerium/pomerium/pkg/policy/parser"
 )
 
@@ -616,4 +617,51 @@ func (f JWTGroupsFilter) Equal(other JWTGroupsFilter) bool {
 		return false
 	}
 	return f.set.Equal(other.set)
+}
+
+type JWTIssuerFormat string
+
+const (
+	JWTIssuerFormatUnset    JWTIssuerFormat = ""
+	JWTIssuerFormatHostOnly JWTIssuerFormat = "hostOnly"
+	JWTIssuerFormatURI      JWTIssuerFormat = "uri"
+)
+
+var knownJWTIssuerFormats = map[JWTIssuerFormat]struct{}{
+	JWTIssuerFormatUnset:    {},
+	JWTIssuerFormatHostOnly: {},
+	JWTIssuerFormatURI:      {},
+}
+
+func JWTIssuerFormatFromPB(format *configpb.IssuerFormat) JWTIssuerFormat {
+	if format == nil {
+		return JWTIssuerFormatUnset
+	}
+
+	switch *format {
+	case configpb.IssuerFormat_IssuerHostOnly:
+		return JWTIssuerFormatHostOnly
+	case configpb.IssuerFormat_IssuerURI:
+		return JWTIssuerFormatURI
+	default:
+		return JWTIssuerFormatUnset
+	}
+}
+
+func (f JWTIssuerFormat) ToPB() *configpb.IssuerFormat {
+	switch f {
+	case JWTIssuerFormatUnset:
+		return nil
+	case JWTIssuerFormatHostOnly:
+		return configpb.IssuerFormat_IssuerHostOnly.Enum()
+	case JWTIssuerFormatURI:
+		return configpb.IssuerFormat_IssuerURI.Enum()
+	default:
+		return nil
+	}
+}
+
+func (f JWTIssuerFormat) Valid() bool {
+	_, ok := knownJWTIssuerFormats[f]
+	return ok
 }

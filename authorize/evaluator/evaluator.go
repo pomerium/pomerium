@@ -332,6 +332,7 @@ func updateStore(ctx context.Context, store *store.Store, cfg *evaluatorConfig) 
 	)
 	store.UpdateJWTClaimHeaders(cfg.JWTClaimsHeaders)
 	store.UpdateJWTGroupsFilter(cfg.JWTGroupsFilter)
+	store.UpdateDefaultJWTIssuerFormat(cfg.DefaultJWTIssuerFormat)
 	store.UpdateRoutePolicies(cfg.Policies)
 	store.UpdateSigningKey(jwk)
 

@@ -437,34 +437,59 @@ func TestHeadersEvaluator(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "u1@example.com", output.Headers.Get("X-Pomerium-Claim-Email"))
 	})
+}
 
-	t.Run("issuer format", func(t *testing.T) {
-		t.Parallel()
+func TestHeadersEvaluator_JWTIssuerFormat(t *testing.T) {
+	privateJWK, _ := newJWK(t)
 
-		for _, tc := range []struct {
-			format string
-			input  string
-			output string
-		}{
-			{"", "example.com", "example.com"},
-			{"hostOnly", "host-only.example.com", "host-only.example.com"},
-			{"uri", "uri.example.com", "https://uri.example.com/"},
-		} {
+	store := store.New()
+	store.UpdateSigningKey(privateJWK)
+
+	eval := func(_ *testing.T, input *Request) (*HeadersResponse, error) {
+		ctx := context.Background()
+		e := NewHeadersEvaluator(store)
+		return e.Evaluate(ctx, input)
+	}
+
+	hostname := "route.example.com"
+
+	cases := []struct {
+		globalFormat config.JWTIssuerFormat
+		routeFormat  config.JWTIssuerFormat
+		expected     string
+	}{
+		{"", "", "route.example.com"},
+		{"hostOnly", "", "route.example.com"},
+		{"uri", "", "https://route.example.com/"},
+
+		{"", "hostOnly", "route.example.com"},
+		{"hostOnly", "hostOnly", "route.example.com"},
+		{"uri", "hostOnly", "route.example.com"},
+
+		{"", "uri", "https://route.example.com/"},
+		{"hostOnly", "uri", "https://route.example.com/"},
+		{"uri", "uri", "https://route.example.com/"},
+	}
+
+	for _, tc := range cases {
+		t.Run("", func(t *testing.T) {
+			store.UpdateDefaultJWTIssuerFormat(tc.globalFormat)
 			output, err := eval(t,
-				nil,
 				&Request{
 					HTTP: RequestHTTP{
-						Hostname: tc.input,
+						Hostname: hostname,
 					},
 					Policy: &config.Policy{
-						JWTIssuerFormat: tc.format,
+						JWTIssuerFormat: tc.routeFormat,
 					},
 				})
 			require.NoError(t, err)
 			m := decodeJWTAssertion(t, output.Headers)
-			assert.Equal(t, tc.output, m["iss"], "unexpected issuer for format=%s", tc.format)
-		}
-	})
+			assert.Equal(t, tc.expected, m["iss"],
+				"unexpected issuer for global format=%q, route format=%q",
+				tc.globalFormat, tc.routeFormat)
+		})
+	}
 }
 
 func TestHeadersEvaluator_JWTGroupsFilter(t *testing.T) {

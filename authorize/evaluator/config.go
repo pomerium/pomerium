@@ -16,6 +16,7 @@ type evaluatorConfig struct {
 	GoogleCloudServerlessAuthenticationServiceAccount string
 	JWTClaimsHeaders                                  config.JWTClaimHeaders
 	JWTGroupsFilter                                   config.JWTGroupsFilter
+	DefaultJWTIssuerFormat                            config.JWTIssuerFormat
 }
 
 // cacheKey() returns a hash over the configuration, except for the policies.
@@ -103,5 +104,12 @@ func WithJWTClaimsHeaders(headers config.JWTClaimHeaders) Option {
 func WithJWTGroupsFilter(groups config.JWTGroupsFilter) Option {
 	return func(cfg *evaluatorConfig) {
 		cfg.JWTGroupsFilter = groups
+	}
+}
+
+// WithDefaultJWTIssuerFormat sets the default JWT issuer format in the config.
+func WithDefaultJWTIssuerFormat(format config.JWTIssuerFormat) Option {
+	return func(cfg *evaluatorConfig) {
+		cfg.DefaultJWTIssuerFormat = format
 	}
 }

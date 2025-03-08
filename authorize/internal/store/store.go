@@ -33,6 +33,7 @@ type Store struct {
 	googleCloudServerlessAuthenticationServiceAccount atomic.Pointer[string]
 	jwtClaimHeaders                                   atomic.Pointer[map[string]string]
 	jwtGroupsFilter                                   atomic.Pointer[config.JWTGroupsFilter]
+	defaultJWTIssuerFormat                            atomic.Pointer[config.JWTIssuerFormat]
 	signingKey                                        atomic.Pointer[jose.JSONWebKey]
 }
 
@@ -66,6 +67,13 @@ func (s *Store) GetJWTGroupsFilter() config.JWTGroupsFilter {
 	return config.JWTGroupsFilter{}
 }
 
+func (s *Store) GetDefaultJWTIssuerFormat() config.JWTIssuerFormat {
+	if f := s.defaultJWTIssuerFormat.Load(); f != nil {
+		return *f
+	}
+	return ""
+}
+
 func (s *Store) GetSigningKey() *jose.JSONWebKey {
 	return s.signingKey.Load()
 }
@@ -87,6 +95,12 @@ func (s *Store) UpdateJWTClaimHeaders(jwtClaimHeaders map[string]string) {
 func (s *Store) UpdateJWTGroupsFilter(groups config.JWTGroupsFilter) {
 	// This isn't used by the Rego code, so we don't need to write it to the opastorage.Store instance.
 	s.jwtGroupsFilter.Store(&groups)
+}
+
+// UpdateDefaultJWTIssuerFormat updates the JWT groups filter in the store.
+func (s *Store) UpdateDefaultJWTIssuerFormat(format config.JWTIssuerFormat) {
+	// This isn't used by the Rego code, so we don't need to write it to the opastorage.Store instance.
+	s.defaultJWTIssuerFormat.Store(&format)
 }
 
 // UpdateRoutePolicies updates the route policies in the store.
