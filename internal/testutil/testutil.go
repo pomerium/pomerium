@@ -29,10 +29,18 @@ func AssertProtoEqual(t *testing.T, expected, actual any, msgAndArgs ...any) boo
 
 // AssertProtoJSONEqual asserts that a protobuf message matches the given JSON. The protoMsg can also be a slice
 // of protobuf messages.
-func AssertProtoJSONEqual(t *testing.T, expected string, protoMsg any, msgAndArgs ...any) bool {
+func AssertProtoJSONEqual(t *testing.T, expectedJSON string, protoMsg any, msgAndArgs ...any) bool {
 	t.Helper()
-	formattedJSON := formattedProtoJSON(protoMsg)
-	return assert.Equal(t, reformatJSON(json.RawMessage(expected)), formattedJSON, msgAndArgs...)
+	var expected any
+	err := json.Unmarshal([]byte(expectedJSON), &expected)
+	require.NoError(t, err)
+
+	var proto any
+	err = json.Unmarshal([]byte(formattedProtoJSON(protoMsg)), &proto)
+	require.NoError(t, err)
+
+	diff := cmp.Diff(expected, proto)
+	return assert.Empty(t, diff, msgAndArgs...)
 }
 
 func formattedProtoJSON(protoMsg any) string {
