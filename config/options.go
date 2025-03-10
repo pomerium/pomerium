@@ -1524,7 +1524,9 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	if len(settings.JwtGroupsFilter) > 0 {
 		o.JWTGroupsFilter = NewJWTGroupsFilter(settings.JwtGroupsFilter)
 	}
-	o.JWTIssuerFormat = JWTIssuerFormatFromPB(&settings.JwtIssuerFormat)
+	if f := JWTIssuerFormatFromPB(settings.JwtIssuerFormat); f != JWTIssuerFormatUnset {
+		o.JWTIssuerFormat = f
+	}
 	setDuration(&o.DefaultUpstreamTimeout, settings.DefaultUpstreamTimeout)
 	set(&o.MetricsAddr, settings.MetricsAddress)
 	set(&o.MetricsBasicAuth, settings.MetricsBasicAuth)
@@ -1635,9 +1637,7 @@ func (o *Options) ToProto() *config.Config {
 	settings.JwtClaimsHeaders = o.JWTClaimsHeaders
 	settings.BearerTokenFormat = o.BearerTokenFormat.ToPB()
 	settings.JwtGroupsFilter = o.JWTGroupsFilter.ToSlice()
-	if f := o.JWTIssuerFormat.ToPB(); f != nil {
-		settings.JwtIssuerFormat = *f
-	}
+	settings.JwtIssuerFormat = o.JWTIssuerFormat.ToPB()
 	copyOptionalDuration(&settings.DefaultUpstreamTimeout, o.DefaultUpstreamTimeout)
 	copySrcToOptionalDest(&settings.MetricsAddress, &o.MetricsAddr)
 	copySrcToOptionalDest(&settings.MetricsBasicAuth, &o.MetricsBasicAuth)

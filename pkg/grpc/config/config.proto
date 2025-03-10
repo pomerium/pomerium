@@ -214,7 +214,7 @@ message Settings {
   map<string, string> set_response_headers = 69;
   // repeated string jwt_claims_headers = 37;
   map<string, string> jwt_claims_headers = 63;
-  IssuerFormat jwt_issuer_format = 139;
+  optional IssuerFormat jwt_issuer_format = 139;
   repeated string jwt_groups_filter = 119;
   optional BearerTokenFormat bearer_token_format = 138;
   optional google.protobuf.Duration default_upstream_timeout = 39;
