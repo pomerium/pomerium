@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sync"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/handlers"
@@ -40,7 +41,7 @@ func (p *Proxy) routesPortalJSON(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (p *Proxy) getPortalRoutes(ctx context.Context, u handlers.UserInfoData) []portal.Route {
-	options := p.currentOptions.Load()
+	options := p.currentConfig.Load().Options
 	pu := p.getPortalUser(u)
 	var routes []*config.Policy
 	for route := range options.GetAllPolicies() {
@@ -49,23 +50,31 @@ func (p *Proxy) getPortalRoutes(ctx context.Context, u handlers.UserInfoData) []
 		}
 	}
 	portalRoutes := portal.RoutesFromConfigRoutes(routes)
+
+	var wg sync.WaitGroup
 	for i, pr := range portalRoutes {
-		r := routes[i]
-		for _, to := range r.To {
-			if pr.LogoURL == "" {
-				var err error
-				pr.LogoURL, err = p.logoProvider.GetLogoURL(ctx, pr.From, to.URL.String())
-				if err != nil && !errors.Is(err, portal.ErrLogoNotFound) {
-					log.Ctx(ctx).Error().
-						Err(err).
-						Str("from", pr.From).
-						Str("to", to.URL.String()).
-						Msg("error retrieving logo for route")
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			r := routes[i]
+			for _, to := range r.To {
+				if pr.LogoURL == "" {
+					var err error
+					pr.LogoURL, err = p.logoProvider.GetLogoURL(ctx, pr.From, to.URL.String())
+					if err != nil && !errors.Is(err, portal.ErrLogoNotFound) {
+						log.Ctx(ctx).Error().
+							Err(err).
+							Str("from", pr.From).
+							Str("to", to.URL.String()).
+							Msg("error retrieving logo for route")
+					}
 				}
 			}
-		}
-		portalRoutes[i] = pr
+			portalRoutes[i] = pr
+		}()
 	}
+	wg.Wait()
 	return portalRoutes
 }
 

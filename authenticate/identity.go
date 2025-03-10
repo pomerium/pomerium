@@ -3,11 +3,12 @@ package authenticate
 import (
 	"context"
 
+	oteltrace "go.opentelemetry.io/otel/trace"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 func defaultGetIdentityProvider(ctx context.Context, tracerProvider oteltrace.TracerProvider, options *config.Options, idpID string) (identity.Authenticator, error) {
@@ -26,7 +27,8 @@ func defaultGetIdentityProvider(ctx context.Context, tracerProvider oteltrace.Tr
 	if err != nil {
 		return nil, err
 	}
-	return identity.NewAuthenticator(ctx, tracerProvider, oauth.Options{
+
+	o := oauth.Options{
 		RedirectURL:     redirectURL,
 		ProviderName:    idp.GetType(),
 		ProviderURL:     idp.GetUrl(),
@@ -34,5 +36,9 @@ func defaultGetIdentityProvider(ctx context.Context, tracerProvider oteltrace.Tr
 		ClientSecret:    idp.GetClientSecret(),
 		Scopes:          idp.GetScopes(),
 		AuthCodeOptions: idp.GetRequestParams(),
-	})
+	}
+	if v := idp.GetAccessTokenAllowedAudiences(); v != nil {
+		o.AccessTokenAllowedAudiences = &v.Values
+	}
+	return identity.NewAuthenticator(ctx, tracerProvider, o)
 }

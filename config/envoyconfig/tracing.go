@@ -33,7 +33,7 @@ func isTracingEnabled(cfg *otelconfig.Config) bool {
 	case "none", "noop", "":
 		return false
 	default:
-		return cfg.OtelExporterOtlpTracesEndpoint != nil
+		return cfg.OtelExporterOtlpTracesEndpoint != nil || cfg.OtelExporterOtlpEndpoint != nil
 	}
 }
 

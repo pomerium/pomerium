@@ -36,10 +36,19 @@ func RoutesFromConfigRoutes(routes []*config.Policy) []Route {
 		if err == nil {
 			if strings.HasPrefix(fromURL.Scheme, "tcp+") {
 				pr.Type = "tcp"
-				pr.ConnectCommand = "pomerium-cli tcp " + fromURL.Host
+				if len(fromURL.Path) > 1 {
+					pr.ConnectCommand = "pomerium-cli tcp " + fromURL.String()
+				} else {
+					pr.ConnectCommand = "pomerium-cli tcp " + fromURL.Host
+				}
 			} else if strings.HasPrefix(fromURL.Scheme, "udp+") {
 				pr.Type = "udp"
 				pr.ConnectCommand = "pomerium-cli udp " + fromURL.Host
+				if len(fromURL.Path) > 1 {
+					pr.ConnectCommand = "pomerium-cli udp " + fromURL.String()
+				} else {
+					pr.ConnectCommand = "pomerium-cli udp " + fromURL.Host
+				}
 			} else {
 				pr.Type = "http"
 			}

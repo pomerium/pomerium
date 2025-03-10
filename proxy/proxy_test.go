@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/jwtutil"
 	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
 )
 
@@ -32,7 +34,16 @@ func testOptions(t *testing.T) *config.Options {
 	hpkePrivateKey, err := opts.GetHPKEPrivateKey()
 	require.NoError(t, err)
 
-	authnSrv := httptest.NewServer(hpke_handlers.HPKEPublicKeyHandler(hpkePrivateKey.PublicKey()))
+	authnSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case hpke_handlers.HPKEPublicKeyPath:
+			hpke_handlers.HPKEPublicKeyHandler(hpkePrivateKey.PublicKey())
+		case "/.pomerium/verify-access-token":
+			json.NewEncoder(w).Encode(map[string]any{"valid": true, "claims": jwtutil.Claims{}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
 	t.Cleanup(authnSrv.Close)
 	opts.AuthenticateURLString = authnSrv.URL
 

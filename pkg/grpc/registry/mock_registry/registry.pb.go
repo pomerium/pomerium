@@ -22,6 +22,7 @@ import (
 type MockRegistryClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockRegistryClientMockRecorder
+	isgomock struct{}
 }
 
 // MockRegistryClientMockRecorder is the mock recorder for MockRegistryClient.
@@ -105,6 +106,7 @@ func (mr *MockRegistryClientMockRecorder) Watch(ctx, in any, opts ...any) *gomoc
 type MockRegistryServer struct {
 	ctrl     *gomock.Controller
 	recorder *MockRegistryServerMockRecorder
+	isgomock struct{}
 }
 
 // MockRegistryServerMockRecorder is the mock recorder for MockRegistryServer.
@@ -172,6 +174,7 @@ func (mr *MockRegistryServerMockRecorder) Watch(arg0, arg1 any) *gomock.Call {
 type MockUnsafeRegistryServer struct {
 	ctrl     *gomock.Controller
 	recorder *MockUnsafeRegistryServerMockRecorder
+	isgomock struct{}
 }
 
 // MockUnsafeRegistryServerMockRecorder is the mock recorder for MockUnsafeRegistryServer.

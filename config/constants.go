@@ -4,9 +4,10 @@ import (
 	"errors"
 
 	"github.com/mitchellh/mapstructure"
-	"github.com/pomerium/pomerium/config/otelconfig"
 	"github.com/spf13/viper"
 	"google.golang.org/protobuf/encoding/protojson"
+
+	"github.com/pomerium/pomerium/config/otelconfig"
 )
 
 const (
@@ -37,6 +38,7 @@ var ViperPolicyHooks = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 	DecodePolicyBase64Hook(),
 	decodeNullBoolHookFunc(),
 	decodeJWTClaimHeadersHookFunc(),
+	decodeBearerTokenFormatHookFunc(),
 	decodeCodecTypeHookFunc(),
 	decodePPLPolicyHookFunc(),
 	decodeSANMatcherHookFunc(),

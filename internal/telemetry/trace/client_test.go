@@ -295,7 +295,7 @@ func (h *errHandler) Handle(err error) {
 	h.err = err
 }
 
-func TestNewRemoteClientFromEnv(t *testing.T) {
+func TestNewTraceClientFromConfig(t *testing.T) {
 	env := testenv.New(t, testenv.WithTraceDebugFlags(testenv.StandardTraceDebugFlags))
 
 	receiver := scenarios.NewOTLPTraceReceiver()
@@ -319,14 +319,22 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 		expectHeaders map[string][]string
 	}{
 		{
-			name: "GRPC endpoint, auto protocol",
+			name: "GRPC endpoint, unset protocol",
 			env: map[string]string{
 				"OTEL_TRACES_EXPORTER":               "otlp",
 				"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": grpcEndpoint.Value(),
 			},
 		},
 		{
-			name: "GRPC endpoint, alternate env, auto protocol",
+			name: "GRPC endpoint, empty protocol",
+			env: map[string]string{
+				"OTEL_TRACES_EXPORTER":               "otlp",
+				"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": grpcEndpoint.Value(),
+				"OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": "",
+			},
+		},
+		{
+			name: "GRPC endpoint, alternate env, unset protocol",
 			env: map[string]string{
 				"OTEL_TRACES_EXPORTER":        "otlp",
 				"OTEL_EXPORTER_OTLP_ENDPOINT": grpcEndpoint.Value(),
@@ -334,17 +342,42 @@ func TestNewRemoteClientFromEnv(t *testing.T) {
 			uploadErr: true,
 		},
 		{
-			name: "HTTP endpoint, auto protocol",
+			name: "GRPC endpoint, alternate env, empty protocol",
+			env: map[string]string{
+				"OTEL_TRACES_EXPORTER":        "otlp",
+				"OTEL_EXPORTER_OTLP_ENDPOINT": grpcEndpoint.Value(),
+				"OTEL_EXPORTER_OTLP_PROTOCOL": "",
+			},
+			uploadErr: true,
+		},
+		{
+			name: "HTTP endpoint, unset protocol",
 			env: map[string]string{
 				"OTEL_TRACES_EXPORTER":               "otlp",
 				"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": httpEndpoint.Value(),
 			},
 		},
 		{
-			name: "HTTP endpoint, alternate env, auto protocol",
+			name: "HTTP endpoint, empty protocol",
+			env: map[string]string{
+				"OTEL_TRACES_EXPORTER":               "otlp",
+				"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": httpEndpoint.Value(),
+				"OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": "",
+			},
+		},
+		{
+			name: "HTTP endpoint, alternate env, unset protocol",
 			env: map[string]string{
 				"OTEL_TRACES_EXPORTER":        "otlp",
 				"OTEL_EXPORTER_OTLP_ENDPOINT": strings.TrimSuffix(httpEndpoint.Value(), "/v1/traces"), // path is added automatically by the sdk here
+			},
+		},
+		{
+			name: "HTTP endpoint, alternate env, empty protocol",
+			env: map[string]string{
+				"OTEL_TRACES_EXPORTER":        "otlp",
+				"OTEL_EXPORTER_OTLP_ENDPOINT": strings.TrimSuffix(httpEndpoint.Value(), "/v1/traces"),
+				"OTEL_EXPORTER_OTLP_PROTOCOL": "",
 			},
 		},
 		{

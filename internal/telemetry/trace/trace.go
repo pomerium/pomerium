@@ -139,7 +139,7 @@ func ShutdownContext(ctx context.Context) error {
 	if err := sys.tpm.ShutdownAll(context.Background()); err != nil {
 		errs = append(errs, fmt.Errorf("error shutting down tracer providers: %w", err))
 	}
-	if err := sys.exporterServer.Shutdown(context.Background()); err != nil {
+	if err := sys.exporterServer.Shutdown(context.Background()); err != nil && !errors.Is(err, ErrNoClient) {
 		errs = append(errs, fmt.Errorf("error shutting down trace exporter: %w", err))
 	}
 	return errors.Join(errs...)

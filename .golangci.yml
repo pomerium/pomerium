@@ -1,6 +1,3 @@
-run:
-  deadline: 20m
-
 linters-settings:
   gci:
     custom-order: true

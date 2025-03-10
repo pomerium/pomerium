@@ -27,17 +27,19 @@ type faviconCacheValue struct {
 }
 
 type faviconDiscoveryLogoProvider struct {
-	mu         sync.Mutex
-	cache      map[string]*faviconCacheValue
-	successTTL time.Duration
-	failureTTL time.Duration
+	mu               sync.Mutex
+	cache            map[string]*faviconCacheValue
+	successTTL       time.Duration
+	failureTTL       time.Duration
+	discoveryTimeout time.Duration
 }
 
 func newFaviconDiscoveryLogoProvider() *faviconDiscoveryLogoProvider {
 	return &faviconDiscoveryLogoProvider{
-		cache:      make(map[string]*faviconCacheValue),
-		successTTL: time.Hour,
-		failureTTL: 10 * time.Minute,
+		cache:            make(map[string]*faviconCacheValue),
+		successTTL:       time.Hour,
+		failureTTL:       10 * time.Minute,
+		discoveryTimeout: 500 * time.Millisecond,
 	}
 }
 
@@ -84,6 +86,9 @@ func (p *faviconDiscoveryLogoProvider) discoverLogoURL(ctx context.Context, rawU
 	if !(u.Scheme == "http" || u.Scheme == "https") {
 		return "", ErrLogoNotFound
 	}
+
+	ctx, clearTimeout := context.WithTimeout(ctx, p.discoveryTimeout)
+	defer clearTimeout()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {

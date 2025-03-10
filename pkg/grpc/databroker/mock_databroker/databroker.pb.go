@@ -23,6 +23,7 @@ import (
 type MockDataBrokerServiceClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockDataBrokerServiceClientMockRecorder
+	isgomock struct{}
 }
 
 // MockDataBrokerServiceClientMockRecorder is the mock recorder for MockDataBrokerServiceClient.
@@ -266,6 +267,7 @@ func (mr *MockDataBrokerServiceClientMockRecorder) SyncLatest(ctx, in any, opts 
 type MockDataBrokerServiceServer struct {
 	ctrl     *gomock.Controller
 	recorder *MockDataBrokerServiceServerMockRecorder
+	isgomock struct{}
 }
 
 // MockDataBrokerServiceServerMockRecorder is the mock recorder for MockDataBrokerServiceServer.
@@ -452,6 +454,7 @@ func (mr *MockDataBrokerServiceServerMockRecorder) SyncLatest(arg0, arg1 any) *g
 type MockUnsafeDataBrokerServiceServer struct {
 	ctrl     *gomock.Controller
 	recorder *MockUnsafeDataBrokerServiceServerMockRecorder
+	isgomock struct{}
 }
 
 // MockUnsafeDataBrokerServiceServerMockRecorder is the mock recorder for MockUnsafeDataBrokerServiceServer.

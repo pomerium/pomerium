@@ -20,6 +20,7 @@ import (
 type MockProvider struct {
 	ctrl     *gomock.Controller
 	recorder *MockProviderMockRecorder
+	isgomock struct{}
 }
 
 // MockProviderMockRecorder is the mock recorder for MockProvider.
@@ -40,35 +41,35 @@ func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 }
 
 // ReportError mocks base method.
-func (m *MockProvider) ReportError(arg0 health.Check, arg1 error, arg2 ...health.Attr) {
+func (m *MockProvider) ReportError(check health.Check, err error, attributes ...health.Attr) {
 	m.ctrl.T.Helper()
-	varargs := []any{arg0, arg1}
-	for _, a := range arg2 {
+	varargs := []any{check, err}
+	for _, a := range attributes {
 		varargs = append(varargs, a)
 	}
 	m.ctrl.Call(m, "ReportError", varargs...)
 }
 
 // ReportError indicates an expected call of ReportError.
-func (mr *MockProviderMockRecorder) ReportError(arg0, arg1 any, arg2 ...any) *gomock.Call {
+func (mr *MockProviderMockRecorder) ReportError(check, err any, attributes ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]any{arg0, arg1}, arg2...)
+	varargs := append([]any{check, err}, attributes...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReportError", reflect.TypeOf((*MockProvider)(nil).ReportError), varargs...)
 }
 
 // ReportOK mocks base method.
-func (m *MockProvider) ReportOK(arg0 health.Check, arg1 ...health.Attr) {
+func (m *MockProvider) ReportOK(check health.Check, attributes ...health.Attr) {
 	m.ctrl.T.Helper()
-	varargs := []any{arg0}
-	for _, a := range arg1 {
+	varargs := []any{check}
+	for _, a := range attributes {
 		varargs = append(varargs, a)
 	}
 	m.ctrl.Call(m, "ReportOK", varargs...)
 }
 
 // ReportOK indicates an expected call of ReportOK.
-func (mr *MockProviderMockRecorder) ReportOK(arg0 any, arg1 ...any) *gomock.Call {
+func (mr *MockProviderMockRecorder) ReportOK(check any, attributes ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]any{arg0}, arg1...)
+	varargs := append([]any{check}, attributes...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReportOK", reflect.TypeOf((*MockProvider)(nil).ReportOK), varargs...)
 }

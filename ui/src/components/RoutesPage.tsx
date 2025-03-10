@@ -34,8 +34,21 @@ const RouteCard: FC<RouteCardProps> = ({ route }) => {
   };
 
   return (
-    <Card raised={true}>
-      <CardActionArea href={route.from} target="_blank" onClick={handleClick}>
+    <Card
+      raised={true}
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+      }}
+    >
+      <CardActionArea
+        sx={{ height: "100%" }}
+        href={route.from}
+        target="_blank"
+        onClick={handleClick}
+      >
         <CardHeader
           avatar={
             route.logo_url ? (
@@ -67,7 +80,16 @@ const RouteCard: FC<RouteCardProps> = ({ route }) => {
               </IconButton>
             )
           }
-          title={route.name}
+          title={
+            <Box
+              component="span"
+              sx={{
+                wordBreak: "break-all",
+              }}
+            >
+              {route.name}
+            </Box>
+          }
         />
         <CardContent>
           {route.description && (
@@ -76,7 +98,11 @@ const RouteCard: FC<RouteCardProps> = ({ route }) => {
           {route.connect_command && (
             <Box
               component="span"
-              sx={{ fontFamily: '"DM Mono"', fontSize: "12px" }}
+              sx={{
+                fontFamily: '"DM Mono"',
+                fontSize: "12px",
+                wordBreak: "break-all",
+              }}
             >
               {route.connect_command}
             </Box>
@@ -125,7 +151,7 @@ const RoutesPage: FC<RoutesPageProps> = ({ data }) => {
   return (
     <SidebarPage>
       <Stack spacing={2}>
-        {data?.routes ? (
+        {data?.routes?.length > 0 ? (
           <>
             <RoutesSection
               type={"http"}
