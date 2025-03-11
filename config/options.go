@@ -196,6 +196,12 @@ type Options struct {
 	// List of JWT claims to insert as x-pomerium-claim-* headers on proxied requests
 	JWTClaimsHeaders JWTClaimHeaders `mapstructure:"jwt_claims_headers" yaml:"jwt_claims_headers,omitempty"`
 
+	// JWTIssuerFormat controls the default format of the 'iss' claim in JWTs passed to upstream services.
+	// Possible values:
+	// - "hostOnly" (default): Issuer strings will be the hostname of the route, with no scheme or trailing slash.
+	// - "uri": Issuer strings will be a complete URI, including the scheme and ending with a trailing slash.
+	JWTIssuerFormat JWTIssuerFormat `mapstructure:"jwt_issuer_format" yaml:"jwt_issuer_format,omitempty"`
+
 	// BearerTokenFormat indicates how authorization bearer tokens are interepreted. Possible values:
 	// - "default": Only Bearer tokens prefixed with Pomerium- will be interpreted by Pomerium.
 	// - "idp_access_token": The Bearer token will be interpreted as an IdP access token.
@@ -759,6 +765,10 @@ func (o *Options) Validate() error {
 		if err := field.Validate(); err != nil {
 			return fmt.Errorf("config: invalid authorize_log_fields: %w", err)
 		}
+	}
+
+	if !o.JWTIssuerFormat.Valid() {
+		return fmt.Errorf("config: unsupported jwt_issuer_format value %q", o.JWTIssuerFormat)
 	}
 
 	return nil
@@ -1514,6 +1524,9 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	if len(settings.JwtGroupsFilter) > 0 {
 		o.JWTGroupsFilter = NewJWTGroupsFilter(settings.JwtGroupsFilter)
 	}
+	if f := JWTIssuerFormatFromPB(settings.JwtIssuerFormat); f != JWTIssuerFormatUnset {
+		o.JWTIssuerFormat = f
+	}
 	setDuration(&o.DefaultUpstreamTimeout, settings.DefaultUpstreamTimeout)
 	set(&o.MetricsAddr, settings.MetricsAddress)
 	set(&o.MetricsBasicAuth, settings.MetricsBasicAuth)
@@ -1624,6 +1637,7 @@ func (o *Options) ToProto() *config.Config {
 	settings.JwtClaimsHeaders = o.JWTClaimsHeaders
 	settings.BearerTokenFormat = o.BearerTokenFormat.ToPB()
 	settings.JwtGroupsFilter = o.JWTGroupsFilter.ToSlice()
+	settings.JwtIssuerFormat = o.JWTIssuerFormat.ToPB()
 	copyOptionalDuration(&settings.DefaultUpstreamTimeout, o.DefaultUpstreamTimeout)
 	copySrcToOptionalDest(&settings.MetricsAddress, &o.MetricsAddr)
 	copySrcToOptionalDest(&settings.MetricsBasicAuth, &o.MetricsBasicAuth)

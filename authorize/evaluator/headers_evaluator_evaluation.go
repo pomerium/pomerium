@@ -247,18 +247,16 @@ func (e *headersEvaluatorEvaluation) getGroupIDs(ctx context.Context) []string {
 	return make([]string, 0)
 }
 
-func (e *headersEvaluatorEvaluation) getJWTPayloadIss() (string, error) {
-	var issuerFormat string
-	if e.request.Policy != nil {
+func (e *headersEvaluatorEvaluation) getJWTPayloadIss() string {
+	issuerFormat := e.evaluator.store.GetDefaultJWTIssuerFormat()
+	if e.request.Policy != nil && e.request.Policy.JWTIssuerFormat != "" {
 		issuerFormat = e.request.Policy.JWTIssuerFormat
 	}
 	switch issuerFormat {
-	case "uri":
-		return fmt.Sprintf("https://%s/", e.request.HTTP.Hostname), nil
-	case "", "hostOnly":
-		return e.request.HTTP.Hostname, nil
+	case config.JWTIssuerFormatURI:
+		return fmt.Sprintf("https://%s/", e.request.HTTP.Hostname)
 	default:
-		return "", fmt.Errorf("unsupported JWT issuer format: %s", issuerFormat)
+		return e.request.HTTP.Hostname
 	}
 }
 
@@ -412,14 +410,9 @@ func (e *headersEvaluatorEvaluation) getJWTPayload(ctx context.Context) (map[str
 		return e.cachedJWTPayload, nil
 	}
 
-	iss, err := e.getJWTPayloadIss()
-	if err != nil {
-		return nil, err
-	}
-
 	e.gotJWTPayload = true
 	e.cachedJWTPayload = map[string]any{
-		"iss":    iss,
+		"iss":    e.getJWTPayloadIss(),
 		"aud":    e.getJWTPayloadAud(),
 		"jti":    e.getJWTPayloadJTI(),
 		"iat":    e.getJWTPayloadIAT(),
