@@ -17,7 +17,8 @@ import (
 
 // config is the configuration for the gRPC client
 type config struct {
-	connectionURI string
+	// authority is a host:port string that will be used as the :authority pseudo-header
+	authority string
 	// requireTLS is whether TLS should be used or cleartext
 	requireTLS bool
 	// opts are additional options to pass to the gRPC client
@@ -41,9 +42,14 @@ func getConfig(
 	return c, nil
 }
 
+// GetAuthority returns the authority to use in the :authority pseudo-header
+func (c *config) GetAuthority() string {
+	return c.authority
+}
+
 // GetConnectionURI returns connection string conforming to https://github.com/grpc/grpc/blob/master/doc/naming.md
 func (c *config) GetConnectionURI() string {
-	return c.connectionURI
+	return "dns:" + c.authority
 }
 
 // GetDialTimeout returns the timeout for the dial operation
@@ -101,7 +107,7 @@ func (c *config) parseEndpoint(endpoint string) error {
 		return fmt.Errorf("unsupported url scheme: %s", u.Scheme)
 	}
 
-	c.connectionURI = fmt.Sprintf("dns:%s:%s", host, port)
+	c.authority = host + ":" + port
 	c.requireTLS = requireTLS
 
 	return nil
