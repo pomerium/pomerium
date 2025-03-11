@@ -48,6 +48,7 @@ func New(
 func (c *client) getGRPCConn(ctx context.Context) (*grpc.ClientConn, error) {
 	opts := append(
 		c.config.GetDialOptions(),
+		grpc.WithAuthority(c.config.GetAuthority()),
 		grpc.WithPerRPCCredentials(c),
 		grpc.WithDefaultCallOptions(
 			grpc.UseCompressor("gzip"),
@@ -60,7 +61,7 @@ func (c *client) getGRPCConn(ctx context.Context) (*grpc.ClientConn, error) {
 		),
 	)
 
-	conn, err := grpc.DialContext(ctx, c.config.GetConnectionURI(), opts...)
+	conn, err := grpc.NewClient(c.config.GetConnectionURI(), opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error dialing grpc server: %w", err)
 	}
@@ -92,7 +93,7 @@ func (c *client) logConnectionState(ctx context.Context, conn *grpc.ClientConn) 
 		_ = conn.WaitForStateChange(ctx, state)
 		state = conn.GetState()
 		log.Ctx(ctx).Debug().
-			Str("endpoint", c.config.connectionURI).
+			Str("endpoint", c.config.GetConnectionURI()).
 			Str("state", state.String()).
 			Msg("grpc connection state")
 	}
