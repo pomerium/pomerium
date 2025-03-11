@@ -35,12 +35,14 @@ Here are some of the expectations we have of contributors:
 
 - **Use comments properly.** We expect good godoc comments for package-level functions, types, and values. Comments are also useful whenever the purpose for a line of code is not obvious.
 
-[!RECOMMENDED READING]
+:::info **Recommended reading**
 
 - [**CodeReviewComments**](https://github.com/golang/go/wiki/CodeReviewComments)
 - [**Linus Torvalds describes a good commit message**](https://gist.github.com/matthewhudson/1475276)
 - [**Best Practices for Maintainers**](https://opensource.guide/best-practices/)
 - [**Shrinking Code Review**](https://alexgaynor.net/2015/dec/29/shrinking-code-review/)
+
+:::
 
 ### Versioning
 
