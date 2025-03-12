@@ -989,6 +989,20 @@ func TestOptions_ApplySettings(t *testing.T) {
 		})
 		assert.Equal(t, NewJWTGroupsFilter([]string{"quux", "zulu"}), options.JWTGroupsFilter)
 	})
+
+	t.Run("jwt_issuer_format", func(t *testing.T) {
+		options := NewDefaultOptions()
+		assert.Equal(t, JWTIssuerFormatUnset, options.JWTIssuerFormat)
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			JwtIssuerFormat: configpb.IssuerFormat_IssuerURI.Enum(),
+		})
+		options.ApplySettings(ctx, nil, &configpb.Settings{})
+		assert.Equal(t, JWTIssuerFormatURI, options.JWTIssuerFormat)
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			JwtIssuerFormat: configpb.IssuerFormat_IssuerHostOnly.Enum(),
+		})
+		assert.Equal(t, JWTIssuerFormatHostOnly, options.JWTIssuerFormat)
+	})
 }
 
 func TestOptions_GetSetResponseHeaders(t *testing.T) {
