@@ -292,6 +292,22 @@ func TestPolicy_FromToPb(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, p.Redirect.HTTPSRedirect, policyFromProto.Redirect.HTTPSRedirect)
 	})
+
+	t.Run("JWT issuer format", func(t *testing.T) {
+		for f := range knownJWTIssuerFormats {
+			p := &Policy{
+				From:            "https://pomerium.io",
+				To:              mustParseWeightedURLs(t, "http://localhost"),
+				JWTIssuerFormat: f,
+			}
+			pbPolicy, err := p.ToProto()
+			require.NoError(t, err)
+
+			policyFromPb, err := NewPolicyFromProto(pbPolicy)
+			assert.NoError(t, err)
+			assert.Equal(t, f, policyFromPb.JWTIssuerFormat)
+		}
+	})
 }
 
 func TestPolicy_Matches(t *testing.T) {

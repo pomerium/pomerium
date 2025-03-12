@@ -389,13 +389,6 @@ func NewPolicyFromProto(pb *configpb.Route) (*Policy, error) {
 		p.EnvoyOpts.Name = pb.Name
 	}
 
-	switch pb.GetJwtIssuerFormat() {
-	case configpb.IssuerFormat_IssuerHostOnly:
-		p.JWTIssuerFormat = JWTIssuerFormatHostOnly
-	case configpb.IssuerFormat_IssuerURI:
-		p.JWTIssuerFormat = JWTIssuerFormatURI
-	}
-
 	p.BearerTokenFormat = BearerTokenFormatFromPB(pb.BearerTokenFormat)
 
 	for _, rwh := range pb.RewriteResponseHeaders {
