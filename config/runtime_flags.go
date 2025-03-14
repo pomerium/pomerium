@@ -14,9 +14,6 @@ var (
 	// RuntimeFlagGRPCDatabrokerKeepalive enables gRPC keepalive to the databroker service
 	RuntimeFlagGRPCDatabrokerKeepalive = runtimeFlag("grpc_databroker_keepalive", false)
 
-	// RuntimeFlagLegacyIdentityManager enables the legacy identity manager
-	RuntimeFlagLegacyIdentityManager = runtimeFlag("legacy_identity_manager", false)
-
 	// RuntimeFlagMatchAnyIncomingPort enables ignoring the incoming port when matching routes
 	RuntimeFlagMatchAnyIncomingPort = runtimeFlag("match_any_incoming_port", true)
 

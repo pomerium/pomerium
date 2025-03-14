@@ -23,7 +23,6 @@ type config struct {
 	leaseTTL                      time.Duration
 	now                           func() time.Time
 	eventMgr                      *events.Manager
-	enabled                       bool
 }
 
 func newConfig(options ...Option) *config {
@@ -32,7 +31,6 @@ func newConfig(options ...Option) *config {
 	WithSessionRefreshCoolOffDuration(defaultSessionRefreshCoolOffDuration)(cfg)
 	WithNow(time.Now)(cfg)
 	WithUpdateUserInfoInterval(defaultUpdateUserInfoInterval)(cfg)
-	WithEnabled(true)(cfg)
 	WithLeaseTTL(defaultLeaseTTL)(cfg)
 	for _, option := range options {
 		option(cfg)
@@ -82,13 +80,6 @@ func WithNow(now func() time.Time) Option {
 func WithEventManager(mgr *events.Manager) Option {
 	return func(cfg *config) {
 		cfg.eventMgr = mgr
-	}
-}
-
-// WithEnabled sets the enabled option in the config.
-func WithEnabled(enabled bool) Option {
-	return func(cfg *config) {
-		cfg.enabled = enabled
 	}
 }
 
