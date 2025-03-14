@@ -27,7 +27,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/registry"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/identity"
-	"github.com/pomerium/pomerium/pkg/identity/legacymanager"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
@@ -38,7 +37,6 @@ type DataBroker struct {
 	Options
 	dataBrokerServer *dataBrokerServer
 	manager          *manager.Manager
-	legacyManager    *legacymanager.Manager
 	eventsMgr        *events.Manager
 
 	localListener       net.Listener
@@ -50,8 +48,7 @@ type DataBroker struct {
 }
 
 type Options struct {
-	managerOptions       []manager.Option
-	legacyManagerOptions []legacymanager.Option
+	managerOptions []manager.Option
 }
 
 type Option func(*Options)
@@ -65,12 +62,6 @@ func (o *Options) apply(opts ...Option) {
 func WithManagerOptions(managerOptions ...manager.Option) Option {
 	return func(o *Options) {
 		o.managerOptions = append(o.managerOptions, managerOptions...)
-	}
-}
-
-func WithLegacyManagerOptions(legacyManagerOptions ...legacymanager.Option) Option {
-	return func(o *Options) {
-		o.legacyManagerOptions = append(o.legacyManagerOptions, legacyManagerOptions...)
 	}
 }
 
@@ -201,13 +192,7 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 	options := append([]manager.Option{
 		manager.WithDataBrokerClient(dataBrokerClient),
 		manager.WithEventManager(c.eventsMgr),
-		manager.WithEnabled(!cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagLegacyIdentityManager)),
 	}, c.managerOptions...)
-	legacyOptions := append([]legacymanager.Option{
-		legacymanager.WithDataBrokerClient(dataBrokerClient),
-		legacymanager.WithEventManager(c.eventsMgr),
-		legacymanager.WithEnabled(cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagLegacyIdentityManager)),
-	}, c.legacyManagerOptions...)
 
 	if cfg.Options.SupportsUserRefresh() {
 		authenticator, err := identity.NewAuthenticator(ctx, c.tracerProvider, oauthOptions)
@@ -215,7 +200,6 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 			log.Ctx(ctx).Error().Err(err).Msg("databroker: failed to create authenticator")
 		} else {
 			options = append(options, manager.WithAuthenticator(authenticator))
-			legacyOptions = append(legacyOptions, legacymanager.WithAuthenticator(authenticator))
 		}
 	} else {
 		log.Ctx(ctx).Info().Msg("databroker: disabling refresh of user sessions")
@@ -225,12 +209,6 @@ func (c *DataBroker) update(ctx context.Context, cfg *config.Config) error {
 		c.manager = manager.New(options...)
 	} else {
 		c.manager.UpdateConfig(options...)
-	}
-
-	if c.legacyManager == nil {
-		c.legacyManager = legacymanager.New(legacyOptions...)
-	} else {
-		c.legacyManager.UpdateConfig(legacyOptions...)
 	}
 
 	return nil

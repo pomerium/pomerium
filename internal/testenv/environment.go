@@ -43,7 +43,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/health"
-	"github.com/pomerium/pomerium/pkg/identity/legacymanager"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/slices"
@@ -612,8 +611,7 @@ func (e *environment) Start() {
 			pomerium.WithOverrideFileManager(fileMgr),
 			pomerium.WithEnvoyServerOptions(envoy.WithExitGracePeriod(30 * time.Second)),
 			pomerium.WithDataBrokerServerOptions(
-				databroker_service.WithManagerOptions(manager.WithLeaseTTL(1*time.Second)),
-				databroker_service.WithLegacyManagerOptions(legacymanager.WithLeaseTTL(1*time.Second)),
+				databroker_service.WithManagerOptions(manager.WithLeaseTTL(1 * time.Second)),
 			),
 		}
 		envoyBinaryPath := filepath.Join(e.workspaceFolder, fmt.Sprintf("pkg/envoy/files/envoy-%s-%s", runtime.GOOS, runtime.GOARCH))
