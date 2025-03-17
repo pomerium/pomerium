@@ -10,6 +10,7 @@ import (
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	extensions_session_recording "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh/filters/session_recording"
 
 	"go.uber.org/automaxprocs/maxprocs"
 	"golang.org/x/sync/errgroup"
@@ -270,6 +271,7 @@ func setupAuthorize(ctx context.Context, src config.Source, controlPlane *contro
 	}
 	envoy_service_auth_v3.RegisterAuthorizationServer(controlPlane.GRPCServer, svc)
 	extensions_ssh.RegisterStreamManagementServer(controlPlane.GRPCServer, svc)
+	extensions_session_recording.RegisterRecordingServiceServer(controlPlane.GRPCServer, svc)
 
 	log.Ctx(ctx).Info().Msg("enabled authorize service")
 	src.OnConfigChange(ctx, svc.OnConfigChange)

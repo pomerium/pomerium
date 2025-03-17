@@ -53,9 +53,9 @@ func main() {
 }
 
 func run(ctx context.Context, configFile string) error {
-	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("config_file_source", configFile).Bool("bootstrap", true)
-	})
+	// ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
+	// 	return c.Str("config_file_source", configFile).Bool("bootstrap", true)
+	// })
 
 	var src config.Source
 

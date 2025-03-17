@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -11,14 +12,17 @@ import (
 	xds_matcher_v3 "github.com/cncf/xds/go/xds/type/matcher/v3"
 	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_config_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	extensions_compressor_zstd_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/compression/zstd/compressor/v3"
 	envoy_generic_proxy_action_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/action/v3"
 	envoy_generic_proxy_matcher_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/matcher/v3"
 	envoy_generic_router_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/router/v3"
 	envoy_generic_proxy_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/generic_proxy/v3"
 	matcherv3 "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	extensions_ssh "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh"
+	extensions_ssh_session_recording "github.com/pomerium/envoy-custom/api/extensions/filters/network/ssh/filters/session_recording"
 	"github.com/pomerium/pomerium/config"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func (b *Builder) buildSSHListener(ctx context.Context, cfg *config.Config) (*envoy_config_listener_v3.Listener, error) {
@@ -39,6 +43,15 @@ func (b *Builder) buildSSHListener(ctx context.Context, cfg *config.Config) (*en
 	} else {
 		grpcClientTimeout = durationpb.New(30 * time.Second)
 	}
+	os.MkdirAll("/tmp/recordings", 0o755)
+	authorizeService := &envoy_config_core_v3.GrpcService{
+		Timeout: grpcClientTimeout,
+		TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
+			EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
+				ClusterName: "pomerium-authorize",
+			},
+		},
+	}
 	li := &envoy_config_listener_v3.Listener{
 		Name:    "ssh",
 		Address: buildTCPAddress(cfg.Options.SSHAddr, 22),
@@ -58,17 +71,30 @@ func (b *Builder) buildSSHListener(ctx context.Context, cfg *config.Config) (*en
 											PublicKeyFile:  cfg.Options.SSHUserCAKey.PublicKeyFile,
 											PrivateKeyFile: cfg.Options.SSHUserCAKey.PrivateKeyFile,
 										},
-										GrpcService: &envoy_config_core_v3.GrpcService{
-											Timeout: grpcClientTimeout,
-											TargetSpecifier: &envoy_config_core_v3.GrpcService_EnvoyGrpc_{
-												EnvoyGrpc: &envoy_config_core_v3.GrpcService_EnvoyGrpc{
-													ClusterName: "pomerium-authorize",
-												},
-											},
-										},
+										GrpcService: authorizeService,
 									}),
 								},
 								Filters: []*envoy_config_core_v3.TypedExtensionConfig{
+									{
+										Name: "envoy.filters.generic.ssh.session_recording",
+										TypedConfig: marshalAny(&extensions_ssh_session_recording.Config{
+											StorageDir:  "/tmp/recordings",
+											GrpcService: authorizeService,
+											CompressorLibrary: &envoy_config_core_v3.TypedExtensionConfig{
+												Name: "envoy.compression.zstd.compressor",
+												TypedConfig: marshalAny(&extensions_compressor_zstd_v3.Zstd{
+													CompressionLevel: wrapperspb.UInt32(19),
+													EnableChecksum:   false,
+													Strategy:         extensions_compressor_zstd_v3.Zstd_BTULTRA2,
+													ChunkSize:        wrapperspb.UInt32(8192),
+												}),
+											},
+										}),
+									},
+									// {
+									// 	Name:        "envoy.filters.generic.ssh.session_multiplexing",
+									// 	TypedConfig: marshalAny(&extensions_ssh_session_multiplexing.Config{}),
+									// },
 									{
 										Name: "envoy.filters.generic.router",
 										TypedConfig: marshalAny(&envoy_generic_router_v3.Router{
