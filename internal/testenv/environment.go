@@ -141,6 +141,13 @@ type Environment interface {
 	// can be used as the 'from' value for routes.
 	SubdomainURL(subdomain string) values.Value[string]
 
+	// SubdomainURL returns a string [values.Value] which will contain a complete
+	// URL for the given subdomain of the server's domain (given by its serving
+	// certificate), with the given scheme and the random http server port.
+	// This value will only be resolved some time after Start() is called, and
+	// can be used as the 'from' value for routes.
+	SubdomainURLWithScheme(subdomain, scheme string) values.Value[string]
+
 	// NewLogRecorder returns a new [*LogRecorder] and starts capturing logs for
 	// the Pomerium server and Envoy.
 	NewLogRecorder(opts ...LogRecorderOption) *LogRecorder
@@ -510,8 +517,12 @@ func (e *environment) Require() *require.Assertions {
 }
 
 func (e *environment) SubdomainURL(subdomain string) values.Value[string] {
+	return e.SubdomainURLWithScheme(subdomain, "https")
+}
+
+func (e *environment) SubdomainURLWithScheme(subdomain, scheme string) values.Value[string] {
 	return values.Bind(e.ports.ProxyHTTP, func(port int) string {
-		return fmt.Sprintf("https://%s.%s:%d", subdomain, e.domain, port)
+		return fmt.Sprintf("%s://%s.%s:%d", scheme, subdomain, e.domain, port)
 	})
 }
 
