@@ -15,6 +15,7 @@ import (
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
+	metrics_const "github.com/pomerium/pomerium/pkg/metrics"
 )
 
 const (
@@ -96,12 +97,17 @@ func (mgr *MetricsManager) updateServer(ctx context.Context, cfg *Config) {
 		return
 	}
 
+	var labels map[string]string
+	if cfg.Options.IsRuntimeFlagSet(RuntimeFlagAddExtraMetricsLabels) {
+		labels = getCommonLabels(mgr.installationID)
+	}
+
 	mgr.endpoints = append(cfg.MetricsScrapeEndpoints,
 		MetricsScrapeEndpoint{
 			Name: "envoy",
 			URL:  url.URL{Scheme: "http", Host: cfg.Options.MetricsAddr, Path: "/metrics/envoy"},
 		})
-	handler, err := metrics.PrometheusHandler(toInternalEndpoints(mgr.endpoints), mgr.installationID, defaultMetricsTimeout)
+	handler, err := metrics.PrometheusHandler(toInternalEndpoints(mgr.endpoints), defaultMetricsTimeout, labels)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("metrics: failed to create prometheus handler")
 		return
@@ -127,4 +133,18 @@ func toInternalEndpoints(src []MetricsScrapeEndpoint) []metrics.ScrapeEndpoint {
 		dst = append(dst, metrics.ScrapeEndpoint(e))
 	}
 	return dst
+}
+
+func getCommonLabels(installationID string) map[string]string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "__none__"
+	}
+	m := map[string]string{
+		metrics_const.HostnameLabel: hostname,
+	}
+	if installationID != "" {
+		m[metrics_const.InstallationIDLabel] = installationID
+	}
+	return m
 }

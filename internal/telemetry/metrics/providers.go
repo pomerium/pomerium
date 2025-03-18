@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -22,7 +21,6 @@ import (
 
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/telemetry/prometheus"
-	"github.com/pomerium/pomerium/pkg/metrics"
 )
 
 // EnvoyMetricsPath is the path on the metrics listener that retrieves envoy metrics.
@@ -44,7 +42,7 @@ func (e *ScrapeEndpoint) String() string {
 
 // PrometheusHandler creates an exporter that exports stats to Prometheus
 // and returns a handler suitable for exporting metrics.
-func PrometheusHandler(endpoints []ScrapeEndpoint, installationID string, timeout time.Duration) (http.Handler, error) {
+func PrometheusHandler(endpoints []ScrapeEndpoint, timeout time.Duration, labels map[string]string) (http.Handler, error) {
 	exporter, err := getGlobalExporter()
 	if err != nil {
 		return nil, err
@@ -52,7 +50,7 @@ func PrometheusHandler(endpoints []ScrapeEndpoint, installationID string, timeou
 
 	mux := http.NewServeMux()
 
-	mux.Handle("/metrics", newProxyMetricsHandler(exporter, endpoints, installationID, timeout))
+	mux.Handle("/metrics", newProxyMetricsHandler(exporter, endpoints, timeout, labels))
 	return mux, nil
 }
 
@@ -96,12 +94,16 @@ func registerDefaultViews() error {
 
 // newProxyMetricsHandler creates a subrequest to the envoy control plane for metrics and
 // combines them with internal envoy-provided
-func newProxyMetricsHandler(exporter *ocprom.Exporter, endpoints []ScrapeEndpoint, installationID string, timeout time.Duration) http.HandlerFunc {
+func newProxyMetricsHandler(
+	exporter *ocprom.Exporter,
+	endpoints []ScrapeEndpoint,
+	timeout time.Duration,
+	labels map[string]string,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), timeout)
 		defer cancel()
 
-		labels := getCommonLabels(installationID)
 		if err := writeMetricsMux(ctx, w, append(
 			scrapeEndpoints(endpoints, labels),
 			ocExport("pomerium", exporter, r, labels)),
@@ -156,7 +158,7 @@ func writeMetricsResult(w io.Writer, res promProducerResult) error {
 		return fmt.Errorf("fetch: %w", res.err)
 	}
 	return errors.Join(
-		prometheus.Export(w, prometheus.AddLabels(prometheus.NewMetricFamilyStream(res.src), res.labels)),
+		prometheus.RelabelTextStream(w, res.src, res.labels),
 		res.src.Close(),
 	)
 }
@@ -228,18 +230,4 @@ func scrapeEndpoint(endpoint ScrapeEndpoint, extra map[string]string) promProduc
 			labels: labels,
 		}
 	}
-}
-
-func getCommonLabels(installationID string) map[string]string {
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "__none__"
-	}
-	m := map[string]string{
-		metrics.HostnameLabel: hostname,
-	}
-	if installationID != "" {
-		m[metrics.InstallationIDLabel] = installationID
-	}
-	return m
 }
