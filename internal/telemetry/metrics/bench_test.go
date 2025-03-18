@@ -12,7 +12,7 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
-	"github.com/zeebo/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestScrapeMetricsEndpoint(t *testing.T) {

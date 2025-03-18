@@ -46,6 +46,9 @@ func RelabelTextStream(dst io.Writer, src io.Reader, addLabels map[string]string
 		if errors.Is(err, io.EOF) {
 			break
 		}
+		if err != nil {
+			return err
+		}
 
 		if len(line) == 0 || line[0] == '#' {
 			if _, err := dst.Write(line); err != nil {
