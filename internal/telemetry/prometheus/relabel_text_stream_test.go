@@ -37,6 +37,26 @@ func (r *RepeatingReader) Read(p []byte) (n int, err error) {
 	return
 }
 
+func BenchmarkRelabelTestStream(b *testing.B) {
+	addLabels := map[string]string{"instance": "localhost:9090", "installation_id": "12345-67890-12345-67890"}
+	src := []byte(`
+# TYPE envoy_cluster_upstream_cx_total counter
+envoy_cluster_upstream_cx_total{service="pomerium-proxy",envoy_cluster_name="route-1",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb"} 2
+envoy_cluster_upstream_cx_total{service="pomerium-proxy",envoy_cluster_name="route-2",installation_id="aecd6525-9eaa-448d-93d9-6363c04b1ccb",hostname="pomerium-proxy-55589cc5f-fjhsb"} 3
+`)
+
+	b.Run("RelabelTextStream", func(b *testing.B) {
+		inputReader := NewRepeatingReader(src, b.N)
+		err := prometheus.RelabelTextStream(io.Discard, inputReader, addLabels)
+		require.NoError(b, err)
+	})
+	b.Run("Previous", func(b *testing.B) {
+		inputReader := NewRepeatingReader(src, b.N)
+		err := prometheus.Export(io.Discard, prometheus.AddLabels(prometheus.NewMetricFamilyStream(inputReader), addLabels))
+		require.NoError(b, err)
+	})
+}
+
 func TestRelabelTextStream(t *testing.T) {
 	testCases := []struct {
 		name      string
