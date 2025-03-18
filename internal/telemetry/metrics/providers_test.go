@@ -29,7 +29,7 @@ envoy_server_initialization_time_ms_bucket{le="1000"} 1
 }
 
 func getMetrics(t *testing.T, envoyURL *url.URL, header http.Header) []byte {
-	h, err := PrometheusHandler([]ScrapeEndpoint{{Name: "envoy", URL: *envoyURL}}, "test_installation_id", time.Second*20)
+	h, err := PrometheusHandler([]ScrapeEndpoint{{Name: "envoy", URL: *envoyURL}}, time.Second*20, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
