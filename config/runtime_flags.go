@@ -22,6 +22,9 @@ var (
 	// is deprecated pending removal in a future release, but this flag allows a temporary
 	// opt-out from the deprecation.
 	RuntimeFlagPomeriumJWTEndpoint = runtimeFlag("pomerium_jwt_endpoint", false)
+
+	// RuntimeFlagAddExtraMetricsLabels enables adding extra labels to metrics (host and installation id)
+	RuntimeFlagAddExtraMetricsLabels = runtimeFlag("add_extra_metrics_labels", true)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features
