@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"maps"
+	"slices"
 	"strings"
 )
 
@@ -24,22 +26,23 @@ func RelabelTextStream(dst io.Writer, src io.Reader, addLabels map[string]string
 		return err
 	}
 
-	var additionalLabelsBuilder strings.Builder
-	for k, v := range addLabels {
-		if additionalLabelsBuilder.Len() > 0 {
-			additionalLabelsBuilder.WriteByte(',')
+	var labelsBuilder strings.Builder
+	for _, k := range slices.Sorted(maps.Keys(addLabels)) {
+		v := addLabels[k]
+		if labelsBuilder.Len() > 0 {
+			labelsBuilder.WriteByte(',')
 		}
-		additionalLabelsBuilder.WriteString(k)
-		additionalLabelsBuilder.WriteString("=\"")
-		additionalLabelsBuilder.WriteString(v)
-		additionalLabelsBuilder.WriteString("\"")
+		labelsBuilder.WriteString(k)
+		labelsBuilder.WriteString("=\"")
+		labelsBuilder.WriteString(v)
+		labelsBuilder.WriteString("\"")
 	}
-	additionalLabels := []byte(additionalLabelsBuilder.String())
+	addedLabels := []byte(labelsBuilder.String())
 
-	scanner := bufio.NewReader(src)
+	r := bufio.NewReader(src)
 
 	for {
-		line, err := scanner.ReadSlice('\n')
+		line, err := r.ReadSlice('\n')
 		if errors.Is(err, io.EOF) {
 			break
 		}
@@ -64,7 +67,7 @@ func RelabelTextStream(dst io.Writer, src io.Reader, addLabels map[string]string
 
 		openBraceIdx := bytes.IndexByte(metricWithLabels, '{')
 		if openBraceIdx == -1 { // no labels
-			if err := writeMulti(dst, metricWithLabels, []byte("{"), additionalLabels, []byte("}"), value); err != nil {
+			if err := writeMulti(dst, metricWithLabels, []byte("{"), addedLabels, []byte("}"), value); err != nil {
 				return err
 			}
 			continue
@@ -83,11 +86,11 @@ func RelabelTextStream(dst io.Writer, src io.Reader, addLabels map[string]string
 		existingLabels := metricWithLabels[openBraceIdx+1 : closeBraceIdx]
 
 		if len(existingLabels) > 0 {
-			if err := writeMulti(dst, metricName, []byte("{"), existingLabels, []byte(","), additionalLabels, []byte("}"), value); err != nil {
+			if err := writeMulti(dst, metricName, []byte("{"), existingLabels, []byte(","), addedLabels, []byte("}"), value); err != nil {
 				return err
 			}
 		} else {
-			if err := writeMulti(dst, metricName, []byte("{"), additionalLabels, []byte("}"), value); err != nil {
+			if err := writeMulti(dst, metricName, []byte("{"), addedLabels, []byte("}"), value); err != nil {
 				return err
 			}
 		}
