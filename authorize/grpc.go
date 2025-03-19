@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -54,8 +55,11 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	// load the session
 	s, err := a.loadSession(ctx, hreq, req)
-	if err != nil {
-		return nil, err
+	if errors.Is(err, sessions.ErrInvalidSession) {
+		// ENG-2172: if this is an invalid session, don't evaluate policy, return forbidden
+		return a.deniedResponse(ctx, in, int32(http.StatusForbidden), http.StatusText(http.StatusForbidden), nil)
+	} else if err != nil {
+		return nil, fmt.Errorf("error loading session: %w", err)
 	}
 
 	// if there's a session or service account, load the user
@@ -122,6 +126,7 @@ func (a *Authorize) loadSession(
 			Str("request-id", requestID).
 			Err(err).
 			Msg("error creating session for incoming idp token")
+		return nil, err
 	}
 
 	sessionState, _ := a.state.Load().sessionStore.LoadSessionStateAndCheckIDP(hreq)
