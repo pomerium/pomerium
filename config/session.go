@@ -202,7 +202,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionAccessToken(
 		if err != nil {
 			return nil, fmt.Errorf("error verifying access token: %w", err)
 		} else if !res.Valid {
-			return nil, fmt.Errorf("invalid access token")
+			return nil, fmt.Errorf("%w: invalid access token", sessions.ErrInvalidSession)
 		}
 
 		s = c.newSessionFromIDPClaims(cfg, sessionID, res.Claims)
@@ -265,7 +265,7 @@ func (c *incomingIDPTokenSessionCreator) createSessionForIdentityToken(
 		if err != nil {
 			return nil, fmt.Errorf("error verifying identity token: %w", err)
 		} else if !res.Valid {
-			return nil, fmt.Errorf("invalid identity token")
+			return nil, fmt.Errorf("%w: invalid identity token", sessions.ErrInvalidSession)
 		}
 
 		s = c.newSessionFromIDPClaims(cfg, sessionID, res.Claims)
