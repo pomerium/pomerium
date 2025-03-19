@@ -31,9 +31,9 @@ import (
 type Protocol string
 
 const (
-	DialHttp1 Protocol = "http/1.1"
-	DialHttp2 Protocol = "h2"
-	DialHttp3 Protocol = "h3"
+	DialHTTP1 Protocol = "http/1.1"
+	DialHTTP2 Protocol = "h2"
+	DialHTTP3 Protocol = "h3"
 )
 
 type RequestOptions struct {
@@ -253,7 +253,7 @@ func (h *httpUpstream) HandleWS(path string, upgrader websocket.Upgrader, f func
 		if err != nil {
 			span.SetStatus(codes.Error, err.Error())
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(err.Error()))
+			_, _ = w.Write([]byte(err.Error()))
 			return
 		}
 		defer c.Close()
@@ -463,8 +463,9 @@ func (h *httpUpstream) DialWS(r testenv.Route, f func(conn *websocket.Conn) erro
 	if options.dialerHook != nil {
 		d, u = options.dialerHook(d, u)
 	}
-	conn, _, err := d.DialContext(options.requestCtx, u.String(), nil)
+	conn, resp, err := d.DialContext(options.requestCtx, u.String(), nil)
 	if err != nil {
+		resp.Body.Close()
 		return fmt.Errorf("DialContext: %w", err)
 	}
 	defer conn.Close()

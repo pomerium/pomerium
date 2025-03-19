@@ -159,7 +159,7 @@ type rwConn struct {
 	wg        *sync.WaitGroup
 }
 
-func NewRWConn(reader io.ReadCloser, writer io.WriteCloser) *rwConn {
+func NewRWConn(reader io.ReadCloser, writer io.WriteCloser) net.Conn {
 	rwc := &rwConn{
 		serverReader: reader,
 		serverWriter: writer,
@@ -170,12 +170,12 @@ func NewRWConn(reader io.ReadCloser, writer io.WriteCloser) *rwConn {
 	rwc.wg.Add(2)
 	go func() {
 		defer rwc.wg.Done()
-		io.Copy(rwc.remote, rwc.serverReader)
+		_, _ = io.Copy(rwc.remote, rwc.serverReader)
 		rwc.remote.Close()
 	}()
 	go func() {
 		defer rwc.wg.Done()
-		io.Copy(rwc.serverWriter, rwc.remote)
+		_, _ = io.Copy(rwc.serverWriter, rwc.remote)
 		rwc.serverWriter.Close()
 	}()
 	return rwc

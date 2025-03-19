@@ -66,11 +66,11 @@ func WithEnableTLS(enableTLS bool) IDPOption {
 func (idp *IDP) Attach(ctx context.Context) {
 	env := testenv.EnvFromContext(ctx)
 
-	idpUrl := env.SubdomainURL("mock-idp")
+	idpURL := env.SubdomainURL("mock-idp")
 
 	var tlsConfig values.Value[*tls.Config]
 	if idp.enableTLS {
-		tlsConfig = values.Bind(idpUrl, func(urlStr string) *tls.Config {
+		tlsConfig = values.Bind(idpURL, func(urlStr string) *tls.Config {
 			u, _ := url.Parse(urlStr)
 			cert := env.NewServerCert(&x509.Certificate{
 				DNSNames: []string{u.Hostname()},
@@ -85,7 +85,7 @@ func (idp *IDP) Attach(ctx context.Context) {
 
 	router := upstreams.HTTP(tlsConfig, upstreams.WithDisplayName("IDP"))
 
-	idp.url = values.Bind2(idpUrl, router.Addr(), func(urlStr string, addr string) string {
+	idp.url = values.Bind2(idpURL, router.Addr(), func(urlStr string, addr string) string {
 		u, _ := url.Parse(urlStr)
 		host, _, _ := net.SplitHostPort(u.Host)
 		_, port, err := net.SplitHostPort(addr)

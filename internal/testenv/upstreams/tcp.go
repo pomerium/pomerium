@@ -75,7 +75,7 @@ func TCP(opts ...TCPUpstreamOption) TCPUpstream {
 func (t *tcpUpstream) Dial(r testenv.Route, clientHandler func(context.Context, net.Conn) error, opts ...RequestOption) error {
 	options := RequestOptions{
 		requestCtx:   t.Env().Context(),
-		dialProtocol: DialHttp1,
+		dialProtocol: DialHTTP1,
 	}
 	options.apply(opts...)
 	u, err := url.Parse(r.URL().Value())
@@ -102,53 +102,52 @@ func (t *tcpUpstream) Dial(r testenv.Route, clientHandler func(context.Context, 
 	var remoteConn *tls.Conn
 	remoteWriter := make(chan *io.PipeWriter, 1)
 
-	connectUrl := &url.URL{Scheme: "https", Host: u.Host, Path: u.Path}
+	connectURL := &url.URL{Scheme: "https", Host: u.Host, Path: u.Path}
 
 	var getClientFn func(context.Context) *http.Client
 	var newRequestFn func(ctx context.Context) (*http.Request, error)
 	switch options.dialProtocol {
-	case DialHttp1:
-		getClientFn = t.h1Dialer(&options, connectUrl, &remoteConn)
+	case DialHTTP1:
+		getClientFn = t.h1Dialer(&options, connectURL, &remoteConn)
 		newRequestFn = func(ctx context.Context) (*http.Request, error) {
 			req := (&http.Request{
-				Method: "CONNECT",
-				URL:    connectUrl,
+				Method: http.MethodConnect,
+				URL:    connectURL,
 				Host:   u.Host,
 			}).WithContext(ctx)
 			return req, nil
 		}
-	case DialHttp2:
-		getClientFn = t.h2Dialer(&options, connectUrl, &remoteConn, remoteWriter)
+	case DialHTTP2:
+		getClientFn = t.h2Dialer(&options, connectURL, &remoteConn, remoteWriter)
 		newRequestFn = func(ctx context.Context) (*http.Request, error) {
 			req := (&http.Request{
-				Method: "CONNECT",
-				URL:    connectUrl,
+				Method: http.MethodConnect,
+				URL:    connectURL,
 				Host:   u.Host,
 				Proto:  "HTTP/2",
 			}).WithContext(ctx)
 			return req, nil
 		}
-	case DialHttp3:
+	case DialHTTP3:
 		panic("not implemented")
 	}
 	resp, err := doAuthenticatedRequest(options.requestCtx, newRequestFn, getClientFn, &options)
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
 		return errors.New(resp.Status)
 	}
 	if resp.Request.URL.Path == "/oidc/auth" {
 		if options.authenticateAs == "" {
 			return errors.New("test bug: unexpected IDP redirect; missing AuthenticateAs option to Dial()")
-		} else {
-			return errors.New("internal test bug: unexpected IDP redirect")
 		}
+		return errors.New("internal test bug: unexpected IDP redirect")
 	}
 
 	var w io.WriteCloser = remoteConn
-	if options.dialProtocol == DialHttp2 {
+	if options.dialProtocol == DialHTTP2 {
 		w = <-remoteWriter
 	}
 
@@ -159,11 +158,11 @@ func (t *tcpUpstream) Dial(r testenv.Route, clientHandler func(context.Context, 
 
 func (t *tcpUpstream) h1Dialer(
 	options *RequestOptions,
-	connectUrl *url.URL,
+	connectURL *url.URL,
 	remoteConn **tls.Conn,
-) func(ctx context.Context) *http.Client {
+) func(context.Context) *http.Client {
 	jar, _ := cookiejar.New(nil)
-	return func(ctx context.Context) *http.Client {
+	return func(context.Context) *http.Client {
 		tlsConfig := &tls.Config{
 			RootCAs:      t.Env().ServerCAs(),
 			Certificates: options.clientCerts,
@@ -194,8 +193,8 @@ func (t *tcpUpstream) h1Dialer(
 				},
 				TLSClientConfig: tlsConfig, // important
 			},
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				if req.URL.String() == connectUrl.String() && req.Method == http.MethodGet {
+			CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+				if req.URL.String() == connectURL.String() && req.Method == http.MethodGet {
 					req.Method = http.MethodConnect
 				}
 				return nil
@@ -208,12 +207,12 @@ func (t *tcpUpstream) h1Dialer(
 
 func (t *tcpUpstream) h2Dialer(
 	options *RequestOptions,
-	connectUrl *url.URL,
+	connectURL *url.URL,
 	remoteConn **tls.Conn,
 	writer chan<- *io.PipeWriter,
-) func(ctx context.Context) *http.Client {
+) func(context.Context) *http.Client {
 	jar, _ := cookiejar.New(nil)
-	return func(ctx context.Context) *http.Client {
+	return func(context.Context) *http.Client {
 		h1 := &http.Transport{
 			ForceAttemptHTTP2: true,
 			DisableKeepAlives: true,
@@ -248,11 +247,13 @@ func (t *tcpUpstream) h2Dialer(
 				NextProtos:   []string{"h2"},
 			},
 		}
-		http2.ConfigureTransport(h1)
+		if err := http2.ConfigureTransport(h1); err != nil {
+			panic(err)
+		}
 		client := &http.Client{
 			Transport: h1,
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				if req.URL.String() == connectUrl.String() && req.Method == http.MethodGet {
+			CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+				if req.URL.String() == connectURL.String() && req.Method == http.MethodGet {
 					pr, pw := io.Pipe()
 					req.Method = http.MethodConnect
 					req.Body = pr

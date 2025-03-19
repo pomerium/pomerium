@@ -139,7 +139,7 @@ func TestTCPTunnel(t *testing.T) {
 		}).
 		PPL(`{"allow":{"and":["email":{"is":"test@example.com"}]}}`)
 
-	up.Handle(func(ctx context.Context, c net.Conn) error {
+	up.Handle(func(_ context.Context, c net.Conn) error {
 		c.SetReadDeadline(time.Now().Add(1 * time.Second))
 		buf := make([]byte, 8)
 		n, err := c.Read(buf)
@@ -157,7 +157,7 @@ func TestTCPTunnel(t *testing.T) {
 	snippets.WaitStartupComplete(env)
 
 	t.Run("http1", func(t *testing.T) {
-		assert.NoError(t, up.Dial(routeH1, func(ctx context.Context, c net.Conn) error {
+		assert.NoError(t, up.Dial(routeH1, func(_ context.Context, c net.Conn) error {
 			c.SetWriteDeadline(time.Now().Add(1 * time.Second))
 			_, err := c.Write([]byte("hello"))
 			require.NoError(t, err)
@@ -169,11 +169,11 @@ func TestTCPTunnel(t *testing.T) {
 
 			assert.Equal(t, string(buf[:n]), "world")
 			return nil
-		}, upstreams.AuthenticateAs("test@example.com"), upstreams.DialProtocol(upstreams.DialHttp1)))
+		}, upstreams.AuthenticateAs("test@example.com"), upstreams.DialProtocol(upstreams.DialHTTP1)))
 	})
 
 	t.Run("http2", func(t *testing.T) {
-		assert.NoError(t, up.Dial(routeH2, func(ctx context.Context, c net.Conn) error {
+		assert.NoError(t, up.Dial(routeH2, func(_ context.Context, c net.Conn) error {
 			c.SetWriteDeadline(time.Now().Add(1 * time.Second))
 			_, err := c.Write([]byte("hello"))
 			require.NoError(t, err)
@@ -185,7 +185,7 @@ func TestTCPTunnel(t *testing.T) {
 
 			assert.Equal(t, string(buf[:n]), "world")
 			return nil
-		}, upstreams.AuthenticateAs("test@example.com"), upstreams.DialProtocol(upstreams.DialHttp2)))
+		}, upstreams.AuthenticateAs("test@example.com"), upstreams.DialProtocol(upstreams.DialHTTP2)))
 	})
 }
 
@@ -204,7 +204,7 @@ func BenchmarkHTTP1TCPTunnel(b *testing.B) {
 	b.Run("http1", func(b *testing.B) {
 		benchmarkTCP(b, up, h1, tcpBenchmarkParams{
 			msgLen:   512,
-			protocol: upstreams.DialHttp1,
+			protocol: upstreams.DialHTTP1,
 		})
 	})
 }
@@ -228,7 +228,7 @@ func BenchmarkHTTP2TCPTunnel(b *testing.B) {
 	b.Run("http2", func(b *testing.B) {
 		benchmarkTCP(b, up, h2, tcpBenchmarkParams{
 			msgLen:   512,
-			protocol: upstreams.DialHttp2,
+			protocol: upstreams.DialHTTP2,
 		})
 	})
 }
@@ -263,7 +263,7 @@ func benchmarkTCP(b *testing.B, up upstreams.TCPUpstream, route testenv.Route, p
 		}
 		return nil
 	}
-	up.Handle(func(ctx context.Context, c net.Conn) error {
+	up.Handle(func(_ context.Context, c net.Conn) error {
 		for {
 			buf := make([]byte, params.msgLen)
 			if err := recvMsg(c, buf[:]); err != nil {
@@ -286,7 +286,7 @@ func benchmarkTCP(b *testing.B, up upstreams.TCPUpstream, route testenv.Route, p
 	start := time.Now()
 	b.RunParallel(func(p *testing.PB) {
 		threads.Add(1)
-		require.NoError(b, up.Dial(route, func(ctx context.Context, c net.Conn) error {
+		require.NoError(b, up.Dial(route, func(_ context.Context, c net.Conn) error {
 			buf := make([]byte, params.msgLen)
 			for p.Next() {
 				requests.Add(1)
