@@ -48,7 +48,7 @@ func TestQueryTracing(t *testing.T) {
 		snippets.WaitStartupComplete(env)
 
 		resp, err := up.Get(route, upstreams.AuthenticateAs("user@example.com"), upstreams.Path("/foo"))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		io.ReadAll(resp.Body)
 		resp.Body.Close()
 

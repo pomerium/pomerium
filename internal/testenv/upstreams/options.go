@@ -15,6 +15,7 @@ type CommonUpstreamOptions struct {
 type CommonUpstreamOption interface {
 	GRPCUpstreamOption
 	HTTPUpstreamOption
+	TCPUpstreamOption
 }
 
 type commonUpstreamOption func(o *CommonUpstreamOptions)
@@ -24,6 +25,9 @@ func (c commonUpstreamOption) applyGRPC(o *GRPCUpstreamOptions) { c(&o.CommonUps
 
 // applyHTTP implements CommonUpstreamOption.
 func (c commonUpstreamOption) applyHTTP(o *HTTPUpstreamOptions) { c(&o.CommonUpstreamOptions) }
+
+// applyTCP implements CommonUpstreamOption.
+func (c commonUpstreamOption) applyTCP(o *TCPUpstreamOptions) { c(&o.CommonUpstreamOptions) }
 
 func WithDisplayName(displayName string) CommonUpstreamOption {
 	return commonUpstreamOption(func(o *CommonUpstreamOptions) {
