@@ -200,7 +200,11 @@ func (s *Store) GetDataBrokerRecord(ctx context.Context, recordType, recordIDOrI
 
 	res, err := storage.GetQuerier(ctx).Query(ctx, req, grpc.WaitForReady(true))
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("authorize/store: error retrieving record")
+		log.Ctx(ctx).Error().
+			Str("record-type", recordType).
+			Str("record-id-or-index", recordIDOrIndex).
+			Err(err).
+			Msg("authorize/store: error retrieving record")
 		return nil
 	}
 

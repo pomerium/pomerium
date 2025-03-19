@@ -31,6 +31,10 @@ type PolicyResponse struct {
 	Traces      []contextutil.PolicyEvaluationTrace
 }
 
+func (r *PolicyResponse) Allowed() bool {
+	return r.Allow.Value && !r.Deny.Value
+}
+
 // NewPolicyResponse creates a new PolicyResponse.
 func NewPolicyResponse() *PolicyResponse {
 	return &PolicyResponse{

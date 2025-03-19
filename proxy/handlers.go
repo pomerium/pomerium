@@ -168,7 +168,7 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 
 func (p *Proxy) DeviceAuthLogin(w http.ResponseWriter, r *http.Request) error {
 	state := p.state.Load()
-	options := p.currentOptions.Load()
+	options := p.currentConfig.Load().Options
 
 	params := url.Values{}
 	routeUri := urlutil.GetAbsoluteURL(r)

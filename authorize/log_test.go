@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	envoy_config_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 
@@ -24,27 +22,18 @@ func Test_populateLogEvent(t *testing.T) {
 	ctx := context.Background()
 	ctx = requestid.WithValue(ctx, "REQUEST-ID")
 
-	checkRequest := &envoy_service_auth_v3.CheckRequest{
-		Attributes: &envoy_service_auth_v3.AttributeContext{
-			Request: &envoy_service_auth_v3.AttributeContext_Request{
-				Http: &envoy_service_auth_v3.AttributeContext_HttpRequest{
-					Host:   "HOST",
-					Path:   "https://www.example.com/some/path?a=b",
-					Method: "GET",
-				},
+	request := &evaluator.Request{
+		HTTP: evaluator.RequestHTTP{
+			Method:   "GET",
+			Hostname: "HOST",
+			Path:     "/some/path",
+			Query:    "a=b",
+			Headers: map[string]string{
+				"X-Request-Id": "CHECK-REQUEST-ID",
 			},
-			Source: &envoy_service_auth_v3.AttributeContext_Peer{
-				Address: &envoy_config_core_v3.Address{
-					Address: &envoy_config_core_v3.Address_SocketAddress{
-						SocketAddress: &envoy_config_core_v3.SocketAddress{
-							Address: "127.0.0.1",
-						},
-					},
-				},
-			},
+			IP: "127.0.0.1",
 		},
 	}
-	headers := map[string]string{"X-Request-Id": "CHECK-REQUEST-ID"}
 	s := &session.Session{
 		Id: "SESSION-ID",
 		IdToken: &session.IDToken{
@@ -86,7 +75,7 @@ func Test_populateLogEvent(t *testing.T) {
 		{log.AuthorizeLogFieldImpersonateUserID, s, `{"impersonate-user-id":"IMPERSONATE-USER-ID"}`},
 		{log.AuthorizeLogFieldIP, s, `{"ip":"127.0.0.1"}`},
 		{log.AuthorizeLogFieldMethod, s, `{"method":"GET"}`},
-		{log.AuthorizeLogFieldPath, s, `{"path":"https://www.example.com/some/path"}`},
+		{log.AuthorizeLogFieldPath, s, `{"path":"/some/path"}`},
 		{log.AuthorizeLogFieldQuery, s, `{"query":"a=b"}`},
 		{log.AuthorizeLogFieldRemovedGroupsCount, s, `{"removed-groups-count":42}`},
 		{log.AuthorizeLogFieldRequestID, s, `{"request-id":"REQUEST-ID"}`},
@@ -104,7 +93,7 @@ func Test_populateLogEvent(t *testing.T) {
 			var buf bytes.Buffer
 			log := zerolog.New(&buf)
 			evt := log.Log()
-			evt = populateLogEvent(ctx, tc.field, evt, checkRequest, tc.s, u, headers, impersonateDetails, res)
+			evt = populateLogEvent(ctx, tc.field, evt, request, tc.s, u, impersonateDetails, res)
 			evt.Send()
 
 			assert.Equal(t, tc.expect, strings.TrimSpace(buf.String()))

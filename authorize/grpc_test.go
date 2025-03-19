@@ -88,7 +88,7 @@ func Test_getEvaluatorRequest(t *testing.T) {
 				},
 			},
 		},
-	)
+		nil)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
 		Policy: &a.currentConfig.Load().Options.Policies[0],
@@ -140,7 +140,7 @@ func Test_getEvaluatorRequestWithPortInHostHeader(t *testing.T) {
 					},
 				},
 			},
-		})
+		}, nil)
 	require.NoError(t, err)
 	expect := &evaluator.Request{
 		Policy:  &a.currentConfig.Load().Options.Policies[0],

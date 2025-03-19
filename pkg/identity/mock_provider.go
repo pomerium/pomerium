@@ -63,7 +63,6 @@ func (mp MockProvider) SignIn(_ http.ResponseWriter, _ *http.Request, _ string) 
 	return mp.SignInError
 }
 
-<<<<<<< HEAD
 // VerifyAccessToken verifies an access token.
 func (mp MockProvider) VerifyAccessToken(_ context.Context, _ string) (claims map[string]any, err error) {
 	return nil, fmt.Errorf("VerifyAccessToken not implemented")
@@ -72,8 +71,8 @@ func (mp MockProvider) VerifyAccessToken(_ context.Context, _ string) (claims ma
 // VerifyIdentityToken verifies an identity token.
 func (mp MockProvider) VerifyIdentityToken(_ context.Context, _ string) (claims map[string]any, err error) {
 	return nil, fmt.Errorf("VerifyIdentityToken not implemented")
-||||||| 229ef72e5
-=======
+}
+
 // DeviceAccessToken implements Authenticator.
 func (mp MockProvider) DeviceAccessToken(ctx context.Context, r *oauth2.DeviceAuthResponse, state identity.State) (*oauth2.Token, error) {
 	return &mp.DeviceAccessTokenResponse, mp.DeviceAccessTokenError
@@ -82,5 +81,4 @@ func (mp MockProvider) DeviceAccessToken(ctx context.Context, r *oauth2.DeviceAu
 // DeviceAuth implements Authenticator.
 func (mp MockProvider) DeviceAuth(_ context.Context) (*oauth2.DeviceAuthResponse, error) {
 	return &mp.DeviceAuthResponse, mp.DeviceAuthError
->>>>>>> kralicky/ssh-demo
 }

@@ -12,6 +12,8 @@ import (
 	"github.com/rs/zerolog"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/authorize/evaluator"
@@ -19,11 +21,16 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/log"
+	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/storage"
+	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 )
 
 // Authorize struct holds
@@ -180,4 +187,67 @@ func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 			a.groupsCacheWarmer.UpdateConn(newState.dataBrokerClientConnection)
 		}
 	}
+}
+
+type evaluateResult struct {
+	// Overall allow/deny result.
+	Allowed bool
+
+	// Reasons for the overall result.
+	Reasons criteria.Reasons
+
+	// Reason detail traces. (Populated only if enabled by the policy.)
+	Traces []contextutil.PolicyEvaluationTrace
+}
+
+func (a *Authorize) evaluate(
+	ctx context.Context,
+	req *evaluator.Request,
+	sessionState *sessions.State,
+) (*evaluator.Result, error) {
+	querier := storage.NewCachingQuerier(
+		storage.NewQuerier(a.state.Load().dataBrokerClient),
+		a.globalCache,
+	)
+	ctx = storage.WithQuerier(ctx, querier)
+
+	requestID := requestid.FromContext(ctx)
+
+	state := a.state.Load()
+
+	var s sessionOrServiceAccount
+	var u *user.User
+	var err error
+	if sessionState != nil {
+		s, err = a.getDataBrokerSessionOrServiceAccount(ctx, sessionState.ID, sessionState.DatabrokerRecordVersion)
+		if status.Code(err) == codes.Unavailable {
+			log.Ctx(ctx).Debug().Str("request-id", requestID).Err(err).Msg("temporary error checking authorization: data broker unavailable")
+			return nil, err
+		} else if err != nil {
+			log.Ctx(ctx).Info().Err(err).Str("request-id", requestID).Msg("missing or invalid session or service account")
+			sessionState = nil
+		}
+	}
+	if sessionState != nil && s != nil {
+		u, _ = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
+	}
+
+	res, err := state.evaluator.Evaluate(ctx, req)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("error during OPA evaluation")
+		return nil, err
+	}
+
+	a.logAuthorizeCheck(ctx, req, res, s, u)
+
+	/*result := &evaluateResult{
+		Allowed: res.Allow.Value && !res.Deny.Value,
+	}
+
+	// if show error details is enabled, attach the policy evaluation traces
+	if req.Policy != nil && req.Policy.ShowErrorDetails {
+		result.Traces = res.Traces
+	}*/
+
+	return res, nil
 }

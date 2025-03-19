@@ -18,9 +18,7 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/urlutil"
-	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"google.golang.org/grpc/codes"
@@ -33,12 +31,6 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	ctx, span := a.tracer.Start(ctx, "authorize.grpc.Check")
 	defer span.End()
 
-	querier := storage.NewCachingQuerier(
-		storage.NewQuerier(a.state.Load().dataBrokerClient),
-		a.globalCache,
-	)
-	ctx = storage.WithQuerier(ctx, querier)
-
 	state := a.state.Load()
 
 	// convert the incoming envoy-style http request into a go-style http request
@@ -46,41 +38,24 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 	requestID := requestid.FromHTTPHeader(hreq.Header)
 	ctx = requestid.WithValue(ctx, requestID)
 
-	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in)
+	sessionState, _ := state.sessionStore.LoadSessionStateAndCheckIDP(hreq)
+
+	req, err := a.getEvaluatorRequestFromCheckRequest(ctx, in, sessionState)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("error building evaluator request")
 		return nil, err
 	}
 
-	// load the session
-	s, err := a.loadSession(ctx, hreq, req)
-	if err != nil {
-		return nil, err
-	}
-
-	// if there's a session or service account, load the user
-	var u *user.User
-	if s != nil {
-		req.Session.ID = s.GetId()
-		u, _ = a.getDataBrokerUser(ctx, s.GetUserId()) // ignore any missing user error
-	}
-
-	res, err := state.evaluator.Evaluate(ctx, req)
+	res, err := a.evaluate(ctx, req, sessionState)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("error during OPA evaluation")
 		return nil, err
-	}
-
-	// if show error details is enabled, attach the policy evaluation traces
-	if req.Policy != nil && req.Policy.ShowErrorDetails {
-		ctx = contextutil.WithPolicyEvaluationTraces(ctx, res.Traces)
 	}
 
 	resp, err := a.handleResult(ctx, in, req, res)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("request-id", requestID).Msg("grpc check ext_authz_error")
 	}
-	a.logAuthorizeCheck(ctx, in, res, s, u)
 	return resp, err
 }
 
@@ -144,6 +119,7 @@ func (a *Authorize) loadSession(
 func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 	ctx context.Context,
 	in *envoy_service_auth_v3.CheckRequest,
+	sessionState *sessions.State,
 ) (*evaluator.Request, error) {
 	requestURL := getCheckRequestURL(in)
 	attrs := in.GetAttributes()
@@ -157,6 +133,11 @@ func (a *Authorize) getEvaluatorRequestFromCheckRequest(
 			getClientCertificateInfo(ctx, clientCertMetadata),
 			attrs.GetSource().GetAddress().GetSocketAddress().GetAddress(),
 		),
+	}
+	if sessionState != nil {
+		req.Session = evaluator.RequestSession{
+			ID: sessionState.ID,
+		}
 	}
 	req.Policy = a.getMatchingPolicy(envoyconfig.ExtAuthzContextExtensionsRouteID(attrs.GetContextExtensions()))
 	return req, nil
