@@ -1509,8 +1509,6 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	if settings.IdpAccessTokenAllowedAudiences != nil {
 		values := slices.Clone(settings.IdpAccessTokenAllowedAudiences.Values)
 		o.IDPAccessTokenAllowedAudiences = &values
-	} else {
-		o.IDPAccessTokenAllowedAudiences = nil
 	}
 	setSlice(&o.AuthorizeURLStrings, settings.AuthorizeServiceUrls)
 	set(&o.AuthorizeInternalURLString, settings.AuthorizeInternalServiceUrl)
@@ -1520,7 +1518,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.SigningKey, settings.SigningKey)
 	setMap(&o.SetResponseHeaders, settings.SetResponseHeaders)
 	setMap(&o.JWTClaimsHeaders, settings.JwtClaimsHeaders)
-	o.BearerTokenFormat = BearerTokenFormatFromPB(settings.BearerTokenFormat)
+	setOptional(&o.BearerTokenFormat, BearerTokenFormatFromPB(settings.BearerTokenFormat))
 	if len(settings.JwtGroupsFilter) > 0 {
 		o.JWTGroupsFilter = NewJWTGroupsFilter(settings.JwtGroupsFilter)
 	}
