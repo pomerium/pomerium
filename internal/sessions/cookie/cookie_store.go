@@ -46,7 +46,7 @@ type Options struct {
 }
 
 // A GetOptionsFunc is a getter for cookie options.
-type GetOptionsFunc func() Options
+type GetOptionsFunc func(r *http.Request) Options
 
 // Store implements the session store interface for session cookies.
 type Store struct {
@@ -83,8 +83,8 @@ func newStore(getOptions GetOptionsFunc) *Store {
 	}
 }
 
-func (cs *Store) makeCookie(value string) *http.Cookie {
-	opts := cs.getOptions()
+func (cs *Store) makeCookie(value string, r *http.Request) *http.Cookie {
+	opts := cs.getOptions(r)
 	return &http.Cookie{
 		Name:     opts.Name,
 		Value:    value,
@@ -99,7 +99,7 @@ func (cs *Store) makeCookie(value string) *http.Cookie {
 
 // ClearSession clears the session cookie from a request
 func (cs *Store) ClearSession(w http.ResponseWriter, _ *http.Request) {
-	c := cs.makeCookie("")
+	c := cs.makeCookie("", &http.Request{})
 	c.MaxAge = -1
 	c.Expires = timeNow().Add(-time.Hour)
 	http.SetCookie(w, c)
@@ -118,7 +118,7 @@ func getCookies(r *http.Request, name string) []*http.Cookie {
 
 // LoadSession returns a State from the cookie in the request.
 func (cs *Store) LoadSession(r *http.Request) (string, error) {
-	opts := cs.getOptions()
+	opts := cs.getOptions(r)
 	cookies := getCookies(r, opts.Name)
 	if len(cookies) == 0 {
 		return "", sessions.ErrNoSessionFound
@@ -136,7 +136,7 @@ func (cs *Store) LoadSession(r *http.Request) (string, error) {
 }
 
 // SaveSession saves a session state to a request's cookie store.
-func (cs *Store) SaveSession(w http.ResponseWriter, _ *http.Request, x any) error {
+func (cs *Store) SaveSession(w http.ResponseWriter, r *http.Request, x any) error {
 	var value string
 	switch v := x.(type) {
 	case []byte:
@@ -154,12 +154,12 @@ func (cs *Store) SaveSession(w http.ResponseWriter, _ *http.Request, x any) erro
 		value = string(data)
 	}
 
-	cs.setSessionCookie(w, value)
+	cs.setSessionCookie(w, value, r)
 	return nil
 }
 
-func (cs *Store) setSessionCookie(w http.ResponseWriter, val string) {
-	cs.setCookie(w, cs.makeCookie(val))
+func (cs *Store) setSessionCookie(w http.ResponseWriter, val string, r *http.Request) {
+	cs.setCookie(w, cs.makeCookie(val, r))
 }
 
 func (cs *Store) setCookie(w http.ResponseWriter, cookie *http.Cookie) {

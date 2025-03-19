@@ -117,7 +117,7 @@ func newAuthenticateStateFromConfig(
 		return nil, err
 	}
 
-	cookieStore, err := cookie.NewStore(func() cookie.Options {
+	cookieStore, err := cookie.NewStore(func(_ *http.Request) cookie.Options {
 		return cookie.Options{
 			Name:     cfg.Options.CookieName + "_authenticate",
 			Domain:   cfg.Options.CookieDomain,
