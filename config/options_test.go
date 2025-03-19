@@ -924,6 +924,8 @@ func TestOptions_GetAllRouteableHTTPHosts(t *testing.T) {
 }
 
 func TestOptions_ApplySettings(t *testing.T) {
+	t.Parallel()
+
 	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second)
 	defer clearTimeout()
 
@@ -1002,6 +1004,34 @@ func TestOptions_ApplySettings(t *testing.T) {
 			JwtIssuerFormat: configpb.IssuerFormat_IssuerHostOnly.Enum(),
 		})
 		assert.Equal(t, JWTIssuerFormatHostOnly, options.JWTIssuerFormat)
+	})
+
+	t.Run("bearer_token_format", func(t *testing.T) {
+		t.Parallel()
+
+		options := NewDefaultOptions()
+		assert.Nil(t, options.BearerTokenFormat)
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			BearerTokenFormat: configpb.BearerTokenFormat_BEARER_TOKEN_FORMAT_DEFAULT.Enum(),
+		})
+		assert.Equal(t, ptr(BearerTokenFormatDefault), options.BearerTokenFormat)
+
+		options.ApplySettings(ctx, nil, &configpb.Settings{})
+		assert.Equal(t, ptr(BearerTokenFormatDefault), options.BearerTokenFormat, "should preserve existing bearer token format")
+	})
+
+	t.Run("idp_access_token_allowed_audiences", func(t *testing.T) {
+		t.Parallel()
+
+		options := NewDefaultOptions()
+		assert.Nil(t, options.IDPAccessTokenAllowedAudiences)
+		options.ApplySettings(ctx, nil, &configpb.Settings{
+			IdpAccessTokenAllowedAudiences: &configpb.Settings_StringList{Values: []string{"x", "y", "z"}},
+		})
+		assert.Equal(t, ptr([]string{"x", "y", "z"}), options.IDPAccessTokenAllowedAudiences)
+		options.ApplySettings(ctx, nil, &configpb.Settings{})
+		assert.Equal(t, ptr([]string{"x", "y", "z"}), options.IDPAccessTokenAllowedAudiences,
+			"should preserve idp access token allowed audiences")
 	})
 }
 
@@ -1761,4 +1791,8 @@ func must[T any](t T, err error) T {
 		panic(err)
 	}
 	return t
+}
+
+func ptr[T any](v T) *T {
+	return &v
 }
