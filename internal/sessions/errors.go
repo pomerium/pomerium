@@ -8,6 +8,9 @@ var (
 	// ErrNoSessionFound is the error for when no session is found.
 	ErrNoSessionFound = errors.New("internal/sessions: session is not found")
 
+	// ErrInvalidSession is the error for when a session is invalid.
+	ErrInvalidSession = errors.New("internal/sessions: invalid session")
+
 	// ErrMalformed is the error for when a session is found but is malformed.
 	ErrMalformed = errors.New("internal/sessions: session is malformed")
 
