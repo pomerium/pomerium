@@ -214,6 +214,11 @@ func (b *Builder) buildRoutesForPoliciesWithCatchAll(
 			return nil, err
 		}
 
+		// TODO
+		if fromURL.Scheme == "ssh" {
+			continue
+		}
+
 		if !strings.Contains(fromURL.Host, "*") {
 			continue
 		}

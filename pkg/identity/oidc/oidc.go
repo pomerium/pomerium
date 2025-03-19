@@ -49,6 +49,8 @@ type Provider struct {
 	// to the request flow signin url.
 	AuthCodeOptions map[string]string
 
+	DeviceAuthClientType string
+
 	mu       sync.Mutex
 	provider *go_oidc.Provider
 }
@@ -65,6 +67,9 @@ func New(ctx context.Context, o *oauth.Options, options ...Option) (*Provider, e
 	}
 	if len(o.AuthCodeOptions) != 0 {
 		p.AuthCodeOptions = o.AuthCodeOptions
+	}
+	if o.DeviceAuthClientType != "" {
+		p.DeviceAuthClientType = o.DeviceAuthClientType
 	}
 
 	p.cfg = getConfig(append([]Option{
@@ -121,6 +126,67 @@ func (p *Provider) SignIn(w http.ResponseWriter, r *http.Request, state string) 
 	signInURL := oa.AuthCodeURL(state, opts...)
 	httputil.Redirect(w, r, signInURL, http.StatusFound)
 	return nil
+}
+
+func (p *Provider) DeviceAuth(ctx context.Context) (*oauth2.DeviceAuthResponse, error) {
+	oa, err := p.GetOauthConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	opts := defaultAuthCodeOptions
+	for k, v := range p.AuthCodeOptions {
+		opts = append(opts, oauth2.SetAuthURLParam(k, v))
+	}
+	switch p.DeviceAuthClientType {
+	case "", "public":
+	case "confidential":
+		opts = append(opts, oauth2.SetAuthURLParam("client_secret", oa.ClientSecret))
+	}
+
+	resp, err := oa.DeviceAuth(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (p *Provider) DeviceAccessToken(ctx context.Context, da *oauth2.DeviceAuthResponse, v identity.State) (*oauth2.Token, error) {
+	oa, err := p.GetOauthConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	oauth2Token, err := oa.DeviceAccessToken(ctx, da)
+	if err != nil {
+		return nil, err
+	}
+
+	//
+	// TODO: the rest of this function is copied from Authenticate
+	//
+
+	idToken, err := p.getIDToken(ctx, oauth2Token)
+	if err != nil {
+		return nil, fmt.Errorf("identity/oidc: failed getting id_token: %w", err)
+	}
+
+	if rawIDToken, ok := oauth2Token.Extra("id_token").(string); ok {
+		v.SetRawIDToken(rawIDToken)
+	}
+
+	// hydrate `v` using claims inside the returned `id_token`
+	// https://openid.net/specs/openid-connect-core-1_0.html#TokenEndpoint
+	if err := idToken.Claims(v); err != nil {
+		return nil, fmt.Errorf("identity/oidc: couldn't unmarshal extra claims %w", err)
+	}
+
+	if err := p.UpdateUserInfo(ctx, oauth2Token, v); err != nil {
+		return nil, fmt.Errorf("identity/oidc: couldn't update user info %w", err)
+	}
+
+	return oauth2Token, nil
 }
 
 // Authenticate converts an authorization code returned from the identity

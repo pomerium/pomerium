@@ -266,3 +266,11 @@ func (p *Provider) VerifyAccessToken(_ context.Context, _ string) (claims map[st
 func (p *Provider) VerifyIdentityToken(_ context.Context, _ string) (claims map[string]any, err error) {
 	return nil, identity.ErrVerifyIdentityTokenNotSupported
 }
+
+func (p *Provider) DeviceAuth(_ context.Context) (*oauth2.DeviceAuthResponse, error) {
+	return nil, oidc.ErrDeviceAuthNotImplemented
+}
+
+func (p *Provider) DeviceAccessToken(_ context.Context, _ *oauth2.DeviceAuthResponse, _ identity.State) (*oauth2.Token, error) {
+	return nil, oidc.ErrDeviceAuthNotImplemented
+}

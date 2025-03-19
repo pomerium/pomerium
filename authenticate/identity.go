@@ -29,13 +29,14 @@ func defaultGetIdentityProvider(ctx context.Context, tracerProvider oteltrace.Tr
 	}
 
 	o := oauth.Options{
-		RedirectURL:     redirectURL,
-		ProviderName:    idp.GetType(),
-		ProviderURL:     idp.GetUrl(),
-		ClientID:        idp.GetClientId(),
-		ClientSecret:    idp.GetClientSecret(),
-		Scopes:          idp.GetScopes(),
-		AuthCodeOptions: idp.GetRequestParams(),
+		RedirectURL:          redirectURL,
+		ProviderName:         idp.GetType(),
+		ProviderURL:          idp.GetUrl(),
+		ClientID:             idp.GetClientId(),
+		ClientSecret:         idp.GetClientSecret(),
+		Scopes:               idp.GetScopes(),
+		AuthCodeOptions:      idp.GetRequestParams(),
+		DeviceAuthClientType: idp.GetDeviceAuthClientType(),
 	}
 	if v := idp.GetAccessTokenAllowedAudiences(); v != nil {
 		o.AccessTokenAllowedAudiences = &v.Values

@@ -19,6 +19,7 @@ var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
 
 type authenticateFlow interface {
 	AuthenticateSignInURL(ctx context.Context, queryParams url.Values, redirectURL *url.URL, idpID string) (string, error)
+	AuthenticateDeviceCode(w http.ResponseWriter, r *http.Request, queryParams url.Values) error
 	Callback(w http.ResponseWriter, r *http.Request) error
 }
 

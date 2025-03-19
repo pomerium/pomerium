@@ -115,6 +115,7 @@ func GetDomainsForURL(u *url.URL, includeDefaultPort bool) []string {
 
 	// tcp+https://ssh.example.com:22
 	// udp+https://ssh.example.com:22
+	// ssh://ssh.example.com:22
 	// => ssh.example.com:22
 	// tcp+https://proxy.example.com/ssh.example.com:22
 	// udp+https://proxy.example.com/ssh.example.com:22
@@ -130,10 +131,13 @@ func GetDomainsForURL(u *url.URL, includeDefaultPort bool) []string {
 	}
 
 	var defaultPort string
-	if u.Scheme == "http" {
+	switch u.Scheme {
+	case "http":
 		defaultPort = "80"
-	} else {
+	case "https":
 		defaultPort = "443"
+	case "ssh":
+		defaultPort = "22"
 	}
 
 	// for hosts like 'example.com:1234' we only return one route

@@ -34,4 +34,6 @@ type Options struct {
 
 	// When set validates the audience in access tokens.
 	AccessTokenAllowedAudiences *[]string
+
+	DeviceAuthClientType string
 }

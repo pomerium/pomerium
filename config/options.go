@@ -161,6 +161,11 @@ type Options struct {
 	Scopes                         []string  `mapstructure:"idp_scopes" yaml:"idp_scopes,omitempty"`
 	IDPAccessTokenAllowedAudiences *[]string `mapstructure:"idp_access_token_allowed_audiences" yaml:"idp_access_token_allowed_audiences,omitempty"`
 
+	// Either "public" or "confidential". Defaults to "public".
+	// If set to "confidential", the client_secret will be used when requesting a
+	// device code for the device authorization grant type.
+	DeviceAuthClientType string `mapstructure:"device_auth_client_type" yaml:"device_auth_client_type,omitempty"`
+
 	// RequestParams are custom request params added to the signin request as
 	// part of an Oauth2 code flow.
 	//
@@ -240,6 +245,11 @@ type Options struct {
 
 	GRPCClientTimeout time.Duration `mapstructure:"grpc_client_timeout" yaml:"grpc_client_timeout,omitempty"`
 
+	SSHAddr      string       `mapstructure:"ssh_address" yaml:"ssh_address,omitempty"`
+	SSHHostname  string       `mapstructure:"ssh_hostname" yaml:"ssh_hostname,omitempty"`
+	SSHHostKeys  []SSHKeyPair `mapstructure:"ssh_host_keys" yaml:"ssh_host_keys,omitempty"`
+	SSHUserCAKey SSHKeyPair   `mapstructure:"ssh_user_ca_key" yaml:"ssh_user_ca_key,omitempty"`
+
 	// DataBrokerURLString is the routable destination of the databroker service's gRPC endpoint.
 	DataBrokerURLString         string   `mapstructure:"databroker_service_url" yaml:"databroker_service_url,omitempty"`
 	DataBrokerURLStrings        []string `mapstructure:"databroker_service_urls" yaml:"databroker_service_urls,omitempty"`
@@ -298,6 +308,11 @@ type certificateFilePair struct {
 	// CertFile and KeyFile is the x509 certificate used to hydrate TLSCertificate
 	CertFile string `mapstructure:"cert" yaml:"cert,omitempty"`
 	KeyFile  string `mapstructure:"key" yaml:"key,omitempty"`
+}
+
+type SSHKeyPair struct {
+	PublicKeyFile  string `mapstructure:"public_key_file" yaml:"public_key_file,omitempty"`
+	PrivateKeyFile string `mapstructure:"private_key_file" yaml:"private_key_file,omitempty"`
 }
 
 // DefaultOptions are the default configuration options for pomerium
@@ -1312,6 +1327,11 @@ func (o *Options) GetAllRouteableHTTPHosts() ([]string, error) {
 				return nil, err
 			}
 
+			// TODO
+			if fromURL.Scheme == "ssh" {
+				continue
+			}
+
 			hosts.InsertSlice(urlutil.GetDomainsForURL(fromURL, !o.IsRuntimeFlagSet(RuntimeFlagMatchAnyIncomingPort)))
 			if policy.TLSDownstreamServerName != "" {
 				tlsURL := fromURL.ResolveReference(&url.URL{Host: policy.TLSDownstreamServerName})
@@ -1504,6 +1524,7 @@ func (o *Options) ApplySettings(ctx context.Context, certsIndex *cryptutil.Certi
 	set(&o.ClientSecret, settings.IdpClientSecret)
 	set(&o.Provider, settings.IdpProvider)
 	set(&o.ProviderURL, settings.IdpProviderUrl)
+	set(&o.DeviceAuthClientType, settings.DeviceAuthClientType)
 	setSlice(&o.Scopes, settings.Scopes)
 	setMap(&o.RequestParams, settings.RequestParams)
 	if settings.IdpAccessTokenAllowedAudiences != nil {

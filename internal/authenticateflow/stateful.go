@@ -342,6 +342,17 @@ func (s *Stateful) AuthenticateSignInURL(
 	return redirectTo, nil
 }
 
+func (s *Stateful) AuthenticateDeviceCode(w http.ResponseWriter, r *http.Request, params url.Values) error {
+	deviceAuthURL := s.authenticateURL.ResolveReference(&url.URL{
+		Path:     "/.pomerium/device_auth",
+		RawQuery: params.Encode(),
+	})
+
+	signedURL := urlutil.NewSignedURL(s.sharedKey, deviceAuthURL)
+	httputil.Redirect(w, r, signedURL.String(), http.StatusFound)
+	return nil
+}
+
 // GetIdentityProviderIDForURLValues returns the identity provider ID
 // associated with the given URL values.
 func (s *Stateful) GetIdentityProviderIDForURLValues(vs url.Values) string {

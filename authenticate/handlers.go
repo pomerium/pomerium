@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -107,6 +108,8 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 	sr.Path("/signed_out").Handler(httputil.HandlerFunc(a.signedOut)).Methods(http.MethodGet)
 	sr.Path("/verify-access-token").Handler(httputil.HandlerFunc(a.verifyAccessToken)).Methods(http.MethodPost)
 	sr.Path("/verify-identity-token").Handler(httputil.HandlerFunc(a.verifyIdentityToken)).Methods(http.MethodPost)
+	sr.Path("/device_auth").Handler(httputil.HandlerFunc(a.DeviceAuthLogin)).
+		Methods(http.MethodGet, http.MethodPost)
 
 	// routes that need a session:
 	sr = sr.NewRoute().Subrouter()
@@ -579,4 +582,103 @@ func (a *Authenticate) getIdentityProviderIDForRequest(r *http.Request) string {
 		return ""
 	}
 	return a.state.Load().flow.GetIdentityProviderIDForURLValues(r.Form)
+}
+
+func (a *Authenticate) getRetryTokenForRequest(r *http.Request) []byte {
+	if err := r.ParseForm(); err != nil {
+		return nil
+	}
+	dec, _ := base64.StdEncoding.DecodeString(r.Form.Get(urlutil.QueryDeviceAuthRetryToken))
+	return dec
+}
+
+func (a *Authenticate) DeviceAuthLogin(w http.ResponseWriter, r *http.Request) error {
+	state := a.state.Load()
+	options := a.options.Load()
+	idpID := a.getIdentityProviderIDForRequest(r)
+
+	routeUri := r.FormValue(urlutil.QueryDeviceAuthRouteURI)
+	ad := []byte(fmt.Sprintf("%s|%s|", routeUri, idpID))
+	authenticator, err := a.cfg.getIdentityProvider(r.Context(), a.tracerProvider, options, idpID)
+	if err != nil {
+		return err
+	}
+
+	// check if the request includes a retry token
+	if encRetryToken := a.getRetryTokenForRequest(r); len(encRetryToken) > 0 {
+		retryTokenJwt, err := cryptutil.Decrypt(state.cookieCipher, []byte(encRetryToken), ad)
+		if err != nil {
+			return httputil.NewError(http.StatusUnauthorized, fmt.Errorf("bad retry token: %w", err))
+		}
+		var retryToken oidc.RetryToken
+		if err := state.sharedEncoder.Unmarshal(retryTokenJwt, &retryToken); err != nil {
+			return httputil.NewError(http.StatusUnauthorized, fmt.Errorf("bad retry token: %w", err))
+		}
+		now := time.Now()
+		if now.After(time.Unix(0, retryToken.NotAfter)) {
+			return httputil.NewError(http.StatusUnauthorized, fmt.Errorf("retry token expired"))
+		} else if now.Before(time.Unix(0, retryToken.NotBefore)) {
+			w.Header().Set("Retry-After", time.Until(time.Unix(0, retryToken.NotBefore)).String())
+			return httputil.NewError(http.StatusTooManyRequests, fmt.Errorf("retry token not yet valid"))
+		}
+
+		var claims identity.SessionClaims
+		accessToken, err := authenticator.DeviceAccessToken(r.Context(), retryToken.AsDeviceAuthResponse(), &claims)
+		if err != nil {
+			return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("failed to get device access token: %w", err))
+		}
+
+		//
+		// TODO: code copied from getOAuthCallback
+		//
+		s := sessions.NewState(idpID)
+		err = claims.Claims.Claims(&s)
+		if err != nil {
+			return fmt.Errorf("error unmarshaling session state: %w", err)
+		}
+
+		newState := s.WithNewIssuer(state.redirectURL.Hostname(), []string{state.redirectURL.Hostname()})
+
+		// save the session and access token to the databroker/cookie store
+		if err := state.flow.PersistSession(r.Context(), w, &newState, claims, accessToken); err != nil {
+			return fmt.Errorf("failed saving new session: %w", err)
+		}
+
+		// ...  and the user state to local storage.
+		if err := state.sessionStore.SaveSession(w, r, &newState); err != nil {
+			return fmt.Errorf("failed saving new session: %w", err)
+		}
+		//
+		// end
+		//
+
+		tokenJwt, err := state.sharedEncoder.Marshal(newState)
+		if err != nil {
+			return httputil.NewError(http.StatusInternalServerError, fmt.Errorf("failed to marshal session: %w", err))
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"token": "%s"}`, string(tokenJwt))
+		return nil
+	} else {
+		authResp, err := authenticator.DeviceAuth(r.Context())
+		if err != nil {
+			return httputil.NewError(http.StatusInternalServerError,
+				fmt.Errorf("failed to get device code: %w", err))
+		}
+		// construct a retry token
+		retryToken := oidc.NewRetryToken(authResp)
+		// encode
+		retryTokenJwt, err := state.sharedEncoder.Marshal(retryToken)
+		if err != nil {
+			return httputil.NewError(http.StatusInternalServerError,
+				fmt.Errorf("failed to marshal retry token: %w", err))
+		}
+
+		// write the user-facing part of the auth response plus the encrypted retry token
+		userResp := oidc.NewUserDeviceAuthResponse(authResp, cryptutil.Encrypt(state.cookieCipher, retryTokenJwt, ad))
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		return json.NewEncoder(w).Encode(userResp)
+	}
 }
