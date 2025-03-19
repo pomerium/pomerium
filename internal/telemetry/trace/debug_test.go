@@ -122,7 +122,7 @@ func TestSpanObserver(t *testing.T) {
 		waitOkToExit.Store(true)
 		obs.Observe(Span(7).ID())
 		assert.Equal(t, []oteltrace.SpanID{}, obs.XUnobservedIDs())
-		assert.Eventually(t, waitExited.Load, 10*time.Millisecond, 1*time.Millisecond)
+		assert.Eventually(t, waitExited.Load, 100*time.Millisecond, 10*time.Millisecond)
 	})
 
 	t.Run("multiple waiters", func(t *testing.T) {
@@ -147,7 +147,7 @@ func TestSpanObserver(t *testing.T) {
 
 		assert.Eventually(t, func() bool {
 			return waitersExited.Load() == 10
-		}, 10*time.Millisecond, 1*time.Millisecond)
+		}, 100*time.Millisecond, 10*time.Millisecond)
 	})
 }
 

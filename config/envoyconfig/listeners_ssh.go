@@ -89,6 +89,13 @@ func (b *Builder) buildSSHListener(ctx context.Context, cfg *config.Config) (*en
 													ChunkSize:        wrapperspb.UInt32(8192),
 												}),
 											},
+											// FileManagerConfig: &async_filesv3.AsyncFileManagerConfig{
+											// 	ManagerType: &async_filesv3.AsyncFileManagerConfig_ThreadPool_{
+											// 		ThreadPool: &async_filesv3.AsyncFileManagerConfig_ThreadPool{
+											// 			ThreadCount: 2,
+											// 		},
+											// 	},
+											// },
 										}),
 									},
 									// {
