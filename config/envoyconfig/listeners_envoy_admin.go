@@ -51,7 +51,7 @@ func (b *Builder) buildEnvoyAdminHTTPConnectionManagerFilter() *envoy_config_lis
 		},
 	}})
 
-	return HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
+	return b.HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "envoy-admin",
 		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{

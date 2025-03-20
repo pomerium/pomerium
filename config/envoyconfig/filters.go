@@ -44,10 +44,10 @@ func ExtAuthzFilter(grpcClientTimeout *durationpb.Duration) *envoy_extensions_fi
 }
 
 // HTTPConnectionManagerFilter creates a new HTTP connection manager filter.
-func HTTPConnectionManagerFilter(
+func (b *Builder) HTTPConnectionManagerFilter(
 	httpConnectionManager *envoy_extensions_filters_network_http_connection_manager.HttpConnectionManager,
 ) *envoy_config_listener_v3.Filter {
-	applyGlobalHTTPConnectionManagerOptions(httpConnectionManager)
+	b.applyGlobalHTTPConnectionManagerOptions(httpConnectionManager)
 	return &envoy_config_listener_v3.Filter{
 		Name: "envoy.filters.network.http_connection_manager",
 		ConfigType: &envoy_config_listener_v3.Filter_TypedConfig{

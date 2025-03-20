@@ -13,7 +13,7 @@ import (
 
 func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 	t.Setenv("TMPDIR", "/tmp")
-	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
+	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil, true)
 	t.Run("valid", func(t *testing.T) {
 		adminCfg, err := b.BuildBootstrapAdmin(&config.Config{
 			Options: &config.Options{
@@ -35,7 +35,7 @@ func TestBuilder_BuildBootstrapAdmin(t *testing.T) {
 }
 
 func TestBuilder_BuildBootstrapLayeredRuntime(t *testing.T) {
-	b := New("localhost:1111", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil)
+	b := New("localhost:1111", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil, true)
 	staticCfg, err := b.BuildBootstrapLayeredRuntime(context.Background(), &config.Config{})
 	assert.NoError(t, err)
 	testutil.AssertProtoJSONEqual(t, `
@@ -61,7 +61,7 @@ func TestBuilder_BuildBootstrapLayeredRuntime(t *testing.T) {
 
 func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
-		b := New("localhost:1111", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil)
+		b := New("localhost:1111", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil, true)
 		staticCfg, err := b.BuildBootstrapStaticResources(context.Background(), &config.Config{}, false)
 		assert.NoError(t, err)
 		testutil.AssertProtoJSONEqual(t, `
@@ -105,14 +105,14 @@ func TestBuilder_BuildBootstrapStaticResources(t *testing.T) {
 		`, staticCfg)
 	})
 	t.Run("bad gRPC address", func(t *testing.T) {
-		b := New("xyz:zyx", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil)
+		b := New("xyz:zyx", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil, true)
 		_, err := b.BuildBootstrapStaticResources(context.Background(), &config.Config{}, false)
 		assert.Error(t, err)
 	})
 }
 
 func TestBuilder_BuildBootstrapStatsConfig(t *testing.T) {
-	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil)
+	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil, true)
 	t.Run("valid", func(t *testing.T) {
 		statsCfg, err := b.BuildBootstrapStatsConfig(&config.Config{
 			Options: &config.Options{
@@ -132,7 +132,7 @@ func TestBuilder_BuildBootstrapStatsConfig(t *testing.T) {
 }
 
 func TestBuilder_BuildBootstrap(t *testing.T) {
-	b := New("localhost:1111", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil)
+	b := New("localhost:1111", "localhost:2222", "localhost:3333", filemgr.NewManager(), nil, true)
 	t.Run("OverloadManager", func(t *testing.T) {
 		bootstrap, err := b.BuildBootstrap(context.Background(), &config.Config{
 			Options: &config.Options{
