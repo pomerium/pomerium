@@ -13,22 +13,20 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
+	"github.com/pomerium/pomerium/internal/testenv/scenarios"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 )
 
 func TestSSH(t *testing.T) {
-	// generate client ssh key
-	_, priv, err := ed25519.GenerateKey(nil)
-	require.NoError(t, err)
-	signer, err := ssh.NewSignerFromKey(priv)
-	require.NoError(t, err)
+	clientKey := newSSHKey(t)
+	serverHostKey := newSSHKey(t)
 
 	// ssh client setup
 	clientConfig := &ssh.ClientConfig{
 		User: "demo",
 		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
+			ssh.PublicKeys(clientKey),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
@@ -36,7 +34,11 @@ func TestSSH(t *testing.T) {
 	// pomerium + upstream setup
 	env := testenv.New(t)
 
-	up := upstreams.SSH()
+	env.Add(scenarios.SSH(scenarios.SSHConfig{}))
+
+	up := upstreams.SSH(
+		upstreams.WithHostKeys(serverHostKey),
+		upstreams.WithAuthorizedKey(clientKey.PublicKey(), "demo"))
 	r := up.Route().
 		From(env.SubdomainURLWithScheme("ssh", "ssh")).
 		Policy(func(p *config.Policy) { p.AllowPublicUnauthenticatedAccess = true })
@@ -45,13 +47,24 @@ func TestSSH(t *testing.T) {
 	snippets.WaitStartupComplete(env)
 
 	// test scenario -- first verify that the upstream is working at all
-	client, err := up.DirectDial(r, clientConfig)
+	//client, err := up.DirectDial(r, clientConfig)
+	client, err := up.Dial(r, clientConfig)
 	require.NoError(t, err)
 	defer client.Close()
 
 	sess, err := client.NewSession()
 	require.NoError(t, err)
 	defer sess.Close()
+}
+
+// newSSHKey generates and returns a new Ed25519 ssh key.
+func newSSHKey(t *testing.T) ssh.Signer {
+	t.Helper()
+	_, priv, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+	signer, err := ssh.NewSignerFromKey(priv)
+	require.NoError(t, err)
+	return signer
 }
 
 func TestHelloWorld(t *testing.T) {

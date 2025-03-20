@@ -12,8 +12,9 @@ import (
 )
 
 type SSHUpstreamOptions struct {
-	displayName  string
-	serverConfig ssh.ServerConfig
+	displayName    string
+	serverConfig   ssh.ServerConfig
+	authorizedKeys authorizedKeysChecker
 }
 
 type SSHUpstreamOption interface {
@@ -24,7 +25,7 @@ type sshUpstreamOption func(o *SSHUpstreamOptions)
 
 func (s sshUpstreamOption) applySSH(o *SSHUpstreamOptions) { s(o) }
 
-func WithPublicKeyAuthAlgorithms(algs []string) SSHUpstreamOption {
+func WithPublicKeyAuthAlgorithms(algs ...string) SSHUpstreamOption {
 	return sshUpstreamOption(func(o *SSHUpstreamOptions) {
 		o.serverConfig.PublicKeyAuthAlgorithms = algs
 	})
@@ -44,10 +45,38 @@ func WithBannerCallback(c func(ssh.ConnMetadata) string) SSHUpstreamOption {
 	})
 }
 
+// WithPublicKeyCallback sets a custom callback for the publickey authentication method.
+// This will override any previous [WithAuthorizedKey] option.
 func WithPublicKeyCallback(c func(ssh.ConnMetadata, ssh.PublicKey) (*ssh.Permissions, error)) SSHUpstreamOption {
 	return sshUpstreamOption(func(o *SSHUpstreamOptions) {
 		o.serverConfig.PublicKeyCallback = c
 	})
+}
+
+// WithAuthorizedKey allows the given key to be used to authenticate the given username,
+// enabling the publickey authentication method. This will override any previous
+// [WithPublicKeyCallback] option.
+func WithAuthorizedKey(key ssh.PublicKey, username string) SSHUpstreamOption {
+	return sshUpstreamOption(func(o *SSHUpstreamOptions) {
+		o.authorizedKeys.add(key, username)
+		o.serverConfig.PublicKeyCallback = o.authorizedKeys.check
+	})
+}
+
+type authorizedKeysChecker map[string]string // map from marshaled public key to corresponding username
+
+func (c *authorizedKeysChecker) add(key ssh.PublicKey, username string) {
+	if *c == nil {
+		*c = make(map[string]string)
+	}
+	(*c)[string(key.Marshal())] = username
+}
+
+func (c authorizedKeysChecker) check(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+	if c[string(key.Marshal())] == conn.User() {
+		return &ssh.Permissions{}, nil
+	}
+	return nil, fmt.Errorf("not authorized")
 }
 
 type ServerConnCallback func(*ssh.ServerConn, <-chan ssh.NewChannel, <-chan *ssh.Request)
@@ -165,9 +194,7 @@ func (h *sshUpstream) handleConnection(ctx context.Context, conn net.Conn) {
 
 // Dial implements SSHUpstream.
 func (h *sshUpstream) Dial(r testenv.Route, config *ssh.ClientConfig) (*ssh.Client, error) {
-	// XXX: need to add ssh listener configuration to Env
-	//ssh.Dial("tcp", h.Env().)
-	return nil, fmt.Errorf("not implemented")
+	return ssh.Dial("tcp", h.Env().Config().Options.SSHAddr, config)
 }
 
 // DirectDial implements SSHUpstream.
