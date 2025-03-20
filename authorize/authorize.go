@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"time"
 
 	"github.com/rs/zerolog"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -31,7 +30,6 @@ type Authorize struct {
 	store             *store.Store
 	currentConfig     *atomicutil.Value[*config.Config]
 	accessTracker     *AccessTracker
-	globalCache       storage.Cache
 	groupsCacheWarmer *cacheWarmer
 
 	tracerProvider oteltrace.TracerProvider
@@ -45,7 +43,6 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	a := &Authorize{
 		currentConfig:  atomicutil.NewValue(&config.Config{Options: new(config.Options)}),
 		store:          store.New(),
-		globalCache:    storage.NewGlobalCache(time.Minute),
 		tracerProvider: tracerProvider,
 		tracer:         tracer,
 	}
@@ -57,7 +54,7 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	}
 	a.state = atomicutil.NewValue(state)
 
-	a.groupsCacheWarmer = newCacheWarmer(state.dataBrokerClientConnection, a.globalCache, directory.GroupRecordType)
+	a.groupsCacheWarmer = newCacheWarmer(state.dataBrokerClientConnection, storage.GlobalCache, directory.GroupRecordType)
 	return a, nil
 }
 

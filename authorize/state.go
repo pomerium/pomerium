@@ -82,7 +82,7 @@ func newAuthorizeStateFromConfig(
 	}
 	state.idpTokenSessionCreator = config.NewIncomingIDPTokenSessionCreator(
 		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
-			return getDataBrokerRecord(ctx, recordType, recordID, 0)
+			return storage.GetDataBrokerRecord(ctx, recordType, recordID, 0)
 		},
 		func(ctx context.Context, records []*databroker.Record) error {
 			_, err := state.dataBrokerClient.Put(ctx, &databroker.PutRequest{

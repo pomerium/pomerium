@@ -24,6 +24,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/protoutil"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 func Test_getUserInfoData(t *testing.T) {
@@ -64,6 +65,7 @@ func Test_getUserInfoData(t *testing.T) {
 		proxy, err := New(ctx, &config.Config{Options: opts})
 		require.NoError(t, err)
 		proxy.state.Load().dataBrokerClient = client
+		ctx = storage.WithQuerier(ctx, storage.NewQuerier(client))
 
 		require.NoError(t, databrokerpb.PutMulti(ctx, client,
 			makeRecord(&session.Session{
@@ -80,7 +82,7 @@ func Test_getUserInfoData(t *testing.T) {
 				"group_ids": []any{"G1", "G2", "G3"},
 			})))
 
-		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
+		r := httptest.NewRequestWithContext(ctx, http.MethodGet, "/.pomerium/", nil)
 		r.Header.Set("Authorization", "Bearer Pomerium-"+encodeSession(t, opts, &sessions.State{
 			ID: "S1",
 		}))
@@ -88,7 +90,9 @@ func Test_getUserInfoData(t *testing.T) {
 		assert.Equal(t, "S1", data.Session.Id)
 		assert.Equal(t, "U1", data.User.Id)
 		assert.True(t, data.IsEnterprise)
-		assert.Equal(t, []string{"G1", "G2", "G3"}, data.DirectoryUser.GroupIDs)
+		if assert.NotNil(t, data.DirectoryUser) {
+			assert.Equal(t, []string{"G1", "G2", "G3"}, data.DirectoryUser.GroupIDs)
+		}
 	})
 }
 
