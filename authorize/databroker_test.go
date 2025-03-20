@@ -2,7 +2,6 @@ package authorize
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -12,44 +11,8 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
-	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 )
-
-func Test_getDataBrokerRecord(t *testing.T) {
-	t.Parallel()
-
-	ctx, clearTimeout := context.WithTimeout(context.Background(), time.Second*10)
-	t.Cleanup(clearTimeout)
-
-	for _, tc := range []struct {
-		name                                   string
-		recordVersion, queryVersion            uint64
-		underlyingQueryCount, cachedQueryCount int
-	}{
-		{"cached", 1, 1, 1, 2},
-		{"invalidated", 1, 2, 3, 4},
-	} {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			s1 := &session.Session{Id: "s1", Version: fmt.Sprint(tc.recordVersion)}
-
-			sq := storage.NewStaticQuerier(s1)
-			cq := storage.NewCachingQuerier(sq, storage.NewGlobalCache(time.Minute))
-			qctx := storage.WithQuerier(ctx, cq)
-
-			s, err := getDataBrokerRecord(qctx, grpcutil.GetTypeURL(s1), s1.GetId(), tc.queryVersion)
-			assert.NoError(t, err)
-			assert.NotNil(t, s)
-
-			s, err = getDataBrokerRecord(qctx, grpcutil.GetTypeURL(s1), s1.GetId(), tc.queryVersion)
-			assert.NoError(t, err)
-			assert.NotNil(t, s)
-		})
-	}
-}
 
 func TestAuthorize_getDataBrokerSessionOrServiceAccount(t *testing.T) {
 	t.Parallel()

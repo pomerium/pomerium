@@ -9,28 +9,24 @@ import (
 	"github.com/pomerium/pomerium/internal/handlers"
 	"github.com/pomerium/pomerium/internal/handlers/webauthn"
 	"github.com/pomerium/pomerium/internal/urlutil"
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/webauthnutil"
 )
 
 func (p *Proxy) getSession(ctx context.Context, sessionID string) (s *session.Session, isImpersonated bool, err error) {
-	client := p.state.Load().dataBrokerClient
-
 	isImpersonated = false
-	s, err = session.Get(ctx, client, sessionID)
+	s, err = storage.GetDataBrokerMessage[session.Session](ctx, sessionID, 0)
 	if s.GetImpersonateSessionId() != "" {
-		s, err = session.Get(ctx, client, s.GetImpersonateSessionId())
+		s, err = storage.GetDataBrokerMessage[session.Session](ctx, s.GetImpersonateSessionId(), 0)
 		isImpersonated = true
 	}
-
 	return s, isImpersonated, err
 }
 
 func (p *Proxy) getUser(ctx context.Context, userID string) (*user.User, error) {
-	client := p.state.Load().dataBrokerClient
-	return user.Get(ctx, client, userID)
+	return storage.GetDataBrokerMessage[user.User](ctx, userID, 0)
 }
 
 func (p *Proxy) getUserInfoData(r *http.Request) handlers.UserInfoData {
@@ -72,21 +68,16 @@ func (p *Proxy) getUserInfoData(r *http.Request) handlers.UserInfoData {
 }
 
 func (p *Proxy) fillEnterpriseUserInfoData(ctx context.Context, data *handlers.UserInfoData) {
-	client := p.state.Load().dataBrokerClient
-
-	res, _ := client.Get(ctx, &databroker.GetRequest{
-		Type: "type.googleapis.com/pomerium.config.Config",
-		Id:   "dashboard-settings",
-	})
-	data.IsEnterprise = res.GetRecord() != nil
+	record, _ := storage.GetDataBrokerRecord(ctx, "type.googleapis.com/pomerium.config.Config", "dashboard-settings", 0)
+	data.IsEnterprise = record != nil
 	if !data.IsEnterprise {
 		return
 	}
 
-	data.DirectoryUser, _ = databroker.GetViaJSON[directory.User](ctx, client, directory.UserRecordType, data.Session.GetUserId())
+	data.DirectoryUser, _ = storage.GetDataBrokerObjectViaJSON[directory.User](ctx, directory.UserRecordType, data.Session.GetUserId(), 0)
 	if data.DirectoryUser != nil {
 		for _, groupID := range data.DirectoryUser.GroupIDs {
-			directoryGroup, _ := databroker.GetViaJSON[directory.Group](ctx, client, directory.GroupRecordType, groupID)
+			directoryGroup, _ := storage.GetDataBrokerObjectViaJSON[directory.Group](ctx, directory.GroupRecordType, groupID, 0)
 			if directoryGroup != nil {
 				data.DirectoryGroups = append(data.DirectoryGroups, directoryGroup)
 			}

@@ -36,7 +36,7 @@ func (a *Authorize) Check(ctx context.Context, in *envoy_service_auth_v3.CheckRe
 
 	querier := storage.NewCachingQuerier(
 		storage.NewQuerier(a.state.Load().dataBrokerClient),
-		a.globalCache,
+		storage.GlobalCache,
 	)
 	ctx = storage.WithQuerier(ctx, querier)
 
@@ -98,7 +98,7 @@ func (a *Authorize) loadSession(
 	// attempt to create a session from an incoming idp token
 	s, err = config.NewIncomingIDPTokenSessionCreator(
 		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
-			return getDataBrokerRecord(ctx, recordType, recordID, 0)
+			return storage.GetDataBrokerRecord(ctx, recordType, recordID, 0)
 		},
 		func(ctx context.Context, records []*databroker.Record) error {
 			_, err := a.state.Load().dataBrokerClient.Put(ctx, &databroker.PutRequest{
@@ -107,15 +107,7 @@ func (a *Authorize) loadSession(
 			if err != nil {
 				return err
 			}
-			// invalidate cache
-			for _, record := range records {
-				q := &databroker.QueryRequest{
-					Type:  record.GetType(),
-					Limit: 1,
-				}
-				q.SetFilterByIDOrIndex(record.GetId())
-				storage.GetQuerier(ctx).InvalidateCache(ctx, q)
-			}
+			storage.InvalidateCacheForDataBrokerRecords(ctx, records...)
 			return nil
 		},
 	).CreateSession(ctx, a.currentConfig.Load(), req.Policy, hreq)

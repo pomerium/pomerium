@@ -107,3 +107,6 @@ func (cache *globalCache) set(expiry time.Time, key, value []byte) {
 	cache.fastcache.Set(key, item)
 	cache.mu.Unlock()
 }
+
+// GlobalCache is a global cache with a TTL of one minute.
+var GlobalCache = NewGlobalCache(time.Minute)

@@ -3,9 +3,6 @@ package authorize
 import (
 	"context"
 
-	"google.golang.org/grpc"
-
-	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
@@ -18,47 +15,6 @@ type sessionOrServiceAccount interface {
 	Validate() error
 }
 
-func getDataBrokerRecord(
-	ctx context.Context,
-	recordType string,
-	recordID string,
-	lowestRecordVersion uint64,
-) (*databroker.Record, error) {
-	q := storage.GetQuerier(ctx)
-
-	req := &databroker.QueryRequest{
-		Type:  recordType,
-		Limit: 1,
-	}
-	req.SetFilterByIDOrIndex(recordID)
-
-	res, err := q.Query(ctx, req, grpc.WaitForReady(true))
-	if err != nil {
-		return nil, err
-	}
-	if len(res.GetRecords()) == 0 {
-		return nil, storage.ErrNotFound
-	}
-
-	// if the current record version is less than the lowest we'll accept, invalidate the cache
-	if res.GetRecords()[0].GetVersion() < lowestRecordVersion {
-		q.InvalidateCache(ctx, req)
-	} else {
-		return res.GetRecords()[0], nil
-	}
-
-	// retry with an up to date cache
-	res, err = q.Query(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	if len(res.GetRecords()) == 0 {
-		return nil, storage.ErrNotFound
-	}
-
-	return res.GetRecords()[0], nil
-}
-
 func (a *Authorize) getDataBrokerSessionOrServiceAccount(
 	ctx context.Context,
 	sessionID string,
@@ -67,9 +23,9 @@ func (a *Authorize) getDataBrokerSessionOrServiceAccount(
 	ctx, span := a.tracer.Start(ctx, "authorize.getDataBrokerSessionOrServiceAccount")
 	defer span.End()
 
-	record, err := getDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID, dataBrokerRecordVersion)
+	record, err := storage.GetDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(session.Session)), sessionID, dataBrokerRecordVersion)
 	if storage.IsNotFound(err) {
-		record, err = getDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(user.ServiceAccount)), sessionID, dataBrokerRecordVersion)
+		record, err = storage.GetDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(user.ServiceAccount)), sessionID, dataBrokerRecordVersion)
 	}
 	if err != nil {
 		return nil, err
@@ -100,7 +56,7 @@ func (a *Authorize) getDataBrokerUser(
 	ctx, span := a.tracer.Start(ctx, "authorize.getDataBrokerUser")
 	defer span.End()
 
-	record, err := getDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(user.User)), userID, 0)
+	record, err := storage.GetDataBrokerRecord(ctx, grpcutil.GetTypeURL(new(user.User)), userID, 0)
 	if err != nil {
 		return nil, err
 	}
