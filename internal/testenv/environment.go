@@ -101,6 +101,8 @@ type Environment interface {
 	SharedSecret() []byte
 	CookieSecret() []byte
 
+	Config() *config.Config
+
 	// Add adds the given [Modifier] to the environment. All modifiers will be
 	// invoked upon calling Start() to apply individual modifications to the
 	// configuration before starting the Pomerium server.
@@ -513,6 +515,10 @@ func (e *environment) DatabrokerURL() values.Value[string] {
 
 func (e *environment) Ports() Ports {
 	return e.ports
+}
+
+func (e *environment) Config() *config.Config {
+	return e.src.GetConfig()
 }
 
 func (e *environment) CACert() *tls.Certificate {
