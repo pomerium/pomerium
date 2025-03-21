@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
+	"golang.org/x/net/nettest"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -177,6 +178,7 @@ func NewServer(
 		srv.MetricsListener.Addr().String(),
 		srv.filemgr,
 		srv.reproxy,
+		nettest.SupportsIPv6(),
 	)
 
 	res, err := srv.buildDiscoveryResources(ctx)
