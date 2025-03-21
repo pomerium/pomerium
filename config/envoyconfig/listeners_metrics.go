@@ -121,7 +121,7 @@ func (b *Builder) buildMetricsHTTPConnectionManagerFilter() *envoy_config_listen
 		},
 	}})
 
-	return HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
+	return b.HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "metrics",
 		RouteSpecifier: &envoy_http_connection_manager.HttpConnectionManager_RouteConfig{
