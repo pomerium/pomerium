@@ -172,6 +172,11 @@ func (h *sshUpstream) Run(ctx context.Context) error {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
+			// The testenv cleanup expects this function to return a "test cleanup" error,
+			// which propagates via the context.
+			if ctx.Err() != nil {
+				return context.Cause(ctx)
+			}
 			return err
 		}
 		go h.handleConnection(ctx, conn)

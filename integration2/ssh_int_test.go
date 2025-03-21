@@ -27,6 +27,7 @@ func TestSSH(t *testing.T) {
 		User: "demo",
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(clientKey),
+			//ssh.KeyboardInteractive()
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
