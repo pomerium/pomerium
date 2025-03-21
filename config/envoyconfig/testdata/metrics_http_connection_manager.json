@@ -62,10 +62,6 @@
                   "prefixLen": 32
                 },
                 {
-                  "addressPrefix": "::1",
-                  "prefixLen": 128
-                },
-                {
                   "addressPrefix": "10.0.0.0",
                   "prefixLen": 8
                 },
@@ -76,6 +72,10 @@
                 {
                   "addressPrefix": "172.16.0.0",
                   "prefixLen": 12
+                },
+                {
+                  "addressPrefix": "::1",
+                  "prefixLen": 128
                 },
                 {
                   "addressPrefix": "fd00::",

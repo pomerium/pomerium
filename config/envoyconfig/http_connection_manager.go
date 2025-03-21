@@ -128,23 +128,29 @@ func (b *Builder) buildLocalReplyConfig(
 	}, nil
 }
 
-func applyGlobalHTTPConnectionManagerOptions(hcm *envoy_http_connection_manager.HttpConnectionManager) {
+func (b *Builder) applyGlobalHTTPConnectionManagerOptions(hcm *envoy_http_connection_manager.HttpConnectionManager) {
 	if hcm.InternalAddressConfig == nil {
-		// see doc comment on InternalAddressConfig for details
-		hcm.InternalAddressConfig = &envoy_http_connection_manager.HttpConnectionManager_InternalAddressConfig{
-			CidrRanges: []*envoy_config_core_v3.CidrRange{
-				// localhost
-				{AddressPrefix: "127.0.0.1", PrefixLen: wrapperspb.UInt32(32)},
+		ranges := []*envoy_config_core_v3.CidrRange{
+			// localhost
+			{AddressPrefix: "127.0.0.1", PrefixLen: wrapperspb.UInt32(32)},
+
+			// RFC1918
+			{AddressPrefix: "10.0.0.0", PrefixLen: wrapperspb.UInt32(8)},
+			{AddressPrefix: "192.168.0.0", PrefixLen: wrapperspb.UInt32(16)},
+			{AddressPrefix: "172.16.0.0", PrefixLen: wrapperspb.UInt32(12)},
+		}
+		if b.addIPV6InternalRanges {
+			ranges = append(ranges, []*envoy_config_core_v3.CidrRange{
+				// Localhost IPv6
 				{AddressPrefix: "::1", PrefixLen: wrapperspb.UInt32(128)},
-
-				// RFC1918
-				{AddressPrefix: "10.0.0.0", PrefixLen: wrapperspb.UInt32(8)},
-				{AddressPrefix: "192.168.0.0", PrefixLen: wrapperspb.UInt32(16)},
-				{AddressPrefix: "172.16.0.0", PrefixLen: wrapperspb.UInt32(12)},
-
 				// RFC4193
 				{AddressPrefix: "fd00::", PrefixLen: wrapperspb.UInt32(8)},
-			},
+			}...)
+		}
+
+		// see doc comment on InternalAddressConfig for details
+		hcm.InternalAddressConfig = &envoy_http_connection_manager.HttpConnectionManager_InternalAddressConfig{
+			CidrRanges: ranges,
 		}
 	}
 }

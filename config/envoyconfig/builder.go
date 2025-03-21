@@ -7,11 +7,12 @@ import (
 
 // A Builder builds envoy config from pomerium config.
 type Builder struct {
-	localGRPCAddress    string
-	localHTTPAddress    string
-	localMetricsAddress string
-	filemgr             *filemgr.Manager
-	reproxy             *reproxy.Handler
+	localGRPCAddress      string
+	localHTTPAddress      string
+	localMetricsAddress   string
+	filemgr               *filemgr.Manager
+	reproxy               *reproxy.Handler
+	addIPV6InternalRanges bool
 }
 
 // New creates a new Builder.
@@ -21,15 +22,17 @@ func New(
 	localMetricsAddress string,
 	fileManager *filemgr.Manager,
 	reproxyHandler *reproxy.Handler,
+	addIPV6InternalRanges bool,
 ) *Builder {
 	if reproxyHandler == nil {
 		reproxyHandler = reproxy.New()
 	}
 	return &Builder{
-		localGRPCAddress:    localGRPCAddress,
-		localHTTPAddress:    localHTTPAddress,
-		localMetricsAddress: localMetricsAddress,
-		filemgr:             fileManager,
-		reproxy:             reproxyHandler,
+		localGRPCAddress:      localGRPCAddress,
+		localHTTPAddress:      localHTTPAddress,
+		localMetricsAddress:   localMetricsAddress,
+		filemgr:               fileManager,
+		reproxy:               reproxyHandler,
+		addIPV6InternalRanges: addIPV6InternalRanges,
 	}
 }
