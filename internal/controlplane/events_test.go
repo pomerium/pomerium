@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	databrokerpb "github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/events"
+	"github.com/pomerium/pomerium/pkg/grpc/grpctest"
 )
 
 type mockDataBrokerServer struct {
@@ -34,6 +34,8 @@ func (mock *mockDataBrokerServer) SetOptions(ctx context.Context, req *databroke
 }
 
 func TestEvents(t *testing.T) {
+	addr := grpctest.TemporaryOutboundAddress(t)
+
 	t.Run("saves events", func(t *testing.T) {
 		ctx := context.Background()
 		ctx, cancel := context.WithCancel(ctx)
@@ -41,10 +43,9 @@ func TestEvents(t *testing.T) {
 		ctx, clearTimeout := context.WithTimeout(ctx, time.Second*5)
 		defer clearTimeout()
 
-		li, err := net.Listen("tcp", "127.0.0.1:0")
+		li, err := net.Listen("unix", addr)
 		require.NoError(t, err)
 		defer li.Close()
-		_, outboundPort, _ := net.SplitHostPort(li.Addr().String())
 
 		var putRequest *databrokerpb.PutRequest
 		var setOptionsRequest *databrokerpb.SetOptionsRequest
@@ -76,11 +77,8 @@ func TestEvents(t *testing.T) {
 			srv := &Server{
 				haveSetCapacity: make(map[string]bool),
 				currentConfig: atomicutil.NewValue(&config.Config{
-					OutboundPort: outboundPort,
 					Options: &config.Options{
-						SharedKey:           cryptutil.NewBase64Key(),
-						DataBrokerURLString: "http://" + li.Addr().String(),
-						GRPCInsecure:        proto.Bool(true),
+						SharedKey: cryptutil.NewBase64Key(),
 					},
 				},
 				),

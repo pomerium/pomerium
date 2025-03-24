@@ -64,7 +64,6 @@ func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.Trace
 	}
 
 	dataBrokerConn, err := outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
-		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,
 		SignedJWTKey:   state.sharedKey,

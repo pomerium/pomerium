@@ -28,6 +28,7 @@ import (
 	derivecert_config "github.com/pomerium/pomerium/pkg/derivecert/config"
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
+	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/proxy"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
@@ -160,7 +161,7 @@ func (p *Pomerium) Start(ctx context.Context, tracerProvider oteltrace.TracerPro
 	log.Ctx(ctx).Info().
 		Str("grpc-port", src.GetConfig().GRPCPort).
 		Str("http-port", src.GetConfig().HTTPPort).
-		Str("outbound-port", src.GetConfig().OutboundPort).
+		Str("outbound-addr", grpc.OutboundAddress).
 		Str("metrics-port", src.GetConfig().MetricsPort).
 		Str("debug-port", src.GetConfig().DebugPort).
 		Str("acme-tls-alpn-port", src.GetConfig().ACMETLSALPNPort).

@@ -74,7 +74,6 @@ func (srv *Server) getDataBrokerClient(ctx context.Context) (databrokerpb.DataBr
 	}
 
 	cc, err := outboundGRPCConnection.Get(ctx, &grpc.OutboundOptions{
-		OutboundPort:   cfg.OutboundPort,
 		InstallationID: cfg.Options.InstallationID,
 		ServiceName:    cfg.Options.Services,
 		SignedJWTKey:   sharedKey,

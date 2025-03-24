@@ -46,10 +46,9 @@ func TestBuildListeners(t *testing.T) {
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
 
-		GRPCPort:     "10001",
-		HTTPPort:     "10002",
-		OutboundPort: "10003",
-		MetricsPort:  "10004",
+		GRPCPort:    "10001",
+		HTTPPort:    "10002",
+		MetricsPort: "10004",
 	}
 	b := New("local-grpc", "local-http", "local-metrics", filemgr.NewManager(), nil, true)
 	t.Run("enable grpc by default", func(t *testing.T) {
