@@ -35,7 +35,7 @@ type changeSet struct {
 // Remove adds a record to the change set.
 func (cs *changeSet) Remove(record *Record) {
 	record = proto.Clone(record).(*Record)
-	record.DeletedAt = timestamppb.Now()
+	record.DeletedAt = cs.now
 	cs.updates = append(cs.updates, record)
 }
 
