@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/stretchr/testify/assert"
 )
 

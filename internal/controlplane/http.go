@@ -17,10 +17,10 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/telemetry"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	hpke_handlers "github.com/pomerium/pomerium/pkg/hpke/handlers"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 func (srv *Server) addHTTPMiddleware(ctx context.Context, root *mux.Router, _ *config.Config) {
