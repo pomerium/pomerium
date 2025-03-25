@@ -16,11 +16,11 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/pomerium/pomerium/internal/httputil"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/identity/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 // Name identifies the generic OpenID Connect provider.

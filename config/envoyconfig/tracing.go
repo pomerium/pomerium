@@ -17,7 +17,7 @@ import (
 	extensions_uuidx "github.com/pomerium/envoy-custom/api/extensions/request_id/uuidx"
 	extensions_pomerium_otel "github.com/pomerium/envoy-custom/api/extensions/tracers/pomerium_otel"
 	"github.com/pomerium/pomerium/config/otelconfig"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )

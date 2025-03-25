@@ -21,12 +21,12 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/scenarios"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
 	. "github.com/pomerium/pomerium/internal/testutil/tracetest" //nolint:revive
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 var allServices = []string{
