@@ -21,10 +21,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pomerium/pomerium/integration/forms"
 	"github.com/pomerium/pomerium/internal/retry"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"go.opentelemetry.io/otel/attribute"

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	. "github.com/pomerium/pomerium/internal/testutil/tracetest" //nolint:revive
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/stretchr/testify/assert"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	oteltrace "go.opentelemetry.io/otel/trace"
