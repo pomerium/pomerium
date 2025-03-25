@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -14,7 +14,7 @@ func GetChangeSet(current, target RecordSetBundle, cmpFn RecordCompareFn) []*Rec
 	cs := &changeSet{now: timestamppb.Now()}
 
 	for _, rec := range current.GetRemoved(target).Flatten() {
-		cs.Remove(rec.GetType(), rec.GetId())
+		cs.Remove(rec)
 	}
 	for _, rec := range current.GetModified(target, cmpFn).Flatten() {
 		cs.Upsert(rec)
@@ -33,13 +33,10 @@ type changeSet struct {
 }
 
 // Remove adds a record to the change set.
-func (cs *changeSet) Remove(typ string, id string) {
-	cs.updates = append(cs.updates, &Record{
-		Type:      typ,
-		Id:        id,
-		DeletedAt: cs.now,
-		Data:      &anypb.Any{TypeUrl: typ},
-	})
+func (cs *changeSet) Remove(record *Record) {
+	record = proto.Clone(record).(*Record)
+	record.DeletedAt = cs.now
+	cs.updates = append(cs.updates, record)
 }
 
 // Upsert adds a record to the change set.
