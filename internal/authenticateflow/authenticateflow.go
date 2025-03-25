@@ -14,10 +14,10 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/identity"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 // timeNow is time.Now but pulled out as a variable for tests.

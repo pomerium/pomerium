@@ -19,7 +19,7 @@ import (
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/otelconfig"
 	"github.com/pomerium/pomerium/internal/telemetry"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 )

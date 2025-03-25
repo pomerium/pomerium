@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 func TestMain(m *testing.M) {
