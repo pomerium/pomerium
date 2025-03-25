@@ -6,10 +6,10 @@ import (
 	"net"
 	"strings"
 
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/values"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
@@ -97,8 +97,10 @@ type service struct {
 	impl any
 }
 
-func (g *grpcUpstream) Port() values.Value[int] {
-	return g.serverPort
+func (g *grpcUpstream) Addr() values.Value[string] {
+	return values.Bind(g.serverPort, func(port int) string {
+		return fmt.Sprintf("%s:%d", g.Env().Host(), port)
+	})
 }
 
 // RegisterService implements grpc.ServiceRegistrar.
@@ -117,7 +119,7 @@ func (g *grpcUpstream) Route() testenv.RouteStub {
 		protocol = "https"
 	}
 	r.To(values.Bind(g.serverPort, func(port int) string {
-		return fmt.Sprintf("%s://127.0.0.1:%d", protocol, port)
+		return fmt.Sprintf("%s://%s:%d", protocol, g.Env().Host(), port)
 	}))
 	g.Add(r)
 	return r
@@ -125,7 +127,7 @@ func (g *grpcUpstream) Route() testenv.RouteStub {
 
 // Start implements testenv.Upstream.
 func (g *grpcUpstream) Run(ctx context.Context) error {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:0", g.Env().Host()))
 	if err != nil {
 		return err
 	}
@@ -187,7 +189,7 @@ func (g *grpcUpstream) Dial(r testenv.Route, dialOpts ...grpc.DialOption) *grpc.
 }
 
 func (g *grpcUpstream) DirectConnect(dialOpts ...grpc.DialOption) *grpc.ClientConn {
-	cc, err := grpc.NewClient(fmt.Sprintf("127.0.0.1:%d", g.Port().Value()),
+	cc, err := grpc.NewClient(g.Addr().Value(),
 		append(g.withDefaultDialOpts(dialOpts), grpc.WithTransportCredentials(insecure.NewCredentials()))...)
 	if err != nil {
 		panic(err)

@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"time"
 
 	"github.com/rs/zerolog"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -22,7 +21,6 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
@@ -30,6 +28,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 // Authorize struct holds
@@ -38,7 +37,6 @@ type Authorize struct {
 	store             *store.Store
 	currentConfig     *atomicutil.Value[*config.Config]
 	accessTracker     *AccessTracker
-	globalCache       storage.Cache
 	groupsCacheWarmer *cacheWarmer
 
 	tracerProvider oteltrace.TracerProvider
@@ -54,7 +52,6 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	a := &Authorize{
 		currentConfig:  atomicutil.NewValue(&config.Config{Options: new(config.Options)}),
 		store:          store.New(),
-		globalCache:    storage.NewGlobalCache(time.Minute),
 		tracerProvider: tracerProvider,
 		tracer:         tracer,
 		activeStreams: ActiveStreams{
@@ -69,7 +66,7 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	}
 	a.state = atomicutil.NewValue(state)
 
-	a.groupsCacheWarmer = newCacheWarmer(state.dataBrokerClientConnection, a.globalCache, directory.GroupRecordType)
+	a.groupsCacheWarmer = newCacheWarmer(state.dataBrokerClientConnection, storage.GlobalCache, directory.GroupRecordType)
 	return a, nil
 }
 
@@ -198,7 +195,7 @@ func (a *Authorize) evaluate(
 ) (*evaluator.Result, error) {
 	querier := storage.NewCachingQuerier(
 		storage.NewQuerier(a.state.Load().dataBrokerClient),
-		a.globalCache,
+		storage.GlobalCache,
 	)
 	ctx = storage.WithQuerier(ctx, querier)
 

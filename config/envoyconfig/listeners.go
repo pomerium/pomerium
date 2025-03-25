@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 const listenerBufferLimit uint32 = 32 * 1024

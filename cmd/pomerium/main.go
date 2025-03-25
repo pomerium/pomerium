@@ -12,13 +12,13 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/version"
 	_ "github.com/pomerium/pomerium/internal/zero/bootstrap/writers/filesystem"
 	_ "github.com/pomerium/pomerium/internal/zero/bootstrap/writers/k8s"
 	zero_cmd "github.com/pomerium/pomerium/internal/zero/cmd"
 	"github.com/pomerium/pomerium/pkg/cmd/pomerium"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 func main() {

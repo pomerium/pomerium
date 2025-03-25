@@ -98,7 +98,7 @@ func (b *Builder) buildGRPCHTTPConnectionManagerFilter() *envoy_config_listener_
 		Routes:  routes,
 	}})
 
-	return HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
+	return b.HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "grpc_ingress",
 		// limit request first byte to last byte time

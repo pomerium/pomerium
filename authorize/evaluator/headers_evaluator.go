@@ -9,7 +9,7 @@ import (
 
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 // HeadersResponse is the output from the headers.rego script.

@@ -16,7 +16,7 @@ import (
 	"unique"
 
 	gocmp "github.com/google/go-cmp/cmp"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	oteltrace "go.opentelemetry.io/otel/trace"

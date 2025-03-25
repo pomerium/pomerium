@@ -21,9 +21,9 @@ import (
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 // A Store stores data for the OPA rego policy evaluation.

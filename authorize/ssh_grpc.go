@@ -184,7 +184,7 @@ func (a *Authorize) ManageStream(
 	// XXX
 	querier := storage.NewCachingQuerier(
 		storage.NewQuerier(a.state.Load().dataBrokerClient),
-		a.globalCache,
+		storage.GlobalCache,
 	)
 	ctx = storage.WithQuerier(ctx, querier)
 

@@ -42,7 +42,7 @@ func (b *Builder) buildOutboundListener(cfg *config.Config) (*envoy_config_liste
 func (b *Builder) buildOutboundHTTPConnectionManager() *envoy_config_listener_v3.Filter {
 	rc := b.buildOutboundRouteConfiguration()
 
-	return HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
+	return b.HTTPConnectionManagerFilter(&envoy_http_connection_manager.HttpConnectionManager{
 		CodecType:  envoy_http_connection_manager.HttpConnectionManager_AUTO,
 		StatPrefix: "grpc_egress",
 		// limit request first byte to last byte time

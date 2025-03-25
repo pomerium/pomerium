@@ -233,7 +233,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		}
 	}
 
-	return HTTPConnectionManagerFilter(mgr), nil
+	return b.HTTPConnectionManagerFilter(mgr), nil
 }
 
 func newListenerAccessLog() *envoy_config_accesslog_v3.AccessLog {

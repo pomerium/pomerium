@@ -26,11 +26,11 @@ import (
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/registry"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/version"
 	derivecert_config "github.com/pomerium/pomerium/pkg/derivecert/config"
 	"github.com/pomerium/pomerium/pkg/envoy"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/pomerium/pomerium/proxy"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )

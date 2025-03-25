@@ -13,6 +13,7 @@ import (
 	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
@@ -88,19 +89,16 @@ func newProxyStateFromConfig(ctx context.Context, tracerProvider oteltrace.Trace
 
 	state.incomingIDPTokenSessionCreator = config.NewIncomingIDPTokenSessionCreator(
 		func(ctx context.Context, recordType, recordID string) (*databroker.Record, error) {
-			res, err := state.dataBrokerClient.Get(ctx, &databroker.GetRequest{
-				Type: recordType,
-				Id:   recordID,
-			})
-			if err != nil {
-				return nil, err
-			}
-			return res.GetRecord(), nil
+			return storage.GetDataBrokerRecord(ctx, recordType, recordID, 0)
 		},
 		func(ctx context.Context, records []*databroker.Record) error {
 			_, err := state.dataBrokerClient.Put(ctx, &databroker.PutRequest{
 				Records: records,
 			})
+			if err != nil {
+				return err
+			}
+			storage.InvalidateCacheForDataBrokerRecords(ctx, records...)
 			return err
 		},
 	)

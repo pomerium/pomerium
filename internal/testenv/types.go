@@ -204,7 +204,8 @@ func (f *taskFunc) Run(ctx context.Context) error {
 type Upstream interface {
 	Modifier
 	Task
-	Port() values.Value[int]
+
+	Addr() values.Value[string]
 	Route() RouteStub
 }
 

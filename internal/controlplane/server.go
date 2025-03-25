@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
+	"golang.org/x/net/nettest"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -27,7 +28,6 @@ import (
 	"github.com/pomerium/pomerium/internal/events"
 	"github.com/pomerium/pomerium/internal/httputil/reproxy"
 	"github.com/pomerium/pomerium/internal/log"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
@@ -35,6 +35,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/httputil"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
@@ -177,6 +178,7 @@ func NewServer(
 		srv.MetricsListener.Addr().String(),
 		srv.filemgr,
 		srv.reproxy,
+		nettest.SupportsIPv6(),
 	)
 
 	res, err := srv.buildDiscoveryResources(ctx)

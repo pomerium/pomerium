@@ -26,11 +26,11 @@ import (
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/middleware"
 	"github.com/pomerium/pomerium/internal/sessions"
-	"github.com/pomerium/pomerium/internal/telemetry/trace"
 	"github.com/pomerium/pomerium/internal/urlutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/oidc"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 // Handler returns the authenticate service's handler chain.
