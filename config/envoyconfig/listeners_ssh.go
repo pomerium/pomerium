@@ -183,6 +183,40 @@ func (b *Builder) buildRouteConfig(_ context.Context, cfg *config.Config) (*envo
 			},
 		})
 	}
+	defaultRejectAll := &xds_matcher_v3.Matcher_MatcherList_FieldMatcher{
+		Predicate: &xds_matcher_v3.Matcher_MatcherList_Predicate{
+			MatchType: &xds_matcher_v3.Matcher_MatcherList_Predicate_SinglePredicate_{
+				SinglePredicate: &xds_matcher_v3.Matcher_MatcherList_Predicate_SinglePredicate{
+					Input: &xds_core_v3.TypedExtensionConfig{
+						Name:        "request",
+						TypedConfig: marshalAny(&envoy_generic_proxy_matcher_v3.RequestMatchInput{}),
+					},
+					Matcher: &xds_matcher_v3.Matcher_MatcherList_Predicate_SinglePredicate_CustomMatch{
+						CustomMatch: &xds_core_v3.TypedExtensionConfig{
+							Name: "request",
+							TypedConfig: marshalAny(&envoy_generic_proxy_matcher_v3.RequestMatcher{
+								Host: &matcherv3.StringMatcher{
+									MatchPattern: &matcherv3.StringMatcher_Exact{Exact: ""},
+								},
+							}),
+						},
+					},
+				},
+			},
+		},
+		OnMatch: &xds_matcher_v3.Matcher_OnMatch{
+			OnMatch: &xds_matcher_v3.Matcher_OnMatch_Action{
+				Action: &xds_core_v3.TypedExtensionConfig{
+					Name: "route",
+					TypedConfig: marshalAny(&envoy_generic_proxy_action_v3.RouteAction{
+						ClusterSpecifier: &envoy_generic_proxy_action_v3.RouteAction_Cluster{
+							Cluster: "nonexistent",
+						},
+					}),
+				},
+			},
+		},
+	}
 	return &envoy_generic_proxy_v3.RouteConfiguration{
 		Name: "route_config",
 		VirtualHosts: []*envoy_generic_proxy_v3.VirtualHost{
@@ -192,7 +226,7 @@ func (b *Builder) buildRouteConfig(_ context.Context, cfg *config.Config) (*envo
 				Routes: &xds_matcher_v3.Matcher{
 					MatcherType: &xds_matcher_v3.Matcher_MatcherList_{
 						MatcherList: &xds_matcher_v3.Matcher_MatcherList{
-							Matchers: routeMatchers,
+							Matchers: append(routeMatchers, defaultRejectAll),
 						},
 					},
 				},
