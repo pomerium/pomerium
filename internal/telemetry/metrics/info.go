@@ -240,11 +240,11 @@ var (
 		Measure:     identityManagerLastSessionRefreshSuccess,
 		Aggregation: view.Count(),
 	}
-	// IdentityManagerLastSessionRefreshErrorView contains user refresh errors counter
+	// IdentityManagerLastSessionRefreshErrorView contains session refresh errors counter
 	IdentityManagerLastSessionRefreshErrorView = &view.View{
-		Name:        identityManagerLastUserRefreshError.Name(),
-		Description: identityManagerLastUserRefreshError.Description(),
-		Measure:     identityManagerLastUserRefreshError,
+		Name:        identityManagerLastSessionRefreshError.Name(),
+		Description: identityManagerLastSessionRefreshError.Description(),
+		Measure:     identityManagerLastSessionRefreshError,
 		Aggregation: view.Count(),
 	}
 	// IdentityManagerLastSessionRefreshSuccessTimestampView contains successful session refresh counter
