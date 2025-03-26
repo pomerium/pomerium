@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"sync"
 	"time"
+	"unique"
 
 	"github.com/VictoriaMetrics/fastcache"
 	"golang.org/x/sync/singleflight"
@@ -20,6 +21,7 @@ type Cache interface {
 	Invalidate(key []byte)
 	InvalidateAll()
 	Set(expiry time.Time, key, value []byte)
+	Wait(key []byte) <-chan struct{}
 }
 
 type globalCache struct {
@@ -28,6 +30,7 @@ type globalCache struct {
 	singleflight singleflight.Group
 	mu           sync.RWMutex
 	fastcache    *fastcache.Cache
+	waiters      map[unique.Handle[string]]chan struct{}
 }
 
 // NewGlobalCache creates a new Cache backed by fastcache and a TTL.
@@ -35,6 +38,7 @@ func NewGlobalCache(ttl time.Duration) Cache {
 	return &globalCache{
 		ttl:       ttl,
 		fastcache: fastcache.New(256 * 1024 * 1024), // up to 256MB of RAM
+		waiters:   map[unique.Handle[string]]chan struct{}{},
 	}
 }
 
@@ -71,12 +75,40 @@ func (cache *globalCache) GetOrUpdate(
 func (cache *globalCache) Invalidate(key []byte) {
 	cache.mu.Lock()
 	cache.fastcache.Del(key)
+	keyHandle := unique.Make(string(key))
+	if c, ok := cache.waiters[keyHandle]; ok {
+		close(c)
+		delete(cache.waiters, keyHandle)
+	}
 	cache.mu.Unlock()
+}
+
+var expiredC = make(chan struct{})
+
+func init() {
+	close(expiredC)
+}
+
+func (cache *globalCache) Wait(key []byte) <-chan struct{} {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if !cache.fastcache.Has(key) {
+		return expiredC
+	}
+	keyHandle := unique.Make(string(key))
+	if _, ok := cache.waiters[keyHandle]; !ok {
+		cache.waiters[keyHandle] = make(chan struct{})
+	}
+	return cache.waiters[keyHandle]
 }
 
 func (cache *globalCache) InvalidateAll() {
 	cache.mu.Lock()
 	cache.fastcache.Reset()
+	for _, c := range cache.waiters {
+		close(c)
+	}
+	clear(cache.waiters)
 	cache.mu.Unlock()
 }
 

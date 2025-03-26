@@ -24,8 +24,10 @@ import (
 	"github.com/pomerium/pomerium/pkg/contextutil"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
 	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/policy/criteria"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
@@ -33,11 +35,12 @@ import (
 
 // Authorize struct holds
 type Authorize struct {
-	state             *atomicutil.Value[*authorizeState]
-	store             *store.Store
-	currentConfig     *atomicutil.Value[*config.Config]
-	accessTracker     *AccessTracker
-	groupsCacheWarmer *cacheWarmer
+	state               *atomicutil.Value[*authorizeState]
+	store               *store.Store
+	currentConfig       *atomicutil.Value[*config.Config]
+	accessTracker       *AccessTracker
+	groupsCacheWarmer   *cacheWarmer
+	sessionsCacheWarmer *cacheWarmer
 
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
@@ -67,6 +70,7 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	a.state = atomicutil.NewValue(state)
 
 	a.groupsCacheWarmer = newCacheWarmer(state.dataBrokerClientConnection, storage.GlobalCache, directory.GroupRecordType)
+	a.sessionsCacheWarmer = newCacheWarmer(state.dataBrokerClientConnection, storage.GlobalCache, protoutil.GetTypeURL(&session.Session{}))
 	return a, nil
 }
 
@@ -84,6 +88,10 @@ func (a *Authorize) Run(ctx context.Context) error {
 	})
 	eg.Go(func() error {
 		a.groupsCacheWarmer.Run(ctx)
+		return nil
+	})
+	eg.Go(func() error {
+		a.sessionsCacheWarmer.Run(ctx)
 		return nil
 	})
 	return eg.Wait()
@@ -173,6 +181,7 @@ func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 
 		if currentState.dataBrokerClientConnection != newState.dataBrokerClientConnection {
 			a.groupsCacheWarmer.UpdateConn(newState.dataBrokerClientConnection)
+			a.sessionsCacheWarmer.UpdateConn(newState.dataBrokerClientConnection)
 		}
 	}
 }

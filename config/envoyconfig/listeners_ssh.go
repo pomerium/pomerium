@@ -176,6 +176,7 @@ func (b *Builder) buildRouteConfig(_ context.Context, cfg *config.Config) (*envo
 							ClusterSpecifier: &envoy_generic_proxy_action_v3.RouteAction_Cluster{
 								Cluster: clusterId,
 							},
+							Timeout: durationpb.New(0),
 						}),
 					},
 				},

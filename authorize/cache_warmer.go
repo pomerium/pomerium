@@ -111,6 +111,11 @@ func (h cacheWarmerSyncerHandler) UpdateRecords(ctx context.Context, serverVersi
 			log.Ctx(ctx).Error().Err(err).Msg("cache-warmer: failed to marshal query request")
 			continue
 		}
+		if record.DeletedAt != nil {
+			log.Ctx(ctx).Info().Msg("record deleted: " + record.Id)
+			h.cache.Invalidate(key)
+			return
+		}
 		value, err := storage.MarshalQueryResponse(res)
 		if err != nil {
 			log.Ctx(ctx).Error().Err(err).Msg("cache-warmer: failed to marshal query response")
