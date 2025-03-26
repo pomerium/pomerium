@@ -207,24 +207,6 @@ func TestGetIncomingIDPAccessTokenForPolicy(t *testing.T) {
 			expectedOK: false,
 		},
 		{
-			name:          "custom header",
-			headers:       http.Header{"X-Pomerium-Idp-Access-Token": {"access token via custom header"}},
-			expectedOK:    true,
-			expectedToken: "access token via custom header",
-		},
-		{
-			name:          "custom authorization",
-			headers:       http.Header{"Authorization": {"Pomerium-Idp-Access-Token access token via custom authorization"}},
-			expectedOK:    true,
-			expectedToken: "access token via custom authorization",
-		},
-		{
-			name:          "custom bearer",
-			headers:       http.Header{"Authorization": {"Bearer Pomerium-Idp-Access-Token-access token via custom bearer"}},
-			expectedOK:    true,
-			expectedToken: "access token via custom bearer",
-		},
-		{
 			name:       "bearer disabled",
 			headers:    http.Header{"Authorization": {"Bearer access token via bearer"}},
 			expectedOK: false,
@@ -288,24 +270,6 @@ func TestGetIncomingIDPIdentityTokenForPolicy(t *testing.T) {
 		{
 			name:       "empty headers",
 			expectedOK: false,
-		},
-		{
-			name:          "custom header",
-			headers:       http.Header{"X-Pomerium-Idp-Identity-Token": {"identity token via custom header"}},
-			expectedOK:    true,
-			expectedToken: "identity token via custom header",
-		},
-		{
-			name:          "custom authorization",
-			headers:       http.Header{"Authorization": {"Pomerium-Idp-Identity-Token identity token via custom authorization"}},
-			expectedOK:    true,
-			expectedToken: "identity token via custom authorization",
-		},
-		{
-			name:          "custom bearer",
-			headers:       http.Header{"Authorization": {"Bearer Pomerium-Idp-Identity-Token-identity token via custom bearer"}},
-			expectedOK:    true,
-			expectedToken: "identity token via custom bearer",
 		},
 		{
 			name:       "bearer disabled",
@@ -496,12 +460,14 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		cfg.Options.AuthenticateURLString = srv.URL
 		cfg.Options.ClientSecret = "CLIENT_SECRET_1"
 		cfg.Options.ClientID = "CLIENT_ID_1"
+		bearerTokenFormatIDPAccessToken := BearerTokenFormatIDPAccessToken
+		cfg.Options.BearerTokenFormat = &bearerTokenFormatIDPAccessToken
 		route := &Policy{}
 		route.IDPClientSecret = "CLIENT_SECRET_2"
 		route.IDPClientID = "CLIENT_ID_2"
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.example.com", nil)
 		require.NoError(t, err)
-		req.Header.Set(httputil.HeaderPomeriumIDPAccessToken, "ACCESS_TOKEN")
+		req.Header.Set("Authorization", "Bearer ACCESS_TOKEN")
 		c := NewIncomingIDPTokenSessionCreator(
 			func(_ context.Context, _, _ string) (*databroker.Record, error) {
 				return nil, storage.ErrNotFound
@@ -537,12 +503,14 @@ func TestIncomingIDPTokenSessionCreator_CreateSession(t *testing.T) {
 		cfg.Options.AuthenticateURLString = srv.URL
 		cfg.Options.ClientSecret = "CLIENT_SECRET_1"
 		cfg.Options.ClientID = "CLIENT_ID_1"
+		bearerTokenFormatIDPIdentityToken := BearerTokenFormatIDPIdentityToken
+		cfg.Options.BearerTokenFormat = &bearerTokenFormatIDPIdentityToken
 		route := &Policy{}
 		route.IDPClientSecret = "CLIENT_SECRET_2"
 		route.IDPClientID = "CLIENT_ID_2"
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.example.com", nil)
 		require.NoError(t, err)
-		req.Header.Set(httputil.HeaderPomeriumIDPIdentityToken, "IDENTITY_TOKEN")
+		req.Header.Set("Authorization", "Bearer IDENTITY_TOKEN")
 		c := NewIncomingIDPTokenSessionCreator(
 			func(_ context.Context, _, _ string) (*databroker.Record, error) {
 				return nil, storage.ErrNotFound
