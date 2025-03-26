@@ -97,3 +97,18 @@ func writeSSHKeyPair(env testenv.Environment, key any) config.SSHKeyPair {
 		PrivateKeyFile: privname,
 	}
 }
+
+// EmptyKeyboardInteractiveChallenge responds to any keyboard-interactive
+// challenges with zero prompts, and fails otherwise.
+type EmptyKeyboardInteractiveChallenge struct {
+	testenv.DefaultAttach
+}
+
+func (c *EmptyKeyboardInteractiveChallenge) Do(
+	name, instruction string, questions []string, echos []bool,
+) (answers []string, err error) {
+	if len(questions) > 0 {
+		c.Env().Require().FailNow("unsupported keyboard-interactive challenge")
+	}
+	return nil, nil
+}

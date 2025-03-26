@@ -23,11 +23,12 @@ func TestSSH(t *testing.T) {
 	serverHostKey := newSSHKey(t)
 
 	// ssh client setup
+	var ki scenarios.EmptyKeyboardInteractiveChallenge
 	clientConfig := &ssh.ClientConfig{
 		User: "demo",
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(clientKey),
-			//ssh.KeyboardInteractive()
+			ssh.KeyboardInteractive(ki.Do),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
@@ -36,6 +37,7 @@ func TestSSH(t *testing.T) {
 	env := testenv.New(t)
 
 	env.Add(scenarios.SSH(scenarios.SSHConfig{}))
+	env.Add(&ki)
 
 	up := upstreams.SSH(
 		upstreams.WithHostKeys(serverHostKey),
