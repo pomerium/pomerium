@@ -17,7 +17,6 @@ import (
 	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/databroker"
-	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/internal/testutil"
 	configpb "github.com/pomerium/pomerium/pkg/grpc/config"
@@ -48,7 +47,7 @@ func Test_getUserInfoData(t *testing.T) {
 		proxy.state.Load().dataBrokerClient = client
 
 		r := httptest.NewRequest(http.MethodGet, "/.pomerium/", nil)
-		r.Header.Set(httputil.HeaderPomeriumIDPAccessToken, "ACCESS_TOKEN")
+		r.Header.Set("Authorization", "Bearer ACCESS_TOKEN")
 		data := proxy.getUserInfoData(r)
 		assert.NotNil(t, data.Session)
 		assert.NotNil(t, data.User)
