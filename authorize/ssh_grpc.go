@@ -35,6 +35,7 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/identity/oauth"
+	"github.com/pomerium/pomerium/pkg/protoutil"
 	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/spf13/cobra"
 	gossh "golang.org/x/crypto/ssh"
@@ -138,6 +139,26 @@ READ:
 	switch md.Format {
 	case extensions_session_recording.Format_AsciicastFormat:
 		log.Ctx(stream.Context()).Info().Int("compressed_size", len(recording)).Msg("asciicast recording received")
+
+		uncompressed, err := io.ReadAll(r)
+		if err != nil {
+			return fmt.Errorf("couldn't extract asciicast recording: %w", err)
+		}
+
+		// For demo purposes, store asciicast recordings in the databroker.
+		_, err = a.state.Load().dataBrokerClient.Put(context.Background(), &databroker.PutRequest{
+			Records: []*databroker.Record{
+				{
+					Type: "ssh-session-recording",
+					Id:   md.RecordingName,
+					Data: protoutil.NewAnyBytes(uncompressed),
+				},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("couldn't save asciicast recording: %w", err)
+		}
+
 	case extensions_session_recording.Format_RawFormat:
 		reader := bufio.NewReader(r)
 		var header extensions_session_recording.Header
