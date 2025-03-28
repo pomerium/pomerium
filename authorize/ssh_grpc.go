@@ -153,6 +153,11 @@ READ:
 					Id:   md.RecordingName,
 					Data: protoutil.NewAnyBytes(uncompressed),
 				},
+				{
+					Type: "ssh-session-recording-metadata",
+					Id:   md.RecordingName,
+					Data: protoutil.NewAny(md),
+				},
 			},
 		})
 		if err != nil {
