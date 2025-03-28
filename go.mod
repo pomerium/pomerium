@@ -54,7 +54,7 @@ require (
 	github.com/pires/go-proxyproto v0.8.0
 	github.com/pomerium/csrf v1.7.0
 	github.com/pomerium/datasource v0.18.2-0.20221108160055-c6134b5ed524
-	github.com/pomerium/envoy-custom v1.33.0
+	github.com/pomerium/envoy-custom v1.33.1-0.20250327222650-3da0fc300b58
 	github.com/pomerium/protoutil v0.0.0-20240813175624-47b7ac43ff46
 	github.com/pomerium/webauthn v0.0.0-20240603205124-0428df511172
 	github.com/prometheus/client_golang v1.21.0
@@ -262,5 +262,3 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
-
-replace github.com/pomerium/envoy-custom => ../envoy-custom

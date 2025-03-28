@@ -16,14 +16,14 @@ import (
 )
 
 var (
-	envoyVersion = "1.32.3"
+	envoyVersion = "v1.33.1-demo"
 	targets      = []string{
-		"darwin-amd64",
-		"darwin-arm64",
+		//"darwin-amd64",
+		//"darwin-arm64",
 		"linux-amd64",
-		"linux-arm64",
+		//"linux-arm64",
 	}
-	baseURL = "https://github.com/pomerium/envoy-custom/releases/download/v" + envoyVersion
+	baseURL = "https://github.com/kralicky/envoy-custom/releases/download/demo"
 )
 
 func main() {
