@@ -389,7 +389,11 @@ func TestAuthorize_deniedResponse(t *testing.T) {
 				"headers": [
 					{
 						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
-						"header": { "key": "Content-Type", "value": "text/html; charset=UTF-8" }
+						"header": { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+					},
+					{
+						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+						"header": { "key": "Content-Type", "value": "text/html; charset=utf-8" }
 					},
 					{
 						"appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",

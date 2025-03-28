@@ -277,7 +277,7 @@ func TestLoadSessionState(t *testing.T) {
 		w := httptest.NewRecorder()
 		proxy.ServeHTTP(w, r)
 
-		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
 		assert.Contains(t, w.Body.String(), "window.POMERIUM_DATA")
 		assert.NotContains(t, w.Body.String(), "___SESSION_ID___")
 	})
