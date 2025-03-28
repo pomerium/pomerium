@@ -537,7 +537,7 @@ func TestAuthenticate_userInfo(t *testing.T) {
 			"/",
 			true,
 			&mstore.Store{Encrypted: true, Session: &sessions.State{ID: "SESSION_ID", IssuedAt: jwt.NewNumericDate(now)}},
-			http.StatusOK,
+			http.StatusUnauthorized,
 		},
 		{
 			"signed redirect",

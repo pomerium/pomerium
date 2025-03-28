@@ -100,9 +100,7 @@ func (e *HTTPError) ErrorResponse(ctx context.Context, w http.ResponseWriter, r 
 	}
 	AddBrandingOptionsToMap(m, e.BrandingOptions)
 
-	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	w.WriteHeader(response.Status)
-	if err := ui.ServePage(w, r, "Error", fmt.Sprintf("%d %s", response.Status, response.StatusText), m); err != nil {
+	if err := ui.ServePage(w, r, response.Status, "Error", fmt.Sprintf("%d %s", response.Status, response.StatusText), m); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

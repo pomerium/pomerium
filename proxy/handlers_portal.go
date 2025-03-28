@@ -20,7 +20,11 @@ func (p *Proxy) routesPortalHTML(w http.ResponseWriter, r *http.Request) error {
 	rs := p.getPortalRoutes(r.Context(), u)
 	m := u.ToJSON()
 	m["routes"] = rs
-	return ui.ServePage(w, r, "Routes", "Routes Portal", m)
+	statusCode := http.StatusOK
+	if u.Session == nil {
+		statusCode = http.StatusUnauthorized
+	}
+	return ui.ServePage(w, r, statusCode, "Routes", "Routes Portal", m)
 }
 
 func (p *Proxy) routesPortalJSON(w http.ResponseWriter, r *http.Request) error {
