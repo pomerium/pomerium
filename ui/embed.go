@@ -41,7 +41,7 @@ func RenderPage(page, title string, data map[string]any) ([]byte, error) {
 }
 
 // ServePage serves the index.html page.
-func ServePage(w http.ResponseWriter, r *http.Request, page, title string, data map[string]any) error {
+func ServePage(w http.ResponseWriter, r *http.Request, statusCode int, page, title string, data map[string]any) error {
 	if data == nil {
 		data = make(map[string]any)
 	}
@@ -53,7 +53,9 @@ func ServePage(w http.ResponseWriter, r *http.Request, page, title string, data 
 	}
 
 	w.Header().Set("Cache-Control", "no-cache, must-revalidate")
-	http.ServeContent(w, r, "index.html", time.Time{}, bytes.NewReader(bs))
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(statusCode)
+	_, _ = w.Write(bs)
 	return nil
 }
 

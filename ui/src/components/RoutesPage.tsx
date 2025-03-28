@@ -1,4 +1,6 @@
 import {
+  Alert,
+  AlertTitle,
   Avatar,
   Box,
   Card,
@@ -151,6 +153,13 @@ const RoutesPage: FC<RoutesPageProps> = ({ data }) => {
   return (
     <SidebarPage>
       <Stack spacing={2}>
+        {!data?.session?.id && (
+          <Alert severity="warning">
+            <AlertTitle>User Details Not Available</AlertTitle>
+            Have you signed in yet? <br />
+            <a href="/">{location.origin}</a>.
+          </Alert>
+        )}
         {data?.routes?.length > 0 ? (
           <>
             <RoutesSection

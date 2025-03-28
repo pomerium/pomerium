@@ -402,7 +402,7 @@ func (h *Handler) handleView(w http.ResponseWriter, r *http.Request, state *Stat
 		"selfUrl":         r.URL.String(),
 	}
 	httputil.AddBrandingOptionsToMap(m, state.BrandingOptions)
-	return ui.ServePage(w, r, "WebAuthnRegistration", "Device Registration", m)
+	return ui.ServePage(w, r, http.StatusOK, "WebAuthnRegistration", "Device Registration", m)
 }
 
 func (h *Handler) saveSessionAndRedirect(w http.ResponseWriter, r *http.Request, state *State, rawRedirectURI string) error {
