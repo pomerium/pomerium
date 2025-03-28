@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - 0-[0-9]+-*
+      - experimental/*
 
 jobs:
   publish:
