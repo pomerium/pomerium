@@ -694,14 +694,6 @@ func (m mockDataBrokerServiceClient) Put(ctx context.Context, in *databroker.Put
 	return m.put(ctx, in, opts...)
 }
 
-func mustParseURL(rawurl string) *url.URL {
-	u, err := url.Parse(rawurl)
-	if err != nil {
-		panic(err)
-	}
-	return u
-}
-
 // stubFlow is a stub implementation of the flow interface.
 type stubFlow struct {
 	verifySignatureErr error

@@ -117,9 +117,6 @@ func (a *Authenticate) mountDashboard(r *mux.Router) {
 		handlers.DeviceEnrolled(a.getUserInfoData(r)).ServeHTTP(w, r)
 		return nil
 	}))
-
-	cr := sr.PathPrefix("/callback").Subrouter()
-	cr.Path("/").Handler(a.requireValidSignature(a.Callback)).Methods(http.MethodGet)
 }
 
 // RetrieveSession is the middleware used retrieve session by the sessionLoader
@@ -524,54 +521,6 @@ func (a *Authenticate) revokeSession(ctx context.Context, w http.ResponseWriter,
 	sessionState, _ := a.getSessionFromCtx(ctx)
 
 	return state.flow.RevokeSession(ctx, r, authenticator, sessionState)
-}
-
-// Callback handles the result of a successful call to the authenticate service
-// and is responsible setting per-route sessions.
-func (a *Authenticate) Callback(w http.ResponseWriter, r *http.Request) error {
-	redirectURLString := r.FormValue(urlutil.QueryRedirectURI)
-	encryptedSession := r.FormValue(urlutil.QuerySessionEncrypted)
-
-	redirectURL, err := urlutil.ParseAndValidateURL(redirectURLString)
-	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-
-	rawJWT, err := a.saveCallbackSession(w, r, encryptedSession)
-	if err != nil {
-		return httputil.NewError(http.StatusBadRequest, err)
-	}
-
-	// if programmatic, encode the session jwt as a query param
-	if isProgrammatic := r.FormValue(urlutil.QueryIsProgrammatic); isProgrammatic == "true" {
-		q := redirectURL.Query()
-		q.Set(urlutil.QueryPomeriumJWT, string(rawJWT))
-		redirectURL.RawQuery = q.Encode()
-	}
-	httputil.Redirect(w, r, redirectURL.String(), http.StatusFound)
-	return nil
-}
-
-// saveCallbackSession takes an encrypted per-route session token, decrypts
-// it using the shared service key, then stores it the local session store.
-func (a *Authenticate) saveCallbackSession(w http.ResponseWriter, r *http.Request, enctoken string) ([]byte, error) {
-	state := a.state.Load()
-
-	// 1. extract the base64 encoded and encrypted JWT from query params
-	encryptedJWT, err := base64.URLEncoding.DecodeString(enctoken)
-	if err != nil {
-		return nil, fmt.Errorf("proxy: malfromed callback token: %w", err)
-	}
-	// 2. decrypt the JWT using the cipher using the _shared_ secret key
-	rawJWT, err := cryptutil.Decrypt(state.sharedCipher, encryptedJWT, nil)
-	if err != nil {
-		return nil, fmt.Errorf("proxy: callback token decrypt error: %w", err)
-	}
-	// 3. Save the decrypted JWT to the session store directly as a string, without resigning
-	if err = state.sessionStore.SaveSession(w, r, rawJWT); err != nil {
-		return nil, fmt.Errorf("proxy: callback session save failure: %w", err)
-	}
-	return rawJWT, nil
 }
 
 func (a *Authenticate) getIdentityProviderIDForRequest(r *http.Request) string {

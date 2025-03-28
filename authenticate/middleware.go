@@ -20,14 +20,3 @@ func (a *Authenticate) requireValidSignatureOnRedirect(next httputil.HandlerFunc
 		return next(w, r)
 	})
 }
-
-// requireValidSignature validates the pomerium_signature.
-func (a *Authenticate) requireValidSignature(next httputil.HandlerFunc) http.Handler {
-	return httputil.HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
-		err := a.state.Load().flow.VerifyAuthenticateSignature(r)
-		if err != nil {
-			return err
-		}
-		return next(w, r)
-	})
-}
