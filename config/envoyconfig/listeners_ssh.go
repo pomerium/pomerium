@@ -173,6 +173,7 @@ func (b *Builder) buildRouteConfig(_ context.Context, cfg *config.Config) (*envo
 					Action: &xds_core_v3.TypedExtensionConfig{
 						Name: "route",
 						TypedConfig: marshalAny(&envoy_generic_proxy_action_v3.RouteAction{
+							Name: route.ID,
 							ClusterSpecifier: &envoy_generic_proxy_action_v3.RouteAction_Cluster{
 								Cluster: clusterId,
 							},

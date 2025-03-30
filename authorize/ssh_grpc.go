@@ -544,8 +544,6 @@ func handleEvaluatorResponseForSSH(
 	allow := result.Allow.Value && !result.Deny.Value
 
 	if allow {
-		pkData, _ := anypb.New(publicKeyAllowResponse(state.PublicKey))
-
 		if state.Hostname == "" {
 			return &extensions_ssh.ServerMessage{
 				Message: &extensions_ssh.ServerMessage_AuthResponse{
@@ -588,10 +586,16 @@ func handleEvaluatorResponseForSSH(
 									AllowedMethods: []*extensions_ssh.AllowedMethod{
 										{
 											Method:     "publickey",
-											MethodData: pkData,
+											MethodData: marshalAny(publicKeyAllowResponse(state.PublicKey)),
 										},
 										{
 											Method: "keyboard-interactive",
+											MethodData: marshalAny(&extensions_ssh.KeyboardInteractiveAllowResponse{
+												SessionId: state.Session.Id,
+												UserId:    state.Session.UserId,
+												Claims:    state.Session.Claims,
+												Audience:  state.Session.Audience,
+											}),
 										},
 									},
 									Extensions: []*corev3.TypedExtensionConfig{
@@ -928,8 +932,24 @@ func (a *Authorize) ServeChannel(
 								UpstreamAuth: &extensions_ssh.AllowResponse{
 									Target: &extensions_ssh.AllowResponse_Upstream{
 										Upstream: &extensions_ssh.UpstreamTarget{
-											Hostname:    subMsg.DestAddr,
-											DirectTcpip: true,
+											Hostname:               subMsg.DestAddr,
+											DirectTcpip:            true,
+											AllowMirrorConnections: false,
+											AllowedMethods: []*extensions_ssh.AllowedMethod{
+												{
+													Method:     "publickey",
+													MethodData: marshalAny(publicKeyAllowResponse(state.PublicKey)),
+												},
+												{
+													Method: "keyboard-interactive",
+													MethodData: marshalAny(&extensions_ssh.KeyboardInteractiveAllowResponse{
+														SessionId: state.Session.Id,
+														UserId:    state.Session.UserId,
+														Claims:    state.Session.Claims,
+														Audience:  state.Session.Audience,
+													}),
+												},
+											},
 										},
 									},
 								},
@@ -1266,10 +1286,16 @@ func (a *Authorize) NewPortalCommand(
 				} else {
 					return fmt.Errorf("not authorized")
 				}
-				sessionRecordingExt, _ := anypb.New(&extensions_session_recording.UpstreamTargetExtensionConfig{
-					RecordingName: fmt.Sprintf("session-%s-at-%s-%d.cast", username, hostname, time.Now().UnixNano()),
-					Format:        extensions_session_recording.Format_AsciicastFormat,
-				})
+				extensions := []*corev3.TypedExtensionConfig{}
+				if ptyInfo != nil {
+					sessionRecordingExt, _ := anypb.New(&extensions_session_recording.UpstreamTargetExtensionConfig{
+						RecordingName: fmt.Sprintf("session-%s-at-%s-%d.cast", username, hostname, time.Now().UnixNano()),
+						Format:        extensions_session_recording.Format_AsciicastFormat,
+					})
+					extensions = append(extensions, &corev3.TypedExtensionConfig{
+						TypedConfig: sessionRecordingExt,
+					})
+				}
 				handOff = marshalAny(&extensions_ssh.SSHChannelControlAction{
 					Action: &extensions_ssh.SSHChannelControlAction_HandOff{
 						HandOff: &extensions_ssh.SSHChannelControlAction_HandOffUpstream{
@@ -1279,13 +1305,24 @@ func (a *Authorize) NewPortalCommand(
 								Username: username,
 								Target: &extensions_ssh.AllowResponse_Upstream{
 									Upstream: &extensions_ssh.UpstreamTarget{
-										AllowMirrorConnections: true,
-										Hostname:               hostname,
-										Extensions: []*corev3.TypedExtensionConfig{
+										AllowedMethods: []*extensions_ssh.AllowedMethod{
 											{
-												TypedConfig: sessionRecordingExt,
+												Method:     "publickey",
+												MethodData: marshalAny(publicKeyAllowResponse(state.PublicKey)),
+											},
+											{
+												Method: "keyboard-interactive",
+												MethodData: marshalAny(&extensions_ssh.KeyboardInteractiveAllowResponse{
+													SessionId: state.Session.Id,
+													UserId:    state.Session.UserId,
+													Claims:    state.Session.Claims,
+													Audience:  state.Session.Audience,
+												}),
 											},
 										},
+										AllowMirrorConnections: ptyInfo != nil,
+										Hostname:               hostname,
+										Extensions:             extensions,
 									},
 								},
 							},
