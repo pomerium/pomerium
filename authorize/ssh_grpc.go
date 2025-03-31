@@ -382,6 +382,8 @@ func (a *Authorize) ManageStream(
 						}
 						s := sessions.NewState(idp.Id)
 						claims.Claims.Claims(&s) // XXX
+						log.Ctx(ctx).Debug().Interface("claims", claims.Claims).
+							Msg("device auth flow complete")
 						s.ID, err = getSessionIDForSSH(state.PublicKey)
 						if err != nil {
 							errC <- err
