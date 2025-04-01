@@ -58,6 +58,22 @@ func (x *User) AddClaims(claims identity.FlattenedClaims) {
 	}
 }
 
+// TODO: consolidate with AddClaims?
+func (u *User) PopulateFromClaims(claims map[string]any) {
+	if v, ok := claims["name"]; ok {
+		u.Name = fmt.Sprint(v)
+	}
+	if v, ok := claims["email"]; ok {
+		u.Email = fmt.Sprint(v)
+	}
+	if u.Claims == nil {
+		u.Claims = make(map[string]*structpb.ListValue)
+	}
+	for k, vs := range identity.Claims(claims).Flatten().ToPB() {
+		u.Claims[k] = vs
+	}
+}
+
 // GetClaim returns a claim.
 //
 // This method is used by the dashboard template HTML to display claim data.

@@ -31,6 +31,7 @@ import (
 	"github.com/pomerium/pomerium/internal/sessions"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
@@ -667,10 +668,22 @@ func (a *Authorize) PersistSession(
 	sess.SetRawIDToken(claims.RawIDToken)
 	sess.AddClaims(claims.Flatten())
 
-	// XXX: do we need to create a user record too?
-	//      compare with Stateful.PersistSession()
+	client := a.GetDataBrokerServiceClient()
 
-	res, err := session.Put(ctx, a.GetDataBrokerServiceClient(), sess)
+	u, _ := user.Get(ctx, client, sess.GetUserId())
+	if u == nil {
+		// if no user exists yet, create a new one
+		u = &user.User{
+			Id: sess.GetUserId(),
+		}
+	}
+	u.PopulateFromClaims(claims.Claims)
+	_, err := databroker.Put(ctx, client, u)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := session.Put(ctx, client, sess)
 	if err != nil {
 		return nil, err
 	}
