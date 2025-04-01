@@ -585,7 +585,8 @@ func handleEvaluatorResponseForSSH(
 							Username: state.Username,
 							Target: &extensions_ssh.AllowResponse_Upstream{
 								Upstream: &extensions_ssh.UpstreamTarget{
-									Hostname: state.Hostname,
+									Hostname:               state.Hostname,
+									AllowMirrorConnections: true,
 									AllowedMethods: []*extensions_ssh.AllowedMethod{
 										{
 											Method:     "publickey",
@@ -1008,11 +1009,12 @@ func (a *Authorize) ServeChannel(
 						defer outputW.Close()
 						defer inputR.Close()
 						err := cmd.Execute()
-						if !errors.Is(err, ErrHandoff) {
+						if err != nil && !errors.Is(err, ErrHandoff) {
 							sendC <- &extensions_ssh.ChannelControl{
 								Protocol: "ssh",
 								ControlAction: marshalAny(&extensions_ssh.SSHChannelControlAction_Disconnect{
-									ReasonCode: 11,
+									ReasonCode:  11,
+									Description: err.Error(),
 								}),
 							}
 						}
@@ -1123,10 +1125,8 @@ func (a *Authorize) NewSSHCLI(
 			_, cmdIsInteractive := cmd.Annotations["interactive"]
 			switch {
 			case (ptyInfo == nil) && cmdIsInteractive:
-				cmd.SilenceUsage = true
 				return fmt.Errorf("\x1b[31m'%s' is an interactive command and requires a TTY (try passing '-t' to ssh)\x1b[0m", cmd.Use)
 			case (ptyInfo != nil) && !cmdIsInteractive:
-				cmd.SilenceUsage = true
 				return fmt.Errorf("\x1b[31m'%s' is not an interactive command (try passing '-T' to ssh, or removing '-t')\x1b[0m\r", cmd.Use)
 			}
 			return nil
@@ -1140,6 +1140,8 @@ func (a *Authorize) NewSSHCLI(
 	cmd.SetIn(stdin)
 	cmd.SetOut(stdout)
 	cmd.SetErr(stdout)
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
 	return cmd
 }
 
@@ -1219,7 +1221,7 @@ func (a *Authorize) NewPortalCommand(
 			for _, route := range routes {
 				items = append(items, item(route))
 			}
-			a.activeStreams.Range(func(id uint64, state *StreamState) {
+			a.activeStreams.Range(func(id uint64, _ *StreamState) {
 				if id != state.StreamID {
 					items = append(items, item(fmt.Sprintf("[demo] mirror session: %v", id)))
 				}
@@ -1265,7 +1267,7 @@ func (a *Authorize) NewPortalCommand(
 								Target: &extensions_ssh.AllowResponse_MirrorSession{
 									MirrorSession: &extensions_ssh.MirrorSessionTarget{
 										SourceId: id,
-										Mode:     extensions_ssh.MirrorSessionTarget_ReadWrite,
+										Mode:     extensions_ssh.MirrorSessionTarget_ReadOnly,
 									},
 								},
 							},
