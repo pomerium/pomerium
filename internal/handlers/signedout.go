@@ -28,6 +28,6 @@ func SignedOut(data SignedOutData) http.Handler {
 		}
 
 		// otherwise show the signed-out page
-		return ui.ServePage(w, r, "SignedOut", "Signed Out", data.ToJSON())
+		return ui.ServePage(w, r, http.StatusOK, "SignedOut", "Signed Out", data.ToJSON())
 	})
 }
