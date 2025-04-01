@@ -135,9 +135,11 @@ func SSH(opts ...SSHUpstreamOption) SSHUpstream {
 	return up
 }
 
-// Port implements SSHUpstream.
-func (h *sshUpstream) Port() values.Value[int] {
-	return h.serverPort
+// Addr implements SSHUpstream.
+func (h *sshUpstream) Addr() values.Value[string] {
+	return values.Bind(h.serverPort, func(port int) string {
+		return fmt.Sprintf("%s:%d", h.Env().Host(), port)
+	})
 }
 
 // Router implements SSHUpstream.
@@ -150,7 +152,7 @@ func (h *sshUpstream) Route() testenv.RouteStub {
 	r := &testenv.PolicyRoute{}
 	protocol := "ssh"
 	r.To(values.Bind(h.serverPort, func(port int) string {
-		return fmt.Sprintf("%s://127.0.0.1:%d", protocol, port)
+		return fmt.Sprintf("%s://%s:%d", protocol, h.Env().Host(), port)
 	}))
 	h.Add(r)
 	return r
