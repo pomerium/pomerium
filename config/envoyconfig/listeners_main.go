@@ -164,6 +164,7 @@ func (b *Builder) buildMainHTTPConnectionManagerFilter(
 		LuaFilter(luascripts.ExtAuthzSetCookie),
 		LuaFilter(luascripts.CleanUpstream),
 		LuaFilter(luascripts.RewriteHeaders),
+		LuaFilter(luascripts.LocalReplyType),
 	}
 	// if we support http3 and this is the non-quic listener, add an alt-svc header indicating h3 is available
 	if !useQUIC && cfg.Options.CodecType == config.CodecTypeHTTP3 {

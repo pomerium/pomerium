@@ -64,9 +64,7 @@
           "statusOnError": {
             "code": "InternalServerError"
           },
-          "metadataContextNamespaces": [
-            "com.pomerium.client-certificate-info"
-          ]
+          "metadataContextNamespaces": ["com.pomerium.client-certificate-info"]
         }
       },
       {
@@ -97,6 +95,15 @@
         }
       },
       {
+        "name": "envoy.filters.http.lua",
+        "typedConfig": {
+          "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua",
+          "defaultSourceCode": {
+            "inlineString": "-- This filter interprets the accept header of an incoming request and attempts to map it to\n-- a metadata value of either \"html\", \"json\" or \"plain\". This metadata value is used to format\n-- local replies in a format the client expects.\n\nfunction parse_accept_header(header_value)\n    -- returns a table with a type field, the table is sorted by position and weight\n    if header_value == nil then\n        return {}\n    end\n\n    local content_types = {}\n    local start_idx = 1\n    local position = 1\n    while true do\n        local end_idx = string.find(header_value, \",\", start_idx)\n        local segment\n        if end_idx == nil then\n            segment = string.sub(header_value, start_idx)\n        else\n            segment = string.sub(header_value, start_idx, end_idx-1)\n        end\n\n        local mime_type = segment\n        local q = 1.0\n        local semicolon_idx = string.find(segment, ';')\n        if semicolon_idx ~= nil then\n            mime_type = string.sub(segment, 1, semicolon_idx-1)\n            q_idx = string.find(segment, \"q=\", semicolon_idx+1)\n            if q_idx ~= nil then\n                q_str = string.sub(segment, q_idx+2)\n                q = tonumber(q_str)\n            end\n        end\n\n        table.insert(content_types, { type=mime_type, q=q, position=position })\n        position = position+1\n\n        if end_idx == nil then\n            break\n        else\n            start_idx = end_idx+1\n        end\n    end\n    table.sort(content_types, function(a,b)\n        if a.q == b.q then\n            return a.position < b.position\n        end\n        return a.q > b.q\n    end)\n    return content_types\nend\n\nfunction envoy_on_request(request_handle)\n    local headers = request_handle:headers()\n    local dynamic_meta = request_handle:streamInfo():dynamicMetadata()\n\n    local content_types = parse_accept_header(headers:get(\"accept\"))\n    for _, v in pairs(content_types) do\n        if v.type == \"text/html\" or v.type == \"text/*\"  then\n            dynamic_meta:set(\"envoy.filters.http.lua\", \"pomerium_local_reply_type\", \"html\")\n            return\n        elseif v.type == \"text/plain\" then\n            dynamic_meta:set(\"envoy.filters.http.lua\", \"pomerium_local_reply_type\", \"plain\")\n            return\n        elseif v.type == \"application/json\" or v.type == \"application/*\" then\n            dynamic_meta:set(\"envoy.filters.http.lua\", \"pomerium_local_reply_type\", \"json\")\n            return\n        end\n    end\n    -- if nothing matched, just return html\n    dynamic_meta:set(\"envoy.filters.http.lua\", \"pomerium_local_reply_type\", \"html\")\nend\n\nfunction envoy_on_response(response_handle)\n    -- unused\nend\n"
+          }
+        }
+      },
+      {
         "name": "envoy.filters.http.router",
         "typedConfig": {
           "@type": "type.googleapis.com/envoy.extensions.filters.http.router.v3.Router"
@@ -115,6 +122,158 @@
     },
     "localReplyConfig": {
       "mappers": [
+        {
+          "filter": {
+            "andFilter": {
+              "filters": [
+                {
+                  "responseFlagFilter": {
+                    "flags": [
+                      "DC",
+                      "DF",
+                      "DI",
+                      "DO",
+                      "DPE",
+                      "DT",
+                      "FI",
+                      "IH",
+                      "LH",
+                      "LR",
+                      "NC",
+                      "NFCF",
+                      "NR",
+                      "OM",
+                      "RFCF",
+                      "RL",
+                      "RLSE",
+                      "SI",
+                      "UC",
+                      "UF",
+                      "UH",
+                      "UMSDR",
+                      "UO",
+                      "UPE",
+                      "UR",
+                      "URX",
+                      "UT"
+                    ]
+                  }
+                },
+                {
+                  "metadataFilter": {
+                    "matcher": {
+                      "filter": "envoy.filters.http.lua",
+                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "value": {
+                        "stringMatch": {
+                          "exact": "plain"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "bodyFormatOverride": {
+            "contentType": "text/plain; charset=UTF-8",
+            "textFormatSource": {
+              "inlineBytes": "ewogICJyZXF1ZXN0SWQiOiAiJVNUUkVBTV9JRCUiLAogICJzdGF0dXMiOiAiJVJFU1BPTlNFX0NPREUlIiwKICAic3RhdHVzVGV4dCI6ICIlUkVTUE9OU0VfQ09ERV9ERVRBSUxTJSIKfQ=="
+            }
+          },
+          "headersToAdd": [
+            {
+              "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+              "header": {
+                "key": "X-Frame-Options",
+                "value": "SAMEORIGIN"
+              }
+            },
+            {
+              "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+              "header": {
+                "key": "X-XSS-Protection",
+                "value": "1; mode=block"
+              }
+            }
+          ]
+        },
+        {
+          "filter": {
+            "andFilter": {
+              "filters": [
+                {
+                  "responseFlagFilter": {
+                    "flags": [
+                      "DC",
+                      "DF",
+                      "DI",
+                      "DO",
+                      "DPE",
+                      "DT",
+                      "FI",
+                      "IH",
+                      "LH",
+                      "LR",
+                      "NC",
+                      "NFCF",
+                      "NR",
+                      "OM",
+                      "RFCF",
+                      "RL",
+                      "RLSE",
+                      "SI",
+                      "UC",
+                      "UF",
+                      "UH",
+                      "UMSDR",
+                      "UO",
+                      "UPE",
+                      "UR",
+                      "URX",
+                      "UT"
+                    ]
+                  }
+                },
+                {
+                  "metadataFilter": {
+                    "matcher": {
+                      "filter": "envoy.filters.http.lua",
+                      "path": [{ "key": "pomerium_local_reply_type" }],
+                      "value": {
+                        "stringMatch": {
+                          "exact": "json"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "bodyFormatOverride": {
+            "contentType": "application/json; charset=UTF-8",
+            "textFormatSource": {
+              "inlineBytes": "ewogICJyZXF1ZXN0SWQiOiAiJVNUUkVBTV9JRCUiLAogICJzdGF0dXMiOiAiJVJFU1BPTlNFX0NPREUlIiwKICAic3RhdHVzVGV4dCI6ICIlUkVTUE9OU0VfQ09ERV9ERVRBSUxTJSIKfQ=="
+            }
+          },
+          "headersToAdd": [
+            {
+              "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+              "header": {
+                "key": "X-Frame-Options",
+                "value": "SAMEORIGIN"
+              }
+            },
+            {
+              "appendAction": "OVERWRITE_IF_EXISTS_OR_ADD",
+              "header": {
+                "key": "X-XSS-Protection",
+                "value": "1; mode=block"
+              }
+            }
+          ]
+        },
         {
           "bodyFormatOverride": {
             "contentType": "text/html; charset=UTF-8",
