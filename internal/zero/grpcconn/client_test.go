@@ -30,7 +30,6 @@ func TestConfig(t *testing.T) {
 		{endpoint: "http://localhost:8721/path", expectError: true},
 		{endpoint: "https://localhost:8721/path", expectError: true},
 	} {
-		tc := tc
 		t.Run(tc.endpoint, func(t *testing.T) {
 			t.Parallel()
 			cfg, err := getConfig(tc.endpoint)

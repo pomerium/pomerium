@@ -63,9 +63,7 @@ func TestHealth(t *testing.T) {
 	endpoints := []string{"healthz", "ping"}
 
 	for _, route := range pomeriumRoutes {
-		route := route
 		for _, endpoint := range endpoints {
-			endpoint := endpoint
 			routeToCheck := fmt.Sprintf("%s/%s", route, endpoint)
 			t.Run(routeToCheck, func(t *testing.T) {
 				req, err := http.NewRequestWithContext(ctx, http.MethodGet, routeToCheck, nil)

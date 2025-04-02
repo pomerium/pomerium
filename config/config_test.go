@@ -6,10 +6,11 @@ import (
 	"encoding/pem"
 	"testing"
 
-	"github.com/pomerium/pomerium/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/pomerium/pomerium/config"
 )
 
 func TestGenerateCatchAllCertificate(t *testing.T) {

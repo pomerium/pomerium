@@ -33,7 +33,6 @@ func TestToValue(t *testing.T) {
 		{"Message", &apipb.Method{Name: "example"}, `{"name": "example"}`},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			actual := ToStruct(tc.value)
 			testutil.AssertProtoJSONEqual(t, tc.expect, actual)

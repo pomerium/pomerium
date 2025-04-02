@@ -10,13 +10,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pomerium/pomerium/config/otelconfig"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/trace/noop"
 	v1 "go.opentelemetry.io/proto/otlp/trace/v1"
+
+	"github.com/pomerium/pomerium/config/otelconfig"
 )
 
 var (

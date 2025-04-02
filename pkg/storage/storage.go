@@ -49,12 +49,12 @@ type Backend interface {
 }
 
 // MatchAny searches any data with a query.
-func MatchAny(any *anypb.Any, query string) bool {
-	if any == nil {
+func MatchAny(a *anypb.Any, query string) bool {
+	if a == nil {
 		return false
 	}
 
-	msg, err := any.UnmarshalNew()
+	msg, err := a.UnmarshalNew()
 	if err != nil {
 		// ignore invalid any types
 		log.Error().Err(err).Msg("storage: invalid any type")

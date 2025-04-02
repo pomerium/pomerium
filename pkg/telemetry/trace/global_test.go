@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace/noop"
+
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 func TestUseGlobalPanicTracer(t *testing.T) {

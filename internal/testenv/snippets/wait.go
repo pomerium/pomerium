@@ -4,12 +4,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/pomerium/pomerium/internal/testenv"
-	"github.com/pomerium/pomerium/pkg/grpcutil"
-	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/pomerium/pomerium/internal/testenv"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 func WaitStartupComplete(env testenv.Environment, timeout ...time.Duration) time.Duration {

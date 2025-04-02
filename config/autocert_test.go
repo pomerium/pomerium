@@ -90,7 +90,7 @@ func TestAutocertOptions_Validate(t *testing.T) {
 			}
 		},
 		"ok/trusted-ca-file": func(t *testing.T) test {
-			f, err := os.CreateTemp("", "pomerium-test-ca")
+			f, err := os.CreateTemp(t.TempDir(), "pomerium-test-ca")
 			require.NoError(t, err)
 			n, err := f.Write(certPEM)
 			require.NoError(t, err)
@@ -128,7 +128,7 @@ func TestAutocertOptions_Validate(t *testing.T) {
 			}
 		},
 		"fail/trusted-ca-combined": func(t *testing.T) test {
-			f, err := os.CreateTemp("", "pomerium-test-ca")
+			f, err := os.CreateTemp(t.TempDir(), "pomerium-test-ca")
 			require.NoError(t, err)
 			n, err := f.Write(certPEM)
 			require.NoError(t, err)

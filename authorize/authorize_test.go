@@ -79,7 +79,6 @@ func TestNew(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			_, err := New(context.Background(), &config.Config{Options: &tt.config})
@@ -104,7 +103,6 @@ func TestAuthorize_OnConfigChange(t *testing.T) {
 		{"bad option", "gXK6ggrlIW2HyKyUF9rUO4azrDgxhDPWqw9y+lJU7B8=", policies, false},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			o := &config.Options{

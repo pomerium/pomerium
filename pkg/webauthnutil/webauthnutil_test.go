@@ -19,7 +19,6 @@ func TestGetEffectiveDomain(t *testing.T) {
 		{"https://www.subdomain.example.com/some/path", "example.com"},
 		{"https://example.com/some/path", "example.com"},
 	} {
-		tc := tc
 		t.Run(tc.expect, func(t *testing.T) {
 			t.Parallel()
 

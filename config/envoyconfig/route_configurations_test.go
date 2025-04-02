@@ -275,7 +275,6 @@ func Test_urlMatchesHost(t *testing.T) {
 		{"non standard port", "http://example.com:81", "example.com", false},
 		{"non standard host port", "http://example.com:81", "example.com:80", false},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

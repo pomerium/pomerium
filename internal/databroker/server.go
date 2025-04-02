@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -22,7 +23,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/storage/inmemory"
 	"github.com/pomerium/pomerium/pkg/storage/postgres"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // Server implements the databroker service using an in memory database.

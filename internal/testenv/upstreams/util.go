@@ -14,13 +14,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pomerium/pomerium/integration/forms"
-	"github.com/pomerium/pomerium/internal/retry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/pomerium/pomerium/integration/forms"
+	"github.com/pomerium/pomerium/internal/retry"
 )
 
 var ErrRetry = errors.New("error")

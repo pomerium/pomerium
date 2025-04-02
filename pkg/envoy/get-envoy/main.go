@@ -57,7 +57,7 @@ func run(ctx context.Context, args []string) error {
 func runAll(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	for _, target := range targets {
-		target := target
+
 		eg.Go(func() error {
 			return download(ctx, "./envoy-"+target, baseURL+"/envoy-"+target)
 		})

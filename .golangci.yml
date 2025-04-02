@@ -11,11 +11,11 @@ linters:
   enable:
     - asasalint
     - bodyclose
+    - copyloopvar
     - dogsled
     - errcheck
     - errorlint
-    - exportloopref
-    # - gci # https://github.com/daixiang0/gci/issues/209
+    - gci
     - gocheckcompilerdirectives
     - gofumpt
     - goimports
@@ -30,10 +30,10 @@ linters:
     - revive
     - staticcheck
     - stylecheck
-    - tenv
     - unconvert
     - unused
     - usestdlibvars
+    - usetesting
 
 issues:
   # List of regexps of issue texts to exclude, empty list by default.

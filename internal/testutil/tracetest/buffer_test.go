@@ -3,9 +3,10 @@ package tracetest
 import (
 	"testing"
 
-	"github.com/pomerium/pomerium/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	tracev1 "go.opentelemetry.io/proto/otlp/trace/v1"
+
+	"github.com/pomerium/pomerium/internal/testutil"
 )
 
 func TestBuffer(t *testing.T) {

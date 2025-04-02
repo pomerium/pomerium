@@ -58,7 +58,6 @@ func TestOptions_Validate(t *testing.T) {
 		{"empty callback path", badCallbackPath, true},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if err := ValidateOptions(tt.o); (err != nil) != tt.wantErr {
 				t.Errorf("Options.Validate() error = %v, wantErr %v", err, tt.wantErr)
@@ -105,7 +104,6 @@ func TestNew(t *testing.T) {
 		{"bad signing key", badSigningKey, true},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := New(context.Background(), &config.Config{Options: tt.opts})
 			if (err != nil) != tt.wantErr {

@@ -1871,13 +1871,6 @@ func compareByteSliceSlice(a, b [][]byte) int {
 	}
 }
 
-func min(x, y int) int {
-	if x < y {
-		return x
-	}
-	return y
-}
-
 // NewAtomicOptions creates a new AtomicOptions.
 func NewAtomicOptions() *atomicutil.Value[*Options] {
 	return atomicutil.NewValue(new(Options))

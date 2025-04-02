@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	"golang.org/x/net/nettest"
 	"golang.org/x/sync/errgroup"
@@ -36,7 +37,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/httputil"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // A Service can be mounted on the control plane.
@@ -222,8 +222,6 @@ func (srv *Server) Run(ctx context.Context) error {
 		{"debug", srv.DebugListener, srv.DebugRouter},
 		{"metrics", srv.MetricsListener, srv.MetricsRouter},
 	} {
-		entry := entry
-
 		// start the HTTP server
 		eg.Go(func() error {
 			log.Ctx(ctx).Debug().
