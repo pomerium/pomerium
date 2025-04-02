@@ -184,12 +184,12 @@ func ocExport(name string, exporter *ocprom.Exporter, r *http.Request, labels ma
 		exporter.ServeHTTP(rec, r)
 
 		if rec.Code/100 != 2 {
-			return promProducerResult{name: name, err: errors.New(rec.Result().Status)} //nolint
+			return promProducerResult{name: name, err: errors.New(rec.Result().Status)}
 		}
 
 		return promProducerResult{
 			name:   name,
-			src:    rec.Result().Body, //nolint
+			src:    rec.Result().Body,
 			labels: labels,
 		}
 	}

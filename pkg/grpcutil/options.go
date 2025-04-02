@@ -8,10 +8,11 @@ import (
 
 	"github.com/go-jose/go-jose/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
-	"github.com/pomerium/pomerium/internal/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/pomerium/pomerium/internal/log"
 )
 
 // WithStreamSignedJWT returns a StreamClientInterceptor that adds a JWT to requests.

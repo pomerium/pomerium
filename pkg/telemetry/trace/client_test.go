@@ -11,6 +11,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
+	tracev1 "go.opentelemetry.io/proto/otlp/trace/v1"
+	"go.uber.org/mock/gomock"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/internal/testenv"
@@ -20,11 +26,6 @@ import (
 	"github.com/pomerium/pomerium/internal/testutil/tracetest/mock_otlptrace"
 	"github.com/pomerium/pomerium/internal/version"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel"
-	tracev1 "go.opentelemetry.io/proto/otlp/trace/v1"
-	"go.uber.org/mock/gomock"
 )
 
 func TestSyncClient(t *testing.T) {

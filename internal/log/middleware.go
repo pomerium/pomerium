@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/pomerium/protoutil/streams"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/internal/middleware/responsewriter"
 	"github.com/pomerium/pomerium/pkg/telemetry/requestid"
+	"github.com/pomerium/protoutil/streams"
 )
 
 // NewHandler injects log into requests context.

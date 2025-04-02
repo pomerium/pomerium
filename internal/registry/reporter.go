@@ -10,14 +10,14 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	oteltrace "go.opentelemetry.io/otel/trace"
+	googlegrpc "google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	pb "github.com/pomerium/pomerium/pkg/grpc/registry"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	oteltrace "go.opentelemetry.io/otel/trace"
-	googlegrpc "google.golang.org/grpc"
 )
 
 // Reporter periodically submits a list of services available on this instance to the service registry

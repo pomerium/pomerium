@@ -24,7 +24,6 @@ func (c *leaser) GetDataBrokerServiceClient() databroker.DataBrokerServiceClient
 func (c *leaser) RunLeased(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	for _, fn := range c.funcs {
-		fn := fn
 		eg.Go(func() error { return fn(ctx, c.client) })
 	}
 	err := eg.Wait()

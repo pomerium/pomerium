@@ -11,6 +11,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -28,7 +29,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/identity/manager"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // DataBroker represents the databroker service. The databroker service is a simple interface

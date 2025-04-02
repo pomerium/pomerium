@@ -458,12 +458,12 @@ func signalServiceChange(ctx context.Context, q querier) error {
 	return err
 }
 
-func jsonbFromAny(any *anypb.Any) ([]byte, error) {
-	if any == nil {
+func jsonbFromAny(a *anypb.Any) ([]byte, error) {
+	if a == nil {
 		return nil, nil
 	}
 
-	return protojson.Marshal(any)
+	return protojson.Marshal(a)
 }
 
 func timestamppbFromTimestamptz(ts pgtype.Timestamptz) *timestamppb.Timestamp {

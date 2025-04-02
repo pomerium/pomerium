@@ -187,7 +187,6 @@ func TestSession_Validate(t *testing.T) {
 		// Expiry of the ID token does not indicate expiry of the underlying session.
 		{"expired id token ok", &Session{IdToken: &IDToken{ExpiresAt: t0}}, nil},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

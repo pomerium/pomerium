@@ -38,9 +38,9 @@ func nextSessionRefresh(
 	}
 
 	// don't refresh any quicker than the cool-off duration
-	min := lastRefresh.Add(coolOffDuration)
-	if tm.Before(min) {
-		tm = min
+	v := lastRefresh.Add(coolOffDuration)
+	if tm.Before(v) {
+		tm = v
 	}
 
 	return tm

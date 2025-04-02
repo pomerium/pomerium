@@ -110,9 +110,9 @@ func (r *BundleCacheEntry) ToAny() (*anypb.Any, error) {
 }
 
 // FromAny unmarshals an anypb.Any into a BundleCacheEntry
-func (r *BundleCacheEntry) FromAny(any *anypb.Any) error {
+func (r *BundleCacheEntry) FromAny(a *anypb.Any) error {
 	var s structpb.Struct
-	err := any.UnmarshalTo(&s)
+	err := a.UnmarshalTo(&s)
 	if err != nil {
 		return fmt.Errorf("unmarshal struct: %w", err)
 	}

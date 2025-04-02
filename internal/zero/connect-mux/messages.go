@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/pomerium/pomerium/internal/zero/apierror"
 	"github.com/pomerium/pomerium/pkg/zero/connect"
-	"github.com/rs/zerolog/log"
 )
 
 // Watch watches for changes to the config until either context is canceled,

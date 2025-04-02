@@ -9,13 +9,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/rs/zerolog"
+	"github.com/spf13/cobra"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/zero/cluster"
 	"github.com/pomerium/pomerium/pkg/zero/importutil"
-	"github.com/rs/zerolog"
-	"github.com/spf13/cobra"
 )
 
 func BuildImportCmd() *cobra.Command {

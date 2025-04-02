@@ -9,11 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pomerium/pomerium/config"
-	"github.com/pomerium/pomerium/internal/testenv"
-	"github.com/pomerium/pomerium/internal/testenv/upstreams"
-	"github.com/pomerium/pomerium/internal/testenv/values"
-	"github.com/pomerium/pomerium/internal/testutil/tracetest"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -21,6 +16,12 @@ import (
 	tracev1 "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/testenv"
+	"github.com/pomerium/pomerium/internal/testenv/upstreams"
+	"github.com/pomerium/pomerium/internal/testenv/values"
+	"github.com/pomerium/pomerium/internal/testutil/tracetest"
 )
 
 type RecordedExportRequest struct {

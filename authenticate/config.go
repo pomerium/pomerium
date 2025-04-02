@@ -3,11 +3,12 @@ package authenticate
 import (
 	"context"
 
+	oteltrace "go.opentelemetry.io/otel/trace"
+
 	"github.com/pomerium/pomerium/authenticate/events"
 	"github.com/pomerium/pomerium/config"
 	identitypb "github.com/pomerium/pomerium/pkg/grpc/identity"
 	"github.com/pomerium/pomerium/pkg/identity"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 type authenticateConfig struct {

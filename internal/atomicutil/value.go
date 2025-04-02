@@ -41,6 +41,6 @@ func (v *Value[T]) Swap(val T) T {
 }
 
 // Swap swaps the value atomically.
-func (v *Value[T]) CompareAndSwap(old, new T) bool {
-	return v.value.CompareAndSwap(old, new)
+func (v *Value[T]) CompareAndSwap(old, n T) bool {
+	return v.value.CompareAndSwap(old, n)
 }

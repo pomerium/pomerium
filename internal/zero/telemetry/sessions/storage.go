@@ -86,9 +86,9 @@ func (r *MetricState) ToAny() *anypb.Any {
 }
 
 // FromAny unmarshals an anypb.Any into a MetricState
-func (r *MetricState) FromAny(any *anypb.Any) error {
+func (r *MetricState) FromAny(a *anypb.Any) error {
 	var s structpb.Struct
-	err := any.UnmarshalTo(&s)
+	err := a.UnmarshalTo(&s)
 	if err != nil {
 		return fmt.Errorf("unmarshal struct: %w", err)
 	}

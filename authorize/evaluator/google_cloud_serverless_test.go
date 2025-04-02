@@ -44,6 +44,8 @@ func TestGCPIdentityTokenSource(t *testing.T) {
 }
 
 func Test_normalizeServiceAccount(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name                   string
 		serviceAccount         string
@@ -59,7 +61,6 @@ func Test_normalizeServiceAccount(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			gotServiceAccount, err := normalizeServiceAccount(tc.serviceAccount)
