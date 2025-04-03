@@ -692,6 +692,10 @@ func (p *Policy) Validate() error {
 		return fmt.Errorf("config: unsupported jwt_issuer_format value %q", p.JWTIssuerFormat)
 	}
 
+	if len(p.DependsOn) > 5 {
+		return fmt.Errorf("config: depends_on is limited to 5 additional redirect hosts, got %v", p.DependsOn)
+	}
+
 	return nil
 }
 
