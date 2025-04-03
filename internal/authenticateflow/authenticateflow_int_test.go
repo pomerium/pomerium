@@ -19,11 +19,11 @@ import (
 	"github.com/pomerium/pomerium/internal/testenv/values"
 )
 
-func newHttpUpstream(
+func newHTTPUpstream(
 	env testenv.Environment, subdomain string,
 ) (upstreams.HTTPUpstream, testenv.Route) {
 	up := upstreams.HTTP(nil)
-	up.Handle("/", func(w http.ResponseWriter, r *http.Request) { fmt.Fprintln(w, "hello world") })
+	up.Handle("/", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprintln(w, "hello world") })
 	route := up.Route().
 		From(env.SubdomainURL(subdomain)).
 		To(values.Bind(up.Addr(), func(addr string) string {
@@ -41,11 +41,11 @@ func TestMultiDomainLogin(t *testing.T) {
 	env.Add(scenarios.NewIDP([]*scenarios.User{{Email: "test@example.com"}}))
 
 	// Create three routes to be linked via multi-domain login...
-	upstreamA, routeA := newHttpUpstream(env, "a")
-	upstreamB, routeB := newHttpUpstream(env, "b")
-	upstreamC, routeC := newHttpUpstream(env, "c")
+	upstreamA, routeA := newHTTPUpstream(env, "a")
+	upstreamB, routeB := newHTTPUpstream(env, "b")
+	upstreamC, routeC := newHTTPUpstream(env, "c")
 	// ...and one route that will not be involved.
-	upstreamD, routeD := newHttpUpstream(env, "d")
+	upstreamD, routeD := newHTTPUpstream(env, "d")
 
 	// Configure route A to redirect through routes B and C on login.
 	routeA.Policy(func(p *config.Policy) {
@@ -65,7 +65,7 @@ func TestMultiDomainLogin(t *testing.T) {
 	require.NoError(t, err)
 	sharedClient := http.Client{Jar: cj}
 	withSharedClient := upstreams.ClientHook(
-		func(c *http.Client) *http.Client { return &sharedClient })
+		func(_ *http.Client) *http.Client { return &sharedClient })
 
 	assertResponseOK := func(resp *http.Response, err error) {
 		t.Helper()
@@ -87,7 +87,7 @@ func TestMultiDomainLogin(t *testing.T) {
 
 	// The client should also be authenticated for routes B and C without any
 	// additional login redirects.
-	sharedClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+	sharedClient.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
 		return http.ErrUseLastResponse
 	}
 	assertResponseOK(upstreamB.Get(routeB, withSharedClient))

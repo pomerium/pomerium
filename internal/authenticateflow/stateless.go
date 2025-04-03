@@ -359,7 +359,7 @@ func (s *Stateless) AuthenticateSignInURL(
 	queryParams url.Values,
 	redirectURL *url.URL,
 	idpID string,
-	additionalHosts []string,
+	_ []string,
 ) (string, error) {
 	authenticateHPKEPublicKey, err := s.authenticateKeyFetcher.FetchPublicKey(ctx)
 	if err != nil {
