@@ -19,8 +19,8 @@ import (
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
 
 type authenticateFlow interface {
-	AuthenticateSignInURL(ctx context.Context, queryParams url.Values, redirectURL *url.URL, idpID string) (string, error)
-	Callback(w http.ResponseWriter, r *http.Request, route *config.Policy) error
+	AuthenticateSignInURL(ctx context.Context, queryParams url.Values, redirectURL *url.URL, idpID string, additionalHosts []string) (string, error)
+	Callback(w http.ResponseWriter, r *http.Request) error
 }
 
 type proxyState struct {

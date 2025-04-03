@@ -51,7 +51,7 @@ func GetCallbackURL(r *http.Request, encodedSessionJWT string, additionalHosts [
 		callbackParams.Set(QueryTracestate, tracestate)
 	}
 
-	if additionalHosts != nil {
+	if len(additionalHosts) > 0 {
 		callbackParams.Set(QueryAdditionalHosts, strings.Join(additionalHosts, ","))
 	}
 

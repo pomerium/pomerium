@@ -128,7 +128,7 @@ func TestStatefulAuthenticateSignInURL(t *testing.T) {
 
 	t.Run("NilQueryParams", func(t *testing.T) {
 		redirectURL := &url.URL{Scheme: "https", Host: "example.com"}
-		u, err := flow.AuthenticateSignInURL(context.Background(), nil, redirectURL, "fake-idp-id")
+		u, err := flow.AuthenticateSignInURL(context.Background(), nil, redirectURL, "fake-idp-id", nil)
 		assert.NoError(t, err)
 		parsed, _ := url.Parse(u)
 		assert.NoError(t, urlutil.NewSignedURL(key, parsed).Validate())
@@ -143,7 +143,7 @@ func TestStatefulAuthenticateSignInURL(t *testing.T) {
 		redirectURL := &url.URL{Scheme: "https", Host: "example.com"}
 		q := url.Values{}
 		q.Set("foo", "bar")
-		u, err := flow.AuthenticateSignInURL(context.Background(), q, redirectURL, "fake-idp-id")
+		u, err := flow.AuthenticateSignInURL(context.Background(), q, redirectURL, "fake-idp-id", nil)
 		assert.NoError(t, err)
 		parsed, _ := url.Parse(u)
 		assert.NoError(t, urlutil.NewSignedURL(key, parsed).Validate())
@@ -270,7 +270,7 @@ func TestStatefulCallback(t *testing.T) {
 			r.Header.Set("Accept", "application/json")
 
 			w := httptest.NewRecorder()
-			err = flow.Callback(w, r, nil)
+			err = flow.Callback(w, r)
 			if tt.wantErrorMsg == "" {
 				if err != nil {
 					t.Errorf("unexpected error: %v", err)

@@ -355,7 +355,11 @@ func getUserClaim(profile *identitypb.Profile, field string) *string {
 // AuthenticateSignInURL returns a URL to redirect the user to the authenticate
 // domain.
 func (s *Stateless) AuthenticateSignInURL(
-	ctx context.Context, queryParams url.Values, redirectURL *url.URL, idpID string,
+	ctx context.Context,
+	queryParams url.Values,
+	redirectURL *url.URL,
+	idpID string,
+	additionalHosts []string,
 ) (string, error) {
 	authenticateHPKEPublicKey, err := s.authenticateKeyFetcher.FetchPublicKey(ctx)
 	if err != nil {
@@ -380,7 +384,7 @@ func (s *Stateless) AuthenticateSignInURL(
 }
 
 // Callback handles a redirect to a route domain once signed in.
-func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request, route *config.Policy) error {
+func (s *Stateless) Callback(w http.ResponseWriter, r *http.Request) error {
 	if err := r.ParseForm(); err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}

@@ -119,9 +119,7 @@ func (p *Proxy) deviceEnrolled(w http.ResponseWriter, r *http.Request) error {
 // Callback handles the result of a successful call to the authenticate service
 // and is responsible setting per-route sessions.
 func (p *Proxy) Callback(w http.ResponseWriter, r *http.Request) error {
-	// XXX: need a better way to match request to route
-	route := p.currentOptions.Load().GetRouteForHost(r.Host)
-	return p.state.Load().authenticateFlow.Callback(w, r, route)
+	return p.state.Load().authenticateFlow.Callback(w, r)
 }
 
 // ProgrammaticLogin returns a signed url that can be used to login
@@ -151,7 +149,7 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	q.Set(urlutil.QueryIsProgrammatic, "true")
 
 	rawURL, err := state.authenticateFlow.AuthenticateSignInURL(
-		r.Context(), q, redirectURI, idp.GetId())
+		r.Context(), q, redirectURI, idp.GetId(), nil)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}
