@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -20,6 +20,8 @@ import (
 
 	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/config"
+	"github.com/pomerium/pomerium/internal/headertemplate"
+	"github.com/pomerium/pomerium/internal/httputil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/session"
@@ -149,20 +151,20 @@ func (e *headersEvaluatorEvaluation) fillSetRequestHeaders(ctx context.Context) 
 	}
 
 	for k, v := range e.request.Policy.SetRequestHeaders {
-		e.response.Headers.Add(k, os.Expand(v, func(name string) string {
-			switch name {
-			case "$":
-				return "$"
-			case "pomerium.access_token":
+		e.response.Headers.Add(k, headertemplate.Render(v, func(ref []string) string {
+			switch {
+			case slices.Equal(ref, []string{"pomerium", "access_token"}):
 				s, _ := e.getSessionOrServiceAccount(ctx)
 				return s.GetOauthToken().GetAccessToken()
-			case "pomerium.client_cert_fingerprint":
+			case slices.Equal(ref, []string{"pomerium", "client_cert_fingerprint"}):
 				return e.getClientCertFingerprint()
-			case "pomerium.id_token":
+			case slices.Equal(ref, []string{"pomerium", "id_token"}):
 				s, _ := e.getSessionOrServiceAccount(ctx)
 				return s.GetIdToken().GetRaw()
-			case "pomerium.jwt":
+			case slices.Equal(ref, []string{"pomerium", "jwt"}):
 				return e.getSignedJWT(ctx)
+			case len(ref) > 3 && ref[0] == "pomerium" && ref[1] == "request" && ref[2] == "headers":
+				return e.request.HTTP.Headers[httputil.CanonicalHeaderKey(ref[3])]
 			}
 
 			return ""
