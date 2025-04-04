@@ -52,7 +52,7 @@ enum BearerTokenFormat {
   BEARER_TOKEN_FORMAT_IDP_IDENTITY_TOKEN = 3;
 }
 
-// Next ID: 71.
+// Next ID: 72.
 message Route {
   message StringList { repeated string values = 1; }
 
@@ -126,6 +126,7 @@ message Route {
   optional IssuerFormat jwt_issuer_format = 65;
   repeated string jwt_groups_filter = 66;
   optional BearerTokenFormat bearer_token_format = 70;
+  repeated string depends_on = 71;
 
   envoy.config.cluster.v3.Cluster envoy_opts = 36;
 
