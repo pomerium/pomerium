@@ -8,6 +8,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/log"
 	"github.com/testcontainers/testcontainers-go/wait"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
@@ -34,7 +35,7 @@ func WithTestMinIO(t *testing.T, bucket string, handler func(endpoint string)) {
 			Cmd: []string{"server", "/data"},
 		},
 		Started: true,
-		Logger:  testcontainers.TestLogger(t),
+		Logger:  log.TestLogger(t),
 	})
 	if err != nil {
 		t.Fatalf("testutil/minio: failed to create container: %v", err)

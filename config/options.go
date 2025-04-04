@@ -19,8 +19,8 @@ import (
 	"time"
 
 	envoy_http_connection_manager "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	"github.com/go-viper/mapstructure/v2"
 	goset "github.com/hashicorp/go-set/v3"
-	"github.com/mitchellh/mapstructure"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"github.com/volatiletech/null/v9"
