@@ -9,6 +9,22 @@ func Render(src string, fn func(ref []string) string) string {
 	return p.parse()
 }
 
+// This is a hand written parser attempting to model this peg grammar:
+//
+// Grammar <- ( Variable / Text )* !.
+// Text <- .
+// Variable <- EscapedVariable / SimpleVariable / ComplexVariable
+// EscapedVariable <- '$' '$'
+// SimpleVariable <- '$' SimpleExpression
+// SimpleExpression <- identifier ( '.' identifier )*
+// ComplexVariable <- '$' '{' _ ComplexExpression _ '}'
+// ComplexExpression <- identifier _ (ComplexSelector / ComplexIndex)*
+// ComplexSelector <- '.' _ ComplexExpression _
+// ComplexIndex <- '[' _ StringLiteral _ ']' _
+// StringLiteral <- '"' (('\\'.) / [^"])* '"'
+// identifier <- [a-zA-Z0-9_] [a-zA-Z0-9_\-]*
+// _ <- ( ' ' / '\t' )*
+
 type parser struct {
 	buffer []byte
 	pos    int
