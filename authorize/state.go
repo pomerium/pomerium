@@ -20,7 +20,7 @@ import (
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
 
 type authenticateFlow interface {
-	AuthenticateSignInURL(ctx context.Context, queryParams url.Values, redirectURL *url.URL, idpID string) (string, error)
+	AuthenticateSignInURL(ctx context.Context, queryParams url.Values, redirectURL *url.URL, idpID string, additionalLoginHosts []string) (string, error)
 }
 
 type authorizeState struct {

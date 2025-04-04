@@ -200,6 +200,8 @@ type Policy struct {
 	ShowErrorDetails bool `mapstructure:"show_error_details" yaml:"show_error_details" json:"show_error_details"`
 
 	Policy *PPLPolicy `mapstructure:"policy" yaml:"policy,omitempty" json:"policy,omitempty"`
+
+	DependsOn []string `mapstructure:"depends_on" yaml:"depends_on,omitempty" json:"depends_on,omitempty"`
 }
 
 // RewriteHeader is a policy configuration option to rewrite an HTTP header.
@@ -688,6 +690,10 @@ func (p *Policy) Validate() error {
 
 	if !p.JWTIssuerFormat.Valid() {
 		return fmt.Errorf("config: unsupported jwt_issuer_format value %q", p.JWTIssuerFormat)
+	}
+
+	if len(p.DependsOn) > 5 {
+		return fmt.Errorf("config: depends_on is limited to 5 additional redirect hosts, got %v", p.DependsOn)
 	}
 
 	return nil

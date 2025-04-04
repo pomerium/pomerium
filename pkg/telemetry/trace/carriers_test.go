@@ -4,8 +4,9 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 func TestPomeriumURLQueryCarrier(t *testing.T) {

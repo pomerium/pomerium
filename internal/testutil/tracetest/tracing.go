@@ -16,7 +16,6 @@ import (
 	"unique"
 
 	gocmp "github.com/google/go-cmp/cmp"
-	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	oteltrace "go.opentelemetry.io/otel/trace"
@@ -27,6 +26,8 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
+
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 type (

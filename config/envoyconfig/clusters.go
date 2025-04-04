@@ -216,7 +216,6 @@ func (b *Builder) buildPolicyEndpoints(
 ) ([]Endpoint, error) {
 	var endpoints []Endpoint
 	for _, dst := range policy.To {
-		dst := dst
 		ts, err := b.buildPolicyTransportSocket(ctx, cfg, policy, dst.URL)
 		if err != nil {
 			return nil, err

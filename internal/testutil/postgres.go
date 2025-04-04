@@ -8,11 +8,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/log"
 	"github.com/testcontainers/testcontainers-go/wait"
 	oteltrace "go.opentelemetry.io/otel/trace"
+
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 // WithTestPostgres starts a postgres database.

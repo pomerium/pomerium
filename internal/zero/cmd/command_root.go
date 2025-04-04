@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 
-	zero "github.com/pomerium/pomerium/internal/zero/api"
 	"github.com/spf13/cobra"
+
+	zero "github.com/pomerium/pomerium/internal/zero/api"
 )
 
 type zeroClientContextKeyType struct{}

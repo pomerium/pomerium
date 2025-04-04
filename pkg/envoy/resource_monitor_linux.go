@@ -293,6 +293,7 @@ func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
 
 	watcherExited := make(chan struct{})
 	if err := limitWatcher.Watch(ctx); err != nil {
+		ca(nil)
 		return fmt.Errorf("failed to start watch on cgroup memory limit: %w", err)
 	}
 	go func() {
@@ -455,11 +456,11 @@ func (d *cgroupV2Driver) MemoryLimit(cgroup string) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	max := strings.TrimSpace(string(data))
-	if max == "max" {
+	v := strings.TrimSpace(string(data))
+	if v == "max" {
 		return 0, nil
 	}
-	return strconv.ParseUint(max, 10, 64)
+	return strconv.ParseUint(v, 10, 64)
 }
 
 // Validate implements CgroupDriver.
@@ -570,11 +571,11 @@ func (d *cgroupV1Driver) MemoryLimit(cgroup string) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	max := strings.TrimSpace(string(data))
-	if max == "max" {
+	v := strings.TrimSpace(string(data))
+	if v == "max" {
 		return 0, nil
 	}
-	return strconv.ParseUint(max, 10, 64)
+	return strconv.ParseUint(v, 10, 64)
 }
 
 // Validate implements CgroupDriver.
@@ -680,11 +681,11 @@ func (w *memoryLimitWatcher) readValue() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	max := strings.TrimSpace(string(data))
-	if max == "max" {
+	v := strings.TrimSpace(string(data))
+	if v == "max" {
 		return 0, nil
 	}
-	return strconv.ParseUint(max, 10, 64)
+	return strconv.ParseUint(v, 10, 64)
 }
 
 func (w *memoryLimitWatcher) Watch(ctx context.Context) error {

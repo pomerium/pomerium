@@ -13,11 +13,11 @@ func TestClean(t *testing.T) {
 	t.Parallel()
 
 	tmpDir := t.TempDir()
-	d1, err := os.MkdirTemp(tmpDir, envoyPrefix)
+	d1, err := os.MkdirTemp(tmpDir, envoyPrefix) //nolint:usetesting
 	require.NoError(t, err)
-	d2, err := os.MkdirTemp(tmpDir, envoyPrefix)
+	d2, err := os.MkdirTemp(tmpDir, envoyPrefix) //nolint:usetesting
 	require.NoError(t, err)
-	d3, err := os.MkdirTemp(tmpDir, envoyPrefix)
+	d3, err := os.MkdirTemp(tmpDir, envoyPrefix) //nolint:usetesting
 	require.NoError(t, err)
 
 	cleanTempDir(tmpDir)

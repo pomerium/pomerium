@@ -34,7 +34,6 @@ func DashboardSubrouter(parent *mux.Router) *mux.Router {
 		"index.css",
 		"index.js",
 	} {
-		fileName := fileName
 		r.Path("/" + fileName).Handler(HandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
 			return ui.ServeFile(w, r, fileName)
 		}))

@@ -331,7 +331,7 @@ func Test_parsePolicyFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tempFile, _ := os.CreateTemp("", "*.json")
+			tempFile, _ := os.CreateTemp(t.TempDir(), "*.json")
 			defer tempFile.Close()
 			defer os.Remove(tempFile.Name())
 			tempFile.Write(tt.policyBytes)
@@ -462,7 +462,7 @@ func TestOptionsFromViper(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tempFile, _ := os.CreateTemp("", "*.json")
+			tempFile, _ := os.CreateTemp(t.TempDir(), "*.json")
 			defer tempFile.Close()
 			defer os.Remove(tempFile.Name())
 			tempFile.Write(tt.configBytes)
@@ -506,8 +506,7 @@ func Test_NewOptionsFromConfigEnvVar(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			for k, v := range tt.envKeyPairs {
-				os.Setenv(k, v)
-				defer os.Unsetenv(k)
+				t.Setenv(k, v)
 			}
 			_, err := newOptionsFromConfig("")
 			if (err != nil) != tt.wantErr {
@@ -578,7 +577,7 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 		"ok/custom-ca-file": func(t *testing.T) test {
 			certPEM, err := newCACertPEM()
 			require.NoError(t, err)
-			f, err := os.CreateTemp("", "pomerium-test-ca")
+			f, err := os.CreateTemp(t.TempDir(), "pomerium-test-ca")
 			require.NoError(t, err)
 			n, err := f.Write(certPEM)
 			require.NoError(t, err)
@@ -617,8 +616,7 @@ func Test_AutoCertOptionsFromEnvVar(t *testing.T) {
 		tc := run(t)
 		t.Run(name, func(t *testing.T) {
 			for k, v := range tc.envs {
-				os.Setenv(k, v)
-				defer os.Unsetenv(k)
+				t.Setenv(k, v)
 			}
 			o, err := newOptionsFromConfig("")
 			if err != nil {
@@ -658,7 +656,6 @@ func TestCertificatesArrayParsing(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -827,7 +824,6 @@ func TestOptions_DefaultURL(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			u, err := tc.f()
@@ -1235,7 +1231,6 @@ LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IUUNBUUVFSUdHaDZGbEJlOHl5OWRSSmdtKzM1
 			0x49, 0x56, 0x41, 0x54, 0x45, 0x20, 0x4b, 0x45, 0x59, 0x2d, 0x2d, 0x2d, 0x2d, 0x2d,
 		}, nil},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1285,7 +1280,6 @@ func TestOptions_GetCookieSameSite(t *testing.T) {
 		{"none", http.SameSiteNoneMode},
 		{"UnKnOwN", http.SameSiteDefaultMode},
 	} {
-		tc := tc
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
 
@@ -1314,7 +1308,6 @@ func TestOptions_GetCSRFSameSite(t *testing.T) {
 		{"UnKnOwN", "", csrf.SameSiteDefaultMode},
 		{"", apple.Name, csrf.SameSiteNoneMode},
 	} {
-		tc := tc
 		t.Run(tc.cookieSameSite, func(t *testing.T) {
 			t.Parallel()
 

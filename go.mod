@@ -2,8 +2,6 @@ module github.com/pomerium/pomerium
 
 go 1.23.6
 
-toolchain go1.24.1
-
 require (
 	cloud.google.com/go/storage v1.51.0
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2

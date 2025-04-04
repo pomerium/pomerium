@@ -20,7 +20,6 @@ func TestServiceAccount_Validate(t *testing.T) {
 		{"valid", &ServiceAccount{}, nil},
 		{"expired", &ServiceAccount{ExpiresAt: t0}, ErrServiceAccountExpired},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

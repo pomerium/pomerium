@@ -9,6 +9,9 @@ import (
 	"net/url"
 
 	"github.com/go-jose/go-jose/v3"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
 	googlegrpc "google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -31,9 +34,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/hpke"
 	"github.com/pomerium/pomerium/pkg/identity"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	"go.opentelemetry.io/otel"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // Stateless implements the stateless authentication flow. In this flow, the
@@ -355,7 +355,11 @@ func getUserClaim(profile *identitypb.Profile, field string) *string {
 // AuthenticateSignInURL returns a URL to redirect the user to the authenticate
 // domain.
 func (s *Stateless) AuthenticateSignInURL(
-	ctx context.Context, queryParams url.Values, redirectURL *url.URL, idpID string,
+	ctx context.Context,
+	queryParams url.Values,
+	redirectURL *url.URL,
+	idpID string,
+	_ []string,
 ) (string, error) {
 	authenticateHPKEPublicKey, err := s.authenticateKeyFetcher.FetchPublicKey(ctx)
 	if err != nil {

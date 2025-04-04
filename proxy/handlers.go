@@ -149,7 +149,7 @@ func (p *Proxy) ProgrammaticLogin(w http.ResponseWriter, r *http.Request) error 
 	q.Set(urlutil.QueryIsProgrammatic, "true")
 
 	rawURL, err := state.authenticateFlow.AuthenticateSignInURL(
-		r.Context(), q, redirectURI, idp.GetId())
+		r.Context(), q, redirectURI, idp.GetId(), nil)
 	if err != nil {
 		return httputil.NewError(http.StatusInternalServerError, err)
 	}

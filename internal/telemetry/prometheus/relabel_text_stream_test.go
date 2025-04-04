@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pomerium/pomerium/internal/telemetry/prometheus"
 	"github.com/stretchr/testify/require"
+
+	"github.com/pomerium/pomerium/internal/telemetry/prometheus"
 )
 
 // RepeatingReader repeats reading from the beginning after EOF for a specified number of times

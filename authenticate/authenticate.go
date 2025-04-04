@@ -7,12 +7,13 @@ import (
 	"errors"
 	"fmt"
 
+	oteltrace "go.opentelemetry.io/otel/trace"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/atomicutil"
 	"github.com/pomerium/pomerium/internal/log"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // ValidateOptions checks that configuration are complete and valid.

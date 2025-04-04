@@ -8,7 +8,10 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
+	googlegrpc "google.golang.org/grpc"
 
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/errgrouputil"
@@ -22,9 +25,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 	"github.com/pomerium/pomerium/pkg/health"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-	oteltrace "go.opentelemetry.io/otel/trace"
-	googlegrpc "google.golang.org/grpc"
 )
 
 // ConfigSource provides a new Config source that decorates an underlying config with
@@ -136,7 +136,6 @@ func (src *ConfigSource) buildNewConfigLocked(ctx context.Context, cfg *config.C
 	var policyBuilders []errgrouputil.BuilderFunc[config.Policy]
 	for _, cfgpb := range src.dbConfigs {
 		for _, routepb := range cfgpb.GetRoutes() {
-			routepb := routepb
 			policyBuilders = append(policyBuilders, func(ctx context.Context) (*config.Policy, error) {
 				p, err := src.buildPolicyFromProto(ctx, routepb)
 				if err != nil {

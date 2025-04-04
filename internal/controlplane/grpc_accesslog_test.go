@@ -66,7 +66,6 @@ func Test_populateLogEvent(t *testing.T) {
 		{log.AccessLogFieldUpstreamCluster, `{"upstream-cluster":"UPSTREAM-CLUSTER"}`},
 		{log.AccessLogFieldUserAgent, `{"user-agent":"USER-AGENT"}`},
 	} {
-		tc := tc
 		t.Run(string(tc.field), func(t *testing.T) {
 			t.Parallel()
 

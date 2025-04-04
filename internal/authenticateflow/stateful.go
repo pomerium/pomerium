@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -163,7 +164,9 @@ func (s *Stateful) SignIn(
 	// base64 our encrypted payload for URL-friendlyness
 	encodedJWT := base64.URLEncoding.EncodeToString(encryptedJWT)
 
-	callbackURL, err := urlutil.GetCallbackURL(r, encodedJWT)
+	additionalHosts := strings.Split(r.FormValue(urlutil.QueryAdditionalHosts), ",")
+
+	callbackURL, err := urlutil.GetCallbackURL(r, encodedJWT, additionalHosts)
 	if err != nil {
 		return httputil.NewError(http.StatusBadRequest, err)
 	}
@@ -324,7 +327,11 @@ func (s *Stateful) LogAuthenticateEvent(*http.Request) {}
 // AuthenticateSignInURL returns a URL to redirect the user to the authenticate
 // domain.
 func (s *Stateful) AuthenticateSignInURL(
-	ctx context.Context, queryParams url.Values, redirectURL *url.URL, idpID string,
+	ctx context.Context,
+	queryParams url.Values,
+	redirectURL *url.URL,
+	idpID string,
+	additionalHosts []string,
 ) (string, error) {
 	signinURL := s.authenticateURL.ResolveReference(&url.URL{
 		Path: "/.pomerium/sign_in",
@@ -335,6 +342,9 @@ func (s *Stateful) AuthenticateSignInURL(
 	}
 	queryParams.Set(urlutil.QueryRedirectURI, redirectURL.String())
 	queryParams.Set(urlutil.QueryIdentityProviderID, idpID)
+	if len(additionalHosts) > 0 {
+		queryParams.Set(urlutil.QueryAdditionalHosts, strings.Join(additionalHosts, ","))
+	}
 	otel.GetTextMapPropagator().Inject(ctx, trace.PomeriumURLQueryCarrier(queryParams))
 	signinURL.RawQuery = queryParams.Encode()
 	redirectTo := urlutil.NewSignedURL(s.sharedKey, signinURL).String()
@@ -385,6 +395,23 @@ func (s *Stateful) Callback(w http.ResponseWriter, r *http.Request) error {
 		q := redirectURL.Query()
 		q.Set(urlutil.QueryPomeriumJWT, string(rawJWT))
 		redirectURL.RawQuery = q.Encode()
+	}
+
+	// Redirect chaining for multi-domain login.
+	additionalHosts := r.URL.Query().Get(urlutil.QueryAdditionalHosts)
+	if additionalHosts != "" {
+		nextHops := strings.Split(additionalHosts, ",")
+		log.Ctx(r.Context()).Debug().Strs("next-hops", nextHops).Msg("multi-domain login callback")
+
+		callbackURL, err := urlutil.GetCallbackURL(r, encryptedSession, nextHops[1:])
+		if err != nil {
+			return httputil.NewError(http.StatusInternalServerError,
+				fmt.Errorf("proxy: couldn't get next hop callback URL: %w", err))
+		}
+		callbackURL.Host = nextHops[0]
+		signedCallbackURL := urlutil.NewSignedURL(s.sharedKey, callbackURL)
+		httputil.Redirect(w, r, signedCallbackURL.String(), http.StatusFound)
+		return nil
 	}
 
 	// redirect

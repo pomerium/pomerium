@@ -6,11 +6,12 @@ import (
 	"net/http/httptrace"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
-	"github.com/stretchr/testify/require"
 )
 
 func TestDNSOverrides(t *testing.T) {

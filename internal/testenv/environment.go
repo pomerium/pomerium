@@ -33,6 +33,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	oteltrace "go.opentelemetry.io/otel/trace"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/grpclog"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/config/envoyconfig/filemgr"
 	"github.com/pomerium/pomerium/config/otelconfig"
@@ -49,14 +58,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/netutil"
 	"github.com/pomerium/pomerium/pkg/slices"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
-	"github.com/rs/zerolog"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
-	oteltrace "go.opentelemetry.io/otel/trace"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc/grpclog"
 )
 
 // Environment is a lightweight integration test fixture that runs Pomerium
@@ -1083,7 +1084,7 @@ func (src *configSource) ModifyConfig(ctx context.Context, m Modifier) {
 }
 
 func newOtelConfigFromEnv(t testing.TB) otelconfig.Config {
-	f, err := os.CreateTemp("", "tmp-config-*.yaml")
+	f, err := os.CreateTemp(t.TempDir(), "tmp-config-*.yaml")
 	require.NoError(t, err)
 	defer os.Remove(f.Name())
 	f.Close()

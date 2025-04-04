@@ -41,7 +41,6 @@ func (p *Producer) Produce(ctx context.Context) ([]metricdata.ScopeMetrics, erro
 	metrics := make([]metricdata.Metrics, len(ids))
 	eg, ctx := errgroup.WithContext(ctx)
 	for i := 0; i < len(ids); i++ {
-		i := i
 		eg.Go(func() error {
 			state, err := LoadMetricState(ctx, client, ids[i])
 			if err != nil {

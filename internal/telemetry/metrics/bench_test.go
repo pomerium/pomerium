@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/snippets"
 	"github.com/pomerium/pomerium/internal/testenv/upstreams"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestScrapeMetricsEndpoint(t *testing.T) {

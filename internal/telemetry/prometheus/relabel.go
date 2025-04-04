@@ -12,7 +12,6 @@ func AddLabels(
 ) iter.Seq2[*dto.MetricFamily, error] {
 	var extra []*dto.LabelPair
 	for k, v := range addLabels {
-		k, v := k, v
 		extra = append(extra, &dto.LabelPair{
 			Name:  &k,
 			Value: &v,

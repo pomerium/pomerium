@@ -21,11 +21,11 @@ type Counter struct {
 }
 
 // New creates a counter for the maximum amount unique elements provided
-func New(cap uint) *Counter {
+func New(capacity uint) *Counter {
 	return &Counter{
 		// from paper: a load factor (number of unique values/hash table size) much larger
 		// than 1.0 (e.g., 12) can be used for accurate estimation (e.g., 1% of error)
-		Bits: bitset.New(cap / loadFactor),
+		Bits: bitset.New(capacity / loadFactor),
 	}
 }
 

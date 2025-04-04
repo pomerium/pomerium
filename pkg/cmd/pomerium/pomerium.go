@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	envoy_service_auth_v3 "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/automaxprocs/maxprocs"
 	"golang.org/x/sync/errgroup"
 
@@ -29,7 +30,6 @@ import (
 	"github.com/pomerium/pomerium/pkg/envoy/files"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/pomerium/pomerium/proxy"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 type Options struct {

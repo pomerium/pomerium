@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/stats"
+
+	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 func TestHTTPMiddleware(t *testing.T) {

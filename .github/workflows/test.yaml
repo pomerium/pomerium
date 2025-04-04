@@ -12,7 +12,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [1.23.x]
         node-version: [22.x]
         platform: [ubuntu-22.04]
         deployment: [multi, single]
@@ -21,12 +20,12 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34
+      - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: 1.24.x
           cache: false
 
-      - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a
+      - uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
         with:
           node-version: ${{ matrix.node-version }}
           cache: yarn
@@ -60,11 +59,11 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34
+      - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: 1.24.x
 
-      - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a
+      - uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e
         with:
           node-version: ${{ matrix.node-version }}
           cache: yarn
@@ -76,7 +75,7 @@ jobs:
           make build
 
       - name: save binary
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           path: bin/pomerium*
           name: pomerium ${{ github.run_id }} ${{ matrix.platform }}
@@ -124,12 +123,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34
+      - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b
         with:
-          go-version: 1.23.x
+          go-version: 1.24.x
           cache: false
 
-      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
+      - uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55
         with:
           python-version: "3.x"
 

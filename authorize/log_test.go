@@ -96,8 +96,6 @@ func Test_populateLogEvent(t *testing.T) {
 		{log.AuthorizeLogFieldUser, sa, `{"user":"SERVICE-ACCOUNT-USER-ID"}`},
 		{log.AuthorizeLogFieldUser, nil, `{"user":""}`},
 	} {
-
-		tc := tc
 		t.Run(string(tc.field), func(t *testing.T) {
 			t.Parallel()
 

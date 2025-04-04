@@ -5,11 +5,10 @@ import (
 	"context"
 	"sync/atomic"
 
+	"github.com/hashicorp/go-set/v3"
 	"go.opentelemetry.io/otel/bridge/opencensus"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
-
-	"github.com/hashicorp/go-set/v3"
 )
 
 type Producer struct {

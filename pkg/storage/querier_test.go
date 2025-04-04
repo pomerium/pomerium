@@ -34,7 +34,6 @@ func TestGetDataBrokerRecord(t *testing.T) {
 		{"cached", 1, 1, 1, 2},
 		{"invalidated", 1, 2, 3, 4},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
