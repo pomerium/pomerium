@@ -235,8 +235,12 @@ func (a *Authorize) requireLoginResponse(
 		signInURLQuery = url.Values{}
 		signInURLQuery.Add("pomerium_traceparent", id)
 	}
+	var additionalHosts []string
+	if request.Policy != nil {
+		additionalHosts = request.Policy.DependsOn
+	}
 	redirectTo, err := state.authenticateFlow.AuthenticateSignInURL(
-		ctx, signInURLQuery, &checkRequestURL, idp.GetId())
+		ctx, signInURLQuery, &checkRequestURL, idp.GetId(), additionalHosts)
 	if err != nil {
 		return nil, err
 	}

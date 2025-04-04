@@ -4,19 +4,15 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // ErrMissingRedirectURI indicates the pomerium_redirect_uri was missing from the query string.
 var ErrMissingRedirectURI = errors.New("missing " + QueryRedirectURI)
 
 // GetCallbackURL gets the proxy's callback URL from a request and a base64url encoded + encrypted session state JWT.
-func GetCallbackURL(r *http.Request, encodedSessionJWT string) (*url.URL, error) {
-	return GetCallbackURLForRedirectURI(r, encodedSessionJWT, r.FormValue(QueryRedirectURI))
-}
-
-// GetCallbackURLForRedirectURI gets the proxy's callback URL from a request and a base64url encoded + encrypted session
-// state JWT.
-func GetCallbackURLForRedirectURI(r *http.Request, encodedSessionJWT, rawRedirectURI string) (*url.URL, error) {
+func GetCallbackURL(r *http.Request, encodedSessionJWT string, additionalHosts []string) (*url.URL, error) {
+	rawRedirectURI := r.FormValue(QueryRedirectURI)
 	if rawRedirectURI == "" {
 		return nil, ErrMissingRedirectURI
 	}
@@ -53,6 +49,10 @@ func GetCallbackURLForRedirectURI(r *http.Request, encodedSessionJWT, rawRedirec
 	}
 	if tracestate := r.FormValue(QueryTracestate); tracestate != "" {
 		callbackParams.Set(QueryTracestate, tracestate)
+	}
+
+	if len(additionalHosts) > 0 {
+		callbackParams.Set(QueryAdditionalHosts, strings.Join(additionalHosts, ","))
 	}
 
 	// add our encoded and encrypted route-session JWT to a query param

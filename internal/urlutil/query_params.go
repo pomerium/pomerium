@@ -4,6 +4,7 @@ package urlutil
 // services over HTTP calls and redirects. They are typically used in
 // conjunction with a HMAC to ensure authenticity.
 const (
+	QueryAdditionalHosts    = "pomerium_additional_hosts"
 	QueryCallbackURI        = "pomerium_callback_uri"
 	QueryDeviceCredentialID = "pomerium_device_credential_id"
 	QueryDeviceType         = "pomerium_device_type"

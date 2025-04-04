@@ -128,7 +128,7 @@ func TestStatefulAuthenticateSignInURL(t *testing.T) {
 
 	t.Run("NilQueryParams", func(t *testing.T) {
 		redirectURL := &url.URL{Scheme: "https", Host: "example.com"}
-		u, err := flow.AuthenticateSignInURL(context.Background(), nil, redirectURL, "fake-idp-id")
+		u, err := flow.AuthenticateSignInURL(context.Background(), nil, redirectURL, "fake-idp-id", nil)
 		assert.NoError(t, err)
 		parsed, _ := url.Parse(u)
 		assert.NoError(t, urlutil.NewSignedURL(key, parsed).Validate())
@@ -143,7 +143,7 @@ func TestStatefulAuthenticateSignInURL(t *testing.T) {
 		redirectURL := &url.URL{Scheme: "https", Host: "example.com"}
 		q := url.Values{}
 		q.Set("foo", "bar")
-		u, err := flow.AuthenticateSignInURL(context.Background(), q, redirectURL, "fake-idp-id")
+		u, err := flow.AuthenticateSignInURL(context.Background(), q, redirectURL, "fake-idp-id", nil)
 		assert.NoError(t, err)
 		parsed, _ := url.Parse(u)
 		assert.NoError(t, urlutil.NewSignedURL(key, parsed).Validate())
@@ -154,6 +154,21 @@ func TestStatefulAuthenticateSignInURL(t *testing.T) {
 		assert.Equal(t, "https://example.com", q.Get("pomerium_redirect_uri"))
 		assert.Equal(t, "fake-idp-id", q.Get("pomerium_idp_id"))
 		assert.Equal(t, "bar", q.Get("foo"))
+	})
+	t.Run("AdditionalHosts", func(t *testing.T) {
+		redirectURL := &url.URL{Scheme: "https", Host: "example.com"}
+		additionalHosts := []string{"foo.example.com", "bar.example.com:1234"}
+		u, err := flow.AuthenticateSignInURL(context.Background(), nil, redirectURL, "fake-idp-id", additionalHosts)
+		assert.NoError(t, err)
+		parsed, _ := url.Parse(u)
+		assert.NoError(t, urlutil.NewSignedURL(key, parsed).Validate())
+		assert.Equal(t, "https", parsed.Scheme)
+		assert.Equal(t, "authenticate.example.com", parsed.Host)
+		assert.Equal(t, "/.pomerium/sign_in", parsed.Path)
+		q := parsed.Query()
+		assert.Equal(t, "https://example.com", parsed.Query().Get("pomerium_redirect_uri"))
+		assert.Equal(t, "fake-idp-id", q.Get("pomerium_idp_id"))
+		assert.Equal(t, "foo.example.com,bar.example.com:1234", q.Get("pomerium_additional_hosts"))
 	})
 }
 
@@ -277,6 +292,7 @@ func TestStatefulCallback(t *testing.T) {
 				}
 				location, _ := url.Parse(w.Result().Header.Get("Location"))
 				assert.Equal(t, "example.com", location.Host)
+				assert.Equal(t, "/", location.Path)
 				assert.Equal(t, "ok", location.Query().Get("pomerium_callback_uri"))
 			} else {
 				if err == nil || !strings.Contains(err.Error(), tt.wantErrorMsg) {
@@ -285,6 +301,60 @@ func TestStatefulCallback(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStatefulCallback_AdditionalHosts(t *testing.T) {
+	opts := config.NewDefaultOptions()
+	opts.SharedKey = "80ldlrU2d7w+wVpKNfevk6fmb8otEx6CqOfshj2LwhQ="
+	sharedKey, _ := opts.GetSharedKey()
+
+	flow, err := NewStateful(
+		context.Background(),
+		trace.NewNoopTracerProvider(),
+		&config.Config{Options: opts},
+		&mstore.Store{Session: &sessions.State{}},
+	)
+	require.NoError(t, err)
+
+	redirectURI := "https://route.example.com/"
+	callbackURI := &url.URL{
+		Scheme: "https",
+		Host:   "route.example.com",
+		Path:   "/.pomerium/callback",
+		RawQuery: url.Values{
+			urlutil.QuerySessionEncrypted: []string{goodEncryptionString},
+			urlutil.QueryRedirectURI:      []string{redirectURI},
+			urlutil.QueryAdditionalHosts:  []string{"foo.example.com,bar.example.com"},
+		}.Encode(),
+	}
+	signedCallbackURI := urlutil.NewSignedURL(sharedKey, callbackURI)
+
+	doCallback := func(uri string) *http.Response {
+		t.Helper()
+		r := httptest.NewRequest(http.MethodGet, uri, nil)
+		r.Host = r.URL.Host
+
+		w := httptest.NewRecorder()
+		err = flow.Callback(w, r)
+		require.NoError(t, err)
+		return w.Result()
+	}
+
+	// Callback() should serve redirects to the additional hosts before the final redirect URI.
+	res := doCallback(signedCallbackURI.String())
+	location, _ := url.Parse(res.Header.Get("Location"))
+	assert.Equal(t, "foo.example.com", location.Host)
+	assert.Equal(t, "/.pomerium/callback/", location.Path)
+
+	res = doCallback(location.String())
+	location, _ = url.Parse(res.Header.Get("Location"))
+	assert.Equal(t, "bar.example.com", location.Host)
+	assert.Equal(t, "/.pomerium/callback/", location.Path)
+
+	res = doCallback(location.String())
+	location, _ = url.Parse(res.Header.Get("Location"))
+	assert.Equal(t, "route.example.com", location.Host)
+	assert.Equal(t, "/", location.Path)
 }
 
 func TestStatefulRevokeSession(t *testing.T) {
