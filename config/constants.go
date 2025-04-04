@@ -3,7 +3,7 @@ package config
 import (
 	"errors"
 
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/spf13/viper"
 	"google.golang.org/protobuf/encoding/protojson"
 
@@ -30,7 +30,7 @@ var protoPartial = protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown
 // ViperPolicyHooks are used to decode options and policy coming from YAML and env vars
 var ViperPolicyHooks = viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
 	mapstructure.StringToTimeDurationHookFunc(),
-	mapstructure.StringToSliceHookFunc(","),
+	mapstructure.StringToWeakSliceHookFunc(","),
 	// decode policy including all protobuf-native notations - i.e. duration as `1s`
 	// https://developers.google.com/protocol-buffers/docs/proto3#json
 	DecodePolicyHookFunc(),
