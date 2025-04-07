@@ -51,18 +51,23 @@ func WithQuerier(ctx context.Context, querier Querier) context.Context {
 }
 
 type staticQuerier struct {
-	records []*databroker.Record
+	records map[string]RecordCollection
 }
 
 // NewStaticQuerier creates a Querier that returns statically defined protobuf records.
 func NewStaticQuerier(msgs ...proto.Message) Querier {
-	getter := &staticQuerier{}
+	getter := &staticQuerier{records: make(map[string]RecordCollection)}
 	for _, msg := range msgs {
 		record, ok := msg.(*databroker.Record)
 		if !ok {
 			record = NewStaticRecord(protoutil.NewAny(msg).TypeUrl, msg)
 		}
-		getter.records = append(getter.records, record)
+		c, ok := getter.records[record.Type]
+		if !ok {
+			c = NewRecordCollection()
+			getter.records[record.Type] = c
+		}
+		c.Put(record)
 	}
 	return getter
 }
@@ -107,42 +112,8 @@ func NewStaticRecord(typeURL string, msg proto.Message) *databroker.Record {
 func (q *staticQuerier) InvalidateCache(_ context.Context, _ *databroker.QueryRequest) {}
 
 // Query queries for records.
-func (q *staticQuerier) Query(_ context.Context, in *databroker.QueryRequest, _ ...grpc.CallOption) (*databroker.QueryResponse, error) {
-	expr, err := FilterExpressionFromStruct(in.GetFilter())
-	if err != nil {
-		return nil, err
-	}
-
-	filter, err := RecordStreamFilterFromFilterExpression(expr)
-	if err != nil {
-		return nil, err
-	}
-
-	res := new(databroker.QueryResponse)
-	for _, record := range q.records {
-		if record.GetType() != in.GetType() {
-			continue
-		}
-
-		if !filter(record) {
-			continue
-		}
-
-		if in.GetQuery() != "" && !MatchAny(record.GetData(), in.GetQuery()) {
-			continue
-		}
-
-		res.Records = append(res.Records, record)
-	}
-
-	var total int
-	res.Records, total = databroker.ApplyOffsetAndLimit(
-		res.Records,
-		int(in.GetOffset()),
-		int(in.GetLimit()),
-	)
-	res.TotalCount = int64(total)
-	return res, nil
+func (q *staticQuerier) Query(_ context.Context, req *databroker.QueryRequest, _ ...grpc.CallOption) (*databroker.QueryResponse, error) {
+	return QueryRecordCollections(q.records, req)
 }
 
 type clientQuerier struct {
