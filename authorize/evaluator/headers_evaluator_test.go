@@ -218,15 +218,19 @@ func TestHeadersEvaluator(t *testing.T) {
 				HTTP: RequestHTTP{
 					Hostname:          "from.example.com",
 					ClientCertificate: ClientCertificateInfo{Leaf: testValidCert},
+					Headers: map[string]string{
+						"X-Incoming-Header": "INCOMING",
+					},
 				},
 				Policy: &config.Policy{
 					SetRequestHeaders: map[string]string{
-						"X-Custom-Header":         "CUSTOM_VALUE",
-						"X-ID-Token":              "${pomerium.id_token}",
-						"X-Access-Token":          "${pomerium.access_token}",
-						"Client-Cert-Fingerprint": "${pomerium.client_cert_fingerprint}",
-						"Authorization":           "Bearer ${pomerium.jwt}",
-						"Foo":                     "escaped $$dollar sign",
+						"X-Custom-Header":          "CUSTOM_VALUE",
+						"X-ID-Token":               "${pomerium.id_token}",
+						"X-Access-Token":           "${pomerium.access_token}",
+						"Client-Cert-Fingerprint":  "${pomerium.client_cert_fingerprint}",
+						"Authorization":            "Bearer ${pomerium.jwt}",
+						"Foo":                      "escaped $$dollar sign",
+						"X-Incoming-Custom-Header": `From-Incoming ${pomerium.request.headers["X-Incoming-Header"]}`,
 					},
 				},
 				Session: RequestSession{ID: "s1"},
@@ -239,6 +243,7 @@ func TestHeadersEvaluator(t *testing.T) {
 		assert.Equal(t, "3febe6467787e93f0a01030e0803072feaa710f724a9dc74de05cfba3d4a6d23",
 			output.Headers.Get("Client-Cert-Fingerprint"))
 		assert.Equal(t, "escaped $dollar sign", output.Headers.Get("Foo"))
+		assert.Equal(t, "From-Incoming INCOMING", output.Headers.Get("X-Incoming-Custom-Header"))
 		authHeader := output.Headers.Get("Authorization")
 		assert.True(t, strings.HasPrefix(authHeader, "Bearer "))
 		authHeader = strings.TrimPrefix(authHeader, "Bearer ")
