@@ -1,9 +1,12 @@
 package ssh
 
 import (
+	"bytes"
 	"crypto/ed25519"
+	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 
@@ -21,7 +24,7 @@ func TestSSH(t *testing.T) {
 	// ssh client setup
 	var ki scenarios.EmptyKeyboardInteractiveChallenge
 	clientConfig := &ssh.ClientConfig{
-		User: "demo",
+		User: "demo@example",
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(clientKey),
 			ssh.KeyboardInteractive(ki.Do),
@@ -38,9 +41,12 @@ func TestSSH(t *testing.T) {
 
 	up := upstreams.SSH(
 		upstreams.WithHostKeys(serverHostKey),
-		upstreams.WithAuthorizedKey(clientKey.PublicKey(), "demo"))
+		upstreams.WithAuthorizedKey(clientKey.PublicKey(), "demo"),
+		upstreams.WithBannerCallback(func(_ ssh.ConnMetadata) string {
+			return "TEST BANNER"
+		}))
 	r := up.Route().
-		From(env.SubdomainURLWithScheme("ssh", "ssh")).
+		From(env.SubdomainURLWithScheme("example", "ssh")).
 		Policy(func(p *config.Policy) { p.AllowAnyAuthenticatedUser = true })
 	env.AddUpstream(up)
 	env.Start()
@@ -54,6 +60,14 @@ func TestSSH(t *testing.T) {
 	sess, err := client.NewSession()
 	require.NoError(t, err)
 	defer sess.Close()
+
+	var b bytes.Buffer
+	sess.Stdout = &b
+	sess.Stdin = strings.NewReader("")
+	sess.Shell()
+	sess.Wait()
+
+	assert.Equal(t, "TEST BANNER", b.String())
 }
 
 // newSSHKey generates and returns a new Ed25519 ssh key.
