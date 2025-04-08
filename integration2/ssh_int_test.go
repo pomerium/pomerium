@@ -1,11 +1,7 @@
 package ssh
 
 import (
-	"bytes"
 	"crypto/ed25519"
-	"fmt"
-	"os"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -36,6 +32,7 @@ func TestSSH(t *testing.T) {
 	// pomerium + upstream setup
 	env := testenv.New(t)
 
+	env.Add(scenarios.NewIDP([]*scenarios.User{{Email: "test@example.com"}}, scenarios.WithEnableDeviceAuth(true)))
 	env.Add(scenarios.SSH(scenarios.SSHConfig{}))
 	env.Add(&ki)
 
@@ -44,13 +41,12 @@ func TestSSH(t *testing.T) {
 		upstreams.WithAuthorizedKey(clientKey.PublicKey(), "demo"))
 	r := up.Route().
 		From(env.SubdomainURLWithScheme("ssh", "ssh")).
-		Policy(func(p *config.Policy) { p.AllowPublicUnauthenticatedAccess = true })
+		Policy(func(p *config.Policy) { p.AllowAnyAuthenticatedUser = true })
 	env.AddUpstream(up)
 	env.Start()
 	snippets.WaitStartupComplete(env)
 
-	// test scenario -- first verify that the upstream is working at all
-	//client, err := up.DirectDial(r, clientConfig)
+	// verify that a connection can be established
 	client, err := up.Dial(r, clientConfig)
 	require.NoError(t, err)
 	defer client.Close()
@@ -68,47 +64,4 @@ func newSSHKey(t *testing.T) ssh.Signer {
 	signer, err := ssh.NewSignerFromKey(priv)
 	require.NoError(t, err)
 	return signer
-}
-
-func TestHelloWorld(t *testing.T) {
-	t.Skip("debugging...")
-
-	key, err := os.ReadFile("/Users/kjenkins/scratch/sshd/demo_key")
-	require.NoError(t, err)
-	signer, err := ssh.ParsePrivateKey(key)
-	require.NoError(t, err)
-
-	config := &ssh.ClientConfig{
-		User: "demo",
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
-
-	conn, err := ssh.Dial("tcp", "localhost:2222", config)
-	require.NoError(t, err, "unable to connect")
-	defer conn.Close()
-
-	//conn.ServerVersion()
-
-	sess, err := conn.NewSession()
-	require.NoError(t, err, "unable to start session")
-	defer sess.Close()
-
-	var output bytes.Buffer
-	sess.Stdout = &output
-	sess.Stdin = strings.NewReader("whoami\n")
-
-	err = sess.Shell()
-
-	fmt.Println("Shell() returned ", err)
-
-	err = sess.Wait()
-
-	fmt.Println("Wait() returned ", err)
-
-	fmt.Println(" --> output:\n\n", output.String())
-
-	//sess.SendRequest()
 }
