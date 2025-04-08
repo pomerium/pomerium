@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -378,7 +379,7 @@ func (a *Authorize) ManageStream(
 
 						token, err := authenticator.DeviceAccessToken(ctx, deviceAuthResp, &claims)
 						if err != nil {
-							errC <- err
+							errC <- status.Error(codes.Unavailable, err.Error())
 							return
 						}
 						s := sessions.NewState(idp.Id)
@@ -387,7 +388,7 @@ func (a *Authorize) ManageStream(
 							Msg("device auth flow complete")
 						s.ID, err = getSessionIDForSSH(state.PublicKey)
 						if err != nil {
-							errC <- err
+							errC <- status.Error(codes.Unavailable, err.Error())
 							return
 						}
 						fmt.Println(token)
@@ -702,9 +703,17 @@ func (a *Authorize) startContinuousAuthorization(
 ) {
 	recheck := func() {
 		// XXX: probably want to log the results of this evaluation only if it changes
-		res, _ := a.evaluate(ctx, req, &sessions.State{ID: session.Id})
-		if !res.Allow.Value || res.Deny.Value {
-			errC <- fmt.Errorf("no longer authorized")
+		res, err := a.evaluate(ctx, req, &sessions.State{ID: session.Id})
+		if err != nil {
+			if req.Policy.ShowErrorDetails {
+				errC <- status.Error(codes.Unavailable, err.Error())
+			} else {
+				errC <- status.Error(codes.Unavailable, "")
+			}
+		} else {
+			if !res.Allow.Value || res.Deny.Value {
+				errC <- status.Error(codes.PermissionDenied, "no longer authorized")
+			}
 		}
 	}
 
@@ -725,7 +734,7 @@ func (a *Authorize) startContinuousAuthorization(
 		for {
 			select {
 			case <-a.sessionsCacheWarmer.cache.Wait(key):
-				errC <- fmt.Errorf("session expired")
+				errC <- status.Error(codes.PermissionDenied, "session expired")
 				return
 			case <-ticker.C:
 				recheck()
@@ -1009,14 +1018,8 @@ func (a *Authorize) ServeChannel(
 						defer outputW.Close()
 						defer inputR.Close()
 						err := cmd.Execute()
-						if err != nil && !errors.Is(err, ErrHandoff) {
-							sendC <- &extensions_ssh.ChannelControl{
-								Protocol: "ssh",
-								ControlAction: marshalAny(&extensions_ssh.SSHChannelControlAction_Disconnect{
-									ReasonCode:  11,
-									Description: err.Error(),
-								}),
-							}
+						if !errors.Is(err, ErrHandoff) {
+							errC <- err
 						}
 					}()
 					go streamOutputToChannel(sendC, peerId, outputR)
@@ -1066,7 +1069,11 @@ func (a *Authorize) ServeChannel(
 				panic("unhandled message: " + fmt.Sprint(rawMsg[1]))
 			}
 		case err := <-errC:
-			log.Ctx(ctx).Err(err).Msg("channel error")
+			if err != nil {
+				log.Ctx(ctx).Err(err).Msg("channel error")
+			} else {
+				log.Ctx(ctx).Info().Msg("channel closed")
+			}
 			return err
 		}
 	}
@@ -1283,17 +1290,27 @@ func (a *Authorize) NewPortalCommand(
 				}
 				req, err := a.getEvaluatorRequestFromSSHAuthRequest(state)
 				if err != nil {
-					return err
+					log.Ctx(cmd.Context()).Err(err).Msg("error building evaluator request")
+					return status.Errorf(codes.Unavailable, "")
 				}
 				res, err := a.evaluate(cmd.Context(), req, &sessions.State{ID: state.Session.Id})
 				if err != nil {
-					return err
+					if req.Policy.ShowErrorDetails {
+						return status.Errorf(codes.Unavailable, err.Error())
+					} else {
+						return status.Errorf(codes.Unavailable, "")
+					}
 				}
 
 				if res.Allow.Value && !res.Deny.Value {
 					a.startContinuousAuthorization(state.Context, state.ErrorC, req, state.Session)
 				} else {
-					return fmt.Errorf("not authorized")
+					if req.Policy.ShowErrorDetails {
+						traces, _ := json.Marshal(res.Traces)
+						return status.Error(codes.PermissionDenied, string(traces))
+					} else {
+						return status.Error(codes.PermissionDenied, "")
+					}
 				}
 				extensions := []*corev3.TypedExtensionConfig{}
 				if ptyInfo != nil {
