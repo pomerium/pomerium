@@ -422,7 +422,9 @@ func New(t testing.TB, opts ...EnvironmentOption) Environment {
 		ports: Ports{
 			ProxyHTTP:    values.Deferred[int](),
 			ProxyGRPC:    values.Deferred[int](),
+			ProxySSH:     values.Deferred[int](),
 			ProxyMetrics: values.Deferred[int](),
+			EnvoyAdmin:   values.Deferred[int](),
 			GRPC:         values.Deferred[int](),
 			HTTP:         values.Deferred[int](),
 			Outbound:     values.Deferred[int](),
@@ -489,7 +491,9 @@ type WithCaller[T any] struct {
 type Ports struct {
 	ProxyHTTP    values.MutableValue[int]
 	ProxyGRPC    values.MutableValue[int]
+	ProxySSH     values.MutableValue[int]
 	ProxyMetrics values.MutableValue[int]
+	EnvoyAdmin   values.MutableValue[int]
 	GRPC         values.MutableValue[int]
 	HTTP         values.MutableValue[int]
 	Outbound     values.MutableValue[int]
@@ -523,7 +527,11 @@ func (e *environment) SubdomainURL(subdomain string) values.Value[string] {
 }
 
 func (e *environment) SubdomainURLWithScheme(subdomain, scheme string) values.Value[string] {
-	return values.Bind(e.ports.ProxyHTTP, func(port int) string {
+	port := e.ports.ProxyHTTP
+	if scheme == "ssh" {
+		port = e.ports.ProxySSH
+	}
+	return values.Bind(port, func(port int) string {
 		return fmt.Sprintf("%s://%s.%s:%d", scheme, subdomain, e.domain, port)
 	})
 }
@@ -597,7 +605,7 @@ func (e *environment) Start() {
 	cfg := &config.Config{
 		Options: config.NewDefaultOptions(),
 	}
-	ports, err := netutil.AllocatePorts(9)
+	ports, err := netutil.AllocatePorts(11)
 	require.NoError(e.t, err)
 	atoi := func(str string) int {
 		p, err := strconv.Atoi(str)
@@ -608,14 +616,16 @@ func (e *environment) Start() {
 	}
 	e.ports.ProxyHTTP.Resolve(atoi(ports[0]))
 	e.ports.ProxyGRPC.Resolve(atoi(ports[1]))
-	e.ports.ProxyMetrics.Resolve(atoi(ports[2]))
-	e.ports.GRPC.Resolve(atoi(ports[3]))
-	e.ports.HTTP.Resolve(atoi(ports[4]))
-	e.ports.Outbound.Resolve(atoi(ports[5]))
-	e.ports.Metrics.Resolve(atoi(ports[6]))
-	e.ports.Debug.Resolve(atoi(ports[7]))
-	e.ports.ALPN.Resolve(atoi(ports[8]))
-	cfg.AllocatePorts(*(*[6]string)(ports[3:]))
+	e.ports.ProxySSH.Resolve(atoi(ports[2]))
+	e.ports.ProxyMetrics.Resolve(atoi(ports[3]))
+	e.ports.EnvoyAdmin.Resolve(atoi(ports[4]))
+	e.ports.GRPC.Resolve(atoi(ports[5]))
+	e.ports.HTTP.Resolve(atoi(ports[6]))
+	e.ports.Outbound.Resolve(atoi(ports[7]))
+	e.ports.Metrics.Resolve(atoi(ports[8]))
+	e.ports.Debug.Resolve(atoi(ports[9]))
+	e.ports.ALPN.Resolve(atoi(ports[10]))
+	cfg.AllocatePorts(*(*[6]string)(ports[5:]))
 
 	cfg.Options.AutocertOptions = config.AutocertOptions{Enable: false}
 	cfg.Options.Services = "all"
@@ -623,6 +633,9 @@ func (e *environment) Start() {
 	cfg.Options.ProxyLogLevel = config.LogLevelInfo
 	cfg.Options.Addr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyHTTP.Value())
 	cfg.Options.GRPCAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyGRPC.Value())
+	cfg.Options.SSHAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxySSH.Value())
+	cfg.Options.EnvoyAdminAddress = fmt.Sprintf("%s:%d", e.host, e.ports.EnvoyAdmin.Value())
+	cfg.Options.SSHHostname = localDomainName
 	cfg.Options.MetricsAddr = fmt.Sprintf("%s:%d", e.host, e.ports.ProxyMetrics.Value())
 	cfg.Options.CAFile = filepath.Join(e.tempDir, "certs", "ca.pem")
 	cfg.Options.CertFile = filepath.Join(e.tempDir, "certs", "trusted.pem")
@@ -849,6 +862,34 @@ func (e *environment) Stop() {
 
 func (e *environment) Pause() {
 	e.t.Log("\x1b[31m*** test manually paused; continue with ctrl+c ***\x1b[0m")
+	e.debugf(`
+Host: %s
+Ports:
+  ProxyHTTP:    %d
+  ProxyGRPC:    %d
+  ProxySSH:     %d
+  ProxyMetrics: %d
+  EnvoyAdmin:   %d
+  GRPC:         %d
+  HTTP:         %d
+  Outbound:     %d
+  Metrics:      %d
+  Debug:        %d
+  ALPN:         %d
+  `,
+		e.host,
+		e.ports.ProxyHTTP.Value(),
+		e.ports.ProxyGRPC.Value(),
+		e.ports.ProxySSH.Value(),
+		e.ports.ProxyMetrics.Value(),
+		e.ports.EnvoyAdmin.Value(),
+		e.ports.GRPC.Value(),
+		e.ports.HTTP.Value(),
+		e.ports.Outbound.Value(),
+		e.ports.Metrics.Value(),
+		e.ports.Debug.Value(),
+		e.ports.ALPN.Value())
+
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT)
 	<-c

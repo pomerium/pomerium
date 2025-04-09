@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 
 	"github.com/pomerium/pomerium/internal/testenv"
 	"github.com/pomerium/pomerium/internal/testenv/values"
@@ -201,7 +202,7 @@ func (h *sshUpstream) handleConnection(ctx context.Context, conn net.Conn) {
 
 // Dial implements SSHUpstream.
 func (h *sshUpstream) Dial(r testenv.Route, config *ssh.ClientConfig) (*ssh.Client, error) {
-	return ssh.Dial("tcp", h.Env().Config().Options.SSHAddr, config)
+	return ssh.Dial("tcp", strings.TrimPrefix(r.URL().Value(), "ssh://"), config)
 }
 
 // DirectDial implements SSHUpstream.

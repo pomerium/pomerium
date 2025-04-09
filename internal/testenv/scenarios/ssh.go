@@ -17,11 +17,6 @@ import (
 )
 
 type SSHConfig struct {
-	// SSH listener address. Defaults to ":2200" if not set.
-	Addr string
-
-	Hostname string
-
 	// Host key(s). An Ed25519 key will be generated if not set.
 	// Elements must be of a type supported by [ssh.NewSignerFromKey].
 	HostKeys []any
@@ -36,23 +31,14 @@ func SSH(c SSHConfig) testenv.Modifier {
 	return testenv.ModifierFunc(func(ctx context.Context, cfg *config.Config) {
 		env := testenv.EnvFromContext(ctx)
 
-		// Apply defaults.
-		if c.Addr == "" {
-			c.Addr = ":2200"
-		}
 		if len(c.HostKeys) == 0 {
 			c.HostKeys = []any{newEd25519Key(env)}
 		}
-		if c.Hostname == "" {
-			// XXX: is there a reasonable default for this?
-		}
+
 		if c.UserCAKey == nil {
 			c.UserCAKey = newEd25519Key(env)
 		}
 
-		// Update configuration.
-		cfg.Options.SSHAddr = c.Addr
-		cfg.Options.SSHHostname = c.Hostname
 		cfg.Options.SSHHostKeys = slices.Map(c.HostKeys, func(key any) config.SSHKeyPair {
 			return writeSSHKeyPair(env, key)
 		})
