@@ -70,9 +70,7 @@ default allow := [false, set()]
 default deny := [false, set()]
 
 accept_0 if 1 == 1
-
 accept_1 if 1 == 1
-
 accept_2 if 1 == 1
 
 and_0 := v if {
@@ -82,9 +80,7 @@ and_0 := v if {
 }
 
 accept_3 if 1 == 1
-
 accept_4 if 1 == 1
-
 accept_5 if 1 == 1
 
 or_0 := v if {
@@ -94,9 +90,7 @@ or_0 := v if {
 }
 
 accept_6 if 1 == 1
-
 accept_7 if 1 == 1
-
 accept_8 if 1 == 1
 
 not_0 := v if {
@@ -107,9 +101,7 @@ not_0 := v if {
 }
 
 accept_9 if 1 == 1
-
 accept_10 if 1 == 1
-
 accept_11 if 1 == 1
 
 nor_0 := v if {
@@ -134,7 +126,6 @@ allow := v if {
 }
 
 accept_13 if 1 == 1
-
 accept_14 if 1 == 1
 
 nor_1 := v if {

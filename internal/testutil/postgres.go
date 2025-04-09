@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/log"
 	"github.com/testcontainers/testcontainers-go/wait"
 	oteltrace "go.opentelemetry.io/otel/trace"
 
@@ -39,7 +40,7 @@ func WithTestPostgres(t *testing.T, handler func(dsn string)) {
 			Cmd: []string{"-c", "max_connections=1000"},
 		},
 		Started: true,
-		Logger:  testcontainers.TestLogger(t),
+		Logger:  log.TestLogger(t),
 		Reuse:   true,
 	})
 	if err != nil {
