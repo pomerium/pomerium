@@ -22,6 +22,7 @@ var ErrUnavailable = errors.New("unavailable")
 type Querier interface {
 	InvalidateCache(ctx context.Context, in *databroker.QueryRequest)
 	Query(ctx context.Context, in *databroker.QueryRequest, opts ...grpc.CallOption) (*databroker.QueryResponse, error)
+	Stop()
 }
 
 // nilQuerier always returns NotFound.
@@ -32,6 +33,8 @@ func (nilQuerier) InvalidateCache(_ context.Context, _ *databroker.QueryRequest)
 func (nilQuerier) Query(_ context.Context, _ *databroker.QueryRequest, _ ...grpc.CallOption) (*databroker.QueryResponse, error) {
 	return nil, errors.Join(ErrUnavailable, status.Error(codes.NotFound, "not found"))
 }
+
+func (nilQuerier) Stop() {}
 
 type querierKey struct{}
 

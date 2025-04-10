@@ -40,3 +40,10 @@ func (q fallbackQuerier) Query(ctx context.Context, req *databroker.QueryRequest
 	}
 	return nil, merr
 }
+
+// Stop stops all the queriers.
+func (q fallbackQuerier) Stop() {
+	for _, qq := range q {
+		qq.Stop()
+	}
+}
