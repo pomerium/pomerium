@@ -37,18 +37,10 @@ func (q *cachingQuerier) Query(ctx context.Context, in *databroker.QueryRequest,
 		return nil, err
 	}
 
-	// If a minimum record version hint is sent, check to see if any of the records meets the minimum
+	// If a minimum record version hint is sent, check to see if the result meets the minimum
 	// record version and if not, invalidate the cache and re-query.
-	if in.MinimumRecordVersionHint != nil {
-		found := false
-		for _, r := range res.GetRecords() {
-			if r.GetVersion() >= *in.MinimumRecordVersionHint {
-				found = true
-			}
-		}
-		if !found {
-			q.InvalidateCache(ctx, in)
-		}
+	if in.MinimumRecordVersionHint != nil && res.RecordVersion < *in.MinimumRecordVersionHint {
+		q.InvalidateCache(ctx, in)
 		res, err = q.query(ctx, in, opts...)
 		if err != nil {
 			return nil, err
