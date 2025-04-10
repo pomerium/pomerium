@@ -128,14 +128,21 @@ func (q *syncQuerier) syncLatest(ctx context.Context) error {
 			q.records.Put(res.Record)
 			q.mu.Unlock()
 		case *databroker.SyncLatestResponse_Versions:
+			q.mu.Lock()
 			q.serverVersion = res.Versions.ServerVersion
 			q.latestRecordVersion = res.Versions.LatestRecordVersion
+			q.mu.Unlock()
 		default:
 			return fmt.Errorf("unknown message type from sync latest: %T", res)
 		}
 	}
 
 	q.mu.Lock()
+	log.Ctx(ctx).Info().
+		Str("record-type", q.recordType).
+		Int("record-count", q.records.Len()).
+		Uint64("latest-record-version", q.latestRecordVersion).
+		Msg("storage/sync-querier: synced latest records")
 	q.ready = true
 	q.mu.Unlock()
 
@@ -143,11 +150,15 @@ func (q *syncQuerier) syncLatest(ctx context.Context) error {
 }
 
 func (q *syncQuerier) sync(ctx context.Context) error {
-	stream, err := q.client.Sync(ctx, &databroker.SyncRequest{
+	q.mu.RLock()
+	req := &databroker.SyncRequest{
 		ServerVersion: q.serverVersion,
 		RecordVersion: q.latestRecordVersion,
 		Type:          q.recordType,
-	})
+	}
+	q.mu.RUnlock()
+
+	stream, err := q.client.Sync(ctx, req)
 	if err != nil {
 		return fmt.Errorf("error starting sync stream: %w", err)
 	}
@@ -156,16 +167,17 @@ func (q *syncQuerier) sync(ctx context.Context) error {
 		res, err := stream.Recv()
 		if status.Code(err) == codes.Aborted {
 			// this indicates the server version changed, so we need to reset
+			q.mu.Lock()
 			q.serverVersion = 0
 			q.latestRecordVersion = 0
+			q.mu.Unlock()
 			return fmt.Errorf("stream was aborted due to mismatched server versions: %w", err)
 		} else if err != nil {
 			return fmt.Errorf("error receiving sync message: %w", err)
 		}
 
-		q.latestRecordVersion = max(q.latestRecordVersion, res.Record.Version)
-
 		q.mu.Lock()
+		q.latestRecordVersion = max(q.latestRecordVersion, res.Record.Version)
 		q.records.Put(res.Record)
 		q.mu.Unlock()
 	}

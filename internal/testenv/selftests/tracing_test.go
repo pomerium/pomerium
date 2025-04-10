@@ -81,14 +81,16 @@ func TestOTLPTracing(t *testing.T) {
 
 	results := NewTraceResults(srv.FlushResourceSpans())
 	var (
-		testEnvironmentLocalTest    = fmt.Sprintf("Test Environment: %s", t.Name())
-		testEnvironmentAuthenticate = "Test Environment: Authenticate"
-		authenticateOAuth2Client    = "Authenticate: OAuth2 Client: GET /.well-known/jwks.json"
-		idpServerGetUserinfo        = "IDP: Server: GET /oidc/userinfo"
-		idpServerPostToken          = "IDP: Server: POST /oidc/token"
-		controlPlaneEnvoyAccessLogs = "Control Plane: envoy.service.accesslog.v3.AccessLogService/StreamAccessLogs"
-		controlPlaneEnvoyDiscovery  = "Control Plane: envoy.service.discovery.v3.AggregatedDiscoveryService/DeltaAggregatedResources"
-		controlPlaneExport          = "Control Plane: opentelemetry.proto.collector.trace.v1.TraceService/Export"
+		testEnvironmentLocalTest      = fmt.Sprintf("Test Environment: %s", t.Name())
+		testEnvironmentAuthenticate   = "Test Environment: Authenticate"
+		authenticateOAuth2Client      = "Authenticate: OAuth2 Client: GET /.well-known/jwks.json"
+		authorizeDatabrokerSync       = "Authorize: databroker.DataBrokerService/Sync"
+		authorizeDatabrokerSyncLatest = "Authorize: databroker.DataBrokerService/SyncLatest"
+		idpServerGetUserinfo          = "IDP: Server: GET /oidc/userinfo"
+		idpServerPostToken            = "IDP: Server: POST /oidc/token"
+		controlPlaneEnvoyAccessLogs   = "Control Plane: envoy.service.accesslog.v3.AccessLogService/StreamAccessLogs"
+		controlPlaneEnvoyDiscovery    = "Control Plane: envoy.service.discovery.v3.AggregatedDiscoveryService/DeltaAggregatedResources"
+		controlPlaneExport            = "Control Plane: opentelemetry.proto.collector.trace.v1.TraceService/Export"
 	)
 
 	results.MatchTraces(t,
@@ -96,11 +98,13 @@ func TestOTLPTracing(t *testing.T) {
 			Exact:              true,
 			CheckDetachedSpans: true,
 		},
-		Match{Name: testEnvironmentLocalTest, TraceCount: 1, Services: []string{"Authorize", "Test Environment", "Control Plane", "Data Broker"}},
+		Match{Name: testEnvironmentLocalTest, TraceCount: 1, Services: []string{"Test Environment", "Control Plane", "Data Broker"}},
 		Match{Name: testEnvironmentAuthenticate, TraceCount: 1, Services: allServices},
 		Match{Name: authenticateOAuth2Client, TraceCount: Greater(0)},
 		Match{Name: idpServerGetUserinfo, TraceCount: EqualToMatch(authenticateOAuth2Client)},
 		Match{Name: idpServerPostToken, TraceCount: EqualToMatch(authenticateOAuth2Client)},
+		Match{Name: authorizeDatabrokerSync, TraceCount: Greater(0)},
+		Match{Name: authorizeDatabrokerSyncLatest, TraceCount: Greater(0)},
 		Match{Name: controlPlaneEnvoyDiscovery, TraceCount: 1},
 		Match{Name: controlPlaneExport, TraceCount: Greater(0)},
 		Match{Name: controlPlaneEnvoyAccessLogs, TraceCount: Any{}},
@@ -283,6 +287,7 @@ func (s *SamplingTestSuite) TestExternalTraceparentNeverSample() {
 			"IDP: Server: POST /oidc/token":                           {},
 			"IDP: Server: GET /oidc/userinfo":                         {},
 			"Authenticate: OAuth2 Client: GET /.well-known/jwks.json": {},
+			"Authorize: databroker.DataBrokerService/SyncLatest":      {},
 		}
 		actual := slices.Collect(maps.Keys(traces.ByName))
 		for _, name := range actual {
