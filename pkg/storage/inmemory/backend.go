@@ -53,7 +53,7 @@ type Backend struct {
 	closed      chan struct{}
 
 	mu       sync.RWMutex
-	lookup   map[string]*RecordCollection
+	lookup   map[string]storage.RecordCollection
 	capacity map[string]*uint64
 	changes  *btree.BTree
 	leases   map[string]*lease
@@ -67,7 +67,7 @@ func New(options ...Option) *Backend {
 		onChange:      signal.New(),
 		serverVersion: cryptutil.NewRandomUInt64(),
 		closed:        make(chan struct{}),
-		lookup:        make(map[string]*RecordCollection),
+		lookup:        make(map[string]storage.RecordCollection),
 		capacity:      map[string]*uint64{},
 		changes:       btree.New(cfg.degree),
 		leases:        make(map[string]*lease),
@@ -124,7 +124,7 @@ func (backend *Backend) Close() error {
 		backend.mu.Lock()
 		defer backend.mu.Unlock()
 
-		backend.lookup = map[string]*RecordCollection{}
+		backend.lookup = map[string]storage.RecordCollection{}
 		backend.capacity = map[string]*uint64{}
 		backend.changes = btree.New(backend.cfg.degree)
 	})
@@ -148,8 +148,8 @@ func (backend *Backend) get(recordType, id string) *databroker.Record {
 		return nil
 	}
 
-	record := records.Get(id)
-	if record == nil {
+	record, ok := records.Get(id)
+	if !ok {
 		return nil
 	}
 
@@ -244,15 +244,11 @@ func (backend *Backend) update(record *databroker.Record) {
 
 	c, ok := backend.lookup[record.GetType()]
 	if !ok {
-		c = NewRecordCollection()
+		c = storage.NewRecordCollection()
 		backend.lookup[record.GetType()] = c
 	}
 
-	if record.GetDeletedAt() != nil {
-		c.Delete(record.GetId())
-	} else {
-		c.Put(dup(record))
-	}
+	c.Put(record)
 }
 
 // Patch updates the specified fields of existing record(s).
@@ -360,20 +356,14 @@ func (backend *Backend) enforceCapacity(recordType string) {
 	}
 	capacity := *ptr
 
-	if collection.Len() <= int(capacity) {
-		return
-	}
-
-	records := collection.List()
-	for len(records) > int(capacity) {
-		// delete the record
-		record := dup(records[0])
-		record.DeletedAt = timestamppb.Now()
-		backend.recordChange(record)
-		collection.Delete(record.GetId())
-
-		// move forward
-		records = records[1:]
+	for collection.Len() > int(capacity) {
+		r, ok := collection.Oldest()
+		if !ok {
+			break
+		}
+		r.DeletedAt = timestamppb.Now()
+		backend.recordChange(r)
+		collection.Put(r)
 	}
 }
 

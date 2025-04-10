@@ -2,6 +2,8 @@ package inmemory
 
 import (
 	"context"
+	"maps"
+	"slices"
 
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/storage"
@@ -13,42 +15,30 @@ func newSyncLatestRecordStream(
 	recordType string,
 	expr storage.FilterExpression,
 ) (storage.RecordStream, error) {
-	filter, err := storage.RecordStreamFilterFromFilterExpression(expr)
-	if err != nil {
-		return nil, err
-	}
-	if recordType != "" {
-		filter = filter.And(func(record *databroker.Record) (keep bool) {
-			return record.GetType() == recordType
-		})
+	backend.mu.RLock()
+	defer backend.mu.RUnlock()
+
+	var recordTypes []string
+	if recordType == "" {
+		recordTypes = slices.Sorted(maps.Keys(backend.lookup))
+	} else {
+		recordTypes = []string{recordType}
 	}
 
-	var ready []*databroker.Record
-	generator := func(_ context.Context, _ bool) (*databroker.Record, error) {
-		backend.mu.RLock()
-		for _, co := range backend.lookup {
-			for _, record := range co.List() {
-				if filter(record) {
-					ready = append(ready, record)
-				}
-			}
+	var records []*databroker.Record
+	for _, recordType := range recordTypes {
+		co, ok := backend.lookup[recordType]
+		if !ok {
+			continue
 		}
-		backend.mu.RUnlock()
-		return nil, storage.ErrStreamDone
+		rs, err := co.List(expr)
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, rs...)
 	}
 
-	return storage.NewRecordStream(ctx, backend.closed, []storage.RecordStreamGenerator{
-		generator,
-		func(_ context.Context, _ bool) (*databroker.Record, error) {
-			if len(ready) == 0 {
-				return nil, storage.ErrStreamDone
-			}
-
-			record := ready[0]
-			ready = ready[1:]
-			return dup(record), nil
-		},
-	}, nil), nil
+	return storage.RecordListToStream(ctx, records), nil
 }
 
 func newSyncRecordStream(

@@ -1,6 +1,6 @@
 module github.com/pomerium/pomerium
 
-go 1.23.6
+go 1.23.8
 
 require (
 	cloud.google.com/go/storage v1.51.0
@@ -20,6 +20,7 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v1.2.1
 	github.com/exaring/otelpgx v0.9.0
 	github.com/fsnotify/fsnotify v1.8.0
+	github.com/gaissmai/bart v0.20.3
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/go-jose/go-jose/v3 v3.0.4
 	github.com/go-viper/mapstructure/v2 v2.2.1
