@@ -36,8 +36,9 @@ func TestCachingQuerier(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Empty(t, cmp.Diff(&databrokerpb.QueryResponse{
-		Records:    []*databrokerpb.Record{{Version: 1, Type: "t1", Id: "r1"}},
-		TotalCount: 1,
+		Records:       []*databrokerpb.Record{{Version: 1, Type: "t1", Id: "r1"}},
+		TotalCount:    1,
+		RecordVersion: 1,
 	}, res, protocmp.Transform()))
 
 	res, err = storage.NewCachingQuerier(q2, cache).Query(ctx, &databrokerpb.QueryRequest{
@@ -46,8 +47,9 @@ func TestCachingQuerier(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Empty(t, cmp.Diff(&databrokerpb.QueryResponse{
-		Records:    []*databrokerpb.Record{{Version: 1, Type: "t1", Id: "r1"}},
-		TotalCount: 1,
+		Records:       []*databrokerpb.Record{{Version: 1, Type: "t1", Id: "r1"}},
+		TotalCount:    1,
+		RecordVersion: 1,
 	}, res, protocmp.Transform()), "should use the cached version")
 
 	res, err = storage.NewCachingQuerier(q2, cache).Query(ctx, &databrokerpb.QueryRequest{
@@ -57,8 +59,9 @@ func TestCachingQuerier(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Empty(t, cmp.Diff(&databrokerpb.QueryResponse{
-		Records:    []*databrokerpb.Record{{Version: 1, Type: "t1", Id: "r1"}},
-		TotalCount: 1,
+		Records:       []*databrokerpb.Record{{Version: 1, Type: "t1", Id: "r1"}},
+		TotalCount:    1,
+		RecordVersion: 1,
 	}, res, protocmp.Transform()), "should use the cached version")
 
 	res, err = storage.NewCachingQuerier(q2, cache).Query(ctx, &databrokerpb.QueryRequest{
@@ -68,7 +71,8 @@ func TestCachingQuerier(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Empty(t, cmp.Diff(&databrokerpb.QueryResponse{
-		Records:    []*databrokerpb.Record{{Version: 2, Type: "t1", Id: "r1"}},
-		TotalCount: 1,
+		Records:       []*databrokerpb.Record{{Version: 2, Type: "t1", Id: "r1"}},
+		TotalCount:    1,
+		RecordVersion: 2,
 	}, res, protocmp.Transform()), "should query the new version")
 }

@@ -45,11 +45,6 @@ func WithQuerier(ctx context.Context, querier Querier) context.Context {
 	return context.WithValue(ctx, querierKey{}, querier)
 }
 
-// Query queries for records.
-func (q *staticQuerier) Query(_ context.Context, req *databroker.QueryRequest, _ ...grpc.CallOption) (*databroker.QueryResponse, error) {
-	return QueryRecordCollections(q.records, req)
-}
-
 // MarshalQueryRequest marshales the query request.
 func MarshalQueryRequest(req *databroker.QueryRequest) ([]byte, error) {
 	return (&proto.MarshalOptions{

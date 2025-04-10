@@ -328,6 +328,10 @@ func QueryRecordCollections(
 
 	res := new(databroker.QueryResponse)
 	for _, c := range cs {
+		if record, ok := c.Newest(); ok {
+			res.RecordVersion = max(res.RecordVersion, record.Version)
+		}
+
 		records, err := c.List(filter)
 		if err != nil {
 			return nil, err

@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
+	grpc "google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -75,3 +76,8 @@ func NewStaticRecord(typeURL string, msg proto.Message) *databroker.Record {
 }
 
 func (q *staticQuerier) InvalidateCache(_ context.Context, _ *databroker.QueryRequest) {}
+
+// Query queries for records.
+func (q *staticQuerier) Query(_ context.Context, req *databroker.QueryRequest, _ ...grpc.CallOption) (*databroker.QueryResponse, error) {
+	return QueryRecordCollections(q.records, req)
+}
