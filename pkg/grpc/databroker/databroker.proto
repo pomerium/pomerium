@@ -37,9 +37,7 @@ message GetRequest {
 }
 message GetResponse { Record record = 1; }
 
-message ListTypesResponse {
-  repeated string types = 1;
-}
+message ListTypesResponse { repeated string types = 1; }
 
 message QueryRequest {
   string type = 1;
@@ -47,6 +45,7 @@ message QueryRequest {
   int64 offset = 3;
   int64 limit = 4;
   google.protobuf.Struct filter = 5;
+  optional uint64 minimum_record_version_hint = 6;
 }
 message QueryResponse {
   repeated Record records = 1;
