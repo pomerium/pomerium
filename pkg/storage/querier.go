@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -13,6 +14,9 @@ import (
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
 	"github.com/pomerium/pomerium/pkg/grpcutil"
 )
+
+// ErrUnavailable indicates that a querier is not available.
+var ErrUnavailable = errors.New("unavailable")
 
 // A Querier is a read-only subset of the client methods
 type Querier interface {
@@ -26,7 +30,7 @@ type nilQuerier struct{}
 func (nilQuerier) InvalidateCache(_ context.Context, _ *databroker.QueryRequest) {}
 
 func (nilQuerier) Query(_ context.Context, _ *databroker.QueryRequest, _ ...grpc.CallOption) (*databroker.QueryResponse, error) {
-	return nil, status.Error(codes.NotFound, "not found")
+	return nil, errors.Join(ErrUnavailable, status.Error(codes.NotFound, "not found"))
 }
 
 type querierKey struct{}
