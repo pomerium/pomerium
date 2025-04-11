@@ -11,7 +11,6 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
@@ -20,17 +19,15 @@ import (
 	"github.com/pomerium/pomerium/internal/telemetry/metrics"
 	"github.com/pomerium/pomerium/pkg/cryptutil"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
-	"github.com/pomerium/pomerium/pkg/storage"
 	"github.com/pomerium/pomerium/pkg/telemetry/trace"
 )
 
 // Authorize struct holds
 type Authorize struct {
-	state             *atomicutil.Value[*authorizeState]
-	store             *store.Store
-	currentConfig     *atomicutil.Value[*config.Config]
-	accessTracker     *AccessTracker
-	groupsCacheWarmer *cacheWarmer
+	state         *atomicutil.Value[*authorizeState]
+	store         *store.Store
+	currentConfig *atomicutil.Value[*config.Config]
+	accessTracker *AccessTracker
 
 	tracerProvider oteltrace.TracerProvider
 	tracer         oteltrace.Tracer
@@ -48,13 +45,12 @@ func New(ctx context.Context, cfg *config.Config) (*Authorize, error) {
 	}
 	a.accessTracker = NewAccessTracker(a, accessTrackerMaxSize, accessTrackerDebouncePeriod)
 
-	state, err := newAuthorizeStateFromConfig(ctx, tracerProvider, cfg, a.store, nil)
+	state, err := newAuthorizeStateFromConfig(ctx, nil, tracerProvider, cfg, a.store)
 	if err != nil {
 		return nil, err
 	}
 	a.state = atomicutil.NewValue(state)
 
-	a.groupsCacheWarmer = newCacheWarmer(state.dataBrokerClientConnection, storage.GlobalCache, directory.GroupRecordType)
 	return a, nil
 }
 
@@ -68,10 +64,6 @@ func (a *Authorize) Run(ctx context.Context) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
 		a.accessTracker.Run(ctx)
-		return nil
-	})
-	eg.Go(func() error {
-		a.groupsCacheWarmer.Run(ctx)
 		return nil
 	})
 	return eg.Wait()
@@ -154,13 +146,9 @@ func newPolicyEvaluator(
 func (a *Authorize) OnConfigChange(ctx context.Context, cfg *config.Config) {
 	currentState := a.state.Load()
 	a.currentConfig.Store(cfg)
-	if newState, err := newAuthorizeStateFromConfig(ctx, a.tracerProvider, cfg, a.store, currentState.evaluator); err != nil {
+	if newState, err := newAuthorizeStateFromConfig(ctx, currentState, a.tracerProvider, cfg, a.store); err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("authorize: error updating state")
 	} else {
 		a.state.Store(newState)
-
-		if currentState.dataBrokerClientConnection != newState.dataBrokerClientConnection {
-			a.groupsCacheWarmer.UpdateConn(newState.dataBrokerClientConnection)
-		}
 	}
 }
