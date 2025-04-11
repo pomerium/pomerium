@@ -108,10 +108,6 @@ func NewFileOrEnvironmentSource(
 	ctx context.Context,
 	configFile, envoyVersion string,
 ) (*FileOrEnvironmentSource, error) {
-	ctx = log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("config_file_source", configFile)
-	})
-
 	options, err := newOptionsFromConfig(configFile)
 	if err != nil {
 		return nil, err
@@ -254,7 +250,7 @@ func (src *FileWatcherSource) onConfigChange(ctx context.Context, cfg *Config) {
 	// store the config and trigger an update
 	src.cfg = cfg.Clone()
 	src.hash = getAllConfigFilePathsHash(src.cfg)
-	log.Ctx(ctx).Info().Uint64("hash", src.hash).Msg("config/filewatchersource: underlying config change, triggering update")
+	log.Ctx(ctx).Debug().Uint64("hash", src.hash).Msg("config/filewatchersource: underlying config change, triggering update")
 	src.Trigger(ctx, src.cfg)
 }
 

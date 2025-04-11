@@ -93,7 +93,6 @@ func (mgr *MetricsManager) updateServer(ctx context.Context, cfg *Config) {
 	mgr.handler = nil
 
 	if mgr.addr == "" {
-		log.Ctx(ctx).Info().Msg("metrics: http server disabled")
 		return
 	}
 

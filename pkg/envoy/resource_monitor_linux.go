@@ -283,7 +283,7 @@ func (s *sharedResourceMonitor) Run(ctx context.Context, envoyPid int) error {
 	if envoyCgroup != s.cgroup {
 		return fmt.Errorf("envoy process is not in the expected cgroup: %s", envoyCgroup)
 	}
-	log.Ctx(ctx).Info().Str("service", "envoy").Str("cgroup", s.cgroup).Msg("starting resource monitor")
+	log.Ctx(ctx).Debug().Str("service", "envoy").Str("cgroup", s.cgroup).Msg("starting resource monitor")
 
 	ctx, ca := context.WithCancelCause(ctx)
 

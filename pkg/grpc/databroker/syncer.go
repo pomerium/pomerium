@@ -101,7 +101,7 @@ func NewSyncer(ctx context.Context, id string, handler SyncerHandler, options ..
 		id: id,
 	}
 	if s.cfg.withFastForward {
-		s.handler = newFastForwardHandler(s.logCtx(closeCtx), handler)
+		s.handler = newFastForwardHandler(closeCtx, handler)
 	}
 	return s
 }
@@ -120,7 +120,6 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 		cancel()
 	}()
 
-	ctx = syncer.logCtx(ctx)
 	for {
 		var err error
 		if syncer.serverVersion == 0 {
@@ -130,7 +129,11 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 		}
 
 		if err != nil {
-			log.Ctx(ctx).Error().Err(err).Msg("sync")
+			log.Ctx(ctx).Error().
+				Str("syncer_id", syncer.id).
+				Str("syncer_type", syncer.cfg.typeURL).
+				Err(err).
+				Msg("sync")
 			select {
 			case <-ctx.Done():
 				return context.Cause(ctx)
@@ -141,7 +144,10 @@ func (syncer *Syncer) Run(ctx context.Context) error {
 }
 
 func (syncer *Syncer) init(ctx context.Context) error {
-	log.Ctx(ctx).Debug().Msg("initial sync")
+	log.Ctx(ctx).Debug().
+		Str("syncer_id", syncer.id).
+		Str("syncer_type", syncer.cfg.typeURL).
+		Msg("initial sync")
 	records, recordVersion, serverVersion, err := InitialSync(ctx, syncer.handler.GetDataBrokerServiceClient(), &SyncLatestRequest{
 		Type: syncer.cfg.typeURL,
 	})
@@ -173,12 +179,18 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 		return fmt.Errorf("error calling sync: %w", err)
 	}
 
-	log.Ctx(ctx).Debug().Msg("listening for updates")
+	log.Ctx(ctx).Debug().
+		Str("syncer_id", syncer.id).
+		Str("syncer_type", syncer.cfg.typeURL).
+		Msg("listening for updates")
 
 	for {
 		res, err := stream.Recv()
 		if status.Code(err) == codes.Aborted {
-			log.Ctx(ctx).Error().Err(err).Msg("aborted sync due to mismatched server version")
+			log.Ctx(ctx).Error().Err(err).
+				Str("syncer_id", syncer.id).
+				Str("syncer_type", syncer.cfg.typeURL).
+				Msg("aborted sync due to mismatched server version")
 			// server version changed, so re-init
 			syncer.serverVersion = 0
 			return nil
@@ -190,11 +202,13 @@ func (syncer *Syncer) sync(ctx context.Context) error {
 		}
 
 		rec := res.GetRecord()
-		log.Ctx(logCtxRec(ctx, rec)).Debug().Msg("syncer got record")
+		log.Ctx(logCtxRec(ctx, rec)).Debug().
+			Str("syncer_id", syncer.id).
+			Str("syncer_type", syncer.cfg.typeURL).
+			Msg("syncer got record")
 
 		syncer.recordVersion = res.GetRecord().GetVersion()
 		if syncer.cfg.typeURL == "" || syncer.cfg.typeURL == res.GetRecord().GetType() {
-			ctx := logCtxRec(ctx, rec)
 			syncer.handler.UpdateRecords(
 				context.WithValue(ctx, contextkeys.UpdateRecordsVersion, rec.GetVersion()),
 				syncer.serverVersion, []*Record{rec})
@@ -208,12 +222,5 @@ func logCtxRec(ctx context.Context, rec *Record) context.Context {
 		return c.Str("record_type", rec.GetType()).
 			Str("record_id", rec.GetId()).
 			Uint64("record_version", rec.GetVersion())
-	})
-}
-
-func (syncer *Syncer) logCtx(ctx context.Context) context.Context {
-	return log.WithContext(ctx, func(c zerolog.Context) zerolog.Context {
-		return c.Str("syncer_id", syncer.id).
-			Str("syncer_type", syncer.cfg.typeURL)
 	})
 }
