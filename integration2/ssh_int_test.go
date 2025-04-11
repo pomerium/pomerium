@@ -28,6 +28,7 @@ func TestSSH(t *testing.T) {
 
 	// ssh client setup
 	var ki scenarios.EmptyKeyboardInteractiveChallenge
+	var bannerReceived string
 	clientConfig := &ssh.ClientConfig{
 		User: "demo@example",
 		Auth: []ssh.AuthMethod{
@@ -35,6 +36,7 @@ func TestSSH(t *testing.T) {
 			ssh.KeyboardInteractive(ki.Do),
 		},
 		HostKeyCallback: ssh.FixedHostKey(newPublicKey(t, serverHostKey.Public())),
+		BannerCallback:  func(message string) error { bannerReceived = message; return nil },
 	}
 
 	// pomerium + upstream setup
@@ -56,6 +58,9 @@ func TestSSH(t *testing.T) {
 	up := upstreams.SSH(
 		upstreams.WithHostKeys(newSignerFromKey(t, serverHostKey)),
 		upstreams.WithPublicKeyCallback(certChecker.Authenticate),
+		upstreams.WithBannerCallback(func(_ ssh.ConnMetadata) string {
+			return "UPSTREAM BANNER"
+		}),
 	)
 	up.SetServerConnCallback(echoShell{t}.handleConnection)
 	r := up.Route().
@@ -69,6 +74,8 @@ func TestSSH(t *testing.T) {
 	client, err := up.Dial(r, clientConfig)
 	require.NoError(t, err)
 	defer client.Close()
+
+	assert.Equal(t, "UPSTREAM BANNER", bannerReceived)
 
 	sess, err := client.NewSession()
 	require.NoError(t, err)
