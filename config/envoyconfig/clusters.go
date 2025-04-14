@@ -188,6 +188,15 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 		}
 	}
 
+	cluster.CircuitBreakers = &envoy_config_cluster_v3.CircuitBreakers{
+		Thresholds: []*envoy_config_cluster_v3.CircuitBreakers_Thresholds{{
+			Priority:           envoy_config_core_v3.RoutingPriority_DEFAULT,
+			MaxConnections:     wrapperspb.UInt32(10000),
+			MaxPendingRequests: wrapperspb.UInt32(10000),
+			MaxRequests:        wrapperspb.UInt32(10000),
+		}},
+	}
+
 	cluster.AltStatName = getClusterStatsName(policy)
 	upstreamProtocol := getUpstreamProtocolForPolicy(ctx, policy)
 
