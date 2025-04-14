@@ -655,14 +655,11 @@ func (o *Options) Validate() error {
 		return fmt.Errorf("config: failed to parse headers: %w", err)
 	}
 
-	hasCert := false
-
 	if o.Cert != "" || o.Key != "" {
 		_, err := cryptutil.CertificateFromBase64(o.Cert, o.Key)
 		if err != nil {
 			return fmt.Errorf("config: bad cert base64 %w", err)
 		}
-		hasCert = true
 	}
 
 	for _, c := range o.CertificateData {
@@ -670,7 +667,6 @@ func (o *Options) Validate() error {
 		if err != nil {
 			return fmt.Errorf("config: bad cert entry, cert is invalid: %w", err)
 		}
-		hasCert = true
 	}
 
 	for _, c := range o.CertificateFiles {
@@ -678,7 +674,6 @@ func (o *Options) Validate() error {
 		if err != nil {
 			return fmt.Errorf("config: bad cert entry, file reference invalid. %w", err)
 		}
-		hasCert = true
 	}
 
 	if o.CertFile != "" || o.KeyFile != "" {
@@ -686,7 +681,6 @@ func (o *Options) Validate() error {
 		if err != nil {
 			return fmt.Errorf("config: bad cert file %w", err)
 		}
-		hasCert = true
 	}
 
 	if err := o.DownstreamMTLS.validate(); err != nil {
@@ -695,11 +689,6 @@ func (o *Options) Validate() error {
 
 	// strip quotes from redirect address (#811)
 	o.HTTPRedirectAddr = strings.Trim(o.HTTPRedirectAddr, `"'`)
-
-	if !o.InsecureServer && !hasCert && !o.AutocertOptions.Enable {
-		log.Ctx(ctx).Info().Msg("neither `autocert`, " +
-			"`insecure_server` or manually provided certificates were provided, server will be using a self-signed certificate")
-	}
 
 	if err := ValidateDNSLookupFamily(o.DNSLookupFamily); err != nil {
 		return fmt.Errorf("config: %w", err)

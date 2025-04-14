@@ -51,19 +51,19 @@ type grpcLogger struct {
 
 func (c *grpcLogger) Info(args ...any) {
 	if c.getLevel() <= zerolog.DebugLevel {
-		Logger().Info().Msg(fmt.Sprint(args...))
+		Logger().Debug().Msg(fmt.Sprint(args...))
 	}
 }
 
 func (c *grpcLogger) Infoln(args ...any) {
 	if c.getLevel() <= zerolog.DebugLevel {
-		Logger().Info().Msg(fmt.Sprintln(args...))
+		Logger().Debug().Msg(fmt.Sprintln(args...))
 	}
 }
 
 func (c *grpcLogger) Infof(format string, args ...any) {
 	if c.getLevel() <= zerolog.DebugLevel {
-		Logger().Info().Msg(fmt.Sprintf(format, args...))
+		Logger().Debug().Msg(fmt.Sprintf(format, args...))
 	}
 }
 
