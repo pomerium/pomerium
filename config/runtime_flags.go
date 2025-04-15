@@ -25,6 +25,10 @@ var (
 
 	// RuntimeFlagAddExtraMetricsLabels enables adding extra labels to metrics (host and installation id)
 	RuntimeFlagAddExtraMetricsLabels = runtimeFlag("add_extra_metrics_labels", true)
+
+	// RuntimeFlagAuthorizeUseSyncedData enables synced data for querying the databroker for
+	// certain types of data.
+	RuntimeFlagAuthorizeUseSyncedData = runtimeFlag("authorize_use_synced_data", true)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features

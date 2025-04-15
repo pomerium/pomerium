@@ -9,12 +9,17 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	googlegrpc "google.golang.org/grpc"
 
+	"github.com/pomerium/datasource/pkg/directory"
 	"github.com/pomerium/pomerium/authorize/evaluator"
 	"github.com/pomerium/pomerium/authorize/internal/store"
 	"github.com/pomerium/pomerium/config"
 	"github.com/pomerium/pomerium/internal/authenticateflow"
 	"github.com/pomerium/pomerium/pkg/grpc"
 	"github.com/pomerium/pomerium/pkg/grpc/databroker"
+	"github.com/pomerium/pomerium/pkg/grpc/session"
+	"github.com/pomerium/pomerium/pkg/grpc/user"
+	"github.com/pomerium/pomerium/pkg/grpcutil"
+	"github.com/pomerium/pomerium/pkg/storage"
 )
 
 var outboundGRPCConnection = new(grpc.CachedOutboundGRPClientConn)
@@ -30,14 +35,15 @@ type authorizeState struct {
 	dataBrokerClient           databroker.DataBrokerServiceClient
 	sessionStore               *config.SessionStore
 	authenticateFlow           authenticateFlow
+	syncQueriers               map[string]storage.Querier
 }
 
 func newAuthorizeStateFromConfig(
 	ctx context.Context,
+	previousState *authorizeState,
 	tracerProvider oteltrace.TracerProvider,
 	cfg *config.Config,
 	store *store.Store,
-	previousPolicyEvaluator *evaluator.Evaluator,
 ) (*authorizeState, error) {
 	if err := validateOptions(cfg.Options); err != nil {
 		return nil, fmt.Errorf("authorize: bad options: %w", err)
@@ -46,8 +52,12 @@ func newAuthorizeStateFromConfig(
 	state := new(authorizeState)
 
 	var err error
+	var previousEvaluator *evaluator.Evaluator
+	if previousState != nil {
+		previousEvaluator = previousState.evaluator
+	}
 
-	state.evaluator, err = newPolicyEvaluator(ctx, cfg.Options, store, previousPolicyEvaluator)
+	state.evaluator, err = newPolicyEvaluator(ctx, cfg.Options, store, previousEvaluator)
 	if err != nil {
 		return nil, fmt.Errorf("authorize: failed to update policy with options: %w", err)
 	}
@@ -86,6 +96,30 @@ func newAuthorizeStateFromConfig(
 	}
 	if err != nil {
 		return nil, err
+	}
+
+	state.syncQueriers = make(map[string]storage.Querier)
+	if previousState != nil {
+		if previousState.dataBrokerClientConnection == state.dataBrokerClientConnection {
+			state.syncQueriers = previousState.syncQueriers
+		} else {
+			for _, v := range previousState.syncQueriers {
+				v.Stop()
+			}
+		}
+	}
+	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagAuthorizeUseSyncedData) {
+		for _, recordType := range []string{
+			grpcutil.GetTypeURL(new(session.Session)),
+			grpcutil.GetTypeURL(new(user.User)),
+			grpcutil.GetTypeURL(new(user.ServiceAccount)),
+			directory.GroupRecordType,
+			directory.UserRecordType,
+		} {
+			if _, ok := state.syncQueriers[recordType]; !ok {
+				state.syncQueriers[recordType] = storage.NewSyncQuerier(state.dataBrokerClient, recordType)
+			}
+		}
 	}
 
 	return state, nil
