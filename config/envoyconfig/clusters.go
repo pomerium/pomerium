@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"math"
 	"net"
 	"net/url"
 	"strings"
@@ -188,6 +189,17 @@ func (b *Builder) buildPolicyCluster(ctx context.Context, cfg *config.Config, po
 		}
 	}
 
+	if cfg.Options.IsRuntimeFlagSet(config.RuntimeFlagTmpUnlimitedConnections) {
+		cluster.CircuitBreakers = &envoy_config_cluster_v3.CircuitBreakers{
+			Thresholds: []*envoy_config_cluster_v3.CircuitBreakers_Thresholds{{
+				Priority:           envoy_config_core_v3.RoutingPriority_DEFAULT,
+				MaxConnections:     wrapperspb.UInt32(math.MaxUint32),
+				MaxPendingRequests: wrapperspb.UInt32(math.MaxUint32),
+				MaxRequests:        wrapperspb.UInt32(math.MaxUint32),
+			}},
+		}
+	}
+
 	cluster.AltStatName = getClusterStatsName(policy)
 	upstreamProtocol := getUpstreamProtocolForPolicy(ctx, policy)
 
@@ -216,7 +228,6 @@ func (b *Builder) buildPolicyEndpoints(
 ) ([]Endpoint, error) {
 	var endpoints []Endpoint
 	for _, dst := range policy.To {
-		dst := dst
 		ts, err := b.buildPolicyTransportSocket(ctx, cfg, policy, dst.URL)
 		if err != nil {
 			return nil, err

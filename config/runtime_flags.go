@@ -28,6 +28,10 @@ var (
 
 	// RuntimeFlagAddExtraMetricsLabels enables adding extra labels to metrics (host and installation id)
 	RuntimeFlagAddExtraMetricsLabels = runtimeFlag("add_extra_metrics_labels", true)
+
+	// RuntimeFlagTmpUnlimitedConnections enables unlimited connections to the upstream clusters
+	// this is temporary measure until circuit breaker options are added to the config
+	RuntimeFlagTmpUnlimitedConnections = runtimeFlag("tmp_unlimited_connections", false)
 )
 
 // RuntimeFlag is a runtime flag that can flip on/off certain features
